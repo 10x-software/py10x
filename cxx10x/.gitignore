@@ -1,0 +1,5 @@
+/*/_deps/
+/*/cmake-build*/
+/*/CMakeFiles/
+*install_manifest*
+.DS_Store
