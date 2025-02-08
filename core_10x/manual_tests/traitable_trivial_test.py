@@ -67,25 +67,3 @@ if __name__ == '__main__':
     print(r.prefix_notation())
     print(r.eval(p))
 
-    from infra_10x_i import MongoDbDriver
-
-    client = MongoDbDriver.client('localhost')
-    #print(client.uri())
-    print("Client Refcount:", sys.getrefcount(client))
-
-    collection = MongoDbDriver.collection(client, 'test','10x')
-    print("Client Refcount:", sys.getrefcount(client))
-    # TODO: have to keep client reference live, otherwise save_via_update_one throws..
-    #del client
-
-    print(collection.name())
-
-    try:
-        MongoDbDriver.save_via_update_one(collection,{'x':1})
-        assert False, 'must throw'
-    except ValueError as ex:
-        print(ex)
-
-    print( MongoDbDriver.save_via_update_one(collection,{'_id':uuid.uuid1().hex,'_rev':0, 'x':1}) )
-
-
