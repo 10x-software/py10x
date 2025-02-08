@@ -1,0 +1,42 @@
+
+importlib-resources>=6.4.0
+numpy
+
+#---- Qt
+
+#PyQt6==6.6.1
+#PyQt6-Qt6==6.6.1
+#PyQt6-sip~=13.6
+#PyQt6-WebEngine~=6.6.0
+#PyQt6-WebEngine-Qt6==6.6.0
+
+#----
+
+#clipboard>=0.0.4
+#ldap3>=2.9.1
+
+#numpy~=1.23.5; python_version < "3.12"
+#numpy~=1.26.0; python_version >= "3.12"
+
+#pandas~=1.5.3,<2.0
+#polars==0.20.6
+
+#psutil~=5.9.0
+
+#pybind11>=2.11.1
+
+#pymongo>=4.6.1
+
+#---- Web UI
+
+#dash-bootstrap-components~=1.4.1
+#dash[diskcache,compress]~=2.11.1
+#dash-extensions~=0.1.8
+#dash-interactive-graphviz~=0.3.0
+#dash-ag-grid~=2.3.0
+#dash-auth-external~=1.2.0
+#dash-mantine-components~=0.12.1
+
+#pytest~=7.3.1
+
+#jax~=0.4.10

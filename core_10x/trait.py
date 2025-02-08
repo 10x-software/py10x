@@ -1,0 +1,337 @@
+import ast
+import functools
+import locale
+import platform
+import inspect
+import functools
+from inspect import Parameter
+
+from core_10x_i import BTrait
+
+from core_10x.xnone import XNone
+from core_10x.named_constant import NamedConstant
+from core_10x.trait_definition import TraitDefinition, T, Ui
+from core_10x.rc import RC
+
+
+class Trait(BTrait):
+    s_ui_partial = None
+    @classmethod
+    def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
+        assert cls.s_ui_partial
+        return cls.s_ui_partial(label, flags = flags, **params)
+
+    s_datatype_traitclass_map = {}
+    @staticmethod
+    def register_by_datatype(trait_class, data_type):
+        assert inspect.isclass(trait_class) and issubclass(trait_class, Trait), 'trait class must be a subclass of Trait'
+        found = Trait.s_datatype_traitclass_map.get(data_type)
+        assert not found, f'data_type {data_type} for {trait_class} is already registered for {found}'
+        Trait.s_datatype_traitclass_map[data_type] = trait_class
+
+    s_baseclass_traitclass_map = {}
+    @staticmethod
+    def register_by_baseclass(trait_class, base_class):
+        assert inspect.isclass(trait_class) and issubclass(trait_class, Trait), 'trait class must be a subclass of Trait'
+        assert inspect.isclass(base_class), 'base class must be a class'
+        found = Trait.s_baseclass_traitclass_map.get(base_class)
+        assert not found, f'base_class {base_class} for {trait_class} is already registered for {found}'
+        Trait.s_baseclass_traitclass_map[base_class] = trait_class
+
+    @staticmethod
+    def real_trait_class(data_type):
+        real_trait_class = Trait.s_datatype_traitclass_map.get(data_type)
+        if real_trait_class:
+            return real_trait_class
+
+        map = Trait.s_baseclass_traitclass_map
+        base_class: type
+        for base_class in reversed(map):
+            if issubclass(data_type, base_class):
+                return map[base_class]
+
+        return generic_trait
+
+    def __init_subclass__(cls, data_type = None, register = True, base_class = False):
+        cls.s_baseclass = base_class
+        if register:
+            assert data_type and inspect.isclass(data_type), f'{cls} - data_type is not valid'
+            if base_class:
+                Trait.register_by_baseclass(cls, data_type)
+            else:
+                Trait.register_by_datatype(cls, data_type)
+
+    def __init__(self, t_def: TraitDefinition, btrait: BTrait = None):
+        if btrait is None:
+            super().__init__()
+        else:
+            super().__init__(btrait)
+
+        self.t_def = t_def
+        self.getter_params = ()
+
+    def __get__(self, instance, owner):
+        if not self.getter_params:
+            return instance.get_value(self)
+
+        return functools.partial(instance.get_value, self)
+
+    def __set__(self, instance, value):
+        if not self.getter_params:
+            instance.set_value(self, value).throw()
+
+        else:
+            if not isinstance(value, trait_value):
+                raise TypeError(f'May not set a value to {instance.__class__.__name__}.{self.name} as it requires params')
+
+            instance.set_value(self, value.value, *value.args).throw()
+
+    #def __deepcopy__(self, memodict={}):
+    #    return Trait(self.t_def.copy(), btrait = self)
+
+    @staticmethod
+    def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, annotations: dict, rc: RC) -> 'Trait':
+        dt = annotations.get(trait_name, XNone)
+        trait_class = Trait.real_trait_class(dt)
+        trait = trait_class(t_def)
+        trait.name = trait_name
+        trait.data_type = dt
+        trait.flags = t_def.flags.value()
+        trait.default = t_def.default
+
+        for method_kind, method_def in TRAIT_METHOD.s_dir.items():
+            method_suffix = method_kind.lower()
+            method_name = f'{trait_name}_{method_suffix}'
+            method = class_dict.get(method_name)
+            f = method_def.value(trait, method, method_suffix, rc)
+            if f:
+                cpp_name = f'set_f_{method_suffix}'
+                set_f = getattr(trait, cpp_name)
+                set_f(f)
+
+        trait.post_ctor()
+        return trait
+
+    def create_f_get(self, f, attr_name: str, rc: RC):
+        if not f:  #-- no custom getter, just the default value
+            f = lambda traitable: self.default_value()
+            f.__name__ = 'default_value'
+            params = ()
+
+        else:
+            sig = inspect.signature(f)
+            params = []
+            param: Parameter
+            for pname, param in sig.parameters.items():
+                if pname != 'self':
+                    pkind = param.kind
+                    if pkind != Parameter.POSITIONAL_OR_KEYWORD:
+                        rc.add_error(f'{f.__name__} - {pname} is not a positional parameter')
+                    else:
+                        params.append(param)
+            params = tuple(params)
+
+        self.getter_params = params
+        return f
+
+    def create_f_set(self, f, attr_name: str, rc: RC):
+        if not f:
+            return None
+
+        #-- custom setter
+        sig = inspect.signature(f)
+        assert sig.return_annotation is RC, f'{f.__name__} - setter must return RC'
+        params = tuple(sig.parameters.values())
+        n = len(params)
+        if n < 3:
+            rc.add_error(f'{f.__name__} - setter must have at least 3 parameters: self, trait, value')
+
+        getter_params = self.getter_params
+        if getter_params:
+            if getter_params != tuple(params[3:]):
+                rc.add_error(f'{f.__name__} - setter must have same params as the getter: {getter_params}')
+
+        return f
+
+    def create_f_common(self, f, attr_name: str, rc: RC):
+        cls = self.__class__
+        if not f:
+            common_f = getattr(cls, attr_name, None)
+            if common_f:
+                f = lambda obj, trait, value: common_f(trait, value)
+                f.__name__ = f'{cls.__name__}.{common_f.__name__}'
+
+        return f
+
+    def create_f_verify(self, f, attr_name: str, rc: RC):
+        return f
+
+    s_locales = {
+        'Windows':      'USA',
+        'Linux':        'en_US',
+    }
+    def locale_change(self, old_value, value):
+        if value:
+            return value
+
+        try:
+            return locale.setlocale(locale.LC_NUMERIC, self.__class_.s_locales.get(platform.system(), 'en_US'))
+        except Exception:
+            return None
+
+    @classmethod
+    def format_str(cls, fmt: str) -> str:
+        if not fmt:
+            fmt = ':'
+        else:
+            c = fmt[0]
+            if c != '!' and c != ':':
+                fmt = ':' + fmt
+
+        return f'{{{fmt}}}'
+
+    @classmethod
+    def use_format_str(cls, fmt: str, value) -> str:
+        if isinstance(value, str) and not fmt:
+            return value
+
+        return cls.format_str(fmt).format(value)
+
+    def default_formatter(self, value) -> str:
+        return self.use_format_str(self.fmt, value)
+
+    def default_converter(self, value):
+        ...
+
+    #===================================================================================================================
+    #   Trait Interface
+    #===================================================================================================================
+
+    def post_ctor(self):
+        ...
+
+    def default_value(self):
+        raise NotImplementedError
+
+    def same_values(self, value1, value2) -> bool:
+        raise NotImplementedError
+
+    def from_str(self, s: str):
+        lit = ast.literal_eval(s)
+        return self.from_any_xstr(lit)
+
+    def from_any_xstr(self, value):
+        raise NotImplementedError
+
+    def to_str(self, v) -> str:
+         raise NotImplementedError
+
+    def is_acceptable_type(self, data_type: type) -> bool:
+        return data_type is self.data_type
+
+    def serialize(self, value):
+        raise NotImplementedError
+
+    def deserialize(self, value) -> RC:
+        raise NotImplementedError
+
+    def to_id(self, value) -> str:
+        raise NotImplementedError
+
+    def choose_from(self):
+        return {}
+
+    #===================================================================================================================
+
+#---- Methods Associated with a trait
+class TRAIT_METHOD(NamedConstant):
+    GET             = Trait.create_f_get
+    SET             = Trait.create_f_set
+    VERIFY          = Trait.create_f_verify
+    FROM_STR        = Trait.create_f_common
+    FROM_ANY_XSTR   = Trait.create_f_common
+    TO_STR          = Trait.create_f_common
+    SERIALIZE       = Trait.create_f_common
+    DESERIALIZE     = Trait.create_f_common
+    TO_ID           = Trait.create_f_common
+
+    # INVALIDATE      = None
+    # CHOICES         = None
+    # STYLE_SHEET     = None
+
+
+class generic_trait(Trait, register = False):
+
+    def post_ctor(self):
+        assert not self.flags_on(T.ID), f"generic trait {self.name} may not be an ID trait"
+        assert self.flags_on(T.RUNTIME), f"generic trait {self.name} must be a RUNTIME trait"
+
+    def is_acceptable_type(self, data_type: type) -> bool:
+        return issubclass(data_type, self.data_type)
+
+    def same_values(self, value1, value2) -> bool:
+        return value1 is value2
+
+    @classmethod
+    def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
+        return Ui.NONE
+
+class trait_value:
+    def __init__(self, value, *args):
+        self.value = value
+        self.args = args
+
+    def __call__(self, *args, **kwargs):
+        ...
+
+class BoundTrait:
+    def __init__(self, obj, trait: Trait):
+        self.obj = obj
+        self.trait = trait
+        #self.args = ()
+
+    def __getattr__(self, attr_name):
+        trait_attr = getattr(self.trait, attr_name)
+        #if callable(trait_attr):
+        return trait_attr
+
+    def __call__(self):
+        return self.trait
+
+class TraitMethodError(Exception):
+    """
+    NOTE: other_exc must be set in except clause ONLY!
+    """
+    @staticmethod
+    def create(
+        traitable,
+        trait: Trait,
+        method_name: str,
+        reason: str             = '',
+        value                   = XNone,
+        args: tuple             = (),
+        other_exc: Exception    = None
+    ):
+        if isinstance(other_exc, TraitMethodError):
+            return other_exc
+
+        msg = []
+        msg.append(f'Failed in {traitable.__class__.__name__}.{trait.name}.{method_name}')
+        msg.append(f'    object = {traitable.id()};')
+
+        if reason:
+            msg.append(f'    reason = {reason}')
+
+        if value is not None:
+            msg.append(f'    value = {value}')
+
+        if args:
+            msg.append(f'    args = {args}')
+
+        if other_exc:
+            msg.append(f'original exception = {str(other_exc)}')
+
+        return TraitMethodError('\n'.join(msg))
+
+
+
