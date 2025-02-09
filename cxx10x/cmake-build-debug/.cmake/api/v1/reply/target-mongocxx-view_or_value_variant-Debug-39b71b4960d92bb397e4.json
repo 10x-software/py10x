@@ -1,0 +1,378 @@
+{
+	"artifacts" : 
+	[
+		{
+			"path" : "_deps/mongo-cxx-driver-build/examples/mongocxx/view_or_value_variant.exe"
+		},
+		{
+			"path" : "_deps/mongo-cxx-driver-build/examples/mongocxx/view_or_value_variant.pdb"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_executable",
+			"add_examples_executable",
+			"target_link_libraries",
+			"mongocxx_add_library",
+			"set_target_properties",
+			"include",
+			"find_package",
+			"find_dependency",
+			"target_compile_options",
+			"target_include_directories"
+		],
+		"files" : 
+		[
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/examples/CMakeLists.txt",
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/cmake/MongocxxUtil.cmake",
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/CMakeLists.txt",
+			"C:/Program Files (x86)/MONGO_CXX_DRIVER/lib/cmake/mongoc-1.0/mongoc-targets.cmake",
+			"C:/Program Files (x86)/MONGO_CXX_DRIVER/lib/cmake/mongoc-1.0/mongoc-1.0-config.cmake",
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/CMakeLists.txt",
+			"C:/Program Files (x86)/MONGO_CXX_DRIVER/lib/cmake/bson-1.0/bson-targets.cmake",
+			"C:/Program Files (x86)/MONGO_CXX_DRIVER/lib/cmake/bson-1.0/bson-1.0-config.cmake",
+			"C:/Program Files/JetBrains/CLion 2023.3.4/bin/cmake/win/x64/share/cmake-3.27/Modules/CMakeFindDependencyMacro.cmake"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 143,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 66,
+				"parent" : 1
+			},
+			{
+				"command" : 2,
+				"file" : 0,
+				"line" : 67,
+				"parent" : 1
+			},
+			{
+				"file" : 2
+			},
+			{
+				"command" : 3,
+				"file" : 2,
+				"line" : 96,
+				"parent" : 4
+			},
+			{
+				"command" : 2,
+				"file" : 1,
+				"line" : 99,
+				"parent" : 5
+			},
+			{
+				"file" : 5
+			},
+			{
+				"command" : 6,
+				"file" : 5,
+				"line" : 67,
+				"parent" : 7
+			},
+			{
+				"file" : 4,
+				"parent" : 8
+			},
+			{
+				"command" : 5,
+				"file" : 4,
+				"line" : 16,
+				"parent" : 9
+			},
+			{
+				"file" : 3,
+				"parent" : 10
+			},
+			{
+				"command" : 4,
+				"file" : 3,
+				"line" : 68,
+				"parent" : 11
+			},
+			{
+				"command" : 4,
+				"file" : 3,
+				"line" : 75,
+				"parent" : 11
+			},
+			{
+				"command" : 4,
+				"file" : 3,
+				"line" : 82,
+				"parent" : 11
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 97,
+				"parent" : 4
+			},
+			{
+				"command" : 4,
+				"file" : 3,
+				"line" : 89,
+				"parent" : 11
+			},
+			{
+				"command" : 7,
+				"file" : 4,
+				"line" : 2,
+				"parent" : 9
+			},
+			{
+				"command" : 6,
+				"file" : 8,
+				"line" : 76,
+				"parent" : 17
+			},
+			{
+				"file" : 7,
+				"parent" : 18
+			},
+			{
+				"command" : 5,
+				"file" : 7,
+				"line" : 5,
+				"parent" : 19
+			},
+			{
+				"file" : 6,
+				"parent" : 20
+			},
+			{
+				"command" : 4,
+				"file" : 6,
+				"line" : 61,
+				"parent" : 21
+			},
+			{
+				"command" : 8,
+				"file" : 0,
+				"line" : 79,
+				"parent" : 1
+			},
+			{
+				"command" : 9,
+				"file" : 0,
+				"line" : 70,
+				"parent" : 1
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1 -std:c++20"
+				},
+				{
+					"backtrace" : 23,
+					"fragment" : "/Gv"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 3,
+					"define" : "BSONCXX_STATIC"
+				},
+				{
+					"backtrace" : 3,
+					"define" : "MONGOCXX_STATIC"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 24,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/examples/.."
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/include/mongocxx/v_noabi"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/include"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-build/src/mongocxx/lib/mongocxx/v_noabi"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-build/src/mongocxx/lib"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/include/bsoncxx/v_noabi"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/include"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/lib/bsoncxx/v_noabi"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/lib"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-build/src/bsoncxx/lib/bsoncxx/v_noabi"
+				},
+				{
+					"backtrace" : 3,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-build/src/bsoncxx/lib"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					2
+				],
+				"standard" : "20"
+			},
+			"sourceIndexes" : 
+			[
+				0
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 3,
+			"id" : "bsoncxx_static::@78aab504e7fb9bad9454"
+		},
+		{
+			"backtrace" : 3,
+			"id" : "mongocxx_static::@2131284dd932b0d576d2"
+		}
+	],
+	"id" : "mongocxx-view_or_value_variant::@22ac96ba9230aea0a0fa",
+	"link" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1",
+				"role" : "flags"
+			},
+			{
+				"fragment" : "/machine:x64 /debug /INCREMENTAL /subsystem:console",
+				"role" : "flags"
+			},
+			{
+				"backtrace" : 3,
+				"fragment" : "_deps\\mongo-cxx-driver-build\\src\\mongocxx\\mongocxx-static-dts-mdd.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 6,
+				"fragment" : "\"C:\\Program Files (x86)\\MONGO_CXX_DRIVER\\lib\\mongoc-static-1.0.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 12,
+				"fragment" : "Bcrypt.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 12,
+				"fragment" : "secur32.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 12,
+				"fragment" : "crypt32.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 13,
+				"fragment" : "Shlwapi.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 14,
+				"fragment" : "Dnsapi.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 15,
+				"fragment" : "_deps\\mongo-cxx-driver-build\\src\\bsoncxx\\bsoncxx-static-dts-mdd.lib",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 16,
+				"fragment" : "\"C:\\Program Files (x86)\\MONGO_CXX_DRIVER\\lib\\bson-static-1.0.lib\"",
+				"role" : "libraries"
+			},
+			{
+				"backtrace" : 22,
+				"fragment" : "ws2_32.lib",
+				"role" : "libraries"
+			},
+			{
+				"fragment" : "kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib",
+				"role" : "libraries"
+			}
+		],
+		"language" : "CXX"
+	},
+	"name" : "mongocxx-view_or_value_variant",
+	"nameOnDisk" : "view_or_value_variant.exe",
+	"paths" : 
+	{
+		"build" : "_deps/mongo-cxx-driver-build/examples",
+		"source" : "cmake-build-debug/_deps/mongo-cxx-driver-src/examples"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/examples/mongocxx/view_or_value_variant.cpp",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "EXECUTABLE"
+}

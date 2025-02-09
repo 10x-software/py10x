@@ -1,0 +1,50 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install",
+			"mongocxx_install_export_header"
+		],
+		"files" : 
+		[
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 139,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 127,
+				"parent" : 1
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 2,
+			"component" : "dev",
+			"destination" : "include/mongocxx/v_noabi/mongocxx/config",
+			"paths" : 
+			[
+				"cmake-build-debug/_deps/mongo-cxx-driver-build/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/config/export.hpp"
+			],
+			"type" : "file"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "_deps/mongo-cxx-driver-build/src/mongocxx",
+		"source" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx"
+	}
+}

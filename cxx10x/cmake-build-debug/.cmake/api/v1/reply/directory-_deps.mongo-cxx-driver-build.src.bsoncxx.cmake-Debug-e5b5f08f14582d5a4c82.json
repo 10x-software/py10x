@@ -1,0 +1,112 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"install",
+			"bsoncxx_install_pkg_config"
+		],
+		"files" : 
+		[
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/cmake/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 31,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 42,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 48,
+				"parent" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 115,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 102,
+				"parent" : 4
+			}
+		]
+	},
+	"installers" : 
+	[
+		{
+			"backtrace" : 1,
+			"component" : "dev",
+			"destination" : "lib",
+			"paths" : 
+			[
+				"_deps/mongo-cxx-driver-build/src/bsoncxx/bsoncxx-static-dts-mdd.lib"
+			],
+			"targetId" : "bsoncxx_static::@78aab504e7fb9bad9454",
+			"targetIndex" : 9,
+			"type" : "target"
+		},
+		{
+			"backtrace" : 2,
+			"component" : "Unspecified",
+			"destination" : "lib/cmake/bsoncxx-4.0.0",
+			"exportName" : "bsoncxx_targets",
+			"exportTargets" : 
+			[
+				{
+					"id" : "bsoncxx_static::@78aab504e7fb9bad9454",
+					"index" : 9
+				}
+			],
+			"paths" : 
+			[
+				"_deps/mongo-cxx-driver-build/src/bsoncxx/cmake/CMakeFiles/Export/494fb1e9ce8632d1e30862034469199a/bsoncxx_targets.cmake"
+			],
+			"type" : "export"
+		},
+		{
+			"backtrace" : 3,
+			"component" : "Devel",
+			"destination" : "lib/cmake/bsoncxx-4.0.0",
+			"paths" : 
+			[
+				"cmake-build-debug/_deps/mongo-cxx-driver-build/src/bsoncxx/cmake/bsoncxx-config-version.cmake",
+				"cmake-build-debug/_deps/mongo-cxx-driver-build/src/bsoncxx/cmake/bsoncxx-config.cmake"
+			],
+			"type" : "file"
+		},
+		{
+			"backtrace" : 5,
+			"component" : "Unspecified",
+			"destination" : "lib/pkgconfig",
+			"paths" : 
+			[
+				{
+					"from" : "cmake-build-debug/_deps/mongo-cxx-driver-build/src/bsoncxx/cmake/libbsoncxx-static-dts-mdd.pc",
+					"to" : "libbsoncxx-static.pc"
+				}
+			],
+			"type" : "file"
+		}
+	],
+	"paths" : 
+	{
+		"build" : "_deps/mongo-cxx-driver-build/src/bsoncxx/cmake",
+		"source" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/cmake"
+	}
+}

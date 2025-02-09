@@ -1,0 +1,1043 @@
+{
+	"archive" : 
+	{
+		"commandFragments" : 
+		[
+			{
+				"fragment" : "/machine:x64",
+				"role" : "flags"
+			}
+		]
+	},
+	"artifacts" : 
+	[
+		{
+			"path" : "_deps/mongo-cxx-driver-build/src/mongocxx/mongocxx-static-dts-mdd.lib"
+		}
+	],
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_library",
+			"mongocxx_add_library",
+			"install",
+			"target_link_libraries",
+			"add_dependencies",
+			"mongocxx_install_pkg_config",
+			"target_compile_definitions",
+			"target_include_directories"
+		],
+		"files" : 
+		[
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/cmake/MongocxxUtil.cmake",
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/CMakeLists.txt",
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/cmake/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 1
+			},
+			{
+				"command" : 1,
+				"file" : 1,
+				"line" : 96,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 9,
+				"parent" : 1
+			},
+			{
+				"file" : 2
+			},
+			{
+				"command" : 2,
+				"file" : 2,
+				"line" : 31,
+				"parent" : 3
+			},
+			{
+				"command" : 3,
+				"file" : 1,
+				"line" : 97,
+				"parent" : 0
+			},
+			{
+				"command" : 5,
+				"file" : 2,
+				"line" : 128,
+				"parent" : 3
+			},
+			{
+				"command" : 4,
+				"file" : 2,
+				"line" : 104,
+				"parent" : 6
+			},
+			{
+				"command" : 3,
+				"file" : 0,
+				"line" : 99,
+				"parent" : 1
+			},
+			{
+				"command" : 6,
+				"file" : 0,
+				"line" : 96,
+				"parent" : 1
+			},
+			{
+				"command" : 7,
+				"file" : 0,
+				"line" : 101,
+				"parent" : 1
+			}
+		]
+	},
+	"compileGroups" : 
+	[
+		{
+			"compileCommandFragments" : 
+			[
+				{
+					"fragment" : "/DWIN32 /D_WINDOWS /W3 /GR /EHsc /MDd /Zi /Ob0 /Od /RTC1 -std:c++20"
+				}
+			],
+			"defines" : 
+			[
+				{
+					"backtrace" : 5,
+					"define" : "BSONCXX_STATIC"
+				},
+				{
+					"backtrace" : 8,
+					"define" : "BSON_STATIC"
+				},
+				{
+					"backtrace" : 9,
+					"define" : "MONGOCXX_STATIC"
+				},
+				{
+					"backtrace" : 8,
+					"define" : "MONGOC_STATIC"
+				}
+			],
+			"includes" : 
+			[
+				{
+					"backtrace" : 10,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/include/mongocxx/v_noabi"
+				},
+				{
+					"backtrace" : 10,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/include"
+				},
+				{
+					"backtrace" : 10,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi"
+				},
+				{
+					"backtrace" : 10,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib"
+				},
+				{
+					"backtrace" : 10,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-build/src/mongocxx/lib/mongocxx/v_noabi"
+				},
+				{
+					"backtrace" : 10,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-build/src/mongocxx/lib"
+				},
+				{
+					"backtrace" : 5,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/include/bsoncxx/v_noabi"
+				},
+				{
+					"backtrace" : 5,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/include"
+				},
+				{
+					"backtrace" : 5,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/lib/bsoncxx/v_noabi"
+				},
+				{
+					"backtrace" : 5,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-src/src/bsoncxx/lib"
+				},
+				{
+					"backtrace" : 5,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-build/src/bsoncxx/lib/bsoncxx/v_noabi"
+				},
+				{
+					"backtrace" : 5,
+					"path" : "C:/10x-codebase/cxx10x/cmake-build-debug/_deps/mongo-cxx-driver-build/src/bsoncxx/lib"
+				},
+				{
+					"backtrace" : 8,
+					"isSystem" : true,
+					"path" : "C:/Program Files (x86)/MONGO_CXX_DRIVER/include/libmongoc-1.0"
+				},
+				{
+					"backtrace" : 8,
+					"isSystem" : true,
+					"path" : "C:/Program Files (x86)/MONGO_CXX_DRIVER/include/libbson-1.0"
+				}
+			],
+			"language" : "CXX",
+			"languageStandard" : 
+			{
+				"backtraces" : 
+				[
+					2
+				],
+				"standard" : "20"
+			},
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18,
+				19,
+				20,
+				21,
+				22,
+				23,
+				24,
+				25,
+				26,
+				27,
+				28,
+				29,
+				30,
+				31,
+				32,
+				33,
+				34,
+				35,
+				36,
+				37,
+				38,
+				39,
+				40,
+				41,
+				42,
+				43,
+				44,
+				45,
+				46,
+				47,
+				48,
+				49,
+				50,
+				51,
+				52,
+				53,
+				54,
+				55,
+				56,
+				57,
+				58,
+				59,
+				60,
+				61,
+				62,
+				63,
+				64,
+				65,
+				66,
+				67,
+				68,
+				69,
+				70,
+				71,
+				72,
+				73,
+				74,
+				75,
+				76,
+				77,
+				78,
+				79,
+				80,
+				81,
+				82,
+				83,
+				84,
+				85,
+				86,
+				87,
+				88,
+				89,
+				90,
+				91,
+				92,
+				93,
+				94,
+				95,
+				96,
+				97,
+				98
+			]
+		}
+	],
+	"dependencies" : 
+	[
+		{
+			"backtrace" : 5,
+			"id" : "bsoncxx_static::@78aab504e7fb9bad9454"
+		},
+		{
+			"backtrace" : 7,
+			"id" : "generate-libmongocxx_static-pc::@c4479374fdc92bbb66ae"
+		}
+	],
+	"id" : "mongocxx_static::@2131284dd932b0d576d2",
+	"install" : 
+	{
+		"destinations" : 
+		[
+			{
+				"backtrace" : 4,
+				"path" : "lib"
+			}
+		],
+		"prefix" : 
+		{
+			"path" : "C:/Program Files (x86)/10x_i"
+		}
+	},
+	"name" : "mongocxx_static",
+	"nameOnDisk" : "mongocxx-static-dts-mdd.lib",
+	"paths" : 
+	{
+		"build" : "_deps/mongo-cxx-driver-build/src/mongocxx",
+		"source" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "Source Files",
+			"sourceIndexes" : 
+			[
+				0,
+				1,
+				2,
+				3,
+				4,
+				5,
+				6,
+				7,
+				8,
+				9,
+				10,
+				11,
+				12,
+				13,
+				14,
+				15,
+				16,
+				17,
+				18,
+				19,
+				20,
+				21,
+				22,
+				23,
+				24,
+				25,
+				26,
+				27,
+				28,
+				29,
+				30,
+				31,
+				32,
+				33,
+				34,
+				35,
+				36,
+				37,
+				38,
+				39,
+				40,
+				41,
+				42,
+				43,
+				44,
+				45,
+				46,
+				47,
+				48,
+				49,
+				50,
+				51,
+				52,
+				53,
+				54,
+				55,
+				56,
+				57,
+				58,
+				59,
+				60,
+				61,
+				62,
+				63,
+				64,
+				65,
+				66,
+				67,
+				68,
+				69,
+				70,
+				71,
+				72,
+				73,
+				74,
+				75,
+				76,
+				77,
+				78,
+				79,
+				80,
+				81,
+				82,
+				83,
+				84,
+				85,
+				86,
+				87,
+				88,
+				89,
+				90,
+				91,
+				92,
+				93,
+				94,
+				95,
+				96,
+				97,
+				98
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/bulk_write.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/change_stream.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/client_encryption.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/client_session.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/client.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/collection.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/cursor.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/database.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/command_failed_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/command_started_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/command_succeeded_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/heartbeat_failed_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/heartbeat_started_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/heartbeat_succeeded_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/server_changed_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/server_closed_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/server_description.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/server_opening_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/topology_changed_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/topology_closed_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/topology_description.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/events/topology_opening_event.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/authentication_exception.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/bulk_write_exception.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/error_code.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/exception.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/gridfs_exception.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/logic_error.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/operation_exception.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/query_exception.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/server_error_code.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/exception/write_exception.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/gridfs/bucket.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/gridfs/downloader.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/gridfs/uploader.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/hint.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/index_model.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/index_view.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/instance.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/logger.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/model/delete_many.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/model/delete_one.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/model/insert_one.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/model/replace_one.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/model/update_many.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/model/update_one.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/model/write.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/aggregate.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/apm.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/auto_encryption.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/bulk_write.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/change_stream.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/client_encryption.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/client_session.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/client.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/count.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/data_key.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/delete.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/distinct.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/encrypt.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/estimated_document_count.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/find_one_and_delete.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/find_one_and_replace.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/find_one_and_update.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/find.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/gridfs/bucket.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/gridfs/upload.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/index_view.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/index.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/insert.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/pool.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/range.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/replace.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/rewrap_many_datakey.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/server_api.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/tls.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/transaction.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/options/update.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/pipeline.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/pool.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/private/conversions.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/private/libbson.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/private/libmongoc.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/private/numeric_casting.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/read_concern.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/read_preference.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/result/bulk_write.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/result/delete.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/result/gridfs/upload.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/result/insert_many.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/result/insert_one.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/result/replace_one.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/result/rewrap_many_datakey.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/result/update.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/search_index_model.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/search_index_view.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/uri.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/validation_criteria.cpp",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 2,
+			"compileGroupIndex" : 0,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src/mongocxx/lib/mongocxx/v_noabi/mongocxx/write_concern.cpp",
+			"sourceGroupIndex" : 0
+		}
+	],
+	"type" : "STATIC_LIBRARY"
+}

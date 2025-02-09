@@ -1,0 +1,14 @@
+{
+	"backtraceGraph" : 
+	{
+		"commands" : [],
+		"files" : [],
+		"nodes" : []
+	},
+	"installers" : [],
+	"paths" : 
+	{
+		"build" : "_deps/mongo-cxx-driver-build/src",
+		"source" : "cmake-build-debug/_deps/mongo-cxx-driver-src/src"
+	}
+}

@@ -1,0 +1,73 @@
+{
+	"backtrace" : 2,
+	"backtraceGraph" : 
+	{
+		"commands" : 
+		[
+			"add_custom_target",
+			"add_examples_executable"
+		],
+		"files" : 
+		[
+			"cmake-build-debug/_deps/mongo-cxx-driver-src/examples/CMakeLists.txt"
+		],
+		"nodes" : 
+		[
+			{
+				"file" : 0
+			},
+			{
+				"command" : 1,
+				"file" : 0,
+				"line" : 127,
+				"parent" : 0
+			},
+			{
+				"command" : 0,
+				"file" : 0,
+				"line" : 88,
+				"parent" : 1
+			}
+		]
+	},
+	"id" : "run-examples-bsoncxx-builder_core::@22ac96ba9230aea0a0fa",
+	"name" : "run-examples-bsoncxx-builder_core",
+	"paths" : 
+	{
+		"build" : "_deps/mongo-cxx-driver-build/examples",
+		"source" : "cmake-build-debug/_deps/mongo-cxx-driver-src/examples"
+	},
+	"sourceGroups" : 
+	[
+		{
+			"name" : "",
+			"sourceIndexes" : 
+			[
+				0
+			]
+		},
+		{
+			"name" : "CMake Rules",
+			"sourceIndexes" : 
+			[
+				1
+			]
+		}
+	],
+	"sources" : 
+	[
+		{
+			"backtrace" : 2,
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-build/examples/CMakeFiles/run-examples-bsoncxx-builder_core",
+			"sourceGroupIndex" : 0
+		},
+		{
+			"backtrace" : 0,
+			"isGenerated" : true,
+			"path" : "cmake-build-debug/_deps/mongo-cxx-driver-build/examples/CMakeFiles/run-examples-bsoncxx-builder_core.rule",
+			"sourceGroupIndex" : 1
+		}
+	],
+	"type" : "UTILITY"
+}
