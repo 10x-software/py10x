@@ -2,11 +2,5 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$/.." vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../_core_10x/cmake-build-debug/_deps/pybind11-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/../_core_10x/cmake-build-debug/_deps/stduuid-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/ep_catch2-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/mongo-c-driver-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/mongo-cxx-driver-src" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/pybind11-src" vcs="Git" />
   </component>
 </project>
