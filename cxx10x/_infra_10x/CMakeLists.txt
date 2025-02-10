@@ -26,7 +26,8 @@ find_package(pybind11 REQUIRED)
 find_package(mongo-cxx-driver REQUIRED)
 
 pybind11_add_module(infra_10x_i
-        mongo_db_driver.cpp
+        #mongo_db_driver.cpp
+        mongo_collection_helper.cpp
         infra_10x_i.cpp
 )
 
