@@ -4,6 +4,7 @@ from core_10x.trait_filter import f
 from core_10x.rc import RC
 from core_10x.py_class import PyClass
 from core_10x.global_cache import standard_key
+from core_10x.resource import Resource, TS_STORE
 
 class TsCollection:
     s_id_tag: str = None
@@ -26,7 +27,7 @@ class TsCollection:
             return data
         return None
 
-class TsStore:
+class TsStore(Resource, resource_type = TS_STORE):
     s_default_port = None
 
     @staticmethod
@@ -68,4 +69,4 @@ class TsStore:
 
     def collection_names(self, regexp: str = None) -> list:                     raise NotImplementedError
     def collection(self, collection_name: str) -> TsCollection:                 raise NotImplementedError
-    def delete_collection(self, collection_name: str) -> bool:                    raise NotImplementedError
+    def delete_collection(self, collection_name: str) -> bool:                  raise NotImplementedError
