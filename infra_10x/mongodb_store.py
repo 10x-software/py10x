@@ -197,7 +197,7 @@ class MongoCollection(TsCollection):
         return None
 
 
-class MongoStore(TsStore):
+class MongoStore(TsStore, name = 'MONGO_DB'):
     s_instance_kwargs_map = dict(
         port    = ('port',                      27017),
         ssl     = ('ssl',                       False),

@@ -90,11 +90,15 @@ class ResourceType:
 class Resource:
     s_resource_type: ResourceType = None
     def __init_subclass__(cls, resource_type: ResourceType = None, name: str = None):
-        assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
-        cls.s_resource_type = resource_type
+        if cls.s_resource_type is None:   #-- must be a top class of a particular resource type, e.g. TsStore
+            assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
+            assert name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
+            cls.s_resource_type = resource_type
 
-        assert name and isinstance(name, str), 'a unique Resource name is expected'
-        resource_type.register_driver(name, cls)
+        else:   #-- a Resource of a prticular resource type
+            assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
+            assert name and isinstance(name, str), 'a unique Resource name is expected'
+            cls.s_resource_type.register_driver(name, cls)
 
     def __enter__(self):
         rt = self.__class__.s_resource_type
