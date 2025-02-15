@@ -1,6 +1,13 @@
 
+#core
 importlib-resources>=6.4.0
-numpy
+numpy~=1.23.5; python_version < "3.12"
+numpy~=1.26.4; python_version >= "3.12"
+core_10x_i@../cxx10x/_core_10x
+
+#infra
+pymongo>=4.7.3
+infra_10x_i@../cxx10x/_infra_10x
 
 #---- Qt
 

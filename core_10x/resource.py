@@ -105,7 +105,7 @@ class Resource:
         rt.begin_using(self)
         return rt
 
-    def __exit__(self):
+    def __exit__(self,*args):
         self.__class__.s_resource_type.end_using()
 
 #=========== Known Resource Types
