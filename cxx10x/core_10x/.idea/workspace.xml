@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="BackendCodeEditorMiscSettings">
+    <option name="/Default/RiderDebugger/RiderRestoreDecompile/RestoreDecompileSetting/@EntryValue" value="false" type="bool" />
+    <option name="/Default/Housekeeping/GlobalSettingsUpgraded/IsUpgraded/@EntryValue" value="true" type="bool" />
+    <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="57" type="long" />
+    <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexRemoved" />
+  </component>
+  <component name="CMakePresetLoader">{
+  &quot;useNewFormat&quot;: true
+}</component>
+  <component name="CMakeProjectFlavorService">
+    <option name="flavorId" value="CMakePlainProjectFlavor" />
+  </component>
+  <component name="CMakeReloadState">
+    <option name="reloaded" value="true" />
+  </component>
+  <component name="CMakeRunConfigurationManager">
+    <generated>
+      <config projectName="core_10x_i" targetName="core_10x_i" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="7c0b3a33-ba47-469d-96e2-74f2b44a3464" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../.idea/editor.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/core_10x.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/editor.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../infra_10x/.idea/editor.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../infra_10x/.idea/infra_10x.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../infra_10x/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../infra_10x/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../infra_10x/tests/test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/cxx10x.iml" beforeDir="false" afterPath="$PROJECT_DIR$/../.idea/cxx10x.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/../CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/.name" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/_core_10x.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bcache.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/bcache.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bcache.h" beforeDir="false" afterPath="$PROJECT_DIR$/bcache.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bflags.h" beforeDir="false" afterPath="$PROJECT_DIR$/bflags.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bnode.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/bnode.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bnode.h" beforeDir="false" afterPath="$PROJECT_DIR$/bnode.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/brc.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/brc.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/brc.h" beforeDir="false" afterPath="$PROJECT_DIR$/brc.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btrait.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/btrait.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btrait.h" beforeDir="false" afterPath="$PROJECT_DIR$/btrait.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/btraitable.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable.h" beforeDir="false" afterPath="$PROJECT_DIR$/btraitable.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable_class.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/btraitable_class.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable_class.h" beforeDir="false" afterPath="$PROJECT_DIR$/btraitable_class.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable_processor.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/btraitable_processor.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable_processor.h" beforeDir="false" afterPath="$PROJECT_DIR$/btraitable_processor.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/cache.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/cache.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/cache.h" beforeDir="false" afterPath="$PROJECT_DIR$/cache.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/core_10x.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/core_10x.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/crypto/endianness.h" beforeDir="false" afterPath="$PROJECT_DIR$/crypto/endianness.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/crypto/example.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/crypto/example.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/crypto/hashpp.h" beforeDir="false" afterPath="$PROJECT_DIR$/crypto/hashpp.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/crypto/uuid_v4.h" beforeDir="false" afterPath="$PROJECT_DIR$/crypto/uuid_v4.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/dep_graph_exec_engine.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/dep_graph_exec_engine.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/dep_graph_exec_engine.h" beforeDir="false" afterPath="$PROJECT_DIR$/dep_graph_exec_engine.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/eval_once.h" beforeDir="false" afterPath="$PROJECT_DIR$/eval_once.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/exec_stack.h" beforeDir="false" afterPath="$PROJECT_DIR$/exec_stack.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/flags.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/flags.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/hasher.h" beforeDir="false" afterPath="$PROJECT_DIR$/hasher.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/object_cache.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/object_cache.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/object_cache.h" beforeDir="false" afterPath="$PROJECT_DIR$/object_cache.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/process_context.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/process_context.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/process_context.h" beforeDir="false" afterPath="$PROJECT_DIR$/process_context.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/py_linkage.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/py_linkage.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/py_linkage.h" beforeDir="false" afterPath="$PROJECT_DIR$/py_linkage.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/py_support.h" beforeDir="false" afterPath="$PROJECT_DIR$/py_support.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/stackable_context.h" beforeDir="false" afterPath="$PROJECT_DIR$/stackable_context.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/tests/test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/thread_context.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/thread_context.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/thread_context.h" beforeDir="false" afterPath="$PROJECT_DIR$/thread_context.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/tid.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/tid.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/tid.h" beforeDir="false" afterPath="$PROJECT_DIR$/tid.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/traitable_processor.h" beforeDir="false" afterPath="$PROJECT_DIR$/traitable_processor.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/.name" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/.idea/.name" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/_infra_10x.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/infra_10x_i.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/infra_10x_i.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/mongo_collection_helper.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/mongo_collection_helper.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/mongo_collection_helper.h" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/mongo_collection_helper.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/mongo_db_driver.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/mongo_db_driver.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/mongo_db_driver.h" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/mongo_db_driver.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../infra_10x/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/tests/test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/query/cache-v2" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/query/cmakeFiles-v1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/query/codemodel-v2" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/query/toolchains-v1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/cache-v2-ff60a93346e121c45ddc.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/cmakeFiles-v1-dc89a852c32165e2edde.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/codemodel-v2-5b80530895c2803c6d33.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-.-Debug-d0094a50bb2071803777.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_core_10x-Debug-c8b9def9ec67481e0d98.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build-Debug-ce75c4cb3ab1300db409.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.benchmark-Debug-056df22292ae49ce73ce.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.cmake-Debug-a15b3493a1faad7cc288.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.cmake.make_dist-Debug-2f26aebdf4e1d0b47674.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.data-Debug-b5ef36250524ea31f5ef.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.docs-Debug-3012bfe1c96c0f1725de.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.docs.themes-Debug-79244b67abf68a56d780.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.docs.themes.mongodb-Debug-5b6f5d43cf0b29d42634.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.etc-Debug-9471d507509bee94812e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.examples-Debug-a54f1e3e777a6d6549ab.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.generate_uninstall-Debug-1ca3c60781bc86b3a6d9.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src-Debug-da856390bd0e077b1263.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.bsoncxx-Debug-86725955d0029e74413f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.bsoncxx.cmake-Debug-e5b5f08f14582d5a4c82.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.bsoncxx.include-Debug-99e89d278c089bdaff05.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.bsoncxx.lib-Debug-25e0ece927bf80d4d915.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.mongocxx-Debug-4707c8508c32bed77465.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.mongocxx.cmake-Debug-c8fa7bcb76cf99a6f993.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.mongocxx.include-Debug-06da7889568988a2b6c2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.mongocxx.lib-Debug-984b958f0bef77176ef8.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.pybind11-build-Debug-f78b953a221ebb7b9cdb.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.stduuid-build-Debug-4925ad96482c23fba921.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_infra_10x-Debug-6db19193fad907bf0873.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/index-2025-02-08T07-19-15-0347.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-api-runner-Debug-af4ed978f720b1564e37.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_basic-Debug-efa01bef676ebfdbf0cc.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_core-Debug-eded60310ef171b5f573.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_list-Debug-75bd03b26b2eaf5cd2e9.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_stream-Debug-92fd8a87519eb0329843.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_stream_customization-Debug-6dd0c0b62b0c73da7e1f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-decimal128-Debug-32c4c9e57c34d1b624d6.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-getting_values-Debug-fe22e8645e43424c1f14.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-view_and_value-Debug-bb50d2d7233114ddb175.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx_static-Debug-da95b31d70d97a811350.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-core_10x_i-Debug-b62396fc555a3f778035.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-dist-Debug-c1c9ce389096bdb3c30c.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-distcheck-Debug-8e398225204dd7981f72.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-docs-Debug-96a6c7e0011417027dbf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-docs_dir_current-Debug-682faee08bf77bc51a9a.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-doxygen-current-Debug-1eea8b65802fc62a67e2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-doxygen-deploy-Debug-0e1c19d55edc7880e6d0.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-doxygen-latest-Debug-0fa5db6695dbbe019d53.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-examples-Debug-6d1f3d315a158df5742e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-format-Debug-27a33500bc87750bcd6a.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-format-lint-Debug-43a329400c7d7fe83605.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-generate-libbsoncxx_static-pc-Debug-c2f61508be95284db9f0.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-generate-libmongocxx_static-pc-Debug-5d91cdf049552f758004.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-hugo-Debug-016155fa8c6936707c85.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-hugo-deploy-Debug-d8f5f72a1dc652e332c3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-hugo_dir-Debug-b7ef30f0e985eb9efae2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-infra_10x_i-Debug-76dfcde0816d12dbb07f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-microbenchmarks-Debug-8bf5947646d21292355e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-aggregate-Debug-3edb7350102720038653.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-automatic_client_side_field_level_encryption-Debug-9da8563b5228d3ac2f1a.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-bulk_write-Debug-d305449a1c1f3719a1bf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-causal_consistency-Debug-bd2f40ea9b625061f1c4.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-change_streams-Debug-24384a246f84b4f7064b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-client_session-Debug-54694835b73d554b1201.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-connect-Debug-13f299c8e864436f688d.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-create-Debug-8fa812f3844107a231c6.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-document_validation-Debug-415545f4b72a951184e1.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-exception-Debug-b3568254429fc157c28d.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-explicit_encryption-Debug-7f5c65151c1dd27b5480.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-explicit_encryption_auto_decryption-Debug-d0d9938ca57af7c9a1f4.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-get_values_from_documents-Debug-57d455569bafd9758db3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-gridfs-Debug-60edad85b79ec4de13cd.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-index-Debug-e960d666787883209571.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-inserted_id-Debug-2da8f96cc93b6bec4bbe.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-instance_management-Debug-beee6e36fcb5e4885705.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-aggregation_examples-Debug-7a56a766d9ab069345e6.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-documentation_examples-Debug-8c3f4ccfd8b3a78a81cf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-index_examples-Debug-231cefc0c2c59c0fba92.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-runcommand_examples-Debug-0119a7596815d29e8abb.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-usage_overview-Debug-257a8e7b1774737e611d.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-pool-Debug-82320fb7371c04aebbd9.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-query-Debug-e6b43660705ae7970a29.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-query_projection-Debug-a73a7ecb2ac07ff0a30e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-remove-Debug-6cedce9384237e5f2a61.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-server_side_field_level_encryption_enforcement-Debug-b47362661ac499bac9ab.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-tailable_cursor-Debug-106e47751de4e825d480.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-tutorial-Debug-355ef33b4f7efb2f5f36.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-update-Debug-e45c64cd421e7ad96eff.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-view_or_value_variant-Debug-39b71b4960d92bb397e4.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-with_transaction-Debug-487bef28d013a49af0e7.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx_static-Debug-76455a6659a5b0105295.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-api-examples-Debug-5082af2aed800bb296ac.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-bsoncxx-examples-Debug-5bf0f211f747effa9eb3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-Debug-43b882469d0141e29594.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-api-runner-Debug-60e949d62e92ce69901f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_basic-Debug-897cfe34cc52049e86c8.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_core-Debug-9e2ef06eb926efedcfbc.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_list-Debug-a918146384b1cf1e64bf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_stream-Debug-f609d44659224d3e5528.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_stream_customization-Debug-3e686abb74f7a9a7dc4b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-decimal128-Debug-da3e250a82fe2febd01c.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-getting_values-Debug-43a994e3c80de04e2c5e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-view_and_value-Debug-4518987fcaf7bb89b4e8.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-aggregate-Debug-b8747a208cf26015c80f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-automatic_client_side_field_level_encryption-Debug-7e930b706b3c55eeccec.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-bulk_write-Debug-96ae63d438ddb95183bb.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-causal_consistency-Debug-d9f50877ebea9891a16b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-change_streams-Debug-86f8b9413fb77a73c375.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-client_session-Debug-a6fda9b70f6c70daf941.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-connect-Debug-8cfad9bb5cdd02efe4ff.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-create-Debug-06d4624d73c3ac3842aa.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-document_validation-Debug-282237b24e755bd77226.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-exception-Debug-ffa8f6f91d62ede749e0.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-explicit_encryption-Debug-31f548ec1462d71c33f7.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-explicit_encryption_auto_decryption-Debug-5527f359f27a0adf166e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-get_values_from_documents-Debug-bf38de7f0d446ab130c8.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-gridfs-Debug-a4f88cf9952fb900ef58.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-index-Debug-9a10e06953b8e0d1caef.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-inserted_id-Debug-ad8ad47d5700d9828c96.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-instance_management-Debug-6fcb55972c6c456f92f7.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-aggregation_examples-Debug-684484fe47cfae51d4ce.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-documentation_examples-Debug-0ec855cd269f20c62f25.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-index_examples-Debug-27041070e080e025db04.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-runcommand_examples-Debug-a06db494b080d6a22524.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-usage_overview-Debug-e802129c6a4275840a80.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-pool-Debug-fd08bd359325f9656cfc.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-query-Debug-4ba0dc356b0a5023434b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-query_projection-Debug-17e9a0b93327c0aaa9fb.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-remove-Debug-5f6a80f0242c38f1da5b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-server_side_field_level_encryption_enforcement-Debug-aadef674a60d495812f5.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-tailable_cursor-Debug-eff85bcd8af5bda66af2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-tutorial-Debug-251fe8223e558eff3bae.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-update-Debug-4f5ff2619b89b9c86bb3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-view_or_value_variant-Debug-42db66f411879c3dab26.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-with_transaction-Debug-175aa3e987d7b02f3538.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-mongocxx-examples-Debug-de338fe02da801aab85b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-uninstall-Debug-2d060ea83445bc80181f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/toolchains-v1-956c2c19c723f44301bf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.ninja_deps" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.ninja_log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/CMakeCache.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/Testing/Temporary/LastTest.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/VERSION_CURRENT" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/bcache.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/bnode.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/btrait.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/btraitable.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/btraitable_class.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/btraitable_processor.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/core_10x.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/embed.manifest" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/intermediate.manifest" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/manifest.rc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/manifest.res" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/py_linkage.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/thread_context.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/tid.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/vc140.pdb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/cmake_install.cmake" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.cp311-win_amd64.ilk" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.cp311-win_amd64.pyd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.exp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.lib" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.pdb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/embed.manifest" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/infra_10x_i.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/intermediate.manifest" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/manifest.rc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/manifest.res" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/mongo_db_driver.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/vc140.pdb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/cmake_install.cmake" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.cp311-win_amd64.ilk" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.cp311-win_amd64.pyd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.exp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.lib" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.pdb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/build.ninja" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/cmake_install.cmake" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/compile_commands.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/dist_manifest.txt" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectApplicationVersion">
+    <option name="ide" value="CLion" />
+    <option name="majorVersion" value="2023" />
+    <option name="minorVersion" value="3.4" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3
+}</component>
+  <component name="ProjectId" id="2skSNTnDw9sc1kA9Ajgduy1uebp" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "CMake Application.core_10x_i.executor": "Run",
+    "Python.test.executor": "Run",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.RadMigrateCodeStyle": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "RunOnceActivity.west.config.association.type.startup.service": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/Users/iap/10x_llc/cxx10x/core_10x",
+    "node.js.detected.package.eslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RunManager" selected="Python.test">
+    <configuration name="core_10x_i" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="test.py" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$/tests" PASS_PARENT_ENVS_2="true" PROJECT_NAME="core_10x_i" TARGET_NAME="core_10x_i" CONFIG_NAME="Debug" RUN_PATH="$PROJECT_DIR$/.venv/bin/python">
+      <envs>
+        <env name="PYTHONPATH" value="../cmake-build-debug:../../../py10x" />
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <module name="core_10x" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="core_10x" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/test.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="CMake Application.core_10x_i" />
+      <item itemvalue="Python.test" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.test" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="7c0b3a33-ba47-469d-96e2-74f2b44a3464" name="Changes" comment="" />
+      <created>1738998039342</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1738998039342</updated>
+      <workItem from="1738998043169" duration="95000" />
+      <workItem from="1739290416532" duration="1963000" />
+      <workItem from="1739391461041" duration="5889000" />
+      <workItem from="1739574785109" duration="3222000" />
+      <workItem from="1739581327607" duration="1547000" />
+      <workItem from="1739582896164" duration="85000" />
+      <workItem from="1739583561783" duration="198000" />
+      <workItem from="1739584765568" duration="474000" />
+      <workItem from="1739585254138" duration="1037000" />
+      <workItem from="1739587574245" duration="135000" />
+      <workItem from="1739587758960" duration="1921000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VCPKGProject">
+    <isAutomaticCheckingOnLaunch value="false" />
+    <isAutomaticFoundErrors value="true" />
+    <isAutomaticReloadCMake value="true" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" type="com.jetbrains.cidr.execution.debugger.OCBreakpointType">
+          <url>file://$PROJECT_DIR$/btraitable.cpp</url>
+          <line>104</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/tests/test.py</url>
+          <line>5</line>
+          <option name="timeStamp" value="2" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/tests/test.py</url>
+          <option name="timeStamp" value="3" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>
