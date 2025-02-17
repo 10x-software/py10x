@@ -5,6 +5,7 @@ import inspect
 
 from core_10x_i import BTraitable, BTraitableClass
 
+from core_10x.nucleus import Nucleus
 from core_10x.xnone import XNone
 from core_10x.trait_definition import TraitDefinition, TraitModification
 from core_10x.trait import Trait, TRAIT_METHOD, T, BoundTrait, trait_value
@@ -12,6 +13,8 @@ import core_10x.concrete_traits
 from core_10x.global_cache import cache
 from core_10x.rc import RC, RC_TRUE
 from core_10x.package_refactoring import PackageRefactoring
+from core_10x.ts_store import TS_STORE, TsStore, TsCollection
+from core_10x.trait_filter import f
 
 
 class TraitAccessor:
@@ -26,8 +29,7 @@ class TraitAccessor:
     def __call__(self, trait_name: str, throw = True) -> Trait:
         return self.cls.trait(trait_name, throw = True)
 
-#-- TODO: also derive from Nucleus!
-class Traitable(BTraitable):
+class Traitable(BTraitable, Nucleus):
 
     s_dir = {}
     @classmethod
@@ -114,6 +116,118 @@ class Traitable(BTraitable):
     def set_value_by_name(self, trait_name: str, value, *args) -> RC:
         trait = self.__class__.trait(trait_name)
         return self.set_value(trait, value) if not args else self.get_value(trait, value, args)
+
+    #===================================================================================================================
+    #   Nucleus related methods
+    #===================================================================================================================
+
+    def serialize(self, embed: bool):
+        if not embed:   #-- reference to this object
+            #-- must make sure this object ixists in store
+            self.save().throw()
+            return self.id()
+
+        cls = self.__class__
+        res = {}
+        trait: Trait
+        for trait_name, trait in cls.s_dir.items():
+            if trait.flags_on(T.RUNTIME):
+                continue
+
+            value = self.get_value(trait)
+            if value is XNone:  #-- undefined
+                raise ValueError(f'{cls}.{trait_name} - undefined value')
+
+            ser_value = trait.serialize(value)
+            res[trait_name] = ser_value
+
+        return res
+
+    @classmethod
+    def deserialize(cls, serialized_data) -> Nucleus:
+        if isinstance(serialized_data, str):    #-- id
+            return cls.from_str(serialized_data)
+
+        dir = cls.s_dir
+        trait: Trait
+        #-- TODO: we may need a more performant ctor which takes {trait -> value} dict instead of {name -> value }
+        trait_values = { name: trait.deserialize(ser_value) for name, ser_value in serialized_data.items() if (trait := dir.get(name)) }
+        return cls(**trait_values)
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}: {self.id()}'
+
+    @classmethod
+    def from_str(cls, s: str) -> Nucleus:
+        return cls.load(s)  # -- TODO: should be cls.instance_by_id()
+
+    @classmethod
+    def from_any_xstr(cls, value) -> Nucleus:
+        raise NotImplementedError
+
+    @classmethod
+    def from_any(cls, value) -> Nucleus:
+        return cls.deserialize(value)
+
+    @classmethod
+    def same_values(cls, value1, value2) -> bool:
+        return value1.id() == value2.id()
+
+    #===================================================================================================================
+    #   Storage related methods
+    #===================================================================================================================
+
+    @classmethod
+    @cache
+    def collection(cls) -> TsCollection:
+        store: TsStore = TS_STORE.current_resource()
+        if not store:
+            #-- TODO: find a store re the class' Domain and Category
+            ...
+
+        if not store:
+            raise EnvironmentError(f'{cls} - failed to find a store')
+
+        cname = PackageRefactoring.find_class_id(cls)
+        return store.collection(cname)
+
+    @classmethod
+    def load(cls, id_value: str) -> 'Traitable':
+        coll = cls.collection()
+        serialized_data = coll.load(id_value)
+        return cls.deserialize(serialized_data)
+
+    @classmethod
+    def load_many(cls, query: f) -> list:
+        coll = cls.collection()
+        return [ cls.deserialize(serialized_data) for serialized_data in coll.find(query) ]
+
+    @classmethod
+    def load_ids(cls, query: f) -> list:
+        coll = cls.collection()
+        id_tag = coll.s_id_tag
+        return [ serialized_data.get(id_tag) for serialized_data in coll.find(query) ]
+
+    def save(self) -> RC:
+        cls = self.__class__
+        if not cls.is_storable():
+            return RC( False, f'{cls} is not storable')
+
+        rc = self.verify()
+        if not rc:
+            return rc
+
+        serialized_data = self.serialize()
+        coll = cls.collection()
+
+        try:
+            rev = coll.save(serialized_data)
+        except Exception as e:
+            return RC( False, str(e))
+
+        self.set_revision(rev)
+        return RC_TRUE
+
 
     # def def_trait_invalidate(self, trait_def: TraitDefinition):
     #     self._default_cache.trait_invalidate(trait_def)
