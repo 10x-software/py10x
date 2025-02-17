@@ -1,6 +1,18 @@
 if __name__ == '__main__':
     from datetime import datetime, date
-    from core10x_old.nucleus import Nucleus
+    from core_10x.nucleus import Nucleus
+
+    from core_10x.named_constant import Enum, EnumBits
+
+    class COLOR(Enum):
+        RED     = ()
+        GREEN   = ()
+        BLUE    = ()
+
+    class STATE(EnumBits):
+        RUNNING     = ()
+        SUSPENDED   = ()
+        ABORTED     = ()
 
     data = {
         bool:           False,
@@ -14,6 +26,8 @@ if __name__ == '__main__':
         list:           [ 10, 5.1, 'label', datetime.now(), date(2020, 1, 1), ['a', 100], dict( a = 1, b = 2) ],
         tuple:          ( 10, 5.1, 'label', datetime.now(), date(2020, 1, 1), ['a', 100], dict( a = 1, b = 2) ),
         dict:           { 1: 1, 'a': 'abc', 'b': [ 10, 100. ], 'c': dict(x = -100, y = -200) },
+        COLOR:          COLOR.GREEN,
+        STATE:          STATE.RUNNING | STATE.SUSPENDED
     }
 
     serialized_data     = { dt: Nucleus.serialize_any(v, False) for dt, v in data.items() }

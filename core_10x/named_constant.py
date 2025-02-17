@@ -24,6 +24,9 @@ class NamedConstant(Nucleus):
         self.label = label
         self.value = value
 
+    def __eq__(self, other):
+        return self.name == other.name
+
     @classmethod
     def _create(cls, args) -> 'NamedConstant':
         cdef = cls()
@@ -47,6 +50,10 @@ class NamedConstant(Nucleus):
 
         return cdef
 
+    #===================================================================================================================
+    #   Nucleus Interface implementation
+    #===================================================================================================================
+
     def __repr__(self):
         return f'{self.__class__.__name__}.{self.name}'
 
@@ -63,9 +70,12 @@ class NamedConstant(Nucleus):
         return cdef
 
     @classmethod
-    def from_any(cls, data) -> 'NamedConstant':
-        dt = type(data)
-        if dt is cls.s_data_type:
+    def from_str(cls, s: str) -> 'NamedConstant':
+        return cls.s_dir.get(s)
+
+    @classmethod
+    def from_any_xstr(cls, data) -> 'NamedConstant':
+        if type(data) is cls.s_data_type:
             reverse_dir = cls.s_reverse_dir
             if reverse_dir:
                 return reverse_dir.get(data)
@@ -75,16 +85,17 @@ class NamedConstant(Nucleus):
                 if cdef.value == data:
                     return cdef
 
-            return None
-
-        elif dt is str:
-            return cls.s_dir.get(data)
-
         return None
+
+    @classmethod
+    def same_values(cls, value1, value2) -> bool:
+        return value1 is value2
 
     @classmethod
     def choose_from(cls):
         return cls.s_dir
+
+    #===================================================================================================================
 
     s_dir = {}
     s_reverse_dir = {}
@@ -244,6 +255,10 @@ class EnumBits(NamedConstant):
         if not s:
             return getattr(cls, NO_FLAGS_TAG)
 
+        found = cls.s_dir.get(s)
+        if found is not None:
+            return found
+
         cnames = s.split('|')
         value = cls.names_to_value(cnames)
         return cls(s, s, value)
@@ -258,13 +273,10 @@ class EnumBits(NamedConstant):
         return cls(name, name, value)
 
     @classmethod
-    def from_any(cls, data) -> 'EnumBits':
+    def from_any_xstr(cls, data) -> 'EnumBits':
         dt = type(data)
         if dt is int:
             return cls.from_int(data)
-
-        elif dt is str:
-            return cls.from_str(data)
 
         elif dt is tuple or dt is list:
             value = cls.names_to_value(data)
