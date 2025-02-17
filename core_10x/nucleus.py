@@ -220,18 +220,22 @@ class Nucleus:
     #===============================================================================================================================
     #   The following methods must be implemented by a subclass of Nucleus
     #===============================================================================================================================
+
+    def __repr__(self):
+        return self.to_str()
+
+    def to_str(self) -> str:
+        return str(self)
+
+    def to_id(self) -> str:
+        return self.to_str()
+
     def serialize(self, embed: bool):
         raise NotImplementedError
 
     @classmethod
     def deserialize(cls, serialized_data) -> 'Nucleus':
         raise NotImplementedError
-
-    def __repr__(self):
-        raise NotImplementedError
-
-    def __str__(self):
-        return self.__repr__()
 
     @classmethod
     def from_str(cls, s: str) -> 'Nucleus':
@@ -243,6 +247,9 @@ class Nucleus:
 
     @classmethod
     def from_any(cls, value) -> 'Nucleus':
+        if isinstance(value, cls):
+            return value
+
         if isinstance(value, str):
             return cls.from_str(value)
 

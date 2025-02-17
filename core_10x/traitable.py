@@ -9,7 +9,7 @@ from core_10x.nucleus import Nucleus
 from core_10x.xnone import XNone
 from core_10x.trait_definition import TraitDefinition, TraitModification
 from core_10x.trait import Trait, TRAIT_METHOD, T, BoundTrait, trait_value
-import core_10x.concrete_traits
+import core_10x.concrete_traits as concrete_traits
 from core_10x.global_cache import cache
 from core_10x.rc import RC, RC_TRUE
 from core_10x.package_refactoring import PackageRefactoring
@@ -123,8 +123,7 @@ class Traitable(BTraitable, Nucleus):
 
     def serialize(self, embed: bool):
         if not embed:   #-- reference to this object
-            #-- must make sure this object ixists in store
-            self.save().throw()
+            #-- TODO: must make sure this object exists in store
             return self.id()
 
         cls = self.__class__
@@ -146,28 +145,31 @@ class Traitable(BTraitable, Nucleus):
     @classmethod
     def deserialize(cls, serialized_data) -> Nucleus:
         if isinstance(serialized_data, str):    #-- id
-            return cls.from_str(serialized_data)
+            return cls.instance_by_id(serialized_data)
+
+        res = cls.from_any_xstr(serialized_data)
+        if res:
+            return res
+
+        raise ValueError(f'{cls} - failed to deserialize {serialized_data}')
+
+    def to_str(self) -> str:
+        return f'{self.__class__.__name__}/{self.id()}'
+
+    @classmethod
+    def from_str(cls, s: str) -> Nucleus:
+        return cls.instance_by_id(s)
+
+    @classmethod
+    def from_any_xstr(cls, value) -> Nucleus:
+        if not isinstance(value, dict):
+            return None
 
         dir = cls.s_dir
         trait: Trait
         #-- TODO: we may need a more performant ctor which takes {trait -> value} dict instead of {name -> value }
-        trait_values = { name: trait.deserialize(ser_value) for name, ser_value in serialized_data.items() if (trait := dir.get(name)) }
+        trait_values = { name: trait.deserialize(ser_value) for name, ser_value in value.items() if (trait := dir.get(name)) }
         return cls(**trait_values)
-
-    def __repr__(self):
-        return f'{self.__class__.__name__}: {self.id()}'
-
-    @classmethod
-    def from_str(cls, s: str) -> Nucleus:
-        return cls.load(s)  # -- TODO: should be cls.instance_by_id()
-
-    @classmethod
-    def from_any_xstr(cls, value) -> Nucleus:
-        raise NotImplementedError
-
-    @classmethod
-    def from_any(cls, value) -> Nucleus:
-        return cls.deserialize(value)
 
     @classmethod
     def same_values(cls, value1, value2) -> bool:
@@ -227,6 +229,29 @@ class Traitable(BTraitable, Nucleus):
 
         self.set_revision(rev)
         return RC_TRUE
+
+class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True):
+    def post_ctor(self):
+        ...
+
+    def default_value(self):
+        def_value = self.default_value
+        if isinstance(def_value, str):  #-- id
+            return self.data_type.instance_by_id(def_value)
+
+        if isinstance(def_value, dict): #-- trait values
+            return self.data_type(**def_value)
+
+        assert False, f'{self.data_type} - may not be constructed from {def_value}'
+
+    def from_str(self, s: str):
+        return self.data_type.instance_by_id(s)
+
+    def from_any_xstr(self, value):
+        if not isinstance(value, dict):
+            return None
+
+        return self.data_type(**value)
 
 
     # def def_trait_invalidate(self, trait_def: TraitDefinition):
