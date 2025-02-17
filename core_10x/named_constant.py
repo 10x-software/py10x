@@ -54,8 +54,11 @@ class NamedConstant(Nucleus):
     #   Nucleus Interface implementation
     #===================================================================================================================
 
-    def __repr__(self):
+    def to_str(self) -> str:
         return f'{self.__class__.__name__}.{self.name}'
+
+    def to_id(self) -> str:
+        return self.name
 
     def serialize(self, embed: bool) -> str:
         return self.name
@@ -289,6 +292,10 @@ class EnumBits(NamedConstant):
     @classmethod
     def deserialize(cls, data) -> 'EnumBits':
         return cls.from_str(data)
+
+    @classmethod
+    def same_values(cls, value1, value2) -> bool:
+        return value1 is value2 or value1.name == value2.name
 
 class ErrorCode(Enum, seed = -1, step = -1):
     def __call__(self, *args, **kwargs):

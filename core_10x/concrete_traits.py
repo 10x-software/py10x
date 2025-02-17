@@ -8,6 +8,7 @@ from core_10x.ui_hint import Ui
 from core_10x.xdate_time import XDateTime, date, datetime
 from core_10x.py_class import PyClass
 from core_10x.named_constant import NamedConstant, EnumBits
+from core_10x.package_refactoring import PackageRefactoring
 
 class primitive_trait(Trait, register = False):
 
@@ -26,14 +27,14 @@ class primitive_trait(Trait, register = False):
     def to_str(self, v) -> str:
          return str(v)
 
+    def to_id(self, v) -> str:
+        return str(v)
+
     def serialize(self, value):
         return value
 
     def deserialize(self, value):
         return value
-
-    def to_id(self, value) -> str:
-        return str(value)
 
 
 class bool_trait(primitive_trait, data_type = bool):
@@ -152,11 +153,10 @@ class date_trait(Trait, data_type = date):
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type in self.s_acceptable_types
 
-    # TODO: revisit date serialization!
     def serialize(self, value: date):
         return value
 
-    def deserialize(self, value: datetime):
+    def deserialize(self, value: date):
         return value
 
     def to_id(self, value) -> str:
@@ -168,28 +168,32 @@ class class_trait(Trait, data_type = type):
     def to_str(self, value):
         return PyClass.name(value)
 
+    def to_id(self, value) -> str:
+        return PackageRefactoring.find_class_id(value)
+
     def same_values(self, value1, value2) -> bool:
         return value1 is value2
 
     def from_str(self, s: str):
-        cls = PyClass.find(s)
-        if cls is None:
-            raise ValueError('unknown class')
-
-        return cls
+        return PackageRefactoring.find_class(s)
 
     def from_any_xstr(self, value):
         raise AssertionError('May not be called')
 
-    #-- TODO: must be revisited!
     def serialize(self, value):
-        return PyClass.name(value)
+        return PackageRefactoring.find_class_id(value)
 
     def deserialize(self, value: str):
-        return PyClass.find(value)
+        return PackageRefactoring.find_class(value)
 
 class list_trait(Trait, data_type = list):
     s_ui_partial = Ui.partial(Ui.line)
+
+    def to_str(self, v) -> str:
+        return str(v)
+
+    def to_id(self, value) -> str:
+        return str(value)
 
     def default_value(self) -> list:
         return list(self.default)
@@ -200,12 +204,17 @@ class list_trait(Trait, data_type = list):
     def deserialize(self, value: list):
         return Nucleus.deserialize_list(value)
 
-
 class dict_trait(Trait, data_type = dict):
     s_ui_partial = Ui.partial(Ui.line, flags = Ui.SELECT_ONLY)
 
     def use_format_str(cls, fmt: str, value) -> str:
         return str(value) if not fmt else fmt.join(f"'{key}' -> '{val}'" for key, val in value.items())
+
+    def to_str(self, v) -> str:
+        return str(v)
+
+    def to_id(self, value) -> str:
+        return str(value)
 
     def default_value(self) -> dict:
         return dict(self.default)
@@ -216,11 +225,16 @@ class dict_trait(Trait, data_type = dict):
     def deserialize(self, value: dict):
         return Nucleus.deserialize_dict(value)
 
-
 class any_trait(Trait, data_type = XNone.__class__):  # -- any
     @classmethod
     def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
         return Ui.NONE
+
+    def to_str(self, v) -> str:
+        return str(v)
+
+    def to_id(self, value) -> str:
+        return str(value)
 
     def from_str(self, s: str):
         return None
@@ -245,14 +259,23 @@ class nucleus_trait(Trait, data_type = Nucleus, base_class = True):
     def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
         return Ui.NONE
 
+    def to_str(self, v) -> str:
+        return self.data_type.to_str()
+
+    def to_id(self, value) -> str:
+        return self.data_type.to_id(value)
+
     def from_str(self, s: str) -> Nucleus:
         return self.data_type.from_str(s)
 
     def from_any_xstr(self, value) -> Nucleus:
-        return self.data_type.from_any_except_str(value)
+        return self.data_type.from_any_xstr(value)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return issubclass(data_type, self.data_type)
+
+    def same_values(self, value1, value2) -> bool:
+        return self.data_type.same_values(value1, value2)
 
     def serialize(self, value: Nucleus):
         return value.serialize(self.flags_on(T.EMBEDDED))
@@ -269,6 +292,6 @@ class named_constant_trait(nucleus_trait, data_type = NamedConstant, base_class 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
-class flags_trait(nucleus_trait, data_type = EnumBits, base_class = True):
-    ...
+#class flags_trait(nucleus_trait, data_type = EnumBits, base_class = True):
+#    ...
 
