@@ -10,8 +10,8 @@ class TsCollection:
     s_id_tag: str = None
 
     def find(self, query: f = None) -> Iterable:                                raise NotImplementedError
-    def save_new(self, serialized_traitable: dict) -> int:                      raise NotImplementedError
-    def save(self, serialized_traitable: dict) -> RC:                           raise NotImplementedError
+    def save_new(self, serialized_traitable: dict) -> int:                      raise NotImplementedError   #-- new _rev
+    def save(self, serialized_traitable: dict) -> int:                          raise NotImplementedError   #-- new _rev
     def delete(self, id_value: str) -> bool:                                    raise NotImplementedError
 
     def create_index(self, name: str, trait_name: str, **index_args) -> str:    raise NotImplementedError

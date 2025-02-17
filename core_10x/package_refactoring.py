@@ -4,6 +4,9 @@ import inspect
 from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
 
+
+CLASS_ID_DELIMITER = '/'
+
 class PackageRefactoring:
     s_module_name   = '_refactoring'
     s_records_name  = '_records'
@@ -21,7 +24,7 @@ class PackageRefactoring:
         if canonical_class_name is None:
             assert cls and inspect.isclass(cls), f'{cls} is not a valid class'
             canonical_class_name = PyClass.name(cls)
-        return canonical_class_name.replace('.', '/')
+        return canonical_class_name.replace('.', CLASS_ID_DELIMITER)
 
     def __init__(self, top_package_name: str):
         try:
@@ -78,19 +81,19 @@ class PackageRefactoring:
             if cid is not None:
                 return cid
 
-        return cls.default_class_id(cls)
+        return PackageRefactoring.default_class_id(cls)
 
     @staticmethod
     @cache
     def find_class(class_id: str):
-        canonical_class_name = class_id
-
         pkg_refact: PackageRefactoring
         for pkg_refact in PackageRefactoring.s_instances.values():
             path = pkg_refact.cid_to_path.get(class_id)
             if path is not None:
                 canonical_class_name = path
                 break
+        else:
+            canonical_class_name = class_id.replace(CLASS_ID_DELIMITER, '.')
 
         cls = PyClass.find(canonical_class_name)
         if cls is None or not inspect.isclass(cls):

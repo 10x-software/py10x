@@ -4,6 +4,7 @@ from datetime import datetime, date, time
 import numpy
 
 from core_10x.py_class import PyClass
+from core_10x.package_refactoring import PackageRefactoring
 
 
 class Nucleus:
@@ -31,13 +32,11 @@ class Nucleus:
         if record_type is record:  #-- record type is missing, so it's not a Nucleus record
             return None
 
-        cls_name = record.get(Nucleus.CLASS_TAG, record)
-        if cls_name is record:  #-- CLASS_TAG is missing - corrupted record
+        cls_id = record.get(Nucleus.CLASS_TAG, record)
+        if cls_id is record:  #-- CLASS_TAG is missing - corrupted record
             raise TypeError(f'Nucleus record is currupted - CLASS_TAG is missing\n{record}')
 
-        data_type = PyClass.find(cls_name)
-        if data_type is None:
-            raise TypeError(f'Unknown class {cls_name}')
+        data_type = PackageRefactoring.find_class(cls_id)
 
         serialized_data = record.get(Nucleus.OBJECT_TAG, record)
         if serialized_data is record:    #-- serialized object is missing
@@ -93,7 +92,7 @@ class Nucleus:
             if serialized_type is not cls:     #-- different type, e.g., date serialized as str
                 serialized = {
                     Nucleus.TYPE_TAG:   Nucleus.TYPE_RECORD,
-                    Nucleus.CLASS_TAG:  PyClass.name(cls),
+                    Nucleus.CLASS_TAG:  PackageRefactoring.find_class_id(cls),
                     Nucleus.OBJECT_TAG: serialized
                 }
 
@@ -104,7 +103,7 @@ class Nucleus:
             serialized = value.serialize(embed)
             return {
                 Nucleus.TYPE_TAG:   Nucleus.NX_RECORD,
-                Nucleus.CLASS_TAG:  PyClass.name(cls),
+                Nucleus.CLASS_TAG:  PackageRefactoring.find_class_id(cls),
                 Nucleus.OBJECT_TAG: serialized
             }
 
@@ -167,10 +166,10 @@ class Nucleus:
         return date.fromisoformat(value)
 
     def serialize_type(value: type, embed: bool) -> str:
-        return PyClass.name(value)
+        return PackageRefactoring.find_class_id(value)
 
-    def deserialize_type(cls_name: str) -> type:
-        return PyClass.find(cls_name)
+    def deserialize_type(cls_id: str) -> type:
+        return PackageRefactoring.find_class(cls_id)
 
     s_serialization_map = {
         type:       serialize_type,
@@ -239,7 +238,7 @@ class Nucleus:
         raise NotImplementedError
 
     @classmethod
-    def from_any_except_str(cls, value) -> 'Nucleus':
+    def from_any_xstr(cls, value) -> 'Nucleus':
         raise NotImplementedError
 
     @classmethod
@@ -247,7 +246,7 @@ class Nucleus:
         if isinstance(value, str):
             return cls.from_str(value)
 
-        return cls.from_any_except_str(value)
+        return cls.from_any_xstr(value)
 
     @classmethod
     def same_values(cls, value1, value2) -> bool:
