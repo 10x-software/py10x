@@ -1,0 +1,1737 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="BackendCodeEditorMiscSettings">
+    <option name="/Default/RiderDebugger/RiderRestoreDecompile/RestoreDecompileSetting/@EntryValue" value="false" type="bool" />
+    <option name="/Default/Housekeeping/GlobalSettingsUpgraded/IsUpgraded/@EntryValue" value="true" type="bool" />
+    <option name="/Default/Housekeeping/FeatureSuggestion/FeatureSuggestionManager/DisabledSuggesters/=SwitchToGoToActionSuggester/@EntryIndexedValue" value="true" type="bool" />
+    <option name="/Default/Environment/Hierarchy/GeneratedFilesCacheKey/Timestamp/@EntryValue" value="68" type="long" />
+  </component>
+  <component name="CMakePresetLoader">{
+  &quot;useNewFormat&quot;: true
+}</component>
+  <component name="CMakeProjectFlavorService">
+    <option name="flavorId" value="CMakePlainProjectFlavor" />
+  </component>
+  <component name="CMakeReloadState">
+    <option name="reloaded" value="true" />
+  </component>
+  <component name="CMakeRunConfigurationManager">
+    <generated>
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-document_validation" />
+      <config projectName="infra_10x_i" targetName="mongocxx-automatic_client_side_field_level_encryption" />
+      <config projectName="infra_10x_i" targetName="mongocxx-with_transaction" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-mongodb.com-documentation_examples" />
+      <config projectName="infra_10x_i" targetName="zlib_obj" />
+      <config projectName="infra_10x_i" targetName="bson-validate" />
+      <config projectName="infra_10x_i" targetName="bsoncxx-builder_basic" />
+      <config projectName="infra_10x_i" targetName="mongocxx-mongodb.com-index_examples" />
+      <config projectName="infra_10x_i" targetName="test_retryable_reads_specs" />
+      <config projectName="infra_10x_i" targetName="example-collection-command" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-gridfs" />
+      <config projectName="infra_10x_i" targetName="mongocxx-aggregate" />
+      <config projectName="infra_10x_i" targetName="bson-metrics" />
+      <config projectName="infra_10x_i" targetName="hugo_dir" />
+      <config projectName="infra_10x_i" targetName="mongocxx-inserted_id" />
+      <config projectName="infra_10x_i" targetName="mongocxx-tailable_cursor" />
+      <config projectName="infra_10x_i" targetName="mongocxx-pool" />
+      <config projectName="infra_10x_i" targetName="example-gridfs" />
+      <config projectName="infra_10x_i" targetName="mongocxx-mongodb.com-usage_overview" />
+      <config projectName="infra_10x_i" targetName="creating" />
+      <config projectName="infra_10x_i" targetName="mongocxx-mongodb.com-aggregation_examples" />
+      <config projectName="infra_10x_i" targetName="test_unified_format_specs" />
+      <config projectName="infra_10x_i" targetName="migrating" />
+      <config projectName="infra_10x_i" targetName="bson_static" />
+      <config projectName="infra_10x_i" targetName="example-session" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-change_streams" />
+      <config projectName="infra_10x_i" targetName="public-header-warnings" />
+      <config projectName="infra_10x_i" targetName="bsoncxx_static" />
+      <config projectName="infra_10x_i" targetName="bson-streaming-reader" />
+      <config projectName="infra_10x_i" targetName="run-examples-bsoncxx-builder_stream" />
+      <config projectName="infra_10x_i" targetName="mongo_c_driver_examples" />
+      <config projectName="infra_10x_i" targetName="mongoc_static" />
+      <config projectName="infra_10x_i" targetName="bsoncxx-builder_core" />
+      <config projectName="infra_10x_i" targetName="Catch2WithMain" />
+      <config projectName="infra_10x_i" targetName="test_client_side_encryption_specs" />
+      <config projectName="infra_10x_i" targetName="bsoncxx-builder_list" />
+      <config projectName="infra_10x_i" targetName="mongocxx-client_session" />
+      <config projectName="infra_10x_i" targetName="mongocxx-mongodb.com-documentation_examples" />
+      <config projectName="infra_10x_i" targetName="Catch2" />
+      <config projectName="infra_10x_i" targetName="example-bulkwrite" />
+      <config projectName="infra_10x_i" targetName="mongocxx-get_values_from_documents" />
+      <config projectName="infra_10x_i" targetName="dist" />
+      <config projectName="infra_10x_i" targetName="bulk-collation" />
+      <config projectName="infra_10x_i" targetName="mongocxx-server_side_field_level_encryption_enforcement" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-aggregate" />
+      <config projectName="infra_10x_i" targetName="mcd_rpc" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-with_transaction" />
+      <config projectName="infra_10x_i" targetName="bsoncxx-decimal128" />
+      <config projectName="infra_10x_i" targetName="bsoncxx-getting_values" />
+      <config projectName="infra_10x_i" targetName="mongocxx-bulk_write" />
+      <config projectName="infra_10x_i" targetName="run-examples-bsoncxx-builder_core" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-index" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-query_projection" />
+      <config projectName="infra_10x_i" targetName="test_versioned_api" />
+      <config projectName="infra_10x_i" targetName="run-examples-bsoncxx-builder_list" />
+      <config projectName="infra_10x_i" targetName="run-examples-api-runner" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-inserted_id" />
+      <config projectName="infra_10x_i" targetName="test_driver" />
+      <config projectName="infra_10x_i" targetName="spec_test_common" />
+      <config projectName="infra_10x_i" targetName="example-sdam-monitoring" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-mongodb.com-index_examples" />
+      <config projectName="infra_10x_i" targetName="generate-libmongocxx_static-pc" />
+      <config projectName="infra_10x_i" targetName="example-client" />
+      <config projectName="infra_10x_i" targetName="example-start-at-optime" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-connect" />
+      <config projectName="infra_10x_i" targetName="docs" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-exception" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-query" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-explicit_encryption" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-tailable_cursor" />
+      <config projectName="infra_10x_i" targetName="hugo-deploy" />
+      <config projectName="infra_10x_i" targetName="aggregation1" />
+      <config projectName="infra_10x_i" targetName="example-update" />
+      <config projectName="infra_10x_i" targetName="microbenchmarks" />
+      <config projectName="infra_10x_i" targetName="test_read_write_concern_specs" />
+      <config projectName="infra_10x_i" targetName="test_instance" />
+      <config projectName="infra_10x_i" targetName="mongoc-dump" />
+      <config projectName="infra_10x_i" targetName="test_transactions_specs" />
+      <config projectName="infra_10x_i" targetName="example-scram" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-remove" />
+      <config projectName="infra_10x_i" targetName="example-pool" />
+      <config projectName="infra_10x_i" targetName="bson-check-depth" />
+      <config projectName="infra_10x_i" targetName="bsoncxx-builder_stream_customization" />
+      <config projectName="infra_10x_i" targetName="mongocxx-explicit_encryption" />
+      <config projectName="infra_10x_i" targetName="bcon-col-view" />
+      <config projectName="infra_10x_i" targetName="basic-aggregation" />
+      <config projectName="infra_10x_i" targetName="bsoncxx-view_and_value" />
+      <config projectName="infra_10x_i" targetName="hello_mongoc" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-explicit_encryption_auto_decryption" />
+      <config projectName="infra_10x_i" targetName="bsoncxx-builder_stream" />
+      <config projectName="infra_10x_i" targetName="bcon-speed" />
+      <config projectName="infra_10x_i" targetName="json-to-bson" />
+      <config projectName="infra_10x_i" targetName="test_mongohouse_specs" />
+      <config projectName="infra_10x_i" targetName="uninstall" />
+      <config projectName="infra_10x_i" targetName="example-gridfs-bucket" />
+      <config projectName="infra_10x_i" targetName="test_gridfs_specs" />
+      <config projectName="infra_10x_i" targetName="examples" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-tutorial" />
+      <config projectName="infra_10x_i" targetName="bulk6" />
+      <config projectName="infra_10x_i" targetName="doxygen-deploy" />
+      <config projectName="infra_10x_i" targetName="find-and-modify" />
+      <config projectName="infra_10x_i" targetName="mongocxx-connect" />
+      <config projectName="infra_10x_i" targetName="appending" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-update" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-automatic_client_side_field_level_encryption" />
+      <config projectName="infra_10x_i" targetName="example-transaction" />
+      <config projectName="infra_10x_i" targetName="mongoc_shared" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-get_values_from_documents" />
+      <config projectName="infra_10x_i" targetName="bulk3" />
+      <config projectName="infra_10x_i" targetName="bulk2" />
+      <config projectName="infra_10x_i" targetName="mongoc-ping" />
+      <config projectName="infra_10x_i" targetName="bulk5" />
+      <config projectName="infra_10x_i" targetName="example-collection-watch" />
+      <config projectName="infra_10x_i" targetName="bulk4" />
+      <config projectName="infra_10x_i" targetName="run-examples-bsoncxx-view_and_value" />
+      <config projectName="infra_10x_i" targetName="bulk1" />
+      <config projectName="infra_10x_i" targetName="mongocxx-create" />
+      <config projectName="infra_10x_i" targetName="mongocxx-document_validation" />
+      <config projectName="infra_10x_i" targetName="format-lint" />
+      <config projectName="infra_10x_i" targetName="infra_10x_i" />
+      <config projectName="infra_10x_i" targetName="mongocxx-exception" />
+      <config projectName="infra_10x_i" targetName="common-operations" />
+      <config projectName="infra_10x_i" targetName="mongocxx_static" />
+      <config projectName="infra_10x_i" targetName="executing" />
+      <config projectName="infra_10x_i" targetName="run-examples-bsoncxx-getting_values" />
+      <config projectName="infra_10x_i" targetName="test_logging" />
+      <config projectName="infra_10x_i" targetName="doxygen-latest" />
+      <config projectName="infra_10x_i" targetName="generate-libbsoncxx_static-pc" />
+      <config projectName="infra_10x_i" targetName="example-command-with-opts" />
+      <config projectName="infra_10x_i" targetName="mongocxx-query_projection" />
+      <config projectName="infra_10x_i" targetName="client_helpers" />
+      <config projectName="infra_10x_i" targetName="format" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-causal_consistency" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-mongodb.com-aggregation_examples" />
+      <config projectName="infra_10x_i" targetName="run-bsoncxx-examples" />
+      <config projectName="infra_10x_i" targetName="mongocxx-index" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-instance_management" />
+      <config projectName="infra_10x_i" targetName="test_command_monitoring_specs" />
+      <config projectName="infra_10x_i" targetName="mongocxx-query" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-create" />
+      <config projectName="infra_10x_i" targetName="fam" />
+      <config projectName="infra_10x_i" targetName="mongocxx-remove" />
+      <config projectName="infra_10x_i" targetName="bson_shared" />
+      <config projectName="infra_10x_i" targetName="run-api-examples" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-pool" />
+      <config projectName="infra_10x_i" targetName="bsoncxx_testing" />
+      <config projectName="infra_10x_i" targetName="run-examples-bsoncxx-builder_stream_customization" />
+      <config projectName="infra_10x_i" targetName="example-manage-collection-indexes" />
+      <config projectName="infra_10x_i" targetName="hugo" />
+      <config projectName="infra_10x_i" targetName="api-runner" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-mongodb.com-runcommand_examples" />
+      <config projectName="infra_10x_i" targetName="mongocxx-update" />
+      <config projectName="infra_10x_i" targetName="mongoc-cxx-check" />
+      <config projectName="infra_10x_i" targetName="example-manage-search-indexes" />
+      <config projectName="infra_10x_i" targetName="mongocxx-view_or_value_variant" />
+      <config projectName="infra_10x_i" targetName="run-examples" />
+      <config projectName="infra_10x_i" targetName="mongocxx-instance_management" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-mongodb.com-usage_overview" />
+      <config projectName="infra_10x_i" targetName="distcheck" />
+      <config projectName="infra_10x_i" targetName="mongocxx-mongodb.com-runcommand_examples" />
+      <config projectName="infra_10x_i" targetName="docs_dir_current" />
+      <config projectName="infra_10x_i" targetName="mongocxx-causal_consistency" />
+      <config projectName="infra_10x_i" targetName="mongocxx-change_streams" />
+      <config projectName="infra_10x_i" targetName="extended-json" />
+      <config projectName="infra_10x_i" targetName="mongocxx_mocked" />
+      <config projectName="infra_10x_i" targetName="mongocxx-gridfs" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-view_or_value_variant" />
+      <config projectName="infra_10x_i" targetName="mongocxx-tutorial" />
+      <config projectName="infra_10x_i" targetName="example-command-monitoring" />
+      <config projectName="infra_10x_i" targetName="example-resume" />
+      <config projectName="infra_10x_i" targetName="test_crud_specs" />
+      <config projectName="infra_10x_i" targetName="run-examples-bsoncxx-decimal128" />
+      <config projectName="infra_10x_i" targetName="mongo_c_driver_tests" />
+      <config projectName="infra_10x_i" targetName="utf8proc_obj" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-client_session" />
+      <config projectName="infra_10x_i" targetName="test_bson" />
+      <config projectName="infra_10x_i" targetName="run-mongocxx-examples" />
+      <config projectName="infra_10x_i" targetName="mongoc-stat" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-server_side_field_level_encryption_enforcement" />
+      <config projectName="infra_10x_i" targetName="run-examples-mongocxx-bulk_write" />
+      <config projectName="infra_10x_i" targetName="bson-to-json" />
+      <config projectName="infra_10x_i" targetName="mongoc-tail" />
+      <config projectName="infra_10x_i" targetName="mongocxx-explicit_encryption_auto_decryption" />
+      <config projectName="infra_10x_i" targetName="run-examples-bsoncxx-builder_basic" />
+      <config projectName="infra_10x_i" targetName="doxygen-current" />
+    </generated>
+  </component>
+  <component name="CMakeSettings">
+    <configurations>
+      <configuration PROFILE_NAME="Debug" ENABLED="true" CONFIG_NAME="Debug" />
+    </configurations>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="5e6f097b-6228-44fa-a0be-db133ab43fe4" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../.idea/editor.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../core_10x/.idea/.name" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../core_10x/.idea/core_10x.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../core_10x/.idea/editor.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../core_10x/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../core_10x/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../core_10x/tests/test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/editor.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/infra_10x.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tests/test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/../.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/cxx10x.iml" beforeDir="false" afterPath="$PROJECT_DIR$/../.idea/cxx10x.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/../CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/.name" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/_core_10x.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bcache.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/bcache.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bcache.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/bcache.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bflags.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/bflags.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bnode.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/bnode.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/bnode.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/bnode.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/brc.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/brc.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/brc.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/brc.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btrait.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/btrait.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btrait.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/btrait.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/btraitable.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/btraitable.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable_class.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/btraitable_class.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable_class.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/btraitable_class.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable_processor.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/btraitable_processor.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/btraitable_processor.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/btraitable_processor.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/cache.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/cache.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/cache.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/cache.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/core_10x.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/core_10x.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/crypto/endianness.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/crypto/endianness.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/crypto/example.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/crypto/example.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/crypto/hashpp.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/crypto/hashpp.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/crypto/uuid_v4.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/crypto/uuid_v4.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/dep_graph_exec_engine.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/dep_graph_exec_engine.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/dep_graph_exec_engine.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/dep_graph_exec_engine.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/eval_once.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/eval_once.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/exec_stack.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/exec_stack.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/flags.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/flags.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/hasher.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/hasher.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/object_cache.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/object_cache.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/object_cache.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/object_cache.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/process_context.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/process_context.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/process_context.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/process_context.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/py_linkage.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/py_linkage.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/py_linkage.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/py_linkage.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/py_support.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/py_support.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/stackable_context.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/stackable_context.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/tests/test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/thread_context.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/thread_context.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/thread_context.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/thread_context.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/tid.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/tid.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/tid.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/tid.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_core_10x/traitable_processor.h" beforeDir="false" afterPath="$PROJECT_DIR$/../core_10x/traitable_processor.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/.name" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/.name" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/_infra_10x.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/misc.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/modules.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/CMakeLists.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/infra_10x_i.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/infra_10x_i.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/main.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/main.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/mongo_collection_helper.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/mongo_collection_helper.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/mongo_collection_helper.h" beforeDir="false" afterPath="$PROJECT_DIR$/mongo_collection_helper.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/mongo_db_driver.cpp" beforeDir="false" afterPath="$PROJECT_DIR$/mongo_db_driver.cpp" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/mongo_db_driver.h" beforeDir="false" afterPath="$PROJECT_DIR$/mongo_db_driver.h" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/pyproject.toml" beforeDir="false" afterPath="$PROJECT_DIR$/pyproject.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../_infra_10x/tests/test.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/query/cache-v2" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/query/cmakeFiles-v1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/query/codemodel-v2" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/query/toolchains-v1" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/cache-v2-ff60a93346e121c45ddc.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/cmakeFiles-v1-dc89a852c32165e2edde.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/codemodel-v2-5b80530895c2803c6d33.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-.-Debug-d0094a50bb2071803777.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_core_10x-Debug-c8b9def9ec67481e0d98.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build-Debug-ce75c4cb3ab1300db409.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.benchmark-Debug-056df22292ae49ce73ce.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.cmake-Debug-a15b3493a1faad7cc288.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.cmake.make_dist-Debug-2f26aebdf4e1d0b47674.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.data-Debug-b5ef36250524ea31f5ef.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.docs-Debug-3012bfe1c96c0f1725de.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.docs.themes-Debug-79244b67abf68a56d780.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.docs.themes.mongodb-Debug-5b6f5d43cf0b29d42634.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.etc-Debug-9471d507509bee94812e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.examples-Debug-a54f1e3e777a6d6549ab.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.generate_uninstall-Debug-1ca3c60781bc86b3a6d9.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src-Debug-da856390bd0e077b1263.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.bsoncxx-Debug-86725955d0029e74413f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.bsoncxx.cmake-Debug-e5b5f08f14582d5a4c82.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.bsoncxx.include-Debug-99e89d278c089bdaff05.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.bsoncxx.lib-Debug-25e0ece927bf80d4d915.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.mongocxx-Debug-4707c8508c32bed77465.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.mongocxx.cmake-Debug-c8fa7bcb76cf99a6f993.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.mongocxx.include-Debug-06da7889568988a2b6c2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.mongo-cxx-driver-build.src.mongocxx.lib-Debug-984b958f0bef77176ef8.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.pybind11-build-Debug-f78b953a221ebb7b9cdb.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_deps.stduuid-build-Debug-4925ad96482c23fba921.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/directory-_infra_10x-Debug-6db19193fad907bf0873.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/index-2025-02-08T07-19-15-0347.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-api-runner-Debug-af4ed978f720b1564e37.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_basic-Debug-efa01bef676ebfdbf0cc.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_core-Debug-eded60310ef171b5f573.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_list-Debug-75bd03b26b2eaf5cd2e9.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_stream-Debug-92fd8a87519eb0329843.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-builder_stream_customization-Debug-6dd0c0b62b0c73da7e1f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-decimal128-Debug-32c4c9e57c34d1b624d6.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-getting_values-Debug-fe22e8645e43424c1f14.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx-view_and_value-Debug-bb50d2d7233114ddb175.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-bsoncxx_static-Debug-da95b31d70d97a811350.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-core_10x_i-Debug-b62396fc555a3f778035.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-dist-Debug-c1c9ce389096bdb3c30c.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-distcheck-Debug-8e398225204dd7981f72.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-docs-Debug-96a6c7e0011417027dbf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-docs_dir_current-Debug-682faee08bf77bc51a9a.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-doxygen-current-Debug-1eea8b65802fc62a67e2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-doxygen-deploy-Debug-0e1c19d55edc7880e6d0.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-doxygen-latest-Debug-0fa5db6695dbbe019d53.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-examples-Debug-6d1f3d315a158df5742e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-format-Debug-27a33500bc87750bcd6a.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-format-lint-Debug-43a329400c7d7fe83605.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-generate-libbsoncxx_static-pc-Debug-c2f61508be95284db9f0.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-generate-libmongocxx_static-pc-Debug-5d91cdf049552f758004.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-hugo-Debug-016155fa8c6936707c85.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-hugo-deploy-Debug-d8f5f72a1dc652e332c3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-hugo_dir-Debug-b7ef30f0e985eb9efae2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-infra_10x_i-Debug-76dfcde0816d12dbb07f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-microbenchmarks-Debug-8bf5947646d21292355e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-aggregate-Debug-3edb7350102720038653.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-automatic_client_side_field_level_encryption-Debug-9da8563b5228d3ac2f1a.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-bulk_write-Debug-d305449a1c1f3719a1bf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-causal_consistency-Debug-bd2f40ea9b625061f1c4.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-change_streams-Debug-24384a246f84b4f7064b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-client_session-Debug-54694835b73d554b1201.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-connect-Debug-13f299c8e864436f688d.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-create-Debug-8fa812f3844107a231c6.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-document_validation-Debug-415545f4b72a951184e1.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-exception-Debug-b3568254429fc157c28d.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-explicit_encryption-Debug-7f5c65151c1dd27b5480.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-explicit_encryption_auto_decryption-Debug-d0d9938ca57af7c9a1f4.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-get_values_from_documents-Debug-57d455569bafd9758db3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-gridfs-Debug-60edad85b79ec4de13cd.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-index-Debug-e960d666787883209571.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-inserted_id-Debug-2da8f96cc93b6bec4bbe.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-instance_management-Debug-beee6e36fcb5e4885705.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-aggregation_examples-Debug-7a56a766d9ab069345e6.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-documentation_examples-Debug-8c3f4ccfd8b3a78a81cf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-index_examples-Debug-231cefc0c2c59c0fba92.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-runcommand_examples-Debug-0119a7596815d29e8abb.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-mongodb.com-usage_overview-Debug-257a8e7b1774737e611d.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-pool-Debug-82320fb7371c04aebbd9.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-query-Debug-e6b43660705ae7970a29.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-query_projection-Debug-a73a7ecb2ac07ff0a30e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-remove-Debug-6cedce9384237e5f2a61.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-server_side_field_level_encryption_enforcement-Debug-b47362661ac499bac9ab.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-tailable_cursor-Debug-106e47751de4e825d480.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-tutorial-Debug-355ef33b4f7efb2f5f36.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-update-Debug-e45c64cd421e7ad96eff.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-view_or_value_variant-Debug-39b71b4960d92bb397e4.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx-with_transaction-Debug-487bef28d013a49af0e7.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-mongocxx_static-Debug-76455a6659a5b0105295.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-api-examples-Debug-5082af2aed800bb296ac.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-bsoncxx-examples-Debug-5bf0f211f747effa9eb3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-Debug-43b882469d0141e29594.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-api-runner-Debug-60e949d62e92ce69901f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_basic-Debug-897cfe34cc52049e86c8.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_core-Debug-9e2ef06eb926efedcfbc.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_list-Debug-a918146384b1cf1e64bf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_stream-Debug-f609d44659224d3e5528.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-builder_stream_customization-Debug-3e686abb74f7a9a7dc4b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-decimal128-Debug-da3e250a82fe2febd01c.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-getting_values-Debug-43a994e3c80de04e2c5e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-bsoncxx-view_and_value-Debug-4518987fcaf7bb89b4e8.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-aggregate-Debug-b8747a208cf26015c80f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-automatic_client_side_field_level_encryption-Debug-7e930b706b3c55eeccec.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-bulk_write-Debug-96ae63d438ddb95183bb.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-causal_consistency-Debug-d9f50877ebea9891a16b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-change_streams-Debug-86f8b9413fb77a73c375.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-client_session-Debug-a6fda9b70f6c70daf941.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-connect-Debug-8cfad9bb5cdd02efe4ff.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-create-Debug-06d4624d73c3ac3842aa.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-document_validation-Debug-282237b24e755bd77226.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-exception-Debug-ffa8f6f91d62ede749e0.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-explicit_encryption-Debug-31f548ec1462d71c33f7.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-explicit_encryption_auto_decryption-Debug-5527f359f27a0adf166e.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-get_values_from_documents-Debug-bf38de7f0d446ab130c8.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-gridfs-Debug-a4f88cf9952fb900ef58.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-index-Debug-9a10e06953b8e0d1caef.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-inserted_id-Debug-ad8ad47d5700d9828c96.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-instance_management-Debug-6fcb55972c6c456f92f7.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-aggregation_examples-Debug-684484fe47cfae51d4ce.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-documentation_examples-Debug-0ec855cd269f20c62f25.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-index_examples-Debug-27041070e080e025db04.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-runcommand_examples-Debug-a06db494b080d6a22524.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-mongodb.com-usage_overview-Debug-e802129c6a4275840a80.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-pool-Debug-fd08bd359325f9656cfc.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-query-Debug-4ba0dc356b0a5023434b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-query_projection-Debug-17e9a0b93327c0aaa9fb.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-remove-Debug-5f6a80f0242c38f1da5b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-server_side_field_level_encryption_enforcement-Debug-aadef674a60d495812f5.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-tailable_cursor-Debug-eff85bcd8af5bda66af2.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-tutorial-Debug-251fe8223e558eff3bae.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-update-Debug-4f5ff2619b89b9c86bb3.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-view_or_value_variant-Debug-42db66f411879c3dab26.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-examples-mongocxx-with_transaction-Debug-175aa3e987d7b02f3538.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-run-mongocxx-examples-Debug-de338fe02da801aab85b.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/target-uninstall-Debug-2d060ea83445bc80181f.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.cmake/api/v1/reply/toolchains-v1-956c2c19c723f44301bf.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.ninja_deps" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/.ninja_log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/CMakeCache.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/Testing/Temporary/LastTest.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/VERSION_CURRENT" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/bcache.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/bnode.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/btrait.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/btraitable.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/btraitable_class.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/btraitable_processor.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/core_10x.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/embed.manifest" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/intermediate.manifest" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/manifest.rc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/manifest.res" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/py_linkage.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/thread_context.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/tid.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/CMakeFiles/core_10x_i.dir/vc140.pdb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/cmake_install.cmake" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.cp311-win_amd64.ilk" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.cp311-win_amd64.pyd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.exp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.lib" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_core_10x/core_10x_i.pdb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/embed.manifest" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/infra_10x_i.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/intermediate.manifest" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/manifest.rc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/manifest.res" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/mongo_db_driver.cpp.obj" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/CMakeFiles/infra_10x_i.dir/vc140.pdb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/cmake_install.cmake" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.cp311-win_amd64.ilk" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.cp311-win_amd64.pyd" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.exp" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.lib" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/_infra_10x/infra_10x_i.pdb" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/build.ninja" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/cmake_install.cmake" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/compile_commands.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../cmake-build-debug/dist_manifest.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/cmake-build-debug/_deps/mongo-c-driver-src/VERSION_CURRENT" beforeDir="false" afterPath="$PROJECT_DIR$/cmake-build-debug/_deps/mongo-c-driver-src/VERSION_CURRENT" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="CMakeBuildProfile:Debug" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="mock:///Users/iap/10x_llc/cxx10x/infra_10x/main.cpp" root0="SKIP_HIGHLIGHTING" />
+  </component>
+  <component name="ProjectApplicationVersion">
+    <option name="ide" value="CLion" />
+    <option name="majorVersion" value="2023" />
+    <option name="minorVersion" value="3.4" />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 4
+}</component>
+  <component name="ProjectId" id="2skSZu6CQ3BvqSHuBRIIDHI37zx" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;CMake Application.infra_10x_i.executor&quot;: &quot;Run&quot;,
+    &quot;Python.test.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.RadMigrateCodeStyle&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.readMode.enableVisualFormatting&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.west.config.association.type.startup.service&quot;: &quot;true&quot;,
+    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;cf.first.check.clang-format&quot;: &quot;false&quot;,
+    &quot;cidr.known.project.marker&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/Users/iap/10x_llc/cxx10x/infra_10x&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RunManager" selected="Python.test">
+    <configuration name="test_bson" type="CMakeCatchTestRunConfigurationType" factoryName="Catch Test" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_bson" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_bson" TEST_MODE="SUITE_TEST">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+        <option name="BeforeTestRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_driver" type="CMakeCatchTestRunConfigurationType" factoryName="Catch Test" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_driver" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_driver" TEST_MODE="SUITE_TEST">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+        <option name="BeforeTestRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_versioned_api" type="CMakeCatchTestRunConfigurationType" factoryName="Catch Test" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_versioned_api" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_versioned_api" TEST_MODE="SUITE_TEST">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+        <option name="BeforeTestRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Catch2" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="Catch2" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Catch2WithMain" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="Catch2WithMain" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="aggregation1" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="aggregation1" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="aggregation1">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="api-runner" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="api-runner" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="api-runner">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="appending" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="appending" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="appending">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="basic-aggregation" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="basic-aggregation" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="basic-aggregation">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bcon-col-view" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bcon-col-view" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bcon-col-view">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bcon-speed" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bcon-speed" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bcon-speed">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bson-check-depth" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bson-check-depth" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bson-check-depth">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bson-metrics" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bson-metrics" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bson-metrics">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bson-streaming-reader" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bson-streaming-reader" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bson-streaming-reader">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bson-to-json" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bson-to-json" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bson-to-json">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bson-validate" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bson-validate" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bson-validate">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bson_shared" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bson_shared" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bson_static" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bson_static" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx-builder_basic" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx-builder_basic" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bsoncxx-builder_basic">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx-builder_core" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx-builder_core" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bsoncxx-builder_core">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx-builder_list" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx-builder_list" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bsoncxx-builder_list">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx-builder_stream" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx-builder_stream" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bsoncxx-builder_stream">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx-builder_stream_customization" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx-builder_stream_customization" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bsoncxx-builder_stream_customization">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx-decimal128" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx-decimal128" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bsoncxx-decimal128">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx-getting_values" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx-getting_values" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bsoncxx-getting_values">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx-view_and_value" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx-view_and_value" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bsoncxx-view_and_value">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx_static" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx_static" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bsoncxx_testing" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bsoncxx_testing" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bulk-collation" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bulk-collation" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bulk-collation">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bulk1" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bulk1" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bulk1">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bulk2" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bulk2" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bulk2">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bulk3" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bulk3" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bulk3">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bulk4" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bulk4" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bulk4">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bulk5" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bulk5" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bulk5">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="bulk6" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="bulk6" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="bulk6">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="client_helpers" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="client_helpers" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="common-operations" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="common-operations" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="common-operations">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="creating" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="creating" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="creating">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="dist" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="dist" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="distcheck" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="distcheck" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="docs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="docs" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="docs_dir_current" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="docs_dir_current" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="doxygen-current" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="doxygen-current" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="doxygen-deploy" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="doxygen-deploy" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="doxygen-latest" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="doxygen-latest" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-bulkwrite" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-bulkwrite" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-bulkwrite">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-client" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-client" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-client">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-collection-command" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-collection-command" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-collection-command">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-collection-watch" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-collection-watch" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-collection-watch">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-command-monitoring" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-command-monitoring" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-command-monitoring">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-command-with-opts" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-command-with-opts" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-command-with-opts">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-gridfs-bucket" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-gridfs-bucket" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-gridfs-bucket">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-gridfs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-gridfs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-gridfs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-manage-collection-indexes" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-manage-collection-indexes" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-manage-collection-indexes">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-manage-search-indexes" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-manage-search-indexes" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-manage-search-indexes">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-pool" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-pool" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-pool">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-resume" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-resume" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-resume">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-scram" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-scram" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-scram">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-sdam-monitoring" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-sdam-monitoring" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-sdam-monitoring">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-session" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-session" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-session">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-start-at-optime" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-start-at-optime" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-start-at-optime">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-transaction" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-transaction" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-transaction">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="example-update" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="example-update" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="example-update">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="executing" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="executing" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="executing">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="extended-json" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="extended-json" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="extended-json">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="fam" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="fam" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="fam">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="find-and-modify" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="find-and-modify" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="find-and-modify">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="format-lint" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="format-lint" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="format" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="format" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="generate-libbsoncxx_static-pc" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="generate-libbsoncxx_static-pc" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="generate-libmongocxx_static-pc" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="generate-libmongocxx_static-pc" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="hello_mongoc" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="hello_mongoc" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="hello_mongoc">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="hugo-deploy" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="hugo-deploy" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="hugo" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="hugo" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="hugo_dir" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="hugo_dir" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="infra_10x_i" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="tests/test.py" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="infra_10x_i" CONFIG_NAME="Debug" RUN_PATH=".venv/bin/python">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="json-to-bson" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="json-to-bson" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="json-to-bson">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mcd_rpc" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mcd_rpc" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="microbenchmarks" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="microbenchmarks" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="microbenchmarks">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="migrating" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="migrating" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="migrating">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongo_c_driver_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongo_c_driver_examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongo_c_driver_tests" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongo_c_driver_tests" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongoc-cxx-check" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongoc-cxx-check" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongoc-dump" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongoc-dump" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongoc-dump">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongoc-ping" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongoc-ping" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongoc-ping">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongoc-stat" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongoc-stat" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongoc-stat">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongoc-tail" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongoc-tail" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongoc-tail">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongoc_shared" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongoc_shared" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongoc_static" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongoc_static" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-aggregate" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-aggregate" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-aggregate">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-automatic_client_side_field_level_encryption" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-automatic_client_side_field_level_encryption" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-automatic_client_side_field_level_encryption">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-bulk_write" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-bulk_write" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-bulk_write">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-causal_consistency" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-causal_consistency" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-causal_consistency">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-change_streams" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-change_streams" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-change_streams">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-client_session" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-client_session" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-client_session">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-connect" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-connect" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-connect">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-create" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-create" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-create">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-document_validation" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-document_validation" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-document_validation">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-exception" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-exception" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-exception">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-explicit_encryption" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-explicit_encryption" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-explicit_encryption">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-explicit_encryption_auto_decryption" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-explicit_encryption_auto_decryption" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-explicit_encryption_auto_decryption">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-get_values_from_documents" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-get_values_from_documents" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-get_values_from_documents">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-gridfs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-gridfs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-gridfs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-index" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-index" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-index">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-inserted_id" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-inserted_id" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-inserted_id">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-instance_management" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-instance_management" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-instance_management">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-mongodb.com-aggregation_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-mongodb.com-aggregation_examples" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-mongodb.com-aggregation_examples">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-mongodb.com-documentation_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-mongodb.com-documentation_examples" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-mongodb.com-documentation_examples">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-mongodb.com-index_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-mongodb.com-index_examples" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-mongodb.com-index_examples">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-mongodb.com-runcommand_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-mongodb.com-runcommand_examples" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-mongodb.com-runcommand_examples">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-mongodb.com-usage_overview" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-mongodb.com-usage_overview" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-mongodb.com-usage_overview">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-pool" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-pool" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-pool">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-query" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-query" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-query">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-query_projection" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-query_projection" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-query_projection">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-remove" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-remove" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-remove">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-server_side_field_level_encryption_enforcement" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-server_side_field_level_encryption_enforcement" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-server_side_field_level_encryption_enforcement">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-tailable_cursor" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-tailable_cursor" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-tailable_cursor">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-tutorial" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-tutorial" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-tutorial">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-update" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-update" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-update">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-view_or_value_variant" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-view_or_value_variant" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-view_or_value_variant">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx-with_transaction" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx-with_transaction" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="mongocxx-with_transaction">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx_mocked" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx_mocked" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="mongocxx_static" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="mongocxx_static" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="public-header-warnings" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="public-header-warnings" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="public-header-warnings">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-api-examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-api-examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-bsoncxx-examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-bsoncxx-examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-api-runner" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-api-runner" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-bsoncxx-builder_basic" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-bsoncxx-builder_basic" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-bsoncxx-builder_core" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-bsoncxx-builder_core" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-bsoncxx-builder_list" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-bsoncxx-builder_list" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-bsoncxx-builder_stream" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-bsoncxx-builder_stream" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-bsoncxx-builder_stream_customization" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-bsoncxx-builder_stream_customization" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-bsoncxx-decimal128" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-bsoncxx-decimal128" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-bsoncxx-getting_values" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-bsoncxx-getting_values" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-bsoncxx-view_and_value" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-bsoncxx-view_and_value" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-aggregate" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-aggregate" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-automatic_client_side_field_level_encryption" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-automatic_client_side_field_level_encryption" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-bulk_write" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-bulk_write" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-causal_consistency" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-causal_consistency" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-change_streams" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-change_streams" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-client_session" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-client_session" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-connect" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-connect" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-create" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-create" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-document_validation" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-document_validation" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-exception" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-exception" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-explicit_encryption" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-explicit_encryption" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-explicit_encryption_auto_decryption" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-explicit_encryption_auto_decryption" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-get_values_from_documents" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-get_values_from_documents" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-gridfs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-gridfs" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-index" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-index" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-inserted_id" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-inserted_id" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-instance_management" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-instance_management" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-mongodb.com-aggregation_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-mongodb.com-aggregation_examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-mongodb.com-documentation_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-mongodb.com-documentation_examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-mongodb.com-index_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-mongodb.com-index_examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-mongodb.com-runcommand_examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-mongodb.com-runcommand_examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-mongodb.com-usage_overview" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-mongodb.com-usage_overview" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-pool" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-pool" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-query" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-query" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-query_projection" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-query_projection" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-remove" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-remove" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-server_side_field_level_encryption_enforcement" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-server_side_field_level_encryption_enforcement" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-tailable_cursor" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-tailable_cursor" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-tutorial" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-tutorial" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-update" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-update" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-view_or_value_variant" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-view_or_value_variant" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples-mongocxx-with_transaction" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples-mongocxx-with_transaction" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="run-mongocxx-examples" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="run-mongocxx-examples" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="spec_test_common" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="spec_test_common" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_client_side_encryption_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_client_side_encryption_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_client_side_encryption_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_command_monitoring_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_command_monitoring_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_command_monitoring_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_crud_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_crud_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_crud_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_gridfs_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_gridfs_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_gridfs_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_instance" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_instance" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_instance">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_logging" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_logging" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_logging">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_mongohouse_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_mongohouse_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_mongohouse_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_read_write_concern_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_read_write_concern_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_read_write_concern_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_retryable_reads_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_retryable_reads_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_retryable_reads_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_transactions_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_transactions_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_transactions_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="test_unified_format_specs" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="test_unified_format_specs" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="infra_10x_i" RUN_TARGET_NAME="test_unified_format_specs">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="uninstall" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="uninstall" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="utf8proc_obj" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="utf8proc_obj" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="zlib_obj" type="CMakeRunConfiguration" factoryName="Application" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="zlib_obj" CONFIG_NAME="Debug">
+      <method v="2">
+        <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="PythonConfigurationType" factoryName="Python">
+      <module name="infra_10x" />
+      <selectedOptions>
+        <option name="beforeRunTasks" />
+        <option name="py.interpreter.options" />
+      </selectedOptions>
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.13 (infra_10x)" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="test" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
+      <module name="infra_10x" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="SDK_NAME" value="Python 3.13 (infra_10x)" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/test.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Catch.test_bson" />
+      <item itemvalue="Catch.test_driver" />
+      <item itemvalue="Catch.test_versioned_api" />
+      <item itemvalue="CMake Application.Catch2" />
+      <item itemvalue="CMake Application.Catch2WithMain" />
+      <item itemvalue="CMake Application.mongo_c_driver_examples" />
+      <item itemvalue="CMake Application.mongo_c_driver_tests" />
+      <item itemvalue="CMake Application.utf8proc_obj" />
+      <item itemvalue="CMake Application.mongoc-cxx-check" />
+      <item itemvalue="CMake Application.public-header-warnings" />
+      <item itemvalue="CMake Application.bcon-col-view" />
+      <item itemvalue="CMake Application.bcon-speed" />
+      <item itemvalue="CMake Application.bson-check-depth" />
+      <item itemvalue="CMake Application.bson-metrics" />
+      <item itemvalue="CMake Application.bson-streaming-reader" />
+      <item itemvalue="CMake Application.bson-to-json" />
+      <item itemvalue="CMake Application.bson-validate" />
+      <item itemvalue="CMake Application.bson_shared" />
+      <item itemvalue="CMake Application.bson_static" />
+      <item itemvalue="CMake Application.creating" />
+      <item itemvalue="CMake Application.extended-json" />
+      <item itemvalue="CMake Application.json-to-bson" />
+      <item itemvalue="CMake Application.aggregation1" />
+      <item itemvalue="CMake Application.appending" />
+      <item itemvalue="CMake Application.basic-aggregation" />
+      <item itemvalue="CMake Application.bulk-collation" />
+      <item itemvalue="CMake Application.bulk1" />
+      <item itemvalue="CMake Application.bulk2" />
+      <item itemvalue="CMake Application.bulk3" />
+      <item itemvalue="CMake Application.bulk4" />
+      <item itemvalue="CMake Application.bulk5" />
+      <item itemvalue="CMake Application.bulk6" />
+      <item itemvalue="CMake Application.common-operations" />
+      <item itemvalue="CMake Application.example-bulkwrite" />
+      <item itemvalue="CMake Application.example-client" />
+      <item itemvalue="CMake Application.example-collection-command" />
+      <item itemvalue="CMake Application.example-collection-watch" />
+      <item itemvalue="CMake Application.example-command-monitoring" />
+      <item itemvalue="CMake Application.example-command-with-opts" />
+      <item itemvalue="CMake Application.example-gridfs" />
+      <item itemvalue="CMake Application.example-gridfs-bucket" />
+      <item itemvalue="CMake Application.example-manage-collection-indexes" />
+      <item itemvalue="CMake Application.example-manage-search-indexes" />
+      <item itemvalue="CMake Application.example-pool" />
+      <item itemvalue="CMake Application.example-resume" />
+      <item itemvalue="CMake Application.example-scram" />
+      <item itemvalue="CMake Application.example-sdam-monitoring" />
+      <item itemvalue="CMake Application.example-session" />
+      <item itemvalue="CMake Application.example-start-at-optime" />
+      <item itemvalue="CMake Application.example-transaction" />
+      <item itemvalue="CMake Application.example-update" />
+      <item itemvalue="CMake Application.executing" />
+      <item itemvalue="CMake Application.fam" />
+      <item itemvalue="CMake Application.find-and-modify" />
+      <item itemvalue="CMake Application.hello_mongoc" />
+      <item itemvalue="CMake Application.mcd_rpc" />
+      <item itemvalue="CMake Application.migrating" />
+      <item itemvalue="CMake Application.mongoc-dump" />
+      <item itemvalue="CMake Application.mongoc-ping" />
+      <item itemvalue="CMake Application.mongoc-stat" />
+      <item itemvalue="CMake Application.mongoc-tail" />
+      <item itemvalue="CMake Application.mongoc_shared" />
+      <item itemvalue="CMake Application.mongoc_static" />
+      <item itemvalue="CMake Application.zlib_obj" />
+      <item itemvalue="CMake Application.dist" />
+      <item itemvalue="CMake Application.distcheck" />
+      <item itemvalue="CMake Application.docs" />
+      <item itemvalue="CMake Application.docs_dir_current" />
+      <item itemvalue="CMake Application.doxygen-current" />
+      <item itemvalue="CMake Application.doxygen-deploy" />
+      <item itemvalue="CMake Application.doxygen-latest" />
+      <item itemvalue="CMake Application.format" />
+      <item itemvalue="CMake Application.format-lint" />
+      <item itemvalue="CMake Application.hugo" />
+      <item itemvalue="CMake Application.hugo-deploy" />
+      <item itemvalue="CMake Application.hugo_dir" />
+      <item itemvalue="CMake Application.microbenchmarks" />
+      <item itemvalue="CMake Application.bsoncxx_static" />
+      <item itemvalue="CMake Application.bsoncxx_testing" />
+      <item itemvalue="CMake Application.mongocxx_mocked" />
+      <item itemvalue="CMake Application.mongocxx_static" />
+      <item itemvalue="CMake Application.api-runner" />
+      <item itemvalue="CMake Application.bsoncxx-builder_basic" />
+      <item itemvalue="CMake Application.bsoncxx-builder_core" />
+      <item itemvalue="CMake Application.bsoncxx-builder_list" />
+      <item itemvalue="CMake Application.bsoncxx-builder_stream" />
+      <item itemvalue="CMake Application.bsoncxx-builder_stream_customization" />
+      <item itemvalue="CMake Application.bsoncxx-decimal128" />
+      <item itemvalue="CMake Application.bsoncxx-getting_values" />
+      <item itemvalue="CMake Application.bsoncxx-view_and_value" />
+      <item itemvalue="CMake Application.examples" />
+      <item itemvalue="CMake Application.mongocxx-aggregate" />
+      <item itemvalue="CMake Application.mongocxx-automatic_client_side_field_level_encryption" />
+      <item itemvalue="CMake Application.mongocxx-bulk_write" />
+      <item itemvalue="CMake Application.mongocxx-causal_consistency" />
+      <item itemvalue="CMake Application.mongocxx-change_streams" />
+      <item itemvalue="CMake Application.mongocxx-client_session" />
+      <item itemvalue="CMake Application.mongocxx-connect" />
+      <item itemvalue="CMake Application.mongocxx-create" />
+      <item itemvalue="CMake Application.mongocxx-document_validation" />
+      <item itemvalue="CMake Application.mongocxx-exception" />
+      <item itemvalue="CMake Application.mongocxx-explicit_encryption" />
+      <item itemvalue="CMake Application.mongocxx-explicit_encryption_auto_decryption" />
+      <item itemvalue="CMake Application.mongocxx-get_values_from_documents" />
+      <item itemvalue="CMake Application.mongocxx-gridfs" />
+      <item itemvalue="CMake Application.mongocxx-index" />
+      <item itemvalue="CMake Application.mongocxx-inserted_id" />
+      <item itemvalue="CMake Application.mongocxx-instance_management" />
+      <item itemvalue="CMake Application.mongocxx-mongodb.com-aggregation_examples" />
+      <item itemvalue="CMake Application.mongocxx-mongodb.com-documentation_examples" />
+      <item itemvalue="CMake Application.mongocxx-mongodb.com-index_examples" />
+      <item itemvalue="CMake Application.mongocxx-mongodb.com-runcommand_examples" />
+      <item itemvalue="CMake Application.mongocxx-mongodb.com-usage_overview" />
+      <item itemvalue="CMake Application.mongocxx-pool" />
+      <item itemvalue="CMake Application.mongocxx-query" />
+      <item itemvalue="CMake Application.mongocxx-query_projection" />
+      <item itemvalue="CMake Application.mongocxx-remove" />
+      <item itemvalue="CMake Application.mongocxx-server_side_field_level_encryption_enforcement" />
+      <item itemvalue="CMake Application.mongocxx-tailable_cursor" />
+      <item itemvalue="CMake Application.mongocxx-tutorial" />
+      <item itemvalue="CMake Application.mongocxx-update" />
+      <item itemvalue="CMake Application.mongocxx-view_or_value_variant" />
+      <item itemvalue="CMake Application.mongocxx-with_transaction" />
+      <item itemvalue="CMake Application.run-api-examples" />
+      <item itemvalue="CMake Application.run-bsoncxx-examples" />
+      <item itemvalue="CMake Application.run-examples" />
+      <item itemvalue="CMake Application.run-examples-api-runner" />
+      <item itemvalue="CMake Application.run-examples-bsoncxx-builder_basic" />
+      <item itemvalue="CMake Application.run-examples-bsoncxx-builder_core" />
+      <item itemvalue="CMake Application.run-examples-bsoncxx-builder_list" />
+      <item itemvalue="CMake Application.run-examples-bsoncxx-builder_stream" />
+      <item itemvalue="CMake Application.run-examples-bsoncxx-builder_stream_customization" />
+      <item itemvalue="CMake Application.run-examples-bsoncxx-decimal128" />
+      <item itemvalue="CMake Application.run-examples-bsoncxx-getting_values" />
+      <item itemvalue="CMake Application.run-examples-bsoncxx-view_and_value" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-aggregate" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-automatic_client_side_field_level_encryption" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-bulk_write" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-causal_consistency" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-change_streams" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-client_session" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-connect" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-create" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-document_validation" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-exception" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-explicit_encryption" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-explicit_encryption_auto_decryption" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-get_values_from_documents" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-gridfs" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-index" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-inserted_id" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-instance_management" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-mongodb.com-aggregation_examples" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-mongodb.com-documentation_examples" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-mongodb.com-index_examples" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-mongodb.com-runcommand_examples" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-mongodb.com-usage_overview" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-pool" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-query" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-query_projection" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-remove" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-server_side_field_level_encryption_enforcement" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-tailable_cursor" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-tutorial" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-update" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-view_or_value_variant" />
+      <item itemvalue="CMake Application.run-examples-mongocxx-with_transaction" />
+      <item itemvalue="CMake Application.run-mongocxx-examples" />
+      <item itemvalue="CMake Application.uninstall" />
+      <item itemvalue="CMake Application.generate-libbsoncxx_static-pc" />
+      <item itemvalue="CMake Application.generate-libmongocxx_static-pc" />
+      <item itemvalue="CMake Application.client_helpers" />
+      <item itemvalue="CMake Application.spec_test_common" />
+      <item itemvalue="CMake Application.test_client_side_encryption_specs" />
+      <item itemvalue="CMake Application.test_command_monitoring_specs" />
+      <item itemvalue="CMake Application.test_crud_specs" />
+      <item itemvalue="CMake Application.test_gridfs_specs" />
+      <item itemvalue="CMake Application.test_instance" />
+      <item itemvalue="CMake Application.test_logging" />
+      <item itemvalue="CMake Application.test_mongohouse_specs" />
+      <item itemvalue="CMake Application.test_read_write_concern_specs" />
+      <item itemvalue="CMake Application.test_retryable_reads_specs" />
+      <item itemvalue="CMake Application.test_transactions_specs" />
+      <item itemvalue="CMake Application.test_unified_format_specs" />
+      <item itemvalue="CMake Application.infra_10x_i" />
+      <item itemvalue="Python.test" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python.test" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="5e6f097b-6228-44fa-a0be-db133ab43fe4" name="Changes" comment="" />
+      <created>1738998138621</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1738998138621</updated>
+      <workItem from="1738998139878" duration="928000" />
+      <workItem from="1739391463152" duration="598000" />
+      <workItem from="1739576015616" duration="2797000" />
+      <workItem from="1739578835959" duration="898000" />
+      <workItem from="1739581460043" duration="1382000" />
+      <workItem from="1739582903385" duration="350000" />
+      <workItem from="1739587795682" duration="1380000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VCPKGProject">
+    <isAutomaticCheckingOnLaunch value="false" />
+    <isAutomaticFoundErrors value="true" />
+    <isAutomaticReloadCMake value="true" />
+  </component>
+</project>
