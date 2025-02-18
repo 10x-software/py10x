@@ -19,13 +19,14 @@ class TsCollection:
     def min(self, trait_name: str, filter: f = None) -> dict:                   raise NotImplementedError
 
     def exists(self, query: f) -> bool:
-        return bool(self.find(query))
+        for _ in self.find(query):
+            return True
+        else:
+            return False
 
     def load(self, id_value: str) -> dict:
-        cur = self.find(f(**{self.s_id_tag: id_value}))
-        for data in cur:
+        for data in self.find(f(**{self.s_id_tag: id_value})):
             return data
-        return None
 
 class TsStore(Resource, resource_type = TS_STORE):
     s_default_port = None

@@ -46,7 +46,7 @@ class MongoCollection(TsCollection):
             return revision
 
         if not res.matched_count:  # -- e.g. restore from deleted
-            raise AssertionError(f'{self.coll} {id_value} has been most probably inapropriately restored from deleted')
+            raise AssertionError(f'{self.coll} {id_value} has been most probably inappropriately restored from deleted')
 
         if res.matched_count != 1:
             return revision

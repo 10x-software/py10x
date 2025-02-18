@@ -34,7 +34,7 @@ class Nucleus:
 
         cls_id = record.get(Nucleus.CLASS_TAG, record)
         if cls_id is record:  #-- CLASS_TAG is missing - corrupted record
-            raise TypeError(f'Nucleus record is currupted - CLASS_TAG is missing\n{record}')
+            raise TypeError(f'Nucleus record is corrupted - CLASS_TAG is missing\n{record}')
 
         data_type = PackageRefactoring.find_class(cls_id)
 
