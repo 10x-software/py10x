@@ -681,7 +681,7 @@ FIND_PACKAGE_MESSAGE_DETAILS_PYTHON:INTERNAL=C:/Python311/python.exe3.11
 //Details about finding Python3
 FIND_PACKAGE_MESSAGE_DETAILS_Python3:INTERNAL=[C:/Python311/python.exe][C:/Python311/libs/python311.lib][C:/Python311/include][cfound components: Interpreter Development Development.Module Development.Embed ][v3.11.0()]
 //Details about finding PythonInterp
-FIND_PACKAGE_MESSAGE_DETAILS_PythonInterp:INTERNAL=[C:/Python311/python.exe][v3.11()]
+FIND_PACKAGE_MESSAGE_DETAILS_PythonInterp:INTERNAL=[C:/Python311/python.exe][v3.11(3.7)]
 //Details about finding Threads
 FIND_PACKAGE_MESSAGE_DETAILS_Threads:INTERNAL=[TRUE][v()]
 //ADVANCED property for variable: GIT_EXECUTABLE

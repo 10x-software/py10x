@@ -38,6 +38,6 @@ if(NOT CMAKE_INSTALL_LOCAL_ONLY)
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/." TYPE MODULE FILES "C:/10x-codebase/cxx10x/cmake-build-debug/_infra_10x/infra_10x_i.cp311-win_amd64.pyd")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/." TYPE MODULE FILES "C:/10x-codebase/cxx10x/_infra_10x/cmake-build-debug/infra_10x_i.cp311-win_amd64.pyd")
 endif()
 
