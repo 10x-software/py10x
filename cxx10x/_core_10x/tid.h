@@ -14,11 +14,12 @@ class TID {
 
 public:
     TID() : m_class(nullptr), m_id(nullptr)                     {}
+    TID(BTraitableClass* cls, std::string* id) : m_class(cls), m_id(id) {}
 
     void set(BTraitableClass* cls, std::string* id)             { m_class = cls; m_id = id; }
 
-    [[nodiscard]] const std::string&    id() const            { return *m_id; }
-    [[nodiscard]] BTraitableClass*      cls() const           { return m_class; }
+    [[nodiscard]] const std::string&    id() const              { return *m_id; }
+    [[nodiscard]] BTraitableClass*      cls() const             { return m_class; }
 
     bool operator == (const TID& other) const {
         return m_class == other.m_class && *m_id == *other.m_id;

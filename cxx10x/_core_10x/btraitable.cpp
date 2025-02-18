@@ -89,12 +89,21 @@ public:
 
 BTraitable::BTraitable(const py::object& cls) {
     m_class = cls.cast<BTraitableClass*>();
-    m_id_cache = new ObjectCache();
-    m_cache = new IdCache(this);
+    //m_id_cache = new ObjectCache();
+    //m_cache = new IdCache(this);
+    m_id_cache = nullptr;
+    m_cache = nullptr;
     if (!m_class->is_id_endogenous()) {
         m_id = exogenous_id();
         m_tid.set(m_class, &m_id);
     }
+}
+
+BTraitable::BTraitable(const py::object& cls, std::string id) : m_id(std::move(id)) {
+    m_class = cls.cast<BTraitableClass*>();
+    m_id_cache = nullptr;
+    m_cache = nullptr;
+    m_tid.set(m_class, &m_id);
 }
 
 BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) : BTraitable(cls) {

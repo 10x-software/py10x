@@ -49,7 +49,7 @@ public:
     BTrait*     find_trait(const py::object& trait_name) const;
 
     bool        instance_exists(const TID& tid) const;
-
+    bool        known_object(std::string& id);
 };
 
 

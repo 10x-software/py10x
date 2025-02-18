@@ -35,6 +35,13 @@ BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
     return dir[trait_name].cast<BTrait*>();
 }
 
+bool BTraitableClass::known_object(std::string& id) {
+    auto cache = ThreadContext::current_cache();
+    TID tid(this, &id);
+    auto oc = cache->find_object_cache(tid, false);
+    return oc != nullptr;
+}
+
 bool BTraitableClass::instance_exists(const TID &tid) const {
     auto cache = ThreadContext::current_cache();
     auto oc = cache->find_object_cache(tid, false);
