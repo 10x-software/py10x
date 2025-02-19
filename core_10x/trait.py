@@ -200,9 +200,6 @@ class Trait(BTrait):
     def default_formatter(self, value) -> str:
         return self.use_format_str(self.fmt, value)
 
-    def default_converter(self, value):
-        ...
-
     #===================================================================================================================
     #   Trait Interface
     #===================================================================================================================
@@ -215,6 +212,15 @@ class Trait(BTrait):
 
     def same_values(self, value1, value2) -> bool:
         raise NotImplementedError
+
+    def from_any(self, value):
+        if isinstance(value, self.data_type):
+            return value
+
+        if isinstance(value, str):
+            return self.from_str(value)
+
+        return self.from_any_xstr(value)
 
     def from_str(self, s: str):
         lit = ast.literal_eval(s)
