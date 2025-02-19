@@ -136,7 +136,7 @@ class Traitable(BTraitable, Nucleus):
 
     def __init__(self, _id: str = None, **trait_values):
         if _id is not None:
-            super().__init__(self.s_bclass, _id)
+            super().__init__(self.s_bclass, _id, **trait_values)
         else:
             super().__init__(self.s_bclass, **trait_values)
         self.trait = TraitAccessor(self)
