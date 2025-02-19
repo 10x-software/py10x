@@ -164,6 +164,7 @@ public:
     void unregister_object(const TID& tid);
 
     virtual ObjectCache* find_object_cache(const TID& tid, bool must_exists) const;
+    ObjectCache* find_or_create_object_cache(const TID& tid);
 
     BasicNode* find_node(const TID& tid, BTrait* trait) const {
         std::shared_lock guard(m_rw_mutex);

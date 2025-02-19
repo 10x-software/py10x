@@ -28,7 +28,7 @@ public:
     static std::string exogenous_id();
 
     explicit BTraitable(const py::object& cls);
-    explicit BTraitable(const py::object& cls, std::string id);
+    explicit BTraitable(const py::object& cls, const std::string& id, const py::kwargs& trait_values);
     explicit BTraitable(const py::object& cls, const py::kwargs& trait_values);
     ~BTraitable();
 

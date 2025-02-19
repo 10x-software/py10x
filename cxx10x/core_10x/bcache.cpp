@@ -36,6 +36,16 @@ ObjectCache* BCache::find_object_cache(const TID& tid, bool must_exist) const {
     return oc;
 }
 
+ObjectCache* BCache::find_or_create_object_cache(const TID &tid) {
+    auto oc = find_object_cache(tid, false);
+    if (oc)
+        return oc;
+
+    oc = new ObjectCache();
+    m_data.insert({ tid, oc });
+    return oc;
+}
+
 void BCache::register_object(BTraitable* obj) {
     std::unique_lock guard(m_rw_mutex);
 

@@ -10,7 +10,6 @@
 
 #include "brc.h"
 
-
 std::string BTraitable::exogenous_id() {
     //UUIDv4::UUIDGenerator<std::mt19937_64> uuid_gen;
     //return uuid_gen.getUUID().str();
@@ -89,25 +88,38 @@ public:
 
 BTraitable::BTraitable(const py::object& cls) {
     m_class = cls.cast<BTraitableClass*>();
-    m_id_cache = new ObjectCache();
-    m_cache = new IdCache(this);
-    //m_id_cache = nullptr;
-    //m_cache = nullptr;
+    //m_id_cache = new ObjectCache();
+    //m_cache = new IdCache(this);
+    m_id_cache = nullptr;
+    m_cache = nullptr;
     if (!m_class->is_id_endogenous()) {
         m_id = exogenous_id();
         m_tid.set(m_class, &m_id);
     }
 }
 
-BTraitable::BTraitable(const py::object& cls, std::string id) : m_id(std::move(id)) {
+BTraitable::BTraitable(const py::object& cls, const std::string& id, const py::kwargs& trait_values) {
+    m_id = id;
     m_class = cls.cast<BTraitableClass*>();
-    m_id_cache = nullptr;
-    m_cache = nullptr;
     m_tid.set(m_class, &m_id);
+    if (trait_values.empty()) {
+        m_id_cache = nullptr;
+        m_cache = nullptr;
+    }
+    else {
+        auto cache = ThreadContext::current_cache();
+        auto oc = cache->find_or_create_object_cache(m_tid);
+        BRC rc(set_values(trait_values));
+        if (!rc)
+            throw py::value_error(rc.error());
+    }
 }
 
-BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) : BTraitable(cls) {
-    auto trait_dir = m_class->trait_dir();
+BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) {
+    m_class = cls.cast<BTraitableClass*>();
+    m_id_cache = new ObjectCache();
+    m_cache = new IdCache(this);
+
     auto iter = trait_values.begin();
     auto end_iter = trait_values.end();
 
@@ -147,7 +159,6 @@ BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) : 
             cache->register_object(this);
         }
     }
-
 
     // Check if there are non ID traits to set
     for(; iter != end_iter; ++iter) {
