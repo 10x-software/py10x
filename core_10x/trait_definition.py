@@ -137,7 +137,7 @@ class T(BTraitFlags):
 
 def RT(*args, **kwargs) -> TraitDefinition:
     trait_def = TraitDefinition(*args, **kwargs)
-    trait_def.flags.set(T.RUNTIME)
+    trait_def.flags.set(T.RUNTIME.value())
     return trait_def
 
 def M(cls, *args, **kwargs) -> TraitModification:

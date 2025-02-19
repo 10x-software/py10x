@@ -7,7 +7,7 @@ from core_10x_i import BTraitable, BTraitableClass
 
 from core_10x.nucleus import Nucleus
 from core_10x.xnone import XNone
-from core_10x.trait_definition import TraitDefinition, TraitModification
+from core_10x.trait_definition import TraitDefinition, TraitModification, RT, M
 from core_10x.trait import Trait, TRAIT_METHOD, T, BoundTrait, trait_value
 import core_10x.concrete_traits as concrete_traits
 from core_10x.global_cache import cache
@@ -67,6 +67,17 @@ class Traitable(BTraitable, Nucleus):
 
         return rc
 
+    @staticmethod
+    @cache
+    def _rev_trait() -> Trait:
+        t_def = T(0, T.RESERVED)
+        trait = concrete_traits.int_trait(t_def)
+        trait.name = Nucleus.REVISION_TAG
+        trait.data_type = int
+        trait.flags = t_def.flags.value()
+        trait.default = t_def.default
+        return trait
+
     @classmethod
     def trait(cls, trait_name: str, throw = False) -> Trait:
         trait = cls.s_dir.get(trait_name)
@@ -99,14 +110,35 @@ class Traitable(BTraitable, Nucleus):
     )
     def __init_subclass__(cls, **kwargs):
         cls.build_trait_dir().throw(exc = TypeError)
+        cls.s_bclass = BTraitableClass(cls)
+
+        if cls.is_storable():
+            rev_trait = Traitable._rev_trait()
+            cls.s_dir[rev_trait.name] = rev_trait
+        else:
+            cls.collection = lambda: None
+            cls.load = lambda id_value: None
+            cls.load_many = lambda query: []
+            cls.load_ids = lambda query: []
+            cls.save = lambda self: RC(False, f'{cls} is not storable')
+
         for trait_name, trait in cls.s_dir.items():
             setattr(cls, trait_name, trait)
 
-        cls.s_bclass = BTraitableClass(cls)
         cls.__slots__ = ( *cls.s_special_attributes, *tuple(cls.s_dir.keys()) )
 
-    def __init__(self, **trait_values):
-        super().__init__(self.s_bclass, **trait_values)
+    @classmethod
+    def instance_by_id(cls, id_value: str) -> 'Traitable':
+        if not cls.s_bclass.known_object(id_value):
+            return cls.load(id_value)
+
+        return cls(_id = id_value)
+
+    def __init__(self, _id: str = None, **trait_values):
+        if _id is not None:
+            super().__init__(self.s_bclass, _id)
+        else:
+            super().__init__(self.s_bclass, **trait_values)
         self.trait = TraitAccessor(self)
 
     def get_value_by_name(self, trait_name: str, *args):
@@ -121,37 +153,30 @@ class Traitable(BTraitable, Nucleus):
     #   Nucleus related methods
     #===================================================================================================================
 
-    def serialize(self, embed: bool):
-        if not embed:   #-- reference to this object
-            #-- TODO: must make sure this object exists in store
-            return self.id()
-
-        cls = self.__class__
-        res = {}
-        trait: Trait
-        for trait_name, trait in cls.s_dir.items():
-            if trait.flags_on(T.RUNTIME):
-                continue
-
-            value = self.get_value(trait)
-            if value is XNone:  #-- undefined
-                raise ValueError(f'{cls}.{trait_name} - undefined value')
-
-            ser_value = trait.serialize(value)
-            res[trait_name] = ser_value
-
-        return res
+    # def serialize(self, embed: bool):
+    #     if not embed:   #-- reference to this object
+    #         #-- TODO: must make sure this object exists in store
+    #         return self.id()
+    #
+    #     cls = self.__class__
+    #     res = {}
+    #     trait: Trait
+    #     for trait_name, trait in cls.s_dir.items():
+    #         if trait.flags_on(T.RUNTIME):
+    #             continue
+    #
+    #         value = self.get_value(trait)
+    #         if value is XNone:  #-- undefined
+    #             raise ValueError(f'{cls}.{trait_name} - undefined value')
+    #
+    #         ser_value = trait.serialize(value)
+    #         res[trait_name] = ser_value
+    #
+    #     return res
 
     @classmethod
-    def deserialize(cls, serialized_data) -> Nucleus:
-        if isinstance(serialized_data, str):    #-- id
-            return cls.instance_by_id(serialized_data)
-
-        res = cls.from_any_xstr(serialized_data)
-        if res:
-            return res
-
-        raise ValueError(f'{cls} - failed to deserialize {serialized_data}')
+    def deserialize(cls, serialized_data) -> 'Traitable':
+        return cls.s_bclass.deserialize(serialized_data)
 
     def to_str(self) -> str:
         return f'{self.__class__.__name__}/{self.id()}'
@@ -162,14 +187,10 @@ class Traitable(BTraitable, Nucleus):
 
     @classmethod
     def from_any_xstr(cls, value) -> Nucleus:
-        if not isinstance(value, dict):
-            return None
+        if isinstance(value, dict):
+            return cls(**value)
 
-        dir = cls.s_dir
-        trait: Trait
-        #-- TODO: we may need a more performant ctor which takes {trait -> value} dict instead of {name -> value }
-        trait_values = { name: trait.deserialize(ser_value) for name, ser_value in value.items() if (trait := dir.get(name)) }
-        return cls(**trait_values)
+        raise TypeError(f'{cls}.from_any_xstr() expects a dict, got {value})')
 
     @classmethod
     def same_values(cls, value1, value2) -> bool:
@@ -197,12 +218,13 @@ class Traitable(BTraitable, Nucleus):
     def load(cls, id_value: str) -> 'Traitable':
         coll = cls.collection()
         serialized_data = coll.load(id_value)
-        return cls.deserialize(serialized_data)
+        return cls.s_bclass.deserialize(serialized_data)
 
     @classmethod
     def load_many(cls, query: f) -> list:
         coll = cls.collection()
-        return [ cls.deserialize(serialized_data) for serialized_data in coll.find(query) ]
+        cpp_class = cls.s_bclass
+        return [ cpp_class.deserialize(serialized_data) for serialized_data in coll.find(query) ]
 
     @classmethod
     def load_ids(cls, query: f) -> list:
@@ -212,22 +234,19 @@ class Traitable(BTraitable, Nucleus):
 
     def save(self) -> RC:
         cls = self.__class__
-        if not cls.is_storable():
-            return RC( False, f'{cls} is not storable')
-
         rc = self.verify()
         if not rc:
             return rc
 
-        serialized_data = self.serialize()
+        serialized_data = self.serialize(True)
         coll = cls.collection()
 
         try:
             rev = coll.save(serialized_data)
         except Exception as e:
-            return RC( False, str(e))
+            return RC(False, str(e))
 
-        self.set_revision(rev)
+        self._rev = rev
         return RC_TRUE
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True):
