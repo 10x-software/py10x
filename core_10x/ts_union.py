@@ -44,24 +44,12 @@ class TsUnionCollection(TsCollection):
 
 class TsUnion(TsStore, name='TS_UNION'):
     @classmethod
-    def translate_kwargs(cls, kwargs: dict) -> dict:
-        return kwargs
+    def standard_key(cls, *args) -> tuple:
+        return tuple(cls.s_resource_type.resource_driver(kw['driver_name']).standard_key(**kw) for kw in args)
 
     @classmethod
-    def new_instance(cls, hostname: str, dbname: str, username: str, password: str, store_class: str='', **kwargs) -> Self:
-        hostnames = hostname.split(':')
-        dbnames = dbname.split(':')
-        usernames = username.split(':')
-        passwords = password.split(':')
-        store_class_names = store_class.split(':')
-        assert len(hostnames) == len(dbnames) == len(usernames) == len(passwords) == len(store_class_names), 'All parameters must have the same number of values'
-        assert all(isinstance(v,(list,tuple)) and len(v)==len(hostnames) for v in kwargs.values()), 'All keyword arguments must have the same number of values'
-
-        store_classes = [cls.s_resource_type.resource_driver(store_class_name) for store_class_name in store_class_names]
-        stores = [store_class.instance(hostname, dbname, username, password, **{k:v[i] for k,v in kwargs.items()})
-                  for i, (hostname, dbname, username, password, store_class)
-                  in enumerate(zip(hostnames, dbnames, usernames, passwords, store_classes))]
-
+    def new_instance(cls, *args, **kwargs) -> Self:
+        stores = [cls.s_resource_type.resource_driver(kw.pop('driver_name')).instance(**kw) for kw in args]
         return TsUnion(*stores)
 
     def __init__(self, *stores: TsStore):
