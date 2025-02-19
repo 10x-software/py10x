@@ -89,10 +89,10 @@ public:
 
 BTraitable::BTraitable(const py::object& cls) {
     m_class = cls.cast<BTraitableClass*>();
-    //m_id_cache = new ObjectCache();
-    //m_cache = new IdCache(this);
-    m_id_cache = nullptr;
-    m_cache = nullptr;
+    m_id_cache = new ObjectCache();
+    m_cache = new IdCache(this);
+    //m_id_cache = nullptr;
+    //m_cache = nullptr;
     if (!m_class->is_id_endogenous()) {
         m_id = exogenous_id();
         m_tid.set(m_class, &m_id);
@@ -170,12 +170,53 @@ BTraitable::~BTraitable() {
     delete m_id_cache;
 }
 
-py::object BTraitable::from_any(BTrait* trait, const py::object &value) {
-    BRC rc(trait->f_from_str(this, trait, value));
-    if (!rc)
-        return rc();
+py::object BTraitable::from_any(BTrait* trait, const py::object& value) {
+    if (py::isinstance(value, trait->m_datatype))
+        return value;
 
-    return trait->f_from_any_xstr(this, trait, rc.payload());
+    if (py::isinstance<py::str>(value))
+        return trait->f_from_str(this, trait, value);
+
+    return trait->f_from_any_xstr(this, trait, value);
 }
 
+py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
+    auto proc = ThreadContext::current_traitable_proc_bound();
+    for (auto item : trait_values) {
+        auto trait_name = item.first.cast<py::object>();
+        auto trait = m_class->find_trait(trait_name);
+        if (!trait) {
+            if (!ignore_unknown_traits)
+                throw py::type_error(py::str("{}.{} - unknown trait").format(m_class->name(), trait_name));
 
+            continue;
+        }
+
+        auto value = item.second.cast<py::object>();
+        BRC rc(proc->set_trait_value(this, trait, value));
+        if (!rc)
+            return rc();
+    }
+
+    return PyLinkage::RC_TRUE();
+}
+
+py::object BTraitable::serialize(bool embed) {
+    if (!embed)
+        return py::str(id());
+
+    py::dict res;
+    for (auto item : m_class->trait_dir()) {
+        auto trait = item.second.cast<BTrait*>();
+        if (!trait->flags_on(BTraitFlags::RUNTIME)) {
+            auto trait_name = item.first.cast<py::object>();
+            auto value = get_value(trait);
+            if (value.is(PyLinkage::XNone()))
+                throw py::value_error(py::str("{}.{} - undefined value").format(m_class->name(), trait_name));
+
+            auto ser_value = trait->f_serialize(this, trait, value);
+            res[trait_name] = ser_value;
+        }
+    }
+    return res;
+}

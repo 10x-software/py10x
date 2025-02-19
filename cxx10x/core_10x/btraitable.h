@@ -78,6 +78,8 @@ public:
         return proc->set_trait_value(this, trait, value, args);
     }
 
+    py::object set_values(const py::dict& trait_values, bool ignore_unknown_traits = true);
+
     py::object raw_set_value(BTrait* trait, const py::object& value) {
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->raw_set_trait_value(this, trait, value);
@@ -90,6 +92,7 @@ public:
 
     //py::object  raw_get_value(BTrait* trait);
 
+    py::object serialize(bool embed);
 };
 
 

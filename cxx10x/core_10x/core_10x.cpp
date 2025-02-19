@@ -122,6 +122,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("is_id_endogenous",            &BTraitableClass::is_id_endogenous)
             .def("known_object",                &BTraitableClass::known_object)
             .def("find_trait",                  &BTraitableClass::find_trait)
+            .def("deserialize",                 &BTraitableClass::deserialize)
             ;
 
     py::class_<BTraitable>(m, "BTraitable")
@@ -137,6 +138,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("set_value",                   py::overload_cast<BTrait*, const py::object&, const py::args&>(&BTraitable::set_value))
             .def("invalidate_value",            py::overload_cast<BTrait*>(&BTraitable::invalidate_value))
             .def("invalidate_value",            py::overload_cast<BTrait*, const py::args&>(&BTraitable::invalidate_value))
+            .def("serialize",                   &BTraitable::serialize)
             ;
 
     py::class_<BFlags>(m, "BFlags")

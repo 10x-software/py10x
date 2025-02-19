@@ -48,3 +48,40 @@ bool BTraitableClass::instance_exists(const TID &tid) const {
     // TODO: add code to check if Traitable with this TID exists in Entity Store!
     return oc != nullptr;
 }
+
+py::object BTraitableClass::deserialize(const py::object& serialized_data) {
+    if (py::isinstance<py::str>(serialized_data)) {     //-- just traitable's ID
+        auto proc = ThreadContext::current_traitable_proc();
+        if (proc->is_debug())
+            return load(serialized_data);
+
+        return m_py_class(serialized_data);     // cls(_id = serialized_data)
+    }
+
+    if (!py::isinstance<py::dict>(serialized_data))
+        throw py::type_error(py::str("{}.deserialize() expects a dict, got {}").format(m_name, serialized_data));
+
+    auto trait_values = serialized_data.cast<py::dict>();
+    auto id_value = trait_values.attr("pop")("_id", py::none());
+    if (id_value.is_none())
+        throw py::value_error(py::str("{}.deserialize() - _id field is missing in {}").format(m_name, trait_values));
+
+    py::kwargs kwargs;
+    kwargs["_id"] = id_value;
+
+    for (auto item : trait_values) {
+        auto trait_name = item.first.cast<py::object>();
+        auto trait = find_trait(trait_name);
+        if (trait) {
+            auto value = item.second.cast<py::object>();
+            auto deser_value = trait->f_deserialize(nullptr, trait, value);
+            kwargs[trait_name] = deser_value;
+        }
+    }
+
+    return m_py_class(**kwargs);
+}
+
+py::object BTraitableClass::load(const py::object &id) {
+    return m_py_class.attr("load")(id);
+}

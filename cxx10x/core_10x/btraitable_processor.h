@@ -76,6 +76,7 @@ public:
 
     [[nodiscard]] unsigned  flags() const               { return m_flags; }
     void                    set_flags(unsigned flags)   { m_flags = flags; }
+    [[nodiscard]] bool      is_debug() const            { return m_flags & DEBUG; }
 
     py::object              set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value);
     py::object              set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);

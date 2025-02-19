@@ -50,6 +50,10 @@ public:
 
     bool        instance_exists(const TID& tid) const;
     bool        known_object(std::string& id);
+
+    py::object  deserialize(const py::object& serialized_data);
+    py::object  load(const py::object& id);
+
 };
 
 
