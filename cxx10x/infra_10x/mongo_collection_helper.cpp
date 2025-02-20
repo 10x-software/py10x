@@ -8,12 +8,12 @@ void MongoCollectionHelper::prepare_filter_and_pipeline(py::dict& serialized_tra
     auto rev_tag = NUCLEUS_REV_TAG;
     auto id_tag = "_id";
 
-    auto revision = serialized_traitable[rev_tag];
+    auto revision = serialized_traitable.attr("pop")(rev_tag);
     auto rev = revision.cast<int>();
     if (rev <= 0)
         throw py::value_error(py::str("Revision must be >= 1: {}; serialized traitable:\n").format(revision, serialized_traitable));
 
-    auto id_value = serialized_traitable[id_tag];
+    auto id_value = serialized_traitable.attr("pop")(id_tag);
 
     filter[id_tag] = id_value;
     filter[rev_tag] = revision;
