@@ -159,34 +159,43 @@ public:
 
     [[nodiscard]] std::shared_mutex* shared_mutex() const  { return &m_rw_mutex; }
 
-    void register_object(BTraitable* obj);
-    void unregister_object(BTraitable* obj);
-    void unregister_object(const TID& tid);
+    void                    register_object(BTraitable* obj);
+    void                    unregister_object(BTraitable* obj);
+    void                    unregister_object(const TID& tid);
 
-    virtual ObjectCache* find_object_cache(const TID& tid, bool must_exists) const;
-    ObjectCache* find_or_create_object_cache(const TID& tid);
+    //virtual ObjectCache*    find_object_cache(const TID& tid, bool must_exists) const;
+    void                    create_object_cache(const TID& tid);
+    virtual ObjectCache*    find_or_create_object_cache(const TID& tid);
 
-    BasicNode* find_node(const TID& tid, BTrait* trait) const {
-        std::shared_lock guard(m_rw_mutex);
-        //std::shared_lock<std::shared_mutex> guard(m_rw_mutex);
-
-        auto oc = find_object_cache(tid, true);
-        return oc->find_node(trait);
+    ObjectCache* find_object_cache(const TID& tid) const {
+        auto it = m_data.find(tid);
+        return it != m_data.end() ? it->second : nullptr;
     }
 
-    BasicNode* find_node(const TID& tid, BTrait* trait, const py::args& args) const {
+    BasicNode* find_node(const TID& tid, BTrait* trait) {
         std::shared_lock guard(m_rw_mutex);
-        //std::shared_lock<std::shared_mutex> guard(m_rw_mutex);
 
-        auto oc = find_object_cache(tid, true);
-        return oc->find_node(trait, args);
+        auto oci = m_data.find(tid);
+        if (oci == m_data.end())
+            return nullptr;
+
+        return oci->second->find_node(trait);
+    }
+
+    BasicNode* find_node(const TID& tid, BTrait* trait, const py::args& args) {
+        std::shared_lock guard(m_rw_mutex);
+
+        auto oci = m_data.find(tid);
+        if (oci == m_data.end())
+            return nullptr;
+
+        return oci->second->find_node(trait, args);
     }
 
     BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type = -1) {
         std::unique_lock guard(m_rw_mutex);
-        //std::unique_lock<std::shared_mutex> guard(m_rw_mutex);
 
-        auto oc = find_object_cache(tid, true);
+        auto oc = find_or_create_object_cache(tid);
 
         if (node_type == -1)
             node_type = m_default_node_type;
@@ -196,9 +205,8 @@ public:
 
     BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, int node_type = -1) {
         std::unique_lock guard(m_rw_mutex);
-        //std::unique_lock<std::shared_mutex> guard(m_rw_mutex);
 
-        auto oc = find_object_cache(tid, true);
+        auto oc = find_or_create_object_cache(tid);
 
         if (node_type == -1)
             node_type = m_default_node_type;
@@ -206,44 +214,29 @@ public:
         return oc->find_or_create_node(trait, node_type, args);
     }
 
-//    BasicNode* create_node(const TID& tid, BTrait* trait, const py::args& args, int node_type = -1) {
-//        std::unique_lock<std::shared_mutex> guard(m_rw_mutex);
-//
-//        auto oc = find_or_create_object_cache(tid);
-//        auto key = node_key(trait, args);
-//        if (node_type == -1)
-//            node_type = m_default_node_type;
-//
-//        auto node = BasicNode::create(node_type);
-//        oc->insert({key, node });
-//        return node;
-//    }
-
     void remove_node(const TID& tid, BTrait* trait) {
         std::unique_lock guard(m_rw_mutex);
-        //std::unique_lock<std::shared_mutex> guard(m_rw_mutex);
 
-        auto oc = find_object_cache(tid, true);
-        oc->remove_node(trait);
+        auto oci = m_data.find(tid);
+        if (oci != m_data.end())
+            oci->second->remove_node(trait);
     }
 
     void remove_node(const TID& tid, BTrait* trait, const py::args& args) {
         std::unique_lock guard(m_rw_mutex);
-        //std::unique_lock<std::shared_mutex> guard(m_rw_mutex);
 
-        auto oc = find_object_cache(tid, true);
-        oc->remove_node(trait, args);
+        auto oci = m_data.find(tid);
+        if (oci != m_data.end())
+            oci->second->remove_node(trait, args);
     }
 
     void set_node(BasicNode* node, const py::object& value) {
         std::unique_lock guard(m_rw_mutex);
-        //std::unique_lock<std::shared_mutex> guard(m_rw_mutex);
         node->set(value);
     }
 
     void invalidate_node(BasicNode* node) {
         std::unique_lock guard(m_rw_mutex);
-        //std::unique_lock<std::shared_mutex> guard(m_rw_mutex);
         node->invalidate();
     }
 

@@ -92,7 +92,9 @@ public:
 
     //py::object  raw_get_value(BTrait* trait);
 
-    py::object serialize(bool embed);
+    py::object  serialize(bool embed);
+    void        deserialize(const py::dict& serialized_data);
+
 };
 
 

@@ -171,34 +171,4 @@ BTraitableProcessor* BTraitableProcessor::create(unsigned int flags) {
     return proc;
 }
 
-//======================================================================================================================
-//  Traitable ID Calc Processor
-//======================================================================================================================
 
-class IdCache : public BCache {
-    BTraitable  *m_obj;
-public:
-    explicit IdCache(BTraitable* obj) : m_obj(obj)                      { m_default_node_type = NODE_TYPE::GRAPH; }
-
-    ObjectCache* find_object_cache(const TID& tid, bool must_exist) const final { return m_obj->id_cache(); }
-};
-
-IdCalc::IdCalc(BTraitable* obj) : m_obj(obj) {
-    m_cache = new IdCache(obj);
-}
-
-IdCalc::~IdCalc() {
-    delete m_cache;
-}
-
-void IdCalc::invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) {
-
-}
-
-py::object IdCalc::get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) {
-    return py::none();
-}
-
-py::object IdCalc::raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) {
-    return PyLinkage::RC_TRUE();
-}

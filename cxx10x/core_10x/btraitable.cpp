@@ -65,7 +65,7 @@ class IdCache : public BCache {
 public:
     explicit IdCache(BTraitable* obj) : m_obj(obj)                      {}
 
-    ObjectCache* find_object_cache(const TID& tid, bool must_exist) const final     { return m_obj->id_cache(); }
+    ObjectCache* find_or_create_object_cache(const TID& tid) final     { return m_obj->id_cache(); }
 };
 
 class CacheMocker {
@@ -88,8 +88,6 @@ public:
 
 BTraitable::BTraitable(const py::object& cls) {
     m_class = cls.cast<BTraitableClass*>();
-    //m_id_cache = new ObjectCache();
-    //m_cache = new IdCache(this);
     m_id_cache = nullptr;
     m_cache = nullptr;
     if (!m_class->is_id_endogenous()) {
@@ -217,6 +215,8 @@ py::object BTraitable::serialize(bool embed) {
         return py::str(id());
 
     py::dict res;
+    res["_id"] = m_id;
+
     for (auto item : m_class->trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (!trait->flags_on(BTraitFlags::RUNTIME)) {
@@ -229,5 +229,23 @@ py::object BTraitable::serialize(bool embed) {
             res[trait_name] = ser_value;
         }
     }
+
     return res;
+}
+
+void BTraitable::deserialize(const py::dict& serialized_data) {
+    auto cache = ThreadContext::current_cache();
+    cache->create_object_cache(m_tid);
+
+    for (auto item : serialized_data) {
+        auto trait_name = item.first.cast<py::object>();
+        auto trait = m_class->find_trait(trait_name);
+        if (trait) {
+            auto value = item.second.cast<py::object>();
+            auto deser_value = trait->f_deserialize(nullptr, trait, value);
+            BRC rc(set_value(trait, deser_value));
+            if (!rc)
+                throw py::value_error(rc.error());
+        }
+    }
 }

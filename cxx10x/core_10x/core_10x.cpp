@@ -105,8 +105,8 @@ PYBIND11_MODULE(core_10x_i, m)
             .def(py::init<>())
             .def(py::init<BCache*>())
             .def("find_object_cache",           &BCache::find_object_cache)
-            .def("find_node",                   py::overload_cast<const TID&, BTrait*>(&BCache::find_node, py::const_))
-            .def("find_node",                   py::overload_cast<const TID&, BTrait*, const py::args&>(&BCache::find_node, py::const_))
+            .def("find_node",                   py::overload_cast<const TID&, BTrait*>(&BCache::find_node))
+            .def("find_node",                   py::overload_cast<const TID&, BTrait*, const py::args&>(&BCache::find_node))
             ;
 
     py::class_<TID>(m, "TID")
