@@ -143,14 +143,22 @@ class TestTsUnion(unittest.TestCase):
         password = ':'
         store_class = 'MONGO_DB:MONGO_DB'
 
-        union_store = TsUnion.instance(hostname, dbname, username, password, store_class=store_class)
+        store_spec = dict(driver_name='MONGO_DB', hostname='localhost', dbname='dbname1', username='')
+
+        union_store = TsUnion.instance(store_spec, store_spec|dict(dbname='dbname2'))
         assert isinstance(union_store, TsUnion)
         assert all(isinstance(store, MongoStore) for store in union_store.stores)
 
         assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, TsUnion)) == 1
         assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, MongoStore)) == 2
 
-        assert list(TsUnion.s_instances.keys()) == [('localhost', '', 'dbname1'), ('localhost', '', 'dbname2'), ('localhost:localhost', ':', 'dbname1:dbname2', ('store_class', 'MONGO_DB:MONGO_DB'))]
+        assert list(TsUnion.s_instances.keys()) == [
+             (('dbname', 'dbname1'), ('hostname', 'localhost'), ('username', '')),
+             (('dbname', 'dbname2'), ('hostname', 'localhost'), ('username', '')), (
+                 (('dbname', 'dbname1'), ('driver_name', 'MONGO_DB'), ('hostname', 'localhost'), ('username', '')),
+                 (('dbname', 'dbname2'), ('driver_name', 'MONGO_DB'), ('hostname', 'localhost'), ('username', ''))
+            )
+        ]
 
 if __name__ == '__main__':
     unittest.main()
