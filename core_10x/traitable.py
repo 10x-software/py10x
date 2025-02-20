@@ -104,13 +104,13 @@ class Traitable(BTraitable, Nucleus):
         '_default_cache',
     )
     def __init_subclass__(cls, **kwargs):
+        rev_trait = Traitable._rev_trait()
+        cls.s_dir[rev_trait.name] = rev_trait # insert _rev as the first trait and delete later if not needed
         cls.build_trait_dir().throw(exc = TypeError)
         cls.s_bclass = BTraitableClass(cls)
 
-        if cls.is_storable():
-            rev_trait = Traitable._rev_trait()
-            cls.s_dir[rev_trait.name] = rev_trait
-        else:
+        if not cls.is_storable():
+            del cls.s_dir[rev_trait.name]
             cls.collection = lambda: None
             cls.load_data = lambda id_value: None
             cls.load = lambda id_value: None
