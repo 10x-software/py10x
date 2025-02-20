@@ -1,3 +1,4 @@
+from core_10x.trait_definition import RT
 from core_10x.traitable import Traitable, T, RC, RC_TRUE
 
 class Person(Traitable):
@@ -7,7 +8,7 @@ class Person(Traitable):
     age: int            = T(1)
     full_name: str      = T(T.EXPENSIVE)
 
-    older_than: bool    = T()
+    older_than: bool    = RT()
 
     def full_name_get(self) -> str:
         return f'{self.first_name} {self.last_name}'

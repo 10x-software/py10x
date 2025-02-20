@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Self
 
 from core_10x.trait_filter import f
 from core_10x.rc import RC
@@ -29,7 +29,10 @@ class TsCollection:
             return data
 
 class TsStore(Resource, resource_type = TS_STORE):
-    s_default_port = None
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        assert cls.__mro__[1] is TsStore, 'TsStore must be the first base class'
+        cls.s_instance_kwargs_map = { **TsStore.s_instance_kwargs_map, **cls.s_instance_kwargs_map }
 
     @staticmethod
     def store_class(store_class_name: str):
@@ -37,26 +40,34 @@ class TsStore(Resource, resource_type = TS_STORE):
         assert cls, f'Unknown TsStore class {store_class_name}'
         return cls
 
+    @classmethod
+    def standard_key(cls, *args, **kwargs) -> tuple:
+        return standard_key(args, kwargs)
+
     s_instances = {}
     @classmethod
-    def instance(cls, hostname: str, dbname: str, username: str, password: str, _cache = True, **kwargs) -> 'TsStore':
+    def instance(cls, *args, password = '', _cache = True, **kwargs) -> Self:
         translated_kwargs = cls.translate_kwargs(kwargs)
         if not _cache:
-            return cls.new_instance(hostname, dbname, username, password, **translated_kwargs)
+            return cls.new_instance(*args, password, **translated_kwargs)
 
-        instance_key = standard_key((hostname, username, dbname), kwargs)
+        instance_key = cls.standard_key(*args, **kwargs)
         store = cls.s_instances.get(instance_key)
         if not store:
-            store = cls.new_instance(hostname, dbname, username, password, **translated_kwargs)
+            store = cls.new_instance(*args, password=password, **translated_kwargs)
             cls.s_instances[instance_key] = store
 
         return store
 
     s_instance_kwargs_map = dict(
-        port    = ('port',  None),
-        ssl     = ('ssl',   True),
-        sst     = ('sst',   1000),
+        hostname = ('hostname',  None),
+        username = ('username',  None),
+        dbname   = ('dbname',None),
+        port     = ('port',  None),
+        ssl      = ('ssl',   True),
+        sst      = ('sst',   1000),
     )
+
     @classmethod
     def translate_kwargs(cls, kwargs: dict) -> dict:
         kwargs_map = cls.s_instance_kwargs_map
@@ -65,7 +76,7 @@ class TsStore(Resource, resource_type = TS_STORE):
         return { kwargs_map[name][0]: value for name, value in def_kwargs.items() }
 
     @classmethod
-    def new_instance(cls, hostname: str, dbname: str, username: str, password: str, **kwargs) -> 'TsStore':
+    def new_instance(cls, *args, password: str, **kwargs) -> 'TsStore':
         raise NotImplementedError
 
     def collection_names(self, regexp: str = None) -> list:                     raise NotImplementedError

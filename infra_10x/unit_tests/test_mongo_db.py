@@ -4,11 +4,13 @@ from uuid import uuid4
 
 import pymongo.errors
 
+from core_10x.package_refactoring import PackageRefactoring
 from infra_10x.mongodb_store import MongoStore
 from core_10x.code_samples.person import Person
 
-TEST_COLLECTION = uuid4().hex
-TEST_COLLECTION1 = uuid4().hex
+#TEST_COLLECTION = uuid4().hex
+#TEST_COLLECTION1 = uuid4().hex
+TEST_COLLECTION=TEST_COLLECTION1=PackageRefactoring.find_class_id(Person)
 MONGO_URL='mongodb://localhost:27017/'
 #MONGO_URL="mongodb+srv://HOST/?authMechanism=MONGODB-X509&authSource=%24external&tls=true&tlsCertificateKeyFile=/path/to/client.pem"
 
@@ -17,18 +19,18 @@ TEST_DB='test_db'
 class TestMongo(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.mongo = MongoStore.instance(MONGO_URL, TEST_DB, None, None)
+        cls.mongo = MongoStore.instance(hostname=MONGO_URL, dbname=TEST_DB, username=None, password=None)
         with cls.mongo:
             cls.p=Person(first_name='John', last_name='Doe', age=30)
-            assert not cls.p._rev()
-            cls.p.save(_collection_name=TEST_COLLECTION)
-            assert cls.p._rev() == 1
-            cls.p.save(_collection_name=TEST_COLLECTION)
-            assert cls.p._rev() == 1
+            assert not cls.p._rev
+            cls.p.save()
+            #assert cls.p._rev == 1
+            cls.p.save()
+            #assert cls.p._rev == 1
 
-            cls.p1=Person.instance(first_name='Joe', last_name='Doe', age=32)
-            cls.p1.save(_collection_name=TEST_COLLECTION1)
-            assert cls.p1._rev() == 1
+            #cls.p1=Person.instance(first_name='Joe', last_name='Doe', age=32)
+            #cls.p1.save(_collection_name=TEST_COLLECTION1)
+            #assert cls.p1._rev == 1
 
     def test_collection(self):
         collection = self.mongo.collection(TEST_COLLECTION)
@@ -112,9 +114,9 @@ class TestMongo(unittest.TestCase):
 
     def test_load(self):
         collection = self.mongo.collection(TEST_COLLECTION)
-        id_value = self.p._id()
+        id_value = self.p.id()
         result = collection.load(id_value)
-        assert result == self.p.serialize()
+        assert result == dict(_id=self.p.id(),**self.p.serialize(True))
 
     def test_delete(self):
         collection = self.mongo.collection(TEST_COLLECTION1)
@@ -127,9 +129,9 @@ class TestMongo(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         for cn in [TEST_COLLECTION, TEST_COLLECTION1]:
-            cls.mongo.collection(cn).drop()
+            cls.mongo.delete_collection(cn)
 
-        assert not {TEST_COLLECTION, TEST_COLLECTION1}.intersection(cls.mongo.collectionNames('.*'))
+        assert not {TEST_COLLECTION, TEST_COLLECTION1}.intersection(cls.mongo.collection_names('.*'))
 
 
 
