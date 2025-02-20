@@ -15,13 +15,12 @@ class TID {
     BTraitableClass*    m_class;
     std::string*        m_id;
 
-    eval_once_const(const TID, py::str, py_id);
-
-    py::str py_id_get() const {
-        return {*m_id};
-    }
+    //[[nodiscard]] py::str py_id_get() const { return {*m_id}; }
 
 public:
+    //eval_once_const(const TID, py::str, py_id);
+    [[nodiscard]] py::str py_id() const { return {*m_id}; }
+
     TID() : m_class(nullptr), m_id(nullptr)                     {}
     TID(BTraitableClass* cls, std::string* id) : m_class(cls), m_id(id) {}
 
