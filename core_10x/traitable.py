@@ -228,7 +228,7 @@ class Traitable(BTraitable, Nucleus):
         coll = cls.collection()
 
         try:
-            rev = coll.save({coll.s_id_tag:self.id()}|serialized_data) #TODO: pass id as a separate argument?
+            rev = coll.save(serialized_data)
         except Exception as e:
             return RC(False, str(e))
 

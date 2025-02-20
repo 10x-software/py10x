@@ -45,7 +45,7 @@ class TestMongo(unittest.TestCase):
 
     def test_save(self):
         collection = self.mongo.collection(TEST_COLLECTION)
-        serialized_entity = dict(_id=self.p.id())|self.p.serialize(True)
+        serialized_entity = self.p.serialize(True)
         _rev = collection.save(serialized_entity.copy())
         assert self.p._rev == _rev
 
@@ -103,26 +103,28 @@ class TestMongo(unittest.TestCase):
 
     def test_delete_restore(self):
         collection = self.mongo.collection(TEST_COLLECTION)
-        serialized_entity = dict(_id=self.p1.id())|self.p.serialize(True)
+        serialized_entity = self.p.serialize(True)
         id_value = serialized_entity['_id']
         assert collection.delete(id_value)
         assert collection.load(id_value) is None
-        #TODO: restore is not implemented
+        #TODO: restore is not implemented so use save_new meanwhile
         # assert collection.restore(id_value)
-        # assert collection.load(id_value) == serialized_entity
+        collection.save_new(serialized_entity)
+        assert collection.load(id_value) == serialized_entity
+
 
 
     def test_find(self):
         collection = self.mongo.collection(TEST_COLLECTION)
         result = collection.find()
-        assert next(result) == {'_id':self.p.id()}|self.p.serialize(True)
+        assert next(result) == self.p.serialize(True)
         assert list(result) == []
 
     def test_load(self):
         collection = self.mongo.collection(TEST_COLLECTION)
         id_value = self.p.id()
         result = collection.load(id_value)
-        assert result == dict(_id=self.p.id(),**self.p.serialize(True))
+        assert result == self.p.serialize(True)
 
     def test_delete(self):
         collection = self.mongo.collection(TEST_COLLECTION1)
