@@ -23,7 +23,7 @@ class MongoCollection(TsCollection):
         return self.coll.find(query.prefix_notation()) if query else self.coll.find()
 
     def count(self, query: f = None) -> int:
-        return self.coll.count_documents(query.prefix_notation()) if f else self.coll.count_documents({})
+        return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})
 
     def save_new(self, serialized_traitable: dict) -> int:
         res = self.coll.insert_one(serialized_traitable)
