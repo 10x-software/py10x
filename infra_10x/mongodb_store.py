@@ -17,7 +17,7 @@ class MongoCollection(TsCollection):
         self.coll: Collection = db[collection_name]
 
     def find(self, query: f = None) -> Iterable:
-        return self.coll.find(query.prefix_notation()) if f else self.coll.find()
+        return self.coll.find(query.prefix_notation()) if query else self.coll.find()
 
     def save_new(self, serialized_traitable: dict) -> int:
         res = self.coll.insert_one(serialized_traitable)
@@ -31,15 +31,15 @@ class MongoCollection(TsCollection):
         assert revision >= 0, 'revision must be >= 0'
 
         if revision == 0:
+            serialized_traitable[rev_tag] = 1
             return self.save_new(serialized_traitable)
 
         id_value = serialized_traitable.get(id_tag)
-        del serialized_traitable[id_tag]
-        del serialized_traitable[rev_tag]
 
         filter = {}
         pipeline = []
         MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
+        #self.filter_and_pipeline(serialized_traitable, filter, pipeline)
 
         res = self.coll.update_one(filter, pipeline)
         if not res.acknowledged:
@@ -53,9 +53,12 @@ class MongoCollection(TsCollection):
 
         return revision if res.modified_count != 1 else revision + 1
 
-    def filter_and_pipeline(self, id_tag, rev_tag, id_value, revision, serialized_traitable, filter, pipeline):
-        filter[id_tag] = id_value
-        filter[rev_tag] = revision
+    @classmethod
+    def filter_and_pipeline(cls, serialized_traitable, filter, pipeline):
+        rev_tag = Nucleus.REVISION_TAG
+        id_tag = cls.s_id_tag
+        for key in (rev_tag, id_tag):
+            filter[key] = serialized_traitable.pop(key)
 
         rev_condition = {
             '$and': [ {'$eq': ['$' + name, {'$literal': value}] } for name, value in serialized_traitable.items() ]
@@ -64,8 +67,8 @@ class MongoCollection(TsCollection):
         update_revision = {
             '$cond': [
                 rev_condition,  #-- if each field is equal to its prev value
-                revision,       #       then, keep the revision as is
-                revision + 1    #       else, increment it
+                filter[rev_tag],       #       then, keep the revision as is
+                filter[rev_tag] + 1    #       else, increment it
             ]
         }
 
@@ -73,7 +76,7 @@ class MongoCollection(TsCollection):
             {
                 '$replaceRoot': {
                     'newRoot': {
-                        id_tag:     id_value,
+                        id_tag:     filter[id_tag],
                         rev_tag:    update_revision,
                     }
                 }
