@@ -11,6 +11,8 @@
 
 namespace py = pybind11;
 
+using dict_iter = py::detail::dict_iterator;
+
 template<>
 struct std::equal_to<py::object> {
     bool operator() (const py::object& a, const py::object& b) const    { return a.equal(b); }

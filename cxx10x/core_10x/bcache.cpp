@@ -48,7 +48,7 @@ ObjectCache* BCache::find_or_create_object_cache(const TID &tid) {
         return it->second;
 
     //-- the object cache is not there, we have a lazy tid reference - let's load the object
-    tid.cls()->load(py::str(tid.id()));
+    tid.cls()->load(tid.py_id(), true);
 
     //-- check if loaded successfully
     it = m_data.find(tid);

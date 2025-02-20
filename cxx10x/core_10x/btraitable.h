@@ -28,7 +28,7 @@ public:
     static std::string exogenous_id();
 
     explicit BTraitable(const py::object& cls);
-    explicit BTraitable(const py::object& cls, const std::string& id, const py::kwargs& trait_values);
+    explicit BTraitable(const py::object& cls, const std::string& id);
     explicit BTraitable(const py::object& cls, const py::kwargs& trait_values);
     ~BTraitable();
 
@@ -78,7 +78,7 @@ public:
         return proc->set_trait_value(this, trait, value, args);
     }
 
-    py::object set_values(const py::dict& trait_values, bool ignore_unknown_traits = true);
+    py::object set_values(const py::dict& trait_values, dict_iter* iter = nullptr, bool ignore_unknown_traits = true);
 
     py::object raw_set_value(BTrait* trait, const py::object& value) {
         auto proc = ThreadContext::current_traitable_proc_bound();
@@ -94,6 +94,7 @@ public:
 
     py::object  serialize(bool embed);
     void        deserialize(const py::dict& serialized_data);
+    void        reload();
 
 };
 

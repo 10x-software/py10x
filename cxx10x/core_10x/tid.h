@@ -6,11 +6,20 @@
 
 #include <string>
 
+#include "py_linkage.h"
+#include "eval_once.h"
+
 class BTraitableClass;
 
 class TID {
     BTraitableClass*    m_class;
     std::string*        m_id;
+
+    eval_once_const(const TID, py::str, py_id);
+
+    py::str py_id_get() const {
+        return {*m_id};
+    }
 
 public:
     TID() : m_class(nullptr), m_id(nullptr)                     {}

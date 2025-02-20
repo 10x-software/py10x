@@ -172,6 +172,11 @@ public:
         return it != m_data.end() ? it->second : nullptr;
     }
 
+    bool known_object(const TID& tid) const {
+        auto it = m_data.find(tid);
+        return it != m_data.end();
+    }
+
     BasicNode* find_node(const TID& tid, BTrait* trait) {
         std::shared_lock guard(m_rw_mutex);
 
