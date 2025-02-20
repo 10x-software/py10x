@@ -28,3 +28,6 @@ public:
 
 #define eval_once(X, T, method)      EvalOnce<T, X> m_##method = EvalOnce<T, X>([](X* self) { return self->method##_get(); }); \
     public: T method() { return m_##method.get(this); }
+
+#define eval_once_const(X, T, method)   EvalOnce<T, X> m_##method = EvalOnce<T, X>([](X* self) { return self->method##_get(); }); \
+    public: T method() const { return m_##method.get(this); }

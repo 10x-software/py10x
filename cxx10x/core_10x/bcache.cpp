@@ -20,28 +20,43 @@ TraitNodesWithArgs::~TraitNodesWithArgs() {
 
 BCache BCache::s_default;
 
-ObjectCache* BCache::find_object_cache(const TID& tid, bool must_exist) const {
+//ObjectCache* BCache::find_object_cache(const TID& tid, bool must_exist) const {
+//    auto it = m_data.find(tid);
+//    if (it != m_data.end())
+//        return it->second;
+//
+//    auto oc = m_parent ? m_parent->find_object_cache(tid, false) : nullptr;
+//    if (!oc && must_exist)
+//        throw py::value_error(py::str(
+//                "Unknown instance of {}.\n"
+//                "Most probably, it's been created in out of reach Cache Layer\n"
+//                "id = {}"
+//        ).format(tid.cls()->name(), tid.id()));
+//
+//    return oc;
+//}
+
+void BCache::create_object_cache(const TID &tid) {
     auto it = m_data.find(tid);
-    if( it != m_data.end())
-        return it->second;
-
-    auto oc = m_parent ? m_parent->find_object_cache(tid, false) : nullptr;
-    if (!oc && must_exist)
-        throw py::value_error(py::str(
-                "Unknown instance of {}.\n"
-                "Most probably, it's been created in out of reach Cache Layer\n"
-                "id = {}"
-        ).format(tid.cls()->name(), tid.id()));
-
-    return oc;
+    if (it == m_data.end())
+        m_data.insert({ tid, new ObjectCache() });
 }
 
 ObjectCache* BCache::find_or_create_object_cache(const TID &tid) {
-    auto oc = find_object_cache(tid, false);
-    if (oc)
-        return oc;
+    auto it = m_data.find(tid);
+    if (it != m_data.end())
+        return it->second;
 
-    oc = new ObjectCache();
+    //-- the object cache is not there, we have a lazy tid reference - let's load the object
+    tid.cls()->load(tid.py_id(), true);
+
+    //-- check if loaded successfully
+    it = m_data.find(tid);
+    if (it != m_data.end())
+        return it->second;
+
+    //-- we need a new cache
+    auto oc = new ObjectCache();
     m_data.insert({ tid, oc });
     return oc;
 }

@@ -8,6 +8,7 @@
 #include "btrait.h"
 #include "bcache.h"
 #include "thread_context.h"
+#include "btraitable.h"
 
 bool BTraitableClass::is_storable_get() {
     for (auto item : trait_dir()) {
@@ -35,25 +36,23 @@ BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
     return dir[trait_name].cast<BTrait*>();
 }
 
-bool BTraitableClass::known_object(std::string& id) {
+bool BTraitableClass::instance_in_cache(const TID &tid) {
     auto cache = ThreadContext::current_cache();
-    TID tid(this, &id);
-    auto oc = cache->find_object_cache(tid, false);
-    return oc != nullptr;
+    return cache->known_object(tid);
 }
 
 bool BTraitableClass::instance_exists(const TID &tid) const {
-    auto cache = ThreadContext::current_cache();
-    auto oc = cache->find_object_cache(tid, false);
-    // TODO: add code to check if Traitable with this TID exists in Entity Store!
-    return oc != nullptr;
+    if (instance_in_cache(tid))
+        return true;
+
+    return m_py_class.attr("exists_in_store")(tid.py_id()).cast<bool>();
 }
 
-py::object BTraitableClass::deserialize(const py::object& serialized_data) {
+py::object BTraitableClass::deserialize(const py::object& serialized_data, bool reload) {
     if (py::isinstance<py::str>(serialized_data)) {     //-- just traitable's ID
         auto proc = ThreadContext::current_traitable_proc();
         if (proc->is_debug())
-            return load(serialized_data);
+            return load(serialized_data, true);
 
         return m_py_class(serialized_data);     // cls(_id = serialized_data)
     }
@@ -62,26 +61,32 @@ py::object BTraitableClass::deserialize(const py::object& serialized_data) {
         throw py::type_error(py::str("{}.deserialize() expects a dict, got {}").format(m_name, serialized_data));
 
     auto trait_values = serialized_data.cast<py::dict>();
+    return deserialize_object(trait_values, reload);
+}
+
+py::object BTraitableClass::deserialize_object(const py::dict& trait_values, bool reload) {
     auto id_value = trait_values.attr("pop")("_id", py::none());
     if (id_value.is_none())
         throw py::value_error(py::str("{}.deserialize() - _id field is missing in {}").format(m_name, trait_values));
 
-    py::kwargs kwargs;
-    kwargs["_id"] = id_value;
+    auto py_traitable = m_py_class(id_value);    // cls(_id = id_value)
+    auto traitable = py_traitable.cast<BTraitable*>();
 
-    for (auto item : trait_values) {
-        auto trait_name = item.first.cast<py::object>();
-        auto trait = find_trait(trait_name);
-        if (trait) {
-            auto value = item.second.cast<py::object>();
-            auto deser_value = trait->f_deserialize(nullptr, trait, value);
-            kwargs[trait_name] = deser_value;
-        }
-    }
+    if (reload || !instance_in_cache(traitable->tid()))
+        traitable->deserialize(trait_values);
 
-    return m_py_class(**kwargs);
+    return py_traitable;
 }
 
-py::object BTraitableClass::load(const py::object &id) {
-    return m_py_class.attr("load")(id);
+py::object BTraitableClass::load(const py::object& id, bool reload) {
+    auto py_traitable = m_py_class(id);
+    auto traitable = py_traitable.cast<BTraitable*>();
+    if (reload || !instance_in_cache(traitable->tid()))
+        traitable->reload();
+
+    return py_traitable;
+}
+
+py::object BTraitableClass::load_data(const py::object& id) const {
+    return m_py_class.attr("load_data")(id);
 }
