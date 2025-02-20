@@ -9,7 +9,9 @@ from core_10x.resource import Resource, TS_STORE
 class TsCollection:
     s_id_tag: str = None
 
+    def id_exists(self, id_value: str) -> bool:                                 raise NotImplementedError
     def find(self, query: f = None) -> Iterable:                                raise NotImplementedError
+    def count(self, query: f = None) -> int:                                    raise NotImplementedError
     def save_new(self, serialized_traitable: dict) -> int:                      raise NotImplementedError   #-- new _rev
     def save(self, serialized_traitable: dict) -> int:                          raise NotImplementedError   #-- new _rev
     def delete(self, id_value: str) -> bool:                                    raise NotImplementedError
@@ -19,10 +21,7 @@ class TsCollection:
     def min(self, trait_name: str, filter: f = None) -> dict:                   raise NotImplementedError
 
     def exists(self, query: f) -> bool:
-        for _ in self.find(query):
-            return True
-        else:
-            return False
+        return self.count(query) > 0
 
     def load(self, id_value: str) -> dict:
         for data in self.find(f(**{self.s_id_tag: id_value})):
