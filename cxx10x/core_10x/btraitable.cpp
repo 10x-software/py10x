@@ -65,7 +65,8 @@ class IdCache : public BCache {
 public:
     explicit IdCache(BTraitable* obj) : m_obj(obj)                      {}
 
-    ObjectCache* find_or_create_object_cache(const TID& tid) final     { return m_obj->id_cache(); }
+    ObjectCache* find_object_cache(const TID& tid) const final      { return m_obj->id_cache(); }
+    ObjectCache* find_or_create_object_cache(const TID& tid) final  { return m_obj->id_cache(); }
 };
 
 class CacheMocker {

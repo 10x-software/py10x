@@ -167,7 +167,7 @@ public:
     void                    create_object_cache(const TID& tid);
     virtual ObjectCache*    find_or_create_object_cache(const TID& tid);
 
-    ObjectCache* find_object_cache(const TID& tid) const {
+    virtual ObjectCache* find_object_cache(const TID& tid) const {
         auto it = m_data.find(tid);
         return it != m_data.end() ? it->second : nullptr;
     }
@@ -180,21 +180,21 @@ public:
     BasicNode* find_node(const TID& tid, BTrait* trait) {
         std::shared_lock guard(m_rw_mutex);
 
-        auto oci = m_data.find(tid);
-        if (oci == m_data.end())
+        auto oc = find_object_cache(tid);
+        if (!oc)
             return nullptr;
 
-        return oci->second->find_node(trait);
+        return oc->find_node(trait);
     }
 
     BasicNode* find_node(const TID& tid, BTrait* trait, const py::args& args) {
         std::shared_lock guard(m_rw_mutex);
 
-        auto oci = m_data.find(tid);
-        if (oci == m_data.end())
+        auto oc = find_object_cache(tid);
+        if (!oc)
             return nullptr;
 
-        return oci->second->find_node(trait, args);
+        return oc->find_node(trait, args);
     }
 
     BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type = -1) {
