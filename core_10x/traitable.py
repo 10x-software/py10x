@@ -70,13 +70,8 @@ class Traitable(BTraitable, Nucleus):
     @staticmethod
     @cache
     def _rev_trait() -> Trait:
-        t_def = T(0, T.RESERVED)
-        trait = concrete_traits.int_trait(t_def)
-        trait.name = Nucleus.REVISION_TAG
-        trait.data_type = int
-        trait.flags = t_def.flags.value()
-        trait.default = t_def.default
-        return trait
+        trait_name = Nucleus.REVISION_TAG
+        return Trait.create(trait_name, T(0, T.RESERVED), {}, {trait_name:int}, RC_TRUE)
 
     @classmethod
     def trait(cls, trait_name: str, throw = False) -> Trait:
@@ -242,12 +237,17 @@ class Traitable(BTraitable, Nucleus):
         coll = cls.collection()
 
         try:
-            rev = coll.save(serialized_data)
+            rev = coll.save({coll.s_id_tag:self.id()}|serialized_data) #TODO: pass id as a separate argument?
         except Exception as e:
             return RC(False, str(e))
 
         self._rev = rev
         return RC_TRUE
+
+    def verify(self) -> RC:
+        rc = RC_TRUE
+        #TODO: implement
+        return rc
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True):
     def post_ctor(self):
