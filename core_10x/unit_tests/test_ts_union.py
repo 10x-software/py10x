@@ -14,6 +14,17 @@ class TestTsUnionCollection(unittest.TestCase):
         self.mock_collection2 = MagicMock()
         self.union_collection = TsUnionCollection(self.mock_collection1, self.mock_collection2)
 
+    def test_empty(self):
+        col = TsUnionCollection()
+        self.assertEqual(col.collections, ())
+
+        self.assertFalse( col.id_exists('1') )
+        self.assertFalse( col.exists(f(x=GT(1))) )
+        self.assertSequenceEqual( list(col.find()), [] )
+        self.assertIsNone( col.max('x') )
+        self.assertIsNone( col.min('x') )
+        self.assertEqual( col.count(), 0 )
+
     def test_find(self, args=(f(x=GT(1)),)):
         self.mock_collection1.find.return_value = [{Nucleus.ID_TAG: 1}]
         self.mock_collection2.find.return_value = [{Nucleus.ID_TAG: 2}]
@@ -57,14 +68,14 @@ class TestTsUnionCollection(unittest.TestCase):
     def test_delete(self):
         id_value = '1'
         self.mock_collection1.delete.return_value = True
-        self.mock_collection1.find.return_value = None
-        self.mock_collection2.find.return_value = None
+        self.mock_collection1.count.return_value = 0
+        self.mock_collection2.count.return_value = 0
         result = self.union_collection.delete(id_value)
         self.assertTrue(result)
         self.mock_collection1.delete.assert_called_once_with(id_value)
         self.mock_collection2.delete.assert_not_called()
 
-        self.mock_collection2.find.return_value = [{Nucleus.ID_TAG: id_value}]
+        self.mock_collection2.count.return_value = 1
         result = self.union_collection.delete(id_value)
         self.assertFalse(result)
         self.mock_collection2.delete.assert_not_called()
