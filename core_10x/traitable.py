@@ -112,6 +112,7 @@ class Traitable(BTraitable, Nucleus):
             cls.s_dir[rev_trait.name] = rev_trait
         else:
             cls.collection = lambda: None
+            cls.load_data = lambda id_value: None
             cls.load = lambda id_value: None
             cls.load_many = lambda query: []
             cls.load_ids = lambda query: []
@@ -131,7 +132,8 @@ class Traitable(BTraitable, Nucleus):
 
     def __init__(self, _id: str = None, **trait_values):
         if _id is not None:
-            super().__init__(self.s_bclass, _id, **trait_values)
+            assert not trait_values, f'{self.__class__}(id_value) may not be invoked with trait_values'
+            super().__init__(self.s_bclass, _id)
         else:
             super().__init__(self.s_bclass, **trait_values)
         self.trait = TraitAccessor(self)
@@ -191,16 +193,24 @@ class Traitable(BTraitable, Nucleus):
         return store.collection(cname)
 
     @classmethod
-    def load(cls, id_value: str) -> 'Traitable':
+    def exists_in_store(cls, id_value: str) -> bool:
         coll = cls.collection()
-        serialized_data = coll.load(id_value)
-        return cls.s_bclass.deserialize(serialized_data)
+        return coll.id_exists(id_value)
 
     @classmethod
-    def load_many(cls, query: f) -> list:
+    def load_data(cls, id_value: str) -> dict:
+        coll = cls.collection()
+        return coll.load(id_value)
+
+    @classmethod
+    def load(cls, id_value: str, reload = False) -> 'Traitable':
+        return cls.s_bclass.load(id_value, reload)
+
+    @classmethod
+    def load_many(cls, query: f, reload = False) -> list:
         coll = cls.collection()
         cpp_class = cls.s_bclass
-        return [ cpp_class.deserialize(serialized_data) for serialized_data in coll.find(query) ]
+        return [ cpp_class.deserialize_object(serialized_data, reload) for serialized_data in coll.find(query) ]
 
     @classmethod
     def load_ids(cls, query: f) -> list:

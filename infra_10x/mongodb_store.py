@@ -16,8 +16,14 @@ class MongoCollection(TsCollection):
     def __init__(self, db, collection_name: str):
         self.coll: Collection = db[collection_name]
 
+    def id_exists(self, id_value: str) -> bool:
+        return self.coll.count_documents({self.s_id_tag: id_value}) > 0
+
     def find(self, query: f = None) -> Iterable:
         return self.coll.find(query.prefix_notation()) if f else self.coll.find()
+
+    def count(self, query: f = None) -> int:
+        return self.coll.count_documents(query.prefix_notation()) if f else self.coll.count_documents({})
 
     def save_new(self, serialized_traitable: dict) -> int:
         res = self.coll.insert_one(serialized_traitable)
