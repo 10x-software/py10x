@@ -153,26 +153,7 @@ class Traitable(BTraitable, Nucleus):
     #   Nucleus related methods
     #===================================================================================================================
 
-    # def serialize(self, embed: bool):
-    #     if not embed:   #-- reference to this object
-    #         #-- TODO: must make sure this object exists in store
-    #         return self.id()
-    #
-    #     cls = self.__class__
-    #     res = {}
-    #     trait: Trait
-    #     for trait_name, trait in cls.s_dir.items():
-    #         if trait.flags_on(T.RUNTIME):
-    #             continue
-    #
-    #         value = self.get_value(trait)
-    #         if value is XNone:  #-- undefined
-    #             raise ValueError(f'{cls}.{trait_name} - undefined value')
-    #
-    #         ser_value = trait.serialize(value)
-    #         res[trait_name] = ser_value
-    #
-    #     return res
+    #-- serialize() is defined in BTraitable
 
     @classmethod
     def deserialize(cls, serialized_data) -> 'Traitable':
