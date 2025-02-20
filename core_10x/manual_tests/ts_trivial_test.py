@@ -3,7 +3,7 @@ if __name__ == '__main__':
     from infra_10x.mongodb_store import MongoStore
 
 
-    db = MongoStore.new_instance('localhost', 'test', '', '')
+    db = MongoStore.instance(hostname='localhost', dbname='test')
     with db:
         #print(db.collection_names())
         p = Person(first_name='Sasha', last_name='Davidovich')
