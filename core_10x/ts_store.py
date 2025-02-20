@@ -1,3 +1,4 @@
+import abc
 from typing import Iterable, Self
 
 from core_10x.trait_filter import f
@@ -6,19 +7,27 @@ from core_10x.py_class import PyClass
 from core_10x.global_cache import standard_key
 from core_10x.resource import Resource, TS_STORE
 
-class TsCollection:
+class TsCollection(abc.ABC):
     s_id_tag: str = None
 
-    def id_exists(self, id_value: str) -> bool:                                 raise NotImplementedError
-    def find(self, query: f = None) -> Iterable:                                raise NotImplementedError
-    def count(self, query: f = None) -> int:                                    raise NotImplementedError
-    def save_new(self, serialized_traitable: dict) -> int:                      raise NotImplementedError   #-- new _rev
-    def save(self, serialized_traitable: dict) -> int:                          raise NotImplementedError   #-- new _rev
-    def delete(self, id_value: str) -> bool:                                    raise NotImplementedError
-
-    def create_index(self, name: str, trait_name: str, **index_args) -> str:    raise NotImplementedError
-    def max(self, trait_name: str, filter: f = None) -> dict:                   raise NotImplementedError
-    def min(self, trait_name: str, filter: f = None) -> dict:                   raise NotImplementedError
+    @abc.abstractmethod
+    def id_exists(self, id_value: str) -> bool: ...
+    @abc.abstractmethod
+    def find(self, query: f = None) -> Iterable: ...
+    @abc.abstractmethod
+    def count(self, query: f = None) -> int: ...
+    @abc.abstractmethod
+    def save_new(self, serialized_traitable: dict) -> int: ...
+    @abc.abstractmethod
+    def save(self, serialized_traitable: dict) -> int:  ...
+    @abc.abstractmethod
+    def delete(self, id_value: str) -> bool: ...
+    @abc.abstractmethod
+    def create_index(self, name: str, trait_name: str, **index_args) -> str: ...
+    @abc.abstractmethod
+    def max(self, trait_name: str, filter: f = None) -> dict: ...
+    @abc.abstractmethod
+    def min(self, trait_name: str, filter: f = None) -> dict: ...
 
     def exists(self, query: f) -> bool:
         return self.count(query) > 0
@@ -78,6 +87,9 @@ class TsStore(Resource, resource_type = TS_STORE):
     def new_instance(cls, *args, password: str, **kwargs) -> 'TsStore':
         raise NotImplementedError
 
-    def collection_names(self, regexp: str = None) -> list:                     raise NotImplementedError
-    def collection(self, collection_name: str) -> TsCollection:                 raise NotImplementedError
-    def delete_collection(self, collection_name: str) -> bool:                  raise NotImplementedError
+    @abc.abstractmethod
+    def collection_names(self, regexp: str = None) -> list: ...
+    @abc.abstractmethod
+    def collection(self, collection_name: str) -> TsCollection: ...
+    @abc.abstractmethod
+    def delete_collection(self, collection_name: str) -> bool: ...

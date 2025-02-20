@@ -1,3 +1,4 @@
+import abc
 import inspect
 from collections import deque
 
@@ -87,7 +88,7 @@ class ResourceType:
         stack = self.resource_stack
         return stack[-1] if stack else None
 
-class Resource:
+class Resource(abc.ABC):
     s_resource_type: ResourceType = None
     def __init_subclass__(cls, resource_type: ResourceType = None, name: str = None):
         if cls.s_resource_type is None:   #-- must be a top class of a particular resource type, e.g. TsStore
