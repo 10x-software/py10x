@@ -96,7 +96,7 @@ class Resource(abc.ABC):
             assert name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
             cls.s_resource_type = resource_type
 
-        else:   #-- a Resource of a prticular resource type
+        else:   #-- a Resource of a particular resource type
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
             assert name and isinstance(name, str), 'a unique Resource name is expected'
             cls.s_resource_type.register_driver(name, cls)
@@ -104,10 +104,18 @@ class Resource(abc.ABC):
     def __enter__(self):
         rt = self.__class__.s_resource_type
         rt.begin_using(self)
+        self.on_enter()
         return rt
 
     def __exit__(self,*args):
         self.__class__.s_resource_type.end_using()
+        self.on_exit()
+
+    @abc.abstractmethod
+    def on_enter(self): ...
+
+    @abc.abstractmethod
+    def on_exit(self): ...
 
 #=========== Known Resource Types
 
