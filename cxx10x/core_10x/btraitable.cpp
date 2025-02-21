@@ -31,11 +31,12 @@ py::object BTraitable::endogenous_id() {
         }
     }
 
-    if (hasher.is_updated())
+    if (hasher.is_updated()) {
         regulars.append(hasher.hexdigest());
+        regulars.append(py::str("00"));     //-- for possible hash collision
+    }
 
-    regulars.append(py::str("00"));
-    return py::str("").attr("join")(regulars);
+    return py::str("|").attr("join")(regulars);
 }
 
 class IdCache : public BCache {
