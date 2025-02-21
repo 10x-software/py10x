@@ -35,6 +35,8 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("flags_on",                            &BProcessContext::flags_on)
             .def("replace_flags",                       &BProcessContext::replace_flags)
             .def("set_flags",                           &BProcessContext::set_flags)
+            .def("reset_flags",                         &BProcessContext::reset_flags)
+            .def("set_reset_flags",                     &BProcessContext::set_reset_flags)
             .def("topic",                               &BProcessContext::topic)
             .def("set_topic",                           &BProcessContext::set_topic)
             ;

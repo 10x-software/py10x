@@ -29,7 +29,9 @@ public:
     [[nodiscard]] unsigned  flags() const                                       { return m_flags; }
     [[nodiscard]] bool      flags_on(unsigned flags) const                      { return m_flags & flags; }
     void                    replace_flags(unsigned flags)                       { m_flags = flags; }
-    void                    set_flags(unsigned to_set, unsigned to_reset = 0x0) { m_flags = (m_flags | to_set) & ~to_reset; }
+    void                    set_flags(unsigned to_set)                          { m_flags |= to_set; }
+    void                    reset_flags(unsigned to_reset)                      { m_flags &= ~to_reset; }
+    void                    set_reset_flags(unsigned to_set, unsigned to_reset = 0x0) { m_flags = (m_flags | to_set) & ~to_reset; }
 
     [[nodiscard]] unsigned  topic(unsigned t) const;
     void                    set_topic(unsigned t, unsigned value);
