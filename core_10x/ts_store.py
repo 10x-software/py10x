@@ -91,6 +91,7 @@ class TsStore(Resource, resource_type = TS_STORE):
 
     def on_enter(self):
         self.bpc_flags = ProcessContext.BPC.flags()
+        ProcessContext.BPC.reset_flags(ProcessContext.CACHE_ONLY)
 
     def on_exit(self):
         ProcessContext.BPC.replace_flags(self.bpc_flags)
