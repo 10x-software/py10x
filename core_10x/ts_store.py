@@ -6,6 +6,8 @@ from core_10x.rc import RC
 from core_10x.py_class import PyClass
 from core_10x.global_cache import standard_key
 from core_10x.resource import Resource, TS_STORE
+from core_10x.process_context import ProcessContext
+
 
 class TsCollection(abc.ABC):
     s_id_tag: str = None
@@ -86,6 +88,12 @@ class TsStore(Resource, resource_type = TS_STORE):
     @classmethod
     def new_instance(cls, *args, password: str, **kwargs) -> 'TsStore':
         raise NotImplementedError
+
+    def on_enter(self):
+        self.bpc_flags = ProcessContext.BPC.flags()
+
+    def on_exit(self):
+        ProcessContext.BPC.replace_flags(self.bpc_flags)
 
     @abc.abstractmethod
     def collection_names(self, regexp: str = None) -> list: ...
