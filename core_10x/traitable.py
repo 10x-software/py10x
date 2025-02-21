@@ -131,11 +131,14 @@ class Traitable(BTraitable, Nucleus):
         return cls(_id = id_value)
 
     def __init__(self, _id: str = None, **trait_values):
+        super().__init__(self.s_bclass)
+
         if _id is not None:
             assert not trait_values, f'{self.__class__}(id_value) may not be invoked with trait_values'
-            super().__init__(self.s_bclass, _id)
+            self.set_id(_id)
         else:
-            super().__init__(self.s_bclass, **trait_values)
+            self.initialize(**trait_values)
+
         self.trait = TraitAccessor(self)
 
     def get_value_by_name(self, trait_name: str, *args):
@@ -225,6 +228,9 @@ class Traitable(BTraitable, Nucleus):
             return rc
 
         serialized_data = self.serialize(True)
+        if not serialized_data:     #-- it's a lazy instance - no reason to load and re-save
+            return RC_TRUE
+
         coll = cls.collection()
 
         try:
