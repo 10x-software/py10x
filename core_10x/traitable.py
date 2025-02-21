@@ -157,7 +157,7 @@ class Traitable(BTraitable, Nucleus):
         return cls.s_bclass.deserialize(serialized_data)
 
     def to_str(self) -> str:
-        return f'{self.__class__.__name__}/{self.id()}'
+        return f'{self.id()}'
 
     @classmethod
     def from_str(cls, s: str) -> Nucleus:
