@@ -49,7 +49,11 @@ public:
     BTrait*     find_trait(const py::object& trait_name) const;
 
     static bool instance_in_cache(const TID& tid);
-    bool        instance_exists(const TID& tid) const;
+    bool        instance_in_store(const TID& tid) const;
+
+    bool instance_exists(const TID& tid) const {
+        return instance_in_cache(tid) || instance_in_store(tid);
+    }
 
     py::object  deserialize(const py::object& serialized_data, bool reload);
     py::object  deserialize_object(const py::dict& serialized_data, bool reload);

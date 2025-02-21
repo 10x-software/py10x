@@ -70,21 +70,13 @@ BTraitable::BTraitable(const py::object& cls) {
     m_class = cls.cast<BTraitableClass*>();
     m_id_cache = nullptr;
     m_cache = nullptr;
-    if (!m_class->is_id_endogenous()) {
-        auto id = exogenous_id();
-        m_tid.set(m_class, id);
-    }
 }
 
-BTraitable::BTraitable(const py::object& cls, const py::object& id) {
-    m_class = cls.cast<BTraitableClass*>();
+void BTraitable::set_id(const py::object& id) {
     m_tid.set(m_class, id);
-    m_id_cache = nullptr;
-    m_cache = nullptr;
 }
 
-BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) {
-    m_class = cls.cast<BTraitableClass*>();
+void BTraitable::initialize(const py::kwargs& trait_values) {
     m_id_cache = new ObjectCache();
     m_cache = new IdCache(this);
 
@@ -93,6 +85,8 @@ BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) {
 
     py::object id;
     if (m_class->is_id_endogenous()) {
+        if (iter == end_iter)   // kwargs empty
+            throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
         {
             CacheMocker cache_guard(ThreadContext::current_traitable_proc(), this);
 
@@ -122,6 +116,7 @@ BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) {
                 throw py::value_error(py::str("Trying to set non ID traits for already existing object {}/{}").format(m_class->name(), id));
 
             clear_id_cache();
+
         } else {      // new instance
             auto cache = ThreadContext::current_cache();
             cache->register_object(this);
@@ -149,12 +144,15 @@ py::object BTraitable::from_any(BTrait* trait, const py::object& value) {
         return value;
 
     if (py::isinstance<py::str>(value))
-        return trait->f_from_str(this, trait, value);
+        return trait->wrapper_f_from_str(this, value);
 
-    return trait->f_from_any_xstr(this, trait, value);
+    return trait->wrapper_f_from_any_xstr(this, value);
 }
 
 py::object BTraitable::set_values(const py::dict& trait_values, dict_iter* p_iter, bool ignore_unknown_traits) {
+    if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+        reload();
+
     auto iter = p_iter ? *p_iter : trait_values.begin();
     auto proc = ThreadContext::current_traitable_proc_bound();
     for (; iter != trait_values.end(); ++iter) {
@@ -180,6 +178,9 @@ py::object BTraitable::serialize(bool embed) {
     if (!embed)
         return py::str(id());
 
+    if (!BTraitableClass::instance_in_cache(m_tid))     //-- lazy instance - no reason to reload and then serialize
+        return py::none();
+
     py::dict res;
     res["_id"] = id();
 
@@ -191,7 +192,7 @@ py::object BTraitable::serialize(bool embed) {
             if (value.is(PyLinkage::XNone()))
                 throw py::value_error(py::str("{}.{} - undefined value").format(m_class->name(), trait_name));
 
-            auto ser_value = trait->f_serialize(this, trait, value);
+            auto ser_value = trait->wrapper_f_serialize(this, value);
             res[trait_name] = ser_value;
         }
     }
@@ -208,7 +209,7 @@ void BTraitable::deserialize(const py::dict& serialized_data) {
         auto trait = m_class->find_trait(trait_name);
         if (trait) {
             auto value = item.second.cast<py::object>();
-            auto deser_value = trait->f_deserialize(nullptr, trait, value);
+            auto deser_value = trait->wrapper_f_deserialize(this, value);
             BRC rc(set_value(trait, deser_value));
             if (!rc)
                 throw py::value_error(rc.error());

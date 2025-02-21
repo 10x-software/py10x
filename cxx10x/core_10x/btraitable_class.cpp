@@ -42,10 +42,7 @@ bool BTraitableClass::instance_in_cache(const TID &tid) {
     return cache->known_object(tid);
 }
 
-bool BTraitableClass::instance_exists(const TID &tid) const {
-    if (instance_in_cache(tid))
-        return true;
-
+bool BTraitableClass::instance_in_store(const TID &tid) const {
     if (BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
         return false;
 

@@ -58,6 +58,8 @@ public:
 
 protected:
 
+    void raise(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args);
+
     virtual BasicNode*  find_node(BTraitableProcessor* proc, BTraitable* obj);
     virtual BasicNode*  find_node(BTraitableProcessor* proc, BTraitable* obj, const py::args& args);
 

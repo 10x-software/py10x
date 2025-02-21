@@ -26,9 +26,10 @@ protected:
 
 public:
     explicit BTraitable(const py::object& cls);
-    explicit BTraitable(const py::object& cls, const py::object& id);
-    explicit BTraitable(const py::object& cls, const py::kwargs& trait_values);
     ~BTraitable();
+
+    void set_id(const py::object& id);
+    void initialize(const py::kwargs& trait_values);
 
     [[nodiscard]] const py::object&     class_name() const  { return m_class->name(); }
     [[nodiscard]] BCache*               cache()             { return m_cache; }
