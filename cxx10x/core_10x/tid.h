@@ -7,30 +7,24 @@
 #include <string>
 
 #include "py_linkage.h"
-#include "eval_once.h"
 
 class BTraitableClass;
 
 class TID {
     BTraitableClass*    m_class;
-    std::string*        m_id;
-
-    //[[nodiscard]] py::str py_id_get() const { return {*m_id}; }
+    py::object          m_id;
 
 public:
-    //eval_once_const(const TID, py::str, py_id);
-    [[nodiscard]] py::str py_id() const { return {*m_id}; }
+    TID() : m_class(nullptr)                                        {}
+    TID(BTraitableClass* cls, const py::object& id) : m_class(cls)  { m_id = id; }
 
-    TID() : m_class(nullptr), m_id(nullptr)                     {}
-    TID(BTraitableClass* cls, std::string* id) : m_class(cls), m_id(id) {}
+    void set(BTraitableClass* cls, const py::object& id)            { m_class = cls; m_id = id; }
 
-    void set(BTraitableClass* cls, std::string* id)             { m_class = cls; m_id = id; }
-
-    [[nodiscard]] const std::string&    id() const              { return *m_id; }
-    [[nodiscard]] BTraitableClass*      cls() const             { return m_class; }
+    [[nodiscard]] const py::object&     id() const                  { return m_id; }
+    [[nodiscard]] BTraitableClass*      cls() const                 { return m_class; }
 
     bool operator == (const TID& other) const {
-        return m_class == other.m_class && *m_id == *other.m_id;
+        return m_class == other.m_class && m_id.equal(other.m_id);
     }
 
 };
@@ -40,7 +34,7 @@ struct std::hash<TID> {
     std::size_t operator() (TID const& key) const noexcept {
         std::size_t seed = 0;
         seed ^= (size_t) key.cls() + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= (size_t) std::hash<std::string>{}(key.id())+ 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= py::hash(key.id())+ 0x9e3779b9 + (seed << 6) + (seed >> 2);
         return seed;
     }
 };

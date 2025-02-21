@@ -19,24 +19,22 @@ protected:
     BTraitableClass*    m_class;
     BCache              *m_cache;
     ObjectCache         *m_id_cache;
-    std::string         m_id;
     TID                 m_tid;
 
-    std::string endogenous_id();
+    py::object endogenous_id();
+    static py::object exogenous_id();
 
 public:
-    static std::string exogenous_id();
-
     explicit BTraitable(const py::object& cls);
-    explicit BTraitable(const py::object& cls, const std::string& id);
+    explicit BTraitable(const py::object& cls, const py::object& id);
     explicit BTraitable(const py::object& cls, const py::kwargs& trait_values);
     ~BTraitable();
 
-    [[nodiscard]] const py::str&        class_name() const  { return m_class->name(); }
+    [[nodiscard]] const py::object&     class_name() const  { return m_class->name(); }
     [[nodiscard]] BCache*               cache()             { return m_cache; }
     [[nodiscard]] ObjectCache*          id_cache() const    { return m_id_cache; }
     [[nodiscard]] const TID&            tid() const         { return m_tid; }
-    [[nodiscard]] const std::string&    id() const          { return m_tid.id(); }
+    [[nodiscard]] const py::object&     id() const          { return m_tid.id(); }
 
     void clear_id_cache(bool dispose_of = true) {
         if (dispose_of)

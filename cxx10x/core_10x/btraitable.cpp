@@ -1,33 +1,21 @@
 //
 // Created by AMD on 5/21/2024.
 //
-//#include <boost/uuid/uuid.hpp>
 
 #include <uuid.h>
 #include "btraitable.h"
-//#include "crypto/uuid_v4.h"
-#include "crypto/hashpp.h"
+#include "py_hasher.h"
 
 #include "brc.h"
 
-std::string BTraitable::exogenous_id() {
-    //UUIDv4::UUIDGenerator<std::mt19937_64> uuid_gen;
-    //return uuid_gen.getUUID().str();
-    //TODO: only initialize generator once
-    std::random_device rd;
-    auto seed_data = std::array<int, std::mt19937::state_size> {};
-    std::generate(std::begin(seed_data), std::end(seed_data), std::ref(rd));
-    std::seed_seq seq(std::begin(seed_data), std::end(seed_data));
-    std::mt19937 generator(seq);
-    return uuids::to_string(uuids::uuid_random_generator{generator}());
+py::object BTraitable::exogenous_id() {
+    return PyHasher::uuid();
 }
 
-std::string BTraitable::endogenous_id() {
-    std::ostringstream regular_part;
-    std::ostringstream hashable_part;
+py::object BTraitable::endogenous_id() {
+    py::list regulars;
+    auto hasher = PyHasher();
 
-    bool first = true;
-    bool hashable = false;
     for (auto item : m_class->trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (trait->flags_on(BTraitFlags::ID)) {
@@ -35,30 +23,20 @@ std::string BTraitable::endogenous_id() {
             if (value.is(PyLinkage::XNone()))
                 throw py::value_error(py::str("{}.{} is undefined").format(m_class->name(), item.first));
 
-            auto svalue = py::cast<std::string>(py::str("{}").format(value));     // TODO: trait->serialize_for_id(value);
-            if (!trait->flags_on(BTraitFlags::HASH)) {
-                if (first) {
-                    regular_part << svalue;
-                    first = false;
-                }
-                else
-                    regular_part << '|' << svalue;
-
-            } else {
-                hashable_part << svalue;
-                hashable = true;
-            }
+            auto value_for_id = trait->wrapper_f_to_id(this, value);
+            if (!trait->flags_on(BTraitFlags::HASH))
+                regulars.append(value_for_id);
+            else
+                hasher.update(value_for_id);
         }
     }
 
-    if (hashable) {
-        auto hashed = hashpp::get::getHash(hashpp::ALGORITHMS::MD5, hashable_part.str());
-        regular_part << '|' << hashed << "00";
-    }
+    if (hasher.is_updated())
+        regulars.append(hasher.hexdigest());
 
-    return regular_part.str();
+    regulars.append(py::str("00"));
+    return py::str("").attr("join")(regulars);
 }
-
 
 class IdCache : public BCache {
     BTraitable  *m_obj;
@@ -92,15 +70,14 @@ BTraitable::BTraitable(const py::object& cls) {
     m_id_cache = nullptr;
     m_cache = nullptr;
     if (!m_class->is_id_endogenous()) {
-        m_id = exogenous_id();
-        m_tid.set(m_class, &m_id);
+        auto id = exogenous_id();
+        m_tid.set(m_class, id);
     }
 }
 
-BTraitable::BTraitable(const py::object& cls, const std::string& id) {
-    m_id = id;
+BTraitable::BTraitable(const py::object& cls, const py::object& id) {
     m_class = cls.cast<BTraitableClass*>();
-    m_tid.set(m_class, &m_id);
+    m_tid.set(m_class, id);
     m_id_cache = nullptr;
     m_cache = nullptr;
 }
@@ -113,6 +90,7 @@ BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) {
     auto iter = trait_values.begin();
     auto end_iter = trait_values.end();
 
+    py::object id;
     if (m_class->is_id_endogenous()) {
         {
             CacheMocker cache_guard(ThreadContext::current_traitable_proc(), this);
@@ -133,14 +111,14 @@ BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) {
                 if (!rc)
                     throw py::value_error(rc.error());
             }
-            m_id = endogenous_id();
+            id = endogenous_id();
         }
 
-        m_tid.set(m_class, &m_id);
+        m_tid.set(m_class, id);
 
         if (m_class->instance_exists(m_tid)) {
             if( iter != end_iter)   // there are non ID traits to set - possible revision conflict!
-                throw py::value_error(py::str("Trying to set non ID traits for already existing object {}/{}").format(m_class->name(), m_id));
+                throw py::value_error(py::str("Trying to set non ID traits for already existing object {}/{}").format(m_class->name(), id));
 
             clear_id_cache();
         } else {      // new instance
@@ -148,8 +126,8 @@ BTraitable::BTraitable(const py::object& cls, const py::kwargs& trait_values) {
             cache->register_object(this);
         }
     } else {        // ID exogenous
-        m_id = exogenous_id();
-        m_tid.set(m_class, &m_id);
+        id = exogenous_id();
+        m_tid.set(m_class, id);
     }
 
     // Check if there are non ID traits to set
@@ -238,7 +216,7 @@ void BTraitable::deserialize(const py::dict& serialized_data) {
 }
 
 void BTraitable::reload() {
-    auto serialized_data = m_class->load_data(py::str(m_id));
+    auto serialized_data = m_class->load_data(id());
     if (serialized_data.is_none())
         throw py::value_error(py::str("{}/{} - failed to reload").format(class_name(), id()));
 

@@ -31,3 +31,11 @@ public:
 
 #define eval_once_const(X, T, method)   EvalOnce<T, X> m_##method = EvalOnce<T, X>([](X* self) { return self->method##_get(); }); \
     public: T method() const { return m_##method.get(this); }
+
+//-- NOTE: you must define a member function: 'method'_get() const which returns py::object* - newly allocated
+#define py_object_eval_once(method) \
+    mutable std::unique_ptr<py::object> m_##method = nullptr; \
+    public: const py::object& method() { \
+        if (!m_##method) m_##method = std::make_unique<py::object>(method##_get()); \
+        return *m_##method;
+

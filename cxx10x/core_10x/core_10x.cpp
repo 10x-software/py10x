@@ -139,7 +139,7 @@ PYBIND11_MODULE(core_10x_i, m)
 
     py::class_<BTraitable>(m, "BTraitable")
             .def(py::init<const py::object&>())
-            .def(py::init<const py::object&, const std::string&>())
+            .def(py::init<const py::object&, const py::object&>())
             .def(py::init<const py::object&, const py::kwargs&>())
             .def("id",                          &BTraitable::id)
             .def("xid",                         &BTraitable::tid)

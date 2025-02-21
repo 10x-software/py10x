@@ -45,7 +45,7 @@ bool BTraitableClass::instance_exists(const TID &tid) const {
     if (instance_in_cache(tid))
         return true;
 
-    return m_py_class.attr("exists_in_store")(tid.py_id()).cast<bool>();
+    return m_py_class.attr("exists_in_store")(tid.id()).cast<bool>();
 }
 
 py::object BTraitableClass::deserialize(const py::object& serialized_data, bool reload) {
