@@ -1,7 +1,6 @@
 import gc
 
 from core_10x.code_samples.person import Person
-from core_10x import BCache
 from infra_10x.mongodb_store import MongoStore
 
 db = MongoStore.instance(hostname='localhost', dbname='test')
