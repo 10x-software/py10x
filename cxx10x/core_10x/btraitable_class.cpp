@@ -51,7 +51,7 @@ bool BTraitableClass::instance_exists(const TID &tid) const {
 py::object BTraitableClass::deserialize(const py::object& serialized_data, bool reload) {
     if (py::isinstance<py::str>(serialized_data)) {     //-- just traitable's ID
         auto proc = ThreadContext::current_traitable_proc();
-        if (proc->is_debug())
+        if (proc->flags_on(BTraitableProcessor::DEBUG))
             return load(serialized_data, true);
 
         return m_py_class(serialized_data);     // cls(_id = serialized_data)

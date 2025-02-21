@@ -23,7 +23,7 @@ Placebo::~Placebo() {
     }
 }
 
-unsigned BTraitableProcessor::s_default_type = 0x0;   // = BTraitableProcessor::CONVERT_VALUES;
+unsigned BTraitableProcessor::s_default_type = PLAIN;   // = OffGraphNoConvertNoCheck;
 
 BTraitableProcessor* BTraitableProcessor::create_default() {
     auto proc = create(s_default_type);
@@ -146,29 +146,28 @@ public:
     }
 };
 
-BTraitableProcessor* BTraitableProcessor::create(unsigned int flags) {
+BTraitableProcessor* BTraitableProcessor::create(unsigned proc_type) {
 //    static const unsigned  DEBUG            = 0x1;
 //    static const unsigned  CONVERT_VALUES   = 0x2;
 //    static const unsigned  ON_GRAPH         = 0x4;
     BTraitableProcessor *proc;
-    switch(flags) {
-        case 0x0:       proc = new OffGraphNoConvertNoCheck();  break;
-        case 0x1:       proc = new OffGraphNoConvertCheck();    break;
-        case 0x2:       proc = new OffGraphConvert();           break;
+    switch(proc_type) {
+        case PLAIN:                     proc = new OffGraphNoConvertNoCheck();  break;
+        case DEBUG:                     proc = new OffGraphNoConvertCheck();    break;
+        case CONVERT_VALUES:            proc = new OffGraphConvert();           break;
 
-        case 0x4:       proc = new OnGraphNoConvertNoCheck();   break;
-        case 0x5:       proc = new OnGraphNoConvertCheck();     break;
-        case 0x6:       proc = new OnGraphConvert();            break;
-
-        //case 0x10:      return new IdCalc();
+        case ON_GRAPH:                  proc = new OnGraphNoConvertNoCheck();   break;
+        case ON_GRAPH|DEBUG:            proc = new OnGraphNoConvertCheck();     break;
+        case ON_GRAPH|CONVERT_VALUES:   proc = new OnGraphConvert();            break;
 
         default:
             assert(false);
             return nullptr;
     }
 
-    proc->set_flags(flags);
+    proc->set_flags(proc_type);
     return proc;
 }
+
 
 

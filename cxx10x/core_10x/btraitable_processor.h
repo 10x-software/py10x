@@ -54,10 +54,10 @@ protected:
 
 public:
 
+    inline static const unsigned   PLAIN           = 0x0;
     inline static const unsigned   DEBUG           = 0x1;
     inline static const unsigned   CONVERT_VALUES  = 0x2;
     inline static const unsigned   ON_GRAPH        = 0x4;
-    inline static const unsigned   ID_CALC         = 0x10;
 
     static void set_default_type(unsigned proc_type)    { s_default_type = proc_type; }
     static unsigned default_type()                      { return s_default_type; }
@@ -76,7 +76,7 @@ public:
 
     [[nodiscard]] unsigned  flags() const               { return m_flags; }
     void                    set_flags(unsigned flags)   { m_flags = flags; }
-    [[nodiscard]] bool      is_debug() const            { return m_flags & DEBUG; }
+    [[nodiscard]] bool      flags_on(unsigned flags) const  { return m_flags & flags; }
 
     py::object              set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value);
     py::object              set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);
@@ -90,22 +90,6 @@ public:
 
     virtual py::object            raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;
     virtual py::object            raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) = 0;
-
-};
-
-class IdCalc : public BTraitableProcessor {
-    BTraitable* m_obj;
-
-public:
-
-    explicit IdCalc(BTraitable* obj);
-    ~IdCalc();
-
-    void        use_cache(BCache* c) final  {}      // it has its own cache
-
-    void        invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final;
-    py::object  get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final;
-    py::object  raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final;
 
 };
 

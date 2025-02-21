@@ -51,6 +51,16 @@ public:
         return cache;
     }
 
+    static void traitable_proc_push(BTraitableProcessor* proc) {
+        auto context = current_context();
+        context->m_traitable_proc_stack.push(proc);
+    }
+
+    static void traitable_proc_pop() {
+        auto context = current_context();
+        context->m_traitable_proc_stack.pop();
+    }
+
     static BTraitableProcessor* current_traitable_proc(bool create = true) {
         auto context = current_context();
         auto proc = context->m_traitable_proc_stack.top();

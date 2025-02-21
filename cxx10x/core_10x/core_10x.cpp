@@ -14,6 +14,7 @@ namespace py = pybind11;
 #include "bcache.h"
 #include "btraitable_class.h"
 #include "btraitable.h"
+#include "bprocess_context.h"
 
 PYBIND11_MODULE(core_10x_i, m)
 {
@@ -24,6 +25,16 @@ PYBIND11_MODULE(core_10x_i, m)
     py::class_<PyLinkage>(m, "PyLinkage")
             .def_static("init",                         &PyLinkage::init)
             .def_static("redirect_stdout_to_python",    &PyLinkage::redirect_stdout_to_python)
+            ;
+
+    py::class_<BProcessContext>(m, "BProcessContext")
+            .def_readonly_static("CACHE_ONLY",          &BProcessContext::CACHE_ONLY)
+            .def_readonly_static("TP_TYPE",             &BProcessContext::TP_TYPE)
+            .def_readonly_static("BPC",                 &BProcessContext::PC)
+            .def("flags_on",                            &BProcessContext::flags_on)
+            .def("set_flags",                           &BProcessContext::set_flags)
+            .def("topic",                               &BProcessContext::topic)
+            .def("set_topic",                           &BProcessContext::set_topic)
             ;
 
     py::class_<BTraitFlags>(m, "BTraitFlags")
@@ -142,6 +153,15 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("set_values",                  &BTraitable::set_values)
             .def("serialize",                   &BTraitable::serialize)
             .def("reload",                      &BTraitable::reload)
+            ;
+
+    py::class_<BTraitableProcessor>(m, "TP")
+            .def_readonly_static("PLAIN",           &BTraitableProcessor::PLAIN)
+            .def_readonly_static("DEBUG",           &BTraitableProcessor::DEBUG)
+            .def_readonly_static("CONVERT_VALUES",  &BTraitableProcessor::CONVERT_VALUES)
+            .def_readonly_static("ON_GRAPH",        &BTraitableProcessor::ON_GRAPH)
+            //.def("__enter__",                       &BTraitableProcessor::begin_using)
+            //.def("__exit__",                        &BTraitableProcessor::stop_using)
             ;
 
     py::class_<BFlags>(m, "BFlags")

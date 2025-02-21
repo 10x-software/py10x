@@ -35,6 +35,7 @@ pybind11_add_module(core_10x_i
         py_linkage.cpp
         thread_context.cpp
         tid.cpp
+        bprocess_context.cpp
 )
 
 target_include_directories(core_10x_i PRIVATE ${stduuid_SOURCE_DIR}/include)
