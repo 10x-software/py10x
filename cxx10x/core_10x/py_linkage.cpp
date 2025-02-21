@@ -54,7 +54,10 @@ void PyLinkage::redirect_stdout_to_python() {
         : m_write(write_func), m_flush(flush_func) {}
     };
 
-    static PyStreamBuffer py_buf(write, flush);
-    std::cout.rdbuf(&py_buf);
-
+    if (!s_py_linkage->m_std_stream_buf) {
+        s_py_linkage->m_std_stream_buf = std::cout.rdbuf();
+        auto py_buf = new PyStreamBuffer(write, flush);
+        s_py_linkage->m_py_stream_buf = py_buf;
+        std::cout.rdbuf(py_buf);
+    }
 }
