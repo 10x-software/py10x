@@ -5,7 +5,7 @@ if __name__ == '__main__':
     to_save = True
 
 
-    db = MongoStore.new_instance('localhost', 'test', '', '')
+    db = MongoStore.instance(hostname='localhost', dbname='test')
     with db:
         #print(db.collection_names())
 
