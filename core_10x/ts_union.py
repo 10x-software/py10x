@@ -41,6 +41,12 @@ class TsUnionCollection(TsCollection):
         results = (result for result in (collection.min(trait_name, filter) for collection in self.collections) if result is not None)
         return min(results,key=operator.itemgetter(trait_name),default=None)
 
+    def id_exists(self, id_value: str) -> bool:
+        return any(collection.id_exists(id_value) for collection in self.collections)
+
+    def count(self, query: f = None) -> int:
+        return sum(collection.count(query) for collection in self.collections)
+
 
 class TsUnion(TsStore, name='TS_UNION'):
     @classmethod
