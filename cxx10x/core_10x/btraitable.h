@@ -48,31 +48,49 @@ public:
     py::object from_any(BTrait* trait, const py::object& value);
 
     void invalidate_value(BTrait* trait) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         proc->invalidate_trait_value(this, trait);
     }
 
     void invalidate_value(BTrait* trait, const py::args& args) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         proc->invalidate_trait_value(this, trait, args);
     }
 
     py::object get_value(BTrait* trait) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->get_trait_value(this, trait);
     }
 
     py::object get_value(BTrait* trait, const py::args& args) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->get_trait_value(this, trait, args);
     }
 
     py::object set_value(BTrait* trait, const py::object& value) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->set_trait_value(this, trait, value);
     }
 
     py::object set_value(BTrait* trait, const py::object& value, const py::args& args) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->set_trait_value(this, trait, value, args);
     }
@@ -80,11 +98,17 @@ public:
     py::object set_values(const py::dict& trait_values, dict_iter* iter = nullptr, bool ignore_unknown_traits = true);
 
     py::object raw_set_value(BTrait* trait, const py::object& value) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->raw_set_trait_value(this, trait, value);
     }
 
     py::object raw_set_value(BTrait* trait, const py::object& value, const py::args& args) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->raw_set_trait_value(this, trait, value, args);
     }

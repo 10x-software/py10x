@@ -16,10 +16,11 @@ py::object BTraitable::endogenous_id() {
     py::list regulars;
     auto hasher = PyHasher();
 
+    auto proc = ThreadContext::current_traitable_proc();
     for (auto item : m_class->trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (trait->flags_on(BTraitFlags::ID)) {
-            auto value = get_value(trait);
+            auto value = proc->get_trait_value(this, trait);
             if (value.is(PyLinkage::XNone()))
                 throw py::value_error(py::str("{}.{} is undefined").format(m_class->name(), item.first));
 
@@ -88,7 +89,8 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
         if (iter == end_iter)   // kwargs empty
             throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
         {
-            CacheMocker cache_guard(ThreadContext::current_traitable_proc(), this);
+            auto proc = ThreadContext::current_traitable_proc();
+            CacheMocker cache_guard(proc, this);
 
             for (; iter != end_iter; ++iter) {
                 auto trait_name = iter->first.cast<py::object>();
@@ -102,7 +104,7 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
 
                 // set an ID trait
                 auto value = iter->second.cast<py::object>();
-                BRC rc(set_value(trait, value));
+                BRC rc(proc->set_trait_value(this, trait, value));
                 if (!rc)
                     throw py::value_error(rc.error());
             }
