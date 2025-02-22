@@ -142,7 +142,7 @@ class BCache {
 protected:
     using Data = std::unordered_map<TID, ObjectCache*>;
 
-    static BCache   s_default;
+    static BCache  *s_default;
 
     Data    m_data;
     int     m_default_node_type;
@@ -151,8 +151,12 @@ protected:
     mutable std::shared_mutex   m_rw_mutex;
 
 public:
+    static void clear() {
+        delete s_default;
+        s_default=new BCache();
+    }
 
-    static BCache* default_cache()      { return &s_default; }
+    static BCache* default_cache()      { return s_default; }
 
     BCache() : m_default_node_type(NODE_TYPE::BASIC), m_parent(nullptr) {}
     explicit BCache(BCache* parent) : m_default_node_type(parent->m_default_node_type), m_parent(nullptr) {}

@@ -3,7 +3,7 @@
 //
 
 #pragma once
-
+#include <iostream>
 #include <pybind11/pybind11.h>
 #include <pybind11/pytypes.h>
 #include <pybind11/functional.h>
@@ -40,9 +40,12 @@ class PyLinkage {
     py::object  m_xnone;
     py::object  m_rc_true;
     py::object  m_trait_method_error_class;
+    std::streambuf *m_py_stream_buf=nullptr;
+    std::streambuf *m_std_stream_buf=nullptr;
 
 public:
     static PyLinkage*   s_py_linkage;
+
 
     static void init(py::object xnone, py::object rc_true, py::object trait_method_error_class) {
         assert(!s_py_linkage);
@@ -69,6 +72,10 @@ public:
 
     explicit PyLinkage(py::object xnone, py::object rc_true, py::object trait_mehod_error_class)
     : m_xnone(xnone), m_rc_true(rc_true), m_trait_method_error_class(trait_mehod_error_class) {}
+
+    ~PyLinkage() {if (m_std_stream_buf) {std::cout.rdbuf(m_std_stream_buf);delete m_py_stream_buf;}}
+
+    static void clear() {delete s_py_linkage;}
 
     static py::object create_trait_method_error(
         BTraitable* obj,

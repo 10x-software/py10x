@@ -18,7 +18,7 @@ TraitNodesWithArgs::~TraitNodesWithArgs() {
     clear();
 }
 
-BCache BCache::s_default;
+BCache *BCache::s_default = new BCache();
 
 //ObjectCache* BCache::find_object_cache(const TID& tid, bool must_exist) const {
 //    auto it = m_data.find(tid);

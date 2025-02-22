@@ -24,6 +24,7 @@ PYBIND11_MODULE(core_10x_i, m)
 
     py::class_<PyLinkage>(m, "PyLinkage")
             .def_static("init",                         &PyLinkage::init)
+            .def_static("clear",                        &PyLinkage::clear)
             .def_static("redirect_stdout_to_python",    &PyLinkage::redirect_stdout_to_python)
             ;
 
@@ -117,6 +118,7 @@ PYBIND11_MODULE(core_10x_i, m)
             ;
 
     py::class_<BCache>(m, "BCache")
+            .def_static("clear", &BCache::clear)
             .def(py::init<>())
             .def(py::init<BCache*>())
             .def("find_object_cache",           &BCache::find_object_cache)

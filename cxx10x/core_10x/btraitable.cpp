@@ -208,8 +208,7 @@ void BTraitable::deserialize(const py::dict& serialized_data) {
 
     for (auto item : serialized_data) {
         auto trait_name = item.first.cast<py::object>();
-        auto trait = m_class->find_trait(trait_name);
-        if (trait) {
+        if (auto trait = m_class->find_trait(trait_name)) {
             auto value = item.second.cast<py::object>();
             auto deser_value = trait->wrapper_f_deserialize(this, value);
             BRC rc(set_value(trait, deser_value));
