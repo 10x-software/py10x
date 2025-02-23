@@ -36,10 +36,14 @@ BCache *BCache::s_default = new BCache();
 //    return oc;
 //}
 
-void BCache::create_object_cache(const TID &tid) {
+ObjectCache* BCache::create_object_cache(const TID &tid) {
     auto it = m_data.find(tid);
-    if (it == m_data.end())
-        m_data.insert({ tid, new ObjectCache() });
+    if (it != m_data.end())
+        return it->second;
+
+    auto oc = new ObjectCache();
+    m_data.insert({tid, oc});
+    return oc;
 }
 
 ObjectCache* BCache::find_or_create_object_cache(const TID &tid) {
@@ -50,15 +54,8 @@ ObjectCache* BCache::find_or_create_object_cache(const TID &tid) {
     //-- the object cache is not there, we have a lazy tid reference - let's load the object
     tid.cls()->load(tid.id(), true);
 
-    //-- check if loaded successfully
-    it = m_data.find(tid);
-    if (it != m_data.end())
-        return it->second;
-
-    //-- we need a new cache
-    auto oc = new ObjectCache();
-    m_data.insert({ tid, oc });
-    return oc;
+    //-- check if loaded successfully, otherwise create it
+    return create_object_cache(tid);
 }
 
 void BCache::register_object(BTraitable* obj) {

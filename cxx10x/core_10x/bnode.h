@@ -9,6 +9,7 @@
 
 const unsigned STATE_VALID          = 0x1;
 const unsigned STATE_SET            = 0x2;
+const unsigned STATE_IMPORTED       = 0x4;
 const unsigned STATE_VALID_AND_SET  = STATE_VALID | STATE_SET;
 
 class NODE_TYPE {
@@ -33,15 +34,18 @@ public:
     virtual ~BasicNode() = default;
 
     [[nodiscard]] bool is_valid() const { return m_state & STATE_VALID; }
-    [[nodiscard]] bool is_set() const   { return m_state & STATE_SET; }
+    [[nodiscard]] bool is_set() const   { return m_state == STATE_VALID_AND_SET; }
     [[nodiscard]] bool is_valid_and_not_set() const { return (m_state & STATE_VALID) && ((m_state & STATE_SET) == 0x0); }
 
     [[nodiscard]] py::object value() const      { return m_value; }
 
+    [[nodiscard]] virtual int node_type() const { return NODE_TYPE::BASIC; }
+
     void assign_value(const py::object& v)      { m_value = v; }
     void assign(const py::object& v)            { assign_value(v); m_state |= STATE_VALID; }
+    void set_imported(const py::object& v)      { set(v); m_state |= STATE_IMPORTED; }
 
-    virtual void set(const py::object& v )      { m_value = v; m_state |= STATE_VALID_AND_SET; }
+    virtual void set(const py::object& v )      { m_value = v; m_state = STATE_VALID_AND_SET; }
     virtual void invalidate()                   { m_value = PyLinkage::XNone(); m_state &= ~STATE_VALID_AND_SET; }
 
     virtual NodeSet* children()                 { return nullptr; }
@@ -68,6 +72,8 @@ protected:
 public:
 
     ~TreeNode() override = default;
+
+    [[nodiscard]] int node_type() const override    { return NODE_TYPE::TREE; }
 
     void invalidate_parents() {
         for (auto p : m_parents)
@@ -109,6 +115,8 @@ public:
 
     ~BasicGraphNode() override = default;
 
+    [[nodiscard]] int node_type() const override    { return NODE_TYPE::BASIC_GRAPH; }
+
     NodeSet* children() override                { return &m_children; }
     void clear_children()  override             { m_children.clear(); }
     void remove_child(BasicNode* c)  override   { m_children.erase(c); }
@@ -136,6 +144,8 @@ protected:
 
 public:
     ~GraphNode() override = default;
+
+    [[nodiscard]] int node_type() const override    { return NODE_TYPE::GRAPH; }
 
     //[[nodiscard]] BTrait* trait() const               { return m_trait; }
     //[[nodiscard]] TID* tid() const                    { return m_tid; }

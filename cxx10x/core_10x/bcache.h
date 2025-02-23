@@ -44,6 +44,19 @@ public:
         return it != nwa->end() ? it->second : nullptr;
     }
 
+    void insert_node(BTrait* trait, BasicNode* node, const py::args& args) {
+        NodesWithArgs* nwa;
+
+        auto iter = find(trait);
+        if (iter == end()) {
+            nwa = new NodesWithArgs();
+            insert({trait, nwa});
+        } else
+            nwa = iter->second;
+
+        nwa->insert({args, node});
+    }
+
     BasicNode* find_or_create_node(BTrait* trait, int node_type, const py::args& args) {
         NodesWithArgs* nwa;
 
@@ -127,9 +140,14 @@ class ObjectCache {
 
 public:
 
+    [[nodiscard]] const ArglessNodes& argless_nodes() const                                 { return m_nodes; }
+    [[nodiscard]] const TraitNodesWithArgs& nodes_with_args() const                         { return m_nodes_with_args; }
+
     BasicNode*  find_node(BTrait* trait) const                                              { return m_nodes.find_node(trait); }
     BasicNode*  find_node(BTrait* trait, const py::args& args) const                        { return m_nodes_with_args.find_node(trait, args); }
 
+    void        insert_node(BTrait* trait, BasicNode* node)                                 { m_nodes.insert({trait, node}); }
+    void        insert_node(BTrait* trait, BasicNode* node, const py::args& args)           { m_nodes_with_args.insert_node(trait, node, args); }
     BasicNode*  find_or_create_node(BTrait* trait, int node_type)                           { return m_nodes.find_or_create_node(trait, node_type); }
     BasicNode*  find_or_create_node(BTrait* trait, int node_type, const py::args& args)     { return m_nodes_with_args.find_or_create_node(trait, node_type, args); }
 
@@ -146,7 +164,6 @@ protected:
 
     Data    m_data;
     int     m_default_node_type;
-    BCache* m_parent;
 
     mutable std::shared_mutex   m_rw_mutex;
 
@@ -158,17 +175,17 @@ public:
 
     static BCache* default_cache()      { return s_default; }
 
-    BCache() : m_default_node_type(NODE_TYPE::BASIC), m_parent(nullptr) {}
-    explicit BCache(BCache* parent) : m_default_node_type(parent->m_default_node_type), m_parent(nullptr) {}
+    BCache() : m_default_node_type(NODE_TYPE::BASIC) {}
+    virtual ~BCache() = default;
 
-    [[nodiscard]] std::shared_mutex* shared_mutex() const  { return &m_rw_mutex; }
+    [[nodiscard]] std::shared_mutex* shared_mutex() const   { return &m_rw_mutex; }
+    [[nodiscard]] int default_node_type() const             { return m_default_node_type; }
 
     void                    register_object(BTraitable* obj);
     void                    unregister_object(BTraitable* obj);
     void                    unregister_object(const TID& tid);
 
-    //virtual ObjectCache*    find_object_cache(const TID& tid, bool must_exists) const;
-    void                    create_object_cache(const TID& tid);
+    ObjectCache*            create_object_cache(const TID& tid);
     virtual ObjectCache*    find_or_create_object_cache(const TID& tid);
 
     virtual ObjectCache* find_object_cache(const TID& tid) const {
@@ -201,7 +218,7 @@ public:
         return oc->find_node(trait, args);
     }
 
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type = -1) {
+    virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type) {
         std::unique_lock guard(m_rw_mutex);
 
         auto oc = find_or_create_object_cache(tid);
@@ -212,7 +229,7 @@ public:
         return oc->find_or_create_node(trait, node_type);
     }
 
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, int node_type = -1) {
+    virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, int node_type) {
         std::unique_lock guard(m_rw_mutex);
 
         auto oc = find_or_create_object_cache(tid);
