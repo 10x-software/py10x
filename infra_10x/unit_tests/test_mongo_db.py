@@ -20,7 +20,7 @@ TEST_DB='test_db'
 class TestMongo(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.mongo = MongoStore.instance(hostname=MONGO_URL, dbname=TEST_DB, username=None, password=None)
+        cls.mongo = MongoStore.instance(hostname=MONGO_URL, dbname=TEST_DB)
         cls.patch1 = mock.patch('core_10x.package_refactoring.PackageRefactoring.find_class_id', return_value=TEST_COLLECTION)
         cls.patch2 = mock.patch('core_10x.package_refactoring.PackageRefactoring.find_class_id', return_value=TEST_COLLECTION1)
         with cls.mongo:
