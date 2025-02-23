@@ -98,6 +98,7 @@ class Trait(BTrait):
         trait.data_type = dt
         trait.flags = t_def.flags.value()
         trait.default = t_def.default
+        trait.create_proc()
 
         for method_kind, method_def in TRAIT_METHOD.s_dir.items():
             method_suffix = method_kind.lower()
