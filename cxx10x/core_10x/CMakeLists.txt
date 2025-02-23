@@ -28,6 +28,7 @@ pybind11_add_module(core_10x_i
         bcache.cpp
         bnode.cpp
         btrait.cpp
+        btrait_processor.cpp
         btraitable.cpp
         btraitable_class.cpp
         btraitable_processor.cpp

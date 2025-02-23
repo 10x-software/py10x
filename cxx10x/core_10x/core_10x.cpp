@@ -57,6 +57,7 @@ PYBIND11_MODULE(core_10x_i, m)
     py::class_<BTrait>(m, "BTrait")
             .def(py::init<>())
             .def(py::init<const BTrait&>())
+            .def("create_proc",                 &BTrait::create_proc)
 
             .def_readwrite("name",              &BTrait::m_name)
             .def_readwrite("flags",             &BTrait::m_flags)

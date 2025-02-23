@@ -2,6 +2,7 @@
 
 #include "btraitable_processor.h"
 #include "bflags.h"
+#include "btrait_processor.h"
 
 class BCache;
 class BTraitable;
@@ -28,10 +29,11 @@ private:
 
 class BTrait {
 public:
+    BTraitProcessor*    m_proc = nullptr;
 
     unsigned        m_flags = 0x0;
 
-    py::str         m_name;
+    py::object      m_name;
 
     py::object      m_datatype;     // XNone, must be set to a py class from py
     py::object      m_default;      // XNone, may be set to a concrete instance of m_datatype from py
@@ -58,7 +60,7 @@ public:
 
 protected:
 
-    py::error_already_set trait_erorr(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args);
+    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args);
 
     virtual BasicNode*  find_node(BTraitableProcessor* proc, BTraitable* obj);
     virtual BasicNode*  find_node(BTraitableProcessor* proc, BTraitable* obj, const py::args& args);
@@ -70,7 +72,12 @@ public:
 
     BTrait();
     BTrait(const BTrait& src) = default;
+    ~BTrait()   { delete m_proc; }
 
+    void create_proc();
+
+    [[nodiscard]] const py::object& name() const            { return m_name; }
+    [[nodiscard]] const py::object& data_type() const       { return m_datatype; }
     [[nodiscard]] bool flags_on(unsigned flags) const       { return m_flags & flags; }
     [[nodiscard]] bool flags_on(const BFlags& flags) const  { return m_flags & flags.value(); }
     void set_flags(unsigned flags_to_set)                   { m_flags |= flags_to_set; }
@@ -105,125 +112,60 @@ public:
 
     //---- Getting trait value
 
-    virtual py::object  get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj);
-    virtual py::object  get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args);
+    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj) {
+        return m_proc->get_value_off_graph(proc, obj, this);
+    }
 
-    virtual py::object  get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj);
-    virtual py::object  get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args);
+    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
+        return m_proc->get_value_off_graph(proc, obj, this, args);
+    }
+
+    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj) {
+        return m_proc->get_value_on_graph(proc, obj, this);
+    }
+
+    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
+        return m_proc->get_value_on_graph(proc, obj, this, args);
+    }
 
     //---- Invalidating trait value
 
-    virtual void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj);
-    virtual void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args);
+    void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj) {
+        m_proc->invalidate_value_off_graph(proc, obj, this);
+    }
 
-    virtual void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj);
-    virtual void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args);
+    void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
+        m_proc->invalidate_value_off_graph(proc, obj, this, args);
+    }
+
+    void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj) {
+        m_proc->invalidate_value_on_graph(proc, obj, this);
+    }
+
+    void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
+        m_proc->invalidate_value_on_graph(proc, obj, this, args);
+    }
 
     //---- Setting (raw) trait value
 
-    virtual py::object raw_set_value_off_graph_noconvert_nocheck(BTraitableProcessor* proc, BTraitable* obj, const py::object& value);
-    virtual py::object raw_set_value_off_graph_noconvert_nocheck(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args );
-
-    virtual py::object raw_set_value_off_graph_noconvert_check(BTraitableProcessor* proc, BTraitable* obj, const py::object& value);
-    virtual py::object raw_set_value_off_graph_noconvert_check(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args);
-
-    virtual py::object raw_set_value_off_graph_convert(BTraitableProcessor* proc, BTraitable* obj, const py::object& value);
-    virtual py::object raw_set_value_off_graph_convert(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args);
-
-    virtual py::object raw_set_value_on_graph_noconvert_nocheck(BTraitableProcessor* proc, BTraitable* obj, const py::object& value);
-    virtual py::object raw_set_value_on_graph_noconvert_nocheck(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args);
-
-    virtual py::object raw_set_value_on_graph_noconvert_check(BTraitableProcessor* proc, BTraitable* obj, const py::object& value);
-    virtual py::object raw_set_value_on_graph_noconvert_check(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args);
-
-    virtual py::object raw_set_value_on_graph_convert(BTraitableProcessor* proc, BTraitable* obj, const py::object& value);
-    virtual py::object raw_set_value_on_graph_convert(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args);
-
-};
-
-class EvalOnceTrait : public BTrait {
-    void dont_touch_me(BTraitable* obj);
-
-public:
-
-    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj) final;
-    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) final;
-
-    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj) final {
-        return EvalOnceTrait::get_value_off_graph(proc, obj);
+    py::object raw_set_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) {
+        return m_proc->raw_set_value_off_graph(proc, obj, this, value);
     }
 
-    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) final {
-        return EvalOnceTrait::get_value_off_graph(proc, obj, args);
+    py::object raw_set_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args ) {
+        return m_proc->raw_set_value_off_graph(proc, obj, this, value, args);
     }
 
-    void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj) final {
-        dont_touch_me(obj);
+    py::object raw_set_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) {
+        return m_proc->raw_set_value_on_graph(proc, obj, this, value);
     }
 
-    void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) final {
-        dont_touch_me(obj);
-    }
-
-    void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj) final {
-        dont_touch_me(obj);
-    }
-
-    void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) final {
-        dont_touch_me(obj);
-    }
-
-    py::object raw_set_value_off_graph_noconvert_nocheck(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) final {
-        dont_touch_me(obj);
-        return PyLinkage::RC_TRUE();
-    }
-
-    py::object raw_set_value_off_graph_noconvert_nocheck(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args) final {
-        dont_touch_me(obj);
-        return PyLinkage::RC_TRUE();
-    }
-
-    py::object raw_set_value_off_graph_noconvert_check(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value);
-    }
-
-    py::object raw_set_value_off_graph_noconvert_check(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value, args);
-    }
-
-    py::object raw_set_value_off_graph_convert(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value);
-    }
-
-    py::object raw_set_value_off_graph_convert(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value, args);
-    }
-
-    py::object raw_set_value_on_graph_noconvert_nocheck(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value);
-    }
-
-    py::object raw_set_value_on_graph_noconvert_nocheck(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value, args);
-    }
-
-    py::object raw_set_value_on_graph_noconvert_check(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value);
-    }
-
-    py::object raw_set_value_on_graph_noconvert_check(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args) final  {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value, args);
-    }
-
-    py::object raw_set_value_on_graph_convert(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value);
-    }
-
-    py::object raw_set_value_on_graph_convert(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args) final {
-        return EvalOnceTrait::raw_set_value_off_graph_noconvert_nocheck(proc, obj, value, args);
+    py::object raw_set_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args) {
+        return m_proc->raw_set_value_on_graph(proc, obj, this, value, args);
     }
 
 };
+
 
 //class IdTrait : public BTrait {
 //    bool    m_hashed;

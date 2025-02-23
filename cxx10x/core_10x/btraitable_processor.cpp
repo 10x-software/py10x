@@ -34,18 +34,27 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
 
 //---- Setting a value
 
-py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value) {
-    if (!trait->f_set.is_none())     // custom setter is defined
-        return trait->wrapper_f_set(obj, value);
+py::object BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::object& value) {
+    if(!value.get_type().is(trait->data_type()))    // TODO: we may want to use is_acceptable_type() method  of the trait
+        throw py::type_error(py::str("Trying to set {}.{} ({}) to {}").format(obj->class_name(), trait->name(), trait->data_type(), value));
 
-    return raw_set_trait_value(obj, trait, value);
+    return value;
+}
+
+py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value) {
+    auto converted_value = adjust_set_value(obj, trait, value);
+    if (!trait->f_set.is_none())     // custom setter is defined
+        return trait->wrapper_f_set(obj, converted_value);
+
+    return raw_set_trait_value(obj, trait, converted_value);
 }
 
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value, const py::args& args) {
+    auto converted_value = adjust_set_value(obj, trait, value);
     if (!trait->f_set.is_none())     // custom setter is defined
-        return trait->wrapper_f_set(obj, value, args);
+        return trait->wrapper_f_set(obj, converted_value, args);
 
-    return raw_set_trait_value(obj, trait, value, args);
+    return raw_set_trait_value(obj, trait, converted_value, args);
 }
 
 class OffGraphNoConvertNoCheck : public BTraitableProcessor {
@@ -66,34 +75,30 @@ public:
         return trait->get_value_off_graph(this, obj, args);
     }
 
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) override {
-        return trait->raw_set_value_off_graph_noconvert_nocheck(this, obj, value);
+    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) override {
+        return value;
     }
 
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override {
-        return trait->raw_set_value_off_graph_noconvert_nocheck(this, obj, value, args);
+    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        return trait->raw_set_value_off_graph(this, obj, value);
+    }
+
+    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
+        return trait->raw_set_value_off_graph(this, obj, value, args);
     }
 };
 
 class OffGraphNoConvertCheck : public OffGraphNoConvertNoCheck {
 public:
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
-        return trait->raw_set_value_off_graph_noconvert_check(this, obj, value);
-    }
-
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
-        return trait->raw_set_value_off_graph_noconvert_check(this, obj, value, args);
+    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        return check_value(obj, trait, value);
     }
 };
 
 class OffGraphConvert : public OffGraphNoConvertNoCheck {
 public:
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
-        return trait->raw_set_value_off_graph_convert(this, obj, value);
-    }
-
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
-        return trait->raw_set_value_off_graph_convert(this, obj, value, args);
+    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        return obj->from_any(trait, value);
     }
 };
 
@@ -115,34 +120,30 @@ public:
         return trait->get_value_on_graph(this, obj, args);
     }
 
+    py::object adjust_set_value(BTraitable *obj, BTrait* trait, const py::object& value) override {
+        return value;
+    }
+
     py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) override {
-        return trait->raw_set_value_on_graph_noconvert_nocheck(this, obj, value);
+        return trait->raw_set_value_on_graph(this, obj, value);
     }
 
     py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override {
-        return trait->raw_set_value_on_graph_noconvert_nocheck(this, obj, value, args);
+        return trait->raw_set_value_on_graph(this, obj, value, args);
     }
 };
 
 class OnGraphNoConvertCheck : public OnGraphNoConvertNoCheck {
 public:
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
-        return trait->raw_set_value_on_graph_noconvert_check(this, obj, value);
-    }
-
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
-        return trait->raw_set_value_on_graph_noconvert_check(this, obj, value, args);
+    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        return check_value(obj, trait, value);
     }
 };
 
 class OnGraphConvert : public OnGraphNoConvertNoCheck {
 public:
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
-        return trait->raw_set_value_on_graph_convert(this, obj, value);
-    }
-
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
-        return trait->raw_set_value_on_graph_convert(this, obj, value, args);
+    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        return obj->from_any(trait, value);
     }
 };
 

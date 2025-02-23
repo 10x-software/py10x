@@ -59,8 +59,8 @@ public:
     inline static const unsigned   CONVERT_VALUES  = 0x2;
     inline static const unsigned   ON_GRAPH        = 0x4;
 
-    static void set_default_type(unsigned proc_type)    { s_default_type = proc_type; }
-    static unsigned default_type()                      { return s_default_type; }
+    static void set_default_type(unsigned proc_type)        { s_default_type = proc_type; }
+    static unsigned default_type()                          { return s_default_type; }
 
     static BTraitableProcessor* create_default();
 
@@ -69,14 +69,16 @@ public:
     BTraitableProcessor() : m_cache(nullptr), m_flags(0)    {}
     virtual ~BTraitableProcessor() = default;
 
-    [[nodiscard]] BCache*   cache() const               { return m_cache; }
-    virtual void            use_cache(BCache* c)        { m_cache = c; }
+    [[nodiscard]] BCache*   cache() const                   { return m_cache; }
+    virtual void            use_cache(BCache* c)            { m_cache = c; }
 
-    ExecStack*              exec_stack()                { return &m_stack; }
+    ExecStack*              exec_stack()                    { return &m_stack; }
 
-    [[nodiscard]] unsigned  flags() const               { return m_flags; }
-    void                    set_flags(unsigned flags)   { m_flags = flags; }
+    [[nodiscard]] unsigned  flags() const                   { return m_flags; }
+    void                    set_flags(unsigned flags)       { m_flags = flags; }
     [[nodiscard]] bool      flags_on(unsigned flags) const  { return m_flags & flags; }
+
+    static py::object       check_value(BTraitable* obj, BTrait* trait, const py::object& value);
 
     py::object              set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value);
     py::object              set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);
@@ -88,8 +90,9 @@ public:
     virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait) = 0;
     virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;
 
-    virtual py::object            raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;
-    virtual py::object            raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) = 0;
+    virtual py::object      adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;
+    virtual py::object      raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;
+    virtual py::object      raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) = 0;
 
 };
 
