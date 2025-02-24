@@ -6,6 +6,7 @@
 #include "btrait.h"
 #include "btraitable.h"
 #include "btraitable_processor.h"
+#include "thread_context.h"
 
 
 py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {

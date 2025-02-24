@@ -2,9 +2,9 @@
 // Created by AMD on 5/21/2024.
 //
 
-#include <uuid.h>
 #include "btraitable.h"
 #include "py_hasher.h"
+#include "id_builder.h"
 
 #include "brc.h"
 
@@ -40,37 +40,9 @@ py::object BTraitable::endogenous_id() {
     return py::str("|").attr("join")(regulars);
 }
 
-class IdCache : public BCache {
-    BTraitable  *m_obj;
-public:
-    explicit IdCache(BTraitable* obj) : m_obj(obj)                      {}
-
-    ObjectCache* find_object_cache(const TID& tid) const final      { return m_obj->id_cache(); }
-    ObjectCache* find_or_create_object_cache(const TID& tid) final  { return m_obj->id_cache(); }
-};
-
-class CacheMocker {
-    BTraitableProcessor*    m_proc;
-    BCache*                 m_cur_cache;
-
-public:
-
-    explicit CacheMocker(BTraitableProcessor* proc, BTraitable* obj) : m_proc(proc) {
-        m_cur_cache = proc->cache();
-        m_cur_cache->shared_mutex()->lock();
-        proc->use_cache(obj->cache());
-    }
-
-    ~CacheMocker() {
-        m_proc->use_cache(m_cur_cache);
-        m_cur_cache->shared_mutex()->unlock();
-    }
-};
-
 BTraitable::BTraitable(const py::object& cls) {
     m_class = cls.cast<BTraitableClass*>();
     m_id_cache = nullptr;
-    m_cache = nullptr;
 }
 
 void BTraitable::set_id(const py::object& id) {
@@ -79,7 +51,6 @@ void BTraitable::set_id(const py::object& id) {
 
 void BTraitable::initialize(const py::kwargs& trait_values) {
     m_id_cache = new ObjectCache();
-    m_cache = new IdCache(this);
 
     auto iter = trait_values.begin();
     auto end_iter = trait_values.end();
@@ -89,8 +60,8 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
         if (iter == end_iter)   // kwargs empty
             throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
         {
-            auto proc = ThreadContext::current_traitable_proc();
-            CacheMocker cache_guard(proc, this);
+            auto id_builder = IdBuilder::create(this);
+            BTraitableProcessor::Use use(id_builder, true);     // will be deleted "on exit"
 
             for (; iter != end_iter; ++iter) {
                 auto trait_name = iter->first.cast<py::object>();
@@ -104,7 +75,7 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
 
                 // set an ID trait
                 auto value = iter->second.cast<py::object>();
-                BRC rc(proc->set_trait_value(this, trait, value));
+                BRC rc(id_builder->set_trait_value(this, trait, value));
                 if (!rc)
                     throw py::value_error(rc.error());
             }
@@ -120,7 +91,7 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
             clear_id_cache();
 
         } else {      // new instance
-            auto cache = ThreadContext::current_cache();
+            auto cache = ThreadContext::current_traitable_proc_bound()->cache();
             cache->register_object(this);
         }
     } else {        // ID exogenous
@@ -135,9 +106,6 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
 }
 
 BTraitable::~BTraitable() {
-    delete m_cache;
-    //auto cache = ThreadContext::current_cache();
-    //cache->unlink_object(tid());
     delete m_id_cache;
 }
 
@@ -203,7 +171,7 @@ py::object BTraitable::serialize(bool embed) {
 }
 
 void BTraitable::deserialize(const py::dict& serialized_data) {
-    auto cache = ThreadContext::current_cache();
+    auto cache = ThreadContext::current_traitable_proc_bound()->cache();
     cache->create_object_cache(m_tid);
 
     for (auto item : serialized_data) {

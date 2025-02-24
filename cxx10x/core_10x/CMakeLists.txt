@@ -33,6 +33,7 @@ pybind11_add_module(core_10x_i
         btraitable.cpp
         btraitable_class.cpp
         btraitable_processor.cpp
+        id_builder.cpp
         core_10x.cpp
         py_linkage.cpp
         thread_context.cpp

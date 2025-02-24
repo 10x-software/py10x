@@ -38,7 +38,7 @@ BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
 }
 
 bool BTraitableClass::instance_in_cache(const TID &tid) {
-    auto cache = ThreadContext::current_cache();
+    auto cache = ThreadContext::current_traitable_proc_bound()->cache();
     return cache->known_object(tid);
 }
 
@@ -51,7 +51,7 @@ bool BTraitableClass::instance_in_store(const TID &tid) const {
 
 py::object BTraitableClass::deserialize(const py::object& serialized_data, bool reload) {
     if (py::isinstance<py::str>(serialized_data)) {     //-- just traitable's ID
-        auto proc = ThreadContext::current_traitable_proc();
+        auto proc = ThreadContext::current_traitable_proc_bound();
         if (proc->flags_on(BTraitableProcessor::DEBUG))
             return load(serialized_data, true);
 

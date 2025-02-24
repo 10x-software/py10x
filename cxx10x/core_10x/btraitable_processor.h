@@ -51,6 +51,7 @@ protected:
     BCache*     m_cache;
     ExecStack   m_stack;
     unsigned    m_flags;
+    bool        m_own_cache = false;
 
 public:
 
@@ -66,8 +67,11 @@ public:
 
     static BTraitableProcessor* create(unsigned flags);
 
-    BTraitableProcessor() : m_cache(nullptr), m_flags(0)    {}
-    virtual ~BTraitableProcessor() = default;
+    BTraitableProcessor() : m_cache(nullptr), m_flags(PLAIN) {}
+    virtual ~BTraitableProcessor();
+
+    [[nodiscard]] BCache*   own_cache() const               { return m_own_cache ? m_cache : nullptr; }
+    void                    use_own_cache(BCache* c)        { m_cache = c; m_own_cache = true; }
 
     [[nodiscard]] BCache*   cache() const                   { return m_cache; }
     virtual void            use_cache(BCache* c)            { m_cache = c; }
@@ -80,8 +84,11 @@ public:
 
     static py::object       check_value(BTraitable* obj, BTrait* trait, const py::object& value);
 
-    py::object              set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value);
-    py::object              set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);
+    void                    begin_using();
+    void                    end_using();
+
+    virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value);
+    virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);
 
     virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait) = 0;
     virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;
@@ -94,5 +101,11 @@ public:
     virtual py::object      raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;
     virtual py::object      raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) = 0;
 
+    class Use {
+        bool    m_temp;
+    public:
+        explicit Use(BTraitableProcessor* proc, bool temp = false);
+        ~Use();
+    };
 };
 

@@ -11,9 +11,8 @@ protected:
     BCache*     m_parent;
 
 public:
-    explicit SimpleCacheLayer(BCache* parent) : m_parent(parent) {
-        m_default_node_type = NODE_TYPE::BASIC_GRAPH;
-    }
+    SimpleCacheLayer() : SimpleCacheLayer(nullptr) {}
+    explicit SimpleCacheLayer(BCache* parent);
 
     ObjectCache*    find_or_create_object_cache(const TID& tid) override;
     BasicNode*      find_or_create_node(const TID& tid, BTrait* trait, int node_type) override;

@@ -12,6 +12,7 @@ namespace py = pybind11;
 #include "tid.h"
 #include "bnode.h"
 #include "bcache.h"
+#include "simple_cache_layer.h"
 #include "btraitable_class.h"
 #include "btraitable.h"
 #include "bprocess_context.h"
@@ -124,6 +125,12 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("find_object_cache",           &BCache::find_object_cache)
             .def("find_node",                   py::overload_cast<const TID&, BTrait*>(&BCache::find_node))
             .def("find_node",                   py::overload_cast<const TID&, BTrait*, const py::args&>(&BCache::find_node))
+            .def("default_node_type",           &BCache::default_node_type)
+            ;
+
+    py::class_<SimpleCacheLayer, BCache>(m, "SimpleCacheLayer")
+            .def(py::init<>())
+            .def(py::init<BCache*>())
             ;
 
     py::class_<TID>(m, "TID")
@@ -161,13 +168,17 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("reload",                      &BTraitable::reload)
             ;
 
-    py::class_<BTraitableProcessor>(m, "TP")
+    py::class_<BTraitableProcessor>(m, "BTraitableProcessor")
             .def_readonly_static("PLAIN",           &BTraitableProcessor::PLAIN)
             .def_readonly_static("DEBUG",           &BTraitableProcessor::DEBUG)
             .def_readonly_static("CONVERT_VALUES",  &BTraitableProcessor::CONVERT_VALUES)
             .def_readonly_static("ON_GRAPH",        &BTraitableProcessor::ON_GRAPH)
-            //.def("__enter__",                       &BTraitableProcessor::begin_using)
-            //.def("__exit__",                        &BTraitableProcessor::stop_using)
+            .def_static("create",                   &BTraitableProcessor::create)
+            .def("cache",                           &BTraitableProcessor::cache)
+            .def("use_cache",                       &BTraitableProcessor::use_cache)
+            .def("begin_using",                     &BTraitableProcessor::begin_using)
+            .def("end_using",                       &BTraitableProcessor::end_using)
+            .def("use_own_cache",                   [](BTraitableProcessor* p, py::object c) { p->use_own_cache(c.cast<SimpleCacheLayer*>());})
             ;
 
     py::class_<BFlags>(m, "BFlags")

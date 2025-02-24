@@ -17,7 +17,6 @@ using TraitValues = std::unordered_map<BTrait*, py::object>;
 class BTraitable {
 protected:
     BTraitableClass*    m_class;
-    BCache              *m_cache;
     ObjectCache         *m_id_cache;
     TID                 m_tid;
 
@@ -32,7 +31,6 @@ public:
     void initialize(const py::kwargs& trait_values);
 
     [[nodiscard]] const py::object&     class_name() const  { return m_class->name(); }
-    [[nodiscard]] BCache*               cache()             { return m_cache; }
     [[nodiscard]] ObjectCache*          id_cache() const    { return m_id_cache; }
     [[nodiscard]] const TID&            tid() const         { return m_tid; }
     [[nodiscard]] const py::object&     id() const          { return m_tid.id(); }
@@ -41,8 +39,6 @@ public:
         if (dispose_of)
             delete m_id_cache;
         m_id_cache = nullptr;
-        delete m_cache;
-        m_cache = nullptr;
     }
 
     py::object from_any(BTrait* trait, const py::object& value);

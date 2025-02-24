@@ -25,11 +25,33 @@ Placebo::~Placebo() {
 
 unsigned BTraitableProcessor::s_default_type = PLAIN;   // = OffGraphNoConvertNoCheck;
 
+BTraitableProcessor::~BTraitableProcessor() {
+    if (m_own_cache)
+        delete m_cache;
+}
+
 BTraitableProcessor* BTraitableProcessor::create_default() {
     auto proc = create(s_default_type);
     assert(proc);
     proc->use_cache(BCache::default_cache());
     return proc;
+}
+
+void BTraitableProcessor::begin_using() {
+    auto cache = own_cache();
+    if (cache)
+        ThreadContext::cache_push(cache);
+
+    ThreadContext::traitable_proc_push(this);
+}
+
+void BTraitableProcessor::end_using() {
+    auto tp = ThreadContext::traitable_proc_pop();
+    if (tp != this)
+        throw py::value_error(py::str("Mismanaged XControl block"));
+
+    if (own_cache())
+        ThreadContext::cache_pop();
 }
 
 //---- Setting a value
@@ -170,5 +192,13 @@ BTraitableProcessor* BTraitableProcessor::create(unsigned proc_type) {
     return proc;
 }
 
+BTraitableProcessor::Use::Use(BTraitableProcessor *proc, bool temp) : m_temp(temp) {
+    ThreadContext::traitable_proc_push(proc);
+}
 
+BTraitableProcessor::Use::~Use() {
+    auto tp = ThreadContext::traitable_proc_pop();
+    if (m_temp)
+        delete tp;
+}
 

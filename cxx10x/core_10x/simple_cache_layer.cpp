@@ -3,6 +3,16 @@
 //
 
 #include "simple_cache_layer.h"
+#include "thread_context.h"
+
+
+SimpleCacheLayer::SimpleCacheLayer(BCache* parent) {
+    if (!parent)
+        parent = ThreadContext::current_cache();
+
+    m_parent = parent;
+    m_default_node_type = NODE_TYPE::BASIC_GRAPH;
+}
 
 ObjectCache* SimpleCacheLayer::find_or_create_object_cache(const TID &tid) {
     auto oc = find_object_cache(tid);
