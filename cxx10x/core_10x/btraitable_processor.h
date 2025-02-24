@@ -53,6 +53,8 @@ protected:
     unsigned    m_flags;
     bool        m_own_cache = false;
 
+    static BTraitableProcessor* create_raw(unsigned flags);
+
 public:
 
     inline static const unsigned   PLAIN           = 0x0;
@@ -86,6 +88,8 @@ public:
 
     void                    begin_using();
     void                    end_using();
+    BTraitableProcessor*    py_enter()                      { begin_using(); return this; }
+    void                    py_exit(const py::args&)        { end_using(); }
 
     virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value);
     virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);

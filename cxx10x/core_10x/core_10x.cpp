@@ -128,10 +128,10 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("default_node_type",           &BCache::default_node_type)
             ;
 
-    py::class_<SimpleCacheLayer, BCache>(m, "SimpleCacheLayer")
-            .def(py::init<>())
-            .def(py::init<BCache*>())
-            ;
+//    py::class_<SimpleCacheLayer, BCache>(m, "SimpleCacheLayer")
+//            .def(py::init<>())
+//            .def(py::init<BCache*>())
+//            ;
 
     py::class_<TID>(m, "TID")
             .def("class_name",                  [](TID* tid) { return tid->cls()->name(); } )
@@ -175,10 +175,12 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_readonly_static("ON_GRAPH",        &BTraitableProcessor::ON_GRAPH)
             .def_static("create",                   &BTraitableProcessor::create)
             .def("cache",                           &BTraitableProcessor::cache)
-            .def("use_cache",                       &BTraitableProcessor::use_cache)
+            //.def("use_cache",                       &BTraitableProcessor::use_cache)
             .def("begin_using",                     &BTraitableProcessor::begin_using)
             .def("end_using",                       &BTraitableProcessor::end_using)
-            .def("use_own_cache",                   [](BTraitableProcessor* p, py::object c) { p->use_own_cache(c.cast<SimpleCacheLayer*>());})
+            .def("__enter__",                       &BTraitableProcessor::py_enter)
+            .def("__exit__",                        &BTraitableProcessor::py_exit)
+            //.def("use_own_cache",                   [](BTraitableProcessor* p, py::object c) { p->use_own_cache(c.cast<SimpleCacheLayer*>());})
             ;
 
     py::class_<BFlags>(m, "BFlags")

@@ -6,6 +6,7 @@
 #include "bnode.h"
 #include "btrait.h"
 #include "btraitable.h"
+#include "simple_cache_layer.h"
 
 Placebo::Placebo(ExecStack* xstack) : m_stack(xstack) {
     if (xstack) {
@@ -169,12 +170,12 @@ public:
     }
 };
 
-BTraitableProcessor* BTraitableProcessor::create(unsigned proc_type) {
+BTraitableProcessor* BTraitableProcessor::create_raw(unsigned int flags) {
 //    static const unsigned  DEBUG            = 0x1;
 //    static const unsigned  CONVERT_VALUES   = 0x2;
 //    static const unsigned  ON_GRAPH         = 0x4;
     BTraitableProcessor *proc;
-    switch(proc_type) {
+    switch(flags) {
         case PLAIN:                     proc = new OffGraphNoConvertNoCheck();  break;
         case DEBUG:                     proc = new OffGraphNoConvertCheck();    break;
         case CONVERT_VALUES:            proc = new OffGraphConvert();           break;
@@ -188,7 +189,16 @@ BTraitableProcessor* BTraitableProcessor::create(unsigned proc_type) {
             return nullptr;
     }
 
-    proc->set_flags(proc_type);
+    proc->set_flags(flags);
+    return proc;
+}
+
+BTraitableProcessor* BTraitableProcessor::create(unsigned int flags) {
+    auto proc = create_raw(flags);
+    if (flags & ON_GRAPH) {
+        auto cache = new SimpleCacheLayer();
+        proc->use_own_cache(cache);
+    }
     return proc;
 }
 
