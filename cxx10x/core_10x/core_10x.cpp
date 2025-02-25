@@ -102,6 +102,8 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("is_valid",                    &BasicNode::is_valid)
             .def("is_set",                      &BasicNode::is_set)
             .def("is_valid_and_not_set",        &BasicNode::is_valid_and_not_set)
+            .def("make_valid",                  &BasicNode::make_valid)
+            .def("make_invalid",                &BasicNode::make_invalid)
             .def("value",                       &BasicNode::value)
             .def("parents",                     &BasicNode::parents)
             .def("children",                    &BasicNode::children)
@@ -112,6 +114,11 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("add_parent",                  &BasicNode::add_parent)
             .def("children",                    &BasicNode::children)
             .def("parents",                     &BasicNode::parents)
+            ;
+
+    py::class_<BUiNode, BasicNode>(m, "BUiNode")
+            .def(py::init<py::object, py::object, BasicNode*, BasicNode*, BasicNode*>())
+            .def("relink_nodes",                &BUiNode::relink_nodes)
             ;
 
     py::class_<ObjectCache>(m, "ObjectCache")
