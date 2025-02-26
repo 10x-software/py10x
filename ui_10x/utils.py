@@ -190,7 +190,7 @@ class UxDialog(ux.Dialog):
         lay.addWidget(w)
 
         self.w_message = ux.Label()
-        self.w_message.set_stylesheet('color: red;')
+        self.w_message.set_style_sheet('color: red;')
         lay.addWidget(self.w_message)
 
         if ok or cancel:
@@ -236,7 +236,7 @@ def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, def
 
     return cal.selected_date() if rc else default
 
-class UxStyleSheet:
+class Uxstyle_sheet:
     @classmethod
     def dumps(cls, data: dict) -> str:
         return '\n'.join(f'{name}: {value};' for name, value in data.items())
@@ -258,13 +258,13 @@ class UxStyleSheet:
 
     @classmethod
     def slice(cls, w: ux.Widget, *attr_names) -> list:
-        data = cls.loads(w.stylesheet())
+        data = cls.loads(w.style_sheet())
         return [ data.get(name) for name in attr_names ]
 
     @classmethod
     def update(cls, w: ux.Widget, sheet_update: str, replace = False):
         if not replace:
-            sh = w.stylesheet()
+            sh = w.style_sheet()
             data = cls.loads(sh)
             update_data = cls.loads(sheet_update)
             data.update(update_data)
@@ -272,7 +272,7 @@ class UxStyleSheet:
         else:
             new_sh = sheet_update
 
-        w.set_stylesheet(new_sh)
+        w.set_style_sheet(new_sh)
 
     @classmethod
     def _color(cls, style_sheet: str, attr_name: str):
