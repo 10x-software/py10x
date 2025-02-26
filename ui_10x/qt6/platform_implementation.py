@@ -7,144 +7,89 @@ from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent
 
 import platform
 
+def missing_attr(self, item):
+    t = item.title()
+    item = t[0].lower() + t[1:].replace('_', '')
+    return QObject.__getattribute__(self, item)
 
 Object = QObject
 
 signal_decl = pyqtSignal
 
-class MouseEvent(QMouseEvent):
-    def is_left_button(self) -> bool:   return self.button() == Qt.MouseButton.LeftButton
-    def is_right_button(self) -> bool:  return self.button() == Qt.MouseButton.RightButton
+MouseEvent                      = QMouseEvent
+MouseEvent.is_left_button       = lambda self: self.button() == Qt.MouseButton.LeftButton
+MouseEvent.is_right_button      = lambda self: self.button() == Qt.MouseButton.RightButton
 
-class Point(QPoint):
-    x   = QPoint.x
-    y   = QPoint.y
+Point                           = QPoint
 
-class SizePolicy(QSizePolicy):
-    MinimumExpanding = QSizePolicy.Policy.MinimumExpanding
-    ...
+SizePolicy                      = QSizePolicy
+SizePolicy.MinimumExpanding     = QSizePolicy.Policy.MinimumExpanding
 
-Color = QColor
+Color                           = QColor
 
-class Widget(QWidget):
-    set_layout                  = QWidget.setLayout
-    set_stylesheet              = QWidget.setStyleSheet
-    stylesheet                  = QWidget.styleSheet
-    set_enabled                 = QWidget.setEnabled
-    set_geometry                = QWidget.setGeometry
-    width                       = QWidget.width
-    height                      = QWidget.height
-    map_to_global               = QWidget.mapToGlobal
-    mouse_press_event           = QWidget.mousePressEvent
-    focus_out_event             = QWidget.focusOutEvent
-    set_size_policy             = QWidget.setSizePolicy
-    set_minimum_width           = QWidget.setMinimumWidth
-    set_minimum_height          = QWidget.setMinimumHeight
+Widget                          = QWidget
+Widget.__getattr__              = missing_attr
 
-class Layout(QLayout):
-    add_widget                  = QLayout.addWidget
-    set_spacing                 = QLayout.setSpacing
-    set_contents_margins        = QLayout.setContentsMargins
+Layout                          = QLayout
 
-class BoxLayout(QBoxLayout):
-    add_layout                  = QBoxLayout.addLayout
+BoxLayout                       = QBoxLayout
+BoxLayout.__getattr__           = missing_attr
 
-HBoxLayout  = QHBoxLayout
-VBoxLayout  = QVBoxLayout
+HBoxLayout                      = QHBoxLayout
+VBoxLayout                      = QVBoxLayout
 
-class FormLayout(QFormLayout):
-    add_row                     = QFormLayout.addRow
+FormLayout                      = QFormLayout
+FormLayout.add_row              = QFormLayout.addRow
 
+Label                           = QLabel
+Label.set_text                  = QLabel.setText
 
-class Label(QLabel):
-    set_text                    = QLabel.setText
+Style                           = QStyle
 
-class Style(QStyle):
-    standard_icon               = QStyle.standardIcon
+PushButton                      = QPushButton
+PushButton.clicked_connect      = lambda self, bound_method:    self.clicked.connect(bound_method)
 
-class PushButton(QPushButton):
-    def clicked_connect(self, bound_method):    self.clicked.connect(bound_method)
+LineEdit                        = QLineEdit
+LineEdit.text_edited_connect    = lambda self, bound_method:    self.textEdited.connect(bound_method)
+LineEdit.editing_finished_connect = lambda self, bound_method:  self.editingFinished.connect(bound_method)
+LineEdit.set_password_mode      = lambda self:                  self.setEchoMode(QLineEdit.EchoMode.Password)
 
-    set_flat                    = QPushButton.setFlat
+TextEdit                        = QPlainTextEdit
 
-class LineEdit(QLineEdit):
-    text                        = QLineEdit.text
-    set_readonly                = QLineEdit.setReadOnly
+CheckBox                        = QCheckBox
+CheckBox.state_changed_connect  = lambda self, bound_method:    self.stateChanged.connect(bound_method)
 
-    def text_edited_connect(self, bound_method):        self.textEdited.connect(bound_method)
-    def editing_finished_connect(self, bound_method):   self.editingFinished.connect(bound_method)
+ComboBox                        = QComboBox
 
-    def set_password_mode(self):                        self.setEchoMode(QLineEdit.EchoMode.Password)
+GroupBox                        = QGroupBox
 
-class TextEdit(QPlainTextEdit):
-    to_plain_text               = QPlainTextEdit.toPlainText
-    set_plain_text              = QPlainTextEdit.setPlainText
-    set_readonly                = QPlainTextEdit.setReadOnly
+RadioButton                     = QRadioButton
 
-class CheckBox(QCheckBox):
-    set_checked                 = QCheckBox.setChecked
-    is_checked                  = QCheckBox.isChecked
+ButtonGroup                     = QButtonGroup
+ButtonGroup.__getattr__         = missing_attr
 
-    def state_changed_connect(self, bound_method):      self.stateChanged.connect(bound_method)
+ListItem                        = QListWidgetItem
 
-class ComboBox(QComboBox):
-    ...
+MatchExactly                    = Qt.MatchFlag.MatchExactly
 
-class GroupBox(QGroupBox):
-    set_title                   = QGroupBox.setTitle
+ListWidget                      = QListWidget
+ListWidget.clicked_connect      = lambda self, bound_method:    self.clicked.connect(bound_method)
 
-class RadioButton(QRadioButton):
-    set_checked                 = QRadioButton.setChecked
+TreeItem                        = QTreeWidgetItem
 
-class ButtonGroup(QButtonGroup):
-    add_button                  = QButtonGroup.addButton
-    button                      = QButtonGroup.button
-    checked_id                  = QButtonGroup.checkedId
+TreeWidget                      = QTreeWidget
+TreeWidget.item_clicked_connect = lambda self, bound_method:    self.itemClicked.connect(bound_method)
 
+CalendarWidget                  = QCalendarWidget
+CalendarWidget.selected_date    = lambda self:                  self.selectedDate().toPyDate()
 
-class ListItem(QListWidgetItem):
-    set_selected                = QListWidgetItem.setSelected
+Dialog                          = QDialog
+#Dialog.__getattr__              = missing_attr
 
-MatchExactly = Qt.MatchFlag.MatchExactly
-class ListWidget(QListWidget):
-    find_items                  = QListWidget.findItems
-    add_items                   = QListWidget.addItem
-    clear                       = QListWidget.clear
+MessageBox                      = QMessageBox
+MessageBox.is_yes_button        = lambda sb:                    sb == QMessageBox.StandardButton.Yes
 
-    def clicked_connect(self, bound_method):    self.connect(bound_method)
-
-class TreeItem(QTreeWidgetItem):
-    set_expanded                = QTreeWidgetItem.setExpanded
-    set_text                    = QTreeWidgetItem.setText
-    set_tooltip                 = QTreeWidgetItem.setToolTip
-
-class TreeWidget(QTreeWidget):
-    set_column_count            = QTreeWidget.setColumnCount
-    set_header_labels           = QTreeWidget.setHeaderLabels
-    top_level_item_count        = QTreeWidget.topLevelItemCount
-    top_level_item              = QTreeWidget.topLevelItem
-    resize_column_to_contents   = QTreeWidget.resizeColumnToContents
-
-    def item_clicked_connect(self, bound_method):       self.itemClicked.connect(bound_method)
-
-
-class CalendarWidget(QCalendarWidget):
-    set_grid_visible            = QCalendarWidget.setGridVisible
-    set_selected_date           = QCalendarWidget.setSelectedDate
-
-    def selected_date(self):        return self.selectedDate().toPyDate()
-
-class Dialog(QDialog):
-    set_window_title            = QDialog.setWindowTitle
-    set_window_flags            = QDialog.setWindowFlags
-
-class MessageBox(QMessageBox):
-    @classmethod
-    def is_yes_button(cls, sb):
-        return sb == QMessageBox.StandardButton.Yes
-
-class Application(QApplication):
-    ...
+Application                     = QApplication
 
 class TEXT_ALIGN:
     TOP       = Qt.AlignmentFlag.AlignTop
@@ -159,10 +104,7 @@ class SCROLL:
     ON          = Qt.ScrollBarPolicy.ScrollBarAlwaysOn
     AS_NEEDED   = Qt.ScrollBarPolicy.ScrollBarAsNeeded
 
-class ScrollArea(QScrollArea):
-    set_widget                          = QScrollArea.setWidget
-    set_horizontal_scrollbar_policy     = QScrollArea.setHorizontalScrollBarPolicy
-    set_vertical_scrollbar_policy       = QScrollArea.setVerticalScrollBarPolicy
+ScrollArea                      = QScrollArea
 
 def init(style = '') -> QApplication:
     if not style:
