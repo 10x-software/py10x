@@ -191,10 +191,13 @@ class ListWidget(Widget):
 
 class TreeItem(Widget):
     @abc.abstractmethod
+    def child_count(self):  ...
+
+    @abc.abstractmethod
     def set_expanded(self, expanded: bool): ...
 
     @abc.abstractmethod
-    def set_text(self, text: str):  ...
+    def set_text(self, col: int, text: str):  ...
 
     @abc.abstractmethod
     def set_tooltip(self, col: int, tooltip: str):  ...
@@ -207,9 +210,6 @@ class TreeWidget(Widget):
     def set_header_labels(self, labels: list):  ...
 
     @abc.abstractmethod
-    def item_clicked_connect(self, bound_method):   ...
-
-    @abc.abstractmethod
     def top_level_item_count(self) -> int:  ...
 
     @abc.abstractmethod
@@ -217,6 +217,24 @@ class TreeWidget(Widget):
 
     @abc.abstractmethod
     def resize_column_to_contents(self, col: int):  ...
+
+    @abc.abstractmethod
+    def item_expanded_connect(self, item):    ...
+
+    @abc.abstractmethod
+    def item_clicked_connect(self, bound_method):   ...
+
+    @abc.abstractmethod
+    def item_pressed_connect(self, bound_method):   ...
+
+    @abc.abstractmethod
+    def item_changed_connect(self, bound_method):   ...
+
+    @abc.abstractmethod
+    def edit_item(self, item, col: int):    ...
+
+    @abc.abstractmethod
+    def open_persistent_editor(self, item, col: int):   ...
 
 class CalendarWidget(Widget):
     @abc.abstractmethod
