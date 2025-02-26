@@ -3,10 +3,7 @@ import inspect
 
 from ui_10x.platform import ux
 
-# from asu.nx.directory import Directory
-
 from core_10x.named_constant import NamedConstant
-#from core_10x.rc import RC
 from core_10x.global_cache import cache, singleton
 
 class UxAsync(ux.Object):

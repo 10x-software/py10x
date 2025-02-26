@@ -7,6 +7,8 @@ from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent
 
 import platform
 
+from core_10x.global_cache import cache
+
 def missing_attr(self, item):
     t = item.title()
     item = t[0].lower() + t[1:].replace('_', '')
@@ -79,6 +81,9 @@ TreeItem                        = QTreeWidgetItem
 
 TreeWidget                      = QTreeWidget
 TreeWidget.item_clicked_connect = lambda self, bound_method:    self.itemClicked.connect(bound_method)
+TreeWidget.item_expanded_connect = lambda self, bound_method:   self.itemExpanded.connect(bound_method)
+TreeWidget.item_pressed_connect = lambda self, bound_method:    self.itemPressed.connect(bound_method)
+TreeWidget.item_changed_connect = lambda self, bound_method:    self.itemChanged.connect(bound_method)
 
 CalendarWidget                  = QCalendarWidget
 CalendarWidget.selected_date    = lambda self:                  self.selectedDate().toPyDate()
@@ -106,6 +111,7 @@ class SCROLL:
 
 ScrollArea                      = QScrollArea
 
+@cache
 def init(style = '') -> QApplication:
     if not style:
         style = platform.system()
