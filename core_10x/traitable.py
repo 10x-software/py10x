@@ -43,6 +43,11 @@ class Traitable(BTraitable, Nucleus):
         rc = RC(True)
         cls.s_dir = dir = dict(cls.s_dir)       #-- shallow copy!
 
+        for trait_name, old_trait in dir.items():
+            if any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
+                t_def =old_trait.t_def
+                dir[trait_name] = Trait.create(trait_name, t_def, class_dict, {trait_name:t_def.data_type}|annotations, rc)
+
         for trait_name, trait_def in class_dict.items():
             if not isinstance(trait_def, TraitDefinition):
                 continue
