@@ -68,6 +68,7 @@ public:
     static BTraitableProcessor* create_default();
 
     static BTraitableProcessor* create(unsigned flags);
+    static BTraitableProcessor* current();
 
     BTraitableProcessor() : m_cache(nullptr), m_flags(PLAIN) {}
     virtual ~BTraitableProcessor();

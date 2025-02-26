@@ -201,6 +201,9 @@ BTraitableProcessor* BTraitableProcessor::create(unsigned int flags) {
     }
     return proc;
 }
+BTraitableProcessor* BTraitableProcessor::current() {
+    return ThreadContext::current_traitable_proc();
+}
 
 BTraitableProcessor::Use::Use(BTraitableProcessor *proc, bool temp) : m_temp(temp) {
     ThreadContext::traitable_proc_push(proc);
