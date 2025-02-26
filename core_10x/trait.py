@@ -100,18 +100,24 @@ class Trait(BTrait):
         trait.default = t_def.default
         trait.create_proc()
 
-        for method_kind, method_def in TRAIT_METHOD.s_dir.items():
-            method_suffix = method_kind.lower()
-            method_name = f'{trait_name}_{method_suffix}'
+        Trait.set_trait_funcs(class_dict, rc, trait, trait_name)
+
+        trait.post_ctor()
+        return trait
+
+    @staticmethod
+    def method_defs(trait_name: str) -> dict:
+        return {f'{trait_name}_{(method_suffix:=method_key.lower())}':(method_suffix,method_def) for method_key,method_def in TRAIT_METHOD.s_dir.items()}
+
+    @staticmethod
+    def set_trait_funcs(class_dict, rc, trait, trait_name):
+        for method_name, (method_suffix,method_def) in Trait.method_defs(trait_name).items():
             method = class_dict.get(method_name)
             f = method_def.value(trait, method, method_suffix, rc)
             if f:
                 cpp_name = f'set_f_{method_suffix}'
                 set_f = getattr(trait, cpp_name)
                 set_f(f)
-
-        trait.post_ctor()
-        return trait
 
     def create_f_get(self, f, attr_name: str, rc: RC):
         if not f:  #-- no custom getter, just the default value
@@ -209,7 +215,7 @@ class Trait(BTrait):
         ...
 
     def default_value(self):
-        raise NotImplementedError
+        return self.default
 
     def same_values(self, value1, value2) -> bool:
         raise NotImplementedError
