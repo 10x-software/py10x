@@ -78,6 +78,7 @@ ListWidget                      = QListWidget
 ListWidget.clicked_connect      = lambda self, bound_method:    self.clicked.connect(bound_method)
 
 TreeItem                        = QTreeWidgetItem
+TreeItem.__getattr__            = missing_attr
 
 TreeWidget                      = QTreeWidget
 TreeWidget.item_clicked_connect = lambda self, bound_method:    self.itemClicked.connect(bound_method)
