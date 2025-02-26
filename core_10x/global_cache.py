@@ -22,8 +22,8 @@ def cache(f):
         return _cache_no_args(f)
 
     if num_args == 1:
-        for _, param in params.items():
-            if not param.kind in ARGS_KWARGS:
+        for name, param in params.items():
+            if not param.kind in ARGS_KWARGS and param.default is inspect.Parameter.empty:
                 return _cache_single_arg(f)
 
     return _cache_with_args(f)
@@ -72,6 +72,27 @@ def _cache_with_args(f):
 def standard_key(args: tuple, kwargs: dict) -> tuple:
     sorted_kwargs = tuple((k, kwargs[k]) for k in sorted(kwargs))
     return *args, *sorted_kwargs
+
+#========= The singleton
+
+def ___operator_new(cls, *args, **kwargs):
+    key = standard_key((cls, *args), kwargs)
+    ptr = cls.___instances.get(key)
+    if not ptr:
+        ptr = object.__new__(cls)
+        cls.___ctor(ptr, *args, **kwargs)
+        cls.___instances[key] = ptr
+    return ptr
+
+def ___operator_reset(cls):   cls.___instances = {}
+
+def singleton(cls):
+    cls.___instances = {}
+    cls.__new__ = ___operator_new
+    cls.___ctor = cls.__init__
+    cls.__init__ = lambda self, *args, **kwargs: None
+    cls._resetSingleton = lambda: ___operator_reset( cls )
+    return cls
 
 # def hash_key( obj ) -> int:
 #     try:
