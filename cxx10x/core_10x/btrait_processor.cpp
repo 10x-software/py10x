@@ -11,7 +11,7 @@
 
 py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
     auto node = proc->cache()->find_node(obj->tid(), trait);
-    if (node)    // No need to check if the node is set, as only set nodes could be in the cache in OFF_GRAPH mode
+    if (node && node->is_set())
         return node->value();
 
     return trait->wrapper_f_get(obj);
@@ -19,7 +19,7 @@ py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTrai
 
 py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
     auto node = proc->cache()->find_node(obj->tid(), trait, args);
-    if (node)    // No need to check if the node is set, as only set nodes could be in the cache in OFF_GRAPH mode
+    if (node && node->is_set())
         return node->value();
 
     return trait->wrapper_f_get(obj, args);
