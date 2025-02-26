@@ -1,0 +1,251 @@
+import functools
+import unittest
+from collections import defaultdict
+from functools import partial
+from unittest import mock, TestCase
+from uuid import uuid1
+from weakref import WeakKeyDictionary
+
+from core_10x.code_samples.person import Person, WEIGHT_QU
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, BTP
+from core_10x.trait_definition import RT
+
+
+def call_counter(method):
+    @functools.wraps(method)
+    def ctr(self, *args, **kwargs):
+        ctr.call_counts[self] = ctr.call_counts.get(self, 0) + 1
+        return method(self, *args, **kwargs)
+    ctr.call_counts = WeakKeyDictionary()
+    ctr.call_count = lambda obj: ctr.call_counts.get(obj,0) if obj else sum(ctr.call_counts.values())
+    return ctr
+
+class CallCount:
+    def __init__(self, obj, method):
+        self.obj = obj
+        self.method = method
+        assert hasattr(method, 'call_count')
+
+    def __enter__(self):
+        self.method.call_counts[self.obj] = 0
+        return self
+
+    def __exit__(self, *args):
+        pass
+
+    @property
+    def call_count(self):
+        return self.method.call_count(self.obj)
+
+
+class TestPerson(Person):
+    older_than_get = call_counter(Person.older_than_get)
+    weight_get = call_counter(Person.weight_get)
+    weight_set = call_counter(Person.weight_set)
+
+    young: bool = RT()
+
+    @call_counter
+    def young_get(self) -> bool:
+        return self.age < 30
+
+
+class TestGraphBase(TestCase):
+    def setUp(self):
+        self.p = TestPerson(first_name='John', last_name='Smith')
+
+    def test_get_set(self):
+        on = BTP.current().flags() & BTP.ON_GRAPH
+        p = self.p
+        p.weight_lbs = 100.
+        p.weight_qu = WEIGHT_QU.LB
+
+        self.assertEqual(p.weight, 100)
+
+        with CallCount(p, TestPerson.weight_get) as cc:
+            self.assertEqual(p.weight, 100)
+            self.assertEqual(cc.call_count, not on)
+
+        p.weight_qu = WEIGHT_QU.KG
+        self.assertIs(p.weight_qu, WEIGHT_QU.KG)
+
+        with CallCount(p, TestPerson.weight_get) as cc:
+            self.assertEqual(p.weight, 100 / WEIGHT_QU.KG.value)
+            self.assertEqual(cc.call_count, 1)
+
+        # now use the setter...
+        with CallCount(p, TestPerson.weight_set) as cc:
+            p.weight = 100.
+            self.assertEqual(cc.call_count, 1)
+
+        with CallCount(p, TestPerson.weight_get) as cc:
+            self.assertEqual(p.weight, 100)
+            self.assertEqual(cc.call_count, 1)
+
+        with CallCount(p, TestPerson.weight_get) as cc:
+            self.assertEqual(p.weight_lbs, 100 * WEIGHT_QU.KG.value)
+            self.assertEqual(cc.call_count, 0)
+
+    def test_dep_change(self):
+        on = BTP.current().flags() & BTP.ON_GRAPH
+        p = self.p
+        p.age = 30
+
+        self.assertFalse(p.young)
+
+        with CallCount(p, TestPerson.young_get) as cc:
+            self.assertFalse(p.young)
+            self.assertEqual(cc.call_count, not on)
+
+        p.age = 20
+        with CallCount(p, TestPerson.young_get) as cc:
+            self.assertTrue(p.young)
+            self.assertEqual(cc.call_count, 1)
+
+        p.age = 30
+
+    def test_dep_change_with_arg(self):
+        on = BTP.current().flags() & BTP.ON_GRAPH
+
+        p = self.p
+        p.age = 30
+
+        self.assertFalse(p.older_than(30))
+
+        with CallCount(p, TestPerson.older_than_get) as cc:
+            self.assertFalse(p.older_than(30))
+            self.assertEqual(cc.call_count, not on)
+
+        p.age = 40
+        with CallCount(p, TestPerson.older_than_get) as cc:
+            self.assertTrue(p.older_than(30))
+            self.assertEqual(cc.call_count, 1)
+
+        p.age = 30
+
+class TestGraphOn(TestGraphBase):
+    def setUp(self):
+        self.graph_on = GRAPH_ON()
+        self.graph_on.begin_using()
+        self.p = TestPerson(first_name='Jane', last_name='Smith', age=30)
+
+    def tearDown(self):
+        with self.assertRaises(Exception):
+            TestPerson(first_name='Jane', last_name='Smith', age=30)
+        self.assertEqual(self.p.age,30)
+        self.graph_on.end_using()
+        self.assertFalse(self.p.first_name)
+        self.assertFalse(self.p.last_name)
+        self.assertEqual(self.p.age, 1)
+        self.assertEqual(self.p.id(),'Jane|Smith')
+
+class TestExecControl(TestGraphBase):
+    def test_convert(self, on=False):
+        self.assertEqual(on, bool(BTP.current().flags() & BTP.CONVERT_VALUES))
+        if not on:
+            with self.assertRaises(Exception):
+                Person(first_name=1, last_name=2)
+        else:
+            p = Person(first_name=1, last_name=2)
+            self.assertEqual(p.full_name, '1 2')
+
+    def test_graph(self, on=False):
+        self.assertEqual(on, bool(BTP.current().flags() & BTP.ON_GRAPH))
+        self.test_dep_change()
+        self.test_dep_change_with_arg()
+        self.test_get_set()
+
+    def test(self, graph=False, convert=False, debug=False):
+        if debug:
+            convert = False # TODO: debug overrides convert
+
+        self.test_graph(on=graph)
+        self.test_convert(on=convert)
+        self.test_debug(on=debug)
+
+    def test_graph_on(self):
+        with GRAPH_ON():
+            self.test(True, False, False)
+            # with GRAPH_OFF():
+            #     self.test(False, False, False)
+
+    def test_debug(self, on=False):
+        self.assertEqual(on, bool(BTP.current().flags() & BTP.DEBUG))
+        if on:
+            with self.assertRaises(Exception):
+                Person(first_name='John', last_name='Smith', weight_lbs=200)
+
+            #TODO: the below does not work with first_name='John'.
+            # Arguably, since the previous throws an exception,'John' should work.
+            # Perhaps failure to set non-id trait should cleanup the object.
+            p = Person(first_name='Jane', last_name='Smith', weight_lbs=100.)
+
+            with self.assertRaises(Exception):
+                p.weight_lbs = 200
+
+            self.assertEqual(p.weight, 100.0)
+
+            p.weight_lbs = 200.
+            self.assertEqual(p.weight, 200.0)
+
+        else:
+            p = Person(first_name=uuid1().hex, last_name='Smith', weight_lbs=200) #TODO: this should work e.g. for first_name='Max'
+            self.assertEqual(p.weight, 200.0)
+
+            p.weight_lbs = 100
+            self.assertEqual(p.weight_lbs, 100.0)
+        #TODO: do we have an interface for clearing a traitable?
+
+    def test_graph_convert_debug(self):
+        with GRAPH_ON(convert_values=True, debug=True):
+            self.test(True, True, True)
+            # with GRAPH_OFF():
+            #     self.test_convert(on=True)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=True)
+            # with GRAPH_OFF(convert_values=False):
+            #     self.test_convert(on=False)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=True)
+            # with GRAPH_OFF(debug=False, convert_values=False):
+            #     self.test_convert(on=False)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=False)
+
+    def test_graph_convert(self):
+        with GRAPH_ON(convert_values=True):
+            self.test(True, True, False)
+
+            # with GRAPH_OFF():
+            #     self.test_convert(on=False)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=False)
+            # with GRAPH_OFF(convert_values=False):
+            #     self.test_convert(on=False)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=False)
+            # with GRAPH_OFF(debug=True):
+            #     self.test_convert(on=True)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=True)
+
+    def test_graph_debug(self):
+        with GRAPH_ON(debug=True):
+            self.test(True, False, True)
+
+            # with GRAPH_OFF():
+            #     self.test_convert(on=False)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=True)
+            # with GRAPH_OFF(debug=False):
+            #     self.test_convert(on=False)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=False)
+            # with GRAPH_OFF(convert_values=True):
+            #     self.test_convert(on=True)
+            #     self.test_graph(on=False)
+            #     self.test_debug(on=True)
+
+
+if __name__ == '__main__':
+    unittest.main()

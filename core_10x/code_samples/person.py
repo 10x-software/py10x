@@ -1,5 +1,12 @@
+from core_10x.named_constant import NamedConstant
 from core_10x.trait_definition import RT
 from core_10x.traitable import Traitable, T, RC, RC_TRUE
+
+class WEIGHT_QU( NamedConstant ):
+    LB =    ( 'lb',     1. )
+    KG =    ( 'kg',     2.205 )
+    G =     ( 'g',      0.002205 )
+    CT =    ( 'ct',     0.0004409 )
 
 class Person(Traitable):
     first_name: str     = T(T.ID)
@@ -7,6 +14,9 @@ class Person(Traitable):
 
     age: int            = T(1)
     full_name: str      = T(T.EXPENSIVE)
+    weight_lbs: float   = T()
+    weight: float       = T()
+    weight_qu: WEIGHT_QU = T(default=WEIGHT_QU.LB)
 
     older_than: bool    = RT()
 
@@ -24,3 +34,11 @@ class Person(Traitable):
 
     def older_than_get(self, age: int) -> bool:
         return self.age > age
+
+    #-- getter and setter for weight trait
+    def weight_get( self ) -> float:
+        return self.weight_lbs / self.weight_qu.value
+
+    def weight_set( self, trait: T, value ) -> RC:  # -- trait setter gets its trait and the value and must return RC
+        value = trait.from_any( value )
+        return self.set_value( self.trait('weight_lbs'), value * self.weight_qu.value) #TODO: set_values(**dict) to set multiple values at once
