@@ -1,0 +1,298 @@
+import abc
+from datetime import date
+
+class Object(abc.ABC): ...
+
+class signal_decl(abc.ABC):
+    @abc.abstractmethod
+    def __init__(self, *args):  ...
+
+    @abc.abstractmethod
+    def connect(self, bound_method, **kwargs):  ...
+
+    @abc.abstractmethod
+    def emit(self, *args):  ...
+
+class MouseEvent(abc.ABC):
+    @abc.abstractmethod
+    def is_left_button(self) -> bool:   ...
+
+    @abc.abstractmethod
+    def is_right_button(self) -> bool:  ...
+
+class Point(abc.ABC):
+    @abc.abstractmethod
+    def x(self) -> int: ...
+
+    @abc.abstractmethod
+    def y(self) -> int: ...
+
+class SizePolicy(abc.ABC):
+    MinimumExpanding = None
+    ...
+
+class Color(abc.ABC):   ...
+
+class Widget(abc.ABC):
+    def __init__(self, *args, **kwargs) -> None: ...
+
+    @abc.abstractmethod
+    def set_layout(self, layout: 'Layout'): ...
+
+    @abc.abstractmethod
+    def set_stylesheet(self, sh: str):  ...
+
+    @abc.abstractmethod
+    def stylesheet(self) -> str:    ...
+
+    @abc.abstractmethod
+    def set_enabled(self, enabled: bool):   ...
+
+    @abc.abstractmethod
+    def set_geometry(self, *args):  ...
+
+    @abc.abstractmethod
+    def width(self) -> int: ...
+
+    @abc.abstractmethod
+    def height(self) -> int:    ...
+
+    @abc.abstractmethod
+    def map_to_global(self, point: Point) -> Point:  ...
+
+    @abc.abstractmethod
+    def mouse_press_event(self, event: MouseEvent): ...
+
+    @abc.abstractmethod
+    def focus_out_event(self, event):   ...
+
+    @abc.abstractmethod
+    def set_size_policy(self, *args):   ...
+
+    @abc.abstractmethod
+    def set_minimum_width(self, width: int):    ...
+
+    @abc.abstractmethod
+    def set_minimum_height(self, height: int):  ...
+
+
+class Layout(abc.ABC):
+    def __init__(self, *args, **kwargs): ...
+
+    @abc.abstractmethod
+    def add_widget(self, widget: Widget, **kwargs):   ...
+
+    @abc.abstractmethod
+    def set_spacing(self, spacing: int):  ...
+
+    @abc.abstractmethod
+    def set_contents_margins(self, *args):  ...
+
+class BoxLayout(Layout):
+    @abc.abstractmethod
+    def add_layout(self, layout: 'Layout'): ...
+
+class HBoxLayout(BoxLayout):   ...
+class VBoxLayout(BoxLayout):   ...
+
+class FormLayout(Layout):
+    @abc.abstractmethod
+    def add_row(self, w1: Widget, w2: Widget = None):   ...
+
+class Label(Widget):
+    @abc.abstractmethod
+    def set_text(self, text: str):  ...
+
+class Style(abc.ABC):
+    @abc.abstractmethod
+    def standard_icon(self, style_icon):    ...
+
+class PushButton(Label):
+    @abc.abstractmethod
+    def clicked_connect(self, bound_method):    ...
+
+    @abc.abstractmethod
+    def set_flat(self, flat: bool): ...
+
+class LineEdit(Label):
+    @abc.abstractmethod
+    def text(self) -> str:  ...
+
+    @abc.abstractmethod
+    def text_edited_connect(self, bound_method):    ...
+
+    @abc.abstractmethod
+    def editing_finished_connect(self, bound_method):   ...
+
+    @abc.abstractmethod
+    def set_readonly(self, readonly: bool): ...
+
+    @abc.abstractmethod
+    def set_password_mode(self):    ...
+
+class TextEdit(Widget):
+    @abc.abstractmethod
+    def to_plain_text(self) -> str: ...
+
+    @abc.abstractmethod
+    def set_plain_text(self, text: str):    ...
+
+    @abc.abstractmethod
+    def set_readonly(self, readonly: bool): ...
+
+class CheckBox(Label):
+    @abc.abstractmethod
+    def set_checked(self, checked: bool):   ...
+
+    @abc.abstractmethod
+    def is_checked(self) -> bool:   ...
+
+    @abc.abstractmethod
+    def state_changed_connect(self, bound_method):  ...
+
+class ComboBox(Widget):
+    ...
+
+class GroupBox(Widget):
+    @abc.abstractmethod
+    def set_title(self, title: str):    ...
+
+class RadioButton(Widget):
+    @abc.abstractmethod
+    def set_checked(self, checked: bool):   ...
+
+class ButtonGroup(Widget):
+    @abc.abstractmethod
+    def add_button(self, rb: RadioButton, id: int): ...
+
+    @abc.abstractmethod
+    def button(self, id: int) -> RadioButton:   ...
+
+    @abc.abstractmethod
+    def checked_id(self) -> int:    ...
+
+class ListItem(abc.ABC):
+    def row(self): ...
+    def set_selected(self, selected: bool): ...
+
+MatchExactly = None
+class ListWidget(Widget):
+    @abc.abstractmethod
+    def add_items(self, items: list):   ...
+
+    @abc.abstractmethod
+    def clicked_connect(self, bound_method):    ...
+
+    @abc.abstractmethod
+    def clear(self):    ...
+
+    @abc.abstractmethod
+    def find_items(self, how):  ...
+
+class TreeItem(Widget):
+    @abc.abstractmethod
+    def set_expanded(self, expanded: bool): ...
+
+    @abc.abstractmethod
+    def set_text(self, text: str):  ...
+
+    @abc.abstractmethod
+    def set_tooltip(self, col: int, tooltip: str):  ...
+
+class TreeWidget(Widget):
+    @abc.abstractmethod
+    def set_column_count(self, column_count: int):  ...
+
+    @abc.abstractmethod
+    def set_header_labels(self, labels: list):  ...
+
+    @abc.abstractmethod
+    def item_clicked_connect(self, bound_method):   ...
+
+    @abc.abstractmethod
+    def top_level_item_count(self) -> int:  ...
+
+    @abc.abstractmethod
+    def top_level_item(self, i: int) -> TreeItem:   ...
+
+    @abc.abstractmethod
+    def resize_column_to_contents(self, col: int):  ...
+
+class CalendarWidget(Widget):
+    @abc.abstractmethod
+    def set_grid_visible(self, grid_visible: bool): ...
+
+    @abc.abstractmethod
+    def set_selected_date(self, selected_date: date):   ...
+
+    @abc.abstractmethod
+    def selected_date(self) -> date:    ...
+
+class Dialog(Widget):
+    @abc.abstractmethod
+    def set_window_title(self, title: str): ...
+
+    @abc.abstractmethod
+    def set_window_flags(self, flags):  ...
+
+    @abc.abstractmethod
+    def reject(self):   ...
+
+    @abc.abstractmethod
+    def done(self, rc: int):    ...
+
+
+class MessageBox(abc.ABC):
+    @classmethod
+    @abc.abstractmethod
+    def question(cls, parent: Widget, title: str, message: str) -> bool:    ...
+
+    @classmethod
+    @abc.abstractmethod
+    def warning(cls, parent: Widget, title: str, message: str): ...
+
+    @classmethod
+    @abc.abstractmethod
+    def information(cls, parent: Widget, title: str, message: str): ...
+
+    @classmethod
+    @abc.abstractmethod
+    def is_yes_button(cls, sb) -> bool: ...
+
+class Application(abc.ABC):
+    @classmethod
+    @abc.abstractmethod
+    def instance(cls) -> 'Application': ...
+
+    @abc.abstractmethod
+    def style(self):    ...
+
+
+class TEXT_ALIGN:
+    TOP       = None
+    V_CENTER  = None
+    BOTTOM    = None
+    LEFT      = None
+    CENTER    = None
+    RIGHT     = None
+
+class SCROLL(abc.ABC):
+    OFF         = None
+    ON          = None
+    AS_NEEDED   = None
+
+class ScrollArea(Widget):
+    @abc.abstractmethod
+    def set_widget(self, w: Widget):    ...
+
+    @abc.abstractmethod
+    def set_horizontal_scrollbar_policy(self, h):   ...
+
+    @abc.abstractmethod
+    def set_vertical_scrollbar_policy(self, h):   ...
+
+def init(style = '') -> Application:           raise NotImplementedError
+def to_clipboard(text: str, **kwargs):         raise NotImplementedError
+def from_clipboard(**kwargs) -> str:           raise NotImplementedError
+def separator(horizontal = True) -> Label:     raise NotImplementedError
+def is_ui_thread() -> bool:                         raise NotImplementedError
