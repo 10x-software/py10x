@@ -27,6 +27,9 @@ class NamedConstant(Nucleus):
     def __eq__(self, other):
         return self.name == other.name
 
+    def __deepcopy__(self, memodict={}):
+        return self
+
     @classmethod
     def _create(cls, args) -> 'NamedConstant':
         cdef = cls()
