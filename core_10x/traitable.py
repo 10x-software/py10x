@@ -18,6 +18,7 @@ from core_10x.trait_filter import f
 
 
 class TraitAccessor:
+    __slots__ = ('cls', 'obj')
     def __init__(self, obj: 'Traitable'):
         self.cls = obj.__class__
         self.obj = obj
