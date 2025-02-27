@@ -25,7 +25,8 @@ class TestMongo(unittest.TestCase):
         cls.patch2 = mock.patch('core_10x.package_refactoring.PackageRefactoring.find_class_id', return_value=TEST_COLLECTION1)
         with cls.mongo:
             with cls.patch1:
-                cls.p=Person(first_name='John', last_name='Doe', age=30)
+                cls.p=Person(first_name='John', last_name='Doe')
+                cls.p.set_values(age = 30,weight_lbs=100)
                 assert not cls.p._rev
                 cls.p.save()
                 assert cls.p._rev == 1
@@ -34,7 +35,8 @@ class TestMongo(unittest.TestCase):
 
             with cls.patch2:
                 Person.collection.cache.clear()
-                cls.p1=Person(first_name='Joe', last_name='Doe', age=32)
+                cls.p1=Person(first_name='Joe', last_name='Doe')
+                cls.p1.set_values(age = 32,weight_lbs=200)
                 cls.p1.save()
                 assert cls.p1.age == 32
                 assert cls.p1._rev == 1
