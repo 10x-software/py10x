@@ -49,32 +49,35 @@ void BTraitable::set_id(const py::object& id) {
     m_tid.set(m_class, id);
 }
 
+//======================================================================================================================
+//  Must be called right after constructing the object with **kwargs.
+//  - kwargs must only have values for traits necessary to build the object ID
+//      -- usually ID trait
+//      -- an ID trait with custom getter may be missing
+//      -- may have a non-ID trait with custom setter which sets some ID traits
+//  - any attempt to set non ID traits (either directly via other setters) will throw
+//  - trait-name value pairs will be processed in the order they are given
+//      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
+//======================================================================================================================
 void BTraitable::initialize(const py::kwargs& trait_values) {
     m_id_cache = new ObjectCache();
 
-    auto iter = trait_values.begin();
-    auto end_iter = trait_values.end();
-
     py::object id;
     if (m_class->is_id_endogenous()) {
-        if (iter == end_iter)   // kwargs empty
+        if (trait_values.empty())   // kwargs empty
             throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
+
         {
             auto id_builder = IdBuilder::create(this);
             BTraitableProcessor::Use use(id_builder, true);     // will be deleted "on exit"
 
-            for (; iter != end_iter; ++iter) {
-                auto trait_name = iter->first.cast<py::object>();
-
+            for (auto item : trait_values) {
+                auto trait_name = item.first.cast<py::object>();
                 auto trait = m_class->find_trait(trait_name);
                 if (!trait)
                     continue;       // skipping unknown trait names
 
-                if (!trait->flags_on(BTraitFlags::ID))    // No ID traits anymore -> out to build the ID
-                    break;
-
-                // set an ID trait
-                auto value = iter->second.cast<py::object>();
+                auto value = item.second.cast<py::object>();
                 BRC rc(id_builder->set_trait_value(this, trait, value));
                 if (!rc)
                     throw py::value_error(rc.error());
@@ -83,13 +86,8 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
         }
 
         m_tid.set(m_class, id);
-
         if (m_class->instance_exists(m_tid)) {
-            if( iter != end_iter)   // there are non ID traits to set - possible revision conflict!
-                throw py::value_error(py::str("Trying to set non ID traits for already existing object {}/{}").format(m_class->name(), id));
-
             clear_id_cache();
-
         } else {      // new instance
             auto cache = ThreadContext::current_traitable_proc_bound()->cache();
             cache->register_object(this);
@@ -97,12 +95,10 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
     } else {        // ID exogenous
         id = exogenous_id();
         m_tid.set(m_class, id);
+        BRC rc(set_values(trait_values));
+        if (!rc)
+            throw py::value_error(py::str(rc.error()));
     }
-
-    // Check if there are non ID traits to set
-    BRC rc(set_values(trait_values, &iter));
-    if (!rc)
-        throw py::value_error(py::str(rc.error()));
 }
 
 BTraitable::~BTraitable() {
@@ -119,14 +115,13 @@ py::object BTraitable::from_any(BTrait* trait, const py::object& value) {
     return trait->wrapper_f_from_any_xstr(this, value);
 }
 
-py::object BTraitable::set_values(const py::dict& trait_values, dict_iter* p_iter, bool ignore_unknown_traits) {
+py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
     if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
         reload();
 
-    auto iter = p_iter ? *p_iter : trait_values.begin();
     auto proc = ThreadContext::current_traitable_proc_bound();
-    for (; iter != trait_values.end(); ++iter) {
-        auto trait_name = iter->first.cast<py::object>();
+    for (auto item : trait_values) {
+        auto trait_name = item.first.cast<py::object>();
         auto trait = m_class->find_trait(trait_name);
         if (!trait) {
             if (!ignore_unknown_traits)
@@ -135,7 +130,7 @@ py::object BTraitable::set_values(const py::dict& trait_values, dict_iter* p_ite
             continue;
         }
 
-        auto value = iter->second.cast<py::object>();
+        auto value = item.second.cast<py::object>();
         BRC rc(proc->set_trait_value(this, trait, value));
         if (!rc)
             return rc();

@@ -4,7 +4,9 @@
 
 #pragma once
 
-#include <shared_mutex>
+//#include <shared_mutex>
+// AMD-1: we have decided to rid of locking the cache. As the only "user" for now is python interpreter, it can't interrupt
+// the current thread within a C++ call. So, all the cache operations are thread-safe.
 
 #include "py_linkage.h"
 #include "tid.h"
@@ -165,7 +167,7 @@ protected:
     Data    m_data;
     int     m_default_node_type;
 
-    mutable std::shared_mutex   m_rw_mutex;
+    //-- (AMD-1) mutable std::shared_mutex   m_rw_mutex;
 
 public:
     static void clear() {
@@ -178,7 +180,7 @@ public:
     BCache() : m_default_node_type(NODE_TYPE::BASIC) {}
     virtual ~BCache() = default;
 
-    [[nodiscard]] std::shared_mutex* shared_mutex() const   { return &m_rw_mutex; }
+    //-- AMD-1 //[[nodiscard]] std::shared_mutex* shared_mutex() const   { return &m_rw_mutex; }
     [[nodiscard]] int default_node_type() const             { return m_default_node_type; }
 
     void                    register_object(BTraitable* obj);
@@ -199,7 +201,7 @@ public:
     }
 
     BasicNode* find_node(const TID& tid, BTrait* trait) {
-        std::shared_lock guard(m_rw_mutex);
+        //-- AMD-1 //std::shared_lock guard(m_rw_mutex);
 
         auto oc = find_object_cache(tid);
         if (!oc)
@@ -209,7 +211,7 @@ public:
     }
 
     BasicNode* find_node(const TID& tid, BTrait* trait, const py::args& args) {
-        std::shared_lock guard(m_rw_mutex);
+        //-- AMD-1 //std::shared_lock guard(m_rw_mutex);
 
         auto oc = find_object_cache(tid);
         if (!oc)
@@ -219,7 +221,7 @@ public:
     }
 
     virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type) {
-        std::unique_lock guard(m_rw_mutex);
+        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
 
         auto oc = find_or_create_object_cache(tid);
 
@@ -230,7 +232,7 @@ public:
     }
 
     virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, int node_type) {
-        std::unique_lock guard(m_rw_mutex);
+        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
 
         auto oc = find_or_create_object_cache(tid);
 
@@ -241,7 +243,7 @@ public:
     }
 
     void remove_node(const TID& tid, BTrait* trait) {
-        std::unique_lock guard(m_rw_mutex);
+        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
 
         auto oci = m_data.find(tid);
         if (oci != m_data.end())
@@ -249,7 +251,7 @@ public:
     }
 
     void remove_node(const TID& tid, BTrait* trait, const py::args& args) {
-        std::unique_lock guard(m_rw_mutex);
+        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
 
         auto oci = m_data.find(tid);
         if (oci != m_data.end())
@@ -257,12 +259,12 @@ public:
     }
 
     void set_node(BasicNode* node, const py::object& value) {
-        std::unique_lock guard(m_rw_mutex);
+        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
         node->set(value);
     }
 
     void invalidate_node(BasicNode* node) {
-        std::unique_lock guard(m_rw_mutex);
+        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
         node->invalidate();
     }
 

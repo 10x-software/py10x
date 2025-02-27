@@ -91,7 +91,7 @@ public:
         return proc->set_trait_value(this, trait, value, args);
     }
 
-    py::object set_values(const py::dict& trait_values, dict_iter* iter = nullptr, bool ignore_unknown_traits = true);
+    py::object set_values(const py::dict& trait_values, bool ignore_unknown_traits = true);
 
     py::object raw_set_value(BTrait* trait, const py::object& value) {
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))

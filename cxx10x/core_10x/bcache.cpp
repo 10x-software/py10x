@@ -59,7 +59,7 @@ ObjectCache* BCache::find_or_create_object_cache(const TID &tid) {
 }
 
 void BCache::register_object(BTraitable* obj) {
-    std::unique_lock guard(m_rw_mutex);
+    //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
 
     auto tid= obj->tid();
     auto it = m_data.find(tid);
@@ -73,7 +73,7 @@ void BCache::register_object(BTraitable* obj) {
 }
 
 void BCache::unregister_object(const TID& tid) {
-    std::unique_lock guard(m_rw_mutex);
+    //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
 
     auto it = m_data.find(tid);
     if (it != m_data.end()) {
