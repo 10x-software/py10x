@@ -5,6 +5,7 @@ import platform
 import inspect
 import functools
 from inspect import Parameter
+import copy
 
 from core_10x_i import BTrait
 
@@ -103,6 +104,7 @@ class Trait(BTrait):
         Trait.set_trait_funcs(class_dict, rc, trait, trait_name)
 
         trait.post_ctor()
+        trait.ui_hint = copy.deepcopy(t_def.ui_hint)
         return trait
 
     @staticmethod

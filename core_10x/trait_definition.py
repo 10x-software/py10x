@@ -31,7 +31,7 @@ class TraitDefinition:
         FLAGS_TAG:      lambda: BFlags(0x0),
         DEFAULT_TAG:    lambda: XNone,
         FORMAT_TAG:     lambda: '',
-        UI_HINT_TAG:    lambda: Ui.WIDGET_TYPE.NONE,
+        UI_HINT_TAG:    lambda: Ui(''),
     }
 
     def __init__(self, *args, **kwargs):
