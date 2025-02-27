@@ -43,6 +43,22 @@ public:
 
     py::object from_any(BTrait* trait, const py::object& value);
 
+    [[nodiscard]] BTrait* check_trait(const py::str& trait_name) const {
+        auto trait = m_class->find_trait(trait_name);
+        if (!trait)
+            throw py::type_error(py::str("Unknown trait {}.{}").format(class_name(), trait_name));
+
+        return trait;
+    }
+
+    void invalidate_value(const py::str& trait_name) {
+        invalidate_value(check_trait(trait_name));
+    }
+
+    void invalidate_value(const py::str& trait_name, const py::args& args) {
+        invalidate_value(check_trait(trait_name), args);
+    }
+
     void invalidate_value(BTrait* trait) {
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
@@ -59,6 +75,14 @@ public:
         proc->invalidate_trait_value(this, trait, args);
     }
 
+    py::object get_value(const py::str& trait_name) {
+        return get_value(check_trait(trait_name));
+    }
+
+    py::object get_value(const py::str& trait_name, const py::args& args) {
+        return get_value(check_trait(trait_name), args);
+    }
+
     py::object get_value(BTrait* trait) {
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
@@ -73,6 +97,14 @@ public:
 
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->get_trait_value(this, trait, args);
+    }
+
+    py::object set_value(const py::str& trait_name, const py::object& value) {
+        return set_value(check_trait(trait_name), value);
+    }
+
+    py::object set_value(const py::str& trait_name, const py::object& value, const py::args& args) {
+        return set_value(check_trait(trait_name), value, args);
     }
 
     py::object set_value(BTrait* trait, const py::object& value) {
@@ -92,6 +124,14 @@ public:
     }
 
     py::object set_values(const py::dict& trait_values, bool ignore_unknown_traits = true);
+
+    py::object raw_set_value(const py::str& trait_name, const py::object& value) {
+        return raw_set_value(check_trait(trait_name), value);
+    }
+
+    py::object raw_set_value(const py::str& trait_name, const py::object& value, const py::args& args) {
+        return raw_set_value(check_trait(trait_name), value, args);
+    }
 
     py::object raw_set_value(BTrait* trait, const py::object& value) {
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))

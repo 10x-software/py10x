@@ -5,6 +5,7 @@
 #include "btraitable.h"
 #include "py_hasher.h"
 #include "id_builder.h"
+#include "bprocess_context.h"
 
 #include "brc.h"
 
@@ -182,9 +183,11 @@ void BTraitable::deserialize(const py::dict& serialized_data) {
 }
 
 void BTraitable::reload() {
-    auto serialized_data = m_class->load_data(id());
-    if (serialized_data.is_none())
-        throw py::value_error(py::str("{}/{} - failed to reload").format(class_name(), id()));
+    if (!BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY)) {
+        auto serialized_data = m_class->load_data(id());
+        if (serialized_data.is_none())
+            throw py::value_error(py::str("{}/{} - failed to reload").format(class_name(), id()));
 
-    deserialize(serialized_data);
+        deserialize(serialized_data);
+    }
 }

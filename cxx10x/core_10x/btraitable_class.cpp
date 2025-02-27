@@ -80,6 +80,9 @@ py::object BTraitableClass::deserialize_object(const py::dict& trait_values, boo
 }
 
 py::object BTraitableClass::load(const py::object& id, bool reload) {
+    if (BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
+        return py::none();
+
     auto py_traitable = m_py_class(id);
     auto traitable = py_traitable.cast<BTraitable*>();
     if (reload || !instance_in_cache(traitable->tid()))
