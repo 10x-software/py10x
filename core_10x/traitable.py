@@ -146,13 +146,17 @@ class Traitable(BTraitable, Nucleus):
 
         self.trait = TraitAccessor(self)
 
-    def get_value_by_name(self, trait_name: str, *args):
-        trait = self.__class__.trait(trait_name)
-        return self.get_value(trait) if not args else self.get_value(trait, args)
+    def set_values(self, _ignore_unknown_traits = True, **trait_values) -> RC:
+        return self._set_values(trait_values, _ignore_unknown_traits)
 
-    def set_value_by_name(self, trait_name: str, value, *args) -> RC:
-        trait = self.__class__.trait(trait_name)
-        return self.set_value(trait, value) if not args else self.get_value(trait, value, args)
+    #===================================================================================================================
+    #   The following methods are available from c++
+    #
+    #   get_value(trait-or-name, *args) -> Any
+    #   set_value(trait-or_name, value: Any, *args) -> RC
+    #   raw_value(trait-or_name, value: Any, *args) -> RC
+    #   invalidate_value(trait-or-name)
+    #===================================================================================================================
 
     #===================================================================================================================
     #   Nucleus related methods

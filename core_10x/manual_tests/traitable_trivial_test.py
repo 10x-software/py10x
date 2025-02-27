@@ -1,13 +1,17 @@
+from datetime import datetime
+
 from core_10x.code_samples.person import Person
 from core_10x.nucleus import Nucleus
-from core_10x.traitable import Traitable, trait_value
+from core_10x.traitable import Traitable, trait_value, T
 
 class Event(Traitable):
-    ...
+    at: datetime = T()
+
 
 if __name__ == '__main__':
     e = Event()
     print(e.id())
+    rc = e.set_values(at = datetime.now())
 
     p = Person(first_name = 'Sasha', last_name = 'Davidovich')
     print(p.id(), p.full_name)
