@@ -1,4 +1,8 @@
 import inspect
+import operator
+from functools import reduce
+from itertools import chain
+
 # import uuid
 # import hashlib
 # import copy
@@ -24,30 +28,54 @@ class TraitAccessor:
         self.obj = obj
 
     def __getattr__(self, trait_name: str) -> BoundTrait:
-        trait = self.cls.trait(trait_name, throw = True)
+        trait = self.cls.unbound_trait(trait_name, throw = True)
         return BoundTrait(self.obj, trait)
 
     def __call__(self, trait_name: str, throw = True) -> Trait:
-        return self.cls.trait(trait_name, throw = True)
+        return self.cls.unbound_trait(trait_name, throw = True)
 
-class Traitable(BTraitable, Nucleus):
+class TraitableMetaclass(type(BTraitable)):
+    @staticmethod
+    def find_symbols(bases,class_dict,symbol):
+        return chain(
+            filter(None,(class_dict.get(symbol),)),
+            (res for base in bases if (res := getattr(base,symbol,None)))
+        )
 
-    s_dir = {}
-    @classmethod
+    @staticmethod
     @cache
-    def build_trait_dir(cls, class_dict: dict = None, annotations: dict = None ) -> RC:
-        if class_dict is None:
-            class_dict = cls.__dict__
-        if annotations is None:
-            annotations = inspect.get_annotations(cls)
+    def rev_trait() -> Trait:
+        trait_name = Nucleus.REVISION_TAG
+        return Trait.create(trait_name, T(0, T.RESERVED), {}, {trait_name:int}, RC_TRUE)
+
+    def __new__(cls, name, bases, class_dict):
+        build_trait_dir = next(cls.find_symbols(bases,class_dict,'build_trait_dir'))
+        special_attributes = tuple(chain.from_iterable(cls.find_symbols(bases,class_dict,'s_special_attributes')))
+        trait_dir = {Nucleus.REVISION_TAG: cls.rev_trait()}                #-- insert _rev as the first trait and delete later if not needed
+        build_trait_dir(bases, class_dict, trait_dir).throw(exc=TypeError)  #-- build trait dir_from trait definitions in class_dict
+
+        for item in trait_dir:
+            if item in class_dict:
+                del class_dict[item]                                        #-- delete trait names from class_dict as they will be in __slots__
+        class_dict['s_dir'] = trait_dir
+        class_dict['__slots__'] = ( *special_attributes, *tuple(trait_dir.keys()) )
+        class_dict['s_special_attributes'] = special_attributes
+
+        return super().__new__(cls, name, bases, class_dict)
+
+class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
+    s_dir = {}
+    @staticmethod
+    def build_trait_dir(bases, class_dict, trait_dir) -> RC:
+        annotations = class_dict.get('__annotations__') or {}
 
         rc = RC(True)
-        cls.s_dir = dir = dict(cls.s_dir)       #-- shallow copy!
+        trait_dir |= reduce(operator.or_, TraitableMetaclass.find_symbols(bases,class_dict,'s_dir'), {}) #-- shallow copy!
 
-        for trait_name, old_trait in dir.items():
+        for trait_name, old_trait in trait_dir.items():
             if any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
                 t_def =old_trait.t_def
-                dir[trait_name] = Trait.create(trait_name, t_def, class_dict, {trait_name:t_def.data_type}|annotations, rc)
+                trait_dir[trait_name] = Trait.create(trait_name, t_def, class_dict, {trait_name:t_def.data_type} | annotations, rc)
 
         for trait_name, trait_def in class_dict.items():
             if not isinstance(trait_def, TraitDefinition):
@@ -55,7 +83,7 @@ class Traitable(BTraitable, Nucleus):
 
             dt = annotations.get(trait_name, XNone)
             if isinstance(trait_def, TraitModification):
-                old_trait: Trait = dir.get(trait_name)
+                old_trait: Trait = trait_dir.get(trait_name)
                 if not old_trait:
                     rc <<= f'{trait_name} = M(...), but the trait is unknown'
 
@@ -67,20 +95,11 @@ class Traitable(BTraitable, Nucleus):
                 trait_def.data_type = dt
 
             trait_def.name = trait_name
-
-            trait = Trait.create(trait_name, trait_def, class_dict, annotations, rc)
-            dir[trait_name] = trait
-
+            trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, annotations, rc)
         return rc
 
-    @staticmethod
-    @cache
-    def _rev_trait() -> Trait:
-        trait_name = Nucleus.REVISION_TAG
-        return Trait.create(trait_name, T(0, T.RESERVED), {}, {trait_name:int}, RC_TRUE)
-
     @classmethod
-    def trait(cls, trait_name: str, throw = False) -> Trait:
+    def unbound_trait(cls, trait_name: str, throw = False) -> Trait:
         trait = cls.s_dir.get(trait_name)
         if trait is None and throw:
             raise TypeError(f'{cls} - unknown trait {trait_name}')
@@ -110,13 +129,11 @@ class Traitable(BTraitable, Nucleus):
         '_default_cache',
     )
     def __init_subclass__(cls, **kwargs):
-        rev_trait = Traitable._rev_trait()
-        cls.s_dir[rev_trait.name] = rev_trait # insert _rev as the first trait and delete later if not needed
-        cls.build_trait_dir().throw(exc = TypeError)
+
         cls.s_bclass = BTraitableClass(cls)
 
         if not cls.is_storable():
-            del cls.s_dir[rev_trait.name]
+            del cls.s_dir['_rev']
             cls.collection = lambda: None
             cls.load_data = lambda id_value: None
             cls.load = lambda id_value: None
@@ -127,7 +144,6 @@ class Traitable(BTraitable, Nucleus):
         for trait_name, trait in cls.s_dir.items():
             setattr(cls, trait_name, trait)
 
-        cls.__slots__ = ( *cls.s_special_attributes, *tuple(cls.s_dir.keys()) )
 
     @classmethod
     def instance_by_id(cls, id_value: str) -> 'Traitable':
