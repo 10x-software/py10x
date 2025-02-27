@@ -13,10 +13,13 @@ if __name__ == '__main__':
         #Person.collection().delete('Sasha|Davidovich')
         if to_save:
             p = Person(first_name = 'Sasha', last_name = 'Davidovich')
+            p.weight_lbs=200
             rev = p.save()
 
         else:
             p = Person(first_name = 'Sasha', last_name = 'Davidovich')
+            p.weight_lbs=200
+
             print(p.age)
 
             p.age = 61

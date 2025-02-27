@@ -38,7 +38,7 @@ class TestTraitable(unittest.TestCase):
         self.assertEqual(p.first_name, 'John')
         self.assertEqual(p.last_name, 'Smith')
 
-    def test_set_values(self, mock_btraitable_class):
+    def test_set_values(self):
         p = Person(first_name='John', last_name='Smith')
         rc = p.set_values(age=19, weight_lb=200)
         self.assertTrue(rc)
