@@ -60,14 +60,12 @@ public:
     virtual void clear_children()               {}
     virtual void remove_child(BasicNode* c)     {}
     virtual void add_child(BasicNode* c)        {}
-    virtual void unlink_child(BasicNode* c)     {}
     virtual void unlink_children()              {}
 
     virtual NodeSet* parents()                  { return nullptr; }
     virtual void clear_parents()                {}
     virtual void remove_parent(BasicNode* p)    {}
     virtual void add_parent(BasicNode* p)       {}
-    virtual void unlink_parent(BasicNode* p)    {}
     virtual void unlink_parents()               {}
 
     virtual void unlink()                       {}
@@ -97,7 +95,10 @@ public:
         }
     }
 
-    void set(const py::object& value) override  { BasicNode::set(value); invalidate_parents(); }
+    void set(const py::object& value) override {
+        BasicNode::set(value);
+        invalidate_parents();
+    }
 
     NodeSet* parents()  override                 { return &m_parents; }
     void clear_parents()  override               { m_parents.clear(); }
@@ -113,7 +114,7 @@ public:
 
     void unlink_parents() override {
         for(auto p : m_parents)
-            p->unlink_child(this);
+            p->remove_child(this);
         clear_parents();
     }
 
@@ -139,7 +140,7 @@ public:
 
     void unlink_children() override {
         for(auto c : m_children)
-            c->unlink_parent(this);
+            c->remove_parent(this);
         clear_children();
     }
 
