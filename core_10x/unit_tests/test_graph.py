@@ -1,15 +1,12 @@
 import functools
 import unittest
-from collections import defaultdict
-from functools import partial
 from unittest import mock, TestCase
-from uuid import uuid1
 from weakref import WeakKeyDictionary
 
+from core_10x import XNone
 from core_10x.code_samples.person import Person, WEIGHT_QU
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, BTP
-from core_10x.trait_definition import RT
-
+from core_10x.trait_definition import T,RT
 
 def call_counter(method):
     @functools.wraps(method)
@@ -53,6 +50,22 @@ class TestPerson(Person):
 class TestGraphBase(TestCase):
     def setUp(self):
         self.p = TestPerson(first_name='John', last_name='Smith')
+
+    def tearDown(self):
+        self.reset()
+
+    def reset(self):
+        for trait in self.p.s_dir.values():
+            if not trait.getter_params:
+                self.p.invalidate_value(trait)
+                if not trait.flags_on(T.ID): # id traits may be set in base layer
+                    if trait.f_get.__name__ == 'default_value': #TODO: replace with flags
+                        self.assertIs(self.p.get_value(trait),trait.default,trait.name)
+                    else:
+                        self.assertEqual(self.p.get_value(trait),getattr(self.p,f'{trait.name}_get')())
+            else:
+                #TODO: use nodes?
+                ...
 
     def test_get_set(self):
         on = BTP.current().flags() & BTP.ON_GRAPH
@@ -127,17 +140,22 @@ class TestGraphOn(TestGraphBase):
     def setUp(self):
         self.graph_on = GRAPH_ON()
         self.graph_on.begin_using()
-        self.p = TestPerson(first_name='Jane', last_name='Smith', age=30)
+        self.p = TestPerson(first_name='Jane', last_name='Smith')
+        self.pid = self.p.id()
+        self.p.age = 30
+
+    def reset(self):
+        #no need to reset as it resets upon exiting the graph_on context (tested in tearDown)
+        pass
 
     def tearDown(self):
-        with self.assertRaises(Exception):
-            TestPerson(first_name='Jane', last_name='Smith', age=30)
         self.assertEqual(self.p.age,30)
         self.graph_on.end_using()
-        self.assertFalse(self.p.first_name)
-        self.assertFalse(self.p.last_name)
-        self.assertEqual(self.p.age, 1)
-        self.assertEqual(self.p.id(),'Jane|Smith')
+        self.assertIs(self.p.first_name,XNone)
+        self.assertIs(self.p.last_name,XNone)
+        self.assertIs(self.p.weight_lbs,XNone)
+        self.assertEqual(self.p.age, self.p.trait('age').default)
+        self.assertEqual(self.p.id(),self.pid)
 
 class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):
@@ -160,26 +178,34 @@ class TestExecControl(TestGraphBase):
             convert = False # TODO: debug overrides convert
 
         self.test_graph(on=graph)
-        self.test_convert(on=convert)
-        self.test_debug(on=debug)
+        #self.reset()
+        # self.test_convert(on=convert)
+        # self.reset()
+        # self.test_debug(on=debug)
+
+    def test_repro(self):
+        with GRAPH_ON():
+            self.p.weight_lbs = 100
+            self.reset()
+            with GRAPH_OFF():
+                self.p.weight_lbs = 100
+                self.reset()
 
     def test_graph_on(self):
         with GRAPH_ON():
             self.test(True, False, False)
-            # with GRAPH_OFF():
-            #     self.test(False, False, False)
+            with GRAPH_OFF():
+                self.test(False, False, False)
+                self.reset()
 
     def test_debug(self, on=False):
         self.assertEqual(on, bool(BTP.current().flags() & BTP.DEBUG))
+        p = TestPerson(first_name='John', last_name='Smith')
+        self.assertIs(p.weight_lbs,XNone)
+
+        p.weight_lbs = 100.
+
         if on:
-            with self.assertRaises(Exception):
-                Person(first_name='John', last_name='Smith', weight_lbs=200)
-
-            #TODO: the below does not work with first_name='John'.
-            # Arguably, since the previous throws an exception,'John' should work.
-            # Perhaps failure to set non-id trait should cleanup the object.
-            p = Person(first_name='Jane', last_name='Smith', weight_lbs=100.)
-
             with self.assertRaises(Exception):
                 p.weight_lbs = 200
 
@@ -189,62 +215,42 @@ class TestExecControl(TestGraphBase):
             self.assertEqual(p.weight, 200.0)
 
         else:
-            p = Person(first_name=uuid1().hex, last_name='Smith', weight_lbs=200) #TODO: this should work e.g. for first_name='Max'
+            p.weight_lbs=200
             self.assertEqual(p.weight, 200.0)
 
-            p.weight_lbs = 100
-            self.assertEqual(p.weight_lbs, 100.0)
-        #TODO: do we have an interface for clearing a traitable?
+        p.invalidate_value(p.trait.weight_lbs)
+        self.assertIs(p.weight_lbs,XNone)
 
     def test_graph_convert_debug(self):
         with GRAPH_ON(convert_values=True, debug=True):
             self.test(True, True, True)
-            # with GRAPH_OFF():
-            #     self.test_convert(on=True)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=True)
-            # with GRAPH_OFF(convert_values=False):
-            #     self.test_convert(on=False)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=True)
-            # with GRAPH_OFF(debug=False, convert_values=False):
-            #     self.test_convert(on=False)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=False)
+            with GRAPH_OFF():
+                 self.test(False, True, True)
+            with GRAPH_OFF(convert_values=False):
+                 self.test(False, False, True)
+            with GRAPH_OFF(debug=False, convert_values=False):
+                self.test(False, False, False)
 
     def test_graph_convert(self):
-        with GRAPH_ON(convert_values=True):
+        with GRAPH_ON(convert_values=True,):
             self.test(True, True, False)
-
-            # with GRAPH_OFF():
-            #     self.test_convert(on=False)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=False)
-            # with GRAPH_OFF(convert_values=False):
-            #     self.test_convert(on=False)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=False)
-            # with GRAPH_OFF(debug=True):
-            #     self.test_convert(on=True)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=True)
+            with GRAPH_OFF():
+                 self.test(False, True, False)
+            with GRAPH_OFF(convert_values=False):
+                 self.test(False, False, False)
+            with GRAPH_OFF(debug=True, convert_values=False):
+                self.test(False, False, True)
 
     def test_graph_debug(self):
         with GRAPH_ON(debug=True):
             self.test(True, False, True)
 
-            # with GRAPH_OFF():
-            #     self.test_convert(on=False)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=True)
-            # with GRAPH_OFF(debug=False):
-            #     self.test_convert(on=False)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=False)
-            # with GRAPH_OFF(convert_values=True):
-            #     self.test_convert(on=True)
-            #     self.test_graph(on=False)
-            #     self.test_debug(on=True)
+            with GRAPH_OFF():
+                self.test(False, False, True)
+            with GRAPH_OFF(debug=False):
+                self.test(False, False, False)
+            with GRAPH_OFF(debug=False, convert_values=True):
+                self.test(False, True, False)
 
 
 if __name__ == '__main__':

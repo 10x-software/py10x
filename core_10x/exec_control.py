@@ -1,18 +1,13 @@
+from functools import partial
+
 from core_10x_i import BTraitableProcessor as BTP
 
-
-def GRAPH_ON(debug = False, convert_values = False):
-    flags = BTP.ON_GRAPH
-    if debug:
+def _create(flags, debug=None, convert_values=None):
+    if debug or debug is None and BTP.current().flags() & BTP.DEBUG:
         flags |= BTP.DEBUG
-    elif convert_values:
+    elif convert_values or convert_values is None and BTP.current().flags() & BTP.CONVERT_VALUES:
         flags |= BTP.CONVERT_VALUES
     return BTP.create(flags)
 
-def GRAPH_OFF(debug = False, convert_values = False):
-    flags = 0
-    if debug:
-        flags |= BTP.DEBUG
-    elif convert_values:
-        flags |= BTP.CONVERT_VALUES
-    return BTP.create(flags)
+GRAPH_ON = partial(_create, BTP.ON_GRAPH)
+GRAPH_OFF= partial(_create, 0)
