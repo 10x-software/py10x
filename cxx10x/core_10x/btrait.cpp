@@ -139,11 +139,11 @@ BasicNode* BTrait::find_node(BTraitableProcessor* proc, BTraitable* obj, const p
 }
 
 BasicNode* BTrait::find_or_create_node(BTraitableProcessor* proc, BTraitable* obj, int node_type) {
-    return proc->cache()->find_or_create_node(obj->tid(), this, node_type);
+    return proc->cache()->find_or_create_node(obj->tid(), this);
 }
 
 BasicNode* BTrait::find_or_create_node(BTraitableProcessor* proc, BTraitable* obj, int node_type, const py::args& args) {
-    return proc->cache()->find_or_create_node(obj->tid(), this, args, node_type);
+    return proc->cache()->find_or_create_node(obj->tid(), this, args);
 }
 
 

@@ -14,10 +14,11 @@ const unsigned STATE_VALID_AND_SET  = STATE_VALID | STATE_SET;
 
 class NODE_TYPE {
 public:
-    inline static const int BASIC          = 0;
-    inline static const int TREE           = 1;
-    inline static const int BASIC_GRAPH    = 2;
-    inline static const int GRAPH          = 3;
+    inline static const int BASIC           = 0;
+    inline static const int TREE            = 1;
+    inline static const int BASIC_GRAPH     = 2;
+    inline static const int UI              = 3;
+    inline static const int GRAPH           = 4;
 };
 
 class BasicNode {
@@ -176,6 +177,14 @@ class BUiNode : public BasicNode {
     BasicNode*  m_sheet_node;
 
 public:
+    BUiNode() {
+        m_trait_widget = py::none();
+        f_refresh_emit = py::none();
+        m_entity_node   = nullptr;
+        m_trait_node    = nullptr;
+        m_sheet_node    = nullptr;
+    }
+
     BUiNode(py::object trait_widget, py::object refresh_emit, BasicNode* entity_node, BasicNode* trait_node, BasicNode* sheet_node) : BasicNode() {
         m_trait_widget = trait_widget;
         f_refresh_emit = refresh_emit;
@@ -190,6 +199,8 @@ public:
         if (sheet_node)
             sheet_node->add_parent(this);
     }
+
+    [[nodiscard]] int node_type() const final { return NODE_TYPE::UI; }
 
     void relink_nodes(BasicNode* entity_node, BasicNode* trait_node, BasicNode* sheet_node) {
         if (m_entity_node != entity_node) {

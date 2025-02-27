@@ -165,7 +165,7 @@ protected:
     static BCache  *s_default;
 
     Data    m_data;
-    int     m_default_node_type;
+    int     m_default_node_type = NODE_TYPE::BASIC;
 
     //-- (AMD-1) mutable std::shared_mutex   m_rw_mutex;
 
@@ -177,7 +177,7 @@ public:
 
     static BCache* default_cache()      { return s_default; }
 
-    BCache() : m_default_node_type(NODE_TYPE::BASIC) {}
+    BCache() = default;
     virtual ~BCache() = default;
 
     //-- AMD-1 //[[nodiscard]] std::shared_mutex* shared_mutex() const   { return &m_rw_mutex; }
@@ -190,12 +190,12 @@ public:
     ObjectCache*            create_object_cache(const TID& tid);
     virtual ObjectCache*    find_or_create_object_cache(const TID& tid);
 
-    virtual ObjectCache* find_object_cache(const TID& tid) const {
+    [[nodiscard]] virtual ObjectCache* find_object_cache(const TID& tid) const {
         auto it = m_data.find(tid);
         return it != m_data.end() ? it->second : nullptr;
     }
 
-    bool known_object(const TID& tid) const {
+    [[nodiscard]] bool known_object(const TID& tid) const {
         auto it = m_data.find(tid);
         return it != m_data.end();
     }
@@ -220,25 +220,32 @@ public:
         return oc->find_node(trait, args);
     }
 
+//    virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type) {
+//        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
+//
+//        auto oc = find_or_create_object_cache(tid);
+//
+//        if (node_type == -1)
+//            node_type = m_default_node_type;
+//
+//        return oc->find_or_create_node(trait, node_type);
+//    }
+
+    BasicNode* find_or_create_node(const TID& tid, BTrait* trait) {
+        return find_or_create_node(tid, trait, m_default_node_type);
+    }
+
+    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args) {
+        return find_or_create_node(tid, trait, args, m_default_node_type);
+    }
+
     virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type) {
-        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
-
         auto oc = find_or_create_object_cache(tid);
-
-        if (node_type == -1)
-            node_type = m_default_node_type;
-
         return oc->find_or_create_node(trait, node_type);
     }
 
     virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, int node_type) {
-        //-- AMD-1 //std::unique_lock guard(m_rw_mutex);
-
         auto oc = find_or_create_object_cache(tid);
-
-        if (node_type == -1)
-            node_type = m_default_node_type;
-
         return oc->find_or_create_node(trait, node_type, args);
     }
 

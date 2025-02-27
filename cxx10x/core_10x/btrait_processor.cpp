@@ -27,7 +27,7 @@ py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTrai
 
 py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
     //-- TODO: need a better solution to choosing the node type!
-    auto node = proc->cache()->find_or_create_node(obj->tid(), trait, NODE_TYPE::BASIC_GRAPH);
+    auto node = proc->cache()->find_or_create_node(obj->tid(), trait);
 
     auto xstack = proc->exec_stack();
     auto parent = xstack->parent();
@@ -58,7 +58,7 @@ py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTrait
 }
 
 py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
-    auto node = proc->cache()->find_or_create_node(obj->tid(), trait, args, NODE_TYPE::BASIC_GRAPH);
+    auto node = proc->cache()->find_or_create_node(obj->tid(), trait, args);
 
     auto xstack = proc->exec_stack();
     auto parent = xstack->parent();
@@ -117,28 +117,28 @@ void BTraitProcessor::invalidate_value_on_graph(BTraitableProcessor* proc, BTrai
 py::object BTraitProcessor::raw_set_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::object& value) {
     auto cache = proc->cache();
     // TODO: if the node below is an existing Graph Node, setting its value will continue to work ON Graph despite the OFF Graph mode
-    auto node = cache->find_or_create_node(obj->tid(), trait, NODE_TYPE::BASIC);
+    auto node = cache->find_or_create_node(obj->tid(), trait);
     cache->set_node(node, value);
     return PyLinkage::RC_TRUE();
 }
 
 py::object BTraitProcessor::raw_set_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args ) {
     auto cache = proc->cache();
-    auto node = cache->find_or_create_node(obj->tid(), trait, args, NODE_TYPE::BASIC);
+    auto node = cache->find_or_create_node(obj->tid(), trait, args);
     cache->set_node(node, value);
     return PyLinkage::RC_TRUE();
 }
 
 py::object BTraitProcessor::raw_set_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::object& value) {
     auto cache = proc->cache();
-    auto node = cache->find_or_create_node(obj->tid(), trait, NODE_TYPE::BASIC_GRAPH);   // TODO: make sure an existing BASIC node, if any, is converted to GRAPH
+    auto node = cache->find_or_create_node(obj->tid(), trait);   // TODO: make sure an existing BASIC node, if any, is converted to GRAPH
     cache->set_node(node, value);
     return PyLinkage::RC_TRUE();
 }
 
 py::object BTraitProcessor::raw_set_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) {
     auto cache = proc->cache();
-    auto node = cache->find_or_create_node(obj->tid(), trait, args, NODE_TYPE::BASIC_GRAPH);   // TODO: make sure an existing BASIC node, if any, is converted to GRAPH
+    auto node = cache->find_or_create_node(obj->tid(), trait, args);   // TODO: make sure an existing BASIC node, if any, is converted to GRAPH
     cache->set_node(node, value);
     return PyLinkage::RC_TRUE();
 }

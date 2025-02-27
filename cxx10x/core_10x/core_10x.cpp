@@ -94,7 +94,8 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_readonly_static("BASIC",       &NODE_TYPE::BASIC)
             .def_readonly_static("TREE",        &NODE_TYPE::TREE)
             .def_readonly_static("BASIC_GRAPH", &NODE_TYPE::BASIC_GRAPH)
-            .def_readonly_static("GRAPH",       &NODE_TYPE::GRAPH)
+            .def_readonly_static("BASIC_GRAPH", &NODE_TYPE::UI)
+            //.def_readonly_static("GRAPH",       &NODE_TYPE::GRAPH)
             ;
 
     py::class_<BasicNode>(m, "BasicNode")
