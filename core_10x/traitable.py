@@ -57,9 +57,11 @@ class TraitableMetaclass(type(BTraitable)):
         for item in trait_dir:
             if item in class_dict:
                 del class_dict[item]                                        #-- delete trait names from class_dict as they will be in __slots__
-        class_dict['s_dir'] = trait_dir
-        class_dict['__slots__'] = ( *special_attributes, *tuple(trait_dir.keys()) )
-        class_dict['s_special_attributes'] = special_attributes
+        class_dict.update(
+            s_dir = trait_dir,
+            __slots__ = ( *special_attributes, *tuple(trait_dir.keys()) ),
+            s_special_attributes = special_attributes
+        )
 
         return super().__new__(cls, name, bases, class_dict)
 
@@ -133,7 +135,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         cls.s_bclass = BTraitableClass(cls)
 
         if not cls.is_storable():
-            del cls.s_dir['_rev']
+            del cls.s_dir[Nucleus.REVISION_TAG]
             cls.collection = lambda: None
             cls.load_data = lambda id_value: None
             cls.load = lambda id_value: None
