@@ -16,6 +16,8 @@ from core_10x.rc import RC
 
 
 class Trait(BTrait):
+    #TODO: re-enable __slots__ when the dust settles..
+    #__slots__ = ('t_def','getter_params')
     s_ui_partial = None
     @classmethod
     def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
