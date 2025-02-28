@@ -128,9 +128,17 @@ py::object BTrait::wrapper_f_to_id(BTraitable* obj, const py::object& value) {
 
 py::object BTrait::wrapper_f_choices(BTraitable *obj) {
     try {
-        return f_choices(obj, this);
+        return f_choices(obj);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_choices, nullptr, nullptr);
+    }
+}
+
+py::object BTrait::wrapper_f_style_sheet(BTraitable *obj)  {
+    try {
+        return f_style_sheet(obj);
+    } catch (py::error_already_set& exc) {
+        throw trait_error(exc, obj, f_style_sheet, nullptr, nullptr);
     }
 }
 

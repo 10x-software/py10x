@@ -41,12 +41,18 @@ class PyLinkage {
     py::object          m_rc_true;
     py::object          m_trait_method_error_class;
     py::args            m_choices_args;
+    py::args            m_style_sheet_args;
+    py::str             m_empty_str;
 
     std::streambuf      *m_py_stream_buf = nullptr;
     std::streambuf      *m_std_stream_buf = nullptr;
 
     void create_choices_args() {
         m_choices_args = py::make_tuple(m_xnone, py::str("__choices"));
+    }
+
+    void create_style_sheet_args() {
+        m_style_sheet_args = py::make_tuple(m_xnone, py::str("__style_sheet"));
     }
 
 public:
@@ -57,18 +63,11 @@ public:
         s_py_linkage = new PyLinkage(xnone, rc_true, trait_method_error_class);
     }
 
-    static py::object XNone() {
-        return s_py_linkage->m_xnone;
-    }
-
-    static const py::args& choices_args()
-    {
-        return s_py_linkage->m_choices_args;
-    }
-
-    static py::object RC_TRUE() {
-        return s_py_linkage->m_rc_true;
-    }
+    static py::object XNone()                   { return s_py_linkage->m_xnone; }
+    static const py::args& choices_args()       { return s_py_linkage->m_choices_args; }
+    static const py::args& style_sheet_args()   { return s_py_linkage->m_style_sheet_args; }
+    static const py::object& empty_str()        { return s_py_linkage->m_empty_str; }
+    static py::object RC_TRUE()                 { return s_py_linkage->m_rc_true; }
 
     static std::size_t python_id(const py::object& obj) {
         return py::module_::import("builtins").attr("id")(obj).cast<std::size_t>();
@@ -84,6 +83,7 @@ public:
     : m_xnone(xnone), m_rc_true(rc_true), m_trait_method_error_class(trait_mehod_error_class)
     {
         create_choices_args();
+        create_style_sheet_args();
     }
 
     ~PyLinkage() {

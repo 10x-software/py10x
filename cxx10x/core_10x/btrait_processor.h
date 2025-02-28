@@ -28,6 +28,9 @@ public:
     py::object get_choices_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
     py::object get_choices_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
 
+    py::object get_style_sheet_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
+    py::object get_style_sheet_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
+
     //---- Invalidating trait value
 
     virtual void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);

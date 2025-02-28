@@ -103,6 +103,7 @@ public:
     virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;
 
     virtual py::object      get_choices(BTraitable* obj, BTrait* trait) = 0;
+    virtual py::object      get_style_sheet(BTraitable* obj, BTrait* trait) = 0;
 
     virtual py::object      adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;
     virtual py::object      raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;

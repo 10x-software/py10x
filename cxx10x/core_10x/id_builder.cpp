@@ -66,7 +66,7 @@ py::object IdBuilder::get_trait_value(BTraitable* obj, BTrait* trait) {
         return m_parent_proc->get_trait_value(obj, trait);
     }
 
-    return trait->get_value_off_graph(this, obj);
+    return trait->proc()->get_value_off_graph(this, obj, trait);
 }
 
 py::object IdBuilder::get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) {
@@ -75,7 +75,7 @@ py::object IdBuilder::get_trait_value(BTraitable* obj, BTrait* trait, const py::
         return m_parent_proc->get_trait_value(obj, trait, args);
     }
 
-    return trait->get_value_off_graph(this, obj, args);
+    return trait->proc()->get_value_off_graph(this, obj, trait, args);
 }
 
 py::object IdBuilder::adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) {
@@ -88,7 +88,7 @@ py::object IdBuilder::raw_set_trait_value(BTraitable* obj, BTrait* trait, const 
         throw py::type_error(py::str("{}.{} - only ID traits may be raw_set while constructing an object")
         .format(obj->class_name(), trait->name()));
 
-    return trait->raw_set_value_off_graph(this, obj, value);
+    return trait->proc()->raw_set_value_off_graph(this, obj, trait, value);
 }
 
 py::object IdBuilder::raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) {

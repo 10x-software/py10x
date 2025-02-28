@@ -83,23 +83,27 @@ py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, 
 class OffGraphNoConvertNoCheck : public BTraitableProcessor {
 public:
     void invalidate_trait_value(BTraitable* obj, BTrait* trait) final {
-        trait->invalidate_value_off_graph(this, obj);
+        trait->proc()->invalidate_value_off_graph(this, obj, trait);
     }
 
     void invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
-        trait->invalidate_value_off_graph(this, obj, args);
+        trait->proc()->invalidate_value_off_graph(this, obj, trait, args);
     }
 
     py::object get_trait_value(BTraitable* obj, BTrait* trait) final {
-        return trait->get_value_off_graph(this, obj);
+        return trait->proc()->get_value_off_graph(this, obj, trait);
     }
 
     py::object get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
-        return trait->get_value_off_graph(this, obj, args);
+        return trait->proc()->get_value_off_graph(this, obj, trait, args);
     }
 
     py::object get_choices(BTraitable* obj, BTrait* trait) final {
-        return trait->get_choices_off_graph(this, obj);
+        return trait->proc()->get_choices_off_graph(this, obj, trait);
+    }
+
+    py::object get_style_sheet(BTraitable* obj, BTrait* trait) {
+        return trait->proc()->get_style_sheet_off_graph(this, obj, trait);
     }
 
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) override {
@@ -107,11 +111,11 @@ public:
     }
 
     py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
-        return trait->raw_set_value_off_graph(this, obj, value);
+        return trait->proc()->raw_set_value_off_graph(this, obj, trait, value);
     }
 
     py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
-        return trait->raw_set_value_off_graph(this, obj, value, args);
+        return trait->proc()->raw_set_value_off_graph(this, obj, trait, value, args);
     }
 };
 
@@ -132,23 +136,27 @@ public:
 class OnGraphNoConvertNoCheck : public BTraitableProcessor {
 public:
     void invalidate_trait_value(BTraitable* obj, BTrait* trait) final {
-        trait->invalidate_value_on_graph(this, obj);
+        trait->proc()->invalidate_value_on_graph(this, obj, trait);
     }
 
     void invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
-        trait->invalidate_value_on_graph(this, obj, args);
+        trait->proc()->invalidate_value_on_graph(this, obj, trait, args);
     }
 
     py::object get_trait_value(BTraitable* obj, BTrait* trait) final {
-        return trait->get_value_on_graph(this, obj);
+        return trait->proc()->get_value_on_graph(this, obj, trait);
     }
 
     py::object get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
-        return trait->get_value_on_graph(this, obj, args);
+        return trait->proc()->get_value_on_graph(this, obj, trait, args);
     }
 
     py::object get_choices(BTraitable* obj, BTrait* trait) final {
-        return trait->get_choices_on_graph(this, obj);
+        return trait->proc()->get_choices_on_graph(this, obj, trait);
+    }
+
+    py::object get_style_sheet(BTraitable* obj, BTrait* trait) final {
+        return trait->proc()->get_style_sheet_on_graph(this, obj, trait);
     }
 
     py::object adjust_set_value(BTraitable *obj, BTrait* trait, const py::object& value) override {
@@ -156,11 +164,11 @@ public:
     }
 
     py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) override {
-        return trait->raw_set_value_on_graph(this, obj, value);
+        return trait->proc()->raw_set_value_on_graph(this, obj, trait, value);
     }
 
     py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override {
-        return trait->raw_set_value_on_graph(this, obj, value, args);
+        return trait->proc()->raw_set_value_on_graph(this, obj, trait, value, args);
     }
 };
 

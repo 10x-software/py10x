@@ -100,8 +100,19 @@ public:
     }
 
     py::object get_choices(BTrait* trait) {
+        if (trait->custom_f_choices().is_none())
+            return PyLinkage::XNone();
+
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->get_choices(this, trait);
+    }
+
+    py::object get_style_sheet(BTrait* trait) {
+        if (trait->custom_f_style_sheet().is_none())
+            return PyLinkage::empty_str();
+
+        auto proc = ThreadContext::current_traitable_proc_bound();
+        return proc->get_style_sheet(this, trait);
     }
 
     py::object set_value(const py::str& trait_name, const py::object& value) {

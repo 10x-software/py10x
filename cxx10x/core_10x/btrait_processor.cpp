@@ -76,6 +76,16 @@ py::object BTraitProcessor::get_choices_on_graph(BTraitableProcessor *proc, BTra
     return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
 }
 
+py::object BTraitProcessor::get_style_sheet_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+    return trait->wrapper_f_style_sheet(obj);
+}
+
+py::object BTraitProcessor::get_style_sheet_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+    auto node = proc->cache()->find_or_create_node(obj->tid(), trait, PyLinkage::style_sheet_args());
+    auto bound_getter = [trait, obj]() { return trait->wrapper_f_style_sheet(obj); };
+    return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
+}
+
 //---- Invalidating trait value
 
 void BTraitProcessor::invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
