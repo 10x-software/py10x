@@ -1,29 +1,33 @@
 
 #core
 importlib-resources>=6.4.0
-numpy~=1.23.5; python_version < "3.12"
-numpy~=1.26.4; python_version >= "3.12"
-core_10x_i@../cxx10x/_core_10x
+numpy~=2.2.2
+#core_10x_i@../cxx10x/_core_10x
 
 #infra
 pymongo>=4.7.3
-infra_10x_i@../cxx10x/_infra_10x
+#infra_10x_i@../cxx10x/_infra_10x
 
+#ui
 #---- Qt
+PyQt6==6.8.1
+PyQt6-Qt6==6.8.2
+PyQt6-sip==13.10.0
+#PyQt6-WebEngine~=6.8.0
+#PyQt6-WebEngine-Qt6==6.8.0
 
-#PyQt6==6.6.1
-#PyQt6-Qt6==6.6.1
-#PyQt6-sip~=13.6
-#PyQt6-WebEngine~=6.6.0
-#PyQt6-WebEngine-Qt6==6.6.0
+#dev
+pytest~=8.3.4
+hypothesis~=6.127.3             # required by pytest when numpy is installed
+attrs==25.1.0                   # required by hypothesis
+sortedcontainers==2.4.0         # required by hypothesis
 
-#----
+
+
+#---- the below are not currently required ---
 
 #clipboard>=0.0.4
 #ldap3>=2.9.1
-
-#numpy~=1.23.5; python_version < "3.12"
-#numpy~=1.26.0; python_version >= "3.12"
 
 #pandas~=1.5.3,<2.0
 #polars==0.20.6
@@ -44,6 +48,5 @@ infra_10x_i@../cxx10x/_infra_10x
 #dash-auth-external~=1.2.0
 #dash-mantine-components~=0.12.1
 
-#pytest~=7.3.1
 
 #jax~=0.4.10
