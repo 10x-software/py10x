@@ -32,7 +32,7 @@ if __name__ == '__main__':
     p.older_than = trait_value(False, 25)   #-- set with args!
     print(f'older_than(25) = {p.older_than(25)}')
 
-    print(p.from_any(p.trait.older_than(), 'False'))
+    print(p.from_any(p.T.older_than(), 'False'))
 
 
 
