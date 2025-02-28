@@ -126,6 +126,14 @@ py::object BTrait::wrapper_f_to_id(BTraitable* obj, const py::object& value) {
     }
 }
 
+py::object BTrait::wrapper_f_choices(BTraitable *obj) {
+    try {
+        return f_choices(obj, this);
+    } catch (py::error_already_set& exc) {
+        throw trait_error(exc, obj, f_choices, nullptr, nullptr);
+    }
+}
+
 //======================================================================================================================
 //  Regular Trait
 //======================================================================================================================

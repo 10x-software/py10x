@@ -33,6 +33,7 @@ public:
     inline static const uint64_t CUSTOM_F_TO_STR        = uint64_t(0x10)      << 32;
     inline static const uint64_t CUSTOM_F_SERIALIZE     = uint64_t(0x20)      << 32;
     inline static const uint64_t CUSTOM_F_TO_ID         = uint64_t(0x40)      << 32;
+    inline static const uint64_t CUSTOM_F_CHOICES       = uint64_t(0x80)      << 32;
 
     static const BFlags* flag(const unsigned v)     { return new BFlags(v); }
 };
@@ -57,6 +58,7 @@ public:
     py::object      f_serialize;        // serialize value              ANY     f(obj, trait, value)
     py::object      f_deserialize;      // deserialize value            RC      f(obj, trait, value)
     py::object      f_to_id;            // value to ID                  str     f(obj, trait, value)
+    py::object      f_choices;          // optional choices             ANY     f(obj, trait)
 
     py::object      f_is_acceptable_type;   //                      bool    f(obj, trait, value_or_type)
     py::object      f_style_sheet;
@@ -100,6 +102,7 @@ public:
     void set_f_serialize(py::object f, bool custom)         { f_serialize = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_SERIALIZE; }
     void set_f_deserialize(py::object f, bool custom)       { f_deserialize = f; }
     void set_f_to_id(py::object f, bool custom)             { f_to_id = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_ID; }
+    void set_f_choices(py::object f, bool custom)           { f_choices = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_CHOICES; }
 
     //-- Trait Method wrappers
 
@@ -116,6 +119,7 @@ public:
     py::object wrapper_f_serialize(BTraitable* obj, const py::object& value);
     py::object wrapper_f_deserialize(BTraitable* obj, const py::object& value);
     py::object wrapper_f_to_id(BTraitable* obj, const py::object& value);
+    py::object wrapper_f_choices(BTraitable* obj);
 
     [[nodiscard]] py::object custom_f_get() const           { return m_flags & BTraitFlags::CUSTOM_F_GET ? f_get : py::none(); }
     [[nodiscard]] py::object custom_f_verify() const        { return m_flags & BTraitFlags::CUSTOM_F_VERIFY ? f_verify : py::none(); }
@@ -124,6 +128,7 @@ public:
     [[nodiscard]] py::object custom_f_to_str() const        { return m_flags & BTraitFlags::CUSTOM_F_TO_STR ? f_to_str : py::none(); }
     [[nodiscard]] py::object custom_f_serialize() const     { return m_flags & BTraitFlags::CUSTOM_F_SERIALIZE ? f_serialize : py::none(); }
     [[nodiscard]] py::object custom_f_to_id() const         { return m_flags & BTraitFlags::CUSTOM_F_TO_ID ? f_to_id : py::none(); }
+    [[nodiscard]] py::object custom_f_choices() const       { return m_flags & BTraitFlags::CUSTOM_F_CHOICES ? f_choices : py::none(); }
 
     //---- Getting trait value
 
@@ -141,6 +146,14 @@ public:
 
     py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
         return m_proc->get_value_on_graph(proc, obj, this, args);
+    }
+
+    py::object get_choices_off_graph(BTraitableProcessor* proc, BTraitable* obj) {
+        return m_proc->get_choices_off_graph(proc, obj, this);
+    }
+
+    py::object get_choices_on_graph(BTraitableProcessor* proc, BTraitable* obj) {
+        return m_proc->get_choices_on_graph(proc, obj, this);
     }
 
     //---- Invalidating trait value

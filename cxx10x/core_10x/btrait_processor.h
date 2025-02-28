@@ -6,11 +6,17 @@
 
 #include "py_linkage.h"
 
+class BasicNode;
 class BTrait;
 class BTraitableProcessor;
 
+using PyBoundMethod = std::function<py::object()>;
+
 class BTraitProcessor {
 public:
+
+    static py::object get_node_value_on_graph(BTraitableProcessor* proc, BasicNode* node, const PyBoundMethod& f);
+
     //---- Getting trait value
 
     virtual py::object  get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
@@ -18,6 +24,9 @@ public:
 
     virtual py::object  get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
     virtual py::object  get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args);
+
+    py::object get_choices_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
+    py::object get_choices_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
 
     //---- Invalidating trait value
 

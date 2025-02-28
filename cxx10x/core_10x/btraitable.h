@@ -99,6 +99,11 @@ public:
         return proc->get_trait_value(this, trait, args);
     }
 
+    py::object get_choices(BTrait* trait) {
+        auto proc = ThreadContext::current_traitable_proc_bound();
+        return proc->get_choices(this, trait);
+    }
+
     py::object set_value(const py::str& trait_name, const py::object& value) {
         return set_value(check_trait(trait_name), value);
     }

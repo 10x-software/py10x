@@ -98,6 +98,10 @@ public:
         return trait->get_value_off_graph(this, obj, args);
     }
 
+    py::object get_choices(BTraitable* obj, BTrait* trait) final {
+        return trait->get_choices_off_graph(this, obj);
+    }
+
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) override {
         return value;
     }
@@ -141,6 +145,10 @@ public:
 
     py::object get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
         return trait->get_value_on_graph(this, obj, args);
+    }
+
+    py::object get_choices(BTraitable* obj, BTrait* trait) final {
+        return trait->get_choices_on_graph(this, obj);
     }
 
     py::object adjust_set_value(BTraitable *obj, BTrait* trait, const py::object& value) override {

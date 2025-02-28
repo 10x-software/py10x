@@ -37,15 +37,20 @@ class BTraitable;
 class BTrait;
 
 class PyLinkage {
-    py::object  m_xnone;
-    py::object  m_rc_true;
-    py::object  m_trait_method_error_class;
-    std::streambuf *m_py_stream_buf=nullptr;
-    std::streambuf *m_std_stream_buf=nullptr;
+    py::object          m_xnone;
+    py::object          m_rc_true;
+    py::object          m_trait_method_error_class;
+    py::args            m_choices_args;
+
+    std::streambuf      *m_py_stream_buf = nullptr;
+    std::streambuf      *m_std_stream_buf = nullptr;
+
+    void create_choices_args() {
+        m_choices_args = py::make_tuple(m_xnone, py::str("__choices"));
+    }
 
 public:
     static PyLinkage*   s_py_linkage;
-
 
     static void init(py::object xnone, py::object rc_true, py::object trait_method_error_class) {
         assert(!s_py_linkage);
@@ -54,6 +59,11 @@ public:
 
     static py::object XNone() {
         return s_py_linkage->m_xnone;
+    }
+
+    static const py::args& choices_args()
+    {
+        return s_py_linkage->m_choices_args;
     }
 
     static py::object RC_TRUE() {
@@ -71,11 +81,21 @@ public:
     }
 
     explicit PyLinkage(py::object xnone, py::object rc_true, py::object trait_mehod_error_class)
-    : m_xnone(xnone), m_rc_true(rc_true), m_trait_method_error_class(trait_mehod_error_class) {}
+    : m_xnone(xnone), m_rc_true(rc_true), m_trait_method_error_class(trait_mehod_error_class)
+    {
+        create_choices_args();
+    }
 
-    ~PyLinkage() {if (m_std_stream_buf) {std::cout.rdbuf(m_std_stream_buf);delete m_py_stream_buf;}}
+    ~PyLinkage() {
+        if (m_std_stream_buf) {
+            std::cout.rdbuf(m_std_stream_buf);
+            delete m_py_stream_buf;
+        }
+    }
 
-    static void clear() {delete s_py_linkage;}
+    static void clear() {
+        delete s_py_linkage;
+    }
 
     static py::object create_trait_method_error(
         BTraitable* obj,

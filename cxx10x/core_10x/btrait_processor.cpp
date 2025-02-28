@@ -25,10 +25,7 @@ py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTrai
     return trait->wrapper_f_get(obj, args);
 }
 
-py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
-    //-- TODO: need a better solution to choosing the node type!
-    auto node = proc->cache()->find_or_create_node(obj->tid(), trait);
-
+py::object BTraitProcessor::get_node_value_on_graph(BTraitableProcessor* proc, BasicNode *node, const PyBoundMethod& f) {
     auto xstack = proc->exec_stack();
     auto parent = xstack->parent();
     py::object value;
@@ -40,7 +37,7 @@ py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTrait
         auto old_children = node->children();
         node->clear_children();
 
-        value = trait->wrapper_f_get(obj);       // calling python getter
+        value = f();       // calling a fully bound python method
         node->assign(value);
         auto new_children = node->children();
         for (auto c: *old_children)
@@ -57,35 +54,26 @@ py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTrait
     return value;
 }
 
+py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+    auto node = proc->cache()->find_or_create_node(obj->tid(), trait);
+    auto bound_getter = [trait, obj]() { return trait->wrapper_f_get(obj); };
+    return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
+}
+
 py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
     auto node = proc->cache()->find_or_create_node(obj->tid(), trait, args);
+    auto bound_getter = [trait, obj, args]() { return trait->wrapper_f_get(obj, args); };
+    return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
+}
 
-    auto xstack = proc->exec_stack();
-    auto parent = xstack->parent();
-    py::object value;
+py::object BTraitProcessor::get_choices_off_graph(BTraitableProcessor *proc, BTraitable *obj, BTrait *trait) {
+    return trait->wrapper_f_choices(obj);
+}
 
-    if (!node->is_valid()) {
-        // TODO: PLACEBO_MAKER!
-        NodeGuard node_guard(xstack, node);      // push node to the stack
-
-        auto old_children = node->children();
-        node->clear_children();
-
-        value = trait->wrapper_f_get(obj, args);       // calling python getter with args
-        node->assign(value);
-        auto new_children = node->children();
-        for (auto c: *old_children)
-            if (new_children->find(c) == new_children->end())
-                c->remove_parent(node);
-    } else
-        value = node->value();
-
-    if (parent) {
-        node->add_parent(parent);
-        // TODO: layer -> notify_node_parent_addition(node, parent);
-    }
-
-    return value;
+py::object BTraitProcessor::get_choices_on_graph(BTraitableProcessor *proc, BTraitable *obj, BTrait *trait) {
+    auto node = proc->cache()->find_or_create_node(obj->tid(), trait, PyLinkage::choices_args());
+    auto bound_getter = [trait, obj]() { return trait->wrapper_f_choices(obj); };
+    return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
 }
 
 //---- Invalidating trait value
