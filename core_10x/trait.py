@@ -177,6 +177,14 @@ class Trait(BTrait):
     def create_f_verify(self, f, attr_name: str, rc: RC):
         return f
 
+    def create_f_choices(self, f, attr_name: str, rc: RC):
+        if not f:  #-- no custom choices getter
+            f = lambda traitable: XNone
+            f.__name__ = 'no_choices'
+
+        return f
+
+
     s_locales = {
         'Windows':      'USA',
         'Linux':        'en_US',
@@ -271,6 +279,7 @@ class TRAIT_METHOD(NamedConstant):
     SERIALIZE       = Trait.create_f_common
     DESERIALIZE     = Trait.create_f_common
     TO_ID           = Trait.create_f_common
+    CHOICES         = Trait.create_f_choices
 
     # INVALIDATE      = None
     # CHOICES         = None

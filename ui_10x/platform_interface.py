@@ -31,6 +31,9 @@ class SizePolicy(abc.ABC):
     MinimumExpanding = None
     ...
 
+class FontMetrics(abc.ABC):
+    def average_char_width(self) -> int:    ...
+
 class Color(abc.ABC):   ...
 
 class Widget(abc.ABC):
@@ -73,7 +76,13 @@ class Widget(abc.ABC):
     def set_minimum_width(self, width: int):    ...
 
     @abc.abstractmethod
+    def set_maximum_width(self, width: int):    ...
+
+    @abc.abstractmethod
     def set_minimum_height(self, height: int):  ...
+
+    @abc.abstractmethod
+    def font_metrics(self) -> FontMetrics:  ...
 
 
 class Layout(abc.ABC):

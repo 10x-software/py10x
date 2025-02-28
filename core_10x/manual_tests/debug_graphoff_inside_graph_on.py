@@ -7,8 +7,8 @@ def test():
     #p.weight_lbs = 100
     #assert p.weight == 100
 
-    p.invalidate_value(p.trait.weight)
-    p.invalidate_value(p.trait.weight_lbs)
+    p.invalidate_value(p.T.weight)
+    p.invalidate_value(p.T.weight_lbs)
 
     assert p.weight is XNone
 

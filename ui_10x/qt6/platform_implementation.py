@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import QLabel, QCalendarWidget, QMessageBox, QGroupBox, QBu
 from PyQt6.QtWidgets import QListWidgetItem, QListWidget, QLineEdit, QPlainTextEdit, QTreeWidgetItem, QTreeWidget, QCheckBox, QComboBox
 from PyQt6.QtWidgets import QFrame, QSplitter, QDialog, QScrollArea, QPushButton, QStyle, QSizePolicy
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QBuffer, QIODevice, QPoint    #, QByteArray
-from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent
+from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent, QFontMetrics
 
 import platform
 
@@ -28,6 +28,9 @@ SizePolicy                      = QSizePolicy
 SizePolicy.MinimumExpanding     = QSizePolicy.Policy.MinimumExpanding
 
 Color                           = QColor
+
+FontMetrics                     = QFontMetrics
+FontMetrics.__getattr__         = missing_attr
 
 Widget                          = QWidget
 Widget.__getattr__              = missing_attr
