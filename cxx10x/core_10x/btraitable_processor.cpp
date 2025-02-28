@@ -226,7 +226,7 @@ BTraitableProcessor* BTraitableProcessor::create_raw(unsigned int flags) {
     return proc;
 }
 
-BTraitableProcessor* BTraitableProcessor::create(unsigned int flags) {
+BTraitableProcessor* BTraitableProcessor::create(unsigned flags) {
     auto proc = create_raw(flags);
     if (flags & ON_GRAPH) {
         auto cache = new SimpleCacheLayer();
@@ -234,6 +234,23 @@ BTraitableProcessor* BTraitableProcessor::create(unsigned int flags) {
     }
     return proc;
 }
+
+BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_values, int debug) {
+    auto parent = current();
+    auto flags = parent->flags();
+
+    if (on_graph >= 0)
+        flags = on_graph == 1 ? flags | ON_GRAPH : flags & ~ON_GRAPH;
+
+    if (convert_values >= 0)
+        flags = convert_values == 1 ? flags | CONVERT_VALUES : flags & ~CONVERT_VALUES;
+
+    if (debug >= 0)
+        flags = debug == 1? flags | DEBUG : flags & ~DEBUG;
+
+    return create(flags);
+}
+
 BTraitableProcessor* BTraitableProcessor::current() {
     return ThreadContext::current_traitable_proc();
 }

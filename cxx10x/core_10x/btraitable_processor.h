@@ -68,7 +68,9 @@ public:
     static BTraitableProcessor* create_default();
 
     static BTraitableProcessor* create(unsigned flags);
+    static BTraitableProcessor* create(int on_graph, int convert_values, int debug);    // -1 - inherit, 0 - reset, 1 - set
     static BTraitableProcessor* current();
+
 
     BTraitableProcessor() : m_cache(nullptr), m_flags(PLAIN) {}
     virtual ~BTraitableProcessor();
