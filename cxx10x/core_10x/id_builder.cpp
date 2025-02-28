@@ -13,21 +13,25 @@ public:
         m_oc = obj->id_cache();
     }
 
-    ObjectCache* find_object_cache(const TID& tid) const final      { return m_oc; }
-    ObjectCache* find_or_create_object_cache(const TID& tid) final  { return m_oc; }
+    [[nodiscard]]ObjectCache*   find_object_cache(const TID& tid) const final      { return m_oc; }
+    ObjectCache*                find_or_create_object_cache(const TID& tid) final  { return m_oc; }
 };
 
 IdBuilder* IdBuilder::create(BTraitable *obj, BTraitableProcessor *parent) {
     if (!parent)
         parent = ThreadContext::current_traitable_proc();
 
-    if (parent->flags_on(BTraitableProcessor::DEBUG))
-        return new IdBuilderDebug(obj, parent);
+    auto flags = parent->flags() & ~ON_GRAPH;
+    switch(flags) {
+        case PLAIN:                 return new IdBuilder(obj, parent);
+        case DEBUG:                 return new IdBuilderNoConvertDebug(obj, parent);
+        case CONVERT_VALUES:        return new IdBuilderConvertNoDebug(obj, parent);
+        case CONVERT_VALUES|DEBUG:  return new IdBuilderConvertDebug(obj, parent);
 
-    if (parent->flags_on(BTraitableProcessor::CONVERT_VALUES))
-        return new IdBuilderConvertValues(obj, parent);
-
-    return new IdBuilder(obj, parent);
+        default:
+            assert(false);
+            return nullptr;
+    }
 }
 
 IdBuilder::IdBuilder(BTraitable *obj, BTraitableProcessor *parent) : m_obj(obj), m_parent_proc(parent) {
@@ -100,10 +104,18 @@ py::object IdBuilder::raw_set_trait_value(BTraitable* obj, BTrait* trait, const 
     throw py::type_error(py::str("{}.{} - setting ID trait with args is not allowed").format(obj->class_name(), trait->name()));
 }
 
-py::object IdBuilderDebug::adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) {
-    return check_value(obj, trait, value);
+py::object IdBuilderNoConvertDebug::adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) {
+    check_value(obj, trait, value);
+    return value;
 }
 
-py::object IdBuilderConvertValues::adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) {
+py::object IdBuilderConvertNoDebug::adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) {
     return obj->from_any(trait, value);
 }
+
+py::object IdBuilderConvertDebug::adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) {
+    auto converted_value = obj->from_any(trait, value);
+    check_value(obj, trait, converted_value);
+    return converted_value;
+}
+

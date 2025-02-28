@@ -57,11 +57,9 @@ void BTraitableProcessor::end_using() {
 
 //---- Setting a value
 
-py::object BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::object& value) {
+void BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::object& value) {
     if(!value.get_type().is(trait->data_type()))    // TODO: we may want to use is_acceptable_type() method  of the trait
         throw py::type_error(py::str("Trying to set {}.{} ({}) to {}").format(obj->class_name(), trait->name(), trait->data_type(), value));
-
-    return value;
 }
 
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value) {
@@ -80,7 +78,7 @@ py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, 
     return raw_set_trait_value(obj, trait, converted_value, args);
 }
 
-class OffGraphNoConvertNoCheck : public BTraitableProcessor {
+class OffGraphNoConvertNoDebug : public BTraitableProcessor {
 public:
     void invalidate_trait_value(BTraitable* obj, BTrait* trait) final {
         trait->proc()->invalidate_value_off_graph(this, obj, trait);
@@ -119,21 +117,31 @@ public:
     }
 };
 
-class OffGraphNoConvertCheck : public OffGraphNoConvertNoCheck {
+class OffGraphNoConvertDebug : public OffGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
-        return check_value(obj, trait, value);
+        check_value(obj, trait, value);
+        return value;
     }
 };
 
-class OffGraphConvert : public OffGraphNoConvertNoCheck {
+class OffGraphConvertNoDebug : public OffGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
         return obj->from_any(trait, value);
     }
 };
 
-class OnGraphNoConvertNoCheck : public BTraitableProcessor {
+class OffGraphConvertDebug : public OffGraphNoConvertNoDebug {
+public:
+    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        auto converted_value = obj->from_any(trait, value);
+        check_value(obj, trait, converted_value);
+        return converted_value;
+    }
+};
+
+class OnGraphNoConvertNoDebug : public BTraitableProcessor {
 public:
     void invalidate_trait_value(BTraitable* obj, BTrait* trait) final {
         trait->proc()->invalidate_value_on_graph(this, obj, trait);
@@ -172,33 +180,42 @@ public:
     }
 };
 
-class OnGraphNoConvertCheck : public OnGraphNoConvertNoCheck {
+class OnGraphNoConvertDebug : public OnGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
-        return check_value(obj, trait, value);
+        check_value(obj, trait, value);
+        return value;
     }
 };
 
-class OnGraphConvert : public OnGraphNoConvertNoCheck {
+class OnGraphConvertNoDebug : public OnGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
         return obj->from_any(trait, value);
     }
 };
 
+class OnGraphConvertDebug : public OnGraphNoConvertNoDebug {
+public:
+    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        auto converted_value = obj->from_any(trait, value);
+        check_value(obj, trait, converted_value);
+        return converted_value;
+    }
+};
+
 BTraitableProcessor* BTraitableProcessor::create_raw(unsigned int flags) {
-//    static const unsigned  DEBUG            = 0x1;
-//    static const unsigned  CONVERT_VALUES   = 0x2;
-//    static const unsigned  ON_GRAPH         = 0x4;
     BTraitableProcessor *proc;
     switch(flags) {
-        case PLAIN:                     proc = new OffGraphNoConvertNoCheck();  break;
-        case DEBUG:                     proc = new OffGraphNoConvertCheck();    break;
-        case CONVERT_VALUES:            proc = new OffGraphConvert();           break;
+        case PLAIN:                         proc = new OffGraphNoConvertNoDebug();  break;
+        case DEBUG:                         proc = new OffGraphNoConvertDebug();    break;
+        case CONVERT_VALUES:                proc = new OffGraphConvertNoDebug();    break;
+        case CONVERT_VALUES | DEBUG:        proc = new OffGraphConvertDebug();      break;
 
-        case ON_GRAPH:                  proc = new OnGraphNoConvertNoCheck();   break;
-        case ON_GRAPH|DEBUG:            proc = new OnGraphNoConvertCheck();     break;
-        case ON_GRAPH|CONVERT_VALUES:   proc = new OnGraphConvert();            break;
+        case ON_GRAPH:                      proc = new OnGraphNoConvertNoDebug();   break;
+        case ON_GRAPH|DEBUG:                proc = new OnGraphNoConvertDebug();     break;
+        case ON_GRAPH|CONVERT_VALUES:       proc = new OnGraphConvertNoDebug();     break;
+        case ON_GRAPH|CONVERT_VALUES|DEBUG: proc = new OnGraphConvertDebug();       break;
 
         default:
             assert(false);

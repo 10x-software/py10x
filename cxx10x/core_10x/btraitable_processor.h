@@ -85,7 +85,7 @@ public:
     void                    set_flags(unsigned flags)       { m_flags = flags; }
     [[nodiscard]] bool      flags_on(unsigned flags) const  { return m_flags & flags; }
 
-    static py::object       check_value(BTraitable* obj, BTrait* trait, const py::object& value);
+    static void             check_value(BTraitable* obj, BTrait* trait, const py::object& value);
 
     void                    begin_using();
     void                    end_using();

@@ -36,16 +36,24 @@ public:
 
 };
 
-class IdBuilderDebug : public IdBuilder {
+class IdBuilderNoConvertDebug : public IdBuilder {
 public:
-    IdBuilderDebug(BTraitable* obj, BTraitableProcessor* parent) : IdBuilder(obj, parent) {}
+    IdBuilderNoConvertDebug(BTraitable* obj, BTraitableProcessor* parent) : IdBuilder(obj, parent) {}
 
     py::object  adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final;
 };
 
-class IdBuilderConvertValues : public IdBuilder {
+class IdBuilderConvertNoDebug : public IdBuilder {
 public:
-    IdBuilderConvertValues(BTraitable* obj, BTraitableProcessor* parent) : IdBuilder(obj, parent) {}
+    IdBuilderConvertNoDebug(BTraitable* obj, BTraitableProcessor* parent) : IdBuilder(obj, parent) {}
+
+    py::object  adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final;
+
+};
+
+class IdBuilderConvertDebug : public IdBuilder {
+public:
+    IdBuilderConvertDebug(BTraitable* obj, BTraitableProcessor* parent) : IdBuilder(obj, parent) {}
 
     py::object  adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final;
 
