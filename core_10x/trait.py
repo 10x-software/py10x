@@ -174,14 +174,7 @@ class Trait(BTrait):
 
         return f
 
-    def create_f_verify(self, f, attr_name: str, rc: RC):
-        return f
-
-    def create_f_choices(self, f, attr_name: str, rc: RC):
-        if not f:  #-- no custom choices getter
-            f = lambda traitable: XNone
-            f.__name__ = 'no_choices'
-
+    def create_f_plain(self, f, attr_name: str, rc: RC):
         return f
 
 
@@ -272,18 +265,15 @@ class Trait(BTrait):
 class TRAIT_METHOD(NamedConstant):
     GET             = Trait.create_f_get
     SET             = Trait.create_f_set
-    VERIFY          = Trait.create_f_verify
+    VERIFY          = Trait.create_f_plain
     FROM_STR        = Trait.create_f_common
     FROM_ANY_XSTR   = Trait.create_f_common
     TO_STR          = Trait.create_f_common
     SERIALIZE       = Trait.create_f_common
     DESERIALIZE     = Trait.create_f_common
     TO_ID           = Trait.create_f_common
-    CHOICES         = Trait.create_f_choices
-
-    # INVALIDATE      = None
-    # CHOICES         = None
-    # STYLE_SHEET     = None
+    CHOICES         = Trait.create_f_plain
+    STYLE_SHEET     = Trait.create_f_plain
 
 
 class generic_trait(Trait, register = False):
