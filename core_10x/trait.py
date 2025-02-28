@@ -121,7 +121,7 @@ class Trait(BTrait):
             if f:
                 cpp_name = f'set_f_{method_suffix}'
                 set_f = getattr(trait, cpp_name)
-                set_f(f)
+                set_f(f, bool(method))
 
     def create_f_get(self, f, attr_name: str, rc: RC):
         if not f:  #-- no custom getter, just the default value

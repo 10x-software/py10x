@@ -29,6 +29,9 @@ class UiHint:
         self.tip = tip
         self.params = params
 
+    def flags_on(self, flags: int) -> bool:
+        return bool(self.flags & flags)
+
     def adjust_label(self, trait_name: str):
         if not self.label:
             self.label = self.__class__.default_label(trait_name)

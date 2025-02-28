@@ -292,6 +292,8 @@ class named_constant_trait(nucleus_trait, data_type = NamedConstant, base_class 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
-#class flags_trait(nucleus_trait, data_type = EnumBits, base_class = True):
-#    ...
+class flags_trait(nucleus_trait, data_type = EnumBits, base_class = True):
+    def is_acceptable_type(self, data_type: type) -> bool:
+        return data_type is self.data_type
+
 
