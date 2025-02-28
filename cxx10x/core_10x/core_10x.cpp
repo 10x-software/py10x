@@ -53,6 +53,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_property_readonly_static("EMBEDDED",   [](const py::object&) { return BFlags(BTraitFlags::EMBEDDED); })
             .def_property_readonly_static("EVAL_ONCE",  [](const py::object&) { return BFlags(BTraitFlags::EVAL_ONCE); })
             .def_property_readonly_static("EXPENSIVE",  [](const py::object&) { return BFlags(BTraitFlags::EXPENSIVE); })
+            .def_property_readonly_static("HIDDEN",     [](const py::object&) { return BFlags(BTraitFlags::HIDDEN); })
             ;
 
     py::class_<BTrait>(m, "BTrait")
@@ -76,7 +77,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_readonly("f_to_id",            &BTrait::f_to_id)
             //.def_readonly("f_acceptable_type", &BTrait::f_is_acceptable_type)
 
-            .def("flags_on",                    py::overload_cast<unsigned>(&BTrait::flags_on, py::const_))
+            .def("flags_on",                    py::overload_cast<uint64_t>(&BTrait::flags_on, py::const_))
             .def("flags_on",                    py::overload_cast<const BFlags&>(&BTrait::flags_on, py::const_))
 
             .def("set_f_get",                   &BTrait::set_f_get)
@@ -88,6 +89,13 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("set_f_serialize",             &BTrait::set_f_serialize)
             .def("set_f_deserialize",           &BTrait::set_f_deserialize)
             .def("set_f_to_id",                 &BTrait::set_f_to_id)
+            .def("custom_f_get",                &BTrait::custom_f_get)
+            .def("custom_f_verify",             &BTrait::custom_f_verify)
+            .def("custom_f_from_str",           &BTrait::custom_f_from_str)
+            .def("custom_f_from_any_xstr",      &BTrait::custom_f_from_any_xstr)
+            .def("custom_f_to_str",             &BTrait::custom_f_to_str)
+            .def("custom_f_serialize",          &BTrait::custom_f_serialize)
+            .def("custom_f_to_id",              &BTrait::custom_f_to_id)
             ;
 
     py::class_<NODE_TYPE>(m, "NODE_TYPE")
