@@ -28,11 +28,11 @@ class TraitAccessor:
         self.obj = obj
 
     def __getattr__(self, trait_name: str) -> BoundTrait:
-        trait = self.cls.unbound_trait(trait_name, throw = True)
+        trait = self.cls.trait(trait_name, throw = True)
         return BoundTrait(self.obj, trait)
 
     def __call__(self, trait_name: str, throw = True) -> Trait:
-        return self.cls.unbound_trait(trait_name, throw = True)
+        return self.cls.trait(trait_name, throw = True)
 
 class TraitableMetaclass(type(BTraitable)):
     @staticmethod
@@ -101,7 +101,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return rc
 
     @classmethod
-    def unbound_trait(cls, trait_name: str, throw = False) -> Trait:
+    def trait(cls, trait_name: str, throw = False) -> Trait:
         trait = cls.s_dir.get(trait_name)
         if trait is None and throw:
             raise TypeError(f'{cls} - unknown trait {trait_name}')
@@ -127,7 +127,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_bclass: BTraitableClass = None
     s_traitdef_dir = {}
     s_special_attributes = (
-        'trait',
+        'T',
         '_default_cache',
     )
     def __init_subclass__(cls, **kwargs):
@@ -163,7 +163,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         else:
             self.initialize(**trait_values)
 
-        self.trait = TraitAccessor(self)
+        self.T = TraitAccessor(self)
 
     def set_values(self, _ignore_unknown_traits = True, **trait_values) -> RC:
         return self._set_values(trait_values, _ignore_unknown_traits)
