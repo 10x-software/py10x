@@ -14,11 +14,11 @@ class SubTraitable(Traitable):
 class TestTraitableSlots(unittest.TestCase):
 
     def test_traitable_slots(self):
-        expected_slots = ('trait', '_default_cache', '_rev')
+        expected_slots = ('T', '_default_cache', '_rev')
         self.assertEqual(Traitable.__slots__, expected_slots)
 
     def test_subclass_slots(self):
-        expected_slots = ('special_attr', 'trait', '_default_cache', '_rev', 'trait1', 'trait2')
+        expected_slots = ('special_attr', 'T', '_default_cache', '_rev', 'trait1', 'trait2')
         self.assertEqual(SubTraitable.__slots__, expected_slots)
 
     def test_instance_slots(self):

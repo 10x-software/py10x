@@ -35,7 +35,7 @@ class CallCount:
         return self.method.call_count(self.obj)
 
 
-class TestPerson(Person):
+class TestablePerson(Person):
     older_than_get = call_counter(Person.older_than_get)
     weight_get = call_counter(Person.weight_get)
     weight_set = call_counter(Person.weight_set)
@@ -49,7 +49,7 @@ class TestPerson(Person):
 
 class TestGraphBase(TestCase):
     def setUp(self):
-        self.p = TestPerson(first_name='John', last_name='Smith')
+        self.p = TestablePerson(first_name='John', last_name='Smith')
 
     def tearDown(self):
         self.reset()
@@ -75,27 +75,27 @@ class TestGraphBase(TestCase):
 
         self.assertEqual(p.weight, 100)
 
-        with CallCount(p, TestPerson.weight_get) as cc:
+        with CallCount(p, TestablePerson.weight_get) as cc:
             self.assertEqual(p.weight, 100)
             self.assertEqual(cc.call_count, not on)
 
         p.weight_qu = WEIGHT_QU.KG
         self.assertIs(p.weight_qu, WEIGHT_QU.KG)
 
-        with CallCount(p, TestPerson.weight_get) as cc:
+        with CallCount(p, TestablePerson.weight_get) as cc:
             self.assertEqual(p.weight, 100 / WEIGHT_QU.KG.value)
             self.assertEqual(cc.call_count, 1)
 
         # now use the setter...
-        with CallCount(p, TestPerson.weight_set) as cc:
+        with CallCount(p, TestablePerson.weight_set) as cc:
             p.weight = 100.
             self.assertEqual(cc.call_count, 1)
 
-        with CallCount(p, TestPerson.weight_get) as cc:
+        with CallCount(p, TestablePerson.weight_get) as cc:
             self.assertEqual(p.weight, 100)
             self.assertEqual(cc.call_count, 1)
 
-        with CallCount(p, TestPerson.weight_get) as cc:
+        with CallCount(p, TestablePerson.weight_get) as cc:
             self.assertEqual(p.weight_lbs, 100 * WEIGHT_QU.KG.value)
             self.assertEqual(cc.call_count, 0)
 
@@ -106,12 +106,12 @@ class TestGraphBase(TestCase):
 
         self.assertFalse(p.young)
 
-        with CallCount(p, TestPerson.young_get) as cc:
+        with CallCount(p, TestablePerson.young_get) as cc:
             self.assertFalse(p.young)
             self.assertEqual(cc.call_count, not on)
 
         p.age = 20
-        with CallCount(p, TestPerson.young_get) as cc:
+        with CallCount(p, TestablePerson.young_get) as cc:
             self.assertTrue(p.young)
             self.assertEqual(cc.call_count, 1)
 
@@ -125,12 +125,12 @@ class TestGraphBase(TestCase):
 
         self.assertFalse(p.older_than(30))
 
-        with CallCount(p, TestPerson.older_than_get) as cc:
+        with CallCount(p, TestablePerson.older_than_get) as cc:
             self.assertFalse(p.older_than(30))
             self.assertEqual(cc.call_count, not on)
 
         p.age = 40
-        with CallCount(p, TestPerson.older_than_get) as cc:
+        with CallCount(p, TestablePerson.older_than_get) as cc:
             self.assertTrue(p.older_than(30))
             self.assertEqual(cc.call_count, 1)
 
@@ -140,7 +140,7 @@ class TestGraphOn(TestGraphBase):
     def setUp(self):
         self.graph_on = GRAPH_ON()
         self.graph_on.begin_using()
-        self.p = TestPerson(first_name='Jane', last_name='Smith')
+        self.p = TestablePerson(first_name='Jane', last_name='Smith')
         self.pid = self.p.id()
         self.p.age = 30
 
@@ -200,7 +200,7 @@ class TestExecControl(TestGraphBase):
 
     def test_debug(self, on=False):
         self.assertEqual(on, bool(BTP.current().flags() & BTP.DEBUG))
-        p = TestPerson(first_name='John', last_name='Smith')
+        p = TestablePerson(first_name='John', last_name='Smith')
         self.assertIs(p.weight_lbs,XNone)
 
         p.weight_lbs = 100.
@@ -218,7 +218,7 @@ class TestExecControl(TestGraphBase):
             p.weight_lbs=200
             self.assertEqual(p.weight, 200.0)
 
-        p.invalidate_value(p.trait.weight_lbs)
+        p.invalidate_value(p.T.weight_lbs)
         self.assertIs(p.weight_lbs,XNone)
 
     def test_graph_convert_debug(self):
