@@ -98,7 +98,7 @@ class MultiChoice(Choice):
         SUBDIR  = ()
 
     def select_mode(self):
-        return self.rb.choice().value if self.rb else self.SELECT_MODE.ANY.value
+        return self.rb.choice() if self.rb else self.SELECT_MODE.ANY
 
     def widget(self) -> ux.Widget:
         self.sw = sw = super().widget()
@@ -179,7 +179,7 @@ class MultiChoice(Choice):
         return True
 
     s_select_table = {
-        SELECT_MODE.ANY.value:       lambda self, x,y,z: True,
-        SELECT_MODE.LEAF.value:      _select_leaf,
-        SELECT_MODE.SUBDIR.value:    _select_subdir
+        SELECT_MODE.ANY:       lambda self, x,y,z: True,
+        SELECT_MODE.LEAF:      _select_leaf,
+        SELECT_MODE.SUBDIR:    _select_subdir
     }
