@@ -1,6 +1,6 @@
 from core_10x.code_samples.person import Person
 from core_10x.xnone import XNone
-from core_10x.exec_control import GRAPH_ON, GRAPH_OFF
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, BTP
 
 def test():
     p = Person(first_name = 'Sasha', last_name = 'Davidovich')
@@ -14,7 +14,8 @@ def test():
 
 if __name__ == '__main__':
 
-    with GRAPH_ON():
+    with GRAPH_ON(convert_values = True, debug = True):
+        print(BTP.current().flags())
         test()
         with GRAPH_OFF():
             test()

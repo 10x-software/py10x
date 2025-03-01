@@ -35,6 +35,9 @@ FontMetrics.__getattr__         = missing_attr
 Widget                          = QWidget
 Widget.__getattr__              = missing_attr
 
+Horizontal                      = Qt.Orientation.Horizontal
+Vertical                        = Qt.Orientation.Vertical
+
 Layout                          = QLayout
 
 BoxLayout                       = QBoxLayout
@@ -74,6 +77,7 @@ ButtonGroup                     = QButtonGroup
 ButtonGroup.__getattr__         = missing_attr
 
 ListItem                        = QListWidgetItem
+ListItem.__getattr__            = missing_attr
 
 MatchExactly                    = Qt.MatchFlag.MatchExactly
 
