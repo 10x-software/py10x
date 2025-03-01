@@ -84,6 +84,8 @@ class Widget(abc.ABC):
     @abc.abstractmethod
     def font_metrics(self) -> FontMetrics:  ...
 
+Horizontal  = 0
+Vertical    = 1
 
 class Layout(abc.ABC):
     def __init__(self, *args, **kwargs): ...
@@ -107,6 +109,10 @@ class VBoxLayout(BoxLayout):   ...
 class FormLayout(Layout):
     @abc.abstractmethod
     def add_row(self, w1: Widget, w2: Widget = None):   ...
+
+class Splitter(Widget):
+    @abc.abstractmethod
+    def add_widget(self, widget: Widget):   ...
 
 class Label(Widget):
     @abc.abstractmethod
@@ -187,16 +193,25 @@ class ListItem(abc.ABC):
 MatchExactly = None
 class ListWidget(Widget):
     @abc.abstractmethod
+    def add_item(self, item): ...
+
+    @abc.abstractmethod
     def add_items(self, items: list):   ...
 
     @abc.abstractmethod
-    def clicked_connect(self, bound_method):    ...
+    def item_clicked_connect(self, bound_method):    ...
 
     @abc.abstractmethod
     def clear(self):    ...
 
     @abc.abstractmethod
     def find_items(self, how):  ...
+
+    @abc.abstractmethod
+    def row(self, item: ListItem) -> int:  ...
+
+    @abc.abstractmethod
+    def take_item(self, row: int):  ...
 
 class TreeItem(Widget):
     @abc.abstractmethod

@@ -4,7 +4,6 @@ from core_10x.xnone import XNone
 from core_10x.py_class import PyClass
 from core_10x.entity import Entity
 
-#bool( getattr( value, '__hash__', False ) )
 class Directory:
     @staticmethod
     def _dir_class(value):
