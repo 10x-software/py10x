@@ -52,6 +52,8 @@ FormLayout.add_row              = QFormLayout.addRow
 Label                           = QLabel
 Label.set_text                  = QLabel.setText
 
+Splitter                        = QSplitter
+
 Style                           = QStyle
 
 PushButton                      = QPushButton
