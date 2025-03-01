@@ -1,5 +1,6 @@
 from core_10x.directory import Directory
 from core_10x.xnone import XNone
+from core_10x.named_constant import Enum
 
 from ui_10x.utils import ux, UxSearchableList, UxTreeViewer, UxDialog, UxRadioBox
 
@@ -19,6 +20,8 @@ class Choice:
         self.f_selection_cb = None
         self.directory: Directory = None
         self.kwargs = {}
+
+        self.values_selected = []
 
         self.set(choices = choices, f_choices = f_choices, **kwargs)
 
@@ -89,13 +92,13 @@ class Choice:
         self.f_selection_cb = None
 
 class MultiChoice(Choice):
-    class SELECT_MODE:
-        ANY     = 0
-        LEAF    = 1
-        SUBDIR  = 2
+    class SELECT_MODE(Enum):
+        ANY     = ()
+        LEAF    = ()
+        SUBDIR  = ()
 
     def select_mode(self):
-        return self.rb.choice() if self.rb else self.SELECT_MODE.ANY
+        return self.rb.choice().value if self.rb else self.SELECT_MODE.ANY.value
 
     def widget(self) -> ux.Widget:
         self.sw = sw = super().widget()
@@ -114,7 +117,7 @@ class MultiChoice(Choice):
             left_lay.add_widget(sw)
         else:
             left = sw
-            rb = None
+            self.rb = None
 
         w.add_widget(left)
 
@@ -125,7 +128,7 @@ class MultiChoice(Choice):
             labels = [map.get(v) for v in labels if map.get(v)]
 
         selection_list.add_items(labels)
-        selection_list.item_clicked_connect(self.on_selection_list_selection)
+        selection_list.clicked_connect(self.on_selection_list_selection)
         w.add_widget(selection_list)
 
         return w
@@ -176,7 +179,7 @@ class MultiChoice(Choice):
         return True
 
     s_select_table = {
-        SELECT_MODE.ANY:       lambda self, x,y,z: True,
-        SELECT_MODE.LEAF:      _select_leaf,
-        SELECT_MODE.SUBDIR:    _select_subdir
+        SELECT_MODE.ANY.value:       lambda self, x,y,z: True,
+        SELECT_MODE.LEAF.value:      _select_leaf,
+        SELECT_MODE.SUBDIR.value:    _select_subdir
     }
