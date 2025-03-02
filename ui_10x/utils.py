@@ -5,6 +5,7 @@ from ui_10x.platform import ux
 
 from core_10x.named_constant import NamedConstant
 from core_10x.global_cache import cache, singleton
+from core_10x.directory import Directory
 
 class UxAsync(ux.Object):
     SIGNAL = ux.signal_decl()
@@ -233,7 +234,7 @@ def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, def
 
     return cal.selected_date() if rc else default
 
-class Uxstyle_sheet:
+class UxStyleSheet:
     @classmethod
     def dumps(cls, data: dict) -> str:
         return '\n'.join(f'{name}: {value};' for name, value in data.items())
@@ -345,7 +346,7 @@ class UxSearchableList(ux.GroupBox):
         self.choice = None
 
         if title:
-            self.set_title( title)
+            self.set_title(title)
         lay = ux.VBoxLayout()
 
         if text_widget:
@@ -388,9 +389,9 @@ class UxSearchableList(ux.GroupBox):
 
             if not self.case_sensitive:
                 input = input.lower()
-                self.current_choices = [ s for s in self.current_choices if not s.lower().find(input) == -1 ]
+                self.current_choices = [s for s in self.current_choices if not s.lower().find(input) == -1]
             else:
-                self.current_choices = [ s for s in self.current_choices if not s.find(input) == -1 ]
+                self.current_choices = [s for s in self.current_choices if not s.find(input) == -1]
 
         self.w_list.add_items(self.current_choices)
 
@@ -405,12 +406,12 @@ class UxSearchableList(ux.GroupBox):
             text_s = '' if self.reset_selection else text
             self.w_field.set_text(text_s)
 
-        self.m_choice = text
+        self.choice = text
         if self.hook:
             self.hook(text)
 
     def choice(self) -> str:
-        return self.m_choice
+        return self.choice
 
     def reset(self):
         if not self.current_choices == self.initial_choices:
@@ -418,75 +419,73 @@ class UxSearchableList(ux.GroupBox):
             self.w_list.clear()
             self.w_list.add_items( self.initial_choices)
 
-# class UxTreeViewer( QTreeWidget ):
-#     s_labelMaxLength    = 40
-#
-#     def __init__( self, dir: Directory, select_hook = None, label_max_length = -1, expand = False, **kwargs ):
-#         super().__init__()
-#         if label_max_length < 0:
-#             label_max_length = self.s_labelMaxLength
-#
-#         self.m_dir = dir
-#         self.m_selectHook = select_hook
-#
-#         dir_value = dir.dir_value()
-#         dir_name = dir.dir_name()
-#         if dir_value and dir_name and dir_name != dir_value:
-#             num_cols = 2
-#             header_labels = [ dir.dir_name(), 'Description' ]
-#         else:
-#             num_cols = 1
-#             header_labels = [ dir.show_value() ]
-#
-#         self.m_numCols = num_cols
-#         self.setColumnCount( num_cols )
-#         self.setHeaderLabels( header_labels )
-#         self.itemClicked.connect( self.typeTreeItemClicked )
-#
-#         for subdir in dir.dir_members().values():  # -- without the root!
-#             self.createTree( subdir, self, label_max_length, num_cols )
-#
-#         if expand:
-#             for i in range( self.topLevelItemCount() ):
-#                 top = self.topLevelItem( i )
-#                 top.setExpanded( True )
-#
-#         self.resizeColumnToContents( 0 )
-#         if num_cols == 2:
-#             self.resizeColumnToContents( 1 )
-#         self.setSizePolicy( QSizePolicy.MinimumExpanding, QSizePolicy.MinimumExpanding )
-#
-#     class TreeItem( QTreeWidgetItem ):
-#         def __init__( self, parent_node, dir: Directory ):
-#             super().__init__( parent_node )
-#             self.m_dir = dir
-#
-#         def dir( self ):    return self.m_dir
-#
-#     @classmethod
-#     def createTree( cls, dir: Directory, parent_node, label_max_length: int, num_cols: int ):
-#         node = cls.TreeItem( parent_node, dir )
-#         show_value = dir.show_value()
-#         node.setText( 0, show_value )
-#         if num_cols == 2:
-#             label = dir.dir_name()
-#             if label and label != show_value:
-#                 if len( label ) > label_max_length:
-#                     label = label[ :label_max_length ] + '...'
-#
-#                 node.setText( 1, label )
-#
-#         node.setToolTip( num_cols - 1, dir.dir_name() )
-#
-#         for subdir in dir.dir_members().values():
-#             cls.createTree( subdir, node, label_max_length, num_cols )
-#
-#     def typeTreeItemClicked( self, item: QTreeWidgetItem ):
-#         self.onTagSelected( item.dir() )
-#
-#     def onTagSelected( self, dir: Directory ):
-#         if self.m_selectHook:
-#             self.m_selectHook( dir )
+class UxTreeViewer(ux.TreeWidget):
+    s_label_max_length  = 40
+
+    def __init__(self, dir: Directory, select_hook = None, label_max_length = -1, expand = False, **kwargs):
+        super().__init__()
+        if label_max_length < 0:
+            label_max_length = self.s_label_max_length
+
+        self.dir = dir
+        self.select_hook = select_hook
+
+        dir_value = dir.value
+        dir_name = dir.name
+        if dir_value and dir_name and dir_name != dir_value:
+            num_cols = 2
+            header_labels = [dir_name, 'Description']
+        else:
+            num_cols = 1
+            header_labels = [dir.show_value()]
+
+        self.num_cols = num_cols
+        self.set_column_count(num_cols)
+        self.set_header_labels(header_labels)
+        self.item_clicked_connect(self.tree_item_clicked)
+
+        for subdir in dir.members.values():     #-- without the root!
+            self.create_tree(subdir, self, label_max_length, num_cols)
+
+        if expand:
+            for i in range(self.top_level_item_count()):
+                top = self.top_level_item(i)
+                top.set_expanded(True)
+
+        self.resize_column_to_contents(0)
+        if num_cols == 2:
+            self.resize_column_to_contents(1)
+        self.set_size_policy(ux.SizePolicy.MinimumExpanding, ux.SizePolicy.MinimumExpanding)
+
+    class TreeItem(ux.TreeItem):
+        def __init__(self, parent_node, dir: Directory):
+            super().__init__(parent_node)
+            self.dir = dir
+
+    @classmethod
+    def create_tree(cls, dir: Directory, parent_node, label_max_length: int, num_cols: int):
+        node = cls.TreeItem(parent_node, dir)
+        show_value = dir.show_value()
+        node.set_text(0, show_value)
+        if num_cols == 2:
+            label = dir.name
+            if label and label != show_value:
+                if len(label) > label_max_length:
+                    label = label[ :label_max_length ] + '...'
+
+                node.set_text(1, label)
+
+        node.set_tool_tip(num_cols-1, dir.name)
+
+        for subdir in dir.members.values():
+            cls.create_tree(subdir, node, label_max_length, num_cols)
+
+    def tree_item_clicked(self, item):
+        self.on_tag_selected(item.dir)
+
+    def on_tag_selected(self, dir: Directory):
+        if self.select_hook:
+            self.select_hook(dir)
 
 # class UxPixmap:
 #     COLOR_AUTO      = Qt.ColorScheme.AutoColor

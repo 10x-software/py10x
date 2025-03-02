@@ -18,12 +18,6 @@ from core_10x.rc import RC
 class Trait(BTrait):
     #TODO: re-enable __slots__ when the dust settles..
     #__slots__ = ('t_def','getter_params')
-    s_ui_partial = None
-    @classmethod
-    def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
-        assert cls.s_ui_partial
-        return cls.s_ui_partial(label, flags = flags, **params)
-
     s_datatype_traitclass_map = {}
     @staticmethod
     def register_by_datatype(trait_class, data_type):
@@ -55,6 +49,7 @@ class Trait(BTrait):
 
         return generic_trait
 
+    s_ui_hint = None
     def __init_subclass__(cls, data_type = None, register = True, base_class = False):
         cls.s_baseclass = base_class
         if register:
@@ -63,6 +58,8 @@ class Trait(BTrait):
                 Trait.register_by_baseclass(cls, data_type)
             else:
                 Trait.register_by_datatype(cls, data_type)
+
+        assert cls.s_ui_hint, f'{cls} must define s_ui_hint'
 
     def __init__(self, t_def: TraitDefinition, btrait: BTrait = None):
         if btrait is None:
@@ -106,7 +103,9 @@ class Trait(BTrait):
         Trait.set_trait_funcs(class_dict, rc, trait, trait_name)
 
         trait.post_ctor()
-        trait.ui_hint = copy.deepcopy(t_def.ui_hint)
+        ui_hint: Ui = copy.deepcopy(t_def.ui_hint)
+        ui_hint.adjust(trait)
+        trait.ui_hint = ui_hint
         return trait
 
     @staticmethod
@@ -277,6 +276,7 @@ class TRAIT_METHOD(NamedConstant):
 
 
 class generic_trait(Trait, register = False):
+    s_ui_hint = Ui.NONE
 
     def post_ctor(self):
         assert not self.flags_on(T.ID), f"generic trait {self.name} may not be an ID trait"
@@ -287,10 +287,6 @@ class generic_trait(Trait, register = False):
 
     def same_values(self, value1, value2) -> bool:
         return value1 is value2
-
-    @classmethod
-    def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
-        return Ui.NONE
 
 class trait_value:
     def __init__(self, value, *args):
