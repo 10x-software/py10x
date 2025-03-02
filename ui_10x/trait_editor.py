@@ -1,0 +1,133 @@
+from core_10x.trait import Trait, T, Ui
+from core_10x.concrete_traits import date_trait, list_trait, dict_trait, flags_trait
+from core_10x.traitable import traitable_trait
+
+from ui_10x.utils import ux, UxStyleSheet, ux_pick_date, UxDialog
+from ui_10x.py_data_browser import PyDataBrowser
+from ui_10x.choice import Choice, MultiChoice
+from ui_10x.trait_widget import TraitWidget
+import ui_10x.concrete_trait_widgets
+
+class TraitEditor:
+    def __init__(self, entity, trait: Trait, ui_hint: Ui, custom_callback = None):
+        self.entity = entity
+        self.trait = trait
+        self.widget: TraitWidget = None
+        self.ui_hint = ui_hint
+        self.trait_callback = self._establish_callback(custom_callback)
+
+    def is_read_only(self) -> bool:
+        return self.ui_hint.flags_on(Ui.READ_ONLY)
+
+    def _establish_callback(self, custom_callback):
+        if custom_callback:
+            return custom_callback
+
+        if self.is_read_only():
+            return None
+
+        return self.builtin_callback()
+
+    def new_label(self) -> ux.Widget:
+        if self.ui_hint.param('right_label', False):
+            return ux.Label(' ')
+
+        if self.trait_callback:
+            label = ux.PushButton()
+            label.set_flat(True)
+            label.set_style_sheet('text-align: left')
+            label.set_text(self.ui_hint.label + '...')
+            label.clicked_connect(self.trait_callback)      #-- TODO: a more complex callback data structure?
+            if self.trait.flags_on(T.EXPENSIVE):
+                UxStyleSheet.update(label, 'color: purple; font: italic;')
+                label.set_tool_tip('Reaction on clicking this button may take considerable time...')
+        else:
+            label = ux.Label(self.ui_hint.label)
+
+        return label
+
+    def new_widget(self, update_self = True) -> TraitWidget:
+        tw = TraitWidget.instance(self)
+        assert tw, f'{self.entity.__class__}.{self.trait.name} - unknown trait widget class'
+
+        avg_char_width = tw.font_metrics().average_char_width()
+        min_width = self.ui_hint.param('min_width', 0)
+        if min_width > 0:
+            tw.set_minimum_width(min_width * avg_char_width)
+
+        max_width = self.ui_hint.param('max_width', 0)
+        if max_width > 0:
+            tw.set_maximum_width( max_width * avg_char_width )
+
+        if (update_self):
+            self.widget = tw
+
+        return tw
+
+    #---- Built-in Callbacks
+
+    def date_cb(self):
+        show_date = self.entity.get_value(self.trait)
+        d = ux_pick_date(
+            title = f'Pick a date for {self.ui_hint.label}',
+            show_date = show_date
+        )
+        if d:
+            self.entity.set_value(self.trait, d)
+
+    def list_cb(self):
+        choices = self.entity.get_value(self.trait)
+        mc = MultiChoice(choices = choices)
+        w = mc.widget()
+        if not w:
+            return
+        d = UxDialog(w, title = f"Choose one or more values for {self.ui_hint.label}")
+        rc = d.exec()
+        if rc:
+            selected = mc.values_selected
+            self.entity.set_value(self.trait, selected)
+
+    def dict_cb(self):
+        data = dict(self.entity.get_value(self.trait))
+        rc = PyDataBrowser.edit(data, title = f'Edit {self.trait.ui_hint.label}')
+        if rc:
+            self.entity.set_value(self.trait, data)
+
+    def flags_cb(self):
+        flags = self.entity.get_value(self.trait)
+        bits_class = self.trait.data_type
+        tags_selected = bits_class.data_type.names_from_value(flags)
+        mc = MultiChoice(*tags_selected, choices = bits_class.choose_from())
+        w = mc.widget()
+        if not w:
+            return
+
+        d = UxDialog(w, title = f"Choose one or more flags for {self.ui_hint.label}")
+        rc = d.exec()
+        if rc:
+            selected = mc.values_selected
+            self.entity.set_value(self.trait, selected)
+
+    def traitable_cb(self):
+        #-- EntityEditor - popup
+        ...
+
+    def expensive_cb(self):
+        value = self.entity.get_value(self.trait)
+        self.widget.update_trait_value(value)
+
+    def builtin_callback(self):
+        cb = self.s_builtin_callbacks.get(self.trait.__class__)
+        if not cb:
+            if (self.trait.flags_on(T.EXPENSIVE)):
+                cb = self.__class__.expensive_cb
+
+        return cb
+
+    s_builtin_callbacks = {
+        date_trait:         date_cb,
+        list_trait:         list_cb,
+        dict_trait:         dict_cb,
+        flags_trait:        flags_cb,
+        traitable_trait:    traitable_cb,
+    }

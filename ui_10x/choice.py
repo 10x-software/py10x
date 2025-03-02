@@ -97,6 +97,18 @@ class MultiChoice(Choice):
         LEAF    = ()
         SUBDIR  = ()
 
+    def __init__(self, *choices_selected, choices = XNone, f_choices = None, **kwargs):
+        super().__init__(choices = choices, f_choices = f_choices, **kwargs)
+        self._set_choices_selected(choices_selected)
+
+    def set(self, *choices_selected, choices = XNone, f_choices = None, **kwargs):
+        super().set(choices = choices, f_choices = f_choices, **kwargs)
+        self._set_choices_selected(choices_selected)
+
+    def _set_choices_selected(self, choices_selected: tuple):
+        all_choices = self.choices
+        self.values_selected.extend(tuple(value for choice in choices_selected if (value := all_choices.get(choice) )))
+
     def select_mode(self):
         return self.rb.choice() if self.rb else self.SELECT_MODE.ANY
 

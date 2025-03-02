@@ -47,7 +47,7 @@ HBoxLayout                      = QHBoxLayout
 VBoxLayout                      = QVBoxLayout
 
 FormLayout                      = QFormLayout
-FormLayout.add_row              = QFormLayout.addRow
+FormLayout.__getattr__          = missing_attr
 
 Label                           = QLabel
 Label.set_text                  = QLabel.setText

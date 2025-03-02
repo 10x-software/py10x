@@ -1,10 +1,11 @@
-import abc
+#import abc
 
-from core_10x.trait import Trait, Ui
+from core_10x.trait import Trait, T, Ui
 from core_10x.rc import RC, RC_TRUE
 
+from ui_10x.utils import UxStyleSheet
 
-class TraitWidget(abc.ABC):
+class TraitWidget:
     s_hinted_widgets = {}
     def __init_subclass__(cls, widget_type: Ui.WIDGET_TYPE = None, **kwargs):
         if widget_type:
@@ -14,37 +15,36 @@ class TraitWidget(abc.ABC):
     def widget_class(widget_type: Ui.WIDGET_TYPE):
         w_cls = TraitWidget.s_hinted_widgets.get(widget_type)
         assert w_cls, f'Unknown trait widget type: {widget_type}'
+        return w_cls
 
     @staticmethod
     def instance(trait_editor) -> 'TraitWidget':
         trait = trait_editor.trait
-        w_type = trait.t_def.ui_hint.widget_type
+        w_type = trait_editor.ui_hint.widget_type
         if w_type is Ui.WIDGET_TYPE.NONE:
             return None
 
         w_cls = TraitWidget.widget_class(w_type)
-        w_cls(trait_editor)
+        return w_cls(trait_editor)
 
-    def __init__(self, trait_editor, create_ui_node = True):
+    def __init__(self, trait_editor):
         self.trait_editor = trait_editor
-        self.trait = trait
+        self.trait: Trait = trait_editor.trait
         self.program_edit = False
-        #-- self.widget and self.label - to be set by self.create()
 
-        self.create_widget()
+        self._create()
 
-        self.set_tooltip(trait.ui_hint.tip())
-        if self.is_read_only():
-            self.set_read_only(True)
+        if self.trait.flags_on(T.READONLY) or self.trait.ui_hint.flags_on(Ui.SELECT_ONLY):
+            self.set_read_only()
+
+        self.set_tool_tip(self.trait.ui_hint.tip)
 
         entity = self.trait_editor.entity
-        sh = entity.get_style_sheet(trait)
-        self.style_sheet_class().update(self.widget(), sh)
+        sh = entity.get_style_sheet(self.trait)
+        UxStyleSheet.update(self, sh)
 
-        if create_ui_node:
-            self.create_ui_node()
-
-        self.set_widget_value(entity.get_value(trait))
+        #self.create_ui_node()  #-- TODO: implement!
+        self.set_widget_value(entity.get_value(self.trait))
 
     def is_read_only(self) -> bool:
         return self.trait.is_read_only() or self.trait_editor.is_read_only()
@@ -57,11 +57,11 @@ class TraitWidget(abc.ABC):
         try:
             self.set_value(value)
         except Exception:       #-- the real widget is gone (so far, has encountered this only in Qt on Mac OS)
-            self.clean()
+            #self.clean()   #-- TODO: fix!
             return False
 
         sh = self.trait_editor.entity.get_style_sheet(self.trait)
-        self.style_sheet_class().update(self.widget(), sh)
+        UxStyleSheet.update(self.widget(), sh)
         self.program_edit = False
         return True
 
@@ -77,9 +77,9 @@ class TraitWidget(abc.ABC):
                     value = self.widget_value()
                 rc = entity.set_value(self.trait, value)
 
-            tip = rc.error() if not rc else trait.ui_hint.tip
-            self.widget.set_tool_tip(tip)
-            self.widget.set_style_sheet(f'background-color: {self.s_bg_colors[bool(rc)]}')
+            tip = rc.error() if not rc else self.trait.ui_hint.tip
+            self.set_tool_tip(tip)
+            self.set_style_sheet(f'background-color: {self.s_bg_colors[bool(rc)]}')
 
     def refresh(self, ui_node):
         editor = self.trait_editor
@@ -91,24 +91,10 @@ class TraitWidget(abc.ABC):
         self.relink_nodes(ui_node)
         self.set_widget_value(value)
 
-    def create(self):
-        ...
-
-    @classmethod
-    @abc.abstractmethod
-    def ui_node_class(cls): ...
-
-    @classmethod
-    @abc.abstractmethod
-    def style_sheet_class(cls):  ...
-
-    @abc.abstractmethod
-    def create_widget(self):    ...
-
-    @abc.abstractmethod
-    def value(self):    ...
-
-    @abc.abstractmethod
-    def set_value(self, value):  ...
+    def ui_node_class(cls):         raise NotImplementedError
+    def _create(self):              raise NotImplementedError
+    def _set_read_only(self, flag): raise NotImplementedError
+    def _value(self):               raise NotImplementedError
+    def _set_value(self, value):    raise NotImplementedError
 
 

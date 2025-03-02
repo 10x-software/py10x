@@ -11,6 +11,7 @@ from core_10x.named_constant import NamedConstant, EnumBits
 from core_10x.package_refactoring import PackageRefactoring
 
 class primitive_trait(Trait, register = False):
+    s_ui_hint = Ui.NONE
 
     def default_value(self):
         return self.default
@@ -38,7 +39,7 @@ class primitive_trait(Trait, register = False):
 
 
 class bool_trait(primitive_trait, data_type = bool):
-    s_ui_partial = Ui.partial(Ui.check, align_h = 1)
+    s_ui_hint = Ui.check()
 
     fmt         = ( 'yes', '' )
 
@@ -50,11 +51,11 @@ class bool_trait(primitive_trait, data_type = bool):
 
 
 class int_trait(primitive_trait, data_type = int):
-    s_ui_partial = Ui.partial(Ui.line, align_h = 1)
+    s_ui_hint = Ui.line()
 
 
 class float_trait(primitive_trait, data_type = float):
-    s_ui_partial = Ui.partial(Ui.line, align_h = 1)
+    s_ui_hint = Ui.line()
 
     fmt         = ',.2f'
 
@@ -69,7 +70,8 @@ class float_trait(primitive_trait, data_type = float):
 
 
 class str_trait(primitive_trait, data_type = str):
-    s_ui_partial = Ui.partial(Ui.line, align_h = -1)
+    s_ui_hint = Ui.line(align_h = -1)
+
     #pattern = ''
     #placeholder = ''
 
@@ -93,7 +95,7 @@ class str_trait(primitive_trait, data_type = str):
 #     return tdef
 
 class datetime_trait(Trait, data_type = datetime):
-    s_ui_partial = Ui.partial(Ui.line, align_h = 0)
+    s_ui_hint = Ui.line(align_h = 0)
 
     def from_str(self, s: str):
         dt = XDateTime.str_to_datetime(s)
@@ -130,7 +132,7 @@ class datetime_trait(Trait, data_type = datetime):
         return XDateTime.datetime_to_str(value, with_ms = True)
 
 class date_trait(Trait, data_type = date):
-    s_ui_partial = Ui.partial(Ui.line, min_width = 10, align_h = 0)
+    s_ui_hint = Ui.line(min_width = 10, align_h = 0)
 
     def from_str(self, s: str):
         dt = XDateTime.str_to_date(s)
@@ -163,7 +165,7 @@ class date_trait(Trait, data_type = date):
         return XDateTime.date_to_str(value)
 
 class class_trait(Trait, data_type = type):
-    s_ui_partial = Ui.partial(Ui.line, align_h = -1)
+    s_ui_hint = Ui.line(align_h = -1)
 
     def to_str(self, value):
         return PyClass.name(value)
@@ -187,7 +189,7 @@ class class_trait(Trait, data_type = type):
         return PackageRefactoring.find_class(value)
 
 class list_trait(Trait, data_type = list):
-    s_ui_partial = Ui.partial(Ui.line)
+    s_ui_hint = Ui.line()
 
     def to_str(self, v) -> str:
         return str(v)
@@ -205,7 +207,7 @@ class list_trait(Trait, data_type = list):
         return Nucleus.deserialize_list(value)
 
 class dict_trait(Trait, data_type = dict):
-    s_ui_partial = Ui.partial(Ui.line, flags = Ui.SELECT_ONLY)
+    s_ui_hint = Ui.line(flags = Ui.SELECT_ONLY)
 
     def use_format_str(cls, fmt: str, value) -> str:
         return str(value) if not fmt else fmt.join(f"'{key}' -> '{val}'" for key, val in value.items())
@@ -226,9 +228,7 @@ class dict_trait(Trait, data_type = dict):
         return Nucleus.deserialize_dict(value)
 
 class any_trait(Trait, data_type = XNone.__class__):  # -- any
-    @classmethod
-    def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
-        return Ui.NONE
+    s_ui_hint = Ui.NONE
 
     def to_str(self, v) -> str:
         return str(v)
@@ -255,9 +255,7 @@ class any_trait(Trait, data_type = XNone.__class__):  # -- any
         return value1 is value2
 
 class nucleus_trait(Trait, data_type = Nucleus, base_class = True):
-    @classmethod
-    def ui_hint(cls, label: str, flags: int = 0x0, **params) -> Ui:
-        return Ui.NONE
+    s_ui_hint = Ui.NONE
 
     def to_str(self, v) -> str:
         return self.data_type.to_str()
@@ -287,12 +285,14 @@ class nucleus_trait(Trait, data_type = Nucleus, base_class = True):
         return self.data_type.choose_from()
 
 class named_constant_trait(nucleus_trait, data_type = NamedConstant, base_class = True):
-    s_ui_partial = Ui.partial(Ui.choice, flags = Ui.SELECT_ONLY, align_h = 1)
+    s_ui_hint = Ui.choice(flags = Ui.SELECT_ONLY)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
 class flags_trait(nucleus_trait, data_type = EnumBits, base_class = True):
+    s_ui_hint = Ui.line()
+
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
