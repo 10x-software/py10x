@@ -135,6 +135,9 @@ py::object BTrait::wrapper_f_choices(BTraitable *obj) {
 }
 
 py::object BTrait::wrapper_f_style_sheet(BTraitable *obj)  {
+    if (!f_style_sheet)
+        return PyLinkage::empty_str();
+
     try {
         return f_style_sheet(obj);
     } catch (py::error_already_set& exc) {
