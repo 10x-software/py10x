@@ -20,7 +20,12 @@ class primitive_trait(Trait, register = False):
         return value1 == value2
 
     def from_str(self, s: str):
-        return ast.literal_eval(s)
+        try:
+            v = ast.literal_eval(s)
+            dt = self.data_type
+            return v if type(v) is dt else dt(v)
+        except Exception:
+            return XNone
 
     def from_any_xstr(self, value):
         return self.data_type(value)

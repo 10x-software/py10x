@@ -130,6 +130,6 @@ class UiHintModification(UiHint):
 
 
 UiHint.NONE = UiHint(widget_type = UiHint.WIDGET_TYPE.NONE)
-Ui = UiHint
-
+Ui          = UiHint
+UiMod       = UiHintModification
 

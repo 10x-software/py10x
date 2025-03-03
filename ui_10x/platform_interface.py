@@ -3,12 +3,18 @@ from datetime import date
 
 class Object(abc.ABC): ...
 
+QueuedConnection            = None
+AutoConnection              = None
+DirectConnection            = None
+UniqueConnection            = None
+BlockingQueuedConnection    = None
+
 class signal_decl(abc.ABC):
     @abc.abstractmethod
     def __init__(self, *args):  ...
 
     @abc.abstractmethod
-    def connect(self, bound_method, **kwargs):  ...
+    def connect(self, method, type = None):  ...
 
     @abc.abstractmethod
     def emit(self, *args):  ...

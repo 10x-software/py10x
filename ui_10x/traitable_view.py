@@ -1,7 +1,8 @@
 import inspect
 import copy
 
-from core_10x.trait import Ui, T
+from core_10x.trait import Trait, T
+from core_10x.ui_hint import Ui, UiMod
 from core_10x.traitable import Traitable
 from core_10x.global_cache import cache
 
@@ -20,28 +21,48 @@ class TraitableView:
 
         Such named_traits specify either traits to use (slice) or the ones to modify (modify)
     """
+    @classmethod
+    def _check(cls, hint_mod, trait_name: str) -> bool:
+        assert isinstance(hint_mod, UiMod), f'{trait_name} = {hint_mod} - UiMod is expected'
+        return True
 
-    @staticmethod
-    def slice(traitable_class, _header_data: dict = None, **named_ui_hints) -> 'TraitableView':
+    @classmethod
+    def suitable_record(cls, trait: Trait = None, trait_dir: dict = None, trait_name: str = None, _skip_reserved = True) -> Trait:
+        if not trait:
+            assert trait_dir and trait_name, 'trait is None, so both trait_dir and trait_name must be provided'
+            trait = trait_dir.get(trait_name)
+            if not trait:
+                return None
+
+        flags = T.HIDDEN | T.RESERVED if _skip_reserved else T.HIDDEN
+        return None if trait.flags_on(flags) or trait.getter_params else trait
+
+    @classmethod
+    def slice(cls, traitable_class, _header_data: dict = None, **named_ui_hint_changes) -> 'TraitableView':
         assert inspect.isclass(traitable_class) and issubclass(traitable_class, Traitable), f'{traitable_class} is not a Traitable'
 
         trait_dir = traitable_class.s_dir
-        ui_hints = { name: hint_modification.apply(trait.ui_hint) for name, hint_modification in named_ui_hints.items() if (trait := trait_dir.get(name))}
+        trait: Trait
+        ui_hints = {
+            name: hint_change.apply(trait.ui_hint) if cls._check(hint_change, trait.name) else None
+            for name, hint_change in named_ui_hint_changes.items() if (trait := cls.suitable_record(trait_dir = trait_dir, trait_name = name))
+        }
         return TraitableView(traitable_class, ui_hints, _header_data)
 
-    @staticmethod
-    def modify(traitable_class, _header_data: dict = None, _skip_reserved = True, **named_ui_hints) -> 'TraitableView':
+    @classmethod
+    def modify(cls, traitable_class, _header_data: dict = None, _skip_reserved = True, **named_ui_hint_changes) -> 'TraitableView':
         assert inspect.isclass(traitable_class) and issubclass(traitable_class, Traitable), f'{traitable_class} is not a Traitable'
 
-        if _skip_reserved:
-            ui_hints = {trait_name: trait.ui_hint for trait_name, trait in traitable_class.s_dir.items() if not trait.flags_on(T.RESERVED)}
-        else:
-            ui_hints = {trait_name: trait.ui_hint for trait_name, trait in traitable_class.s_dir.items()}
+        ui_hints = {
+            trait_name: trait.ui_hint
+            for trait_name, trait in traitable_class.s_dir.items() if TraitableView.suitable_record(trait = trait, _skip_reserved = _skip_reserved)
+        }
 
-        for name, hint_modification in named_ui_hints.items():
+        for name, hint_change in named_ui_hint_changes.items():
+            cls._check(hint_change, name)
             hint = ui_hints.get(name)
             if hint is not None:
-                ui_hints[name] = hint_modification.apply(hint)
+                ui_hints[name] = hint_change.apply(hint)
 
         return TraitableView(traitable_class, ui_hints, _header_data)
 

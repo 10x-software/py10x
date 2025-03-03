@@ -16,6 +16,12 @@ def missing_attr(self, item):
 
 Object = QObject
 
+QueuedConnection                = Qt.ConnectionType.QueuedConnection
+AutoConnection                  = Qt.ConnectionType.AutoConnection
+DirectConnection                = Qt.ConnectionType.DirectConnection
+UniqueConnection                = Qt.ConnectionType.UniqueConnection
+BlockingQueuedConnection        = Qt.ConnectionType.BlockingQueuedConnection
+
 signal_decl = pyqtSignal
 
 MouseEvent                      = QMouseEvent

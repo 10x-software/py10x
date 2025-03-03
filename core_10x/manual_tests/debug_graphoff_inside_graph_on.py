@@ -19,3 +19,9 @@ if __name__ == '__main__':
         test()
         with GRAPH_OFF():
             test()
+
+    p = Person(first_name = 'Sasha', last_name = 'Davidovich')
+    with GRAPH_ON(convert_values = True):
+        p.weight_lbs = 'a'
+
+

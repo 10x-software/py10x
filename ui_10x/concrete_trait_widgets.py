@@ -22,7 +22,8 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE
             if not str_value:   #-- user cleared the field, let's get the value back!
                 self.update_trait_value(invalidate = True)
             else:
-                self.update_trait_value(value = str_value, invalidate = False)
+                value = self.trait.from_str(str_value)
+                self.update_trait_value(value = value, invalidate = False)
 
     def mouse_press_event(self, event: ux.MouseEvent):
         if event.is_right_button():
@@ -109,8 +110,18 @@ class CheckBoxWidget(TraitWidget, ux.CheckBox, widget_type = Ui.WIDGET_TYPE.CHEC
         self.set_checked(bool(value))
 
 class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
-    #def _create(self):
-    ...
+    def _create(self):
+        ux.Widget.__init__(self)
+
+        lay = ux.HBoxLayout()
+        lay.set_spacing(0)
+        lay.set_contents_margins(0, 0, 0, 0)
+        self.set_layout(lay)
+
+        #-- Line edit
+        self.line_edit = le = ux.LineEdit()
+        if self.trait_editor.is_readonly():
+            le.set_readonly(True)
 
 class PixmapLabelWidget(TraitWidget, ux.Label, widget_type = Ui.WIDGET_TYPE.PIXMAP):
     def _create(self):
