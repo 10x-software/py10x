@@ -3,7 +3,7 @@
 from core_10x.trait import Trait, T, Ui
 from core_10x.rc import RC, RC_TRUE
 
-from ui_10x.utils import UxStyleSheet
+from ui_10x.utils import ux, UxStyleSheet
 
 class TraitWidget:
     s_hinted_widgets = {}
@@ -34,7 +34,7 @@ class TraitWidget:
 
         self._create()
 
-        if self.trait.flags_on(T.READONLY) or self.trait.ui_hint.flags_on(Ui.SELECT_ONLY):
+        if self.trait_editor.is_read_only():
             self.set_read_only()
 
         self.set_tool_tip(self.trait.ui_hint.tip)
@@ -44,28 +44,26 @@ class TraitWidget:
         UxStyleSheet.update(self, sh)
 
         #self.create_ui_node()  #-- TODO: implement!
-        self.set_widget_value(entity.get_value(self.trait))
-
-    def is_read_only(self) -> bool:
-        return self.trait.is_read_only() or self.trait_editor.is_read_only()
+        value = entity.get_value(self.trait)
+        self.set_widget_value(value)
 
     def widget_value(self):
-        return self.value()
+        return self._value()
 
     def set_widget_value(self, value) -> bool:
         self.program_edit = True
         try:
-            self.set_value(value)
+            self._set_value(value)
         except Exception:       #-- the real widget is gone (so far, has encountered this only in Qt on Mac OS)
             #self.clean()   #-- TODO: fix!
             return False
 
         sh = self.trait_editor.entity.get_style_sheet(self.trait)
-        UxStyleSheet.update(self.widget(), sh)
+        UxStyleSheet.update(self, sh)
         self.program_edit = False
         return True
 
-    s_bg_colors = ('orange', 'while', 'blue')
+    s_bg_colors = ('orange', 'white', 'blue')
     def update_trait_value(self, value = None, invalidate = False):
         if not self.program_edit:
             entity = self.trait_editor.entity
@@ -75,7 +73,11 @@ class TraitWidget:
             else:
                 if value is None:
                     value = self.widget_value()
-                rc = entity.set_value(self.trait, value)
+
+                try:
+                    rc = entity.set_value(self.trait, value)
+                except Exception as e:
+                    rc = RC(False, str(e))
 
             tip = rc.error() if not rc else self.trait.ui_hint.tip
             self.set_tool_tip(tip)
@@ -97,4 +99,10 @@ class TraitWidget:
     def _value(self):               raise NotImplementedError
     def _set_value(self, value):    raise NotImplementedError
 
+class UiNode(ux.Object):
+    REFRESH = ux.signal_decl(object, object)
+
+    def __init__(self, trait_widget: TraitWidget):
+        ux.Object.__init__(self)
+        self.REFRESH.connect(TraitWidget.refresh, type = ux.QueuedConnection)
 
