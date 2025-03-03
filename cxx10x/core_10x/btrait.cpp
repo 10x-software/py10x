@@ -127,6 +127,9 @@ py::object BTrait::wrapper_f_to_id(BTraitable* obj, const py::object& value) {
 }
 
 py::object BTrait::wrapper_f_choices(BTraitable *obj) {
+    if (!f_choices)
+        return PyLinkage::XNone();
+
     try {
         return f_choices(obj);
     } catch (py::error_already_set& exc) {
