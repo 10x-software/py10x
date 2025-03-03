@@ -80,7 +80,12 @@ py::object BTrait::wrapper_f_verify(BTraitable* obj, const py::object& value) {
 
 py::object BTrait::wrapper_f_from_str(BTraitable* obj, const py::object& value) {
     try {
-        return f_from_str(obj, this, value);
+        auto res = f_from_str(obj, this, value);
+        if (res.is(PyLinkage::XNone()))
+            throw py::type_error(py::str("{}.{} - failed to convert from '{}'")
+            .format(obj->class_name(), name(), value));
+
+        return res;
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_get, &value, nullptr);
     }
@@ -88,7 +93,11 @@ py::object BTrait::wrapper_f_from_str(BTraitable* obj, const py::object& value) 
 
 py::object BTrait::wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) {
     try {
-        return f_from_any_xstr(obj, this, value);
+        auto res = f_from_any_xstr(obj, this, value);
+        if (res.is(PyLinkage::XNone()))
+            throw py::type_error(py::str("{}.{} - failed to convert from '{}'")
+                                         .format(obj->class_name(), name(), value));
+        return res;
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_get, &value, nullptr);
     }
