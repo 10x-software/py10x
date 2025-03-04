@@ -94,7 +94,7 @@ class Trait(BTrait):
         dt = annotations.get(trait_name, XNone)
         trait_class = Trait.real_trait_class(dt)
         trait = trait_class(t_def)
-        trait.name = trait_name
+        trait.set_name(trait_name)
         trait.data_type = dt
         trait.flags = t_def.flags.value()
         trait.default = t_def.default

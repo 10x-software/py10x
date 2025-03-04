@@ -43,7 +43,16 @@ class TraitWidget:
         sh = entity.get_style_sheet(self.trait)
         UxStyleSheet.update(self, sh)
 
-        #self.create_ui_node()  #-- TODO: implement!
+        value = entity.get_value(self.trait)
+        self.set_widget_value(value)
+
+        self.refresh_context = ctx = RefreshContext(self)
+        entity.bui_class().create_ui_node(entity, self.trait, ctx.emit_signal)
+
+    def refresh(self):
+        entity = self.trait_editor.entity
+        entity.bui_class().update_ui_node(entity, self.trait)
+
         value = entity.get_value(self.trait)
         self.set_widget_value(value)
 
@@ -83,15 +92,6 @@ class TraitWidget:
             self.set_tool_tip(tip)
             self.set_style_sheet(f'background-color: {self.s_bg_colors[bool(rc)]}')
 
-    def refresh(self, ui_node):
-        editor = self.trait_editor
-        trait = self.trait
-        if not editor or not trait:     #-- the widget could be gone
-            return
-
-        value = editor.entity.get_value(trait) #-- no dep (yet) (?)
-        self.relink_nodes(ui_node)
-        self.set_widget_value(value)
 
     def ui_node_class(cls):         raise NotImplementedError
     def _create(self):              raise NotImplementedError
@@ -99,10 +99,13 @@ class TraitWidget:
     def _value(self):               raise NotImplementedError
     def _set_value(self, value):    raise NotImplementedError
 
-class UiNode(ux.Object):
-    REFRESH = ux.signal_decl(object, object)
+class RefreshContext(ux.Object):
+    REFRESH = ux.signal_decl(object)
 
     def __init__(self, trait_widget: TraitWidget):
-        ux.Object.__init__(self)
+        super().__init__()
+        self.trait_widget = trait_widget
         self.REFRESH.connect(TraitWidget.refresh, type = ux.QueuedConnection)
 
+    def emit_signal(self):
+        self.REFRESH.emit(self.trait_widget)
