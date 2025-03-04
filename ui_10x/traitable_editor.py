@@ -97,7 +97,7 @@ class TraitableEditor:
             with GRAPH_ON(debug = True, convert_values = True) as graph:
                 accepted = self._popup(layout, title, ok, min_width)
                 if accepted:
-                    graph.export_nodes()    #-- TODO: make it better!
+                    graph.export_nodes()
 
         else:
             accepted = self._popup(layout, title, ok, min_width)
