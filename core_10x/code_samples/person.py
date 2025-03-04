@@ -41,9 +41,8 @@ class Person(Traitable):
         return self.age > age
 
     #-- getter and setter for weight trait
-    def weight_get( self ) -> float:
+    def weight_get(self) -> float:
         return self.weight_lbs / self.weight_qu.value
 
-    def weight_set( self, trait: T, value ) -> RC:  # -- trait setter gets its trait and the value and must return RC
-        value = trait.from_any( value )
-        return self.set_value( self.trait('weight_lbs'), value * self.weight_qu.value) #TODO: set_values(**dict) to set multiple values at once
+    def weight_set(self, trait, value) -> RC:  #-- trait setter gets its trait and the value and must return RC
+        return self.set_values( weight_lbs = value * self.weight_qu.value)
