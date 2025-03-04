@@ -1,0 +1,41 @@
+from core_10x.traitable import Traitable, T, Ui
+
+COLORS = ('black', 'white', 'green', 'lightgreen', 'red', 'blue', 'grey')
+
+class StyleSheet(Traitable):
+    foreground: str     = T('black',        ui_hint = Ui(widget_type = Ui.WIDGET_TYPE.CHOICE))
+    background: str     = T('white',        ui_hint = Ui(widget_type = Ui.WIDGET_TYPE.CHOICE, flags = Ui.SEPARATOR))
+
+    font: str           = T('Helvetica',    ui_hint = Ui(widget_type = Ui.WIDGET_TYPE.CHOICE))
+    font_style: bool    = T(False,          ui_hint = Ui('italic', right_label = True))
+    font_weight: bool   = T(False,          ui_hint = Ui('bold', flags = Ui.SEPARATOR, right_label = True))
+
+    border_style: bool  = T(False)
+    border_color: str   = T('blue',         ui_hint = Ui(widget_type = Ui.WIDGET_TYPE.CHOICE))
+    border_width: int   = T(2,              ui_hint = Ui(flags = Ui.SEPARATOR))
+
+    show_me: str        = T('This is how it will look...',  ui_hint = Ui('WYSIWYG', min_width = 50))
+
+    def foreground_choices(self):   return COLORS
+    def background_choices(self):   return COLORS
+    def border_color_choices(self): return COLORS
+    def font_choices(self):         return ('Times New Roman', 'Helvetica', 'Courier New')
+
+    def show_me_style_sheet(self) -> str:
+        return f"""
+            color:              {self.foreground};
+            background-color:   {self.background};
+            font-family:        "{self.font}";
+            font-style:         {'italic'   if self.font_style    else 'normal'};
+            font-weight:        {'bold'     if self.font_weight   else 'normal'};
+            border-width:       {self.border_width}px;
+            border-style:       {'solid'    if self.border_style  else ''};
+            border-color:       {self.border_color};
+        """
+
+if __name__ == '__main__':
+    from ui_10x.traitable_editor import TraitableEditor
+
+    sheet = StyleSheet()
+    e = TraitableEditor(sheet)
+    e.popup()

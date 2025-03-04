@@ -13,7 +13,7 @@ class Choice:
     Q1: do we want to allow setting tags_selected with tags outside of all_choices? If so, what about updating all_choices
         and potentially saving such Choice instance?
     """
-    def __init__(self, choices = XNone, f_choices = None, **kwargs):
+    def __init__(self, choices = XNone, f_choices = None, f_selection_callback = None, **kwargs):
         self.choices: dict = XNone
         self.inverted_choices: dict = XNone
         self.f_choices = None
@@ -23,10 +23,12 @@ class Choice:
 
         self.values_selected = []
 
-        self.set(choices = choices, f_choices = f_choices, **kwargs)
+        self.set(choices = choices, f_choices = f_choices, f_selection_callback = f_selection_callback, **kwargs)
 
-    def set(self, choices = XNone, f_choices = None, **kwargs):
+    def set(self, choices = XNone, f_choices = None, f_selection_callback = None, **kwargs):
         assert choices or f_choices, f'Either choices or f_choices must be given'
+
+        self.f_selection_cb = f_selection_callback
 
         if (choices):
             self.f_choices = None
@@ -79,17 +81,29 @@ class Choice:
     def on_value_selected(self, dir: Directory, item_value, convert_value = False):
         self.values_selected = [item_value]
 
-    def popup(self, parent: ux.Widget = None):
-        d = UxDialog(
+    def _on_selection_in_dialog(self, d: UxDialog, current_selection_cb, item_value):
+        if current_selection_cb:
+            current_selection_cb(item_value)
+        d.done(1)
+        self.f_selection_cb = current_selection_cb
+
+    def popup(self, parent: ux.Widget = None, _open = True) -> UxDialog:
+        _d = UxDialog(
             self.widget(),
             parent = parent,
             title = 'Pick your choice',
             ok = '', cancel = '',
             #window_flags = Qt.FramelessWindowHint | Qt.Window | Qt.CustomizeWindowHint
         )
-        self.f_selection_cb = lambda item_value: d.done(1)
-        d.exec()
-        self.f_selection_cb = None
+
+        current_selection_cb = self.f_selection_cb
+        self.f_selection_cb = lambda item_value: self._on_selection_in_dialog(_d, current_selection_cb, item_value)
+
+        if _open:
+            _d.show()
+
+        return _d
+
 
 class MultiChoice(Choice):
     class SELECT_MODE(Enum):

@@ -61,6 +61,7 @@ Label.set_text                  = QLabel.setText
 Splitter                        = QSplitter
 
 Style                           = QStyle
+Style.__getattr__               = missing_attr
 
 PushButton                      = QPushButton
 PushButton.clicked_connect      = lambda self, bound_method:    self.clicked.connect(bound_method)

@@ -11,7 +11,7 @@ from core_10x_i import BTraitable, BTraitableClass
 
 from core_10x.nucleus import Nucleus
 from core_10x.xnone import XNone
-from core_10x.trait_definition import TraitDefinition, TraitModification, RT, M
+from core_10x.trait_definition import TraitDefinition, TraitModification, RT, M, Ui
 from core_10x.trait import Trait, TRAIT_METHOD, T, BoundTrait, trait_value
 import core_10x.concrete_traits as concrete_traits
 from core_10x.global_cache import cache
