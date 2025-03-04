@@ -44,6 +44,7 @@ public:
     uint64_t        m_flags = 0x0;
 
     py::object      m_name;
+    std::string     m_cpp_name;
 
     py::object      m_datatype;     // XNone, must be set to a py class from py
     py::object      m_default;      // XNone, may be set to a concrete instance of m_datatype from py
@@ -85,6 +86,13 @@ public:
     void create_proc();
 
     [[nodiscard]]BTraitProcessor* proc() const              { return m_proc; }
+
+    void set_name(const py::object& name) {
+        m_name = name;
+        m_cpp_name = name.cast<std::string>();
+    }
+
+    [[nodiscard]] const std::string& cpp_name() const       { return m_cpp_name; }
 
     [[nodiscard]] const py::object& name() const            { return m_name; }
     [[nodiscard]] const py::object& data_type() const       { return m_datatype; }

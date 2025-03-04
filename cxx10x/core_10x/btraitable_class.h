@@ -11,16 +11,23 @@ class BTrait;
 
 class TID;
 
+class BUiClass;
+
 class BTraitableClass {
+protected:
     py::object      m_py_class;
     py::str         m_name;
     py::dict        m_trait_dir;
+
+    BUiClass*       m_ui_class = nullptr;
 
     eval_once(BTraitableClass, bool, is_storable);
     eval_once(BTraitableClass, bool, is_id_endogenous);
 
     bool    is_storable_get();
     bool    is_id_endogenous_get();
+
+    BUiClass* bui_class();
 
 public:
 
@@ -29,6 +36,8 @@ public:
         m_name = py_cls.attr("__qualname__");
         m_trait_dir = m_py_class.attr("s_dir");
     }
+
+    //~BTraitableClass();
 
     const py::object& py_class() const {
         return m_py_class;

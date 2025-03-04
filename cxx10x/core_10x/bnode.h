@@ -47,6 +47,7 @@ public:
     void set_imported(const py::object& v)      { set(v); m_state |= STATE_IMPORTED; }
     void make_valid()                           { m_state |= STATE_VALID; }
     void make_invalid()                         { m_state &= ~STATE_VALID_AND_SET; }
+    void set_state(unsigned state)              { m_state = state; }
 
     virtual void set(const py::object& v )      { m_value = v; m_state = STATE_VALID_AND_SET; }
 
@@ -88,7 +89,7 @@ public:
                 p->invalidate();
     }
 
-    void invalidate() final {
+    void invalidate() override {
         if (is_valid()) {
             m_value = PyLinkage::XNone();
             m_state = 0x0;
@@ -169,77 +170,22 @@ public:
 
 };
 
-class BUiNode : public BasicNode {
-    py::object  m_trait_widget;
-    py::object  f_refresh_emit;     //-- lambda trait_widget, ui_node: py_ui_node.REFRESH.emit(trait_widget, ui_node)
-    BasicNode*  m_entity_node;
-    BasicNode*  m_trait_node;
-    BasicNode*  m_sheet_node;
+class BUiNode : public BasicGraphNode {
+    py::object  f_refresh_emit;
 
 public:
     BUiNode() {
-        m_trait_widget = py::none();
         f_refresh_emit = py::none();
-        m_entity_node   = nullptr;
-        m_trait_node    = nullptr;
-        m_sheet_node    = nullptr;
-    }
-
-    BUiNode(py::object trait_widget, py::object refresh_emit, BasicNode* entity_node, BasicNode* trait_node, BasicNode* sheet_node) : BasicNode() {
-        m_trait_widget = trait_widget;
-        f_refresh_emit = refresh_emit;
-        m_entity_node = entity_node;
-        m_trait_node = trait_node;
-        m_sheet_node = sheet_node;
-
-        m_state = STATE_VALID;
-
-        entity_node->add_parent(this);
-        trait_node->add_parent(this);
-        if (sheet_node)
-            sheet_node->add_parent(this);
     }
 
     [[nodiscard]] int node_type() const final { return NODE_TYPE::UI; }
 
-    void relink_nodes(BasicNode* entity_node, BasicNode* trait_node, BasicNode* sheet_node) {
-        if (m_entity_node != entity_node) {
-            m_entity_node->remove_parent(this);
-            entity_node->add_parent(this);
-            m_entity_node = entity_node;
-        }
-        if (m_trait_node != trait_node) {
-            m_trait_node->remove_parent(this);
-            trait_node->add_parent(this);
-            m_trait_node = trait_node;
-        }
-        if (sheet_node and sheet_node != m_sheet_node) {
-            if (m_sheet_node)
-                m_sheet_node->remove_parent(this);
-            sheet_node->add_parent(this);
-            m_sheet_node = sheet_node;
-        }
-    }
+    void set_refresh_emit(py::object f)     { f_refresh_emit = f; }
 
     void invalidate() final {
         if (is_valid()) {
             m_state = 0x0;
-            f_refresh_emit(m_trait_widget, this);
-        }
-    }
-
-    void unlink() final {
-        if (m_entity_node) {
-            m_entity_node->remove_parent(this);
-            m_entity_node = nullptr;
-        }
-        if (m_trait_node) {
-            m_trait_node->remove_parent(this);
-            m_trait_node = nullptr;
-        }
-        if (m_sheet_node) {
-            m_sheet_node->remove_parent(this);
-            m_sheet_node = nullptr;
+            f_refresh_emit();
         }
     }
 };

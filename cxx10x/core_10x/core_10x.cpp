@@ -12,8 +12,8 @@ namespace py = pybind11;
 #include "tid.h"
 #include "bnode.h"
 #include "bcache.h"
-#include "simple_cache_layer.h"
 #include "btraitable_class.h"
+#include "btraitable_ui_extension.h"
 #include "btraitable.h"
 #include "bprocess_context.h"
 
@@ -77,6 +77,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_readonly("f_to_id",            &BTrait::f_to_id)
             //.def_readonly("f_acceptable_type", &BTrait::f_is_acceptable_type)
 
+            .def("set_name",                    &BTrait::set_name)
             .def("flags_on",                    py::overload_cast<uint64_t>(&BTrait::flags_on, py::const_))
             .def("flags_on",                    py::overload_cast<const BFlags&>(&BTrait::flags_on, py::const_))
 
@@ -125,11 +126,6 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("add_parent",                  &BasicNode::add_parent)
             .def("children",                    &BasicNode::children)
             .def("parents",                     &BasicNode::parents)
-            ;
-
-    py::class_<BUiNode, BasicNode>(m, "BUiNode")
-            .def(py::init<py::object, py::object, BasicNode*, BasicNode*, BasicNode*>())
-            .def("relink_nodes",                &BUiNode::relink_nodes)
             ;
 
     py::class_<ObjectCache>(m, "ObjectCache")
@@ -185,6 +181,8 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("set_value",                   py::overload_cast<const py::str&, const py::object&, const py::args&>(&BTraitable::set_value))
             .def("set_value",                   py::overload_cast<BTrait*, const py::object&>(&BTraitable::set_value))
             .def("set_value",                   py::overload_cast<BTrait*, const py::object&, const py::args&>(&BTraitable::set_value))
+            .def("is_valid",                    py::overload_cast<const py::str&>(&BTraitable::is_valid))
+            .def("is_valid",                    py::overload_cast<BTrait*>(&BTraitable::is_valid))
             .def("invalidate_value",            py::overload_cast<const py::str&>(&BTraitable::invalidate_value))
             .def("invalidate_value",            py::overload_cast<const py::str&, const py::args&>(&BTraitable::invalidate_value))
             .def("invalidate_value",            py::overload_cast<BTrait*>(&BTraitable::invalidate_value))
@@ -196,6 +194,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("_set_values",                 &BTraitable::set_values)
             .def("serialize",                   &BTraitable::serialize)
             .def("reload",                      &BTraitable::reload)
+            .def("bui_class",                   &BTraitable::bui_class, py::return_value_policy::reference)
             ;
 
     py::class_<BTraitableProcessor>(m, "BTraitableProcessor")
@@ -205,13 +204,14 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_readonly_static("ON_GRAPH",    &BTraitableProcessor::ON_GRAPH)
             .def_static("create",               py::overload_cast<unsigned>(&BTraitableProcessor::create))
             .def_static("create",               py::overload_cast<int, int, int>(&BTraitableProcessor::create))
-            .def_static("current",              &BTraitableProcessor::current,  py::return_value_policy::reference)
+            .def_static("current",              &BTraitableProcessor::current, py::return_value_policy::reference)
             .def("cache",                       &BTraitableProcessor::cache)
             .def("begin_using",                 &BTraitableProcessor::begin_using)
             .def("end_using",                   &BTraitableProcessor::end_using)
             .def("__enter__",                   &BTraitableProcessor::py_enter)
             .def("__exit__",                    &BTraitableProcessor::py_exit)
             .def("flags",                       &BTraitableProcessor::flags)
+            .def("export_nodes",                &BTraitableProcessor::export_nodes)
             ;
 
     py::class_<BFlags>(m, "BFlags")
@@ -234,4 +234,8 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_static("check",                &BFlags::check)
             ;
 
+    py::class_<BUiClass>(m, "BUiClass")
+            .def("create_ui_node",              &BUiClass::create_ui_node)
+            .def("update_ui_node",              &BUiClass::update_ui_node)
+            ;
 }

@@ -10,6 +10,18 @@
 #include "thread_context.h"
 #include "btraitable.h"
 #include "bprocess_context.h"
+#include "btraitable_ui_extension.h"
+
+
+//BTraitableClass::~BTraitableClass() {
+//    delete m_ui_class;
+//}
+
+BUiClass* BTraitableClass::bui_class() {
+    if (!m_ui_class)
+        m_ui_class = new BUiClass(this);
+    return m_ui_class;
+}
 
 bool BTraitableClass::is_storable_get() {
     for (auto item : trait_dir()) {
@@ -94,3 +106,4 @@ py::object BTraitableClass::load(const py::object& id, bool reload) {
 py::object BTraitableClass::load_data(const py::object& id) const {
     return m_py_class.attr("load_data")(id);
 }
+

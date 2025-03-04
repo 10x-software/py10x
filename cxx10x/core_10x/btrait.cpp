@@ -11,11 +11,11 @@
 #include "brc.h"
 
 BTrait::BTrait() {
-    m_datatype = PyLinkage::XNone();
-    m_default = PyLinkage::XNone();
+    m_datatype  = PyLinkage::XNone();
+    m_default   = PyLinkage::XNone();
 
-    f_get        = py::none();
-    f_set        = py::none();
+    f_get           = py::none();
+    f_set           = py::none();
     f_verify        = py::none();
     f_from_str      = py::none();
     f_from_any_xstr = py::none();

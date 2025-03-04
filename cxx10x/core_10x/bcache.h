@@ -275,5 +275,6 @@ public:
         node->invalidate();
     }
 
+    virtual void export_nodes() {}
 };
 

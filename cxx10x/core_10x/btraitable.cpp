@@ -6,6 +6,7 @@
 #include "py_hasher.h"
 #include "id_builder.h"
 #include "bprocess_context.h"
+#include "btraitable_ui_extension.h"
 
 #include "brc.h"
 
@@ -191,3 +192,4 @@ void BTraitable::reload() {
         deserialize(serialized_data);
     }
 }
+

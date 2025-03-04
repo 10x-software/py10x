@@ -38,6 +38,10 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
     return proc;
 }
 
+void BTraitableProcessor::export_nodes() {
+    m_cache->export_nodes();
+}
+
 void BTraitableProcessor::begin_using() {
     auto cache = own_cache();
     if (cache)
@@ -53,6 +57,11 @@ void BTraitableProcessor::end_using() {
 
     if (own_cache())
         ThreadContext::cache_pop();
+}
+
+bool BTraitableProcessor::is_valid(BTraitable* obj, BTrait* trait) const {
+    auto node = cache()->find_node(obj->tid(), trait);
+    return node != nullptr && node->is_valid();
 }
 
 //---- Setting a value

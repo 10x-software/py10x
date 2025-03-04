@@ -18,7 +18,7 @@ public:
     BasicNode*      find_or_create_node(const TID& tid, BTrait* trait, int node_type) override;
     BasicNode*      find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, int node_type) override;
 
-    void            export_nodes();
+    void            export_nodes() override;
 
 };
 

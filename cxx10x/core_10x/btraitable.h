@@ -30,6 +30,8 @@ public:
     void set_id(const py::object& id);
     void initialize(const py::kwargs& trait_values);
 
+    [[nodiscard]] BTraitableClass*      my_class() const    { return m_class; }
+    [[nodiscard]] BUiClass*             bui_class() const   { return m_class->bui_class(); }
     [[nodiscard]] const py::object&     class_name() const  { return m_class->name(); }
     [[nodiscard]] ObjectCache*          id_cache() const    { return m_id_cache; }
     [[nodiscard]] const TID&            tid() const         { return m_tid; }
@@ -49,6 +51,18 @@ public:
             throw py::type_error(py::str("Unknown trait {}.{}").format(class_name(), trait_name));
 
         return trait;
+    }
+
+    bool is_valid(const py::str& trait_name) {
+        return is_valid(check_trait(trait_name));
+    }
+
+    bool is_valid(BTrait* trait) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
+        auto proc = ThreadContext::current_traitable_proc_bound();
+        return proc->is_valid(this, trait);
     }
 
     void invalidate_value(const py::str& trait_name) {

@@ -100,7 +100,10 @@ public:
     virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait) = 0;
     virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;
 
-    //virtual py::object      get_trait_value_if_valid(BTraitable* obj, BTrait* trait) = 0;
+    bool                    is_valid(BTraitable* obj, BTrait* trait) const;
+
+    void                    export_nodes();
+
     virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait) = 0;
     virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;
 

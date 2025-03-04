@@ -39,6 +39,7 @@ pybind11_add_module(core_10x_i
         thread_context.cpp
         tid.cpp
         bprocess_context.cpp
+        btraitable_ui_extension.cpp
 )
 
 target_include_directories(core_10x_i PRIVATE ${stduuid_SOURCE_DIR}/include)
