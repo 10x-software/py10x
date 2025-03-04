@@ -1,7 +1,8 @@
 from core_10x.trait import Trait, T, Ui
 from core_10x.concrete_traits import list_trait
 
-from ui_10x.utils import ux, UxClipBoard
+from ui_10x.utils import ux, UxClipBoard, ux_push_button
+from ui_10x.choice import Choice
 from ui_10x.trait_widget import TraitWidget
 
 class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE):
@@ -120,8 +121,60 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
 
         #-- Line edit
         self.line_edit = le = ux.LineEdit()
-        if self.trait_editor.is_readonly():
+        if self.trait_editor.is_read_only():
             le.set_readonly(True)
+
+        le.editing_finished_connect(self.on_editing_finished)
+        lay.add_widget(le)
+
+        #-- Arrow down button
+        self.button = ux_push_button('', callback = self.show_popup, style_icon = 'ArrowDown')
+        lay.add_widget(self.button)
+
+        entity = self.trait_editor.entity
+        trait = self.trait
+        self.choice = Choice(f_choices = lambda: entity.get_choices(trait), f_selection_callback = lambda item: self.on_selection(item))
+
+    def _value(self):
+        selection = self.choice.values_selected
+        return selection[0] if selection else None
+
+    def _set_value(self, value):
+        if not self.choice.directory:
+            value = self.choice.inverted_choices.get(value)
+
+        if not value:
+            value = ''
+        self.line_edit.set_text(value)
+
+    def _set_read_only(self, flag):
+        self.line_edit.set_read_only(flag)
+        self.button.set_enabled(not flag)
+
+    # def on_current_index_changed(self, index):
+    #     self.update_trait_value()
+
+    def show_popup(self):
+        self.popup = d = self.choice.popup(parent = self, _open = False)
+        w = self.width()
+        h = self.height()
+        xy = self.map_to_global(ux.Point(0, 0))
+
+        d.set_modal(True)
+        d.show()
+        d.set_geometry(xy.x(), xy.y(), max(w, d.width()), h)
+
+    def on_selection(self, item):
+        self.line_edit.set_text(item)
+        self.update_trait_value(value = self.choice.values_selected[0], invalidate = False)
+
+    def on_editing_finished(self):
+        str_value = self.line_edit.text()
+        if not str_value:
+            self.update_trait_value(invalidate = True)
+        else:
+            value = self.choice.choices.get(str_value, str_value)
+            self.update_trait_value(value = value, invalidate = False)
 
 class PixmapLabelWidget(TraitWidget, ux.Label, widget_type = Ui.WIDGET_TYPE.PIXMAP):
     def _create(self):

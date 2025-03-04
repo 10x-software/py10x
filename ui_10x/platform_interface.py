@@ -289,6 +289,14 @@ class Dialog(Widget):
     @abc.abstractmethod
     def done(self, rc: int):    ...
 
+    @abc.abstractmethod
+    def set_modal(self, modal: bool):   ...
+
+    @abc.abstractmethod
+    def exec(self): ...
+
+    @abc.abstractmethod
+    def show(self): ...
 
 class MessageBox(abc.ABC):
     @classmethod
