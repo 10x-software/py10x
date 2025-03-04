@@ -135,6 +135,18 @@ class T(BTraitFlags):
     def __new__(cls, *args, **kwargs) -> TraitDefinition:
         return TraitDefinition(*args, **kwargs)
 
+    @staticmethod
+    def fg_color(color: str) -> str:
+        return f'color: {color}' if color else ''
+
+    @staticmethod
+    def bg_color(color: str) -> str:
+        return f'background-color: {color}' if color else ''
+
+    @staticmethod
+    def colors(bg_color: str, fg_color: str) -> str:
+        return f'background-color: {bg_color}; color: {fg_color}' if bg_color and fg_color else ''
+
 def RT(*args, **kwargs) -> TraitDefinition:
     trait_def = TraitDefinition(*args, **kwargs)
     trait_def.flags.set(T.RUNTIME.value())

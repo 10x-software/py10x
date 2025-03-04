@@ -9,19 +9,24 @@ class WEIGHT_QU( NamedConstant ):
     CT =    ( 'ct',     0.0004409 )
 
 class Person(Traitable):
-    first_name: str     = T(T.ID)
-    last_name: str      = T(T.ID)
+    first_name: str         = T(T.ID)
+    last_name: str          = T(T.ID)
 
-    age: int            = T(1)
-    full_name: str      = T(T.EXPENSIVE)
-    weight_lbs: float   = T()
-    weight: float       = T()
-    weight_qu: WEIGHT_QU = T(default=WEIGHT_QU.LB)
+    age: int                = T(1)
+    full_name: str          = T(T.EXPENSIVE)
+    weight_lbs: float       = T()
+    weight: float           = T()
+    weight_qu: WEIGHT_QU    = T(default = WEIGHT_QU.LB)
 
-    older_than: bool    = RT()
+    older_than: bool        = RT()
+
 
     def full_name_get(self) -> str:
         return f'{self.first_name} {self.last_name}'
+
+    def full_name_style_sheet(self):
+        age = self.age
+        return T.fg_color('red' if age < 20 or age > 70 else 'green')
 
     def full_name_set(self, trait, value: str) -> RC:
         parts = value.split(' ')
