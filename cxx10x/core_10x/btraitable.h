@@ -120,7 +120,7 @@ public:
 
     py::object get_style_sheet(BTrait* trait) {
         if (trait->custom_f_style_sheet().is_none())
-            return PyLinkage::empty_str();
+            return PyLinkage::XNone();
 
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->get_style_sheet(this, trait);
