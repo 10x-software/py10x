@@ -23,8 +23,8 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE
             if not str_value:   #-- user cleared the field, let's get the value back!
                 self.update_trait_value(invalidate = True)
             else:
-                value = self.trait.from_str(str_value)
-                self.update_trait_value(value = value, invalidate = False)
+                ##value = self.trait.from_str(str_value)
+                self.update_trait_value(value = str_value, invalidate = False)
 
     def mouse_press_event(self, event: ux.MouseEvent):
         if event.is_right_button():
