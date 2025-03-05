@@ -286,7 +286,7 @@ class nucleus_trait(Trait, data_type = Nucleus, base_class = True):
     def deserialize(self, serialized_value) -> Nucleus:
         return self.data_type.deserialize(serialized_value)
 
-    def choose_from(self):
+    def choices(self):
         return self.data_type.choose_from()
 
 class named_constant_trait(nucleus_trait, data_type = NamedConstant, base_class = True):

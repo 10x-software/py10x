@@ -69,14 +69,12 @@ class Choice:
             **self.kwargs
         )
 
-    def on_item_selected(self, dir: Directory, item_value, convert_choice: bool):
-        if convert_choice:
-            item_value = self.choices.get(item_value)
-
+    def on_item_selected(self, dir: Directory, item, convert_choice: bool):
+        item_value = self.choices.get(item) if convert_choice else item
         if item_value is not None:
             self.on_value_selected(dir, item_value, convert_value = convert_choice)
             if self.f_selection_cb:
-                self.f_selection_cb(item_value)
+                self.f_selection_cb(item)
 
     def on_value_selected(self, dir: Directory, item_value, convert_value = False):
         self.values_selected = [item_value]

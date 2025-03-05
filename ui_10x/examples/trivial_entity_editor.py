@@ -8,11 +8,10 @@ if __name__ == '__main__':
 
 
     p = Person(first_name = 'Sasha', last_name = 'Davidovich')
-    view = TraitableView.modify(
-        Person,
-        weight_qu   = UiMod(flags = Ui.HIDDEN),
+    view = TraitableView.modify(Person,
+        #weight_qu   = UiMod(flags = Ui.HIDDEN),
     )
-    e = TraitableEditor(p, view = view)
+    e = TraitableEditor.editor(p, view = view)
     rc = e.popup()
 
     # from core_10x.exec_control import GRAPH_ON

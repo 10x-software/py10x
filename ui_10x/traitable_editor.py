@@ -1,3 +1,5 @@
+from core_10x.global_cache import cache
+from core_10x.py_class import PyClass
 from core_10x.trait import Trait, Ui
 from core_10x.traitable import Traitable
 from core_10x.exec_control import GRAPH_ON
@@ -7,7 +9,50 @@ from ui_10x.traitable_view import TraitableView
 from ui_10x.trait_editor import TraitEditor, TraitWidget
 
 class TraitableEditor:
-    def __init__(self, entity: Traitable, view: TraitableView = None, read_only = False):
+    """
+    For many Traitables, a default Editor is sufficient.
+    A custom Editor, if needed, should be in a particular class, module and package.
+    Suppose your traitable class is abc.zyz.messages.TextMessage
+    - the custom editor class must be TextMessageEditor
+    - its module name must be messages_ui
+    - the module may be in either abc.xyz, abc.xyz.ui or alternative packages
+    - an editor class is searched first in alternative packages, if any; then in abc.xyz and abc.xyz.ui
+    - if a custom class is not found, the default TraitableEditor is used.
+    """
+    @staticmethod
+    @cache
+    def find_editor_class(traitable_class, *alternative_packages, traitable_class_parent = None, verify_custom_class = True):
+        assert issubclass(traitable_class, Traitable), f'{traitable_class} is not a subclass of Traitable'
+        assert not traitable_class_parent or issubclass(traitable_class, traitable_class_parent), f'{traitable_class} is not a subclass of {traitable_class_parent}'
+
+        found = PyClass.find_related_class(traitable_class, 'ui', 'Editor', *alternative_packages, alternative_parent_class = traitable_class_parent)
+        if found:
+            if verify_custom_class:
+                assert issubclass(found, TraitableEditor), f'{traitable_class} has a custom editor class {found} which is not a subclass of TraitableEditor'
+
+            return found
+
+        return TraitableEditor
+
+    @staticmethod
+    def editor(
+        entity: Traitable,
+        *alternative_packages,                  #-- if custom editor class should be looked up somewhere else
+        traitable_class_parent      = None,     #-- if a custom editor of entity's parent class could be used if it's missing for the entity.__class__
+        verify_custom_class: bool   = True,     #-- if a custom editor class should be verified if exists
+        view: TraitableView         = None,     #-- if a specific view for the entity should be used
+        read_only: bool             = False     #-- browser if True
+    ) -> 'TraitableEditor':
+        editor_class = TraitableEditor.find_editor_class(
+            entity.__class__,
+            *alternative_packages,
+            traitable_class_parent  = traitable_class_parent,
+            verify_custom_class     = verify_custom_class
+        )
+        return editor_class(entity, view = view, read_only = read_only, _confirm = True)
+
+    def __init__(self, entity: Traitable, view: TraitableView = None, read_only = False, _confirm = False):
+        assert _confirm, f'Do not call TraitableEditor() directly, use TraitableEditor.editor() instead'
         assert isinstance(entity, Traitable), f'entity must be an instance of Traitable'
 
         entity_class = entity.__class__
