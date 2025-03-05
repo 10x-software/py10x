@@ -114,9 +114,6 @@ public:
     }
 
     py::object get_choices(BTrait* trait) {
-        if (trait->custom_f_choices().is_none())
-            return PyLinkage::XNone();
-
         auto proc = ThreadContext::current_traitable_proc_bound();
         return proc->get_choices(this, trait);
     }
