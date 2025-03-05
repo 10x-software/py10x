@@ -1,9 +1,8 @@
-#import abc
-
 from core_10x.trait import Trait, T, Ui
 from core_10x.rc import RC, RC_TRUE
 
 from ui_10x.utils import ux, UxStyleSheet
+
 
 class TraitWidget:
     s_hinted_widgets = {}
@@ -19,7 +18,6 @@ class TraitWidget:
 
     @staticmethod
     def instance(trait_editor) -> 'TraitWidget':
-        trait = trait_editor.trait
         w_type = trait_editor.ui_hint.widget_type
         if w_type is Ui.WIDGET_TYPE.NONE:
             return None
@@ -40,8 +38,10 @@ class TraitWidget:
         self.set_tool_tip(self.trait.ui_hint.tip)
 
         entity = self.trait_editor.entity
+
+        self.style_sheet = sheet = UxStyleSheet(self)
         sh = entity.get_style_sheet(self.trait)
-        UxStyleSheet.update(self, sh)
+        sheet.update(sh)
 
         value = entity.get_value(self.trait)
         self.set_widget_value(value)
@@ -51,10 +51,18 @@ class TraitWidget:
 
     def refresh(self):
         entity = self.trait_editor.entity
+        trait = self.trait
         entity.bui_class().update_ui_node(entity, self.trait)
 
-        value = entity.get_value(self.trait)
-        self.set_widget_value(value)
+        if not trait.flags_on(T.EXPENSIVE):
+            value = entity.get_value(trait)
+            self.set_widget_value(value)
+        else:
+            sh = entity.get_style_sheet(trait)
+            self.style_sheet.update(sh)
+
+            if not entity.is_valid(trait):
+                self.style_sheet.update({Ui.BG_COLOR: 'lightblue'}, _system = True)
 
     def widget_value(self):
         return self._value()
@@ -65,14 +73,14 @@ class TraitWidget:
             self._set_value(value)
         except Exception:       #-- the real widget is gone (so far, has encountered this only in Qt on Mac OS)
             #self.clean()   #-- TODO: fix!
+            self.program_edit = False
             return False
 
         sh = self.trait_editor.entity.get_style_sheet(self.trait)
-        UxStyleSheet.update(self, sh)
+        self.style_sheet.update(sh)
         self.program_edit = False
         return True
 
-    s_bg_colors = ('orange', 'white', 'blue')
     def update_trait_value(self, value = None, invalidate = False):
         if not self.program_edit:
             entity = self.trait_editor.entity
@@ -88,12 +96,13 @@ class TraitWidget:
                 except Exception as e:
                     rc = RC(False, str(e))
 
-            tip = rc.error() if not rc else self.trait.ui_hint.tip
-            self.set_tool_tip(tip)
-            self.set_style_sheet(f'background-color: {self.s_bg_colors[bool(rc)]}')
+            if not rc:
+                self.set_tool_tip(rc.error())
+                self.style_sheet.update({Ui.BG_COLOR: 'orange'}, _system = True)
+            else:
+                self.set_tool_tip(self.trait.ui_hint.tip)
+                self.style_sheet.restore()
 
-
-    def ui_node_class(cls):         raise NotImplementedError
     def _create(self):              raise NotImplementedError
     def _set_read_only(self, flag): raise NotImplementedError
     def _value(self):               raise NotImplementedError

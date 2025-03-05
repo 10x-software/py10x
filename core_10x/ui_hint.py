@@ -6,10 +6,22 @@ from core_10x_i import BTraitFlags as T
 from core_10x.named_constant import Enum
 
 class UiHint:
+    #-- Flags
     HIDDEN      = 0x1
     READ_ONLY   = 0x2
     SELECT_ONLY = 0x4
     SEPARATOR   = 0x8
+
+    #-- Stylesheet Attributes
+    FG_COLOR        = 'color'
+    BG_COLOR        = 'background-color'
+    FONT            = 'font-family'
+    FONT_STYLE      = 'font-style'
+    FONT_WEIGHT     = 'font-weight'
+    BORDER_WEIGHT   = 'border-weight'
+    BORDER_WIDTH    = 'border-width'
+    BORDER_COLOR    = 'border-color'
+    BORDER_STYLE    = 'border-style'
 
     class WIDGET_TYPE(Enum):
         NONE        = ()

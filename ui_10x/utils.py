@@ -1,5 +1,6 @@
 from datetime import date
 import inspect
+from collections import deque
 
 from ui_10x.platform import ux
 
@@ -235,6 +236,42 @@ def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, def
     return cal.selected_date() if rc else default
 
 class UxStyleSheet:
+    def __init__(self, widget):
+        self.widget = widget
+        sh = widget.style_sheet()
+        self.data = self.loads(sh)
+        self.replacement_stack = deque()
+
+    def set(self):
+        self.widget.set_style_sheet(self.dumps(self.data))
+
+    def update(self, named_sheet_attrs: dict, _system = False):
+        if not named_sheet_attrs:
+            return
+
+        data = self.data
+        if not any(value != data.get(name) for name, value in named_sheet_attrs.items()):   #-- no attribute values changed, nothing to do!
+            return
+
+        if _system:
+            old_data = { name: data.get(name) for name in named_sheet_attrs.keys() }
+            self.replacement_stack.append(old_data)
+
+        data.update(named_sheet_attrs)
+        self.set()
+
+    def restore(self):
+        if self.replacement_stack:
+            old_data = self.replacement_stack.pop()
+            data = self.data
+            for name, value in old_data.items():
+                if value is None:
+                    data.pop(name, None)
+                else:
+                    data[name] = value
+
+            self.set()
+
     @classmethod
     def dumps(cls, data: dict) -> str:
         return '\n'.join(f'{name}: {value};' for name, value in data.items())
@@ -255,40 +292,15 @@ class UxStyleSheet:
         return res
 
     @classmethod
-    def slice(cls, w: ux.Widget, *attr_names) -> list:
-        data = cls.loads(w.style_sheet())
-        return [ data.get(name) for name in attr_names ]
+    def modify(cls, widget, named_sheet_attrs: dict):
+        if not named_sheet_attrs:
+            return
 
-    @classmethod
-    def update(cls, w: ux.Widget, sheet_update: str, replace = False):
-        if not replace:
-            sh = w.style_sheet()
-            data = cls.loads(sh)
-            update_data = cls.loads(sheet_update)
-            data.update(update_data)
-            new_sh = cls.dumps(data)
-        else:
-            new_sh = sheet_update
+        sh = widget.style_sheet()
+        data = cls.loads(sh)
+        data.update(named_sheet_attrs)
+        widget.set_style_sheet(cls.dumps(data))
 
-        w.set_style_sheet(new_sh)
-
-    @classmethod
-    def _color(cls, style_sheet: str, attr_name: str):
-        data = cls.loads(style_sheet)
-        str_color = data.get(attr_name)
-        return ux.Color(str_color) if str_color else None
-
-    @classmethod
-    def fg_color(cls, style_sheet: str) -> ux.Color:
-        return cls._color(style_sheet, 'color')
-
-    @classmethod
-    def bg_color(cls, style_sheet: str) -> ux.Color:
-        return cls._color(style_sheet, 'background-color')
-
-    @classmethod
-    def color(cls, style_sheet: str, background = False) -> ux.Color:
-        return cls.bg_color(style_sheet) if background else cls.fg_color(style_sheet)
 
 s_verticalAlignmentMap = {
     -1:     ux.TEXT_ALIGN.TOP,
