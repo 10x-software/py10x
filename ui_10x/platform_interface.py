@@ -125,6 +125,8 @@ class Label(Widget):
     def set_text(self, text: str):  ...
 
 class Style(abc.ABC):
+    State_Active = None
+
     @abc.abstractmethod
     def standard_icon(self, style_icon):    ...
 
@@ -346,6 +348,68 @@ class ScrollArea(Widget):
 
     @abc.abstractmethod
     def set_vertical_scrollbar_policy(self, h):   ...
+
+class StandardItem(abc.ABC):
+    @abc.abstractmethod
+    def __init__(self, *args):  ...
+
+    @abc.abstractmethod
+    def append_column(self, column: tuple):    ...
+
+class StandardItemModel(abc.ABC):
+    @abc.abstractmethod
+    def set_item(self, row: int, col: int, item: StandardItem): ...
+
+    @abc.abstractmethod
+    def column_count(self, *args) -> int:  ...
+
+    @abc.abstractmethod
+    def index(self, row: int, col: int):    ...
+
+class ModelIndex(abc.ABC):
+    @abc.abstractmethod
+    def is_valid(self) -> bool: ...
+
+    @abc.abstractmethod
+    def child(self, row: int, col: int):    ...
+
+    @abc.abstractmethod
+    def parent(self):   ...
+
+    @abc.abstractmethod
+    def model(self) -> StandardItemModel:   ...
+
+    @abc.abstractmethod
+    def data(self, role): ...
+
+class AbstractTableModel(abc.ABC):
+    ...
+
+class HeaderView(abc.ABC):
+    @abc.abstractmethod
+    def set_model(self, model): ...
+
+    @abc.abstractmethod
+    def section_resized_connect(self, bound_method):    ...
+
+    @abc.abstractmethod
+    def init_style_option(self, *args): ...
+
+class Palette(abc.ABC):
+    ButtonText  = None
+    Button      = None
+    Window      = None
+
+    @abc.abstractmethod
+    def set_brush(self, br_type, brush):    ...
+
+
+class StyleOptionHeader(abc.ABC):
+    palette: Palette
+
+
+ForegroundRole  = None
+BackgroundRole  = None
 
 def init(style = '') -> Application:           raise NotImplementedError
 def to_clipboard(text: str, **kwargs):         raise NotImplementedError

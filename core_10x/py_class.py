@@ -63,40 +63,57 @@ class PyClass:
         return cls if subclass else None
 
     @staticmethod
+    def find_by_topic_and_suffix(topic: str, suffix: str, package_name: str, module_name: str, class_name: str):
+        module_name_with_topic = f'{module_name}_{topic}'
+        class_name_with_suffix = f'{class_name}{suffix}'
+        found = PyClass.find(f'{package_name}.{module_name_with_topic}.{class_name_with_suffix}')
+        if not found:
+            found = PyClass.find(f'{package_name}.{topic}.{module_name_with_topic}.{class_name_with_suffix}')
+
+        return found
+
+    @staticmethod
     @cache
-    def find_related_class(cls: type, topic: str, class_name_suffix: str, *alternative_packages ) -> type:
+    def find_related_class(cls: type, topic: str, class_name_suffix: str, *alternative_packages, alternative_parent_class: type = None) -> type:
         """
-        Tries to find a class whose name is cls.__name__ + class_name_suffix "related" to cls by a topic (e.g., ui10x).
+        Tries to find a class whose name is cls.__name__ + class_name_suffix "related" to cls by a topic (e.g., 'ui').
         By convention the module name must be the cls' module short name + _ + topic.
-        First, tries the cls-module-package, then the cls-module-package.topic, and lastly, the alternative packages, if any.
+        First, tries the alternative_packages, if any, then cls-module-package, then the cls-module-package.topic.
+        If fails, to find, tries the same logic for alternative_parent_class (cls must be a subclass of it), if any.
 
         For example:
 
         Consider class TextMessage in module abc.infra.messenger. Its custom editor class, will be looked up as follows:
-            PyClass.find_related_class(TextMessage, 'ui10x', 'Editor', *extra_packages)
+            PyClass.find_related_class(TextMessage, 'ui', 'Editor', *extra_packages)
                 - editor class name:            TextMessageEditor
                 - editor short module name:     messenger_ui
                 - search for TextMessageEditor in the following order:
-                    -- the module abc.infra.messenger_ui
-                    -- the module abc.infra.ui10x.messenger_ui
                     -- [ ex_package.messenger_ui for ex_package in extra_packages ]
+                    -- the module abc.infra.messenger_ui
+                    -- the module abc.infra.ui.messenger_ui
         """
         parts = cls.__module__.rsplit('.', maxsplit = 1)
         assert len(parts) >= 2, f"{cls} - package is missing"
 
-        the_package         = parts[0]
-        short_module_name   = f'{parts[-1]}_{topic}'
-        cname               = f'{cls.__name__}{class_name_suffix}'
+        module_name = f'{parts[-1]}'
+        class_name  = cls.__name__
 
-        #-- check if we have this module in the same package
-        found = PyClass.find(f'{the_package}.{short_module_name}.{cname}')
-        if not found:   #-- then check if it's in the subpackage pkg.topic
-            found = PyClass.find(f'{the_package}.{topic}.{short_module_name}.{cname}')
-            if not found:   #-- last resort - look it up in alternative_packages
-                for package in alternative_packages:
-                    found = PyClass.find(f'{package}.{short_module_name}.{cname}')
-                    if found:
-                        break
+        #-- 1) look it up in alternative_packages
+        for alt_package in alternative_packages:
+            found = PyClass.find_by_topic_and_suffix(topic, class_name_suffix, alt_package, module_name, class_name)
+            if found:
+                return found
+
+        #-- 2) look it up in the cls' package
+        package_name = parts[0]
+        found = PyClass.find_by_topic_and_suffix(topic, class_name_suffix, package_name, module_name, class_name)
+        if found:
+            return found
+
+        #-- 3) look it up for alternative_parent_class, if any
+        if alternative_parent_class:
+            assert issubclass(cls, alternative_parent_class), f'{cls} is not a subclass of {alternative_parent_class}'
+            found = PyClass.find_related_class(alternative_parent_class, topic, class_name_suffix)
 
         return found
 

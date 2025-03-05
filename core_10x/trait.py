@@ -163,13 +163,23 @@ class Trait(BTrait):
 
         return f
 
-    def create_f_common(self, f, attr_name: str, rc: RC):
+    def create_f_common_trait_with_value(self, f, attr_name: str, rc: RC):
         cls = self.__class__
         if not f:
             common_f = getattr(cls, attr_name, None)
             if common_f:
                 f = lambda obj, trait, value: common_f(trait, value)
                 f.__name__ = f'{cls.__name__}.{common_f.__name__}'
+
+        return f
+
+    def create_f_choices(self, f, attr_name: str, rc: RC):
+        cls = self.__class__
+        if not f:
+            choices_f = getattr(cls, attr_name, None)
+            if choices_f:
+                f = lambda obj, trait: choices_f(trait)
+                f.__name__ = f'{cls.__name__}.{choices_f.__name__}'
 
         return f
 
@@ -255,8 +265,8 @@ class Trait(BTrait):
     def to_id(self, value) -> str:
         raise NotImplementedError
 
-    def choose_from(self):
-        return {}
+    def choices(self):
+        return XNone
 
     #===================================================================================================================
 
@@ -265,13 +275,13 @@ class TRAIT_METHOD(NamedConstant):
     GET             = Trait.create_f_get
     SET             = Trait.create_f_set
     VERIFY          = Trait.create_f_plain
-    FROM_STR        = Trait.create_f_common
-    FROM_ANY_XSTR   = Trait.create_f_common
-    TO_STR          = Trait.create_f_common
-    SERIALIZE       = Trait.create_f_common
-    DESERIALIZE     = Trait.create_f_common
-    TO_ID           = Trait.create_f_common
-    CHOICES         = Trait.create_f_plain
+    FROM_STR        = Trait.create_f_common_trait_with_value
+    FROM_ANY_XSTR   = Trait.create_f_common_trait_with_value
+    TO_STR          = Trait.create_f_common_trait_with_value
+    SERIALIZE       = Trait.create_f_common_trait_with_value
+    DESERIALIZE     = Trait.create_f_common_trait_with_value
+    TO_ID           = Trait.create_f_common_trait_with_value
+    CHOICES         = Trait.create_f_choices
     STYLE_SHEET     = Trait.create_f_plain
 
 

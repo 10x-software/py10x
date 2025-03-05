@@ -1,9 +1,9 @@
 from PyQt6.QtWidgets import QWidget, QLayout, QBoxLayout, QVBoxLayout, QHBoxLayout, QFormLayout, QApplication
 from PyQt6.QtWidgets import QLabel, QCalendarWidget, QMessageBox, QGroupBox, QButtonGroup, QRadioButton
 from PyQt6.QtWidgets import QListWidgetItem, QListWidget, QLineEdit, QPlainTextEdit, QTreeWidgetItem, QTreeWidget, QCheckBox, QComboBox
-from PyQt6.QtWidgets import QFrame, QSplitter, QDialog, QScrollArea, QPushButton, QStyle, QSizePolicy
+from PyQt6.QtWidgets import QFrame, QSplitter, QDialog, QScrollArea, QPushButton, QStyle, QSizePolicy, QStyleOptionHeader
 from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QBuffer, QIODevice, QPoint    #, QByteArray
-from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent, QFontMetrics
+from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent, QFontMetrics, QPalette, QPainter
 
 import platform
 
@@ -61,6 +61,8 @@ Label.set_text                  = QLabel.setText
 Splitter                        = QSplitter
 
 Style                           = QStyle
+Style.State_Active              = QStyle.StateFlag.State_Active
+
 Style.__getattr__               = missing_attr
 
 PushButton                      = QPushButton
@@ -127,6 +129,16 @@ class SCROLL:
     AS_NEEDED   = Qt.ScrollBarPolicy.ScrollBarAsNeeded
 
 ScrollArea                      = QScrollArea
+
+ForegroundRole                  = Qt.ItemDataRole.ForegroundRole
+BackroundRole                   = Qt.ItemDataRole.BackgroundRole
+
+Palette                         = QPalette
+Palette.ButtonText              = QPalette.ColorRole.ButtonText
+Palette.Button                  = QPalette.ColorRole.Button
+Palette.Window                  = QPalette.ColorRole.Window
+
+StyleOptionHeader               = QStyleOptionHeader
 
 @cache
 def init(style = '') -> QApplication:
