@@ -44,6 +44,7 @@ public:
     }
 
     py::object from_any(BTrait* trait, const py::object& value);
+    py::object value_to_str(BTrait* trait);
 
     [[nodiscard]] BTrait* check_trait(const py::str& trait_name) const {
         auto trait = m_class->find_trait(trait_name);

@@ -62,7 +62,7 @@ public:
     py::object      f_choices;          // optional choices             ANY     f(obj, trait)
 
     py::object      f_is_acceptable_type;   //                      bool    f(obj, trait, value_or_type)
-    py::object      f_style_sheet;
+    py::object      f_style_sheet;      // style sheet from py          dict    f(obj, trait)
 
     //    auto bound_f_get = [f_get, X, Y]() { return f_get(X, Y); };
     //    // Call the bound function

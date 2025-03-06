@@ -117,6 +117,11 @@ py::object BTraitable::from_any(BTrait* trait, const py::object& value) {
     return trait->wrapper_f_from_any_xstr(this, value);
 }
 
+py::object BTraitable::value_to_str(BTrait* trait) {
+    auto value = get_value(trait);
+    return trait->wrapper_f_to_str(this, value);
+}
+
 py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
     if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
         reload();
