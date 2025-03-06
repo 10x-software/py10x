@@ -1,6 +1,7 @@
+from datetime import date
+
 from core_10x.named_constant import NamedConstant
-from core_10x.trait_definition import RT
-from core_10x.traitable import Traitable, T, RC, RC_TRUE
+from core_10x.traitable import Traitable, T, RT, Ui, RC, RC_TRUE
 
 class WEIGHT_QU( NamedConstant ):
     LB =    ( 'lb',     1. )
@@ -12,6 +13,7 @@ class Person(Traitable):
     first_name: str         = T(T.ID)
     last_name: str          = T(T.ID)
 
+    dob: date               = T()
     age: int                = T(1)
     full_name: str          = T(T.EXPENSIVE)
     weight_lbs: float       = T()
@@ -24,9 +26,9 @@ class Person(Traitable):
     def full_name_get(self) -> str:
         return f'{self.first_name} {self.last_name}'
 
-    def full_name_style_sheet(self):
+    def full_name_style_sheet(self) -> dict:
         age = self.age
-        return T.fg_color('red' if age < 20 or age > 70 else 'green')
+        return {Ui.FG_COLOR: 'red' if age < 20 or age > 70 else 'green'}
 
     def full_name_set(self, trait, value: str) -> RC:
         parts = value.split(' ')

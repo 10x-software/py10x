@@ -8,8 +8,8 @@ class RC:
     Stands for 'Return Code'. Main usage is for functions returning 'success' or 'error' with an optional payload.
 
     For just a 'success':
-        RC.TRUE (a constant RC(True) instance)
-        return RC(True)
+        RC_TRUE (a constant RC(True) instance)
+        return RC_TRUE
 
     For 'success' with a single data:
         return RC(True, data)

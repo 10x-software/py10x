@@ -37,9 +37,9 @@ class TraitEditor:
             label.set_flat(True)
             label.set_style_sheet('text-align: left')
             label.set_text(self.ui_hint.label + '...')
-            label.clicked_connect(self.trait_callback)      #-- TODO: a more complex callback data structure?
+            label.clicked_connect(lambda v: self.trait_callback(self))
             if self.trait.flags_on(T.EXPENSIVE):
-                UxStyleSheet.update(label, 'color: purple; font: italic;')
+                UxStyleSheet.modify(label, {Ui.FG_COLOR: 'purple', Ui.FONT_STYLE: 'italic'})
                 label.set_tool_tip('Reaction on clicking this button may take considerable time...')
         else:
             label = ux.Label(self.ui_hint.label)
@@ -114,7 +114,8 @@ class TraitEditor:
 
     def expensive_cb(self):
         value = self.entity.get_value(self.trait)
-        self.widget.update_trait_value(value)
+        self.widget.set_widget_value(value)
+        self.widget.style_sheet.restore()
 
     def builtin_callback(self):
         cb = self.s_builtin_callbacks.get(self.trait.__class__)
