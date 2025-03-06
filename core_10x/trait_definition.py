@@ -58,6 +58,14 @@ class TraitDefinition:
     def copy(self) -> 'TraitDefinition':
         return copy.deepcopy(self)
 
+    def flags_change(self, flags_value):
+        dt = type(flags_value)
+        if dt is tuple:
+            assert len(flags_value) == 2, f'Changing {self.name} flags expects (flags_to_set, flags_to_reset)'
+            self.flags.set_reset(flags_value[0].value(), flags_value[1].value())
+        else:
+            self.flags.set(flags_value.value())
+
     @classmethod
     def process_args(cls, args: tuple, kwargs: dict):
         """
@@ -104,14 +112,6 @@ class TraitModification(TraitDefinition):
         DEFAULT_TAG:    XNone,      #-- TODO: for M(..., default = XNone), the old default will NOT be changed to XNone
         FORMAT_TAG:     XNone,
     }
-
-    def flags_change(self, flags_value):
-        dt = type(flags_value)
-        if dt is tuple:
-            assert len(flags_value) == 2, f'Changing {self.name} flags expects (flags_to_set, flags_to_reset)'
-            self.flags.set_reset(flags_value[0], flags_value[1])
-        else:
-            self.flags.set(flags_value)
 
     s_modifiers = {
         FLAGS_TAG:  lambda self, flags_modification: self.flags_change(flags_modification),

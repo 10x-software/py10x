@@ -9,6 +9,3 @@ if __name__ == '__main__':
     df_10x = EnvVars.date_format
     print(XDateTime.date_to_str(d))
 
-
-
-
