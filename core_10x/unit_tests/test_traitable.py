@@ -44,5 +44,3 @@ class TestTraitable(unittest.TestCase):
         self.assertTrue(rc)
 
 
-if __name__ == '__main__':
-    unittest.main()

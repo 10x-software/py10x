@@ -1,0 +1,6 @@
+[run]
+omit =
+	*/manual_tests/*
+	*/examples/*
+
+
