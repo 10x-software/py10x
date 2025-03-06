@@ -29,6 +29,8 @@ public:
     BFlags(const BFlags& flags) = default;
     explicit BFlags(uint64_t v) : m_flags(v)                            {}
 
+    [[nodiscard]] BFlags* copy(py::dict memo) const                     { return new BFlags(*this); }
+
     [[nodiscard]] uint64_t value() const                                { return m_flags; }
     [[nodiscard]] bool on(const BFlags& flags) const                    { return m_flags & flags.m_flags; }
     [[nodiscard]] bool off(const BFlags& flags) const                   { return (m_flags & flags.m_flags) == 0x0; }
