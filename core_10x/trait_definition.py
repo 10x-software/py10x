@@ -152,6 +152,6 @@ def RT(*args, **kwargs) -> TraitDefinition:
     trait_def.flags.set(T.RUNTIME.value())
     return trait_def
 
-def M(cls, *args, **kwargs) -> TraitModification:
+def M(*args, **kwargs) -> TraitModification:
     return TraitModification(*args, **kwargs)
 
