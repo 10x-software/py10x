@@ -252,6 +252,3 @@ class TestExecControl(TestGraphBase):
             with GRAPH_OFF(debug=False, convert_values=True):
                 self.test(False, True, False)
 
-
-if __name__ == '__main__':
-    unittest.main()
