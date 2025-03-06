@@ -10,6 +10,8 @@ else:
 
     if pname == 'Qt6':
         import ui_10x.qt6.platform_implementation as ux
+    elif pname == 'Rio':
+        import ui_10x.rio.platform_implementation as ux
     else:
         assert False, 'UI implementation is not available'
 
