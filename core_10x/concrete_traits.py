@@ -30,8 +30,8 @@ class primitive_trait(Trait, register = False):
     def from_any_xstr(self, value):
         return self.data_type(value)
 
-    def to_str(self, v) -> str:
-         return str(v)
+    # def to_str(self, v) -> str:
+    #      return str(v)
 
     def to_id(self, v) -> str:
         return str(v)
