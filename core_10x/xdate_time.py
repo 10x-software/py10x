@@ -25,12 +25,19 @@ class XDateTime:
     def date_to_int(v: date, ordinal = True) -> int:
         return v.toordinal() if ordinal else (10000 * v.year + 100* v.month + v.day)
 
-    formats = (
-        '%Y%m%d',       #-- 10x
-        '%Y-%m-%d',     #-- ISO
-        '%m/%d/%Y',     #-- US
-        '%d.%m.%Y',     #-- EU
-    )
+    FORMAT_X10  = '%Y%m%d'
+    FORMAT_ISO  = '%Y-%m-%d'
+    FORMAT_US   = '%m/%d/%Y'
+    FORMAT_EU   = '%d.%m.%Y'
+
+    s_default_format = FORMAT_X10
+    formats = [s_default_format, FORMAT_X10, FORMAT_ISO, FORMAT_US, FORMAT_EU]
+
+    @classmethod
+    def set_default_format(cls, fmt: str):
+        cls.s_default_format = fmt
+        cls.formats[0] = fmt
+
     def str_to_date(v: str) -> date:
         for fmt in XDateTime.formats:
             try:

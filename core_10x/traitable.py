@@ -46,9 +46,10 @@ class TraitableMetaclass(type(BTraitable)):
     @cache
     def rev_trait() -> Trait:
         trait_name = Nucleus.REVISION_TAG
-        return Trait.create(trait_name, T(0, T.RESERVED), {}, {trait_name:int}, RC_TRUE)
+        t_def = T(0, T.RESERVED)
+        return Trait.create(trait_name, t_def, {}, {trait_name: int},  RC_TRUE)
 
-    def __new__(cls, name, bases, class_dict):
+    def __new__(cls, name, bases, class_dict, **kwargs):
         build_trait_dir = next(cls.find_symbols(bases,class_dict,'build_trait_dir'))
         special_attributes = tuple(chain.from_iterable(cls.find_symbols(bases,class_dict,'s_special_attributes')))
         trait_dir = {Nucleus.REVISION_TAG: cls.rev_trait()}                #-- insert _rev as the first trait and delete later if not needed
@@ -63,7 +64,7 @@ class TraitableMetaclass(type(BTraitable)):
             s_special_attributes = special_attributes
         )
 
-        return super().__new__(cls, name, bases, class_dict)
+        return super().__new__(cls, name, bases, class_dict, **kwargs)
 
 class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_dir = {}
@@ -89,7 +90,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
                 if not old_trait:
                     rc <<= f'{trait_name} = M(...), but the trait is unknown'
 
-                trait_def.apply(old_trait.t_def)
+                trait_def = trait_def.apply(old_trait.t_def)
                 if dt is not XNone:     #-- the data type is also being modified
                     trait_def.data_type = dt
 
