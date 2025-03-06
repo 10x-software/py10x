@@ -98,8 +98,10 @@ class Trait(BTrait):
         trait.data_type = dt
         trait.flags = t_def.flags.value()
         trait.default = t_def.default
-        trait.create_proc()
+        if t_def.fmt:
+            trait.fmt = t_def.fmt
 
+        trait.create_proc()
         Trait.set_trait_funcs(class_dict, rc, trait, trait_name)
 
         trait.post_ctor()
@@ -186,7 +188,9 @@ class Trait(BTrait):
     def create_f_plain(self, f, attr_name: str, rc: RC):
         return f
 
-
+#=======================================================================================================================
+#   Formatting
+#=======================================================================================================================
     s_locales = {
         'Windows':      'USA',
         'Linux':        'en_US',
@@ -200,8 +204,7 @@ class Trait(BTrait):
         except Exception:
             return None
 
-    @classmethod
-    def format_str(cls, fmt: str) -> str:
+    def _format(self, fmt: str) -> str:
         if not fmt:
             fmt = ':'
         else:
@@ -211,15 +214,10 @@ class Trait(BTrait):
 
         return f'{{{fmt}}}'
 
-    @classmethod
-    def use_format_str(cls, fmt: str, value) -> str:
+    def use_format_str(self, fmt: str, value) -> str:
         if isinstance(value, str) and not fmt:
             return value
-
-        return cls.format_str(fmt).format(value)
-
-    def default_formatter(self, value) -> str:
-        return self.use_format_str(self.fmt, value)
+        return self._format(fmt).format(value)
 
     #===================================================================================================================
     #   Trait Interface
@@ -251,7 +249,7 @@ class Trait(BTrait):
         raise NotImplementedError
 
     def to_str(self, v) -> str:
-         raise NotImplementedError
+        return self.use_format_str(self.fmt, v)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
