@@ -82,14 +82,15 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
         }
         id = endogenous_id();
 
-        m_tid.set(m_class, id);
-        if (m_class->instance_exists(m_tid)) {
+        TID tid(m_class, id);
+        if (m_class->instance_exists(tid)) {
             proc->cache()->remove_object_cache(m_tid, true);
             // TODO: this object may have set non-ID traits; in such a case, their values will be "replaced" for the existing instance's, if any
-
+            m_tid.set(m_class, id);
         }
         else {      // new instance
             auto cache = proc->cache();
+            m_tid.set(m_class, id);
             cache->make_permanent(m_tid);
         }
     }
