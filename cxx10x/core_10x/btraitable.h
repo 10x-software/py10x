@@ -12,12 +12,10 @@
 #include "thread_context.h"
 #include "btraitable_class.h"
 
-using TraitValues = std::unordered_map<BTrait*, py::object>;
 
 class BTraitable {
 protected:
     BTraitableClass*    m_class;
-    ObjectCache         *m_id_cache;
     TID                 m_tid;
 
     py::object endogenous_id();
@@ -25,7 +23,6 @@ protected:
 
 public:
     explicit BTraitable(const py::object& cls);
-    ~BTraitable();
 
     void set_id(const py::object& id);
     void initialize(const py::kwargs& trait_values);
@@ -33,15 +30,8 @@ public:
     [[nodiscard]] BTraitableClass*      my_class() const    { return m_class; }
     [[nodiscard]] BUiClass*             bui_class() const   { return m_class->bui_class(); }
     [[nodiscard]] const py::object&     class_name() const  { return m_class->name(); }
-    [[nodiscard]] ObjectCache*          id_cache() const    { return m_id_cache; }
     [[nodiscard]] const TID&            tid() const         { return m_tid; }
     [[nodiscard]] const py::object&     id() const          { return m_tid.id(); }
-
-    void clear_id_cache(bool dispose_of = true) {
-        if (dispose_of)
-            delete m_id_cache;
-        m_id_cache = nullptr;
-    }
 
     py::object from_any(BTrait* trait, const py::object& value);
     py::object value_to_str(BTrait* trait);
@@ -62,7 +52,7 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->is_valid(this, trait);
     }
 
@@ -78,7 +68,7 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         proc->invalidate_trait_value(this, trait);
     }
 
@@ -86,7 +76,7 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         proc->invalidate_trait_value(this, trait, args);
     }
 
@@ -102,7 +92,7 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait);
     }
 
@@ -110,12 +100,12 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait, args);
     }
 
     py::object get_choices(BTrait* trait) {
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->get_choices(this, trait);
     }
 
@@ -123,7 +113,7 @@ public:
         if (trait->custom_f_style_sheet().is_none())
             return PyLinkage::XNone();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->get_style_sheet(this, trait);
     }
 
@@ -139,7 +129,7 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->set_trait_value(this, trait, value);
     }
 
@@ -147,7 +137,7 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->set_trait_value(this, trait, value, args);
     }
 
@@ -165,7 +155,7 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->raw_set_trait_value(this, trait, value);
     }
 
@@ -173,7 +163,7 @@ public:
         if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
             reload();
 
-        auto proc = ThreadContext::current_traitable_proc_bound();
+        auto proc = ThreadContext::current_traitable_proc();
         return proc->raw_set_trait_value(this, trait, value, args);
     }
 

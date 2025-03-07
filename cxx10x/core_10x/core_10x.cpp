@@ -11,11 +11,12 @@ namespace py = pybind11;
 #include "bflags.h"
 #include "tid.h"
 #include "bnode.h"
-#include "bcache.h"
 #include "btraitable_class.h"
 #include "btraitable_ui_extension.h"
 #include "btraitable.h"
 #include "bprocess_context.h"
+#include "xcache.h"
+
 
 PYBIND11_MODULE(core_10x_i, m)
 {
@@ -137,13 +138,13 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("find_node",                   py::overload_cast<BTrait*, const py::args&>(&ObjectCache::find_node, py::const_))
             ;
 
-    py::class_<BCache>(m, "BCache")
-            .def_static("clear", &BCache::clear)
-            .def(py::init<>())
-            .def("find_object_cache",           &BCache::find_object_cache)
-            .def("find_node",                   py::overload_cast<const TID&, BTrait*>(&BCache::find_node))
-            .def("find_node",                   py::overload_cast<const TID&, BTrait*, const py::args&>(&BCache::find_node))
-            .def("default_node_type",           &BCache::default_node_type)
+    py::class_<XCache>(m, "XCache")
+            .def_static("clear", &XCache::clear)
+//            .def(py::init<>())
+//            .def("find_object_cache",           &XCache::find_object_cache)
+//            .def("find_node",                   py::overload_cast<const TID&, BTrait*>(XCache::find_node))
+//            .def("find_node",                   py::overload_cast<const TID&, BTrait*, const py::args&>(&XCache::find_node))
+//            .def("default_node_type",           &XCache::default_node_type)
             ;
 
 //    py::class_<SimpleCacheLayer, BCache>(m, "SimpleCacheLayer")

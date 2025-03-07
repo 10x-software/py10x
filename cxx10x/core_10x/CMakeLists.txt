@@ -25,15 +25,12 @@ find_package(pybind11 REQUIRED)
 #find_package(stduuid REQUIRED)
 
 pybind11_add_module(core_10x_i
-        bcache.cpp
-        simple_cache_layer.cpp
         bnode.cpp
         btrait.cpp
         btrait_processor.cpp
         btraitable.cpp
         btraitable_class.cpp
         btraitable_processor.cpp
-        id_builder.cpp
         core_10x.cpp
         py_linkage.cpp
         thread_context.cpp
@@ -42,6 +39,7 @@ pybind11_add_module(core_10x_i
         btraitable_ui_extension.cpp
         #interactive_processor.cpp
         xcache.cpp
+        simple_cache_layer.cpp
 )
 
 target_include_directories(core_10x_i PRIVATE ${stduuid_SOURCE_DIR}/include)

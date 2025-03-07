@@ -1,12 +1,11 @@
 #pragma once
 
-#include <stdint.h>
+#include <cstdint>
 
 #include "btraitable_processor.h"
 #include "bflags.h"
 #include "btrait_processor.h"
 
-class BCache;
 class BTraitable;
 class BTraitableProcessor;
 

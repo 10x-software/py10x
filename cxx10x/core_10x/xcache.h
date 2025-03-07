@@ -2,6 +2,7 @@
 // Created by AMD on 3/7/2025
 // A new incarnation of BCache that supports all objects, including ones with invalid IDs
 //
+#pragma once
 
 #include "py_linkage.h"
 #include "tid.h"

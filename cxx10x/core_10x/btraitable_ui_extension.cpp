@@ -6,7 +6,6 @@
 #include "btrait_processor.h"
 #include "btraitable_class.h"
 #include "btraitable.h"
-#include "bcache.h"
 #include "bnode.h"
 
 class UiTraitProcessor : public BTraitProcessor {
@@ -111,7 +110,7 @@ BTrait* BUiClass::bui_trait(BTrait *trait) const {
 
 void BUiClass::create_ui_node(BTraitable *obj, BTrait *trait, py::object f_refresh) {
     auto ui_trait = bui_trait(trait);
-    auto proc = ThreadContext::current_traitable_proc_bound();
+    auto proc = ThreadContext::current_traitable_proc();
     auto ui_node = (BUiNode*) proc->cache()->find_or_create_node(obj->tid(), ui_trait, NODE_TYPE::UI);
     ui_node->set_refresh_emit(f_refresh);
 
@@ -120,7 +119,7 @@ void BUiClass::create_ui_node(BTraitable *obj, BTrait *trait, py::object f_refre
 
 void BUiClass::update_ui_node(BTraitable *obj, BTrait *trait) {
     auto ui_trait = bui_trait(trait);
-    auto proc = ThreadContext::current_traitable_proc_bound();
+    auto proc = ThreadContext::current_traitable_proc();
     auto node = proc->cache()->find_node(obj->tid(), ui_trait);
     node->set_state(STATE_VALID);
 }

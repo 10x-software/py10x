@@ -4,7 +4,6 @@
 
 #include "btraitable.h"
 #include "py_hasher.h"
-#include "id_builder.h"
 #include "bprocess_context.h"
 #include "btraitable_ui_extension.h"
 
@@ -43,8 +42,7 @@ py::object BTraitable::endogenous_id() {
 }
 
 BTraitable::BTraitable(const py::object& cls) {
-    m_class = cls.cast<BTraitableClass*>();
-    m_id_cache = nullptr;
+    m_class = cls.cast<BTraitableClass *>();
 }
 
 void BTraitable::set_id(const py::object& id) {
@@ -62,53 +60,46 @@ void BTraitable::set_id(const py::object& id) {
 //      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
 //======================================================================================================================
 void BTraitable::initialize(const py::kwargs& trait_values) {
-    m_id_cache = new ObjectCache();     //-- TODO: remove after switched to using PrivateCache!
-
     py::object id;
     if (m_class->is_id_endogenous()) {
+        auto proc = ThreadContext::current_traitable_proc();
         if (trait_values.empty()) {  // kwargs empty
-            if (!ThreadContext::current_traitable_proc()->is_empty_object_allowed())
+            if (!proc->is_empty_object_allowed())
                 throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
             return;
         }
 
-        //---- Use IdBuilder with a new stack frame
-        {
-            auto id_builder = IdBuilder::create(this);
-            BTraitableProcessor::Use use(id_builder, true);     // will be deleted "on exit"
+        for (auto item : trait_values) {
+            auto trait_name = item.first.cast<py::object>();
+            auto trait = m_class->find_trait(trait_name);
+            if (!trait)
+                continue;       // skipping unknown trait names
 
-            for (auto item : trait_values) {
-                auto trait_name = item.first.cast<py::object>();
-                auto trait = m_class->find_trait(trait_name);
-                if (!trait)
-                    continue;       // skipping unknown trait names
-
-                auto value = item.second.cast<py::object>();
-                BRC rc(id_builder->set_trait_value(this, trait, value));
-                if (!rc)
-                    throw py::value_error(rc.error());
-            }
-            id = endogenous_id();
+            auto value = item.second.cast<py::object>();
+            BRC rc(proc->set_trait_value(this, trait, value));
+            if (!rc)
+                throw py::value_error(rc.error());
         }
+        id = endogenous_id();
 
         m_tid.set(m_class, id);
         if (m_class->instance_exists(m_tid)) {
-            clear_id_cache();
-        } else {      // new instance
-            auto cache = ThreadContext::current_traitable_proc_bound()->cache();
-            cache->register_object(this);
+            proc->cache()->remove_object_cache(m_tid, true);
+            // TODO: this object may have set non-ID traits; in such a case, their values will be "replaced" for the existing instance's, if any
+
         }
-    } else {        // ID exogenous
+        else {      // new instance
+            auto cache = proc->cache();
+            cache->make_permanent(m_tid);
+        }
+    }
+    else {        // ID exogenous
         id = exogenous_id();
         m_tid.set(m_class, id);
         BRC rc(set_values(trait_values));
         if (!rc)
             throw py::value_error(py::str(rc.error()));
     }
-}
-
-BTraitable::~BTraitable() {
-    delete m_id_cache;
 }
 
 py::object BTraitable::from_any(BTrait* trait, const py::object& value) {
@@ -130,7 +121,7 @@ py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unkn
     if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
         reload();
 
-    auto proc = ThreadContext::current_traitable_proc_bound();
+    auto proc = ThreadContext::current_traitable_proc();
     for (auto item : trait_values) {
         auto trait_name = item.first.cast<py::object>();
         auto trait = m_class->find_trait(trait_name);
@@ -177,7 +168,7 @@ py::object BTraitable::serialize(bool embed) {
 }
 
 void BTraitable::deserialize(const py::dict& serialized_data) {
-    auto cache = ThreadContext::current_traitable_proc_bound()->cache();
+    auto cache = ThreadContext::current_traitable_proc()->cache();
     cache->create_object_cache(m_tid);
 
     for (auto item : serialized_data) {

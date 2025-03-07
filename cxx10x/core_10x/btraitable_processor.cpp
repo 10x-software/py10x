@@ -7,6 +7,8 @@
 #include "btrait.h"
 #include "btraitable.h"
 #include "simple_cache_layer.h"
+#include "xcache.h"
+
 
 Placebo::Placebo(ExecStack* xstack) : m_stack(xstack) {
     if (xstack) {
@@ -33,7 +35,7 @@ BTraitableProcessor::~BTraitableProcessor() {
 
 BTraitableProcessor* BTraitableProcessor::create_default() {
     auto proc = create_raw(s_default_type);
-    proc->use_cache(BCache::default_cache());
+    proc->use_cache(XCache::default_cache());
     return proc;
 }
 
@@ -259,11 +261,11 @@ BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_value
     }
     else {  //-- OFF_GRAPH
         if (use_default_cache)
-            proc->use_cache(BCache::default_cache());
+            proc->use_cache(XCache::default_cache());
 
         else {
             if (!use_parent_cache || parent_flags & ON_GRAPH) {
-                auto cache = new BCache();
+                auto cache = new XCache();
                 proc->use_own_cache(cache);
             } else
                 proc->use_cache(parent->cache());

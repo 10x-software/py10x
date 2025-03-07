@@ -41,14 +41,14 @@ public:
     ~Placebo();
 };
 
-class BCache;
+class XCache;
 
 class BTraitableProcessor {
 protected:
 
     static unsigned s_default_type;
 
-    BCache*     m_cache;
+    XCache*     m_cache;
     ExecStack   m_stack;
     unsigned    m_flags;
     bool        m_own_cache = false;
@@ -79,11 +79,11 @@ public:
     BTraitableProcessor() : m_cache(nullptr), m_flags(PLAIN) {}
     virtual ~BTraitableProcessor();
 
-    [[nodiscard]] BCache*   own_cache() const               { return m_own_cache ? m_cache : nullptr; }
-    void                    use_own_cache(BCache* c)        { m_cache = c; m_own_cache = true; }
+    [[nodiscard]] XCache*   own_cache() const               { return m_own_cache ? m_cache : nullptr; }
+    void                    use_own_cache(XCache* c)        { m_cache = c; m_own_cache = true; }
 
-    [[nodiscard]] BCache*   cache() const                   { return m_cache; }
-    virtual void            use_cache(BCache* c)            { m_cache = c; }
+    [[nodiscard]] XCache*   cache() const                   { return m_cache; }
+    virtual void            use_cache(XCache* c)            { m_cache = c; }
 
     [[nodiscard]] virtual bool is_empty_object_allowed() const { return false; }
     ExecStack*              exec_stack()                    { return &m_stack; }

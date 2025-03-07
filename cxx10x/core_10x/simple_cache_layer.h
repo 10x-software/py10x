@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "bcache.h"
+#include "xcache.h"
 
-class SimpleCacheLayer : public BCache {
+class SimpleCacheLayer : public XCache {
 protected:
-    BCache*     m_parent;
+    XCache*     m_parent;
 
 public:
     SimpleCacheLayer() : SimpleCacheLayer(nullptr) {}
-    explicit SimpleCacheLayer(BCache* parent);
+    explicit SimpleCacheLayer(XCache* parent);
 
     ObjectCache*    find_or_create_object_cache(const TID& tid) override;
     BasicNode*      find_or_create_node(const TID& tid, BTrait* trait, int node_type) override;

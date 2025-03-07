@@ -7,8 +7,6 @@
 #include "btrait.h"
 #include "btraitable.h"
 #include "btraitable_processor.h"
-#include "bcache.h"
-#include "brc.h"
 
 BTrait::BTrait() {
     m_datatype  = PyLinkage::XNone();

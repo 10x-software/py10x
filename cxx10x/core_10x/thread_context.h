@@ -10,12 +10,12 @@
 #include "py_linkage.h"
 #include "stackable_context.h"
 #include "btraitable_processor.h"
-#include "bcache.h"
+#include "xcache.h"
 
 class ThreadContext;
 
 using TraitableProcessorStack   = StackableContext<BTraitableProcessor>;
-using CacheStack                = StackableContext<BCache>;
+using CacheStack                = StackableContext<XCache>;
 using ContextByThread = std::unordered_map<std::thread::id, ThreadContext*>;
 
 class ThreadContext {
@@ -40,23 +40,23 @@ public:
         return i->second;
     }
 
-    static BCache* current_cache() {
+    static XCache* current_cache() {
         auto context = current_context();
         auto cache = context->m_cache_stack.top();
         if(!cache) {
-            cache = BCache::default_cache();
+            cache = XCache::default_cache();
             context->m_cache_stack.push(cache);
         }
 
         return cache;
     }
 
-    static void cache_push(BCache* cache) {
+    static void cache_push(XCache* cache) {
         auto context = current_context();
         context->m_cache_stack.push(cache);
     }
 
-    static BCache* cache_pop() {
+    static XCache* cache_pop() {
         auto context = current_context();
         return context->m_cache_stack.pop();
     }
@@ -82,24 +82,5 @@ public:
         return proc;
     }
 
-    static BTraitableProcessor* current_traitable_proc_bound() {
-        auto context = current_context();
-        auto proc = context->m_traitable_proc_stack.top();
-        if(!proc) {
-            proc = BTraitableProcessor::create_default();
-            context->m_traitable_proc_stack.push(proc);
-        }
-
-        if (!proc->cache()) {
-            auto cache = context->m_cache_stack.top();
-            if (!cache) {
-                cache = BCache::default_cache();
-                context->m_cache_stack.push(cache);
-            }
-            proc->use_cache(cache);
-        }
-
-        return proc;
-    }
 };
 
