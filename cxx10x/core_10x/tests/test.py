@@ -1,16 +1,24 @@
-from core_10x.ts_union import TsUnion
+from core_10x import XNone
 from core_10x.code_samples.person import Person
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF
+
+
+def test():
+    p = Person(first_name = 'Sasha', last_name = 'Davidovich')
+    #p.weight_lbs = 100
+    #assert p.weight == 100
+
+    p.invalidate_value(p.trait.weight)
+    p.invalidate_value(p.trait.weight_lbs)
+
+    assert p.weight == XNone
 
 if __name__ == '__main__':
 
-    with TsUnion():
-        p = Person(first_name = 'Sasha', last_name = 'Davidovich')
-        assert p._rev == 0
-        assert p.id() == 'Sasha|Davidovich'
-        # print(p.full_name)
-        # print(p.serialize(False))
-        # print(p.serialize(True))
+    with GRAPH_ON():
+        test()
+        with GRAPH_OFF():
+            test()
 
-        # p1 = Person(first_name='John', last_name='Doe', age=30)
-        # assert p1.id() == 'John|Doe'
-        # print(p1.full_name)
+
+

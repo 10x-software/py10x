@@ -13,16 +13,16 @@ FetchContent_Declare(
         GIT_TAG        v2.13.6
         OVERRIDE_FIND_PACKAGE
 )
-FetchContent_Declare(
-        stduuid
-        GIT_REPOSITORY https://github.com/mariusbancila/stduuid
-        GIT_TAG        v1.2.3
-        OVERRIDE_FIND_PACKAGE
-)
-FetchContent_MakeAvailable(pybind11 stduuid)
+#FetchContent_Declare(
+#        stduuid
+#        GIT_REPOSITORY https://github.com/mariusbancila/stduuid
+#        GIT_TAG        v1.2.3
+#        OVERRIDE_FIND_PACKAGE
+#)
+FetchContent_MakeAvailable(pybind11)# stduuid)
 
 find_package(pybind11 REQUIRED)
-find_package(stduuid REQUIRED)
+#find_package(stduuid REQUIRED)
 
 pybind11_add_module(core_10x_i
         bcache.cpp
@@ -40,7 +40,7 @@ pybind11_add_module(core_10x_i
         tid.cpp
         bprocess_context.cpp
         btraitable_ui_extension.cpp
-        interactive_processor.cpp
+        #interactive_processor.cpp
         xcache.cpp
 )
 

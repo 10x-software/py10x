@@ -108,7 +108,7 @@ public:
         return trait->proc()->get_choices_off_graph(this, obj, trait);
     }
 
-    py::object get_style_sheet(BTraitable* obj, BTrait* trait) {
+    py::object get_style_sheet(BTraitable* obj, BTrait* trait) final {
         return trait->proc()->get_style_sheet_off_graph(this, obj, trait);
     }
 
@@ -226,7 +226,7 @@ BTraitableProcessor* BTraitableProcessor::create_raw(unsigned int flags) {
         case ON_GRAPH|CONVERT_VALUES|DEBUG: proc = new OnGraphConvertDebug();       break;
 
         default:
-            throw std::exception("Unrecognized flags");
+            throw std::runtime_error("Unrecognized flags");
     }
 
     proc->set_flags(flags);

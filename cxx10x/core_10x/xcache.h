@@ -251,7 +251,7 @@ public:
 
     bool make_permanent(const TID& tid) {
         if (!tid.is_valid())
-            throw std::exception("May not call this with a temp ID");
+            throw std::runtime_error("May not call this with a temp ID");
 
         auto i2 = m_data.find(tid);
         if (i2 != m_data.end())
@@ -259,7 +259,7 @@ public:
 
         auto it = m_tmp_data.find(tid.ptr());
         if (it == m_tmp_data.end())
-            throw std::exception("Can't find this ID");
+            throw std::runtime_error("Can't find this ID");
 
         auto oc = it->second;
         m_tmp_data.erase(it);

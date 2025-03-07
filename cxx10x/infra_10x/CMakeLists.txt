@@ -13,17 +13,17 @@ FetchContent_Declare(
         GIT_TAG        v2.13.6
         OVERRIDE_FIND_PACKAGE
 )
-FetchContent_Declare(
-        mongo-cxx-driver
-        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
-        GIT_TAG        r4.0.0
-        OVERRIDE_FIND_PACKAGE
-)
-set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build mongo-cxx-driver as a static library" FORCE)
-FetchContent_MakeAvailable(pybind11 mongo-cxx-driver)
+#FetchContent_Declare(
+#        mongo-cxx-driver
+#        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
+#        GIT_TAG        r4.0.0
+#        OVERRIDE_FIND_PACKAGE
+#)
+#set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build mongo-cxx-driver as a static library" FORCE)
+#FetchContent_MakeAvailable(pybind11 mongo-cxx-driver)
 
 find_package(pybind11 REQUIRED)
-find_package(mongo-cxx-driver REQUIRED)
+#find_package(mongo-cxx-driver REQUIRED)
 
 pybind11_add_module(infra_10x_i
         #mongo_db_driver.cpp
@@ -31,15 +31,15 @@ pybind11_add_module(infra_10x_i
         infra_10x_i.cpp
 )
 
-target_include_directories(infra_10x_i PRIVATE
-        ${mongo-cxx-driver_SOURCE_DIR}/mongocxx/include/mongocxx/v_noabi
-        ${mongo-cxx-driver_BINARY_DIR}/mongocxx/lib/mongocxx/v_noabi
-)
+#target_include_directories(infra_10x_i PRIVATE
+#        ${mongo-cxx-driver_SOURCE_DIR}/mongocxx/include/mongocxx/v_noabi
+#        ${mongo-cxx-driver_BINARY_DIR}/mongocxx/lib/mongocxx/v_noabi
+#)
 
 install(TARGETS infra_10x_i
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
 )
 
-target_link_libraries(infra_10x_i PRIVATE mongocxx_static)
+#target_link_libraries(infra_10x_i PRIVATE mongocxx_static)
 
