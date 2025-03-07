@@ -62,13 +62,17 @@ void BTraitable::set_id(const py::object& id) {
 //      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
 //======================================================================================================================
 void BTraitable::initialize(const py::kwargs& trait_values) {
-    m_id_cache = new ObjectCache();
+    m_id_cache = new ObjectCache();     //-- TODO: remove after switched to using PrivateCache!
 
     py::object id;
     if (m_class->is_id_endogenous()) {
-        if (trait_values.empty())   // kwargs empty
-            throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
+        if (trait_values.empty()) {  // kwargs empty
+            if (!ThreadContext::current_traitable_proc()->is_empty_object_allowed())
+                throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
+            return;
+        }
 
+        //---- Use IdBuilder with a new stack frame
         {
             auto id_builder = IdBuilder::create(this);
             BTraitableProcessor::Use use(id_builder, true);     // will be deleted "on exit"

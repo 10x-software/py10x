@@ -67,10 +67,14 @@ public:
 
     static BTraitableProcessor* create_default();
 
-    static BTraitableProcessor* create(unsigned flags);
-    static BTraitableProcessor* create(int on_graph, int convert_values, int debug);    // -1 - inherit, 0 - reset, 1 - set
-    static BTraitableProcessor* current();
+    // int param: -1 - inherit, 0 - reset, 1 - set
+    static BTraitableProcessor* create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache);
 
+    static BTraitableProcessor* change_mode(int convert_values, int debug, bool use_default_cache) {
+        return create(-1, convert_values, debug, true, use_default_cache);
+    }
+
+    static BTraitableProcessor* current();
 
     BTraitableProcessor() : m_cache(nullptr), m_flags(PLAIN) {}
     virtual ~BTraitableProcessor();
@@ -81,6 +85,7 @@ public:
     [[nodiscard]] BCache*   cache() const                   { return m_cache; }
     virtual void            use_cache(BCache* c)            { m_cache = c; }
 
+    [[nodiscard]] virtual bool is_empty_object_allowed() const { return false; }
     ExecStack*              exec_stack()                    { return &m_stack; }
 
     [[nodiscard]] unsigned  flags() const                   { return m_flags; }

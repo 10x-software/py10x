@@ -24,7 +24,7 @@ Placebo::~Placebo() {
     }
 }
 
-unsigned BTraitableProcessor::s_default_type = PLAIN;   // = OffGraphNoConvertNoCheck;
+unsigned BTraitableProcessor::s_default_type = PLAIN;   // = OffGraphNoConvertNoDebug;
 
 BTraitableProcessor::~BTraitableProcessor() {
     if (m_own_cache)
@@ -32,8 +32,7 @@ BTraitableProcessor::~BTraitableProcessor() {
 }
 
 BTraitableProcessor* BTraitableProcessor::create_default() {
-    auto proc = create(s_default_type);
-    assert(proc);
+    auto proc = create_raw(s_default_type);
     proc->use_cache(BCache::default_cache());
     return proc;
 }
@@ -227,27 +226,18 @@ BTraitableProcessor* BTraitableProcessor::create_raw(unsigned int flags) {
         case ON_GRAPH|CONVERT_VALUES|DEBUG: proc = new OnGraphConvertDebug();       break;
 
         default:
-            assert(false);
-            return nullptr;
+            throw std::exception("Unrecognized flags");
     }
 
     proc->set_flags(flags);
     return proc;
 }
 
-BTraitableProcessor* BTraitableProcessor::create(unsigned flags) {
-    auto proc = create_raw(flags);
-    if (flags & ON_GRAPH) {
-        auto cache = new SimpleCacheLayer();
-        proc->use_own_cache(cache);
-    }
-    return proc;
-}
-
-BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_values, int debug) {
+BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache) {
     auto parent = current();
-    auto flags = parent->flags();
+    auto parent_flags = parent->flags();
 
+    auto flags = parent_flags;
     if (on_graph >= 0)
         flags = on_graph == 1 ? flags | ON_GRAPH : flags & ~ON_GRAPH;
 
@@ -257,7 +247,30 @@ BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_value
     if (debug >= 0)
         flags = debug == 1? flags | DEBUG : flags & ~DEBUG;
 
-    return create(flags);
+    auto proc = create_raw(flags);
+
+    if (flags & ON_GRAPH) {
+        if (!use_parent_cache || !(parent_flags & ON_GRAPH)) {
+            auto cache = new SimpleCacheLayer();
+            proc->use_own_cache(cache);
+        }
+        else
+            proc->use_cache(parent->cache());
+    }
+    else {  //-- OFF_GRAPH
+        if (use_default_cache)
+            proc->use_cache(BCache::default_cache());
+
+        else {
+            if (!use_parent_cache || parent_flags & ON_GRAPH) {
+                auto cache = new BCache();
+                proc->use_own_cache(cache);
+            } else
+                proc->use_cache(parent->cache());
+        }
+    }
+
+    return proc;
 }
 
 BTraitableProcessor* BTraitableProcessor::current() {

@@ -21,6 +21,7 @@ public:
     void set(BTraitableClass* cls, const py::object& id)            { m_class = cls; m_id = id; }
 
     [[nodiscard]] bool                  is_valid() const            { return static_cast<bool>(m_id); }
+    [[nodiscard]] TID*                  ptr() const                 { return (TID*)this; }
     [[nodiscard]] const py::object&     id() const                  { return m_id; }
     [[nodiscard]] BTraitableClass*      cls() const                 { return m_class; }
 
