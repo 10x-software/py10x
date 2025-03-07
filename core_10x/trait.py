@@ -91,7 +91,7 @@ class Trait(BTrait):
 
     @staticmethod
     def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, annotations: dict, rc: RC) -> 'Trait':
-        dt = annotations.get(trait_name, XNone) or t_def.data_type
+        dt = annotations.get(trait_name) or t_def.data_type
         trait_class = Trait.real_trait_class(dt)
         trait = trait_class(t_def)
         trait.set_name(trait_name)
