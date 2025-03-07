@@ -189,7 +189,7 @@ void BTraitable::deserialize(const py::dict& serialized_data) {
 }
 
 void BTraitable::reload() {
-    if (!BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY)) {
+    if (!BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY) || !m_class->is_storable()) {
         auto serialized_data = m_class->load_data(id());
         if (serialized_data.is_none())
             throw py::value_error(py::str("{}/{} - failed to reload").format(class_name(), id()));

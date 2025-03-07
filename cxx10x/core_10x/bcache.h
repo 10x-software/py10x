@@ -172,7 +172,7 @@ protected:
 public:
     static void clear() {
         delete s_default;
-        s_default=new BCache();
+        s_default = new BCache();
     }
 
     static BCache* default_cache()      { return s_default; }
@@ -188,6 +188,7 @@ public:
     void                    unregister_object(const TID& tid);
 
     ObjectCache*            create_object_cache(const TID& tid);
+    bool                    insert_object_cache(const TID& tid, ObjectCache* oc);
     virtual ObjectCache*    find_or_create_object_cache(const TID& tid);
 
     [[nodiscard]] virtual ObjectCache* find_object_cache(const TID& tid) const {
@@ -278,3 +279,24 @@ public:
     virtual void export_nodes() {}
 };
 
+class PrivateCache : public BCache {
+    TID*            m_owner;
+    ObjectCache*    m_oc;
+    BCache*         m_parent;
+
+public:
+    explicit PrivateCache(TID& tid, BCache* parent) {
+        m_owner = &tid;
+        m_oc = new ObjectCache();
+        m_parent = parent;
+    }
+
+    ~PrivateCache() override;
+
+    [[nodiscard]] ObjectCache*  object_cache() const { return m_oc; }
+
+    [[nodiscard]] ObjectCache*  find_object_cache(const TID& tid) const final;
+    ObjectCache*                find_or_create_object_cache(const TID& tid) final;
+
+    bool release();
+};

@@ -26,7 +26,7 @@ BUiClass* BTraitableClass::bui_class() {
 bool BTraitableClass::is_storable_get() {
     for (auto item : trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
-        if (!trait->flags_on(BTraitFlags::RUNTIME))
+        if (!trait->flags_on(BTraitFlags::RUNTIME) && !trait->flags_on(BTraitFlags::RESERVED))
             return true;
     }
     return false;
@@ -92,7 +92,7 @@ py::object BTraitableClass::deserialize_object(const py::dict& trait_values, boo
 }
 
 py::object BTraitableClass::load(const py::object& id, bool reload) {
-    if (BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
+    if (BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY) || !is_storable())
         return py::none();
 
     auto py_traitable = m_py_class(id);

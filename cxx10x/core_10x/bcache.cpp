@@ -46,6 +46,15 @@ ObjectCache* BCache::create_object_cache(const TID &tid) {
     return oc;
 }
 
+bool BCache::insert_object_cache(const TID& tid, ObjectCache* oc) {
+    auto it = m_data.find(tid);
+    if (it != m_data.end())
+        return false;
+
+    m_data.insert({tid, oc});
+    return true;
+}
+
 ObjectCache* BCache::find_or_create_object_cache(const TID &tid) {
     auto it = m_data.find(tid);
     if (it != m_data.end())
@@ -85,4 +94,30 @@ void BCache::unregister_object(const TID& tid) {
 
 void BCache::unregister_object(BTraitable *obj) {
     unregister_object(obj->tid());
+}
+
+//---- Private Cache
+
+PrivateCache::~PrivateCache() {
+    delete m_oc;
+}
+
+ObjectCache* PrivateCache::find_object_cache(const TID& tid) const {
+    return &tid == m_owner ? m_oc : m_parent->find_object_cache(tid);
+}
+
+ObjectCache* PrivateCache::find_or_create_object_cache(const TID& tid) {
+    return &tid == m_owner ? m_oc : m_parent->find_or_create_object_cache(tid);
+}
+
+bool PrivateCache::release() {
+    if (!m_owner->is_valid())
+        throw py::value_error(py::str("PrivateCache - may not be released, as the owner's ID is not valid"));
+
+    auto res = m_parent->insert_object_cache(*m_owner, m_oc);
+    if (!res)
+        return false;
+
+    m_oc = nullptr;
+    return true;
 }
