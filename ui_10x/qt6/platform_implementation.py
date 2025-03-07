@@ -49,11 +49,8 @@ Layout                          = QLayout
 BoxLayout                       = QBoxLayout
 BoxLayout.__getattr__           = missing_attr
 
-class HBoxLayout(QHBoxLayout):
-   add_widget = QHBoxLayout.addWidget
-
-class VBoxLayout(QVBoxLayout):
-    add_widget = QHBoxLayout.addWidget
+HBoxLayout                      = QHBoxLayout
+VBoxLayout                      = QVBoxLayout
 
 FormLayout                      = QFormLayout
 FormLayout.__getattr__          = missing_attr
