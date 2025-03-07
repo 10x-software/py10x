@@ -16,7 +16,7 @@ class Person(Traitable):
     dob: date               = T()
     age: int                = T(1)
     full_name: str          = T(T.EXPENSIVE)
-    weight_lbs: float       = T()
+    weight_lbs: float       = T(fmt = ',.4f')
     weight: float           = T()
     weight_qu: WEIGHT_QU    = T(default = WEIGHT_QU.LB)
 
@@ -48,3 +48,6 @@ class Person(Traitable):
 
     def weight_set(self, trait, value) -> RC:  #-- trait setter gets its trait and the value and must return RC
         return self.set_values( weight_lbs = value * self.weight_qu.value)
+
+    def weight_to_str(self, trait, value) -> str:
+        return f'{trait.to_str(value)} {self.weight_qu.label}'

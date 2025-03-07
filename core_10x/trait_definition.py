@@ -28,6 +28,7 @@ class TraitDefinition:
     )
 
     s_known_attributes = {
+        DATATYPE_TAG:   lambda: XNone.__class__,
         FLAGS_TAG:      lambda: BFlags(0x0),
         DEFAULT_TAG:    lambda: XNone,
         FORMAT_TAG:     lambda: '',
