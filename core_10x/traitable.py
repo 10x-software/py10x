@@ -84,7 +84,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             if not isinstance(trait_def, TraitDefinition):
                 continue
 
-            dt = annotations.get(trait_name, XNone)
+            dt = annotations.get(trait_name, XNone.__class__)
             if isinstance(trait_def, TraitModification):
                 old_trait: Trait = trait_dir.get(trait_name)
                 if not old_trait:
@@ -138,6 +138,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if not cls.is_storable():
             del cls.s_dir[Nucleus.REVISION_TAG]
             cls.collection = lambda: None
+            cls.exists_in_store = lambda id: False
             cls.load_data = lambda id_value: None
             cls.load = lambda id_value: None
             cls.load_many = lambda query: []
@@ -280,7 +281,10 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base
         ...
 
     def default_value(self):
-        def_value = self.default_value
+        def_value = self.default
+        if def_value is XNone:
+            return def_value
+
         if isinstance(def_value, str):  #-- id
             return self.data_type.instance_by_id(def_value)
 
