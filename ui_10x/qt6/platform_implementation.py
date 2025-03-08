@@ -8,6 +8,8 @@ from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent, QFontMetr
 import platform
 
 from core_10x.global_cache import cache
+from ui_10x.platform_interface import Separator
+
 
 def missing_attr(self, item):
     t = item.title()
@@ -139,6 +141,7 @@ Palette.Button                  = QPalette.ColorRole.Button
 Palette.Window                  = QPalette.ColorRole.Window
 
 StyleOptionHeader               = QStyleOptionHeader
+Separator                       = QLabel
 
 @cache
 def init(style = '') -> QApplication:
@@ -157,7 +160,7 @@ def from_clipboard(**kwargs) -> str:
     cp = QGuiApplication.clipboard()
     return cp.text()
 
-def separator(horizontal = True) -> QLabel:
+def separator(horizontal = True) -> Separator:
     direction = QFrame.Shape.HLine if horizontal else QFrame.Shape.VLine
     sep = QLabel()
     sep.setFrameStyle(direction | QFrame.Shadow.Sunken)
