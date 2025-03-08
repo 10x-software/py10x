@@ -24,3 +24,6 @@ def CONVERT_VALUES_ON(debug: bool = -1):
 
 def CONVERT_VALUES_OFF(debug: bool = -1):
     return BTP.create(-1, 0, debug, True, False)
+
+def INTERACTIVE():
+    return BTP.create_interactive()

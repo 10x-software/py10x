@@ -34,6 +34,7 @@ if __name__ == '__main__':
 
     print(p.from_any(p.T.older_than(), 'False'))
 
-
+    p2 = Person(first_name = 'Sasha', last_name = 'Davidovich')
+    assert p2.age == 61
 
     #print(Nucleus.serialize_any(p,False))

@@ -2,7 +2,7 @@ from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
 from core_10x.trait import Trait, Ui
 from core_10x.traitable import Traitable
-from core_10x.exec_control import GRAPH_ON
+from core_10x.exec_control import INTERACTIVE
 
 from ui_10x.utils import ux, UxDialog, ux_warning
 from ui_10x.traitable_view import TraitableView
@@ -139,7 +139,7 @@ class TraitableEditor:
         ok = 'Save' if save else 'Ok'
 
         if copy_entity:
-            with GRAPH_ON(debug = True, convert_values = True) as graph:
+            with INTERACTIVE() as graph:
                 accepted = self._popup(layout, title, ok, min_width)
                 if accepted:
                     graph.export_nodes()
