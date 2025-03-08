@@ -101,6 +101,15 @@ py::object BTrait::wrapper_f_from_any_xstr(BTraitable* obj, const py::object& va
     }
 }
 
+bool BTrait::wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value) {
+    try {
+        auto res = f_is_acceptable_type(obj, this, value);
+        return py::cast<bool>(res);
+    } catch (py::error_already_set& exc) {
+        throw trait_error(exc, obj, f_is_acceptable_type, &value, nullptr);
+    }
+}
+
 py::object BTrait::wrapper_f_to_str(BTraitable* obj, const py::object& value) {
     try {
         return f_to_str(obj, this, value);

@@ -63,10 +63,6 @@ public:
     py::object      f_is_acceptable_type;   //                      bool    f(obj, trait, value_or_type)
     py::object      f_style_sheet;      // style sheet from py          dict    f(obj, trait)
 
-    //    auto bound_f_get = [f_get, X, Y]() { return f_get(X, Y); };
-    //    // Call the bound function
-    //    py::object result = bound_f_get();
-
 protected:
 
     py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args);
@@ -109,6 +105,7 @@ public:
     void set_f_from_any_xstr(py::object f, bool custom)     { f_from_any_xstr = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_ANY_XSTR; }
     void set_f_to_str(py::object f, bool custom)            { f_to_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_STR; }
     void set_f_serialize(py::object f, bool custom)         { f_serialize = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_SERIALIZE; }
+    void set_f_is_acceptable_type(py::object f, bool custom) { f_is_acceptable_type = f; }
     void set_f_deserialize(py::object f, bool custom)       { f_deserialize = f; }
     void set_f_to_id(py::object f, bool custom)             { f_to_id = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_ID; }
     void set_f_choices(py::object f, bool custom)           { f_choices = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_CHOICES; }
@@ -126,6 +123,7 @@ public:
     py::object wrapper_f_from_str(BTraitable* obj, const py::object& value);
     py::object wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value);
     py::object wrapper_f_to_str(BTraitable* obj, const py::object& value);
+    bool       wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value);
     py::object wrapper_f_serialize(BTraitable* obj, const py::object& value);
     py::object wrapper_f_deserialize(BTraitable* obj, const py::object& value);
     py::object wrapper_f_to_id(BTraitable* obj, const py::object& value);
@@ -143,82 +141,5 @@ public:
     [[nodiscard]] py::object custom_f_choices() const       { return m_flags & BTraitFlags::CUSTOM_F_CHOICES ? f_choices : py::none(); }
     [[nodiscard]] py::object custom_f_style_sheet() const   { return f_style_sheet; }
 
-//    //---- Getting trait value
-//
-//    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj) {
-//        return m_proc->get_value_off_graph(proc, obj, this);
-//    }
-//
-//    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
-//        return m_proc->get_value_off_graph(proc, obj, this, args);
-//    }
-//
-//    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj) {
-//        return m_proc->get_value_on_graph(proc, obj, this);
-//    }
-//
-//    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
-//        return m_proc->get_value_on_graph(proc, obj, this, args);
-//    }
-//
-//    py::object get_choices_off_graph(BTraitableProcessor* proc, BTraitable* obj) {
-//        return m_proc->get_choices_off_graph(proc, obj, this);
-//    }
-//
-//    py::object get_choices_on_graph(BTraitableProcessor* proc, BTraitable* obj) {
-//        return m_proc->get_choices_on_graph(proc, obj, this);
-//    }
-//
-//    //---- Invalidating trait value
-//
-//    void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj) {
-//        m_proc->invalidate_value_off_graph(proc, obj, this);
-//    }
-//
-//    void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
-//        m_proc->invalidate_value_off_graph(proc, obj, this, args);
-//    }
-//
-//    void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj) {
-//        m_proc->invalidate_value_on_graph(proc, obj, this);
-//    }
-//
-//    void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
-//        m_proc->invalidate_value_on_graph(proc, obj, this, args);
-//    }
-//
-//    //---- Setting (raw) trait value
-//
-//    py::object raw_set_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) {
-//        return m_proc->raw_set_value_off_graph(proc, obj, this, value);
-//    }
-//
-//    py::object raw_set_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args ) {
-//        return m_proc->raw_set_value_off_graph(proc, obj, this, value, args);
-//    }
-//
-//    py::object raw_set_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::object& value) {
-//        return m_proc->raw_set_value_on_graph(proc, obj, this, value);
-//    }
-//
-//    py::object raw_set_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const py::object& value, const py::args& args) {
-//        return m_proc->raw_set_value_on_graph(proc, obj, this, value, args);
-//    }
-
 };
 
-
-//class IdTrait : public BTrait {
-//    bool    m_hashed;
-//
-//public:
-//
-//    void set_hashed(bool hashed)                { m_hashed = hashed; }
-//    [[nodiscard]] bool is_hashed() const        { return m_hashed; }
-//
-//    [[nodiscard]] bool is_id() const final      { return true; }
-//
-//    py::object get_value(BTraitable* obj);
-//    BRC set_value(BTraitable* obj, const py::object& value);
-//
-//};

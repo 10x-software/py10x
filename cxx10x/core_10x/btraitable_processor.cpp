@@ -68,7 +68,10 @@ bool BTraitableProcessor::is_valid(BTraitable* obj, BTrait* trait) const {
 //---- Setting a value
 
 void BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::object& value) {
-    if(!value.get_type().is(trait->data_type()))    // TODO: we may want to use is_acceptable_type() method  of the trait
+    //if(!value.get_type().is(trait->data_type()))
+    auto value_type = value.get_type().cast<py::object>();
+    auto rc = trait->wrapper_f_is_acceptable_type(obj, value_type);
+    if (!rc)
         throw py::type_error(py::str("Trying to set {}.{} ({}) to {}").format(obj->class_name(), trait->name(), trait->data_type(), value));
 }
 
