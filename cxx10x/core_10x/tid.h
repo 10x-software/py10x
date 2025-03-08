@@ -18,6 +18,8 @@ public:
     TID() : m_class(nullptr)                                        {}
     TID(BTraitableClass* cls, const py::object& id) : m_class(cls)  { m_id = id; }
 
+    void set_class(BTraitableClass* cls)                            { m_class = cls; }
+    void set_id(const py::object& id)                               { m_id = id; }
     void set(BTraitableClass* cls, const py::object& id)            { m_class = cls; m_id = id; }
 
     [[nodiscard]] bool                  is_valid() const            { return static_cast<bool>(m_id); }

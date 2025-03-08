@@ -42,7 +42,8 @@ py::object BTraitable::endogenous_id() {
 }
 
 BTraitable::BTraitable(const py::object& cls) {
-    m_class = cls.cast<BTraitableClass *>();
+    m_class = cls.cast<BTraitableClass*>();
+    m_tid.set_class(m_class);
 }
 
 void BTraitable::set_id(const py::object& id) {
@@ -86,17 +87,17 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
         if (m_class->instance_exists(tid)) {
             proc->cache()->remove_object_cache(m_tid, true);
             // TODO: this object may have set non-ID traits; in such a case, their values will be "replaced" for the existing instance's, if any
-            m_tid.set(m_class, id);
+            m_tid.set_id(id);
         }
         else {      // new instance
             auto cache = proc->cache();
-            m_tid.set(m_class, id);
+            m_tid.set_id(id);
             cache->make_permanent(m_tid);
         }
     }
     else {        // ID exogenous
         id = exogenous_id();
-        m_tid.set(m_class, id);
+        m_tid.set_id(id);
         BRC rc(set_values(trait_values));
         if (!rc)
             throw py::value_error(py::str(rc.error()));
@@ -185,7 +186,7 @@ void BTraitable::deserialize(const py::dict& serialized_data) {
 }
 
 void BTraitable::reload() {
-    if (!BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY) || !m_class->is_storable()) {
+    if (m_class->is_storable() && m_tid.is_valid() && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY)) {
         auto serialized_data = m_class->load_data(id());
         if (serialized_data.is_none())
             throw py::value_error(py::str("{}/{} - failed to reload").format(class_name(), id()));

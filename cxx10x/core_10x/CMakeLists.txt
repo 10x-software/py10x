@@ -37,7 +37,6 @@ pybind11_add_module(core_10x_i
         tid.cpp
         bprocess_context.cpp
         btraitable_ui_extension.cpp
-        #interactive_processor.cpp
         xcache.cpp
         simple_cache_layer.cpp
 )

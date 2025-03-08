@@ -57,10 +57,11 @@ protected:
 
 public:
 
-    inline static const unsigned   PLAIN           = 0x0;
-    inline static const unsigned   DEBUG           = 0x1;
-    inline static const unsigned   CONVERT_VALUES  = 0x2;
-    inline static const unsigned   ON_GRAPH        = 0x4;
+    inline static const unsigned   PLAIN                = 0x0;
+    inline static const unsigned   DEBUG                = 0x1;
+    inline static const unsigned   CONVERT_VALUES       = 0x2;
+    inline static const unsigned   ON_GRAPH             = 0x4;
+    inline static const unsigned   EMPTY_OBJ_ALLOWED    = 0x8;
 
     static void set_default_type(unsigned proc_type)        { s_default_type = proc_type; }
     static unsigned default_type()                          { return s_default_type; }
@@ -69,6 +70,12 @@ public:
 
     // int param: -1 - inherit, 0 - reset, 1 - set
     static BTraitableProcessor* create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache);
+
+    static BTraitableProcessor* create_interactive() {
+        auto proc = create(1, 1, 1, false, false);
+        proc->allow_empty_objects(true);
+        return proc;
+    }
 
     static BTraitableProcessor* change_mode(int convert_values, int debug, bool use_default_cache) {
         return create(-1, convert_values, debug, true, use_default_cache);
@@ -85,7 +92,9 @@ public:
     [[nodiscard]] XCache*   cache() const                   { return m_cache; }
     virtual void            use_cache(XCache* c)            { m_cache = c; }
 
-    [[nodiscard]] virtual bool is_empty_object_allowed() const { return false; }
+    [[nodiscard]] bool      is_empty_object_allowed() const { return m_flags & EMPTY_OBJ_ALLOWED; }
+    void                    allow_empty_objects(bool flag)  { flag ? m_flags |= EMPTY_OBJ_ALLOWED : m_flags &= ~EMPTY_OBJ_ALLOWED; }
+
     ExecStack*              exec_stack()                    { return &m_stack; }
 
     [[nodiscard]] unsigned  flags() const                   { return m_flags; }
