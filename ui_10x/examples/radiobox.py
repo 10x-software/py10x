@@ -1,4 +1,8 @@
+
+
 if __name__ == '__main__':
+    import os;assert os.environ.setdefault('UI_PLATFORM', 'Rio') == os.getenv('UI_PLATFORM')
+
     from ui_10x.utils import ux, UxRadioBox, UxDialog
 
     from core_10x.named_constant import NamedConstant
@@ -15,6 +19,8 @@ if __name__ == '__main__':
     w = UxRadioBox(COLOR, 'Choose a Color', default_value = COLOR.GREEN)
     d = UxDialog(w)
 
-    d.exec()
+    rc = d.exec()
+
+    print(w.choice(),rc)
 
 
