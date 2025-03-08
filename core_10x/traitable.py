@@ -240,13 +240,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_bclass.load(id_value, reload)
 
     @classmethod
-    def load_many(cls, query: f, reload = False) -> list:
+    def load_many(cls, query: f = None, reload = False) -> list:
         coll = cls.collection()
         cpp_class = cls.s_bclass
         return [ cpp_class.deserialize_object(serialized_data, reload) for serialized_data in coll.find(query) ]
 
     @classmethod
-    def load_ids(cls, query: f) -> list:
+    def load_ids(cls, query: f = None) -> list:
         coll = cls.collection()
         id_tag = coll.s_id_tag
         return [ serialized_data.get(id_tag) for serialized_data in coll.find(query) ]

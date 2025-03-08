@@ -74,17 +74,19 @@ class EntityStocker(Traitable):
 
         return lay
 
-    def main_layout(self) -> ux.Layout:
+    def main_widget(self) -> ux.Widget:
         entity_viewer = self.entity_viewer
         if entity_viewer:
             lay = ux.VBoxLayout()
             lay.add_layout(self.top_layout(), stretch = 0)
-            lay.add_widget(entity_viewer.main_widget)
+            lay.add_widget(entity_viewer.main_widget())
 
         else:
             lay = self.top_layout()
 
-        return lay
+        w = ux.Widget()
+        w.set_layout(lay)
+        return w
 
     def on_new_entity(self):
         cls = self.plug.current_class

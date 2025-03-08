@@ -66,7 +66,7 @@ class TraitableEditor:
         trait_dir = entity_class.s_dir
         self.trait_hints = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
 
-        self.main_widget: ux.Widget = None
+        self.main_w: ux.Widget = None
         self.callbacks_for_traits = {}
         self.init()
 
@@ -118,13 +118,20 @@ class TraitableEditor:
 
         return row
 
+    def main_widget(self) -> ux.Widget:
+        self.main_w = w = ux.Widget()
+        lay = self.main_layout()
+        w.setLayout(lay)
+        return w
+
     def _popup(self, layout: ux.Layout, title: str, ok: str, min_width: int) -> bool:
         ux.init()
-        if layout is None:
-            layout = self.main_layout()
+        if layout is not None:
+            w = self.main_w = ux.Widget()
+            w.set_layout(layout)
+        else:
+            w = self.main_widget()
 
-        self.main_widget = w = ux.Widget()
-        w.set_layout(layout)
         d = UxDialog(w, title = title, accept_callback = self.entity.verify, ok = ok, min_width = min_width)
         accepted = d.exec()
         self.main_widget = None

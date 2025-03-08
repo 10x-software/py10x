@@ -270,17 +270,18 @@ class Trait(BTrait):
 
 #---- Methods Associated with a trait
 class TRAIT_METHOD(NamedConstant):
-    GET             = Trait.create_f_get
-    SET             = Trait.create_f_set
-    VERIFY          = Trait.create_f_plain
-    FROM_STR        = Trait.create_f_common_trait_with_value
-    FROM_ANY_XSTR   = Trait.create_f_common_trait_with_value
-    TO_STR          = Trait.create_f_common_trait_with_value
-    SERIALIZE       = Trait.create_f_common_trait_with_value
-    DESERIALIZE     = Trait.create_f_common_trait_with_value
-    TO_ID           = Trait.create_f_common_trait_with_value
-    CHOICES         = Trait.create_f_choices
-    STYLE_SHEET     = Trait.create_f_plain
+    GET                 = Trait.create_f_get
+    SET                 = Trait.create_f_set
+    VERIFY              = Trait.create_f_plain
+    FROM_STR            = Trait.create_f_common_trait_with_value
+    FROM_ANY_XSTR       = Trait.create_f_common_trait_with_value
+    IS_ACCEPTABLE_TYPE  = Trait.create_f_common_trait_with_value
+    TO_STR              = Trait.create_f_common_trait_with_value
+    SERIALIZE           = Trait.create_f_common_trait_with_value
+    DESERIALIZE         = Trait.create_f_common_trait_with_value
+    TO_ID               = Trait.create_f_common_trait_with_value
+    CHOICES             = Trait.create_f_choices
+    STYLE_SHEET         = Trait.create_f_plain
 
 
 class generic_trait(Trait, register = False):

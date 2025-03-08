@@ -33,7 +33,7 @@ class TraitWidget:
         self._create()
 
         if self.trait_editor.is_read_only():
-            self.set_read_only()
+            self._set_read_only(True)
 
         self.set_tool_tip(self.trait.ui_hint.tip)
 

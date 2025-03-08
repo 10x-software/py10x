@@ -1,4 +1,5 @@
 import ast
+import inspect
 import locale
 
 from core_10x.xnone import XNone
@@ -186,6 +187,9 @@ class class_trait(Trait, data_type = type):
 
     def from_any_xstr(self, value):
         raise AssertionError('May not be called')
+
+    def is_acceptable_type(self, data_type: type) -> bool:
+        return inspect.isclass(data_type)
 
     def serialize(self, value):
         return PackageRefactoring.find_class_id(value)
