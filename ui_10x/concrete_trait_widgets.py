@@ -122,7 +122,7 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
         #-- Line edit
         self.line_edit = le = ux.LineEdit()
         if self.trait_editor.is_read_only():
-            le.set_readonly(True)
+            le.set_read_only(True)
 
         le.editing_finished_connect(self.on_editing_finished)
         lay.add_widget(le)
