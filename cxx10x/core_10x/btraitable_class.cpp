@@ -55,7 +55,7 @@ bool BTraitableClass::instance_in_cache(const TID &tid) {
 }
 
 bool BTraitableClass::instance_in_store(const TID &tid) const {
-    if (BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
+    if (!tid.is_valid() || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
         return false;
 
     return m_py_class.attr("exists_in_store")(tid.id()).cast<bool>();

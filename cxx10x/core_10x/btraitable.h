@@ -18,11 +18,11 @@ protected:
     BTraitableClass*    m_class;
     TID                 m_tid;
 
-    py::object endogenous_id();
-    static py::object exogenous_id();
-
 public:
     explicit BTraitable(const py::object& cls);
+
+    py::object endogenous_id(bool& non_id_traits_set);
+    static py::object exogenous_id();
 
     void set_id(const py::object& id);
     void initialize(const py::kwargs& trait_values);
@@ -54,6 +54,14 @@ public:
 
         auto proc = ThreadContext::current_traitable_proc();
         return proc->is_valid(this, trait);
+    }
+
+    bool is_set(BTrait* trait) {
+        if (!BTraitableClass::instance_in_cache(m_tid) && m_class->instance_in_store(tid()))
+            reload();
+
+        auto proc = ThreadContext::current_traitable_proc();
+        return proc->is_set(this, trait);
     }
 
     void invalidate_value(const py::str& trait_name) {

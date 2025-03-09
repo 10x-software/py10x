@@ -219,6 +219,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("__enter__",                   &BTraitableProcessor::py_enter)
             .def("__exit__",                    &BTraitableProcessor::py_exit)
             .def("flags",                       &BTraitableProcessor::flags)
+            .def("share_object",                &BTraitableProcessor::share_object)
             .def("export_nodes",                &BTraitableProcessor::export_nodes)
             ;
 

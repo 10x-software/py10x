@@ -8,6 +8,7 @@
 #include "btraitable.h"
 #include "simple_cache_layer.h"
 #include "xcache.h"
+#include "brc.h"
 
 
 Placebo::Placebo(ExecStack* xstack) : m_stack(xstack) {
@@ -39,6 +40,33 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
     return proc;
 }
 
+py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existing) {
+    if (obj->tid().is_valid())
+        return PyLinkage::RC_TRUE();
+
+    bool non_id_traits_set = false;
+    auto id = obj->endogenous_id(non_id_traits_set);
+    auto cls = obj->my_class();
+    TID tid(cls, id);
+    if (!cls->instance_exists(tid)) {
+        obj->set_id(id);
+        m_cache->make_permanent(obj->tid());
+        return PyLinkage::RC_TRUE();
+    }
+
+    if (!accept_existing and non_id_traits_set) {
+        //-- some of the obj's non-ID traits were set - possible conflict with the existing instance!
+        BRC rc;
+        rc.add_data(id);    //-- returning the endogenous ID
+        return rc();
+    }
+
+    cls->load(id, true);
+    m_cache->remove_object_cache(obj->tid(), true);     //-- dispose of temp ObjectCache
+    obj->set_id(id);
+    return PyLinkage::RC_TRUE();
+}
+
 void BTraitableProcessor::export_nodes() {
     m_cache->export_nodes();
 }
@@ -65,6 +93,11 @@ bool BTraitableProcessor::is_valid(BTraitable* obj, BTrait* trait) const {
     return node != nullptr && node->is_valid();
 }
 
+bool BTraitableProcessor::is_set(BTraitable* obj, BTrait* trait) const {
+    auto node = cache()->find_node(obj->tid(), trait);
+    return node != nullptr && node->is_set();
+}
+
 //---- Setting a value
 
 void BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::object& value) {
@@ -72,7 +105,7 @@ void BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::
     auto value_type = value.get_type().cast<py::object>();
     auto rc = trait->wrapper_f_is_acceptable_type(obj, value_type);
     if (!rc)
-        throw py::type_error(py::str("Trying to set {}.{} ({}) to {}").format(obj->class_name(), trait->name(), trait->data_type(), value));
+        throw py::type_error(py::str("{}.{} ({}) - invalid value {}").format(obj->class_name(), trait->name(), trait->data_type(), value));
 }
 
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value) {

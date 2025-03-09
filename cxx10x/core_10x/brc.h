@@ -28,6 +28,8 @@ class BRC {
     py::object m_rc;
 
 public:
+    BRC() : BRC(PyLinkage::RC_TRUE().attr("new_rc")()) {}
+
     explicit BRC(py::object rc) : m_rc(rc) {}
 
     [[nodiscard]] explicit operator bool() const {

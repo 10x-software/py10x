@@ -13,16 +13,20 @@ py::object BTraitable::exogenous_id() {
     return PyHasher::uuid();
 }
 
-py::object BTraitable::endogenous_id() {
+py::object BTraitable::endogenous_id(bool& non_id_traits_set) {
     py::list regulars;
     auto hasher = PyHasher();
 
     auto proc = ThreadContext::current_traitable_proc();
+    auto cache = proc->cache();
     for (auto item : m_class->trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (trait->flags_on(BTraitFlags::ID)) {
             auto value = proc->get_trait_value(this, trait);
-            if (value.is(PyLinkage::XNone()))
+
+            BTraitableProcessor::check_value(this, trait, value);
+
+            if (value.is(PyLinkage::XNone()))   //-- TODO: we probably don't need this anymore (see above)
                 throw py::value_error(py::str("{}.{} is undefined").format(m_class->name(), item.first));
 
             auto value_for_id = trait->wrapper_f_to_id(this, value);
@@ -31,6 +35,9 @@ py::object BTraitable::endogenous_id() {
             else
                 hasher.update(value_for_id);
         }
+        else
+            non_id_traits_set = proc->is_set(this, trait);
+
     }
 
     if (hasher.is_updated()) {
@@ -70,30 +77,21 @@ void BTraitable::initialize(const py::kwargs& trait_values) {
             return;
         }
 
+        //-- setting trait values (not calling set_values() for performance reasons and throwing immediately on error
         for (auto item : trait_values) {
             auto trait_name = item.first.cast<py::object>();
             auto trait = m_class->find_trait(trait_name);
-            if (!trait)
-                continue;       // skipping unknown trait names
+            if (trait) {    // skipping unknown trait names
+                auto value = item.second.cast<py::object>();
+                BRC rc(proc->set_trait_value(this, trait, value));
+                if (!rc)
+                    throw py::value_error(rc.error());
+            }
+        }
 
-            auto value = item.second.cast<py::object>();
-            BRC rc(proc->set_trait_value(this, trait, value));
-            if (!rc)
-                throw py::value_error(rc.error());
-        }
-        id = endogenous_id();
-
-        TID tid(m_class, id);
-        if (m_class->instance_exists(tid)) {
-            proc->cache()->remove_object_cache(m_tid, true);
-            // TODO: this object may have set non-ID traits; in such a case, their values will be "replaced" for the existing instance's, if any
-            m_tid.set_id(id);
-        }
-        else {      // new instance
-            auto cache = proc->cache();
-            m_tid.set_id(id);
-            cache->make_permanent(m_tid);
-        }
+        BRC rc(proc->share_object(this, false));   //-- not silently accepting possibly existing instance
+        if (!rc)
+            throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
     }
     else {        // ID exogenous
         id = exogenous_id();
