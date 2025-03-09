@@ -83,3 +83,6 @@ class CollectionEditor(Traitable):
             self.current_editor = ed
             w = ed.main_widget()
             self.set_pane(0, w)
+
+    def on_new_entity(self, new_entity: Traitable):
+        ...

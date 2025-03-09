@@ -93,7 +93,7 @@ class EntityStocker(Traitable):
         if cls:
             new_entity = cls()
             ed = TraitableEditor.editor(new_entity)
-            if ed.popup(copy_entity = False, title = f"New Entity of {cls.__name__}"):
+            if ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True):
                 #rc = new_entity.share()     #-- TODO! share()
                 rc = RC(True)   #--#--
                 if not rc:
