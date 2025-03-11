@@ -49,9 +49,6 @@ class bool_trait(primitive_trait, data_type = bool):
 
     fmt         = ( 'yes', '' )
 
-    # def to_str(self, v) -> str:
-    #     return str(v)
-
     def to_id(self, value: bool) -> str:
         return '0' if value else '1'
 
@@ -59,6 +56,7 @@ class bool_trait(primitive_trait, data_type = bool):
 class int_trait(primitive_trait, data_type = int):
     s_ui_hint = Ui.line()
 
+    fmt = ','
 
 class float_trait(primitive_trait, data_type = float):
     s_ui_hint = Ui.line()
@@ -67,9 +65,6 @@ class float_trait(primitive_trait, data_type = float):
 
     #def from_str(self, s: str) -> RC:
     #    return RC(True, locale.atof(s))
-
-    # def to_str(self, v) -> str:
-    #     return str(v)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is float or data_type is int
