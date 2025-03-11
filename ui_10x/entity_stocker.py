@@ -8,7 +8,6 @@ class StockerPlug(Traitable):
     master: Traitable               = RT()
     current_class_trait_name: str   = RT('current_class')
     current_entity_trait_name: str  = RT('current_entity')
-    new_entity_cb_name: str         = RT('on_new_entity')            #-- f(new_entity: Traitable)
     changed_entity_cb_name: str     = RT('on_changed_entity')        #-- f(ce: Traitable) - after accepting edits and reloading
     deleted_entity_cb_name: str     = RT('on_deleted_entity')        #-- f(de: Traitable)
 
@@ -29,7 +28,6 @@ class StockerPlug(Traitable):
 
         return lambda e: None
 
-    def new_entity_cb_get(self):        return self._cb(self.new_entity_cb_name)
     def changed_entity_cb_get(self):    return self._cb(self.changed_entity_cb_name)
     def deleted_entity_cb_get(self):    return self._cb(self.deleted_entity_cb_name)
 
@@ -56,7 +54,7 @@ class StockerPlug(Traitable):
 class EntityStocker(Traitable):
     plug: StockerPlug               = RT()
     entity_viewer: TraitableEditor  = RT()
-    buttons_spec: dict              = RT(T.EVAL_ONCE)
+    buttons_spec: dict              = RT()
 
     def entity_viewer_get(self) -> TraitableEditor:
         ce = self.plug.current_entity
@@ -88,19 +86,19 @@ class EntityStocker(Traitable):
         w.set_layout(lay)
         return w
 
-    def on_new_entity(self):
-        cls = self.plug.current_class
-        if cls:
-            new_entity = cls()
-            ed = TraitableEditor.editor(new_entity)
-            if ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True):
-                rc = new_entity.share(False)    #-- not accepting existing entity values, if any
-                if not rc:
-                    ux_warning(rc.error(), parent = None)   #-- TODO: parent must be an existing appropriate widget
-                    #-- TODO: what to do with a temp new_entity?
-
-                else:
-                    self.plug.new_entity_cb(new_entity)
+    # def on_new_entity(self):
+    #     cls = self.plug.current_class
+    #     if cls:
+    #         new_entity = cls()
+    #         ed = TraitableEditor.editor(new_entity)
+    #         if ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True):
+    #             rc = new_entity.share(False)    #-- not accepting existing entity values, if any
+    #             if not rc:
+    #                 ux_warning(rc.error(), parent = None)   #-- TODO: parent must be an existing appropriate widget
+    #                 #-- TODO: what to do with a temp new_entity?
+    #
+    #             else:
+    #                 self.plug.new_entity_cb(new_entity)
 
     def on_edit_entity(self):
         ce = self.plug.current_entity
@@ -157,7 +155,7 @@ class EntityStocker(Traitable):
 
     def buttons_spec_get(self) -> dict:
         return dict(
-        new     = (self.on_new_entity,      'FileIcon'),
+        #new     = (self.on_new_entity,      'FileIcon'),
         edit    = (self.on_edit_entity,     'FileDialogDetailedView'),
         reload  = (self.on_reload_entity,   'ArrowDown'),
         save    = (self.on_save_entity,     'DriveNetIcon'),
