@@ -257,6 +257,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if not rc:
             return rc
 
+        rc = self.share(False)  #-- not accepting existing entity values, if any
+        if not rc:
+            return rc
+
         serialized_data = self.serialize(True)
         if not serialized_data:     #-- it's a lazy instance - no reason to load and re-save
             return RC_TRUE
