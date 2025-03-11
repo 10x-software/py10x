@@ -324,8 +324,8 @@ def ux_make_scrollable(w: ux.Widget, h = ux.SCROLL.AS_NEEDED, v = ux.SCROLL.AS_N
 
     sa = ux.ScrollArea()
     sa.set_widget(w)
-    sa.set_horizontal_scrollbar_policy(h)
-    sa.set_vertical_scrollbar_policy(v)
+    sa.set_horizontal_scroll_bar_policy(h)
+    sa.set_vertical_scroll_bar_policy(v)
     return sa
 
 class UxSearchableList(ux.GroupBox):
