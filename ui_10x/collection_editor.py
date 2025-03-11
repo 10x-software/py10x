@@ -85,4 +85,4 @@ class CollectionEditor(Traitable):
             self.set_pane(0, w)
 
     def on_new_entity(self, new_entity: Traitable):
-        ...
+        self.searchable_list.add_choice(new_entity.id())
