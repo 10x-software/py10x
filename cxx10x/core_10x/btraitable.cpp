@@ -9,6 +9,13 @@
 
 #include "brc.h"
 
+BTraitable::~BTraitable() {
+    if (!m_tid.is_valid()) {    //-- remove temp obj's nodes
+        auto cache = ThreadContext::current_traitable_proc()->cache();
+        cache->remove_object_cache(m_tid, true);
+    }
+}
+
 py::object BTraitable::exogenous_id() {
     return PyHasher::uuid();
 }

@@ -20,6 +20,7 @@ protected:
 
 public:
     explicit BTraitable(const py::object& cls);
+    ~BTraitable();
 
     py::object endogenous_id(bool& non_id_traits_set);
     static py::object exogenous_id();
