@@ -154,7 +154,7 @@ class date_trait(Trait, data_type = date):
 
         return dt
 
-    def to_str(self, v: datetime) -> str:
+    def to_str(self, v: date) -> str:
         return XDateTime.date_to_str(v)
 
     s_acceptable_types = { datetime, date, int, str }
@@ -162,10 +162,10 @@ class date_trait(Trait, data_type = date):
         return data_type in self.s_acceptable_types
 
     def serialize(self, value: date):
-        return value
+        return XDateTime.date_to_str(value, format = XDateTime.FORMAT_X10)
 
-    def deserialize(self, value: date):
-        return value
+    def deserialize(self, value):
+        return XDateTime.str_to_date(value, format = XDateTime.FORMAT_X10)
 
     def to_id(self, value) -> str:
         return XDateTime.date_to_str(value)

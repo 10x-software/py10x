@@ -94,10 +94,10 @@ class EntityStocker(Traitable):
             new_entity = cls()
             ed = TraitableEditor.editor(new_entity)
             if ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True):
-                #rc = new_entity.share()     #-- TODO! share()
-                rc = RC(True)   #--#--
+                rc = new_entity.share(False)    #-- not accepting existing entity values, if any
                 if not rc:
                     ux_warning(rc.error(), parent = None)   #-- TODO: parent must be an existing appropriate widget
+                    #-- TODO: what to do with a temp new_entity?
 
                 else:
                     self.plug.new_entity_cb(new_entity)
