@@ -270,7 +270,7 @@ public:
     }
 
     [[nodiscard]] bool known_object(const TID& tid) const {
-        return m_data.find(tid) != m_data.end();
+        return tid.is_valid() && m_data.find(tid) != m_data.end();
     }
 
     BasicNode* find_node(const TID& tid, BTrait* trait) {

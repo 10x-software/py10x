@@ -44,7 +44,7 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existi
     if (obj->tid().is_valid())
         return PyLinkage::RC_TRUE();
 
-    bool non_id_traits_set = false;
+    bool non_id_traits_set;
     auto id = obj->endogenous_id(non_id_traits_set);
     auto cls = obj->my_class();
     TID tid(cls, id);
@@ -252,7 +252,8 @@ public:
 
 BTraitableProcessor* BTraitableProcessor::create_raw(unsigned int flags) {
     BTraitableProcessor *proc;
-    switch(flags) {
+    auto proc_type = flags & PROC_TYPE;
+    switch(proc_type) {
         case PLAIN:                         proc = new OffGraphNoConvertNoDebug();  break;
         case DEBUG:                         proc = new OffGraphNoConvertDebug();    break;
         case CONVERT_VALUES:                proc = new OffGraphConvertNoDebug();    break;

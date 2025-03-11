@@ -19,6 +19,7 @@ py::object BTraitable::endogenous_id(bool& non_id_traits_set) {
 
     auto proc = ThreadContext::current_traitable_proc();
     auto cache = proc->cache();
+    bool non_id_set = false;
     for (auto item : m_class->trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (trait->flags_on(BTraitFlags::ID)) {
@@ -36,9 +37,9 @@ py::object BTraitable::endogenous_id(bool& non_id_traits_set) {
                 hasher.update(value_for_id);
         }
         else
-            non_id_traits_set = proc->is_set(this, trait);
-
+            non_id_set |= proc->is_set(this, trait);
     }
+    non_id_traits_set = non_id_set;
 
     if (hasher.is_updated()) {
         regulars.append(hasher.hexdigest());

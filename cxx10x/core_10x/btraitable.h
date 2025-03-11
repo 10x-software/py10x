@@ -36,6 +36,10 @@ public:
     py::object from_any(BTrait* trait, const py::object& value);
     py::object value_to_str(BTrait* trait);
 
+    py::object share(bool accept_existing) {
+        return ThreadContext::current_traitable_proc()->share_object(this, accept_existing);
+    }
+
     [[nodiscard]] BTrait* check_trait(const py::str& trait_name) const {
         auto trait = m_class->find_trait(trait_name);
         if (!trait)

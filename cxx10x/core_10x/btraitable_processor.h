@@ -61,6 +61,8 @@ public:
     inline static const unsigned   DEBUG                = 0x1;
     inline static const unsigned   CONVERT_VALUES       = 0x2;
     inline static const unsigned   ON_GRAPH             = 0x4;
+    inline static const unsigned   PROC_TYPE            = ON_GRAPH | CONVERT_VALUES | DEBUG;
+
     inline static const unsigned   EMPTY_OBJ_ALLOWED    = 0x8;
 
     static void set_default_type(unsigned proc_type)        { s_default_type = proc_type; }
