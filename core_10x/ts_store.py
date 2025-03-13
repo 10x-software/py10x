@@ -69,14 +69,14 @@ class TsStore(Resource, resource_type = TS_STORE):
 
         return store
 
-    s_instance_kwargs_map = dict(
-        hostname = ('hostname',  None),
-        username = ('username',  None),
-        dbname   = ('dbname',None),
-        port     = ('port',  None),
-        ssl      = ('ssl',   True),
-        sst      = ('sst',   1000),
-    )
+    s_instance_kwargs_map = {
+        Resource.HOSTNAME_TAG:  (Resource.HOSTNAME_TAG, None),
+        Resource.USERNAME_TAG:  (Resource.USERNAME_TAG, None),
+        Resource.DBNAME_TAG:    (Resource.DBNAME_TAG,   None),
+        Resource.PORT_TAG:      (Resource.PORT_TAG,     None),
+        Resource.SSL_TAG:       (Resource.SSL_TAG,      True),
+        'sst':                  ('sst',                 1000),
+    }
 
     @classmethod
     def translate_kwargs(cls, kwargs: dict) -> dict:
