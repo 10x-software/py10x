@@ -2,6 +2,8 @@ import abc
 import inspect
 from collections import deque
 
+from core_10x.package_refactoring import PackageRefactoring
+
 #===================================================================================================================================
 #   We'd like to do the following:
 #
@@ -16,30 +18,36 @@ from collections import deque
 #       SYMBOLOGY           = REL_DB()              #--
 #       MKT_CLOSE_CLUSTER   = CLOUD_CLUSTER(...)    #--
 #
-#   DataDomainBinder('MDU',
-#       GENERAL             = R('TS_STORE',         'MONGO',        'dev.mongo.general.io', tsl = True)
-#       SYMBOLOGY           = R('REL_DB',           'ORACLE',       'dev.oracle.io', a = '...', b = '...')
-#       MKT_CLOSE_CLUSTER   = R('CLOUD_CLUSTER',    'RAY_CLUSTER',  'dev.ray1.io', ...)
+#   MDU.bind(
+#       GENERAL             = R(TS_STORE.MONGO_DB,         hostname = 'dev.mongo.general.io', tsl = True, ...),
+#       SYMBOLOGY           = R(REL_DB.ORACLE_DB,          hostname = 'dev.oracle.io', a = '...', b = '...')
+#       MKT_CLOSE_CLUSTER   = R(CLOUD_CLUSTER.RAY_CLUSTER, hostname = 'dev.ray1.io', ...)
 #   )
 #
 #===================================================================================================================================
 
 class ResourceRequirements:
     def __init__(self, resource_type, *args, **kwargs):
+        self.domain = None
+        self.category: str = None
         self.resource_type = resource_type
         self.args = args
         self.kwargs = kwargs
 
 class ResourceBinding:
-    def __init__(self, resource_type_or_name, resource_name: str, *args, **kwargs):
-        if isinstance(resource_type_or_name, str):
-            self.resource_type = ResourceType.instance(resource_type_or_name)
+    def __init__(self, _resource_class = None, _resource_type = None, _resource_name: str = None, _driver_name: str = None, **kwargs):
+        if _resource_class:
+            assert issubclass(_resource_class, Resource), f'{_resource_class} is not a subclass of Resource'
         else:
-            assert isinstance(resource_type_or_name, ResourceType), 'instance of ResourceType is expected'
-            self.resource_type = resource_type_or_name
+            if _resource_name:
+                _resource_type = ResourceType.instance(_resource_name)
+            else:
+                assert _resource_type and isinstance(_resource_type, ResourceType), '_resource_type must be an instance of ResourceType'
 
-        self.resource_name = resource_name
-        self.args = args
+            _resource_class = _resource_type.resource_drivers.get(_driver_name)
+            assert _resource_class, f'Unknown _driver_name {_driver_name}'
+
+        self.resource_class = _resource_class
         self.kwargs = kwargs
 R = ResourceBinding
 
@@ -57,8 +65,11 @@ class ResourceType:
     def __call__(self, *args, **kwargs):
         return ResourceRequirements(self, *args, **kwargs)
 
+    def __getattr__(self, driver_name: str):
+        return self.resource_drivers.get(driver_name)
+
     @staticmethod
-    def instance(name: str, throw = True) -> 'ResourceType':
+    def instance(name: str, throw = True):
         rt = ResourceType.s_dir.get(name)
         if not rt and throw:
             raise ValueError(f"Unknown Resource type '{name}'")
@@ -89,7 +100,14 @@ class ResourceType:
         return stack[-1] if stack else None
 
 class Resource(abc.ABC):
+    HOSTNAME_TAG    = 'hostname'
+    PORT_TAG        = 'port'
+    USERNAME_TAG    = 'username'
+    DBNAME_TAG      = 'dbname'
+    SSL_TAG         = 'ssl'
+
     s_resource_type: ResourceType = None
+    s_driver_name: str = None
     def __init_subclass__(cls, resource_type: ResourceType = None, name: str = None):
         if cls.s_resource_type is None:   #-- must be a top class of a particular resource type, e.g. TsStore
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
@@ -100,6 +118,7 @@ class Resource(abc.ABC):
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
             assert name and isinstance(name, str), 'a unique Resource name is expected'
             cls.s_resource_type.register_driver(name, cls)
+            cls.s_driver_name = name
 
     def __enter__(self):
         rt = self.__class__.s_resource_type
@@ -110,6 +129,10 @@ class Resource(abc.ABC):
     def __exit__(self,*args):
         self.__class__.s_resource_type.end_using()
         self.on_exit()
+
+    @classmethod
+    @abc.abstractmethod
+    def instance(cls, *args, **kwargs): ...
 
     @abc.abstractmethod
     def on_enter(self): ...

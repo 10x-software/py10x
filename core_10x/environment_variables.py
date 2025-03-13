@@ -1,6 +1,7 @@
 import os
 import ast
 
+from core_10x_i import OsUser
 from core_10x.global_cache import cache
 from core_10x.xdate_time import XDateTime, date, datetime
 from core_10x.rc import RC
@@ -95,8 +96,22 @@ class _EnvVars:
             setattr(cls, name, classproperty(full_getter))
 
 class EnvVars(_EnvVars, env_name = 'XX'):
-    date_format: str = XDateTime.FORMAT_ISO
+    build_area: str
+    parent_build_area: str          = 'dev'
+    backbone_store_class_name: str  = 'infra_10x.mongodb_store.MongoStore'
+    backbone_store_host_name: str   = 'localhost'
+    date_format: str                = XDateTime.FORMAT_ISO
+
+    sdlc_area: str
+
+    def build_area_get(self) -> str:
+        return OsUser.me.name()
 
     def date_format_apply(cls, value):
         XDateTime.set_default_format(value)
+
+    def sdlc_area_get(self) -> str:
+        ba = self.build_area
+        pba = self.parent_build_area
+        return f'{ba}/{pba}' if pba else ba
 
