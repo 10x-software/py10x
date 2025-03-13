@@ -39,6 +39,7 @@ pybind11_add_module(core_10x_i
         btraitable_ui_extension.cpp
         xcache.cpp
         simple_cache_layer.cpp
+        os_user.cpp
 )
 
 target_include_directories(core_10x_i PRIVATE ${stduuid_SOURCE_DIR}/include)

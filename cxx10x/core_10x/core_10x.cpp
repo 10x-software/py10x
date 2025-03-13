@@ -16,6 +16,7 @@ namespace py = pybind11;
 #include "btraitable.h"
 #include "bprocess_context.h"
 #include "xcache.h"
+#include "os_user.h"
 
 
 PYBIND11_MODULE(core_10x_i, m)
@@ -248,5 +249,10 @@ PYBIND11_MODULE(core_10x_i, m)
     py::class_<BUiClass>(m, "BUiClass")
             .def("create_ui_node",              &BUiClass::create_ui_node)
             .def("update_ui_node",              &BUiClass::update_ui_node)
+            ;
+
+    py::class_<OsUser>(m, "OsUser")
+            .def_readonly_static("me",          &OsUser::me)
+            .def("name",                        &OsUser::name)
             ;
 }

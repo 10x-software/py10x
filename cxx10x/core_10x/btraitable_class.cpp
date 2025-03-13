@@ -78,11 +78,13 @@ py::object BTraitableClass::deserialize(const py::object& serialized_data, bool 
 }
 
 py::object BTraitableClass::deserialize_object(const py::dict& trait_values, bool reload) {
+    auto actual_py_class = m_py_class.attr("serialized_class")(trait_values);
+
     auto id_value = trait_values.attr("pop")("_id", py::none());
     if (id_value.is_none())
         throw py::value_error(py::str("{}.deserialize() - _id field is missing in {}").format(m_name, trait_values));
 
-    auto py_traitable = m_py_class(id_value);    // cls(_id = id_value)
+    auto py_traitable = actual_py_class(id_value);    // cls(_id = id_value)
     auto traitable = py_traitable.cast<BTraitable*>();
 
     if (reload || !instance_in_cache(traitable->tid()))
@@ -95,12 +97,8 @@ py::object BTraitableClass::load(const py::object& id, bool reload) {
     if (!is_storable() || !id || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
         return py::none();
 
-    auto py_traitable = m_py_class(id);
-    auto traitable = py_traitable.cast<BTraitable*>();
-    if (reload || !instance_in_cache(traitable->tid()))
-        traitable->reload();
-
-    return py_traitable;
+    auto serialized_data = load_data(id);
+    return deserialize_object(serialized_data, reload);
 }
 
 py::object BTraitableClass::load_data(const py::object& id) const {
