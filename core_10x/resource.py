@@ -121,12 +121,18 @@ class Resource(abc.ABC):
             cls.s_driver_name = name
 
     def __enter__(self):
+        return self.begin_using()
+
+    def __exit__(self,*args):
+        self.end_using()
+
+    def begin_using(self):
         rt = self.__class__.s_resource_type
         rt.begin_using(self)
         self.on_enter()
         return rt
 
-    def __exit__(self,*args):
+    def end_using(self):
         self.__class__.s_resource_type.end_using()
         self.on_exit()
 

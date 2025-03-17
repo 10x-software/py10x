@@ -6,7 +6,7 @@ if __name__ == '__main__':
 
 
     db = MongoStore.instance(hostname='localhost', dbname='test')
-    #db.s_resource_type.begin_using(db)
+    #db.begin_using()
 
     with db:
         #print(db.collection_names())
