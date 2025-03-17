@@ -4,7 +4,7 @@ if __name__ == '__main__':
     assert os.environ.setdefault('UI_PLATFORM', 'Rio') == os.getenv('UI_PLATFORM')
     from ui_10x.platform import ux
 
-    print( ux.Dialog(ux.Label('Message'),title='Title').exec() )
+    print( ux.Dialog(children=[ux.Label('Message'),ux.Label('Message2')],title='Title').exec() )
 
     # from functools import partial
     #
