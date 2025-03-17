@@ -1,5 +1,4 @@
 import os
-from os.path import expanduser
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -19,7 +18,7 @@ class SecKeys:
     @classmethod
     @cache
     def home_dir(cls) -> str:
-        dir = f"{expanduser('~')}/{ROOT}"
+        dir = f"{os.path.expanduser('~')}/{ROOT}"
         if os.path.exists(dir):
             assert os.path.isdir(dir), f"{dir} is not a directory"
         else:
