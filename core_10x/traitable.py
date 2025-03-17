@@ -3,10 +3,6 @@ import operator
 from functools import reduce
 from itertools import chain
 
-# import uuid
-# import hashlib
-# import copy
-
 from core_10x_i import BTraitable, BTraitableClass
 
 from core_10x.nucleus import Nucleus
@@ -18,6 +14,8 @@ from core_10x.global_cache import cache
 from core_10x.rc import RC, RC_TRUE
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.ts_store import TS_STORE, TsStore, TsCollection
+from core_10x.package_manifest import PackageManifest
+from core_10x.resource import ResourceRequirements
 from core_10x.trait_filter import f
 
 
@@ -186,6 +184,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #-- serialize() is defined in BTraitable
 
     @classmethod
+    def serialized_class(cls, serialized_data: dict):
+        return cls
+
+    @classmethod
     def deserialize(cls, serialized_data) -> 'Traitable':
         return cls.s_bclass.deserialize(serialized_data)
 
@@ -211,43 +213,70 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #   Storage related methods
     #===================================================================================================================
 
+    @staticmethod
+    @cache
+    def _bound_data_domain(domain):
+        from core_10x.backbone.bound_data_domain import BoundDataDomain
+
+        bbd = BoundDataDomain(domain = domain)
+        bbd.reload()
+        return bbd
+
     @classmethod
     @cache
-    def collection(cls) -> TsCollection:
+    def preferred_store(cls) -> TsStore:
+        rr = PackageManifest.resource_requirements(cls)
+        if not rr:
+            return None
+
+        bbd = Traitable._bound_data_domain(rr.domain)
+        return bbd.resource(rr.category, throw = False) if bbd else None
+
+    @classmethod
+    def store(cls) -> TsStore:
         store: TsStore = TS_STORE.current_resource()
         if not store:
-            #-- TODO: find a store re the class' Domain and Category
-            ...
+            store = cls.preferred_store()
+            if not store:
+                raise EnvironmentError(f'{cls} - failed to find a store')
 
-        if not store:
-            raise EnvironmentError(f'{cls} - failed to find a store')
+        return store
 
+    @classmethod
+    def collection(cls) -> TsCollection:
+        store = cls.store()
         cname = PackageRefactoring.find_class_id(cls)
-        return store.collection(cname)
+        return store.collection(cname) if store else None
 
     @classmethod
     def exists_in_store(cls, id_value: str) -> bool:
         coll = cls.collection()
-        return coll.id_exists(id_value)
+        return coll.id_exists(id_value) if coll else False
 
     @classmethod
     def load_data(cls, id_value: str) -> dict:
         coll = cls.collection()
-        return coll.load(id_value)
+        return coll.load(id_value) if coll else {}
 
     @classmethod
     def load(cls, id_value: str, reload = False) -> 'Traitable':
         return cls.s_bclass.load(id_value, reload)
 
     @classmethod
-    def load_many(cls, query: f, reload = False) -> list:
+    def load_many(cls, query: f = None, reload = False) -> list:
         coll = cls.collection()
+        if not coll:
+            return []
+
         cpp_class = cls.s_bclass
         return [ cpp_class.deserialize_object(serialized_data, reload) for serialized_data in coll.find(query) ]
 
     @classmethod
-    def load_ids(cls, query: f) -> list:
+    def load_ids(cls, query: f = None) -> list:
         coll = cls.collection()
+        if not coll:
+            return []
+
         id_tag = coll.s_id_tag
         return [ serialized_data.get(id_tag) for serialized_data in coll.find(query) ]
 
@@ -257,11 +286,17 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if not rc:
             return rc
 
+        rc = self.share(False)  #-- not accepting existing entity values, if any
+        if not rc:
+            return rc
+
         serialized_data = self.serialize(True)
         if not serialized_data:     #-- it's a lazy instance - no reason to load and re-save
             return RC_TRUE
 
         coll = cls.collection()
+        if not coll:
+            return RC(False, f'{cls} - no store available')
 
         try:
             rev = coll.save(serialized_data)
@@ -302,58 +337,48 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base
 
         return self.data_type(**value)
 
+class Bundle(Traitable):
+    s_bundle_base = None
+    s_bundle_members: dict = None
 
-    # def def_trait_invalidate(self, trait_def: TraitDefinition):
-    #     self._default_cache.trait_invalidate(trait_def)
-    #
-    # def def_trait_get(self, trait_def: TraitDefinition):
-    #     self._default_cahe.trait_get(trait_def)
+    def __init_subclass__(cls, members_known = False, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if not cls.s_bundle_base:
+            cls.s_bundle_base = cls
+            if members_known:
+                cls.s_bundle_members = {}
+        else:
+            assert cls.is_storable(), f'{cls} is not storable'
+            base = cls.s_bundle_base
+            bundle_members = base.s_bundle_members
+            if bundle_members is not None:
+                bundle_members[cls.__name__] = cls
 
+            cls.collection_name = base.collection_name
+            cls.collection = base.collection
 
-    # @classmethod
-    # @cache
-    # def id_trait_defs(cls) -> dict:
-    #     return { name: trait_def for name, trait_def in cls.s_traitdef_dir.items() if trait_def.flags.on(T.ID) }
+    def serialize(self, embed: bool) -> dict:
+        serialized_data = super().serialize(True)
+        cls = self.__class__
+        if cls.s_bundle_members is None:    #-- members unknown
+            serialized_data[Nucleus.CLASS_TAG] = PackageRefactoring.find_class_id(cls)
+        else:
+            serialized_data[Nucleus.CLASS_TAG] = cls.__name__
 
-    # @classmethod
-    # def new_exogenous_id(cls) -> str:
-    #     return uuid.uuid1().hex
-    #
-    # @classmethod
-    # def hash_str(cls, unhashed: str) -> str:
-    #     return hashlib.md5(''.join(unhashed).encode(), usedforsecurity = False).hexdigest()
+        return serialized_data
 
-    # s_id_delimiter = '|'
-    # @classmethod
-    # def create_id(cls, trait_values: dict) -> str:
-    #     id_trait_defs = cls.id_trait_defs()
-    #     if not id_trait_defs:
-    #         return cls.new_exogenous_id()
-    #
-    #     rc = RC(True)
-    #     regulars = []
-    #     to_hash = []
-    #     for name, trait_def in id_trait_defs.items():
-    #         value = trait_values.get(name, trait_values)
-    #         if value is not trait_values:
-    #             serialized_value = trait_def.serialize(value)   #-- TODO: revisit for entity traits and maybe others!
-    #             str_value = str(serialized_value)
-    #             res = to_hash if trait_def.flags.on(T.HASH) else regulars
-    #             res.append(str_value)
-    #         else:
-    #             rc.add_error(f'- {name}')
-    #
-    #     if not rc:
-    #         raise RuntimeError('\n'.join(( f'{cls}: ID traits are missing:', *rc.payload) ))
-    #
-    #     if to_hash:
-    #         regulars.append(cls.hash_str(''.join(to_hash)))
-    #
-    #     return cls.s_id_delimiter.join(regulars)
+    @classmethod
+    def serialized_class(cls, serialized_data: dict):
+        class_id = serialized_data.get(Nucleus.CLASS_TAG)
+        if class_id is None:
+            raise RuntimeError(f'{cls}: serialized data is missing {Nucleus.CLASS_TAG}\n{serialized_data}')
 
-    #===================================================================================================================
-    #   Default getters/setters
-    #===================================================================================================================
-    # def raw_set_value(self, trait: Trait, value) -> RC:
-    #
-    #     return RC.TRUE
+        if cls.s_bundle_members is None:  #-- members are not known - class_id is a real class_id
+            return PackageRefactoring.find_class(class_id)
+
+        #-- class_id is a short class name
+        actual_class = cls.s_bundle_members.get(class_id)
+        if not actual_class:
+            raise RuntimeError(f'{cls}: unknown bundle member {class_id}\n{serialized_data}')
+
+        return actual_class

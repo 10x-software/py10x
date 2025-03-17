@@ -1,4 +1,5 @@
 import ast
+import inspect
 import locale
 
 from core_10x.xnone import XNone
@@ -48,9 +49,6 @@ class bool_trait(primitive_trait, data_type = bool):
 
     fmt         = ( 'yes', '' )
 
-    # def to_str(self, v) -> str:
-    #     return str(v)
-
     def to_id(self, value: bool) -> str:
         return '0' if value else '1'
 
@@ -58,6 +56,7 @@ class bool_trait(primitive_trait, data_type = bool):
 class int_trait(primitive_trait, data_type = int):
     s_ui_hint = Ui.line()
 
+    fmt = ','
 
 class float_trait(primitive_trait, data_type = float):
     s_ui_hint = Ui.line()
@@ -66,9 +65,6 @@ class float_trait(primitive_trait, data_type = float):
 
     #def from_str(self, s: str) -> RC:
     #    return RC(True, locale.atof(s))
-
-    # def to_str(self, v) -> str:
-    #     return str(v)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is float or data_type is int
@@ -153,7 +149,7 @@ class date_trait(Trait, data_type = date):
 
         return dt
 
-    def to_str(self, v: datetime) -> str:
+    def to_str(self, v: date) -> str:
         return XDateTime.date_to_str(v)
 
     s_acceptable_types = { datetime, date, int, str }
@@ -161,10 +157,10 @@ class date_trait(Trait, data_type = date):
         return data_type in self.s_acceptable_types
 
     def serialize(self, value: date):
-        return value
+        return XDateTime.date_to_str(value, format = XDateTime.FORMAT_X10)
 
-    def deserialize(self, value: date):
-        return value
+    def deserialize(self, value):
+        return XDateTime.str_to_date(value, format = XDateTime.FORMAT_X10)
 
     def to_id(self, value) -> str:
         return XDateTime.date_to_str(value)
@@ -186,6 +182,9 @@ class class_trait(Trait, data_type = type):
 
     def from_any_xstr(self, value):
         raise AssertionError('May not be called')
+
+    def is_acceptable_type(self, data_type: type) -> bool:
+        return inspect.isclass(data_type)
 
     def serialize(self, value):
         return PackageRefactoring.find_class_id(value)

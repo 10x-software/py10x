@@ -132,6 +132,9 @@ class _RcTrue(RC):
     def __init__(self):
         super().__init__(True)
 
+    def new_rc(self) -> RC:
+        return RC(True)
+
     def add_error(self, err = ''):
         assert False, 'May not add error to a constant RC_TRUE'
 

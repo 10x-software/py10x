@@ -1,14 +1,16 @@
-from datetime import datetime
+from datetime import datetime, date
 
 from core_10x.code_samples.person import Person
-from core_10x.nucleus import Nucleus
 from core_10x.traitable import Traitable, trait_value, T
+from core_10x.exec_control import ProcessContext
 
 class Event(Traitable):
     at: datetime = T()
 
 
 if __name__ == '__main__':
+    ProcessContext.set_flags(ProcessContext.CACHE_ONLY)
+
     e = Event()
     print(e.id())
     rc = e.set_values(at = datetime.now())
@@ -20,7 +22,8 @@ if __name__ == '__main__':
     print(p.full_name)
     print(f'first name = {p.first_name}; last name = {p.last_name}')
 
-    p.age = 61
+    p.dob = date(1963, 5, 14)
+    #p.age = 61
 
     print(f'older_than(25) = {p.older_than(25)}')
 
@@ -34,6 +37,7 @@ if __name__ == '__main__':
 
     print(p.from_any(p.T.older_than(), 'False'))
 
-
+    p2 = Person(first_name = 'Sasha', last_name = 'Davidovich')
+    assert p2.age == 61
 
     #print(Nucleus.serialize_any(p,False))
