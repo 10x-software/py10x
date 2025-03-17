@@ -3,7 +3,8 @@ from core_10x.environment_variables import EnvVars
 from core_10x.xnone import XNone
 from core_10x.data_domain import DataDomain
 
-from core_10x.backbone.backbone_store import BackboneStore, BackboneTraitable, T, RT
+from core_10x.backbone.backbone_store import BackboneStore
+from core_10x.backbone.backbone_traitable import BackboneTraitable, T, RT
 
 class ResourceSpec(BackboneTraitable):
     build_area: str         = T(T.ID)

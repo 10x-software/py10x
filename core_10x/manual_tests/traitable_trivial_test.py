@@ -1,14 +1,16 @@
 from datetime import datetime, date
 
 from core_10x.code_samples.person import Person
-from core_10x.nucleus import Nucleus
 from core_10x.traitable import Traitable, trait_value, T
+from core_10x.exec_control import ProcessContext
 
 class Event(Traitable):
     at: datetime = T()
 
 
 if __name__ == '__main__':
+    ProcessContext.set_flags(ProcessContext.CACHE_ONLY)
+
     e = Event()
     print(e.id())
     rc = e.set_values(at = datetime.now())

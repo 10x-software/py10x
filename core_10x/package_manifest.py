@@ -1,5 +1,5 @@
 from core_10x.py_class import PyClass
-from core_10x.resource import ResourceRequirements
+from core_10x.resource import ResourceRequirements, TS_STORE
 from core_10x.data_domain import GeneralDomain
 
 class PackageManifest:
@@ -43,10 +43,12 @@ class PackageManifest:
     CATEGORY    = '_category'
 
     @staticmethod
-    def resource_requirements(cls) -> ResourceRequirements:
+    def _resource_requirements(cls) -> ResourceRequirements:
         module = cls.__module__
         parts = module.split('.')
-        assert len(parts) >= 2, f'{cls} - invalid class'
+        if len(parts) < 2:
+            return None     #-- should be at least package.module, so it's most probably '__main__.Class'
+
         package = '.'.join(parts[:-1])
         man_def: dict = PyClass.find_symbol(f'{package}.{PackageManifest.SYMBOL}')
         if not man_def:
@@ -61,10 +63,12 @@ class PackageManifest:
                 if rr:
                     return rr
 
-        rr = man_def.get(PackageManifest.CATEGORY)
-        if rr:
-            return rr
+        return man_def.get(PackageManifest.CATEGORY)
 
-        return GeneralDomain.GENERAL
+    @staticmethod
+    def resource_requirements(cls) -> ResourceRequirements:
+        rr = PackageManifest._resource_requirements(cls) or GeneralDomain.GENERAL
+        assert rr.resource_type is TS_STORE, f'{cls} - invalid category in the _package_manifest'
+        return rr
 
     #-- TODO: handle parent classes, if ResourceRequirements for the class in not found
