@@ -7,7 +7,7 @@
 BProcessContext BProcessContext::PC;
 
 BProcessContext::BProcessContext() {
-    m_flags = CACHE_ONLY;
+    //m_flags = CACHE_ONLY;
     m_uns_topics[TP_TYPE] = BTraitableProcessor::PLAIN;
 }
 
