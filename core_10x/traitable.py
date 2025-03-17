@@ -219,8 +219,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         from core_10x.backbone.bound_data_domain import BoundDataDomain
 
         bbd = BoundDataDomain(domain = domain)
-        if bbd:
-            bbd.reload()
+        bbd.reload()
         return bbd
 
     @classmethod
@@ -247,17 +246,17 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def collection(cls) -> TsCollection:
         store = cls.store()
         cname = PackageRefactoring.find_class_id(cls)
-        return store.collection(cname)
+        return store.collection(cname) if store else None
 
     @classmethod
     def exists_in_store(cls, id_value: str) -> bool:
         coll = cls.collection()
-        return coll.id_exists(id_value)
+        return coll.id_exists(id_value) if coll else False
 
     @classmethod
     def load_data(cls, id_value: str) -> dict:
         coll = cls.collection()
-        return coll.load(id_value)
+        return coll.load(id_value) if coll else {}
 
     @classmethod
     def load(cls, id_value: str, reload = False) -> 'Traitable':
@@ -266,12 +265,18 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @classmethod
     def load_many(cls, query: f = None, reload = False) -> list:
         coll = cls.collection()
+        if not coll:
+            return []
+
         cpp_class = cls.s_bclass
         return [ cpp_class.deserialize_object(serialized_data, reload) for serialized_data in coll.find(query) ]
 
     @classmethod
     def load_ids(cls, query: f = None) -> list:
         coll = cls.collection()
+        if not coll:
+            return []
+
         id_tag = coll.s_id_tag
         return [ serialized_data.get(id_tag) for serialized_data in coll.find(query) ]
 
@@ -290,6 +295,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             return RC_TRUE
 
         coll = cls.collection()
+        if not coll:
+            return RC(False, f'{cls} - no store available')
 
         try:
             rev = coll.save(serialized_data)

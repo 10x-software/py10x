@@ -6,7 +6,7 @@ from core_10x.rc import RC
 from core_10x.py_class import PyClass
 from core_10x.global_cache import standard_key
 from core_10x.resource import Resource, TS_STORE
-from core_10x.process_context import ProcessContext
+from core_10x.exec_control import ProcessContext
 
 
 class TsCollection(abc.ABC):
@@ -58,16 +58,20 @@ class TsStore(Resource, resource_type = TS_STORE):
     @classmethod
     def instance(cls, *args, password = '', _cache = True, **kwargs) -> Self:
         translated_kwargs = cls.translate_kwargs(kwargs)
-        if not _cache:
-            return cls.new_instance(*args, password, **translated_kwargs)
+        try:
+            if not _cache:
+                return cls.new_instance(*args, password, **translated_kwargs)
 
-        instance_key = cls.standard_key(*args, **kwargs)
-        store = cls.s_instances.get(instance_key)
-        if not store:
-            store = cls.new_instance(*args, password=password, **translated_kwargs)
-            cls.s_instances[instance_key] = store
+            instance_key = cls.standard_key(*args, **kwargs)
+            store = cls.s_instances.get(instance_key)
+            if not store:
+                store = cls.new_instance(*args, password=password, **translated_kwargs)
+                cls.s_instances[instance_key] = store
 
-        return store
+            return store
+
+        except Exception as e:
+            raise EnvironmentError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{str(e)}')
 
     s_instance_kwargs_map = {
         Resource.HOSTNAME_TAG:  (Resource.HOSTNAME_TAG, None),
@@ -90,11 +94,10 @@ class TsStore(Resource, resource_type = TS_STORE):
         raise NotImplementedError
 
     def on_enter(self):
-        self.bpc_flags = ProcessContext.BPC.flags()
-        ProcessContext.BPC.reset_flags(ProcessContext.CACHE_ONLY)
+        self.bpc_flags = ProcessContext.reset_flags(ProcessContext.CACHE_ONLY)
 
     def on_exit(self):
-        ProcessContext.BPC.replace_flags(self.bpc_flags)
+        ProcessContext.replace_flags(self.bpc_flags)
 
     @abc.abstractmethod
     def collection_names(self, regexp: str = None) -> list: ...

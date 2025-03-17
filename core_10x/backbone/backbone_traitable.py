@@ -1,0 +1,17 @@
+from core_10x.traitable import Traitable, TraitDefinition, RC, T, RT
+from core_10x.ts_store import TsStore
+
+from core_10x.backbone.backbone_store import BackboneStore
+
+class BackboneTraitable(Traitable):
+    @staticmethod
+    def build_trait_dir(bases, class_dict, trait_dir) -> RC:
+        for trait_name, trait_def in class_dict.items():
+            if isinstance(trait_def, TraitDefinition):
+                trait_def.flags_change(T.EVAL_ONCE)
+
+        return Traitable.build_trait_dir(bases, class_dict, trait_dir)
+
+    @classmethod
+    def store(cls) -> TsStore:
+        return BackboneStore.store()
