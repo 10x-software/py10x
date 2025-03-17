@@ -219,8 +219,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         from core_10x.backbone.bound_data_domain import BoundDataDomain
 
         bbd = BoundDataDomain(domain = domain)
-        bbd.reload()
-        return bbd
+        try:
+            bbd.reload()
+            return bbd
+        except:
+            pass
+
 
     @classmethod
     @cache
@@ -237,8 +241,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         store: TsStore = TS_STORE.current_resource()
         if not store:
             store = cls.preferred_store()
-            if not store:
-                raise EnvironmentError(f'{cls} - failed to find a store')
+            #if not store:
+            #    raise EnvironmentError(f'{cls} - failed to find a store')
 
         return store
 

@@ -328,176 +328,176 @@ class UxStyleSheet:
 #    sa.set_vertical_scroll_bar_policy(v)
 #    return sa
 
-# class UxSearchableList(ux.GroupBox):
-#     def __init__(
-#         self,
-#         text_widget: ux.LineEdit = None,
-#         reset_selection = True,
-#         choices: list   = None,
-#         select_hook     = None,
-#         sort            = False,
-#         case_sensitive  = False,
-#         title           = ''
-#     ):
-#         """
-#         :param text_widget: if an external text_widget given, it is used, otherwise its own is created on top of the list
-#         :param reset_selection: if True, text_widget will be reset on new selection
-#         :param choices: all choices
-#         :param select_hook: if given, will be called after a new selection is made: select_hook( selected_choice: str )
-#         :param sort: sort choices if True
-#         :param case_sensitive: whether to search with case sensitivity
-#         :param title: an optional title
-#         """
-#         super().__init__()
-#         self.sort = sort
-#         self.initial_choices = choices if not sort else sorted(choices)
-#         self.current_choices = self.initial_choices
-#         self.hook = select_hook
-#         self.reset_selection = reset_selection
-#         self.case_sensitive = case_sensitive
-#         self.choice = None
-#
-#         if title:
-#             self.set_title(title)
-#         lay = ux.VBoxLayout()
-#
-#         if text_widget:
-#             self.w_field = text_widget
-#         else:
-#             self.w_field = ux.LineEdit()
-#             lay.add_widget(self.w_field)
-#         self.w_field.text_edited_connect(self.process_input)
-#
-#         self.w_list = ux.ListWidget()
-#
-#         self.w_list.add_items(self.initial_choices)
-#         self.w_list.clicked_connect(self.item_selected)
-#         lay.add_widget(self.w_list)
-#
-#         self.set_layout(lay)
-#
-#     def add_choice(self, choice: str):
-#         if not choice in self.initial_choices:
-#             self.initial_choices.append(choice)
-#             if self.sort:
-#                 self.initial_choices = sorted(self.initial_choices)
-#
-#             self.w_list.clear()
-#             self.w_list.add_items(self.initial_choices)
-#
-#     def remove_choice(self, choice: str):
-#         if choice in self.initial_choices:
-#             self.initial_choices.remove(choice)
-#             self.w_list.clear()
-#             self.w_list.add_items(self.initial_choices)
-#
-#     def process_input(self, input):
-#         self.w_list.clear()
-#         if not input:
-#             self.current_choices = self.initial_choices
-#         else:
-#             if not self.current_choices:
-#                 self.current_choices = self.initial_choices
-#
-#             if not self.case_sensitive:
-#                 input = input.lower()
-#                 self.current_choices = [s for s in self.current_choices if not s.lower().find(input) == -1]
-#             else:
-#                 self.current_choices = [s for s in self.current_choices if not s.find(input) == -1]
-#
-#         self.w_list.add_items(self.current_choices)
-#
-#     def item_selected(self, item: ux.ListItem):
-#         i = item.row()
-#         text = self.current_choices[i]
-#         self.reset()
-#
-#         items = self.w_list.find_items(text, ux.MatchExactly)
-#         if len(items):
-#             items[0].set_selected(True)
-#             text_s = '' if self.reset_selection else text
-#             self.w_field.set_text(text_s)
-#
-#         self.choice = text
-#         if self.hook:
-#             self.hook(text)
-#
-#     def choice(self) -> str:
-#         return self.choice
-#
-#     def reset(self):
-#         if not self.current_choices == self.initial_choices:
-#             self.current_choices = self.initial_choices
-#             self.w_list.clear()
-#             self.w_list.add_items( self.initial_choices)
-#
-# class UxTreeViewer(ux.TreeWidget):
-#     s_label_max_length  = 40
-#
-#     def __init__(self, dir: Directory, select_hook = None, label_max_length = -1, expand = False, **kwargs):
-#         super().__init__()
-#         if label_max_length < 0:
-#             label_max_length = self.s_label_max_length
-#
-#         self.dir = dir
-#         self.select_hook = select_hook
-#
-#         dir_value = dir.value
-#         dir_name = dir.name
-#         if dir_value and dir_name and dir_name != dir_value:
-#             num_cols = 2
-#             header_labels = [dir_name, 'Description']
-#         else:
-#             num_cols = 1
-#             header_labels = [dir.show_value()]
-#
-#         self.num_cols = num_cols
-#         self.set_column_count(num_cols)
-#         self.set_header_labels(header_labels)
-#         self.item_clicked_connect(self.tree_item_clicked)
-#
-#         for subdir in dir.members.values():     #-- without the root!
-#             self.create_tree(subdir, self, label_max_length, num_cols)
-#
-#         if expand:
-#             for i in range(self.top_level_item_count()):
-#                 top = self.top_level_item(i)
-#                 top.set_expanded(True)
-#
-#         self.resize_column_to_contents(0)
-#         if num_cols == 2:
-#             self.resize_column_to_contents(1)
-#         self.set_size_policy(ux.SizePolicy.MinimumExpanding, ux.SizePolicy.MinimumExpanding)
-#
-#     class TreeItem(ux.TreeItem):
-#         def __init__(self, parent_node, dir: Directory):
-#             super().__init__(parent_node)
-#             self.dir = dir
-#
-#     @classmethod
-#     def create_tree(cls, dir: Directory, parent_node, label_max_length: int, num_cols: int):
-#         node = cls.TreeItem(parent_node, dir)
-#         show_value = dir.show_value()
-#         node.set_text(0, show_value)
-#         if num_cols == 2:
-#             label = dir.name
-#             if label and label != show_value:
-#                 if len(label) > label_max_length:
-#                     label = label[ :label_max_length ] + '...'
-#
-#                 node.set_text(1, label)
-#
-#         node.set_tool_tip(num_cols-1, dir.name)
-#
-#         for subdir in dir.members.values():
-#             cls.create_tree(subdir, node, label_max_length, num_cols)
-#
-#     def tree_item_clicked(self, item):
-#         self.on_tag_selected(item.dir)
-#
-#     def on_tag_selected(self, dir: Directory):
-#         if self.select_hook:
-#             self.select_hook(dir)
+class UxSearchableList(ux.GroupBox):
+    def __init__(
+        self,
+        text_widget: ux.LineEdit = None,
+        reset_selection = True,
+        choices: list   = None,
+        select_hook     = None,
+        sort            = False,
+        case_sensitive  = False,
+        title           = ''
+    ):
+        """
+        :param text_widget: if an external text_widget given, it is used, otherwise its own is created on top of the list
+        :param reset_selection: if True, text_widget will be reset on new selection
+        :param choices: all choices
+        :param select_hook: if given, will be called after a new selection is made: select_hook( selected_choice: str )
+        :param sort: sort choices if True
+        :param case_sensitive: whether to search with case sensitivity
+        :param title: an optional title
+        """
+        super().__init__()
+        self.sort = sort
+        self.initial_choices = choices if not sort else sorted(choices)
+        self.current_choices = self.initial_choices
+        self.hook = select_hook
+        self.reset_selection = reset_selection
+        self.case_sensitive = case_sensitive
+        self.choice = None
+
+        if title:
+            self.set_title(title)
+        lay = ux.VBoxLayout()
+
+        if text_widget:
+            self.w_field = text_widget
+        else:
+            self.w_field = ux.LineEdit()
+            lay.add_widget(self.w_field)
+        self.w_field.text_edited_connect(self.process_input)
+
+        self.w_list = ux.ListWidget()
+
+        self.w_list.add_items(self.initial_choices)
+        self.w_list.clicked_connect(self.item_selected)
+        lay.add_widget(self.w_list)
+
+        self.set_layout(lay)
+
+    def add_choice(self, choice: str):
+        if not choice in self.initial_choices:
+            self.initial_choices.append(choice)
+            if self.sort:
+                self.initial_choices = sorted(self.initial_choices)
+
+            self.w_list.clear()
+            self.w_list.add_items(self.initial_choices)
+
+    def remove_choice(self, choice: str):
+        if choice in self.initial_choices:
+            self.initial_choices.remove(choice)
+            self.w_list.clear()
+            self.w_list.add_items(self.initial_choices)
+
+    def process_input(self, input):
+        self.w_list.clear()
+        if not input:
+            self.current_choices = self.initial_choices
+        else:
+            if not self.current_choices:
+                self.current_choices = self.initial_choices
+
+            if not self.case_sensitive:
+                input = input.lower()
+                self.current_choices = [s for s in self.current_choices if not s.lower().find(input) == -1]
+            else:
+                self.current_choices = [s for s in self.current_choices if not s.find(input) == -1]
+
+        self.w_list.add_items(self.current_choices)
+
+    def item_selected(self, item: ux.ListItem):
+        i = item.row()
+        text = self.current_choices[i]
+        self.reset()
+
+        items = self.w_list.find_items(text, ux.MatchExactly)
+        if len(items):
+            items[0].set_selected(True)
+            text_s = '' if self.reset_selection else text
+            self.w_field.set_text(text_s)
+
+        self.choice = text
+        if self.hook:
+            self.hook(text)
+
+    def choice(self) -> str:
+        return self.choice
+
+    def reset(self):
+        if not self.current_choices == self.initial_choices:
+            self.current_choices = self.initial_choices
+            self.w_list.clear()
+            self.w_list.add_items( self.initial_choices)
+
+class UxTreeViewer(ux.TreeWidget):
+    s_label_max_length  = 40
+
+    def __init__(self, dir: Directory, select_hook = None, label_max_length = -1, expand = False, **kwargs):
+        super().__init__()
+        if label_max_length < 0:
+            label_max_length = self.s_label_max_length
+
+        self.dir = dir
+        self.select_hook = select_hook
+
+        dir_value = dir.value
+        dir_name = dir.name
+        if dir_value and dir_name and dir_name != dir_value:
+            num_cols = 2
+            header_labels = [dir_name, 'Description']
+        else:
+            num_cols = 1
+            header_labels = [dir.show_value()]
+
+        self.num_cols = num_cols
+        self.set_column_count(num_cols)
+        self.set_header_labels(header_labels)
+        self.item_clicked_connect(self.tree_item_clicked)
+
+        for subdir in dir.members.values():     #-- without the root!
+            self.create_tree(subdir, self, label_max_length, num_cols)
+
+        if expand:
+            for i in range(self.top_level_item_count()):
+                top = self.top_level_item(i)
+                top.set_expanded(True)
+
+        self.resize_column_to_contents(0)
+        if num_cols == 2:
+            self.resize_column_to_contents(1)
+        self.set_size_policy(ux.SizePolicy.MinimumExpanding, ux.SizePolicy.MinimumExpanding)
+
+    class TreeItem(ux.TreeItem):
+        def __init__(self, parent_node, dir: Directory):
+            super().__init__(parent_node)
+            self.dir = dir
+
+    @classmethod
+    def create_tree(cls, dir: Directory, parent_node, label_max_length: int, num_cols: int):
+        node = cls.TreeItem(parent_node, dir)
+        show_value = dir.show_value()
+        node.set_text(0, show_value)
+        if num_cols == 2:
+            label = dir.name
+            if label and label != show_value:
+                if len(label) > label_max_length:
+                    label = label[ :label_max_length ] + '...'
+
+                node.set_text(1, label)
+
+        node.set_tool_tip(num_cols-1, dir.name)
+
+        for subdir in dir.members.values():
+            cls.create_tree(subdir, node, label_max_length, num_cols)
+
+    def tree_item_clicked(self, item):
+        self.on_tag_selected(item.dir)
+
+    def on_tag_selected(self, dir: Directory):
+        if self.select_hook:
+            self.select_hook(dir)
 
 # class UxPixmap:
 #     COLOR_AUTO      = Qt.ColorScheme.AutoColor

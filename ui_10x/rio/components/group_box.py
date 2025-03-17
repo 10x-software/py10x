@@ -1,3 +1,5 @@
+import dataclasses
+
 import rio
 
 class GroupBox(rio.Component):
@@ -8,8 +10,14 @@ class GroupBox(rio.Component):
         title: The text displayed as the group's title.
         children: A list of child components to be grouped.
     """
-    title: str
     children: list[rio.Component] = []
+    _: dataclasses.KW_ONLY
+    title: str = ''
+
+    def __init__(self, *children: rio.Component, title: str = '', **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.children = list(children)
+        self.title = title
 
     def build(self) -> rio.Component:
         """
@@ -18,7 +26,8 @@ class GroupBox(rio.Component):
         return rio.Stack(
             rio.Rectangle(
                 fill=rio.Color.TRANSPARENT,
-                stroke=rio.Stroke(color=rio.Color.GRAY, width=0.1),
+                stroke_width=0.1,
+                stroke_color=rio.Color.GRAY,
                 corner_radius=0.5,
             ),
             rio.Column(

@@ -21,13 +21,13 @@ class Separator(rio.Component):
             return rio.Rectangle(
                 min_height=self.thickness,
                 fill=self.color,
-                margin_vertical=0.5,
+                margin_y=0.5,
             )
         else:
             return rio.Rectangle(
                 min_width=self.thickness,
                 fill=self.color,
-                margin_horizontal=0.5,
+                margin_x=0.5,
             )
 
     def __post_init__(self) -> None:

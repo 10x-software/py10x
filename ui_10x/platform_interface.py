@@ -43,6 +43,7 @@ class FontMetrics(abc.ABC):
 class Color(abc.ABC):   ...
 
 class Widget(abc.ABC):
+    __slots__ = ()
     def __init__(self, *args, **kwargs) -> None: ...
 
     @abc.abstractmethod
@@ -121,6 +122,7 @@ class Splitter(Widget):
     def add_widget(self, widget: Widget):   ...
 
 class Label(Widget):
+    __slots__ = ()
     @abc.abstractmethod
     def set_text(self, text: str):  ...
 
@@ -131,6 +133,7 @@ class Style(abc.ABC):
     def standard_icon(self, style_icon):    ...
 
 class PushButton(Label):
+    __slots__ = ()
     @abc.abstractmethod
     def clicked_connect(self, bound_method):    ...
 
@@ -181,6 +184,7 @@ class GroupBox(Widget):
     def set_title(self, title: str):    ...
 
 class RadioButton(Widget):
+    __slots__ = ()
     @abc.abstractmethod
     def set_checked(self, checked: bool):   ...
 
