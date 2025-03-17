@@ -38,7 +38,13 @@ class XDateTime:
         cls.s_default_format = fmt
         cls.formats[0] = fmt
 
-    def str_to_date(v: str) -> date:
+    def str_to_date(v: str, format = '') -> date:
+        if format:
+            try:
+                return datetime.strptime(v, format).date()
+            except Exception:
+                return None
+
         for fmt in XDateTime.formats:
             try:
                 return datetime.strptime(v, fmt).date()
@@ -55,8 +61,10 @@ class XDateTime:
         fmt = XDateTime.formats_to_str[with_ms]
         return v.strftime(fmt)
 
-    def date_to_str(v: date) -> str:
-        return v.strftime(XDateTime.formats[0])
+    def date_to_str(v: date, format = '') -> str:
+        if not format:
+            format = XDateTime.formats[0]
+        return v.strftime(format)
 
     date_converters = {
         date:       lambda v:   v,

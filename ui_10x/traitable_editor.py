@@ -2,7 +2,7 @@ from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
 from core_10x.trait import Trait, Ui
 from core_10x.traitable import Traitable
-from core_10x.exec_control import GRAPH_ON
+from core_10x.exec_control import INTERACTIVE
 
 from ui_10x.utils import ux, UxDialog, ux_warning
 from ui_10x.traitable_view import TraitableView
@@ -66,7 +66,7 @@ class TraitableEditor:
         trait_dir = entity_class.s_dir
         self.trait_hints = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
 
-        self.main_widget: ux.Widget = None
+        self.main_w: ux.Widget = None
         self.callbacks_for_traits = {}
         self.init()
 
@@ -118,13 +118,20 @@ class TraitableEditor:
 
         return row
 
+    def main_widget(self) -> ux.Widget:
+        self.main_w = w = ux.Widget()
+        lay = self.main_layout()
+        w.setLayout(lay)
+        return w
+
     def _popup(self, layout: ux.Layout, title: str, ok: str, min_width: int) -> bool:
         ux.init()
-        if layout is None:
-            layout = self.main_layout()
+        if layout is not None:
+            w = self.main_w = ux.Widget()
+            w.set_layout(layout)
+        else:
+            w = self.main_widget()
 
-        self.main_widget = w = ux.Widget()
-        w.set_layout(layout)
         d = UxDialog(w, title = title, accept_callback = self.entity.verify, ok = ok, min_width = min_width)
         accepted = d.exec()
         self.main_widget = None
@@ -139,7 +146,7 @@ class TraitableEditor:
         ok = 'Save' if save else 'Ok'
 
         if copy_entity:
-            with GRAPH_ON(debug = True, convert_values = True) as graph:
+            with INTERACTIVE() as graph:
                 accepted = self._popup(layout, title, ok, min_width)
                 if accepted:
                     graph.export_nodes()

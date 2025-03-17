@@ -29,15 +29,18 @@ def cache(f):
     return _cache_with_args(f)
 
 def _cache_no_args(f):
-    the_value = [ XNone ]
+    the_value = [XNone]
     def getter():
         v = the_value[0]
         if v is XNone:
             the_value[0] = v = f()
         return v
 
+    def clear():    the_value[0] = XNone
+
     getter.__name__ = f.__name__
     getter.value = the_value
+    getter.clear = clear
     return getter
 
 def _cache_single_arg(f):
@@ -52,6 +55,7 @@ def _cache_single_arg(f):
 
     getter.__name__ = f.__name__
     getter.cache = the_cache
+    getter.clear = lambda: the_cache.clear()
     return getter
 
 def _cache_with_args(f):
@@ -67,6 +71,7 @@ def _cache_with_args(f):
 
     getter.__name__ = f.__name__
     getter.cache = the_cache
+    getter.clear = lambda: the_cache.clear()
     return getter
 
 def standard_key(args: tuple, kwargs: dict) -> tuple:
@@ -91,7 +96,7 @@ def singleton(cls):
     cls.__new__ = ___operator_new
     cls.___ctor = cls.__init__
     cls.__init__ = lambda self, *args, **kwargs: None
-    cls._resetSingleton = lambda: ___operator_reset( cls )
+    cls._reset_singleton = lambda: ___operator_reset( cls )
     return cls
 
 # def hash_key( obj ) -> int:

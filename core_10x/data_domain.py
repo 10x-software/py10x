@@ -22,6 +22,8 @@ class DataDomain:
         for category, resource_reqs in cls.__dict__.items():
             if isinstance(resource_reqs, ResourceRequirements):
                 assert category.isupper(), f"Category '{category}' must be an uppercase name"
+                resource_reqs.domain = cls
+                resource_reqs.category = category
                 rrs[category] = resource_reqs
 
         assert rrs, f"DataDomain '{cls} must define at least one category"

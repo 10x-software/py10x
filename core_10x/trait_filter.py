@@ -122,7 +122,7 @@ class f(_filter):
             if not self.filter.eval(traitable):
                 return False
 
-        return all(item.eval(traitable.get_value_by_name(name)) for name, item in self.named_expressions.items())
+        return all(item.eval(traitable.get_value(name)) for name, item in self.named_expressions.items())
 
 
     def prefix_notation(self) -> dict:

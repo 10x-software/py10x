@@ -322,11 +322,11 @@ class UxStyleSheet:
 #     if h == ux.SCROLL.OFF and v == ux.SCROLL.OFF:
 #         return w
 #
-#     sa = ux.ScrollArea()
-#     sa.set_widget(w)
-#     sa.set_horizontal_scrollbar_policy(h)
-#     sa.set_vertical_scrollbar_policy(v)
-#     return sa
+#    sa = ux.ScrollArea()
+#    sa.set_widget(w)
+#    sa.set_horizontal_scroll_bar_policy(h)
+#    sa.set_vertical_scroll_bar_policy(v)
+#    return sa
 
 # class UxSearchableList(ux.GroupBox):
 #     def __init__(
