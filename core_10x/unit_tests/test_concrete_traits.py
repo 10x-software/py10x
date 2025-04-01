@@ -1,6 +1,6 @@
 import pytest
 
-from core_10x import TraitMethodError
+from core_10x.trait_method_error import TraitMethodError
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import GRAPH_OFF
 from core_10x.trait_definition import T

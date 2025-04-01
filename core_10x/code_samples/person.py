@@ -75,4 +75,4 @@ class Person(Traitable):
         return f'{trait.to_str(value)} {self.weight_qu.label}'
 
     def to_str(self) -> str:
-        return self.full_name
+        return self.id().value
