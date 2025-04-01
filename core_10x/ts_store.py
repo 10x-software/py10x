@@ -60,12 +60,12 @@ class TsStore(Resource, resource_type = TS_STORE):
         translated_kwargs = cls.translate_kwargs(kwargs)
         try:
             if not _cache:
-                return cls.new_instance(*args, password, **translated_kwargs)
+                return cls.new_instance(*args, password = password, **translated_kwargs)
 
             instance_key = cls.standard_key(*args, **kwargs)
             store = cls.s_instances.get(instance_key)
             if not store:
-                store = cls.new_instance(*args, password=password, **translated_kwargs)
+                store = cls.new_instance(*args, password = password, **translated_kwargs)
                 cls.s_instances[instance_key] = store
 
             return store
@@ -101,7 +101,12 @@ class TsStore(Resource, resource_type = TS_STORE):
 
     @abc.abstractmethod
     def collection_names(self, regexp: str = None) -> list: ...
+
     @abc.abstractmethod
     def collection(self, collection_name: str) -> TsCollection: ...
+
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...
+
+    @abc.abstractmethod
+    def is_running_with_auth( cls, host_name: str ) -> tuple:  ...    #-- (is_running, with_auth)

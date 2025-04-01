@@ -1,10 +1,11 @@
-from core_10x_i import PyLinkage, XCache
-from core_10x.xnone import XNone
-from core_10x.rc import RC_TRUE
-from core_10x.trait import TraitMethodError
+from os import path
 
-PyLinkage.init(XNone, RC_TRUE, TraitMethodError)
-PyLinkage.redirect_stdout_to_python()
+pp = path.dirname(path.abspath(__file__))
+path_to_core_10x = path.dirname(pp)
+
+from core_10x_i import PyLinkage, XCache
+
+PyLinkage.init(path_to_core_10x)
 
 class _Finalizer:
     def __del__(self):

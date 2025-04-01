@@ -20,6 +20,7 @@ class NamedConstant(Nucleus):
     """
 
     def __init__(self, name = '', label = '', value = None):
+        super().__init__()
         self.name = name
         self.label = label
         self.value = value

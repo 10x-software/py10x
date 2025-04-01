@@ -3,7 +3,7 @@ import unittest
 from unittest import mock, TestCase
 from weakref import WeakKeyDictionary
 
-from core_10x import XNone
+from core_10x.xnone import XNone
 from core_10x.code_samples.person import Person, WEIGHT_QU
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, BTP
 from core_10x.trait_definition import T,RT
