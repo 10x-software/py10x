@@ -25,6 +25,7 @@ find_package(pybind11 REQUIRED)
 #find_package(stduuid REQUIRED)
 
 pybind11_add_module(core_10x_i
+        bnucleus.cpp
         bnode.cpp
         btrait.cpp
         btrait_processor.cpp

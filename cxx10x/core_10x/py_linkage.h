@@ -37,15 +37,38 @@ class BTraitable;
 class BTrait;
 
 class PyLinkage {
+    //-- builtins
+    py::object          m_type_cls;
+    py::object          m_bool_cls;
+    py::object          m_int_cls;
+    py::object          m_float_cls;
+    py::object          m_complex_cls;
+    py::object          m_str_cls;
+    py::object          m_list_cls;
+    py::object          m_tuple_cls;
+    py::object          m_dict_cls;
+    py::object          m_bytes_cls;
+    py::object          m_datetime_cls;
+    py::object          m_date_cls;
+    py::object          f_fromisoformat;
+
+    //-- 10x related stuff
     py::object          m_xnone;
-    py::object          m_rc_true;
+    py::object          m_nucleus_class;
+    py::object          m_traitable_id_class;
     py::object          m_trait_method_error_class;
+    py::object          f_find_class;
+    py::object          f_find_class_id;
+
     py::args            m_choices_args;
     py::args            m_style_sheet_args;
-    py::str             m_empty_str;
+
+    py::object          m_rc_true;
 
     std::streambuf      *m_py_stream_buf = nullptr;
     std::streambuf      *m_std_stream_buf = nullptr;
+
+    void get_rc_true();
 
     void create_choices_args() {
         m_choices_args = py::make_tuple(m_xnone, py::str("__choices"));
@@ -55,42 +78,93 @@ class PyLinkage {
         m_style_sheet_args = py::make_tuple(m_xnone, py::str("__style_sheet"));
     }
 
+    static void add_to_py_path(const std::string& path);
+
 public:
     static PyLinkage*   s_py_linkage;
 
-    static void init(py::object xnone, py::object rc_true, py::object trait_method_error_class) {
-        assert(!s_py_linkage);
-        s_py_linkage = new PyLinkage(xnone, rc_true, trait_method_error_class);
-    }
+    static void init(const std::string& path_to_package);
+
+    explicit PyLinkage(const std::string& path_to_package);
+    ~PyLinkage();
+
+    static py::object type(const py::object& v) { return py::reinterpret_borrow<py::object>(v.get_type()); }
+
+    static py::object type_class()              { return s_py_linkage->m_type_cls; }
+    static py::object bool_class()              { return s_py_linkage->m_bool_cls; }
+    static py::object int_class()               { return s_py_linkage->m_int_cls; }
+    static py::object float_class()             { return s_py_linkage->m_float_cls; }
+    static py::object complex_class()           { return s_py_linkage->m_complex_cls; }
+    static py::object str_class()               { return s_py_linkage->m_str_cls; }
+    static py::object bytes_class()             { return s_py_linkage->m_bytes_cls; }
+
+    static py::object datetime_class()          { return s_py_linkage->m_datetime_cls; }
+    static py::object date_class()              { return s_py_linkage->m_date_cls; }
+    static py::object fromisoformat(const py::object& text) { return s_py_linkage->f_fromisoformat(text); }
+
+    static py::object list_class()              { return s_py_linkage->m_list_cls; }
+    static py::object tuple_class()             { return s_py_linkage->m_tuple_cls; }
+    static py::object dict_class()              { return s_py_linkage->m_dict_cls; }
 
     static py::object XNone()                   { return s_py_linkage->m_xnone; }
+    static py::object nucleus_class()           { return s_py_linkage->m_nucleus_class; }
     static const py::args& choices_args()       { return s_py_linkage->m_choices_args; }
     static const py::args& style_sheet_args()   { return s_py_linkage->m_style_sheet_args; }
-    static const py::object& empty_str()        { return s_py_linkage->m_empty_str; }
-    static py::object RC_TRUE()                 { return s_py_linkage->m_rc_true; }
+
+    static const py::object& RC_TRUE() {
+        if (!s_py_linkage->m_rc_true)
+            s_py_linkage->get_rc_true();
+        return s_py_linkage->m_rc_true;
+    }
+
+    static py::object traitable_id(const py::object& id_value, const py::object& coll_name) {
+        return s_py_linkage->m_traitable_id_class(id_value, coll_name);
+    }
+
+    static py::object find_class(const py::str& class_id) {
+        return s_py_linkage->f_find_class(class_id);
+    }
+
+    static py::object find_class_id(const py::object& cls) {
+        return s_py_linkage->f_find_class_id(cls);
+    }
 
     static std::size_t python_id(const py::object& obj) {
         return py::module_::import("builtins").attr("id")(obj).cast<std::size_t>();
     }
 
+    static py::object pickle(const py::object& data) {
+        try {
+            return py::module_::import("pickle").attr("dumps")(data);
+        }
+        catch (const py::error_already_set& e) {
+            throw py::value_error(py::str("Failed to pickle\n{}").format(e.what()));
+        }
+    }
+
+    static py::object unpickle(const py::object& data) {
+        try {
+            return py::module_::import("pickle").attr("loads")(data);
+        }
+        catch (const py::error_already_set& e) {
+            throw py::value_error(py::str("Failed to unpickle\n{}").format(e.what()));
+        }
+    }
+
+    static py::object pickle_dumps(const py::object& data) {
+        try {
+            return py::module_::import("pickle").attr("loads")(data);
+        }
+        catch (const py::error_already_set& e) {
+            throw py::value_error(py::str("Failed to unpickle\n{}").format(e.what()));
+        }
+    }
+
+
     // will throw if class_module.class_name is not importable
     static bool is_instance(const py::object& obj, const char* py_class_module, const char* py_class_name) {
         py::object py_class = py::module_::import(py_class_module).attr(py_class_name);
         return py::isinstance(obj, py_class);
-    }
-
-    explicit PyLinkage(py::object xnone, py::object rc_true, py::object trait_mehod_error_class)
-    : m_xnone(xnone), m_rc_true(rc_true), m_trait_method_error_class(trait_mehod_error_class)
-    {
-        create_choices_args();
-        create_style_sheet_args();
-    }
-
-    ~PyLinkage() {
-        if (m_std_stream_buf) {
-            std::cout.rdbuf(m_std_stream_buf);
-            delete m_py_stream_buf;
-        }
     }
 
     static void clear() {
@@ -99,14 +173,14 @@ public:
 
     static py::object create_trait_method_error(
         BTraitable* obj,
-        BTrait* trait,
+        const py::str& trait_name,
         const py::object& method_name,
         const py::object* value = nullptr,
         const py::args* args = nullptr,
         const py::error_already_set* other_exc = nullptr
     );
 
-    static void redirect_stdout_to_python();
+    void redirect_stdout_to_python();
 
 };
 

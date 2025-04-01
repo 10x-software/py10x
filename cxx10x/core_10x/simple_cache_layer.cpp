@@ -19,10 +19,10 @@ ObjectCache* SimpleCacheLayer::find_or_create_object_cache(const TID &tid) {
     if (oc)
         return oc;
 
-    oc = m_parent->find_object_cache(tid);
-
-    if (!oc)    //-- the object cache is not there, we have a lazy tid reference - let's load the object
-        tid.cls()->load(tid.id(), true);
+//    oc = m_parent->find_object_cache(tid);
+//
+//    if (!oc)    //-- the object cache is not there, we have a lazy tid reference - let's load the object
+//        tid.cls()->load(tid.id(), true);
 
     //-- create it, if any
     return create_object_cache(tid);

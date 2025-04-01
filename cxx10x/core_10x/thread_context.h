@@ -32,6 +32,9 @@ public:
         auto tid = std::this_thread::get_id();
         auto i = s_context_by_thread.find(tid);
         if(i == s_context_by_thread.end()) {
+
+            //std::cout << "*********** ThreadContext - new thread: " << tid << std::endl;
+
             auto context = new ThreadContext(tid);
             s_context_by_thread.insert({tid, context});
             return context;

@@ -7,6 +7,7 @@
 namespace py = pybind11;
 
 #include "py_linkage.h"
+#include "bnucleus.h"
 #include "btrait.h"
 #include "bflags.h"
 #include "tid.h"
@@ -28,7 +29,27 @@ PYBIND11_MODULE(core_10x_i, m)
     py::class_<PyLinkage>(m, "PyLinkage")
             .def_static("init",                         &PyLinkage::init)
             .def_static("clear",                        &PyLinkage::clear)
-            .def_static("redirect_stdout_to_python",    &PyLinkage::redirect_stdout_to_python)
+            ;
+
+    py::class_<BNucleus>(m, "BNucleus")
+            .def_static("ID_TAG",                       &BNucleus::ID_TAG)
+            .def_static("COLLECTION_TAG",               &BNucleus::COLLECTION_TAG)
+            .def_static("CLASS_TAG",                    &BNucleus::CLASS_TAG)
+            .def_static("REVISION_TAG",                 &BNucleus::REVISION_TAG)
+
+            .def_static("serialize_any",                &BNucleus::serialize_any)
+            .def_static("deserialize_any",              &BNucleus::deserialize_any)
+
+            .def_static("serialize_type",               &BNucleus::serialize_type)
+            .def_static("deserialize_type",             &BNucleus::deserialize_type)
+            .def_static("serialize_complex",            &BNucleus::serialize_complex)
+            .def_static("deserialize_complex",          &BNucleus::deserialize_complex)
+            .def_static("serialize_date",               &BNucleus::serialize_date)
+            .def_static("deserialize_date",             &BNucleus::deserialize_date)
+            .def_static("serialize_list",               &BNucleus::serialize_list)
+            .def_static("deserialize_list",             &BNucleus::deserialize_list)
+            .def_static("serialize_dict",               &BNucleus::serialize_dict)
+            .def_static("deserialize_dict",             &BNucleus::deserialize_dict)
             ;
 
     py::class_<BProcessContext>(m, "BProcessContext")
@@ -166,20 +187,20 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("is_storable",                 &BTraitableClass::is_storable)
             .def("is_id_endogenous",            &BTraitableClass::is_id_endogenous)
             .def("find_trait",                  &BTraitableClass::find_trait)
-            .def("deserialize",                 &BTraitableClass::deserialize)
-            .def("deserialize_object",          &BTraitableClass::deserialize_object)
             .def("load",                        &BTraitableClass::load)
             ;
 
     py::class_<BTraitable>(m, "BTraitable")
-            .def(py::init<const py::object&>())
-            .def("set_id",                      &BTraitable::set_id)
+            .def(py::init<BTraitableClass*, const py::object&>())
             .def("initialize",                  &BTraitable::initialize)
             .def("share",                       &BTraitable::share)
             .def("id",                          &BTraitable::id)
+            .def("id_value",                    &BTraitable::id_value)
             .def("xid",                         &BTraitable::tid, py::return_value_policy::reference)
             .def("from_any",                    &BTraitable::from_any)
             .def("value_to_str",                &BTraitable::value_to_str)
+            .def("get_revision",                &BTraitable::get_revision)
+            .def("set_revision",                &BTraitable::set_revision)
             .def("get_value",                   py::overload_cast<const py::str&>(&BTraitable::get_value))
             .def("get_value",                   py::overload_cast<const py::str&, const py::args&>(&BTraitable::get_value))
             .def("get_value",                   py::overload_cast<BTrait*>(&BTraitable::get_value))
@@ -201,7 +222,10 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("raw_set_value",               py::overload_cast<BTrait*, const py::object&>(&BTraitable::raw_set_value))
             .def("raw_set_value",               py::overload_cast<BTrait*, const py::object&, const py::args&>(&BTraitable::raw_set_value))
             .def("_set_values",                 &BTraitable::set_values)
-            .def("serialize",                   &BTraitable::serialize)
+            .def("serialize_nx",                &BTraitable::serialize_nx)
+            .def_static("deserialize_nx",       &BTraitable::deserialize_nx)
+            .def("serialize_object",            &BTraitable::serialize_object)
+            .def_static("deserialize_object",   &BTraitable::deserialize_object)
             .def("reload",                      &BTraitable::reload)
             .def("bui_class",                   &BTraitable::bui_class, py::return_value_policy::reference)
             ;

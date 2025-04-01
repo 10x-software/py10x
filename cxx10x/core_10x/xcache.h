@@ -223,25 +223,23 @@ public:
         return it != m_tmp_data.end() ? it->second : nullptr;
     }
 
+    void remove_temp_object_cache(const TID& tid) {
+        auto it = m_tmp_data.find(tid.ptr());
+        if (it == m_tmp_data.end())
+            return;
+
+        auto oc = it->second;
+        m_tmp_data.erase(it);
+        delete oc;
+    }
+
     ObjectCache* remove_object_cache(const TID& tid, bool discard = false) {
-        ObjectCache* oc;
+        auto it = m_data.find(tid);
+        if (it == m_data.end())
+            return nullptr;
 
-        if (tid.is_valid()) {
-            auto it = m_data.find(tid);
-            if (it == m_data.end())
-                return nullptr;
-
-            oc = it->second;
-            m_data.erase(it);
-        }
-        else {
-            auto it = m_tmp_data.find(tid.ptr());
-            if (it == m_tmp_data.end())
-                return nullptr;
-
-            oc = it->second;
-            m_tmp_data.erase(it);
-        }
+        auto oc = it->second;
+        m_data.erase(it);
 
         if (discard) {
             delete oc;

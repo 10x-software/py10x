@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "btraitable_class.h"
+#include "bnucleus.h"
 #include "btrait.h"
 #include "xcache.h"
 #include "thread_context.h"
@@ -61,44 +62,12 @@ bool BTraitableClass::instance_in_store(const TID &tid) const {
     return m_py_class.attr("exists_in_store")(tid.id()).cast<bool>();
 }
 
-py::object BTraitableClass::deserialize(const py::object& serialized_data, bool reload) {
-    if (py::isinstance<py::str>(serialized_data)) {     //-- just traitable's ID
-        auto proc = ThreadContext::current_traitable_proc();
-        if (proc->flags_on(BTraitableProcessor::DEBUG))
-            return load(serialized_data, true);
-
-        return m_py_class(serialized_data);     // cls(_id = serialized_data)
-    }
-
-    if (!py::isinstance<py::dict>(serialized_data))
-        throw py::type_error(py::str("{}.deserialize() expects a dict, got {}").format(m_name, serialized_data));
-
-    auto trait_values = serialized_data.cast<py::dict>();
-    return deserialize_object(trait_values, reload);
-}
-
-py::object BTraitableClass::deserialize_object(const py::dict& trait_values, bool reload) {
-    auto actual_py_class = m_py_class.attr("serialized_class")(trait_values);
-
-    auto id_value = trait_values.attr("pop")("_id", py::none());
-    if (id_value.is_none())
-        throw py::value_error(py::str("{}.deserialize() - _id field is missing in {}").format(m_name, trait_values));
-
-    auto py_traitable = actual_py_class(id_value);    // cls(_id = id_value)
-    auto traitable = py_traitable.cast<BTraitable*>();
-
-    if (reload || !instance_in_cache(traitable->tid()))
-        traitable->deserialize(trait_values);
-
-    return py_traitable;
-}
-
-py::object BTraitableClass::load(const py::object& id, bool reload) {
+py::object BTraitableClass::load(const py::object& id) {
     if (!is_storable() || !id || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
         return py::none();
 
     auto serialized_data = load_data(id);
-    return deserialize_object(serialized_data, reload);
+    return BTraitable::deserialize_object(this, id.attr("collection_name"), serialized_data);
 }
 
 py::object BTraitableClass::load_data(const py::object& id) const {

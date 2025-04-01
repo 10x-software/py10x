@@ -45,11 +45,13 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existi
         return PyLinkage::RC_TRUE();
 
     bool non_id_traits_set;
-    auto id = obj->endogenous_id(non_id_traits_set);
+    auto id_value = obj->endogenous_id(non_id_traits_set);
+    auto id_to_be = PyLinkage::traitable_id(id_value, obj->tid().coll_name());
     auto cls = obj->my_class();
-    TID tid(cls, id);
-    if (!cls->instance_exists(tid)) {
-        obj->set_id(id);
+    TID tid(cls, id_to_be);
+    auto in_cache = m_cache->known_object(tid);
+    if (!in_cache && !cls->instance_in_store(tid)) {
+        obj->set_id_value(id_value);
         m_cache->make_permanent(obj->tid());
         return PyLinkage::RC_TRUE();
     }
@@ -57,13 +59,16 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existi
     if (!accept_existing and non_id_traits_set) {
         //-- some of the obj's non-ID traits were set - possible conflict with the existing instance!
         BRC rc;
-        rc.add_data(id);    //-- returning the endogenous ID
+        rc.add_data(id_value);    //-- returning the endogenous ID
         return rc();
     }
 
-    cls->load(id, true);
-    m_cache->remove_object_cache(obj->tid(), true);     //-- dispose of temp ObjectCache
-    obj->set_id(id);
+    //-- Accepting the existing instance, finishing
+    m_cache->remove_temp_object_cache(obj->tid());
+    obj->set_id_value(id_value);
+    if (!in_cache)
+        cls->load(obj->id());
+
     return PyLinkage::RC_TRUE();
 }
 

@@ -12,14 +12,6 @@ ObjectCache* XCache::find_or_create_object_cache(const TID& tid) {
         if (it != m_data.end())
             return it->second;
 
-        //-- the object cache is not there, we have a lazy tid reference (if valid) - let's load the object
-        tid.cls()->load(tid.id(), true);
-
-        //-- check if loaded successfully, otherwise create it
-        it = m_data.find(tid);
-        if (it != m_data.end())
-            return it->second;
-
         auto oc = new ObjectCache();
         m_data.insert({tid, oc});
         return oc;

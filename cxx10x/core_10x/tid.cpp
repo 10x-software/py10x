@@ -4,4 +4,32 @@
 
 #include "tid.h"
 #include "btraitable_class.h"
+#include "bnucleus.h"
 
+TID::TID(BTraitableClass* cls, const py::object& id) : m_class(cls) {
+    m_id = id;
+    if (cls->is_custom_collection()) {
+        if (!coll_name().cast<bool>())
+            throw py::type_error(py::str("{}() requires _collection_name").format(cls->name()));
+    }
+    else if (coll_name().cast<bool>())
+        throw py::type_error(py::str("{}() _collection_name may not be provided").format(cls->name()));
+}
+
+void TID::serialize_id(py::dict& res, bool embed) {
+    res[BNucleus::ID_TAG()] = id_value();
+    auto cname = coll_name();
+    if (!embed && !cname.is_none())
+        res[BNucleus::COLLECTION_TAG()] = cname;
+}
+
+py::object TID::deserialize_id(const py::dict& serialized_data, bool must_exist) {
+    if (!serialized_data.contains(BNucleus::ID_TAG())) {
+        if (must_exist)
+            throw py::value_error(py::str("Corrupted record - missing {} field\n{}").format(BNucleus::ID_TAG(), serialized_data));
+        return py::none();
+    }
+    auto id_value = serialized_data[BNucleus::ID_TAG()];
+    auto cname = serialized_data.contains(BNucleus::COLLECTION_TAG()) ? serialized_data[BNucleus::COLLECTION_TAG()] : py::none();
+    return PyLinkage::traitable_id(id_value, cname);
+}
