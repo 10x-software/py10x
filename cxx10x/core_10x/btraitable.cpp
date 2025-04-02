@@ -165,6 +165,7 @@ py::object BTraitable::serialize_nx(bool embed) {
 
         py::dict res;
         m_tid.serialize_id(res, embed);
+        //-- TODO: must save the object if not in store!
         return res;
     }
 
@@ -224,15 +225,18 @@ py::object BTraitable::deserialize_object(BTraitableClass *cls, const py::object
 
 py::dict BTraitable::serialize_traits() {
     py::dict res;
+    auto XNone = PyLinkage::XNone();
+    auto proc = ThreadContext::current_traitable_proc();
     for (auto item : my_class()->trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (!trait->flags_on(BTraitFlags::RUNTIME) && !trait->flags_on(BTraitFlags::RESERVED)) {
             auto trait_name = item.first.cast<py::object>();
-            auto value = get_value(trait);
-            if (value.is(PyLinkage::XNone()))
+            auto value = proc->get_trait_value(this, trait);
+            if (value.is_none())    //-- None is never serialized (user's decision to return or set None)
                 throw py::value_error(py::str("{}.{} - undefined value").format(class_name(), trait_name));
 
-            auto ser_value = trait->wrapper_f_serialize(this, value);
+            //-- XNone is serialized as None (undefined)
+            auto ser_value = value.is(XNone) ? py::none() : trait->wrapper_f_serialize(this, value);
             res[trait_name] = ser_value;
         }
     }
@@ -243,15 +247,21 @@ py::dict BTraitable::serialize_traits() {
 }
 
 void BTraitable::deserialize_traits(const py::dict& trait_values) {
-    auto cache = ThreadContext::current_traitable_proc()->cache();
-    cache->create_object_cache(m_tid);
+    auto proc = ThreadContext::current_traitable_proc();
+    proc->cache()->create_object_cache(m_tid);
 
-    for (auto item : trait_values) {
+    for (auto item : my_class()->trait_dir()) {
+        auto trait = item.second.cast<BTrait*>();
+        if (trait->flags_on(BTraitFlags::RESERVED) || trait->flags_on(BTraitFlags::RUNTIME))
+            continue;
+
         auto trait_name = item.first.cast<py::object>();
-        auto trait = my_class()->find_trait(trait_name);
-        if (trait && !trait->flags_on(BTraitFlags::RESERVED)) {     //-- TODO: && !RUNTIME?
-            auto value = item.second.cast<py::object>();
-            auto deser_value = trait->wrapper_f_deserialize(this, value);
+        if (!trait_values.contains(trait_name))
+            proc->invalidate_trait_value(this, trait);      //-- TODO: should we set None instead?
+        else {
+            auto value = trait_values[trait_name];
+            //-- As XNone is serialized as None, get it back, if any
+            auto deser_value = value.is_none() ? PyLinkage::XNone() : trait->wrapper_f_deserialize(this, value);
             BRC rc(set_value(trait, deser_value));
             if (!rc)
                 throw py::value_error(rc.error());

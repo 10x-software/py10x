@@ -98,16 +98,33 @@ bool BTraitableProcessor::is_valid(BTraitable* obj, BTrait* trait) const {
     return node != nullptr && node->is_valid();
 }
 
+bool BTraitableProcessor::is_valid(BTraitable* obj, BTrait* trait, const py::args& args) const {
+    auto node = cache()->find_node(obj->tid(), trait, args);
+    return node != nullptr && node->is_valid();
+}
+
 bool BTraitableProcessor::is_set(BTraitable* obj, BTrait* trait) const {
     auto node = cache()->find_node(obj->tid(), trait);
     return node != nullptr && node->is_set();
 }
 
+bool BTraitableProcessor::is_set(BTraitable* obj, BTrait* trait, const py::args& args) const {
+    auto node = cache()->find_node(obj->tid(), trait, args);
+    return node != nullptr && node->is_set();
+}
+
+BasicNode* BTraitableProcessor::get_node(BTraitable *obj, BTrait *trait) const {
+    return cache()->find_node(obj->tid(), trait);
+}
+
+BasicNode* BTraitableProcessor::get_node(BTraitable *obj, BTrait *trait, const py::args& args) const {
+    return cache()->find_node(obj->tid(), trait, args);
+}
+
 //---- Setting a value
 
 void BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::object& value) {
-    //if(!value.get_type().is(trait->data_type()))
-    auto value_type = value.get_type().cast<py::object>();
+    auto value_type = PyLinkage::type(value);
     auto rc = trait->wrapper_f_is_acceptable_type(obj, value_type);
     if (!rc)
         throw py::type_error(py::str("{}.{} ({}) - invalid value {}").format(obj->class_name(), trait->name(), trait->data_type(), value));
@@ -171,6 +188,9 @@ public:
 class OffGraphNoConvertDebug : public OffGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
         check_value(obj, trait, value);
         return value;
     }
@@ -179,6 +199,9 @@ public:
 class OffGraphConvertNoDebug : public OffGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
         return obj->from_any(trait, value);
     }
 };
@@ -186,6 +209,9 @@ public:
 class OffGraphConvertDebug : public OffGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
         auto converted_value = obj->from_any(trait, value);
         check_value(obj, trait, converted_value);
         return converted_value;
@@ -234,6 +260,9 @@ public:
 class OnGraphNoConvertDebug : public OnGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
         check_value(obj, trait, value);
         return value;
     }
@@ -242,6 +271,9 @@ public:
 class OnGraphConvertNoDebug : public OnGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
         return obj->from_any(trait, value);
     }
 };
@@ -249,6 +281,9 @@ public:
 class OnGraphConvertDebug : public OnGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
         auto converted_value = obj->from_any(trait, value);
         check_value(obj, trait, converted_value);
         return converted_value;
