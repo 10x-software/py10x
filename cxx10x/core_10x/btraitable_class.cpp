@@ -43,11 +43,11 @@ bool BTraitableClass::is_id_endogenous_get() {
 }
 
 BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
-    auto dir = trait_dir();
-    if (!dir.contains(trait_name))
+    auto trait = PyLinkage::dict_get(trait_dir(), trait_name);
+    if (trait.is(PyLinkage::XNone()))
         return nullptr;
 
-    return dir[trait_name].cast<BTrait*>();
+    return trait.cast<BTrait*>();
 }
 
 bool BTraitableClass::instance_in_cache(const TID &tid) {

@@ -5,20 +5,20 @@
 #include "bnucleus.h"
 
 py::object BNucleus::deserialize_record(const py::dict& record) {
-    if (!record.contains(TYPE_TAG()))
+    auto XNone = PyLinkage::XNone();
+    auto record_type = PyLinkage::dict_get(record, TYPE_TAG());
+    if (record_type.is(XNone))
         return py::none();      //-- it's not a Nucleus record
-    auto record_type = record[TYPE_TAG()];
 
-    if (!record.contains(CLASS_TAG()))
+    auto cls_id = PyLinkage::dict_get(record, CLASS_TAG());
+    if (cls_id.is(XNone))
         throw py::type_error(py::str("Nucleus record is corrupted - '{}' is missing\n{}").format(CLASS_TAG(), record));
 
-    auto cls_id = record[CLASS_TAG()];
     auto data_type = PyLinkage::find_class(cls_id);
 
-    if (!record.contains(OBJECT_TAG()))
+    auto serialized_data = PyLinkage::dict_get(record, OBJECT_TAG());
+    if (serialized_data.is(XNone))
         throw py::type_error(py::str("Nucleus record is corrupted - '{}' is missing\n{}").format(OBJECT_TAG(), record));
-
-    auto serialized_data = record[OBJECT_TAG()];
 
     auto deserializer = deserialization_record_method(record_type);
     if (!deserializer)

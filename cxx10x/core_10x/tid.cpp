@@ -24,12 +24,15 @@ void TID::serialize_id(py::dict& res, bool embed) {
 }
 
 py::object TID::deserialize_id(const py::dict& serialized_data, bool must_exist) {
-    if (!serialized_data.contains(BNucleus::ID_TAG())) {
+    auto XNone = PyLinkage::XNone();
+    auto id_value = PyLinkage::dict_get(serialized_data, BNucleus::ID_TAG());
+    if (id_value.is(XNone)) {
         if (must_exist)
             throw py::value_error(py::str("Corrupted record - missing {} field\n{}").format(BNucleus::ID_TAG(), serialized_data));
         return py::none();
     }
-    auto id_value = serialized_data[BNucleus::ID_TAG()];
-    auto cname = serialized_data.contains(BNucleus::COLLECTION_TAG()) ? serialized_data[BNucleus::COLLECTION_TAG()] : py::none();
+    auto cname = PyLinkage::dict_get(serialized_data, BNucleus::COLLECTION_TAG());
+    if (cname.is(XNone))
+        cname = py::none();
     return PyLinkage::traitable_id(id_value, cname);
 }

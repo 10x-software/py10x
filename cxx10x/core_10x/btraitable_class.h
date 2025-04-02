@@ -67,10 +67,6 @@ public:
         return m_trait_dir;
     }
 
-    bool known_trait(const py::object& trait_name) const {
-        return trait_dir().contains(trait_name);
-    }
-
     BTrait*     find_trait(const py::object& trait_name) const;
 
     static bool instance_in_cache(const TID& tid);
@@ -85,8 +81,9 @@ public:
     }
 
     py::object get_field(const py::dict& serialized_data, const py::object& field_name, bool must_exist = true) const {
-        if (serialized_data.contains(field_name))
-            return serialized_data[field_name];
+        auto value = PyLinkage::dict_get(serialized_data, field_name);
+        if (!value.is(PyLinkage::XNone()))
+            return value;
 
         if (must_exist)
             throw py::value_error(py::str("{} - {} field is missing in {}").format(name(), field_name, serialized_data));

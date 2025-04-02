@@ -47,6 +47,7 @@ class PyLinkage {
     py::object          m_list_cls;
     py::object          m_tuple_cls;
     py::object          m_dict_cls;
+    py::object          f_dict_get;
     py::object          m_bytes_cls;
     py::object          m_datetime_cls;
     py::object          m_date_cls;
@@ -107,6 +108,10 @@ public:
     static py::object list_class()              { return s_py_linkage->m_list_cls; }
     static py::object tuple_class()             { return s_py_linkage->m_tuple_cls; }
     static py::object dict_class()              { return s_py_linkage->m_dict_cls; }
+
+    static py::object dict_get(const py::dict& d, const py::object& key) {
+        return s_py_linkage->f_dict_get(d, key, XNone());
+    }
 
     static py::object XNone()                   { return s_py_linkage->m_xnone; }
     static py::object nucleus_class()           { return s_py_linkage->m_nucleus_class; }

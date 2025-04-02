@@ -250,18 +250,19 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
     auto proc = ThreadContext::current_traitable_proc();
     proc->cache()->create_object_cache(m_tid);
 
+    auto XNone = PyLinkage::XNone();
     for (auto item : my_class()->trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (trait->flags_on(BTraitFlags::RESERVED) || trait->flags_on(BTraitFlags::RUNTIME))
             continue;
 
         auto trait_name = item.first.cast<py::object>();
-        if (!trait_values.contains(trait_name))
+        auto value = PyLinkage::dict_get(trait_values, trait_name);
+        if (value.is(XNone))
             proc->invalidate_trait_value(this, trait);      //-- TODO: should we set None instead?
         else {
-            auto value = trait_values[trait_name];
             //-- As XNone is serialized as None, get it back, if any
-            auto deser_value = value.is_none() ? PyLinkage::XNone() : trait->wrapper_f_deserialize(this, value);
+            auto deser_value = value.is_none() ? XNone : trait->wrapper_f_deserialize(this, value);
             BRC rc(set_value(trait, deser_value));
             if (!rc)
                 throw py::value_error(rc.error());

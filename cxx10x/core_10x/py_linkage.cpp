@@ -78,6 +78,7 @@ PyLinkage::PyLinkage(const std::string& path_to_package) {
     m_list_cls      = builtins.attr("list");
     m_tuple_cls     = builtins.attr("tuple");
     m_dict_cls      = builtins.attr("dict");
+    f_dict_get      = m_dict_cls.attr("get");
     m_bytes_cls     = builtins.attr("bytes");
 
     py::module_ dt = py::module_::import("datetime");
