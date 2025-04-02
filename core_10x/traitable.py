@@ -443,10 +443,19 @@ class Bundle(Traitable):
         return actual_class
 
 class AnonymousTraitable(Traitable):
+    _me = True
     @classmethod
     def check_integrity(cls, rc: RC):
-        if cls.is_id_endogenous():
-            rc.add_error(f'{cls} - anonymous traitable may not have ID traits')
+        if cls._me:
+            cls._me = False
+            return
+
+        if cls is not AnonymousTraitable:
+            if not cls.is_storable():
+                rc.add_error(f'{cls} - anonymous traitable must be storable')
+
+            if cls.is_id_endogenous():
+                rc.add_error(f'{cls} - anonymous traitable may not have ID traits')
 
     @classmethod
     def collection(cls, _coll_name: str = None):
