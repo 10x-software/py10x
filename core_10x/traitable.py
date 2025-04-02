@@ -179,11 +179,18 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
             cls.load_ids = lambda query: []
             cls.save = lambda self: RC(False, f'{cls} is not storable')
 
+        rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
             if trait.data_type is THIS_CLASS:
                 trait.data_type = cls
+            trait.check_integrity(cls, rc)
             setattr(cls, trait_name, trait)
+        cls.check_integrity(rc)
+        rc.throw()
 
+    @classmethod
+    def check_integrity(cls, rc: RC):
+        pass
 
     # @classmethod
     # def instance_by_id(cls, id_value: str) -> 'Traitable':
@@ -363,6 +370,15 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base
     def post_ctor(self):
         ...
 
+    def check_integrity(self, cls, rc: RC):
+        is_anonymous = issubclass(self.data_type, AnonymousTraitable)
+        if self.flags_on(T.EMBEDDED):
+            if not is_anonymous:
+                rc.add_error(f'{cls.__name__}.{self.name} - EMBEDDED traitable must be a subclass of AnonymousTraitable')
+        else:
+            if is_anonymous:
+                rc.add_error(f'{cls.__name__}.{self.name} - may not have a reference to AnonymousTraitable (the trait must be T.EMBEDDED)')
+
     def default_value(self):
         def_value = self.default
         if def_value is XNone:
@@ -425,3 +441,13 @@ class Bundle(Traitable):
             raise ValueError(f'{cls}: unknown bundle member {serialized_class_id}')
 
         return actual_class
+
+class AnonymousTraitable(Traitable):
+    @classmethod
+    def check_integrity(cls, rc: RC):
+        if cls.is_id_endogenous():
+            rc.add_error(f'{cls} - anonymous traitable may not have ID traits')
+
+    @classmethod
+    def collection(cls, _coll_name: str = None):
+        assert False, f'AnonymousTraitable may not have a collection'
