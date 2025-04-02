@@ -1,5 +1,5 @@
 from datetime import date
-from core_10x.traitable import Traitable, T, THIS_CLASS
+from core_10x.traitable import Traitable, AnonymousTraitable, T, RT, THIS_CLASS
 from core_10x.named_constant import NamedConstant
 
 class MARRITAL_STATUS(NamedConstant):
@@ -8,7 +8,7 @@ class MARRITAL_STATUS(NamedConstant):
     DIVORCED    = ()
     WIDOWED     = ()
 
-class Address(Traitable):
+class Address(AnonymousTraitable):
     street: str     = T()
     cszip: str      = T()
 
