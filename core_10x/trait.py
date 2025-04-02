@@ -226,6 +226,9 @@ class Trait(BTrait):
     def post_ctor(self):
         ...
 
+    def check_integrity(self, cls, rc: RC):
+        pass
+
     def default_value(self):
         return self.default
 
