@@ -38,6 +38,18 @@ py::module_ import_module(const char* module_name) {
     return module;
 }
 
+void PyLinkage::get_anonymous_class() {
+    auto mname = "core_10x.traitable";
+    try {
+        py::module_ mod = py::module_::import(mname);
+        //py::module_ mod = import_module(mname);
+        m_anonymous_class = mod.attr("AnonymousTraitable");
+    }
+    catch (const py::error_already_set&) {
+        throw py::value_error(py::str("Failed to import module: {}").format(py::str(mname)));
+    }
+}
+
 void PyLinkage::get_rc_true() {
     auto mname = "core_10x.rc";
     try {

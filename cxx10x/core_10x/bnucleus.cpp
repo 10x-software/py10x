@@ -28,7 +28,7 @@ py::object BNucleus::deserialize_record(const py::dict& record) {
 }
 
 py::object deserialize_nx_record(const py::object& data_type, const py::object& serialized_data) {
-    if (!BNucleus::is_subclass(data_type))
+    if (!PyLinkage::issubclass(data_type, PyLinkage::nucleus_class()))
         throw py::type_error(py::str("NX_RECORD - data_type = {} is not a subclass of Nucleus\n{}").format(data_type));
 
     return data_type.attr("deserialize")(serialized_data);
@@ -69,7 +69,7 @@ py::object BNucleus::serialize_any(const py::object& value, bool embed) {
     }
 
     //-- 2. Check if it is Nucleus
-    if (is_subclass(cls)) {
+    if (PyLinkage::issubclass(cls, PyLinkage::nucleus_class())) {
         auto serialized = cls.attr("serialize")(value, embed);
         py::dict res;
         res[TYPE_TAG()] = NX_RECORD_TAG();

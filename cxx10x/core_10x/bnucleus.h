@@ -35,12 +35,6 @@ public:
 
     static py::object deserialize_record(const py::dict& record);
 
-    static bool is_subclass(py::object cls) {
-        //py::object base_type = py::type::of<BNucleus>();
-        auto nx_class = PyLinkage::nucleus_class();
-        return PyObject_IsSubclass(cls.ptr(), nx_class.ptr());
-    }
-
     static py::object serialize_any(const py::object& value, bool embed);
     static py::object deserialize_any(const py::object& value, const py::object& expected_class = py::none());
 

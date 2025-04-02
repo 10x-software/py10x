@@ -160,13 +160,16 @@ void BTraitable::set_revision(const py::object& rev) {
 //-- Nucleus' serialize (not for top-level objects)
 py::object BTraitable::serialize_nx(bool embed) {
     if (!embed) {   //-- external reference
+        if (PyLinkage::issubclass(my_class()->py_class(), PyLinkage::anonymous_class()))
+            throw py::type_error(py::str("{} - anonymous' instance may not be serialized as external reference").format(class_name()));
+
         py::dict res;
         m_tid.serialize_id(res, embed);
         return res;
     }
 
-    if (my_class()->is_id_endogenous())
-        throw py::type_error(py::str("{}/{} is embedded, but has an endogenous ID").format(class_name(), id_value()));
+    if (!PyLinkage::issubclass(my_class()->py_class(), PyLinkage::anonymous_class()))
+        throw py::type_error(py::str("{}/{} - embedded instance must anonymous").format(class_name(), id_value()));
 
     return serialize_traits();
 }

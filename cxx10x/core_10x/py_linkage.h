@@ -55,6 +55,7 @@ class PyLinkage {
     //-- 10x related stuff
     py::object          m_xnone;
     py::object          m_nucleus_class;
+    py::object          m_anonymous_class;
     py::object          m_traitable_id_class;
     py::object          m_trait_method_error_class;
     py::object          f_find_class;
@@ -69,6 +70,7 @@ class PyLinkage {
     std::streambuf      *m_std_stream_buf = nullptr;
 
     void get_rc_true();
+    void get_anonymous_class();
 
     void create_choices_args() {
         m_choices_args = py::make_tuple(m_xnone, py::str("__choices"));
@@ -117,6 +119,20 @@ public:
         return s_py_linkage->m_rc_true;
     }
 
+    static const py::object& anonymous_class() {
+        if (!s_py_linkage->m_anonymous_class)
+            s_py_linkage->get_anonymous_class();
+        return s_py_linkage->m_anonymous_class;
+    }
+
+    static bool issubclass(const py::object& cls, const py::object& base_class) {
+        //py::object base_type = py::type::of<BNucleus>();
+        int res = PyObject_IsSubclass(cls.ptr(), base_class.ptr());
+        if (res == -1)
+            throw py::error_already_set();
+        return res == 1;
+    }
+
     static py::object traitable_id(const py::object& id_value, const py::object& coll_name) {
         return s_py_linkage->m_traitable_id_class(id_value, coll_name);
     }
@@ -150,16 +166,6 @@ public:
             throw py::value_error(py::str("Failed to unpickle\n{}").format(e.what()));
         }
     }
-
-    static py::object pickle_dumps(const py::object& data) {
-        try {
-            return py::module_::import("pickle").attr("loads")(data);
-        }
-        catch (const py::error_already_set& e) {
-            throw py::value_error(py::str("Failed to unpickle\n{}").format(e.what()));
-        }
-    }
-
 
     // will throw if class_module.class_name is not importable
     static bool is_instance(const py::object& obj, const char* py_class_module, const char* py_class_name) {
