@@ -5,6 +5,13 @@
 
 from core_10x_i import CORE_10X, PyLinkage, XCache
 
+class _Finalizer:
+    def __del__(self):
+        # release references to python objects that have to be deleted before the interpreter exits
+        XCache.clear()
+        PyLinkage.clear()
+
+_finalizer = _Finalizer()
 
 PyLinkage.init({
     CORE_10X.PACKAGE_NAME:                  __name__,
@@ -33,10 +40,3 @@ PyLinkage.init({
     CORE_10X.PACKAGE_REFACTORING_FIND_CLASS_ID:         'find_class_id',
 })
 
-class _Finalizer:
-    def __del__(self):
-        # release references to python objects that have to be deleted before the interpreter exits
-        XCache.clear()
-        PyLinkage.clear()
-
-_finalizer = _Finalizer()
