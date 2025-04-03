@@ -50,6 +50,10 @@ class TsUnionCollection(TsCollection):
 
 class TsUnion(TsStore, name='TS_UNION'):
     @classmethod
+    def is_running_with_auth(cls, host_name: str) -> tuple:
+        raise NotImplementedError
+
+    @classmethod
     def standard_key(cls, *args) -> tuple:
         return tuple(cls.s_resource_type.resource_driver(kw['driver_name']).standard_key(**kw) for kw in args)
 
