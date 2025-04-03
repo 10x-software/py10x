@@ -10,9 +10,9 @@
 
 PyLinkage* PyLinkage::s_py_linkage = nullptr;
 
-void PyLinkage::init(const std::string &path_to_package) {
+void PyLinkage::init(const py::dict& package_names) {
     assert(!s_py_linkage);
-    s_py_linkage = new PyLinkage(path_to_package);
+    s_py_linkage = new PyLinkage(package_names);
 }
 
 void PyLinkage::add_to_py_path(const std::string& path) {
@@ -39,11 +39,10 @@ py::module_ import_module(const char* module_name) {
 }
 
 void PyLinkage::get_anonymous_class() {
-    auto mname = "core_10x.traitable";
+    auto mname = name_from_dict(CORE_10X::ANONYMOUS_MODULE_NAME, true);
     try {
-        py::module_ mod = py::module_::import(mname);
-        //py::module_ mod = import_module(mname);
-        m_anonymous_class = mod.attr("AnonymousTraitable");
+        py::module_ mod = py::module_::import(mname.c_str());
+        m_anonymous_class = mod.attr(name_from_dict(CORE_10X::ANONYMOUS_CLASS_NAME).c_str());
     }
     catch (const py::error_already_set&) {
         throw py::value_error(py::str("Failed to import module: {}").format(py::str(mname)));
@@ -51,19 +50,30 @@ void PyLinkage::get_anonymous_class() {
 }
 
 void PyLinkage::get_rc_true() {
-    auto mname = "core_10x.rc";
+    auto mname = name_from_dict(CORE_10X::RC_MODULE_NAME, true);
     try {
-        py::module_ mod = py::module_::import(mname);
-        //py::module_ mod = import_module(mname);
-        m_rc_true = mod.attr("RC_TRUE");
+        py::module_ mod = py::module_::import(mname.c_str());
+        m_rc_true = mod.attr(name_from_dict(CORE_10X::RC_TRUE_NAME).c_str());
     }
     catch (const py::error_already_set&) {
         throw py::value_error(py::str("Failed to import module: {}").format(py::str(mname)));
     }
 }
 
+std::string PyLinkage::name_from_dict(const CORE_10X& enum_key, bool module) {
+    py::object key = py::cast(enum_key);
+    auto name = m_package_names[key].cast<std::string>();
+    if (!module)
+        return name;
 
-PyLinkage::PyLinkage(const std::string& path_to_package) {
+    std::string full_name;
+    full_name.reserve(m_py_package_name.size() + 1 + name.size());
+    full_name.append(m_py_package_name).append(".").append(name);
+    return full_name;
+}
+
+PyLinkage::PyLinkage(const py::dict& package_names) {
+    m_package_names = package_names;
     redirect_stdout_to_python();
 
     //-- caching builtins and the like
@@ -88,33 +98,43 @@ PyLinkage::PyLinkage(const std::string& path_to_package) {
 
     //add_to_py_path(path_to_package);
 
-    const char* mname;
+    //-- caching core_10x stuff (some will be cached lazily as requested due to import cycles)
+    std::string mname;
     py::module_ mod;
+    py::object pf_class;
+
+    m_py_package_name = name_from_dict(CORE_10X::PACKAGE_NAME);
     try {
-        mname = "core_10x.xnone";
-        mod = py::module_::import(mname);
-        m_xnone = mod.attr("XNone");
+        mname = name_from_dict(CORE_10X::XNONE_MODULE_NAME, true);
+        mod = py::module_::import(mname.c_str());
+        m_xnone = mod.attr(name_from_dict(CORE_10X::XNONE_CLASS_NAME).c_str());
 
-        mname = "core_10x.nucleus";
-        mod = py::module_::import(mname);
-        m_nucleus_class = mod.attr("Nucleus");
+        mname = name_from_dict(CORE_10X::NUCLEUS_MODULE_NAME, true);
+        mod = py::module_::import(mname.c_str());
+        m_nucleus_class = mod.attr(name_from_dict(CORE_10X::NUCLEUS_CLASS_NAME).c_str());
 
-        mname = "core_10x.traitable_id";
-        mod = py::module_::import(mname);
-        m_traitable_id_class = mod.attr("ID");
+        mname = name_from_dict(CORE_10X::TRAITABLE_ID_MODULE_NAME, true);
+        mod = py::module_::import(mname.c_str());
+        m_traitable_id_class = mod.attr(name_from_dict(CORE_10X::TRAITABLE_ID_CLASS_NAME).c_str());
 
-        mname = "core_10x.trait_method_error";
-        mod = py::module_::import(mname);
-        m_trait_method_error_class = mod.attr("TraitMethodError");
+        mname = name_from_dict(CORE_10X::TRAIT_METHOD_ERROR_MODULE_NAME, true);
+        mod = py::module_::import(mname.c_str());
+        m_trait_method_error_class = mod.attr(name_from_dict(CORE_10X::TRAIT_METHOD_ERROR_CLASS_NAME).c_str());
 
-        mname = "core_10x.package_refactoring";
-        mod = py::module_::import(mname);
-        auto pf_class = mod.attr("PackageRefactoring");
-        f_find_class = pf_class.attr("find_class");
-        f_find_class_id = pf_class.attr("find_class_id");
+        mname = name_from_dict(CORE_10X::PACKAGE_REFACTORING_MODULE_NAME, true);
+        mod = py::module_::import(mname.c_str());
+        pf_class = mod.attr(name_from_dict(CORE_10X::PACKAGE_REFACTORING_CLASS_NAME).c_str());
     }
     catch (const py::error_already_set&) {
         throw py::value_error(py::str("Failed to import module: {}").format(py::str(mname)));
+    }
+
+    try {
+        f_find_class = pf_class.attr(name_from_dict(CORE_10X::PACKAGE_REFACTORING_FIND_CLASS).c_str());
+        f_find_class_id = pf_class.attr(name_from_dict(CORE_10X::PACKAGE_REFACTORING_FIND_CLASS_ID).c_str());
+    }
+    catch (const py::error_already_set&) {
+        throw py::value_error(py::str("Failed to cache pf_class methods"));
     }
 
     create_choices_args();

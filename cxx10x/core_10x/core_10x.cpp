@@ -26,6 +26,27 @@ PYBIND11_MODULE(core_10x_i, m)
 
     //py::module_ cache_layer_m = m.def_submodule( "cache_layer", "cpp.cache_layer" );
 
+    py::enum_<CORE_10X>(m, "CORE_10X")
+            .value("PACKAGE_NAME",                      CORE_10X::PACKAGE_NAME)
+            .value("XNONE_MODULE_NAME",                 CORE_10X::XNONE_MODULE_NAME)
+            .value("XNONE_CLASS_NAME",                  CORE_10X::XNONE_CLASS_NAME)
+            .value("RC_MODULE_NAME",                    CORE_10X::RC_MODULE_NAME)
+            .value("RC_TRUE_NAME",                      CORE_10X::RC_TRUE_NAME)
+            .value("NUCLEUS_MODULE_NAME",               CORE_10X::NUCLEUS_MODULE_NAME)
+            .value("NUCLEUS_CLASS_NAME",                CORE_10X::NUCLEUS_CLASS_NAME)
+            .value("ANONYMOUS_MODULE_NAME",             CORE_10X::ANONYMOUS_MODULE_NAME)
+            .value("ANONYMOUS_CLASS_NAME",              CORE_10X::ANONYMOUS_CLASS_NAME)
+            .value("TRAITABLE_ID_MODULE_NAME",          CORE_10X::TRAITABLE_ID_MODULE_NAME)
+            .value("TRAITABLE_ID_CLASS_NAME",           CORE_10X::TRAITABLE_ID_CLASS_NAME)
+            .value("TRAIT_METHOD_ERROR_MODULE_NAME",    CORE_10X::TRAIT_METHOD_ERROR_MODULE_NAME)
+            .value("TRAIT_METHOD_ERROR_CLASS_NAME",     CORE_10X::TRAIT_METHOD_ERROR_CLASS_NAME)
+            .value("PACKAGE_REFACTORING_MODULE_NAME",   CORE_10X::PACKAGE_REFACTORING_MODULE_NAME)
+            .value("PACKAGE_REFACTORING_CLASS_NAME",    CORE_10X::PACKAGE_REFACTORING_CLASS_NAME)
+            .value("PACKAGE_REFACTORING_FIND_CLASS",    CORE_10X::PACKAGE_REFACTORING_FIND_CLASS)
+            .value("PACKAGE_REFACTORING_FIND_CLASS_ID", CORE_10X::PACKAGE_REFACTORING_FIND_CLASS_ID)
+            .export_values()
+            ;
+
     py::class_<PyLinkage>(m, "PyLinkage")
             .def_static("init",                         &PyLinkage::init)
             .def_static("clear",                        &PyLinkage::clear)

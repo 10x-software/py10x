@@ -36,6 +36,26 @@ struct std::hash<py::args> {
 class BTraitable;
 class BTrait;
 
+enum class CORE_10X {
+    PACKAGE_NAME,
+    XNONE_MODULE_NAME,
+    XNONE_CLASS_NAME,
+    RC_MODULE_NAME,
+    RC_TRUE_NAME,
+    NUCLEUS_MODULE_NAME,
+    NUCLEUS_CLASS_NAME,
+    ANONYMOUS_MODULE_NAME,
+    ANONYMOUS_CLASS_NAME,
+    TRAITABLE_ID_MODULE_NAME,
+    TRAITABLE_ID_CLASS_NAME,
+    TRAIT_METHOD_ERROR_MODULE_NAME,
+    TRAIT_METHOD_ERROR_CLASS_NAME,
+    PACKAGE_REFACTORING_MODULE_NAME,
+    PACKAGE_REFACTORING_CLASS_NAME,
+    PACKAGE_REFACTORING_FIND_CLASS,
+    PACKAGE_REFACTORING_FIND_CLASS_ID
+};
+
 class PyLinkage {
     //-- builtins
     py::object          m_type_cls;
@@ -54,6 +74,8 @@ class PyLinkage {
     py::object          f_fromisoformat;
 
     //-- 10x related stuff
+    std::string         m_py_package_name;
+    py::dict            m_package_names;
     py::object          m_xnone;
     py::object          m_nucleus_class;
     py::object          m_anonymous_class;
@@ -69,6 +91,8 @@ class PyLinkage {
 
     std::streambuf      *m_py_stream_buf = nullptr;
     std::streambuf      *m_std_stream_buf = nullptr;
+
+    std::string name_from_dict(const CORE_10X& enum_key, bool module_name = false);
 
     void get_rc_true();
     void get_anonymous_class();
@@ -86,9 +110,9 @@ class PyLinkage {
 public:
     static PyLinkage*   s_py_linkage;
 
-    static void init(const std::string& path_to_package);
+    static void init(const py::dict& package_names);
 
-    explicit PyLinkage(const std::string& path_to_package);
+    PyLinkage(const py::dict& package_names);
     ~PyLinkage();
 
     static py::object type(const py::object& v) { return py::reinterpret_borrow<py::object>(v.get_type()); }
