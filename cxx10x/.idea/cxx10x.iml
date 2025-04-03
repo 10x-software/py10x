@@ -2,7 +2,7 @@
 <module classpath="CMake" type="CPP_MODULE" version="4">
   <component name="FacetManager">
     <facet type="Python" name="Python facet">
-      <configuration sdkName="Python 3.13 virtualenv at ~/10x_llc/cxx10x/.venv" />
+      <configuration sdkName="Python 3.11 (cxx10x)" />
     </facet>
   </component>
 </module>
