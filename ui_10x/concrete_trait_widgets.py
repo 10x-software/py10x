@@ -61,7 +61,7 @@ class TextEditWidget(TraitWidget, ux.TextEdit):
         self.update_trait_value(value = value) if value else self.update_trait_value(invalidate = True)
 
     def _set_read_only(self, flag):
-        self.set_readonly(flag)
+        self.set_read_only(flag)
 
     def _value(self):
         return self.to_plain_text()
