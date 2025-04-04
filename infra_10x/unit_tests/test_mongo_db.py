@@ -34,7 +34,6 @@ class TestMongo(unittest.TestCase):
                 assert cls.p._rev == 1
 
             with cls.patch2:
-                Person.collection.cache.clear()
                 cls.p1=Person(first_name='Joe', last_name='Doe')
                 cls.p1.set_values(age = 32,weight_lbs=200)
                 cls.p1.save()
@@ -47,7 +46,7 @@ class TestMongo(unittest.TestCase):
 
     def test_save(self):
         collection = self.mongo.collection(TEST_COLLECTION)
-        serialized_entity = self.p.serialize(True)
+        serialized_entity = self.p.serialize_object()
         _rev = collection.save(serialized_entity.copy())
         assert self.p._rev == _rev
 
@@ -55,7 +54,7 @@ class TestMongo(unittest.TestCase):
         _rev = collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 1 == _rev
-        assert collection.load(self.p.id()) == serialized_entity
+        assert collection.load(self.p.id().value) == serialized_entity
 
         # test that nested dictionary replaces rather than updates
         serialized_entity |= {'attr': {'nested1': 'value1'}}
@@ -63,14 +62,14 @@ class TestMongo(unittest.TestCase):
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 2 == _rev
         #assert collection.load(_id) == serialized_entity|{'attr': {'nested': 'value', 'nested1': 'value1'}} #incorrect behavior
-        assert collection.load(self.p.id()) == serialized_entity
+        assert collection.load(self.p.id().value) == serialized_entity
 
         # test that dots are not interpreted as nested fields at the top level
         serialized_entity |= {'attr.nested2': 'value2'}
         _rev = collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 3 == _rev
-        assert collection.load(self.p.id()) == serialized_entity
+        assert collection.load(self.p.id().value) == serialized_entity
 
         # check that we can have dictionary keys starting with $
         serialized_entity |= {'foo': {'$foo': 1}}
@@ -78,7 +77,7 @@ class TestMongo(unittest.TestCase):
         _rev = collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 4 == _rev
-        assert collection.load(self.p.id()) == serialized_entity
+        assert collection.load(self.p.id().value) == serialized_entity
 
         # check that we can *not* have top level keys starting with $ (current behavior, not ideal, but prob. ok)
         serialized_entity |= {'$foo': 1}
@@ -87,25 +86,25 @@ class TestMongo(unittest.TestCase):
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 4 == _rev
         del serialized_entity['$foo']
-        assert collection.load(self.p.id()) == serialized_entity
+        assert collection.load(self.p.id().value) == serialized_entity
 
         # test that dots are not interpreted as nested fields at the nested level
         serialized_entity |= {'attr': {'nested.value': 1}}
         _rev = collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 5 == _rev
-        assert collection.load(self.p.id()) == serialized_entity
+        assert collection.load(self.p.id().value) == serialized_entity
 
         # check that we can unset fields
         del serialized_entity['attr']
         _rev = collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 6 == _rev
-        assert collection.load(self.p.id()) == serialized_entity
+        assert collection.load(self.p.id().value) == serialized_entity
 
     def test_delete_restore(self):
         collection = self.mongo.collection(TEST_COLLECTION)
-        serialized_entity = self.p.serialize(True)
+        serialized_entity = self.p.serialize_object()
         id_value = serialized_entity['_id']
         assert collection.delete(id_value)
         assert collection.load(id_value) is None
@@ -115,22 +114,21 @@ class TestMongo(unittest.TestCase):
         assert collection.load(id_value) == serialized_entity
 
 
-
     def test_find(self):
         collection = self.mongo.collection(TEST_COLLECTION)
         result = collection.find()
-        assert next(result) == self.p.serialize(True)
+        assert next(result) == self.p.serialize_object()
         assert list(result) == []
 
     def test_load(self):
         collection = self.mongo.collection(TEST_COLLECTION)
-        id_value = self.p.id()
+        id_value = self.p.id().value
         result = collection.load(id_value)
-        assert result == self.p.serialize(True)
+        assert result == self.p.serialize_object()
 
     def test_delete(self):
         collection = self.mongo.collection(TEST_COLLECTION1)
-        id_value = self.p1.id()
+        id_value = self.p1.id().value
         result = collection.delete(id_value)
         self.assertTrue(result)
         result = collection.load(id_value)
