@@ -3,6 +3,7 @@ import unittest
 from unittest import mock, TestCase
 from weakref import WeakKeyDictionary
 
+from core_10x.ts_union import TsUnion
 from core_10x.xnone import XNone
 from core_10x.code_samples.person import Person, WEIGHT_QU
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, BTP
@@ -49,10 +50,15 @@ class TestablePerson(Person):
 
 class TestGraphBase(TestCase):
     def setUp(self):
-        self.p = TestablePerson(first_name='John', last_name='Smith')
+        with TsUnion():
+            self.p = TestablePerson(first_name='John', last_name='Smith')
+
+        self.ctx = TsUnion()
+        self.ctx.__enter__() ## TODO: remove when unnecessary reloads are fixed
 
     def tearDown(self):
         self.reset()
+        self.ctx.__exit__()
 
     def reset(self):
         for trait in self.p.s_dir.values():
@@ -61,8 +67,10 @@ class TestGraphBase(TestCase):
                 if not trait.flags_on(T.ID): # id traits may be set in base layer
                     if trait.f_get.__name__ == 'default_value': #TODO: replace with flags
                         self.assertIs(self.p.get_value(trait),trait.default,trait.name)
-                    else:
+                    elif trait.f_get.__name__.endswith('_get'):
                         self.assertEqual(self.p.get_value(trait),getattr(self.p,f'{trait.name}_get')())
+                    else:
+                        self.assertEqual(self.p.get_value(trait),trait.f_get(self.p))
             else:
                 #TODO: use nodes?
                 ...
@@ -140,7 +148,10 @@ class TestGraphOn(TestGraphBase):
     def setUp(self):
         self.graph_on = GRAPH_ON()
         self.graph_on.begin_using()
-        self.p = TestablePerson(first_name='Jane', last_name='Smith')
+        with TsUnion():
+            self.p = TestablePerson(first_name='Jane', last_name='Smith')
+        self.ctx = TsUnion()
+        self.ctx.__enter__() ## TODO: remove when unnecessary reloads are fixed
         self.pid = self.p.id()
         self.p.age = 30
 
@@ -151,11 +162,15 @@ class TestGraphOn(TestGraphBase):
     def tearDown(self):
         self.assertEqual(self.p.age,30)
         self.graph_on.end_using()
+
         self.assertIs(self.p.first_name,XNone)
         self.assertIs(self.p.last_name,XNone)
         self.assertIs(self.p.weight_lbs,XNone)
-        self.assertEqual(self.p.age, self.p.trait('age').default)
+        self.assertIs(self.p.age,self.p.age_get())
         self.assertEqual(self.p.id(),self.pid)
+
+        self.ctx.__exit__()
+
 
 class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):
