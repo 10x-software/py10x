@@ -170,7 +170,7 @@ py::object BTraitable::serialize_nx(bool embed) {
     }
 
     if (!PyLinkage::issubclass(my_class()->py_class(), PyLinkage::anonymous_class()))
-        throw py::type_error(py::str("{}/{} - embedded instance must anonymous").format(class_name(), id_value()));
+        throw py::type_error(py::str("{}/{} - embedded instance must be anonymous").format(class_name(), id_value()));
 
     return serialize_traits();
 }

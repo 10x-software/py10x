@@ -89,8 +89,8 @@ class PyLinkage {
 
     py::object          m_rc_true;
 
-    std::streambuf      *m_py_stream_buf = nullptr;
-    std::streambuf      *m_std_stream_buf = nullptr;
+    static std::streambuf      *s_py_stream_buf;
+    static std::streambuf      *s_std_stream_buf;
 
     std::string name_from_dict(const CORE_10X& enum_key, bool module_name = false);
 
@@ -112,8 +112,7 @@ public:
 
     static void init(const py::dict& package_names);
 
-    PyLinkage(const py::dict& package_names);
-    ~PyLinkage();
+    explicit PyLinkage(const py::dict& package_names);
 
     static py::object type(const py::object& v) { return py::reinterpret_borrow<py::object>(v.get_type()); }
 
@@ -203,7 +202,16 @@ public:
     }
 
     static void clear() {
-        delete s_py_linkage;
+        if (s_std_stream_buf) {
+            std::cout.flush();
+            std::cout.rdbuf(s_std_stream_buf);
+            delete s_py_stream_buf;
+            s_py_stream_buf = nullptr;
+        }
+        if (s_py_linkage) {
+            delete s_py_linkage;
+            s_py_linkage = nullptr;
+        }
     }
 
     static py::object create_trait_method_error(
@@ -215,7 +223,7 @@ public:
         const py::error_already_set* other_exc = nullptr
     );
 
-    void redirect_stdout_to_python();
+    static void redirect_stdout_to_python();
 
 };
 

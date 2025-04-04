@@ -10,8 +10,14 @@
 
 PyLinkage* PyLinkage::s_py_linkage = nullptr;
 
+std::streambuf* PyLinkage::s_py_stream_buf = nullptr;
+std::streambuf* PyLinkage::s_std_stream_buf = nullptr;
+
+
 void PyLinkage::init(const py::dict& package_names) {
     assert(!s_py_linkage);
+    redirect_stdout_to_python();
+
     s_py_linkage = new PyLinkage(package_names);
 }
 
@@ -74,7 +80,6 @@ std::string PyLinkage::name_from_dict(const CORE_10X& enum_key, bool module) {
 
 PyLinkage::PyLinkage(const py::dict& package_names) {
     m_package_names = package_names;
-    redirect_stdout_to_python();
 
     //-- caching builtins and the like
 
@@ -141,13 +146,6 @@ PyLinkage::PyLinkage(const py::dict& package_names) {
     create_style_sheet_args();
 }
 
-PyLinkage::~PyLinkage() {
-    if (m_std_stream_buf) {
-        std::cout.rdbuf(m_std_stream_buf);
-        delete m_py_stream_buf;
-    }
-}
-
 py::object PyLinkage::create_trait_method_error(
         BTraitable* obj,
         const py::str& trait_name,
@@ -192,10 +190,9 @@ void PyLinkage::redirect_stdout_to_python() {
         : m_write(write_func), m_flush(flush_func) {}
     };
 
-    if (!m_std_stream_buf) {
-        m_std_stream_buf = std::cout.rdbuf();
-        auto py_buf = new PyStreamBuffer(write, flush);
-        m_py_stream_buf = py_buf;
-        std::cout.rdbuf(py_buf);
+    if (!s_std_stream_buf) {
+        s_std_stream_buf = std::cout.rdbuf();
+        s_py_stream_buf = new PyStreamBuffer(write, flush);
+        std::cout.rdbuf(s_py_stream_buf);
     }
 }
