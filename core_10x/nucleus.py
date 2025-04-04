@@ -1,6 +1,7 @@
 from core_10x_i import BNucleus
 
 class Nucleus:
+    __slots__           = ()
     ID_TAG              = BNucleus.ID_TAG
     COLLECTION_TAG      = BNucleus.COLLECTION_TAG
     CLASS_TAG           = BNucleus.CLASS_TAG
