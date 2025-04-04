@@ -14,4 +14,5 @@ class ID:
     def __repr__(self):
         return f'{self.value}' if not self.collection_name else f'{self.collection_name}/{self.value}'
 
-
+    def __hash__(self):
+        return hash((self.value, self.collection_name))

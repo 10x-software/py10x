@@ -131,6 +131,9 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
             trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, annotations, rc)
         return rc
 
+    def __hash__(self):
+        return hash(self.id())
+
     @classmethod
     def trait(cls, trait_name: str, throw = False) -> Trait:
         trait = cls.s_dir.get(trait_name)
@@ -347,7 +350,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         if not serialized_data:     #-- it's a lazy instance - no reason to load and re-save
             return RC_TRUE
 
-        coll = cls.collection(_coll_name = self.custom_coll_name())
+        coll = cls.collection()
         if not coll:
             return RC(False, f'{cls} - no store available')
 
