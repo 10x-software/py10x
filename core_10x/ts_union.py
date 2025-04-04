@@ -20,14 +20,15 @@ class TsUnionCollection(TsCollection):
 
     def save(self, serialized_traitable):
         #if serialized_traitable was not loaded from the union head, we need to call save_new
-        if not self.collections[0].exists(f(**{Nucleus.ID_TAG: EQ(serialized_traitable[Nucleus.ID_TAG])})):
+        id_tag = Nucleus.ID_TAG()
+        if not self.collections[0].exists(f(**{id_tag: EQ(serialized_traitable[id_tag])})):
             #TODO: optimize by introducing save with overwrite flag to bypass the "inappropriate restore from deleted" check
             return self.collections[0].save_new(serialized_traitable)
         return self.collections[0].save(serialized_traitable)
 
     def delete(self, id_value):
         #if id_value exists in the union tail, return False as the object wasn't fully deleted
-        return self.collections[0].delete(id_value) and not self.exists(f(**{Nucleus.ID_TAG: EQ(id_value)}))
+        return self.collections[0].delete(id_value) and not self.exists(f(**{Nucleus.ID_TAG(): EQ(id_value)}))
 
     def create_index(self, name, trait_name, **index_args):
         #TODO: verify that index exists in the union tail
@@ -49,6 +50,10 @@ class TsUnionCollection(TsCollection):
 
 
 class TsUnion(TsStore, name='TS_UNION'):
+    @classmethod
+    def is_running_with_auth(cls, host_name: str) -> tuple:
+        raise NotImplementedError
+
     @classmethod
     def standard_key(cls, *args) -> tuple:
         return tuple(cls.s_resource_type.resource_driver(kw['driver_name']).standard_key(**kw) for kw in args)

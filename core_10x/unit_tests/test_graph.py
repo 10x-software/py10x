@@ -3,7 +3,8 @@ import unittest
 from unittest import mock, TestCase
 from weakref import WeakKeyDictionary
 
-from core_10x import XNone
+from core_10x.ts_union import TsUnion
+from core_10x.xnone import XNone
 from core_10x.code_samples.person import Person, WEIGHT_QU
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, BTP
 from core_10x.trait_definition import T,RT
@@ -47,16 +48,17 @@ class TestablePerson(Person):
         return self.age < 30
 
 
-TestablePerson = Person
-
-
 class TestGraphBase(TestCase):
     def setUp(self):
-        self.p = TestablePerson(first_name='John', last_name='Smith')
-        p1 = TestablePerson(first_name='John', last_name='Smith')
+        with TsUnion():
+            self.p = TestablePerson(first_name='John', last_name='Smith')
 
-    # def tearDown(self):
-    #     self.reset()
+        self.ctx = TsUnion()
+        self.ctx.__enter__() ## TODO: remove when unnecessary reloads are fixed
+
+    def tearDown(self):
+        self.reset()
+        self.ctx.__exit__()
 
     def reset(self):
         for trait in self.p.s_dir.values():
@@ -65,45 +67,47 @@ class TestGraphBase(TestCase):
                 if not trait.flags_on(T.ID): # id traits may be set in base layer
                     if trait.f_get.__name__ == 'default_value': #TODO: replace with flags
                         self.assertIs(self.p.get_value(trait),trait.default,trait.name)
-                    else:
+                    elif trait.f_get.__name__.endswith('_get'):
                         self.assertEqual(self.p.get_value(trait),getattr(self.p,f'{trait.name}_get')())
+                    else:
+                        self.assertEqual(self.p.get_value(trait),trait.f_get(self.p))
             else:
                 #TODO: use nodes?
                 ...
 
     def test_get_set(self):
         on = BTP.current().flags() & BTP.ON_GRAPH
-        # p = self.p
-        # p.weight_lbs = 100.
-        # p.weight_qu = WEIGHT_QU.LB
-        #
-        # self.assertEqual(p.weight, 100)
-        #
-        # with CallCount(p, TestablePerson.weight_get) as cc:
-        #     self.assertEqual(p.weight, 100)
-        #     self.assertEqual(cc.call_count, not on)
-        #
-        # p.weight_qu = WEIGHT_QU.KG
-        # self.assertIs(p.weight_qu, WEIGHT_QU.KG)
-        #
-        # with CallCount(p, TestablePerson.weight_get) as cc:
-        #     self.assertEqual(p.weight, 100 / WEIGHT_QU.KG.value)
-        #     self.assertEqual(cc.call_count, 1)
-        #
-        # # now use the setter...
-        # with CallCount(p, TestablePerson.weight_set) as cc:
-        #     p.weight = 100.
-        #     self.assertEqual(cc.call_count, 1)
-        #
-        # with CallCount(p, TestablePerson.weight_get) as cc:
-        #     self.assertEqual(p.weight, 100)
-        #     self.assertEqual(cc.call_count, 1)
-        #
-        # with CallCount(p, TestablePerson.weight_get) as cc:
-        #     self.assertEqual(p.weight_lbs, 100 * WEIGHT_QU.KG.value)
-        #     self.assertEqual(cc.call_count, 0)
+        p = self.p
+        p.weight_lbs = 100.
+        p.weight_qu = WEIGHT_QU.LB
 
-    def Xtest_dep_change(self):
+        self.assertEqual(p.weight, 100)
+
+        with CallCount(p, TestablePerson.weight_get) as cc:
+            self.assertEqual(p.weight, 100)
+            self.assertEqual(cc.call_count, not on)
+
+        p.weight_qu = WEIGHT_QU.KG
+        self.assertIs(p.weight_qu, WEIGHT_QU.KG)
+
+        with CallCount(p, TestablePerson.weight_get) as cc:
+            self.assertEqual(p.weight, 100 / WEIGHT_QU.KG.value)
+            self.assertEqual(cc.call_count, 1)
+
+        # now use the setter...
+        with CallCount(p, TestablePerson.weight_set) as cc:
+            p.weight = 100.
+            self.assertEqual(cc.call_count, 1)
+
+        with CallCount(p, TestablePerson.weight_get) as cc:
+            self.assertEqual(p.weight, 100)
+            self.assertEqual(cc.call_count, 1)
+
+        with CallCount(p, TestablePerson.weight_get) as cc:
+            self.assertEqual(p.weight_lbs, 100 * WEIGHT_QU.KG.value)
+            self.assertEqual(cc.call_count, 0)
+
+    def test_dep_change(self):
         on = BTP.current().flags() & BTP.ON_GRAPH
         p = self.p
         p.age = 30
@@ -124,27 +128,30 @@ class TestGraphBase(TestCase):
     def test_dep_change_with_arg(self):
         on = BTP.current().flags() & BTP.ON_GRAPH
 
-        # p = self.p
-        # p.age = 30
-        #
-        # self.assertFalse(p.older_than(30))
-        #
-        # with CallCount(p, TestablePerson.older_than_get) as cc:
-        #     self.assertFalse(p.older_than(30))
-        #     self.assertEqual(cc.call_count, not on)
-        #
-        # p.age = 40
-        # with CallCount(p, TestablePerson.older_than_get) as cc:
-        #     self.assertTrue(p.older_than(30))
-        #     self.assertEqual(cc.call_count, 1)
-        #
-        # p.age = 30
+        p = self.p
+        p.age = 30
+
+        self.assertFalse(p.older_than(30))
+
+        with CallCount(p, TestablePerson.older_than_get) as cc:
+            self.assertFalse(p.older_than(30))
+            self.assertEqual(cc.call_count, not on)
+
+        p.age = 40
+        with CallCount(p, TestablePerson.older_than_get) as cc:
+            self.assertTrue(p.older_than(30))
+            self.assertEqual(cc.call_count, 1)
+
+        p.age = 30
 
 class TestGraphOn(TestGraphBase):
     def setUp(self):
         self.graph_on = GRAPH_ON()
         self.graph_on.begin_using()
-        self.p = TestablePerson(first_name='Jane', last_name='Smith')
+        with TsUnion():
+            self.p = TestablePerson(first_name='Jane', last_name='Smith')
+        self.ctx = TsUnion()
+        self.ctx.__enter__() ## TODO: remove when unnecessary reloads are fixed
         self.pid = self.p.id()
         self.p.age = 30
 
@@ -155,11 +162,15 @@ class TestGraphOn(TestGraphBase):
     def tearDown(self):
         self.assertEqual(self.p.age,30)
         self.graph_on.end_using()
+
         self.assertIs(self.p.first_name,XNone)
         self.assertIs(self.p.last_name,XNone)
         self.assertIs(self.p.weight_lbs,XNone)
-        self.assertEqual(self.p.age, self.p.trait('age').default)
+        self.assertIs(self.p.age,self.p.age_get())
         self.assertEqual(self.p.id(),self.pid)
+
+        self.ctx.__exit__()
+
 
 class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):

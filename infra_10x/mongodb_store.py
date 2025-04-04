@@ -1,4 +1,4 @@
-from pymongo import MongoClient, ReturnDocument
+from pymongo import MongoClient, ReturnDocument, errors
 from pymongo.database import Database
 from pymongo.collection import Collection
 
@@ -6,12 +6,13 @@ from infra_10x_i import MongoCollectionHelper
 
 from core_10x.ts_store import TsCollection, TsStore, Iterable, f, standard_key
 from core_10x.nucleus import Nucleus
+from core_10x.global_cache import cache
 
 
 class MongoCollection(TsCollection):
     s_id_tag = '_id'
 
-    assert Nucleus.ID_TAG == s_id_tag, f"Nucleus.ID_TAG must be '{s_id_tag}'"
+    assert Nucleus.ID_TAG() == s_id_tag, f"Nucleus.ID_TAG must be '{s_id_tag}'"
 
     def __init__(self, db, collection_name: str):
         self.coll: Collection = db[collection_name]
@@ -30,7 +31,7 @@ class MongoCollection(TsCollection):
         return 1 if res.acknowledged else 0
 
     def save(self, serialized_traitable: dict) -> int:
-        rev_tag = Nucleus.REVISION_TAG
+        rev_tag = Nucleus.REVISION_TAG()
         id_tag = self.s_id_tag
 
         revision = serialized_traitable.get(rev_tag, -1)
@@ -61,7 +62,7 @@ class MongoCollection(TsCollection):
 
     @classmethod
     def filter_and_pipeline(cls, serialized_traitable, filter, pipeline):
-        rev_tag = Nucleus.REVISION_TAG
+        rev_tag = Nucleus.REVISION_TAG()
         id_tag = cls.s_id_tag
         for key in (rev_tag, id_tag):
             filter[key] = serialized_traitable.pop(key)
@@ -207,6 +208,8 @@ class MongoCollection(TsCollection):
 
 
 class MongoStore(TsStore, name = 'MONGO_DB'):
+    ADMIN   = 'admin'
+
     s_instance_kwargs_map = dict(
         port    = ('port',                      27017),
         ssl     = ('ssl',                       False),
@@ -263,3 +266,22 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
     def delete_collection(self, collection_name: str) -> bool:
         self.db.drop_collection(collection_name)
         return True
+
+    @classmethod
+    @cache
+    def is_running_with_auth(cls, host_name: str) -> tuple:      #-- (is_running, with_auth)
+        client = cls.connect(host_name, '', '', _cache = False, _throw = False)
+        if not client:
+            return (False, False)
+
+        admin_db = client[cls.ADMIN]
+        try:
+            res = admin_db.command('getCmdLineOpts')
+            auth = any(r == '--auth' for r in res['argv'][1:])
+            return (True, auth)
+
+        except errors.OperationFailure:     #-- auth is required
+            return (True, True)
+
+        finally:
+            client.close()

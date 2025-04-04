@@ -31,7 +31,7 @@ if __name__ == '__main__':
     }
 
     serialized_data     = { dt: Nucleus.serialize_any(v, False) for dt, v in data.items() }
-    deserialized_data   = { dt: Nucleus.deserialize_any(v) for dt, v in serialized_data.items() }
+    deserialized_data   = { dt: Nucleus.deserialize_any(v, None) for dt, v in serialized_data.items() }
 
     for dt, value in data.items():
         s_value = deserialized_data.get(dt, deserialized_data)

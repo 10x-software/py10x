@@ -1,6 +1,6 @@
 import inspect
 import operator
-from functools import reduce
+import functools
 from itertools import chain
 
 from core_10x_i import BTraitable, BTraitableClass
@@ -15,8 +15,10 @@ from core_10x.rc import RC, RC_TRUE
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.ts_store import TS_STORE, TsStore, TsCollection
 from core_10x.package_manifest import PackageManifest
+from core_10x.traitable_id import ID
 from core_10x.resource import ResourceRequirements
 from core_10x.trait_filter import f
+from core_10x.traitable_id import ID
 
 
 class TraitAccessor:
@@ -32,7 +34,11 @@ class TraitAccessor:
     def __call__(self, trait_name: str, throw = True) -> Trait:
         return self.cls.trait(trait_name, throw = True)
 
+
+COLL_NAME_TAG = '_collection_name'
+
 class TraitableMetaclass(type(BTraitable)):
+
     @staticmethod
     def find_symbols(bases,class_dict,symbol):
         return chain(
@@ -43,14 +49,40 @@ class TraitableMetaclass(type(BTraitable)):
     @staticmethod
     @cache
     def rev_trait() -> Trait:
-        trait_name = Nucleus.REVISION_TAG
+        trait_name = Nucleus.REVISION_TAG()
         t_def = T(0, T.RESERVED)
         return Trait.create(trait_name, t_def, {}, {trait_name: int},  RC_TRUE)
+
+    @staticmethod
+    @cache
+    def collection_name_trait() -> Trait:
+        trait_name = COLL_NAME_TAG
+        t_def = T(T.RESERVED | T.RUNTIME)
+        def get(self): return self.id().collection_name
+        def set(self, t, cname) -> RC:
+            self.id().collection_name = cname
+            return RC_TRUE
+
+        return Trait.create(
+            trait_name,
+            t_def,
+            {
+                f'{trait_name}_get':    get,
+                f'{trait_name}_set':    set,
+            },
+            {trait_name: str},
+            RC_TRUE
+        )
 
     def __new__(cls, name, bases, class_dict, **kwargs):
         build_trait_dir = next(cls.find_symbols(bases,class_dict,'build_trait_dir'))
         special_attributes = tuple(chain.from_iterable(cls.find_symbols(bases,class_dict,'s_special_attributes')))
-        trait_dir = {Nucleus.REVISION_TAG: cls.rev_trait()}                #-- insert _rev as the first trait and delete later if not needed
+
+        trait_dir = {
+            Nucleus.REVISION_TAG(): cls.rev_trait(),                #-- insert _rev as the first trait and delete later if not needed
+            COLL_NAME_TAG:          cls.collection_name_trait(),
+        }
+
         build_trait_dir(bases, class_dict, trait_dir).throw(exc=TypeError)  #-- build trait dir_from trait definitions in class_dict
 
         for item in trait_dir:
@@ -64,14 +96,14 @@ class TraitableMetaclass(type(BTraitable)):
 
         return super().__new__(cls, name, bases, class_dict, **kwargs)
 
-class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
+class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
     s_dir = {}
     @staticmethod
     def build_trait_dir(bases, class_dict, trait_dir) -> RC:
         annotations = class_dict.get('__annotations__') or {}
 
         rc = RC(True)
-        trait_dir |= reduce(operator.or_, TraitableMetaclass.find_symbols(bases,class_dict,'s_dir'), {}) #-- shallow copy!
+        trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(bases,class_dict,'s_dir'), {}) #-- shallow copy!
 
         for trait_name, old_trait in trait_dir.items():
             if any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
@@ -98,6 +130,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             trait_def.name = trait_name
             trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, annotations, rc)
         return rc
+
+    def __hash__(self):
+        return hash(self.id())
 
     @classmethod
     def trait(cls, trait_name: str, throw = False) -> Trait:
@@ -129,12 +164,16 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         'T',
         '_default_cache',
     )
-    def __init_subclass__(cls, **kwargs):
+    s_custom_collection = False
+    def __init_subclass__(cls, custom_collection: bool = None, **kwargs):
+        if custom_collection is not None:
+            cls.s_custom_collection = custom_collection
 
         cls.s_bclass = BTraitableClass(cls)
 
         if not cls.is_storable():
-            del cls.s_dir[Nucleus.REVISION_TAG]
+            del cls.s_dir[Nucleus.REVISION_TAG()]
+            del cls.s_dir[COLL_NAME_TAG]
             cls.collection = lambda: None
             cls.exists_in_store = lambda id: False
             cls.load_data = lambda id_value: None
@@ -143,25 +182,33 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             cls.load_ids = lambda query: []
             cls.save = lambda self: RC(False, f'{cls} is not storable')
 
+        rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
+            if trait.data_type is THIS_CLASS:
+                trait.data_type = cls
+            trait.check_integrity(cls, rc)
             setattr(cls, trait_name, trait)
-
+        cls.check_integrity(rc)
+        rc.throw()
 
     @classmethod
-    def instance_by_id(cls, id_value: str) -> 'Traitable':
-        if not cls.s_bclass.known_object(id_value):
-            return cls.load(id_value)
+    def check_integrity(cls, rc: RC):
+        pass
 
-        return cls(_id = id_value)
+    # @classmethod
+    # def instance_by_id(cls, id_value: str) -> 'Traitable':
+    #     #    return cls.load(id_value)
+    #     return cls(_id = id_value)      #-- TODO: we may not need this method, unless used to enforce loading
 
-    def __init__(self, _id: str = None, **trait_values):
-        super().__init__(self.s_bclass)
-
+    def __init__(self, _id: ID = None, _collection_name: str = None, **trait_values):
+        cls = self.__class__
         if _id is not None:
+            assert _collection_name is None, f'{self.__class__}(id_value) may not be invoked with _collection_name'
             assert not trait_values, f'{self.__class__}(id_value) may not be invoked with trait_values'
-            self.set_id(_id)
+            super().__init__(cls.s_bclass, _id)
         else:
-            self.initialize(**trait_values)
+            super().__init__(cls.s_bclass, ID(collection_name = _collection_name))
+            self.initialize(trait_values)
 
         self.T = TraitAccessor(self)
 
@@ -181,15 +228,24 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #   Nucleus related methods
     #===================================================================================================================
 
-    #-- serialize() is defined in BTraitable
+    def serialize(self, embed: bool):
+        return self.serialize_nx(embed)
 
     @classmethod
-    def serialized_class(cls, serialized_data: dict):
+    def is_bundle(cls) -> bool:
+        return cls.serialized_class is not Traitable.serialized_class
+
+    @classmethod
+    def serialize_class_id(cls) -> str:
+        return None
+
+    @classmethod
+    def deserialize_class_id(cls, serialized_class_id: str):
         return cls
 
     @classmethod
     def deserialize(cls, serialized_data) -> 'Traitable':
-        return cls.s_bclass.deserialize(serialized_data)
+        return Traitable.deserialize_nx(cls.s_bclass, serialized_data)
 
     def to_str(self) -> str:
         return f'{self.id()}'
@@ -219,12 +275,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         from core_10x.backbone.bound_data_domain import BoundDataDomain
 
         bbd = BoundDataDomain(domain = domain)
-        try:
-            bbd.reload()
-            return bbd
-        except:
-            pass
-
+        bbd.reload()
+        return bbd
 
     @classmethod
     @cache
@@ -241,48 +293,48 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         store: TsStore = TS_STORE.current_resource()
         if not store:
             store = cls.preferred_store()
-            #if not store:
-            #    raise EnvironmentError(f'{cls} - failed to find a store')
+            if not store:
+                raise EnvironmentError(f'{cls} - failed to find a store')
 
         return store
 
     @classmethod
-    def collection(cls) -> TsCollection:
+    def collection(cls, _coll_name: str = None) -> TsCollection:
+        cname = _coll_name or PackageRefactoring.find_class_id(cls)
         store = cls.store()
-        cname = PackageRefactoring.find_class_id(cls)
         return store.collection(cname) if store else None
 
     @classmethod
-    def exists_in_store(cls, id_value: str) -> bool:
-        coll = cls.collection()
-        return coll.id_exists(id_value) if coll else False
+    def exists_in_store(cls, id: ID) -> bool:
+        coll = cls.collection(_coll_name = id.collection_name)
+        return coll.id_exists(id.value) if coll else False
 
     @classmethod
-    def load_data(cls, id_value: str) -> dict:
-        coll = cls.collection()
-        return coll.load(id_value) if coll else {}
+    def load_data(cls, id: ID) -> dict:
+        coll = cls.collection(_coll_name = id.collection_name)
+        return coll.load(id.value) if coll else None
 
     @classmethod
-    def load(cls, id_value: str, reload = False) -> 'Traitable':
-        return cls.s_bclass.load(id_value, reload)
+    def load(cls, id: ID) -> 'Traitable':
+        return cls.s_bclass.load(id)
 
     @classmethod
-    def load_many(cls, query: f = None, reload = False) -> list:
-        coll = cls.collection()
+    def load_many(cls, query: f = None, _coll_name: str = None) -> list:
+        coll = cls.collection(_coll_name = _coll_name)
         if not coll:
-            return []
+            return None
 
-        cpp_class = cls.s_bclass
-        return [ cpp_class.deserialize_object(serialized_data, reload) for serialized_data in coll.find(query) ]
+        f_deserialize = functools.partial(Traitable.deserialize_object, cls.s_bclass, _coll_name)
+        return [ f_deserialize(serialized_data) for serialized_data in coll.find(query) ]
 
     @classmethod
-    def load_ids(cls, query: f = None) -> list:
-        coll = cls.collection()
+    def load_ids(cls, query: f = None, _coll_name: str = None) -> list:
+        coll = cls.collection(_coll_name = _coll_name)
         if not coll:
-            return []
+            return None
 
         id_tag = coll.s_id_tag
-        return [ serialized_data.get(id_tag) for serialized_data in coll.find(query) ]
+        return [ ID(serialized_data.get(id_tag), _coll_name) for serialized_data in coll.find(query) ]
 
     def save(self) -> RC:
         cls = self.__class__
@@ -294,7 +346,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if not rc:
             return rc
 
-        serialized_data = self.serialize(True)
+        serialized_data = self.serialize_object()
         if not serialized_data:     #-- it's a lazy instance - no reason to load and re-save
             return RC_TRUE
 
@@ -307,7 +359,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         except Exception as e:
             return RC(False, str(e))
 
-        self._rev = rev
+        self.set_revision(rev)
         return RC_TRUE
 
     def verify(self) -> RC:
@@ -315,9 +367,20 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         #TODO: implement
         return rc
 
+class THIS_CLASS(Traitable):   pass  #-- to use for traits with the same Traitable class type
+
 class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True):
     def post_ctor(self):
         ...
+
+    def check_integrity(self, cls, rc: RC):
+        is_anonymous = issubclass(self.data_type, AnonymousTraitable)
+        if self.flags_on(T.EMBEDDED):
+            if not is_anonymous:
+                rc.add_error(f'{cls.__name__}.{self.name} - EMBEDDED traitable must be a subclass of AnonymousTraitable')
+        else:
+            if is_anonymous:
+                rc.add_error(f'{cls.__name__}.{self.name} - may not have a reference to AnonymousTraitable (the trait must be T.EMBEDDED)')
 
     def default_value(self):
         def_value = self.default
@@ -361,28 +424,42 @@ class Bundle(Traitable):
             cls.collection_name = base.collection_name
             cls.collection = base.collection
 
-    def serialize(self, embed: bool) -> dict:
-        serialized_data = super().serialize(True)
-        cls = self.__class__
+    def serialize_class_id(cls) -> str:
         if cls.s_bundle_members is None:    #-- members unknown
-            serialized_data[Nucleus.CLASS_TAG] = PackageRefactoring.find_class_id(cls)
+            return PackageRefactoring.find_class_id(cls)
         else:
-            serialized_data[Nucleus.CLASS_TAG] = cls.__name__
-
-        return serialized_data
+            return cls.__name__
 
     @classmethod
-    def serialized_class(cls, serialized_data: dict):
-        class_id = serialized_data.get(Nucleus.CLASS_TAG)
-        if class_id is None:
-            raise RuntimeError(f'{cls}: serialized data is missing {Nucleus.CLASS_TAG}\n{serialized_data}')
+    def deserialize_class_id(cls, serialized_class_id: str):
+        if not serialized_class_id:
+            raise ValueError('missing serialized class ID')
 
         if cls.s_bundle_members is None:  #-- members are not known - class_id is a real class_id
-            return PackageRefactoring.find_class(class_id)
+            return PackageRefactoring.find_class(serialized_class_id)
 
         #-- class_id is a short class name
-        actual_class = cls.s_bundle_members.get(class_id)
+        actual_class = cls.s_bundle_members.get(serialized_class_id)
         if not actual_class:
-            raise RuntimeError(f'{cls}: unknown bundle member {class_id}\n{serialized_data}')
+            raise ValueError(f'{cls}: unknown bundle member {serialized_class_id}')
 
         return actual_class
+
+class AnonymousTraitable(Traitable):
+    _me = True
+    @classmethod
+    def check_integrity(cls, rc: RC):
+        if cls._me:
+            cls._me = False
+            return
+
+        if cls is not AnonymousTraitable:
+            if not cls.is_storable():
+                rc.add_error(f'{cls} - anonymous traitable must be storable')
+
+            if cls.is_id_endogenous():
+                rc.add_error(f'{cls} - anonymous traitable may not have ID traits')
+
+    @classmethod
+    def collection(cls, _coll_name: str = None):
+        assert False, f'AnonymousTraitable may not have a collection'
