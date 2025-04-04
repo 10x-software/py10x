@@ -192,16 +192,16 @@ py::object BTraitable::deserialize_nx(BTraitableClass *cls, const py::object& se
 }
 
 py::object BTraitable::serialize_object() {
-    auto seralized_data = serialize_traits();
+    py::dict serialized_data;
 
-    seralized_data[BNucleus::ID_TAG()] = id_value();
-    seralized_data[BNucleus::REVISION_TAG()] = get_revision();
+    serialized_data[BNucleus::ID_TAG()] = id_value();
+    serialized_data[BNucleus::REVISION_TAG()] = get_revision();
 
     auto class_id = my_class()->serialize_class_id();
     if (!class_id.is_none())
-        seralized_data[BNucleus::CLASS_TAG()] = class_id;
+        serialized_data[BNucleus::CLASS_TAG()] = class_id;
 
-    return seralized_data;
+    return serialized_data | serialize_traits();
 }
 
 py::object BTraitable::deserialize_object(BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data) {
