@@ -8,28 +8,28 @@ from core_10x.named_constant import NamedConstant
 from core_10x.global_cache import cache, singleton
 from core_10x.directory import Directory
 
-# class UxAsync(ux.Object):
-#     SIGNAL = ux.signal_decl()
-#     s_instances = {}
-#
-#     @classmethod
-#     def init(cls, bound_method):
-#         instance = cls.s_instances.get(bound_method)
-#         if not instance:
-#             if not ux.is_ui_thread():
-#                 raise RuntimeError(f'You must have called UxAsync.init({bound_method.__name__}) in the UI thread')
-#
-#             instance = cls()
-#             cls.s_instances[bound_method] = instance
-#
-#             instance.SIGNAL.connect(bound_method)
-#
-#         return instance
-#
-#     @classmethod
-#     def call(cls, bound_method):
-#         instance = cls.init(bound_method)
-#         instance.SIGNAL.emit()
+class UxAsync(ux.Object):
+    SIGNAL = ux.signal_decl()
+    s_instances = {}
+
+    @classmethod
+    def init(cls, bound_method):
+        instance = cls.s_instances.get(bound_method)
+        if not instance:
+            if not ux.is_ui_thread():
+                raise RuntimeError(f'You must have called UxAsync.init({bound_method.__name__}) in the UI thread')
+
+            instance = cls()
+            cls.s_instances[bound_method] = instance
+
+            instance.SIGNAL.connect(bound_method)
+
+        return instance
+
+    @classmethod
+    def call(cls, bound_method):
+        instance = cls.init(bound_method)
+        instance.SIGNAL.emit()
 
 
 class UxRadioBox(ux.GroupBox):
@@ -302,31 +302,31 @@ class UxStyleSheet:
         widget.set_style_sheet(cls.dumps(data))
 
 
-# s_verticalAlignmentMap = {
-#     -1:     ux.TEXT_ALIGN.TOP,
-#     0:      ux.TEXT_ALIGN.V_CENTER,
-#     1:      ux.TEXT_ALIGN.BOTTOM,
-# }
-# s_horizontalAlignmentMap = {
-#     -1:     ux.TEXT_ALIGN.LEFT,
-#     0:      ux.TEXT_ALIGN.CENTER,
-#     1:      ux.TEXT_ALIGN.RIGHT,
-# }
-# def ux_text_alignment(align_value: int, horizontal = True) -> int:
-#     if horizontal:
-#         return s_horizontalAlignmentMap.get(align_value, ux.TEXT_ALIGN.RIGHT) | ux.TEXT_ALIGN.V_CENTER
-#
-#     raise NotImplementedError
+s_verticalAlignmentMap = {
+    -1:     ux.TEXT_ALIGN.TOP,
+    0:      ux.TEXT_ALIGN.V_CENTER,
+    1:      ux.TEXT_ALIGN.BOTTOM,
+}
+s_horizontalAlignmentMap = {
+    -1:     ux.TEXT_ALIGN.LEFT,
+    0:      ux.TEXT_ALIGN.CENTER,
+    1:      ux.TEXT_ALIGN.RIGHT,
+}
+def ux_text_alignment(align_value: int, horizontal = True) -> int:
+    if horizontal:
+        return s_horizontalAlignmentMap.get(align_value, ux.TEXT_ALIGN.RIGHT) | ux.TEXT_ALIGN.V_CENTER
 
-# def ux_make_scrollable(w: ux.Widget, h = ux.SCROLL.AS_NEEDED, v = ux.SCROLL.AS_NEEDED) -> ux.Widget:
-#     if h == ux.SCROLL.OFF and v == ux.SCROLL.OFF:
-#         return w
-#
-#    sa = ux.ScrollArea()
-#    sa.set_widget(w)
-#    sa.set_horizontal_scroll_bar_policy(h)
-#    sa.set_vertical_scroll_bar_policy(v)
-#    return sa
+    raise NotImplementedError
+
+def ux_make_scrollable(w: ux.Widget, h = ux.SCROLL.AS_NEEDED, v = ux.SCROLL.AS_NEEDED) -> ux.Widget:
+    if h == ux.SCROLL.OFF and v == ux.SCROLL.OFF:
+        return w
+
+    sa = ux.ScrollArea()
+    sa.set_widget(w)
+    sa.set_horizontal_scroll_bar_policy(h)
+    sa.set_vertical_scroll_bar_policy(v)
+    return sa
 
 class UxSearchableList(ux.GroupBox):
     def __init__(

@@ -1,7 +1,7 @@
 
 
 if __name__ == '__main__':
-    import os;assert os.environ.setdefault('UI_PLATFORM', 'Rio') == os.getenv('UI_PLATFORM')
+    #import os;assert os.environ.setdefault('UI_PLATFORM', 'Rio') == os.getenv('UI_PLATFORM')
 
     from ui_10x.utils import ux, UxRadioBox, UxDialog
 

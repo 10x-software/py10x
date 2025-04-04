@@ -1,5 +1,5 @@
 if __name__ == '__main__':
-    import os;assert os.environ.setdefault('UI_PLATFORM', 'Rio') == os.getenv('UI_PLATFORM')
+    #import os;assert os.environ.setdefault('UI_PLATFORM', 'Rio') == os.getenv('UI_PLATFORM')
 
     from core_10x.code_samples.directories import ANIMALS, FISH
 
