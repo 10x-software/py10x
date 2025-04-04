@@ -8,8 +8,6 @@ from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent, QFontMetr
 import platform
 
 from core_10x.global_cache import cache
-from ui_10x.platform_interface import Separator
-
 
 def missing_attr(self, item):
     t = item.title()
