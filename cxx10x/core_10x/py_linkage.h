@@ -203,10 +203,10 @@ public:
 
     static void clear() {
         if (s_std_stream_buf) {
-            std::cout.flush();
             std::cout.rdbuf(s_std_stream_buf);
             delete s_py_stream_buf;
             s_py_stream_buf = nullptr;
+            s_std_stream_buf = nullptr;
         }
         if (s_py_linkage) {
             delete s_py_linkage;
