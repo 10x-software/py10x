@@ -19,10 +19,6 @@ PyQt6-sip==13.10.0
 #dev
 pytest~=8.3.4
 pytest-cov~=6.0.0
-hypothesis~=6.127.3             # required by pytest when numpy is installed
-attrs==25.1.0                   # required by hypothesis
-sortedcontainers==2.4.0         # required by hypothesis
-
 
 
 #---- the below are not currently required ---
