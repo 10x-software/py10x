@@ -2,16 +2,15 @@
 #
 # pp = path.dirname(path.abspath(__file__))
 # path_to_core_10x = path.dirname(pp)
+import atexit
 
 from core_10x_i import CORE_10X, PyLinkage, XCache
 
-class _Finalizer:
-    def __del__(self):
-        # release references to python objects that have to be deleted before the interpreter exits
-        XCache.clear()
-        PyLinkage.clear()
+def cleanup():
+    XCache.clear()
+    PyLinkage.clear()
 
-_finalizer = _Finalizer()
+atexit.register(cleanup)
 
 PyLinkage.init({
     CORE_10X.PACKAGE_NAME:                  __name__,
