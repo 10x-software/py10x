@@ -43,13 +43,13 @@ class TestTsUnionCollection(unittest.TestCase):
         self.assertEqual(results, [])
 
     def test_save_new(self):
-        serialized_traitable = {Nucleus.ID_TAG: 1}
+        serialized_traitable = {Nucleus.ID_TAG(): 1}
         self.union_collection.save_new(serialized_traitable)
         self.mock_collection1.save_new.assert_called_once_with(serialized_traitable)
         self.mock_collection2.save.assert_not_called()
 
     def test_save(self):
-        serialized_traitable = {Nucleus.ID_TAG: 1}
+        serialized_traitable = {Nucleus.ID_TAG(): 1}
         self.mock_collection1.exists.return_value = False
         self.union_collection.save(serialized_traitable)
         self.mock_collection1.save_new.assert_called_once_with(serialized_traitable)
