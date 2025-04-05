@@ -10,7 +10,24 @@ from core_10x.named_constant import Enum
 
 
 def init() -> rio.App:
-    pass
+    ...
+
+class Object:
+    ...
+
+def signal_decl():
+    ...
+
+class TEXT_ALIGN(Enum):
+    TOP = ()
+    V_CENTER = ()
+    BOTTOM = ()
+    LEFT = ()
+    CENTER = ()
+    RIGHT = ()
+
+class SCROLL(Enum):
+    AS_NEEDED = ()
 
 class SizePolicy(Enum):
     MINIMUM_EXPANDING = ()
@@ -109,6 +126,12 @@ class VBoxLayout(Widget, i.VBoxLayout):
         assert not kwargs, f'kwargs not supported: {kwargs}'
         self._layout = layout
 
+    def set_spacing(self, spacing: int):
+        raise NotImplementedError
+
+    def set_contents_margins(self, *args):
+        raise NotImplementedError
+
 class HBoxLayout(VBoxLayout,i.HBoxLayout):
     s_component_class = rio.Row
 
@@ -161,6 +184,14 @@ class Dialog(Widget,i.Dialog):
 
     def show(self):
         self.exec() #TODO...
+
+    def set_window_flags(self, flags):
+        raise NotImplementedError
+
+    def set_modal(self, modal: bool):
+        raise NotImplementedError
+
+
 
 class RadioButton(Widget, i.RadioButton):
     __slots__ = ('_button_group')

@@ -13,8 +13,9 @@ pymongo>=4.7.3
 PyQt6==6.8.1
 PyQt6-Qt6==6.8.2
 PyQt6-sip==13.10.0
-#PyQt6-WebEngine~=6.8.0
-#PyQt6-WebEngine-Qt6==6.8.0
+
+#---- Rio
+rio-ui[window]~=0.11.1
 
 #dev
 pytest~=8.3.4
