@@ -7,7 +7,7 @@ class TreeItem:
 
     def __init__(self, parent_node: Optional['TreeItem'] = None):
         if parent_node is not None:
-            parent_node._children.append(self)
+            parent_node['children'].append(self)
         self._children = []
         self.text = {}
         self.expanded = False
@@ -24,6 +24,9 @@ class TreeItem:
 
     def set_tool_tip(self, col: int, tooltip: str):
         self.tooltip[col] = tooltip
+
+    def __getitem__(self, item: str):
+        return getattr(self,f'_{item}')
 
 class TreeWidget(rio.Component):
     # Properties from the builder
