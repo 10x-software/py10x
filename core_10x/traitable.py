@@ -2,6 +2,7 @@ import inspect
 import operator
 import functools
 from itertools import chain
+from typing import Self
 
 from core_10x_i import BTraitable, BTraitableClass
 
@@ -319,7 +320,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         return cls.s_bclass.load(id)
 
     @classmethod
-    def load_many(cls, query: f = None, _coll_name: str = None) -> list:
+    def load_many(cls, query: f = None, _coll_name: str = None) -> list[Self]:
         coll = cls.collection(_coll_name = _coll_name)
         if not coll:
             return None
@@ -328,7 +329,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         return [ f_deserialize(serialized_data) for serialized_data in coll.find(query) ]
 
     @classmethod
-    def load_ids(cls, query: f = None, _coll_name: str = None) -> list:
+    def load_ids(cls, query: f = None, _coll_name: str = None) -> list[ID]:
         coll = cls.collection(_coll_name = _coll_name)
         if not coll:
             return None

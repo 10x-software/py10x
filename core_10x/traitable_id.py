@@ -1,3 +1,8 @@
+from typing import Self
+
+from functools import total_ordering
+
+@total_ordering
 class ID:
     __slots__ = ('value', 'collection_name')
 
@@ -5,7 +10,9 @@ class ID:
         self.value = id_value
         self.collection_name = collection_name
 
-    def __eq__(self, other):
+    def __eq__(self, other: Self):
+        if not isinstance(other, ID):
+            return NotImplemented
         return self.value == other.value and self.collection_name == other.collection_name
 
     def __bool__(self):
@@ -16,3 +23,8 @@ class ID:
 
     def __hash__(self):
         return hash((self.value, self.collection_name))
+
+    def __lt__(self, other: Self) -> bool:
+        if not isinstance(other, ID):
+            return NotImplemented
+        return (self.collection_name, self.value) < (other.collection_name, other.value)
