@@ -1,4 +1,7 @@
+from typing import Type
+
 from core_10x.traitable import Traitable, T, RT, RC, Ui
+from core_10x.traitable_id import ID
 from core_10x.ts_store import TsStore, TsCollection
 from core_10x.trait_filter import f
 
@@ -7,18 +10,17 @@ from ui_10x.traitable_editor import TraitableEditor
 from ui_10x.entity_stocker import EntityStocker, StockerPlug
 
 class Collection(Traitable):
-    cls: type           = RT()
-    filter: f           = RT(T.HIDDEN)
+    cls: type[Traitable]    = RT()
+    filter: f               = RT(T.HIDDEN)
 
-    entities: list      = RT()
+    entity_ids: list[str]   = RT()
 
     def cls_set(self, t, cls) -> RC:
         assert issubclass(cls, Traitable), f'{cls} is not a Traitable class'
         return self.raw_set_value(t, cls)
 
-    def entities_get(self) -> list:
-        #return self.cls.load_many(self.f)
-        return self.cls.load_ids()
+    def entity_ids_get(self) -> list[str]:
+        return [ entity_id.value for entity_id in self.cls.load_ids() ]
 
     def refresh(self):
         self.invalidate_value('entities')
@@ -29,8 +31,8 @@ class CollectionEditor(Traitable):
     coll_title: str                     = RT()
     num_panes: int                      = RT(1)
 
-    main_w: ux.Widget                   = RT()
-    searchable_list: ux.Widget          = RT()
+    main_w: ux.Splitter                 = RT()
+    searchable_list: UxSearchableList   = RT()
     stocker: EntityStocker              = RT()
 
     current_editor                      = RT()
@@ -61,7 +63,7 @@ class CollectionEditor(Traitable):
         self.searchable_list = list_w = UxSearchableList(
             text_widget = line_w,
             title       = f'Instances of {self.coll.cls.__name__}',
-            choices     = self.coll.entities,
+            choices     = self.coll.entity_ids,
             select_hook = self.on_entity_id_selection,
             sort        = True,
         )
@@ -93,7 +95,7 @@ class CollectionEditor(Traitable):
 
     def on_entity_id_selection(self, id_value: str):
         if self.num_panes:
-            obj: Traitable = self.coll.cls(_id = id_value)
+            obj: Traitable = self.coll.cls(_id = ID(id_value))
             se = self.stocker
             ed = se or TraitableEditor.editor(obj)
             self.current_entity = obj
@@ -113,4 +115,4 @@ class CollectionEditor(Traitable):
                     #-- TODO: should we "merge" values from the existing instance?
 
                 else:
-                    self.searchable_list.add_choice(new_entity.id())
+                    self.searchable_list.add_choice(new_entity.id().value)

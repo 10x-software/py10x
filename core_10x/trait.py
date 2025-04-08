@@ -6,6 +6,8 @@ import inspect
 import functools
 from inspect import Parameter
 import copy
+from types import GenericAlias
+from typing import get_origin
 
 from core_10x_i import BTrait
 
@@ -92,6 +94,9 @@ class Trait(BTrait):
     @staticmethod
     def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, annotations: dict, rc: RC) -> 'Trait':
         dt = annotations.get(trait_name) or t_def.data_type
+        if isinstance(dt,GenericAlias):
+            dt = get_origin(dt) # get original type, e.g. `list` from `list[int]`
+            #TODO: could be useful to also keep get_args(dt) for extra checking?
         trait_class = Trait.real_trait_class(dt)
         trait = trait_class(t_def)
         trait.set_name(trait_name)
