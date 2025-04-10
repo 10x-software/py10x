@@ -159,7 +159,7 @@ py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitab
 
 py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
     auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
-    auto node = def_cache->find_or_create_node(obj->tid(), trait, args, NODE_TYPE::BASIC);
+    auto node = def_cache->find_or_create_node(obj->tid(), trait, NODE_TYPE::BASIC, args);
     if(node->is_valid())
         return node->value();
 

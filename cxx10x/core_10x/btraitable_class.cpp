@@ -52,7 +52,7 @@ BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
 
 bool BTraitableClass::instance_in_cache(const TID &tid) {
     auto cache = ThreadContext::current_traitable_proc()->cache();
-    return cache->known_object(tid);
+    return cache->find_object_cache(tid) != nullptr;
 }
 
 bool BTraitableClass::instance_in_store(const TID &tid) const {
@@ -63,7 +63,7 @@ bool BTraitableClass::instance_in_store(const TID &tid) const {
 }
 
 py::object BTraitableClass::load(const py::object& id) {
-    if (!is_storable() || !id || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
+    if (!is_storable() || !TID::is_valid(id) || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
         return py::none();
 
     auto serialized_data = load_data(id);

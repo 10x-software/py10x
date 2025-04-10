@@ -121,7 +121,6 @@ py::object BTraitable::value_to_str(BTrait* trait) {
 }
 
 py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
-    load_if_needed();
     auto proc = ThreadContext::current_traitable_proc();
     for (auto item : trait_values) {
         auto trait_name = item.first.cast<py::object>();

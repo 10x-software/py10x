@@ -6,7 +6,6 @@
 #include "bnode.h"
 #include "btrait.h"
 #include "btraitable.h"
-#include "simple_cache_layer.h"
 #include "xcache.h"
 #include "brc.h"
 
@@ -49,8 +48,8 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existi
     auto id_to_be = PyLinkage::traitable_id(id_value, obj->tid().coll_name());
     auto cls = obj->my_class();
     TID tid(cls, id_to_be);
-    auto in_cache = m_cache->known_object(tid);
-    if (!in_cache && !cls->instance_in_store(tid)) {
+    auto oc = m_cache->find_object_cache(tid);
+    if (!oc && !cls->instance_in_store(tid)) {
         obj->set_id_value(id_value);
         m_cache->make_permanent(obj->tid());
         return PyLinkage::RC_TRUE();
@@ -66,7 +65,7 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existi
     //-- Accepting the existing instance, finishing
     m_cache->remove_temp_object_cache(obj->tid());
     obj->set_id_value(id_value);
-    if (!in_cache)
+    if (!oc)
         cls->load(obj->id());
 
     return PyLinkage::RC_TRUE();
@@ -330,7 +329,7 @@ BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_value
 
     if (flags & ON_GRAPH) {
         if (!use_parent_cache || !(parent_flags & ON_GRAPH)) {
-            auto cache = new SimpleCacheLayer();
+            auto cache = new XCache(parent->cache());
             proc->use_own_cache(cache);
         }
         else
@@ -342,7 +341,7 @@ BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_value
 
         else {
             if (!use_parent_cache || parent_flags & ON_GRAPH) {
-                auto cache = new XCache();
+                auto cache = new XCache(parent->cache());
                 proc->use_own_cache(cache);
             } else
                 proc->use_cache(parent->cache());

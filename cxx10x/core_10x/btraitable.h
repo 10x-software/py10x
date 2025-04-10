@@ -56,13 +56,11 @@ public:
     }
 
     bool is_valid(BTrait* trait) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         return proc->is_valid(this, trait);
     }
 
     bool is_set(BTrait* trait) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         return proc->is_set(this, trait);
     }
@@ -76,13 +74,11 @@ public:
     }
 
     void invalidate_value(BTrait* trait) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         proc->invalidate_trait_value(this, trait);
     }
 
     void invalidate_value(BTrait* trait, const py::args& args) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         proc->invalidate_trait_value(this, trait, args);
     }
@@ -96,13 +92,11 @@ public:
     }
 
     py::object get_value(BTrait* trait) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait);
     }
 
     py::object get_value(BTrait* trait, const py::args& args) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait, args);
     }
@@ -129,13 +123,11 @@ public:
     }
 
     py::object set_value(BTrait* trait, const py::object& value) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         return proc->set_trait_value(this, trait, value);
     }
 
     py::object set_value(BTrait* trait, const py::object& value, const py::args& args) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         return proc->set_trait_value(this, trait, value, args);
     }
@@ -151,23 +143,21 @@ public:
     }
 
     py::object raw_set_value(BTrait* trait, const py::object& value) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         return proc->raw_set_trait_value(this, trait, value);
     }
 
     py::object raw_set_value(BTrait* trait, const py::object& value, const py::args& args) {
-        load_if_needed();
         auto proc = ThreadContext::current_traitable_proc();
         return proc->raw_set_trait_value(this, trait, value, args);
     }
 
     //py::object  raw_get_value(BTrait* trait);
 
-    void load_if_needed() {
-        if (!BTraitableClass::instance_in_cache(m_tid) && my_class()->instance_in_store(tid()))
-            reload();
-    }
+//    void load_if_needed() {
+//        if (!BTraitableClass::instance_in_cache(m_tid) && my_class()->instance_in_store(tid()))
+//            reload();
+//    }
 
     py::object          get_revision();
     void                set_revision(const py::object& rev);

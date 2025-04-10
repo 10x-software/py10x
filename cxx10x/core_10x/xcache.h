@@ -173,6 +173,7 @@ protected:
 
     static XCache*  s_default;
 
+    XCache*         m_parent = nullptr;
     Data            m_data;
     TmpData         m_tmp_data;
     int             m_default_node_type = NODE_TYPE::BASIC;
@@ -185,10 +186,18 @@ public:
 
     static XCache* default_cache()      { return s_default; }
 
-    XCache() = default;
-    virtual ~XCache() = default;
+    explicit XCache(XCache* parent = nullptr) : m_parent(parent)     {}
 
     [[nodiscard]] int default_node_type() const             { return m_default_node_type; }
+
+    ObjectCache* new_object_cache(const TID& tid) {
+        auto oc = new ObjectCache();
+        if (tid.is_valid())
+            m_data.insert({tid, oc});
+        else
+            m_tmp_data.insert({tid.ptr(), oc});
+        return oc;
+    }
 
     ObjectCache* create_object_cache(const TID& tid, ObjectCache* oc = nullptr) {
         if (tid.is_valid()) {
@@ -212,8 +221,9 @@ public:
         return oc;
     }
 
-    virtual ObjectCache* find_or_create_object_cache(const TID& tid);
+    ObjectCache* find_or_create_object_cache(const TID& tid);
 
+    //-- Lookup in this cache ONLY! (ignore the parent)
     [[nodiscard]] ObjectCache* find_object_cache(const TID& tid) const {
         if (tid.is_valid()) {
             auto it = m_data.find(tid);
@@ -267,11 +277,17 @@ public:
         return true;
     }
 
-    [[nodiscard]] bool known_object(const TID& tid) const {
-        return tid.is_valid() && m_data.find(tid) != m_data.end();
-    }
+//    [[nodiscard]] bool known_object(const TID& tid) const {
+//        if (tid.is_valid()) {
+//            auto it = m_data.find(tid);
+//            return it != m_data.end();
+//        }
+//        auto it = m_tmp_data.find(tid.ptr());
+//        return it != m_tmp_data.end();
+//    }
 
-    BasicNode* find_node(const TID& tid, BTrait* trait) {
+    //-- Lookup in this cache ONLY! (ignore the parent)
+    BasicNode* find_node(const TID& tid, BTrait* trait) const {
         auto oc = find_object_cache(tid);
         if (!oc)
             return nullptr;
@@ -279,7 +295,8 @@ public:
         return oc->find_node(trait);
     }
 
-    BasicNode* find_node(const TID& tid, BTrait* trait, const py::args& args) {
+    //-- Lookup in this cache ONLY! (ignore the parent)
+    BasicNode* find_node(const TID& tid, BTrait* trait, const py::args& args) const {
         auto oc = find_object_cache(tid);
         if (!oc)
             return nullptr;
@@ -292,18 +309,11 @@ public:
     }
 
     BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args) {
-        return find_or_create_node(tid, trait, args, m_default_node_type);
+        return find_or_create_node(tid, trait, m_default_node_type, args);
     }
 
-    virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type) {
-        auto oc = find_or_create_object_cache(tid);
-        return oc->find_or_create_node(trait, node_type);
-    }
-
-    virtual BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, int node_type) {
-        auto oc = find_or_create_object_cache(tid);
-        return oc->find_or_create_node(trait, node_type, args);
-    }
+    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type);
+    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type, const py::args& args);
 
     void remove_node(const TID& tid, BTrait* trait) {
         if (tid.is_valid()) {
