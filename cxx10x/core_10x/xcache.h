@@ -189,6 +189,7 @@ public:
     explicit XCache(XCache* parent = nullptr) : m_parent(parent)     {}
 
     [[nodiscard]] int default_node_type() const             { return m_default_node_type; }
+    void set_default_node_type(int node_type)               { m_default_node_type = node_type; }
 
     ObjectCache* new_object_cache(const TID& tid) {
         auto oc = new ObjectCache();
@@ -339,5 +340,5 @@ public:
         }
     }
 
-    virtual void export_nodes() {}
+    void export_nodes();
 };

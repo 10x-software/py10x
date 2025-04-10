@@ -330,6 +330,7 @@ BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_value
     if (flags & ON_GRAPH) {
         if (!use_parent_cache || !(parent_flags & ON_GRAPH)) {
             auto cache = new XCache(parent->cache());
+            cache->set_default_node_type(NODE_TYPE::BASIC_GRAPH);
             proc->use_own_cache(cache);
         }
         else
