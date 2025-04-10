@@ -53,12 +53,8 @@ class TestGraphBase(TestCase):
         with TsUnion():
             self.p = TestablePerson(first_name='John', last_name='Smith')
 
-        self.ctx = TsUnion()
-        self.ctx.__enter__() ## TODO: remove when unnecessary reloads are fixed
-
     def tearDown(self):
         self.reset()
-        self.ctx.__exit__()
 
     def reset(self):
         for trait in self.p.s_dir.values():
@@ -150,8 +146,6 @@ class TestGraphOn(TestGraphBase):
         self.graph_on.begin_using()
         with TsUnion():
             self.p = TestablePerson(first_name='Jane', last_name='Smith')
-        self.ctx = TsUnion()
-        self.ctx.__enter__() ## TODO: remove when unnecessary reloads are fixed
         self.pid = self.p.id()
         self.p.age = 30
 
@@ -168,9 +162,6 @@ class TestGraphOn(TestGraphBase):
         self.assertIs(self.p.weight_lbs,XNone)
         self.assertIs(self.p.age,self.p.age_get())
         self.assertEqual(self.p.id(),self.pid)
-
-        self.ctx.__exit__()
-
 
 class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):
