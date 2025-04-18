@@ -27,8 +27,11 @@ class BackboneStore:
     @cache
     def bb_store(cls) -> TsStore:   #-- BB Store
         cls_name = EnvVars.backbone_store_class_name
-        cls.store_cls = store_cls = TsStore.store_class(cls_name)
         cls.hostname = hostname = EnvVars.backbone_store_host_name
+        if not cls_name or not hostname:
+            return None
+
+        cls.store_cls = store_cls = TsStore.store_class(cls_name)
 
         is_running, with_auth = store_cls.is_running_with_auth(hostname)
         if not is_running:
