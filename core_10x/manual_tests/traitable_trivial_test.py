@@ -9,7 +9,7 @@ class Event(Traitable):
 
 
 if __name__ == '__main__':
-    ProcessContext.set_flags(ProcessContext.CACHE_ONLY)
+    #ProcessContext.set_flags(ProcessContext.CACHE_ONLY)
 
     e = Event()
     print(e.id_value())
