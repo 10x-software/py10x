@@ -98,8 +98,8 @@ class _EnvVars:
 class EnvVars(_EnvVars, env_name = 'XX'):
     build_area: str
     parent_build_area: str          = 'dev'
-    backbone_store_class_name: str  = 'infra_10x.mongodb_store.MongoStore'
-    backbone_store_host_name: str   = 'localhost'
+    backbone_store_class_name: str  = ''    #= 'infra_10x.mongodb_store.MongoStore'
+    backbone_store_host_name: str   = ''    #= 'localhost'
     date_format: str                = XDateTime.FORMAT_ISO
 
     sdlc_area: str
