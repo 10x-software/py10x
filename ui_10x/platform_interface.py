@@ -121,6 +121,15 @@ class Splitter(Widget):
     @abc.abstractmethod
     def add_widget(self, widget: Widget): ...
 
+    @abc.abstractmethod
+    def set_handle_width(self, width: int): ...
+
+    @abc.abstractmethod
+    def set_stretch_factor(self, widget_index: int, factor: int): ...
+
+    @abc.abstractmethod
+    def replace_widget(self, widget_index: int, widget: Widget): ...
+
 class Label(Widget):
     __slots__ = ()
     @abc.abstractmethod
