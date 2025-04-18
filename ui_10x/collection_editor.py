@@ -1,8 +1,5 @@
-from typing import Type
-
-from core_10x.traitable import Traitable, T, RT, RC, Ui
+from core_10x.traitable import Traitable, T, RT, RC
 from core_10x.traitable_id import ID
-from core_10x.ts_store import TsStore, TsCollection
 from core_10x.trait_filter import f
 
 from ui_10x.utils import ux, UxSearchableList, ux_push_button, ux_warning, ux_make_scrollable

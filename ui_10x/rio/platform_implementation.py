@@ -1,12 +1,10 @@
-import dataclasses
-import inspect
+from __future__ import annotations
+
 from dataclasses import KW_ONLY
 from functools import partial
-from typing import Self, Callable
+from typing import Self, Literal
 
 import webview
-from select import select
-
 import ui_10x.platform_interface as i
 import rio
 import ui_10x.rio.components as rio_components
@@ -58,15 +56,19 @@ class _WidgetMixin:
     def set_layout(self, layout: i.Layout):
         raise NotImplementedError
 
-#@dataclasses.dataclass
 class DynamicComponent(rio.Component):
-    builder: Callable[[], rio.Component]
+    builder: ComponentBuilder
     _=KW_ONLY
     revision: int = 0
 
+    def __init__(self, builder: ComponentBuilder, revision: int=0):
+        super().__init__()
+        self.key = id(self)
+        self.builder = builder
+        self.revision = revision
+
     def build(self) -> rio.Component:
-        # Use the builder callable to generate the UI
-        return self.builder()
+        return self.builder.build()
 
 class ComponentBuilder:
     __slots__ = ('component','_kwargs')
@@ -101,14 +103,20 @@ class ComponentBuilder:
     def _build_children(self):
         return [ child() if isinstance(child,ComponentBuilder) else child for child in self['children'] ]
 
+    def build(self):
+        return self.s_component_class(*self._build_children(),
+                               **{k: v for k, v in self._kwargs.items() if k != 'children'})
+
     def __call__(self):
-        builder = lambda: self.s_component_class(*self._build_children(),
-                                       **{k: v for k, v in self._kwargs.items() if k != 'children'})
-        self.component = DynamicComponent(builder = builder) if self.s_dynamic else builder()
+        self.component = DynamicComponent(self) if self.s_dynamic else self.build()
         return self.component
 
     def __getitem__(self, item):
+        #TODO: handle updates in self.component?
         return self._kwargs[item]
+
+    def __contains__(self,item):
+        return item in self._kwargs
 
     def __setitem__(self, item, value):
         self._kwargs[item] = value
@@ -224,7 +232,7 @@ class Dialog(Widget,i.Dialog):
         title = self.title or 'Dialog'
         app = rio.App(name=title, pages=[rio.ComponentPage(name=title, url_segment='', build=self)])
         self.window = len(webview.windows)
-        app.run_in_window()
+        app.run_in_window(debug_mode=True)
         return self.accepted
 
     def show(self):
@@ -254,6 +262,8 @@ class RadioButton(Widget, i.RadioButton):
 
     def set_checked(self, checked: bool):
         self['selected_value'] = self['value'] if checked else None
+        if checked and self._button_group:
+            self._button_group['selected_value'] = self['value']
 
     def on_select(self, value):
         if self._button_group:
@@ -363,8 +373,6 @@ class FindFlags(Enum):
 
 MatchExactly = FindFlags.MATCH_EXACTLY
 
-
-
 class ListWidget(Widget, i.ListWidget):
     s_component_class = rio.ListView
     s_default_kwargs = dict(selection_mode='single')
@@ -420,84 +428,178 @@ class ListWidget(Widget, i.ListWidget):
         print(selected_items)
         self['selected_items'] = selected_items
 
-class TreeItem(rio_components.TreeItem, _WidgetMixin, i.TreeItem):
-    __slots__ = ()
+
+class RioTreeItemBase(rio.Component):
+    """ same as SimpleTreeItem, but includes tooltip and supports double-click """
+    text: str = ''
+    on_double_press: rio.EventHandler[[]] = None
+    on_press: rio.EventHandler[[]] = None
+    on_change: rio.EventHandler[[]] = None
+    tooltip: str|None = None
+    editable: bool = False
+    editing: bool = False
+    children: list[Self] = []
+    is_expanded: bool = False
+
+    def build_primary_text(self):
+        if not self.editing:
+            return rio.Text(self.text, justify="left", selectable=False)
+        return rio.TextInput(
+            self.text,
+            justify="left",
+            on_confirm=self.handle_edit_confirm
+        )
+
+    def build_content(self):
+        content = self.build_primary_text()
+        if self.tooltip:
+            content = rio.Row( content,
+                        rio.Tooltip(
+                            anchor = content,
+                            tip = self.tooltip
+                        )
+           )
+        if self.on_double_press:
+            content = rio.PointerEventListener( content,
+                on_double_press=self.handle_double_press
+            )
+        return content
+
+    def handle_double_press(self, ev: rio.PointerEvent):
+        if self.editable:
+            self.editing=True
+        if self.on_double_press:
+            self.on_double_press()
+
+    def handle_edit_confirm(self, text):
+        assert self.editing
+        self.text = text
+        if self.on_change:
+            self.on_change()
+
+    def build(self):
+        return rio.SimpleTreeItem(
+            self.build_content(),
+            children = self.children,
+            is_expanded = self.is_expanded,
+            on_press=self.on_press,
+        )
+
+class RioTreeItem(RioTreeItemBase):
+    def __init__(self, *children,**kwargs):
+        super().__init__(children=list(children),**kwargs)
+
+class TreeItem(Widget, i.TreeItem):
+    __slots__ = ('handlers',)
+    s_component_class = RioTreeItem
+
+    def __init__(self, parent: TreeWidget|TreeItem, *args, **kwargs ):
+        super().__init__(*args,**kwargs)
+        parent['children'] = parent['children'] + [self]
+        self.handlers = parent.handlers
+        for name, callback in self.handlers.items():
+            self[name.replace('_item_', '_')] = partial(callback, self)
+
+    def child_count(self):
+        return len(self['children'])
+
+    def set_expanded(self, expanded: bool):
+        self['is_expanded'] = expanded
+
+    def set_text(self, col: int, text: str):
+        self['text'] = text
+
+    def set_tool_tip(self, col: int, tooltip: str):
+        self['tooltip'] = tooltip
+
+    def build(self):
+        print(self['text'], [child['text'] for child in self['children']])
+        return super().build()
+
+class RioTreeView(rio.Component):
+    """makes item-level callbacks available on the tree level"""
+    children: list[rio.Component]
+    _=KW_ONLY
+    selection_mode: Literal["none", "single", "multiple"] = "none",
+    col_count: int = 1
+    header_labels: list[str] = ['header']
+
+
+    def __init__(self,*children,
+            selection_mode: Literal["none", "single", "multiple"]='none',
+            col_count: int = 1,
+            header_labels: list[str] = None,
+            **kwargs
+        ):
+        super().__init__(**kwargs)
+        self.children=list(children)
+        self.selection_mode=selection_mode
+        self.col_count=col_count
+        if header_labels:
+            self.header_labels=header_labels
+
+    def build(self):
+        return rio.TreeView(
+            *self.children,
+            selection_mode = self.selection_mode
+        )
 
 class TreeWidget(Widget, i.TreeWidget):
-    __slots__ = ('col_count', 'header_labels', 'item_expanded_handler', 'item_clicked_handler', 'item_pressed_handler', 'item_changed_handler')
-    s_component_class = rio_components.TreeWidget
+    __slots__ = ('handlers',)
+    s_component_class = RioTreeView
+    s_default_kwargs = dict(selection_mode='single')
 
-    def __init__(self,*args, **kwargs):
-        assert not args, f'args not supported: {args}'
-        self.col_count = kwargs.pop('col_count', 0)
-        self.header_labels = kwargs.pop('header_labels', [])
-        self.item_expanded_handler = kwargs.pop('item_expanded_handler', None)
-        self.item_clicked_handler = kwargs.pop('item_clicked_handler', None)
-        self.item_pressed_handler = kwargs.pop('item_pressed_handler', None)
-        self.item_changed_handler = kwargs.pop('item_changed_handler', None)
-        self.component = None
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,**kwargs)
+        self.handlers = {}
 
     def set_column_count(self, col_count: int):
         """Set the number of columns in the tree widget."""
-        self.col_count = col_count
+        assert col_count in [1,2], 'col_count must be 1 or 2'
+        self['col_count'] = col_count
 
     def set_header_labels(self, labels: list):
         """Set the header labels for each column."""
-        self.header_labels = labels
+        self['header_labels'] = labels
 
     def top_level_item_count(self) -> int:
         """Return the number of top-level items."""
-        return len(self.top_level_items)
+        return len(self['children'])
 
     def top_level_item(self, i: int) -> TreeItem:
         """Return the top-level item at index i."""
-        return self.top_level_items[i]
+        return self['children'][i]
 
     def resize_column_to_contents(self, col: int):
         """Adjust the width of the specified column (placeholder)."""
-        # Rio handles layout automatically; this is a no-op unless custom widths are needed
         pass
 
     def item_expanded_connect(self, bound_method):
-        """Connect a callback for when an item is expanded. Takes the item as an argument."""
-        self.item_expanded_handler = bound_method
+        self.handlers['on_item_expand'] = bound_method
 
     def item_clicked_connect(self, bound_method):
-        """Connect a callback for when an item is clicked. Takes item and column as arguments."""
-        self.item_clicked_handler = bound_method
+        #self.handlers['on_item_double_press'] = bound_method
+        self.handlers['on_item_press'] = bound_method
+
 
     def item_pressed_connect(self, bound_method):
-        """Connect a callback for when an item is pressed. Takes item and column as arguments."""
-        self.item_pressed_handler = bound_method
+        self.handlers['on_item_press'] = bound_method
 
     def item_changed_connect(self, bound_method):
-        """Connect a callback for when an item's data changes. Takes item and column as arguments."""
-        self.item_changed_handler = bound_method
+        raise NotImplementedError
 
     def edit_item(self, item: TreeItem, col: int):
         """Start editing the specified item in the given column (placeholder)."""
-        self.component.start_editing(item, col)
+        #self.component.start_editing(item, col)
+        raise NotImplementedError
 
     def open_persistent_editor(self, item: TreeItem, col: int):
         """Open a persistent editor for the specified item and column (placeholder)."""
-        self.component.open_persistent_editor(item, col)
+        #self.component.open_persistent_editor(item, col)
+        raise NotImplementedError
 
     def add_top_level_item(self, item: TreeItem):
         """Add a top-level item to the tree (helper method)."""
         self['children'].append(item)
 
-    def __call__(self):
-        """Build and return the TreeWidgetComponent."""
-        if not self.component:
-            self.component = self.s_component_class(
-                column_count=self.col_count,
-                header_labels=self.header_labels,
-                top_level_items=self['children'],
-                item_expanded_handler=self.item_expanded_handler,
-                item_clicked_handler=self.item_clicked_handler,
-                item_pressed_handler=self.item_pressed_handler,
-                item_changed_handler=self.item_changed_handler,
-                **{k:v for k,v in self._kwargs.items() if k!='children'}
-            )
-        return self.component
+

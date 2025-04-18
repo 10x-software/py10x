@@ -13,7 +13,7 @@ else:
     elif pname == 'Rio':
         import ui_10x.rio.platform_implementation as ux
     else:
-        assert False, 'UI implementation is not available'
+        assert False, f'UI implementation for `{pname}` is not available'
 
 #-- from ui_10x.platform import ux
 

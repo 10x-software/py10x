@@ -492,7 +492,7 @@ class UxTreeViewer(ux.TreeWidget):
         for subdir in dir.members.values():
             cls.create_tree(subdir, node, label_max_length, num_cols)
 
-    def tree_item_clicked(self, item):
+    def tree_item_clicked(self, item: TreeItem):
         self.on_tag_selected(item.dir)
 
     def on_tag_selected(self, dir: Directory):
