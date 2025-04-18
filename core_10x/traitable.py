@@ -275,6 +275,10 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
     def _bound_data_domain(domain):
         from core_10x.backbone.bound_data_domain import BoundDataDomain
 
+        bb_store = BoundDataDomain.store()
+        if not bb_store:
+            raise EnvironmentError('No Store is available: neither current Store is set nor 10X Backbone host is defined')
+
         bbd = BoundDataDomain(domain = domain)
         bbd.reload()
         return bbd
