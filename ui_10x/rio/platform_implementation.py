@@ -11,14 +11,29 @@ import ui_10x.rio.components as rio_components
 from core_10x.directory import Directory
 from core_10x.named_constant import Enum
 
-
 def init() -> rio.App:
     ...
 
 class Object:
     ...
 
-def signal_decl():
+class ConnectionType(Enum):
+    QueuedConnection                = ()
+
+QueuedConnection = ConnectionType.QueuedConnection
+
+class SignalDecl:
+    def connect(self,handler,type):
+        assert type is QueuedConnection
+
+    def emit(self):
+        ...
+
+def signal_decl(arg=object):
+    assert arg is object, 'arg must be object'
+    return SignalDecl()
+
+class MouseEvent:
     ...
 
 class TEXT_ALIGN(Enum):
@@ -92,6 +107,7 @@ class ComponentBuilder:
     def add_children(self, *children):
         existing_children = set(self['children'])
         self['children'].extend(child for child in children if child not in existing_children)
+        self.force_update()
         
     def with_children(self, *args):
         if not args:
@@ -120,6 +136,9 @@ class ComponentBuilder:
 
     def __setitem__(self, item, value):
         self._kwargs[item] = value
+        self.force_update()
+
+    def force_update(self):
         if self.component:
             self.component.revision = self.component.revision + 1
 
@@ -163,13 +182,13 @@ class PushButton(Label,i.PushButton):
     def set_flat(self, flat: bool):
         raise NotImplementedError
 
-class VBoxLayout(Widget, i.VBoxLayout):
-    s_component_class = rio.Column
-    s_stretch_arg = 'grow_y'
+class Layout(Widget, i.Layout):
+    s_stretch_arg = ''
 
-    def add_widget(self, widget, stretch=0, **kwargs):
+    def add_widget(self, widget: Widget, stretch=0, **kwargs):
         assert not kwargs, f'kwargs not supported: {kwargs}'
         if stretch:
+            assert self.s_stretch_arg, 'Only layouts with s_stretch_arg can be stretched'
             assert stretch in (0,1), 'Only stretch of 0 or 1 is currently supported'
             widget[self.s_stretch_arg]=bool(stretch)
         self['children'].append(widget)
@@ -184,9 +203,22 @@ class VBoxLayout(Widget, i.VBoxLayout):
     def set_contents_margins(self, *args):
         raise NotImplementedError
 
-class HBoxLayout(VBoxLayout,i.HBoxLayout):
+
+class VBoxLayout(Layout, i.VBoxLayout):
+    s_component_class = rio.Column
+    s_stretch_arg = 'grow_y'
+
+class HBoxLayout(Layout,i.HBoxLayout):
     s_component_class = rio.Row
     s_stretch_arg = 'grow_x'
+
+class FormLayout(VBoxLayout,i.FormLayout):
+    def add_row(self, w1: Widget, w2: Widget = None):
+        row = HBoxLayout()
+        row.add_widget(w1)
+        if w2:
+            row.add_widget(w2)
+        self.add_widget(row)
 
 class Dialog(Widget,i.Dialog):
     s_component_class = rio.Column
@@ -232,7 +264,7 @@ class Dialog(Widget,i.Dialog):
         title = self.title or 'Dialog'
         app = rio.App(name=title, pages=[rio.ComponentPage(name=title, url_segment='', build=self)])
         self.window = len(webview.windows)
-        app.run_in_window(debug_mode=True)
+        app._run_in_window(debug_mode=True)
         return self.accepted
 
     def show(self):
@@ -346,12 +378,71 @@ class LineEdit(Widget, i.LineEdit):
     def editing_finished_connect(self, bound_method):
         self['on_confirm'] = lambda ev: bound_method(ev.text)
 
+class TextEdit(Widget, i.TextEdit):
+    s_component_class = rio.MultiLineTextInput
+    def to_plain_text(self) -> str:
+        return self['text']
+    def set_plain_text(self, text: str):
+        self['text'] = text
+
+class LabeledCheckBox(rio.Component):
+    label: str
+    is_on: bool = False
+    def build(self):
+        return rio.Row(rio.Text(self.label),rio.CheckBox(is_on=self.bind().is_on))
+
+class CheckBox(Widget, i.CheckBox):
+    s_component_class = LabeledCheckBox
+
+    def set_checked(self, checked: bool):
+        self["is_on"] = checked
+
+    def is_checked(self) -> bool:
+        return self["is_on"]
+
+    def state_changed_connect(self, bound_method):
+        def state_change_handler(event):
+            bound_method(event.is_on)
+        self["on_change"] = state_change_handler
+
+    def set_text(self, text: str):
+        self["label"] = text
+
+
 class Separator(Widget, i.Separator):
     s_component_class = rio_components.Separator
     s_forced_kwargs = {}
 
 def separator(horizontal = True) -> Separator:
     return Separator() if horizontal else Separator(orientation='vertical')
+
+class Direction(Enum):
+    Vertical = 'vertical'
+    Horizontal = 'horizontal'
+
+Vertical = Direction.Vertical
+Horizontal = Direction.Horizontal
+
+class Splitter(Widget, i.Splitter):
+    s_component_class = rio_components.Splitter
+
+    def __init__(self, direction: Direction=Vertical, **kwargs):
+        super().__init__(**kwargs)
+        self['direction']=direction
+
+    def add_widget(self, widget: Widget):
+        self.add_children([widget])
+
+    def set_handle_width(self, width: int):
+        self['handle_width'] = width
+
+    def set_stretch_factor(self, widget_index: int, factor: int):
+        self['child_proportions'][widget_index] = factor #TODO: normalize?
+
+    def replace_widget(self, widget_index: int, widget: Widget):
+        self['children'][widget_index] = widget
+        self.force_update()
+
 
 class ListItem(Widget, i.ListItem):
     __slots__ = ('_list_widget',)
