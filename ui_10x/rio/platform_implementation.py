@@ -1,21 +1,32 @@
 from __future__ import annotations
 
 from dataclasses import KW_ONLY
+from email.policy import default
 from functools import partial
 from typing import Self, Literal
 
 import webview
+
 import ui_10x.platform_interface as i
 import rio
 import ui_10x.rio.components as rio_components
-from core_10x.directory import Directory
-from core_10x.named_constant import Enum
+from core_10x.named_constant import Enum, EnumBits
+
 
 def init() -> rio.App:
     ...
 
 class Object:
     ...
+
+class Application(i.Application):
+    @classmethod
+    def instance(cls) -> 'Application':
+        raise NotImplementedError()
+
+    @classmethod
+    def style(cls):
+        return Style()
 
 class ConnectionType(Enum):
     QueuedConnection                = ()
@@ -45,6 +56,8 @@ class TEXT_ALIGN(Enum):
     RIGHT = ()
 
 class SCROLL(Enum):
+    OFF = ()
+    ON = ()
     AS_NEEDED = ()
 
 class SizePolicy(Enum):
@@ -177,10 +190,22 @@ class Label(Widget, i.Label):
 class PushButton(Label,i.PushButton):
     s_component_class = rio.Button
     s_forced_kwargs = {}
+
     def clicked_connect(self, bound_method):
         self['on_press'] = bound_method
+
     def set_flat(self, flat: bool):
-        raise NotImplementedError
+        self['style'] = 'plain-text'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(**kwargs)
+        label = args[-1]
+        icon = args[0] if len(args)>1 else None
+        self['children'][0] = label
+        self['icon'] = icon
+
+    def __call__(self, *args, **kwargs):
+        super().__call__(*args, **kwargs)
 
 class Layout(Widget, i.Layout):
     s_stretch_arg = ''
@@ -408,6 +433,22 @@ class CheckBox(Widget, i.CheckBox):
     def set_text(self, text: str):
         self["label"] = text
 
+class ScrollArea(Widget, i.ScrollArea):
+    s_component_class = rio.ScrollContainer
+    def set_widget(self, w: Widget):
+        self['children'] = [w]
+
+    def set_horizontal_scroll_bar_policy(self, h):
+        if h is None:
+            self['scroll_x'] = h
+        else:
+            self['scroll_x'] = h == SCROLL.ON
+
+    def set_vertical_scroll_bar_policy(self, h):
+        if h is None:
+            self['scroll_y'] = h
+        else:
+            self['scroll_y'] = h == SCROLL.ON
 
 class Separator(Widget, i.Separator):
     s_component_class = rio_components.Separator
@@ -426,15 +467,17 @@ Horizontal = Direction.Horizontal
 class Splitter(Widget, i.Splitter):
     s_component_class = rio_components.Splitter
 
-    def __init__(self, direction: Direction=Vertical, **kwargs):
+    def __init__(self, direction: Direction=Horizontal, **kwargs):
         super().__init__(**kwargs)
         self['direction']=direction
+        self['child_proportions']=[]
 
     def add_widget(self, widget: Widget):
-        self.add_children([widget])
+        self.add_children(widget)
+        self['child_proportions'].append(1)
 
     def set_handle_width(self, width: int):
-        self['handle_width'] = width
+        self['handle_size'] = width
 
     def set_stretch_factor(self, widget_index: int, factor: int):
         self['child_proportions'][widget_index] = factor #TODO: normalize?
@@ -443,6 +486,57 @@ class Splitter(Widget, i.Splitter):
         self['children'][widget_index] = widget
         self.force_update()
 
+
+class Style(i.Style):
+    class EnumMeta(type):
+        def __getattr__(cls,value):
+            if value!=value.upper():
+                return getattr(cls,value.upper()).value
+
+    class StandardPixmap(EnumBits,metaclass=EnumMeta):
+        """Mapping of Qt QStyle::StandardPixmap values to Material Icons."""
+        SP_ARROWBACK = ("arrow_back",)
+        SP_ARROWDOWN = ("arrow_downward",)
+        SP_ARROWFORWARD = ("arrow_forward",)
+        SP_ARROWUP = ("arrow_upward",)
+        SP_BROWSERRELOAD = ("refresh",)
+        SP_BROWSERSTOP = ("stop",)
+        SP_MEDIAPLAY = ("play_arrow",)
+        SP_MEDIAPAUSE = ("pause",)
+        SP_MEDIASTOP = ("stop",)
+        SP_MEDIASKIPBACKWARD = ("skip_previous",)
+        SP_MEDIASKIPFORWARD = ("skip_next",)
+        SP_MEDIASEEKBACKWARD = ("fast_rewind",)
+        SP_MEDIASEEKFORWARD = ("fast_forward",)
+        SP_DIROPENICON = ("folder_open",)
+        SP_DIRCLOSEDICON = ("folder",)
+        SP_FILEICON = ("description",)
+        SP_TRASHICON = ("delete",)
+        SP_DIALOGOKBUTTON = ("check",)
+        SP_DIALOGCANCELBUTTON = ("close",)
+        SP_DIALOGAPPLYBUTTON = ("done",)
+        SP_DIALOGRESETBUTTON = ("restart_alt",)
+        SP_MESSAGEBOXINFORMATION = ("info",)
+        SP_MESSAGEBOXWARNING = ("warning",)
+        SP_MESSAGEBOXCRITICAL = ("error",)
+        SP_MESSAGEBOXQUESTION = ("help",)
+        SP_DESKTOPICON = ("desktop_windows",)
+        SP_COMPUTERICON = ("computer",)
+        SP_DRIVEHDICON = ("storage",)
+        SP_DRIVEFDICON = ("save",)
+        SP_DRIVECDICON = ("album",)
+        SP_DRIVENETICON = ("cloud",)
+        SP_HOMEICON = ("home",)
+        SP_FILEDIALOGNEWFOLDER = ("create_new_folder",)
+        SP_FILEDIALOGTOPARENT = ("arrow_upward",)
+        SP_FILEDIALOGLISTVIEW = ("list",)
+        SP_FILEDIALOGDETAILEDVIEW = ("grid_view",)
+
+        def __getattr__(self, item):
+            return getattr(self, item.upper())
+
+    def standard_icon(self, style_icon: int):
+        return f"material/{self.StandardPixmap.s_reverse_dir[style_icon].label}"
 
 class ListItem(Widget, i.ListItem):
     __slots__ = ('_list_widget',)

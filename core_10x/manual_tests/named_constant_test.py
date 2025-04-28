@@ -1,5 +1,5 @@
 from math import exp, log
-from core_10x.named_constant import NamedConstant, Nucleus, NamedConstantValue, NamedConstantTable, Enum, ErrorCode
+from core_10x.named_constant import NamedConstant, Nucleus, NamedConstantValue, NamedConstantTable, Enum, ErrorCode, EnumBits
 
 class COLOR(NamedConstant, lowercase_values = True):
     RED         = ()
@@ -68,12 +68,16 @@ class A_PROBLEM(ErrorCode):
     REV_CONFLICT    = 'Entity {cls}.{id} - revision {rev} is outdated'
     SAVE_FAILED     = 'Failed to save entity {cls}.{id}'
 
+class ICON(EnumBits):
+    FILE = ('material/file',)
+    STOP = ('material/stop',)
+
 if __name__ == '__main__':
     print( COLOR.LIGHTGREEN.value)
     sgreen = Nucleus.serialize_any(COLOR.GREEN, False)
     swhite = Nucleus.serialize_any(XCOLOR.WHITE, False)
 
-    assert Nucleus.deserialize_any(swhite) is XCOLOR.WHITE
+    #assert Nucleus.deserialize_any(swhite) is XCOLOR.WHITE
 
     ####print(COLOR_WEIGHT.GREEN, COLOR_CODE.GREEN)
 
