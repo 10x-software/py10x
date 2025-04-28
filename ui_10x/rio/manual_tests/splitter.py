@@ -8,8 +8,9 @@ class SplitterApp(rio.Component):
             rio.Text("Pane 1", style="heading3"),
             rio.Text("Pane 2", style="heading3"),
             rio.Text("Pane 3", style="heading3"),
-            spacing=0.5,  # Splitter handle width
-            min_width_percent=10.0,  # Minimum width for each pane
+            handle_size=0.3,  # Splitter handle width
+            min_size_percent=10.0,  # Minimum width for each pane
+            direction='horizontal',
         )
 
 
