@@ -121,7 +121,7 @@ class TraitableEditor:
     def main_widget(self) -> ux.Widget:
         self.main_w = w = ux.Widget()
         lay = self.main_layout()
-        w.setLayout(lay)
+        w.set_layout(lay)
         return w
 
     def _popup(self, layout: ux.Layout, title: str, ok: str, min_width: int) -> bool:

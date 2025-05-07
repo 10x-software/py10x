@@ -107,8 +107,10 @@ def ux_multi_choice_answer(named_constant_class, parent = None, title = '', defa
 def ux_push_button(label: str, callback = None, style_icon = None, flat = False):
     if style_icon:
         if isinstance(style_icon, str):
-            style_icon = getattr(ux.Style.StandardPixmap, f'SP_{style_icon}', None)
-            assert style_icon, f"Unknown style_icon = '{style_icon}'"
+            try:
+                style_icon = getattr(ux.Style.StandardPixmap, f'SP_{style_icon}')
+            except AttributeError:
+                assert False, f"Unknown style_icon = '{style_icon}'"
 
         assert isinstance(style_icon, int), 'Currently only str or int are supported for style_icon'
 

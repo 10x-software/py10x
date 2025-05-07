@@ -28,10 +28,10 @@ class Splitter(rio.Component):
         self.handle_size = handle_size
         self.min_size_percent = min_size_percent
         if not isinstance(child_proportions,(list,tuple)):
-            num_children = len(self.children)
+            num_children = len(children)
             self.child_proportions = [1.0] * num_children if num_children else []
         else:
-            assert len(child_proportions) == len(self.children)
+            assert len(child_proportions) == len(children)
             assert all(p>=0 for p in child_proportions), "Proportions must be non-negative"
             self.child_proportions = list(child_proportions)
 
