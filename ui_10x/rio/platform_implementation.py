@@ -1,18 +1,36 @@
 from __future__ import annotations
 
+import asyncio
+import inspect
+
+import nest_asyncio
+from collections.abc import Callable
+from contextlib import contextmanager
 from dataclasses import KW_ONLY
-from email.policy import default
 from functools import partial
 from typing import Self, Literal
 
-import webview
+import uvicorn
+from rio.debug.monkeypatches import apply_monkeypatches
 
 import ui_10x.platform_interface as i
 import rio
 import ui_10x.rio.components as rio_components
+from core_10x.global_cache import cache
 from core_10x.named_constant import Enum, EnumBits
 
+nest_asyncio.apply()
 
+CURRENT_SESSION: rio.Session | None = None
+@contextmanager
+def session_context(session: rio.Session):
+    global CURRENT_SESSION
+    assert CURRENT_SESSION is None
+    CURRENT_SESSION = session
+    yield
+    CURRENT_SESSION = None
+
+@cache
 def init() -> rio.App:
     ...
 
@@ -29,16 +47,24 @@ class Application(i.Application):
         return Style()
 
 class ConnectionType(Enum):
-    QueuedConnection                = ()
+    DirectConnection = ()
+    QueuedConnection = ()
 
+DirectConnection = ConnectionType.DirectConnection
 QueuedConnection = ConnectionType.QueuedConnection
 
 class SignalDecl:
-    def connect(self,handler,type):
-        assert type is QueuedConnection
+    def __init__(self):
+        self.handlers: set[tuple[Callable[[], None], ConnectionType]] = set()
 
-    def emit(self):
-        ...
+    def connect(self, handler: Callable[[], None], type: ConnectionType = QueuedConnection) -> bool:
+        self.handlers.add((handler, type))
+        return True
+
+    def emit(self,*args) -> None:
+        for handler, conn_type in self.handlers:
+            f = partial(handler,*args)
+            f() if conn_type == DirectConnection else  asyncio.get_running_loop().call_soon(f)
 
 def signal_decl(arg=object):
     assert arg is object, 'arg must be object'
@@ -56,9 +82,9 @@ class TEXT_ALIGN(Enum):
     RIGHT = ()
 
 class SCROLL(Enum):
-    OFF = ()
-    ON = ()
-    AS_NEEDED = ()
+    OFF = 'never'
+    ON = 'always'
+    AS_NEEDED = 'auto'
 
 class SizePolicy(Enum):
     MINIMUM_EXPANDING = ()
@@ -107,30 +133,26 @@ class ComponentBuilder:
     s_dynamic = True
 
     def __init__(self, *children, **kwargs):
+        assert self.s_component_class, f"{self.__class__.__name__}: has no s_component_class"
         defaults = {kw:value(kwargs) if callable(value) else value for kw,value in self.s_default_kwargs.items()}
         self._kwargs = defaults | kwargs | self.s_forced_kwargs
-        kw_kids = self._kwargs.get('children')
         self.component = None
-
-        if children:
-            assert not kw_kids, "multiple values for children"
-        if not kw_kids:
-            self['children'] = list(children)
+        kw_kids = self._kwargs.get('children',[])
+        self['children'] = []
+        self.add_children(*children)
+        self.add_children(*kw_kids)
 
     def add_children(self, *children):
         existing_children = set(self['children'])
-        self['children'].extend(child for child in children if child not in existing_children)
+        #assert all(isinstance(child, Widget) for child in children), f'all children of {self.__class__.__name__} must be widgets, but got {set(child.__class__.__name__ for child in children)} - {children}'
+        self['children'].extend(child for child in children if child is not None and child not in existing_children)
         self.force_update()
         
     def with_children(self, *args):
-        if not args:
-            return self
-        builder = self.__class__(**self._kwargs)
-        builder.add_children(*args)
-        return builder
+        return self.__class__(*args,**self._kwargs) if args else self
 
     def _build_children(self):
-        return [ child() if isinstance(child,ComponentBuilder) else child for child in self['children'] ]
+        return [ child() if isinstance(child,ComponentBuilder) else child for child in self['children'] if child is not None]
 
     def build(self):
         return self.s_component_class(*self._build_children(),
@@ -162,7 +184,25 @@ class ComponentBuilder:
             value = self[item] = default
         return value
 
+    def callback(self,callback):
+        def cb(*args,**kwargs):
+            with session_context(self.component.session):
+                # note - callback must not yield the event loop!
+                return callback(*args,**kwargs)
+        return cb
+
+class FontMetrics(i.FontMetrics):
+    __slots__ = ('_widget',)
+    def __init__(self, w: Widget):
+        self._widget = w
+
+    def average_char_width(self) -> int:
+        return 1 # best guess -- rio measures sizes in char heights
+
 class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
+    s_component_class = rio.FlowContainer
+    s_stretch_arg = 'grow_x'
+
     __slots__ = ('_layout',)
     
     def __init__(self, *children, **kwargs):
@@ -175,6 +215,22 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
     def _build_children(self):
         return self._layout.with_children(*self['children'])._build_children() if self._layout else super()._build_children()
 
+    def set_stretch(self, stretch):
+        assert stretch in (0, 1), 'Only stretch of 0 or 1 is currently supported'
+        self[self.s_stretch_arg] = bool(stretch)
+
+    def style_sheet(self) -> str:
+        return "" #TODO...
+
+    def set_enabled(self, enabled: bool):
+        ... #TODO
+
+    def set_tool_tip(self, tooltip):
+        ... #TODO
+
+    def font_metrics(self) -> FontMetrics:
+        return FontMetrics(self)
+
 class Label(Widget, i.Label):
     s_component_class = rio.Text
     s_forced_kwargs = {'selectable': False, 'align_x': 0}
@@ -185,49 +241,59 @@ class Label(Widget, i.Label):
             self['children'] = [self._kwargs.pop('text','')]
 
     def set_text(self, text: str):
-        self['children'] = [text]
+        self['children'] = [text or '']
 
 class PushButton(Label,i.PushButton):
     s_component_class = rio.Button
     s_forced_kwargs = {}
 
-    def clicked_connect(self, bound_method):
-        self['on_press'] = bound_method
+    def clicked_connect(self, bound_method:Callable[[bool]]):
+        unbound_params = [p.name for p in inspect.signature(bound_method).parameters.values() if p.default is p.empty and not p.kind.name.startswith('VAR_')]
+        assert len(unbound_params) < 2, f"Expected 0 or 1 unbound parameters in {bound_method.__name__}, but found {unbound_params}"
+        if len(unbound_params)>0:
+            bound_method = partial(bound_method,False)
+        self['on_press'] = self.callback(bound_method)
 
     def set_flat(self, flat: bool):
         self['style'] = 'plain-text'
 
+    def set_enabled(self, enabled: bool):
+        self['is_sensitive'] = enabled
+
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
-        label = args[-1]
-        icon = args[0] if len(args)>1 else None
-        self['children'][0] = label
-        self['icon'] = icon
+        if args:
+            label = args[-1]
+            assert label is not None
+            icon = args[0] if len(args)>1 else None
+            self['children'][0] = label
+            self['icon'] = icon
 
-    def __call__(self, *args, **kwargs):
-        super().__call__(*args, **kwargs)
 
 class Layout(Widget, i.Layout):
-    s_stretch_arg = ''
-
-    def add_widget(self, widget: Widget, stretch=0, **kwargs):
+    def add_widget(self, widget: Widget, stretch=None, **kwargs):
         assert not kwargs, f'kwargs not supported: {kwargs}'
-        if stretch:
-            assert self.s_stretch_arg, 'Only layouts with s_stretch_arg can be stretched'
-            assert stretch in (0,1), 'Only stretch of 0 or 1 is currently supported'
-            widget[self.s_stretch_arg]=bool(stretch)
+        assert widget is not None
+        if stretch is not None:
+            widget.set_stretch(stretch)
         self['children'].append(widget)
 
-    def add_layout(self, layout, **kwargs):
+    def add_layout(self, layout, stretch=None, **kwargs):
         assert not kwargs, f'kwargs not supported: {kwargs}'
         self._layout = layout
+        if stretch is not None:
+            layout.set_stretch(stretch)
 
     def set_spacing(self, spacing: int):
-        raise NotImplementedError
+        assert spacing == 0, 'Only zero is supported'
+        self['spacing'] = 0
 
-    def set_contents_margins(self, *args):
-        raise NotImplementedError
-
+    def set_contents_margins(self, left, top, right, bottom):
+        #note - rio expects sizes in font height units..
+        self['margin_left'] = left
+        self['margin_top'] = top
+        self['margin_right'] = right
+        self['margin_bottom'] = bottom
 
 class VBoxLayout(Layout, i.VBoxLayout):
     s_component_class = rio.Column
@@ -246,17 +312,22 @@ class FormLayout(VBoxLayout,i.FormLayout):
         self.add_widget(row)
 
 class Dialog(Widget,i.Dialog):
+    __slots__ = ('_event_loop','_dialog','_parent','_server')
     s_component_class = rio.Column
     s_forced_kwargs = {'grow_x': True, 'grow_y': True}
-    def __init__(self, parent=None, children=(), title=None, on_accept=None, on_reject=None, **kwargs):
-        assert parent is None, 'parent not supported'
+    def __init__(self, parent: Widget|None = None, children=(), title=None, on_accept=None, on_reject=None, **kwargs):
+        assert isinstance(parent,Widget|None)
         super().__init__(*children, **kwargs)
         self.on_accept = self._wrapper(on_accept, accept=True)
         self.on_reject = self._wrapper(on_reject)
-        self.window = None
+        # self.window = None
         self.accepted = True
         self.title = title
         self._layout = VBoxLayout()
+        self._event_loop = None
+        self._dialog = None
+        self._server = None
+        self._parent = parent
 
     def set_window_title(self, title: str):
         self.title = title
@@ -265,16 +336,18 @@ class Dialog(Widget,i.Dialog):
         def wrapper(*args):
             if func:
                 func(*args)
-            if self.window is not None:
-                webview.windows[self.window].destroy()
-                self.window = None
+            # if self.window is not None:
+            #     webview.windows[self.window].destroy()
+            #     self.window = None
+            self._on_close()
             self.accepted = accept
         return wrapper
 
     def reject(self):
-        pass
+        self._on_close()
 
     def done(self, result: int):
+        self._on_close()
         self.accepted = bool(result)
 
     def _build_children(self):
@@ -285,21 +358,51 @@ class Dialog(Widget,i.Dialog):
             )
         )._build_children()
 
+    def _on_close(self):
+        if self._dialog:
+            CURRENT_SESSION.create_task(self._dialog.close())
+            self._dialog = None
+        if self._event_loop:
+            self._event_loop.close()
+            self._event_loop = None
+        elif self._server:
+            self._server.should_exit = True
+
+    def _on_server_created(self, server: uvicorn.Server):
+        self._server = server
+
+    def _on_dialog_open(self,future):
+        self._dialog = future.result()
+
     def exec(self):
-        title = self.title or 'Dialog'
-        app = rio.App(name=title, pages=[rio.ComponentPage(name=title, url_segment='', build=self)])
-        self.window = len(webview.windows)
-        app._run_in_window(debug_mode=True)
+        if CURRENT_SESSION:
+            asyncio.get_running_loop()
+            self._event_loop = new_loop = asyncio.new_event_loop()
+            future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal)
+            self._dialog = new_loop.run_until_complete(future) # create dialog
+            new_loop.run_forever() # until dialog is closed
+        else:
+            title = self.title or 'Dialog'
+            app = rio.App(name=title, build=self)
+            assert not self._parent
+            apply_monkeypatches()
+            app._run_in_window(debug_mode=True,isolate_webview=True,on_server_created=self._on_server_created)
         return self.accepted
 
     def show(self):
-        self.exec() #TODO...
+        future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal)
+        task = CURRENT_SESSION.create_task(future)
+        task.add_done_callback(self._on_dialog_open)
 
     def set_window_flags(self, flags):
         raise NotImplementedError
 
     def set_modal(self, modal: bool):
+        self._modal = modal
+
+    def set_geometry(self, modal: bool):
         raise NotImplementedError
+
 
 class RadioButton(Widget, i.RadioButton):
     __slots__ = ('_button_group')
@@ -383,25 +486,54 @@ class GroupBox(Widget, i.GroupBox):
     def set_title(self, title: str):
         self['title'] = title
 
+class LineEditComponent(rio.Component):
+    text: str
+    tooltip: str | None = None
+    is_sensitive: bool = True
+    on_change: rio.EventHandler[[str]] = None
+    on_confirm: rio.EventHandler[[str]] = None
+
+    def build(self):
+        children = [
+            rio.TextInput(
+                self.text,
+                is_sensitive = self.is_sensitive,
+                on_change = lambda ev: self.on_change(ev.text) if self.on_change else None,
+                on_confirm = lambda ev: self.on_confirm(ev.text) if self.on_confirm else None
+            )
+        ]
+        if self.tooltip is not None:
+            children.append(
+                rio.Tooltip(
+                    children[0],
+                    self.tooltip
+                )
+            )
+        return rio.Stack(*children)
+
 class LineEdit(Widget, i.LineEdit):
-    s_component_class = rio.TextInput
+    s_default_kwargs = dict(children=[''])
+    s_component_class = LineEditComponent
     def set_text(self, text: str):
-        self['text'] = text
+        self['children'] = [text]
+
+    def set_tool_tip(self, tooltip: str):
+        self['tooltip'] = tooltip
 
     def text(self):
-        return self['text']
+        return self['children'][0]
 
     def text_edited_connect(self, bound_method):
-        self['on_change'] = lambda ev: bound_method(ev.text)
+        self['on_change'] = self.callback(lambda ev: bound_method(ev.text))
 
     def set_read_only(self, read_only: bool):
-        self['is_read_only'] = read_only
+        self['is_sensitive'] = not read_only
 
     def set_password_mode(self):
         self['is_password'] = True
 
     def editing_finished_connect(self, bound_method):
-        self['on_confirm'] = lambda ev: bound_method(ev.text)
+        self['on_confirm'] = self.callback(lambda ev: bound_method(ev.text))
 
 class TextEdit(Widget, i.TextEdit):
     s_component_class = rio.MultiLineTextInput
@@ -409,9 +541,11 @@ class TextEdit(Widget, i.TextEdit):
         return self['text']
     def set_plain_text(self, text: str):
         self['text'] = text
+    def set_read_only(self, readonly: bool):
+        self['is_sensitive'] = not readonly
 
 class LabeledCheckBox(rio.Component):
-    label: str
+    label: str = ''
     is_on: bool = False
     def build(self):
         return rio.Row(rio.Text(self.label),rio.CheckBox(is_on=self.bind().is_on))
@@ -428,7 +562,7 @@ class CheckBox(Widget, i.CheckBox):
     def state_changed_connect(self, bound_method):
         def state_change_handler(event):
             bound_method(event.is_on)
-        self["on_change"] = state_change_handler
+        self["on_change"] = self.callback(state_change_handler)
 
     def set_text(self, text: str):
         self["label"] = text
@@ -439,16 +573,13 @@ class ScrollArea(Widget, i.ScrollArea):
         self['children'] = [w]
 
     def set_horizontal_scroll_bar_policy(self, h):
-        if h is None:
-            self['scroll_x'] = h
-        else:
-            self['scroll_x'] = h == SCROLL.ON
+        self._set_scrollbar_policy('scroll_x',h)
 
     def set_vertical_scroll_bar_policy(self, h):
-        if h is None:
-            self['scroll_y'] = h
-        else:
-            self['scroll_y'] = h == SCROLL.ON
+        self._set_scrollbar_policy('scroll_y',h)
+
+    def _set_scrollbar_policy(self,scroll:Literal['scroll_x','scroll_y'],policy:SCROLL):
+        self[scroll] = policy.label
 
 class Separator(Widget, i.Separator):
     s_component_class = rio_components.Separator
@@ -458,18 +589,18 @@ def separator(horizontal = True) -> Separator:
     return Separator() if horizontal else Separator(orientation='vertical')
 
 class Direction(Enum):
-    Vertical = 'vertical'
-    Horizontal = 'horizontal'
+    VERTICAL = 'vertical'
+    HORIZONTAL = 'horizontal'
 
-Vertical = Direction.Vertical
-Horizontal = Direction.Horizontal
+Vertical = Direction.VERTICAL
+Horizontal = Direction.HORIZONTAL
 
 class Splitter(Widget, i.Splitter):
     s_component_class = rio_components.Splitter
 
     def __init__(self, direction: Direction=Horizontal, **kwargs):
         super().__init__(**kwargs)
-        self['direction']=direction
+        self['direction']=direction.label
         self['child_proportions']=[]
 
     def add_widget(self, widget: Widget):
@@ -489,51 +620,92 @@ class Splitter(Widget, i.Splitter):
 
 class Style(i.Style):
     class EnumMeta(type):
-        def __getattr__(cls,value):
-            if value!=value.upper():
-                return getattr(cls,value.upper()).value
+        def __getattr__(cls, value):
+            if value != value.upper():
+                return getattr(cls, value.upper()).value
 
-    class StandardPixmap(EnumBits,metaclass=EnumMeta):
+    class StandardPixmap(EnumBits, metaclass=EnumMeta):
         """Mapping of Qt QStyle::StandardPixmap values to Material Icons."""
+        # Dialog Buttons
+        SP_DIALOGAPPLYBUTTON = ("done",)
+        SP_DIALOGCANCELBUTTON = ("close",)
+        SP_DIALOGCLOSEBUTTON = ("close",)
+        SP_DIALOGDISCARDBUTTON = ("close",)
+        SP_DIALOGHELPBUTTON = ("help_outline",)
+        SP_DIALOGNOBUTTON = ("close",)
+        SP_DIALOGOKBUTTON = ("check",)
+        SP_DIALOGOPENBUTTON = ("folder_open",)
+        SP_DIALOGRESETBUTTON = ("restart_alt",)
+        SP_DIALOGSAVEBUTTON = ("save",)
+        SP_DIALOGYESBUTTON = ("check",)
+        # Arrows and Navigation
         SP_ARROWBACK = ("arrow_back",)
         SP_ARROWDOWN = ("arrow_downward",)
         SP_ARROWFORWARD = ("arrow_forward",)
+        SP_ARROWLEFT = ("arrow_left",)
+        SP_ARROWRIGHT = ("arrow_right",)
         SP_ARROWUP = ("arrow_upward",)
-        SP_BROWSERRELOAD = ("refresh",)
-        SP_BROWSERSTOP = ("stop",)
-        SP_MEDIAPLAY = ("play_arrow",)
-        SP_MEDIAPAUSE = ("pause",)
-        SP_MEDIASTOP = ("stop",)
-        SP_MEDIASKIPBACKWARD = ("skip_previous",)
-        SP_MEDIASKIPFORWARD = ("skip_next",)
-        SP_MEDIASEEKBACKWARD = ("fast_rewind",)
-        SP_MEDIASEEKFORWARD = ("fast_forward",)
-        SP_DIROPENICON = ("folder_open",)
+        # File System and Folders
         SP_DIRCLOSEDICON = ("folder",)
+        SP_DIRHOMEICON = ("home",)
+        SP_DIRICON = ("folder",)
+        SP_DIRLINKICON = ("folder_special",)
+        SP_DIROPENICON = ("folder_open",)
+        SP_FILEDIALOGBACK = ("arrow_back",)
+        SP_FILEDIALOGCONTENTSVIEW = ("view_list",)
+        SP_FILEDIALOGDETAILEDVIEW = ("grid_view",)
+        SP_FILEDIALOGEND = ("last_page",)
+        SP_FILEDIALOGINFOVIEW = ("info",)
+        SP_FILEDIALOGLISTVIEW = ("list",)
+        SP_FILEDIALOGNEWFOLDER = ("create_new_folder",)
+        SP_FILEDIALOGSTART = ("first_page",)
+        SP_FILEDIALOGTOPARENT = ("arrow_upward",)
         SP_FILEICON = ("description",)
-        SP_TRASHICON = ("delete",)
-        SP_DIALOGOKBUTTON = ("check",)
-        SP_DIALOGCANCELBUTTON = ("close",)
-        SP_DIALOGAPPLYBUTTON = ("done",)
-        SP_DIALOGRESETBUTTON = ("restart_alt",)
-        SP_MESSAGEBOXINFORMATION = ("info",)
-        SP_MESSAGEBOXWARNING = ("warning",)
-        SP_MESSAGEBOXCRITICAL = ("error",)
-        SP_MESSAGEBOXQUESTION = ("help",)
-        SP_DESKTOPICON = ("desktop_windows",)
+        SP_FILELINKICON = ("insert_link",)
+        # Drives and Devices
         SP_COMPUTERICON = ("computer",)
-        SP_DRIVEHDICON = ("storage",)
-        SP_DRIVEFDICON = ("save",)
+        SP_DESKTOPICON = ("desktop_windows",)
         SP_DRIVECDICON = ("album",)
+        SP_DRIVEDVDICON = ("album",)
+        SP_DRIVEFDICON = ("save",)
+        SP_DRIVEHDICON = ("storage",)
         SP_DRIVENETICON = ("cloud",)
         SP_HOMEICON = ("home",)
-        SP_FILEDIALOGNEWFOLDER = ("create_new_folder",)
-        SP_FILEDIALOGTOPARENT = ("arrow_upward",)
-        SP_FILEDIALOGLISTVIEW = ("list",)
-        SP_FILEDIALOGDETAILEDVIEW = ("grid_view",)
-
-        def __getattr__(self, item):
-            return getattr(self, item.upper())
+        SP_TRASHICON = ("delete",)
+        # Media Controls
+        SP_MEDIAPAUSE = ("pause",)
+        SP_MEDIAPLAY = ("play_arrow",)
+        SP_MEDIASEEKBACKWARD = ("fast_rewind",)
+        SP_MEDIASEEKFORWARD = ("fast_forward",)
+        SP_MEDIASKIPBACKWARD = ("skip_previous",)
+        SP_MEDIASKIPFORWARD = ("skip_next",)
+        SP_MEDIASTOP = ("stop",)
+        SP_MEDIAVOLUME = ("volume_up",)
+        SP_MEDIAVOLUMEMUTED = ("volume_off",)
+        # Message Boxes
+        SP_MESSAGEBOXCRITICAL = ("error",)
+        SP_MESSAGEBOXINFORMATION = ("info",)
+        SP_MESSAGEBOXQUESTION = ("help",)
+        SP_MESSAGEBOXWARNING = ("warning",)
+        # Browser Controls
+        SP_BROWSERRELOAD = ("refresh",)
+        SP_BROWSERSTOP = ("stop",)
+        # Title Bar and Window Controls
+        SP_TITLEBARCLOSEBUTTON = ("close",)
+        SP_TITLEBARCONTEXTHELPBUTTON = ("help_outline",)
+        SP_TITLEBARMAXBUTTON = ("maximize",)
+        SP_TITLEBARMENUBUTTON = ("menu",)
+        SP_TITLEBARMINBUTTON = ("minimize",)
+        SP_TITLEBARNORMALBUTTON = ("restore",)
+        SP_TITLEBARSHADEBUTTON = ("expand_less",)
+        SP_TITLEBARUNSHADEBUTTON = ("expand_more",)
+        # Toolbar and Dock Widgets
+        SP_DOCKWIDGETCLOSEBUTTON = ("close",)
+        SP_TOOLBARHORIZONTALEXTENSIONBUTTON = ("chevron_right",)
+        SP_TOOLBARVERTICALEXTENSIONBUTTON = ("chevron_down",)
+        # Platform-Specific
+        SP_COMMANDLINK = ("arrow_right_alt",)
+        SP_VISTASHIELD = ("security",)
 
     def standard_icon(self, style_icon: int):
         return f"material/{self.StandardPixmap.s_reverse_dir[style_icon].label}"
@@ -570,7 +742,7 @@ class ListWidget(Widget, i.ListWidget):
             self.add_item(item)
 
     def clicked_connect(self, bound_method):
-        self._on_press = bound_method
+        self._on_press = self.callback(bound_method)
 
     def _handle_on_press(self, item):
         if self._on_press:
@@ -760,11 +932,11 @@ class TreeWidget(Widget, i.TreeWidget):
         pass
 
     def item_expanded_connect(self, bound_method):
-        self.handlers['on_item_expand'] = bound_method
+        self.handlers['on_item_expand'] = self.callback(bound_method)
 
     def item_clicked_connect(self, bound_method):
         #self.handlers['on_item_double_press'] = bound_method
-        self.handlers['on_item_press'] = bound_method
+        self.handlers['on_item_press'] = self.callback(bound_method)
 
 
     def item_pressed_connect(self, bound_method):

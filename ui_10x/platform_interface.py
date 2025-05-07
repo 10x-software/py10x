@@ -52,11 +52,11 @@ class Widget(abc.ABC):
     @abc.abstractmethod
     def set_style_sheet(self, sh: str): ...
 
-    # @abc.abstractmethod
-    # def style_sheet(self) -> str: ...
-    #
-    # @abc.abstractmethod
-    # def set_enabled(self, enabled: bool): ...
+    @abc.abstractmethod
+    def style_sheet(self) -> str: ...
+
+    @abc.abstractmethod
+    def set_enabled(self, enabled: bool): ...
     #
     # @abc.abstractmethod
     # def set_geometry(self, *args): ...
@@ -88,8 +88,8 @@ class Widget(abc.ABC):
     @abc.abstractmethod
     def set_minimum_height(self, height: int): ...
 
-    # @abc.abstractmethod
-    # def font_metrics(self) -> FontMetrics: ...
+    @abc.abstractmethod
+    def font_metrics(self) -> FontMetrics: ...
 
 Horizontal  = 0
 Vertical    = 1
@@ -104,7 +104,7 @@ class Layout(abc.ABC):
     def set_spacing(self, spacing: int): ...
 
     @abc.abstractmethod
-    def set_contents_margins(self, *args): ...
+    def set_contents_margins(self, left, top, right, bottom): ...
 
 class BoxLayout(Layout):
     @abc.abstractmethod
@@ -164,6 +164,9 @@ class LineEdit(Label):
 
     @abc.abstractmethod
     def set_password_mode(self): ...
+
+    @abc.abstractmethod
+    def set_tool_tip(self, tooltip: str): ...
 
 class TextEdit(Widget):
     @abc.abstractmethod
@@ -309,6 +312,9 @@ class Dialog(Widget):
 
     @abc.abstractmethod
     def set_modal(self, modal: bool):   ...
+
+    @abc.abstractmethod
+    def set_geometry(self, modal: bool):   ...
 
     @abc.abstractmethod
     def exec(self): ...
