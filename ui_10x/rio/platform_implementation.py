@@ -8,7 +8,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import KW_ONLY
 from functools import partial
-from typing import Self, Literal
+from typing import Self, Literal, Any
 
 import uvicorn
 from rio.debug.monkeypatches import apply_monkeypatches
@@ -27,8 +27,10 @@ def session_context(session: rio.Session):
     global CURRENT_SESSION
     assert CURRENT_SESSION is None
     CURRENT_SESSION = session
-    yield
-    CURRENT_SESSION = None
+    try:
+        yield
+    finally:
+        CURRENT_SESSION = None
 
 @cache
 def init() -> rio.App:
@@ -47,24 +49,23 @@ class Application(i.Application):
         return Style()
 
 class ConnectionType(Enum):
-    DirectConnection = ()
-    QueuedConnection = ()
+    DIRECT = ()
+    QUEUED = ()
 
-DirectConnection = ConnectionType.DirectConnection
-QueuedConnection = ConnectionType.QueuedConnection
+DirectConnection = ConnectionType.DIRECT
+QueuedConnection = ConnectionType.QUEUED
 
 class SignalDecl:
     def __init__(self):
-        self.handlers: set[tuple[Callable[[], None], ConnectionType]] = set()
+        self.handlers: set[tuple[Callable[[...], None], ConnectionType]] = set()
 
-    def connect(self, handler: Callable[[], None], type: ConnectionType = QueuedConnection) -> bool:
+    def connect(self, handler: Callable[[...], None], type: ConnectionType = QueuedConnection) -> bool:
         self.handlers.add((handler, type))
         return True
 
     def emit(self,*args) -> None:
-        for handler, conn_type in self.handlers:
-            f = partial(handler,*args)
-            f() if conn_type == DirectConnection else  asyncio.get_running_loop().call_soon(f)
+        for handler, conn in self.handlers:
+            handler(*args) if conn == DirectConnection else asyncio.get_running_loop().call_soon(handler,*args)
 
 def signal_decl(arg=object):
     assert arg is object, 'arg must be object'
@@ -122,6 +123,7 @@ class DynamicComponent(rio.Component):
         self.revision = revision
 
     def build(self) -> rio.Component:
+        _=self.revision
         return self.builder.build()
 
 class ComponentBuilder:
@@ -131,39 +133,65 @@ class ComponentBuilder:
     s_forced_kwargs = {}
     s_default_kwargs = {}
     s_dynamic = True
+    s_children_attr = 'children'
+    s_single_child = False
+
+    def _get_children(self):
+        children = self[self.s_children_attr]
+        if self.s_single_child and children is None:
+            return []
+        return [children] if self.s_single_child else children
+
+    def _set_children(self,children):
+        if self.s_single_child and not children:
+            self[self.s_children_attr] = None
+        else:
+            assert not self.s_single_child or len(children) == 1
+            self[self.s_children_attr] = children[0] if self.s_single_child else children
 
     def __init__(self, *children, **kwargs):
         assert self.s_component_class, f"{self.__class__.__name__}: has no s_component_class"
         defaults = {kw:value(kwargs) if callable(value) else value for kw,value in self.s_default_kwargs.items()}
         self._kwargs = defaults | kwargs | self.s_forced_kwargs
         self.component = None
-        kw_kids = self._kwargs.get('children',[])
-        self['children'] = []
-        self.add_children(*children)
-        self.add_children(*kw_kids)
+        kw_kids = self._kwargs.get(self.s_children_attr)
+        if self.s_single_child:
+            self._set_children(children if children else [kw_kids])
+        else:
+            self._set_children([])
+            self.add_children(*children)
+            if kw_kids is not None:
+                self.add_children(*kw_kids)
 
     def add_children(self, *children):
-        existing_children = set(self['children'])
-        #assert all(isinstance(child, Widget) for child in children), f'all children of {self.__class__.__name__} must be widgets, but got {set(child.__class__.__name__ for child in children)} - {children}'
-        self['children'].extend(child for child in children if child is not None and child not in existing_children)
+        existing_children = set(self._get_children())
+        if self.s_single_child:
+            new_children = [child for child in children if child is not None and child not in existing_children]
+            if new_children:
+                assert not existing_children
+                self._set_children(new_children)
+        else:
+            self['children'].extend(child for child in children if child is not None and child not in existing_children)
         self.force_update()
         
     def with_children(self, *args):
         return self.__class__(*args,**self._kwargs) if args else self
 
     def _build_children(self):
-        return [ child() if isinstance(child,ComponentBuilder) else child for child in self['children'] if child is not None]
+        return [ child() if isinstance(child,ComponentBuilder) else child for child in self._get_children() if child is not None]
 
     def build(self):
-        return self.s_component_class(*self._build_children(),
-                               **{k: v for k, v in self._kwargs.items() if k != 'children'})
+        kwargs = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
+        return self.s_component_class(*self._build_children(), **kwargs)
 
     def __call__(self):
         self.component = DynamicComponent(self) if self.s_dynamic else self.build()
         return self.component
 
     def __getitem__(self, item):
-        #TODO: handle updates in self.component?
+        #TODO: two way mapping..
+        #if self.component and self.component._build_data_:
+        #    return getattr(self.component._build_data_.build_result,item)
         return self._kwargs[item]
 
     def __contains__(self,item):
@@ -174,8 +202,10 @@ class ComponentBuilder:
         self.force_update()
 
     def force_update(self):
-        if self.component:
-            self.component.revision = self.component.revision + 1
+        component: rio.Component = self.component
+        if component:
+            component.revision = component.revision + 1
+            component.force_refresh()
 
     def setdefault(self, item, default):
         try:
@@ -200,20 +230,25 @@ class FontMetrics(i.FontMetrics):
         return 1 # best guess -- rio measures sizes in char heights
 
 class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
-    s_component_class = rio.FlowContainer
+    s_component_class = rio.Container
     s_stretch_arg = 'grow_x'
+    s_default_layout_factory = lambda: FlowLayout
 
     __slots__ = ('_layout',)
+
+    def __init_subclass__(cls, **kwargs):
+        cls.s_default_layout_factory = None
     
     def __init__(self, *children, **kwargs):
         super().__init__(*children, **kwargs)
-        self._layout = None
+        layout_factory = self.__class__.s_default_layout_factory
+        self._layout = layout_factory() if layout_factory else None
         
     def set_layout(self, layout: i.Layout):
         self._layout = layout
         
     def _build_children(self):
-        return self._layout.with_children(*self['children'])._build_children() if self._layout else super()._build_children()
+        return [self._layout.with_children(*self._get_children()).build()] if self._layout else super()._build_children()
 
     def set_stretch(self, stretch):
         assert stretch in (0, 1), 'Only stretch of 0 or 1 is currently supported'
@@ -234,14 +269,12 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
 class Label(Widget, i.Label):
     s_component_class = rio.Text
     s_forced_kwargs = {'selectable': False, 'align_x': 0}
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if not self['children']:
-            self['children'] = [self._kwargs.pop('text','')]
+    s_default_kwargs = {'text': ''}
+    s_single_child = True
+    s_children_attr = 'text'
 
     def set_text(self, text: str):
-        self['children'] = [text or '']
+        self['text'] = text or ''
 
 class PushButton(Label,i.PushButton):
     s_component_class = rio.Button
@@ -266,7 +299,7 @@ class PushButton(Label,i.PushButton):
             label = args[-1]
             assert label is not None
             icon = args[0] if len(args)>1 else None
-            self['children'][0] = label
+            self['text'] = label
             self['icon'] = icon
 
 
@@ -302,6 +335,9 @@ class VBoxLayout(Layout, i.VBoxLayout):
 class HBoxLayout(Layout,i.HBoxLayout):
     s_component_class = rio.Row
     s_stretch_arg = 'grow_x'
+
+class FlowLayout(Layout, i.Layout):
+    s_component_class = rio.FlowContainer
 
 class FormLayout(VBoxLayout,i.FormLayout):
     def add_row(self, w1: Widget, w2: Widget = None):
@@ -350,13 +386,13 @@ class Dialog(Widget,i.Dialog):
         self._on_close()
         self.accepted = bool(result)
 
-    def _build_children(self):
-        return self._layout.with_children( *self['children'],
-            HBoxLayout(
-                PushButton('Accept', on_press=self.on_accept),
-                PushButton('Reject', on_press=self.on_reject),
-            )
-        )._build_children()
+    # def _build_children(self):
+    #     return self._layout.with_children( *self['children'],
+    #         HBoxLayout(
+    #             PushButton('Accept', on_press=self.on_accept),
+    #             PushButton('Reject', on_press=self.on_reject),
+    #         )
+    #     )._build_children()
 
     def _on_close(self):
         if self._dialog:
@@ -496,10 +532,11 @@ class LineEditComponent(rio.Component):
     def build(self):
         children = [
             rio.TextInput(
+                #self.bind().text,
                 self.text,
                 is_sensitive = self.is_sensitive,
-                on_change = lambda ev: self.on_change(ev.text) if self.on_change else None,
-                on_confirm = lambda ev: self.on_confirm(ev.text) if self.on_confirm else None
+                on_change = self.on_change,
+                on_confirm = self.on_confirm
             )
         ]
         if self.tooltip is not None:
@@ -509,19 +546,24 @@ class LineEditComponent(rio.Component):
                     self.tooltip
                 )
             )
-        return rio.Stack(*children)
+        return rio.Stack(*reversed(children))
 
 class LineEdit(Widget, i.LineEdit):
-    s_default_kwargs = dict(children=[''])
+    s_default_kwargs = dict(text='')
     s_component_class = LineEditComponent
+    s_single_child = True
+    s_children_attr = 'text'
     def set_text(self, text: str):
-        self['children'] = [text]
+        self['text'] = text
 
     def set_tool_tip(self, tooltip: str):
         self['tooltip'] = tooltip
 
     def text(self):
-        return self['children'][0]
+        if self.component:
+            #TODO: this if statement should not be necessary - debug why self.bind().text is not sufficient.
+            return self.component._build_data_.build_result._build_data_.build_result.children[1].text
+        return self['text']
 
     def text_edited_connect(self, bound_method):
         self['on_change'] = self.callback(lambda ev: bound_method(ev.text))
@@ -533,7 +575,7 @@ class LineEdit(Widget, i.LineEdit):
         self['is_password'] = True
 
     def editing_finished_connect(self, bound_method):
-        self['on_confirm'] = self.callback(lambda ev: bound_method(ev.text))
+        self['on_confirm'] = self.callback(lambda ev: bound_method())
 
 class TextEdit(Widget, i.TextEdit):
     s_component_class = rio.MultiLineTextInput
@@ -759,13 +801,16 @@ class ListWidget(Widget, i.ListWidget):
 
     def find_items(self, text, flags):
         assert flags == MatchExactly, 'only MatchExactly supported'
-        return [item for item in self['children'] if text == item['text']]
+        return [item for item in self._kwargs['children'] if text == item['text']]
 
     def row(self, item: ListItem) -> int:
-        return self['children'].index(item)
+        return self._kwargs['children'].index(item)
 
     def take_item(self, row: int):
-        return self['children'].pop(row)
+        try:
+            return self._kwargs['children'].pop(row)
+        finally:
+            self.force_update()
 
     def set_selected(self, item: ListItem, selected: bool):
         #TODO: this is called from on-click handler for list item, which is
