@@ -1,8 +1,11 @@
+from typing import Callable
+
 from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
+from core_10x.rc import RC
 from core_10x.trait import Trait, Ui
 from core_10x.traitable import Traitable
-from core_10x.exec_control import INTERACTIVE
+from core_10x.exec_control import BTP, INTERACTIVE
 
 from ui_10x.utils import ux, UxDialog, ux_warning
 from ui_10x.traitable_view import TraitableView
@@ -62,6 +65,7 @@ class TraitableEditor:
             assert issubclass(entity_class, view.cls), f'Given view is not for {entity_class}'
 
         self.entity = entity
+        self.traitable_processor = None
 
         trait_dir = entity_class.s_dir
         self.trait_hints = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
@@ -72,7 +76,7 @@ class TraitableEditor:
 
         callbacks = self.callbacks_for_traits
         self.trait_editors = {
-            trait.name: TraitEditor(entity, trait, ui_hint, custom_callback = callbacks.get(trait.name))
+            trait.name: TraitEditor(entity, trait, ui_hint, custom_callback = callbacks.get(trait.name), traitable_processor = lambda : self.traitable_processor)
             for trait, ui_hint in trait_hints.items()
         }
 
@@ -124,7 +128,13 @@ class TraitableEditor:
         w.set_layout(lay)
         return w
 
-    def _popup(self, layout: ux.Layout, title: str, ok: str, min_width: int) -> bool:
+    def _cleanup(self,apply:bool):
+        if self.traitable_processor:
+            if apply:
+                self.traitable_processor.export_nodes()
+            self.traitable_processor=None
+
+    def _popup(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[],RC]) -> None:
         ux.init()
         if layout is not None:
             w = self.main_w = ux.Widget()
@@ -132,12 +142,20 @@ class TraitableEditor:
         else:
             w = self.main_widget()
 
-        d = UxDialog(w, title = title, accept_callback = self.entity.verify, ok = ok, min_width = min_width)
-        accepted = d.exec()
-        self.main_widget = None
-        return bool(accepted)
+        def accept_callback():
+            self.main_widget = None
+            try:
+                if self.entity.verify():
+                    return on_accept()
+            finally:
+                self._cleanup(True)
 
-    def popup(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> bool:
+        def cancel_callback():
+            self._cleanup(False)
+
+        UxDialog(w, title = title, accept_callback = accept_callback, cancel_callback = cancel_callback, ok = ok, min_width = min_width).show()
+
+    def popup(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> None:
         if title is None:
             title = ''
         elif not title:
@@ -145,16 +163,7 @@ class TraitableEditor:
 
         ok = 'Save' if save else 'Ok'
 
-        if copy_entity:
-            with INTERACTIVE() as graph:
-                accepted = self._popup(layout, title, ok, min_width)
-                if accepted:
-                    graph.export_nodes()
-
-        else:
-            accepted = self._popup(layout, title, ok, min_width)
-
-        if accepted:
+        def on_accept():
             if accept_hook:
                 accept_hook()
 
@@ -162,9 +171,15 @@ class TraitableEditor:
                 rc = self.entity.save()
                 if not rc:
                     self.warning(rc.error())
-                    return False
+                    return rc
 
-        return accepted
+            return RC(True)
+
+        if copy_entity:
+            self.traitable_processor = INTERACTIVE()
+
+        self._popup(layout, title, ok, min_width, on_accept=on_accept)
+
 
     def warning(self, msg: str, title = ''):
         ux_warning(msg, parent = self.main_widget, title = title)

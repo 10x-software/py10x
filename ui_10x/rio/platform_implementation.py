@@ -2,22 +2,25 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import typing
 
 import nest_asyncio
 from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import KW_ONLY
 from functools import partial
-from typing import Self, Literal, Any
+from typing import Self, Literal
 
-import uvicorn
-from rio.debug.monkeypatches import apply_monkeypatches
+import rio
 
 import ui_10x.platform_interface as i
-import rio
 import ui_10x.rio.components as rio_components
 from core_10x.global_cache import cache
 from core_10x.named_constant import Enum, EnumBits
+from ui_10x.platform_interface import Style
+
+if typing.TYPE_CHECKING:
+    import uvicorn
 
 nest_asyncio.apply()
 
@@ -175,7 +178,10 @@ class ComponentBuilder:
         self.force_update()
         
     def with_children(self, *args):
-        return self.__class__(*args,**self._kwargs) if args else self
+        try:
+            return self.__class__(*args,**self._kwargs) if args else self
+        except:
+            pass
 
     def _build_children(self):
         return [ child() if isinstance(child,ComponentBuilder) else child for child in self._get_children() if child is not None]
@@ -232,7 +238,7 @@ class FontMetrics(i.FontMetrics):
 class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
     s_component_class = rio.Container
     s_stretch_arg = 'grow_x'
-    s_default_layout_factory = lambda: FlowLayout
+    s_default_layout_factory = lambda: FlowLayout()
 
     __slots__ = ('_layout',)
 
@@ -348,7 +354,7 @@ class FormLayout(VBoxLayout,i.FormLayout):
         self.add_widget(row)
 
 class Dialog(Widget,i.Dialog):
-    __slots__ = ('_event_loop','_dialog','_parent','_server')
+    __slots__ = ('_event_loop','_dialog','_parent','_server','_modal')
     s_component_class = rio.Column
     s_forced_kwargs = {'grow_x': True, 'grow_y': True}
     def __init__(self, parent: Widget|None = None, children=(), title=None, on_accept=None, on_reject=None, **kwargs):
@@ -364,6 +370,7 @@ class Dialog(Widget,i.Dialog):
         self._dialog = None
         self._server = None
         self._parent = parent
+        self._modal = True
 
     def set_window_title(self, title: str):
         self.title = title
@@ -396,7 +403,8 @@ class Dialog(Widget,i.Dialog):
 
     def _on_close(self):
         if self._dialog:
-            CURRENT_SESSION.create_task(self._dialog.close())
+            if CURRENT_SESSION:
+                CURRENT_SESSION.create_task(self._dialog.close())
             self._dialog = None
         if self._event_loop:
             self._event_loop.close()
@@ -411,22 +419,19 @@ class Dialog(Widget,i.Dialog):
         self._dialog = future.result()
 
     def exec(self):
-        if CURRENT_SESSION:
-            asyncio.get_running_loop()
-            self._event_loop = new_loop = asyncio.new_event_loop()
-            future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal)
-            self._dialog = new_loop.run_until_complete(future) # create dialog
-            new_loop.run_forever() # until dialog is closed
-        else:
-            title = self.title or 'Dialog'
-            app = rio.App(name=title, build=self)
-            assert not self._parent
+        assert not CURRENT_SESSION, 'Cannot start another event loop - use show() with callbacks instead'
+        title = self.title or 'Dialog'
+        app = rio.App(name=title, build=self)
+        assert not self._parent
+        debug = True
+        if debug:
+            from rio.debug.monkeypatches import apply_monkeypatches
             apply_monkeypatches()
-            app._run_in_window(debug_mode=True,isolate_webview=True,on_server_created=self._on_server_created)
+        app._run_in_window(debug_mode=debug,on_server_created=self._on_server_created)
         return self.accepted
 
     def show(self):
-        future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal)
+        future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal, owning_component=self._parent.component if self._parent else None)
         task = CURRENT_SESSION.create_task(future)
         task.add_done_callback(self._on_dialog_open)
 
@@ -438,6 +443,45 @@ class Dialog(Widget,i.Dialog):
 
     def set_geometry(self, modal: bool):
         raise NotImplementedError
+
+class MessageBox(i.MessageBox):
+    @classmethod
+    def _dialog(cls, parent: Widget, title: str, message: str, icon: Style.StandardPixmap) -> bool:
+        if icon==Style.StandardPixmap.SP_MESSAGEBOXQUESTION:
+            buttons = [
+                PushButton('Yes', Style.StandardPixmap.SP_DIALOGYESBUTTON, on_press=lambda: dlg.on_accept),
+                PushButton('No', Style.StandardPixmap.SP_DIALOGNOBUTTON, on_press=lambda:dlg.on_reject)
+            ]
+        else:
+            buttons = [
+                PushButton('Ok',Style.StandardPixmap.SP_DIALOGOKBUTTON, on_press=lambda: dlg.on_accept)
+            ]
+        children = (
+            Label(title),
+            Separator(),
+            HBoxLayout(PushButton('',icon), Label(message)),
+            Separator(),
+            HBoxLayout(*buttons),
+        )
+        dlg = Dialog(parent=parent,title=title,children=children)
+        dlg.set_layout(VBoxLayout())
+        return dlg.exec()
+
+    @classmethod
+    def question(cls, parent: Widget, title: str, message: str) -> bool:
+        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXQUESTION)
+
+    @classmethod
+    def warning(cls, parent: Widget, title: str, message: str):
+        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXWARNING)
+
+    @classmethod
+    def information(cls, parent: Widget, title: str, message: str):
+        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXINFORMATION)
+
+    @classmethod
+    def is_yes_button(cls, sb) -> bool:
+        return sb
 
 
 class RadioButton(Widget, i.RadioButton):
@@ -554,7 +598,7 @@ class LineEdit(Widget, i.LineEdit):
     s_single_child = True
     s_children_attr = 'text'
     def set_text(self, text: str):
-        self['text'] = text
+        self['text'] = text or ''
 
     def set_tool_tip(self, tooltip: str):
         self['tooltip'] = tooltip

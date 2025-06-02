@@ -1,6 +1,14 @@
+from contextlib import nullcontext
+
+from dataclasses import dataclass
+from typing import Callable
+
+from core_10x.rc import RC
 from core_10x.trait import Trait, T, Ui
 from core_10x.concrete_traits import date_trait, list_trait, dict_trait, flags_trait
 from core_10x.traitable import traitable_trait
+from core_10x.entity import Entity
+from core_10x.exec_control import BTP
 
 from ui_10x.utils import ux, UxStyleSheet, ux_pick_date, UxDialog
 from ui_10x.py_data_browser import PyDataBrowser
@@ -8,11 +16,49 @@ from ui_10x.choice import Choice, MultiChoice
 from ui_10x.trait_widget import TraitWidget
 import ui_10x.concrete_trait_widgets
 
+@dataclass
+class EntityWrapper:
+    entity: Entity
+    traitable_processor: Callable[[],BTP]
+
+    def set_value(self, trait: Trait, value) -> RC:
+        with self.traitable_processor() or nullcontext():
+            return self.entity.set_value(trait, value)
+
+    def get_value(self, trait: Trait):
+        with self.traitable_processor() or nullcontext():
+            value = self.entity.get_value(trait)
+            return value
+
+    def is_valid(self, trait: Trait) -> bool:
+        with self.traitable_processor() or nullcontext():
+            return self.entity.is_valid(trait)
+
+    def invalidate_value(self, trait: Trait) -> bool:
+        with self.traitable_processor() or nullcontext():
+            return self.entity.invalidate_value(trait)
+
+    def get_style_sheet(self, trait: Trait):
+        with self.traitable_processor() or nullcontext():
+            return self.entity.get_style_sheet(trait)
+
+    def get_choices(self, trait: Trait):
+        with self.traitable_processor() or nullcontext():
+            return self.entity.get_choices(trait)
+
+    def create_ui_node(self, trait: Trait, callback):
+        with self.traitable_processor() or nullcontext():
+            return self.entity.bui_class().create_ui_node(self.entity,trait,callback)
+
+    def update_ui_node(self, trait: Trait):
+        with self.traitable_processor() or nullcontext():
+            return self.entity.bui_class().update_ui_node(self.entity,trait)
+
 class TraitEditor:
-    def __init__(self, entity, trait: Trait, ui_hint: Ui, custom_callback = None):
-        self.entity = entity
+    def __init__(self, entity, trait: Trait, ui_hint: Ui, custom_callback = None, traitable_processor = None):
+        self.entity = EntityWrapper(entity, traitable_processor)
         self.trait = trait
-        self.widget: TraitWidget = None
+        self.widget: TraitWidget|None = None
         self.ui_hint = ui_hint
         self.trait_callback = self._establish_callback(custom_callback)
 
@@ -47,8 +93,8 @@ class TraitEditor:
         return label
 
     def new_widget(self, update_self = True) -> TraitWidget:
-        tw = TraitWidget.instance(self)
-        assert tw, f'{self.entity.__class__}.{self.trait.name} - unknown trait widget class'
+        tw: TraitWidget = TraitWidget.instance(self)
+        assert tw, f'{self.entity.entity.__class__}.{self.trait.name} - unknown trait widget class'
 
         avg_char_width = tw.font_metrics().average_char_width()
         min_width = self.ui_hint.param('min_width', 0)
@@ -81,11 +127,11 @@ class TraitEditor:
         w = mc.widget()
         if not w:
             return
-        d = UxDialog(w, title = f"Choose one or more values for {self.ui_hint.label}")
-        rc = d.exec()
-        if rc:
-            selected = mc.values_selected
-            self.entity.set_value(self.trait, selected)
+
+        def on_accept(ctx):
+            self.entity.set_value(self.trait, mc.values_selected)
+
+        UxDialog(w, title = f"Choose one or more values for {self.ui_hint.label}", accept_callback=on_accept).show()
 
     def dict_cb(self):
         data = dict(self.entity.get_value(self.trait))

@@ -19,11 +19,9 @@ class TraitWidget:
     @staticmethod
     def instance(trait_editor) -> 'TraitWidget':
         w_type = trait_editor.ui_hint.widget_type
-        if w_type is Ui.WIDGET_TYPE.NONE:
-            return None
-
-        w_cls = TraitWidget.widget_class(w_type)
-        return w_cls(trait_editor)
+        if w_type is not Ui.WIDGET_TYPE.NONE:
+            w_cls = TraitWidget.widget_class(w_type)
+            return w_cls(trait_editor)
 
     def __init__(self, trait_editor):
         self.trait_editor = trait_editor
@@ -47,12 +45,12 @@ class TraitWidget:
         self.set_widget_value(value)
 
         self.refresh_context = ctx = RefreshContext(self)
-        entity.bui_class().create_ui_node(entity, self.trait, ctx.emit_signal)
+        entity.create_ui_node(self.trait, ctx.emit_signal)
 
     def refresh(self):
         entity = self.trait_editor.entity
         trait = self.trait
-        entity.bui_class().update_ui_node(entity, self.trait)
+        entity.update_ui_node(self.trait)
 
         if not trait.flags_on(T.EXPENSIVE):
             value = entity.get_value(trait)
