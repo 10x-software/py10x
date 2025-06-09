@@ -7,7 +7,7 @@ import typing
 import nest_asyncio
 from collections.abc import Callable
 from contextlib import contextmanager
-from dataclasses import KW_ONLY
+from dataclasses import KW_ONLY, dataclass
 from functools import partial
 from typing import Self, Literal
 
@@ -227,6 +227,17 @@ class ComponentBuilder:
                 return callback(*args,**kwargs)
         return cb
 
+@dataclass
+class Point(i.Point):
+    _x: int = 0
+    _y: int = 0
+
+    def x(self) -> int:
+        return self._x
+
+    def y(self) -> int:
+        return self._y
+
 class FontMetrics(i.FontMetrics):
     __slots__ = ('_widget',)
     def __init__(self, w: Widget):
@@ -271,6 +282,19 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
 
     def font_metrics(self) -> FontMetrics:
         return FontMetrics(self)
+
+    #placeholders
+    def set_geometry(self, *args):
+        pass
+
+    def width(self) -> int:
+        return 0
+
+    def height(self) -> int:
+        return 0
+
+    def map_to_global(self, point: Point) -> Point:
+        return point
 
 class Label(Widget, i.Label):
     s_component_class = rio.Text
@@ -440,9 +464,6 @@ class Dialog(Widget,i.Dialog):
 
     def set_modal(self, modal: bool):
         self._modal = modal
-
-    def set_geometry(self, modal: bool):
-        raise NotImplementedError
 
 class MessageBox(i.MessageBox):
     @classmethod

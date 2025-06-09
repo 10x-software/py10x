@@ -1,6 +1,6 @@
 
 #core
-importlib-resources>=6.4.0
+importlib-resources~=6.5.2
 numpy~=2.2.2
 #core_10x_i@../cxx10x/_core_10x
 

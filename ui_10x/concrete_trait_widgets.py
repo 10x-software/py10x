@@ -1,4 +1,4 @@
-from core_10x.trait import Trait, T, Ui
+from core_10x.trait import Trait, Ui
 from core_10x.concrete_traits import list_trait
 
 from ui_10x.utils import ux, UxClipBoard, ux_push_button
