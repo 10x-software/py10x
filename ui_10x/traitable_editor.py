@@ -128,7 +128,7 @@ class TraitableEditor:
         w.set_layout(lay)
         return w
 
-    def _cleanup(self,apply:bool):
+    def _cleanup_tp(self, apply:bool):
         if self.traitable_processor:
             if apply:
                 self.traitable_processor.export_nodes()
@@ -144,14 +144,12 @@ class TraitableEditor:
 
         def accept_callback():
             self.main_widget = None
-            try:
-                if self.entity.verify():
-                    return on_accept()
-            finally:
-                self._cleanup(True)
+            self._cleanup_tp(True)
+            if self.entity.verify():
+                return on_accept()
 
         def cancel_callback():
-            self._cleanup(False)
+            self._cleanup_tp(False)
 
         UxDialog(w, title = title, accept_callback = accept_callback, cancel_callback = cancel_callback, ok = ok, min_width = min_width).show()
 
