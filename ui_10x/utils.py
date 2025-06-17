@@ -2,6 +2,7 @@ from datetime import date
 import inspect
 from collections import deque
 
+from core_10x.rc import RC
 from ui_10x.platform import ux
 
 from core_10x.named_constant import NamedConstant
@@ -227,15 +228,18 @@ class UxDialog(ux.Dialog):
     def message(self, text: str):
         self.w_message.set_text(text)
 
-def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None):
+def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None):
     cal = ux.CalendarWidget()
     cal.set_grid_visible(bool(grid))
     if show_date:
         cal.set_selected_date(show_date)
-    dlg = UxDialog(cal, title = title)
-    rc = dlg.exec()
 
-    return cal.selected_date() if rc else default
+    accept_callback = (lambda: on_accept(cal.selected_date())) if on_accept else None
+    dlg = UxDialog(cal, title = title, accept_callback = accept_callback)
+    if on_accept:
+        dlg.show()
+    else:
+        return cal.selected_date() if dlg.exec() else default
 
 class UxStyleSheet:
     def __init__(self, widget):

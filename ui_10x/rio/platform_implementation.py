@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import typing
+from datetime import date
 
 import nest_asyncio
 from collections.abc import Callable
@@ -178,10 +179,7 @@ class ComponentBuilder:
         self.force_update()
         
     def with_children(self, *args):
-        try:
-            return self.__class__(*args,**self._kwargs) if args else self
-        except:
-            pass
+        return self.__class__(*args,**self._kwargs) if args else self
 
     def _build_children(self):
         return [ child() if isinstance(child,ComponentBuilder) else child for child in self._get_children() if child is not None]
@@ -275,7 +273,7 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
         return "" #TODO...
 
     def set_enabled(self, enabled: bool):
-        ... #TODO
+        self['is_sensitive'] = enabled
 
     def set_tool_tip(self, tooltip):
         ... #TODO
@@ -319,9 +317,6 @@ class PushButton(Label,i.PushButton):
 
     def set_flat(self, flat: bool):
         self['style'] = 'plain-text'
-
-    def set_enabled(self, enabled: bool):
-        self['is_sensitive'] = enabled
 
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
@@ -455,9 +450,12 @@ class Dialog(Widget,i.Dialog):
         return self.accepted
 
     def show(self):
-        future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal, owning_component=self._parent.component if self._parent else None)
-        task = CURRENT_SESSION.create_task(future)
-        task.add_done_callback(self._on_dialog_open)
+        if not CURRENT_SESSION:
+            self.exec()
+        else:
+            future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal, owning_component=self._parent.component if self._parent else None)
+            task = CURRENT_SESSION.create_task(future)
+            task.add_done_callback(self._on_dialog_open)
 
     def set_window_flags(self, flags):
         raise NotImplementedError
@@ -1069,4 +1067,21 @@ class TreeWidget(Widget, i.TreeWidget):
         """Add a top-level item to the tree (helper method)."""
         self['children'].append(item)
 
+
+class CalendarWidget(Widget,i.CalendarWidget):
+    s_component_class = rio.Calendar
+    s_default_kwargs = dict( value = date.today() )
+    s_children_attr = 'value'
+    s_single_child = True
+
+    def set_grid_visible(self, grid_visible: bool):
+        pass
+
+    def set_selected_date(self, selected_date: date):
+        self['value'] = selected_date
+
+    def selected_date(self) -> date:
+        if self.component:
+            return self.component._build_data_.build_result.value
+        return self['value']
 

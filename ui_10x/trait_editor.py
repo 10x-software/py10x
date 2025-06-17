@@ -114,12 +114,12 @@ class TraitEditor:
 
     def date_cb(self):
         show_date = self.entity.get_value(self.trait)
+
         d = ux_pick_date(
             title = f'Pick a date for {self.ui_hint.label}',
-            show_date = show_date
+            show_date = show_date,
+            on_accept = lambda value: self.entity.set_value(self.trait, value)
         )
-        if d:
-            self.entity.set_value(self.trait, d)
 
     def list_cb(self):
         choices = self.entity.get_value(self.trait)
