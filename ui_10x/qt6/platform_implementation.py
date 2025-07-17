@@ -1,3 +1,6 @@
+from __future__ import annotations
+from typing import Callable, Any
+
 from PyQt6.QtWidgets import QWidget, QLayout, QBoxLayout, QVBoxLayout, QHBoxLayout, QFormLayout, QApplication
 from PyQt6.QtWidgets import QLabel, QCalendarWidget, QMessageBox, QGroupBox, QButtonGroup, QRadioButton
 from PyQt6.QtWidgets import QListWidgetItem, QListWidget, QLineEdit, QPlainTextEdit, QTreeWidgetItem, QTreeWidget, QCheckBox, QComboBox
@@ -110,8 +113,87 @@ CalendarWidget.selected_date    = lambda self:                  self.selectedDat
 Dialog                          = QDialog
 #Dialog.__getattr__              = missing_attr
 
-MessageBox                      = QMessageBox
-MessageBox.is_yes_button        = lambda sb:                    sb == QMessageBox.StandardButton.Yes
+class MessageBox(QMessageBox):
+
+    def __init__(self, on_close: Callable[[Any],None] = None, parent: Widget = None):
+        super().__init__(parent)
+        self._on_close = on_close
+        self.finished.connect(self._handle_finished)
+
+        # Set the default values for the message box
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
+        self.setStandardButtons(QMessageBox.StandardButton.Ok)
+        self.setDefaultButton(QMessageBox.StandardButton.Ok)
+        self.setEscapeButton(QMessageBox.StandardButton.Ok)
+
+        self.setModal(True)
+
+    def _handle_finished(self, result):
+        if self._on_close:
+            self._on_close(result)
+        self.deleteLater()
+
+    @classmethod
+    def _create_message_box(cls, parent: Widget, title, message, on_close: Callable[[Any],None], icon) -> MessageBox:
+        msg_box = cls(on_close,parent)
+        msg_box.setWindowTitle(title)
+        msg_box.setText(message)
+        msg_box.setIcon(icon)
+        return msg_box
+
+    @classmethod
+    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]) -> MessageBox.StandardButton:
+        msg_box = cls._create_message_box(
+            parent=parent,
+            title=title,
+            message=message,
+            on_close=lambda result: on_close(MessageBox.is_yes_button(result)) if on_close else None,
+            icon=QMessageBox.Icon.Question,
+        )
+
+        msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        msg_box.setDefaultButton(QMessageBox.StandardButton.No)
+        msg_box.setEscapeButton(QMessageBox.StandardButton.No)
+
+        if on_close:
+            msg_box.show()
+        else:
+            return msg_box.exec()
+
+    @classmethod
+    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]) -> MessageBox.StandardButton:
+        msg_box = cls._create_message_box(
+                parent=parent,
+                title=title,
+                message=message,
+                on_close=on_close,
+                icon=QMessageBox.Icon.Warning,
+          )
+
+        if on_close:
+            msg_box.show()
+        else:
+            return msg_box.exec()
+
+    @classmethod
+    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]) -> MessageBox.StandardButton:
+        msg_box = cls._create_message_box(
+                parent=parent,
+                title=title,
+                message=message,
+                on_close=on_close,
+                icon=QMessageBox.Icon.Information,
+          )
+
+        if on_close:
+            msg_box.show()
+        else:
+            return msg_box.exec()
+
+    @classmethod
+    def is_yes_button(cls, sb: QMessageBox.StandardButton) -> bool:
+        return sb == QMessageBox.StandardButton.Yes
+
 
 Application                     = QApplication
 

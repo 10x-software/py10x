@@ -110,10 +110,8 @@ class EntityStocker(Traitable):
     def on_reload_entity(self):
         ce = self.plug.current_entity
         if ce:
-            rc = ce.reload()
-            if not rc:
-                ux_warning(f'Failed to reload entity {ce.__class__}/{ce.id()}', parent = None)
-
+            if not ce.reload():
+                ux_warning(f'Failed to reload entity {ce.__class__}/{ce.id()}', parent = None, on_close = lambda ctx: None)
             else:
                 self.plug.changed_entity_cb(ce)
 
@@ -123,7 +121,7 @@ class EntityStocker(Traitable):
             try:
                 rc = ce.save()
                 if not rc:
-                    ux_warning(rc.error(), parent = None)
+                    ux_warning(rc.error(), parent = None, on_close = lambda ctx: None)
 
                 return
 
@@ -135,23 +133,25 @@ class EntityStocker(Traitable):
             try:
                 rc = ce.save()
                 if not rc:
-                    ux_warning(rc.error(), parent = None)
+                    ux_warning(rc.error(), parent = None, on_close = lambda ctx: None)
                     return
 
             except Exception:
                 ux_warning('Failed to resolve revision conflict (most probably due to continuous updates from other session(s)')
                 return
 
-            ux_success(f'Conflict resolved, {ce.__class__}/{ce.id()} has been saved')
+            ux_success(f'Conflict resolved, {ce.__class__}/{ce.id()} has been saved', on_close = lambda ctx: None)
 
     def on_delete_entity(self):
         ce = self.plug.current_entity
         if ce:
-            if ux_answer(f'Please confirm deletion of {ce.__class__}/{ce.id()}', parent = None):
-                id_value = ce.id()
-                self.plug.deleted_entity_cb(ce)
-                #if not ce.delete():    #-- TODO: implement delete()
-                #    ux_warning('Deletion failed: {ce.__class__}/{ce.id()')
+            def on_close(accepted: bool):
+                if accepted:
+                    if not ce.delete():
+                        ux_warning('Deletion failed: {ce.__class__}/{ce.id()', parent = None, on_close=lambda ctx: None)
+                    self.plug.deleted_entity_cb(ce)
+
+            ux_answer(f'Please confirm deletion of {ce.__class__}/{ce.id()}', parent = None, on_close=on_close)
 
     def buttons_spec_get(self) -> dict:
         return dict(

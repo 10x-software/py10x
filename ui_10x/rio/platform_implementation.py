@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import typing
+from typing import Any, TYPE_CHECKING
 from datetime import date
 
-import nest_asyncio
 from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import KW_ONLY, dataclass
@@ -17,13 +16,11 @@ import rio
 import ui_10x.platform_interface as i
 import ui_10x.rio.components as rio_components
 from core_10x.global_cache import cache
-from core_10x.named_constant import Enum, EnumBits
+from core_10x.named_constant import Enum, EnumBits, NamedConstant
 from ui_10x.platform_interface import Style
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     import uvicorn
-
-nest_asyncio.apply()
 
 CURRENT_SESSION: rio.Session | None = None
 @contextmanager
@@ -78,13 +75,25 @@ def signal_decl(arg=object):
 class MouseEvent:
     ...
 
-class TEXT_ALIGN(Enum):
-    TOP = ()
-    V_CENTER = ()
-    BOTTOM = ()
-    LEFT = ()
-    CENTER = ()
-    RIGHT = ()
+class TEXT_ALIGN(NamedConstant):
+    s_vertical = 0xf << 4
+
+    LEFT = 1
+    CENTER = 6
+    RIGHT = 11
+    TOP = LEFT << 4
+    V_CENTER = CENTER << 4
+    BOTTOM = RIGHT << 4
+
+    @classmethod
+    def from_str(cls, s: str) -> TEXT_ALIGN:
+        return super().from_str(s.upper()) # type: ignore[return-value]
+
+    def rio_attr(self) -> str:
+        return 'align_y' if self.value & self.s_vertical else 'align_x'
+
+    def rio_value(self) -> float:
+        return ((self.value >> 4 if self.value & self.s_vertical else self.value)-1) /10
 
 class SCROLL(Enum):
     OFF = 'never'
@@ -99,7 +108,12 @@ class SizePolicy(Enum):
 class _WidgetMixin:
     __slots__ = ()
     def set_style_sheet(self, sh: str):
-        ...  # TODO
+        from ui_10x.utils import UxStyleSheet #TODO: circular import
+        sh = UxStyleSheet.loads(sh)
+        if text_align:=TEXT_ALIGN.from_str(sh.pop('text-align', '')):
+            self[text_align.rio_attr()] =text_align.rio_value()
+
+        #TODO: implement other style sheet properties
 
     def set_minimum_height(self, height: int):
         self['min_height'] = height
@@ -175,7 +189,7 @@ class ComponentBuilder:
                 assert not existing_children
                 self._set_children(new_children)
         else:
-            self['children'].extend(child for child in children if child is not None and child not in existing_children)
+            self[self.s_children_attr].extend(child for child in children if child is not None and child not in existing_children)
         self.force_update()
         
     def with_children(self, *args):
@@ -188,7 +202,7 @@ class ComponentBuilder:
         kwargs = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
         return self.s_component_class(*self._build_children(), **kwargs)
 
-    def __call__(self):
+    def __call__(self) -> rio.Component:
         self.component = DynamicComponent(self) if self.s_dynamic else self.build()
         return self.component
 
@@ -296,7 +310,7 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
 
 class Label(Widget, i.Label):
     s_component_class = rio.Text
-    s_forced_kwargs = {'selectable': False, 'align_x': 0}
+    s_forced_kwargs = {'selectable': False}#, 'align_x': 0}
     s_default_kwargs = {'text': ''}
     s_single_child = True
     s_children_attr = 'text'
@@ -316,7 +330,7 @@ class PushButton(Label,i.PushButton):
         self['on_press'] = self.callback(bound_method)
 
     def set_flat(self, flat: bool):
-        self['style'] = 'plain-text'
+        self['style'] = 'plain-text' if flat else 'major'
 
     def __init__(self, *args, **kwargs):
         super().__init__(**kwargs)
@@ -334,13 +348,10 @@ class Layout(Widget, i.Layout):
         assert widget is not None
         if stretch is not None:
             widget.set_stretch(stretch)
-        self['children'].append(widget)
+        self[self.s_children_attr].append(widget)
 
-    def add_layout(self, layout, stretch=None, **kwargs):
-        assert not kwargs, f'kwargs not supported: {kwargs}'
-        self._layout = layout
-        if stretch is not None:
-            layout.set_stretch(stretch)
+    def add_layout(self, layout: Layout, stretch=None, **kwargs):
+        self.add_widget(layout, stretch=stretch, **kwargs)
 
     def set_spacing(self, spacing: int):
         assert spacing == 0, 'Only zero is supported'
@@ -357,6 +368,9 @@ class VBoxLayout(Layout, i.VBoxLayout):
     s_component_class = rio.Column
     s_stretch_arg = 'grow_y'
 
+    def build(self):
+        return super().build()
+
 class HBoxLayout(Layout,i.HBoxLayout):
     s_component_class = rio.Row
     s_stretch_arg = 'grow_x'
@@ -364,18 +378,21 @@ class HBoxLayout(Layout,i.HBoxLayout):
 class FlowLayout(Layout, i.Layout):
     s_component_class = rio.FlowContainer
 
-class FormLayout(VBoxLayout,i.FormLayout):
-    def add_row(self, w1: Widget, w2: Widget = None):
-        row = HBoxLayout()
-        row.add_widget(w1)
-        if w2:
-            row.add_widget(w2)
-        self.add_widget(row)
+class FormLayout(Layout,i.FormLayout):
+    s_component_class = rio.Grid
+    s_children_attr = 'rows'
+
+    def add_row(self, *args):
+        self.add_children(args)
+
+    def _build_children(self):
+        return [[child() for child in children] for children in self._get_children()]
 
 class Dialog(Widget,i.Dialog):
-    __slots__ = ('_event_loop','_dialog','_parent','_server','_modal')
+    __slots__ = ('_dialog','_parent','_server','_modal')
     s_component_class = rio.Column
     s_forced_kwargs = {'grow_x': True, 'grow_y': True}
+
     def __init__(self, parent: Widget|None = None, children=(), title=None, on_accept=None, on_reject=None, **kwargs):
         assert isinstance(parent,Widget|None)
         super().__init__(*children, **kwargs)
@@ -384,25 +401,27 @@ class Dialog(Widget,i.Dialog):
         # self.window = None
         self.accepted = True
         self.title = title
-        self._layout = VBoxLayout()
-        self._event_loop = None
         self._dialog = None
         self._server = None
         self._parent = parent
         self._modal = True
 
+    def __call__(self) -> rio.Component:
+        return super().__call__()
+
     def set_window_title(self, title: str):
         self.title = title
 
     def _wrapper(self, func, accept = False):
+        func = self.callback(func) if func else None
         def wrapper(*args):
+            self.accepted = accept
             if func:
                 func(*args)
             # if self.window is not None:
             #     webview.windows[self.window].destroy()
             #     self.window = None
             self._on_close()
-            self.accepted = accept
         return wrapper
 
     def reject(self):
@@ -422,12 +441,8 @@ class Dialog(Widget,i.Dialog):
 
     def _on_close(self):
         if self._dialog:
-            if CURRENT_SESSION:
-                CURRENT_SESSION.create_task(self._dialog.close())
+            self._dialog._root_component.session.create_task(self._dialog.close())
             self._dialog = None
-        if self._event_loop:
-            self._event_loop.close()
-            self._event_loop = None
         elif self._server:
             self._server.should_exit = True
 
@@ -454,8 +469,7 @@ class Dialog(Widget,i.Dialog):
             self.exec()
         else:
             future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal, owning_component=self._parent.component if self._parent else None)
-            task = CURRENT_SESSION.create_task(future)
-            task.add_done_callback(self._on_dialog_open)
+            CURRENT_SESSION.create_task(future).add_done_callback(self._on_dialog_open)
 
     def set_window_flags(self, flags):
         raise NotImplementedError
@@ -465,38 +479,45 @@ class Dialog(Widget,i.Dialog):
 
 class MessageBox(i.MessageBox):
     @classmethod
-    def _dialog(cls, parent: Widget, title: str, message: str, icon: Style.StandardPixmap) -> bool:
+    def _dialog(cls, parent: Widget, title: str, message: str, icon: Style.StandardPixmap, on_close: Callable[[Any],None]) -> bool:
+        style = Application.style()
         if icon==Style.StandardPixmap.SP_MESSAGEBOXQUESTION:
             buttons = [
-                PushButton('Yes', Style.StandardPixmap.SP_DIALOGYESBUTTON, on_press=lambda: dlg.on_accept),
-                PushButton('No', Style.StandardPixmap.SP_DIALOGNOBUTTON, on_press=lambda:dlg.on_reject)
+                PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGYESBUTTON.value), 'Yes', on_press=lambda: dlg.on_accept()),
+                PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGNOBUTTON.value), 'No', on_press=lambda: dlg.on_reject())
             ]
         else:
             buttons = [
-                PushButton('Ok',Style.StandardPixmap.SP_DIALOGOKBUTTON, on_press=lambda: dlg.on_accept)
+                PushButton(style.standard_icon(Style.StandardPixmap.SP_DIALOGOKBUTTON.value), 'Ok', on_press=lambda: dlg.on_accept())
             ]
         children = (
-            Label(title),
+            Label(title,align_x=0.5,align_y=0,style='heading1'),
             Separator(),
-            HBoxLayout(PushButton('',icon), Label(message)),
+            HBoxLayout(
+                PushButton(style.standard_icon(icon.value),'', style='plain-text', is_sensitive=False, align_y=0, align_x=0, grow_x=False),
+                Label(message, align_y=0, overflow='wrap', grow_x=True)),
             Separator(),
             HBoxLayout(*buttons),
         )
-        dlg = Dialog(parent=parent,title=title,children=children)
+        dlg = Dialog(parent=parent, title=title, children=children,
+                     on_accept=lambda: on_close(dlg.accepted),
+                     on_reject=lambda: on_close(dlg.accepted))
         dlg.set_layout(VBoxLayout())
-        return dlg.exec()
+        if not on_close:
+            return dlg.exec()
+        dlg.show()
 
     @classmethod
-    def question(cls, parent: Widget, title: str, message: str) -> bool:
-        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXQUESTION)
+    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]) -> bool:
+        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXQUESTION,on_close=on_close)
 
     @classmethod
-    def warning(cls, parent: Widget, title: str, message: str):
-        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXWARNING)
+    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]):
+        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXWARNING,on_close=on_close)
 
     @classmethod
-    def information(cls, parent: Widget, title: str, message: str):
-        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXINFORMATION)
+    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]):
+        return cls._dialog(parent=parent,title=title,message=message,icon=Style.StandardPixmap.SP_MESSAGEBOXINFORMATION,on_close=on_close)
 
     @classmethod
     def is_yes_button(cls, sb) -> bool:
@@ -528,7 +549,7 @@ class RadioButton(Widget, i.RadioButton):
         if self._button_group:
             self._button_group.on_change(value)
 
-    def __call__(self):
+    def __call__(self) -> rio.Component:
         button = super().__call__()
         if self._button_group:
             self._button_group._buttons.append(button)
@@ -944,15 +965,15 @@ class RioTreeItemBase(rio.Component):
 
     def build(self):
         return rio.SimpleTreeItem(
-            self.build_content(),
-            children = self.children,
+            content = self.build_content(),
+            children = [child.build() for child in self.children],
             is_expanded = self.is_expanded,
             on_press=self.on_press,
         )
 
 class RioTreeItem(RioTreeItemBase):
-    def __init__(self, *children,**kwargs):
-        super().__init__(children=list(children),**kwargs)
+    def __init__(self, *children,text='',**kwargs):
+        super().__init__(children=list(children),key=text,text=text,**kwargs)
 
 class TreeItem(Widget, i.TreeItem):
     __slots__ = ('handlers',)
@@ -983,7 +1004,7 @@ class TreeItem(Widget, i.TreeItem):
 
 class RioTreeView(rio.Component):
     """makes item-level callbacks available on the tree level"""
-    children: list[rio.Component]
+    children: list[DynamicComponent]
     _=KW_ONLY
     selection_mode: Literal["none", "single", "multiple"] = "none",
     col_count: int = 1
@@ -1005,7 +1026,7 @@ class RioTreeView(rio.Component):
 
     def build(self):
         return rio.TreeView(
-            *self.children,
+            *[item.build() for item in self.children],
             selection_mode = self.selection_mode
         )
 

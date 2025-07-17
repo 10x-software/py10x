@@ -108,7 +108,7 @@ class CollectionEditor(Traitable):
             if ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True):
                 rc = new_entity.save()
                 if not rc:
-                    ux_warning(rc.error(), parent = self.main_w)
+                    ux_warning(rc.error(), parent = self.main_w, on_close = lambda ctx: None)
                     #-- TODO: should we "merge" values from the existing instance?
 
                 else:
