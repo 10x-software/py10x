@@ -180,4 +180,4 @@ class TraitableEditor:
 
 
     def warning(self, msg: str, title = ''):
-        ux_warning(msg, parent = self.main_widget, title = title)
+        ux_warning(msg, parent = self.main_widget, title = title, on_close=lambda ctx: None)

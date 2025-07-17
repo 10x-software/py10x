@@ -320,6 +320,15 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         return coll.load(id.value) if coll else None
 
     @classmethod
+    def delete_in_store(cls, id: ID) -> RC:
+        coll = cls.collection(_coll_name = id.collection_name)
+        if not coll:
+            return RC(False, f'{cls} - no store available')
+        if not coll.delete(id.value):
+            return RC(False, f'{cls} - failed to delete {id.value} from {coll}')
+        return RC_TRUE
+
+    @classmethod
     def load(cls, id: ID) -> 'Traitable':
         return cls.s_bclass.load(id)
 
@@ -366,6 +375,12 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
         self.set_revision(rev)
         return RC_TRUE
+
+    def delete(self) -> RC:
+        rc = self.delete_in_store(self.id())
+        if rc:
+            self.set_revision(0)
+        return rc
 
     def verify(self) -> RC:
         rc = RC_TRUE

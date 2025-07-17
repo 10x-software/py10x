@@ -128,14 +128,14 @@ class TraitEditor:
         if not w:
             return
 
-        def on_accept(ctx):
-            self.entity.set_value(self.trait, mc.values_selected)
-
-        UxDialog(w, title = f"Choose one or more values for {self.ui_hint.label}", accept_callback=on_accept).show()
+        UxDialog(w,
+            title = f"Choose one or more values for {self.ui_hint.label}",
+            accept_callback=lambda ctx: self.entity.set_value(self.trait, mc.values_selected)
+        ).show()
 
     def dict_cb(self):
         data = dict(self.entity.get_value(self.trait))
-        rc = PyDataBrowser.edit(data, title = f'Edit {self.trait.ui_hint.label}')
+        rc = PyDataBrowser.edit(data, title = f'Edit {self.trait.ui_hint.label}') #TODO: callback
         if rc:
             self.entity.set_value(self.trait, data)
 
@@ -148,11 +148,10 @@ class TraitEditor:
         if not w:
             return
 
-        d = UxDialog(w, title = f"Choose one or more flags for {self.ui_hint.label}")
-        rc = d.exec()
-        if rc:
-            selected = mc.values_selected
-            self.entity.set_value(self.trait, selected)
+        d = UxDialog(w,
+            title = f"Choose one or more flags for {self.ui_hint.label}",
+            accept_callback=lambda ctx: self.entity.set_value(self.trait, mc.values_selected)
+        ).show()
 
     def traitable_cb(self):
         #-- EntityEditor - popup

@@ -1,6 +1,7 @@
 from datetime import date
 import inspect
 from collections import deque
+from typing import Callable
 
 from core_10x.rc import RC
 from ui_10x.platform import ux
@@ -71,29 +72,31 @@ class UxRadioBox(ux.GroupBox):
         i = self.group.checked_id()
         return self.values[i]
 
-def ux_success(text: str, parent = None, title = ''):
+def ux_success(text: str, parent = None, title = '', on_close: Callable[[bool],None] = None):
     if not title:
         title = 'Success'
     if not parent:
         parent = None
-    ux.MessageBox.information(parent, title, text)
+    ux.MessageBox.information(parent, title, text, on_close=on_close)
 
-def ux_warning(text: str, parent = None, title = ''):
+def ux_warning(text: str, parent = None, title = '',  on_close: Callable[[bool],None] = None):
     if not title:
         title = 'Warning'
     if not parent:
         parent = None
-    ux.MessageBox.warning(parent, title, text)
+    ux.MessageBox.warning(parent, title, text, on_close=on_close)
 
-def ux_answer(question: str, parent = None, title = '') -> bool:
+def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool:
     if not title:
         title = 'Waiting for your answer...'
     if not parent:
         parent = None
-    sb = ux.MessageBox.question(parent, title, question)
-    return ux.MessageBox.is_yes_button(sb)
+    sb = ux.MessageBox.question(parent, title, question, on_close=(lambda result: on_close(ux.MessageBox.is_yes_button(result))) if on_close else None)
+    if not on_close:
+        print(f'ux_answer: question = {question}, title = {title}, parent = {parent}', sb)
+        return ux.MessageBox.is_yes_button(sb)
 
-def ux_multi_choice_answer(named_constant_class, parent = None, title = '', default_value: NamedConstant = None):
+def ux_multi_choice_answer(named_constant_class, parent = None, title = '', default_value: NamedConstant = None,  on_close: Callable[[NamedConstant],None] = None):
     if not title:
         title = 'Pick one of the choices below:'
 
@@ -101,9 +104,12 @@ def ux_multi_choice_answer(named_constant_class, parent = None, title = '', defa
         parent = None
 
     box = UxRadioBox(named_constant_class, default_value = default_value)
-    d = UxDialog(box, parent = parent, title = title, cancel = '')
-    d.exec()
-    return box.choice()
+    accept_callback = (lambda: on_close(box.choice())) if on_close else None
+    d = UxDialog(box, parent = parent, title = title, cancel = '', accept_callback=accept_callback)
+    if not on_close:
+        d.exec()
+        return box.choice()
+    d.show()
 
 def ux_push_button(label: str, callback = None, style_icon = None, flat = False):
     if style_icon:

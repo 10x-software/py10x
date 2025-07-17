@@ -30,7 +30,6 @@ class COMPOUND_TRANSFORM(NamedConstant):
     ACCRUAL_TO_RATE = ()
 
 
-# TODO: it fails now - fix!
 COLOR_WEIGHT = NamedConstantValue(
     COLOR,
     RED         = 10,
@@ -72,6 +71,26 @@ class ICON(EnumBits):
     FILE = ('material/file',)
     STOP = ('material/stop',)
 
+class TEXT_ALIGN(NamedConstant):
+    s_vertical = 0xf << 4
+
+    LEFT = 1
+    CENTER = 6
+    RIGHT = 11
+    TOP = LEFT << 4
+    V_CENTER = CENTER << 4
+    BOTTOM = RIGHT << 4
+
+    @classmethod
+    def from_str(cls, s: str) -> NamedConstant:
+        return super().from_str(s.upper())
+
+    def rio_attr(self) -> str:
+        return 'align_y' if self.value & self.s_vertical else 'align_x'
+
+    def rio_value(self) -> float:
+        return ((self.value >> 4 if self.value & self.s_vertical else self.value)-1) /10
+
 if __name__ == '__main__':
     print( COLOR.LIGHTGREEN.value)
     sgreen = Nucleus.serialize_any(COLOR.GREEN, False)
@@ -82,3 +101,6 @@ if __name__ == '__main__':
     ####print(COLOR_WEIGHT.GREEN, COLOR_CODE.GREEN)
 
     print(A_PROBLEM.REV_CONFLICT(cls = 'XXX', id = '145678', rev = '3'))
+
+    x,y = TEXT_ALIGN.from_str('left'), TEXT_ALIGN.from_str('v_center')
+    print( x, y, x.rio_attr(), y.rio_attr(), x.value, y.value, x.rio_value(), y.rio_value() )

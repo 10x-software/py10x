@@ -1,5 +1,7 @@
 import abc
 from datetime import date
+from typing import Callable
+
 
 class Object(abc.ABC): ...
 
@@ -322,15 +324,15 @@ class Dialog(Widget):
 class MessageBox(abc.ABC):
     @classmethod
     @abc.abstractmethod
-    def question(cls, parent: Widget, title: str, message: str) -> bool: ...
+    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog],None]) -> bool: ...
 
     @classmethod
     @abc.abstractmethod
-    def warning(cls, parent: Widget, title: str, message: str): ...
+    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog],None]): ...
 
     @classmethod
     @abc.abstractmethod
-    def information(cls, parent: Widget, title: str, message: str): ...
+    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog],None]): ...
 
     @classmethod
     @abc.abstractmethod
