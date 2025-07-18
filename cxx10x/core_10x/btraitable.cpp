@@ -269,13 +269,14 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
     }
 }
 
-void BTraitable::reload() {
+bool BTraitable::reload() {
     if (my_class()->is_storable() && m_tid.is_valid() && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY)) {
-        auto serialized_data = my_class()->load_data(id());
-        if (serialized_data.is_none())
-            throw py::value_error(py::str("{}/{} - failed to reload").format(class_name(), id()));
-
-        deserialize_traits(serialized_data);
+        const auto serialized_data = my_class()->load_data(id());
+        if (!serialized_data.is_none()) {
+            deserialize_traits(serialized_data);
+            return true;
+        }
     }
+    return false;
 }
 

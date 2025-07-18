@@ -169,7 +169,7 @@ public:
     static py::object   deserialize_object(BTraitableClass* cls, const py::object& coll_name, const py::dict& trait_values);
     void                deserialize_traits(const py::dict& trait_values);
     static py::object   deserialize_nx(BTraitableClass* cls, const py::object& serialized_data);
-    void                reload();
+    bool                reload();
 
 };
 
