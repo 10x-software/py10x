@@ -3,9 +3,10 @@ name = "py10x"
 version = "0.1.0"
 description = "10x Universe Core Packages"
 authors = [
-    {name = "ilya-pevzner",email = "founders@10x-software.org"}
+    { name = "Sasha Davidovich", email = "founders@10x-software.org" },
+    { name = "Ilya Pevzner", email = "founders@10x-software.org" }
 ]
-license = {text = "MIT"}
+#license = {text = "MIT"}
 #readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
