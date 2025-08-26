@@ -16,7 +16,14 @@ dependencies = [
     "pytest-cov (>=6.0.0,<6.1.0)"
 ]
 
+[tool.poetry]
+packages = [
+   { include = "core_10x" },
+   { include = "infra_10x" },
+]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+
