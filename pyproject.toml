@@ -1,6 +1,6 @@
 [project]
 name = "py10x"
-version = "0.1.0"
+version = "0.0.2"
 description = "10x Universe Core Packages"
 authors = [
     { name = "Sasha Davidovich", email = "sasha.davidovich@10xconcepts.com" },
@@ -14,7 +14,9 @@ dependencies = [
     "numpy (>=2.2.2,<2.3.0)",
     "pymongo (>=4.7.3)",
     "pytest (>=8.3.4,<8.4.0)",
-    "pytest-cov (>=6.0.0,<6.1.0)"
+    "pytest-cov (>=6.0.0,<6.1.0)",
+    "infra-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x",
+    "core-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x"
 ]
 
 [tool.poetry]
