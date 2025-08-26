@@ -14,6 +14,26 @@ files = [
 ]
 
 [[package]]
+name = "core-10x-i"
+version = "0.1.0"
+description = "10X Universe Core Internals"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = []
+develop = false
+
+[package.extras]
+test = ["pytest"]
+
+[package.source]
+type = "git"
+url = "https://github.com/10X-LLC/cxx10x.git"
+reference = "HEAD"
+resolved_reference = "8c2a95bc3d81a3ff8f986e1aba032e1344e040bc"
+subdirectory = "core_10x"
+
+[[package]]
 name = "coverage"
 version = "7.10.5"
 description = "Code coverage measurement for Python"
@@ -176,6 +196,26 @@ doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linke
 enabler = ["pytest-enabler (>=2.2)"]
 test = ["jaraco.test (>=5.4)", "pytest (>=6,!=8.1.*)", "zipp (>=3.17)"]
 type = ["pytest-mypy"]
+
+[[package]]
+name = "infra-10x-i"
+version = "0.1.0"
+description = "10X Universe Infrastructure Internals"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = []
+develop = false
+
+[package.extras]
+test = ["pytest"]
+
+[package.source]
+type = "git"
+url = "https://github.com/10X-LLC/cxx10x.git"
+reference = "HEAD"
+resolved_reference = "8c2a95bc3d81a3ff8f986e1aba032e1344e040bc"
+subdirectory = "infra_10x"
 
 [[package]]
 name = "iniconfig"
@@ -463,4 +503,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10"
-content-hash = "9836badbb4787ad739f244ca8f02b7c39eaa7b3fe58d18ffdb510fcdb45adf66"
+content-hash = "89682dce64f37c9e1e72ecfaaeda2f211139da8b81b9ba90263108100ce6eb6e"
