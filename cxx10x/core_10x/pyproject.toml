@@ -1,12 +1,12 @@
 [project]
 name = "core_10x_i"
-version = "0.0.2"
+version = "0.0.3"
 authors = [
-    { name = "Sasha Davidovich", email = "sasha.davidovich@pevzner.com" },
-    { name = "Ilya Pevzner", email = "ilya.pevzner@pevzner.com" }
+    { name = "Sasha Davidovich", email = "founders@10x-software.org" },
+    { name = "Ilya Pevzner", email = "founders@10x-software.org" }
 ]
 description = "10X Universe Core Internals"
-requires-python='>=3.11'
+requires-python='>=3.10'
 
 [project.optional-dependencies]
 test = ["pytest"]
