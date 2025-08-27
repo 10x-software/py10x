@@ -12,7 +12,7 @@ class WEIGHT_QU( NamedConstant ):
 class Person(Traitable):
     first_name: str         = T(T.ID)
     last_name: str          = T(T.ID)
-    dob: date               = T()
+    dob: date
     weight_lbs: float       = T(fmt = ',.4f')
 
     age: int                = RT()
