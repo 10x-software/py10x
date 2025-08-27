@@ -1,8 +1,8 @@
-import inspect
 import operator
 import functools
+from abc import ABC, abstractmethod
 from itertools import chain
-from typing import Self
+from typing import Self, Generator
 
 from core_10x_i import BTraitable, BTraitableClass
 
@@ -130,7 +130,21 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
             trait_def.name = trait_name
             trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, annotations, rc)
+
+        for trait_name, dt in annotations.items():
+            if trait_name in class_dict:
+                continue
+            old_trait: Trait = trait_dir.get(trait_name)
+            trait_def = M().apply(old_trait.t_def) if old_trait else T()
+            trait_def.data_type = dt
+            trait_def.name = trait_name
+            trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, annotations, rc)
+
         return rc
+
+    @classmethod
+    def traits(cls,flags_on=0,flags_off=0) -> Generator[T,None,None]:
+        return (t for t in cls.s_dir.values() if (not flags_on or t.flags_on(flags_on)) and not t.flags_on(flags_off))
 
     def __hash__(self):
         return hash(self.id())
@@ -175,13 +189,9 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         if not cls.is_storable():
             del cls.s_dir[Nucleus.REVISION_TAG()]
             del cls.s_dir[COLL_NAME_TAG]
-            cls.collection = lambda: None
-            cls.exists_in_store = lambda id: False
-            cls.load_data = lambda id_value: None
-            cls.load = lambda id_value: None
-            cls.load_many = lambda query: []
-            cls.load_ids = lambda query: []
-            cls.save = lambda self: RC(False, f'{cls} is not storable')
+            cls.s_storage_helper = NotStorableHelper()
+        else:
+            cls.s_storage_helper = StorableHelper()
 
         rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
@@ -212,6 +222,13 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
             self.initialize(trait_values)
 
         self.T = TraitAccessor(self)
+
+
+    @classmethod
+    def update(cls, **kwargs) -> Self:
+        o = cls(**{k: v for k, v in kwargs.items() if not (t:=cls.s_dir.get(k)) or t.flags_on(T.ID)})
+        o.set_values(**{k: v for k, v in kwargs.items() if (t:=cls.s_dir.get(k)) and not t.flags_on(T.ID)}).throw()
+        return o
 
     def set_values(self, _ignore_unknown_traits = True, **trait_values) -> RC:
         return self._set_values(trait_values, _ignore_unknown_traits)
@@ -304,20 +321,16 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         return store
 
     @classmethod
-    def collection(cls, _coll_name: str = None) -> TsCollection:
-        cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        store = cls.store()
-        return store.collection(cname) if store else None
+    def collection(cls, _coll_name: str = None):
+        return cls.s_storage_helper.collection(cls, _coll_name)
 
     @classmethod
-    def exists_in_store(cls, id: ID) -> bool:
-        coll = cls.collection(_coll_name = id.collection_name)
-        return coll.id_exists(id.value) if coll else False
+    def exists_in_store(cls, id: ID):
+        return cls.s_storage_helper.exists_in_store(cls, id)
 
     @classmethod
-    def load_data(cls, id: ID) -> dict:
-        coll = cls.collection(_coll_name = id.collection_name)
-        return coll.load(id.value) if coll else None
+    def load_data(cls, id: ID):
+        return cls.s_storage_helper.load_data(cls, id)
 
     @classmethod
     def delete_in_store(cls, id: ID) -> RC:
@@ -329,11 +342,96 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         return RC_TRUE
 
     @classmethod
+    def load(cls, id: ID):
+        return cls.s_storage_helper.load(cls, id)
+
+    @classmethod
+    def load_many(cls, query=None, _coll_name: str = None):
+        return cls.s_storage_helper.load_many(cls, query, _coll_name)
+
+    @classmethod
+    def load_ids(cls, query=None, _coll_name: str = None):
+        return cls.s_storage_helper.load_ids(cls, query, _coll_name)
+
+    def save(self):
+        return self.__class__.s_storage_helper.save(self)
+
+    def delete(self) -> RC:
+        rc = self.delete_in_store(self.id())
+        if rc:
+            self.set_revision(0)
+        return rc
+
+    def verify(self) -> RC:
+        rc = RC_TRUE
+        #TODO: implement
+        return rc
+
+class StorableHelperInterface(ABC):
+    @staticmethod
+    @abstractmethod
+    def collection(cls, _coll_name: str = None) -> TsCollection: ...
+    @staticmethod
+    @abstractmethod
+    def exists_in_store(cls, id: ID) -> bool: ...
+    @staticmethod
+    @abstractmethod
+    def load_data(cls, id: ID) -> dict: ...
+    @staticmethod
+    @abstractmethod
+    def load(cls, id: ID) -> Traitable: ...
+    @staticmethod
+    @abstractmethod
+    def load_many(cls, query: f = None, _coll_name: str = None) -> list[Traitable]: ...
+    @staticmethod
+    @abstractmethod
+    def load_ids(cls, query: f = None, _coll_name: str = None) -> list[ID]: ...
+    @staticmethod
+    @abstractmethod
+    def save(self) -> RC: ...
+
+
+class NotStorableHelper(StorableHelperInterface):
+    @staticmethod
+    def collection(cls, _coll_name: str = None) -> TsCollection: return None
+    @staticmethod
+    def exists_in_store(cls, id: ID) -> bool: return None
+    @staticmethod
+    def load_data(cls, id: ID) -> dict: return None
+    @staticmethod
+    def load(cls, id: ID) -> Traitable: return None
+    @staticmethod
+    def load_many(cls, query=None, _coll_name: str = None) -> list[Traitable]: return []
+    @staticmethod
+    def load_ids(cls, query=None, _coll_name: str = None) -> list[ID]: return []
+    @staticmethod
+    def save(self) -> RC: return RC(False, f'{self.__class__} is not storable')
+
+
+class StorableHelper(StorableHelperInterface):
+
+    @staticmethod
+    def collection(cls, _coll_name: str = None) -> TsCollection:
+        cname = _coll_name or PackageRefactoring.find_class_id(cls)
+        store = cls.store()
+        return store.collection(cname) if store else None
+
+    @staticmethod
+    def exists_in_store(cls, id: ID) -> bool:
+        coll = cls.collection(_coll_name = id.collection_name)
+        return coll.id_exists(id.value) if coll else False
+
+    @staticmethod
+    def load_data(cls, id: ID) -> dict:
+        coll = cls.collection(_coll_name = id.collection_name)
+        return coll.load(id.value) if coll else None
+
+    @staticmethod
     def load(cls, id: ID) -> 'Traitable':
         return cls.s_bclass.load(id)
 
-    @classmethod
-    def load_many(cls, query: f = None, _coll_name: str = None) -> list[Self]:
+    @staticmethod
+    def load_many(cls, query: f = None, _coll_name: str = None) -> list[Traitable]:
         coll = cls.collection(_coll_name = _coll_name)
         if not coll:
             return None
@@ -341,7 +439,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         f_deserialize = functools.partial(Traitable.deserialize_object, cls.s_bclass, _coll_name)
         return [ f_deserialize(serialized_data) for serialized_data in coll.find(query) ]
 
-    @classmethod
+    @staticmethod
     def load_ids(cls, query: f = None, _coll_name: str = None) -> list[ID]:
         coll = cls.collection(_coll_name = _coll_name)
         if not coll:
@@ -350,6 +448,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         id_tag = coll.s_id_tag
         return [ ID(serialized_data.get(id_tag), _coll_name) for serialized_data in coll.find(query) ]
 
+    @staticmethod
     def save(self) -> RC:
         cls = self.__class__
         rc = self.verify()
@@ -376,16 +475,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         self.set_revision(rev)
         return RC_TRUE
 
-    def delete(self) -> RC:
-        rc = self.delete_in_store(self.id())
-        if rc:
-            self.set_revision(0)
-        return rc
 
-    def verify(self) -> RC:
-        rc = RC_TRUE
-        #TODO: implement
-        return rc
 
 class THIS_CLASS(Traitable):   pass  #-- to use for traits with the same Traitable class type
 
