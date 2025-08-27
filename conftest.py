@@ -1,5 +1,5 @@
 def pytest_ignore_collect(collection_path, config):
-    if '.venv' in collection_path.parts:
+    if any('.venv' in part for part in collection_path.parts):
         return True
     if collection_path.is_dir():
         return False

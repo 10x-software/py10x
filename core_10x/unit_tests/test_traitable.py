@@ -1,17 +1,46 @@
 import unittest
 
 from core_10x.code_samples.person import Person
-from core_10x.trait_definition import RT, T
+from core_10x.trait_definition import RT, T, M
 from core_10x.traitable import Traitable
 from core_10x.traitable_id import ID
 from core_10x.ts_union import TsUnion
 
 class SubTraitable(Traitable):
     s_special_attributes = ('special_attr',)
-    trait1: int = T()
+    trait1: int = RT()
     trait2: str = RT()
 
     x = '123' #not in slots
+
+class SubTraitable2(SubTraitable):
+    trait2: int = M()
+    trait3: float
+
+class SubTraitable3(SubTraitable):
+    trait2: list[str]
+
+class TestTraitableTraits(unittest.TestCase):
+
+    def test_subclass_traits(self):
+        expected_traits = {'trait1', 'trait2'}
+        self.assertEqual({t.name for t in SubTraitable.traits(flags_off=T.RESERVED)}, expected_traits)
+
+    def test_subclass2_traits(self):
+        expected_traits = {'trait1', 'trait2', 'trait3'}
+        self.assertEqual({t.name for t in SubTraitable2.traits(flags_off=T.RESERVED)}, expected_traits)
+        assert SubTraitable.trait('trait2').data_type == str
+        assert SubTraitable2.trait('trait2').data_type == int
+        assert SubTraitable3.trait('trait2').data_type == list
+
+    def test_is_storable(self):
+        self.assertFalse(SubTraitable.is_storable())
+        self.assertTrue(SubTraitable2.is_storable())
+
+        with self.assertRaisesRegex(OSError,'No Store is available'):
+            SubTraitable2().save()
+
+        assert 'is not storable' in SubTraitable().save().error()
 
 class TestTraitableSlots(unittest.TestCase):
 
