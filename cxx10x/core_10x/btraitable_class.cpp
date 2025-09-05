@@ -67,6 +67,9 @@ py::object BTraitableClass::load(const py::object& id) {
         return py::none();
 
     auto serialized_data = load_data(id);
+    if (serialized_data.is_none())
+        return serialized_data;
+
     return BTraitable::deserialize_object(this, id.attr("collection_name"), serialized_data);
 }
 

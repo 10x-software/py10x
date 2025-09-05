@@ -56,7 +56,7 @@ py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value) {
     try {
         return f_set(obj, this, value);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, nullptr);
+        throw trait_error(exc, obj, f_set, &value, nullptr);
     }
 }
 
@@ -64,7 +64,7 @@ py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value, const
     try {
         return f_set(obj, this, value, *args);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, &args);
+        throw trait_error(exc, obj, f_set, &value, &args);
     }
 }
 
@@ -72,7 +72,7 @@ py::object BTrait::wrapper_f_verify(BTraitable* obj, const py::object& value) {
     try {
         return f_verify(obj, value);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, nullptr);
+        throw trait_error(exc, obj, f_verify, &value, nullptr);
     }
 }
 
@@ -85,7 +85,7 @@ py::object BTrait::wrapper_f_from_str(BTraitable* obj, const py::object& value) 
 
         return res;
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, nullptr);
+        throw trait_error(exc, obj, f_from_str, &value, nullptr);
     }
 }
 
@@ -97,7 +97,7 @@ py::object BTrait::wrapper_f_from_any_xstr(BTraitable* obj, const py::object& va
                                          .format(obj->class_name(), name(), value));
         return res;
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, nullptr);
+        throw trait_error(exc, obj, f_from_any_xstr, &value, nullptr);
     }
 }
 
@@ -114,7 +114,7 @@ py::object BTrait::wrapper_f_to_str(BTraitable* obj, const py::object& value) {
     try {
         return f_to_str(obj, this, value);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, nullptr);
+        throw trait_error(exc, obj, f_to_str, &value, nullptr);
     }
 }
 
@@ -122,7 +122,7 @@ py::object BTrait::wrapper_f_serialize(BTraitable* obj, const py::object& value)
     try {
         return f_serialize(obj, this, value);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, nullptr);
+        throw trait_error(exc, obj, f_serialize, &value, nullptr);
     }
 }
 
@@ -130,7 +130,7 @@ py::object BTrait::wrapper_f_deserialize(BTraitable* obj, const py::object& valu
     try {
         return f_deserialize(obj, this, value);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, nullptr);
+        throw trait_error(exc, obj, f_deserialize, &value, nullptr);
     }
 }
 
@@ -138,7 +138,7 @@ py::object BTrait::wrapper_f_to_id(BTraitable* obj, const py::object& value) {
     try {
         return f_to_id(obj, this, value);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_get, &value, nullptr);
+        throw trait_error(exc, obj, f_to_id, &value, nullptr);
     }
 }
 
