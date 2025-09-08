@@ -1,24 +1,28 @@
 import unittest
+import uuid
 
 from core_10x.code_samples.person import Person
-from core_10x.trait_definition import RT, T, M
+from core_10x.trait_definition import RT, T, M, BFlags
 from core_10x.traitable import Traitable
 from core_10x.traitable_id import ID
 from core_10x.ts_union import TsUnion
 
 class SubTraitable(Traitable):
     s_special_attributes = ('special_attr',)
-    trait1: int = RT()
+    trait1: int = RT(T.ID)
     trait2: str = RT()
 
     x = '123' #not in slots
 
+
 class SubTraitable2(SubTraitable):
+    trait1 = M(flags=(BFlags(0), T.ID))  # removes ID flag
     trait2: int = M()
-    trait3: float
+    trait3: float = T() // 'trait definition comment'
+    trait4: int = RT(0)
 
 class SubTraitable3(SubTraitable):
-    trait2: list[str]
+    trait2: list[str] = M() // "trait modification comment"
 
 class TestTraitableTraits(unittest.TestCase):
 
@@ -27,11 +31,16 @@ class TestTraitableTraits(unittest.TestCase):
         self.assertEqual({t.name for t in SubTraitable.traits(flags_off=T.RESERVED)}, expected_traits)
 
     def test_subclass2_traits(self):
-        expected_traits = {'trait1', 'trait2', 'trait3'}
-        self.assertEqual({t.name for t in SubTraitable2.traits(flags_off=T.RESERVED)}, expected_traits)
+
+        expected_traits = ['trait1', 'trait2', 'trait3', 'trait4']
+        assert [t.name for t in SubTraitable2.traits(flags_off=T.RESERVED)] == expected_traits
         assert SubTraitable.trait('trait2').data_type == str
         assert SubTraitable2.trait('trait2').data_type == int
         assert SubTraitable3.trait('trait2').data_type == list
+        assert SubTraitable2.trait('trait4').default_value() == 0
+        assert SubTraitable2.trait('trait2').ui_hint.tip == 'Trait2'
+        assert SubTraitable2.trait('trait3').ui_hint.tip == 'trait definition comment'
+        assert SubTraitable3.trait('trait2').ui_hint.tip == 'trait modification comment'
 
     def test_is_storable(self):
         self.assertFalse(SubTraitable.is_storable())
@@ -40,7 +49,19 @@ class TestTraitableTraits(unittest.TestCase):
         with self.assertRaisesRegex(OSError,'No Store is available'):
             SubTraitable2().save()
 
-        assert 'is not storable' in SubTraitable().save().error()
+        assert 'is not storable' in SubTraitable(trait1=uuid.uuid1().int).save().error()
+
+    def test_trait_update(self):
+        with TsUnion():
+            instance = SubTraitable(trait1=10, trait2='hello')
+            assert instance.trait2=='hello'
+
+            assert instance == SubTraitable.update(trait1=10, trait2='world')
+            assert instance.trait2=='world'
+
+            assert instance == SubTraitable.update(trait1=10, trait2=None) #setting to None
+            assert instance.trait2 is None
+
 
 class TestTraitableSlots(unittest.TestCase):
 
@@ -54,7 +75,7 @@ class TestTraitableSlots(unittest.TestCase):
 
     def test_instance_slots(self):
         with TsUnion():
-            instance = SubTraitable()
+            instance = SubTraitable(trait1=10)
         with self.assertRaises(AttributeError):
             instance.non_existent_attr = 'value'
 

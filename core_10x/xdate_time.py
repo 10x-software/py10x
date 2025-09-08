@@ -1,5 +1,5 @@
 from datetime import datetime, date
-
+import dateutil.parser
 
 MIN_CANONICAL_DATE = 10000101
 class XDateTime:
@@ -13,10 +13,10 @@ class XDateTime:
         """
         if v >= MIN_CANONICAL_DATE:
             day = v % 100
-            ym = v - day
+            ym = v // 100
 
             month = ym % 100
-            year = ym - month
+            year = ym // 100
 
             return date(year = year, month = month, day = day)
 
@@ -38,7 +38,7 @@ class XDateTime:
         cls.s_default_format = fmt
         cls.formats[0] = fmt
 
-    def str_to_date(v: str, format = '') -> date:
+    def str_to_date(v: str, format = '') -> date|None:
         if format:
             try:
                 return datetime.strptime(v, format).date()
@@ -51,7 +51,11 @@ class XDateTime:
             except Exception:
                 continue
 
-        return None
+        try:
+            return dateutil.parser.parse(v).date()
+        except Exception:
+            pass
+
 
     formats_to_str = (
         f'{formats[0]} %H:%M:%S',
@@ -73,30 +77,30 @@ class XDateTime:
         str:        str_to_date,
     }
     @classmethod
-    def to_date(cls, v) -> date:
+    def to_date(cls, v) -> date|None:
         fn = cls.date_converters.get(type(v))
         return fn(v) if fn else None
 
     dt_format = ('%H:%M', '%H:%M:%S')
-    def str_to_datetime(v: str) -> datetime:
+    def str_to_datetime(v: str) -> datetime|None:
         parts = v.split(' ')
         try:
             date_part, time_part = parts
             d = XDateTime.str_to_date(date_part)
-            if d is None:
-                return None
-
-            num_colons = time_part.count(':')
-            try:
+            if d is not None:
+                num_colons = time_part.count(':')
                 fmt = XDateTime.dt_format[num_colons]
                 if time_part.find('.') != -1:
                     fmt = fmt + '.%f'
                     return datetime.strptime(time_part, fmt)
-            except Exception:
-                return None
-
         except Exception:
-            return None
+            pass
+
+        try:
+            return dateutil.parser.parse(v)
+        except Exception:
+            pass
+
 
     def date_to_datetime(d: date) -> datetime:
         return datetime(year = d.year, month = d.month, day = d.day)

@@ -172,13 +172,22 @@ class Trait(BTrait):
 
     def create_f_common_trait_with_value(self, f, attr_name: str, rc: RC):
         cls = self.__class__
+        #TODO: check f's signature
         if not f:
             common_f = getattr(cls, attr_name, None)
             if common_f:
-                f = lambda obj, trait, value: common_f(trait, value)
+                f = lambda obj_or_cls, trait, value: common_f(trait, value)
                 f.__name__ = f'{cls.__name__}.{common_f.__name__}'
 
         return f
+
+    def create_f_common_trait_with_value_static(self, f, attr_name: str, rc: RC):
+        cls = self.__class__
+        if f:
+            assert isinstance(f,classmethod), f"{f.__name__} must be declared as @classmethod"
+        else:
+            f = getattr(cls, attr_name, None)
+        return self.create_f_common_trait_with_value(f, attr_name, rc)
 
     def create_f_choices(self, f, attr_name: str, rc: RC):
         cls = self.__class__
@@ -285,8 +294,8 @@ class TRAIT_METHOD(NamedConstant):
     FROM_ANY_XSTR       = Trait.create_f_common_trait_with_value
     IS_ACCEPTABLE_TYPE  = Trait.create_f_common_trait_with_value
     TO_STR              = Trait.create_f_common_trait_with_value
-    SERIALIZE           = Trait.create_f_common_trait_with_value
-    DESERIALIZE         = Trait.create_f_common_trait_with_value
+    SERIALIZE           = Trait.create_f_common_trait_with_value_static
+    DESERIALIZE         = Trait.create_f_common_trait_with_value_static
     TO_ID               = Trait.create_f_common_trait_with_value
     CHOICES             = Trait.create_f_choices
     STYLE_SHEET         = Trait.create_f_plain

@@ -1,5 +1,7 @@
+import heapq
 import itertools
 import operator
+from itertools import zip_longest
 from typing import List, Self, Iterable
 
 from core_10x.nucleus import Nucleus
@@ -7,13 +9,64 @@ from core_10x.trait_filter import f, EQ
 from core_10x.ts_store import TsStore, TsCollection
 
 
+class _OrderKey:
+    __slots__ = ('value', 'reverse')
+
+    @classmethod
+    def _dict_cmp(cls, d: dict, od: dict) -> int:
+        assert isinstance(od, dict), "can only compare dict to dict"
+
+        for i, oi in zip_longest(d.items(), od.items()):
+            if i == oi:
+                continue
+            if i is None:
+                return -1 # all match, d is shorter
+            if oi is None:
+                return 1 # all match d is longer
+            k, v = i
+            ok, ov = oi
+            if k != ok:
+                return -1 if k<ok else 1 if k>ok else 0 # keys do not match
+            if isinstance(v, dict) and isinstance(ov, dict):
+                return cls._dict_cmp(v, ov)
+            # TODO: handle mismatching types..
+            return -1 if v<ov else 1 if v>ov else 0
+        return 0 # equals..
+
+    def __init__(self, value, reverse: bool):
+        self.value = value
+        self.reverse = reverse
+
+    def __lt__(self, other):
+        assert isinstance(other,_OrderKey),"can only compare to order key"
+        v = self.value
+        ov = other.value
+        if isinstance(v,dict):
+            return self._dict_cmp(v,ov)<0 if self.reverse else self._dict_cmp(ov,v)>0
+        return ov < v if self.reverse else v < ov
+
+    def __eq__(self, other):
+        assert isinstance(other,_OrderKey),"can only compare to order key"
+        v = self.value
+        ov = other.value
+        return not self._dict_cmp(v,ov) if isinstance(v,dict) else v == ov
+
+    @classmethod
+    def key(cls,item,order):
+        return tuple(cls(value=item.get(k), reverse=v<0) for k, v in order)
+
+
 class TsUnionCollection(TsCollection):
     def __init__(self, *collections: TsCollection):
         self.collections = collections
 
-    def find(self, query: f = None) -> Iterable:
-        results = (result for result in (collection.find(query) for collection in self.collections) if result is not None)
-        return itertools.chain.from_iterable(results) #TODO: merge iterables using sorted order (default by _id, but later as specified by the user)
+    def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
+        order = tuple((_order or {'_id': 1}).items()) # FIX: assumes _id is always there!
+        order_key = _OrderKey.key
+        iterables = (collection.find(query,_at_most=_at_most,_order=_order) for collection in self.collections)
+        keyed_iterables = (((order_key(item,order),item) for item in iterable) for iterable in iterables if iterable is not None)
+        results = (item for _,item in heapq.merge(*keyed_iterables, key=operator.itemgetter(0)))
+        return  (item for i, item in enumerate(results) if i<_at_most) if _at_most else results
 
     def save_new(self, serialized_traitable):
         return self.collections[0].save_new(serialized_traitable)

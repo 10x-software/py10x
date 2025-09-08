@@ -2,7 +2,7 @@ import ast
 import inspect
 import locale
 
-from core_10x.xnone import XNone
+from core_10x.xnone import XNone, XNoneType
 from core_10x.nucleus import Nucleus
 from core_10x.trait import Trait, T, TraitDefinition, RC
 from core_10x.ui_hint import Ui
@@ -47,11 +47,23 @@ class primitive_trait(Trait, register = False):
 class bool_trait(primitive_trait, data_type = bool):
     s_ui_hint = Ui.check()
 
-    fmt         = ( 'yes', '' )
+    FORMATS     = [
+        ('yes',''),
+        ('yes','no'),
+        ('true','false'),
+        ('on','off')
+    ]
+    fmt         = FORMATS[0]
 
     def to_id(self, value: bool) -> str:
         return '0' if value else '1'
 
+    def from_str(self, s: str):
+        res = super().from_str(s)
+        if res is not XNone:
+            return res
+        s = s.strip().lower()
+        return next( (f[0]==s for f in self.FORMATS if s in f), XNone )
 
 class int_trait(primitive_trait, data_type = int):
     s_ui_hint = Ui.line()
@@ -101,23 +113,21 @@ class datetime_trait(Trait, data_type = datetime):
     def from_str(self, s: str):
         dt = XDateTime.str_to_datetime(s)
         if dt is None:
-            raise ValueError('invalid datetime string')
-
+            return XNone
         return dt
 
     def from_any_xstr(self, value):
         dt = XDateTime.to_datetime(value)
         if dt is None:
-            raise ValueError('cannot be converted to datetime')
-
+            return XNone
         return dt
 
     def to_str(self, v: datetime) -> str:
          return XDateTime.datetime_to_str(v)
 
-    s_acceptable_types = { datetime, date, int, str }
-    def is_acceptable_type(self, data_type: type) -> bool:
-        return data_type in self.s_acceptable_types
+    # s_acceptable_types = { datetime, date, int, str }
+    # def is_acceptable_type(self, data_type: type) -> bool:
+    #     return data_type in self.s_acceptable_types
 
     #-- NOTES:
     #-- 1) we believe datetime is mostly acceptable for a storage, e.g., Mongo
@@ -138,23 +148,21 @@ class date_trait(Trait, data_type = date):
     def from_str(self, s: str):
         dt = XDateTime.str_to_date(s)
         if dt is None:
-            raise ValueError('invalid date string')
-
+            return XNone
         return dt
 
     def from_any_xstr(self, value):
         dt = XDateTime.to_date(value)
         if dt is None:
-            raise ValueError('cannot be converted to date')
-
+            return XNone
         return dt
 
     def to_str(self, v: date) -> str:
         return XDateTime.date_to_str(v)
 
-    s_acceptable_types = { datetime, date, int, str }
-    def is_acceptable_type(self, data_type: type) -> bool:
-        return data_type in self.s_acceptable_types
+    # s_acceptable_types = { datetime, date, int, str }
+    # def is_acceptable_type(self, data_type: type) -> bool:
+    #     return data_type in self.s_acceptable_types
 
     def serialize(self, value: date):
         return XDateTime.date_to_str(value, format = XDateTime.FORMAT_X10)
@@ -181,7 +189,7 @@ class class_trait(Trait, data_type = type):
         return PackageRefactoring.find_class(s)
 
     def from_any_xstr(self, value):
-        raise AssertionError('May not be called')
+        return XNone # may not be called!
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return inspect.isclass(data_type)
@@ -231,7 +239,7 @@ class dict_trait(Trait, data_type = dict):
     def deserialize(self, value: dict):
         return Nucleus.deserialize_dict(value)
 
-class any_trait(Trait, data_type = XNone.__class__):  # -- any
+class any_trait(Trait, data_type = XNoneType):  # -- any
     s_ui_hint = Ui.NONE
 
     def to_str(self, v) -> str:

@@ -1,9 +1,10 @@
 import copy
+from collections import defaultdict
 
 from core_10x_i import BTraitFlags, BFlags
 
-from core_10x.xnone import XNone
-from core_10x.ui_hint import Ui
+from core_10x.xnone import XNone, XNoneType
+from core_10x.ui_hint import Ui, UiHintModification
 
 #---- Attribute Tags
 NAME_TAG        = 'name'
@@ -28,7 +29,7 @@ class TraitDefinition:
     )
 
     s_known_attributes = {
-        DATATYPE_TAG:   lambda: XNone.__class__,
+        DATATYPE_TAG:   lambda: XNoneType,
         FLAGS_TAG:      lambda: BFlags(0x0),
         DEFAULT_TAG:    lambda: XNone,
         FORMAT_TAG:     lambda: '',
@@ -49,7 +50,15 @@ class TraitDefinition:
         self.params = kwargs
         self.name = None
 
-    def __call__(self, *args, **kwargs):    #-- to calm PyCharm down :-)
+    def __floordiv__(self, comment):
+        """ Add or replace comment in params with // operator """
+        assert isinstance(comment, str), f'Trait comment must be a string: {comment}'
+        ui_hint = getattr(self, UI_HINT_TAG)
+        ui_hint.tip = comment
+        return self
+
+    def __call__(self, *args, **kwargs):
+        """ Prevent IDE from complaining about calling traits with parameters """
         ...
 
     def set_widget_type(self, widget_type: Ui.WIDGET_TYPE):
@@ -78,11 +87,7 @@ class TraitDefinition:
             known attributes and extra params (usually empty)
         """
         the_args = list(args)
-        already_processed = {
-            DEFAULT_TAG:    False,
-            FLAGS_TAG:      False,
-            UI_HINT_TAG:    False
-        }
+        already_processed = defaultdict(bool)
 
         n = len(the_args)
         while n:
@@ -112,6 +117,7 @@ class TraitModification(TraitDefinition):
         FLAGS_TAG:      XNone,
         DEFAULT_TAG:    XNone,      #-- TODO: for M(..., default = XNone), the old default will NOT be changed to XNone
         FORMAT_TAG:     XNone,
+        UI_HINT_TAG:    UiHintModification
     }
 
     s_modifiers = {
@@ -129,7 +135,8 @@ class TraitModification(TraitDefinition):
                     modifier(res, modified_value)
                 else:
                     setattr(res, attr_name, modified_value)
-
+        res.params.update(self.params)
+        getattr(self,UI_HINT_TAG).apply(getattr(trait_def,UI_HINT_TAG))
         return res
 
 class T(BTraitFlags):

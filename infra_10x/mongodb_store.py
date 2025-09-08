@@ -12,7 +12,7 @@ from core_10x.global_cache import cache
 class MongoCollection(TsCollection):
     s_id_tag = '_id'
 
-    assert Nucleus.ID_TAG() == s_id_tag, f"Nucleus.ID_TAG must be '{s_id_tag}'"
+    assert Nucleus.ID_TAG() == s_id_tag, f"Nucleus.ID_TAG() must be '{s_id_tag}'"
 
     def __init__(self, db, collection_name: str):
         self.coll: Collection = db[collection_name]
@@ -20,8 +20,13 @@ class MongoCollection(TsCollection):
     def id_exists(self, id_value: str) -> bool:
         return self.coll.count_documents({self.s_id_tag: id_value}) > 0
 
-    def find(self, query: f = None) -> Iterable:
-        return self.coll.find(query.prefix_notation()) if query else self.coll.find()
+    def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
+        cursor = self.coll.find(query.prefix_notation()) if query else self.coll.find()
+        if _order:
+            cursor = cursor.sort(list(_order.items()))
+        if _at_most:
+            cursor = cursor.limit(_at_most)
+        return cursor
 
     def count(self, query: f = None) -> int:
         return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})

@@ -2,11 +2,13 @@
 #core
 importlib-resources~=6.5.2
 numpy~=2.2.2
-#core_10x_i@../cxx10x/_core_10x
+python-dateutil~=2.9.0
+core_10x_i@git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x
+
 
 #infra
 pymongo>=4.7.3
-#infra_10x_i@../cxx10x/_infra_10x
+infra_10x_i@git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x
 
 #ui
 #---- Qt

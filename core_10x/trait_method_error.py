@@ -7,6 +7,7 @@ class TraitMethodError(Exception):
     @staticmethod
     def create(
         traitable,
+        traitable_class,
         trait_name: str,
         method_name: str,
         reason: str             = '',
@@ -18,8 +19,10 @@ class TraitMethodError(Exception):
             return other_exc
 
         msg = []
-        msg.append(f'Failed in {traitable.__class__.__name__}.{trait_name}.{method_name}')
-        msg.append(f'    object = {traitable.id()};')
+        traitable_class = traitable_class or traitable.__class__
+        msg.append(f'Failed in {traitable_class}.{trait_name}.{method_name}')
+        if traitable:
+            msg.append(f'    object = {traitable.id()};')
 
         if reason:
             msg.append(f'    reason = {reason}')
