@@ -95,6 +95,7 @@ PyLinkage::PyLinkage(const py::dict& package_names) {
     m_dict_cls      = builtins.attr("dict");
     f_dict_get      = m_dict_cls.attr("get");
     m_bytes_cls     = builtins.attr("bytes");
+    m_classmethod_cls = builtins.attr("classmethod");
 
     py::module_ dt = py::module_::import("datetime");
     m_datetime_cls  = dt.attr("datetime");
@@ -148,6 +149,7 @@ PyLinkage::PyLinkage(const py::dict& package_names) {
 
 py::object PyLinkage::create_trait_method_error(
         BTraitable* obj,
+        BTraitableClass* cls,
         const py::str& trait_name,
         const py::object& method_name,
         const py::object* value,
@@ -158,8 +160,9 @@ py::object PyLinkage::create_trait_method_error(
     auto py_value = value ? *value : s_py_linkage->m_xnone;
     auto py_args = args? *args : py::args();
     auto py_other_exc = other_exc ? other_exc->value() : py::none();
+    auto py_cls = cls ? cls->py_class() : py::none();
 
-    return create(obj, trait_name, method_name, py_value, py_args, py_other_exc);
+    return create(obj, py_cls, trait_name, method_name, py_value, py_args, py_other_exc);
 }
 
 void PyLinkage::redirect_stdout_to_python() {

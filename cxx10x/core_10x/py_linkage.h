@@ -34,6 +34,7 @@ struct std::hash<py::args> {
 };
 
 class BTraitable;
+class BTraitableClass;
 class BTrait;
 
 enum class CORE_10X {
@@ -69,6 +70,7 @@ class PyLinkage {
     py::object          m_dict_cls;
     py::object          f_dict_get;
     py::object          m_bytes_cls;
+    py::object          m_classmethod_cls;
     py::object          m_datetime_cls;
     py::object          m_date_cls;
     py::object          f_fromisoformat;
@@ -123,6 +125,7 @@ public:
     static py::object complex_class()           { return s_py_linkage->m_complex_cls; }
     static py::object str_class()               { return s_py_linkage->m_str_cls; }
     static py::object bytes_class()             { return s_py_linkage->m_bytes_cls; }
+    static py::object classmethod_class()       { return s_py_linkage->m_classmethod_cls; }
 
     static py::object datetime_class()          { return s_py_linkage->m_datetime_cls; }
     static py::object date_class()              { return s_py_linkage->m_date_cls; }
@@ -216,6 +219,7 @@ public:
 
     static py::object create_trait_method_error(
         BTraitable* obj,
+        BTraitableClass* cls,
         const py::str& trait_name,
         const py::object& method_name,
         const py::object* value = nullptr,

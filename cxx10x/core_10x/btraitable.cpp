@@ -235,7 +235,7 @@ py::dict BTraitable::serialize_traits() {
                 throw py::value_error(py::str("{}.{} - undefined value").format(class_name(), trait_name));
 
             //-- XNone is serialized as None (undefined)
-            auto ser_value = value.is(XNone) ? py::none() : trait->wrapper_f_serialize(this, value);
+            auto ser_value = value.is(XNone) ? py::none() : trait->wrapper_f_serialize(my_class(), value);
             res[trait_name] = ser_value;
         }
     }
@@ -261,7 +261,7 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
             proc->invalidate_trait_value(this, trait);      //-- TODO: should we set None instead?
         else {
             //-- As XNone is serialized as None, get it back, if any
-            auto deser_value = value.is_none() ? XNone : trait->wrapper_f_deserialize(this, value);
+            auto deser_value = value.is_none() ? XNone : trait->wrapper_f_deserialize(my_class(), value);
             BRC rc(set_value(trait, deser_value));
             if (!rc)
                 throw py::value_error(rc.error());

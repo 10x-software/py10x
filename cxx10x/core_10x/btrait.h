@@ -25,6 +25,7 @@ public:
 
     inline static const unsigned LAST_FLAG = HIDDEN;
 
+    // TODO: review the below CUSTOM_F_*- they do not seem to be used anywhere..
     inline static const uint64_t CUSTOM_F_GET           = uint64_t(0x1)       << 32;
     inline static const uint64_t CUSTOM_F_VERIFY        = uint64_t(0x2)       << 32;
     inline static const uint64_t CUSTOM_F_FROM_STR      = uint64_t(0x4)       << 32;
@@ -64,8 +65,13 @@ public:
     py::object      f_style_sheet;      // style sheet from py          dict    f(obj, trait)
 
 protected:
-
-    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args);
+    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args);
+    py::error_already_set trait_error(py::error_already_set& exc, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) {
+        return trait_error(exc, nullptr, cls, f, value, args);
+    }
+    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args) {
+        return trait_error(exc, obj, nullptr, f, value, args);
+    }
 
     virtual BasicNode*  find_node(BTraitableProcessor* proc, BTraitable* obj);
     virtual BasicNode*  find_node(BTraitableProcessor* proc, BTraitable* obj, const py::args& args);
@@ -125,12 +131,13 @@ public:
     py::object wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value);
     py::object wrapper_f_to_str(BTraitable* obj, const py::object& value);
     bool       wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value);
-    py::object wrapper_f_serialize(BTraitable* obj, const py::object& value);
-    py::object wrapper_f_deserialize(BTraitable* obj, const py::object& value);
+    py::object wrapper_f_serialize(BTraitableClass* cls, const py::object& value);
+    py::object wrapper_f_deserialize(BTraitableClass* cls, const py::object& value);
     py::object wrapper_f_to_id(BTraitable* obj, const py::object& value);
     py::object wrapper_f_choices(BTraitable* obj);
     py::object wrapper_f_style_sheet(BTraitable* obj);
 
+    // TODO: review the below custom_f_*- they do not seem to be used anywhere..
     [[nodiscard]] py::object custom_f_get() const           { return m_flags & BTraitFlags::CUSTOM_F_GET ? f_get : py::none(); }
     [[nodiscard]] py::object custom_f_set() const           { return f_set; }
     [[nodiscard]] py::object custom_f_verify() const        { return m_flags & BTraitFlags::CUSTOM_F_VERIFY ? f_verify : py::none(); }

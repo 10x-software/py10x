@@ -1,8 +1,9 @@
 from datetime import date
 
 from core_10x.xnone import XNone
+from core_10x.traitable import Traitable,T,RT
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON
 from core_10x.ts_union import TsUnion
 
 
@@ -33,20 +34,53 @@ def test_2():
     assert int(age) == p.age, f'Expected age around {int(age)}, got {p.age}'
 
 def test_3():
-    with TsUnion():
-        p = Person(first_name = 'Sasha', last_name = 'Davidovich')
-    p.dob = XNone
-    print(p.serialize_object())
+    class X(Traitable):
+        x:int = RT(T.ID)
+        t:date = RT()
+    p = X(x=1)
+    p.t = XNone
+    print(p.t)
 
-    with CONVERT_VALUES_ON():
-        p.dob = 20051231999
-    print(p.serialize_object())
+    with DEBUG_ON():
+        p.t = 'December 1, 2000'
+    print(p.t)
+
+    # with CONVERT_VALUES_ON():
+    #     p.t = 1577836800
+    # print(p.t)
+
+def test_4():
+    class X(Traitable):
+        x:int = T(T.ID)
+
+        @classmethod
+        def x_serialize(cls,t,v):
+            assert t is cls.trait(t.name)
+            return f'{t.name}:{v}'
+
+        @classmethod
+        def x_deserialize(cls,t,v):
+            assert t is cls.trait(t.name)
+            return int(v.split(':')[-1])+1
+
+
+    with TsUnion():
+        p = X(x=1)
+        s = p.serialize_object()
+        print(p,s)
+        p1 = X.deserialize_object(X.s_bclass,None,s)
+        assert p == p1
+        assert s['x']=='x:1'
+        assert p.x==2
 
 
 if __name__ == '__main__':
+    import core_10x_i
+    print(core_10x_i.__file__)
     #test_1()
     #test_2()
-    test_3()
+    #test_3()
+    test_4()
 
 
 

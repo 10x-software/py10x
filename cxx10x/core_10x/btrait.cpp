@@ -30,8 +30,8 @@ void BTrait::create_proc() {
     m_proc = new BTraitProcessor();
 }
 
-py::error_already_set BTrait::trait_error(py::error_already_set &exc, BTraitable *obj, const py::object& f, const py::object* value, const py::args* args) {
-    auto py_exc = PyLinkage::create_trait_method_error(obj, name(), f.attr("__name__"), value, args, &exc);
+py::error_already_set BTrait::trait_error(py::error_already_set &exc, BTraitable *obj, BTraitableClass *cls, const py::object& f, const py::object* value, const py::args* args) {
+    auto py_exc = PyLinkage::create_trait_method_error(obj, cls, name(), f.attr("__name__"), value, args, &exc);
     PyErr_SetObject(py_exc.get_type().ptr(), py_exc.ptr());
     return {};
 }
@@ -118,19 +118,21 @@ py::object BTrait::wrapper_f_to_str(BTraitable* obj, const py::object& value) {
     }
 }
 
-py::object BTrait::wrapper_f_serialize(BTraitable* obj, const py::object& value) {
+py::object BTrait::wrapper_f_serialize(BTraitableClass* cls, const py::object& value) {
     try {
-        return f_serialize(obj, this, value);
+        //TODO: bind traits to classes in __init__subclass__?
+        return f_serialize.attr("__get__")(py::none(),cls->py_class())(this, value);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_serialize, &value, nullptr);
+        throw trait_error(exc, cls, f_serialize, &value, nullptr);
     }
 }
 
-py::object BTrait::wrapper_f_deserialize(BTraitable* obj, const py::object& value) {
+py::object BTrait::wrapper_f_deserialize(BTraitableClass* cls, const py::object& value) {
     try {
-        return f_deserialize(obj, this, value);
+        //TODO: bind traits to classes in __init__subclass__?
+        return f_deserialize.attr("__get__")(py::none(),cls->py_class())(this, value);
     } catch (py::error_already_set& exc) {
-        throw trait_error(exc, obj, f_deserialize, &value, nullptr);
+        throw trait_error(exc, cls, f_deserialize, &value, nullptr);
     }
 }
 
