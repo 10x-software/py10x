@@ -25,7 +25,7 @@ class Person(Traitable):
 
     def dob_set(self, trait, value: date) -> RC:
         today = date.today()
-        if value > today:
+        if value and value > today:
             return RC(False, f'{value} may not be after {today}')
         return self.raw_set_value(trait, value)
 

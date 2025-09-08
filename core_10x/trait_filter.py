@@ -1,4 +1,11 @@
-from core_10x.named_constant import NamedConstant
+from abc import abstractmethod, ABC
+from functools import partial
+from typing import Callable, TYPE_CHECKING, Type
+
+from core_10x.xnone import XNone
+
+from core_10x_i import BTraitableClass
+
 
 #===================================================================================================================================
 #
@@ -24,10 +31,12 @@ class _mongo_label:
 
 LABEL = _mongo_label
 
-class _filter:
-    def eval(self, left_value) -> bool:     raise NotImplementedError
-    def prefix_notation(self) -> dict:      raise NotImplementedError
-
+class _filter(ABC):
+    @abstractmethod
+    def eval(self, left_value) -> bool: ...
+    @abstractmethod
+    def prefix_notation(self, serializer: Callable=None, traitable_class: BTraitableClass=None) -> dict: ...
+    
 class Op(_filter):
     label = ''
 
@@ -36,11 +45,18 @@ class Op(_filter):
             label = getattr(LABEL, cls.__name__)
         cls.label = label
 
-    def __init__(self, expression = None):
-        self.right_value = expression
+    def __new__(cls, expression = None):
+        obj = super().__new__(cls)
+        obj.right_value = expression
+        return obj
 
-    def prefix_notation(self) -> dict:
-        return { self.label: self.right_value }
+    def prefix_notation(self, serializer: Callable=None, traitable_class: BTraitableClass=None) -> dict:
+        value = self.right_value
+        if serializer:
+            value = serializer(value)
+        if value is XNone:
+            value = None #TODO: unify with traitable serialization of XNone?
+        return { self.label: value }
 
 class NOT_EMPTY(Op, label = ''):
     def prefix_notation(self) -> dict:        raise NotImplementedError
@@ -65,9 +81,9 @@ class LE(Op):
     def eval(self, left_value) -> bool:     return left_value <= self.right_value
 
 class IN(Op):
-    def __init__(self, values):
-        assert isinstance(values, list) or isinstance(values, tuple), f'{self.__class__.__name__}() requires a list or tuple'
-        super().__init__(values)
+    def __new__(cls, values: list|tuple):
+        assert isinstance(values, list) or isinstance(values, tuple), f'{cls.__name__}() requires a list or tuple'
+        return super().__new__(cls, values)
 
     def eval(self, left_value) -> bool:     return left_value in self.right_value
 
@@ -77,41 +93,62 @@ class NIN(IN):
 #class REGEX(Op):
 
 class BETWEEN(Op, label = ''):
-    def __init__(self, a, b, bounds = (True, True)):
-        assert isinstance(bounds, tuple) and len(bounds) == 2, f'{self.__class__.__name__} - (bool, bool) is expected for bounds'
+    def __new__(cls, a, b, bounds = (True, True)):
+        obj = super().__new__(cls)
+        assert isinstance(bounds, tuple) and len(bounds) == 2, f'{cls.__name__} - (bool, bool) is expected for bounds'
 
         bound_a, bound_b = bounds
-        self.left   = GE(a) if bound_a else GT(a)
-        self.right  = LE(b) if bound_b else LT(b)
-        super().__init__()
+        obj.left   = GE(a) if bound_a else GT(a)
+        obj.right  = LE(b) if bound_b else LT(b)
+        return obj
 
     def eval(self, left_value) -> bool:
         return self.left.eval(left_value) and self.right.eval(left_value)
 
-    def prefix_notation(self) -> dict:
-        res = self.left.prefix_notation()
-        res.update(self.right.prefix_notation())
+    def prefix_notation(self,serializer: Callable=None, traitable_class: BTraitableClass=None) -> dict:
+        res = self.left.prefix_notation(serializer, traitable_class)
+        res.update(self.right.prefix_notation(serializer, traitable_class))
         return res
 
 class BoolOp(Op, label = ''):
-    def __init__(self, *expressions):
-        assert len(expressions) >= 2, f'{self.__class__.__name__} - at least two expressions are expected'
-        super().__init__(expressions)
+    s_false = IN([])
 
-    def prefix_notation(self) -> dict:
-        return {self.label: [ f.prefix_notation() for f in self.right_value ]}
+    @classmethod
+    def _simplify(cls, expressions:tuple, false:IN) -> list: ...
+
+    def __new__(cls, *expressions):
+        expressions = cls._simplify(expressions,cls.s_false)
+        if len(expressions)==1:
+            return expressions[0]
+
+        obj = super().__new__(cls,expressions)
+        return obj
+
+    def prefix_notation(self, serializer: Callable=None, traitable_class: BTraitableClass=None) -> dict:
+        rvalues = [pn for f in self.right_value if (pn := f.prefix_notation(serializer, traitable_class))]
+        return {self.label: rvalues} if rvalues else {}
 
 class AND(BoolOp):
+    @classmethod
+    def _simplify(cls, expressions, false):
+        return [false] if false in expressions else expressions
+
     def eval(self, left_value) -> bool:
         return all(f.eval(left_value) for f in self.right_value)
 
 class OR(BoolOp):
+    @classmethod
+    def _simplify(cls, expressions, false):
+        expressions = [expression for expression in expressions if expression is not false]
+        return [false] if not expressions else expressions
+
     def eval(self, left_value) -> bool:
         return any(f.eval(left_value) for f in self.right_value)
 
 class f(_filter):
-    def __init__(self, _f: _filter = None, **named_expressions):
+    def __init__(self, _f: _filter = None, _t: BTraitableClass = None, **named_expressions):
         self.filter = _f
+        self.traitable_class = _t
         self.named_expressions = {
             name : expression if isinstance(expression, _filter) else EQ(expression)
             for name, expression in named_expressions.items()
@@ -125,9 +162,16 @@ class f(_filter):
         return all(item.eval(traitable.get_value(name)) for name, item in self.named_expressions.items())
 
 
-    def prefix_notation(self) -> dict:
-        clause = { name: item.prefix_notation() for name, item in self.named_expressions.items() }
-        if self.filter and clause:
-            clause = AND(self.filter.prefix_notation(), clause)
+    def prefix_notation(self, serializer: Callable=None, traitable_class: BTraitableClass=None) -> dict:
+        traitable_class = traitable_class or self.traitable_class
+        def trait_serializer(name):
+            if traitable_class:
+                trait = traitable_class.trait_dir()[name]
+                return partial(trait.f_serialize.__get__(None, traitable_class),trait) #TODO: bind traits to classes in __init__subclass__?
+
+        clause = { name: pn for name, item in self.named_expressions.items() if (pn:=item.prefix_notation(trait_serializer(name),traitable_class)) }
+        if self.filter:
+            filter_clause = self.filter.prefix_notation(traitable_class=traitable_class)
+            clause = {AND.label: [filter_clause, clause]} if clause else filter_clause
 
         return clause
