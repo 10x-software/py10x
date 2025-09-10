@@ -126,7 +126,7 @@ void BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::
     auto value_type = PyLinkage::type(value);
     auto rc = trait->wrapper_f_is_acceptable_type(obj, value_type);
     if (!rc)
-        throw py::type_error(py::str("{}.{} ({}) - invalid value {}").format(obj->class_name(), trait->name(), trait->data_type(), value));
+        throw py::type_error(py::str("{}.{} ({}) - invalid value '{}'").format(obj->class_name(), trait->name(), trait->data_type(), value));
 }
 
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value) {

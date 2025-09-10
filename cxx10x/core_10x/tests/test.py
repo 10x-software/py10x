@@ -73,6 +73,23 @@ def test_4():
         assert s['x']=='x:1'
         assert p.x==2
 
+def test_5():
+    from datetime import datetime,date
+    class X(Traitable):
+        x:int = T(T.ID)
+
+    class Y(X):
+        d:date = T(date.today())
+
+    class Z(Traitable):
+        y:Y = T(T.ID)
+        t:datetime = T(datetime.now())
+
+    with TsUnion():
+        y = Y(x=1)
+        print(y,y.serialize_object())
+        y = Z(y=y)
+        print(y,y.serialize_object())
 
 if __name__ == '__main__':
     import core_10x_i
@@ -80,7 +97,8 @@ if __name__ == '__main__':
     #test_1()
     #test_2()
     #test_3()
-    test_4()
+    #test_4()
+    test_5()
 
 
 

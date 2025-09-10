@@ -13,6 +13,12 @@ FetchContent_Declare(
         GIT_TAG        v2.13.6
         OVERRIDE_FIND_PACKAGE
 )
+FetchContent_Declare(
+        pybind11_stubgen
+        GIT_REPOSITORY https://github.com/sizmailov/pybind11-stubgen.git
+        GIT_TAG v2.5.5
+)
+FetchContent_MakeAvailable(pybind11_stubgen)
 #FetchContent_Declare(
 #        mongo-cxx-driver
 #        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
@@ -36,10 +42,22 @@ pybind11_add_module(infra_10x_i
 #        ${mongo-cxx-driver_BINARY_DIR}/mongocxx/lib/mongocxx/v_noabi
 #)
 
+# Generate .pyi stubs after building the module
+add_custom_command(
+        TARGET infra_10x_i POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${pybind11_stubgen_SOURCE_DIR}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" ${Python3_EXECUTABLE} -m pybind11_stubgen infra_10x_i -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+        COMMENT "Generating type stubs for infra_10x_i"
+        VERBATIM
+)
+
 install(TARGETS infra_10x_i
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
 )
+
+# Install the generated .pyi alongside the module
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/infra_10x_i.pyi DESTINATION .)
 
 #target_link_libraries(infra_10x_i PRIVATE mongocxx_static)
 
