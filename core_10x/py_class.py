@@ -163,7 +163,7 @@ class PyClass:
                 p_node[cls] = node
 
     @staticmethod
-    def inheritancePaths(root_class: type, child_class: type) -> list:
+    def inheritance_paths(root_class: type, child_class: type) -> list:
         tree = PyClass.class_tree(root_class, child_class)
         return PyClass._inheritance_paths(tree)
 

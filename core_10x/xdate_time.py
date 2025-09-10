@@ -7,7 +7,7 @@ class XDateTime:
     """
     All datetime values are in UTC time zone!
     """
-
+    @staticmethod
     def int_to_date(v: int) -> date:
         """
         ordinal or canonical (<yyyy><mm><dd>)
@@ -23,6 +23,7 @@ class XDateTime:
 
         return date.fromordinal(v)
 
+    @staticmethod
     def date_to_int(v: date, ordinal = True) -> int:
         return v.toordinal() if ordinal else (10000 * v.year + 100* v.month + v.day)
 
@@ -39,6 +40,7 @@ class XDateTime:
         cls.s_default_format = fmt
         cls.formats[0] = fmt
 
+    @staticmethod
     def str_to_date(v: str, format = '') -> date|None:
         if format:
             try:
@@ -62,10 +64,13 @@ class XDateTime:
         f'{formats[0]} %H:%M:%S',
         f'{formats[0]} %H:%M:%S.%f',
     )
+
+    @staticmethod
     def datetime_to_str(v: datetime, with_ms: bool = False) -> str:
         fmt = XDateTime.formats_to_str[with_ms]
         return v.strftime(fmt)
 
+    @staticmethod
     def date_to_str(v: date, format = '') -> str:
         if not format:
             format = XDateTime.formats[0]
@@ -83,6 +88,8 @@ class XDateTime:
         return fn(v) if fn else None
 
     dt_format = ('%H:%M', '%H:%M:%S')
+
+    @staticmethod
     def str_to_datetime(v: str) -> datetime|None:
         parts = v.split(' ')
         try:
@@ -102,7 +109,7 @@ class XDateTime:
         except Exception:
             pass
 
-
+    @staticmethod
     def date_to_datetime(d: date) -> datetime:
         return datetime(year = d.year, month = d.month, day = d.day)
 
@@ -112,6 +119,7 @@ class XDateTime:
         int:        lambda v:   XDateTime.date_to_datetime(XDateTime.int_to_date(v)),
         str:        str_to_datetime,
     }
+
     @classmethod
     def to_datetime(cls, v) -> datetime:
         fn = cls.datetime_converters.get(type(v))

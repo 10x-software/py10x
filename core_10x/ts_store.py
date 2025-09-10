@@ -71,7 +71,7 @@ class TsStore(Resource, resource_type = TS_STORE):
             return store
 
         except Exception as e:
-            raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{str(e)}') from e
+            raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{e!s}') from e
 
     s_instance_kwargs_map = {
         Resource.HOSTNAME_TAG:  (Resource.HOSTNAME_TAG, None),
@@ -108,5 +108,5 @@ class TsStore(Resource, resource_type = TS_STORE):
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...
 
-    @abc.abstractmethod
+    @classmethod
     def is_running_with_auth( cls, host_name: str ) -> tuple:  ...    #-- (is_running, with_auth)

@@ -22,7 +22,7 @@ from core_10x.xdate_time import XDateTime, date, datetime
 #       ...
 #===================================================================================================================================
 
-class classproperty(property):
+class classproperty(property): # noqa: N801
     def __get__(self, obj, objtype = None):
         return self.fget(objtype)
 
@@ -57,7 +57,7 @@ class _EnvVars:
 
         if f_apply:
             try:
-                f_apply(cls, value)
+                f_apply.__get__(cls)(value)
             except Exception as e:
                 rc = RC(False)  #-- capture the exc
                 raise ValueError(f'{cls}.{var_name} - failed while applying value: {value}\n{rc.error()}') from e
@@ -108,6 +108,7 @@ class EnvVars(_EnvVars, env_name = 'XX'):
     def build_area_get(self) -> str:
         return OsUser.me.name()
 
+    @classmethod
     def date_format_apply(cls, value):
         XDateTime.set_default_format(value)
 

@@ -203,7 +203,7 @@ def test_f_named_expressions_eval_and_prefix():
 def test_named_serializers():
     class P(Person):
         @classmethod
-        def age_serialize(cls, t, v): return f'age:{v}'  # noqa PyUnusedLocal
+        def age_serialize(cls, t, v): return f'age:{v}' # noinspection PyUnusedLocal
 
     traitable_class = P.s_bclass
     trait = traitable_class.trait_dir()['age']

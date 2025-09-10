@@ -10,6 +10,7 @@ from core_10x.ui_hint import Ui
 from core_10x.xdate_time import XDateTime, date, datetime
 from core_10x.xnone import XNone, XNoneType
 
+# ruff: noqa: N801
 
 class primitive_trait(Trait, register = False):
     s_ui_hint = Ui.NONE
@@ -42,7 +43,6 @@ class primitive_trait(Trait, register = False):
 
     def deserialize(self, value):
         return value
-
 
 class bool_trait(primitive_trait, data_type = bool):
     s_ui_hint = Ui.check()
@@ -81,7 +81,6 @@ class float_trait(primitive_trait, data_type = float):
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is float or data_type is int
 
-
 class str_trait(primitive_trait, data_type = str):
     s_ui_hint = Ui.line(align_h = -1)
 
@@ -96,7 +95,6 @@ class str_trait(primitive_trait, data_type = str):
 
     def to_id(self, value: str) -> str:
         return value
-
 
 # class bin_trait(Trait, data_type = bytes):
 #     w = 0   #-- max width, if any and relevant
@@ -221,7 +219,7 @@ class list_trait(Trait, data_type = list):
 class dict_trait(Trait, data_type = dict):
     s_ui_hint = Ui.line(flags = Ui.SELECT_ONLY)
 
-    def use_format_str(cls, fmt: str, value) -> str:
+    def use_format_str(self, fmt: str, value) -> str:
         return str(value) if not fmt else fmt.join(f"'{key}' -> '{val}'" for key, val in value.items())
 
     def to_str(self, v) -> str:
@@ -258,11 +256,11 @@ class any_trait(Trait, data_type = XNoneType):  # -- any
         return True
 
     def serialize(self, value):
-        return Nucleus.serialize_any(value, self.flags_on(T.EMBEDDED))
+        return Nucleus.serialize_any(value, self.flags_on(T.EMBEDDED))  # serializes to record (dict)
 
     def deserialize(self, value):
-        return Nucleus.deserialize_any(value)
-
+        return Nucleus.deserialize_dict(value)                          # interprets dict as record first
+    
     def same_values(self, value1, value2) -> bool:
         return value1 is value2
 

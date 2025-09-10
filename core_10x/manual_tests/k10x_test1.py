@@ -1,9 +1,6 @@
-from core_10x.xnone import XNone    # noqa F401 #-- keep
+from core_10x_i import NODE_TYPE, BasicNode
 
-
-from core_10x_i import BasicNode
-from core_10x_i import NODE_TYPE
-
+from core_10x.xnone import XNone  # noqa: F401 #-- keep
 
 n1 = BasicNode.create(NODE_TYPE.BASIC_GRAPH)
 n1.assign('whatever')

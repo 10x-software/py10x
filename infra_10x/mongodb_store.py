@@ -245,6 +245,7 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
         if client:
             client.close()
 
+    # noinspection PyMethodOverriding
     @classmethod
     def new_instance(cls, hostname: str, dbname: str, username: str, password: str, **kwargs) -> TsStore:
         client = cls.connect(hostname, username, password, **kwargs)

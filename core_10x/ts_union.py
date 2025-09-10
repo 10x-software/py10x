@@ -11,7 +11,7 @@ from core_10x.ts_store import TsCollection, TsStore
 
 
 class _OrderKey:
-    __slots__ = ('value', 'reverse')
+    __slots__ = ('reverse', 'value')
 
     @classmethod
     def _dict_cmp(cls, d: dict, od: dict) -> int:
@@ -105,7 +105,7 @@ class TsUnionCollection(TsCollection):
 
 class TsUnion(TsStore, name='TS_UNION'):
     @classmethod
-    def is_running_with_auth(cls, host_name: str) -> tuple:
+    def is_running_with_auth(cls, host_name: str) -> tuple: #-- (is_running, with_auth)
         raise NotImplementedError
 
     @classmethod

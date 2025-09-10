@@ -35,7 +35,7 @@ class TraitMethodError(Exception):
             msg.append(f'    args = {args}')
 
         if other_exc:
-            msg.append(f'original exception = {str(other_exc)}')
+            msg.append(f'original exception = {other_exc!s}')
 
         return TraitMethodError('\n'.join(msg))
 
