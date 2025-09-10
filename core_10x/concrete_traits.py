@@ -270,10 +270,10 @@ class nucleus_trait(Trait, data_type = Nucleus, base_class = True):
     s_ui_hint = Ui.NONE
 
     def to_str(self, v) -> str:
-        return self.data_type.to_str()
+        return self.data_type.to_str(v)
 
-    def to_id(self, value) -> str:
-        return self.data_type.to_id(value)
+    def to_id(self, v) -> str:
+        return self.data_type.to_id(v)
 
     def from_str(self, s: str) -> Nucleus:
         return self.data_type.from_str(s)

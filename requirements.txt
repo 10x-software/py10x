@@ -1,5 +1,6 @@
 
 #core
+cryptography~=45.0.7
 importlib-resources~=6.5.2
 numpy~=2.2.2
 python-dateutil~=2.9.0
@@ -17,7 +18,7 @@ PyQt6-Qt6==6.8.2
 PyQt6-sip==13.10.0
 
 #---- Rio
-rio-ui[window]~=0.11.1
+#rio-ui[window]~=0.11.1
 
 #dev
 pytest~=8.3.4
@@ -25,18 +26,13 @@ pytest-cov~=6.0.0
 
 
 #---- the below are not currently required ---
-
 #clipboard>=0.0.4
 #ldap3>=2.9.1
-
 #pandas~=1.5.3,<2.0
 #polars==0.20.6
-
 #psutil~=5.9.0
-
 #pybind11>=2.11.1
 
-#pymongo>=4.6.1
 
 #---- Web UI
 

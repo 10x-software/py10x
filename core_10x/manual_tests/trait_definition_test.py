@@ -1,6 +1,5 @@
 import inspect
-import copy
-from core_10x.trait_definition import TraitDefinition, T, RT, Ui
+from core_10x.trait_definition import T
 
 class X:
     user_id: str    = T(T.ID | T.RUNTIME)   #, Ui('User ID', tip = 'OS login', min_width = 50))

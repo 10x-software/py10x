@@ -62,8 +62,7 @@ class PackageRefactoring:
         self.path_to_cid[new_path] = cid
 
     def _save(self):
-        text = []
-        text.append(f'{self.__class__.s_records_name} = {{')
+        text = [f'{self.__class__.s_records_name} = {{']
         for cid, path in self.cid_to_path.items():
             text.append(f'\t{cid}:\t\t"{path}"')
         text.append('}')

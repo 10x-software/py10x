@@ -1,6 +1,5 @@
 import functools
-import unittest
-from unittest import mock, TestCase
+from unittest import TestCase
 from weakref import WeakKeyDictionary
 
 from core_10x.ts_union import TsUnion
@@ -180,14 +179,13 @@ class TestExecControl(TestGraphBase):
         self.test_get_set()
 
     def test(self, graph=False, convert=False, debug=False):
-        if debug:
-            convert = False # TODO: debug overrides convert
-
-        self.test_graph(on=graph)
-        #self.reset()
-        # self.test_convert(on=convert)
-        # self.reset()
-        # self.test_debug(on=debug)
+        with TsUnion():
+            self.test_graph(on=graph)
+            self.reset()
+            self.test_convert(on=convert)
+            self.reset()
+            if not convert:
+                self.test_debug(on=debug)
 
     def test_repro(self):
         with GRAPH_ON():
@@ -213,16 +211,12 @@ class TestExecControl(TestGraphBase):
 
         if on:
             with self.assertRaises(Exception):
-                p.weight_lbs = 200
+                p.weight_lbs = '200'
 
             self.assertEqual(p.weight, 100.0)
 
-            p.weight_lbs = 200.
-            self.assertEqual(p.weight, 200.0)
-
-        else:
-            p.weight_lbs=200
-            self.assertEqual(p.weight, 200.0)
+        p.weight_lbs=200
+        self.assertEqual(p.weight, 200.0)
 
         p.invalidate_value(p.T.weight_lbs)
         self.assertIs(p.weight_lbs,XNone)

@@ -6,7 +6,7 @@ from core_10x.trait_filter import (
     EQ, NE, GT, GE, LT, LE, IN, NIN,
     BETWEEN, AND, OR, NOT_EMPTY, f
 )
-from core_10x.traitable import Traitable
+from core_10x.traitable import Traitable,XNone
 
 
 class Person(Traitable):
@@ -191,24 +191,28 @@ def test_f_named_expressions_eval_and_prefix():
 
 
 def test_named_serializers():
-    x = EQ(5)
-    x.prefix_notation(serializer=lambda v: f'val:{v}')
-    assert x.prefix_notation(serializer=lambda v: f'val:{v}') == {'$eq': 'val:5'}
-
-    b = BETWEEN(1, 5)
-    assert b.prefix_notation(serializer=lambda v: f'val:{v}') == {'$gte': 'val:1', '$lte': 'val:5'}
-
-    x = OR(f(age=LE(70)), f(first_name=NE('Sasha')))
-    class p(Person):
+    class P(Person):
         @classmethod
-        def age_serialize(cls, t, v): return f'age:{v}'
-    t = p.s_bclass
-    assert x.prefix_notation(traitable_class=t) == {'$or': [{'age': {'$lte': 'age:70'}}, {'first_name': {'$ne': 'Sasha'}}]}
+        def age_serialize(cls, t, v): return f'age:{v}'  # noqa PyUnusedLocal
+
+    traitable_class = P.s_bclass
+    trait = traitable_class.trait_dir()['age']
+
+    #assert trait is Person.trait('age') #TODO: why not??
+
+    assert trait.serialize_for_traitable_class(traitable_class,5) == 'age:5'
+
+    assert EQ(5).prefix_notation(trait=trait,traitable_class=traitable_class) == {'$eq': 'age:5'}
+
+    assert BETWEEN(1, 5).prefix_notation(trait=trait,traitable_class=traitable_class) == {'$gte': 'age:1', '$lte': 'age:5'}
+
+    x = OR(f(age=LE(70)), f(first_name=NE('Sasha')), f(last_name=XNone))
+    assert x.prefix_notation(traitable_class=traitable_class) == {'$or': [{'age': {'$lte': 'age:70'}}, {'first_name': {'$ne': 'Sasha'}},{'last_name': {'$eq': None}}]}
 
     x = f(age=BETWEEN(50, 70), first_name=NE('Sasha'))
 
-    assert f(x, p.s_bclass).prefix_notation() == x.prefix_notation(traitable_class=t)
+    assert f(x, P.s_bclass).prefix_notation() == x.prefix_notation(traitable_class=traitable_class)
 
     r = OR(f(age=BETWEEN(50, 70), first_name=NE('Sasha')), f(age=17))
-    assert r.prefix_notation(traitable_class=t) == {'$or': [{'age': {'$gte': 'age:50', '$lte': 'age:70'}, 'first_name': {'$ne': 'Sasha'}}, {'age': {'$eq': 'age:17'}}]}
+    assert r.prefix_notation(traitable_class=traitable_class) == {'$or': [{'age': {'$gte': 'age:50', '$lte': 'age:70'}, 'first_name': {'$ne': 'Sasha'}}, {'age': {'$eq': 'age:17'}}]}
 

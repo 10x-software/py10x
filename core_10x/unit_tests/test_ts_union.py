@@ -245,12 +245,6 @@ class TestTsUnion(unittest.TestCase):
         self.mock_store2.delete_collection.assert_not_called()
 
     def test_new_instance(self):
-        hostname = 'localhost:localhost'
-        dbname = 'dbname1:dbname2'
-        username = ':'
-        password = ':'
-        store_class = 'MONGO_DB:MONGO_DB'
-
         store_spec = dict(driver_name='MONGO_DB', hostname='localhost', dbname='dbname1', username='')
 
         union_store = TsUnion.instance(store_spec, store_spec|dict(dbname='dbname2'))

@@ -16,7 +16,8 @@ dependencies = [
     "pytest (>=8.3.4,<8.4.0)",
     "pytest-cov (>=6.0.0,<6.1.0)",
     "infra-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x",
-    "core-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x"
+    "core-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x",
+    "python-dateutil (>=2.9.0,<2.10.0)",
 ]
 
 [tool.poetry]

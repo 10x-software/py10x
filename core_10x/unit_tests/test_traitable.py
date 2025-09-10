@@ -34,9 +34,9 @@ class TestTraitableTraits(unittest.TestCase):
 
         expected_traits = ['trait1', 'trait2', 'trait3', 'trait4']
         assert [t.name for t in SubTraitable2.traits(flags_off=T.RESERVED)] == expected_traits
-        assert SubTraitable.trait('trait2').data_type == str
-        assert SubTraitable2.trait('trait2').data_type == int
-        assert SubTraitable3.trait('trait2').data_type == list
+        assert SubTraitable.trait('trait2').data_type is str
+        assert SubTraitable2.trait('trait2').data_type is int
+        assert SubTraitable3.trait('trait2').data_type is list
         assert SubTraitable2.trait('trait4').default_value() == 0
         assert SubTraitable2.trait('trait2').ui_hint.tip == 'Trait2'
         assert SubTraitable2.trait('trait3').ui_hint.tip == 'trait definition comment'
