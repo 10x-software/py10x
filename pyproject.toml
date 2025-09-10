@@ -38,7 +38,7 @@ extend-exclude = ["ui_10x"]
 [tool.ruff.lint]
 extend-select = [
   "B",   # flake8-bugbear
-  #"I",   # isort
+  "I",   # isort
   #"PGH", # pygrep-hooks
   #"RUF", # Ruff-specific
   "UP",  # pyupgrade

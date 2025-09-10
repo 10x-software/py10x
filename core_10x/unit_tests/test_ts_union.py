@@ -2,9 +2,9 @@ import unittest
 from unittest.mock import MagicMock
 
 from core_10x.nucleus import Nucleus
+from core_10x.trait_filter import GT, f
 from core_10x.ts_store import TsStore
 from core_10x.ts_union import TsUnion, TsUnionCollection, _OrderKey
-from core_10x.trait_filter import f, GT
 from infra_10x.mongodb_store import MongoStore
 
 

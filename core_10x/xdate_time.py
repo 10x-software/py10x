@@ -1,4 +1,5 @@
-from datetime import datetime, date
+from datetime import date, datetime
+
 import dateutil.parser
 
 MIN_CANONICAL_DATE = 10000101

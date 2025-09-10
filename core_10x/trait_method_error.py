@@ -1,5 +1,6 @@
 from core_10x.xnone import XNone
 
+
 class TraitMethodError(Exception):
     """
     NOTE: other_exc must be set in except clause ONLY!

@@ -1,5 +1,6 @@
 from core_10x.code_samples.directories import ANIMALS, FISH
 
+
 def test_flatten():
     f1 = ANIMALS.flatten()
     assert f1 == {('Microorganisms',): 'Microorganisms', ('Microorganisms', 'Single Cell'): 'Single Cell', ('Microorganisms', 'Multi Cell'): 'Multi Cell', ('Mollusks',): 'Mollusks', ('Fishes',): 'Fishes', ('Fishes', 'Salt Water'): 'Salt Water', ('Fishes', 'Salt Water', 'Beluga'): 'Beluga', ('Fishes', 'Fresh Water'): 'Fresh Water', ('Amphibia',): 'Amphibia', ('Reptiles',): 'Reptiles', ('Birds',): 'Birds', ('Mammals',): 'Mammals', ('Mammals', 'Cats'): 'Cats', ('Mammals', 'Dogs'): 'Dogs', ('Mammals', 'Bears'): 'Bears', ('Mammals', 'Whales'): 'Whales', ('Mammals', 'Whales', 'Bluewhale'): 'Bluewhale', ('Mammals', 'Whales', 'Orca'): 'Orca', ('Mammals', 'Whales', 'Spermwhale'): 'Spermwhale', ('Mammals', 'Whales', 'Beluga'): 'Beluga'}

@@ -2,10 +2,9 @@
 from types import NoneType
 
 import pytest
-
-from core_10x.trait_method_error import TraitMethodError
-from core_10x.exec_control import DEBUG_ON, CONVERT_VALUES_ON
+from core_10x.exec_control import CONVERT_VALUES_ON, DEBUG_ON
 from core_10x.trait_definition import T
+from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable
 from core_10x.ts_union import TsUnion
 from core_10x.xnone import XNone, XNoneType

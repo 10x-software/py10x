@@ -1,7 +1,8 @@
 import sys
 import traceback
 
-from core_10x.named_constant import ErrorCode, Enum
+from core_10x.named_constant import Enum, ErrorCode
+
 
 class RC:
     """

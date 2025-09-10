@@ -1,6 +1,7 @@
 if __name__ == '__main__':
-    from core_10x.code_samples.person import Person
     from infra_10x.mongodb_store import MongoStore
+
+    from core_10x.code_samples.person import Person
 
     to_save = True
 

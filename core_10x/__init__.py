@@ -6,6 +6,7 @@ import atexit
 
 from core_10x_i import CORE_10X, PyLinkage, XCache
 
+
 def cleanup():
     XCache.clear()
     PyLinkage.clear()

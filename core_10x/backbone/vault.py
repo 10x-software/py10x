@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from core_10x.backbone.backbone_traitable import VaultTraitable, T, RC
+from core_10x.backbone.backbone_traitable import RC, T, VaultTraitable
 from core_10x.backbone.security_keys import SecKeys
+
 
 class ResourceAccessor(VaultTraitable):
     resource_name: str      = T(T.ID)

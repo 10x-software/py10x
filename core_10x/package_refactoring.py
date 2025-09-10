@@ -4,7 +4,6 @@ import inspect
 from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
 
-
 CLASS_ID_DELIMITER = '/'
 
 class PackageRefactoring:

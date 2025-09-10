@@ -1,12 +1,22 @@
 from datetime import date
 
 import pytest
-
 from core_10x.trait_filter import (
-    EQ, NE, GT, GE, LT, LE, IN, NIN,
-    BETWEEN, AND, OR, NOT_EMPTY, f
+    AND,
+    BETWEEN,
+    EQ,
+    GE,
+    GT,
+    IN,
+    LE,
+    LT,
+    NE,
+    NIN,
+    NOT_EMPTY,
+    OR,
+    f,
 )
-from core_10x.traitable import Traitable,XNone
+from core_10x.traitable import Traitable, XNone
 
 
 class Person(Traitable):

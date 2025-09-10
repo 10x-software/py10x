@@ -1,4 +1,4 @@
-from typing import Self, Any
+from typing import Any, Self
 
 from core_10x.nucleus import Nucleus
 

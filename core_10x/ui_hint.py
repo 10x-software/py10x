@@ -1,9 +1,10 @@
-import functools
 import copy
+import functools
 
-from core_10x_i import BTraitFlags as T # noqa PyPep8Naming
+from core_10x_i import BTraitFlags as T  # noqa PyPep8Naming
 
 from core_10x.named_constant import Enum
+
 
 class UiHint:
     #-- Flags

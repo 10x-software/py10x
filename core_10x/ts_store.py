@@ -2,11 +2,11 @@ import abc
 from collections.abc import Iterable
 from typing import Self
 
-from core_10x.trait_filter import f
-from core_10x.py_class import PyClass
-from core_10x.global_cache import standard_key
-from core_10x.resource import Resource, TS_STORE
 from core_10x.exec_control import ProcessContext
+from core_10x.global_cache import standard_key
+from core_10x.py_class import PyClass
+from core_10x.resource import TS_STORE, Resource
+from core_10x.trait_filter import f
 
 
 class TsCollection(abc.ABC):

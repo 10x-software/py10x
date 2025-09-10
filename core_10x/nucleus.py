@@ -2,6 +2,7 @@ from typing import Self
 
 from core_10x_i import BNucleus
 
+
 class Nucleus:
     __slots__           = ()
     ID_TAG              = BNucleus.ID_TAG
