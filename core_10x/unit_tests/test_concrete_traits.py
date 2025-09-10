@@ -20,7 +20,7 @@ def _test_i( data_type: Type, values, expected_values):
         value: data_type = T(1) # noqa
 
     p = TestableTraitable(xid=1)
-    for v, ev in zip(values, expected_values):
+    for v, ev in zip(values, expected_values, strict=True):
         if isinstance(ev, type) and issubclass(ev, Exception):
             try:
                 p.value = v
@@ -45,7 +45,7 @@ def _test(data_type, values, expecte_types):
 
 def generic_test(data_type,values,convert_expected,allowed_types=()):
     allowed_types = (data_type,NoneType,XNoneType) + allowed_types
-    debug_expected = [v if isinstance(v, allowed_types) else e if isinstance(e,Exception) else TypeError for v,e in zip(values,convert_expected)]
+    debug_expected = [v if isinstance(v, allowed_types) else e if isinstance(e,Exception) else TypeError for v,e in zip(values,convert_expected, strict=True)]
     _test(data_type, values, values)
     with DEBUG_ON():
         _test(data_type, values, debug_expected)

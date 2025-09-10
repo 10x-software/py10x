@@ -56,7 +56,7 @@ class NamedConstant(Nucleus):
                 cdef.value = args[1]
 
             else:
-                assert False, f"'{args}' may have at most two items"
+                raise ValueError(f"'{args}' may have at most two items")
 
         return cdef
 
@@ -205,7 +205,7 @@ class Enum(NamedConstant):
             cdef.label = args
             return cdef
 
-        assert False, 'an empty tuple or string is expected'
+        raise ValueError("an empty tuple or string is expected")
 
     @classmethod
     def next_auto_value(cls) -> int:
@@ -335,12 +335,12 @@ class NamedConstantValue:
         try:
             return self.data[key]   #-- if it's a known NamedConstant
 
-        except KeyError:
+        except KeyError as e:
             #-- check if it is a name of a constant
             named_constant_class = self.named_constant_class
             cdef = named_constant_class.s_dir.get(key)
             if not cdef:
-                raise KeyError(f'{named_constant_class}.{key} - unknown named constant')
+                raise KeyError(f'{named_constant_class}.{key} - unknown named constant') from e
 
             return self.data[cdef]
 

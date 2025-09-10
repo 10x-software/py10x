@@ -114,7 +114,7 @@ class RC:
             self.payload.extend(err.payload)
 
         else:
-            assert False, f'Expected str or RC; got {type(err)}'
+            raise ValueError(f'Expected str or RC; got {type(err)}')
 
         return self
 
@@ -136,10 +136,10 @@ class _RcTrue(RC):
         return RC(True)
 
     def add_error(self, err = ''):
-        assert False, 'May not add error to a constant RC_TRUE'
+        raise ValueError('May not add error to a constant RC_TRUE')
 
     def add_data(self, data):
-        assert False, 'May not add error to a constant RC_TRUE'
+        raise ValueError('May not add error to a constant RC_TRUE')
 
 RC_TRUE = _RcTrue()
 
