@@ -130,7 +130,7 @@ class Trait(BTrait):
 
     def create_f_get(self, f, attr_name: str, rc: RC):
         if not f:  #-- no custom getter, just the default value
-            f = lambda traitable: self.default_value()
+            f = lambda traitable: self.default_value() # noqa E731
             f.__name__ = 'default_value'
             params = ()
 
@@ -175,7 +175,7 @@ class Trait(BTrait):
         if not f:
             common_f = getattr(cls, attr_name, None)
             if common_f:
-                f = lambda obj_or_cls, trait, value: common_f(trait, value)
+                f = lambda obj_or_cls, trait, value: common_f(trait, value) # noqa E731
                 f.__name__ = f'{cls.__name__}.{common_f.__name__}'
 
         return f
@@ -193,7 +193,7 @@ class Trait(BTrait):
         if not f:
             choices_f = getattr(cls, attr_name, None)
             if choices_f:
-                f = lambda obj, trait: choices_f(trait)
+                f = lambda obj, trait: choices_f(trait) # noqa E731
                 f.__name__ = f'{cls.__name__}.{choices_f.__name__}'
 
         return f

@@ -2,7 +2,6 @@ import abc
 from typing import Iterable, Self
 
 from core_10x.trait_filter import f
-from core_10x.rc import RC
 from core_10x.py_class import PyClass
 from core_10x.global_cache import standard_key
 from core_10x.resource import Resource, TS_STORE

@@ -205,7 +205,7 @@ class Enum(NamedConstant):
             cdef.label = args
             return cdef
 
-        assert False, f'an empty tuple or string is expected'
+        assert False, 'an empty tuple or string is expected'
 
     @classmethod
     def next_auto_value(cls) -> int:

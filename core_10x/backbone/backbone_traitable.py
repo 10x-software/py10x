@@ -1,4 +1,4 @@
-from core_10x.traitable import Traitable, TraitDefinition, RC, T, RT
+from core_10x.traitable import Traitable, TraitDefinition, RC, T, RT # noqa: F401
 from core_10x.ts_store import TsStore
 
 from core_10x.backbone.backbone_store import BackboneStore
