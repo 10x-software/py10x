@@ -1,7 +1,7 @@
 import copy
 import functools
 
-from core_10x_i import BTraitFlags as T  # noqa PyPep8Naming
+from core_10x_i import BTraitFlags as T
 
 from core_10x.named_constant import Enum
 
@@ -24,7 +24,7 @@ class UiHint:
     BORDER_COLOR    = 'border-color'
     BORDER_STYLE    = 'border-style'
     
-    class WIDGET_TYPE(Enum):  # noqa PyPep8Naming
+    class WIDGET_TYPE(Enum):  # noqa: N801
         NONE        = ()
         LINE        = ()
         TEXT        = ()

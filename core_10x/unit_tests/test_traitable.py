@@ -71,7 +71,7 @@ class TestTraitableSlots(unittest.TestCase):
         self.assertEqual(Traitable.__slots__, expected_slots)
 
     def test_subclass_slots(self):
-        expected_slots = ('special_attr',) + Traitable.__slots__ + ('trait1', 'trait2')
+        expected_slots = ('special_attr', *Traitable.__slots__, 'trait1', 'trait2')
         self.assertEqual(SubTraitable.__slots__, expected_slots)
 
     def test_instance_slots(self):

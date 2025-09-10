@@ -155,10 +155,10 @@ class T(BTraitFlags):
     def colors(bg_color: str, fg_color: str) -> str:
         return f'background-color: {bg_color}; color: {fg_color}' if bg_color and fg_color else ''
 
-def RT(*args, **kwargs) -> TraitDefinition: # noqa PyPep8Naming
+def RT(*args, **kwargs) -> TraitDefinition: # noqa: N802
     trait_def = TraitDefinition(*args, **kwargs)
     trait_def.flags.set(T.RUNTIME.value())
     return trait_def
 
-def M(*args, **kwargs) -> TraitModification: # noqa PyPep8Naming
+def M(*args, **kwargs) -> TraitModification: # noqa: N802
     return TraitModification(*args, **kwargs)

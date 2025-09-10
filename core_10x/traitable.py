@@ -12,8 +12,8 @@ from core_10x.nucleus import Nucleus
 from core_10x.package_manifest import PackageManifest
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.rc import RC, RC_TRUE
-from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value  # noqa F401
-from core_10x.trait_definition import (  # noqa F401
+from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value  # noqa: F401
+from core_10x.trait_definition import (  # noqa: F401
     RT,
     M,
     TraitDefinition,
@@ -55,14 +55,16 @@ class TraitableMetaclass(type(BTraitable)):
     @cache
     def rev_trait() -> Trait:
         trait_name = Nucleus.REVISION_TAG()
-        t_def = T(0, T.RESERVED)
+        # noinspection PyTypeChecker
+        t_def: TraitDefinition = T(0, T.RESERVED)
         return Trait.create(trait_name, t_def, {}, {trait_name: int},  RC_TRUE)
 
     @staticmethod
     @cache
     def collection_name_trait() -> Trait:
         trait_name = COLL_NAME_TAG
-        t_def = T(T.RESERVED | T.RUNTIME)
+        # noinspection PyTypeChecker
+        t_def: TraitDefinition = T(T.RESERVED | T.RUNTIME)
         def get(self): return self.id().collection_name
         def set(self, t, cname) -> RC:
             self.id().collection_name = cname
@@ -260,7 +262,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
     @classmethod
     def is_bundle(cls) -> bool:
-        return cls.serialized_class is not Traitable.serialized_class
+        return cls.serialize_class_id is not Traitable.serialize_class_id
 
     @classmethod
     def serialize_class_id(cls) -> str|None:
@@ -279,7 +281,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
     @classmethod
     def from_str(cls, s: str) -> Nucleus:
-        return cls.instance_by_id(s)
+        return cls(ID(s)) # collection name?
 
     @classmethod
     def from_any_xstr(cls, value) -> Nucleus:
@@ -465,9 +467,9 @@ class StorableHelper(NotStorableHelper):
             self.set_revision(0)
         return rc
 
-class THIS_CLASS(Traitable):   ...  #-- to use for traits with the same Traitable class type
+class THIS_CLASS(Traitable): ...  # noqa: N801 #-- to use for traits with the same Traitable class type
 
-class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True):
+class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True): # noqa: N801
     def post_ctor(self):
         ...
 
@@ -515,12 +517,14 @@ class Bundle(Traitable):
         else:
             assert cls.is_storable(), f'{cls} is not storable'
             base = cls.s_bundle_base
-            bundle_members = base.s_bundle_members
-            if bundle_members is not None:
-                bundle_members[cls.__name__] = cls
+            if base:
+                bundle_members = base.s_bundle_members
+                if bundle_members is not None:
+                    bundle_members[cls.__name__] = cls
 
-            cls.collection_name = base.collection_name
-            cls.collection = base.collection
+                #cls.collection_name = base.collection_name #TODO: fix
+                cls.collection = base.collection
+            assert cls.s_bundle_base, "bundle base not defined"
 
     @classmethod
     def serialize_class_id(cls) -> str:

@@ -12,7 +12,7 @@ from core_10x.trait import Trait
 #   weight =
 #===================================================================================================================================
 
-class _mongo_label: # noqa PyPep8Naming
+class _mongo_label: # noqa: N801
     EQ      = '$eq'
     NE      = '$ne'
     GT      = '$gt'
@@ -28,7 +28,7 @@ class _mongo_label: # noqa PyPep8Naming
 
 LABEL = _mongo_label
 
-class _filter(ABC): # noqa PyPep8Naming
+class _filter(ABC): # noqa: N801
     @abstractmethod
     def eval(self, left_value) -> bool: ...
     @abstractmethod
@@ -48,12 +48,13 @@ class Op(_filter,ABC):
         return obj
 
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
+        # noinspection PyTypeChecker
         return {
             self.label: trait.serialize_for_traitable_class(traitable_class, self.right_value, replace_xnone = True)
             if trait and traitable_class else self.right_value
         }
 
-class NOT_EMPTY(Op, label = ''): # noqa PyPep8Naming
+class NOT_EMPTY(Op, label = ''): # noqa: N801
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict: raise NotImplementedError
     def eval(self, left_value) -> bool:     return bool(left_value)
 
@@ -140,7 +141,7 @@ class OR(BoolOp):
     def eval(self, left_value) -> bool:
         return any(e.eval(left_value) for e in self.right_value)
 
-class f(_filter): # noqa PyPep8Naming
+class f(_filter): # noqa: N801
     def __init__(self, _f: _filter = None, _t: BTraitableClass = None, **named_expressions):
         self.filter = _f
         self.traitable_class = _t

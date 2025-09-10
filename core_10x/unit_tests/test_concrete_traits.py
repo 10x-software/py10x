@@ -15,7 +15,7 @@ def _test_i( data_type: type, values, expected_values):
 
     class TestableTraitable(Traitable):
         xid: int = T(T.ID, default=1)
-        value: data_type = T(1) # noqa
+        value: data_type = T(1) # noinspection PyTypeHints
 
     p = TestableTraitable(xid=1)
     for v, ev in zip(values, expected_values, strict=True):
@@ -37,12 +37,12 @@ def _test_i( data_type: type, values, expected_values):
                 ev = ev if ev is not XNone else None
                 assert {'_id': '1', '_rev': 0, 'xid': 1, 'value': ev} == p.serialize_object()
 
-def _test(data_type, values, expecte_types):
+def _test(data_type, values, expected_types):
     with TsUnion(): # TODO: remove when db access is sorted
-        _test_i(data_type, values, expecte_types)
+        _test_i(data_type, values, expected_types)
 
 def generic_test(data_type,values,convert_expected,allowed_types=()):
-    allowed_types = (data_type,NoneType,XNoneType) + allowed_types
+    allowed_types = (data_type, NoneType, XNoneType, *allowed_types)
     debug_expected = [v if isinstance(v, allowed_types) else e if isinstance(e,Exception) else TypeError for v,e in zip(values,convert_expected, strict=True)]
     _test(data_type, values, values)
     with DEBUG_ON():

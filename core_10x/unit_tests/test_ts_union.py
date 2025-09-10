@@ -31,8 +31,8 @@ class TestTsUnionCollection(unittest.TestCase):
         self.collection2.find.return_value = [{Nucleus.ID_TAG(): 1}]
         results = list(self.union.find(*args))
         self.assertEqual(results, [{Nucleus.ID_TAG(): 1}, {Nucleus.ID_TAG(): 2}])
-        self.collection1.find.assert_called_once_with(args and args[0] or None,_order=None,_at_most=0)
-        self.collection2.find.assert_called_once_with(args and args[0] or None,_order=None,_at_most=0)
+        self.collection1.find.assert_called_once_with((args and args[0]) or None,_order=None,_at_most=0)
+        self.collection2.find.assert_called_once_with((args and args[0]) or None,_order=None,_at_most=0)
 
     def test_no_args(self):
         self.test_find(args=())

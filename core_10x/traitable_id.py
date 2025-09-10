@@ -4,7 +4,7 @@ from typing import Self
 
 @total_ordering
 class ID:
-    __slots__ = ('value', 'collection_name')
+    __slots__ = ('collection_name', 'value')
 
     def __init__(self, id_value: str = None, collection_name: str = None):
         self.value = id_value

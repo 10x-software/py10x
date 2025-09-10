@@ -20,7 +20,7 @@ class NamedConstant(Nucleus):
 
         NOTE:   all the members must have either explicit or auto-generated values exclusively
     """
-    __slots__ = 'name', 'label', 'value'
+    __slots__ = 'label', 'name', 'value'
 
     def __init__(self, name: str = '', label: str = '', value: Any = None):
         super().__init__()
@@ -313,7 +313,7 @@ class ErrorCode(Enum, seed = -1, step = -1):
         return self.label.format(*args, **kwargs)
 
 class NamedConstantValue:
-    __slots__ = 'named_constant_class', 'data'
+    __slots__ = 'data', 'named_constant_class'
 
     def __init__(self, named_constant_class, **named_constant_values):
         assert issubclass(named_constant_class, NamedConstant), f'{named_constant_class} must be a subclass of NamedConstant'
@@ -351,7 +351,7 @@ class NamedConstantValue:
         return self.__getitem__(key)
 
 class NamedConstantTable(NamedConstantValue):
-    __slots__ = 'named_constant_class', 'data', 'col_named_constant_class'
+    __slots__ = 'col_named_constant_class', 'data', 'named_constant_class'
 
     def __init__(self, row_nc_class, col_nc_class, **named_tuple_values):
         assert issubclass(col_nc_class, NamedConstant), f'{col_nc_class} must be a subclass of NamedConstant'

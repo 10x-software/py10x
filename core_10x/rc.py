@@ -35,7 +35,7 @@ class RC:
             ...
             return rc
     """
-    __slots__ = ( 'rc', 'payload' )
+    __slots__ = ('payload', 'rc')
 
     @classmethod
     def show_exception_info(cls, ex_info = None) -> str:
