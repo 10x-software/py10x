@@ -31,7 +31,7 @@ class PackageRefactoring:
             pkg_init = importlib.import_module(top_package_name)
             self.file_name = pkg_init.__file__.replace('__init__', self.__class__.s_module_name)
         except Exception as e:
-            raise EnvironmentError(f'Unknown top-level package {top_package_name}') from e
+            raise OSError(f'Unknown top-level package {top_package_name}') from e
 
         self.package_name = top_package_name
         try:
@@ -43,7 +43,7 @@ class PackageRefactoring:
 
         self.cid_to_path = records = getattr(module, self.s_records_name, None)
         if records is None:
-            raise EnvironmentError(f'{top_package_name}.{self.s_module_name} is missing refactoring records {self.s_records_name}')
+            raise OSError(f'{top_package_name}.{self.s_module_name} is missing refactoring records {self.s_records_name}')
 
         self.path_to_cid = path_to_cid = {}
         for class_id, canonical_class_name in records.items():
@@ -55,7 +55,7 @@ class PackageRefactoring:
     def _refactor(self, cur_path: str, new_path: str):
         cid = self.path_to_cid.get(cur_path)
         if cid is None:
-            raise EnvironmentError(f'Unknown canonical class name {cur_path}')
+            raise OSError(f'Unknown canonical class name {cur_path}')
 
         self.cid_to_path[cid] = new_path
         del self.path_to_cid[cur_path]
@@ -96,7 +96,7 @@ class PackageRefactoring:
 
         cls = PyClass.find(canonical_class_name)
         if cls is None or not inspect.isclass(cls):
-            raise EnvironmentError(f'Unknown class {canonical_class_name}; class_id = {class_id}')
+            raise OSError(f'Unknown class {canonical_class_name}; class_id = {class_id}')
 
         return cls
 

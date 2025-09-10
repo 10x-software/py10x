@@ -41,7 +41,7 @@ extend-select = [
   #"I",   # isort
   #"PGH", # pygrep-hooks
   #"RUF", # Ruff-specific
-  #"UP",  # pyupgrade
+  "UP",  # pyupgrade
 ]
 
 

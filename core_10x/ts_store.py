@@ -1,5 +1,6 @@
 import abc
-from typing import Iterable, Self
+from collections.abc import Iterable
+from typing import Self
 
 from core_10x.trait_filter import f
 from core_10x.py_class import PyClass
@@ -70,7 +71,7 @@ class TsStore(Resource, resource_type = TS_STORE):
             return store
 
         except Exception as e:
-            raise EnvironmentError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{str(e)}') from e
+            raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{str(e)}') from e
 
     s_instance_kwargs_map = {
         Resource.HOSTNAME_TAG:  (Resource.HOSTNAME_TAG, None),
