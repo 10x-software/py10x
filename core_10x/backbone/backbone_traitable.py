@@ -6,7 +6,7 @@ from core_10x.backbone.backbone_store import BackboneStore
 class BackboneTraitable(Traitable):
     @staticmethod
     def build_trait_dir(bases, class_dict, trait_dir) -> RC:
-        for trait_name, trait_def in class_dict.items():
+        for trait_def in class_dict.values():
             if isinstance(trait_def, TraitDefinition):
                 trait_def.flags_change(T.EVAL_ONCE)
 

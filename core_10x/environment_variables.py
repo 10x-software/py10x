@@ -45,21 +45,21 @@ class _EnvVars:
             assert f_convert, f'Unknown data type {data_type}'
             try:
                 value = f_convert(str_value)
-            except Exception:
-                raise TypeError(f'Variable {var_name} - could not convert {str_value} to {data_type}')
+            except Exception as e:
+                raise TypeError(f'Variable {var_name} - could not convert {str_value} to {data_type}') from e
         else:
             try:
                 value = f_get(cls)
-            except Exception:
+            except Exception as e:
                 rc = RC(False)  #-- capture the exc
-                raise RuntimeError(f'{cls}.{var_name} - failed while getting a value\n{rc.error()}')
+                raise RuntimeError(f'{cls}.{var_name} - failed while getting a value\n{rc.error()}') from e
 
         if f_apply:
             try:
                 f_apply(cls, value)
-            except Exception:
+            except Exception as e:
                 rc = RC(False)  #-- capture the exc
-                raise ValueError(f'{cls}.{var_name} - failed while applying value: {value}\n{rc.error()}')
+                raise ValueError(f'{cls}.{var_name} - failed while applying value: {value}\n{rc.error()}') from e
 
         return value
 
@@ -86,7 +86,7 @@ class _EnvVars:
                 assert f_get, f'Variable {name} must define either a default value or a getter {f_get_name}(cls)'
                 #-- TODO: check signature: f_get(cls)
             else:
-                f_get = lambda cls: def_value # noqa: E731
+                f_get = lambda cls,def_value=def_value: def_value # noqa: E731
 
             f_apply_name = f'{name}_apply'
             f_apply = cls_dict.get(f_apply_name)    #-- f(cls, value)

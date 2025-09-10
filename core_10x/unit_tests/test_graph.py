@@ -166,7 +166,7 @@ class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):
         self.assertEqual(on, bool(BTP.current().flags() & BTP.CONVERT_VALUES))
         if not on:
-            with self.assertRaises(Exception):
+            with self.assertRaises(TypeError):
                 Person(first_name=1, last_name=2)
         else:
             p = Person(first_name=1, last_name=2)
@@ -210,7 +210,7 @@ class TestExecControl(TestGraphBase):
         p.weight_lbs = 100.
 
         if on:
-            with self.assertRaises(Exception):
+            with self.assertRaises(TypeError):
                 p.weight_lbs = '200'
 
             self.assertEqual(p.weight, 100.0)

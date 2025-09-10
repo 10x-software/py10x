@@ -22,7 +22,7 @@ class PyClass:
         try:
             return name_type(cls)
         except Exception as ex:
-            raise ValueError( f'cls must be a valid class\n{str(ex)}' )
+            raise ValueError( 'cls must be a valid class' ) from ex
 
     @staticmethod
     def top_level_package(cls) -> str:
@@ -42,8 +42,8 @@ class PyClass:
     def find_symbol(canonical_symbol_name: str):
         try:
             module_name, symbol_name = canonical_symbol_name.rsplit('.', maxsplit = 1)
-        except Exception:
-            raise ValueError( f"Invalid canonical_symbol_name = '{canonical_symbol_name}'" )
+        except Exception as e:
+            raise ValueError( f"Invalid canonical_symbol_name = '{canonical_symbol_name}'" ) from e
 
         try:
             return PyClass.dummy_unpickler().find_class(module_name, symbol_name)
@@ -132,8 +132,8 @@ class PyClass:
         tree = inspect.getclasstree([cls])
         try:
             return tree[ -1 ][ 0 ][ 1 ]
-        except Exception:
-            assert False, f'Something went wrong with inheritance tree of class {PyClass.name(cls)}'
+        except Exception as e:
+            raise AssertionError(f'Something went wrong with inheritance tree of class {PyClass.name(cls)}') from e
 
     @staticmethod
     def class_tree(root_class: type, *classes) -> dict:
@@ -235,8 +235,8 @@ class PyClass:
         try:
             dir = files(package_name)
 
-        except Exception:
-            assert False, f"'{package_name}' is neither a package, nor a module"
+        except Exception as e:
+            raise AssertionError(f"'{package_name}' is neither a package, nor a module") from e
 
         for item in dir.iterdir():
             name: str = item.name

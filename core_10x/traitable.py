@@ -484,7 +484,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base
         if isinstance(def_value, dict): #-- trait values
             return self.data_type(**def_value)
 
-        assert False, f'{self.data_type} - may not be constructed from {def_value}'
+        raise ValueError(f'{self.data_type} - may not be constructed from {def_value}')
 
     def from_str(self, s: str):
         return self.data_type.instance_by_id(s)
@@ -554,4 +554,4 @@ class AnonymousTraitable(Traitable):
 
     @classmethod
     def collection(cls, _coll_name: str = None):
-        assert False, 'AnonymousTraitable may not have a collection'
+        raise AssertionError('AnonymousTraitable may not have a collection')

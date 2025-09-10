@@ -25,7 +25,8 @@ class TestTsUnionCollection(unittest.TestCase):
         self.assertIsNone( col.min('x') )
         self.assertEqual( col.count(), 0 )
 
-    def test_find(self, args=(f(x=GT(1)),)):
+    def test_find(self, args=None):
+        args = (f(x=GT(1)),) if args is None else args
         self.collection1.find.return_value = [{Nucleus.ID_TAG(): 2}]
         self.collection2.find.return_value = [{Nucleus.ID_TAG(): 1}]
         results = list(self.union.find(*args))

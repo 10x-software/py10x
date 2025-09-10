@@ -30,8 +30,8 @@ class PackageRefactoring:
         try:
             pkg_init = importlib.import_module(top_package_name)
             self.file_name = pkg_init.__file__.replace('__init__', self.__class__.s_module_name)
-        except Exception:
-            raise EnvironmentError(f'Unknown top-level package {top_package_name}')
+        except Exception as e:
+            raise EnvironmentError(f'Unknown top-level package {top_package_name}') from e
 
         self.package_name = top_package_name
         try:
