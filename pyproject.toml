@@ -31,13 +31,7 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
-target-version = "py310"
 src = ["core_10x", "infra_10x"]
-
-[tool.ruff.lint.per-file-ignores]
-"ui_10x/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N801","N802","N816"]
-"*.pyi" = ["N801","N802"]
-"*/manual_tests/*" = ["N801","N802"]
 
 [tool.ruff.lint]
 ignore = ["RUF013","RUF012"]
@@ -48,7 +42,14 @@ extend-select = [
   "RUF", # Ruff-specific
   "UP",  # pyupgrade
   "N",   # naming
+  "F",   # pyflakes
+  "C90", # complexity
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"ui_10x/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N801","N802","N816"]
+"*.pyi" = ["N801","N802"]
+"*/manual_tests/*" = ["N801","N802"]
 
-
+[tool.ruff.lint.mccabe]
+max-complexity = 12 # Flag errors (`C901`) whenever the complexity level exceeds this
