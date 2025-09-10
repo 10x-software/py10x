@@ -1,5 +1,4 @@
 import ast
-import functools
 import locale
 import platform
 import inspect
@@ -9,7 +8,7 @@ import copy
 from types import GenericAlias
 from typing import get_origin
 
-from core_10x_i import BTrait
+from core_10x_i import BTrait, BTraitable
 
 from core_10x.xnone import XNone
 from core_10x.named_constant import NamedConstant
@@ -43,11 +42,11 @@ class Trait(BTrait):
         if real_trait_class:
             return real_trait_class
 
-        map = Trait.s_baseclass_traitclass_map
+        tmap = Trait.s_baseclass_traitclass_map
         base_class: type
-        for base_class in reversed(map):
+        for base_class in reversed(tmap):
             if issubclass(data_type, base_class):
-                return map[base_class]
+                return tmap[base_class]
 
         return generic_trait
 
@@ -283,10 +282,21 @@ class Trait(BTrait):
     def choices(self):
         return XNone
 
+    #TODO: consider binding traitable_class at trait creation time
+    #TODO: unify XNone/None conversions with object serialization/deserializatoin in c++
+    #TODO: call these from c++ directly in place of f_serialize/f_deserialize?
+    def serialize_for_traitable_class(self, traitable_class: BTraitable, value, replace_xnone=False):
+        value = self.f_serialize.__get__(None, traitable_class)(self, value)
+        return None if replace_xnone and value is XNone else value
+
+    def deserialize_for_traitable_class(self, traitable_class: BTraitable, value, replace_none=False):
+        value = self.f_deserialize.__get__(None,traitable_class)(self, value)
+        return XNone if replace_none and value is None else value
+
     #===================================================================================================================
 
 #---- Methods Associated with a trait
-class TRAIT_METHOD(NamedConstant):
+class TRAIT_METHOD(NamedConstant): # noqa PyPep8Naming
     GET                 = Trait.create_f_get
     SET                 = Trait.create_f_set
     VERIFY              = Trait.create_f_plain
@@ -301,7 +311,7 @@ class TRAIT_METHOD(NamedConstant):
     STYLE_SHEET         = Trait.create_f_plain
 
 
-class generic_trait(Trait, register = False):
+class generic_trait(Trait, register = False): # noqa PyPep8Naming
     s_ui_hint = Ui.NONE
 
     def post_ctor(self):

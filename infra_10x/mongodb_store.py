@@ -1,4 +1,4 @@
-from pymongo import MongoClient, ReturnDocument, errors
+from pymongo import MongoClient, errors
 from pymongo.database import Database
 from pymongo.collection import Collection
 
@@ -221,25 +221,21 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
         sst     = ('serverSelectionTimeoutMS',  10000),
     )
 
-    s_cached_connections = {}
+    s_cached_connections: dict[tuple,MongoClient] = {}
     @classmethod
     def connect(cls, hostname: str, username: str, password: str, _cache = True, _throw = True, **kwargs) -> MongoClient:
-        if _cache:
-            connection_key = standard_key((hostname, username), kwargs)
-            client = cls.s_cached_connections.get(connection_key)
-            if client:
-                return client
-
-        client = MongoClient(hostname, username = username, password = password, **kwargs)
-        try:
-            client.server_info()
-        except Exception:
-            client.close()
-            if _throw:
-                raise
-            return None
-
-        if _cache:
+        connection_key = standard_key((hostname, username), kwargs) if _cache else None
+        client = cls.s_cached_connections.get(connection_key)
+        if not client:
+            client = MongoClient(hostname, username = username, password = password, **kwargs)
+            try:
+                client.server_info()
+            except Exception:
+                client.close()
+                if _throw:
+                    raise
+                client = None
+        if client and connection_key:
             cls.s_cached_connections[connection_key] = client
 
         return client

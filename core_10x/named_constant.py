@@ -1,3 +1,5 @@
+from typing import Self, Any
+
 from core_10x.nucleus import Nucleus
 
 
@@ -18,8 +20,9 @@ class NamedConstant(Nucleus):
 
         NOTE:   all the members must have either explicit or auto-generated values exclusively
     """
+    __slots__ = 'name', 'label', 'value'
 
-    def __init__(self, name = '', label = '', value = None):
+    def __init__(self, name: str = '', label: str = '', value: Any = None):
         super().__init__()
         self.name = name
         self.label = label
@@ -31,24 +34,24 @@ class NamedConstant(Nucleus):
     def __hash__(self):
         return hash(self.name)
 
-    def __deepcopy__(self, memodict={}):
+    def __deepcopy__(self, memo=None):
         return self
 
     @classmethod
-    def _create(cls, args) -> 'NamedConstant':
+    def _create(cls, args: Any) -> Self:
         cdef = cls()
-        if type(args) is not tuple:     #-- just a value
+        if type(args) is not tuple:  #-- just a value
             cdef.value = args
 
         else:
             n = len(args)
-            if n == 0:      #-- ()
+            if n == 0:  #-- ()
                 pass
 
-            elif n == 1:    #-- just a label
+            elif n == 1:  #-- just a label
                 cdef.label = args[0]
 
-            elif n == 2:    #-- (label, value)
+            elif n == 2:  #-- (label, value)
                 cdef.label = args[0]
                 cdef.value = args[1]
 
@@ -71,20 +74,20 @@ class NamedConstant(Nucleus):
         return self.name
 
     @classmethod
-    def deserialize(cls, name: str) -> 'NamedConstant':
-        dir = cls.s_dir
-        cdef = dir.get(name, dir)
-        if cdef is dir:
+    def deserialize(cls, name: str) -> Self:
+        sdir = cls.s_dir
+        cdef = sdir.get(name, sdir)
+        if cdef is sdir:
             raise TypeError(f'{cls} - unknown constant {name}')
 
         return cdef
 
     @classmethod
-    def from_str(cls, s: str) -> 'NamedConstant':
+    def from_str(cls, s: str) -> Self:
         return cls.s_dir.get(s)
 
     @classmethod
-    def from_any_xstr(cls, data) -> 'NamedConstant':
+    def from_any_xstr(cls, data) -> Self:
         if type(data) is cls.s_data_type:
             reverse_dir = cls.s_reverse_dir
             if reverse_dir:
@@ -94,7 +97,6 @@ class NamedConstant(Nucleus):
             for cdef in cls.s_dir.values():
                 if cdef.value == data:
                     return cdef
-
         return None
 
     @classmethod
@@ -107,17 +109,18 @@ class NamedConstant(Nucleus):
 
     #===================================================================================================================
 
-    s_dir = {}
+    s_dir: dict[str, Self] = {}
     s_reverse_dir = {}
     s_data_type = None
     s_default_labels = False
     s_lowercase_values = False
+
     def __init_subclass__(
         cls,
         default_labels: bool    = None,    #-- if True and a label is not defined, creates it by calling default_label(name)
         lowercase_values: bool  = None,    #-- if a value is not defined, sets it to name, or name.lower() if True
     ):
-        dir = cls.s_dir = { name: cls(cdef.name, cdef.label, cdef.value) for name, cdef in cls.s_dir.items() }
+        sdir = cls.s_dir = {name: cls(cdef.name, cdef.label, cdef.value) for name, cdef in cls.s_dir.items()}
 
         if default_labels is not None:
             cls.s_default_labels = default_labels
@@ -151,13 +154,13 @@ class NamedConstant(Nucleus):
             else:
                 assert issubclass(dt, data_type), f'{cls}.{name} must be a subclass of {data_type}'
 
-            dir[name] = cdef
+            sdir[name] = cdef
 
         cls.s_data_type = data_type
         if getattr(data_type, '__hash__', None):    #-- check if data_type is hashable and build the reverse dir if so
-             cls.s_reverse_dir = { cdef.value: cdef for cdef in dir.values() }
+            cls.s_reverse_dir = {cdef.value: cdef for cdef in sdir.values()}
 
-        for name, cdef in dir.items():
+        for name, cdef in sdir.items():
             setattr(cls, name, cdef)
 
     @classmethod
@@ -193,19 +196,19 @@ class Enum(NamedConstant):
         return self.value
 
     @classmethod
-    def _create(cls, args) -> 'Enum':
+    def _create(cls, args: Any) -> Self:
         cdef = cls()
         if args == ():
             return cdef
 
-        if type(args) is str:     #-- just a label
+        if type(args) is str:  #-- just a label
             cdef.label = args
             return cdef
 
         assert False, f'an empty tuple or string is expected'
 
     @classmethod
-    def next_auto_value(cls):
+    def next_auto_value(cls) -> int:
         last_value = cls.s_last_value
         cls.s_last_value += cls.s_step
         return last_value
@@ -250,9 +253,9 @@ class EnumBits(NamedConstant):
     @classmethod
     def names_to_value(cls, cnames: list) -> int:
         value = 0x0
-        dir = cls.s_dir
+        sdir = cls.s_dir
         for cname in cnames:
-            cdef = dir.get(cname)
+            cdef = sdir.get(cname)
             if cdef is None:
                 raise TypeError(f'{cls} - unknown bit {cname}')
 
@@ -261,7 +264,7 @@ class EnumBits(NamedConstant):
         return value
 
     @classmethod
-    def from_str(cls, s: str) -> 'EnumBits':
+    def from_str(cls, s: str) -> Self:
         if not s:
             return getattr(cls, NO_FLAGS_TAG)
 
@@ -274,7 +277,7 @@ class EnumBits(NamedConstant):
         return cls(s, s, value)
 
     @classmethod
-    def from_int(cls, value: int) -> 'EnumBits':
+    def from_int(cls, value: int) -> Self:
         cnames = cls.names_from_value(value)
         if not cnames:
             return getattr(cls, NO_FLAGS_TAG)
@@ -283,21 +286,22 @@ class EnumBits(NamedConstant):
         return cls(name, name, value)
 
     @classmethod
-    def from_any_xstr(cls, data) -> 'EnumBits':
+    def from_any_xstr(cls, data) -> Self:
         dt = type(data)
         if dt is int:
             return cls.from_int(data)
 
-        elif dt is tuple or dt is list:
+        if dt is tuple or dt is list:
             value = cls.names_to_value(data)
             if not value:
                 return getattr(cls, NO_FLAGS_TAG)
 
             name = '|'.join(data)
             return cls(name, name, value)
+        return None
 
     @classmethod
-    def deserialize(cls, data) -> 'EnumBits':
+    def deserialize(cls, data) -> Self:
         return cls.from_str(data)
 
     @classmethod
@@ -322,9 +326,9 @@ class NamedConstantValue:
         for cname, value in named_constant_values.items():
             cdef = c_defs.get(cname)
             assert cdef, f'{named_constant_class}.{cname} - unknown named constant'
-            self.process_row( cdef, data, value)
+            self.process_row(cdef, data, value)
 
-    def process_row(self, cdef: NamedConstant, data: dict, row ):
+    def process_row(self, cdef: NamedConstant, data: dict, row):
         data[cdef] = row
 
     def __getitem__(self, key):
@@ -336,7 +340,7 @@ class NamedConstantValue:
             named_constant_class = self.named_constant_class
             cdef = named_constant_class.s_dir.get(key)
             if not cdef:
-               raise KeyError(f'{named_constant_class}.{key} - unknown named constant')
+                raise KeyError(f'{named_constant_class}.{key} - unknown named constant')
 
             return self.data[cdef]
 
@@ -360,6 +364,6 @@ class NamedConstantTable(NamedConstantValue):
         assert len(row) == len(col_defs), f'{cdef.name} must have {len(col_defs)} values'
         data[cdef] = NamedConstantValue(
             self.col_named_constant_class,
-            **{ col_name: row[i] for i, col_name in enumerate(col_defs) }
+            **{col_name: row[i] for i, col_name in enumerate(col_defs)}
         )
 

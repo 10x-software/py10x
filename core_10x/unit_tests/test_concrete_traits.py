@@ -1,14 +1,11 @@
-import sys
-from functools import partial
-from http.cookiejar import debug
+
 from types import NoneType
 from typing import Type
 
 import pytest
 
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.code_samples.person import Person
-from core_10x.exec_control import GRAPH_OFF, CONVERT_VALUES_OFF, DEBUG_ON, CONVERT_VALUES_ON
+from core_10x.exec_control import DEBUG_ON, CONVERT_VALUES_ON
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 from core_10x.ts_union import TsUnion

@@ -1,7 +1,7 @@
 import functools
 import copy
 
-from core_10x_i import BTraitFlags as T
+from core_10x_i import BTraitFlags as T # noqa PyPep8Naming
 
 from core_10x.named_constant import Enum
 
@@ -22,8 +22,8 @@ class UiHint:
     BORDER_WIDTH    = 'border-width'
     BORDER_COLOR    = 'border-color'
     BORDER_STYLE    = 'border-style'
-
-    class WIDGET_TYPE(Enum):
+    
+    class WIDGET_TYPE(Enum):  # noqa PyPep8Naming
         NONE        = ()
         LINE        = ()
         TEXT        = ()
@@ -41,7 +41,7 @@ class UiHint:
 
     def __init__(self, label: str = None, flags: int = 0x0, tip: str = None, widget_type = None, **params):
         self.label: str = label
-        self.flags = flags
+        self.flags: int = flags
         self.tip: str = tip
         self.widget_type = widget_type
         self.params: dict = params
@@ -110,10 +110,10 @@ class UiHint:
 class UiHintModification(UiHint):
     def __init__(
             self,
-            label: str                              = None,
-            flags                                   = None,
-            tip: str                                = None,
-            widget_type: UiHint.WIDGET_TYPE.NONE    = None,
+            label: str                      = None,
+            flags                           = None,
+            tip: str                        = None,
+            widget_type: UiHint.WIDGET_TYPE = None,
             **params
     ):
         super().__init__(label, flags = flags, tip = tip, widget_type = widget_type, **params)
