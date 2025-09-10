@@ -1,7 +1,8 @@
 import operator
 import functools
 from itertools import chain
-from typing import Self, Generator, Any
+from typing import Self, Any
+from collections.abc import Generator
 
 from core_10x_i import BTraitable, BTraitableClass
 
@@ -296,7 +297,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
         bb_store = BoundDataDomain.store()
         if not bb_store:
-            raise EnvironmentError('No Store is available: neither current Store is set nor 10X Backbone host is defined')
+            raise OSError('No Store is available: neither current Store is set nor 10X Backbone host is defined')
 
         bbd = BoundDataDomain(domain = domain)
         bbd.reload()
@@ -318,7 +319,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         if not store:
             store = cls.preferred_store()
             if not store:
-                raise EnvironmentError(f'{cls} - failed to find a store')
+                raise OSError(f'{cls} - failed to find a store')
 
         return store
 

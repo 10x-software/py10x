@@ -1,6 +1,5 @@
 
 from types import NoneType
-from typing import Type
 
 import pytest
 
@@ -12,7 +11,7 @@ from core_10x.ts_union import TsUnion
 from core_10x.xnone import XNone, XNoneType
 
 
-def _test_i( data_type: Type, values, expected_values):
+def _test_i( data_type: type, values, expected_values):
     assert len(values)== len(expected_values)
 
     class TestableTraitable(Traitable):
