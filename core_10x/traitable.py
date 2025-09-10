@@ -154,7 +154,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         return rc
 
     @classmethod
-    def traits(cls, flags_on = 0, flags_off = 0) -> Generator[T, None, None]:
+    def traits(cls, flags_on = 0, flags_off = 0) -> Generator[Trait, None, None]:
         return (t for t in cls.s_dir.values() if (not flags_on or t.flags_on(flags_on)) and not t.flags_on(flags_off))
 
     def __hash__(self):

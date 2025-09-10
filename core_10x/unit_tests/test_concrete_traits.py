@@ -33,9 +33,9 @@ def _test_i( data_type: type, values, expected_values):
             if ev is None:
                 with pytest.raises(ValueError):
                     p.serialize_object()
-            else:
-                ev = ev if ev is not XNone else None
-                assert {'_id': '1', '_rev': 0, 'xid': 1, 'value': ev} == p.serialize_object()
+            elif isinstance(ev,data_type):
+                assert p.T.value.from_any(p.serialize_object()['value']) == ev
+
 
 def _test(data_type, values, expected_types):
     with TsUnion(): # TODO: remove when db access is sorted
@@ -72,10 +72,16 @@ def test_bool_trait():
     convert_expected = [True, False, True, False, True, False,TypeError,None,XNone,False,True,False,True,False,True,False]
     generic_test(data_type,values,convert_expected)
 
-def test_date_trait():
+def test_datetime_trait():
     from datetime import datetime
     data_type = datetime
-    values = [datetime(2020,1,1), '2020-01-01T00:00:00', '2020-01-01 00:00:00', '2020-01-01', 1577836800, None, XNone, 'abc', '', "Feb 1, 2020"]
-    convert_expected = [datetime(2020,1,1), datetime(2020,1,1), datetime(2020,1,1), datetime(2020,1,1), TraitMethodError, None, XNone, TypeError, TypeError, datetime(2020,2,1)]
+    values = [datetime(2020,1,1), '2020-01-01T01:02:03', '2020-01-01 00:00:00', '2020-01-01', 1577836800, None, XNone, 'abc', '', "Feb 1, 2020 1:2:3"]
+    convert_expected = [datetime(2020,1,1), datetime(2020,1,1,1,2,3), datetime(2020,1,1), datetime(2020,1,1), TraitMethodError, None, XNone, TypeError, TypeError, datetime(2020,2,1,1,2,3)]
     generic_test(data_type,values,convert_expected)
 
+def test_date_trait():
+    from datetime import date
+    data_type = date
+    values = [date(2020,1,1), '2020-01-01T00:00:00', '2020-01-01 00:00:00', '2020-01-01', 1577836800, None, XNone, 'abc', '', "Feb 1, 2020"]
+    convert_expected = [date(2020,1,1), date(2020,1,1), date(2020,1,1), date(2020,1,1), TraitMethodError, None, XNone, TypeError, TypeError, date(2020,2,1)]
+    generic_test(data_type,values,convert_expected)

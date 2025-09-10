@@ -2,10 +2,11 @@ import unittest
 import uuid
 
 from core_10x.code_samples.person import Person
-from core_10x.trait_definition import RT, BFlags, M, T
+from core_10x.trait_definition import RT, M, T
 from core_10x.traitable import Traitable
 from core_10x.traitable_id import ID
 from core_10x.ts_union import TsUnion
+from core_10x_i import BFlags
 
 
 class SubTraitable(Traitable):
@@ -84,8 +85,8 @@ class TestTraitableSlots(unittest.TestCase):
 class TestTraitable(unittest.TestCase):
 
     def test_init_with_id(self):
-        pid = ID('John|Smith',False)
-        p = Person(_id=pid)
+        pid = ID('John|Smith')
+        p = Person(pid)
         self.assertEqual(p.id(), pid)
 
     def test_init_with_trait_values(self):
