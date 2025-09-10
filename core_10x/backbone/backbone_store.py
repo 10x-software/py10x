@@ -1,4 +1,3 @@
-from core_10x_i import OsUser
 
 from core_10x.global_cache import cache
 from core_10x.environment_variables import EnvVars

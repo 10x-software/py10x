@@ -1,10 +1,9 @@
 import ast
 import inspect
-import locale
 
 from core_10x.xnone import XNone, XNoneType
 from core_10x.nucleus import Nucleus
-from core_10x.trait import Trait, T, TraitDefinition, RC
+from core_10x.trait import Trait, T
 from core_10x.ui_hint import Ui
 from core_10x.xdate_time import XDateTime, date, datetime
 from core_10x.py_class import PyClass

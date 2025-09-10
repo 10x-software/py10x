@@ -3,13 +3,13 @@ from typing import Callable
 from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
 from core_10x.rc import RC
-from core_10x.trait import Trait, Ui
+from core_10x.trait import Ui
 from core_10x.traitable import Traitable
-from core_10x.exec_control import BTP, INTERACTIVE
+from core_10x.exec_control import INTERACTIVE
 
 from ui_10x.utils import ux, UxDialog, ux_warning
 from ui_10x.traitable_view import TraitableView
-from ui_10x.trait_editor import TraitEditor, TraitWidget
+from ui_10x.trait_editor import TraitEditor
 
 class TraitableEditor:
     """
@@ -55,8 +55,8 @@ class TraitableEditor:
         return editor_class(entity, view = view, read_only = read_only, _confirm = True)
 
     def __init__(self, entity: Traitable, view: TraitableView = None, read_only = False, _confirm = False):
-        assert _confirm, f'Do not call TraitableEditor() directly, use TraitableEditor.editor() instead'
-        assert isinstance(entity, Traitable), f'entity must be an instance of Traitable'
+        assert _confirm, 'Do not call TraitableEditor() directly, use TraitableEditor.editor() instead'
+        assert isinstance(entity, Traitable), 'entity must be an instance of Traitable'
 
         entity_class = entity.__class__
         if view is None:

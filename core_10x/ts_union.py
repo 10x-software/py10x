@@ -2,7 +2,7 @@ import heapq
 import itertools
 import operator
 from itertools import zip_longest
-from typing import List, Self, Iterable
+from typing import Self, Iterable
 
 from core_10x.nucleus import Nucleus
 from core_10x.trait_filter import f, EQ

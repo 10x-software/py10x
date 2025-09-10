@@ -83,7 +83,7 @@ class IN(Op):
     def eval(self, left_value) -> bool:     return left_value in self.right_value
 
 class NIN(IN):
-    def eval(self, left_value) -> bool:     return not left_value in self.right_value
+    def eval(self, left_value) -> bool:     return left_value not in self.right_value
 
 #class REGEX(Op):
 

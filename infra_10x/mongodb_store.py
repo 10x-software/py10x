@@ -178,14 +178,14 @@ class MongoCollection(TsCollection):
         q = {self.s_id_tag: id_value}
         return self.coll.delete_one(q).acknowledged
 
-    def create_index(self, name: str, trait_name: str, **index_args) -> str:
+    def create_index(self, name: str, trait_name: str, **index_args) -> str|None:
         index_info = self.coll.index_information()
         if name in index_info:
             return None
 
         return self.coll.create_index(trait_name, name = name, **index_args)
 
-    def max(self, trait_name: str, filter: f = None) -> dict:
+    def max(self, trait_name: str, filter: f = None) -> dict|None:
         if filter:
             cur = self.coll.find(filter.prefix_notation()).sort({trait_name: -1}).limit(1)
         else:
@@ -195,7 +195,7 @@ class MongoCollection(TsCollection):
 
         return None
 
-    def min(self, trait_name: str, filter: f = None) -> dict:
+    def min(self, trait_name: str, filter: f = None) -> dict|None:
         if filter:
             cur = self.coll.find(filter.prefix_notation()).sort({ trait_name: 1 }).limit(1)
         else:
@@ -205,7 +205,7 @@ class MongoCollection(TsCollection):
 
         return None
 
-    def load(self, id_value: str) -> dict:
+    def load(self, id_value: str) -> dict|None:
         for data in self.coll.find({self.s_id_tag: id_value}):
             return data
 
@@ -273,16 +273,16 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
     def is_running_with_auth(cls, host_name: str) -> tuple:      #-- (is_running, with_auth)
         client = cls.connect(host_name, '', '', _cache = False, _throw = False)
         if not client:
-            return (False, False)
+            return False, False
 
         admin_db = client[cls.ADMIN]
         try:
             res = admin_db.command('getCmdLineOpts')
             auth = any(r == '--auth' for r in res['argv'][1:])
-            return (True, auth)
+            return True, auth
 
         except errors.OperationFailure:     #-- auth is required
-            return (True, True)
+            return True, True
 
         finally:
             client.close()

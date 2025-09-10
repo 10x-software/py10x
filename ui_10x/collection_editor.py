@@ -83,7 +83,7 @@ class CollectionEditor(Traitable):
         assert main_w, f'{self.__class__} - no widget has been created yet'
 
         num_panes = self.num_panes
-        if num_panes and index >= 0 and index < num_panes:
+        if num_panes and 0 <= index < num_panes:
             if index < num_panes:
                 main_w.replace_widget(index + 1, w)
             else:

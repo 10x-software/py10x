@@ -1,18 +1,14 @@
-import ast
-import inspect
 import operator
 import functools
-import textwrap
-from abc import ABC, abstractmethod
 from itertools import chain
-from typing import Self, Generator, Callable, Any
+from typing import Self, Generator, Any
 
 from core_10x_i import BTraitable, BTraitableClass
 
 from core_10x.nucleus import Nucleus
 from core_10x.xnone import XNone, XNoneType
-from core_10x.trait_definition import TraitDefinition, TraitModification, RT, M, Ui
-from core_10x.trait import Trait, TRAIT_METHOD, T, BoundTrait, trait_value
+from core_10x.trait_definition import TraitDefinition, TraitModification, RT, M, Ui # noqa F401
+from core_10x.trait import Trait, TRAIT_METHOD, T, BoundTrait, trait_value          # noqa F401
 import core_10x.concrete_traits as concrete_traits
 from core_10x.global_cache import cache
 from core_10x.rc import RC, RC_TRUE
@@ -20,9 +16,7 @@ from core_10x.package_refactoring import PackageRefactoring
 from core_10x.ts_store import TS_STORE, TsStore, TsCollection
 from core_10x.package_manifest import PackageManifest
 from core_10x.traitable_id import ID
-from core_10x.resource import ResourceRequirements
 from core_10x.trait_filter import f
-from core_10x.traitable_id import ID
 
 
 class TraitAccessor:
@@ -464,7 +458,7 @@ class StorableHelper(NotStorableHelper):
             self.set_revision(0)
         return rc
 
-class THIS_CLASS(Traitable):   pass  #-- to use for traits with the same Traitable class type
+class THIS_CLASS(Traitable):   ...  #-- to use for traits with the same Traitable class type
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True):
     def post_ctor(self):
@@ -560,4 +554,4 @@ class AnonymousTraitable(Traitable):
 
     @classmethod
     def collection(cls, _coll_name: str = None):
-        assert False, f'AnonymousTraitable may not have a collection'
+        assert False, 'AnonymousTraitable may not have a collection'

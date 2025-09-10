@@ -65,7 +65,7 @@ class _EnvVars:
 
     @classmethod
     def full_getter(cls, data_type, var_name: str, f_get, f_apply):
-        f = lambda cls: cls._getter(data_type, var_name, f_get, f_apply)
+        f = lambda cls: cls._getter(data_type, var_name, f_get, f_apply) # noqa: E731
         #return classmethod(cache(f))
         return cache(f)
 
@@ -75,7 +75,7 @@ class _EnvVars:
 
         cls.s_env_name = env_name
         annotations = cls.__annotations__
-        assert annotations, f'No variables are defined'
+        assert annotations, 'No variables are defined'
 
         cls_dict = cls.__dict__
         for name, data_type in annotations.items():
@@ -86,7 +86,7 @@ class _EnvVars:
                 assert f_get, f'Variable {name} must define either a default value or a getter {f_get_name}(cls)'
                 #-- TODO: check signature: f_get(cls)
             else:
-                f_get = lambda cls: def_value
+                f_get = lambda cls: def_value # noqa: E731
 
             f_apply_name = f'{name}_apply'
             f_apply = cls_dict.get(f_apply_name)    #-- f(cls, value)

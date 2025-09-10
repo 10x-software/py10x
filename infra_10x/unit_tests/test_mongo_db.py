@@ -1,12 +1,10 @@
 import unittest
 from unittest import mock
-from unittest.mock import Mock
 
 from uuid import uuid4
 
 import pymongo.errors
 
-from core_10x.package_refactoring import PackageRefactoring
 from infra_10x.mongodb_store import MongoStore
 from core_10x.code_samples.person import Person
 

@@ -1,9 +1,6 @@
 import inspect
 import pickle
 import io
-import sys
-import importlib
-import importlib.util
 
 from importlib_resources import files
 import shlex
@@ -15,6 +12,7 @@ class PyClass:
     Module top-level classes ONLY
     """
 
+    # ruff: noqa: E731
     NO_NAME         = lambda cls: ''
     QUAL_NAME       = lambda cls: cls.__qualname__
     CANONICAL_NAME  = lambda cls: f'{cls.__module__}.{cls.__qualname__}'
