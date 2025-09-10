@@ -2,11 +2,12 @@ import functools
 from unittest import TestCase
 from weakref import WeakKeyDictionary
 
+from core_10x.code_samples.person import WEIGHT_QU, Person
+from core_10x.exec_control import BTP, GRAPH_OFF, GRAPH_ON
+from core_10x.trait_definition import RT, T
 from core_10x.ts_union import TsUnion
 from core_10x.xnone import XNone
-from core_10x.code_samples.person import Person, WEIGHT_QU
-from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, BTP
-from core_10x.trait_definition import T,RT
+
 
 def call_counter(method):
     @functools.wraps(method)

@@ -1,7 +1,8 @@
 from datetime import date
 
 from core_10x.named_constant import NamedConstant
-from core_10x.traitable import Traitable, T, RT, Ui, RC, RC_TRUE
+from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
+
 
 class WEIGHT_QU( NamedConstant ):
     LB =    ( 'lb',     1. )

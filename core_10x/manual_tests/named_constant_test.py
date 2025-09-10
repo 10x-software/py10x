@@ -1,7 +1,17 @@
 from __future__ import annotations
 
 from math import exp, log
-from core_10x.named_constant import NamedConstant, Nucleus, NamedConstantValue, NamedConstantTable, Enum, ErrorCode, EnumBits
+
+from core_10x.named_constant import (
+    Enum,
+    EnumBits,
+    ErrorCode,
+    NamedConstant,
+    NamedConstantTable,
+    NamedConstantValue,
+    Nucleus,
+)
+
 
 class COLOR(NamedConstant, lowercase_values = True):
     RED         = ()

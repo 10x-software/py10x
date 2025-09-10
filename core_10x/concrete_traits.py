@@ -1,14 +1,15 @@
 import ast
 import inspect
 
-from core_10x.xnone import XNone, XNoneType
+from core_10x.named_constant import EnumBits, NamedConstant
 from core_10x.nucleus import Nucleus
-from core_10x.trait import Trait, T
+from core_10x.package_refactoring import PackageRefactoring
+from core_10x.py_class import PyClass
+from core_10x.trait import T, Trait
 from core_10x.ui_hint import Ui
 from core_10x.xdate_time import XDateTime, date, datetime
-from core_10x.py_class import PyClass
-from core_10x.named_constant import NamedConstant, EnumBits
-from core_10x.package_refactoring import PackageRefactoring
+from core_10x.xnone import XNone, XNoneType
+
 
 class primitive_trait(Trait, register = False):
     s_ui_hint = Ui.NONE

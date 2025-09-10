@@ -1,12 +1,10 @@
 import unittest
 from unittest import mock
-
 from uuid import uuid4
 
 import pymongo.errors
-
-from infra_10x.mongodb_store import MongoStore
 from core_10x.code_samples.person import Person
+from infra_10x.mongodb_store import MongoStore
 
 TEST_COLLECTION = uuid4().hex
 TEST_COLLECTION1 = uuid4().hex

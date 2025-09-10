@@ -1,4 +1,6 @@
 from core_10x.named_constant import Enum, NamedConstantTable
+
+
 # ruff: noqa: E741
 class R:
     class Symbol(Enum):

@@ -1,10 +1,10 @@
 import copy
 from collections import defaultdict
 
-from core_10x_i import BTraitFlags, BFlags
+from core_10x_i import BFlags, BTraitFlags
 
-from core_10x.xnone import XNone, XNoneType
 from core_10x.ui_hint import Ui, UiHintModification
+from core_10x.xnone import XNone, XNoneType
 
 #---- Attribute Tags
 NAME_TAG        = 'name'

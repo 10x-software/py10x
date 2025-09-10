@@ -1,8 +1,9 @@
 import inspect
 
-from core_10x.xnone import XNone
-from core_10x.py_class import PyClass
 from core_10x.entity import Entity
+from core_10x.py_class import PyClass
+from core_10x.xnone import XNone
+
 
 class Directory:
     @staticmethod

@@ -1,23 +1,29 @@
-import operator
 import functools
-from itertools import chain
-from typing import Self, Any
+import operator
 from collections.abc import Generator
+from itertools import chain
+from typing import Any, Self
 
 from core_10x_i import BTraitable, BTraitableClass
 
-from core_10x.nucleus import Nucleus
-from core_10x.xnone import XNone, XNoneType
-from core_10x.trait_definition import TraitDefinition, TraitModification, RT, M, Ui # noqa F401
-from core_10x.trait import Trait, TRAIT_METHOD, T, BoundTrait, trait_value          # noqa F401
 import core_10x.concrete_traits as concrete_traits
 from core_10x.global_cache import cache
-from core_10x.rc import RC, RC_TRUE
-from core_10x.package_refactoring import PackageRefactoring
-from core_10x.ts_store import TS_STORE, TsStore, TsCollection
+from core_10x.nucleus import Nucleus
 from core_10x.package_manifest import PackageManifest
-from core_10x.traitable_id import ID
+from core_10x.package_refactoring import PackageRefactoring
+from core_10x.rc import RC, RC_TRUE
+from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value  # noqa F401
+from core_10x.trait_definition import (  # noqa F401
+    RT,
+    M,
+    TraitDefinition,
+    TraitModification,
+    Ui,
+)
 from core_10x.trait_filter import f
+from core_10x.traitable_id import ID
+from core_10x.ts_store import TS_STORE, TsCollection, TsStore
+from core_10x.xnone import XNone, XNoneType
 
 
 class TraitAccessor:

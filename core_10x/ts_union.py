@@ -1,13 +1,13 @@
 import heapq
 import itertools
 import operator
+from collections.abc import Iterable
 from itertools import zip_longest
 from typing import Self
-from collections.abc import Iterable
 
 from core_10x.nucleus import Nucleus
-from core_10x.trait_filter import f, EQ
-from core_10x.ts_store import TsStore, TsCollection
+from core_10x.trait_filter import EQ, f
+from core_10x.ts_store import TsCollection, TsStore
 
 
 class _OrderKey:

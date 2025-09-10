@@ -1,4 +1,4 @@
-from core_10x.rc import RC, Enum, ErrorCode, RC_TRUE
+from core_10x.rc import RC, RC_TRUE, Enum, ErrorCode
 
 
 class CONDITION(Enum):

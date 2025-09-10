@@ -1,6 +1,6 @@
+from functools import total_ordering
 from typing import Self
 
-from functools import total_ordering
 
 @total_ordering
 class ID:

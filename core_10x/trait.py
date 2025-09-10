@@ -1,19 +1,19 @@
 import ast
+import copy
+import functools
+import inspect
 import locale
 import platform
-import inspect
-import functools
 from inspect import Parameter
-import copy
 from types import GenericAlias
 from typing import get_origin
 
 from core_10x_i import BTrait, BTraitable
 
-from core_10x.xnone import XNone
 from core_10x.named_constant import NamedConstant
-from core_10x.trait_definition import TraitDefinition, T, Ui
 from core_10x.rc import RC
+from core_10x.trait_definition import T, TraitDefinition, Ui
+from core_10x.xnone import XNone
 
 
 class Trait(BTrait):
