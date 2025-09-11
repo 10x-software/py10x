@@ -1,3 +1,5 @@
+from typing import Any
+
 from core_10x.traitable import Traitable, Trait, T, RT, RC, Ui
 
 from ui_10x.utils import ux, ux_push_button, ux_warning, ux_success, ux_answer
@@ -5,18 +7,18 @@ from ui_10x.traitable_editor import TraitableEditor, TraitableView
 
 
 class StockerPlug(Traitable):
-    master: Traitable               = RT()
+    master: Traitable
     current_class_trait_name: str   = RT('current_class')
     current_entity_trait_name: str  = RT('current_entity')
     changed_entity_cb_name: str     = RT('on_changed_entity')        #-- f(ce: Traitable) - after accepting edits and reloading
     deleted_entity_cb_name: str     = RT('on_deleted_entity')        #-- f(de: Traitable)
 
-    new_entity_cb                   = RT()
-    changed_entity_cb               = RT()
-    deleted_entity_cb               = RT()
+    new_entity_cb: Any
+    changed_entity_cb: Any
+    deleted_entity_cb: Any
 
-    current_class: type             = RT()
-    current_entity: Traitable       = RT()
+    current_class: type
+    current_entity: Traitable
 
     def _cb(self, cb_name: str):
         m = self.master
@@ -52,9 +54,9 @@ class StockerPlug(Traitable):
         return m.get_value(self.current_entity_trait_name)
 
 class EntityStocker(Traitable):
-    plug: StockerPlug               = RT()
-    entity_viewer: TraitableEditor  = RT()
-    buttons_spec: dict              = RT()
+    plug: StockerPlug
+    entity_viewer: TraitableEditor
+    buttons_spec: dict
 
     def entity_viewer_get(self) -> TraitableEditor:
         ce = self.plug.current_entity

@@ -142,7 +142,7 @@ class DynamicComponent(rio.Component):
 
     def build(self) -> rio.Component:
         _=self.revision
-        return self.builder.build()
+        return self.builder.build(self.session)
 
 class ComponentBuilder:
     __slots__ = ('component','_kwargs')
@@ -153,6 +153,7 @@ class ComponentBuilder:
     s_dynamic = True
     s_children_attr = 'children'
     s_single_child = False
+    s_size_adjustments = ('min_width', 'min_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom')
 
     def _get_children(self):
         children = self[self.s_children_attr]
@@ -195,15 +196,18 @@ class ComponentBuilder:
     def with_children(self, *args):
         return self.__class__(*args,**self._kwargs) if args else self
 
-    def _build_children(self):
-        return [ child() if isinstance(child,ComponentBuilder) else child for child in self._get_children() if child is not None]
+    def _build_children(self,session: rio.Session):
+        return [ child(session) if isinstance(child,ComponentBuilder) else child for child in self._get_children() if child is not None]
 
-    def build(self):
+    def build(self,session):
         kwargs = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
-        return self.s_component_class(*self._build_children(), **kwargs)
+        for size_adjustment in self.s_size_adjustments:
+            if size_adjustment in kwargs:
+                kwargs[size_adjustment] = kwargs[size_adjustment] / session.pixels_per_font_height
+        return self.s_component_class(*self._build_children(session), **kwargs)
 
-    def __call__(self) -> rio.Component:
-        self.component = DynamicComponent(self) if self.s_dynamic else self.build()
+    def __call__(self,session: rio.Session) -> rio.Component:
+        self.component = DynamicComponent(self) if self.s_dynamic else self.build(session)
         return self.component
 
     def __getitem__(self, item):
@@ -276,8 +280,8 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
     def set_layout(self, layout: i.Layout):
         self._layout = layout
         
-    def _build_children(self):
-        return [self._layout.with_children(*self._get_children()).build()] if self._layout else super()._build_children()
+    def _build_children(self,session: rio.Session):
+        return [self._layout.with_children(*self._get_children()).build(session)] if self._layout else super()._build_children(session)
 
     def set_stretch(self, stretch):
         assert stretch in (0, 1), 'Only stretch of 0 or 1 is currently supported'
@@ -358,7 +362,6 @@ class Layout(Widget, i.Layout):
         self['spacing'] = 0
 
     def set_contents_margins(self, left, top, right, bottom):
-        #note - rio expects sizes in font height units..
         self['margin_left'] = left
         self['margin_top'] = top
         self['margin_right'] = right
@@ -367,9 +370,6 @@ class Layout(Widget, i.Layout):
 class VBoxLayout(Layout, i.VBoxLayout):
     s_component_class = rio.Column
     s_stretch_arg = 'grow_y'
-
-    def build(self):
-        return super().build()
 
 class HBoxLayout(Layout,i.HBoxLayout):
     s_component_class = rio.Row
@@ -385,8 +385,8 @@ class FormLayout(Layout,i.FormLayout):
     def add_row(self, *args):
         self.add_children(args)
 
-    def _build_children(self):
-        return [[child() for child in children] for children in self._get_children()]
+    def _build_children(self,session: rio.Session):
+        return [[child(session) for child in children] for children in self._get_children()]
 
 class Dialog(Widget,i.Dialog):
     __slots__ = ('_dialog','_parent','_server','_modal')
@@ -398,16 +398,12 @@ class Dialog(Widget,i.Dialog):
         super().__init__(*children, **kwargs)
         self.on_accept = self._wrapper(on_accept, accept=True)
         self.on_reject = self._wrapper(on_reject)
-        # self.window = None
         self.accepted = True
         self.title = title
         self._dialog = None
         self._server = None
         self._parent = parent
         self._modal = True
-
-    def __call__(self) -> rio.Component:
-        return super().__call__()
 
     def set_window_title(self, title: str):
         self.title = title
@@ -418,9 +414,6 @@ class Dialog(Widget,i.Dialog):
             self.accepted = accept
             if func:
                 func(*args)
-            # if self.window is not None:
-            #     webview.windows[self.window].destroy()
-            #     self.window = None
             self._on_close()
         return wrapper
 
@@ -431,17 +424,10 @@ class Dialog(Widget,i.Dialog):
         self._on_close()
         self.accepted = bool(result)
 
-    # def _build_children(self):
-    #     return self._layout.with_children( *self['children'],
-    #         HBoxLayout(
-    #             PushButton('Accept', on_press=self.on_accept),
-    #             PushButton('Reject', on_press=self.on_reject),
-    #         )
-    #     )._build_children()
-
     def _on_close(self):
         if self._dialog:
-            self._dialog._root_component.session.create_task(self._dialog.close())
+            dialog = self._dialog.result()
+            dialog._root_component.session.create_task(dialog.close())
             self._dialog = None
         elif self._server:
             self._server.should_exit = True
@@ -450,18 +436,19 @@ class Dialog(Widget,i.Dialog):
         self._server = server
 
     def _on_dialog_open(self,future):
-        self._dialog = future.result()
+        self._dialog = future
 
     def exec(self):
         assert not CURRENT_SESSION, 'Cannot start another event loop - use show() with callbacks instead'
         title = self.title or 'Dialog'
-        app = rio.App(name=title, build=self)
+        app = rio.App(name=title, build=lambda : DynamicComponent(self))
         assert not self._parent
         debug = True
         if debug:
             from rio.debug.monkeypatches import apply_monkeypatches
             apply_monkeypatches()
-        app._run_in_window(debug_mode=debug,on_server_created=self._on_server_created)
+        #app._run_in_window(debug_mode=debug,on_server_created=self._on_server_created)
+        app._run_as_web_server(debug_mode=debug)
         return self.accepted
 
     def show(self):
@@ -549,8 +536,8 @@ class RadioButton(Widget, i.RadioButton):
         if self._button_group:
             self._button_group.on_change(value)
 
-    def __call__(self) -> rio.Component:
-        button = super().__call__()
+    def __call__(self, session: rio.Session) -> rio.Component:
+        button = super().__call__(session)
         if self._button_group:
             self._button_group._buttons.append(button)
         return button
@@ -614,23 +601,21 @@ class LineEditComponent(rio.Component):
     on_confirm: rio.EventHandler[[str]] = None
 
     def build(self):
-        children = [
-            rio.TextInput(
-                #self.bind().text,
-                self.text,
+        text_input = rio.TextInput(
+                self.text,  #self.bind().text,
                 is_sensitive = self.is_sensitive,
                 on_change = self.on_change,
                 on_confirm = self.on_confirm
             )
-        ]
-        if self.tooltip is not None:
-            children.append(
-                rio.Tooltip(
-                    children[0],
-                    self.tooltip
-                )
-            )
-        return rio.Stack(*reversed(children))
+
+        if self.tooltip is None:
+            return text_input
+
+        tooltip = rio.Tooltip(
+            text_input,
+            self.tooltip
+        )
+        return rio.Stack(tooltip, text_input)
 
 class LineEdit(Widget, i.LineEdit):
     s_default_kwargs = dict(text='')
@@ -997,10 +982,6 @@ class TreeItem(Widget, i.TreeItem):
 
     def set_tool_tip(self, col: int, tooltip: str):
         self['tooltip'] = tooltip
-
-    def build(self):
-        print(self['text'], [child['text'] for child in self['children']])
-        return super().build()
 
 class RioTreeView(rio.Component):
     """makes item-level callbacks available on the tree level"""
