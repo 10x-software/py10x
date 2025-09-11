@@ -1,3 +1,5 @@
+from typing import Any
+
 from core_10x.traitable import Traitable, T, RT, RC
 from core_10x.traitable_id import ID
 from core_10x.trait_filter import f
@@ -23,17 +25,17 @@ class Collection(Traitable):
         self.invalidate_value('entities')
 
 class CollectionEditor(Traitable):
-    coll: Collection                    = RT()
-    current_class                       = RT()
-    coll_title: str                     = RT()
+    coll: Collection
+    current_class: Any
+    coll_title: str
     num_panes: int                      = RT(1)
 
-    main_w: ux.Splitter                 = RT()
-    searchable_list: UxSearchableList   = RT()
-    stocker: EntityStocker              = RT()
+    main_w: ux.Splitter
+    searchable_list: UxSearchableList
+    stocker: EntityStocker
 
-    current_editor                      = RT()
-    current_entity: Traitable           = RT()
+    current_editor: Any
+    current_entity: Traitable
 
     def current_class_get(self):
         return self.coll.cls
