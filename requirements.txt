@@ -18,11 +18,12 @@ PyQt6-Qt6==6.8.2
 PyQt6-sip==13.10.0
 
 #---- Rio
-#rio-ui[window]~=0.11.1
+rio-ui>=0.11.2rc7
 
 #dev
-pytest~=8.3.4
-pytest-cov~=6.0.0
+pytest>=8.3.4
+pytest-cov>=6.0.0
+ruff>=0.13.0
 
 
 #---- the below are not currently required ---
