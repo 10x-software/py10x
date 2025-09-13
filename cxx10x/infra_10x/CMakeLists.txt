@@ -43,6 +43,9 @@ pybind11_add_module(infra_10x_i
 #)
 
 # Generate .pyi stubs after building the module
+if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+endif()
 add_custom_command(
         TARGET infra_10x_i POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${pybind11_stubgen_SOURCE_DIR}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" ${Python3_EXECUTABLE} -m pybind11_stubgen infra_10x_i -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}

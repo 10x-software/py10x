@@ -47,7 +47,7 @@ target_include_directories(core_10x_i PRIVATE ${stduuid_SOURCE_DIR}/include)
 
 # Generate .pyi stubs after building the module
 if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ".")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 add_custom_command(
