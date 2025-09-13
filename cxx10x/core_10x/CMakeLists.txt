@@ -46,6 +46,10 @@ target_include_directories(core_10x_i PRIVATE ${stduuid_SOURCE_DIR}/include)
 
 
 # Generate .pyi stubs after building the module
+if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ".")
+endif()
+
 add_custom_command(
         TARGET core_10x_i POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${pybind11_stubgen_SOURCE_DIR}:${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" ${Python3_EXECUTABLE} -m pybind11_stubgen core_10x_i -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
@@ -60,4 +64,4 @@ install(TARGETS core_10x_i
 )
 
 # Install the generated .pyi alongside the module
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/core_10x_i.pyi DESTINATION .)
+install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/core_10x_i.pyi DESTINATION .)
