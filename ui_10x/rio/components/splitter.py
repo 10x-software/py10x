@@ -6,7 +6,8 @@ import typing as t
 class Splitter(rio.Component):
     """
     A custom Rio component that arranges children horizontally like a Row,
-    with draggable splitters between them for resizing.
+    or vertically as a column with draggable splitters between them for resizing.
+    or vertically as a column with draggable splitters between them for resizing.
     """
     # Props
     children: list[rio.Component] = []
