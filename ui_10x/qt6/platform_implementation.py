@@ -34,7 +34,8 @@ MouseEvent.is_right_button      = lambda self: self.button() == Qt.MouseButton.R
 Point                           = QPoint
 
 SizePolicy                      = QSizePolicy
-SizePolicy.MinimumExpanding     = QSizePolicy.Policy.MinimumExpanding
+SizePolicy.MINIMUM_EXPANDING    = QSizePolicy.Policy.MinimumExpanding
+SizePolicy.PREFERRED            = QSizePolicy.Policy.Preferred
 
 Color                           = QColor
 
@@ -110,27 +111,49 @@ TreeWidget.item_changed_connect = lambda self, bound_method:    self.itemChanged
 CalendarWidget                  = QCalendarWidget
 CalendarWidget.selected_date    = lambda self:                  self.selectedDate().toPyDate()
 
-Dialog                          = QDialog
-#Dialog.__getattr__              = missing_attr
+class Dialog(QDialog):
+    s_open_dialogs = set()
+    def __init__(self,parent=None,*args,**kwargs):
+        super().__init__(parent or init().activeModalWidget(),*args,**kwargs)
+
+    def _on_finished(self):
+        open_dialogs = self.s_open_dialogs
+        in_open_dialogs = self in open_dialogs
+        print(f'finishing {self}: {in_open_dialogs}')
+
+        if in_open_dialogs:
+            self.s_open_dialogs.remove(self)
+
+    def show(self):
+        print(f'showing {self}')
+        self.s_open_dialogs.add(self)
+        self.finished.connect(self._on_finished)
+        super().show()
+        self.raise_()
+        self.activateWindow()
+        self.s_open_dialogs.add(self)
+
 
 class MessageBox(QMessageBox):
-
+    s_boxes_by_parent = {}
     def __init__(self, on_close: Callable[[Any],None] = None, parent: Widget = None):
         super().__init__(parent)
         self._on_close = on_close
         self.finished.connect(self._handle_finished)
 
         # Set the default values for the message box
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.WindowCloseButtonHint|Qt.WindowType.WindowStaysOnTopHint)
         self.setStandardButtons(QMessageBox.StandardButton.Ok)
         self.setDefaultButton(QMessageBox.StandardButton.Ok)
         self.setEscapeButton(QMessageBox.StandardButton.Ok)
 
         self.setModal(True)
+        self.s_boxes_by_parent[self.parent()] = self
 
     def _handle_finished(self, result):
         if self._on_close:
             self._on_close(result)
+        self.s_boxes_by_parent.pop(self.parent())
         self.deleteLater()
 
     @classmethod
@@ -147,7 +170,7 @@ class MessageBox(QMessageBox):
             parent=parent,
             title=title,
             message=message,
-            on_close=lambda result: on_close(MessageBox.is_yes_button(result)) if on_close else None,
+            on_close=on_close,
             icon=QMessageBox.Icon.Question,
         )
 
