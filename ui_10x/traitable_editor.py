@@ -2,7 +2,7 @@ from typing import Callable
 
 from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
-from core_10x.rc import RC
+from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Ui
 from core_10x.traitable import Traitable
 from core_10x.exec_control import INTERACTIVE
@@ -129,6 +129,7 @@ class TraitableEditor:
         return w
 
     def _cleanup_tp(self, apply:bool):
+        self.main_w = None
         if self.traitable_processor:
             if apply:
                 self.traitable_processor.export_nodes()
@@ -143,10 +144,11 @@ class TraitableEditor:
             w = self.main_widget()
 
         def accept_callback():
-            self.main_widget = None
             self._cleanup_tp(True)
-            if self.entity.verify():
+            rc = self.entity.verify()
+            if rc:
                 return on_accept()
+            return rc
 
         def cancel_callback():
             self._cleanup_tp(False)
@@ -162,22 +164,17 @@ class TraitableEditor:
         ok = 'Save' if save else 'Ok'
 
         def on_accept():
+            rc = self.entity.save() if save else RC_TRUE
+            if not rc:
+                self.warning(rc.error())
             if accept_hook:
-                accept_hook()
-
-            if save:
-                rc = self.entity.save()
-                if not rc:
-                    self.warning(rc.error())
-                    return rc
-
-            return RC(True)
+                accept_hook(rc)
+            return rc
 
         if copy_entity:
             self.traitable_processor = INTERACTIVE()
 
         self._popup(layout, title, ok, min_width, on_accept=on_accept)
 
-
     def warning(self, msg: str, title = ''):
-        ux_warning(msg, parent = self.main_widget, title = title, on_close=lambda ctx: None)
+        ux_warning(msg, parent = self.main_w, title = title, on_close=lambda ctx: None)

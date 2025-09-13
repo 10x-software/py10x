@@ -9,10 +9,10 @@ from ui_10x.traitable_editor import TraitableEditor
 from ui_10x.entity_stocker import EntityStocker, StockerPlug
 
 class Collection(Traitable):
-    cls: type[Traitable]    = RT()
+    cls: type[Traitable]
     filter: f               = RT(T.HIDDEN)
 
-    entity_ids: list[str]   = RT()
+    entity_ids: list[str]
 
     def cls_set(self, t, cls) -> RC:
         assert issubclass(cls, Traitable), f'{cls} is not a Traitable class'
@@ -22,7 +22,7 @@ class Collection(Traitable):
         return [ entity_id.value for entity_id in self.cls.load_ids() ]
 
     def refresh(self):
-        self.invalidate_value('entities')
+        self.invalidate_value('entity_ids')
 
 class CollectionEditor(Traitable):
     coll: Collection
@@ -107,11 +107,15 @@ class CollectionEditor(Traitable):
         if cls:
             new_entity = cls()
             ed = TraitableEditor.editor(new_entity)
-            if ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True):
-                rc = new_entity.save()
+            def accept_hook(rc: RC):
                 if not rc:
                     ux_warning(rc.error(), parent = self.main_w, on_close = lambda ctx: None)
                     #-- TODO: should we "merge" values from the existing instance?
 
                 else:
                     self.searchable_list.add_choice(new_entity.id().value)
+
+            ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True,accept_hook=accept_hook)
+
+    def on_deleted_entity(self,deleted_entity):
+        self.searchable_list.remove_choice(deleted_entity.id().value)

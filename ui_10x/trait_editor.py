@@ -148,7 +148,7 @@ class TraitEditor:
         if not w:
             return
 
-        d = UxDialog(w,
+        UxDialog(w,
             title = f"Choose one or more flags for {self.ui_hint.label}",
             accept_callback=lambda ctx: self.entity.set_value(self.trait, mc.values_selected)
         ).show()

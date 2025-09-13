@@ -86,7 +86,7 @@ def ux_warning(text: str, parent = None, title = '',  on_close: Callable[[bool],
         parent = None
     ux.MessageBox.warning(parent, title, text, on_close=on_close)
 
-def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool:
+def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool|None:
     if not title:
         title = 'Waiting for your answer...'
     if not parent:
@@ -95,6 +95,8 @@ def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool
     if not on_close:
         print(f'ux_answer: question = {question}, title = {title}, parent = {parent}', sb)
         return ux.MessageBox.is_yes_button(sb)
+    return None
+
 
 def ux_multi_choice_answer(named_constant_class, parent = None, title = '', default_value: NamedConstant = None,  on_close: Callable[[NamedConstant],None] = None):
     if not title:
@@ -234,7 +236,7 @@ class UxDialog(ux.Dialog):
     def message(self, text: str):
         self.w_message.set_text(text)
 
-def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None):
+def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None) -> date|None:
     cal = ux.CalendarWidget()
     cal.set_grid_visible(bool(grid))
     if show_date:
@@ -244,8 +246,8 @@ def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, def
     dlg = UxDialog(cal, title = title, accept_callback = accept_callback)
     if on_accept:
         dlg.show()
-    else:
-        return cal.selected_date() if dlg.exec() else default
+        return None
+    return cal.selected_date() if dlg.exec() else default
 
 class UxStyleSheet:
     def __init__(self, widget):
@@ -479,7 +481,7 @@ class UxTreeViewer(ux.TreeWidget):
         self.resize_column_to_contents(0)
         if num_cols == 2:
             self.resize_column_to_contents(1)
-        self.set_size_policy(ux.SizePolicy.MinimumExpanding, ux.SizePolicy.MinimumExpanding)
+        self.set_size_policy(ux.SizePolicy.MINIMUM_EXPANDING, ux.SizePolicy.MINIMUM_EXPANDING)
 
     class TreeItem(ux.TreeItem):
         def __init__(self, parent_node, dir: Directory):

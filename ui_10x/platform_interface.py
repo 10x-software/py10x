@@ -36,8 +36,8 @@ class Point(abc.ABC):
     def y(self) -> int: ...
 
 class SizePolicy(abc.ABC):
-    MinimumExpanding = None
-    ...
+    MINIMUM_EXPANDING = None
+    PREFERRED = None
 
 class FontMetrics(abc.ABC):
     def average_char_width(self) -> int: ...
