@@ -22,6 +22,14 @@ from ui_10x.platform_interface import Style
 if TYPE_CHECKING:
     import uvicorn
 
+
+"""
+TODO: 
+1. Multiple sessions do not work correctly.
+2. In trait editor, have to do use "enter" to effectuate changes. Handle focus changes too.
+
+"""
+
 CURRENT_SESSION: rio.Session | None = None
 @contextmanager
 def session_context(session: rio.Session):
@@ -102,6 +110,7 @@ class SCROLL(Enum):
 
 class SizePolicy(Enum):
     MINIMUM_EXPANDING = ()
+    PREFERRED = ()
 
     MinimumExpanding = MINIMUM_EXPANDING #TODO...
 
@@ -121,31 +130,34 @@ class _WidgetMixin:
     def set_minimum_width(self, width: int):
         self['min_width'] = width
 
-    def set_size_policy(self, x_policy, y_policy):
-        assert y_policy == x_policy == SizePolicy.MinimumExpanding, 'only expanding size policy supported'
-        self['grow_x'] = True
-        self['grow_y'] = True
+    def set_size_policy(self, x_policy: SizePolicy, y_policy: SizePolicy):
+        self['grow_x'] = x_policy == SizePolicy.MinimumExpanding
+        self['grow_y'] = y_policy == SizePolicy.MinimumExpanding
 
     def set_layout(self, layout: i.Layout):
         raise NotImplementedError
 
 class DynamicComponent(rio.Component):
-    builder: ComponentBuilder
-    _=KW_ONLY
+    builder: ComponentBuilder|None = None
     revision: int = 0
 
-    def __init__(self, builder: ComponentBuilder, revision: int=0):
-        super().__init__()
-        self.key = id(self)
-        self.builder = builder
-        self.revision = revision
+    def __post_init__(self):
+        self.key = f'dc_{id(self.builder)}'
 
     def build(self) -> rio.Component:
         _=self.revision
-        return self.builder.build(self.session)
+        component = self.builder.build(self.session)
+    #    print(f'build:{self.key},{component},{self.builder.component and self.builder.component.key}')
+        return component
+
+    # @rio.event.on_mount
+    # def on_mount(self):
+    #     if self.builder.subcomponent:
+    #         for layout_attr in self.s_layout_attrs:
+    #             setattr(self,layout_attr,getattr(self.builder.subcomponent,layout_attr))
 
 class ComponentBuilder:
-    __slots__ = ('component','_kwargs')
+    __slots__ = ('component','subcomponent','_kwargs')
 
     s_component_class : type[rio.Component] = None
     s_forced_kwargs = {}
@@ -153,9 +165,10 @@ class ComponentBuilder:
     s_dynamic = True
     s_children_attr = 'children'
     s_single_child = False
-    s_size_adjustments = ('min_width', 'min_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom')
+    s_size_adjustments = ('min_width', 'min_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom','margin_x', 'margin_y', 'margin')
+    s_layout_attrs = ('grow_x', 'grow_y', 'align_x', 'align_y')
 
-    def _get_children(self):
+    def _get_children(self) -> list:
         children = self[self.s_children_attr]
         if self.s_single_child and children is None:
             return []
@@ -168,11 +181,18 @@ class ComponentBuilder:
             assert not self.s_single_child or len(children) == 1
             self[self.s_children_attr] = children[0] if self.s_single_child else children
 
+    def _make_kwargs(self,**kwargs):
+        defaults = {
+            kw: value(self, kwargs) if callable(value) else value
+            for kw, value in self.s_default_kwargs.items()
+        }
+        return defaults | kwargs | self.s_forced_kwargs | dict(key=id(self))
+
     def __init__(self, *children, **kwargs):
         assert self.s_component_class, f"{self.__class__.__name__}: has no s_component_class"
-        defaults = {kw:value(kwargs) if callable(value) else value for kw,value in self.s_default_kwargs.items()}
-        self._kwargs = defaults | kwargs | self.s_forced_kwargs
+        self._kwargs = self._make_kwargs(**kwargs)
         self.component = None
+        self.subcomponent = None
         kw_kids = self._kwargs.get(self.s_children_attr)
         if self.s_single_child:
             self._set_children(children if children else [kw_kids])
@@ -194,7 +214,9 @@ class ComponentBuilder:
         self.force_update()
         
     def with_children(self, *args):
-        return self.__class__(*args,**self._kwargs) if args else self
+        if not args:
+            return self
+        return self.__class__(*args,**self._kwargs)
 
     def _build_children(self,session: rio.Session):
         return [ child(session) if isinstance(child,ComponentBuilder) else child for child in self._get_children() if child is not None]
@@ -204,10 +226,16 @@ class ComponentBuilder:
         for size_adjustment in self.s_size_adjustments:
             if size_adjustment in kwargs:
                 kwargs[size_adjustment] = kwargs[size_adjustment] / session.pixels_per_font_height
-        return self.s_component_class(*self._build_children(session), **kwargs)
+        children: list = self._build_children(session)
+        if len(children) == 1 and isinstance(first_child := children[0], rio.Component):
+            self.subcomponent=first_child
+        elif self.s_component_class:
+            self.subcomponent = self.s_component_class(*self._build_children(session), **kwargs)
+        return self.subcomponent
 
     def __call__(self,session: rio.Session) -> rio.Component:
-        self.component = DynamicComponent(self) if self.s_dynamic else self.build(session)
+        kw = {k:self[k] for k in self.s_layout_attrs if k in self}
+        self.component = DynamicComponent(builder=self,**kw) if self.s_dynamic else self.build(session)
         return self.component
 
     def __getitem__(self, item):
@@ -266,11 +294,13 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
     s_component_class = rio.Container
     s_stretch_arg = 'grow_x'
     s_default_layout_factory = lambda: FlowLayout()
+    s_default_kwargs = dict(grow_y = False,align_y = 0)
 
     __slots__ = ('_layout',)
 
     def __init_subclass__(cls, **kwargs):
         cls.s_default_layout_factory = None
+        cls.s_default_kwargs = super().s_default_kwargs | cls.s_default_kwargs
     
     def __init__(self, *children, **kwargs):
         super().__init__(*children, **kwargs)
@@ -367,11 +397,23 @@ class Layout(Widget, i.Layout):
         self['margin_right'] = right
         self['margin_bottom'] = bottom
 
-class VBoxLayout(Layout, i.VBoxLayout):
+class Spacer(Widget):
+    s_component_class = rio.Spacer
+    s_dynamic = False
+
+class BoxLayout(Layout):
+    def _get_children(self):
+        return super()._get_children() # + [Spacer()]
+
+class VBoxLayout(BoxLayout, i.VBoxLayout):
     s_component_class = rio.Column
     s_stretch_arg = 'grow_y'
+    def _make_kwargs(self,**kwargs):
+        kwargs = super()._make_kwargs(**kwargs)
+        del kwargs['align_y']
+        return kwargs
 
-class HBoxLayout(Layout,i.HBoxLayout):
+class HBoxLayout(BoxLayout,i.HBoxLayout):
     s_component_class = rio.Row
     s_stretch_arg = 'grow_x'
 
@@ -386,12 +428,17 @@ class FormLayout(Layout,i.FormLayout):
         self.add_children(args)
 
     def _build_children(self,session: rio.Session):
-        return [[child(session) for child in children] for children in self._get_children()]
+        return [[child(session) for child in children] for children in self._get_children()] #TODO: cleanup?
 
 class Dialog(Widget,i.Dialog):
     __slots__ = ('_dialog','_parent','_server','_modal')
     s_component_class = rio.Column
     s_forced_kwargs = {'grow_x': True, 'grow_y': True}
+
+    def _make_kwargs(self,**kwargs):
+        kwargs = super()._make_kwargs(**kwargs)
+        del kwargs['align_y']
+        return kwargs
 
     def __init__(self, parent: Widget|None = None, children=(), title=None, on_accept=None, on_reject=None, **kwargs):
         assert isinstance(parent,Widget|None)
@@ -441,21 +488,27 @@ class Dialog(Widget,i.Dialog):
     def exec(self):
         assert not CURRENT_SESSION, 'Cannot start another event loop - use show() with callbacks instead'
         title = self.title or 'Dialog'
-        app = rio.App(name=title, build=lambda : DynamicComponent(self))
+        app = rio.App(name=title, build=lambda : DynamicComponent(builder=self))
         assert not self._parent
         debug = True
         if debug:
             from rio.debug.monkeypatches import apply_monkeypatches
             apply_monkeypatches()
         #app._run_in_window(debug_mode=debug,on_server_created=self._on_server_created)
-        app._run_as_web_server(debug_mode=debug)
+        app._run_as_web_server(debug_mode=debug,port=8081)
         return self.accepted
 
     def show(self):
         if not CURRENT_SESSION:
             self.exec()
         else:
-            future = CURRENT_SESSION.show_custom_dialog(build=self, on_close=self._on_close, modal=self._modal, owning_component=self._parent.component if self._parent else None)
+            future = CURRENT_SESSION.show_custom_dialog(
+                build=partial(self,CURRENT_SESSION),
+                on_close=self._on_close,
+                modal=self._modal,
+                user_closable=False,
+                owning_component=self._parent.component if self._parent else None
+            )
             CURRENT_SESSION.create_task(future).add_done_callback(self._on_dialog_open)
 
     def set_window_flags(self, flags):
@@ -466,7 +519,7 @@ class Dialog(Widget,i.Dialog):
 
 class MessageBox(i.MessageBox):
     @classmethod
-    def _dialog(cls, parent: Widget, title: str, message: str, icon: Style.StandardPixmap, on_close: Callable[[Any],None]) -> bool:
+    def _dialog(cls, parent: Widget, title: str, message: str, icon: Style.StandardPixmap, on_close: Callable[[Any],None]) -> bool|None:
         style = Application.style()
         if icon==Style.StandardPixmap.SP_MESSAGEBOXQUESTION:
             buttons = [
@@ -490,9 +543,7 @@ class MessageBox(i.MessageBox):
                      on_accept=lambda: on_close(dlg.accepted),
                      on_reject=lambda: on_close(dlg.accepted))
         dlg.set_layout(VBoxLayout())
-        if not on_close:
-            return dlg.exec()
-        dlg.show()
+        return dlg.show() if on_close else dlg.exec()
 
     @classmethod
     def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any],None]) -> bool:
@@ -585,7 +636,7 @@ class GroupBox(Widget, i.GroupBox):
             parent = args[0]
         if len(args) >= 2:
             assert not title, 'title specified twice'
-            parent, title = args
+            parent, title = args # noqa: RUF059 - review
             children = args[2:]
         super().__init__(*children, **kwargs)
         self['title'] = title
@@ -594,7 +645,7 @@ class GroupBox(Widget, i.GroupBox):
         self['title'] = title
 
 class LineEditComponent(rio.Component):
-    text: str
+    text: str | None = None
     tooltip: str | None = None
     is_sensitive: bool = True
     on_change: rio.EventHandler[[str]] = None
@@ -709,10 +760,16 @@ Horizontal = Direction.HORIZONTAL
 class Splitter(Widget, i.Splitter):
     s_component_class = rio_components.Splitter
 
-    def __init__(self, direction: Direction=Horizontal, **kwargs):
-        super().__init__(**kwargs)
-        self['direction']=direction.label
-        self['child_proportions']=[]
+    def _make_kwargs(self,**kwargs):
+        kwargs = super()._make_kwargs(**kwargs)
+        if kwargs['direction'] == Horizontal.label:
+            del kwargs['align_y']
+            kwargs['grow_y'] = True
+        kwargs['child_proportions']=[]
+        return kwargs
+
+    def __init__(self, direction: Direction = Horizontal, **kwargs):
+        super().__init__(**kwargs|dict(direction=direction.label))
 
     def add_widget(self, widget: Widget):
         self.add_children(widget)
@@ -824,7 +881,13 @@ class Style(i.Style):
 class ListItem(Widget, i.ListItem):
     __slots__ = ('_list_widget',)
     s_component_class = rio.SimpleListItem
-    s_default_kwargs = dict(key=lambda kwargs:kwargs['text'])
+    args = dict(key=lambda kwargs:kwargs['text'])
+
+    def _make_kwargs(self,**kwargs):
+        kwargs = super()._make_kwargs(**kwargs)
+        del kwargs['align_y']
+        return kwargs
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._list_widget = None
@@ -847,6 +910,7 @@ class ListWidget(Widget, i.ListWidget):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self['grow_y'] = True
 
     def add_items(self, items: [ListItem|str]):
         for item in items:
@@ -985,7 +1049,7 @@ class TreeItem(Widget, i.TreeItem):
 
 class RioTreeView(rio.Component):
     """makes item-level callbacks available on the tree level"""
-    children: list[DynamicComponent]
+    children: list[DynamicComponent] = None
     _=KW_ONLY
     selection_mode: Literal["none", "single", "multiple"] = "none",
     col_count: int = 1
