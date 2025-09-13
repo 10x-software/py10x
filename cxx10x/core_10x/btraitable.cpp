@@ -270,9 +270,13 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
 }
 
 bool BTraitable::reload() {
-    if (my_class()->is_storable() && m_tid.is_valid() && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY)) {
+    auto cls = my_class();
+    if (cls->is_storable() && m_tid.is_valid() && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY)) {
         const auto serialized_data = my_class()->load_data(id());
+
         if (!serialized_data.is_none()) {
+            auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+            set_revision(revision);
             deserialize_traits(serialized_data);
             return true;
         }

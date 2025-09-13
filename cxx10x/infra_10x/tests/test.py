@@ -1,5 +1,6 @@
 from infra_10x_i import MongoCollectionHelper
 from core_10x.traitable_id import ID
+from core_10x.trait_filter import f
 from core_10x.code_samples.person import Person
 from infra_10x.mongodb_store import MongoStore
 
@@ -23,7 +24,7 @@ def test_prepare_filter_and_pipeline():
 
 def test_load():
     with MongoStore.instance(hostname = 'localhost', dbname = 'test', username = '', password = ''):
-        p = Person.load_many(_at_most=1)[0]
+        p = Person.load_many(f(first_name='Ilya'),_at_most=1)[0]
         print(p)
         print( Person.load(ID(p.id().value[:-1])) )
 
