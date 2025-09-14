@@ -1,4 +1,5 @@
 import os
+import sys
 import typing
 
 if typing.TYPE_CHECKING:
@@ -6,7 +7,7 @@ if typing.TYPE_CHECKING:
 else:
     pname = os.getenv('UI_PLATFORM')
     if pname is None:
-        pname = 'Qt6'
+        pname = 'Qt6' if 'rio' not in sys.modules else 'Rio'
 
     if pname == 'Qt6':
         import ui_10x.qt6.platform_implementation as ux
@@ -14,7 +15,5 @@ else:
         import ui_10x.rio.platform_implementation as ux
     else:
         assert False, f'UI implementation for `{pname}` is not available'
-
-#-- from ui_10x.platform import ux
 
 

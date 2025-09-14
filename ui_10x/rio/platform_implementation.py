@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+from pathlib import Path
 from typing import Any, TYPE_CHECKING
 from datetime import date
 
@@ -22,19 +23,11 @@ from ui_10x.platform_interface import Style
 if TYPE_CHECKING:
     import uvicorn
 
-
-"""
-TODO: 
-1. Multiple sessions do not work correctly.
-2. In trait editor, have to do use "enter" to effectuate changes. Handle focus changes too.
-
-"""
-
 CURRENT_SESSION: rio.Session | None = None
 @contextmanager
 def session_context(session: rio.Session):
     global CURRENT_SESSION
-    assert CURRENT_SESSION is None
+    assert CURRENT_SESSION is None, "Must exit from session context first! Are you using async calls in session context?"
     CURRENT_SESSION = session
     try:
         yield
@@ -116,13 +109,13 @@ class SizePolicy(Enum):
 
 class _WidgetMixin:
     __slots__ = ()
+
+    def apply_style_sheet(self, style: dict):
+        ...
+
     def set_style_sheet(self, sh: str):
         from ui_10x.utils import UxStyleSheet #TODO: circular import
-        sh = UxStyleSheet.loads(sh)
-        if text_align:=TEXT_ALIGN.from_str(sh.pop('text-align', '')):
-            self[text_align.rio_attr()] =text_align.rio_value()
-
-        #TODO: implement other style sheet properties
+        self.apply_style_sheet(UxStyleSheet.loads(sh))
 
     def set_minimum_height(self, height: int):
         self['min_height'] = height
@@ -147,14 +140,8 @@ class DynamicComponent(rio.Component):
     def build(self) -> rio.Component:
         _=self.revision
         component = self.builder.build(self.session)
-    #    print(f'build:{self.key},{component},{self.builder.component and self.builder.component.key}')
         return component
 
-    # @rio.event.on_mount
-    # def on_mount(self):
-    #     if self.builder.subcomponent:
-    #         for layout_attr in self.s_layout_attrs:
-    #             setattr(self,layout_attr,getattr(self.builder.subcomponent,layout_attr))
 
 class ComponentBuilder:
     __slots__ = ('component','subcomponent','_kwargs')
@@ -487,9 +474,30 @@ class Dialog(Widget,i.Dialog):
 
     def exec(self):
         assert not CURRENT_SESSION, 'Cannot start another event loop - use show() with callbacks instead'
+        assert not self._parent, 'Parent is not allowed for top level dialog'
+
         title = self.title or 'Dialog'
-        app = rio.App(name=title, build=lambda : DynamicComponent(builder=self))
-        assert not self._parent
+        the_session = None
+        def on_session_start(session):
+            nonlocal the_session
+            if the_session is None:
+                the_session=session
+        def on_session_close(session):
+            nonlocal the_session
+            if session is the_session:
+                the_session=None
+        def build():
+            component = DynamicComponent(builder=self)
+            session = component.session
+            if session is the_session:
+                 return component
+            from rio.components.error_placeholder import ErrorPlaceholder
+            return ErrorPlaceholder(error_summary="Only one session is allowed for `Dialog.exec`",error_details="")
+        app = rio.App(
+            name=title,
+            build=build,
+            on_session_start=on_session_start
+        )
         debug = True
         if debug:
             from rio.debug.monkeypatches import apply_monkeypatches
@@ -649,14 +657,16 @@ class LineEditComponent(rio.Component):
     tooltip: str | None = None
     is_sensitive: bool = True
     on_change: rio.EventHandler[[str]] = None
-    on_confirm: rio.EventHandler[[str]] = None
+    on_lose_focus: rio.EventHandler[[str]] = None
+    text_style: rio.TextStyle|None = None
 
     def build(self):
         text_input = rio.TextInput(
                 self.text,  #self.bind().text,
                 is_sensitive = self.is_sensitive,
                 on_change = self.on_change,
-                on_confirm = self.on_confirm
+                on_lose_focus = self.on_lose_focus,
+                text_style = self.text_style
             )
 
         if self.tooltip is None:
@@ -679,6 +689,21 @@ class LineEdit(Widget, i.LineEdit):
     def set_tool_tip(self, tooltip: str):
         self['tooltip'] = tooltip
 
+    def apply_style_sheet(self, style: dict):
+        if text_align:=TEXT_ALIGN.from_str(style.pop('text-align', '')):
+            self[text_align.rio_attr()] =text_align.rio_value()
+
+        #{'color': 'lightgreen', 'background-color': 'white', 'font-family': 'Helvetica', 'font-style': 'normal', 'font-weight': 'normal', 'border-width': '2px', 'border-style': '', 'border-color': 'blue'}
+
+        text_style_kwargs={}
+        if font_style:=style.pop('font-style',None):
+            if font_style!='normal':
+                text_style_kwargs[font_style]=True
+        if font_weight:=style.pop('font-weight',None):
+            text_style_kwargs['font_weight'] = font_weight
+        if text_style_kwargs:
+            self['text_style'] = rio.TextStyle(**text_style_kwargs)
+
     def text(self):
         if self.component:
             #TODO: this if statement should not be necessary - debug why self.bind().text is not sufficient.
@@ -695,7 +720,7 @@ class LineEdit(Widget, i.LineEdit):
         self['is_password'] = True
 
     def editing_finished_connect(self, bound_method):
-        self['on_confirm'] = self.callback(lambda ev: bound_method())
+        self['on_lose_focus'] = self.callback(lambda ev: bound_method())
 
 class TextEdit(Widget, i.TextEdit):
     s_component_class = rio.MultiLineTextInput
@@ -709,8 +734,16 @@ class TextEdit(Widget, i.TextEdit):
 class LabeledCheckBox(rio.Component):
     label: str = ''
     is_on: bool = False
+    on_change: rio.EventHandler[rio.CheckboxChangeEvent] = None
+
     def build(self):
-        return rio.Row(rio.Text(self.label),rio.CheckBox(is_on=self.bind().is_on))
+        return rio.Row(
+            rio.Text(self.label),
+            rio.Checkbox(
+                is_on=self.bind().is_on,
+                on_change=self.on_change
+            )
+        )
 
 class CheckBox(Widget, i.CheckBox):
     s_component_class = LabeledCheckBox

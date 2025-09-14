@@ -102,6 +102,12 @@ class TsUnionCollection(TsCollection):
     def count(self, query: f = None) -> int:
         return sum(collection.count(query) for collection in self.collections)
 
+    def load(self, id_value: str) -> dict|None:
+        for collection in self.collections:
+            data = collection.load(id_value)
+            if data is not None:
+                return data
+        return None
 
 class TsUnion(TsStore, name='TS_UNION'):
     @classmethod

@@ -34,7 +34,7 @@ class TsCollection(abc.ABC):
     def exists(self, query: f) -> bool:
         return self.count(query) > 0
 
-    def load(self, id_value: str) -> dict:
+    def load(self, id_value: str) -> dict|None:
         for data in self.find(f(**{self.s_id_tag: id_value})):
             return data
 
