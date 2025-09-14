@@ -135,7 +135,7 @@ class TraitableEditor:
                 self.traitable_processor.export_nodes()
             self.traitable_processor=None
 
-    def _popup(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[],RC]) -> None:
+    def _dialog(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[],RC]) -> UxDialog:
         ux.init()
         if layout is not None:
             w = self.main_w = ux.Widget()
@@ -153,9 +153,9 @@ class TraitableEditor:
         def cancel_callback():
             self._cleanup_tp(False)
 
-        UxDialog(w, title = title, accept_callback = accept_callback, cancel_callback = cancel_callback, ok = ok, min_width = min_width).show()
+        return UxDialog(w, title = title, accept_callback = accept_callback, cancel_callback = cancel_callback, ok = ok, min_width = min_width)
 
-    def popup(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> None:
+    def dialog(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> UxDialog:
         if title is None:
             title = ''
         elif not title:
@@ -174,7 +174,10 @@ class TraitableEditor:
         if copy_entity:
             self.traitable_processor = INTERACTIVE()
 
-        self._popup(layout, title, ok, min_width, on_accept=on_accept)
+        return self._dialog(layout, title, ok, min_width, on_accept=on_accept)
+
+    def popup(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> None:
+        self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width).show()
 
     def warning(self, msg: str, title = ''):
         ux_warning(msg, parent = self.main_w, title = title, on_close=lambda ctx: None)
