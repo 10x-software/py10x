@@ -26,6 +26,7 @@ dev = [
 ]
 rio = [
     "rio-ui @ git+https://github.com/ilya-pevzner/rio.git@size-observer",
+    "matplotlib~=3.10.6"
 ]
 qt = [
     "pyqt6 (==6.8.1)",
