@@ -18,10 +18,19 @@ import ui_10x.platform_interface as i
 import ui_10x.rio.components as rio_components
 from core_10x.global_cache import cache
 from core_10x.named_constant import Enum, EnumBits, NamedConstant
+from core_10x.ts_store import TsStore
 from ui_10x.platform_interface import Style
 
 if TYPE_CHECKING:
     import uvicorn
+
+@dataclass
+class UserSessionContext:
+    #TODO: backbone
+    host: str
+    dbname: str
+    traitable_store: TsStore = None
+    authenticated: bool = False
 
 CURRENT_SESSION: rio.Session | None = None
 @contextmanager
@@ -30,8 +39,16 @@ def session_context(session: rio.Session):
     assert CURRENT_SESSION is None, "Must exit from session context first! Are you using async calls in session context?"
     CURRENT_SESSION = session
     try:
+        traitable_store = session[UserSessionContext].traitable_store
+    except Exception:
+        traitable_store = None
+    if traitable_store:
+        traitable_store.begin_using()
+    try:
         yield
     finally:
+        if traitable_store:
+            traitable_store.end_using()
         CURRENT_SESSION = None
 
 @cache

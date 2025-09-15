@@ -119,3 +119,5 @@ class CollectionEditor(Traitable):
 
     def on_deleted_entity(self,deleted_entity):
         self.searchable_list.remove_choice(deleted_entity.id().value)
+        if self.current_entity is deleted_entity:
+            self.set_pane(0,ux.Widget())
