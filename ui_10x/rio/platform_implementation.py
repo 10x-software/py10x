@@ -2,23 +2,25 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-from pathlib import Path
+import warnings
 from typing import Any, TYPE_CHECKING
 from datetime import date
-
 from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import KW_ONLY, dataclass
 from functools import partial
 from typing import Self, Literal
 
+import matplotlib
 import rio
 
 import ui_10x.platform_interface as i
 import ui_10x.rio.components as rio_components
 from core_10x.global_cache import cache
 from core_10x.named_constant import Enum, EnumBits, NamedConstant
+from core_10x.rc import RC
 from core_10x.ts_store import TsStore
+from ui_10x.rio.style_sheet import StyleSheet
 from ui_10x.platform_interface import Style
 
 if TYPE_CHECKING:
@@ -122,17 +124,24 @@ class SizePolicy(Enum):
     MINIMUM_EXPANDING = ()
     PREFERRED = ()
 
-    MinimumExpanding = MINIMUM_EXPANDING #TODO...
-
 class _WidgetMixin:
     __slots__ = ()
 
-    def apply_style_sheet(self, style: dict):
-        ...
+    def apply_style_sheet(self, style: dict) -> RC:
+        if text_align := TEXT_ALIGN.from_str(style.pop("text-align", "")):
+            self[text_align.rio_attr()] = text_align.rio_value()
+        if hasattr(self.s_component_class,"text_style"):
+            ss = StyleSheet()
+            rc = ss.set_values(sheet=style)
+            self["text_style"] = ss.text_style
+            return rc
+        return StyleSheet.rc(style)
 
     def set_style_sheet(self, sh: str):
         from ui_10x.utils import UxStyleSheet #TODO: circular import
-        self.apply_style_sheet(UxStyleSheet.loads(sh))
+        rc = self.apply_style_sheet(UxStyleSheet.loads(sh))
+        if not rc:
+            print(f"{self.__class__.__name__}.set_style_sheet: \n{rc.error()}")
 
     def set_minimum_height(self, height: int):
         self['min_height'] = height
@@ -141,8 +150,8 @@ class _WidgetMixin:
         self['min_width'] = width
 
     def set_size_policy(self, x_policy: SizePolicy, y_policy: SizePolicy):
-        self['grow_x'] = x_policy == SizePolicy.MinimumExpanding
-        self['grow_y'] = y_policy == SizePolicy.MinimumExpanding
+        self['grow_x'] = x_policy == SizePolicy.MINIMUM_EXPANDING
+        self['grow_y'] = y_policy == SizePolicy.MINIMUM_EXPANDING
 
     def set_layout(self, layout: i.Layout):
         raise NotImplementedError
@@ -243,9 +252,8 @@ class ComponentBuilder:
         return self.component
 
     def __getitem__(self, item):
-        #TODO: two way mapping..
-        #if self.component and self.component._build_data_:
-        #    return getattr(self.component._build_data_.build_result,item)
+        if self.subcomponent:
+            return getattr(self.subcomponent,item)
         return self._kwargs[item]
 
     def __contains__(self,item):
@@ -322,28 +330,37 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
         self[self.s_stretch_arg] = bool(stretch)
 
     def style_sheet(self) -> str:
-        return "" #TODO...
+        ##TODO
+        print(print(f"{self.__class__.__name__}.style_sheet: - not supported"))
+        return ""
 
     def set_enabled(self, enabled: bool):
         self['is_sensitive'] = enabled
 
     def set_tool_tip(self, tooltip):
-        ... #TODO
+        ##TODO
+        print(print(f"{self.__class__.__name__}.set_tool_tip: - not supported"))
 
     def font_metrics(self) -> FontMetrics:
         return FontMetrics(self)
 
-    #placeholders
     def set_geometry(self, *args):
-        pass
+        ##TODO
+        print(print(f"{self.__class__.__name__}.set_geometry: - not supported"))
 
     def width(self) -> int:
+        ##TODO
+        print(print(f"{self.__class__.__name__}.width: - not supported"))
         return 0
 
     def height(self) -> int:
+        ##TODO
+        print(print(f"{self.__class__.__name__}.height: - not supported"))
         return 0
 
     def map_to_global(self, point: Point) -> Point:
+        ##TODO
+        print(print(f"{self.__class__.__name__}.map_to_global: - not supported"))
         return point
 
 class Label(Widget, i.Label):
@@ -679,7 +696,7 @@ class LineEditComponent(rio.Component):
 
     def build(self):
         text_input = rio.TextInput(
-                self.text,  #self.bind().text,
+                self.bind().text,
                 is_sensitive = self.is_sensitive,
                 on_change = self.on_change,
                 on_lose_focus = self.on_lose_focus,
@@ -706,25 +723,9 @@ class LineEdit(Widget, i.LineEdit):
     def set_tool_tip(self, tooltip: str):
         self['tooltip'] = tooltip
 
-    def apply_style_sheet(self, style: dict):
-        if text_align:=TEXT_ALIGN.from_str(style.pop('text-align', '')):
-            self[text_align.rio_attr()] =text_align.rio_value()
-
-        #{'color': 'lightgreen', 'background-color': 'white', 'font-family': 'Helvetica', 'font-style': 'normal', 'font-weight': 'normal', 'border-width': '2px', 'border-style': '', 'border-color': 'blue'}
-
-        text_style_kwargs={}
-        if font_style:=style.pop('font-style',None):
-            if font_style!='normal':
-                text_style_kwargs[font_style]=True
-        if font_weight:=style.pop('font-weight',None):
-            text_style_kwargs['font_weight'] = font_weight
-        if text_style_kwargs:
-            self['text_style'] = rio.TextStyle(**text_style_kwargs)
-
     def text(self):
-        if self.component:
-            #TODO: this if statement should not be necessary - debug why self.bind().text is not sufficient.
-            return self.component._build_data_.build_result._build_data_.build_result.children[1].text
+        if self.subcomponent:
+            return self.subcomponent.text
         return self['text']
 
     def text_edited_connect(self, bound_method):

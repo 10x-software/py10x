@@ -7,12 +7,11 @@ class Splitter(rio.Component):
     """
     A custom Rio component that arranges children horizontally like a Row,
     or vertically as a column with draggable splitters between them for resizing.
-    or vertically as a column with draggable splitters between them for resizing.
     """
     # Props
     children: list[rio.Component] = []
     direction: t.Literal['horizontal','vertical'] = 'vertical'
-    handle_size: float = 0.5  # Width of the splitter handle
+    handle_size: float = 0.25  # Width of the splitter handle
     min_size_percent: float = 10.0  # Minimum width for each child (%)
     child_proportions: t.Sequence[float] = None
     _component_width: float = 0.0
@@ -91,7 +90,6 @@ class Splitter(rio.Component):
             pane = rio.Rectangle(
                 content=scrollable_content,
                 **{"grow_x" if horizontal else "grow_y": True},  # Stretch to fill proportional space
-                fill=rio.Color.from_hex("#87ceeb") if i % 2 == 0 else rio.Color.from_hex("#90ee90"),
                 margin=1,  # Spacing around the child content
             )
             # Add a splitter handle to the right of all but the last pane

@@ -11,9 +11,6 @@ theme = rio.Theme.from_colors(
     mode="light",
 )
 
-def on_session_start(session):
-    session.attach(UserSessionContext(host="localhost", dbname="test")) #TODO: backbone
-
 interactive = None #TODO: crashes without global reference
 def on_app_start(app):
     global interactive
@@ -25,5 +22,5 @@ app = rio.App(
     description='Rio pages based on components created using ui_10x.platform_interface',
     theme=theme,
     on_app_start=on_app_start,
-    on_session_start=on_session_start,
+    default_attachments=[UserSessionContext(host="localhost", dbname="test")] #TODO: backbone
 )
