@@ -8,23 +8,36 @@ authors = [
 ]
 #license = {text = "MIT"}
 #readme = "README.md"
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.11,<4.0"
 dependencies = [
     "core-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy (>=2.2.2,<2.3.0)",
     "python-dateutil (>=2.9.0,<2.10.0)",
-    "cryptography>=45.0.7",
+    "cryptography (>=45.0.7,<45.1.0)",
     "infra-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x",
     "pymongo (>=4.7.3)",
 ]
-
+[project.optional-dependencies]
+dev = [
+    "pytest (>=8.3.4)",
+    "pytest-cov (>=6.0.0)",
+    "ruff (>=0.13.0)",
+]
+rio = [
+    "rio-ui @ rio-ui@git+https://github.com/ilya-pevzner/rio.git@size-observer",
+]
+qt = [
+    "pyqt6 (==6.8.1)",
+    "pyqt6-qt6 (==6.8.2)",
+    "pyqt6-sip (==13.10.0)",
+]
 [tool.poetry]
 packages = [
    { include = "core_10x" },
    { include = "infra_10x" },
+   { include = "ui_10x" },
 ]
-
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
