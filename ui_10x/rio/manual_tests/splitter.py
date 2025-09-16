@@ -3,6 +3,7 @@ from rio.debug.monkeypatches import apply_monkeypatches
 
 from ui_10x.rio.components.splitter import Splitter
 
+
 # Example app to demonstrate the Splitter component
 class SplitterApp(rio.Component):
     def build(self) -> rio.Component:
@@ -11,7 +12,6 @@ class SplitterApp(rio.Component):
             rio.Text("Pane 2", style="heading3"),
             rio.Rectangle(content=rio.Container(rio.Container(rio.FlowContainer()))),
             handle_size=0.3,  # Splitter handle width
-            min_size_percent=10.0,  # Minimum width for each pane
             direction='horizontal',
         )
         return rio.Container(

@@ -1,6 +1,5 @@
-import dataclasses
-
 import rio
+
 
 class GroupBox(rio.Component):
     """
@@ -11,13 +10,7 @@ class GroupBox(rio.Component):
         children: A list of child components to be grouped.
     """
     children: list[rio.Component] = []
-    _: dataclasses.KW_ONLY
     title: str = ''
-
-    def __init__(self, *children: rio.Component, title: str = '', **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.children = list(children)
-        self.title = title
 
     def build(self) -> rio.Component:
         """

@@ -1,9 +1,11 @@
 from __future__ import annotations
-import rio
 
+import rio
 from core_10x.code_samples.person import Person
 
-from .. import components as comps, UserSessionContext
+from .. import UserSessionContext
+from .. import components as comps
+
 
 def guard(event: rio.GuardEvent) -> str | None:
     return None if event.session[UserSessionContext].authenticated else "/"

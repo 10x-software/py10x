@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import rio
-from ui_10x.rio.platform_implementation import UserSessionContext
-
+from ui_10x.collection_editor import Collection, CollectionEditor
+from ui_10x.rio.component_builder import UserSessionContext
 from ui_10x.utils import UxDialog
-from ui_10x.collection_editor import CollectionEditor, Collection
+
 
 class CollectionEditorComponent(rio.Component):
     collection_class: type = None
