@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 from functools import partial
 
 import rio
 
+
 class RadioButton(rio.Component):
-    label: str
-    value: str
-    selected_value: bool
-    on_select: rio.EventHandler = None
+    label: str = ''
+    value: str = ''
+    selected_value: bool = False
+    on_select: rio.EventHandler[str] = None
 
     async def on_press(self, button) -> None:
-        self.on_select(self.value)
+        if self.on_select:
+            self.on_select(self.value)
         button.icon = self.icon_name()
 
     def icon_name(self) -> str:

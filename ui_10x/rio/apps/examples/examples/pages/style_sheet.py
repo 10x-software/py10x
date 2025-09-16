@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 import rio
 from core_10x.ts_union import TsUnion
-from ui_10x.rio.platform_implementation import UserSessionContext
-
-from ui_10x.traitable_editor import TraitableEditor
 from ui_10x.examples.style_sheet import StyleSheet
+from ui_10x.rio.component_builder import UserSessionContext
+from ui_10x.traitable_editor import TraitableEditor
+
 
 @rio.page(
     name='StyleSheet',

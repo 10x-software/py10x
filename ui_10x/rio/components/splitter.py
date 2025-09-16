@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-import rio
 import typing as t
+
+import rio
+
 
 class Splitter(rio.Component):
     """
