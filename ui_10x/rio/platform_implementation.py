@@ -551,7 +551,8 @@ class Dialog(Widget,i.Dialog):
         app = rio.App(
             name=title,
             build=build,
-            on_session_start=on_session_start
+            on_session_start=on_session_start,
+            on_session_close=on_session_close
         )
         debug = True
         if debug:
