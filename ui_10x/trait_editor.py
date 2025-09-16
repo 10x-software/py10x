@@ -34,7 +34,7 @@ class EntityWrapper:
         with self.traitable_processor() or nullcontext():
             return self.entity.is_valid(trait)
 
-    def invalidate_value(self, trait: Trait) -> bool:
+    def invalidate_value(self, trait: Trait) -> None:
         with self.traitable_processor() or nullcontext():
             return self.entity.invalidate_value(trait)
 

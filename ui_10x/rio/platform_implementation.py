@@ -156,6 +156,12 @@ class _WidgetMixin:
     def set_layout(self, layout: i.Layout):
         raise NotImplementedError
 
+    def set_tool_tip(self, tooltip: str):
+        self['tooltip'] = tooltip
+
+    def set_read_only(self, read_only: bool):
+        self['is_sensitive'] = not read_only
+
 class DynamicComponent(rio.Component):
     builder: ComponentBuilder|None = None
     revision: int = 0
@@ -182,17 +188,26 @@ class ComponentBuilder:
     s_layout_attrs = ('grow_x', 'grow_y', 'align_x', 'align_y')
 
     def _get_children(self) -> list:
-        children = self[self.s_children_attr]
+        children = self.get_children()
         if self.s_single_child and children is None:
             return []
         return [children] if self.s_single_child else children
 
+    def get_children(self):
+        return self[self.s_children_attr]
+    
+    def set_children(self,children):
+        self[self.s_children_attr] = children
+
+    def child_count(self):
+        return len(self.get_children())
+
     def _set_children(self,children):
         if self.s_single_child and not children:
-            self[self.s_children_attr] = None
+            self.set_children(None)
         else:
             assert not self.s_single_child or len(children) == 1
-            self[self.s_children_attr] = children[0] if self.s_single_child else children
+            self.set_children(children[0] if self.s_single_child else children)
 
     def _make_kwargs(self,**kwargs):
         defaults = {
@@ -223,7 +238,7 @@ class ComponentBuilder:
                 assert not existing_children
                 self._set_children(new_children)
         else:
-            self[self.s_children_attr].extend(child for child in children if child is not None and child not in existing_children)
+            self.get_children().extend(child for child in children if child is not None and child not in existing_children)
         self.force_update()
         
     def with_children(self, *args):
@@ -241,9 +256,11 @@ class ComponentBuilder:
                 kwargs[size_adjustment] = kwargs[size_adjustment] / session.pixels_per_font_height
         children: list = self._build_children(session)
         if len(children) == 1 and isinstance(first_child := children[0], rio.Component):
+            if kwargs:
+                print(f'{self.__class__.__name__}.build: ignored kwargs {kwargs}')
             self.subcomponent=first_child
         elif self.s_component_class:
-            self.subcomponent = self.s_component_class(*self._build_children(session), **kwargs)
+            self.subcomponent = self.s_component_class(*children, **kwargs)
         return self.subcomponent
 
     def __call__(self,session: rio.Session) -> rio.Component:
@@ -259,9 +276,17 @@ class ComponentBuilder:
     def __contains__(self,item):
         return item in self._kwargs
 
+    @classmethod
+    def _not_supported(cls,item=None):
+        item = item or inspect.stack()[1].function
+        print(f"{cls.__name__}.{item}: - not supported")
+
     def __setitem__(self, item, value):
+        if item!=self.s_children_attr and not hasattr(self.s_component_class,item):
+            return self._not_supported(item)
+        if self.subcomponent:
+            setattr(self.subcomponent,item,value)
         self._kwargs[item] = value
-        self.force_update()
 
     def force_update(self):
         component: rio.Component = self.component
@@ -331,36 +356,32 @@ class Widget(ComponentBuilder, _WidgetMixin, i.Widget):
 
     def style_sheet(self) -> str:
         ##TODO
-        print(print(f"{self.__class__.__name__}.style_sheet: - not supported"))
+        self._not_supported()
         return ""
 
     def set_enabled(self, enabled: bool):
         self['is_sensitive'] = enabled
-
-    def set_tool_tip(self, tooltip):
-        ##TODO
-        print(print(f"{self.__class__.__name__}.set_tool_tip: - not supported"))
 
     def font_metrics(self) -> FontMetrics:
         return FontMetrics(self)
 
     def set_geometry(self, *args):
         ##TODO
-        print(print(f"{self.__class__.__name__}.set_geometry: - not supported"))
+        self._not_supported()
 
     def width(self) -> int:
         ##TODO
-        print(print(f"{self.__class__.__name__}.width: - not supported"))
+        self._not_supported()
         return 0
 
     def height(self) -> int:
         ##TODO
-        print(print(f"{self.__class__.__name__}.height: - not supported"))
+        self._not_supported()
         return 0
 
     def map_to_global(self, point: Point) -> Point:
         ##TODO
-        print(print(f"{self.__class__.__name__}.map_to_global: - not supported"))
+        self._not_supported()
         return point
 
 class Label(Widget, i.Label):
@@ -403,7 +424,7 @@ class Layout(Widget, i.Layout):
         assert widget is not None
         if stretch is not None:
             widget.set_stretch(stretch)
-        self[self.s_children_attr].append(widget)
+        self.get_children().append(widget)
 
     def add_layout(self, layout: Layout, stretch=None, **kwargs):
         self.add_widget(layout, stretch=stretch, **kwargs)
@@ -612,7 +633,7 @@ class RadioButton(Widget, i.RadioButton):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if 'label' not in self._kwargs:
-            self['label'] = self['children'].pop(0)
+            self['label'] = self.get_children().pop(0)
         if 'selected_value' not in self._kwargs:
             self['selected_value'] = None
         if 'value' not in self._kwargs:
@@ -647,22 +668,22 @@ class ButtonGroup(Widget, i.ButtonGroup):
             button.selected_value = value
 
     def add_button(self, button, id):
-        if id < len(self['children']):
-            self['children'][id] = button
+        if id < len(self.get_children()):
+            self.get_children()[id] = button
         else:
-            assert len(self['children']) == id
-            self['children'].append(button)
+            assert len(self.get_children()) == id
+            self.get_children().append(button)
         if button['selected_value'] == button['value']:
             self['selected_value'] = button['value']
         button._button_group = self
 
     def button(self, id: int) -> RadioButton:
-        return self['children'][id]
+        return self.get_children()[id]
 
     def checked_id(self):
         #TODO: optimize
         selected = self['selected_value']
-        for i, button in enumerate(self['children']):
+        for i, button in enumerate(self.get_children()):
             if button['value'] == selected:
                 return i
         return -1
@@ -720,19 +741,11 @@ class LineEdit(Widget, i.LineEdit):
     def set_text(self, text: str):
         self['text'] = text or ''
 
-    def set_tool_tip(self, tooltip: str):
-        self['tooltip'] = tooltip
-
     def text(self):
-        if self.subcomponent:
-            return self.subcomponent.text
         return self['text']
 
     def text_edited_connect(self, bound_method):
         self['on_change'] = self.callback(lambda ev: bound_method(ev.text))
-
-    def set_read_only(self, read_only: bool):
-        self['is_sensitive'] = not read_only
 
     def set_password_mode(self):
         self['is_password'] = True
@@ -783,7 +796,7 @@ class CheckBox(Widget, i.CheckBox):
 class ScrollArea(Widget, i.ScrollArea):
     s_component_class = rio.ScrollContainer
     def set_widget(self, w: Widget):
-        self['children'] = [w]
+        self.set_children([w])
 
     def set_horizontal_scroll_bar_policy(self, h):
         self._set_scrollbar_policy('scroll_x',h)
@@ -833,9 +846,8 @@ class Splitter(Widget, i.Splitter):
         self['child_proportions'][widget_index] = factor #TODO: normalize?
 
     def replace_widget(self, widget_index: int, widget: Widget):
-        self['children'][widget_index] = widget
+        self.get_children()[widget_index] = widget
         self.force_update()
-
 
 class Style(i.Style):
     class EnumMeta(type):
@@ -978,21 +990,21 @@ class ListWidget(Widget, i.ListWidget):
         item = ListItem(text=item) if isinstance(item,str) else item
         item['on_press'] = partial(self._handle_on_press, item)
         item._list_widget = self
-        self['children'] = self.setdefault('children',[]) + [item]
+        self.set_children(self.setdefault(self.s_children_attr,[]) + [item])
 
     def clear(self):
-        self['children'] = []
+        self.set_children([])
 
     def find_items(self, text, flags):
         assert flags == MatchExactly, 'only MatchExactly supported'
-        return [item for item in self._kwargs['children'] if text == item['text']]
+        return [item for item in self._kwargs[self.s_children_attr] if text == item['text']]
 
     def row(self, item: ListItem) -> int:
-        return self._kwargs['children'].index(item)
+        return self._kwargs[self.s_children_attr].index(item)
 
     def take_item(self, row: int):
         try:
-            return self._kwargs['children'].pop(row)
+            return self._kwargs[self.s_children_attr].pop(row)
         finally:
             self.force_update()
 
@@ -1081,13 +1093,12 @@ class TreeItem(Widget, i.TreeItem):
 
     def __init__(self, parent: TreeWidget|TreeItem, *args, **kwargs ):
         super().__init__(*args,**kwargs)
-        parent['children'] = parent['children'] + [self]
+        parent[self.s_children_attr] = parent[self.s_children_attr] + [self]
         self.handlers = parent.handlers
         for name, callback in self.handlers.items():
             self[name.replace('_item_', '_')] = partial(callback, self)
 
-    def child_count(self):
-        return len(self['children'])
+
 
     def set_expanded(self, expanded: bool):
         self['is_expanded'] = expanded
@@ -1095,9 +1106,7 @@ class TreeItem(Widget, i.TreeItem):
     def set_text(self, col: int, text: str):
         self['text'] = text
 
-    def set_tool_tip(self, col: int, tooltip: str):
-        self['tooltip'] = tooltip
-
+    
 class RioTreeView(rio.Component):
     """makes item-level callbacks available on the tree level"""
     children: list[DynamicComponent] = None
@@ -1146,11 +1155,11 @@ class TreeWidget(Widget, i.TreeWidget):
 
     def top_level_item_count(self) -> int:
         """Return the number of top-level items."""
-        return len(self['children'])
+        return len(self.get_children())
 
     def top_level_item(self, i: int) -> TreeItem:
         """Return the top-level item at index i."""
-        return self['children'][i]
+        return self.get_children()[i]
 
     def resize_column_to_contents(self, col: int):
         """Adjust the width of the specified column (placeholder)."""
@@ -1182,7 +1191,7 @@ class TreeWidget(Widget, i.TreeWidget):
 
     def add_top_level_item(self, item: TreeItem):
         """Add a top-level item to the tree (helper method)."""
-        self['children'].append(item)
+        self.get_children().append(item)
 
 
 class CalendarWidget(Widget,i.CalendarWidget):
@@ -1195,10 +1204,8 @@ class CalendarWidget(Widget,i.CalendarWidget):
         pass
 
     def set_selected_date(self, selected_date: date):
-        self['value'] = selected_date
+        self.set_children(selected_date)
 
     def selected_date(self) -> date:
-        if self.component:
-            return self.component._build_data_.build_result.value
-        return self['value']
+        return self.get_children()
 
