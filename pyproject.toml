@@ -1,6 +1,6 @@
 [project]
 name = "py10x"
-version = "0.1.0"
+version = "0.1.1"
 description = "10x Universe Core Packages"
 authors = [
     { name = "Sasha Davidovich", email = "sasha.davidovich@10xconcepts.com" },
