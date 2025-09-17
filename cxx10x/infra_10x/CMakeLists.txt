@@ -31,6 +31,15 @@ FetchContent_MakeAvailable(pybind11_stubgen)
 find_package(pybind11 REQUIRED)
 #find_package(mongo-cxx-driver REQUIRED)
 
+set(PY_LINKAGE_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../core_10x/py_linkage.h")
+if(EXISTS "${PY_LINKAGE_SRC}")
+    set(PY_LINKAGE_DEST "${CMAKE_CURRENT_SOURCE_DIR}/py_linkage.h")
+    file(COPY_FILE "${PY_LINKAGE_SRC}" "${PY_LINKAGE_DEST}" RESULT copy_result)
+    if(NOT copy_result EQUAL 0)
+        message(FATAL_ERROR "Failed to copy ${PY_LINKAGE_SRC} to ${PY_LINKAGE_DEST}: ${copy_result}")
+    endif()
+endif()
+
 pybind11_add_module(infra_10x_i
         #mongo_db_driver.cpp
         mongo_collection_helper.cpp
@@ -43,18 +52,25 @@ pybind11_add_module(infra_10x_i
 #)
 
 # Generate .pyi stubs after building the module
-if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-endif()
-# Platform-specific PYTHONPATH separator
 if(WIN32)
-    set(PYTHONPATH_SEP ";")
+    set(PATH_SEP ";")
+    set(BINDIR_SUFFIX "/Release")
 else()
-    set(PYTHONPATH_SEP ":")
+    set(PATH_SEP ":")
+    set(BINDIR_SUFFIX "")
 endif()
+
+if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+    #message("CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}${BINDIR_SUFFIX})
+endif()
+
+set(STUBGEN_PYTHONPATH "${pybind11_stubgen_SOURCE_DIR}${PATH_SEP}${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
+#message("STUBGEN_PYTHONPATH: ${STUBGEN_PYTHONPATH}")
+
 add_custom_command(
         TARGET infra_10x_i POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${pybind11_stubgen_SOURCE_DIR}${PYTHONPATH_SEP}${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" ${Python3_EXECUTABLE} -m pybind11_stubgen infra_10x_i -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen infra_10x_i -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Generating type stubs for infra_10x_i"
         VERBATIM

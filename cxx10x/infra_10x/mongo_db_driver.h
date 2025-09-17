@@ -6,7 +6,7 @@
 #include <mongocxx/client.hpp>
 #include <mongocxx/instance.hpp>
 
-#include "../core_10x/py_linkage.h"
+#include "py_linkage.h"
 
 class MongoDbDriver {
     mongocxx::instance  m_instance{};

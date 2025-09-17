@@ -3,7 +3,7 @@
 //
 #pragma once
 
-#include "../core_10x/py_linkage.h"
+#include "py_linkage.h"
 
 #define NUCLEUS_REV_TAG "_rev"
 
