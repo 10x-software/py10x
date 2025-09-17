@@ -21,8 +21,13 @@ class TreeItem(Widget, i.TreeItem):
     def set_expanded(self, expanded: bool):
         self["is_expanded"] = expanded
 
+    # noinspection PyMethodOverriding
     def set_text(self, col: int, text: str):
-        self["text"] = text
+        super().set_text(text)
+
+    # noinspection PyMethodOverriding
+    def set_tool_tip(self, col: int, text: str):
+        super().set_tool_tip(text)
 
 class TreeWidget(Widget, i.TreeWidget):
     __slots__ = ('handlers',)

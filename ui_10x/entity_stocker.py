@@ -1,9 +1,9 @@
 from typing import Any
 
-from core_10x.traitable import Traitable, Trait, T, RT, RC, Ui
+from core_10x.traitable import RT, Traitable
 
-from ui_10x.utils import ux, ux_push_button, ux_warning, ux_success, ux_answer
 from ui_10x.traitable_editor import TraitableEditor, TraitableView
+from ui_10x.utils import ux, ux_answer, ux_push_button, ux_success, ux_warning
 
 
 class StockerPlug(Traitable):
@@ -127,7 +127,7 @@ class EntityStocker(Traitable):
 
                 return
 
-            except Exception as e:  #-- revision conflict?
+            except Exception:  #-- revision conflict?
                 #-- TODO: resolve revision conflict - MergingEditor
                 ...
 

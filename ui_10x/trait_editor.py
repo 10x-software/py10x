@@ -1,20 +1,20 @@
+from collections.abc import Callable
 from contextlib import nullcontext
-
 from dataclasses import dataclass
-from typing import Callable
 
-from core_10x.rc import RC
-from core_10x.trait import Trait, T, Ui
-from core_10x.concrete_traits import date_trait, list_trait, dict_trait, flags_trait
-from core_10x.traitable import traitable_trait
+from core_10x.concrete_traits import date_trait, dict_trait, flags_trait, list_trait
 from core_10x.entity import Entity
 from core_10x.exec_control import BTP
+from core_10x.rc import RC
+from core_10x.trait import T, Trait, Ui
+from core_10x.traitable import traitable_trait
 
-from ui_10x.utils import ux, UxStyleSheet, ux_pick_date, UxDialog
+import ui_10x.concrete_trait_widgets  # noqa: F401 - registers trait widgets
+from ui_10x.choice import MultiChoice
 from ui_10x.py_data_browser import PyDataBrowser
-from ui_10x.choice import Choice, MultiChoice
 from ui_10x.trait_widget import TraitWidget
-import ui_10x.concrete_trait_widgets
+from ui_10x.utils import UxDialog, UxStyleSheet, ux, ux_pick_date
+
 
 @dataclass
 class EntityWrapper:
@@ -113,11 +113,9 @@ class TraitEditor:
     #---- Built-in Callbacks
 
     def date_cb(self):
-        show_date = self.entity.get_value(self.trait)
-
-        d = ux_pick_date(
+        ux_pick_date(
             title = f'Pick a date for {self.ui_hint.label}',
-            show_date = show_date,
+            show_date = self.entity.get_value(self.trait),
             on_accept = lambda value: self.entity.set_value(self.trait, value)
         )
 

@@ -14,6 +14,7 @@ else:
     elif pname == 'Rio':
         import ui_10x.rio.platform_implementation as ux
     else:
-        assert False, f'UI implementation for `{pname}` is not available'
+        raise ImportError(f'UI implementation for `{pname}` is not available')
 
 
+__all__ = ['ux']

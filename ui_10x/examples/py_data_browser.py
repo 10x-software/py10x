@@ -1,8 +1,9 @@
 from datetime import date
-from ui_10x.utils import ux
-from ui_10x.py_data_browser import PyDataBrowser
 
 from core_10x.py_class import PyClass
+
+from ui_10x.py_data_browser import PyDataBrowser
+from ui_10x.utils import ux
 
 
 class A:

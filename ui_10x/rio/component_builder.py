@@ -53,7 +53,7 @@ class SizePolicy(Enum):
     MINIMUM_EXPANDING = ()
     PREFERRED = ()
 
-class TEXT_ALIGN(NamedConstant):
+class TEXT_ALIGN(NamedConstant): # noqa: N801
     s_vertical = 0xf << 4
 
     LEFT = 1
@@ -74,45 +74,6 @@ class TEXT_ALIGN(NamedConstant):
         return ((self.value >> 4 if self.value & self.s_vertical else self.value)-1) /10
 
 
-
-class _WidgetMixin:
-    __slots__ = ()
-
-    def apply_style_sheet(self, style: dict) -> RC:
-        if text_align := TEXT_ALIGN.from_str(style.pop("text-align", "")):
-            self[text_align.rio_attr()] = text_align.rio_value()
-        if hasattr(self.s_component_class,"text_style"):
-            ss = StyleSheet()
-            rc = ss.set_values(sheet=style)
-            self["text_style"] = ss.text_style
-            return rc
-        return StyleSheet.rc(style)
-
-    def set_style_sheet(self, sh: str):
-        from ui_10x.utils import UxStyleSheet  #TODO: circular import
-        rc = self.apply_style_sheet(UxStyleSheet.loads(sh))
-        if not rc:
-            print(f"{self.__class__.__name__}.set_style_sheet: \n{rc.error()}")
-
-    def set_minimum_height(self, height: int):
-        self['min_height'] = height
-
-    def set_minimum_width(self, width: int):
-        self['min_width'] = width
-
-    def set_size_policy(self, x_policy: SizePolicy, y_policy: SizePolicy):
-        self['grow_x'] = x_policy == SizePolicy.MINIMUM_EXPANDING
-        self['grow_y'] = y_policy == SizePolicy.MINIMUM_EXPANDING
-
-    def set_layout(self, layout: i.Layout):
-        raise NotImplementedError
-
-    def set_tool_tip(self, tooltip: str):
-        self['tooltip'] = tooltip
-
-    def set_read_only(self, read_only: bool):
-        self['is_sensitive'] = not read_only
-
 class DynamicComponent(rio.Component):
     builder: ComponentBuilder|None = None
     revision: int = 0
@@ -126,7 +87,7 @@ class DynamicComponent(rio.Component):
         return component
 
 
-class ComponentBuilder(_WidgetMixin):
+class ComponentBuilder:
     __slots__ = ('_kwargs', 'component', 'subcomponent')
 
     s_component_class : type[rio.Component] = None
@@ -268,7 +229,7 @@ class ComponentBuilder(_WidgetMixin):
 class Widget(ComponentBuilder, i.Widget):
     s_component_class = rio.Container
     s_stretch_arg = 'grow_x'
-    s_default_layout_factory = lambda: FlowLayout()
+    s_default_layout_factory = lambda: FlowLayout() # noqa: E731
     s_default_kwargs = dict(grow_y = False,align_y = 0)
 
     __slots__ = ('_layout',)
@@ -291,6 +252,41 @@ class Widget(ComponentBuilder, i.Widget):
     def set_stretch(self, stretch):
         assert stretch in (0, 1), 'Only stretch of 0 or 1 is currently supported'
         self[self.s_stretch_arg] = bool(stretch)
+
+    def apply_style_sheet(self, style: dict) -> RC:
+        if text_align := TEXT_ALIGN.from_str(style.pop("text-align", "")):
+            self[text_align.rio_attr()] = text_align.rio_value()
+        if hasattr(self.s_component_class,"text_style"):
+            ss = StyleSheet()
+            rc = ss.set_values(sheet=style)
+            self["text_style"] = ss.text_style
+            return rc
+        return StyleSheet.rc(style)
+
+    def set_style_sheet(self, sh: str):
+        from ui_10x.utils import UxStyleSheet  #TODO: circular import
+        rc = self.apply_style_sheet(UxStyleSheet.loads(sh))
+        if not rc:
+            print(f"{self.__class__.__name__}.set_style_sheet: \n{rc.error()}")
+
+    def set_minimum_height(self, height: int):
+        self['min_height'] = height
+
+    def set_minimum_width(self, width: int):
+        self['min_width'] = width
+
+    def set_size_policy(self, x_policy: SizePolicy, y_policy: SizePolicy):
+        self['grow_x'] = x_policy == SizePolicy.MINIMUM_EXPANDING
+        self['grow_y'] = y_policy == SizePolicy.MINIMUM_EXPANDING
+
+    def set_tool_tip(self, tooltip: str):
+        self['tooltip'] = tooltip
+
+    def set_text(self, text: str):
+        self["text"] = text
+
+    def set_read_only(self, read_only: bool):
+        self['is_sensitive'] = not read_only
 
     def style_sheet(self) -> str:
         ##TODO

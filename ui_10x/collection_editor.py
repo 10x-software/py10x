@@ -1,12 +1,19 @@
 from typing import Any
 
-from core_10x.traitable import Traitable, T, RT, RC
-from core_10x.traitable_id import ID
 from core_10x.trait_filter import f
+from core_10x.traitable import RC, RT, T, Traitable
+from core_10x.traitable_id import ID
 
-from ui_10x.utils import ux, UxSearchableList, ux_push_button, ux_warning, ux_make_scrollable
-from ui_10x.traitable_editor import TraitableEditor
 from ui_10x.entity_stocker import EntityStocker, StockerPlug
+from ui_10x.traitable_editor import TraitableEditor
+from ui_10x.utils import (
+    UxSearchableList,
+    ux,
+    ux_make_scrollable,
+    ux_push_button,
+    ux_warning,
+)
+
 
 class Collection(Traitable):
     cls: type[Traitable]

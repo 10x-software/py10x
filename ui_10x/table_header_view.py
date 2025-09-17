@@ -225,7 +225,7 @@ class HeaderView(ux.HeaderView):
         left    = self.current_cell_left(cell_index, leaf_index, logical_index, section_rect.left())
         width   = self.current_cell_width(cell_index, leaf_index, logical_index)
 
-        if not cell_index in self.painted_cells:
+        if cell_index not in self.painted_cells:
             self.painted_cells.add(cell_index)
             r = QRect(left, top, width, height)
 

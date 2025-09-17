@@ -1,10 +1,10 @@
-import inspect
 import copy
+import inspect
 
-from core_10x.trait import Trait, T
-from core_10x.ui_hint import Ui, UiMod
-from core_10x.traitable import Traitable
 from core_10x.global_cache import cache
+from core_10x.trait import T, Trait
+from core_10x.traitable import Traitable
+from core_10x.ui_hint import Ui, UiMod
 
 
 class TraitableView:
@@ -27,7 +27,7 @@ class TraitableView:
         return True
 
     @classmethod
-    def suitable_record(cls, trait: Trait = None, trait_dir: dict = None, trait_name: str = None, _skip_reserved = True) -> Trait:
+    def suitable_record(cls, trait: Trait = None, trait_dir: dict = None, trait_name: str = None, _skip_reserved = True) -> Trait|None:
         if not trait:
             assert trait_dir and trait_name, 'trait is None, so both trait_dir and trait_name must be provided'
             trait = trait_dir.get(trait_name)
@@ -76,7 +76,7 @@ class TraitableView:
 
         to_set = Ui.READ_ONLY if flag else 0x0
         to_reset = 0x0 if flag else Ui.READ_ONLY
-        for name, ui_hint in view.ui_hints.items():
+        for ui_hint in view.ui_hints.values():
             ui_hint.set_reset_flags(to_set, to_reset)
         return view
 

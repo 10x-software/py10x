@@ -1,9 +1,7 @@
 from core_10x.code_samples.person import Person
-from core_10x.ui_hint import Ui, UiMod
 from infra_10x.mongodb_store import MongoStore
 
 from ui_10x.traitable_editor import TraitableEditor, TraitableView
-
 
 if __name__ == '__main__':
     db = MongoStore.instance(hostname='localhost', dbname='test')
