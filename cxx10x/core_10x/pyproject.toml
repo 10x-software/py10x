@@ -1,6 +1,6 @@
 [project]
 name = "core_10x_i"
-version = "0.1.0"
+version = "0.1.1"
 authors = [
     { name = "Sasha Davidovich", email = "founders@10x-software.org" },
     { name = "Ilya Pevzner", email = "founders@10x-software.org" }
