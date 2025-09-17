@@ -66,7 +66,7 @@ install(TARGETS infra_10x_i
 )
 
 # Install the generated .pyi alongside the module
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/infra_10x_i.pyi DESTINATION .)
+install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/infra_10x_i.pyi DESTINATION .)
 
 #target_link_libraries(infra_10x_i PRIVATE mongocxx_static)
 
