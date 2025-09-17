@@ -1,6 +1,6 @@
 [project]
 name = "py10x"
-version = "0.1.1"
+version = "0.1.2"
 description = "10x Universe Core Packages"
 authors = [
     { name = "Sasha Davidovich", email = "sasha.davidovich@10xconcepts.com" },
@@ -29,9 +29,9 @@ rio = [
     "matplotlib~=3.10.6"
 ]
 qt = [
-    "pyqt6 (==6.8.1)",
-    "pyqt6-qt6 (==6.8.2)",
-    "pyqt6-sip (==13.10.0)",
+    "PyQt6 (==6.8.1)",
+    "PyQt6-Qt6 (==6.8.2)",
+    "PyQt6_sip (==13.10.0)",
 ]
 [tool.poetry]
 packages = [
