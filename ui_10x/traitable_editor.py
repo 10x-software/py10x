@@ -1,15 +1,16 @@
-from typing import Callable
+from collections.abc import Callable
 
+from core_10x.exec_control import INTERACTIVE
 from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Ui
 from core_10x.traitable import Traitable
-from core_10x.exec_control import INTERACTIVE
 
-from ui_10x.utils import ux, UxDialog, ux_warning
-from ui_10x.traitable_view import TraitableView
 from ui_10x.trait_editor import TraitEditor
+from ui_10x.traitable_view import TraitableView
+from ui_10x.utils import UxDialog, ux, ux_warning
+
 
 class TraitableEditor:
     """
@@ -70,7 +71,7 @@ class TraitableEditor:
         trait_dir = entity_class.s_dir
         self.trait_hints = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
 
-        self.main_w: ux.Widget = None
+        self.main_w: ux.Widget|None = None
         self.callbacks_for_traits = {}
         self.init()
 
@@ -93,7 +94,7 @@ class TraitableEditor:
         lay = ux.FormLayout()
 
         te: TraitEditor
-        for name, te in self.trait_editors.items():
+        for te in self.trait_editors.values():
             label = te.new_label()
             w = te.new_widget()
             lay.add_row(label, w)
@@ -106,7 +107,7 @@ class TraitableEditor:
         row = ux.HBoxLayout()
 
         stretched_trait_found = False
-        for name, te in self.trait_editors.items():
+        for te in self.trait_editors.values():
             stretch = te.ui_hint.param('stretch', None)
             if stretch is not None:
                 stretched_trait_found = True

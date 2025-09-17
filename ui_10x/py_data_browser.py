@@ -1,8 +1,9 @@
-from datetime import datetime, date
-from ui_10x.utils import ux, UxDialog
+from datetime import date, datetime
 
-from core_10x.xnone import XNone
 from core_10x.rc import RC, RC_TRUE
+from core_10x.xnone import XNone
+
+from ui_10x.utils import UxDialog, ux
 
 
 class PyDataBrowser:
@@ -91,7 +92,7 @@ class PyDataBrowser:
         type:           None,
         type(None):     None,
         type(XNone):    None,
-        bool:           lambda x:   PyDataEditor.s_bool_vmap.get(x, bool(x)),
+        bool:           lambda x:   PyDataBrowser.s_bool_vmap.get(x, bool(x)),
         str:            lambda x:   x,
         int:            lambda x:   int(x),
         float:          lambda x:   float(x),
@@ -99,8 +100,8 @@ class PyDataBrowser:
         date:           lambda x:   datetime.strptime(x, '%Y-%m-%d').date(),
     }
 
-    s_dict_handler  = lambda data: data.items()
-    s_list_handler  = lambda data: enumerate(data)
+    s_dict_handler  = lambda data: data.items()     # noqa: E731
+    s_list_handler  = lambda data: enumerate(data)  # noqa: E731
     s_type_handlers = {
         tuple:      s_list_handler,
         list:       s_list_handler,

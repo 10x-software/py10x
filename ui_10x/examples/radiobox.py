@@ -3,9 +3,9 @@
 if __name__ == '__main__':
     #import os;assert os.environ.setdefault('UI_PLATFORM', 'Rio') == os.getenv('UI_PLATFORM')
 
-    from ui_10x.utils import ux, UxRadioBox, UxDialog
-
     from core_10x.named_constant import NamedConstant
+
+    from ui_10x.utils import UxDialog, UxRadioBox, ux
 
     class COLOR(NamedConstant, lowercase_values = True):
         BLACK   = ()

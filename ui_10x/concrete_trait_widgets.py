@@ -1,9 +1,10 @@
-from core_10x.trait import Trait, Ui
 from core_10x.concrete_traits import list_trait
+from core_10x.trait import Trait, Ui
 
-from ui_10x.utils import ux, UxClipBoard, ux_push_button
 from ui_10x.choice import Choice
 from ui_10x.trait_widget import TraitWidget
+from ui_10x.utils import UxClipBoard, ux, ux_push_button
+
 
 class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE):
     def _create(self):

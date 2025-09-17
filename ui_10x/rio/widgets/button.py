@@ -17,9 +17,6 @@ class Label(Widget, i.Label):
     s_single_child = True
     s_children_attr = 'text'
 
-    def set_text(self, text: str):
-        self['text'] = text or ''
-
 class PushButton(Label,i.PushButton):
     s_component_class = rio.Button
     s_forced_kwargs = {}

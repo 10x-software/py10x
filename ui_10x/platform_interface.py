@@ -1,9 +1,9 @@
 import abc
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
 
-class Object(abc.ABC): ...
+class Object(abc.ABC): ... # noqa: B024
 
 QueuedConnection            = None
 AutoConnection              = None
@@ -11,7 +11,7 @@ DirectConnection            = None
 UniqueConnection            = None
 BlockingQueuedConnection    = None
 
-class signal_decl(abc.ABC):
+class signal_decl(abc.ABC): # noqa: N801
     @abc.abstractmethod
     def __init__(self, *args): ...
 
@@ -35,17 +35,19 @@ class Point(abc.ABC):
     @abc.abstractmethod
     def y(self) -> int: ...
 
-class SizePolicy(abc.ABC):
+class SizePolicy(abc.ABC): # noqa: B024
     MINIMUM_EXPANDING = None
     PREFERRED = None
 
 class FontMetrics(abc.ABC):
+    @abc.abstractmethod
     def average_char_width(self) -> int: ...
 
-class Color(abc.ABC): ...
+class Color(abc.ABC): ... # noqa: B024
 
 class Widget(abc.ABC):
     __slots__ = ()
+    @abc.abstractmethod
     def __init__(self, *args, **kwargs) -> None: ...
 
     @abc.abstractmethod
@@ -97,6 +99,7 @@ Horizontal  = 0
 Vertical    = 1
 
 class Layout(abc.ABC):
+    @abc.abstractmethod
     def __init__(self, *args, **kwargs): ...
 
     @abc.abstractmethod
@@ -108,12 +111,12 @@ class Layout(abc.ABC):
     @abc.abstractmethod
     def set_contents_margins(self, left, top, right, bottom): ...
 
-class BoxLayout(Layout):
+class BoxLayout(Layout,abc.ABC):
     @abc.abstractmethod
     def add_layout(self, layout: 'Layout', **kwargs): ...
 
-class HBoxLayout(BoxLayout): ...
-class VBoxLayout(BoxLayout): ...
+class HBoxLayout(BoxLayout,abc.ABC): ...
+class VBoxLayout(BoxLayout,abc.ABC): ...
 
 class FormLayout(Layout):
     @abc.abstractmethod
@@ -347,7 +350,7 @@ class Application(abc.ABC):
     def style(self): ...
 
 
-class TEXT_ALIGN:
+class TEXT_ALIGN: # noqa: N801
     TOP       = None
     V_CENTER  = None
     BOTTOM    = None
@@ -355,7 +358,7 @@ class TEXT_ALIGN:
     CENTER    = None
     RIGHT     = None
 
-class SCROLL(abc.ABC):
+class SCROLL(abc.ABC): # noqa: B024
     OFF         = None
     ON          = None
     AS_NEEDED   = None
@@ -403,8 +406,7 @@ class ModelIndex(abc.ABC):
     @abc.abstractmethod
     def data(self, role): ...
 
-class AbstractTableModel(abc.ABC):
- ...
+class AbstractTableModel(abc.ABC): ... # noqa: B024
 
 class HeaderView(abc.ABC):
     @abc.abstractmethod
@@ -432,7 +434,7 @@ class StyleOptionHeader(abc.ABC):
 ForegroundRole  = None
 BackgroundRole  = None
 
-class Separator(abc.ABC): ...
+class Separator(abc.ABC): ... # noqa: B024
 
 def init(style = '') -> Application:           raise NotImplementedError
 def to_clipboard(text: str, **kwargs):         raise NotImplementedError

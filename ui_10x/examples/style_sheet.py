@@ -1,4 +1,4 @@
-from core_10x.traitable import Traitable, T, Ui
+from core_10x.traitable import T, Traitable, Ui
 from core_10x.ts_union import TsUnion
 
 COLORS = ('black', 'white', 'green', 'lightgreen', 'red', 'blue', 'grey')

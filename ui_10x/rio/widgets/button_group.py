@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import rio
+
 import ui_10x.platform_interface as i
 import ui_10x.rio.components as rio_components
 from ui_10x.rio.component_builder import Widget
@@ -64,7 +66,7 @@ class ButtonGroup(Widget, i.ButtonGroup):
     def checked_id(self):
         #TODO: optimize
         selected = self['selected_value']
-        for i, button in enumerate(self.get_children()):
+        for idx, button in enumerate(self.get_children()):
             if button['value'] == selected:
-                return i
+                return idx
         return -1

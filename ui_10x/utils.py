@@ -1,14 +1,14 @@
-from datetime import date
 import inspect
 from collections import deque
-from typing import Callable
+from collections.abc import Callable
+from datetime import date
 
-from core_10x.rc import RC
+from core_10x.directory import Directory
+from core_10x.global_cache import singleton
+from core_10x.named_constant import NamedConstant
+
 from ui_10x.platform import ux
 
-from core_10x.named_constant import NamedConstant
-from core_10x.global_cache import cache, singleton
-from core_10x.directory import Directory
 
 class UxAsync(ux.Object):
     SIGNAL = ux.signal_decl()
@@ -50,7 +50,7 @@ class UxRadioBox(ux.GroupBox):
                     default = i
                     break
             else:
-                assert False, f'{default_value} is not found'
+                raise RuntimeError(f'{default_value} is not found')
 
         if title:
             super().__init__(title)
@@ -118,8 +118,8 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
         if isinstance(style_icon, str):
             try:
                 style_icon = getattr(ux.Style.StandardPixmap, f'SP_{style_icon}')
-            except AttributeError:
-                assert False, f"Unknown style_icon = '{style_icon}'"
+            except AttributeError as e:
+                raise RuntimeError(f"Unknown style_icon = '{style_icon}'") from e
 
         assert isinstance(style_icon, int), 'Currently only str or int are supported for style_icon'
 
@@ -138,7 +138,7 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
     return button
 
 class UxDialog(ux.Dialog):
-    def _createButton(self, ok: bool, button_spec) -> ux.PushButton:
+    def _create_button(self, ok: bool, button_spec) -> ux.PushButton|None:
         if not button_spec:
             return None
 
@@ -155,7 +155,7 @@ class UxDialog(ux.Dialog):
         else:
             return None
 
-        cb = self.onOk if ok else self.onCancel
+        cb = self.on_ok if ok else self.on_cancel
         return ux_push_button(label, callback = cb, style_icon = icon)
 
     def __init__(
@@ -190,9 +190,9 @@ class UxDialog(ux.Dialog):
         self.cancel_callback = cancel_callback if cancel_callback else self.reject
 
         if ok:
-            ok = self._createButton(True, ok)
+            ok = self._create_button(True, ok)
         if cancel:
-            cancel = self._createButton(False, cancel)
+            cancel = self._create_button(False, cancel)
 
         lay = ux.VBoxLayout()
         self.set_layout(lay)
@@ -220,7 +220,7 @@ class UxDialog(ux.Dialog):
         if min_height > 0:
             self.set_minimum_height(min_height)
 
-    def onOk(self):
+    def on_ok(self):
         if self.accept_callback:
             rc = self.accept_callback()
             if not rc:
@@ -229,7 +229,7 @@ class UxDialog(ux.Dialog):
 
         self.done(1)
 
-    def onCancel(self):
+    def on_cancel(self):
         self.reject()
         self.done(0)
 
@@ -316,12 +316,12 @@ class UxStyleSheet:
         widget.set_style_sheet(cls.dumps(data))
 
 
-s_verticalAlignmentMap = {
+s_verticalAlignmentMap = { # noqa: N816
     -1:     ux.TEXT_ALIGN.TOP,
     0:      ux.TEXT_ALIGN.V_CENTER,
     1:      ux.TEXT_ALIGN.BOTTOM,
 }
-s_horizontalAlignmentMap = {
+s_horizontalAlignmentMap = { # noqa: N816
     -1:     ux.TEXT_ALIGN.LEFT,
     0:      ux.TEXT_ALIGN.CENTER,
     1:      ux.TEXT_ALIGN.RIGHT,
@@ -391,7 +391,7 @@ class UxSearchableList(ux.GroupBox):
         self.set_layout(lay)
 
     def add_choice(self, choice: str):
-        if not choice in self.initial_choices:
+        if choice not in self.initial_choices:
             self.initial_choices.append(choice)
             if self.sort:
                 self.initial_choices = sorted(self.initial_choices)

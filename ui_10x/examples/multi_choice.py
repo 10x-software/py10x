@@ -1,7 +1,8 @@
 if __name__ == '__main__':
-    from core_10x.code_samples.directories import ANIMALS, FISH
-    from ui_10x.utils import ux, UxDialog
+    from core_10x.code_samples.directories import ANIMALS
+
     from ui_10x.choice import MultiChoice
+    from ui_10x.utils import UxDialog, ux
 
     ux.init()
 
