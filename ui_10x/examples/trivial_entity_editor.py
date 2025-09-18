@@ -12,7 +12,7 @@ if __name__ == '__main__':
         #weight_qu   = UiMod(flags = Ui.HIDDEN),
     )
     e = TraitableEditor.editor(p, view = view)
-    rc = e.popup(save=True)
+    rc = e.dialog(save=True).exec()
 
 
 
