@@ -49,7 +49,12 @@ line-length = 150
 
 [tool.ruff.format]
 quote-style = "single"
-exclude = ["core_10x/*", "infra_10x/*", "ui_10x/*"]
+exclude = [
+    "core_10x/xnone.py",
+    "core_10x/manual_tests/*",
+    "infra_10x/*",
+    "ui_10x/*"
+]
 
 [tool.ruff.lint]
 ignore = ["RUF013","RUF012"]
