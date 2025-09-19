@@ -3,7 +3,6 @@ from __future__ import annotations
 from datetime import date
 
 import rio
-
 import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import Widget
 

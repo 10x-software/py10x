@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import rio
 from core_10x.code_samples.person import Person
+
+import rio
 
 from .. import UserSessionContext
 from .. import components as comps

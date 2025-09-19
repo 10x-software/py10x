@@ -4,7 +4,6 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import rio
-
 import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import DynamicComponent, Widget
 

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import rio
-
 import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import Layout
 
