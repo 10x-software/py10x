@@ -1,6 +1,6 @@
 [project]
 name = "py10x"
-version = "0.0.2"
+version = "0.1.2"
 description = "10x Universe Core Packages"
 authors = [
     { name = "Sasha Davidovich", email = "sasha.davidovich@10xconcepts.com" },
@@ -8,25 +8,62 @@ authors = [
 ]
 #license = {text = "MIT"}
 #readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11,<4.0"
 dependencies = [
+    "core-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy (>=2.2.2,<2.3.0)",
-    "pymongo (>=4.7.3)",
-    "pytest (>=8.3.4,<8.4.0)",
-    "pytest-cov (>=6.0.0,<6.1.0)",
+    "python-dateutil (>=2.9.0,<2.10.0)",
+    "cryptography (>=45.0.7,<45.1.0)",
     "infra-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x",
-    "core-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x"
+    "pymongo (>=4.7.3)",
 ]
-
+[project.optional-dependencies]
+dev = [
+    "pytest (>=8.3.4)",
+    "pytest-cov (>=6.0.0)",
+    "ruff (>=0.13.0)",
+]
+rio = [
+    "rio-ui @ git+https://github.com/ilya-pevzner/rio.git@size-observer",
+    "matplotlib~=3.10.6"
+]
+qt = [
+    "PyQt6 (==6.8.1)",
+    "PyQt6-Qt6 (==6.8.2)",
+    "PyQt6_sip (==13.10.0)",
+]
 [tool.poetry]
 packages = [
    { include = "core_10x" },
    { include = "infra_10x" },
+   { include = "ui_10x" },
 ]
-
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.ruff]
+src = ["core_10x", "infra_10x"]
 
+[tool.ruff.lint]
+ignore = ["RUF013","RUF012"]
+extend-select = [
+  "B",   # flake8-bugbear
+  "I",   # isort
+  "PGH", # pygrep-hooks
+  "RUF", # Ruff-specific
+  "UP",  # pyupgrade
+  "N",   # naming
+  "F",   # pyflakes
+  "C90", # complexity
+]
+
+[tool.ruff.lint.per-file-ignores]
+"ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N801","N802","N816"]
+"ui_10x/table*.py" = ["N802","I001","F401"]
+"*.pyi" = ["N801","N802"]
+"*/manual_tests/*" = ["N801","N802"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12 # Flag errors (`C901`) whenever the complexity level exceeds this

@@ -15,7 +15,7 @@ class XNoneType:
     """
 
     def __getattr__(self, item):              return self
-    def __setattr__(self, key, value):        assert False, 'May not setattr to XNone'
+    def __setattr__(self, key, value):        raise AttributeError('May not setattr to XNone')
     def __call__(self, *args, **kwargs):      return self
     def __hash__(self):                       return id(self)
 
@@ -64,7 +64,6 @@ class XNoneType:
     s_serialized = chr(8)
 
     def __init_subclass__(cls, **kwargs):
-        assert False, 'May not derive from XNone'
-
+        raise TypeError('May not derive from XNone')
 
 XNone = XNoneType()

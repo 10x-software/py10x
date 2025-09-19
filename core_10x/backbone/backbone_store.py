@@ -1,8 +1,8 @@
-from core_10x_i import OsUser
 
-from core_10x.global_cache import cache
 from core_10x.environment_variables import EnvVars
+from core_10x.global_cache import cache
 from core_10x.ts_store import TsStore
+
 
 class BackboneStore:
     """
@@ -35,7 +35,7 @@ class BackboneStore:
 
         is_running, with_auth = store_cls.is_running_with_auth(hostname)
         if not is_running:
-            raise EnvironmentError(f"{store_cls.s_driver_name}({hostname}) is not running")
+            raise OSError(f"{store_cls.s_driver_name}({hostname}) is not running")
 
         cls.with_auth = with_auth
         if with_auth:

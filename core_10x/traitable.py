@@ -1,25 +1,29 @@
-import operator
 import functools
-from abc import ABC, abstractmethod
+import operator
+from collections.abc import Generator
 from itertools import chain
-from typing import Self, Generator
+from typing import Any, Self
 
 from core_10x_i import BTraitable, BTraitableClass
 
-from core_10x.nucleus import Nucleus
-from core_10x.xnone import XNone
-from core_10x.trait_definition import TraitDefinition, TraitModification, RT, M, Ui
-from core_10x.trait import Trait, TRAIT_METHOD, T, BoundTrait, trait_value
 import core_10x.concrete_traits as concrete_traits
 from core_10x.global_cache import cache
-from core_10x.rc import RC, RC_TRUE
-from core_10x.package_refactoring import PackageRefactoring
-from core_10x.ts_store import TS_STORE, TsStore, TsCollection
+from core_10x.nucleus import Nucleus
 from core_10x.package_manifest import PackageManifest
-from core_10x.traitable_id import ID
-from core_10x.resource import ResourceRequirements
+from core_10x.package_refactoring import PackageRefactoring
+from core_10x.rc import RC, RC_TRUE
+from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value  # noqa: F401
+from core_10x.trait_definition import (  # noqa: F401
+    RT,
+    M,
+    TraitDefinition,
+    TraitModification,
+    Ui,
+)
 from core_10x.trait_filter import f
 from core_10x.traitable_id import ID
+from core_10x.ts_store import TS_STORE, TsCollection, TsStore
+from core_10x.xnone import XNone, XNoneType
 
 
 class TraitAccessor:
@@ -41,24 +45,26 @@ COLL_NAME_TAG = '_collection_name'
 class TraitableMetaclass(type(BTraitable)):
 
     @staticmethod
-    def find_symbols(bases,class_dict,symbol):
+    def find_symbols(bases, class_dict, symbol):
         return chain(
             filter(None,(class_dict.get(symbol),)),
-            (res for base in bases if (res := getattr(base,symbol,None)))
+            (res for base in bases if (res := getattr(base, symbol, None)))
         )
 
     @staticmethod
     @cache
     def rev_trait() -> Trait:
         trait_name = Nucleus.REVISION_TAG()
-        t_def = T(0, T.RESERVED)
+        # noinspection PyTypeChecker
+        t_def: TraitDefinition = T(0, T.RESERVED)
         return Trait.create(trait_name, t_def, {}, {trait_name: int},  RC_TRUE)
 
     @staticmethod
     @cache
     def collection_name_trait() -> Trait:
         trait_name = COLL_NAME_TAG
-        t_def = T(T.RESERVED | T.RUNTIME)
+        # noinspection PyTypeChecker
+        t_def: TraitDefinition = T(T.RESERVED | T.RUNTIME)
         def get(self): return self.id().collection_name
         def set(self, t, cname) -> RC:
             self.id().collection_name = cname
@@ -76,19 +82,20 @@ class TraitableMetaclass(type(BTraitable)):
         )
 
     def __new__(cls, name, bases, class_dict, **kwargs):
-        build_trait_dir = next(cls.find_symbols(bases,class_dict,'build_trait_dir'))
-        special_attributes = tuple(chain.from_iterable(cls.find_symbols(bases,class_dict,'s_special_attributes')))
+        build_trait_dir = next(cls.find_symbols(bases, class_dict,'build_trait_dir'))
+        special_attributes = tuple(chain.from_iterable(cls.find_symbols(bases, class_dict,'s_special_attributes')))
 
         trait_dir = {
             Nucleus.REVISION_TAG(): cls.rev_trait(),                #-- insert _rev as the first trait and delete later if not needed
             COLL_NAME_TAG:          cls.collection_name_trait(),
         }
 
-        build_trait_dir(bases, class_dict, trait_dir).throw(exc=TypeError)  #-- build trait dir_from trait definitions in class_dict
+        build_trait_dir(bases, class_dict, trait_dir).throw(exc = TypeError)  #-- build trait dir_from trait definitions in class_dict
 
         for item in trait_dir:
             if item in class_dict:
-                del class_dict[item]                                        #-- delete trait names from class_dict as they will be in __slots__
+                del class_dict[item]  #-- delete trait names from class_dict as they will be in __slots__
+
         class_dict.update(
             s_dir = trait_dir,
             __slots__ = ( *special_attributes, *tuple(trait_dir.keys()) ),
@@ -99,51 +106,55 @@ class TraitableMetaclass(type(BTraitable)):
 
 class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
     s_dir = {}
+    s_default_trait_factory = RT
     @staticmethod
     def build_trait_dir(bases, class_dict, trait_dir) -> RC:
         annotations = class_dict.get('__annotations__') or {}
+        default_trait_factory = next(TraitableMetaclass.find_symbols(bases, class_dict,'s_default_trait_factory'), RT)
 
         rc = RC(True)
-        trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(bases,class_dict,'s_dir'), {}) #-- shallow copy!
-
+        trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(bases, class_dict,'s_dir'), {}) #-- shallow copy!
         for trait_name, old_trait in trait_dir.items():
             if any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
                 t_def =old_trait.t_def
                 trait_dir[trait_name] = Trait.create(trait_name, t_def, class_dict, {trait_name:t_def.data_type} | annotations, rc)
 
+        annotations |= {k: XNoneType for k, v in class_dict.items() if isinstance(v, TraitModification) and k not in annotations}
+
         for trait_name, trait_def in class_dict.items():
-            if not isinstance(trait_def, TraitDefinition):
+            if isinstance(trait_def, TraitDefinition) and trait_name not in annotations:
+                rc <<= f'{trait_name} = T(...), but the trait is missing a data type annotation. Use `Any` if needed.'
+
+        for trait_name, dt in annotations.items():
+            trait_def = class_dict.get(trait_name, class_dict)
+            if trait_def is not class_dict and not isinstance(trait_def, TraitDefinition):
                 continue
 
-            dt = annotations.get(trait_name, XNone.__class__)
+            old_trait: Trait = trait_dir.get(trait_name)
+            if trait_def is class_dict: #-- only annotation, not in class_dict
+                if old_trait and dt is not old_trait.data_type:
+                    rc <<= f'Attempt to implicitly redefine type for previously defined trait `{trait_name}`.  Use M() if needed.'
+                    continue
+                trait_def = default_trait_factory()
+
+            dt = XNoneType if not dt or dt is Any else dt
             if isinstance(trait_def, TraitModification):
-                old_trait: Trait = trait_dir.get(trait_name)
                 if not old_trait:
-                    rc <<= f'{trait_name} = M(...), but the trait is unknown'
-
+                    rc <<= f'{trait_name} = M(...), but the trait is not defined previously'
+                    continue
                 trait_def = trait_def.apply(old_trait.t_def)
-                if dt is not XNone:     #-- the data type is also being modified
+                if dt is not XNoneType: #-- the data type is also being modified
                     trait_def.data_type = dt
-
             else:
                 trait_def.data_type = dt
 
             trait_def.name = trait_name
-            trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, annotations, rc)
-
-        for trait_name, dt in annotations.items():
-            if trait_name in class_dict:
-                continue
-            old_trait: Trait = trait_dir.get(trait_name)
-            trait_def = M().apply(old_trait.t_def) if old_trait else T()
-            trait_def.data_type = dt
-            trait_def.name = trait_name
-            trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, annotations, rc)
+            trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, {}, rc)
 
         return rc
 
     @classmethod
-    def traits(cls,flags_on=0,flags_off=0) -> Generator[T,None,None]:
+    def traits(cls, flags_on = 0, flags_off = 0) -> Generator[Trait, None, None]:
         return (t for t in cls.s_dir.values() if (not flags_on or t.flags_on(flags_on)) and not t.flags_on(flags_off))
 
     def __hash__(self):
@@ -226,8 +237,8 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
     @classmethod
     def update(cls, **kwargs) -> Self:
-        o = cls(**{k: v for k, v in kwargs.items() if not (t:=cls.s_dir.get(k)) or t.flags_on(T.ID)})
-        o.set_values(**{k: v for k, v in kwargs.items() if (t:=cls.s_dir.get(k)) and not t.flags_on(T.ID)}).throw()
+        o = cls(**{k: v for k, v in kwargs.items() if not (t := cls.s_dir.get(k)) or t.flags_on(T.ID)})
+        o.set_values(**{k: v for k, v in kwargs.items() if (t := cls.s_dir.get(k)) and not t.flags_on(T.ID)}).throw()
         return o
 
     def set_values(self, _ignore_unknown_traits = True, **trait_values) -> RC:
@@ -251,10 +262,10 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
     @classmethod
     def is_bundle(cls) -> bool:
-        return cls.serialized_class is not Traitable.serialized_class
+        return cls.serialize_class_id is not Traitable.serialize_class_id
 
     @classmethod
-    def serialize_class_id(cls) -> str:
+    def serialize_class_id(cls) -> str|None:
         return None
 
     @classmethod
@@ -270,7 +281,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
     @classmethod
     def from_str(cls, s: str) -> Nucleus:
-        return cls.instance_by_id(s)
+        return cls(ID(s)) # collection name?
 
     @classmethod
     def from_any_xstr(cls, value) -> Nucleus:
@@ -294,7 +305,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
         bb_store = BoundDataDomain.store()
         if not bb_store:
-            raise EnvironmentError('No Store is available: neither current Store is set nor 10X Backbone host is defined')
+            raise OSError('No Store is available: neither current Store is set nor 10X Backbone host is defined')
 
         bbd = BoundDataDomain(domain = domain)
         bbd.reload()
@@ -302,7 +313,7 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
 
     @classmethod
     @cache
-    def preferred_store(cls) -> TsStore:
+    def preferred_store(cls) -> TsStore|None:
         rr = PackageManifest.resource_requirements(cls)
         if not rr:
             return None
@@ -316,105 +327,64 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
         if not store:
             store = cls.preferred_store()
             if not store:
-                raise EnvironmentError(f'{cls} - failed to find a store')
+                raise OSError(f'{cls} - failed to find a store')
 
         return store
 
     @classmethod
-    def collection(cls, _coll_name: str = None):
-        return cls.s_storage_helper.collection(cls, _coll_name)
-
+    def collection(cls, _coll_name: str = None) -> TsCollection|None: return cls.s_storage_helper.collection(cls, _coll_name)
     @classmethod
-    def exists_in_store(cls, id: ID):
-        return cls.s_storage_helper.exists_in_store(cls, id)
-
+    def exists_in_store(cls, id: ID) -> bool: return cls.s_storage_helper.exists_in_store(cls, id)
     @classmethod
-    def load_data(cls, id: ID):
-        return cls.s_storage_helper.load_data(cls, id)
-
+    def load_data(cls, id: ID) -> dict|None: return cls.s_storage_helper.load_data(cls, id)
     @classmethod
-    def delete_in_store(cls, id: ID) -> RC:
-        coll = cls.collection(_coll_name = id.collection_name)
-        if not coll:
-            return RC(False, f'{cls} - no store available')
-        if not coll.delete(id.value):
-            return RC(False, f'{cls} - failed to delete {id.value} from {coll}')
-        return RC_TRUE
-
+    def delete_in_store(cls, id: ID) -> RC: return cls.s_storage_helper.delete_in_store(cls, id)
     @classmethod
-    def load(cls, id: ID):
-        return cls.s_storage_helper.load(cls, id)
-
+    def load(cls, id: ID) -> Self|None: return cls.s_storage_helper.load(cls, id)
     @classmethod
-    def load_many(cls, query=None, _coll_name: str = None):
-        return cls.s_storage_helper.load_many(cls, query, _coll_name)
-
+    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize = True) -> list[Self]:
+        return cls.s_storage_helper.load_many(cls, query, _coll_name, _at_most, _order, _deserialize)
     @classmethod
-    def load_ids(cls, query=None, _coll_name: str = None):
-        return cls.s_storage_helper.load_ids(cls, query, _coll_name)
-
-    def save(self):
-        return self.__class__.s_storage_helper.save(self)
-
-    def delete(self) -> RC:
-        rc = self.delete_in_store(self.id())
-        if rc:
-            self.set_revision(0)
-        return rc
+    def load_ids(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
+        return cls.s_storage_helper.load_ids(cls, query, _coll_name, _at_most, _order)
+    @classmethod
+    def delete_collection(cls, _coll_name: str = None) -> bool: return cls.s_storage_helper.delete_collection(cls, _coll_name)
+    def save(self) -> RC: return self.__class__.s_storage_helper.save(self)
+    def delete(self) -> RC: return self.__class__.s_storage_helper.delete(self)
 
     def verify(self) -> RC:
         rc = RC_TRUE
         #TODO: implement
         return rc
 
-class StorableHelperInterface(ABC):
+class NotStorableHelper:
     @staticmethod
-    @abstractmethod
-    def collection(cls, _coll_name: str = None) -> TsCollection: ...
+    def collection(cls, _coll_name: str = None) -> TsCollection|None: return None
     @staticmethod
-    @abstractmethod
-    def exists_in_store(cls, id: ID) -> bool: ...
+    def exists_in_store(cls, id: ID) -> bool: return False
     @staticmethod
-    @abstractmethod
-    def load_data(cls, id: ID) -> dict: ...
+    def load_data(cls, id: ID) -> dict|None: return None
     @staticmethod
-    @abstractmethod
-    def load(cls, id: ID) -> Traitable: ...
+    def delete_in_store(cls, id: ID) -> RC: return RC(False, f'{cls.__class__} is not storable')
     @staticmethod
-    @abstractmethod
-    def load_many(cls, query: f = None, _coll_name: str = None) -> list[Traitable]: ...
+    def load(cls, id: ID) -> Traitable|None: return None
     @staticmethod
-    @abstractmethod
-    def load_ids(cls, query: f = None, _coll_name: str = None) -> list[ID]: ...
+    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize = True) -> list[Traitable]: return []
     @staticmethod
-    @abstractmethod
-    def save(self) -> RC: ...
-
-
-class NotStorableHelper(StorableHelperInterface):
+    def load_ids(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]: return []
     @staticmethod
-    def collection(cls, _coll_name: str = None) -> TsCollection: return None
-    @staticmethod
-    def exists_in_store(cls, id: ID) -> bool: return None
-    @staticmethod
-    def load_data(cls, id: ID) -> dict: return None
-    @staticmethod
-    def load(cls, id: ID) -> Traitable: return None
-    @staticmethod
-    def load_many(cls, query=None, _coll_name: str = None) -> list[Traitable]: return []
-    @staticmethod
-    def load_ids(cls, query=None, _coll_name: str = None) -> list[ID]: return []
+    def delete_collection(cls, _coll_name: str = None) -> bool: return False
     @staticmethod
     def save(self) -> RC: return RC(False, f'{self.__class__} is not storable')
+    @staticmethod
+    def delete(self) -> RC: return RC(False, f'{self.__class__} is not storable')
 
 
-class StorableHelper(StorableHelperInterface):
-
+class StorableHelper(NotStorableHelper):
     @staticmethod
     def collection(cls, _coll_name: str = None) -> TsCollection:
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        store = cls.store()
-        return store.collection(cname) if store else None
+        return cls.store().collection(cname)
 
     @staticmethod
     def exists_in_store(cls, id: ID) -> bool:
@@ -427,26 +397,41 @@ class StorableHelper(StorableHelperInterface):
         return coll.load(id.value) if coll else None
 
     @staticmethod
+    def delete_in_store(cls, id: ID) -> RC:
+        coll = cls.collection(_coll_name = id.collection_name)
+        if not coll:
+            return RC(False, f'{cls} - no store available')
+        if not coll.delete(id.value):
+            return RC(False, f'{cls} - failed to delete {id.value} from {coll}')
+        return RC_TRUE
+
+    @staticmethod
     def load(cls, id: ID) -> 'Traitable':
         return cls.s_bclass.load(id)
 
     @staticmethod
-    def load_many(cls, query: f = None, _coll_name: str = None) -> list[Traitable]:
+    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True) -> list[Traitable]:
         coll = cls.collection(_coll_name = _coll_name)
-        if not coll:
-            return None
-
+        cursor = coll.find(f(query, cls.s_bclass), _at_most = _at_most, _order = _order)
+        if not _deserialize:
+            return list(cursor)
         f_deserialize = functools.partial(Traitable.deserialize_object, cls.s_bclass, _coll_name)
-        return [ f_deserialize(serialized_data) for serialized_data in coll.find(query) ]
+        return [ f_deserialize(serialized_data) for serialized_data in cursor ]
 
     @staticmethod
-    def load_ids(cls, query: f = None, _coll_name: str = None) -> list[ID]:
+    def load_ids(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
         coll = cls.collection(_coll_name = _coll_name)
-        if not coll:
-            return None
-
         id_tag = coll.s_id_tag
-        return [ ID(serialized_data.get(id_tag), _coll_name) for serialized_data in coll.find(query) ]
+        cursor = coll.find(query,_at_most = _at_most, _order = _order)
+        return [ ID(serialized_data.get(id_tag), _coll_name) for serialized_data in cursor ]
+
+    @staticmethod
+    def delete_collection(cls, _coll_name: str = None) -> bool:
+        store = cls.store()
+        if not store:
+            return False
+        cname = _coll_name or PackageRefactoring.find_class_id(cls)
+        return store.delete_collection(collection_name = cname)
 
     @staticmethod
     def save(self) -> RC:
@@ -475,11 +460,16 @@ class StorableHelper(StorableHelperInterface):
         self.set_revision(rev)
         return RC_TRUE
 
+    @staticmethod
+    def delete(self) -> RC:
+        rc = self.delete_in_store(self.id())
+        if rc:
+            self.set_revision(0)
+        return rc
 
+class THIS_CLASS(Traitable): ...  # noqa: N801 #-- to use for traits with the same Traitable class type
 
-class THIS_CLASS(Traitable):   pass  #-- to use for traits with the same Traitable class type
-
-class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True):
+class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base_class = True): # noqa: N801
     def post_ctor(self):
         ...
 
@@ -503,7 +493,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type = Traitable, base
         if isinstance(def_value, dict): #-- trait values
             return self.data_type(**def_value)
 
-        assert False, f'{self.data_type} - may not be constructed from {def_value}'
+        raise ValueError(f'{self.data_type} - may not be constructed from {def_value}')
 
     def from_str(self, s: str):
         return self.data_type.instance_by_id(s)
@@ -527,13 +517,16 @@ class Bundle(Traitable):
         else:
             assert cls.is_storable(), f'{cls} is not storable'
             base = cls.s_bundle_base
-            bundle_members = base.s_bundle_members
-            if bundle_members is not None:
-                bundle_members[cls.__name__] = cls
+            if base:
+                bundle_members = base.s_bundle_members
+                if bundle_members is not None:
+                    bundle_members[cls.__name__] = cls
 
-            cls.collection_name = base.collection_name
-            cls.collection = base.collection
+                #cls.collection_name = base.collection_name #TODO: fix
+                cls.collection = base.collection
+            assert cls.s_bundle_base, "bundle base not defined"
 
+    @classmethod
     def serialize_class_id(cls) -> str:
         if cls.s_bundle_members is None:    #-- members unknown
             return PackageRefactoring.find_class_id(cls)
@@ -572,4 +565,4 @@ class AnonymousTraitable(Traitable):
 
     @classmethod
     def collection(cls, _coll_name: str = None):
-        assert False, f'AnonymousTraitable may not have a collection'
+        raise AssertionError('AnonymousTraitable may not have a collection')

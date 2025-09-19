@@ -1,5 +1,6 @@
 from core_10x.named_constant import EnumBits
 
+
 class STATE(EnumBits):
     RESERVED    = ()
     RUNTIME     = ()

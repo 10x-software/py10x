@@ -1,8 +1,9 @@
 import inspect
 
-from core_10x.xnone import XNone
-from core_10x.py_class import PyClass
 from core_10x.entity import Entity
+from core_10x.py_class import PyClass
+from core_10x.xnone import XNone
+
 
 class Directory:
     @staticmethod
@@ -217,6 +218,7 @@ class DxEntity(Directory):
         self.value: Entity
         self.name = self.value.id()
 
+    @classmethod
     def check_dir_value(cls, value):
         assert isinstance(value, Entity), f'entity is expected ({value})'
 
@@ -230,6 +232,7 @@ class DxClass(Directory):
         cls = self.value
         self.name = PyClass.name(cls) if cls else ''
 
+    @classmethod
     def check_dir_value(cls, value):
         assert inspect.isclass(value) and issubclass(value, Entity), f'subclass of Entity is expected ({value})'
 

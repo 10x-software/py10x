@@ -1,20 +1,27 @@
 import rio
+from rio.debug.monkeypatches import apply_monkeypatches
+
 from ui_10x.rio.components.splitter import Splitter
+
 
 # Example app to demonstrate the Splitter component
 class SplitterApp(rio.Component):
     def build(self) -> rio.Component:
-        return rio.FlowContainer(
-            rio.Column(
-            rio.Row(rio.Button('A'),rio.Button('B')),
-            Splitter(
+        splitter = Splitter(
             rio.Text("Pane 1", style="heading3"),
             rio.Text("Pane 2", style="heading3"),
-            rio.Text("Pane 3", style="heading3"),
+            rio.Rectangle(content=rio.Container(rio.Container(rio.FlowContainer()))),
             handle_size=0.3,  # Splitter handle width
-            min_size_percent=10.0,  # Minimum width for each pane
             direction='horizontal',
-            )
+        )
+        return rio.Container(
+            rio.Column(
+                rio.Column(
+                rio.Row(rio.Button('A'),rio.Button('B')),
+                    rio.Container(
+                        splitter
+                    )
+                )
             )
         )
 
@@ -22,4 +29,6 @@ class SplitterApp(rio.Component):
 # Run the app
 if __name__ == "__main__":
     app = rio.App(build=SplitterApp)
-    app._run_in_window(debug_mode=True)
+    apply_monkeypatches()
+    #app._run_in_window(debug_mode=True)
+    app._run_as_web_server(debug_mode=True, port=8080, host='')

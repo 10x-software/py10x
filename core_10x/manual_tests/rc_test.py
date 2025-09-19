@@ -1,4 +1,5 @@
-from core_10x.rc import RC, Enum, ErrorCode
+from core_10x.rc import RC, RC_TRUE, Enum, ErrorCode
+
 
 class CONDITION(Enum):
     BEGIN   = ()
@@ -10,12 +11,12 @@ class A_PROBLEM(ErrorCode):
     REV_CONFLICT    = 'Entity {cls}.{id} - revision {rev} is outdated'
     SAVE_FAILED     = 'Failed to save entity {cls}.{id}'
 
-rc = RC.TRUE()
+rc = RC_TRUE
 print(rc)
 
 try:
     rc.add_error('error')
-    assert False, 'must have thrown'
+    raise AssertionError('must have thrown')
 except Exception as e:
     print(str(e))
 

@@ -1,4 +1,7 @@
+from typing import Self
+
 from core_10x_i import BNucleus
+
 
 class Nucleus:
     __slots__           = ()
@@ -41,19 +44,19 @@ class Nucleus:
         raise NotImplementedError
 
     @classmethod
-    def deserialize(cls, serialized_data) -> 'Nucleus':
+    def deserialize(cls, serialized_data) -> Self:
         raise NotImplementedError
 
     @classmethod
-    def from_str(cls, s: str) -> 'Nucleus':
+    def from_str(cls, s: str) -> Self:
         raise NotImplementedError
 
     @classmethod
-    def from_any_xstr(cls, value) -> 'Nucleus':
+    def from_any_xstr(cls, value) -> Self:
         raise NotImplementedError
 
     @classmethod
-    def from_any(cls, value) -> 'Nucleus':
+    def from_any(cls, value) -> Self:
         if isinstance(value, cls):
             return value
 

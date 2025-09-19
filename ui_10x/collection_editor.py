@@ -1,16 +1,25 @@
-from core_10x.traitable import Traitable, T, RT, RC
-from core_10x.traitable_id import ID
-from core_10x.trait_filter import f
+from typing import Any
 
-from ui_10x.utils import ux, UxSearchableList, ux_push_button, ux_warning, ux_make_scrollable
-from ui_10x.traitable_editor import TraitableEditor
+from core_10x.trait_filter import f
+from core_10x.traitable import RC, RT, T, Traitable
+from core_10x.traitable_id import ID
+
 from ui_10x.entity_stocker import EntityStocker, StockerPlug
+from ui_10x.traitable_editor import TraitableEditor
+from ui_10x.utils import (
+    UxSearchableList,
+    ux,
+    ux_make_scrollable,
+    ux_push_button,
+    ux_warning,
+)
+
 
 class Collection(Traitable):
-    cls: type[Traitable]    = RT()
+    cls: type[Traitable]
     filter: f               = RT(T.HIDDEN)
 
-    entity_ids: list[str]   = RT()
+    entity_ids: list[str]
 
     def cls_set(self, t, cls) -> RC:
         assert issubclass(cls, Traitable), f'{cls} is not a Traitable class'
@@ -20,20 +29,20 @@ class Collection(Traitable):
         return [ entity_id.value for entity_id in self.cls.load_ids() ]
 
     def refresh(self):
-        self.invalidate_value('entities')
+        self.invalidate_value('entity_ids')
 
 class CollectionEditor(Traitable):
-    coll: Collection                    = RT()
-    current_class                       = RT()
-    coll_title: str                     = RT()
+    coll: Collection
+    current_class: Any
+    coll_title: str
     num_panes: int                      = RT(1)
 
-    main_w: ux.Splitter                 = RT()
-    searchable_list: UxSearchableList   = RT()
-    stocker: EntityStocker              = RT()
+    main_w: ux.Splitter
+    searchable_list: UxSearchableList
+    stocker: EntityStocker
 
-    current_editor                      = RT()
-    current_entity: Traitable           = RT()
+    current_editor: Any
+    current_entity: Traitable
 
     def current_class_get(self):
         return self.coll.cls
@@ -83,7 +92,7 @@ class CollectionEditor(Traitable):
         assert main_w, f'{self.__class__} - no widget has been created yet'
 
         num_panes = self.num_panes
-        if num_panes and index >= 0 and index < num_panes:
+        if num_panes and 0 <= index < num_panes:
             if index < num_panes:
                 main_w.replace_widget(index + 1, w)
             else:
@@ -105,11 +114,17 @@ class CollectionEditor(Traitable):
         if cls:
             new_entity = cls()
             ed = TraitableEditor.editor(new_entity)
-            if ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True):
-                rc = new_entity.save()
+            def accept_hook(rc: RC):
                 if not rc:
                     ux_warning(rc.error(), parent = self.main_w, on_close = lambda ctx: None)
                     #-- TODO: should we "merge" values from the existing instance?
 
                 else:
                     self.searchable_list.add_choice(new_entity.id().value)
+
+            ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True,accept_hook=accept_hook)
+
+    def on_deleted_entity(self,deleted_entity):
+        self.searchable_list.remove_choice(deleted_entity.id().value)
+        if self.current_entity is deleted_entity:
+            self.set_pane(0,ux.Widget())

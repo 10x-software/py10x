@@ -22,8 +22,8 @@ def cache(f):
         return _cache_no_args(f)
 
     if num_args == 1:
-        for name, param in params.items():
-            if not param.kind in ARGS_KWARGS and param.default is inspect.Parameter.empty:
+        for param in params.values():
+            if param.kind not in ARGS_KWARGS and param.default is inspect.Parameter.empty:
                 return _cache_single_arg(f)
 
     return _cache_with_args(f)

@@ -2,8 +2,8 @@ from datetime import date
 
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import GRAPH_ON
-from infra_10x.mongodb_store import MongoStore
 
+from infra_10x.mongodb_store import MongoStore
 
 if __name__ == '__main__':
     with MongoStore.instance(hostname ='localhost', dbname='test', username='', password=''):

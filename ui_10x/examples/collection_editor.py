@@ -3,8 +3,8 @@ if __name__ == '__main__':
     from core_10x.exec_control import INTERACTIVE
     from infra_10x.mongodb_store import MongoStore
 
-    from ui_10x.utils import ux, UxDialog
-    from ui_10x.collection_editor import CollectionEditor, Collection
+    from ui_10x.collection_editor import Collection, CollectionEditor
+    from ui_10x.utils import UxDialog, ux
 
     ux.init()
 

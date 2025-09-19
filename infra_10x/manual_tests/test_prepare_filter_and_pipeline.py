@@ -1,5 +1,5 @@
 if __name__ == '__main__':
-    from infra_10x.mongodb_store import MongoStore, MongoCollectionHelper
+    from infra_10x.mongodb_store import MongoCollectionHelper, MongoStore
 
     store = MongoStore.instance('localhost', 'test', '', '')
 

@@ -1,8 +1,8 @@
-from datetime import datetime, date
+from datetime import date, datetime
 
 from core_10x.code_samples.person import Person
-from core_10x.traitable import Traitable, trait_value, T
-from core_10x.exec_control import ProcessContext
+from core_10x.traitable import T, Traitable
+
 
 class Event(Traitable):
     at: datetime = T()

@@ -1,14 +1,14 @@
-from datetime import date
 import inspect
 from collections import deque
-from typing import Callable
+from collections.abc import Callable
+from datetime import date
 
-from core_10x.rc import RC
+from core_10x.directory import Directory
+from core_10x.global_cache import singleton
+from core_10x.named_constant import NamedConstant
+
 from ui_10x.platform import ux
 
-from core_10x.named_constant import NamedConstant
-from core_10x.global_cache import cache, singleton
-from core_10x.directory import Directory
 
 class UxAsync(ux.Object):
     SIGNAL = ux.signal_decl()
@@ -50,7 +50,7 @@ class UxRadioBox(ux.GroupBox):
                     default = i
                     break
             else:
-                assert False, f'{default_value} is not found'
+                raise RuntimeError(f'{default_value} is not found')
 
         if title:
             super().__init__(title)
@@ -86,7 +86,7 @@ def ux_warning(text: str, parent = None, title = '',  on_close: Callable[[bool],
         parent = None
     ux.MessageBox.warning(parent, title, text, on_close=on_close)
 
-def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool:
+def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool|None:
     if not title:
         title = 'Waiting for your answer...'
     if not parent:
@@ -95,6 +95,8 @@ def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool
     if not on_close:
         print(f'ux_answer: question = {question}, title = {title}, parent = {parent}', sb)
         return ux.MessageBox.is_yes_button(sb)
+    return None
+
 
 def ux_multi_choice_answer(named_constant_class, parent = None, title = '', default_value: NamedConstant = None,  on_close: Callable[[NamedConstant],None] = None):
     if not title:
@@ -116,8 +118,8 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
         if isinstance(style_icon, str):
             try:
                 style_icon = getattr(ux.Style.StandardPixmap, f'SP_{style_icon}')
-            except AttributeError:
-                assert False, f"Unknown style_icon = '{style_icon}'"
+            except AttributeError as e:
+                raise RuntimeError(f"Unknown style_icon = '{style_icon}'") from e
 
         assert isinstance(style_icon, int), 'Currently only str or int are supported for style_icon'
 
@@ -136,7 +138,7 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
     return button
 
 class UxDialog(ux.Dialog):
-    def _createButton(self, ok: bool, button_spec) -> ux.PushButton:
+    def _create_button(self, ok: bool, button_spec) -> ux.PushButton|None:
         if not button_spec:
             return None
 
@@ -153,7 +155,7 @@ class UxDialog(ux.Dialog):
         else:
             return None
 
-        cb = self.onOk if ok else self.onCancel
+        cb = self.on_ok if ok else self.on_cancel
         return ux_push_button(label, callback = cb, style_icon = icon)
 
     def __init__(
@@ -188,9 +190,9 @@ class UxDialog(ux.Dialog):
         self.cancel_callback = cancel_callback if cancel_callback else self.reject
 
         if ok:
-            ok = self._createButton(True, ok)
+            ok = self._create_button(True, ok)
         if cancel:
-            cancel = self._createButton(False, cancel)
+            cancel = self._create_button(False, cancel)
 
         lay = ux.VBoxLayout()
         self.set_layout(lay)
@@ -218,7 +220,7 @@ class UxDialog(ux.Dialog):
         if min_height > 0:
             self.set_minimum_height(min_height)
 
-    def onOk(self):
+    def on_ok(self):
         if self.accept_callback:
             rc = self.accept_callback()
             if not rc:
@@ -227,14 +229,14 @@ class UxDialog(ux.Dialog):
 
         self.done(1)
 
-    def onCancel(self):
+    def on_cancel(self):
         self.reject()
         self.done(0)
 
     def message(self, text: str):
         self.w_message.set_text(text)
 
-def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None):
+def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None) -> date|None:
     cal = ux.CalendarWidget()
     cal.set_grid_visible(bool(grid))
     if show_date:
@@ -244,8 +246,8 @@ def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, def
     dlg = UxDialog(cal, title = title, accept_callback = accept_callback)
     if on_accept:
         dlg.show()
-    else:
-        return cal.selected_date() if dlg.exec() else default
+        return None
+    return cal.selected_date() if dlg.exec() else default
 
 class UxStyleSheet:
     def __init__(self, widget):
@@ -314,12 +316,12 @@ class UxStyleSheet:
         widget.set_style_sheet(cls.dumps(data))
 
 
-s_verticalAlignmentMap = {
+s_verticalAlignmentMap = { # noqa: N816
     -1:     ux.TEXT_ALIGN.TOP,
     0:      ux.TEXT_ALIGN.V_CENTER,
     1:      ux.TEXT_ALIGN.BOTTOM,
 }
-s_horizontalAlignmentMap = {
+s_horizontalAlignmentMap = { # noqa: N816
     -1:     ux.TEXT_ALIGN.LEFT,
     0:      ux.TEXT_ALIGN.CENTER,
     1:      ux.TEXT_ALIGN.RIGHT,
@@ -389,7 +391,7 @@ class UxSearchableList(ux.GroupBox):
         self.set_layout(lay)
 
     def add_choice(self, choice: str):
-        if not choice in self.initial_choices:
+        if choice not in self.initial_choices:
             self.initial_choices.append(choice)
             if self.sort:
                 self.initial_choices = sorted(self.initial_choices)
@@ -479,7 +481,7 @@ class UxTreeViewer(ux.TreeWidget):
         self.resize_column_to_contents(0)
         if num_cols == 2:
             self.resize_column_to_contents(1)
-        self.set_size_policy(ux.SizePolicy.MinimumExpanding, ux.SizePolicy.MinimumExpanding)
+        self.set_size_policy(ux.SizePolicy.MINIMUM_EXPANDING, ux.SizePolicy.MINIMUM_EXPANDING)
 
     class TreeItem(ux.TreeItem):
         def __init__(self, parent_node, dir: Directory):

@@ -3,8 +3,8 @@ if __name__ == '__main__':
 
     from core_10x.code_samples.directories import ANIMALS, FISH
 
-    from ui_10x.utils import ux, UxDialog
     from ui_10x.choice import Choice
+    from ui_10x.utils import UxDialog, ux
 
     ux.init()
 

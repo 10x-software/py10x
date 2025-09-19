@@ -1,15 +1,16 @@
-from typing import Callable
+from collections.abc import Callable
 
+from core_10x.exec_control import INTERACTIVE
 from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
-from core_10x.rc import RC
-from core_10x.trait import Trait, Ui
+from core_10x.rc import RC, RC_TRUE
+from core_10x.trait import Ui
 from core_10x.traitable import Traitable
-from core_10x.exec_control import BTP, INTERACTIVE
 
-from ui_10x.utils import ux, UxDialog, ux_warning
+from ui_10x.trait_editor import TraitEditor
 from ui_10x.traitable_view import TraitableView
-from ui_10x.trait_editor import TraitEditor, TraitWidget
+from ui_10x.utils import UxDialog, ux, ux_warning
+
 
 class TraitableEditor:
     """
@@ -55,8 +56,8 @@ class TraitableEditor:
         return editor_class(entity, view = view, read_only = read_only, _confirm = True)
 
     def __init__(self, entity: Traitable, view: TraitableView = None, read_only = False, _confirm = False):
-        assert _confirm, f'Do not call TraitableEditor() directly, use TraitableEditor.editor() instead'
-        assert isinstance(entity, Traitable), f'entity must be an instance of Traitable'
+        assert _confirm, 'Do not call TraitableEditor() directly, use TraitableEditor.editor() instead'
+        assert isinstance(entity, Traitable), 'entity must be an instance of Traitable'
 
         entity_class = entity.__class__
         if view is None:
@@ -70,7 +71,7 @@ class TraitableEditor:
         trait_dir = entity_class.s_dir
         self.trait_hints = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
 
-        self.main_w: ux.Widget = None
+        self.main_w: ux.Widget|None = None
         self.callbacks_for_traits = {}
         self.init()
 
@@ -93,7 +94,7 @@ class TraitableEditor:
         lay = ux.FormLayout()
 
         te: TraitEditor
-        for name, te in self.trait_editors.items():
+        for te in self.trait_editors.values():
             label = te.new_label()
             w = te.new_widget()
             lay.add_row(label, w)
@@ -106,7 +107,7 @@ class TraitableEditor:
         row = ux.HBoxLayout()
 
         stretched_trait_found = False
-        for name, te in self.trait_editors.items():
+        for te in self.trait_editors.values():
             stretch = te.ui_hint.param('stretch', None)
             if stretch is not None:
                 stretched_trait_found = True
@@ -129,12 +130,13 @@ class TraitableEditor:
         return w
 
     def _cleanup_tp(self, apply:bool):
+        self.main_w = None
         if self.traitable_processor:
             if apply:
                 self.traitable_processor.export_nodes()
             self.traitable_processor=None
 
-    def _popup(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[],RC]) -> None:
+    def _dialog(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[],RC]) -> UxDialog:
         ux.init()
         if layout is not None:
             w = self.main_w = ux.Widget()
@@ -143,17 +145,18 @@ class TraitableEditor:
             w = self.main_widget()
 
         def accept_callback():
-            self.main_widget = None
             self._cleanup_tp(True)
-            if self.entity.verify():
+            rc = self.entity.verify()
+            if rc:
                 return on_accept()
+            return rc
 
         def cancel_callback():
             self._cleanup_tp(False)
 
-        UxDialog(w, title = title, accept_callback = accept_callback, cancel_callback = cancel_callback, ok = ok, min_width = min_width).show()
+        return UxDialog(w, title = title, accept_callback = accept_callback, cancel_callback = cancel_callback, ok = ok, min_width = min_width)
 
-    def popup(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> None:
+    def dialog(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> UxDialog:
         if title is None:
             title = ''
         elif not title:
@@ -162,22 +165,20 @@ class TraitableEditor:
         ok = 'Save' if save else 'Ok'
 
         def on_accept():
+            rc = self.entity.save() if save else RC_TRUE
+            if not rc:
+                self.warning(rc.error())
             if accept_hook:
-                accept_hook()
-
-            if save:
-                rc = self.entity.save()
-                if not rc:
-                    self.warning(rc.error())
-                    return rc
-
-            return RC(True)
+                accept_hook(rc)
+            return rc
 
         if copy_entity:
             self.traitable_processor = INTERACTIVE()
 
-        self._popup(layout, title, ok, min_width, on_accept=on_accept)
+        return self._dialog(layout, title, ok, min_width, on_accept=on_accept)
 
+    def popup(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> None:
+        self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width).show()
 
     def warning(self, msg: str, title = ''):
-        ux_warning(msg, parent = self.main_widget, title = title, on_close=lambda ctx: None)
+        ux_warning(msg, parent = self.main_w, title = title, on_close=lambda ctx: None)

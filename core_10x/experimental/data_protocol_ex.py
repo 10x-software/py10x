@@ -1,5 +1,6 @@
 import functools
 
+
 class T:
     def __init__(self, name, get, *args):
         self.name = name

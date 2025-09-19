@@ -1,7 +1,7 @@
-from core_10x.trait import Trait, T, Ui
 from core_10x.rc import RC, RC_TRUE
+from core_10x.trait import T, Trait, Ui
 
-from ui_10x.utils import ux, UxStyleSheet
+from ui_10x.utils import UxStyleSheet, ux
 
 
 class TraitWidget:

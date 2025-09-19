@@ -1,7 +1,8 @@
 import sys
 import traceback
 
-from core_10x.named_constant import ErrorCode, Enum
+from core_10x.named_constant import Enum, ErrorCode
+
 
 class RC:
     """
@@ -34,7 +35,7 @@ class RC:
             ...
             return rc
     """
-    __slots__ = ( 'rc', 'payload' )
+    __slots__ = ('payload', 'rc')
 
     @classmethod
     def show_exception_info(cls, ex_info = None) -> str:
@@ -114,7 +115,7 @@ class RC:
             self.payload.extend(err.payload)
 
         else:
-            assert False, f'Expected str or RC; got {type(err)}'
+            raise ValueError(f'Expected str or RC; got {type(err)}')
 
         return self
 
@@ -136,10 +137,10 @@ class _RcTrue(RC):
         return RC(True)
 
     def add_error(self, err = ''):
-        assert False, 'May not add error to a constant RC_TRUE'
+        raise ValueError('May not add error to a constant RC_TRUE')
 
     def add_data(self, data):
-        assert False, 'May not add error to a constant RC_TRUE'
+        raise ValueError('May not add error to a constant RC_TRUE')
 
 RC_TRUE = _RcTrue()
 
