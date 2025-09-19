@@ -5,6 +5,6 @@ def pytest_ignore_collect(collection_path, config):
         return False
     parts = collection_path.parts
     # Return False (i.e., do NOT ignore) if the parent directory is "unit_tests"
-    if len(parts) > 1 and parts[-2] == "unit_tests":
+    if len(parts) > 1 and parts[-2] == 'unit_tests':
         return False
     return True
