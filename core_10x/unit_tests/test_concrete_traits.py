@@ -44,8 +44,7 @@ def _test(data_type, values, expected_types):
 def generic_test(data_type, values, convert_expected, allowed_types=()):
     allowed_types = (data_type, NoneType, XNoneType, *allowed_types)
     debug_expected = [
-        v if isinstance(v, allowed_types) else e if isinstance(e, Exception) else TypeError
-        for v, e in zip(values, convert_expected, strict=True)
+        v if isinstance(v, allowed_types) else e if isinstance(e, Exception) else TypeError for v, e in zip(values, convert_expected, strict=True)
     ]
     _test(data_type, values, values)
     with DEBUG_ON():

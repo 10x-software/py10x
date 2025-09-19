@@ -31,9 +31,7 @@ def test_filters():
 
     r = OR(f(age=BETWEEN(50, 70), first_name=NE('Sasha')), f(age=17))
 
-    assert r.prefix_notation() == {
-        '$or': [{'age': {'$gte': 50, '$lte': 70}, 'first_name': {'$ne': 'Sasha'}}, {'age': {'$eq': 17}}]
-    }
+    assert r.prefix_notation() == {'$or': [{'age': {'$gte': 50, '$lte': 70}, 'first_name': {'$ne': 'Sasha'}}, {'age': {'$eq': 17}}]}
     assert not r.eval(p)
 
 
