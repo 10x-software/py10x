@@ -14,9 +14,11 @@ def call_counter(method):
     def ctr(self, *args, **kwargs):
         ctr.call_counts[self] = ctr.call_counts.get(self, 0) + 1
         return method(self, *args, **kwargs)
+
     ctr.call_counts = WeakKeyDictionary()
-    ctr.call_count = lambda obj: ctr.call_counts.get(obj,0) if obj else sum(ctr.call_counts.values())
+    ctr.call_count = lambda obj: ctr.call_counts.get(obj, 0) if obj else sum(ctr.call_counts.values())
     return ctr
+
 
 class CallCount:
     def __init__(self, obj, method):
@@ -60,21 +62,21 @@ class TestGraphBase(TestCase):
         for trait in self.p.s_dir.values():
             if not trait.getter_params:
                 self.p.invalidate_value(trait)
-                if not trait.flags_on(T.ID): # id traits may be set in base layer
-                    if trait.f_get.__name__ == 'default_value': #TODO: replace with flags
-                        self.assertIs(self.p.get_value(trait),trait.default,trait.name)
+                if not trait.flags_on(T.ID):  # id traits may be set in base layer
+                    if trait.f_get.__name__ == 'default_value':  # TODO: replace with flags
+                        self.assertIs(self.p.get_value(trait), trait.default, trait.name)
                     elif trait.f_get.__name__.endswith('_get'):
-                        self.assertEqual(self.p.get_value(trait),getattr(self.p,f'{trait.name}_get')())
+                        self.assertEqual(self.p.get_value(trait), getattr(self.p, f'{trait.name}_get')())
                     else:
-                        self.assertEqual(self.p.get_value(trait),trait.f_get(self.p))
+                        self.assertEqual(self.p.get_value(trait), trait.f_get(self.p))
             else:
-                #TODO: use nodes?
+                # TODO: use nodes?
                 ...
 
     def test_get_set(self):
         on = BTP.current().flags() & BTP.ON_GRAPH
         p = self.p
-        p.weight_lbs = 100.
+        p.weight_lbs = 100.0
         p.weight_qu = WEIGHT_QU.LB
 
         self.assertEqual(p.weight, 100)
@@ -92,7 +94,7 @@ class TestGraphBase(TestCase):
 
         # now use the setter...
         with CallCount(p, TestablePerson.weight_set) as cc:
-            p.weight = 100.
+            p.weight = 100.0
             self.assertEqual(cc.call_count, 1)
 
         with CallCount(p, TestablePerson.weight_get) as cc:
@@ -140,6 +142,7 @@ class TestGraphBase(TestCase):
 
         p.age = 30
 
+
 class TestGraphOn(TestGraphBase):
     def setUp(self):
         self.graph_on = GRAPH_ON()
@@ -150,18 +153,19 @@ class TestGraphOn(TestGraphBase):
         self.p.age = 30
 
     def reset(self):
-        #no need to reset as it resets upon exiting the graph_on context (tested in tearDown)
+        # no need to reset as it resets upon exiting the graph_on context (tested in tearDown)
         pass
 
     def tearDown(self):
-        self.assertEqual(self.p.age,30)
+        self.assertEqual(self.p.age, 30)
         self.graph_on.end_using()
 
-        self.assertIs(self.p.first_name,XNone)
-        self.assertIs(self.p.last_name,XNone)
-        self.assertIs(self.p.weight_lbs,XNone)
-        self.assertIs(self.p.age,self.p.age_get())
-        self.assertEqual(self.p.id(),self.pid)
+        self.assertIs(self.p.first_name, XNone)
+        self.assertIs(self.p.last_name, XNone)
+        self.assertIs(self.p.weight_lbs, XNone)
+        self.assertIs(self.p.age, self.p.age_get())
+        self.assertEqual(self.p.id(), self.pid)
+
 
 class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):
@@ -206,9 +210,9 @@ class TestExecControl(TestGraphBase):
     def test_debug(self, on=False):
         self.assertEqual(on, bool(BTP.current().flags() & BTP.DEBUG))
         p = TestablePerson(first_name='John', last_name='Smith')
-        self.assertIs(p.weight_lbs,XNone)
+        self.assertIs(p.weight_lbs, XNone)
 
-        p.weight_lbs = 100.
+        p.weight_lbs = 100.0
 
         if on:
             with self.assertRaises(TypeError):
@@ -216,29 +220,29 @@ class TestExecControl(TestGraphBase):
 
             self.assertEqual(p.weight, 100.0)
 
-        p.weight_lbs=200
+        p.weight_lbs = 200
         self.assertEqual(p.weight, 200.0)
 
         p.invalidate_value(p.T.weight_lbs)
-        self.assertIs(p.weight_lbs,XNone)
+        self.assertIs(p.weight_lbs, XNone)
 
     def test_graph_convert_debug(self):
         with GRAPH_ON(convert_values=True, debug=True):
             self.test(True, True, True)
             with GRAPH_OFF():
-                 self.test(False, True, True)
+                self.test(False, True, True)
             with GRAPH_OFF(convert_values=False):
-                 self.test(False, False, True)
+                self.test(False, False, True)
             with GRAPH_OFF(debug=False, convert_values=False):
                 self.test(False, False, False)
 
     def test_graph_convert(self):
-        with GRAPH_ON(convert_values=True,):
+        with GRAPH_ON(convert_values=True):
             self.test(True, True, False)
             with GRAPH_OFF():
-                 self.test(False, True, False)
+                self.test(False, True, False)
             with GRAPH_OFF(convert_values=False):
-                 self.test(False, False, False)
+                self.test(False, False, False)
             with GRAPH_OFF(debug=True, convert_values=False):
                 self.test(False, False, True)
 
@@ -252,4 +256,3 @@ class TestExecControl(TestGraphBase):
                 self.test(False, False, False)
             with GRAPH_OFF(debug=False, convert_values=True):
                 self.test(False, True, False)
-
