@@ -106,7 +106,7 @@ class Trait(BTrait):
             trait.fmt = t_def.fmt
 
         trait.create_proc()
-        Trait.set_trait_funcs(class_dict, rc, trait, trait_name)
+        Trait.set_trait_funcs(class_dict, rc, trait, t_def)
 
         trait.post_ctor()
         ui_hint: Ui = copy.deepcopy(t_def.ui_hint)
@@ -119,9 +119,9 @@ class Trait(BTrait):
         return {f'{trait_name}_{(method_suffix:=method_key.lower())}':(method_suffix,method_def) for method_key,method_def in TRAIT_METHOD.s_dir.items()}
 
     @staticmethod
-    def set_trait_funcs(class_dict, rc, trait, trait_name):
-        for method_name, (method_suffix,method_def) in Trait.method_defs(trait_name).items():
-            method = class_dict.get(method_name)
+    def set_trait_funcs(class_dict, rc, trait, t_def):
+        for method_name, (method_suffix,method_def) in Trait.method_defs(t_def.name).items():
+            method = t_def.params.get(method_suffix) or class_dict.get(method_name)
             f = method_def.value(trait, method, method_suffix, rc)
             if f:
                 cpp_name = f'set_f_{method_suffix}'

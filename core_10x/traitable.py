@@ -1,6 +1,6 @@
 import functools
 import operator
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from itertools import chain
 from typing import Any, Self
 
@@ -47,8 +47,8 @@ class TraitableMetaclass(type(BTraitable)):
     @staticmethod
     def find_symbols(bases, class_dict, symbol):
         return chain(
-            filter(None,(class_dict.get(symbol),)),
-            (res for base in bases if (res := getattr(base, symbol, None)))
+            (res for res in (class_dict.get(symbol, class_dict),) if res is not class_dict),
+            (res for base in bases if (res := getattr(base, symbol, class_dict)) is not class_dict)
         )
 
     @staticmethod
@@ -107,19 +107,23 @@ class TraitableMetaclass(type(BTraitable)):
 class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
     s_dir = {}
     s_default_trait_factory = RT
+    s_own_trait_definitions = {}
+
     @staticmethod
-    def build_trait_dir(bases, class_dict, trait_dir) -> RC:
-        annotations = class_dict.get('__annotations__') or {}
+    def own_trait_definitions(bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC) -> Generator[tuple[str,TraitDefinition]]:
+        own_trait_definitions = next(TraitableMetaclass.find_symbols(bases, class_dict,'s_own_trait_definitions'))
+        if own_trait_definitions:
+            yield from own_trait_definitions.items()
+            return
+
         default_trait_factory = next(TraitableMetaclass.find_symbols(bases, class_dict,'s_default_trait_factory'), RT)
+        annotations = class_dict.get('__annotations__') or {}
 
-        rc = RC(True)
-        trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(bases, class_dict,'s_dir'), {}) #-- shallow copy!
-        for trait_name, old_trait in trait_dir.items():
-            if any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
-                t_def =old_trait.t_def
-                trait_dir[trait_name] = Trait.create(trait_name, t_def, class_dict, {trait_name:t_def.data_type} | annotations, rc)
-
-        annotations |= {k: XNoneType for k, v in class_dict.items() if isinstance(v, TraitModification) and k not in annotations}
+        annotations |= {
+            k: XNoneType
+            for k, v in class_dict.items()
+            if isinstance(v, TraitModification) and k not in annotations
+        }
 
         for trait_name, trait_def in class_dict.items():
             if isinstance(trait_def, TraitDefinition) and trait_name not in annotations:
@@ -130,8 +134,8 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
             if trait_def is not class_dict and not isinstance(trait_def, TraitDefinition):
                 continue
 
-            old_trait: Trait = trait_dir.get(trait_name)
-            if trait_def is class_dict: #-- only annotation, not in class_dict
+            old_trait: Trait = inherited_trait_dir.get(trait_name)
+            if trait_def is class_dict:  # -- only annotation, not in class_dict
                 if old_trait and dt is not old_trait.data_type:
                     rc <<= f'Attempt to implicitly redefine type for previously defined trait `{trait_name}`.  Use M() if needed.'
                     continue
@@ -143,11 +147,28 @@ class Traitable(BTraitable, Nucleus, metaclass = TraitableMetaclass):
                     rc <<= f'{trait_name} = M(...), but the trait is not defined previously'
                     continue
                 trait_def = trait_def.apply(old_trait.t_def)
-                if dt is not XNoneType: #-- the data type is also being modified
+                if dt is not XNoneType:  # -- the data type is also being modified
                     trait_def.data_type = dt
             else:
                 trait_def.data_type = dt
 
+            yield trait_name, trait_def
+
+    @staticmethod
+    def build_trait_dir(bases, class_dict, trait_dir) -> RC:
+        rc = RC(True)
+        own_trait_definitions: Callable[[tuple,dict,dict,RC],Generator[tuple[str,TraitDefinition]]] = next(
+            TraitableMetaclass.find_symbols(bases, class_dict,'own_trait_definitions')
+        )
+        trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(bases, class_dict,'s_dir'), {}) #-- shallow copy!
+        annotations = class_dict.get('__annotations__') or {}
+
+        for trait_name, old_trait in trait_dir.items():
+            if any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
+                t_def =old_trait.t_def
+                trait_dir[trait_name] = Trait.create(trait_name, t_def, class_dict, {trait_name: t_def.data_type} | annotations, rc)
+
+        for trait_name, trait_def in own_trait_definitions(bases, trait_dir, class_dict, rc):
             trait_def.name = trait_name
             trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, {}, rc)
 
