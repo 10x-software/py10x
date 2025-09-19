@@ -100,6 +100,7 @@ class EnvVars(_EnvVars, env_name = 'XX'):
     parent_build_area: str          = 'dev'
     backbone_store_class_name: str  = ''    #= 'infra_10x.mongodb_store.MongoStore'
     backbone_store_host_name: str   = ''    #= 'localhost'
+    data_domain_bindings: str       = ''    #-- xxx.yyy.module_name.DATA_DOMAIN_BINDINGS
     date_format: str                = XDateTime.FORMAT_ISO
 
     sdlc_area: str
