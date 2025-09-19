@@ -1,12 +1,12 @@
 import abc
-from typing import Iterable, Self
+from collections.abc import Iterable
+from typing import Self
 
-from core_10x.trait_filter import f
-from core_10x.rc import RC
-from core_10x.py_class import PyClass
-from core_10x.global_cache import standard_key
-from core_10x.resource import Resource, TS_STORE
 from core_10x.exec_control import ProcessContext
+from core_10x.global_cache import standard_key
+from core_10x.py_class import PyClass
+from core_10x.resource import TS_STORE, Resource
+from core_10x.trait_filter import f
 
 
 class TsCollection(abc.ABC):
@@ -15,7 +15,7 @@ class TsCollection(abc.ABC):
     @abc.abstractmethod
     def id_exists(self, id_value: str) -> bool: ...
     @abc.abstractmethod
-    def find(self, query: f = None) -> Iterable: ...
+    def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable: ...
     @abc.abstractmethod
     def count(self, query: f = None) -> int: ...
     @abc.abstractmethod
@@ -34,7 +34,7 @@ class TsCollection(abc.ABC):
     def exists(self, query: f) -> bool:
         return self.count(query) > 0
 
-    def load(self, id_value: str) -> dict:
+    def load(self, id_value: str) -> dict|None:
         for data in self.find(f(**{self.s_id_tag: id_value})):
             return data
 
@@ -71,7 +71,7 @@ class TsStore(Resource, resource_type = TS_STORE):
             return store
 
         except Exception as e:
-            raise EnvironmentError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{str(e)}')
+            raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{e!s}') from e
 
     s_instance_kwargs_map = {
         Resource.HOSTNAME_TAG:  (Resource.HOSTNAME_TAG, None),
@@ -108,5 +108,5 @@ class TsStore(Resource, resource_type = TS_STORE):
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...
 
-    @abc.abstractmethod
+    @classmethod
     def is_running_with_auth( cls, host_name: str ) -> tuple:  ...    #-- (is_running, with_auth)

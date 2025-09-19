@@ -1,18 +1,16 @@
-from pymongo import MongoClient, ReturnDocument, errors
-from pymongo.database import Database
-from pymongo.collection import Collection
-
-from infra_10x_i import MongoCollectionHelper
-
-from core_10x.ts_store import TsCollection, TsStore, Iterable, f, standard_key
-from core_10x.nucleus import Nucleus
 from core_10x.global_cache import cache
+from core_10x.nucleus import Nucleus
+from core_10x.ts_store import Iterable, TsCollection, TsStore, f, standard_key
+from infra_10x_i import MongoCollectionHelper
+from pymongo import MongoClient, errors
+from pymongo.collection import Collection
+from pymongo.database import Database
 
 
 class MongoCollection(TsCollection):
     s_id_tag = '_id'
 
-    assert Nucleus.ID_TAG() == s_id_tag, f"Nucleus.ID_TAG must be '{s_id_tag}'"
+    assert Nucleus.ID_TAG() == s_id_tag, f"Nucleus.ID_TAG() must be '{s_id_tag}'"
 
     def __init__(self, db, collection_name: str):
         self.coll: Collection = db[collection_name]
@@ -20,8 +18,13 @@ class MongoCollection(TsCollection):
     def id_exists(self, id_value: str) -> bool:
         return self.coll.count_documents({self.s_id_tag: id_value}) > 0
 
-    def find(self, query: f = None) -> Iterable:
-        return self.coll.find(query.prefix_notation()) if query else self.coll.find()
+    def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
+        cursor = self.coll.find(query.prefix_notation()) if query else self.coll.find()
+        if _order:
+            cursor = cursor.sort(list(_order.items()))
+        if _at_most:
+            cursor = cursor.limit(_at_most)
+        return cursor
 
     def count(self, query: f = None) -> int:
         return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})
@@ -173,14 +176,14 @@ class MongoCollection(TsCollection):
         q = {self.s_id_tag: id_value}
         return self.coll.delete_one(q).acknowledged
 
-    def create_index(self, name: str, trait_name: str, **index_args) -> str:
+    def create_index(self, name: str, trait_name: str, **index_args) -> str|None:
         index_info = self.coll.index_information()
         if name in index_info:
             return None
 
         return self.coll.create_index(trait_name, name = name, **index_args)
 
-    def max(self, trait_name: str, filter: f = None) -> dict:
+    def max(self, trait_name: str, filter: f = None) -> dict|None:
         if filter:
             cur = self.coll.find(filter.prefix_notation()).sort({trait_name: -1}).limit(1)
         else:
@@ -190,7 +193,7 @@ class MongoCollection(TsCollection):
 
         return None
 
-    def min(self, trait_name: str, filter: f = None) -> dict:
+    def min(self, trait_name: str, filter: f = None) -> dict|None:
         if filter:
             cur = self.coll.find(filter.prefix_notation()).sort({ trait_name: 1 }).limit(1)
         else:
@@ -200,7 +203,7 @@ class MongoCollection(TsCollection):
 
         return None
 
-    def load(self, id_value: str) -> dict:
+    def load(self, id_value: str) -> dict|None:
         for data in self.coll.find({self.s_id_tag: id_value}):
             return data
 
@@ -216,25 +219,21 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
         sst     = ('serverSelectionTimeoutMS',  10000),
     )
 
-    s_cached_connections = {}
+    s_cached_connections: dict[tuple,MongoClient] = {}
     @classmethod
     def connect(cls, hostname: str, username: str, password: str, _cache = True, _throw = True, **kwargs) -> MongoClient:
-        if _cache:
-            connection_key = standard_key((hostname, username), kwargs)
-            client = cls.s_cached_connections.get(connection_key)
-            if client:
-                return client
-
-        client = MongoClient(hostname, username = username, password = password, **kwargs)
-        try:
-            client.server_info()
-        except Exception:
-            client.close()
-            if _throw:
-                raise
-            return None
-
-        if _cache:
+        connection_key = standard_key((hostname, username), kwargs) if _cache else None
+        client = cls.s_cached_connections.get(connection_key)
+        if not client:
+            client = MongoClient(hostname, username = username, password = password, **kwargs)
+            try:
+                client.server_info()
+            except Exception:
+                client.close()
+                if _throw:
+                    raise
+                client = None
+        if client and connection_key:
             cls.s_cached_connections[connection_key] = client
 
         return client
@@ -246,6 +245,7 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
         if client:
             client.close()
 
+    # noinspection PyMethodOverriding
     @classmethod
     def new_instance(cls, hostname: str, dbname: str, username: str, password: str, **kwargs) -> TsStore:
         client = cls.connect(hostname, username, password, **kwargs)
@@ -272,16 +272,16 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
     def is_running_with_auth(cls, host_name: str) -> tuple:      #-- (is_running, with_auth)
         client = cls.connect(host_name, '', '', _cache = False, _throw = False)
         if not client:
-            return (False, False)
+            return False, False
 
         admin_db = client[cls.ADMIN]
         try:
             res = admin_db.command('getCmdLineOpts')
             auth = any(r == '--auth' for r in res['argv'][1:])
-            return (True, auth)
+            return True, auth
 
         except errors.OperationFailure:     #-- auth is required
-            return (True, True)
+            return True, True
 
         finally:
             client.close()

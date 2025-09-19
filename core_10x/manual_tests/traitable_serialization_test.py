@@ -1,6 +1,11 @@
 from datetime import date
-from core_10x.traitable import Traitable, AnonymousTraitable, T, RT, THIS_CLASS
+
+from infra_10x.mongodb_store import MongoStore
+
+from core_10x.exec_control import ProcessContext
 from core_10x.named_constant import NamedConstant
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, T, Traitable
+
 
 class MARRITAL_STATUS(NamedConstant):
     SINGLE      = ()
@@ -26,7 +31,8 @@ class Person(Traitable):
     address: Address                    = T(T.EMBEDDED)
 
 if __name__ == '__main__':
-    from infra_10x.mongodb_store import MongoStore
+    ProcessContext.set_flags(ProcessContext.CACHE_ONLY) #TODO: can't create AnonymousEntity without CACHE_ONLY - FIX
+    address = Address(street="145 Austin Dr", cszip="Burlington, VT 05401")
 
     db = MongoStore.instance(hostname='localhost', dbname='test')
     db.begin_using()
@@ -43,7 +49,7 @@ if __name__ == '__main__':
         marrital_status = MARRITAL_STATUS.MARRIED,
         spouse = woman,
         children = [daughter, son],
-        address = Address(street = '145 Austin Dr', cszip = 'Burlington, VT 05401')
+        address = address
     )
 
     ss = man.serialize_object()

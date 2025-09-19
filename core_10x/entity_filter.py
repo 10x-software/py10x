@@ -1,5 +1,5 @@
-import core_10x.trait_filter as tf
-from core_10x.traitable import Traitable, Trait, T, RT, Ui
+from core_10x.traitable import T, Traitable
+
 
 class TraitFilter(Traitable):
     trait_name: str     = T()

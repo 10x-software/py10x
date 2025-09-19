@@ -1,20 +1,19 @@
 import ast
+import copy
 import functools
+import inspect
 import locale
 import platform
-import inspect
-import functools
 from inspect import Parameter
-import copy
 from types import GenericAlias
 from typing import get_origin
 
-from core_10x_i import BTrait
+from core_10x_i import BTrait, BTraitable
 
-from core_10x.xnone import XNone
 from core_10x.named_constant import NamedConstant
-from core_10x.trait_definition import TraitDefinition, T, Ui
 from core_10x.rc import RC
+from core_10x.trait_definition import T, TraitDefinition, Ui
+from core_10x.xnone import XNone
 
 
 class Trait(BTrait):
@@ -43,11 +42,11 @@ class Trait(BTrait):
         if real_trait_class:
             return real_trait_class
 
-        map = Trait.s_baseclass_traitclass_map
+        tmap = Trait.s_baseclass_traitclass_map
         base_class: type
-        for base_class in reversed(map):
+        for base_class in reversed(tmap):
             if issubclass(data_type, base_class):
-                return map[base_class]
+                return tmap[base_class]
 
         return generic_trait
 
@@ -131,7 +130,7 @@ class Trait(BTrait):
 
     def create_f_get(self, f, attr_name: str, rc: RC):
         if not f:  #-- no custom getter, just the default value
-            f = lambda traitable: self.default_value()
+            f = lambda traitable: self.default_value() # noqa: E731
             f.__name__ = 'default_value'
             params = ()
 
@@ -172,20 +171,29 @@ class Trait(BTrait):
 
     def create_f_common_trait_with_value(self, f, attr_name: str, rc: RC):
         cls = self.__class__
+        #TODO: check f's signature
         if not f:
             common_f = getattr(cls, attr_name, None)
             if common_f:
-                f = lambda obj, trait, value: common_f(trait, value)
+                f = lambda obj_or_cls, trait, value: common_f(trait, value) # noqa: E731
                 f.__name__ = f'{cls.__name__}.{common_f.__name__}'
 
         return f
+
+    def create_f_common_trait_with_value_static(self, f, attr_name: str, rc: RC):
+        cls = self.__class__
+        if f:
+            assert isinstance(f,classmethod), f"{f.__name__} must be declared as @classmethod"
+        else:
+            f = getattr(cls, attr_name, None)
+        return self.create_f_common_trait_with_value(f, attr_name, rc)
 
     def create_f_choices(self, f, attr_name: str, rc: RC):
         cls = self.__class__
         if not f:
             choices_f = getattr(cls, attr_name, None)
             if choices_f:
-                f = lambda obj, trait: choices_f(trait)
+                f = lambda obj, trait: choices_f(trait) # noqa: E731
                 f.__name__ = f'{cls.__name__}.{choices_f.__name__}'
 
         return f
@@ -274,10 +282,21 @@ class Trait(BTrait):
     def choices(self):
         return XNone
 
+    #TODO: consider binding traitable_class at trait creation time
+    #TODO: unify XNone/None conversions with object serialization/deserializatoin in c++
+    #TODO: call these from c++ directly in place of f_serialize/f_deserialize?
+    def serialize_for_traitable_class(self, traitable_class: BTraitable, value, replace_xnone=False):
+        value = self.f_serialize.__get__(None, traitable_class)(self, value)
+        return None if replace_xnone and value is XNone else value
+
+    def deserialize_for_traitable_class(self, traitable_class: BTraitable, value, replace_none=False):
+        value = self.f_deserialize.__get__(None,traitable_class)(self, value)
+        return XNone if replace_none and value is None else value
+
     #===================================================================================================================
 
 #---- Methods Associated with a trait
-class TRAIT_METHOD(NamedConstant):
+class TRAIT_METHOD(NamedConstant): # noqa: N801
     GET                 = Trait.create_f_get
     SET                 = Trait.create_f_set
     VERIFY              = Trait.create_f_plain
@@ -285,14 +304,14 @@ class TRAIT_METHOD(NamedConstant):
     FROM_ANY_XSTR       = Trait.create_f_common_trait_with_value
     IS_ACCEPTABLE_TYPE  = Trait.create_f_common_trait_with_value
     TO_STR              = Trait.create_f_common_trait_with_value
-    SERIALIZE           = Trait.create_f_common_trait_with_value
-    DESERIALIZE         = Trait.create_f_common_trait_with_value
+    SERIALIZE           = Trait.create_f_common_trait_with_value_static
+    DESERIALIZE         = Trait.create_f_common_trait_with_value_static
     TO_ID               = Trait.create_f_common_trait_with_value
     CHOICES             = Trait.create_f_choices
     STYLE_SHEET         = Trait.create_f_plain
 
 
-class generic_trait(Trait, register = False):
+class generic_trait(Trait, register = False): # noqa: N801
     s_ui_hint = Ui.NONE
 
     def post_ctor(self):
@@ -305,7 +324,7 @@ class generic_trait(Trait, register = False):
     def same_values(self, value1, value2) -> bool:
         return value1 is value2
 
-class trait_value:
+class trait_value: # noqa: N801
     def __init__(self, value, *args):
         self.value = value
         self.args = args

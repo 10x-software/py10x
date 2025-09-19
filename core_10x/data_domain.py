@@ -1,6 +1,6 @@
 import re
 
-from core_10x.resource import ResourceRequirements, TS_STORE
+from core_10x.resource import TS_STORE, ResourceRequirements
 
 
 def _raise_type_error(cls, **kwargs):

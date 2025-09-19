@@ -1,4 +1,5 @@
-from core_10x.traitable import Traitable, T, Ui
+from core_10x.traitable import T, Traitable, Ui
+from core_10x.ts_union import TsUnion
 
 COLORS = ('black', 'white', 'green', 'lightgreen', 'red', 'blue', 'grey')
 
@@ -22,7 +23,7 @@ class StyleSheet(Traitable):
     def font_choices(self, t):          return ('Times New Roman', 'Helvetica', 'Courier New')
 
     def show_me_style_sheet(self) -> dict:
-        return {
+        ss = {
             Ui.FG_COLOR:        self.foreground,
             Ui.BG_COLOR:        self.background,
             Ui.FONT:            self.font,
@@ -32,12 +33,15 @@ class StyleSheet(Traitable):
             Ui.BORDER_STYLE:    'solid'    if self.border_style  else '',
             Ui.BORDER_COLOR:    self.border_color,
         }
+        print(ss)
+        return ss
 
 if __name__ == '__main__':
     from ui_10x.traitable_editor import TraitableEditor
 
-    sheet = StyleSheet()
-    e = TraitableEditor(sheet, _confirm = True)
-    e.popup()
+    with TsUnion():
+        sheet = StyleSheet()
+        e = TraitableEditor(sheet, _confirm = True)
+        e.dialog().exec()
 
 

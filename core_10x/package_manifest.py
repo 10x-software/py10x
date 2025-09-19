@@ -1,6 +1,7 @@
-from core_10x.py_class import PyClass
-from core_10x.resource import ResourceRequirements, TS_STORE
 from core_10x.data_domain import GeneralDomain
+from core_10x.py_class import PyClass
+from core_10x.resource import TS_STORE, ResourceRequirements
+
 
 class PackageManifest:
     """

@@ -1,13 +1,13 @@
 import functools
-import unittest
-from unittest import mock, TestCase
+from unittest import TestCase
 from weakref import WeakKeyDictionary
 
+from core_10x.code_samples.person import WEIGHT_QU, Person
+from core_10x.exec_control import BTP, GRAPH_OFF, GRAPH_ON
+from core_10x.trait_definition import RT, T
 from core_10x.ts_union import TsUnion
 from core_10x.xnone import XNone
-from core_10x.code_samples.person import Person, WEIGHT_QU
-from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, BTP
-from core_10x.trait_definition import T,RT
+
 
 def call_counter(method):
     @functools.wraps(method)
@@ -167,7 +167,7 @@ class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):
         self.assertEqual(on, bool(BTP.current().flags() & BTP.CONVERT_VALUES))
         if not on:
-            with self.assertRaises(Exception):
+            with self.assertRaises(TypeError):
                 Person(first_name=1, last_name=2)
         else:
             p = Person(first_name=1, last_name=2)
@@ -180,14 +180,13 @@ class TestExecControl(TestGraphBase):
         self.test_get_set()
 
     def test(self, graph=False, convert=False, debug=False):
-        if debug:
-            convert = False # TODO: debug overrides convert
-
-        self.test_graph(on=graph)
-        #self.reset()
-        # self.test_convert(on=convert)
-        # self.reset()
-        # self.test_debug(on=debug)
+        with TsUnion():
+            self.test_graph(on=graph)
+            self.reset()
+            self.test_convert(on=convert)
+            self.reset()
+            if not convert:
+                self.test_debug(on=debug)
 
     def test_repro(self):
         with GRAPH_ON():
@@ -212,17 +211,13 @@ class TestExecControl(TestGraphBase):
         p.weight_lbs = 100.
 
         if on:
-            with self.assertRaises(Exception):
-                p.weight_lbs = 200
+            with self.assertRaises(TypeError):
+                p.weight_lbs = '200'
 
             self.assertEqual(p.weight, 100.0)
 
-            p.weight_lbs = 200.
-            self.assertEqual(p.weight, 200.0)
-
-        else:
-            p.weight_lbs=200
-            self.assertEqual(p.weight, 200.0)
+        p.weight_lbs=200
+        self.assertEqual(p.weight, 200.0)
 
         p.invalidate_value(p.T.weight_lbs)
         self.assertIs(p.weight_lbs,XNone)

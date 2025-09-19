@@ -1,8 +1,8 @@
 from core_10x.directory import Directory
-from core_10x.xnone import XNone
 from core_10x.named_constant import Enum
+from core_10x.xnone import XNone
 
-from ui_10x.utils import ux, UxSearchableList, UxTreeViewer, UxDialog, UxRadioBox
+from ui_10x.utils import UxDialog, UxRadioBox, UxSearchableList, UxTreeViewer, ux
 
 
 class Choice:
@@ -26,7 +26,7 @@ class Choice:
         self.set(choices = choices, f_choices = f_choices, f_selection_callback = f_selection_callback, **kwargs)
 
     def set(self, choices = XNone, f_choices = None, f_selection_callback = None, **kwargs):
-        assert choices or f_choices, f'Either choices or f_choices must be given'
+        assert choices or f_choices, 'Either choices or f_choices must be given'
 
         self.f_selection_cb = f_selection_callback
 
@@ -104,7 +104,7 @@ class Choice:
 
 
 class MultiChoice(Choice):
-    class SELECT_MODE(Enum):
+    class SELECT_MODE(Enum): # noqa: N801
         ANY     = ()
         LEAF    = ()
         SUBDIR  = ()
@@ -172,7 +172,7 @@ class MultiChoice(Choice):
 
     def on_value_selected(self, subdir: Directory, item_value, convert_value = False):
         values_selected = self.values_selected
-        if not item_value in values_selected:
+        if item_value not in values_selected:
             mode = self.select_mode()
             handler = self.s_select_table.get(mode)
             if handler(self, subdir, values_selected, item_value):

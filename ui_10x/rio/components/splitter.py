@@ -1,25 +1,29 @@
 from __future__ import annotations
 
-import rio
 import typing as t
+
+import rio
+
 
 class Splitter(rio.Component):
     """
     A custom Rio component that arranges children horizontally like a Row,
-    with draggable splitters between them for resizing.
+    or vertically as a column with draggable splitters between them for resizing.
     """
     # Props
     children: list[rio.Component] = []
     direction: t.Literal['horizontal','vertical'] = 'vertical'
-    handle_size: float = 0.5  # Width of the splitter handle
+    handle_size: float = 0.25  # Width of the splitter handle
     min_size_percent: float = 10.0  # Minimum width for each child (%)
-    child_proportions: t.Literal["homogeneous"] | t.Sequence[float] | None = "homogeneous"
+    child_proportions: t.Sequence[float] = None
+    _component_width: float = 0.0
+    _component_height: float = 0.0
 
     def __init__(self, *children,
              direction: t.Literal['horizontal','vertical'] = 'vertical',
              handle_size:float=0.5,
              min_size_percent:float=10.0,
-             child_proportions: t.Literal["homogeneous"] | t.Sequence[float] | None = "homogeneous",
+             child_proportions: t.Literal["homogeneous"] | t.Sequence[float] = "homogeneous",
             **kwargs
          ):
         super().__init__(**kwargs)
@@ -41,10 +45,10 @@ class Splitter(rio.Component):
         Adjusts the proportions of the two adjacent children.
         """
         horizontal = self.direction == 'horizontal'
-        total_size = self.session.window_width if horizontal else self.session.window_height  # Window size in pixels
-        total_proportion = sum(self.child_proportions)
+        total_size =  self._component_width if horizontal else self._component_height
 
         # Convert drag movement to a proportion change
+        total_proportion = sum(self.child_proportions)
         relative_size = event.relative_x if horizontal else event.relative_y
         delta_proportion = (relative_size / total_size) * total_proportion
 
@@ -64,6 +68,8 @@ class Splitter(rio.Component):
             # Ensure proportions don't go negative
             self.child_proportions[prev_index] = max(0.0, self.child_proportions[prev_index])
             self.child_proportions[next_index] = max(0.0, self.child_proportions[next_index])
+            child_sizes = [p / total_proportion * total_size for p in self.child_proportions]
+            print( f'{child_sizes=}, total_size={total_size} ({sum(child_sizes):.2f})' )
 
         self.child_proportions = self.child_proportions # force refresh
 
@@ -76,11 +82,16 @@ class Splitter(rio.Component):
         components = []
         horizontal = self.direction == 'horizontal'
         for i, child in enumerate(self.children):
+            # Wrap child in ScrollArea
+            scrollable_content = rio.ScrollContainer(
+                content=child,
+                # scroll_x='never' if horizontal else 'auto',
+                # scroll_y='auto' if horizontal else 'never',
+            )
             # Create the pane
             pane = rio.Rectangle(
-                content=child,
+                content=scrollable_content,
                 **{"grow_x" if horizontal else "grow_y": True},  # Stretch to fill proportional space
-                fill=rio.Color.from_hex("#87ceeb") if i % 2 == 0 else rio.Color.from_hex("#90ee90"),
                 margin=1,  # Spacing around the child content
             )
             # Add a splitter handle to the right of all but the last pane
@@ -111,10 +122,16 @@ class Splitter(rio.Component):
                 components.append(pane)
 
         container = rio.Row if self.direction=='horizontal' else rio.Column
-        return container(
-            *components,
-            spacing=0,
-            grow_x=True,  # Expand to fill available width
-            grow_y=True,  # Expand to fill available height
-            proportions=self.bind().child_proportions,  # Dynamically control pane sizes
+        return rio.SizeObserver(
+            container(
+                *components,
+                spacing=0,
+                proportions=self.bind().child_proportions,  # Dynamically control pane sizes
+            ),
+            on_resize=self._on_resize,
         )
+
+    def _on_resize(self, event: rio.SizeEvent) -> None:
+        print(event, self.session.window_width, self.session.window_height)
+        self._component_width = event.component_width
+        self._component_height = event.component_height

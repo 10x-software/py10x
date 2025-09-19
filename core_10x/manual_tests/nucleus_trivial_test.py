@@ -1,8 +1,8 @@
 if __name__ == '__main__':
-    from datetime import datetime, date
-    from core_10x.nucleus import Nucleus
+    from datetime import date, datetime
 
     from core_10x.named_constant import Enum, EnumBits
+    from core_10x.nucleus import Nucleus
 
     class COLOR(Enum):
         RED     = ()

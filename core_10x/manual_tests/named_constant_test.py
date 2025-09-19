@@ -1,5 +1,17 @@
+from __future__ import annotations
+
 from math import exp, log
-from core_10x.named_constant import NamedConstant, Nucleus, NamedConstantValue, NamedConstantTable, Enum, ErrorCode, EnumBits
+
+from core_10x.named_constant import (
+    Enum,
+    EnumBits,
+    ErrorCode,
+    NamedConstant,
+    NamedConstantTable,
+    NamedConstantValue,
+    Nucleus,
+)
+
 
 class COLOR(NamedConstant, lowercase_values = True):
     RED         = ()
@@ -82,8 +94,8 @@ class TEXT_ALIGN(NamedConstant):
     BOTTOM = RIGHT << 4
 
     @classmethod
-    def from_str(cls, s: str) -> NamedConstant:
-        return super().from_str(s.upper())
+    def from_str(cls, s: str) -> TEXT_ALIGN:
+        return super().from_str(s.upper()) # type: ignore[return-value]
 
     def rio_attr(self) -> str:
         return 'align_y' if self.value & self.s_vertical else 'align_x'
@@ -95,10 +107,11 @@ if __name__ == '__main__':
     print( COLOR.LIGHTGREEN.value)
     sgreen = Nucleus.serialize_any(COLOR.GREEN, False)
     swhite = Nucleus.serialize_any(XCOLOR.WHITE, False)
+    print(sgreen)
+    print(swhite)
 
-    #assert Nucleus.deserialize_any(swhite) is XCOLOR.WHITE
-
-    ####print(COLOR_WEIGHT.GREEN, COLOR_CODE.GREEN)
+    assert Nucleus.deserialize_dict(swhite) is XCOLOR.WHITE
+    #print(COLOR_WEIGHT.GREEN, COLOR_CODE.GREEN) #TODO: FIX!
 
     print(A_PROBLEM.REV_CONFLICT(cls = 'XXX', id = '145678', rev = '3'))
 

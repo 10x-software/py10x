@@ -1,10 +1,10 @@
+from functools import total_ordering
 from typing import Self
 
-from functools import total_ordering
 
 @total_ordering
 class ID:
-    __slots__ = ('value', 'collection_name')
+    __slots__ = ('collection_name', 'value')
 
     def __init__(self, id_value: str = None, collection_name: str = None):
         self.value = id_value

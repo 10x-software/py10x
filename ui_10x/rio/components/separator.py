@@ -2,6 +2,7 @@ import typing
 
 import rio
 
+
 class Separator(rio.Component):
     """
     A component that draws a horizontal or vertical line to separate UI sections.

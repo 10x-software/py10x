@@ -1,10 +1,11 @@
-import os
 import ast
+import os
 
 from core_10x_i import OsUser
+
 from core_10x.global_cache import cache
-from core_10x.xdate_time import XDateTime, date, datetime
 from core_10x.rc import RC
+from core_10x.xdate_time import XDateTime, date, datetime
 
 #===================================================================================================================================
 #   date_format: str    = default_value
@@ -21,7 +22,7 @@ from core_10x.rc import RC
 #       ...
 #===================================================================================================================================
 
-class classproperty(property):
+class classproperty(property): # noqa: N801
     def __get__(self, obj, objtype = None):
         return self.fget(objtype)
 
@@ -45,27 +46,27 @@ class _EnvVars:
             assert f_convert, f'Unknown data type {data_type}'
             try:
                 value = f_convert(str_value)
-            except Exception:
-                raise TypeError(f'Variable {var_name} - could not convert {str_value} to {data_type}')
+            except Exception as e:
+                raise TypeError(f'Variable {var_name} - could not convert {str_value} to {data_type}') from e
         else:
             try:
                 value = f_get(cls)
-            except Exception:
+            except Exception as e:
                 rc = RC(False)  #-- capture the exc
-                raise RuntimeError(f'{cls}.{var_name} - failed while getting a value\n{rc.error()}')
+                raise RuntimeError(f'{cls}.{var_name} - failed while getting a value\n{rc.error()}') from e
 
         if f_apply:
             try:
-                f_apply(cls, value)
-            except Exception:
+                f_apply.__get__(cls)(value)
+            except Exception as e:
                 rc = RC(False)  #-- capture the exc
-                raise ValueError(f'{cls}.{var_name} - failed while applying value: {value}\n{rc.error()}')
+                raise ValueError(f'{cls}.{var_name} - failed while applying value: {value}\n{rc.error()}') from e
 
         return value
 
     @classmethod
     def full_getter(cls, data_type, var_name: str, f_get, f_apply):
-        f = lambda cls: cls._getter(data_type, var_name, f_get, f_apply)
+        f = lambda cls: cls._getter(data_type, var_name, f_get, f_apply) # noqa: E731
         #return classmethod(cache(f))
         return cache(f)
 
@@ -75,7 +76,7 @@ class _EnvVars:
 
         cls.s_env_name = env_name
         annotations = cls.__annotations__
-        assert annotations, f'No variables are defined'
+        assert annotations, 'No variables are defined'
 
         cls_dict = cls.__dict__
         for name, data_type in annotations.items():
@@ -86,7 +87,7 @@ class _EnvVars:
                 assert f_get, f'Variable {name} must define either a default value or a getter {f_get_name}(cls)'
                 #-- TODO: check signature: f_get(cls)
             else:
-                f_get = lambda cls: def_value
+                f_get = lambda cls,def_value=def_value: def_value # noqa: E731
 
             f_apply_name = f'{name}_apply'
             f_apply = cls_dict.get(f_apply_name)    #-- f(cls, value)
@@ -108,6 +109,7 @@ class EnvVars(_EnvVars, env_name = 'XX'):
     def build_area_get(self) -> str:
         return OsUser.me.name()
 
+    @classmethod
     def date_format_apply(cls, value):
         XDateTime.set_default_format(value)
 

@@ -1,0 +1,14 @@
+# This is the configuration file for Rio, an easy to use app & web framework for
+# Python.
+
+[app]
+# This is either "website" or "app"
+app-type = "website"
+
+# The name of your Python module
+main-module = "examples"
+
+# All files which are part of your project. Changes to these will trigger a
+# reload and they will be packed up when deploying.
+project-files = ["*.py", "/assets/", "/rio.toml"]
+

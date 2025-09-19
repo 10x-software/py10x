@@ -1,9 +1,10 @@
 from datetime import date
 
 from core_10x.named_constant import NamedConstant
-from core_10x.traitable import Traitable, T, RT, Ui, RC, RC_TRUE
+from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
 
-class WEIGHT_QU( NamedConstant ):
+
+class WEIGHT_QU( NamedConstant ): # noqa: N801
     LB =    ( 'lb',     1. )
     KG =    ( 'kg',     2.205 )
     G =     ( 'g',      0.002205 )
@@ -12,20 +13,20 @@ class WEIGHT_QU( NamedConstant ):
 class Person(Traitable):
     first_name: str         = T(T.ID)
     last_name: str          = T(T.ID)
-    dob: date
+    dob: date               = T()
     weight_lbs: float       = T(fmt = ',.4f')
 
-    age: int                = RT()
+    age: int
     full_name: str          = RT(T.EXPENSIVE)
-    weight: float           = RT()
+    weight: float
     weight_qu: WEIGHT_QU    = RT(default = WEIGHT_QU.LB)
 
-    older_than: bool        = RT()
+    older_than: bool
 
 
     def dob_set(self, trait, value: date) -> RC:
         today = date.today()
-        if value > today:
+        if value and value > today:
             return RC(False, f'{value} may not be after {today}')
         return self.raw_set_value(trait, value)
 
