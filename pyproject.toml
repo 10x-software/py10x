@@ -45,6 +45,10 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 src = ["core_10x", "infra_10x"]
+line-length = 120
+
+[tool.ruff.format]
+quote-style = "single"
 
 [tool.ruff.lint]
 ignore = ["RUF013","RUF012"]

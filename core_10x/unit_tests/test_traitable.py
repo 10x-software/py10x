@@ -14,7 +14,7 @@ class SubTraitable(Traitable):
     trait1: int = RT(T.ID)
     trait2: str = RT()
 
-    x = '123' #not in slots
+    x = '123'  # -- not in slots
 
 
 class SubTraitable2(SubTraitable):
@@ -23,17 +23,17 @@ class SubTraitable2(SubTraitable):
     trait3: float = T() // 'trait definition comment'
     trait4: int = RT(0)
 
+
 class SubTraitable3(SubTraitable):
-    trait2: list[str] = M() // "trait modification comment"
+    trait2: list[str] = M() // 'trait modification comment'
+
 
 class TestTraitableTraits(unittest.TestCase):
-
     def test_subclass_traits(self):
         expected_traits = {'trait1', 'trait2'}
         self.assertEqual({t.name for t in SubTraitable.traits(flags_off=T.RESERVED)}, expected_traits)
 
     def test_subclass2_traits(self):
-
         expected_traits = ['trait1', 'trait2', 'trait3', 'trait4']
         assert [t.name for t in SubTraitable2.traits(flags_off=T.RESERVED)] == expected_traits
         assert SubTraitable.trait('trait2').data_type is str
@@ -48,7 +48,7 @@ class TestTraitableTraits(unittest.TestCase):
         self.assertFalse(SubTraitable.is_storable())
         self.assertTrue(SubTraitable2.is_storable())
 
-        with self.assertRaisesRegex(OSError,'No Store is available'):
+        with self.assertRaisesRegex(OSError, 'No Store is available'):
             SubTraitable2().save()
 
         assert 'is not storable' in SubTraitable(trait1=uuid.uuid1().int).save().error()
@@ -56,17 +56,16 @@ class TestTraitableTraits(unittest.TestCase):
     def test_trait_update(self):
         with TsUnion():
             instance = SubTraitable(trait1=10, trait2='hello')
-            assert instance.trait2=='hello'
+            assert instance.trait2 == 'hello'
 
             assert instance == SubTraitable.update(trait1=10, trait2='world')
-            assert instance.trait2=='world'
+            assert instance.trait2 == 'world'
 
-            assert instance == SubTraitable.update(trait1=10, trait2=None) #setting to None
+            assert instance == SubTraitable.update(trait1=10, trait2=None)  # setting to None
             assert instance.trait2 is None
 
 
 class TestTraitableSlots(unittest.TestCase):
-
     def test_traitable_slots(self):
         expected_slots = ('T', '_default_cache', '_rev', '_collection_name')
         self.assertEqual(Traitable.__slots__, expected_slots)
@@ -83,7 +82,6 @@ class TestTraitableSlots(unittest.TestCase):
 
 
 class TestTraitable(unittest.TestCase):
-
     def test_init_with_id(self):
         pid = ID('John|Smith')
         p = Person(pid)
@@ -102,3 +100,11 @@ class TestTraitable(unittest.TestCase):
         self.assertTrue(rc)
 
 
+class TestTraitableDynamicTraits(unittest.TestCase):
+    def test_dynamic_traits(self):
+        class X(Traitable):
+            s_own_trait_definitions = dict(x=RT(data_type=int, get=lambda self: 10))
+
+        x = X()
+        self.assertIs(x.T.x.data_type, int)
+        self.assertEqual(x.x, 10)
