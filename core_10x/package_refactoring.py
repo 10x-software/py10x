@@ -6,11 +6,14 @@ from core_10x.py_class import PyClass
 
 CLASS_ID_DELIMITER = '/'
 
+
 class PackageRefactoring:
+    # fmt: off
     s_module_name   = '_refactoring'
     s_records_name  = '_records'
-
+    # fmt: on
     s_instances = {}
+
     @classmethod
     def register_top_level_packages(cls, *top_level_packages):
         instances = cls.s_instances
@@ -19,7 +22,7 @@ class PackageRefactoring:
             instances[top_level_package] = pkg_refact
 
     @staticmethod
-    def default_class_id(cls = None, canonical_class_name: str = None) -> str:
+    def default_class_id(cls: type = None, canonical_class_name: str = None) -> str:
         if canonical_class_name is None:
             assert cls and inspect.isclass(cls), f'{cls} is not a valid class'
             canonical_class_name = PyClass.name(cls)
@@ -66,7 +69,7 @@ class PackageRefactoring:
             text.append(f'\t{cid}:\t\t"{path}"')
         text.append('}')
         s = '\n'.join(text)
-        with open(self.file_name, mode = 'w') as f:
+        with open(self.file_name, mode='w') as f:
             f.write(s)
 
     @staticmethod
@@ -101,7 +104,7 @@ class PackageRefactoring:
 
     @staticmethod
     def _find_or_create_instance(canonical_class_name) -> 'PackageRefactoring':
-        parts = canonical_class_name.split('.', maxsplit = 1)
+        parts = canonical_class_name.split('.', maxsplit=1)
         if len(parts) < 2:
             raise ValueError(f'Invalid canonical class name {canonical_class_name}')
 
@@ -114,7 +117,7 @@ class PackageRefactoring:
         return pkg_refactor
 
     @staticmethod
-    def remove_class(canonical_class_name: str, save = True):
+    def remove_class(canonical_class_name: str, save: bool = True):
         pkg_refactor = PackageRefactoring._find_or_create_instance(canonical_class_name)
         cid = pkg_refactor.path_to_cid.get(canonical_class_name)
         if cid is None:
@@ -139,11 +142,8 @@ class PackageRefactoring:
                 refactor1._save()
 
         else:
-            cid = PackageRefactoring.default_class_id(canonical_class_name = cur_path)
+            cid = PackageRefactoring.default_class_id(canonical_class_name=cur_path)
 
         refactor2.cid_to_path[cid] = new_path
         refactor2.path_to_cid[new_path] = cid
         refactor2._save()
-
-
-

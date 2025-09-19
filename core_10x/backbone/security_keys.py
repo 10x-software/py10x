@@ -10,39 +10,42 @@ from cryptography.hazmat.primitives.serialization import (
 
 from core_10x.global_cache import cache
 
+# fmt: off
 ROOT                = '.xx'
 PUBLIC_EXP          = 65537
 KEY_SIZE            = 2048
 PRIVATE_KEY_FILE    = 'private.pem'
 PUBLIC_KEY_FILE     = 'public.pem'
 ENCODING            = 'utf-8'
+# fmt: on
+
 
 class SecKeys:
     @classmethod
     @cache
     def home_dir(cls) -> str:
-        dir = f"{os.path.expanduser('~')}/{ROOT}"
+        dir = f'{os.path.expanduser("~")}/{ROOT}'
         if os.path.exists(dir):
-            assert os.path.isdir(dir), f"{dir} is not a directory"
+            assert os.path.isdir(dir), f'{dir} is not a directory'
         else:
             os.mkdir(dir)
 
         return dir
 
     @classmethod
-    def generate_keys(cls, pwd = None) -> tuple:
-        private_key = rsa.generate_private_key(public_exponent = PUBLIC_EXP, key_size= KEY_SIZE, backend = default_backend())
+    def generate_keys(cls, pwd=None) -> tuple:
+        private_key = rsa.generate_private_key(public_exponent=PUBLIC_EXP, key_size=KEY_SIZE, backend=default_backend())
         public_key = private_key.public_key()
 
         if pwd:
-            format  = serialization.PrivateFormat.PKCS8
-            algo    = serialization.BestAvailableEncryption(bytes(pwd, encoding = ENCODING))
+            format = serialization.PrivateFormat.PKCS8
+            algo = serialization.BestAvailableEncryption(bytes(pwd, encoding=ENCODING))
         else:
-            format  = serialization.PrivateFormat.TraditionalOpenSSL
-            algo    = serialization.NoEncryption()
+            format = serialization.PrivateFormat.TraditionalOpenSSL
+            algo = serialization.NoEncryption()
 
-        private_key_pem = private_key.private_bytes(encoding = serialization.Encoding.PEM, format = format, encryption_algorithm = algo)
-        public_key_pem  = public_key.public_bytes(encoding = serialization.Encoding.PEM, format = serialization.PublicFormat.SubjectPublicKeyInfo)
+        private_key_pem = private_key.private_bytes(encoding=serialization.Encoding.PEM, format=format, encryption_algorithm=algo)
+        public_key_pem = public_key.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
 
         return (private_key_pem, public_key_pem)
 
@@ -59,7 +62,7 @@ class SecKeys:
                 f.write(public_key)
                 os.chmod(f.name, 0o600)
 
-            cls.keys.clear()    #-- cls.keys() will then read from the files
+            cls.keys.clear()  # -- cls.keys() will then read from the files
             return (private_key, public_key)
 
         except Exception:
@@ -86,9 +89,9 @@ class SecKeys:
         return (None, None)
 
     @classmethod
-    def encrypt(cls, message, public_key: bytes = None) -> bytes:
+    def encrypt(cls, message, public_key: bytes = None) -> bytes | None:
         if type(message) is str:
-            message = bytes(message, encoding = ENCODING)
+            message = bytes(message, encoding=ENCODING)
 
         if public_key is None:
             _, public_key = cls.keys()
@@ -96,6 +99,7 @@ class SecKeys:
                 return None
 
         public_key = load_pem_public_key(public_key)
+        # fmt: off
         return public_key.encrypt(
             message,
             padding.OAEP(
@@ -104,14 +108,16 @@ class SecKeys:
                 label       = None
             )
         )
+        # fmt: on
 
     @classmethod
-    def decrypt(cls, encrypted_message: bytes, to_str = True):
+    def decrypt(cls, encrypted_message: bytes, to_str=True):
         private_key, _ = cls.keys()
         if private_key is None:
             return None
 
-        private_key = load_pem_private_key(private_key, password = None)
+        private_key = load_pem_private_key(private_key, password=None)
+        # fmt: off
         res = private_key.decrypt(
             encrypted_message,
             padding.OAEP(
@@ -120,37 +126,41 @@ class SecKeys:
                 label       = None
             )
         )
+        # fmt: on
 
         if to_str:
-            res = res.decode(encoding = ENCODING)
+            res = res.decode(encoding=ENCODING)
 
         return res
 
     @classmethod
-    def encrypt_private_key(cls, password) -> bytes:
+    def encrypt_private_key(cls, password) -> bytes | None:
         if type(password) is str:
-            password = bytes(password, encoding = ENCODING)
+            password = bytes(password, encoding=ENCODING)
 
         private_key, _ = cls.keys()
         if private_key is None:
             return None
 
-        private_key = load_pem_private_key(private_key, password = None)
+        private_key = load_pem_private_key(private_key, password=None)
+        # fmt: off
         return private_key.private_bytes(
             encoding                = serialization.Encoding.PEM,
             format                  = serialization.PrivateFormat.PKCS8,
-            encryption_algorithm    = serialization.BestAvailableEncryption(password)
+            encryption_algorithm    = serialization.BestAvailableEncryption(password),
         )
+        # fmt: on
 
     @classmethod
     def decrypt_private_key(cls, private_key_with_password, password) -> bytes:
         if type(password) is str:
-            password = bytes(password, encoding = ENCODING)
+            password = bytes(password, encoding=ENCODING)
 
-        pk = load_pem_private_key(private_key_with_password, password = password)
-
+        pk = load_pem_private_key(private_key_with_password, password=password)
+        # fmt: off
         return pk.private_bytes(
             encoding                = serialization.Encoding.PEM,
             format                  = serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm    = serialization.NoEncryption()
+            encryption_algorithm    = serialization.NoEncryption(),
         )
+        # fmt: on

@@ -51,7 +51,9 @@ line-length = 150
 quote-style = "single"
 exclude = [
     "core_10x/xnone.py",
+    "core_10x/code_samples/*",
     "core_10x/manual_tests/*",
+    "core_10x/experimental/*",
     "infra_10x/*",
     "ui_10x/*"
 ]
