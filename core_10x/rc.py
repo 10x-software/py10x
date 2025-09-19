@@ -1,5 +1,6 @@
 import sys
 import traceback
+from types import TracebackType
 
 from core_10x.named_constant import Enum, ErrorCode
 
@@ -35,21 +36,22 @@ class RC:
             ...
             return rc
     """
+
     __slots__ = ('payload', 'rc')
 
     @classmethod
-    def show_exception_info(cls, ex_info = None) -> str:
+    def show_exception_info(cls, ex_info: tuple[type[BaseException], BaseException, TracebackType] = None) -> str:
         if not ex_info:
             ex_info = sys.exc_info()
 
         assert isinstance(ex_info, tuple) and len(ex_info) == 3, f'Invalid ex_info: {ex_info}'
 
         ss = traceback.StackSummary.extract(traceback.walk_tb(ex_info[2]))
-        return f"{ex_info[0]} ({ex_info[1]})\n{''.join(ss.format())}"
+        return f'{ex_info[0]} ({ex_info[1]})\n{"".join(ss.format())}'
 
-    def __init__(self, rc, data = None):
+    def __init__(self, rc, data=None):
         self.rc = rc
-        self.payload = [ data ] if data is not None else []
+        self.payload = [data] if data is not None else []
 
     def __bool__(self):
         rc = self.rc
@@ -77,7 +79,7 @@ class RC:
     def __ilshift__(self, err):
         return self.add_error(err)
 
-    def unwrap(self) -> tuple:  #-- ( rc, payload)
+    def unwrap(self) -> tuple:  # -- ( rc, payload)
         return (self.rc, self.payload)
 
     def data(self):
@@ -100,7 +102,7 @@ class RC:
                 return self.rc(**data)
             return data
 
-        #-- multiple errors
+        # -- multiple errors
         return '\n'.join(payload)
 
     def add_error(self, err) -> 'RC':
@@ -124,10 +126,11 @@ class RC:
         self.payload.append(data)
         return self
 
-    def throw(self, exc = RuntimeError):
+    def throw(self, exc: type[Exception] = RuntimeError):
         err = self.error()
         if err:
             raise exc(err)
+
 
 class _RcTrue(RC):
     def __init__(self):
@@ -136,11 +139,11 @@ class _RcTrue(RC):
     def new_rc(self) -> RC:
         return RC(True)
 
-    def add_error(self, err = ''):
+    def add_error(self, err: str = ''):
         raise ValueError('May not add error to a constant RC_TRUE')
 
     def add_data(self, data):
         raise ValueError('May not add error to a constant RC_TRUE')
 
-RC_TRUE = _RcTrue()
 
+RC_TRUE = _RcTrue()

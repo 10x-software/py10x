@@ -7,6 +7,7 @@ from core_10x.named_constant import Enum
 
 
 class UiHint:
+    # fmt: off
     #-- Flags
     HIDDEN      = 0x1
     READ_ONLY   = 0x2
@@ -23,7 +24,7 @@ class UiHint:
     BORDER_WIDTH    = 'border-width'
     BORDER_COLOR    = 'border-color'
     BORDER_STYLE    = 'border-style'
-    
+
     class WIDGET_TYPE(Enum):  # noqa: N801
         NONE        = ()
         LINE        = ()
@@ -35,12 +36,12 @@ class UiHint:
         PIXMAP      = ()
         PUSH        = ()
         FILE        = ()
-
+    # fmt: on
     @staticmethod
     def partial(widget_type_fn, **params):
         return functools.partial(widget_type_fn, **params)
 
-    def __init__(self, label: str = None, flags: int = 0x0, tip: str = None, widget_type = None, **params):
+    def __init__(self, label: str = None, flags: int = 0x0, tip: str = None, widget_type: WIDGET_TYPE = None, **params):
         self.label: str = label
         self.flags: int = flags
         self.tip: str = tip
@@ -66,57 +67,60 @@ class UiHint:
     def flags_on(self, flags: int) -> bool:
         return bool(self.flags & flags)
 
-    def set_reset_flags(self, to_set: int, to_reset = 0x0):
+    def set_reset_flags(self, to_set: int, to_reset: int = 0x0):
         self.flags = (self.flags | to_set) & ~to_reset
 
     def param(self, param_name: str, default_value):
         return self.params.get(param_name, default_value)
 
     @staticmethod
-    def line(label: str = None, flags: int = 0x0, tip: str = None, min_width = 1, align_h = 1):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.LINE, min_width = min_width, align_h = align_h)
+    def line(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, align_h: int = 1):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.LINE, min_width=min_width, align_h=align_h)
 
     @staticmethod
-    def text(label: str = None, flags: int = 0x0, tip: str = None, min_width = 1):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.TEXT, min_width = min_width)
+    def text(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.TEXT, min_width=min_width)
 
     @staticmethod
-    def text4list(label: str = None, flags: int = 0x0, tip: str = None, min_width = 1):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.TEXT4LIST, min_width = min_width)
+    def text4list(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.TEXT4LIST, min_width=min_width)
 
     @staticmethod
-    def password(label: str = None, flags: int = 0x0, tip: str = None, min_width = 10):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.PASSWORD, min_width = min_width)
+    def password(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 10):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PASSWORD, min_width=min_width)
 
     @staticmethod
-    def check(label: str = None, flags: int = 0x0, tip: str = None, right_label = False, align_h = 1):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.CHECK, right_label = right_label, align_h = align_h)
+    def check(label: str = None, flags: int = 0x0, tip: str = None, right_label: bool = False, align_h: int = 1):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.CHECK, right_label=right_label, align_h=align_h)
 
     @staticmethod
-    def choice(label: str = None, flags: int = 0x0, tip: str = None, align_h = 1):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.CHOICE, align_h = align_h)
+    def choice(label: str = None, flags: int = 0x0, tip: str = None, align_h: int = 1):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.CHOICE, align_h=align_h)
 
     @staticmethod
-    def pixmap(label: str = None, flags: int = 0x0, tip: str = None, w = 10, h = 10):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.PIXMAP, w = w, h = h)
+    def pixmap(label: str = None, flags: int = 0x0, tip: str = None, w: int = 10, h: int = 10):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PIXMAP, w=w, h=h)
 
     @staticmethod
-    def button(label: str = None, flags: int = 0x0, tip: str = None, min_width = 1):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.PUSH, min_width = min_width)
+    def button(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PUSH, min_width=min_width)
 
     @staticmethod
-    def file(label: str = None, flags: int = 0x0, tip: str = None, min_width = 1):
-        return Ui(label = label, flags = flags, tip = tip, widget_type = Ui.WIDGET_TYPE.FILE, min_width = min_width)
+    def file(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.FILE, min_width=min_width)
+
 
 class UiHintModification(UiHint):
+    # fmt: off
     def __init__(
-            self,
-            label: str                      = None,
-            flags                           = None,
-            tip: str                        = None,
-            widget_type: UiHint.WIDGET_TYPE = None,
-            **params
+        self,
+        label: str                      = None,
+        flags: int                      = None,
+        tip: str                        = None,
+        widget_type: UiHint.WIDGET_TYPE = None,
+        **params,
     ):
+        # fmt: on
         super().__init__(label, flags = flags, tip = tip, widget_type = widget_type, **params)
 
     def apply(self, ui_hint: UiHint) -> UiHint:
@@ -142,7 +146,8 @@ class UiHintModification(UiHint):
         return hint
 
 
+# fmt: off
 UiHint.NONE = UiHint(widget_type = UiHint.WIDGET_TYPE.NONE)
 Ui          = UiHint
 UiMod       = UiHintModification
-
+# fmt: on

@@ -20,6 +20,7 @@ class NamedConstant(Nucleus):
 
         NOTE:   all the members must have either explicit or auto-generated values exclusively
     """
+
     __slots__ = 'label', 'name', 'value'
 
     def __init__(self, name: str = '', label: str = '', value: Any = None):
@@ -40,18 +41,18 @@ class NamedConstant(Nucleus):
     @classmethod
     def _create(cls, args: Any) -> Self:
         cdef = cls()
-        if type(args) is not tuple:  #-- just a value
+        if type(args) is not tuple:  # -- just a value
             cdef.value = args
 
         else:
             n = len(args)
-            if n == 0:  #-- ()
+            if n == 0:  # -- ()
                 pass
 
-            elif n == 1:  #-- just a label
+            elif n == 1:  # -- just a label
                 cdef.label = args[0]
 
-            elif n == 2:  #-- (label, value)
+            elif n == 2:  # -- (label, value)
                 cdef.label = args[0]
                 cdef.value = args[1]
 
@@ -60,9 +61,9 @@ class NamedConstant(Nucleus):
 
         return cdef
 
-    #===================================================================================================================
+    # ===================================================================================================================
     #   Nucleus Interface implementation
-    #===================================================================================================================
+    # ===================================================================================================================
 
     def to_str(self) -> str:
         return f'{self.__class__.__name__}.{self.name}'
@@ -93,7 +94,7 @@ class NamedConstant(Nucleus):
             if reverse_dir:
                 return reverse_dir.get(data)
 
-            #-- the last resort - this is slow!
+            # -- the last resort - this is slow!
             for cdef in cls.s_dir.values():
                 if cdef.value == data:
                     return cdef
@@ -107,7 +108,7 @@ class NamedConstant(Nucleus):
     def choose_from(cls):
         return cls.s_dir
 
-    #===================================================================================================================
+    # ===================================================================================================================
 
     s_dir: dict[str, Self] = {}
     s_reverse_dir = {}
@@ -115,11 +116,13 @@ class NamedConstant(Nucleus):
     s_default_labels = False
     s_lowercase_values = False
 
+    # fmt: off
     def __init_subclass__(
         cls,
         default_labels: bool    = None,    #-- if True and a label is not defined, creates it by calling default_label(name)
         lowercase_values: bool  = None,    #-- if a value is not defined, sets it to name, or name.lower() if True
     ):
+        # fmt: on
         sdir = cls.s_dir = {name: cls(cdef.name, cdef.label, cdef.value) for name, cdef in cls.s_dir.items()}
 
         if default_labels is not None:
@@ -171,14 +174,17 @@ class NamedConstant(Nucleus):
     def next_auto_value(cls):
         return None
 
+
 class Enum(NamedConstant):
     """
     Enum constants definitions are in a simplified form:
         - an empty tuple (next enum auto value)
         - a string - just a label
     """
+
     s_last_value = 0
     s_step = 1
+
     def __init_subclass__(cls, seed: int = None, step: int = None, **kwargs):
         if seed is not None:
             cls.s_last_value = seed
@@ -201,11 +207,11 @@ class Enum(NamedConstant):
         if args == ():
             return cdef
 
-        if type(args) is str:  #-- just a label
+        if type(args) is str:  # -- just a label
             cdef.label = args
             return cdef
 
-        raise ValueError("an empty tuple or string is expected")
+        raise ValueError('an empty tuple or string is expected')
 
     @classmethod
     def next_auto_value(cls) -> int:
@@ -213,14 +219,17 @@ class Enum(NamedConstant):
         cls.s_last_value += cls.s_step
         return last_value
 
-NO_FLAGS_TAG = 'NONE'
-class EnumBits(NamedConstant):
 
+NO_FLAGS_TAG = 'NONE'
+
+
+class EnumBits(NamedConstant):
     s_last_flag = 0x1
+
     def __init_subclass__(cls, **kwargs):
         cls.s_last_flag = cls.s_last_flag
         super().__init_subclass__(**kwargs)
-        setattr(cls, NO_FLAGS_TAG, cls(name = NO_FLAGS_TAG, value = 0x0))
+        setattr(cls, NO_FLAGS_TAG, cls(name=NO_FLAGS_TAG, value=0x0))
 
     @classmethod
     def next_auto_value(cls):
@@ -308,9 +317,11 @@ class EnumBits(NamedConstant):
     def same_values(cls, value1, value2) -> bool:
         return value1 is value2 or value1.name == value2.name
 
-class ErrorCode(Enum, seed = -1, step = -1):
+
+class ErrorCode(Enum, seed=-1, step=-1):
     def __call__(self, *args, **kwargs):
         return self.label.format(*args, **kwargs)
+
 
 class NamedConstantValue:
     __slots__ = 'data', 'named_constant_class'
@@ -333,10 +344,10 @@ class NamedConstantValue:
 
     def __getitem__(self, key):
         try:
-            return self.data[key]   #-- if it's a known NamedConstant
+            return self.data[key]  # -- if it's a known NamedConstant
 
         except KeyError as e:
-            #-- check if it is a name of a constant
+            # -- check if it is a name of a constant
             named_constant_class = self.named_constant_class
             cdef = named_constant_class.s_dir.get(key)
             if not cdef:
@@ -350,6 +361,7 @@ class NamedConstantValue:
     def __getattr__(self, key):
         return self.__getitem__(key)
 
+
 class NamedConstantTable(NamedConstantValue):
     __slots__ = 'col_named_constant_class', 'data', 'named_constant_class'
 
@@ -362,8 +374,4 @@ class NamedConstantTable(NamedConstantValue):
         assert type(row) is tuple, f'{cdef.name} = is not a tuple'
         col_defs = self.col_named_constant_class.s_dir
         assert len(row) == len(col_defs), f'{cdef.name} must have {len(col_defs)} values'
-        data[cdef] = NamedConstantValue(
-            self.col_named_constant_class,
-            **{col_name: row[i] for i, col_name in enumerate(col_defs)}
-        )
-
+        data[cdef] = NamedConstantValue(self.col_named_constant_class, **{col_name: row[i] for i, col_name in enumerate(col_defs)})

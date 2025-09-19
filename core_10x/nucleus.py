@@ -4,6 +4,7 @@ from core_10x_i import BNucleus
 
 
 class Nucleus:
+    # fmt: off
     __slots__           = ()
     ID_TAG              = BNucleus.ID_TAG
     COLLECTION_TAG      = BNucleus.COLLECTION_TAG
@@ -23,10 +24,10 @@ class Nucleus:
     deserialize_list    = BNucleus.deserialize_list
     serialize_dict      = BNucleus.serialize_dict
     deserialize_dict    = BNucleus.deserialize_dict
-
-    #===============================================================================================================================
+    # fmt: on
+    # ===============================================================================================================================
     #   The following methods must be implemented by a subclass of Nucleus
-    #===============================================================================================================================
+    # ===============================================================================================================================
 
     def __repr__(self):
         return self.to_str()

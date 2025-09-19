@@ -3,6 +3,7 @@ from core_10x.named_constant import Enum, NamedConstantTable
 
 # ruff: noqa: E741
 class R:
+    # fmt: off
     class Symbol(Enum):
         I = () 
         V = ()
@@ -27,7 +28,7 @@ class R:
         D = (   500,        1,          False ),
         M = (   1000,       3,          True ),
     )
-
+    # fmt: on
     def __init__(self, text: str):
         text = text.upper()
         x = 0
@@ -36,14 +37,14 @@ class R:
             ref = R.SYMBOL_TABLE[symbol]
             v = ref.VALUE
 
-            #-- Rules
+            # -- Rules
             repeat = ref.REPEAT
             over_repeated = all(v == prev_values[i] for i in range(repeat))
             assert not over_repeated, f"'{symbol}' is repeated more than {repeat} times"
 
             subtractable = ref.SUBTRACTABLE
             if not subtractable and v < prev_values[0]:
-                raise AssertionError(f"'{symbol}' may not occur before '{text[ -i ]}'")
+                raise AssertionError(f"'{symbol}' may not occur before '{text[-i]}'")
 
             if v >= prev_values[0]:
                 x += v
@@ -59,6 +60,7 @@ class R:
 
     def __repr__(self):
         return f'{self.roman} = {self.value}'
+
 
 if __name__ == '__main__':
     x = R('IX')
