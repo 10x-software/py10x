@@ -4,11 +4,11 @@ import inspect
 from contextlib import contextmanager
 from dataclasses import dataclass
 
-import rio
 from core_10x.named_constant import Enum, NamedConstant
 from core_10x.rc import RC
 from core_10x.ts_store import TsStore
 
+import rio
 import ui_10x.platform_interface as i
 from ui_10x.rio.style_sheet import StyleSheet
 
