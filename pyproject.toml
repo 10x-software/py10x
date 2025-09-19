@@ -45,7 +45,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 src = ["core_10x", "infra_10x"]
-line-length = 120
+line-length = 150
 
 [tool.ruff.format]
 quote-style = "single"
