@@ -122,16 +122,13 @@ class Splitter(rio.Component):
                 components.append(pane)
 
         container = rio.Row if self.direction=='horizontal' else rio.Column
-        return rio.SizeObserver(
-            container(
-                *components,
-                spacing=0,
-                proportions=self.bind().child_proportions,  # Dynamically control pane sizes
-            ),
-            on_resize=self._on_resize,
+        return container(
+            *components,
+            spacing=0,
+            proportions=self.bind().child_proportions,  # Dynamically control pane sizes
         )
 
-    def _on_resize(self, event: rio.SizeEvent) -> None:
-        print(event, self.session.window_width, self.session.window_height)
-        self._component_width = event.component_width
-        self._component_height = event.component_height
+    @rio.event.on_resize
+    def _on_resize(self, event: rio.event.ComponentResizeEvent) -> None:
+        self._component_width = event.width
+        self._component_height = event.height
