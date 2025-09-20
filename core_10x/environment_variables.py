@@ -87,7 +87,7 @@ class _EnvVars:
                 assert f_get, f'Variable {name} must define either a default value or a getter {f_get_name}(cls)'
                 #-- TODO: check signature: f_get(cls)
             else:
-                f_get = lambda cls,def_value=def_value: def_value # noqa: E731
+                f_get = lambda cls, default_value = def_value: default_value    # noqa: E731
 
             f_apply_name = f'{name}_apply'
             f_apply = cls_dict.get(f_apply_name)    #-- f(cls, value)
