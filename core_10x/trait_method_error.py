@@ -5,16 +5,10 @@ class TraitMethodError(Exception):
     """
     NOTE: other_exc must be set in except clause ONLY!
     """
+
     @staticmethod
     def create(
-        traitable,
-        traitable_class,
-        trait_name: str,
-        method_name: str,
-        reason: str             = '',
-        value                   = XNone,
-        args: tuple             = (),
-        other_exc: Exception    = None
+        traitable, traitable_class, trait_name: str, method_name: str, reason: str = '', value=XNone, args: tuple = (), other_exc: Exception = None
     ):
         if isinstance(other_exc, TraitMethodError):
             return other_exc
@@ -38,4 +32,3 @@ class TraitMethodError(Exception):
             msg.append(f'original exception = {other_exc!s}')
 
         return TraitMethodError('\n'.join(msg))
-

@@ -16,6 +16,7 @@ class BackboneTraitable(Traitable):
     def store(cls) -> TsStore:
         return BackboneStore.bb_store()
 
+
 class VaultTraitable(BackboneTraitable):
     @classmethod
     def store(cls) -> TsStore:

@@ -1,10 +1,11 @@
 from pathlib import Path
 
-import rio
 from core_10x.rc import RC
 from core_10x.trait import Trait
 from core_10x.traitable import Traitable
 from matplotlib import colors, font_manager
+
+import rio
 
 
 class StyleSheet(Traitable):

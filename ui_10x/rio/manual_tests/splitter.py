@@ -1,6 +1,6 @@
-import rio
 from rio.debug.monkeypatches import apply_monkeypatches
 
+import rio
 from ui_10x.rio.components.splitter import Splitter
 
 

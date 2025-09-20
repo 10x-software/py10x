@@ -44,7 +44,19 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
-src = ["core_10x", "infra_10x"]
+src = ["core_10x", "infra_10x", "ui_10x"]
+line-length = 150
+
+[tool.ruff.format]
+quote-style = "single"
+exclude = [
+    "core_10x/xnone.py",
+    "core_10x/code_samples/*",
+    "core_10x/manual_tests/*",
+    "core_10x/experimental/*",
+    "infra_10x/*",
+    "ui_10x/*"
+]
 
 [tool.ruff.lint]
 ignore = ["RUF013","RUF012"]

@@ -1,4 +1,5 @@
 import inspect
+from typing import Any
 
 from core_10x.entity import Entity
 from core_10x.py_class import PyClass
@@ -17,10 +18,11 @@ class Directory:
         return Directory
 
     @staticmethod
-    def instance(value = None, **kwargs) -> 'Directory':
+    def instance(value: Any = None, **kwargs) -> 'Directory':
         dir_class = Directory._dir_class(value)
-        return dir_class(value = value, **kwargs)
+        return dir_class(value=value, **kwargs)
 
+    # fmt: off
     def __init__(
         self,
         name: str           = '',
@@ -28,6 +30,7 @@ class Directory:
         members: dict       = None,
         parent: 'Directory' = None
     ):
+        # fmt: on
         self.check_dir_value(value)
 
         self.name = name
@@ -115,7 +118,7 @@ class Directory:
         for subdir in self.members.values():
             subdir._flatten(res, *path)
 
-    def flatten(self, with_root = False) -> dict:
+    def flatten(self, with_root: bool = False) -> dict:
         res = {}
         if with_root:
             self._flatten(res)
@@ -125,7 +128,7 @@ class Directory:
 
         return res
 
-    def choices(self, with_root = False, path_delimiter = '/') -> dict:
+    def choices(self, with_root: bool = False, path_delimiter: str = '/') -> dict:
         f = self.flatten(with_root = with_root)
         v_n_map = { path[-1]: name for path, name in f.items() }
         res = {}
@@ -223,7 +226,7 @@ class DxEntity(Directory):
         assert isinstance(value, Entity), f'entity is expected ({value})'
 
     def show_value(self) -> str:
-        return self.value.id()      #-- TODO: id_repr()
+        return self.value.id()  # -- TODO: id_repr()
 
 
 class DxClass(Directory):
@@ -243,4 +246,3 @@ class DxClass(Directory):
     #     """
     #     cls = self.value
     #     return { e.id(): e for e in cls.sharedInstances( _cache = self.cache_only(), **self.filters() ) }
-

@@ -1,5 +1,4 @@
 import rio
-
 from ui_10x.rio.component_builder import Widget
 
 

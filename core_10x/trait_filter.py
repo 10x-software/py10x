@@ -4,14 +4,16 @@ from core_10x_i import BTraitableClass
 
 from core_10x.trait import Trait
 
-#===================================================================================================================================
+# ===================================================================================================================================
 #
 #   age = LT(value)
 #   name = 'Sasha'      #-- name = EQ('Sasha')
 #   weight = BETWEEN(170, 180, bounds = (True, False)
 #   weight =
-#===================================================================================================================================
+# ===================================================================================================================================
 
+
+# fmt: off
 class _mongo_label: # noqa: N801
     EQ      = '$eq'
     NE      = '$ne'
@@ -25,16 +27,19 @@ class _mongo_label: # noqa: N801
     AND     = '$and'
     OR      = '$or'
     #NOT     = '$not'
+# fmt: on
 
 LABEL = _mongo_label
 
-class _filter(ABC): # noqa: N801
+
+class _filter(ABC):  # noqa: N801
     @abstractmethod
     def eval(self, left_value) -> bool: ...
     @abstractmethod
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict: ...
 
-class Op(_filter,ABC):
+
+class Op(_filter, ABC):
     label = ''
 
     def __init_subclass__(cls, label: str = None):
@@ -42,7 +47,7 @@ class Op(_filter,ABC):
             label = getattr(LABEL, cls.__name__)
         cls.label = label
 
-    def __new__(cls, expression = None):
+    def __new__(cls, expression=None):
         obj = super().__new__(cls)
         obj.right_value = expression
         return obj
@@ -50,52 +55,75 @@ class Op(_filter,ABC):
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
         # noinspection PyTypeChecker
         return {
-            self.label: trait.serialize_for_traitable_class(traitable_class, self.right_value, replace_xnone = True)
-            if trait and traitable_class else self.right_value
+            self.label: trait.serialize_for_traitable_class(traitable_class, self.right_value, replace_xnone=True)
+            if trait and traitable_class
+            else self.right_value
         }
 
-class NOT_EMPTY(Op, label = ''): # noqa: N801
-    def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict: raise NotImplementedError
-    def eval(self, left_value) -> bool:     return bool(left_value)
+
+class NOT_EMPTY(Op, label=''):  # noqa: N801
+    def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
+        raise NotImplementedError
+
+    def eval(self, left_value) -> bool:
+        return bool(left_value)
+
 
 class EQ(Op):
-    def eval(self, left_value) -> bool:     return left_value == self.right_value
+    def eval(self, left_value) -> bool:
+        return left_value == self.right_value
+
 
 class NE(Op):
-    def eval(self, left_value) -> bool:     return left_value != self.right_value
+    def eval(self, left_value) -> bool:
+        return left_value != self.right_value
+
 
 class GT(Op):
-    def eval(self, left_value) -> bool:     return left_value > self.right_value
+    def eval(self, left_value) -> bool:
+        return left_value > self.right_value
+
 
 class GE(Op):
-    def eval(self, left_value) -> bool:     return left_value >= self.right_value
+    def eval(self, left_value) -> bool:
+        return left_value >= self.right_value
+
 
 class LT(Op):
-    def eval(self, left_value) -> bool:     return left_value < self.right_value
+    def eval(self, left_value) -> bool:
+        return left_value < self.right_value
+
 
 class LE(Op):
-    def eval(self, left_value) -> bool:     return left_value <= self.right_value
+    def eval(self, left_value) -> bool:
+        return left_value <= self.right_value
+
 
 class IN(Op):
-    def __new__(cls, values: list|tuple):
+    def __new__(cls, values: list | tuple):
         assert isinstance(values, list) or isinstance(values, tuple), f'{cls.__name__}() requires a list or tuple'
         return super().__new__(cls, values)
 
-    def eval(self, left_value) -> bool:     return left_value in self.right_value
+    def eval(self, left_value) -> bool:
+        return left_value in self.right_value
+
 
 class NIN(IN):
-    def eval(self, left_value) -> bool:     return left_value not in self.right_value
+    def eval(self, left_value) -> bool:
+        return left_value not in self.right_value
 
-#class REGEX(Op):
 
-class BETWEEN(Op, label = ''):
-    def __new__(cls, a, b, bounds = (True, True)):
+# class REGEX(Op):
+
+
+class BETWEEN(Op, label=''):
+    def __new__(cls, a, b, bounds=(True, True)):
         obj = super().__new__(cls)
         assert isinstance(bounds, tuple) and len(bounds) == 2, f'{cls.__name__} - (bool, bool) is expected for bounds'
 
         bound_a, bound_b = bounds
-        obj.left   = GE(a) if bound_a else GT(a)
-        obj.right  = LE(b) if bound_b else LT(b)
+        obj.left = GE(a) if bound_a else GT(a)
+        obj.right = LE(b) if bound_b else LT(b)
         return obj
 
     def eval(self, left_value) -> bool:
@@ -106,15 +134,16 @@ class BETWEEN(Op, label = ''):
         res.update(self.right.prefix_notation(trait, traitable_class))
         return res
 
-class BoolOp(Op, ABC, label = ''):
+
+class BoolOp(Op, ABC, label=''):
     s_false: IN = IN([])
 
     @classmethod
-    def _simplify(cls, expressions:tuple, false:IN) -> list: ...
+    def _simplify(cls, expressions: tuple, false: IN) -> list: ...
 
     def __new__(cls, *expressions):
         expressions = cls._simplify(expressions, cls.s_false)
-        if len(expressions)==1:
+        if len(expressions) == 1:
             return expressions[0]
 
         obj = super().__new__(cls, expressions)
@@ -124,6 +153,7 @@ class BoolOp(Op, ABC, label = ''):
         rvalues = [pn for e in self.right_value if (pn := e.prefix_notation(trait, traitable_class))]
         return {self.label: rvalues} if rvalues else {}
 
+
 class AND(BoolOp):
     @classmethod
     def _simplify(cls, expressions, false):
@@ -131,6 +161,7 @@ class AND(BoolOp):
 
     def eval(self, left_value) -> bool:
         return all(e.eval(left_value) for e in self.right_value)
+
 
 class OR(BoolOp):
     @classmethod
@@ -141,13 +172,13 @@ class OR(BoolOp):
     def eval(self, left_value) -> bool:
         return any(e.eval(left_value) for e in self.right_value)
 
-class f(_filter): # noqa: N801
+
+class f(_filter):  # noqa: N801
     def __init__(self, _f: _filter = None, _t: BTraitableClass = None, **named_expressions):
         self.filter = _f
         self.traitable_class = _t
         self.named_expressions = {
-            name: expression if isinstance(expression, _filter) else EQ(expression)
-            for name, expression in named_expressions.items()
+            name: expression if isinstance(expression, _filter) else EQ(expression) for name, expression in named_expressions.items()
         }
 
     def eval(self, traitable) -> bool:
@@ -157,17 +188,12 @@ class f(_filter): # noqa: N801
 
         return all(item.eval(traitable.get_value(name)) for name, item in self.named_expressions.items())
 
-
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
         traitable_class = traitable_class or self.traitable_class
         trait_dir = traitable_class.trait_dir() if traitable_class else {}
-        clause = {
-            name: pn
-            for name, item in self.named_expressions.items()
-            if (pn := item.prefix_notation(trait_dir.get(name), traitable_class))
-        }
+        clause = {name: pn for name, item in self.named_expressions.items() if (pn := item.prefix_notation(trait_dir.get(name), traitable_class))}
         if self.filter:
-            filter_clause = self.filter.prefix_notation(traitable_class = traitable_class)
+            filter_clause = self.filter.prefix_notation(traitable_class=traitable_class)
             clause = {AND.label: [filter_clause, clause]} if clause else filter_clause
 
         return clause

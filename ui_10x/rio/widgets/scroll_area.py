@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Literal
 
-import rio
 from core_10x.named_constant import Enum
 
+import rio
 import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import Widget
 

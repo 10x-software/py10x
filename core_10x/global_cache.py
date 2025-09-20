@@ -2,7 +2,7 @@ import inspect
 
 from core_10x.xnone import XNone
 
-#===================================================================================================================================
+# ===================================================================================================================================
 #   @cache must be used to cache results of function calls globally (at the process level)
 #
 #   Notes:
@@ -11,8 +11,9 @@ from core_10x.xnone import XNone
 #   - args MUST follow the declaration order for performance reasons (otherwise, the same result may be cached multiple times
 #       e.g. f(a=1, b=2) and f(b=2, a=1)
 #   - the most common 'users' are class methods
-#===================================================================================================================================
+# ===================================================================================================================================
 ARGS_KWARGS = (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
+
 
 def cache(f):
     sig = inspect.signature(f)
@@ -28,26 +29,31 @@ def cache(f):
 
     return _cache_with_args(f)
 
+
 def _cache_no_args(f):
     the_value = [XNone]
+
     def getter():
         v = the_value[0]
         if v is XNone:
             the_value[0] = v = f()
         return v
 
-    def clear():    the_value[0] = XNone
+    def clear():
+        the_value[0] = XNone
 
     getter.__name__ = f.__name__
     getter.value = the_value
     getter.clear = clear
     return getter
 
+
 def _cache_single_arg(f):
     the_cache = {}
+
     def getter(arg):
-        value = the_cache.get(arg, the_cache)      #-- will throw if arg is not hashable!
-        if value is the_cache:          #-- i.e., arg is seen for the first time
+        value = the_cache.get(arg, the_cache)  # -- will throw if arg is not hashable!
+        if value is the_cache:  # -- i.e., arg is seen for the first time
             value = f(arg)
             the_cache[arg] = value
 
@@ -58,12 +64,14 @@ def _cache_single_arg(f):
     getter.clear = lambda: the_cache.clear()
     return getter
 
+
 def _cache_with_args(f):
     the_cache = {}
+
     def getter(*args, **kwargs):
         key = *args, *tuple(kwargs.items())
-        value = the_cache.get( key, the_cache )     #-- will throw if key is not hashable!
-        if value is the_cache:                      #-- i.e., key is seen for the first time
+        value = the_cache.get(key, the_cache)  # -- will throw if key is not hashable!
+        if value is the_cache:  # -- i.e., key is seen for the first time
             value = f(*args, **kwargs)
             the_cache[key] = value
 
@@ -74,11 +82,14 @@ def _cache_with_args(f):
     getter.clear = lambda: the_cache.clear()
     return getter
 
+
 def standard_key(args: tuple, kwargs: dict) -> tuple:
     sorted_kwargs = tuple((k, kwargs[k]) for k in sorted(kwargs))
     return *args, *sorted_kwargs
 
-#========= The singleton
+
+# ========= The singleton
+
 
 def ___operator_new(cls, *args, **kwargs):
     key = standard_key((cls, *args), kwargs)
@@ -89,15 +100,19 @@ def ___operator_new(cls, *args, **kwargs):
         cls.___instances[key] = ptr
     return ptr
 
-def ___operator_reset(cls):   cls.___instances = {}
+
+def ___operator_reset(cls):
+    cls.___instances = {}
+
 
 def singleton(cls):
     cls.___instances = {}
     cls.__new__ = ___operator_new
     cls.___ctor = cls.__init__
     cls.__init__ = lambda self, *args, **kwargs: None
-    cls._reset_singleton = lambda: ___operator_reset( cls )
+    cls._reset_singleton = lambda: ___operator_reset(cls)
     return cls
+
 
 # def hash_key( obj ) -> int:
 #     try:

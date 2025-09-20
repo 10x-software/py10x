@@ -12,7 +12,8 @@ from core_10x.xnone import XNone, XNoneType
 
 # ruff: noqa: N801
 
-class primitive_trait(Trait, register = False):
+
+class primitive_trait(Trait, register=False):
     s_ui_hint = Ui.NONE
 
     def default_value(self):
@@ -44,9 +45,11 @@ class primitive_trait(Trait, register = False):
     def deserialize(self, value):
         return value
 
-class bool_trait(primitive_trait, data_type = bool):
+
+class bool_trait(primitive_trait, data_type=bool):
     s_ui_hint = Ui.check()
 
+    # fmt: off
     FORMATS     = [
         ('yes',''),
         ('yes','no'),
@@ -54,6 +57,7 @@ class bool_trait(primitive_trait, data_type = bool):
         ('on','off')
     ]
     fmt         = FORMATS[0]
+    # fmt: on
 
     def to_id(self, value: bool) -> str:
         return '0' if value else '1'
@@ -63,38 +67,42 @@ class bool_trait(primitive_trait, data_type = bool):
         if res is not XNone:
             return res
         s = s.strip().lower()
-        return next( (f[0]==s for f in self.FORMATS if s in f), XNone )
+        return next((f[0] == s for f in self.FORMATS if s in f), XNone)
 
-class int_trait(primitive_trait, data_type = int):
+
+class int_trait(primitive_trait, data_type=int):
     s_ui_hint = Ui.line()
 
     fmt = ','
 
-class float_trait(primitive_trait, data_type = float):
+
+class float_trait(primitive_trait, data_type=float):
     s_ui_hint = Ui.line()
 
-    fmt         = ',.2f'
+    fmt = ',.2f'
 
-    #def from_str(self, s: str) -> RC:
+    # def from_str(self, s: str) -> RC:
     #    return RC(True, locale.atof(s))
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is float or data_type is int
 
-class str_trait(primitive_trait, data_type = str):
-    s_ui_hint = Ui.line(align_h = -1)
 
-    #pattern = ''
-    #placeholder = ''
+class str_trait(primitive_trait, data_type=str):
+    s_ui_hint = Ui.line(align_h=-1)
+
+    # pattern = ''
+    # placeholder = ''
 
     def from_str(self, s: str):
         return s
 
     def to_str(self, v) -> str:
-         return v
+        return v
 
     def to_id(self, value: str) -> str:
         return value
+
 
 # class bin_trait(Trait, data_type = bytes):
 #     w = 0   #-- max width, if any and relevant
@@ -105,8 +113,9 @@ class str_trait(primitive_trait, data_type = str):
 #     tdef.set_widget_type(Ui.WIDGET_TYPE.PIXMAP)
 #     return tdef
 
-class datetime_trait(Trait, data_type = datetime):
-    s_ui_hint = Ui.line(align_h = 0)
+
+class datetime_trait(Trait, data_type=datetime):
+    s_ui_hint = Ui.line(align_h=0)
 
     def from_str(self, s: str):
         dt = XDateTime.str_to_datetime(s)
@@ -121,15 +130,15 @@ class datetime_trait(Trait, data_type = datetime):
         return dt
 
     def to_str(self, v: datetime) -> str:
-         return XDateTime.datetime_to_str(v)
+        return XDateTime.datetime_to_str(v)
 
     # s_acceptable_types = { datetime, date, int, str }
     # def is_acceptable_type(self, data_type: type) -> bool:
     #     return data_type in self.s_acceptable_types
 
-    #-- NOTES:
-    #-- 1) we believe datetime is mostly acceptable for a storage, e.g., Mongo
-    #-- 2) it is in UTC, so no locale's datetime issues
+    # -- NOTES:
+    # -- 1) we believe datetime is mostly acceptable for a storage, e.g., Mongo
+    # -- 2) it is in UTC, so no locale's datetime issues
 
     def serialize(self, value: datetime):
         return value
@@ -138,10 +147,11 @@ class datetime_trait(Trait, data_type = datetime):
         return value
 
     def to_id(self, value) -> str:
-        return XDateTime.datetime_to_str(value, with_ms = True)
+        return XDateTime.datetime_to_str(value, with_ms=True)
 
-class date_trait(Trait, data_type = date):
-    s_ui_hint = Ui.line(min_width = 10, align_h = 0)
+
+class date_trait(Trait, data_type=date):
+    s_ui_hint = Ui.line(min_width=10, align_h=0)
 
     def from_str(self, s: str):
         dt = XDateTime.str_to_date(s)
@@ -163,16 +173,17 @@ class date_trait(Trait, data_type = date):
     #     return data_type in self.s_acceptable_types
 
     def serialize(self, value: date):
-        return XDateTime.date_to_str(value, format = XDateTime.FORMAT_X10)
+        return XDateTime.date_to_str(value, format=XDateTime.FORMAT_X10)
 
     def deserialize(self, value):
-        return XDateTime.str_to_date(value, format = XDateTime.FORMAT_X10)
+        return XDateTime.str_to_date(value, format=XDateTime.FORMAT_X10)
 
     def to_id(self, value) -> str:
         return XDateTime.date_to_str(value)
 
-class class_trait(Trait, data_type = type):
-    s_ui_hint = Ui.line(align_h = -1)
+
+class class_trait(Trait, data_type=type):
+    s_ui_hint = Ui.line(align_h=-1)
 
     def to_str(self, value):
         return PyClass.name(value)
@@ -187,7 +198,7 @@ class class_trait(Trait, data_type = type):
         return PackageRefactoring.find_class(s)
 
     def from_any_xstr(self, value):
-        return XNone # may not be called!
+        return XNone  # may not be called!
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return inspect.isclass(data_type)
@@ -198,7 +209,8 @@ class class_trait(Trait, data_type = type):
     def deserialize(self, value: str):
         return PackageRefactoring.find_class(value)
 
-class list_trait(Trait, data_type = list):
+
+class list_trait(Trait, data_type=list):
     s_ui_hint = Ui.line()
 
     def to_str(self, v) -> str:
@@ -216,8 +228,9 @@ class list_trait(Trait, data_type = list):
     def deserialize(self, value: list):
         return Nucleus.deserialize_list(value)
 
-class dict_trait(Trait, data_type = dict):
-    s_ui_hint = Ui.line(flags = Ui.SELECT_ONLY)
+
+class dict_trait(Trait, data_type=dict):
+    s_ui_hint = Ui.line(flags=Ui.SELECT_ONLY)
 
     def use_format_str(self, fmt: str, value) -> str:
         return str(value) if not fmt else fmt.join(f"'{key}' -> '{val}'" for key, val in value.items())
@@ -237,7 +250,8 @@ class dict_trait(Trait, data_type = dict):
     def deserialize(self, value: dict):
         return Nucleus.deserialize_dict(value)
 
-class any_trait(Trait, data_type = XNoneType):  # -- any
+
+class any_trait(Trait, data_type=XNoneType):  # -- any
     s_ui_hint = Ui.NONE
 
     def to_str(self, v) -> str:
@@ -259,12 +273,13 @@ class any_trait(Trait, data_type = XNoneType):  # -- any
         return Nucleus.serialize_any(value, self.flags_on(T.EMBEDDED))  # serializes to record (dict)
 
     def deserialize(self, value):
-        return Nucleus.deserialize_dict(value)                          # interprets dict as record first
-    
+        return Nucleus.deserialize_dict(value)  # interprets dict as record first
+
     def same_values(self, value1, value2) -> bool:
         return value1 is value2
 
-class nucleus_trait(Trait, data_type = Nucleus, base_class = True):
+
+class nucleus_trait(Trait, data_type=Nucleus, base_class=True):
     s_ui_hint = Ui.NONE
 
     def to_str(self, v) -> str:
@@ -294,16 +309,16 @@ class nucleus_trait(Trait, data_type = Nucleus, base_class = True):
     def choices(self):
         return self.data_type.choose_from()
 
-class named_constant_trait(nucleus_trait, data_type = NamedConstant, base_class = True):
-    s_ui_hint = Ui.choice(flags = Ui.SELECT_ONLY)
+
+class named_constant_trait(nucleus_trait, data_type=NamedConstant, base_class=True):
+    s_ui_hint = Ui.choice(flags=Ui.SELECT_ONLY)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
-class flags_trait(nucleus_trait, data_type = EnumBits, base_class = True):
+
+class flags_trait(nucleus_trait, data_type=EnumBits, base_class=True):
     s_ui_hint = Ui.line()
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
-
-
