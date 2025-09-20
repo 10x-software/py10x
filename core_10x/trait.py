@@ -17,9 +17,10 @@ from core_10x.xnone import XNone
 
 
 class Trait(BTrait):
-    #TODO: re-enable __slots__ when the dust settles..
-    #__slots__ = ('t_def','getter_params')
+    # TODO: re-enable __slots__ when the dust settles..
+    # __slots__ = ('t_def','getter_params')
     s_datatype_traitclass_map = {}
+
     @staticmethod
     def register_by_datatype(trait_class, data_type):
         assert inspect.isclass(trait_class) and issubclass(trait_class, Trait), 'trait class must be a subclass of Trait'
@@ -28,6 +29,7 @@ class Trait(BTrait):
         Trait.s_datatype_traitclass_map[data_type] = trait_class
 
     s_baseclass_traitclass_map = {}
+
     @staticmethod
     def register_by_baseclass(trait_class, base_class):
         assert inspect.isclass(trait_class) and issubclass(trait_class, Trait), 'trait class must be a subclass of Trait'
@@ -51,7 +53,8 @@ class Trait(BTrait):
         return generic_trait
 
     s_ui_hint = None
-    def __init_subclass__(cls, data_type = None, register = True, base_class = False):
+
+    def __init_subclass__(cls, data_type: type = None, register: bool = True, base_class: type = False):
         cls.s_baseclass = base_class
         if register:
             assert data_type and inspect.isclass(data_type), f'{cls} - data_type is not valid'
@@ -87,15 +90,15 @@ class Trait(BTrait):
 
             instance.set_value(self, value.value, *value.args).throw()
 
-    #def __deepcopy__(self, memodict={}):
+    # def __deepcopy__(self, memodict={}):
     #    return Trait(self.t_def.copy(), btrait = self)
 
     @staticmethod
     def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, annotations: dict, rc: RC) -> 'Trait':
         dt = annotations.get(trait_name) or t_def.data_type
-        if isinstance(dt,GenericAlias):
-            dt = get_origin(dt) # get original type, e.g. `list` from `list[int]`
-            #TODO: could be useful to also keep get_args(dt) for extra checking?
+        if isinstance(dt, GenericAlias):
+            dt = get_origin(dt)  # get original type, e.g. `list` from `list[int]`
+            # TODO: could be useful to also keep get_args(dt) for extra checking?
         trait_class = Trait.real_trait_class(dt)
         trait = trait_class(t_def)
         trait.set_name(trait_name)
@@ -106,7 +109,7 @@ class Trait(BTrait):
             trait.fmt = t_def.fmt
 
         trait.create_proc()
-        Trait.set_trait_funcs(class_dict, rc, trait, trait_name)
+        Trait.set_trait_funcs(class_dict, rc, trait, t_def)
 
         trait.post_ctor()
         ui_hint: Ui = copy.deepcopy(t_def.ui_hint)
@@ -116,12 +119,15 @@ class Trait(BTrait):
 
     @staticmethod
     def method_defs(trait_name: str) -> dict:
-        return {f'{trait_name}_{(method_suffix:=method_key.lower())}':(method_suffix,method_def) for method_key,method_def in TRAIT_METHOD.s_dir.items()}
+        return {
+            f'{trait_name}_{(method_suffix := method_key.lower())}': (method_suffix, method_def)
+            for method_key, method_def in TRAIT_METHOD.s_dir.items()
+        }
 
     @staticmethod
-    def set_trait_funcs(class_dict, rc, trait, trait_name):
-        for method_name, (method_suffix,method_def) in Trait.method_defs(trait_name).items():
-            method = class_dict.get(method_name)
+    def set_trait_funcs(class_dict, rc, trait, t_def):
+        for method_name, (method_suffix, method_def) in Trait.method_defs(t_def.name).items():
+            method = t_def.params.get(method_suffix) or class_dict.get(method_name)
             f = method_def.value(trait, method, method_suffix, rc)
             if f:
                 cpp_name = f'set_f_{method_suffix}'
@@ -129,8 +135,8 @@ class Trait(BTrait):
                 set_f(f, bool(method))
 
     def create_f_get(self, f, attr_name: str, rc: RC):
-        if not f:  #-- no custom getter, just the default value
-            f = lambda traitable: self.default_value() # noqa: E731
+        if not f:  # -- no custom getter, just the default value
+            f = lambda traitable: self.default_value()  # noqa: E731
             f.__name__ = 'default_value'
             params = ()
 
@@ -154,7 +160,7 @@ class Trait(BTrait):
         if not f:
             return None
 
-        #-- custom setter
+        # -- custom setter
         sig = inspect.signature(f)
         assert sig.return_annotation is RC, f'{f.__name__} - setter must return RC'
         params = tuple(sig.parameters.values())
@@ -171,11 +177,11 @@ class Trait(BTrait):
 
     def create_f_common_trait_with_value(self, f, attr_name: str, rc: RC):
         cls = self.__class__
-        #TODO: check f's signature
+        # TODO: check f's signature
         if not f:
             common_f = getattr(cls, attr_name, None)
             if common_f:
-                f = lambda obj_or_cls, trait, value: common_f(trait, value) # noqa: E731
+                f = lambda obj_or_cls, trait, value: common_f(trait, value)  # noqa: E731
                 f.__name__ = f'{cls.__name__}.{common_f.__name__}'
 
         return f
@@ -183,7 +189,7 @@ class Trait(BTrait):
     def create_f_common_trait_with_value_static(self, f, attr_name: str, rc: RC):
         cls = self.__class__
         if f:
-            assert isinstance(f,classmethod), f"{f.__name__} must be declared as @classmethod"
+            assert isinstance(f, classmethod), f'{f.__name__} must be declared as @classmethod'
         else:
             f = getattr(cls, attr_name, None)
         return self.create_f_common_trait_with_value(f, attr_name, rc)
@@ -193,7 +199,7 @@ class Trait(BTrait):
         if not f:
             choices_f = getattr(cls, attr_name, None)
             if choices_f:
-                f = lambda obj, trait: choices_f(trait) # noqa: E731
+                f = lambda obj, trait: choices_f(trait)  # noqa: E731
                 f.__name__ = f'{cls.__name__}.{choices_f.__name__}'
 
         return f
@@ -201,13 +207,16 @@ class Trait(BTrait):
     def create_f_plain(self, f, attr_name: str, rc: RC):
         return f
 
-#=======================================================================================================================
-#   Formatting
-#=======================================================================================================================
+    # =======================================================================================================================
+    #   Formatting
+    # =======================================================================================================================
+    # fmt: off
     s_locales = {
         'Windows':      'USA',
         'Linux':        'en_US',
     }
+    # fmt: on
+
     def locale_change(self, old_value, value):
         if value:
             return value
@@ -232,12 +241,11 @@ class Trait(BTrait):
             return value
         return self._format(fmt).format(value)
 
-    #===================================================================================================================
+    # ===================================================================================================================
     #   Trait Interface
-    #===================================================================================================================
+    # ===================================================================================================================
 
-    def post_ctor(self):
-        ...
+    def post_ctor(self): ...
 
     def check_integrity(self, cls, rc: RC):
         pass
@@ -282,20 +290,22 @@ class Trait(BTrait):
     def choices(self):
         return XNone
 
-    #TODO: consider binding traitable_class at trait creation time
-    #TODO: unify XNone/None conversions with object serialization/deserializatoin in c++
-    #TODO: call these from c++ directly in place of f_serialize/f_deserialize?
+    # TODO: consider binding traitable_class at trait creation time
+    # TODO: unify XNone/None conversions with object serialization/deserializatoin in c++
+    # TODO: call these from c++ directly in place of f_serialize/f_deserialize?
     def serialize_for_traitable_class(self, traitable_class: BTraitable, value, replace_xnone=False):
         value = self.f_serialize.__get__(None, traitable_class)(self, value)
         return None if replace_xnone and value is XNone else value
 
     def deserialize_for_traitable_class(self, traitable_class: BTraitable, value, replace_none=False):
-        value = self.f_deserialize.__get__(None,traitable_class)(self, value)
+        value = self.f_deserialize.__get__(None, traitable_class)(self, value)
         return XNone if replace_none and value is None else value
 
-    #===================================================================================================================
+    # ===================================================================================================================
 
-#---- Methods Associated with a trait
+
+# ---- Methods Associated with a trait
+# fmt: off
 class TRAIT_METHOD(NamedConstant): # noqa: N801
     GET                 = Trait.create_f_get
     SET                 = Trait.create_f_set
@@ -309,14 +319,15 @@ class TRAIT_METHOD(NamedConstant): # noqa: N801
     TO_ID               = Trait.create_f_common_trait_with_value
     CHOICES             = Trait.create_f_choices
     STYLE_SHEET         = Trait.create_f_plain
+# fmt: on
 
 
-class generic_trait(Trait, register = False): # noqa: N801
+class generic_trait(Trait, register=False):  # noqa: N801
     s_ui_hint = Ui.NONE
 
     def post_ctor(self):
-        assert not self.flags_on(T.ID), f"generic trait {self.name} may not be an ID trait"
-        assert self.flags_on(T.RUNTIME), f"generic trait {self.name} must be a RUNTIME trait"
+        assert not self.flags_on(T.ID), f'generic trait {self.name} may not be an ID trait'
+        assert self.flags_on(T.RUNTIME), f'generic trait {self.name} must be a RUNTIME trait'
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return issubclass(data_type, self.data_type)
@@ -324,25 +335,25 @@ class generic_trait(Trait, register = False): # noqa: N801
     def same_values(self, value1, value2) -> bool:
         return value1 is value2
 
-class trait_value: # noqa: N801
+
+class trait_value:  # noqa: N801
     def __init__(self, value, *args):
         self.value = value
         self.args = args
 
-    def __call__(self, *args, **kwargs):
-        ...
+    def __call__(self, *args, **kwargs): ...
+
 
 class BoundTrait:
     def __init__(self, obj, trait: Trait):
         self.obj = obj
         self.trait = trait
-        #self.args = ()
+        # self.args = ()
 
     def __getattr__(self, attr_name):
         trait_attr = getattr(self.trait, attr_name)
-        #if callable(trait_attr):
+        # if callable(trait_attr):
         return trait_attr
 
     def __call__(self):
         return self.trait
-

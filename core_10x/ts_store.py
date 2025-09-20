@@ -21,7 +21,7 @@ class TsCollection(abc.ABC):
     @abc.abstractmethod
     def save_new(self, serialized_traitable: dict) -> int: ...
     @abc.abstractmethod
-    def save(self, serialized_traitable: dict) -> int:  ...
+    def save(self, serialized_traitable: dict) -> int: ...
     @abc.abstractmethod
     def delete(self, id_value: str) -> bool: ...
     @abc.abstractmethod
@@ -34,15 +34,16 @@ class TsCollection(abc.ABC):
     def exists(self, query: f) -> bool:
         return self.count(query) > 0
 
-    def load(self, id_value: str) -> dict|None:
+    def load(self, id_value: str) -> dict | None:
         for data in self.find(f(**{self.s_id_tag: id_value})):
             return data
 
-class TsStore(Resource, resource_type = TS_STORE):
+
+class TsStore(Resource, resource_type=TS_STORE):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         assert cls.__mro__[1] is TsStore, 'TsStore must be the first base class'
-        cls.s_instance_kwargs_map = { **TsStore.s_instance_kwargs_map, **cls.s_instance_kwargs_map }
+        cls.s_instance_kwargs_map = {**TsStore.s_instance_kwargs_map, **cls.s_instance_kwargs_map}
 
     @staticmethod
     def store_class(store_class_name: str):
@@ -55,17 +56,18 @@ class TsStore(Resource, resource_type = TS_STORE):
         return standard_key(args, kwargs)
 
     s_instances = {}
+
     @classmethod
-    def instance(cls, *args, password = '', _cache = True, **kwargs) -> Self:
+    def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> Self:
         translated_kwargs = cls.translate_kwargs(kwargs)
         try:
             if not _cache:
-                return cls.new_instance(*args, password = password, **translated_kwargs)
+                return cls.new_instance(*args, password=password, **translated_kwargs)
 
             instance_key = cls.standard_key(*args, **kwargs)
             store = cls.s_instances.get(instance_key)
             if not store:
-                store = cls.new_instance(*args, password = password, **translated_kwargs)
+                store = cls.new_instance(*args, password=password, **translated_kwargs)
                 cls.s_instances[instance_key] = store
 
             return store
@@ -73,6 +75,7 @@ class TsStore(Resource, resource_type = TS_STORE):
         except Exception as e:
             raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{e!s}') from e
 
+    # fmt: off
     s_instance_kwargs_map = {
         Resource.HOSTNAME_TAG:  (Resource.HOSTNAME_TAG, None),
         Resource.USERNAME_TAG:  (Resource.USERNAME_TAG, None),
@@ -81,13 +84,14 @@ class TsStore(Resource, resource_type = TS_STORE):
         Resource.SSL_TAG:       (Resource.SSL_TAG,      True),
         'sst':                  ('sst',                 1000),
     }
+    # fmt: on
 
     @classmethod
     def translate_kwargs(cls, kwargs: dict) -> dict:
         kwargs_map = cls.s_instance_kwargs_map
-        def_kwargs = { name: def_value for name, (real_name, def_value) in kwargs_map.items() }
+        def_kwargs = {name: def_value for name, (real_name, def_value) in kwargs_map.items()}
         def_kwargs.update(kwargs)
-        return { kwargs_map[name][0]: value for name, value in def_kwargs.items() }
+        return {kwargs_map[name][0]: value for name, value in def_kwargs.items()}
 
     @classmethod
     def new_instance(cls, *args, password: str, **kwargs) -> 'TsStore':
@@ -109,4 +113,4 @@ class TsStore(Resource, resource_type = TS_STORE):
     def delete_collection(self, collection_name: str) -> bool: ...
 
     @classmethod
-    def is_running_with_auth( cls, host_name: str ) -> tuple:  ...    #-- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str) -> tuple: ...  # -- (is_running, with_auth)

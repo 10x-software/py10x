@@ -6,6 +6,7 @@ from core_10x_i import BFlags, BTraitFlags
 from core_10x.ui_hint import Ui, UiHintModification
 from core_10x.xnone import XNone, XNoneType
 
+# fmt: off
 #---- Attribute Tags
 NAME_TAG        = 'name'
 DATATYPE_TAG    = 'data_type'
@@ -15,8 +16,11 @@ FORMAT_TAG      = 'fmt'
 PARAMS_TAG      = 'params'
 GETTER_PARAMS_TAG = 'getter_params'
 UI_HINT_TAG     = 'ui_hint'
+# fmt: on
+
 
 class TraitDefinition:
+    # fmt: off
     __slots__ = (
         NAME_TAG,
         DATATYPE_TAG,
@@ -35,6 +39,7 @@ class TraitDefinition:
         FORMAT_TAG:     lambda: '',
         UI_HINT_TAG:    lambda: Ui(),
     }
+    # fmt: on
 
     def __init__(self, *args, **kwargs):
         """
@@ -51,14 +56,14 @@ class TraitDefinition:
         self.name = None
 
     def __floordiv__(self, comment):
-        """ Add or replace comment in params with // operator """
+        """Add or replace comment in params with // operator"""
         assert isinstance(comment, str), f'Trait comment must be a string: {comment}'
         ui_hint = getattr(self, UI_HINT_TAG)
         ui_hint.tip = comment
         return self
 
     def __call__(self, *args, **kwargs):
-        """ Prevent IDE from complaining about calling traits with parameters """
+        """Prevent IDE from complaining about calling traits with parameters"""
         ...
 
     def set_widget_type(self, widget_type: Ui.WIDGET_TYPE):
@@ -93,26 +98,28 @@ class TraitDefinition:
         while n:
             arg = the_args.pop(0)
             dt = type(arg)
-            if dt is Ui:  #-- only Ui hint is given, no more args
+            if dt is Ui:  # -- only Ui hint is given, no more args
                 assert not already_processed[UI_HINT_TAG], f'Duplicated Ui hint: {args}'
                 assert n == 1, f'No positional args after Ui hint: {args}'
                 kwargs[UI_HINT_TAG] = arg
                 already_processed[UI_HINT_TAG] = True
 
-            elif issubclass(dt, BFlags):  #-- no default value => n <=2
+            elif issubclass(dt, BFlags):  # -- no default value => n <=2
                 assert not already_processed[FLAGS_TAG], f'Duplicated T.flags: {args}'
                 assert n <= 2, f'Too many positional args after T.flags: {args}'
                 kwargs[FLAGS_TAG] = arg
                 already_processed[FLAGS_TAG] = True
 
-            else:  #-- must be a default value
+            else:  # -- must be a default value
                 assert not already_processed[DEFAULT_TAG], f'Duplicated default value: {args}'
                 kwargs[DEFAULT_TAG] = arg
                 already_processed[DEFAULT_TAG] = True
 
             n -= 1
 
+
 class TraitModification(TraitDefinition):
+    # fmt: off
     s_known_attributes = {
         FLAGS_TAG:      XNone,
         DEFAULT_TAG:    XNone,      #-- TODO: for M(..., default = XNone), the old default will NOT be changed to XNone
@@ -123,7 +130,7 @@ class TraitModification(TraitDefinition):
     s_modifiers = {
         FLAGS_TAG:  lambda self, flags_modification: self.flags_change(flags_modification),
     }
-
+    # fmt: on
     def apply(self, trait_def: TraitDefinition) -> TraitDefinition:
         res = trait_def.copy()
         modifiers = self.__class__.s_modifiers
@@ -136,8 +143,9 @@ class TraitModification(TraitDefinition):
                 else:
                     setattr(res, attr_name, modified_value)
         res.params.update(self.params)
-        getattr(self,UI_HINT_TAG).apply(getattr(trait_def,UI_HINT_TAG))
+        getattr(self, UI_HINT_TAG).apply(getattr(trait_def, UI_HINT_TAG))
         return res
+
 
 class T(BTraitFlags):
     def __new__(cls, *args, **kwargs) -> TraitDefinition:
@@ -155,10 +163,12 @@ class T(BTraitFlags):
     def colors(bg_color: str, fg_color: str) -> str:
         return f'background-color: {bg_color}; color: {fg_color}' if bg_color and fg_color else ''
 
-def RT(*args, **kwargs) -> TraitDefinition: # noqa: N802
+
+def RT(*args, **kwargs) -> TraitDefinition:  # noqa: N802
     trait_def = TraitDefinition(*args, **kwargs)
     trait_def.flags.set(T.RUNTIME.value())
     return trait_def
 
-def M(*args, **kwargs) -> TraitModification: # noqa: N802
+
+def M(*args, **kwargs) -> TraitModification:  # noqa: N802
     return TraitModification(*args, **kwargs)

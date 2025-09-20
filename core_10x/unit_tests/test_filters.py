@@ -25,21 +25,19 @@ class Person(Traitable):
     age: int
     dob: date
 
-def test_filters():
-    p = Person(first_name = 'Sasha', last_name = 'Davidovich')
 
-    r = OR(
-        f(age=BETWEEN(50, 70), first_name=NE('Sasha')),
-        f(age=17)
-    )
+def test_filters():
+    p = Person(first_name='Sasha', last_name='Davidovich')
+
+    r = OR(f(age=BETWEEN(50, 70), first_name=NE('Sasha')), f(age=17))
 
     assert r.prefix_notation() == {'$or': [{'age': {'$gte': 50, '$lte': 70}, 'first_name': {'$ne': 'Sasha'}}, {'age': {'$eq': 17}}]}
     assert not r.eval(p)
 
 
 def test_or():
-    p = Person(first_name = 'Sasha', last_name = 'Davidovich')
-    r1,r2 = f(age=BETWEEN(50, 70)),f(first_name=EQ('Sasha'))
+    p = Person(first_name='Sasha', last_name='Davidovich')
+    r1, r2 = f(age=BETWEEN(50, 70)), f(first_name=EQ('Sasha'))
     r3 = OR(r1, r2)
     r4 = OR(r1)
     r5 = OR(r2)
@@ -59,18 +57,19 @@ def test_or():
     assert r5.eval(p)
     assert not r6.eval(p)
 
-    r7 = OR(OR(),OR())
+    r7 = OR(OR(), OR())
     assert r7.prefix_notation() == {'$in': []}
     assert not r7.eval(p)
 
-    r8 = OR(OR(),AND())
+    r8 = OR(OR(), AND())
     assert r7.prefix_notation() == {'$in': []}
     assert r8.eval(p)
 
-def test_and():
-    p = Person(first_name = 'Sasha', last_name = 'Davidovich')
 
-    r1,r2 = f(age=BETWEEN(50, 70)),f(first_name=EQ('Sasha'))
+def test_and():
+    p = Person(first_name='Sasha', last_name='Davidovich')
+
+    r1, r2 = f(age=BETWEEN(50, 70)), f(first_name=EQ('Sasha'))
     r3 = AND(r1, r2)
     r4 = AND(r1)
     r5 = AND(r2)
@@ -90,7 +89,7 @@ def test_and():
     assert r5.eval(p)
     assert r6.eval(p)
 
-    r7 = AND(AND(),AND())
+    r7 = AND(AND(), AND())
     assert r7.prefix_notation() == {}
     assert r7.eval(p)
 
@@ -178,6 +177,7 @@ def test_not_empty_and_bool_ops_eval_and_prefix():
     assert OR().prefix_notation() == {'$in': []}
     assert AND().prefix_notation() == {}
 
+
 def test_f_named_expressions_eval_and_prefix():
     d = Person(age=10, first_name='Bob', last_name='')
 
@@ -203,26 +203,36 @@ def test_f_named_expressions_eval_and_prefix():
 def test_named_serializers():
     class P(Person):
         @classmethod
-        def age_serialize(cls, t, v): return f'age:{v}' # noinspection PyUnusedLocal
+        def age_serialize(cls, t, v):
+            return f'age:{v}'  # noinspection PyUnusedLocal
 
     traitable_class = P.s_bclass
     trait = traitable_class.trait_dir()['age']
 
-    #assert trait is Person.trait('age') #TODO: why not??
+    # assert trait is Person.trait('age') #TODO: why not??
 
-    assert trait.serialize_for_traitable_class(traitable_class,5) == 'age:5'
+    assert trait.serialize_for_traitable_class(traitable_class, 5) == 'age:5'
 
-    assert EQ(5).prefix_notation(trait=trait,traitable_class=traitable_class) == {'$eq': 'age:5'}
+    assert EQ(5).prefix_notation(trait=trait, traitable_class=traitable_class) == {'$eq': 'age:5'}
 
-    assert BETWEEN(1, 5).prefix_notation(trait=trait,traitable_class=traitable_class) == {'$gte': 'age:1', '$lte': 'age:5'}
+    assert BETWEEN(1, 5).prefix_notation(trait=trait, traitable_class=traitable_class) == {
+        '$gte': 'age:1',
+        '$lte': 'age:5',
+    }
 
     x = OR(f(age=LE(70)), f(first_name=NE('Sasha')), f(last_name=XNone))
-    assert x.prefix_notation(traitable_class=traitable_class) == {'$or': [{'age': {'$lte': 'age:70'}}, {'first_name': {'$ne': 'Sasha'}},{'last_name': {'$eq': None}}]}
+    assert x.prefix_notation(traitable_class=traitable_class) == {
+        '$or': [{'age': {'$lte': 'age:70'}}, {'first_name': {'$ne': 'Sasha'}}, {'last_name': {'$eq': None}}]
+    }
 
     x = f(age=BETWEEN(50, 70), first_name=NE('Sasha'))
 
     assert f(x, P.s_bclass).prefix_notation() == x.prefix_notation(traitable_class=traitable_class)
 
     r = OR(f(age=BETWEEN(50, 70), first_name=NE('Sasha')), f(age=17))
-    assert r.prefix_notation(traitable_class=traitable_class) == {'$or': [{'age': {'$gte': 'age:50', '$lte': 'age:70'}, 'first_name': {'$ne': 'Sasha'}}, {'age': {'$eq': 'age:17'}}]}
-
+    assert r.prefix_notation(traitable_class=traitable_class) == {
+        '$or': [
+            {'age': {'$gte': 'age:50', '$lte': 'age:70'}, 'first_name': {'$ne': 'Sasha'}},
+            {'age': {'$eq': 'age:17'}},
+        ]
+    }

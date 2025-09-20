@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import abc
 import inspect
 from collections import deque
 
-#===================================================================================================================================
+# ===================================================================================================================================
 #   We'd like to do the following:
 #
 #   class MongodbStore(Resource, resource_type = TS_STORE, name = 'MONGO'):
@@ -22,7 +24,8 @@ from collections import deque
 #       MKT_CLOSE_CLUSTER   = R(CLOUD_CLUSTER.RAY_CLUSTER, hostname = 'dev.ray1.io', ...)
 #   )
 #
-#===================================================================================================================================
+# ===================================================================================================================================
+
 
 class ResourceRequirements:
     def __init__(self, resource_type, *args, **kwargs):
@@ -32,8 +35,11 @@ class ResourceRequirements:
         self.args = args
         self.kwargs = kwargs
 
+
 class ResourceBinding:
-    def __init__(self, _resource_class = None, _resource_type = None, _resource_name: str = None, _driver_name: str = None, **kwargs):
+    def __init__(
+        self, _resource_class: type = None, _resource_type: ResourceType = None, _resource_name: str = None, _driver_name: str = None, **kwargs
+    ):
         if _resource_class:
             assert issubclass(_resource_class, Resource), f'{_resource_class} is not a subclass of Resource'
         else:
@@ -47,10 +53,14 @@ class ResourceBinding:
 
         self.resource_class = _resource_class
         self.kwargs = kwargs
+
+
 R = ResourceBinding
+
 
 class ResourceType:
     s_dir = {}
+
     def __init__(self, name: str):
         xrt = self.s_dir.get(name)
         assert xrt is None, f"Resource type '{name}' has already been created"
@@ -67,7 +77,7 @@ class ResourceType:
         return self.resource_drivers.get(driver_name)
 
     @staticmethod
-    def instance(name: str, throw = True):
+    def instance(name: str, throw: bool = True):
         rt = ResourceType.s_dir.get(name)
         if not rt and throw:
             raise ValueError(f"Unknown Resource type '{name}'")
@@ -80,39 +90,42 @@ class ResourceType:
         assert inspect.isclass(driver_class) and issubclass(driver_class, Resource), 'driver_class must be a subclass of Resource'
         self.resource_drivers[name] = driver_class
 
-    def resource_driver(self, name: str, throw = True):
+    def resource_driver(self, name: str, throw: bool = True):
         r = self.resource_drivers.get(name)
         if not r and throw:
             raise ValueError(f"Unknown resource '{name}'")
 
         return r
 
-    def begin_using(self, resource, last = True):
+    def begin_using(self, resource, last: bool = True):
         self.resource_stack.append(resource) if last else self.resource_stack.appendleft(resource)
 
     def end_using(self):
-        self.resource_stack.pop()       #-- will throw if begin_using() hasn't been called
+        self.resource_stack.pop()  # -- will throw if begin_using() hasn't been called
 
     def current_resource(self):
         stack = self.resource_stack
         return stack[-1] if stack else None
 
+
 class Resource(abc.ABC):
+    # fmt: off
     HOSTNAME_TAG    = 'hostname'
     PORT_TAG        = 'port'
     USERNAME_TAG    = 'username'
     DBNAME_TAG      = 'dbname'
     SSL_TAG         = 'ssl'
-
+    # fmt: on
     s_resource_type: ResourceType = None
     s_driver_name: str = None
+
     def __init_subclass__(cls, resource_type: ResourceType = None, name: str = None):
-        if cls.s_resource_type is None:   #-- must be a top class of a particular resource type, e.g. TsStore
+        if cls.s_resource_type is None:  # -- must be a top class of a particular resource type, e.g. TsStore
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
             assert name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
             cls.s_resource_type = resource_type
 
-        else:   #-- a Resource of a particular resource type
+        else:  # -- a Resource of a particular resource type
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
             assert name and isinstance(name, str), 'a unique Resource name is expected'
             cls.s_resource_type.register_driver(name, cls)
@@ -121,7 +134,7 @@ class Resource(abc.ABC):
     def __enter__(self):
         return self.begin_using()
 
-    def __exit__(self,*args):
+    def __exit__(self, *args):
         self.end_using()
 
     def begin_using(self):
@@ -144,9 +157,10 @@ class Resource(abc.ABC):
     @abc.abstractmethod
     def on_exit(self): ...
 
-#=========== Known Resource Types
 
+# =========== Known Resource Types
+# fmt: off
 TS_STORE        = ResourceType('TS_STORE')
 REL_DB          = ResourceType('REL_DB')
 CLOUD_CLUSTER   = ResourceType('CLOUD_CLUSTER')
-
+# fmt: on

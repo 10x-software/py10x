@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import rio
 from core_10x.exec_control import INTERACTIVE
 from ui_10x.rio.component_builder import UserSessionContext
+
+import rio
 
 theme = rio.Theme.from_colors(
     primary_color=rio.Color.from_hex("01dffdff"),

@@ -5,7 +5,6 @@ from collections.abc import Callable
 from functools import partial
 
 import rio
-
 import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import Widget
 

@@ -18,12 +18,12 @@ class TestTsUnionCollection(unittest.TestCase):
         col = TsUnionCollection()
         self.assertEqual(col.collections, ())
 
-        self.assertFalse( col.id_exists('1') )
-        self.assertFalse( col.exists(f(x=GT(1))) )
-        self.assertSequenceEqual( list(col.find()), [] )
-        self.assertIsNone( col.max('x') )
-        self.assertIsNone( col.min('x') )
-        self.assertEqual( col.count(), 0 )
+        self.assertFalse(col.id_exists('1'))
+        self.assertFalse(col.exists(f(x=GT(1))))
+        self.assertSequenceEqual(list(col.find()), [])
+        self.assertIsNone(col.max('x'))
+        self.assertIsNone(col.min('x'))
+        self.assertEqual(col.count(), 0)
 
     def test_find(self, args=None):
         args = (f(x=GT(1)),) if args is None else args
@@ -31,8 +31,8 @@ class TestTsUnionCollection(unittest.TestCase):
         self.collection2.find.return_value = [{Nucleus.ID_TAG(): 1}]
         results = list(self.union.find(*args))
         self.assertEqual(results, [{Nucleus.ID_TAG(): 1}, {Nucleus.ID_TAG(): 2}])
-        self.collection1.find.assert_called_once_with((args and args[0]) or None,_order=None,_at_most=0)
-        self.collection2.find.assert_called_once_with((args and args[0]) or None,_order=None,_at_most=0)
+        self.collection1.find.assert_called_once_with((args and args[0]) or None, _order=None, _at_most=0)
+        self.collection2.find.assert_called_once_with((args and args[0]) or None, _order=None, _at_most=0)
 
     def test_no_args(self):
         self.test_find(args=())
@@ -118,7 +118,6 @@ class TestTsUnionCollection(unittest.TestCase):
         result = self.union.min(trait_name)
         self.assertIsNone(result)
 
-
     def test_multiple_sort_keys(self):
         data1 = [
             {'_id': '1', 'group': 'A', 'value': 30},
@@ -144,7 +143,6 @@ class TestTsUnionCollection(unittest.TestCase):
             {'_id': '3', 'group': 'B', 'value': 10},
         ]
         assert results == sorted_results
-
 
     def test_none_handling(self):
         data2 = [
@@ -248,7 +246,7 @@ class TestTsUnion(unittest.TestCase):
     def test_new_instance(self):
         store_spec = dict(driver_name='MONGO_DB', hostname='localhost', dbname='dbname1', username='')
 
-        union_store = TsUnion.instance(store_spec, store_spec|dict(dbname='dbname2'))
+        union_store = TsUnion.instance(store_spec, store_spec | dict(dbname='dbname2'))
         assert isinstance(union_store, TsUnion)
         assert all(isinstance(store, MongoStore) for store in union_store.stores)
 
@@ -256,58 +254,60 @@ class TestTsUnion(unittest.TestCase):
         assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, MongoStore)) == 2
 
         assert list(TsUnion.s_instances.keys()) == [
-             (('dbname', 'dbname1'), ('hostname', 'localhost'), ('username', '')),
-             (('dbname', 'dbname2'), ('hostname', 'localhost'), ('username', '')), (
-                 (('dbname', 'dbname1'), ('driver_name', 'MONGO_DB'), ('hostname', 'localhost'), ('username', '')),
-                 (('dbname', 'dbname2'), ('driver_name', 'MONGO_DB'), ('hostname', 'localhost'), ('username', ''))
-            )
+            (('dbname', 'dbname1'), ('hostname', 'localhost'), ('username', '')),
+            (('dbname', 'dbname2'), ('hostname', 'localhost'), ('username', '')),
+            (
+                (('dbname', 'dbname1'), ('driver_name', 'MONGO_DB'), ('hostname', 'localhost'), ('username', '')),
+                (('dbname', 'dbname2'), ('driver_name', 'MONGO_DB'), ('hostname', 'localhost'), ('username', '')),
+            ),
         ]
 
+
 class TestDictLte(unittest.TestCase):
-    _dict_cmp= _OrderKey._dict_cmp
+    _dict_cmp = _OrderKey._dict_cmp
 
     def test_equal_same_order(self):
-        assert 0 == self._dict_cmp({"a": 1, "b": 2}, {"a": 1, "b": 2})
+        assert 0 == self._dict_cmp({'a': 1, 'b': 2}, {'a': 1, 'b': 2})
 
     def test_equal_different_order(self):
-        assert 1 == self._dict_cmp({"b": 1, "a": 2}, {"a": 2, "b": 1})
-        assert -1 == self._dict_cmp({"a": 1, "b": 2}, {"b": 2, "a": 1})
+        assert 1 == self._dict_cmp({'b': 1, 'a': 2}, {'a': 2, 'b': 1})
+        assert -1 == self._dict_cmp({'a': 1, 'b': 2}, {'b': 2, 'a': 1})
 
     def test_less_key_order(self):
-        assert -1 == self._dict_cmp({"a": 1, "b": 2}, {"b": 2, "a": 1})  # 'a' < 'b'
+        assert -1 == self._dict_cmp({'a': 1, 'b': 2}, {'b': 2, 'a': 1})  # 'a' < 'b'
 
     def test_greater_key_order(self):
-        assert 1 == self._dict_cmp({"b": 2, "a": 1}, {"a": 1, "b": 2})  # 'b' > 'a'
+        assert 1 == self._dict_cmp({'b': 2, 'a': 1}, {'a': 1, 'b': 2})  # 'b' > 'a'
 
     def test_less_value(self):
-        assert -1 ==self._dict_cmp({"a": 1, "b": 2}, {"a": 1, "b": 3})
+        assert -1 == self._dict_cmp({'a': 1, 'b': 2}, {'a': 1, 'b': 3})
 
     def test_greater_value(self):
-        assert 1 ==self._dict_cmp({"a": 1, "b": 3}, {"a": 1, "b": 2})
+        assert 1 == self._dict_cmp({'a': 1, 'b': 3}, {'a': 1, 'b': 2})
 
     def test_shorter_less(self):
-        assert -1 ==self._dict_cmp({"a": 1}, {"a": 1, "b": 2})
+        assert -1 == self._dict_cmp({'a': 1}, {'a': 1, 'b': 2})
 
     def test_longer_greater(self):
-        assert 1 ==self._dict_cmp({"a": 1, "b": 2}, {"a": 1})
+        assert 1 == self._dict_cmp({'a': 1, 'b': 2}, {'a': 1})
 
     def test_nested_less(self):
-        assert -1 ==self._dict_cmp({"a": {"x": 1}}, {"a": {"y": 2}})  # 'x' < 'y'
+        assert -1 == self._dict_cmp({'a': {'x': 1}}, {'a': {'y': 2}})  # 'x' < 'y'
 
     def test_nested_greater(self):
-        assert 1 ==self._dict_cmp({"a": {"y": 2}}, {"a": {"x": 1}})  # 'y' > 'x'
+        assert 1 == self._dict_cmp({'a': {'y': 2}}, {'a': {'x': 1}})  # 'y' > 'x'
 
     def test_example_from_query(self):
-        d = {"y": 20, "x": 10}  # order: y, x
-        od = {"x": 10, "y": 25}  # order: x, y
-        assert 1 ==self._dict_cmp(d, od)  # 'y' > 'x'
+        d = {'y': 20, 'x': 10}  # order: y, x
+        od = {'x': 10, 'y': 25}  # order: x, y
+        assert 1 == self._dict_cmp(d, od)  # 'y' > 'x'
 
     def test_counterexample_values_ignored_on_key_diff(self):
-        d = {"a": 100}
-        od = {"b": 1}
-        assert -1 ==self._dict_cmp(d, od)  # 'a' < 'b', values ignored
+        d = {'a': 100}
+        od = {'b': 1}
+        assert -1 == self._dict_cmp(d, od)  # 'a' < 'b', values ignored
 
     def test_counterexample_early_value_diff(self):
-        d = {"a": 1, "c": 4}
-        od = {"a": 2, "b": 3}
-        assert -1 ==self._dict_cmp(d, od)  # 1 < 2, later ignored
+        d = {'a': 1, 'c': 4}
+        od = {'a': 2, 'b': 3}
+        assert -1 == self._dict_cmp(d, od)  # 1 < 2, later ignored

@@ -2,6 +2,7 @@ import inspect
 import io
 import pickle
 import shlex
+from collections.abc import Callable
 
 from importlib_resources import files
 
@@ -14,24 +15,26 @@ class PyClass:
     """
 
     # ruff: noqa: E731
+    # fmt: off
     NO_NAME         = lambda cls: ''
     QUAL_NAME       = lambda cls: cls.__qualname__
     CANONICAL_NAME  = lambda cls: f'{cls.__module__}.{cls.__qualname__}'
+    # fmt: on
 
     @staticmethod
-    def name(cls, name_type = CANONICAL_NAME) -> str:
+    def name(cls, name_type: Callable[[type], str] = CANONICAL_NAME) -> str:
         try:
             return name_type(cls)
         except Exception as ex:
-            raise ValueError( 'cls must be a valid class' ) from ex
+            raise ValueError('cls must be a valid class') from ex
 
     @staticmethod
     def top_level_package(cls) -> str:
-        return cls.__module__.split('.', maxsplit = 1)[0]
+        return cls.__module__.split('.', maxsplit=1)[0]
 
-    #===================================================================================================================
+    # ===================================================================================================================
     #   Finding classes/symbols in the code base
-    #===================================================================================================================
+    # ===================================================================================================================
     @staticmethod
     @cache
     def dummy_unpickler() -> pickle.Unpickler:
@@ -42,9 +45,9 @@ class PyClass:
     @cache
     def find_symbol(canonical_symbol_name: str):
         try:
-            module_name, symbol_name = canonical_symbol_name.rsplit('.', maxsplit = 1)
+            module_name, symbol_name = canonical_symbol_name.rsplit('.', maxsplit=1)
         except Exception as e:
-            raise ValueError( f"Invalid canonical_symbol_name = '{canonical_symbol_name}'" ) from e
+            raise ValueError(f"Invalid canonical_symbol_name = '{canonical_symbol_name}'") from e
 
         try:
             return PyClass.dummy_unpickler().find_class(module_name, symbol_name)
@@ -58,7 +61,7 @@ class PyClass:
         if not cls or not inspect.isclass(cls):
             return None
 
-        subclass = all( issubclass(cls, parent) for parent in parents )
+        subclass = all(issubclass(cls, parent) for parent in parents)
         return cls if subclass else None
 
     @staticmethod
@@ -91,25 +94,25 @@ class PyClass:
                     -- the module abc.infra.messenger_ui
                     -- the module abc.infra.ui.messenger_ui
         """
-        parts = cls.__module__.rsplit('.', maxsplit = 1)
-        assert len(parts) >= 2, f"{cls} - package is missing"
+        parts = cls.__module__.rsplit('.', maxsplit=1)
+        assert len(parts) >= 2, f'{cls} - package is missing'
 
         module_name = f'{parts[-1]}'
-        class_name  = cls.__name__
+        class_name = cls.__name__
 
-        #-- 1) look it up in alternative_packages
+        # -- 1) look it up in alternative_packages
         for alt_package in alternative_packages:
             found = PyClass.find_by_topic_and_suffix(topic, class_name_suffix, alt_package, module_name, class_name)
             if found:
                 return found
 
-        #-- 2) look it up in the cls' package
+        # -- 2) look it up in the cls' package
         package_name = parts[0]
         found = PyClass.find_by_topic_and_suffix(topic, class_name_suffix, package_name, module_name, class_name)
         if found:
             return found
 
-        #-- 3) look it up for alternative_parent_class, if any
+        # -- 3) look it up for alternative_parent_class, if any
         if alternative_parent_class:
             assert issubclass(cls, alternative_parent_class), f'{cls} is not a subclass of {alternative_parent_class}'
             found = PyClass.find_related_class(alternative_parent_class, topic, class_name_suffix)
@@ -117,22 +120,22 @@ class PyClass:
         return found
 
     @staticmethod
-    def derived_from(cls, *parents, exclude_parents = ()) -> bool:
+    def derived_from(cls, *parents, exclude_parents: tuple = ()) -> bool:
         """
         :param cls: a class
         :param parents: classes the cls must be derived from
         :param exclude_parents: classes the cls must NOT be derived from
         """
-        if any( issubclass(cls, parent) for parent in exclude_parents ):
+        if any(issubclass(cls, parent) for parent in exclude_parents):
             return False
 
-        return all( issubclass(cls, parent) for parent in parents )
+        return all(issubclass(cls, parent) for parent in parents)
 
     @staticmethod
     def parents(cls) -> tuple:
         tree = inspect.getclasstree([cls])
         try:
-            return tree[ -1 ][ 0 ][ 1 ]
+            return tree[-1][0][1]
         except Exception as e:
             raise AssertionError(f'Something went wrong with inheritance tree of class {PyClass.name(cls)}') from e
 
@@ -188,13 +191,13 @@ class PyClass:
         full_ns = {}
         classes = *PyClass.parents(cls), cls
         for c in classes:
-            ns = dict( vars(inspect.getmodule(c)) )
+            ns = dict(vars(inspect.getmodule(c)))
             full_ns.update(ns)
 
         return full_ns
 
-    #---- We may need it to create local vars with particular names and values
-    #locals().update( { var_name: var_value } )
+    # ---- We may need it to create local vars with particular names and values
+    # locals().update( { var_name: var_value } )
 
     @staticmethod
     def module_class_names(package_name: str, py_file_name: str) -> list:
@@ -213,7 +216,7 @@ class PyClass:
             return []
 
     @staticmethod
-    def class_names_by_module(*package_names, exclude_packages = ()) -> dict:
+    def class_names_by_module(*package_names, exclude_packages=()) -> dict:
         res = {}
         for pname in package_names:
             PyClass._collect_class_names(res, pname, exclude_packages)
@@ -221,7 +224,7 @@ class PyClass:
         return res
 
     @staticmethod
-    def canonical_class_names(*package_names, exclude_packages = ()) -> list:
+    def canonical_class_names(*package_names, exclude_packages=()) -> list:
         res = []
         for pname in package_names:
             PyClass._collect_class_names(res, pname, exclude_packages)
@@ -269,18 +272,20 @@ class PyClass:
                 res[module_name] = class_names
             else:
                 full_module_name = f'{package_name}.{module_name}'
-                res.extend([ f'{full_module_name}.{cname}' for cname in class_names ])
+                res.extend([f'{full_module_name}.{cname}' for cname in class_names])
 
     @staticmethod
-    def own_attribute(cls, attr_name:str) -> tuple:     #-- (exists, value)
+    def own_attribute(cls, attr_name: str) -> tuple:  # -- (exists, value)
         d = cls.__dict__
         value = d.get(attr_name, d)
         rc = value is not d
-        return ( rc, value if rc else None )
+        return (rc, value if rc else None)
 
-    #===================================================================================================================
+    # ===================================================================================================================
     #   Class mapping to deal with migrations / refactoring class canonical names
-    #===================================================================================================================
+    # ===================================================================================================================
+
+
 #     s_migration_map     = {}
 #     s_rev_migration_map = {}
 #     @staticmethod
@@ -398,5 +403,3 @@ class PyClass:
 #     def finalize(self) -> type:
 #         module = importlib.import_module(self.module_name)
 #         return getattr(module, self.class_name)
-
-
