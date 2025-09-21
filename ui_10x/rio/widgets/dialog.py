@@ -10,18 +10,19 @@ from ui_10x.rio.component_builder import DynamicComponent, Widget
 if TYPE_CHECKING:
     import uvicorn
 
-class Dialog(Widget,i.Dialog):
+
+class Dialog(Widget, i.Dialog):
     __slots__ = ('_dialog', '_modal', '_parent', '_server')
     s_component_class = rio.Column
     s_forced_kwargs = {'grow_x': True, 'grow_y': True}
 
-    def _make_kwargs(self,**kwargs):
+    def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)
         del kwargs['align_y']
         return kwargs
 
-    def __init__(self, parent: Widget|None = None, children=(), title=None, on_accept=None, on_reject=None, **kwargs):
-        assert isinstance(parent,Widget|None)
+    def __init__(self, parent: Widget | None = None, children=(), title=None, on_accept=None, on_reject=None, **kwargs):
+        assert isinstance(parent, Widget | None)
         super().__init__(*children, **kwargs)
         self.on_accept = self._wrapper(on_accept, accept=True)
         self.on_reject = self._wrapper(on_reject)
@@ -35,13 +36,15 @@ class Dialog(Widget,i.Dialog):
     def set_window_title(self, title: str):
         self.title = title
 
-    def _wrapper(self, func, accept = False):
+    def _wrapper(self, func, accept=False):
         func = self.callback(func) if func else None
+
         def wrapper(*args):
             self.accepted = accept
             if func:
                 func(*args)
             self._on_close()
+
         return wrapper
 
     def reject(self):
@@ -62,7 +65,7 @@ class Dialog(Widget,i.Dialog):
     def _on_server_created(self, server: uvicorn.Server):
         self._server = server
 
-    def _on_dialog_open(self,future):
+    def _on_dialog_open(self, future):
         self._dialog = future
 
     def exec(self):
@@ -71,33 +74,39 @@ class Dialog(Widget,i.Dialog):
 
         title = self.title or 'Dialog'
         the_session = None
+
         def on_session_start(session):
             nonlocal the_session
             if the_session is None:
-                the_session=session
+                the_session = session
+
         def on_session_close(session):
             nonlocal the_session
             if session is the_session:
-                the_session=None
+                the_session = None
+
         def build():
             component = DynamicComponent(builder=self)
             session = component.session
             if session is the_session:
-                 return component
+                return component
             from rio.components.error_placeholder import ErrorPlaceholder
-            return ErrorPlaceholder(error_summary="Only one session is allowed for `Dialog.exec`",error_details="")
+
+            return ErrorPlaceholder(error_summary='Only one session is allowed for `Dialog.exec`', error_details='')
+
         app = rio.App(
             name=title,
             build=build,
             on_session_start=on_session_start,
-            #on_session_close=on_session_close #TODO: debug what happens
+            # on_session_close=on_session_close #TODO: debug what happens
         )
         debug = True
         if debug:
             from rio.debug.monkeypatches import apply_monkeypatches
+
             apply_monkeypatches()
-        #app._run_in_window(debug_mode=debug,on_server_created=self._on_server_created) #TODO: !!!
-        app._run_as_web_server(debug_mode=debug,port=8081)
+        # app._run_in_window(debug_mode=debug,on_server_created=self._on_server_created) #TODO: !!!
+        app._run_as_web_server(debug_mode=debug, port=8081)
         return self.accepted
 
     def show(self):
@@ -105,11 +114,11 @@ class Dialog(Widget,i.Dialog):
             self.exec()
         else:
             future = self.current_session().show_custom_dialog(
-                build=partial(self,self.current_session()),
+                build=partial(self, self.current_session()),
                 on_close=self._on_close,
                 modal=self._modal,
                 user_closable=False,
-                owning_component=self._parent.component if self._parent else None
+                owning_component=self._parent.component if self._parent else None,
             )
             self.current_session().create_task(future).add_done_callback(self._on_dialog_open)
 

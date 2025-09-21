@@ -12,12 +12,13 @@ from ui_10x.rio.component_builder import Widget
 class FindFlags(Enum):
     MATCH_EXACTLY = ()
 
+
 class ListItem(Widget, i.ListItem):
     __slots__ = ('_list_widget',)
     s_component_class = rio.SimpleListItem
-    args = dict(key=lambda kwargs:kwargs['text'])
+    args = dict(key=lambda kwargs: kwargs['text'])
 
-    def _make_kwargs(self,**kwargs):
+    def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)
         del kwargs['align_y']
         return kwargs
@@ -42,7 +43,7 @@ class ListWidget(Widget, i.ListWidget):
         super().__init__(*args, **kwargs)
         self['grow_y'] = True
 
-    def add_items(self, items: list[i.ListItem|str]):
+    def add_items(self, items: list[i.ListItem | str]):
         for item in items:
             self.add_item(item)
 
@@ -53,8 +54,8 @@ class ListWidget(Widget, i.ListWidget):
         if self._on_press:
             self._on_press(item)
 
-    def add_item(self, item: ListItem|str):
-        item = ListItem(text=item) if isinstance(item,str) else item
+    def add_item(self, item: ListItem | str):
+        item = ListItem(text=item) if isinstance(item, str) else item
         item['on_press'] = partial(self._handle_on_press, item)
         item._list_widget = self
         self._kwargs[self.s_children_attr].append(item)
@@ -77,9 +78,9 @@ class ListWidget(Widget, i.ListWidget):
             self.force_update()
 
     def set_selected(self, item: ListItem, selected: bool):
-        #TODO: this is called from on-click handler for list item, which is
+        # TODO: this is called from on-click handler for list item, which is
         # inefficient and duplicates rio built-in functionality
-        selected_items = self.setdefault('selected_items',[])
+        selected_items = self.setdefault('selected_items', [])
         key = item['key']
         old_selected = key in selected_items
         print(selected_items, selected, old_selected, key)

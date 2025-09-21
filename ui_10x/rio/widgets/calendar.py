@@ -7,9 +7,9 @@ import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import Widget
 
 
-class CalendarWidget(Widget,i.CalendarWidget):
+class CalendarWidget(Widget, i.CalendarWidget):
     s_component_class = rio.Calendar
-    s_default_kwargs = dict( value = date.today() )
+    s_default_kwargs = dict(value=date.today())
     s_children_attr = 'value'
     s_single_child = True
 

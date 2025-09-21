@@ -10,22 +10,23 @@ class Splitter(rio.Component):
     A custom Rio component that arranges children horizontally like a Row,
     or vertically as a column with draggable splitters between them for resizing.
     """
+
     # Props
     children: list[rio.Component] = []
-    direction: t.Literal['horizontal','vertical'] = 'vertical'
+    direction: t.Literal['horizontal', 'vertical'] = 'vertical'
     handle_size: float = 0.25  # Width of the splitter handle
     min_size_percent: float = 10.0  # Minimum width for each child (%)
-    child_proportions: t.Literal["homogeneous"] | t.Sequence[float] = "homogeneous"
+    child_proportions: t.Literal['homogeneous'] | t.Sequence[float] = 'homogeneous'
     _component_width: float = 0.0
     _component_height: float = 0.0
 
     def __post_init__(self):
-        if not isinstance(self.child_proportions,(list,tuple)):
+        if not isinstance(self.child_proportions, (list, tuple)):
             num_children = len(self.children)
             self.child_proportions = [1.0] * num_children if num_children else []
         else:
             assert len(self.child_proportions) == len(self.children)
-            assert all(p>=0 for p in self.child_proportions), "Proportions must be non-negative"
+            assert all(p >= 0 for p in self.child_proportions), 'Proportions must be non-negative'
             self.child_proportions = list(self.child_proportions)
 
     def on_drag(self, index: int, event: rio.PointerMoveEvent) -> None:
@@ -34,7 +35,7 @@ class Splitter(rio.Component):
         Adjusts the proportions of the two adjacent children.
         """
         horizontal = self.direction == 'horizontal'
-        total_size =  self._component_width if horizontal else self._component_height
+        total_size = self._component_width if horizontal else self._component_height
 
         # Convert drag movement to a proportion change
         total_proportion = sum(self.child_proportions)
@@ -58,7 +59,7 @@ class Splitter(rio.Component):
             self.child_proportions[prev_index] = max(0.0, self.child_proportions[prev_index])
             self.child_proportions[next_index] = max(0.0, self.child_proportions[next_index])
 
-        self.child_proportions = self.child_proportions # force refresh
+        self.child_proportions = self.child_proportions  # force refresh
 
     def build(self) -> rio.Component:
         # If no children, return an empty component
@@ -78,37 +79,36 @@ class Splitter(rio.Component):
             # Create the pane
             pane = rio.Rectangle(
                 content=scrollable_content,
-                **{"grow_x" if horizontal else "grow_y": True},  # Stretch to fill proportional space
+                **{'grow_x' if horizontal else 'grow_y': True},  # Stretch to fill proportional space
                 margin=1,  # Spacing around the child content
             )
             # Add a splitter handle to the right of all but the last pane
             if i < len(self.children) - 1:
                 splitter = rio.PointerEventListener(
                     content=rio.Rectangle(
-                        **{"grow_x" if horizontal else "grow_y": False,
-                           "min_width" if horizontal else "min_height" : self.handle_size},
-                        fill=rio.Color.from_hex("#808080"),
-                        cursor="move",  # Valid CursorStyle for dragging
+                        **{'grow_x' if horizontal else 'grow_y': False, 'min_width' if horizontal else 'min_height': self.handle_size},
+                        fill=rio.Color.from_hex('#808080'),
+                        cursor='move',  # Valid CursorStyle for dragging
                     ),
                     on_drag_move=lambda event, idx=i: self.on_drag(idx, event),
                     **{
-                        "align_x" if horizontal else "align_y": 1.0,  # Position at the right edge
-                        "margin_right" if horizontal else "margin_bottom": -self.handle_size / 2,  # Extend slightly into the next pane
-                    }
+                        'align_x' if horizontal else 'align_y': 1.0,  # Position at the right edge
+                        'margin_right' if horizontal else 'margin_bottom': -self.handle_size / 2,  # Extend slightly into the next pane
+                    },
                 )
                 # Combine pane and splitter in a Stack
                 components.append(
                     rio.Stack(
                         pane,
                         splitter,
-                        **{"grow_x" if horizontal else "grow_y": True},  # Ensure the Stack follows the proportion
+                        **{'grow_x' if horizontal else 'grow_y': True},  # Ensure the Stack follows the proportion
                     )
                 )
             else:
                 # Last pane has no splitter
                 components.append(pane)
 
-        container = rio.Row if self.direction=='horizontal' else rio.Column
+        container = rio.Row if self.direction == 'horizontal' else rio.Column
         return container(
             *components,
             spacing=0,
