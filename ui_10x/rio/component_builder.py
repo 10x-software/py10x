@@ -96,6 +96,7 @@ class ComponentBuilder:
     s_dynamic = True
     s_children_attr = 'children'
     s_single_child = False
+    s_pass_children_in_kwargs = False
     s_size_adjustments = ('min_width', 'min_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom','margin_x', 'margin_y', 'margin')
     s_layout_attrs = ('grow_x', 'grow_y', 'align_x', 'align_y')
 
@@ -166,18 +167,23 @@ class ComponentBuilder:
     def _build_children(self,session: rio.Session):
         return [ child(session) if isinstance(child,ComponentBuilder) else child for child in self._get_children() if child is not None]
 
-    def build(self,session):
+    @classmethod
+    def create_component(cls,*children,**kwargs) -> rio.Component|None:
+        if cls.s_component_class:
+            if cls.s_pass_children_in_kwargs:
+                # noinspection PyAugmentAssignment
+                kwargs = kwargs | {'children': list(children)}
+                children = ()
+            return cls.s_component_class(*children, **kwargs)
+        return None
+
+    def build(self,session: rio.Session) -> rio.Component|None:
         kwargs = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
         for size_adjustment in self.s_size_adjustments:
             if size_adjustment in kwargs:
-                kwargs[size_adjustment] = kwargs[size_adjustment] / session.pixels_per_font_height
+                kwargs[size_adjustment] /= session.pixels_per_font_height
         children: list = self._build_children(session)
-        if len(children) == 1 and isinstance(first_child := children[0], rio.Component):
-            if kwargs:
-                print(f'{self.__class__.__name__}.build: ignored kwargs {kwargs}')
-            self.subcomponent=first_child
-        elif self.s_component_class:
-            self.subcomponent = self.s_component_class(*children, **kwargs)
+        self.subcomponent = self.create_component(*children, **kwargs)
         return self.subcomponent
 
     def __call__(self,session: rio.Session) -> rio.Component:
@@ -194,9 +200,9 @@ class ComponentBuilder:
         return item in self._kwargs
 
     @classmethod
-    def _not_supported(cls,item=None):
+    def _not_supported(cls,message="not supported",item=None):
         item = item or inspect.stack()[1].function
-        print(f"{cls.__name__}.{item}: - not supported")
+        print(f"{cls.__name__}.{item}: - {message}")
 
     def __setitem__(self, item, value):
         if item!=self.s_children_attr and not hasattr(self.s_component_class,item):
@@ -217,6 +223,12 @@ class ComponentBuilder:
         except KeyError:
             value = self[item] = default
         return value
+
+    def get(self, item, default=None):
+        try:
+            return self[item]
+        except KeyError:
+            return default
 
     def callback(self,callback):
         def cb(*args,**kwargs):
@@ -289,9 +301,14 @@ class Widget(ComponentBuilder, i.Widget):
         self['is_sensitive'] = not read_only
 
     def style_sheet(self) -> str:
-        ##TODO
+        from ui_10x.utils import UxStyleSheet  #TODO: circular import
+        if hasattr(self.s_component_class,"text_style"):
+            ss = StyleSheet()
+            ss.text_style = self.get('text_style')
+            return UxStyleSheet.dumps(ss.sheet)
+
         self._not_supported()
-        return ""
+        return ''
 
     def set_enabled(self, enabled: bool):
         self['is_sensitive'] = enabled
@@ -318,6 +335,13 @@ class Widget(ComponentBuilder, i.Widget):
         self._not_supported()
         return point
 
+    @classmethod
+    def create_component(cls,*children,**kwargs) -> rio.Component|None:
+        if len(children) == 1 and isinstance(first_child := children[0], rio.Component):
+            if kwargs:
+                cls._not_supported(f'ignored kwargs {kwargs}')
+            return first_child
+        return super().create_component(*children,**kwargs)
 
 class Layout(Widget, i.Layout):
     def add_widget(self, widget: Widget, stretch=None, **kwargs):

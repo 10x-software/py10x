@@ -15,29 +15,18 @@ class Splitter(rio.Component):
     direction: t.Literal['horizontal','vertical'] = 'vertical'
     handle_size: float = 0.25  # Width of the splitter handle
     min_size_percent: float = 10.0  # Minimum width for each child (%)
-    child_proportions: t.Sequence[float] = None
+    child_proportions: t.Literal["homogeneous"] | t.Sequence[float] = "homogeneous"
     _component_width: float = 0.0
     _component_height: float = 0.0
 
-    def __init__(self, *children,
-             direction: t.Literal['horizontal','vertical'] = 'vertical',
-             handle_size:float=0.5,
-             min_size_percent:float=10.0,
-             child_proportions: t.Literal["homogeneous"] | t.Sequence[float] = "homogeneous",
-            **kwargs
-         ):
-        super().__init__(**kwargs)
-        self.direction = direction
-        self.children = list(children)
-        self.handle_size = handle_size
-        self.min_size_percent = min_size_percent
-        if not isinstance(child_proportions,(list,tuple)):
-            num_children = len(children)
+    def __post_init__(self):
+        if not isinstance(self.child_proportions,(list,tuple)):
+            num_children = len(self.children)
             self.child_proportions = [1.0] * num_children if num_children else []
         else:
-            assert len(child_proportions) == len(children)
-            assert all(p>=0 for p in child_proportions), "Proportions must be non-negative"
-            self.child_proportions = list(child_proportions)
+            assert len(self.child_proportions) == len(self.children)
+            assert all(p>=0 for p in self.child_proportions), "Proportions must be non-negative"
+            self.child_proportions = list(self.child_proportions)
 
     def on_drag(self, index: int, event: rio.PointerMoveEvent) -> None:
         """
@@ -68,8 +57,6 @@ class Splitter(rio.Component):
             # Ensure proportions don't go negative
             self.child_proportions[prev_index] = max(0.0, self.child_proportions[prev_index])
             self.child_proportions[next_index] = max(0.0, self.child_proportions[next_index])
-            child_sizes = [p / total_proportion * total_size for p in self.child_proportions]
-            print( f'{child_sizes=}, total_size={total_size} ({sum(child_sizes):.2f})' )
 
         self.child_proportions = self.child_proportions # force refresh
 
