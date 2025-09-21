@@ -8,9 +8,11 @@ from ui_10x.rio.components.splitter import Splitter
 class SplitterApp(rio.Component):
     def build(self) -> rio.Component:
         splitter = Splitter(
-            rio.Text("Pane 1", style="heading3"),
-            rio.Text("Pane 2", style="heading3"),
-            rio.Rectangle(content=rio.Container(rio.Container(rio.FlowContainer()))),
+            children=[
+                rio.Text("Pane 1", style="heading3"),
+                rio.Text("Pane 2", style="heading3"),
+                rio.Rectangle(content=rio.Container(rio.Container(rio.FlowContainer()))),
+            ],
             handle_size=0.3,  # Splitter handle width
             direction='horizontal',
         )
