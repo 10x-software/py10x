@@ -8,10 +8,12 @@ from ui_10x.utils import ux, ux_answer, ux_push_button, ux_success, ux_warning
 
 class StockerPlug(Traitable):
     master: Traitable
+    # fmt: off
     current_class_trait_name: str   = RT('current_class')
     current_entity_trait_name: str  = RT('current_entity')
     changed_entity_cb_name: str     = RT('on_changed_entity')        #-- f(ce: Traitable) - after accepting edits and reloading
     deleted_entity_cb_name: str     = RT('on_deleted_entity')        #-- f(de: Traitable)
+    # fmt: on
 
     new_entity_cb: Any
     changed_entity_cb: Any
@@ -30,8 +32,10 @@ class StockerPlug(Traitable):
 
         return lambda e: None
 
+    # fmt: off
     def changed_entity_cb_get(self):    return self._cb(self.changed_entity_cb_name)
     def deleted_entity_cb_get(self):    return self._cb(self.deleted_entity_cb_name)
+    # fmt: on
 
     def current_class_get(self) -> type:
         m = self.master
@@ -53,6 +57,7 @@ class StockerPlug(Traitable):
 
         return m.get_value(self.current_entity_trait_name)
 
+
 class EntityStocker(Traitable):
     plug: StockerPlug
     entity_viewer: TraitableEditor
@@ -63,14 +68,14 @@ class EntityStocker(Traitable):
         if not ce:
             return None
 
-        return TraitableEditor.editor(ce, view = TraitableView.default(ce.__class__, read_only = True))
+        return TraitableEditor.editor(ce, view=TraitableView.default(ce.__class__, read_only=True))
 
     def top_layout(self) -> ux.HBoxLayout:
         lay = ux.HBoxLayout()
         lay.set_spacing(0)
 
         for name, (cb, icon) in self.buttons_spec.items():
-            lay.add_widget(ux_push_button(name, callback = cb, style_icon = icon))
+            lay.add_widget(ux_push_button(name, callback=cb, style_icon=icon))
 
         return lay
 
@@ -78,7 +83,7 @@ class EntityStocker(Traitable):
         entity_viewer = self.entity_viewer
         if entity_viewer:
             lay = ux.VBoxLayout()
-            lay.add_layout(self.top_layout(), stretch = 0)
+            lay.add_layout(self.top_layout(), stretch=0)
             lay.add_widget(entity_viewer.main_widget())
 
         else:
@@ -113,7 +118,7 @@ class EntityStocker(Traitable):
         ce = self.plug.current_entity
         if ce:
             if not ce.reload():
-                ux_warning(f'Failed to reload entity {ce.__class__}/{ce.id()}', parent = None, on_close = lambda ctx: None)
+                ux_warning(f'Failed to reload entity {ce.__class__}/{ce.id()}', parent=None, on_close=lambda ctx: None)
             else:
                 self.plug.changed_entity_cb(ce)
 
@@ -123,43 +128,46 @@ class EntityStocker(Traitable):
             try:
                 rc = ce.save()
                 if not rc:
-                    ux_warning(rc.error(), parent = None, on_close = lambda ctx: None)
+                    ux_warning(rc.error(), parent=None, on_close=lambda ctx: None)
 
                 return
 
-            except Exception:  #-- revision conflict?
-                #-- TODO: resolve revision conflict - MergingEditor
+            except Exception:  # -- revision conflict?
+                # -- TODO: resolve revision conflict - MergingEditor
                 ...
 
-            #-- The conflict seems to be resolved, try again
+            # -- The conflict seems to be resolved, try again
             try:
                 rc = ce.save()
                 if not rc:
-                    ux_warning(rc.error(), parent = None, on_close = lambda ctx: None)
+                    ux_warning(rc.error(), parent=None, on_close=lambda ctx: None)
                     return
 
             except Exception:
                 ux_warning('Failed to resolve revision conflict (most probably due to continuous updates from other session(s)')
                 return
 
-            ux_success(f'Conflict resolved, {ce.__class__}/{ce.id()} has been saved', on_close = lambda ctx: None)
+            ux_success(f'Conflict resolved, {ce.__class__}/{ce.id()} has been saved', on_close=lambda ctx: None)
 
     def on_delete_entity(self):
         ce = self.plug.current_entity
         if ce:
+
             def on_close(accepted: bool):
                 if accepted:
                     if not ce.delete():
-                        ux_warning('Deletion failed: {ce.__class__}/{ce.id()', parent = None, on_close=lambda ctx: None)
+                        ux_warning('Deletion failed: {ce.__class__}/{ce.id()', parent=None, on_close=lambda ctx: None)
                     self.plug.deleted_entity_cb(ce)
 
-            ux_answer(f'Please confirm deletion of {ce.__class__}/{ce.id()}', parent = None, on_close=on_close)
+            ux_answer(f'Please confirm deletion of {ce.__class__}/{ce.id()}', parent=None, on_close=on_close)
 
     def buttons_spec_get(self) -> dict:
+        # fmt: off
         return dict(
-        #new     = (self.on_new_entity,      'FileIcon'),
-        edit    = (self.on_edit_entity,     'FileDialogDetailedView'),
-        reload  = (self.on_reload_entity,   'ArrowDown'),
-        save    = (self.on_save_entity,     'DriveNetIcon'),
-        delete  = (self.on_delete_entity,   'DialogDiscardButton')
-    )
+            #new     = (self.on_new_entity,      'FileIcon'),
+            edit    = (self.on_edit_entity,     'FileDialogDetailedView'),
+            reload  = (self.on_reload_entity,   'ArrowDown'),
+            save    = (self.on_save_entity,     'DriveNetIcon'),
+            delete  = (self.on_delete_entity,   'DialogDiscardButton')
+        )
+        # fmt: on

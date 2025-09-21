@@ -23,21 +23,29 @@ class TraitableEditor:
     - an editor class is searched first in alternative packages, if any; then in abc.xyz and abc.xyz.ui
     - if a custom class is not found, the default TraitableEditor is used.
     """
+
     @staticmethod
     @cache
-    def find_editor_class(traitable_class, *alternative_packages, traitable_class_parent = None, verify_custom_class = True):
+    def find_editor_class(
+        traitable_class: type[Traitable], *alternative_packages, traitable_class_parent: type[Traitable] = None, verify_custom_class: bool = True
+    ):
         assert issubclass(traitable_class, Traitable), f'{traitable_class} is not a subclass of Traitable'
-        assert not traitable_class_parent or issubclass(traitable_class, traitable_class_parent), f'{traitable_class} is not a subclass of {traitable_class_parent}'
+        assert not traitable_class_parent or issubclass(traitable_class, traitable_class_parent), (
+            f'{traitable_class} is not a subclass of {traitable_class_parent}'
+        )
 
-        found = PyClass.find_related_class(traitable_class, 'ui', 'Editor', *alternative_packages, alternative_parent_class = traitable_class_parent)
+        found = PyClass.find_related_class(traitable_class, 'ui', 'Editor', *alternative_packages, alternative_parent_class=traitable_class_parent)
         if found:
             if verify_custom_class:
-                assert issubclass(found, TraitableEditor), f'{traitable_class} has a custom editor class {found} which is not a subclass of TraitableEditor'
+                assert issubclass(found, TraitableEditor), (
+                    f'{traitable_class} has a custom editor class {found} which is not a subclass of TraitableEditor'
+                )
 
             return found
 
         return TraitableEditor
 
+    # fmt: off
     @staticmethod
     def editor(
         entity: Traitable,
@@ -47,6 +55,7 @@ class TraitableEditor:
         view: TraitableView         = None,     #-- if a specific view for the entity should be used
         read_only: bool             = False     #-- browser if True
     ) -> 'TraitableEditor':
+        # fmt: on
         editor_class = TraitableEditor.find_editor_class(
             entity.__class__,
             *alternative_packages,
@@ -129,14 +138,14 @@ class TraitableEditor:
         w.set_layout(lay)
         return w
 
-    def _cleanup_tp(self, apply:bool):
+    def _cleanup_tp(self, apply: bool):
         self.main_w = None
         if self.traitable_processor:
             if apply:
                 self.traitable_processor.export_nodes()
             self.traitable_processor=None
 
-    def _dialog(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[],RC]) -> UxDialog:
+    def _dialog(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[], RC]) -> UxDialog:
         ux.init()
         if layout is not None:
             w = self.main_w = ux.Widget()
@@ -156,7 +165,7 @@ class TraitableEditor:
 
         return UxDialog(w, title = title, accept_callback = accept_callback, cancel_callback = cancel_callback, ok = ok, min_width = min_width)
 
-    def dialog(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> UxDialog:
+    def dialog(self, layout: ux.Layout = None, copy_entity: bool = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None]  = None, min_width: int = 0) -> UxDialog:
         if title is None:
             title = ''
         elif not title:
@@ -177,8 +186,8 @@ class TraitableEditor:
 
         return self._dialog(layout, title, ok, min_width, on_accept=on_accept)
 
-    def popup(self, layout: ux.Layout = None, copy_entity = True, title = '', save = False, accept_hook = None, min_width = 0) -> None:
+    def popup(self, layout: ux.Layout = None, copy_entity = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0) -> None:
         self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width).show()
 
-    def warning(self, msg: str, title = ''):
+    def warning(self, msg: str, title: str = ''):
         ux_warning(msg, parent = self.main_w, title = title, on_close=lambda ctx: None)

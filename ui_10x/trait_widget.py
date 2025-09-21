@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import Any
+
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import T, Trait, Ui
 
@@ -6,6 +10,7 @@ from ui_10x.utils import UxStyleSheet, ux
 
 class TraitWidget:
     s_hinted_widgets = {}
+
     def __init_subclass__(cls, widget_type: Ui.WIDGET_TYPE = None, **kwargs):
         if widget_type:
             TraitWidget.s_hinted_widgets[widget_type] = cls
@@ -17,11 +22,12 @@ class TraitWidget:
         return w_cls
 
     @staticmethod
-    def instance(trait_editor) -> 'TraitWidget':
+    def instance(trait_editor) -> TraitWidget | None:
         w_type = trait_editor.ui_hint.widget_type
         if w_type is not Ui.WIDGET_TYPE.NONE:
             w_cls = TraitWidget.widget_class(w_type)
             return w_cls(trait_editor)
+        return None
 
     def __init__(self, trait_editor):
         self.trait_editor = trait_editor
@@ -60,7 +66,7 @@ class TraitWidget:
             self.style_sheet.update(sh)
 
             if not entity.is_valid(trait):
-                self.style_sheet.update({Ui.BG_COLOR: 'lightblue'}, _system = True)
+                self.style_sheet.update({Ui.BG_COLOR: 'lightblue'}, _system=True)
 
     def widget_value(self):
         return self._value()
@@ -69,8 +75,8 @@ class TraitWidget:
         self.program_edit = True
         try:
             self._set_value(value)
-        except Exception:       #-- the real widget is gone (so far, has encountered this only in Qt on Mac OS)
-            #self.clean()   #-- TODO: fix!
+        except Exception:  # -- the real widget is gone (so far, has encountered this only in Qt on Mac OS)
+            # self.clean()   #-- TODO: fix!
             self.program_edit = False
             return False
 
@@ -79,7 +85,7 @@ class TraitWidget:
         self.program_edit = False
         return True
 
-    def update_trait_value(self, value = None, invalidate = False):
+    def update_trait_value(self, value: Any = None, invalidate: bool = False):
         if not self.program_edit:
             entity = self.trait_editor.entity
             if invalidate:
@@ -96,15 +102,18 @@ class TraitWidget:
 
             if not rc:
                 self.set_tool_tip(rc.error())
-                self.style_sheet.update({Ui.BG_COLOR: 'orange'}, _system = True)
+                self.style_sheet.update({Ui.BG_COLOR: 'orange'}, _system=True)
             else:
                 self.set_tool_tip(self.trait.ui_hint.tip)
                 self.style_sheet.restore()
 
+    # fmt: off
     def _create(self):              raise NotImplementedError
     def _set_read_only(self, flag): raise NotImplementedError
     def _value(self):               raise NotImplementedError
     def _set_value(self, value):    raise NotImplementedError
+    # fmt: on
+
 
 class RefreshContext(ux.Object):
     REFRESH = ux.signal_decl(object)
@@ -112,7 +121,7 @@ class RefreshContext(ux.Object):
     def __init__(self, trait_widget: TraitWidget):
         super().__init__()
         self.trait_widget = trait_widget
-        self.REFRESH.connect(TraitWidget.refresh, type = ux.QueuedConnection)
+        self.REFRESH.connect(TraitWidget.refresh, type=ux.QueuedConnection)
 
     def emit_signal(self):
         self.REFRESH.emit(self.trait_widget)
