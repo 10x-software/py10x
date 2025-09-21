@@ -15,7 +15,7 @@ from ui_10x.rio.style_sheet import StyleSheet
 
 @dataclass
 class UserSessionContext:
-    #TODO: backbone
+    # TODO: backbone
     host: str
     dbname: str
     traitable_store: TsStore = None
@@ -23,10 +23,12 @@ class UserSessionContext:
 
 
 CURRENT_SESSION: rio.Session | None = None
+
+
 @contextmanager
 def session_context(session: rio.Session):
     global CURRENT_SESSION
-    assert CURRENT_SESSION is None, "Must exit from session context first! Are you using async calls in session context?"
+    assert CURRENT_SESSION is None, 'Must exit from session context first! Are you using async calls in session context?'
     CURRENT_SESSION = session
     try:
         traitable_store = session[UserSessionContext].traitable_store
@@ -41,20 +43,24 @@ def session_context(session: rio.Session):
             traitable_store.end_using()
         CURRENT_SESSION = None
 
+
 class FontMetrics(i.FontMetrics):
     __slots__ = ('_widget',)
+
     def __init__(self, w: Widget):
         self._widget = w
 
     def average_char_width(self) -> int:
-        return 1 # best guess -- rio measures sizes in char heights
+        return 1  # best guess -- rio measures sizes in char heights
+
 
 class SizePolicy(Enum):
     MINIMUM_EXPANDING = ()
     PREFERRED = ()
 
-class TEXT_ALIGN(NamedConstant): # noqa: N801
-    s_vertical = 0xf << 4
+
+class TEXT_ALIGN(NamedConstant):  # noqa: N801
+    s_vertical = 0xF << 4
 
     LEFT = 1
     CENTER = 6
@@ -65,24 +71,24 @@ class TEXT_ALIGN(NamedConstant): # noqa: N801
 
     @classmethod
     def from_str(cls, s: str) -> TEXT_ALIGN:
-        return super().from_str(s.upper()) # type: ignore[return-value]
+        return super().from_str(s.upper())  # type: ignore[return-value]
 
     def rio_attr(self) -> str:
         return 'align_y' if self.value & self.s_vertical else 'align_x'
 
     def rio_value(self) -> float:
-        return ((self.value >> 4 if self.value & self.s_vertical else self.value)-1) /10
+        return ((self.value >> 4 if self.value & self.s_vertical else self.value) - 1) / 10
 
 
 class DynamicComponent(rio.Component):
-    builder: ComponentBuilder|None = None
+    builder: ComponentBuilder | None = None
     revision: int = 0
 
     def __post_init__(self):
         self.key = f'dc_{id(self.builder)}'
 
     def build(self) -> rio.Component:
-        _=self.revision
+        _ = self.revision
         component = self.builder.build(self.session)
         return component
 
@@ -90,14 +96,14 @@ class DynamicComponent(rio.Component):
 class ComponentBuilder:
     __slots__ = ('_kwargs', 'component', 'subcomponent')
 
-    s_component_class : type[rio.Component] = None
+    s_component_class: type[rio.Component] = None
     s_forced_kwargs = {}
     s_default_kwargs = {}
     s_dynamic = True
     s_children_attr = 'children'
     s_single_child = False
     s_pass_children_in_kwargs = False
-    s_size_adjustments = ('min_width', 'min_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom','margin_x', 'margin_y', 'margin')
+    s_size_adjustments = ('min_width', 'min_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom', 'margin_x', 'margin_y', 'margin')
     s_layout_attrs = ('grow_x', 'grow_y', 'align_x', 'align_y')
 
     @staticmethod
@@ -113,29 +119,26 @@ class ComponentBuilder:
     def get_children(self):
         return self[self.s_children_attr]
 
-    def set_children(self,children):
+    def set_children(self, children):
         self[self.s_children_attr] = children
         self.force_update()
 
     def child_count(self):
         return len(self.get_children())
 
-    def _set_children(self,children):
+    def _set_children(self, children):
         if self.s_single_child and not children:
             self.set_children(None)
         else:
             assert not self.s_single_child or len(children) == 1
             self.set_children(children[0] if self.s_single_child else children)
 
-    def _make_kwargs(self,**kwargs):
-        defaults = {
-            kw: value(self, kwargs) if callable(value) else value
-            for kw, value in self.s_default_kwargs.items()
-        }
+    def _make_kwargs(self, **kwargs):
+        defaults = {kw: value(self, kwargs) if callable(value) else value for kw, value in self.s_default_kwargs.items()}
         return defaults | kwargs | self.s_forced_kwargs | dict(key=id(self))
 
     def __init__(self, *children, **kwargs):
-        assert self.s_component_class, f"{self.__class__.__name__}: has no s_component_class"
+        assert self.s_component_class, f'{self.__class__.__name__}: has no s_component_class'
         self._kwargs = self._make_kwargs(**kwargs)
         self.component = None
         self.subcomponent = None
@@ -162,13 +165,13 @@ class ComponentBuilder:
     def with_children(self, *args):
         if not args:
             return self
-        return self.__class__(*args,**self._kwargs)
+        return self.__class__(*args, **self._kwargs)
 
-    def _build_children(self,session: rio.Session):
-        return [ child(session) if isinstance(child,ComponentBuilder) else child for child in self._get_children() if child is not None]
+    def _build_children(self, session: rio.Session):
+        return [child(session) if isinstance(child, ComponentBuilder) else child for child in self._get_children() if child is not None]
 
     @classmethod
-    def create_component(cls,*children,**kwargs) -> rio.Component|None:
+    def create_component(cls, *children, **kwargs) -> rio.Component | None:
         if cls.s_component_class:
             if cls.s_pass_children_in_kwargs:
                 # noinspection PyAugmentAssignment
@@ -177,7 +180,7 @@ class ComponentBuilder:
             return cls.s_component_class(*children, **kwargs)
         return None
 
-    def build(self,session: rio.Session) -> rio.Component|None:
+    def build(self, session: rio.Session) -> rio.Component | None:
         kwargs = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
         for size_adjustment in self.s_size_adjustments:
             if size_adjustment in kwargs:
@@ -186,29 +189,29 @@ class ComponentBuilder:
         self.subcomponent = self.create_component(*children, **kwargs)
         return self.subcomponent
 
-    def __call__(self,session: rio.Session) -> rio.Component:
-        kw = {k:self[k] for k in self.s_layout_attrs if k in self}
-        self.component = DynamicComponent(builder=self,**kw) if self.s_dynamic else self.build(session)
+    def __call__(self, session: rio.Session) -> rio.Component:
+        kw = {k: self[k] for k in self.s_layout_attrs if k in self}
+        self.component = DynamicComponent(builder=self, **kw) if self.s_dynamic else self.build(session)
         return self.component
 
     def __getitem__(self, item):
-        if hasattr(self.subcomponent,item):
-            return getattr(self.subcomponent,item)
+        if hasattr(self.subcomponent, item):
+            return getattr(self.subcomponent, item)
         return self._kwargs[item]
 
-    def __contains__(self,item):
+    def __contains__(self, item):
         return item in self._kwargs
 
     @classmethod
-    def _not_supported(cls,message="not supported",item=None):
+    def _not_supported(cls, message='not supported', item=None):
         item = item or inspect.stack()[1].function
-        print(f"{cls.__name__}.{item}: - {message}")
+        print(f'{cls.__name__}.{item}: - {message}')
 
     def __setitem__(self, item, value):
-        if item!=self.s_children_attr and not hasattr(self.s_component_class,item):
+        if item != self.s_children_attr and not hasattr(self.s_component_class, item):
             return self._not_supported(item)
-        if hasattr(self.subcomponent,item):
-            setattr(self.subcomponent,item,value)
+        if hasattr(self.subcomponent, item):
+            setattr(self.subcomponent, item, value)
         self._kwargs[item] = value
 
     def force_update(self):
@@ -230,19 +233,20 @@ class ComponentBuilder:
         except KeyError:
             return default
 
-    def callback(self,callback):
-        def cb(*args,**kwargs):
+    def callback(self, callback):
+        def cb(*args, **kwargs):
             with session_context(self.component.session):
                 # note - callback must not yield the event loop!
-                return callback(*args,**kwargs)
+                return callback(*args, **kwargs)
+
         return cb
 
 
 class Widget(ComponentBuilder, i.Widget):
     s_component_class = rio.Container
     s_stretch_arg = 'grow_x'
-    s_default_layout_factory = lambda: FlowLayout() # noqa: E731
-    s_default_kwargs = dict(grow_y = False,align_y = 0)
+    s_default_layout_factory = lambda: FlowLayout()  # noqa: E731
+    s_default_kwargs = dict(grow_y=False, align_y=0)
 
     __slots__ = ('_layout',)
 
@@ -258,7 +262,7 @@ class Widget(ComponentBuilder, i.Widget):
     def set_layout(self, layout: i.Layout):
         self._layout = layout
 
-    def _build_children(self,session: rio.Session):
+    def _build_children(self, session: rio.Session):
         return [self._layout.with_children(*self._get_children()).build(session)] if self._layout else super()._build_children(session)
 
     def set_stretch(self, stretch):
@@ -266,20 +270,21 @@ class Widget(ComponentBuilder, i.Widget):
         self[self.s_stretch_arg] = bool(stretch)
 
     def apply_style_sheet(self, style: dict) -> RC:
-        if text_align := TEXT_ALIGN.from_str(style.pop("text-align", "")):
+        if text_align := TEXT_ALIGN.from_str(style.pop('text-align', '')):
             self[text_align.rio_attr()] = text_align.rio_value()
-        if hasattr(self.s_component_class,"text_style"):
+        if hasattr(self.s_component_class, 'text_style'):
             ss = StyleSheet()
             rc = ss.set_values(sheet=style)
-            self["text_style"] = ss.text_style
+            self['text_style'] = ss.text_style
             return rc
         return StyleSheet.rc(style)
 
     def set_style_sheet(self, sh: str):
-        from ui_10x.utils import UxStyleSheet  #TODO: circular import
+        from ui_10x.utils import UxStyleSheet  # TODO: circular import
+
         rc = self.apply_style_sheet(UxStyleSheet.loads(sh))
         if not rc:
-            print(f"{self.__class__.__name__}.set_style_sheet: \n{rc.error()}")
+            print(f'{self.__class__.__name__}.set_style_sheet: \n{rc.error()}')
 
     def set_minimum_height(self, height: int):
         self['min_height'] = height
@@ -295,14 +300,15 @@ class Widget(ComponentBuilder, i.Widget):
         self['tooltip'] = tooltip
 
     def set_text(self, text: str):
-        self["text"] = text
+        self['text'] = text
 
     def set_read_only(self, read_only: bool):
         self['is_sensitive'] = not read_only
 
     def style_sheet(self) -> str:
-        from ui_10x.utils import UxStyleSheet  #TODO: circular import
-        if hasattr(self.s_component_class,"text_style"):
+        from ui_10x.utils import UxStyleSheet  # TODO: circular import
+
+        if hasattr(self.s_component_class, 'text_style'):
             ss = StyleSheet()
             ss.text_style = self.get('text_style')
             return UxStyleSheet.dumps(ss.sheet)
@@ -336,12 +342,13 @@ class Widget(ComponentBuilder, i.Widget):
         return point
 
     @classmethod
-    def create_component(cls,*children,**kwargs) -> rio.Component|None:
+    def create_component(cls, *children, **kwargs) -> rio.Component | None:
         if len(children) == 1 and isinstance(first_child := children[0], rio.Component):
             if kwargs:
                 cls._not_supported(f'ignored kwargs {kwargs}')
             return first_child
-        return super().create_component(*children,**kwargs)
+        return super().create_component(*children, **kwargs)
+
 
 class Layout(Widget, i.Layout):
     def add_widget(self, widget: Widget, stretch=None, **kwargs):

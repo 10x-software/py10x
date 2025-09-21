@@ -14,16 +14,18 @@ class SCROLL(Enum):
     ON = 'always'
     AS_NEEDED = 'auto'
 
+
 class ScrollArea(Widget, i.ScrollArea):
     s_component_class = rio.ScrollContainer
+
     def set_widget(self, w: Widget):
         self.set_children([w])
 
     def set_horizontal_scroll_bar_policy(self, h):
-        self._set_scrollbar_policy('scroll_x',h)
+        self._set_scrollbar_policy('scroll_x', h)
 
     def set_vertical_scroll_bar_policy(self, h):
-        self._set_scrollbar_policy('scroll_y',h)
+        self._set_scrollbar_policy('scroll_y', h)
 
-    def _set_scrollbar_policy(self,scroll:Literal['scroll_x','scroll_y'],policy:SCROLL):
+    def _set_scrollbar_policy(self, scroll: Literal['scroll_x', 'scroll_y'], policy: SCROLL):
         self[scroll] = policy.label

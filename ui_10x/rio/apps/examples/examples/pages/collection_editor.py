@@ -9,7 +9,8 @@ from .. import components as comps
 
 
 def guard(event: rio.GuardEvent) -> str | None:
-    return None if event.session[UserSessionContext].authenticated else "/"
+    return None if event.session[UserSessionContext].authenticated else '/'
+
 
 @rio.page(
     name='CollectionEditor',

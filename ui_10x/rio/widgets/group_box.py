@@ -17,7 +17,7 @@ class GroupBox(Widget, i.GroupBox):
             parent = args[0]
         if len(args) >= 2:
             assert not title, 'title specified twice'
-            parent, title = args # noqa: RUF059 - review
+            parent, title = args  # noqa: RUF059 - review
             children = args[2:]
         super().__init__(*children, **kwargs)
         self['title'] = title
