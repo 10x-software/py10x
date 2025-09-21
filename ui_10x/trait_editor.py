@@ -2,8 +2,6 @@ from collections.abc import Callable
 from contextlib import nullcontext
 from dataclasses import dataclass
 
-from core_10x_i import BTraitableProcessor
-
 from core_10x.concrete_traits import date_trait, dict_trait, flags_trait, list_trait
 from core_10x.entity import Entity
 from core_10x.exec_control import BTP
