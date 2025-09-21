@@ -55,7 +55,6 @@ exclude = [
     "core_10x/code_samples/*",
     "core_10x/manual_tests/*",
     "core_10x/experimental/*",
-    "infra_10x/*",
     "ui_10x/qt6/*",
     "ui_10x/examples/*",
     "ui_10x/py_data_browser.py",
