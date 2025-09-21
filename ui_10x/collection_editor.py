@@ -17,7 +17,7 @@ from ui_10x.utils import (
 
 class Collection(Traitable):
     cls: type[Traitable]
-    filter: f               = RT(T.HIDDEN)
+    filter: f = RT(T.HIDDEN)
 
     entity_ids: list[str]
 
@@ -26,16 +26,17 @@ class Collection(Traitable):
         return self.raw_set_value(t, cls)
 
     def entity_ids_get(self) -> list[str]:
-        return [ entity_id.value for entity_id in self.cls.load_ids() ]
+        return [entity_id.value for entity_id in self.cls.load_ids()]
 
     def refresh(self):
         self.invalidate_value('entity_ids')
+
 
 class CollectionEditor(Traitable):
     coll: Collection
     current_class: Any
     coll_title: str
-    num_panes: int                      = RT(1)
+    num_panes: int = RT(1)
 
     main_w: ux.Splitter
     searchable_list: UxSearchableList
@@ -48,7 +49,7 @@ class CollectionEditor(Traitable):
         return self.coll.cls
 
     def stocker_get(self):
-        return EntityStocker(plug = StockerPlug(master = self))
+        return EntityStocker(plug=StockerPlug(master=self))
 
     def main_widget(self) -> ux.Widget:
         sp = ux.Splitter(ux.Horizontal)
@@ -60,12 +61,13 @@ class CollectionEditor(Traitable):
         left_top_lay = ux.HBoxLayout()
         line_w = ux.LineEdit()
         line_w.set_minimum_width(100)
-        button_w = ux_push_button('New', callback = self.on_new_entity, style_icon = 'FileIcon' )
+        button_w = ux_push_button('New', callback=self.on_new_entity, style_icon='FileIcon')
         left_top_lay.add_widget(line_w)
         left_top_lay.add_widget(button_w)
 
         left_lay.add_layout(left_top_lay)
 
+        # fmt: off
         self.searchable_list = list_w = UxSearchableList(
             text_widget = line_w,
             title       = f'Instances of {self.coll.cls.__name__}',
@@ -73,7 +75,9 @@ class CollectionEditor(Traitable):
             select_hook = self.on_entity_id_selection,
             sort        = True,
         )
-        slw = ux_make_scrollable(list_w, h = ux.SCROLL.OFF)
+        # fmt: on
+
+        slw = ux_make_scrollable(list_w, h=ux.SCROLL.OFF)
 
         left_lay.add_widget(slw)
 
@@ -82,7 +86,7 @@ class CollectionEditor(Traitable):
         sp.add_widget(left_w)
         sp.add_widget(ux.Widget())
         sp.set_stretch_factor(0, 1)
-        sp.set_stretch_factor(1, 2)     #-- TODO: set it for extra panes as needed
+        sp.set_stretch_factor(1, 2)  # -- TODO: set it for extra panes as needed
 
         self.main_w = sp
         return sp
@@ -101,7 +105,7 @@ class CollectionEditor(Traitable):
 
     def on_entity_id_selection(self, id_value: str):
         if self.num_panes:
-            obj: Traitable = self.coll.cls(_id = ID(id_value))
+            obj: Traitable = self.coll.cls(_id=ID(id_value))
             se = self.stocker
             ed = se or TraitableEditor.editor(obj)
             self.current_entity = obj
@@ -114,17 +118,18 @@ class CollectionEditor(Traitable):
         if cls:
             new_entity = cls()
             ed = TraitableEditor.editor(new_entity)
+
             def accept_hook(rc: RC):
                 if not rc:
-                    ux_warning(rc.error(), parent = self.main_w, on_close = lambda ctx: None)
-                    #-- TODO: should we "merge" values from the existing instance?
+                    ux_warning(rc.error(), parent=self.main_w, on_close=lambda ctx: None)
+                    # -- TODO: should we "merge" values from the existing instance?
 
                 else:
                     self.searchable_list.add_choice(new_entity.id().value)
 
-            ed.popup(copy_entity = False, title = f'New Entity of {cls.__name__}', save = True,accept_hook=accept_hook)
+            ed.popup(copy_entity=False, title=f'New Entity of {cls.__name__}', save=True, accept_hook=accept_hook)
 
-    def on_deleted_entity(self,deleted_entity):
+    def on_deleted_entity(self, deleted_entity: Traitable):
         self.searchable_list.remove_choice(deleted_entity.id().value)
         if self.current_entity is deleted_entity:
-            self.set_pane(0,ux.Widget())
+            self.set_pane(0, ux.Widget())
