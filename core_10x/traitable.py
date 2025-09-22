@@ -258,6 +258,21 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         self.T = TraitAccessor(self)
 
     @classmethod
+    def existing_instance(cls, _collection_name: str = None, **trait_values) -> 'Traitable':
+        obj = cls(_collection_name = _collection_name)
+        if not obj.object_exists(trait_values):
+            return None
+
+        return obj
+
+    @classmethod
+    def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None) -> 'Traitable':
+        if _id is None:
+            _id = ID(_id_value, _collection_name)
+        obj = cls(_id = _id)
+        return obj if obj.id_exists() else None
+
+    @classmethod
     def update(cls, **kwargs) -> Self:
         o = cls(**{k: v for k, v in kwargs.items() if not (t := cls.s_dir.get(k)) or t.flags_on(T.ID)})
         o.set_values(**{k: v for k, v in kwargs.items() if (t := cls.s_dir.get(k)) and not t.flags_on(T.ID)}).throw()
