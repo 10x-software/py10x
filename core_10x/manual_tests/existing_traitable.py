@@ -5,6 +5,13 @@ db = MongoStore.instance(hostname = 'localhost', dbname = 'test')
 db.begin_using()
 
 ppl_stored = Person.load_many()
+if not ppl_stored:
+    ppl_stored = [
+        Person(last_name = 'Davidovich',    first_name = 'Sasha',   weight_lbs = 170),
+        Person(last_name = 'Pevzner',       first_name = 'Ilya',    weight_lbs = 200),
+        Person(last_name = 'Lesin',         first_name = 'Alex',    weight_lbs = 190),
+        Person(last_name = 'Smith',         first_name = 'John',    weight_lbs = 180),
+    ]
 
 id_traits = ('last_name', 'first_name')
 existing_id_traits = [
