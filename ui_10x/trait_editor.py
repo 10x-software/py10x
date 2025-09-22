@@ -57,7 +57,7 @@ class EntityWrapper:
 
 class TraitEditor:
     def __init__(
-        self, entity, trait: Trait, ui_hint: Ui, custom_callback: Callable[None, None] = None, traitable_processor: Callable[[], BTP] = None
+        self, entity, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None
     ):
         self.entity = EntityWrapper(entity, traitable_processor)
         self.trait = trait
@@ -68,7 +68,7 @@ class TraitEditor:
     def is_read_only(self) -> bool:
         return self.ui_hint.flags_on(Ui.READ_ONLY)
 
-    def _establish_callback(self, custom_callback: Callable[None, None]):
+    def _establish_callback(self, custom_callback: Callable[[], None]):
         if custom_callback:
             return custom_callback
 
