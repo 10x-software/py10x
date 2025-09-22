@@ -21,3 +21,16 @@ assert p1
 
 p2 = Person.existing_instance(last_name = 'Smith', first_name = 'Josh')
 assert not p2
+
+id1 = ppl_found[0].id()
+p3 = Person.existing_instance_by_id(_id = id1)
+
+id1_val = id1.value
+p4 = Person.existing_instance_by_id(_id_value = id1_val)
+assert p3 == p4
+
+id2_val = 'Smith|Josh'
+p5 = Person.existing_instance_by_id(_id_value = id2_val)
+assert not p5
+
+
