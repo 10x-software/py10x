@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import inspect
 
@@ -21,13 +23,14 @@ class TraitableView:
 
         Such named_traits specify either traits to use (slice) or the ones to modify (modify)
     """
+
     @classmethod
     def _check(cls, hint_mod, trait_name: str) -> bool:
         assert isinstance(hint_mod, UiMod), f'{trait_name} = {hint_mod} - UiMod is expected'
         return True
 
     @classmethod
-    def suitable_record(cls, trait: Trait = None, trait_dir: dict = None, trait_name: str = None, _skip_reserved = True) -> Trait|None:
+    def suitable_record(cls, trait: Trait = None, trait_dir: dict = None, trait_name: str = None, _skip_reserved: bool = True) -> Trait | None:
         if not trait:
             assert trait_dir and trait_name, 'trait is None, so both trait_dir and trait_name must be provided'
             trait = trait_dir.get(trait_name)
@@ -38,24 +41,28 @@ class TraitableView:
         return None if trait.flags_on(flags) or trait.getter_params else trait
 
     @classmethod
-    def slice(cls, traitable_class, _header_data: dict = None, **named_ui_hint_changes) -> 'TraitableView':
+    def slice(cls, traitable_class, _header_data: dict = None, **named_ui_hint_changes) -> TraitableView:
         assert inspect.isclass(traitable_class) and issubclass(traitable_class, Traitable), f'{traitable_class} is not a Traitable'
 
         trait_dir = traitable_class.s_dir
         trait: Trait
         ui_hints = {
             name: hint_change.apply(trait.ui_hint) if cls._check(hint_change, trait.name) else None
-            for name, hint_change in named_ui_hint_changes.items() if (trait := cls.suitable_record(trait_dir = trait_dir, trait_name = name))
+            for name, hint_change in named_ui_hint_changes.items()
+            if (trait := cls.suitable_record(trait_dir=trait_dir, trait_name=name))
         }
         return TraitableView(traitable_class, ui_hints, _header_data)
 
     @classmethod
-    def modify(cls, traitable_class, _header_data: dict = None, _skip_reserved = True, **named_ui_hint_changes) -> 'TraitableView':
+    def modify(
+        cls, traitable_class: type[Traitable], _header_data: dict = None, _skip_reserved: bool = True, **named_ui_hint_changes
+    ) -> TraitableView:
         assert inspect.isclass(traitable_class) and issubclass(traitable_class, Traitable), f'{traitable_class} is not a Traitable'
 
         ui_hints = {
             trait_name: trait.ui_hint
-            for trait_name, trait in traitable_class.s_dir.items() if TraitableView.suitable_record(trait = trait, _skip_reserved = _skip_reserved)
+            for trait_name, trait in traitable_class.s_dir.items()
+            if TraitableView.suitable_record(trait=trait, _skip_reserved=_skip_reserved)
         }
 
         for name, hint_change in named_ui_hint_changes.items():
@@ -68,10 +75,10 @@ class TraitableView:
 
     @staticmethod
     @cache
-    def default(traitable_class, read_only = False) -> 'TraitableView':
-        return TraitableView.modify(traitable_class).make_read_only(read_only, clone = True)
+    def default(traitable_class: type[Traitable], read_only: bool = False) -> TraitableView:
+        return TraitableView.modify(traitable_class).make_read_only(read_only, clone=True)
 
-    def make_read_only(self, flag: bool, clone = False) -> 'TraitableView':
+    def make_read_only(self, flag: bool, clone=False) -> TraitableView:
         view = self if not clone else copy.deepcopy(self)
 
         to_set = Ui.READ_ONLY if flag else 0x0
@@ -98,17 +105,17 @@ class TraitableView:
             if isinstance(subtree, str):  # -- must be a trait name
                 label = subtree
                 hint = ui_hints.get(subtree_name)
-                if not hint:  #-- ignore an unknown or unused trait
+                if not hint:  # -- ignore an unknown or unused trait
                     continue
-                if not label:  #-- no label overwrite
+                if not label:  # -- no label overwrite
                     label = hint.label
                 header[subtree_name] = label
 
-            elif isinstance(subtree, dict):     #-- must be a real subtree
+            elif isinstance(subtree, dict):  # -- must be a real subtree
                 header[subtree_name] = TraitableView._process_tree(ui_hints, subtree)
 
             else:
-                continue  #-- ignore anything else
+                continue  # -- ignore anything else
 
         return header
 

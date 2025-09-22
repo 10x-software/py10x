@@ -26,7 +26,7 @@ rio-ui@git+https://github.com/ilya-pevzner/rio.git@size-observer
 pytest>=8.3.4
 pytest-cov>=6.0.0
 ruff>=0.13.0
-
+uv>=0.8.19
 
 #---- the below are not currently required ---
 #clipboard>=0.0.4

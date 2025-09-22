@@ -6,12 +6,7 @@ if __name__ == '__main__':
     id_value = 'AAAA'
     rev = 10
 
-    serialized_traitable = dict(
-        _id = id_value,
-        _rev = rev,
-        name = 'test',
-        age = 60
-    )
+    serialized_traitable = dict(_id=id_value, _rev=rev, name='test', age=60)
 
     coll = store.collection('test')
 

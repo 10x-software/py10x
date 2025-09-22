@@ -3,23 +3,28 @@ from collections.abc import Callable
 from datetime import date
 
 
-class Object(abc.ABC): ... # noqa: B024
+class Object(abc.ABC): ...  # noqa: B024
 
+
+# fmt: off
 QueuedConnection            = None
 AutoConnection              = None
 DirectConnection            = None
 UniqueConnection            = None
 BlockingQueuedConnection    = None
+# fmt: on
 
-class signal_decl(abc.ABC): # noqa: N801
+
+class signal_decl(abc.ABC):  # noqa: N801
     @abc.abstractmethod
     def __init__(self, *args): ...
 
     @abc.abstractmethod
-    def connect(self, method, type = None): ...
+    def connect(self, method, type=None): ...
 
     @abc.abstractmethod
     def emit(self, *args): ...
+
 
 class MouseEvent(abc.ABC):
     @abc.abstractmethod
@@ -28,6 +33,7 @@ class MouseEvent(abc.ABC):
     @abc.abstractmethod
     def is_right_button(self) -> bool: ...
 
+
 class Point(abc.ABC):
     @abc.abstractmethod
     def x(self) -> int: ...
@@ -35,18 +41,23 @@ class Point(abc.ABC):
     @abc.abstractmethod
     def y(self) -> int: ...
 
-class SizePolicy(abc.ABC): # noqa: B024
+
+class SizePolicy(abc.ABC):  # noqa: B024
     MINIMUM_EXPANDING = None
     PREFERRED = None
+
 
 class FontMetrics(abc.ABC):
     @abc.abstractmethod
     def average_char_width(self) -> int: ...
 
-class Color(abc.ABC): ... # noqa: B024
+
+class Color(abc.ABC): ...  # noqa: B024
+
 
 class Widget(abc.ABC):
     __slots__ = ()
+
     @abc.abstractmethod
     def __init__(self, *args, **kwargs) -> None: ...
 
@@ -95,8 +106,12 @@ class Widget(abc.ABC):
     @abc.abstractmethod
     def font_metrics(self) -> FontMetrics: ...
 
+
+# fmt: off
 Horizontal  = 0
 Vertical    = 1
+# fmt: on
+
 
 class Layout(abc.ABC):
     @abc.abstractmethod
@@ -111,16 +126,22 @@ class Layout(abc.ABC):
     @abc.abstractmethod
     def set_contents_margins(self, left, top, right, bottom): ...
 
-class BoxLayout(Layout,abc.ABC):
+
+class BoxLayout(Layout, abc.ABC):
     @abc.abstractmethod
     def add_layout(self, layout: 'Layout', **kwargs): ...
 
-class HBoxLayout(BoxLayout,abc.ABC): ...
-class VBoxLayout(BoxLayout,abc.ABC): ...
+
+class HBoxLayout(BoxLayout, abc.ABC): ...
+
+
+class VBoxLayout(BoxLayout, abc.ABC): ...
+
 
 class FormLayout(Layout):
     @abc.abstractmethod
     def add_row(self, w1: Widget, w2: Widget = None): ...
+
 
 class Splitter(Widget):
     @abc.abstractmethod
@@ -135,10 +156,13 @@ class Splitter(Widget):
     @abc.abstractmethod
     def replace_widget(self, widget_index: int, widget: Widget): ...
 
+
 class Label(Widget):
     __slots__ = ()
+
     @abc.abstractmethod
     def set_text(self, text: str): ...
+
 
 class Style(abc.ABC):
     State_Active = None
@@ -146,13 +170,16 @@ class Style(abc.ABC):
     @abc.abstractmethod
     def standard_icon(self, style_icon): ...
 
+
 class PushButton(Label):
     __slots__ = ()
+
     @abc.abstractmethod
     def clicked_connect(self, bound_method): ...
 
     @abc.abstractmethod
     def set_flat(self, flat: bool): ...
+
 
 class LineEdit(Label):
     @abc.abstractmethod
@@ -173,6 +200,7 @@ class LineEdit(Label):
     @abc.abstractmethod
     def set_tool_tip(self, tooltip: str): ...
 
+
 class TextEdit(Widget):
     @abc.abstractmethod
     def to_plain_text(self) -> str: ...
@@ -182,6 +210,7 @@ class TextEdit(Widget):
 
     @abc.abstractmethod
     def set_read_only(self, readonly: bool): ...
+
 
 class CheckBox(Label):
     @abc.abstractmethod
@@ -193,17 +222,21 @@ class CheckBox(Label):
     @abc.abstractmethod
     def state_changed_connect(self, bound_method): ...
 
-class ComboBox(Widget):
- ...
+
+class ComboBox(Widget): ...
+
 
 class GroupBox(Widget):
     @abc.abstractmethod
     def set_title(self, title: str): ...
 
+
 class RadioButton(Widget):
     __slots__ = ()
+
     @abc.abstractmethod
     def set_checked(self, checked: bool): ...
+
 
 class ButtonGroup(Widget):
     @abc.abstractmethod
@@ -215,6 +248,7 @@ class ButtonGroup(Widget):
     @abc.abstractmethod
     def checked_id(self) -> int: ...
 
+
 class ListItem(abc.ABC):
     @abc.abstractmethod
     def row(self): ...
@@ -222,7 +256,10 @@ class ListItem(abc.ABC):
     @abc.abstractmethod
     def set_selected(self, selected: bool): ...
 
+
 MatchExactly = None
+
+
 class ListWidget(Widget):
     @abc.abstractmethod
     def add_item(self, item): ...
@@ -245,6 +282,7 @@ class ListWidget(Widget):
     @abc.abstractmethod
     def take_item(self, row: int): ...
 
+
 class TreeItem(Widget):
     @abc.abstractmethod
     def child_count(self): ...
@@ -257,6 +295,7 @@ class TreeItem(Widget):
 
     @abc.abstractmethod
     def set_tool_tip(self, col: int, tooltip: str): ...
+
 
 class TreeWidget(Widget):
     @abc.abstractmethod
@@ -292,6 +331,7 @@ class TreeWidget(Widget):
     @abc.abstractmethod
     def open_persistent_editor(self, item, col: int): ...
 
+
 class CalendarWidget(Widget):
     @abc.abstractmethod
     def set_grid_visible(self, grid_visible: bool): ...
@@ -302,12 +342,13 @@ class CalendarWidget(Widget):
     @abc.abstractmethod
     def selected_date(self) -> date: ...
 
+
 class Dialog(Widget):
     @abc.abstractmethod
     def set_window_title(self, title: str): ...
 
     @abc.abstractmethod
-    def set_window_flags(self, flags):  ...
+    def set_window_flags(self, flags): ...
 
     @abc.abstractmethod
     def reject(self): ...
@@ -316,7 +357,7 @@ class Dialog(Widget):
     def done(self, rc: int): ...
 
     @abc.abstractmethod
-    def set_modal(self, modal: bool):   ...
+    def set_modal(self, modal: bool): ...
 
     @abc.abstractmethod
     def exec(self): ...
@@ -324,22 +365,24 @@ class Dialog(Widget):
     @abc.abstractmethod
     def show(self): ...
 
+
 class MessageBox(abc.ABC):
     @classmethod
     @abc.abstractmethod
-    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog],None]) -> bool: ...
+    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]) -> bool: ...
 
     @classmethod
     @abc.abstractmethod
-    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog],None]): ...
+    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]): ...
 
     @classmethod
     @abc.abstractmethod
-    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog],None]): ...
+    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]): ...
 
     @classmethod
     @abc.abstractmethod
     def is_yes_button(cls, sb) -> bool: ...
+
 
 class Application(abc.ABC):
     @classmethod
@@ -350,18 +393,24 @@ class Application(abc.ABC):
     def style(self): ...
 
 
-class TEXT_ALIGN: # noqa: N801
+class TEXT_ALIGN:  # noqa: N801
+    # fmt: off
     TOP       = None
     V_CENTER  = None
     BOTTOM    = None
     LEFT      = None
     CENTER    = None
     RIGHT     = None
+    # fmt: on
 
-class SCROLL(abc.ABC): # noqa: B024
+
+class SCROLL(abc.ABC):  # noqa: B024
+    # fmt: off
     OFF         = None
     ON          = None
     AS_NEEDED   = None
+    # fmt: on
+
 
 class ScrollArea(Widget):
     @abc.abstractmethod
@@ -373,12 +422,14 @@ class ScrollArea(Widget):
     @abc.abstractmethod
     def set_vertical_scroll_bar_policy(self, h): ...
 
+
 class StandardItem(abc.ABC):
     @abc.abstractmethod
     def __init__(self, *args): ...
 
     @abc.abstractmethod
     def append_column(self, column: tuple): ...
+
 
 class StandardItemModel(abc.ABC):
     @abc.abstractmethod
@@ -389,6 +440,7 @@ class StandardItemModel(abc.ABC):
 
     @abc.abstractmethod
     def index(self, row: int, col: int): ...
+
 
 class ModelIndex(abc.ABC):
     @abc.abstractmethod
@@ -406,7 +458,9 @@ class ModelIndex(abc.ABC):
     @abc.abstractmethod
     def data(self, role): ...
 
-class AbstractTableModel(abc.ABC): ... # noqa: B024
+
+class AbstractTableModel(abc.ABC): ...  # noqa: B024
+
 
 class HeaderView(abc.ABC):
     @abc.abstractmethod
@@ -418,10 +472,13 @@ class HeaderView(abc.ABC):
     @abc.abstractmethod
     def init_style_option(self, *args): ...
 
+
 class Palette(abc.ABC):
+    # fmt: off
     ButtonText  = None
     Button      = None
     Window      = None
+    # fmt: on
 
     @abc.abstractmethod
     def set_brush(self, br_type, brush): ...
@@ -431,13 +488,17 @@ class StyleOptionHeader(abc.ABC):
     palette: Palette
 
 
-ForegroundRole  = None
-BackgroundRole  = None
+ForegroundRole = None
+BackgroundRole = None
 
-class Separator(abc.ABC): ... # noqa: B024
 
+class Separator(abc.ABC): ...  # noqa: B024
+
+
+# fmt: off
 def init(style = '') -> Application:           raise NotImplementedError
 def to_clipboard(text: str, **kwargs):         raise NotImplementedError
 def from_clipboard(**kwargs) -> str:           raise NotImplementedError
-def separator(horizontal = True) -> Separator:     raise NotImplementedError
-def is_ui_thread() -> bool:                         raise NotImplementedError
+def separator(horizontal = True) -> Separator: raise NotImplementedError
+def is_ui_thread() -> bool:                    raise NotImplementedError
+# fmt: on

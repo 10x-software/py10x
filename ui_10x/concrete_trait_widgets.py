@@ -6,7 +6,7 @@ from ui_10x.trait_widget import TraitWidget
 from ui_10x.utils import UxClipBoard, ux, ux_push_button
 
 
-class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE):
+class LineEditWidget(TraitWidget, ux.LineEdit, widget_type=Ui.WIDGET_TYPE.LINE):
     def _create(self):
         ux.LineEdit.__init__(self)
 
@@ -21,11 +21,11 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE
         if self.was_edited:
             self.was_edited = False
             str_value = self.text()
-            if not str_value:   #-- user cleared the field, let's get the value back!
-                self.update_trait_value(invalidate = True)
+            if not str_value:  # -- user cleared the field, let's get the value back!
+                self.update_trait_value(invalidate=True)
             else:
                 ##value = self.trait.from_str(str_value)
-                self.update_trait_value(value = str_value, invalidate = False)
+                self.update_trait_value(value=str_value, invalidate=False)
 
     def mouse_press_event(self, event: ux.MouseEvent):
         if event.is_right_button():
@@ -46,12 +46,16 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type = Ui.WIDGET_TYPE.LINE
         str_value = self.trait.to_str(value)
         self.set_text(str_value)
 
+
 def create_text_widget(editor, trait: Trait):
     if isinstance(trait, list_trait):
         return TextEditForListWidget(editor, trait)
 
     return TextEditWidget(editor, trait)
+
+
 TraitWidget.s_hinted_widgets[Ui.WIDGET_TYPE.TEXT] = create_text_widget
+
 
 class TextEditWidget(TraitWidget, ux.TextEdit):
     def _create(self):
@@ -59,7 +63,7 @@ class TextEditWidget(TraitWidget, ux.TextEdit):
 
     def focus_out_event(self, event):
         value = self._value()
-        self.update_trait_value(value = value) if value else self.update_trait_value(invalidate = True)
+        self.update_trait_value(value=value) if value else self.update_trait_value(invalidate=True)
 
     def _set_read_only(self, flag):
         self.set_read_only(flag)
@@ -71,6 +75,7 @@ class TextEditWidget(TraitWidget, ux.TextEdit):
         if not isinstance(value, str):
             value = ''
         self.set_plain_text(value)
+
 
 class TextEditForListWidget(TextEditWidget):
     def _value(self) -> list:
@@ -85,13 +90,15 @@ class TextEditForListWidget(TextEditWidget):
             value = '\n'.join(value)
             self.set_plain_text(value)
 
-class PasswordWidget(LineEditWidget, widget_type = Ui.WIDGET_TYPE.PASSWORD):
+
+class PasswordWidget(LineEditWidget, widget_type=Ui.WIDGET_TYPE.PASSWORD):
     def _create(self):
         super()._create()
         self.set_password_mode()
         self.set_text('')
 
-class CheckBoxWidget(TraitWidget, ux.CheckBox, widget_type = Ui.WIDGET_TYPE.CHECK):
+
+class CheckBoxWidget(TraitWidget, ux.CheckBox, widget_type=Ui.WIDGET_TYPE.CHECK):
     def _create(self):
         ux.CheckBox.__init__(self)
         if self.trait.ui_hint.param('right_label', False):
@@ -100,7 +107,7 @@ class CheckBoxWidget(TraitWidget, ux.CheckBox, widget_type = Ui.WIDGET_TYPE.CHEC
         self.state_changed_connect(self.on_state_changed)
 
     def on_state_changed(self, flag):
-        self.update_trait_value(value = bool(flag))
+        self.update_trait_value(value=bool(flag))
 
     def _set_read_only(self, flag):
         self.set_enabled(flag)
@@ -111,7 +118,8 @@ class CheckBoxWidget(TraitWidget, ux.CheckBox, widget_type = Ui.WIDGET_TYPE.CHEC
     def _set_value(self, value):
         self.set_checked(bool(value))
 
-class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
+
+class ChoiceWidget(TraitWidget, ux.Widget, widget_type=Ui.WIDGET_TYPE.CHOICE):
     def _create(self):
         ux.Widget.__init__(self)
 
@@ -120,7 +128,7 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
         lay.set_contents_margins(0, 0, 0, 0)
         self.set_layout(lay)
 
-        #-- Line edit
+        # -- Line edit
         self.line_edit = le = ux.LineEdit()
         if self.trait_editor.is_read_only():
             le.set_read_only(True)
@@ -128,13 +136,13 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
         le.editing_finished_connect(self.on_editing_finished)
         lay.add_widget(le)
 
-        #-- Arrow down button
-        self.button = ux_push_button('', callback = self.show_popup, style_icon = 'ArrowDown')
+        # -- Arrow down button
+        self.button = ux_push_button('', callback=self.show_popup, style_icon='ArrowDown')
         lay.add_widget(self.button)
 
         entity = self.trait_editor.entity
         trait = self.trait
-        self.choice = Choice(f_choices = lambda: entity.get_choices(trait), f_selection_callback = lambda item: self.on_selection(item))
+        self.choice = Choice(f_choices=lambda: entity.get_choices(trait), f_selection_callback=lambda item: self.on_selection(item))
 
     def _value(self):
         selection = self.choice.values_selected
@@ -156,7 +164,7 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
     #     self.update_trait_value()
 
     def show_popup(self):
-        self.popup = d = self.choice.popup(parent = self, _open = False)
+        self.popup = d = self.choice.popup(parent=self, _open=False)
         w = self.width()
         h = self.height()
         xy = self.map_to_global(ux.Point(0, 0))
@@ -167,26 +175,30 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type = Ui.WIDGET_TYPE.CHOICE):
 
     def on_selection(self, item):
         self.line_edit.set_text(item)
-        self.update_trait_value(value = self.choice.values_selected[0], invalidate = False)
+        self.update_trait_value(value=self.choice.values_selected[0], invalidate=False)
 
     def on_editing_finished(self):
         str_value = self.line_edit.text()
         if not str_value:
-            self.update_trait_value(invalidate = True)
+            self.update_trait_value(invalidate=True)
         else:
             value = self.choice.choices.get(str_value, str_value)
-            self.update_trait_value(value = value, invalidate = False)
+            self.update_trait_value(value=value, invalidate=False)
 
-class PixmapLabelWidget(TraitWidget, ux.Label, widget_type = Ui.WIDGET_TYPE.PIXMAP):
+
+class PixmapLabelWidget(TraitWidget, ux.Label, widget_type=Ui.WIDGET_TYPE.PIXMAP):
     def _create(self):
         ux.Label.__init__(self)
-        #self.pixmap = UxPixmap()
+        # self.pixmap = UxPixmap()
+
     ...
 
-class PushButtonWidget(TraitWidget, ux.PushButton, widget_type = Ui.WIDGET_TYPE.PUSH):
+
+class PushButtonWidget(TraitWidget, ux.PushButton, widget_type=Ui.WIDGET_TYPE.PUSH):
     def _create(self):
         ux.PushButton.__init__(self)
         self.set_text(self.trait.ui_hint.label)
+
     ...
 
     def _set_read_only(self, flag):

@@ -8,7 +8,7 @@ from ui_10x.rio.component_builder import Widget
 
 
 class TreeItem(Widget, i.TreeItem):
-    __slots__ = ("handlers",)
+    __slots__ = ('handlers',)
     s_component_class = rio_components.RioTreeItem
 
     def __init__(self, parent: TreeWidget | TreeItem, *args, **kwargs):
@@ -16,10 +16,10 @@ class TreeItem(Widget, i.TreeItem):
         parent[self.s_children_attr] = parent[self.s_children_attr] + [self]
         self.handlers = parent.handlers
         for name, callback in self.handlers.items():
-            self[name.replace("_item_", "_")] = partial(callback, self)
+            self[name.replace('_item_', '_')] = partial(callback, self)
 
     def set_expanded(self, expanded: bool):
-        self["is_expanded"] = expanded
+        self['is_expanded'] = expanded
 
     # noinspection PyMethodOverriding
     def set_text(self, col: int, text: str):
@@ -29,18 +29,19 @@ class TreeItem(Widget, i.TreeItem):
     def set_tool_tip(self, col: int, text: str):
         super().set_tool_tip(text)
 
+
 class TreeWidget(Widget, i.TreeWidget):
     __slots__ = ('handlers',)
     s_component_class = rio_components.RioTreeView
     s_default_kwargs = dict(selection_mode='single')
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args,**kwargs)
+        super().__init__(*args, **kwargs)
         self.handlers = {}
 
     def set_column_count(self, col_count: int):
         """Set the number of columns in the tree widget."""
-        assert col_count in [1,2], 'col_count must be 1 or 2'
+        assert col_count in [1, 2], 'col_count must be 1 or 2'
         self['col_count'] = col_count
 
     def set_header_labels(self, labels: list):
@@ -63,9 +64,8 @@ class TreeWidget(Widget, i.TreeWidget):
         self.handlers['on_item_expand'] = self.callback(bound_method)
 
     def item_clicked_connect(self, bound_method):
-        #self.handlers['on_item_double_press'] = bound_method
+        # self.handlers['on_item_double_press'] = bound_method
         self.handlers['on_item_press'] = self.callback(bound_method)
-
 
     def item_pressed_connect(self, bound_method):
         self.handlers['on_item_press'] = bound_method
@@ -75,12 +75,12 @@ class TreeWidget(Widget, i.TreeWidget):
 
     def edit_item(self, item: TreeItem, col: int):
         """Start editing the specified item in the given column (placeholder)."""
-        #self.component.start_editing(item, col)
+        # self.component.start_editing(item, col)
         raise NotImplementedError
 
     def open_persistent_editor(self, item: TreeItem, col: int):
         """Open a persistent editor for the specified item and column (placeholder)."""
-        #self.component.open_persistent_editor(item, col)
+        # self.component.open_persistent_editor(item, col)
         raise NotImplementedError
 
     def add_top_level_item(self, item: TreeItem):
