@@ -39,6 +39,31 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
     return proc;
 }
 
+bool BTraitableProcessor::object_exists(const TID& tid) const {
+    auto oc = m_cache->find_object_cache(tid);
+    return oc || tid.cls()->instance_in_store(tid);
+}
+
+bool BTraitableProcessor::object_exists(BTraitable *obj) {
+    if(obj->tid().is_valid())
+        return object_exists(obj->tid());
+
+    auto id_value = obj->endogenous_id();
+    m_cache->remove_temp_object_cache(obj->tid());
+
+    auto id_to_be = PyLinkage::traitable_id(id_value, obj->tid().coll_name());
+    auto cls = obj->my_class();
+    TID tid(cls, id_to_be);
+    auto oc = m_cache->find_object_cache(tid);
+    bool exists = (oc != nullptr) || cls->instance_in_store(tid);
+    if(exists) {
+        obj->set_id_value(id_value);
+        if(!oc)
+            cls->load(id_value);
+    }
+    return exists;
+}
+
 py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existing) {
     if (obj->tid().is_valid())
         return PyLinkage::RC_TRUE();

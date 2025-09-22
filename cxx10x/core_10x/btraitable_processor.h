@@ -9,6 +9,7 @@
 #include <thread>
 
 #include "py_linkage.h"
+#include "tid.h"
 
 class BasicNode;
 class BTraitable;
@@ -124,7 +125,10 @@ public:
     BasicNode*              get_node(BTraitable* obj, BTrait* trait) const;
     BasicNode*              get_node(BTraitable* obj, BTrait* trait, const py::args& args) const;
 
+    bool                    object_exists(const TID& tid) const;
+    bool                    object_exists(BTraitable* obj);
     py::object              share_object(BTraitable* obj, bool accept_existing);
+
     void                    export_nodes();
 
     virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait) = 0;

@@ -21,10 +21,14 @@ public:
     explicit BTraitable(BTraitableClass* cls, const py::object& id) : m_tid(cls, id) {}
     ~BTraitable();
 
-    py::object endogenous_id(bool& non_id_traits_set);
+    py::object endogenous_id();
+    py::object endogenous_id(bool& non_id_traits_set);  // TODO: we may NOT need this overload anymore
+
     static py::object exogenous_id();
 
     void initialize(const py::dict& trait_values);
+    bool object_exists(const py::dict& trait_values);
+    bool id_exists();
 
     void set_id_value(const py::str& id_value)                  { m_tid.set_id_value(id_value); }
 
