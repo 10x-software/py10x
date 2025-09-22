@@ -12,16 +12,21 @@ from ui_10x.rio import component_builder, widgets
 @cache
 def init(): ...
 
+
 class Object: ...
 
+
 Application = widgets.Application
+
 
 class ConnectionType(Enum):
     DIRECT = ()
     QUEUED = ()
 
+
 DirectConnection = ConnectionType.DIRECT
 QueuedConnection = ConnectionType.QUEUED
+
 
 class SignalDecl:
     def __init__(self):
@@ -31,16 +36,17 @@ class SignalDecl:
         self.handlers.add((handler, type))
         return True
 
-    def emit(self,*args) -> None:
+    def emit(self, *args) -> None:
         for handler, conn in self.handlers:
-            handler(*args) if conn == DirectConnection else asyncio.get_running_loop().call_soon(handler,*args)
+            handler(*args) if conn == DirectConnection else asyncio.get_running_loop().call_soon(handler, *args)
+
 
 def signal_decl(arg=object):
     assert arg is object, 'arg must be object'
     return SignalDecl()
 
-class MouseEvent:
-    ...
+
+class MouseEvent: ...
 
 
 SCROLL = widgets.SCROLL
@@ -78,8 +84,10 @@ CheckBox = widgets.CheckBox
 ScrollArea = widgets.ScrollArea
 Separator = widgets.Separator
 
-def separator(horizontal = True) -> Separator:
+
+def separator(horizontal=True) -> Separator:
     return Separator() if horizontal else Separator(orientation='vertical')
+
 
 Direction = widgets.Direction
 
@@ -100,5 +108,3 @@ TreeWidget = widgets.TreeWidget
 TreeItem = widgets.TreeItem
 
 CalendarWidget = widgets.CalendarWidget
-
-

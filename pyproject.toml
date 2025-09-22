@@ -20,12 +20,13 @@ dependencies = [
 ]
 [project.optional-dependencies]
 dev = [
-    "pytest (>=8.3.4)",
-    "pytest-cov (>=6.0.0)",
-    "ruff (>=0.13.0)",
+    "pytest>=8.3.4",
+    "pytest-cov>=6.0.0",
+    "ruff>=0.13.0",
+    "uv>=0.8.19",
 ]
 rio = [
-    "rio-ui @ git+https://github.com/ilya-pevzner/rio.git@size-observer",
+    "rio-ui @ git+https://github.com/ilya-pevzner/rio.git@on-resize",
     "matplotlib~=3.10.6"
 ]
 qt = [
@@ -33,15 +34,15 @@ qt = [
     "PyQt6-Qt6 (==6.8.2)",
     "PyQt6_sip (==13.10.0)",
 ]
-[tool.poetry]
-packages = [
-   { include = "core_10x" },
-   { include = "infra_10x" },
-   { include = "ui_10x" },
-]
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling>=1.17.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["core_10x", "infra_10x", "ui_10x"]
 
 [tool.ruff]
 src = ["core_10x", "infra_10x", "ui_10x"]
@@ -54,8 +55,12 @@ exclude = [
     "core_10x/code_samples/*",
     "core_10x/manual_tests/*",
     "core_10x/experimental/*",
-    "infra_10x/*",
-    "ui_10x/*"
+    "ui_10x/qt6/*",
+    "ui_10x/examples/*",
+    "ui_10x/py_data_browser.py",
+    "ui_10x/choice.py",
+    "ui_10x/table*.py",
+    "ui_10x/utils.py",
 ]
 
 [tool.ruff.lint]

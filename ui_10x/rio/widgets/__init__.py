@@ -15,8 +15,32 @@ from .splitter import Direction, Splitter
 from .text_edit import TextEdit
 from .tree import TreeItem, TreeWidget
 
-__all__ = ['SCROLL', 'Application', 'ButtonGroup', 'CalendarWidget', 'CheckBox', 'Dialog', 'Direction', 'FindFlags',
-           'FormLayout', 'GroupBox', 'HBoxLayout', 'Label', 'LineEdit', 'ListItem', 'ListWidget', 'MessageBox',
-           'PushButton', 'RadioButton', 'ScrollArea', 'Separator', 'Spacer', 'Splitter', 'Style', 'TextEdit',
-           'TreeItem', 'TreeWidget', 'VBoxLayout']
-
+__all__ = [
+    'SCROLL',
+    'Application',
+    'ButtonGroup',
+    'CalendarWidget',
+    'CheckBox',
+    'Dialog',
+    'Direction',
+    'FindFlags',
+    'FormLayout',
+    'GroupBox',
+    'HBoxLayout',
+    'Label',
+    'LineEdit',
+    'ListItem',
+    'ListWidget',
+    'MessageBox',
+    'PushButton',
+    'RadioButton',
+    'ScrollArea',
+    'Separator',
+    'Spacer',
+    'Splitter',
+    'Style',
+    'TextEdit',
+    'TreeItem',
+    'TreeWidget',
+    'VBoxLayout',
+]

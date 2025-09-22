@@ -76,7 +76,7 @@ class Choice:
             if self.f_selection_cb:
                 self.f_selection_cb(item)
 
-    def on_value_selected(self, dir: Directory, item_value, convert_value = False):
+    def on_value_selected(self, dir: Directory, item_value, convert_value: bool = False):
         self.values_selected = [item_value]
 
     def _on_selection_in_dialog(self, d: UxDialog, current_selection_cb, item_value):
@@ -202,8 +202,11 @@ class MultiChoice(Choice):
 
         return True
 
+    # fmt: off
     s_select_table = {
         SELECT_MODE.ANY:       lambda self, x,y,z: True,
         SELECT_MODE.LEAF:      _select_leaf,
         SELECT_MODE.SUBDIR:    _select_subdir
     }
+    # fmt: on
+

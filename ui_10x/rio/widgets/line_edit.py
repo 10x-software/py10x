@@ -10,6 +10,7 @@ class LineEdit(Widget, i.LineEdit):
     s_component_class = rio_components.LineEditComponent
     s_single_child = True
     s_children_attr = 'text'
+
     def set_text(self, text: str):
         self['text'] = text or ''
 

@@ -9,6 +9,7 @@ class GroupBox(rio.Component):
         title: The text displayed as the group's title.
         children: A list of child components to be grouped.
     """
+
     children: list[rio.Component] = []
     title: str = ''
 
@@ -25,6 +26,6 @@ class GroupBox(rio.Component):
             ),
             rio.Column(
                 rio.Text(self.title, margin_bottom=-0.5),  # Title sits on the border
-                rio.Column(*self.children, margin=1),       # Content inside
+                rio.Column(*self.children, margin=1),  # Content inside
             ),
         )

@@ -8,10 +8,11 @@ from infra_10x.mongodb_store import MongoStore
 
 TEST_COLLECTION = uuid4().hex
 TEST_COLLECTION1 = uuid4().hex
-MONGO_URL='mongodb://localhost:27017/'
-#MONGO_URL="mongodb+srv://dev.qbultu3.mongodb.net/?authMechanism=MONGODB-X509&authSource=%24external&tls=true&tlsCertificateKeyFile=%2FUsers%2Fiap%2FDownloads%2FX509-cert-590074097809994161.pem"
+MONGO_URL = 'mongodb://localhost:27017/'
+# MONGO_URL="mongodb+srv://dev.qbultu3.mongodb.net/?authMechanism=MONGODB-X509&authSource=%24external&tls=true&tlsCertificateKeyFile=%2FUsers%2Fiap%2FDownloads%2FX509-cert-590074097809994161.pem"
 
-TEST_DB='test_db'
+TEST_DB = 'test_db'
+
 
 class TestMongo(unittest.TestCase):
     @classmethod
@@ -21,8 +22,8 @@ class TestMongo(unittest.TestCase):
         cls.patch2 = mock.patch('core_10x.package_refactoring.PackageRefactoring.find_class_id', return_value=TEST_COLLECTION1)
         with cls.mongo:
             with cls.patch1:
-                cls.p=Person(first_name='John', last_name='Doe')
-                cls.p.set_values(age = 30,weight_lbs=100)
+                cls.p = Person(first_name='John', last_name='Doe')
+                cls.p.set_values(age=30, weight_lbs=100)
                 assert not cls.p._rev
                 cls.p.save()
                 assert cls.p._rev == 1
@@ -30,8 +31,8 @@ class TestMongo(unittest.TestCase):
                 assert cls.p._rev == 1
 
             with cls.patch2:
-                cls.p1=Person(first_name='Joe', last_name='Doe')
-                cls.p1.set_values(age = 32,weight_lbs=200)
+                cls.p1 = Person(first_name='Joe', last_name='Doe')
+                cls.p1.set_values(age=32, weight_lbs=200)
                 cls.p1.save()
                 assert cls.p1.age == 32
                 assert cls.p1._rev == 1
@@ -57,7 +58,7 @@ class TestMongo(unittest.TestCase):
         _rev = collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 2 == _rev
-        #assert collection.load(_id) == serialized_entity|{'attr': {'nested': 'value', 'nested1': 'value1'}} #incorrect behavior
+        # assert collection.load(_id) == serialized_entity|{'attr': {'nested': 'value', 'nested1': 'value1'}} #incorrect behavior
         assert collection.load(self.p.id().value) == serialized_entity
 
         # test that dots are not interpreted as nested fields at the top level
@@ -69,7 +70,7 @@ class TestMongo(unittest.TestCase):
 
         # check that we can have dictionary keys starting with $
         serialized_entity |= {'foo': {'$foo': 1}}
-        #with self.assertRaisesRegex(pymongo.errors.WriteError,"Unrecognized expression '\\$foo',"): #incorrect behavior
+        # with self.assertRaisesRegex(pymongo.errors.WriteError,"Unrecognized expression '\\$foo',"): #incorrect behavior
         _rev = collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 4 == _rev
@@ -77,7 +78,7 @@ class TestMongo(unittest.TestCase):
 
         # check that we can *not* have top level keys starting with $ (current behavior, not ideal, but prob. ok)
         serialized_entity |= {'$foo': 1}
-        with self.assertRaisesRegex(pymongo.errors.WriteError,"Use of undefined variable: foo"):
+        with self.assertRaisesRegex(pymongo.errors.WriteError, 'Use of undefined variable: foo'):
             _rev = collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert self.p._rev + 4 == _rev
@@ -104,11 +105,10 @@ class TestMongo(unittest.TestCase):
         id_value = serialized_entity['_id']
         assert collection.delete(id_value)
         assert collection.load(id_value) is None
-        #TODO: restore is not implemented so use save_new meanwhile
+        # TODO: restore is not implemented so use save_new meanwhile
         # assert collection.restore(id_value)
         collection.save_new(serialized_entity)
         assert collection.load(id_value) == serialized_entity
-
 
     def test_find(self):
         collection = self.mongo.collection(TEST_COLLECTION)
@@ -136,8 +136,6 @@ class TestMongo(unittest.TestCase):
             cls.mongo.delete_collection(cn)
 
         assert not {TEST_COLLECTION, TEST_COLLECTION1}.intersection(cls.mongo.collection_names('.*'))
-
-
 
 
 if __name__ == '__main__':

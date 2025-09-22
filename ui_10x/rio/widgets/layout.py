@@ -7,26 +7,30 @@ from ui_10x.rio.component_builder import Layout
 
 class BoxLayout(Layout):
     def _get_children(self):
-        return super()._get_children() # + [Spacer()]
+        return super()._get_children()  # + [Spacer()]
+
 
 class VBoxLayout(BoxLayout, i.VBoxLayout):
     s_component_class = rio.Column
     s_stretch_arg = 'grow_y'
-    def _make_kwargs(self,**kwargs):
+
+    def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)
         del kwargs['align_y']
         return kwargs
 
-class HBoxLayout(BoxLayout,i.HBoxLayout):
+
+class HBoxLayout(BoxLayout, i.HBoxLayout):
     s_component_class = rio.Row
     s_stretch_arg = 'grow_x'
 
-class FormLayout(Layout,i.FormLayout):
+
+class FormLayout(Layout, i.FormLayout):
     s_component_class = rio.Grid
     s_children_attr = 'rows'
 
     def add_row(self, *args):
         self.add_children(args)
 
-    def _build_children(self,session: rio.Session):
-        return [[child(session) for child in children] for children in self._get_children()] #TODO: cleanup?
+    def _build_children(self, session: rio.Session):
+        return [[child(session) for child in children] for children in self._get_children()]  # TODO: cleanup?

@@ -7,7 +7,7 @@ from ui_10x.rio.component_builder import Widget
 
 
 class RadioButton(Widget, i.RadioButton):
-    __slots__ = ('_button_group')
+    __slots__ = '_button_group'
     s_component_class = rio_components.RadioButton
     s_dynamic = False
 
@@ -19,7 +19,7 @@ class RadioButton(Widget, i.RadioButton):
             self['selected_value'] = None
         if 'value' not in self._kwargs:
             self['value'] = self._kwargs['label']
-        self['on_select']=self.on_select
+        self['on_select'] = self.on_select
         self._button_group = None
 
     def set_checked(self, checked: bool):
@@ -40,6 +40,7 @@ class RadioButton(Widget, i.RadioButton):
 
 class ButtonGroup(Widget, i.ButtonGroup):
     __slots__ = ('_buttons',)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._buttons = []
@@ -63,7 +64,7 @@ class ButtonGroup(Widget, i.ButtonGroup):
         return self.get_children()[id]
 
     def checked_id(self):
-        #TODO: optimize
+        # TODO: optimize
         selected = self['selected_value']
         for idx, button in enumerate(self.get_children()):
             if button['value'] == selected:

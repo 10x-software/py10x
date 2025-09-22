@@ -18,7 +18,4 @@ class StyleSheetPage(rio.Component):
         if not session_context.traitable_store:
             session_context.traitable_store = TsUnion()
         with session_context.traitable_store:
-            return TraitableEditor(
-                StyleSheet(),
-                _confirm=True
-            ).dialog().build(self.session)
+            return TraitableEditor(StyleSheet(), _confirm=True).dialog().build(self.session)

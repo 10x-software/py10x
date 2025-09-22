@@ -49,7 +49,7 @@ class MongoCollection(TsCollection):
         filter = {}
         pipeline = []
         MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
-        #self.filter_and_pipeline(serialized_traitable, filter, pipeline)
+        # self.filter_and_pipeline(serialized_traitable, filter, pipeline)
 
         res = self.coll.update_one(filter, pipeline)
         if not res.acknowledged:
@@ -70,13 +70,12 @@ class MongoCollection(TsCollection):
         for key in (rev_tag, id_tag):
             filter[key] = serialized_traitable.pop(key)
 
-        rev_condition = {
-            '$and': [ {'$eq': ['$' + name, {'$literal': value}] } for name, value in serialized_traitable.items() ]
-        }
+        rev_condition = {'$and': [{'$eq': ['$' + name, {'$literal': value}]} for name, value in serialized_traitable.items()]}
 
+        # fmt: off
         update_revision = {
             '$cond': [
-                rev_condition,  #-- if each field is equal to its prev value
+                rev_condition,         #-- if each field is equal to its prev value
                 filter[rev_tag],       #       then, keep the revision as is
                 filter[rev_tag] + 1    #       else, increment it
             ]
@@ -92,13 +91,10 @@ class MongoCollection(TsCollection):
                 }
             }
         )
+        # fmt: on
 
         pipeline.extend(
-            {
-                '$replaceWith': {
-                    '$setField': dict(field = field, input = '$$ROOT', value = {'$literal': value})
-                }
-            }
+            {'$replaceWith': {'$setField': dict(field=field, input='$$ROOT', value={'$literal': value})}}
             for field, value in serialized_traitable.items()
         )
 
@@ -171,19 +167,18 @@ class MongoCollection(TsCollection):
     #
     #     return revision if res.modified_count != 1 else revision + 1
 
-
     def delete(self, id_value: str) -> bool:
         q = {self.s_id_tag: id_value}
         return self.coll.delete_one(q).acknowledged
 
-    def create_index(self, name: str, trait_name: str, **index_args) -> str|None:
+    def create_index(self, name: str, trait_name: str, **index_args) -> str | None:
         index_info = self.coll.index_information()
         if name in index_info:
             return None
 
-        return self.coll.create_index(trait_name, name = name, **index_args)
+        return self.coll.create_index(trait_name, name=name, **index_args)
 
-    def max(self, trait_name: str, filter: f = None) -> dict|None:
+    def max(self, trait_name: str, filter: f = None) -> dict | None:
         if filter:
             cur = self.coll.find(filter.prefix_notation()).sort({trait_name: -1}).limit(1)
         else:
@@ -193,39 +188,42 @@ class MongoCollection(TsCollection):
 
         return None
 
-    def min(self, trait_name: str, filter: f = None) -> dict|None:
+    def min(self, trait_name: str, filter: f = None) -> dict | None:
         if filter:
-            cur = self.coll.find(filter.prefix_notation()).sort({ trait_name: 1 }).limit(1)
+            cur = self.coll.find(filter.prefix_notation()).sort({trait_name: 1}).limit(1)
         else:
-            cur = self.coll.find().sort({ trait_name: 1 }).limit(1)
+            cur = self.coll.find().sort({trait_name: 1}).limit(1)
         for data in cur:
             return data
 
         return None
 
-    def load(self, id_value: str) -> dict|None:
+    def load(self, id_value: str) -> dict | None:
         for data in self.coll.find({self.s_id_tag: id_value}):
             return data
 
         return None
 
 
-class MongoStore(TsStore, name = 'MONGO_DB'):
-    ADMIN   = 'admin'
+class MongoStore(TsStore, name='MONGO_DB'):
+    ADMIN = 'admin'
 
+    # fmt: off
     s_instance_kwargs_map = dict(
         port    = ('port',                      27017),
         ssl     = ('ssl',                       False),
         sst     = ('serverSelectionTimeoutMS',  10000),
     )
+    # fmt: on
 
-    s_cached_connections: dict[tuple,MongoClient] = {}
+    s_cached_connections: dict[tuple, MongoClient] = {}
+
     @classmethod
-    def connect(cls, hostname: str, username: str, password: str, _cache = True, _throw = True, **kwargs) -> MongoClient:
+    def connect(cls, hostname: str, username: str, password: str, _cache: bool = True, _throw: bool = True, **kwargs) -> MongoClient:
         connection_key = standard_key((hostname, username), kwargs) if _cache else None
         client = cls.s_cached_connections.get(connection_key)
         if not client:
-            client = MongoClient(hostname, username = username, password = password, **kwargs)
+            client = MongoClient(hostname, username=username, password=password, **kwargs)
             try:
                 client.server_info()
             except Exception:
@@ -257,8 +255,8 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
         self.username = username
 
     def collection_names(self, regexp: str = None) -> list:
-        filter = dict(name = {'$regex': regexp}) if regexp else None
-        return self.db.list_collection_names(filter = filter)
+        filter = dict(name={'$regex': regexp}) if regexp else None
+        return self.db.list_collection_names(filter=filter)
 
     def collection(self, collection_name: str) -> TsCollection:
         return MongoCollection(self.db, collection_name)
@@ -269,8 +267,8 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
 
     @classmethod
     @cache
-    def is_running_with_auth(cls, host_name: str) -> tuple:      #-- (is_running, with_auth)
-        client = cls.connect(host_name, '', '', _cache = False, _throw = False)
+    def is_running_with_auth(cls, host_name: str) -> tuple:  # -- (is_running, with_auth)
+        client = cls.connect(host_name, '', '', _cache=False, _throw=False)
         if not client:
             return False, False
 
@@ -280,7 +278,7 @@ class MongoStore(TsStore, name = 'MONGO_DB'):
             auth = any(r == '--auth' for r in res['argv'][1:])
             return True, auth
 
-        except errors.OperationFailure:     #-- auth is required
+        except errors.OperationFailure:  # -- auth is required
             return True, True
 
         finally:
