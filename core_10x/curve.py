@@ -1,14 +1,15 @@
 import bisect
 import math
 from datetime import date, timedelta
-from scipy import interpolate
 from typing import Any
 
-from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE
+from scipy import interpolate
+
 from core_10x.named_constant import NamedConstant
+from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
 
 
-class IP_KIND(NamedConstant, lowercase_values=True):
+class IP_KIND(NamedConstant, lowercase_values=True):  # noqa: N801
     # fmt: off
     #-- NOTE: enum labels specify the minimum number of points required!
     LINEAR      = ( 2, )
@@ -161,7 +162,7 @@ class Curve(Traitable):
         self.invalidate_value('interpolator')
 
     @classmethod
-    def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:
+    def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:  # noqa: N802
         assert len(times) == len(values), f'{len(times)} != {len(values)}: sizes of times and values must be equal'
 
         last_t = times[0]
@@ -183,7 +184,7 @@ class Curve(Traitable):
 
         return (times_unique, values_unique)
 
-    def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> 'Curve':
+    def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> 'Curve':  # noqa: N802
         times_unique, values_unique = self._uniqueTimesValues(self.times(), self.values(), keep_last_update)
         if copy_curve:
             return self.clone(times=times_unique, values=values_unique)
@@ -197,7 +198,7 @@ class Curve(Traitable):
 class TwoFuncInterpolator:
     def __init__(self, in_func, out_func, in_func_on_arrays=None, _interpolator=interpolate.interp1d):
         if in_func:
-            in_func_on_arrays = lambda list_x, list_y: [in_func(x, list_y[i]) for i, x in enumerate(list_x)]
+            in_func_on_arrays = lambda list_x, list_y: [in_func(x, list_y[i]) for i, x in enumerate(list_x)]  # noqa: E731
 
         assert in_func_on_arrays, 'either in_func or in_func_on_arrays must be provided'
 
@@ -229,7 +230,7 @@ class DateCurve(Curve):
         elif isinstance(d, int):
             return d
 
-        assert False, f'Unexpected value {d}'
+        raise ValueError(f'Unexpected value {d}')
 
     @classmethod
     def _from_number(cls, x: int) -> date:
@@ -283,7 +284,7 @@ class DateCurve(Curve):
         self.values = values
         self.update(d, new_value)
 
-    def bracketDateNodes(self, d: date) -> tuple:
+    def bracketDateNodes(self, d: date) -> tuple:  # noqa: N802
         t = self._to_number(d)
 
         times: list = self.times
