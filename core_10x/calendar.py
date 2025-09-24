@@ -1,9 +1,7 @@
 from datetime import date, timedelta
 from collections import deque
-from operator import le, lt
-from typing import Iterable
 
-from core_10x.traitable import Traitable, T, RT, Ui, RC
+from core_10x.traitable import Traitable, T, RT, Ui
 
 class CalendarNameParser:
     """
@@ -24,8 +22,8 @@ class CalendarNameParser:
     }
 
     @classmethod
-    def comboName( cls, name: str ) -> bool:
-        return name.find( cls.OR_CHAR ) != -1
+    def combo_name(cls, name: str) -> bool:
+        return any(sym in name for sym in cls.s_ops.keys())
 
     @classmethod
     def operation_repr(cls, op_char: str, *calendars) -> str:
@@ -37,10 +35,8 @@ class CalendarNameParser:
             if isinstance(cal_or_name, Calendar):
                 cname = cal_or_name.name
             elif isinstance(cal_or_name, str):
-                #cal = Calendar.instanceById( cal_or_name )
-                #assert cal, f"Unknown calendar '{cal_or_name}'"
-                #cal = Calendar(name = cal_or_name)
-
+                cal = Calendar.existing_instance_by_id(_id_value = cal_or_name)
+                assert cal, f"Unknown calendar '{cal_or_name}'"
                 cname = cal_or_name
             else:
                 assert False, f"Invalid calendar/name '{cal_or_name}'"
@@ -71,9 +67,9 @@ class CalendarNameParser:
             if len(name_list_op_num_args) > 1:    #-- name list followed by op with num_args
                 for cname in name_list_op_num_args[:-1]:
                     if cname:
-                        cal = Calendar.instanceById( cname )
+                        cal: Calendar = Calendar.existing_instance_by_id(_id_value = cname)
                         assert cal, f"Unknown calendar '{cname}"
-                        stack.append(cal)
+                        stack.append(cal._non_working_days)
 
             op_with_num_args = name_list_op_num_args[-1]
             op_char = op_with_num_args[0]
@@ -85,19 +81,24 @@ class CalendarNameParser:
                 assert False, f'Invalid num_args = {op_with_num_args[1:]}'
 
             for _ in range( num_args ):
-                cal: Calendar = stack.pop()
-                assert isinstance(cal, Calendar), f'{cal} must be a Calendar'
+                _non_working_days = stack.pop()
+                assert isinstance(_non_working_days, set)
 
                 if not non_working_days:
-                    non_working_days.update(cal._non_working_days)
+                    non_working_days.update(_non_working_days)
                 else:
-                    op(non_working_days, cal._non_working_days)
+                    op(non_working_days, _non_working_days)
 
-            stack.append(Calendar(_non_working_days = non_working_days))
+            stack.append(non_working_days)  #-- push set of non_working_days of an intermediate calendar
 
         return non_working_days
 
-#class Calendar(Traitable, _keep_history = True, _force_default_cache = True ):
+class CalendarAdjustment(Traitable):
+    name: str           = T(T.ID)
+    add_days: list      = T()
+    remove_days: list   = T()
+
+#-- TODO: _default_cache = True:
 class Calendar(Traitable, _keep_history = True):
     name: str               = T(T.ID | T.READONLY)
     name_base: str          = T(T.NOT_EMPTY)
@@ -111,15 +112,6 @@ class Calendar(Traitable, _keep_history = True):
     def name_get(self) -> str:
         parts = (self.name_base, self.qualifier, self.adjusted_for)
         return '_'.join(p for p in parts if p)
-
-    @classmethod
-    def instance( cls, name: str = None, _create = None, _cache_only = False, **kwargs ) -> 'Calendar':
-        assert name, 'name is required'
-        if CalendarNameParser.comboName( name ):
-            _create = True
-            _cache_only = True
-
-        return super().instance( name = name, _create = _create, _cache_only = _cache_only, **kwargs )
 
     @classmethod
     def AND(cls, *calendars) -> 'Calendar':
@@ -147,47 +139,52 @@ class Calendar(Traitable, _keep_history = True):
 
     def non_working_days_get(self) -> list:
         non_working_days = CalendarNameParser.parse(self.name)
+        ca = CalendarAdjustment.existing_instance_by_id(_id_value = self.adjusted_for)
+        if ca:
+            self.add_days(non_working_days, ca.add_days)
+            self.remove_days(non_working_days, ca.remove_days)
+
         return sorted(non_working_days) if non_working_days else []
 
     def _non_working_days_get(self) -> set:
         return set(self.non_working_days)
 
-    def add_non_working_days(self, *days_to_add):
+    @classmethod
+    def add_days(cls, days: set, *days_to_add) -> bool:
         if not days_to_add:
-            return
+            return False
 
         all_dates = all(type(hd) is date for hd in days_to_add)
         if not all_dates:
             raise TypeError('Every day to add must be a date')
 
-        old_non_working_days = set(self.non_working_days)
-        non_working_days = old_non_working_days.union(days_to_add)
-        if len(old_non_working_days) == len(non_working_days):
-            return
+        l = len(days)
+        days.update(days_to_add)
+        return len(days) > l
 
-        self.non_working_days = list(non_working_days)
+    @classmethod
+    def remove_days(cls, days: set, *days_to_remove) -> bool:
+        if not days_to_remove:
+            return False
 
-    def replace_non_working_day(self, old_d: date, new_d: date = None):
-        """
-        if new_d is None, the old_d will be removed
-        """
-        if old_d == new_d:
-            return
+        all_dates = all(type(hd) is date for hd in days_to_remove)
+        if not all_dates:
+            raise TypeError('Every day to remove must be a date')
 
-        assert new_d is None or type(new_d) is date, f"new_d = '{new_d}' is not a date"
-        non_working_days = self.non_working_days
+        l = len(days)
+        days.difference_update(days_to_remove)
+        return len(days) < l
 
-        try:
-            i = non_working_days.index(old_d)
-            if new_d is not None:
-                non_working_days[i] = new_d
-            else:
-                non_working_days.pop(i)
+    def add_non_working_days(self, *days_to_add):
+        non_working_days = set(self.non_working_days)
+        if self.add_days(non_working_days, *days_to_add):
+            self.non_working_days = list(non_working_days)
 
-        except Exception:
-            return
+    def remove_non_working_days(self, *days_to_remove):
+        non_working_days = set(self.non_working_days)
+        if self.remove_days(non_working_days, *days_to_remove):
+            self.non_working_days = list(non_working_days)
 
-        self.non_working_days = non_working_days
 
     def is_bizday(self, d: date) -> bool:
         return d not in self._non_working_days
@@ -208,7 +205,7 @@ class Calendar(Traitable, _keep_history = True):
 
         return d
 
-    def add_bizdays(self, d: date, biz_days: int) -> date:
+    def advance_bizdays(self, d: date, biz_days: int) -> date:
         if not biz_days:
             return d
 
@@ -220,38 +217,5 @@ class Calendar(Traitable, _keep_history = True):
                 d = self.prev_bizday(d)
 
         return d
-
-    # def adjustedCalendar( self, replace_days: Iterable, biz_days = True ) -> 'Calendar':
-    #     if not replace_days:
-    #         return self
-    #
-    #     start_date = min( replace_days )
-    #     end_date = max( replace_days )
-    #     num_days = ( end_date - start_date ).days
-    #
-    #     one_day = timedelta( days = 1 )
-    #     d = start_date - one_day
-    #     replace_days_range = set( d for _ in range( num_days ) if ( d := d + one_day ) )
-    #     if not biz_days:
-    #         new_non_working_days = ( self._non_working_days() - replace_days_range ) | set( replace_days )
-    #     else:
-    #         new_non_working_days = ( self._non_working_days() | replace_days_range ) - set( replace_days )
-    #
-    #     return self.clone(
-    #         name                = f'{self.name()}/{hex( id( replace_days ) )}',
-    #         _non_working_days   = new_non_working_days
-    #     )
-
-    # def iterateBizDays( self, roll_rule: 'BIZDAY_ROLL_RULE', start_date: date, end_date: date, end_included = False ):
-    #     if not self.isBizDay( start_date ):
-    #         start_date = roll_rule( self, start_date )
-    #     op = le if end_included else lt
-    #     yield start_date
-    #
-    #     dt = self.nextBizDay( start_date )
-    #     while op( dt, end_date ):
-    #         yield dt
-    #         dt = self.nextBizDay( dt )
-
 
 
