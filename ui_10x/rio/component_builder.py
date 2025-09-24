@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
+from collections import defaultdict
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
+from functools import partial
 
+from core_10x.exec_control import BTP, INTERACTIVE
 from core_10x.named_constant import Enum, NamedConstant
 from core_10x.rc import RC
 from core_10x.ts_store import TsStore
+from core_10x_i import BTraitableProcessor
 
 import rio
 import ui_10x.platform_interface as i
@@ -19,8 +25,31 @@ class UserSessionContext:
     host: str
     dbname: str
     traitable_store: TsStore = None
+    interactive: BTraitableProcessor = None
     authenticated: bool = False
 
+    def begin_using(self):
+        if self.traitable_store:
+            self.traitable_store.begin_using()
+
+        if not self.interactive:
+            self.interactive = INTERACTIVE()
+            print('interactive in', BTP.current(), self.interactive)
+
+        self.interactive.begin_using()
+        #print(f'begin_using {id(self)}: {self}')
+
+    def end_using(self):
+        self.interactive.end_using()
+        if self.traitable_store:
+            self.traitable_store.end_using()
+        #print(f'end_using {id(self)}: {self}')
+
+    def __enter__(self):
+        return self.begin_using()
+
+    def __exit__(self, *args):
+        self.end_using()
 
 CURRENT_SESSION: rio.Session | None = None
 
@@ -31,18 +60,40 @@ def session_context(session: rio.Session):
     assert CURRENT_SESSION is None, 'Must exit from session context first! Are you using async calls in session context?'
     CURRENT_SESSION = session
     try:
-        traitable_store = session[UserSessionContext].traitable_store
+        user_session = session[UserSessionContext]
     except Exception:
-        traitable_store = None
-    if traitable_store:
-        traitable_store.begin_using()
+        user_session = None
+
+    if user_session:
+        user_session.begin_using()
     try:
         yield
     finally:
-        if traitable_store:
-            traitable_store.end_using()
+        if user_session:
+            user_session.end_using()
         CURRENT_SESSION = None
 
+
+class ConnectionType(NamedConstant):
+    DIRECT = lambda handler,*args: handler(args)  # noqa: E731
+    QUEUED = lambda handler,*args: asyncio.get_running_loop().call_soon(handler, *args)  # noqa: E731
+
+class SignalDecl:
+    def __init__(self):
+        self.handlers: dict[rio.Session,set[tuple[Callable[[...], None], ConnectionType]]] = defaultdict(set)
+
+    def connect(self, handler: Callable[[...], None], type: ConnectionType = ConnectionType.QUEUED) -> bool:
+        self.handlers[CURRENT_SESSION].add((handler, type))
+        return True
+
+    @staticmethod
+    def _wrapper(ctx, handler: Callable[[...], None], *args):
+        with ctx:
+            handler(*args)
+
+    def emit(self, *args) -> None:
+        for handler, conn in self.handlers[CURRENT_SESSION]:
+            conn.value(partial(self._wrapper, BTP.current(), handler), *args)
 
 class FontMetrics(i.FontMetrics):
     __slots__ = ('_widget',)
@@ -275,7 +326,7 @@ class Widget(ComponentBuilder, i.Widget):
         if hasattr(self.s_component_class, 'text_style'):
             ss = StyleSheet()
             rc = ss.set_values(sheet=style)
-            self['text_style'] = ss.text_style
+            self['text_style'] = ss.text_style or None
             return rc
         return StyleSheet.rc(style)
 

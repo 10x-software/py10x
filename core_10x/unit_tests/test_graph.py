@@ -3,7 +3,7 @@ from unittest import TestCase
 from weakref import WeakKeyDictionary
 
 from core_10x.code_samples.person import WEIGHT_QU, Person
-from core_10x.exec_control import BTP, GRAPH_OFF, GRAPH_ON
+from core_10x.exec_control import BTP, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.trait_definition import RT, T
 from core_10x.ts_union import TsUnion
 from core_10x.xnone import XNone
@@ -182,6 +182,27 @@ class TestExecControl(TestGraphBase):
         self.test_dep_change()
         self.test_dep_change_with_arg()
         self.test_get_set()
+
+    def test_nested(self):
+        p = self.p
+        self.assertEqual(p.full_name, 'John Smith')
+        with INTERACTIVE() as i1:
+            p.last_name='Baker'
+            self.assertEqual(p.full_name, 'John Baker')
+            with INTERACTIVE() as i2:
+                p.first_name='Tom'
+                self.assertEqual(p.full_name, 'Tom Baker')
+            self.assertEqual(p.full_name, 'John Baker')
+            with i2:
+                self.assertEqual(p.full_name, 'Tom Baker')
+            self.assertEqual(p.full_name, 'John Baker')
+
+
+        self.assertEqual(p.full_name, 'John Smith')
+        with i1:
+            self.assertEqual(p.full_name, 'John Baker')
+
+        self.assertEqual(p.full_name, 'John Smith')
 
     def test(self, graph=False, convert=False, debug=False):
         with TsUnion():
