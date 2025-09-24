@@ -37,19 +37,18 @@ class UserSessionContext:
             print('interactive in', BTP.current(), self.interactive)
 
         self.interactive.begin_using()
-        #print(f'begin_using {id(self)}: {self}')
 
     def end_using(self):
         self.interactive.end_using()
         if self.traitable_store:
             self.traitable_store.end_using()
-        #print(f'end_using {id(self)}: {self}')
 
     def __enter__(self):
         return self.begin_using()
 
     def __exit__(self, *args):
         self.end_using()
+
 
 CURRENT_SESSION: rio.Session | None = None
 
@@ -75,12 +74,13 @@ def session_context(session: rio.Session):
 
 
 class ConnectionType(NamedConstant):
-    DIRECT = lambda handler,*args: handler(args)  # noqa: E731
-    QUEUED = lambda handler,*args: asyncio.get_running_loop().call_soon(handler, *args)  # noqa: E731
+    DIRECT = lambda handler, *args: handler(args)  # noqa: E731
+    QUEUED = lambda handler, *args: asyncio.get_running_loop().call_soon(handler, *args)  # noqa: E731
+
 
 class SignalDecl:
     def __init__(self):
-        self.handlers: dict[rio.Session,set[tuple[Callable[[...], None], ConnectionType]]] = defaultdict(set)
+        self.handlers: dict[rio.Session, set[tuple[Callable[[...], None], ConnectionType]]] = defaultdict(set)
 
     def connect(self, handler: Callable[[...], None], type: ConnectionType = ConnectionType.QUEUED) -> bool:
         self.handlers[CURRENT_SESSION].add((handler, type))
@@ -94,6 +94,7 @@ class SignalDecl:
     def emit(self, *args) -> None:
         for handler, conn in self.handlers[CURRENT_SESSION]:
             conn.value(partial(self._wrapper, BTP.current(), handler), *args)
+
 
 class FontMetrics(i.FontMetrics):
     __slots__ = ('_widget',)

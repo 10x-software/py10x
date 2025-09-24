@@ -56,9 +56,7 @@ class EntityWrapper:
 
 
 class TraitEditor:
-    def __init__(
-        self, entity, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None
-    ):
+    def __init__(self, entity, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None):
         self.entity = EntityWrapper(entity, traitable_processor)
         self.trait = trait
         self.widget: TraitWidget | None = None

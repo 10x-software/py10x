@@ -38,7 +38,7 @@ class StyleSheet(Traitable):
         if ts:
             style['font-style'] = 'italic' if ts.italic else 'normal'
             style['font-weight'] = ts.font_weight or 'normal'
-            if family := ts.font._google_fonts_name: #TODO: better?
+            if family := ts.font._google_fonts_name:  # TODO: better?
                 style['font-family'] = family
             style['color'] = f'#{ts.fill.hex}'
         return style
