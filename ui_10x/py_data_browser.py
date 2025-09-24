@@ -100,8 +100,8 @@ class PyDataBrowser:
         date:           lambda x:   datetime.strptime(x, '%Y-%m-%d').date(),
     }
 
-    s_dict_handler  = lambda data: data.items()     # noqa: E731
-    s_list_handler  = lambda data: enumerate(data)  # noqa: E731
+    s_dict_handler  = lambda data: data.items()
+    s_list_handler  = lambda data: enumerate(data)
     s_type_handlers = {
         tuple:      s_list_handler,
         list:       s_list_handler,

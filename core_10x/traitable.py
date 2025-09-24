@@ -136,13 +136,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
                 continue
 
             try:
-                dt_valid = isinstance(dt,type) or get_origin(dt) is not None
+                dt_valid = isinstance(dt, type) or get_origin(dt) is not None
             except TypeError:
                 dt_valid = False
             if not dt_valid:
                 rc <<= f'Expected type for `{trait_name}`, but found {dt}.'
                 continue
-                
+
             old_trait: Trait = inherited_trait_dir.get(trait_name)
             if trait_def is class_dict:  # -- only annotation, not in class_dict
                 if old_trait and dt is not old_trait.data_type:

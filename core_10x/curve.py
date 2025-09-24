@@ -198,7 +198,7 @@ class Curve(Traitable):
 class TwoFuncInterpolator:
     def __init__(self, in_func, out_func, in_func_on_arrays=None, _interpolator=interpolate.interp1d):
         if in_func:
-            in_func_on_arrays = lambda list_x, list_y: [in_func(x, list_y[i]) for i, x in enumerate(list_x)]  # noqa: E731
+            in_func_on_arrays = lambda list_x, list_y: [in_func(x, list_y[i]) for i, x in enumerate(list_x)]
 
         assert in_func_on_arrays, 'either in_func or in_func_on_arrays must be provided'
 
