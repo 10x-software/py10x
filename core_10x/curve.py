@@ -159,7 +159,7 @@ class Curve(Traitable):
         times_unique = [ last_t ]
         values_unique = [ values[ 0 ] ]
 
-        for t, v in zip( times, values ):
+        for t, v in zip( times, values, strict=True):
             assert t >= last_t, f'times must be a non-decreasing list, but {t} < {last_t}'
 
             if t > last_t:
@@ -298,4 +298,4 @@ class DateCurve(Curve):
     def dates_values(self, min_date: date = None, max_date: date = None) -> list:
         dates = self.dates
         values = self.values
-        return [ (d, v) for d, v in zip(dates, values) if (not min_date or d >= min_date) and (not max_date or d <= max_date) ]
+        return [ (d, v) for d, v in zip(dates, values, strict=True) if (not min_date or d >= min_date) and (not max_date or d <= max_date) ]
