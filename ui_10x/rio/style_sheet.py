@@ -1,7 +1,7 @@
 from core_10x.rc import RC
 from core_10x.trait import Trait
 from core_10x.traitable import Traitable
-from matplotlib import colors, font_manager
+from matplotlib import colors
 
 import rio
 
@@ -38,7 +38,8 @@ class StyleSheet(Traitable):
         if ts:
             style['font-style'] = 'italic' if ts.italic else 'normal'
             style['font-weight'] = ts.font_weight or 'normal'
-            style['font-family'] = font_manager.get_font([ts.font.regular]).family_name
+            if family := ts.font._google_fonts_name: #TODO: better?
+                style['font-family'] = family
             style['color'] = f'#{ts.fill.hex}'
         return style
 
