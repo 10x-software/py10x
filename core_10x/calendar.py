@@ -1,7 +1,8 @@
-from datetime import date, timedelta
+from argparse import ArgumentError
 from collections import deque
+from datetime import date, timedelta
 
-from core_10x.traitable import Traitable, T, RT, Ui
+from core_10x.traitable import RT, T, Traitable, Ui
 
 
 class CalendarNameParser:
@@ -43,7 +44,7 @@ class CalendarNameParser:
                 assert cal, f"Unknown calendar '{cal_or_name}'"
                 cname = cal_or_name
             else:
-                assert False, f"Invalid calendar/name '{cal_or_name}'"
+                raise NameError(f"Invalid calendar/name '{cal_or_name}'")
 
             cal_names.append(cname)
 
@@ -81,8 +82,8 @@ class CalendarNameParser:
             assert op, f'Unknown op char {op_char}'
             try:
                 num_args = int(op_with_num_args[1:])
-            except Exception:
-                assert False, f'Invalid num_args = {op_with_num_args[1:]}'
+            except Exception as e:
+                raise ArgumentError(f'Invalid num_args = {op_with_num_args[1:]}') from e
 
             for _ in range(num_args):
                 _non_working_days = stack.pop()
@@ -124,7 +125,7 @@ class Calendar(Traitable, _keep_history=True):
         return '_'.join(p for p in parts if p)
 
     @classmethod
-    def AND(cls, *calendars) -> 'Calendar':
+    def AND(cls, *calendars) -> 'Calendar':  # noqa: N802
         if not calendars:
             return None
 
@@ -134,7 +135,7 @@ class Calendar(Traitable, _keep_history=True):
     intersection = AND
 
     @classmethod
-    def OR(cls, *calendars) -> 'Calendar':
+    def OR(cls, *calendars) -> 'Calendar':  # noqa: N802
         if not calendars:
             return None
 
@@ -169,9 +170,9 @@ class Calendar(Traitable, _keep_history=True):
         if not all_dates:
             raise TypeError('Every day to add must be a date')
 
-        l = len(days)
+        ndays = len(days)
         days.update(days_to_add)
-        return len(days) > l
+        return len(days) > ndays
 
     @classmethod
     def remove_days(cls, days: set, *days_to_remove) -> bool:
@@ -182,9 +183,9 @@ class Calendar(Traitable, _keep_history=True):
         if not all_dates:
             raise TypeError('Every day to remove must be a date')
 
-        l = len(days)
+        ndays = len(days)
         days.difference_update(days_to_remove)
-        return len(days) < l
+        return len(days) < ndays
 
     def add_non_working_days(self, *days_to_add):
         non_working_days = set(self.non_working_days)
