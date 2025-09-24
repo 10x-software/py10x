@@ -142,6 +142,7 @@ class TestGraphBase(TestCase):
 
         p.age = 30
 
+
 class TestGraphOn(TestGraphBase):
     def setUp(self):
         self.graph_on = GRAPH_ON()
@@ -169,22 +170,22 @@ class TestGraphOn(TestGraphBase):
         p = self.p
         self.assertEqual(p.full_name, 'Jane Smith')
         with INTERACTIVE() as i1:
-            p.last_name='Baker'
+            p.last_name = 'Baker'
             self.assertEqual(p.full_name, 'Jane Baker')
             with INTERACTIVE() as i2:
-                p.first_name='Tom'
+                p.first_name = 'Tom'
                 self.assertEqual(p.full_name, 'Tom Baker')
             self.assertEqual(p.full_name, 'Jane Baker')
             with i2:
                 self.assertEqual(p.full_name, 'Tom Baker')
             self.assertEqual(p.full_name, 'Jane Baker')
 
-
         self.assertEqual(p.full_name, 'Jane Smith')
         with i1:
             self.assertEqual(p.full_name, 'Jane Baker')
 
         self.assertEqual(p.full_name, 'Jane Smith')
+
 
 class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):

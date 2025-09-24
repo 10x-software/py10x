@@ -245,7 +245,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #     #    return cls.load(id_value)
     #     return cls(_id = id_value)      #-- TODO: we may not need this method, unless used to enforce loading
 
-    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init = False, **trait_values):
+    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, **trait_values):
         cls = self.__class__
         if _id is not None:
             assert _collection_name is None, f'{self.__class__}(id_value) may not be invoked with _collection_name'
@@ -260,7 +260,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def existing_instance(cls, _collection_name: str = None, **trait_values) -> 'Traitable':
-        obj = cls(_collection_name = _collection_name, _skip_init = True)
+        obj = cls(_collection_name=_collection_name, _skip_init=True)
         if not obj.object_exists(trait_values):
             return None
 
@@ -270,7 +270,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None) -> 'Traitable':
         if _id is None:
             _id = ID(_id_value, _collection_name)
-        obj = cls(_id = _id)
+        obj = cls(_id=_id)
         return obj if obj.id_exists() else None
 
     @classmethod
