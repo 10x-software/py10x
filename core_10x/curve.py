@@ -272,30 +272,30 @@ class DateCurve(Curve):
         self.update(d, new_value)
 
     def bracketDateNodes( self, d: date ) -> tuple:
-        t = self._toNumber( d )
+        t = self._to_number( d )
 
-        times: list = self.times()
-        last_time = times[ -1 ]
-        first_time = times[ 0 ]
+        times: list = self.times
+        last_time = times[-1]
+        first_time = times[0]
         if t > last_time:
-            return ( self._fromNumber( last_time ), None )
+            return (self._from_number(last_time), None)
 
         if t < first_time:
-            return ( None, self._fromNumber( first_time ) )
+            return (None, self._from_number(first_time))
 
-        i = bisect.bisect_left( times, t )
-        if times[ i ] == t:
-            d = self._fromNumber( times[ i ] )
-            return ( d, d )
+        i = bisect.bisect_left(times, t)
+        if times[i] == t:
+            d = self._from_number(times[i])
+            return (d, d)
 
-        d_left = self._fromNumber( times[ i - 1 ] )
-        d_right = self._fromNumber( times[ i ] )
-        return ( d_left, d_right )
+        d_left = self._from_number(times[i - 1])
+        d_right = self._from_number(times[i])
+        return (d_left, d_right)
 
-    def beginningOfTimeAsDate( self ) -> date:
-        return DateCurve._fromNumber( self.beginning_of_time() )
+    def beginning_of_time_as_date(self) -> date:
+        return DateCurve._from_number(self.beginning_of_time)
 
-    def datesValues( self, min_date: date = None, max_date: date = None ) -> list:
-        dates = self.dates()
-        values = self.values()
-        return [ ( d, v ) for d, v in zip( dates, values ) if ( not min_date or d >= min_date ) and ( not max_date or d <= max_date ) ]
+    def dates_values(self, min_date: date = None, max_date: date = None) -> list:
+        dates = self.dates
+        values = self.values
+        return [ (d, v) for d, v in zip(dates, values) if (not min_date or d >= min_date) and (not max_date or d <= max_date) ]
