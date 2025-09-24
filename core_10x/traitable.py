@@ -2,7 +2,7 @@ import functools
 import operator
 from collections.abc import Callable, Generator
 from itertools import chain
-from typing import Any, Self
+from typing import Any, Self, get_origin
 
 from core_10x_i import BTraitable, BTraitableClass
 
@@ -116,7 +116,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @staticmethod
     def own_trait_definitions(bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC) -> Generator[tuple[str, TraitDefinition]]:
-        own_trait_definitions = next(TraitableMetaclass.find_symbols(bases, class_dict, 's_own_trait_definitions'))
+        own_trait_definitions = class_dict.get('s_own_trait_definitions')
         if own_trait_definitions:
             yield from own_trait_definitions.items()
             return
@@ -135,6 +135,14 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             if trait_def is not class_dict and not isinstance(trait_def, TraitDefinition):
                 continue
 
+            try:
+                dt_valid = isinstance(dt,type) or get_origin(dt) is not None
+            except TypeError:
+                dt_valid = False
+            if not dt_valid:
+                rc <<= f'Expected type for `{trait_name}`, but found {dt}.'
+                continue
+                
             old_trait: Trait = inherited_trait_dir.get(trait_name)
             if trait_def is class_dict:  # -- only annotation, not in class_dict
                 if old_trait and dt is not old_trait.data_type:

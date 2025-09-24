@@ -108,3 +108,14 @@ class TestTraitableDynamicTraits(unittest.TestCase):
         x = X()
         self.assertIs(x.T.x.data_type, int)
         self.assertEqual(x.x, 10)
+
+
+        class Y(X):
+            y: int = RT(20)
+
+        y = Y()
+        self.assertIs(y.T.x.data_type, int)
+        self.assertEqual(y.x, 10)
+
+        self.assertIs(y.T.y.data_type, int)
+        self.assertEqual(y.y, 20)
