@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import copy
 from functools import partial
 from typing import TYPE_CHECKING
 
 import rio
 import ui_10x.platform_interface as i
-from ui_10x.rio.component_builder import DynamicComponent, Widget
+from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, Widget
 
 if TYPE_CHECKING:
     import uvicorn
@@ -73,32 +74,17 @@ class Dialog(Widget, i.Dialog):
         assert not self._parent, 'Parent is not allowed for top level dialog'
 
         title = self.title or 'Dialog'
-        the_session = None
 
         def on_session_start(session):
-            nonlocal the_session
-            if the_session is None:
-                the_session = session
-
-        def on_session_close(session):
-            nonlocal the_session
-            if session is the_session:
-                the_session = None
+            session.attach(UserSessionContext(host='localhost', dbname='test'))  # TODO: backbone
 
         def build():
-            component = DynamicComponent(builder=self)
-            session = component.session
-            if session is the_session:
-                return component
-            from rio.components.error_placeholder import ErrorPlaceholder
-
-            return ErrorPlaceholder(error_summary='Only one session is allowed for `Dialog.exec`', error_details='')
+            return DynamicComponent(builder=copy.deepcopy(self))
 
         app = rio.App(
             name=title,
             build=build,
             on_session_start=on_session_start,
-            # on_session_close=on_session_close #TODO: debug what happens
         )
         debug = True
         if debug:

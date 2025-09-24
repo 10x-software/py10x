@@ -1,10 +1,6 @@
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Callable
-
 from core_10x.global_cache import cache
-from core_10x.named_constant import Enum
 
 from ui_10x.rio import component_builder, widgets
 
@@ -19,26 +15,13 @@ class Object: ...
 Application = widgets.Application
 
 
-class ConnectionType(Enum):
-    DIRECT = ()
-    QUEUED = ()
+
+DirectConnection = component_builder.ConnectionType.DIRECT
+QueuedConnection = component_builder.ConnectionType.QUEUED
 
 
-DirectConnection = ConnectionType.DIRECT
-QueuedConnection = ConnectionType.QUEUED
 
-
-class SignalDecl:
-    def __init__(self):
-        self.handlers: set[tuple[Callable[[...], None], ConnectionType]] = set()
-
-    def connect(self, handler: Callable[[...], None], type: ConnectionType = QueuedConnection) -> bool:
-        self.handlers.add((handler, type))
-        return True
-
-    def emit(self, *args) -> None:
-        for handler, conn in self.handlers:
-            handler(*args) if conn == DirectConnection else asyncio.get_running_loop().call_soon(handler, *args)
+SignalDecl = component_builder.SignalDecl
 
 
 def signal_decl(arg=object):

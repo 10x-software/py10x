@@ -10,19 +10,13 @@ theme = rio.Theme.from_colors(
     secondary_color=rio.Color.from_hex('0083ffff'),
 )
 
-interactive = None  # TODO: crashes without global reference
 
-
-def on_app_start(app_instance):
-    global interactive
-    interactive = INTERACTIVE()
-    interactive.begin_using()  # TODO: ideally should be in UserSessionContext, but needs to be re-enterable then
-
+def on_session_start(session):
+    session.attach(UserSessionContext(host='localhost', dbname='test')) # TODO: backbone
 
 app = rio.App(
     name='ui_10x.rio.apps.examples',
     description='Rio pages based on components created using ui_10x.platform_interface',
     theme=theme,
-    on_app_start=on_app_start,
-    default_attachments=[UserSessionContext(host='localhost', dbname='test')],  # TODO: backbone
+    on_session_start=on_session_start,
 )
