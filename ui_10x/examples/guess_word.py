@@ -1,9 +1,12 @@
-from core_10x.entity import Entity, RT, T, Ui, RC, RC_TRUE
-import core_10x.trait_definition as trait_definition
+from collections.abc import Generator
 
-from ui_10x.utils import ux
-from ui_10x.platform_interface import Widget, VBoxLayout, HBoxLayout, PushButton
+import core_10x.trait_definition as trait_definition
+from core_10x.entity import RC, RC_TRUE, RT, Entity, T, Ui
+
+from ui_10x.platform_interface import HBoxLayout, PushButton, VBoxLayout, Widget
 from ui_10x.table_view import TableView
+from ui_10x.utils import UxDialog, ux
+
 
 class CHAR_STATE:
     NONE        = ( 'lightgray',    'black' )
@@ -92,7 +95,7 @@ class GuessResult( Entity ):
         w.set_layout(lay)
 
         for i, keys in enumerate(self.s_keys):
-            l = HBoxLayout()
+            hlay = HBoxLayout()
             for j, c in enumerate(keys):
                 b = PushButton(c)
                 styles = self.s_style.get(i)
@@ -104,8 +107,8 @@ class GuessResult( Entity ):
                 avg_char_width = w.font_metrics().average_char_width()
                 b.setMaximumWidth(3 * avg_char_width)
 
-                l.add_widget(b)
-            lay.add_layout(l)
+                hlay.add_widget(b)
+            lay.add_layout(hlay)
 
         return w
 
@@ -188,9 +191,9 @@ class Game(Entity):
     def guess_res_class_get(self):
         num_chars = self.num_chars
         class Demo(GuessResult):
-            @classmethod
-            def ownTraitDirSource( cls ) -> dict:
-                return { tri[ 0 ]: tri[ 1 ] for i in range( num_chars ) if ( tri := cls._create_char_trait( i ) ) }
+            @staticmethod
+            def own_trait_definitions(bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
+                yield from (tri for i in range( num_chars ) if ( tri := GuessResult._create_char_trait( i ) ))
 
         Demo.traits()
         return Demo
@@ -210,7 +213,7 @@ class Game(Entity):
         current = self.current()
         guess = self.guess()
         if len( guess ) != self.num_chars():
-            uxWarning( f'The word is {self.num_chars()} characters long.' )
+            ux.warning( f'The word is {self.num_chars()} characters long.' )
             return
 
         gr = self.guess_result( self.guess() )
@@ -219,11 +222,11 @@ class Game(Entity):
         self.table().renderEntity( current, None )
 
         if all( s == CHAR_STATE.BINGO for s in gr.char_state() ):
-            uxSuccess( 'Great job - you got it!')
+            ux.success( 'Great job - you got it!')
 
         current += 1
         if current >= self.count():
-            uxWarning( 'Unfortunately you have failed this time' )
+            ux.warning( 'Unfortunately you have failed this time' )
 
         self.current = current
 
@@ -247,14 +250,14 @@ class Game(Entity):
         }
     }
     def keyboard( self ):
-        w = QWidget()
-        lay = QVBoxLayout()
+        w = Widget()
+        lay = VBoxLayout()
         w.setLayout( lay )
 
         for i, keys in enumerate( self.s_keys ):
-            l = QHBoxLayout()
+            hlay = HBoxLayout()
             for j, c in enumerate( keys ):
-                b = QPushButton( c )
+                b = PushButton( c )
                 styles = self.s_style.get( i )
                 if styles:
                     sh = styles.get( j )
@@ -264,26 +267,26 @@ class Game(Entity):
                 avg_char_width = w.fontMetrics().averageCharWidth()
                 b.setMaximumWidth( 3 * avg_char_width )
 
-                l.addWidget( b )
-            lay.addLayout( l )
+                hlay.addWidget( b )
+            lay.addLayout( hlay )
 
         return w
 
     def widget( self ):
-        uxInit()
-        w = QWidget()
-        lay = QVBoxLayout()
+        ux.init()
+        w = Widget()
+        lay = VBoxLayout()
         w.setLayout( lay )
 
         self.m_top_editor = top_editor = EntityEditor( self )
         top = top_editor.row()
         lay.addLayout( top )
-        lay.addWidget( uxSeparator() )
+        lay.addWidget( ux.separator() )
 
         table = self.table()
         lay.addWidget( table )
 
-        lay.addWidget( uxSeparator() )
+        lay.addWidget( ux.separator() )
         lay.addWidget( self.keyboard() )
 
         return w

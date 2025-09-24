@@ -74,8 +74,8 @@ def session_context(session: rio.Session):
 
 
 class ConnectionType(NamedConstant):
-    DIRECT = lambda handler, *args: handler(args)  # noqa: E731
-    QUEUED = lambda handler, *args: asyncio.get_running_loop().call_soon(handler, *args)  # noqa: E731
+    DIRECT = lambda handler, *args: handler(args)
+    QUEUED = lambda handler, *args: asyncio.get_running_loop().call_soon(handler, *args)
 
 
 class SignalDecl:
@@ -297,7 +297,7 @@ class ComponentBuilder:
 class Widget(ComponentBuilder, i.Widget):
     s_component_class = rio.Container
     s_stretch_arg = 'grow_x'
-    s_default_layout_factory = lambda: FlowLayout()  # noqa: E731
+    s_default_layout_factory = lambda: FlowLayout()
     s_default_kwargs = dict(grow_y=False, align_y=0)
 
     __slots__ = ('_layout',)

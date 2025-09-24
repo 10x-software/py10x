@@ -14,7 +14,6 @@ class PyClass:
     Module top-level classes ONLY
     """
 
-    # ruff: noqa: E731
     # fmt: off
     NO_NAME         = lambda cls: ''
     QUAL_NAME       = lambda cls: cls.__qualname__
