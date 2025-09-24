@@ -142,7 +142,6 @@ class TestGraphBase(TestCase):
 
         p.age = 30
 
-
 class TestGraphOn(TestGraphBase):
     def setUp(self):
         self.graph_on = GRAPH_ON()
@@ -166,6 +165,26 @@ class TestGraphOn(TestGraphBase):
         self.assertIs(self.p.age, self.p.age_get())
         self.assertEqual(self.p.id(), self.pid)
 
+    def test_nested(self):
+        p = self.p
+        self.assertEqual(p.full_name, 'Jane Smith')
+        with INTERACTIVE() as i1:
+            p.last_name='Baker'
+            self.assertEqual(p.full_name, 'Jane Baker')
+            with INTERACTIVE() as i2:
+                p.first_name='Tom'
+                self.assertEqual(p.full_name, 'Tom Baker')
+            self.assertEqual(p.full_name, 'Jane Baker')
+            with i2:
+                self.assertEqual(p.full_name, 'Tom Baker')
+            self.assertEqual(p.full_name, 'Jane Baker')
+
+
+        self.assertEqual(p.full_name, 'Jane Smith')
+        with i1:
+            self.assertEqual(p.full_name, 'Jane Baker')
+
+        self.assertEqual(p.full_name, 'Jane Smith')
 
 class TestExecControl(TestGraphBase):
     def test_convert(self, on=False):
@@ -182,27 +201,6 @@ class TestExecControl(TestGraphBase):
         self.test_dep_change()
         self.test_dep_change_with_arg()
         self.test_get_set()
-
-    def test_nested(self):
-        p = self.p
-        self.assertEqual(p.full_name, 'John Smith')
-        with INTERACTIVE() as i1:
-            p.last_name='Baker'
-            self.assertEqual(p.full_name, 'John Baker')
-            with INTERACTIVE() as i2:
-                p.first_name='Tom'
-                self.assertEqual(p.full_name, 'Tom Baker')
-            self.assertEqual(p.full_name, 'John Baker')
-            with i2:
-                self.assertEqual(p.full_name, 'Tom Baker')
-            self.assertEqual(p.full_name, 'John Baker')
-
-
-        self.assertEqual(p.full_name, 'John Smith')
-        with i1:
-            self.assertEqual(p.full_name, 'John Baker')
-
-        self.assertEqual(p.full_name, 'John Smith')
 
     def test(self, graph=False, convert=False, debug=False):
         with TsUnion():
