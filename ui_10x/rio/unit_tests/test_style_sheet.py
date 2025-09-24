@@ -26,12 +26,12 @@ def test_ss_to_ts():
     ts = ss.text_style
     assert ts.italic
     assert ts.font_weight == 'bold'
-    assert 'Helvetica' in ts.font.regular.as_uri()
+    assert ts.font._google_fonts_name == 'Helvetica'
     assert matplotlib.colors.same_color(f'#{ts.fill.hex}', 'lightgreen')
 
 
 def test_ts_to_ss():
     ss = StyleSheet()
-    rc = ss.set_values(text_style=rio.TextStyle(font=rio.Font.ROBOTO_MONO, fill=rio.Color.from_hex('#c5f7c5')))
+    rc = ss.set_values(text_style=rio.TextStyle(font=rio.Font.from_google_fonts('Times New Roman'), fill=rio.Color.from_hex('#c5f7c5')))
     assert rc
-    assert ss.sheet == {'color': '#c5f7c5', 'font-family': 'Roboto Mono', 'font-style': 'normal', 'font-weight': 'normal'}
+    assert ss.sheet == {'color': '#c5f7c5', 'font-family': 'Times New Roman', 'font-style': 'normal', 'font-weight': 'normal'}
