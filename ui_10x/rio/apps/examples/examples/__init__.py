@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from core_10x.exec_control import INTERACTIVE
 from ui_10x.rio.component_builder import UserSessionContext
 
 import rio
