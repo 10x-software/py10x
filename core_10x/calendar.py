@@ -3,6 +3,7 @@ from collections import deque
 
 from core_10x.traitable import Traitable, T, RT, Ui
 
+
 class CalendarNameParser:
     """
     calendar_name           := just_name | operation_repr_list
@@ -11,6 +12,8 @@ class CalendarNameParser:
     name_list               := just_name MORE_CHAR just_name MORE_CHAR | just_name MORE_CHAR name_list
     op                      := OR_CHAR | AND_CHAR
     """
+
+    # fmt: off
     MORE_CHAR   = ','
     OR_CHAR     = '|'
     AND_CHAR    = '&'
@@ -20,6 +23,7 @@ class CalendarNameParser:
         OR_CHAR:    set.update,
         AND_CHAR:   set.intersection_update
     }
+    # fmt: on
 
     @classmethod
     def combo_name(cls, name: str) -> bool:
@@ -35,7 +39,7 @@ class CalendarNameParser:
             if isinstance(cal_or_name, Calendar):
                 cname = cal_or_name.name
             elif isinstance(cal_or_name, str):
-                cal = Calendar.existing_instance_by_id(_id_value = cal_or_name)
+                cal = Calendar.existing_instance_by_id(_id_value=cal_or_name)
                 assert cal, f"Unknown calendar '{cal_or_name}'"
                 cname = cal_or_name
             else:
@@ -43,7 +47,7 @@ class CalendarNameParser:
 
             cal_names.append(cname)
 
-        return f"{cls.MORE_CHAR.join(sorted(cal_names))}{cls.MORE_CHAR}{op_char}{len(cal_names)}{cls.OP_CHAR}"
+        return f'{cls.MORE_CHAR.join(sorted(cal_names))}{cls.MORE_CHAR}{op_char}{len(cal_names)}{cls.OP_CHAR}'
 
     def __init__(self):
         self.stack = deque()
@@ -56,7 +60,7 @@ class CalendarNameParser:
         stack = parser.stack
 
         operation_repr_list = name.split(cls.OP_CHAR)
-        if len(operation_repr_list) == 1:     #-- regular (stored) calendar
+        if len(operation_repr_list) == 1:  # -- regular (stored) calendar
             return None
 
         for operation_repr in operation_repr_list:
@@ -64,10 +68,10 @@ class CalendarNameParser:
                 continue
 
             name_list_op_num_args = operation_repr.split(cls.MORE_CHAR)
-            if len(name_list_op_num_args) > 1:    #-- name list followed by op with num_args
+            if len(name_list_op_num_args) > 1:  # -- name list followed by op with num_args
                 for cname in name_list_op_num_args[:-1]:
                     if cname:
-                        cal: Calendar = Calendar.existing_instance_by_id(_id_value = cname)
+                        cal: Calendar = Calendar.existing_instance_by_id(_id_value=cname)
                         assert cal, f"Unknown calendar '{cname}"
                         stack.append(cal._non_working_days)
 
@@ -80,7 +84,7 @@ class CalendarNameParser:
             except Exception:
                 assert False, f'Invalid num_args = {op_with_num_args[1:]}'
 
-            for _ in range( num_args ):
+            for _ in range(num_args):
                 _non_working_days = stack.pop()
                 assert isinstance(_non_working_days, set)
 
@@ -89,17 +93,22 @@ class CalendarNameParser:
                 else:
                     op(non_working_days, _non_working_days)
 
-            stack.append(non_working_days)  #-- push set of non_working_days of an intermediate calendar
+            stack.append(non_working_days)  # -- push set of non_working_days of an intermediate calendar
 
         return non_working_days
 
+
 class CalendarAdjustment(Traitable):
+    # fmt: off
     name: str           = T(T.ID)
     add_days: list      = T()
     remove_days: list   = T()
+    # fmt: on
 
-#-- TODO: _default_cache = True:
-class Calendar(Traitable, _keep_history = True):
+
+# -- TODO: _default_cache = True:
+class Calendar(Traitable, _keep_history=True):
+    # fmt: off
     name: str               = T(T.ID | T.READONLY)
     name_base: str          = T(T.NOT_EMPTY)
     qualifier: str          = T('')
@@ -108,6 +117,7 @@ class Calendar(Traitable, _keep_history = True):
     non_working_days: list  = T(ui_hint = Ui('Non-Working Days'))
 
     _non_working_days: set  = RT()
+    # fmt: on
 
     def name_get(self) -> str:
         parts = (self.name_base, self.qualifier, self.adjusted_for)
@@ -119,7 +129,8 @@ class Calendar(Traitable, _keep_history = True):
             return None
 
         name = CalendarNameParser.operation_repr(CalendarNameParser.AND_CHAR, *calendars)
-        return cls(name = name)
+        return cls(name=name)
+
     intersection = AND
 
     @classmethod
@@ -128,18 +139,18 @@ class Calendar(Traitable, _keep_history = True):
             return None
 
         name = CalendarNameParser.operation_repr(CalendarNameParser.OR_CHAR, *calendars)
-        return cls(name = name)
+        return cls(name=name)
 
     @classmethod
     def union(cls, *calendars) -> 'Calendar':
         if len(calendars) > 1:
             return cls.OR(*calendars)
         assert calendars, 'At least one calendar is required for union()'
-        return cls(name = calendars[0])
+        return cls(name=calendars[0])
 
     def non_working_days_get(self) -> list:
         non_working_days = CalendarNameParser.parse(self.name)
-        ca = CalendarAdjustment.existing_instance_by_id(_id_value = self.adjusted_for)
+        ca = CalendarAdjustment.existing_instance_by_id(_id_value=self.adjusted_for)
         if ca:
             self.add_days(non_working_days, ca.add_days)
             self.remove_days(non_working_days, ca.remove_days)
@@ -185,12 +196,11 @@ class Calendar(Traitable, _keep_history = True):
         if self.remove_days(non_working_days, *days_to_remove):
             self.non_working_days = list(non_working_days)
 
-
     def is_bizday(self, d: date) -> bool:
         return d not in self._non_working_days
 
     def next_bizday(self, d: date) -> date:
-        dt = timedelta(days = 1)
+        dt = timedelta(days=1)
         d += dt
         while not self.is_bizday(d):
             d += dt
@@ -198,7 +208,7 @@ class Calendar(Traitable, _keep_history = True):
         return d
 
     def prev_bizday(self, d: date) -> date:
-        dt = timedelta(days = -1)
+        dt = timedelta(days=-1)
         d += dt
         while not self.is_bizday(d):
             d += dt
@@ -217,5 +227,3 @@ class Calendar(Traitable, _keep_history = True):
                 d = self.prev_bizday(d)
 
         return d
-
-
