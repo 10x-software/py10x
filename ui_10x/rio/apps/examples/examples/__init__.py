@@ -11,7 +11,8 @@ theme = rio.Theme.from_colors(
 
 
 def on_session_start(session):
-    session.attach(UserSessionContext(host='localhost', dbname='test')) # TODO: backbone
+    session.attach(UserSessionContext(host='localhost', dbname='test'))  # TODO: backbone
+
 
 app = rio.App(
     name='ui_10x.rio.apps.examples',

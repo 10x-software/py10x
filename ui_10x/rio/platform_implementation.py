@@ -15,10 +15,8 @@ class Object: ...
 Application = widgets.Application
 
 
-
 DirectConnection = component_builder.ConnectionType.DIRECT
 QueuedConnection = component_builder.ConnectionType.QUEUED
-
 
 
 SignalDecl = component_builder.SignalDecl
