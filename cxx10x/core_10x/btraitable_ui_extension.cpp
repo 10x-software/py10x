@@ -31,7 +31,7 @@ public:
         auto ui_trait = ui_class->bui_trait(trait);
         auto ui_node = proc->cache()->find_node(obj->tid(), ui_trait);
         if (!ui_node)
-            throw py::value_error(py::str("{}.{} - ui node must've been already created").format(obj->class_name(), trait->name()));
+            throw py::value_error(py::str("get_value_on_graph: {}.{} - ui node must've been already created").format(obj->class_name(), trait->name()));
 
         auto bound_getter = [obj, trait]() { return ui_getter(obj, trait); };
         return BTraitProcessor::get_node_value_on_graph(proc, ui_node, bound_getter);
@@ -121,5 +121,7 @@ void BUiClass::update_ui_node(BTraitable *obj, BTrait *trait) {
     auto ui_trait = bui_trait(trait);
     auto proc = ThreadContext::current_traitable_proc();
     auto node = proc->cache()->find_node(obj->tid(), ui_trait);
+    if (!node)
+        throw py::value_error(py::str("update_ui_node: {}.{} - ui node must've been already created").format(obj->class_name(), trait->name()));
     node->set_state(STATE_VALID);
 }
