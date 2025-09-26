@@ -11,7 +11,11 @@ class LineEditComponent(rio.Component):
 
     def build(self):
         text_input = rio.TextInput(
-            self.bind().text, is_sensitive=self.is_sensitive, on_change=self.on_change, on_lose_focus=self.on_lose_focus, text_style=self.text_style
+            self.bind().text,
+            is_sensitive=self.is_sensitive,
+            on_change=self.on_change,
+            on_lose_focus=self.on_lose_focus,
+            text_style=self.text_style,
         )
 
         if self.tooltip is None:
