@@ -5,8 +5,6 @@ import rio.testing.browser_client
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import PushButton
 
-rio.testing.browser_client.DEBUGGER_ACTIVE = False  # this is triggered by a) debugger or b) coverage. TODO: can we tell a) from b)?
-
 
 # @pytest.mark.async_timeout(20)
 async def test_handler() -> None:
