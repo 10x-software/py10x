@@ -6,6 +6,7 @@ from ui_10x.rio.widgets import LineEdit
 
 async def test_line_edit() -> None:
     widget = LineEdit('Hello')
+
     def build() -> rio.Component:
         return DynamicComponent(widget)
 

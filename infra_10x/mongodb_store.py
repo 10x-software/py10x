@@ -205,7 +205,7 @@ class MongoCollection(TsCollection):
         return None
 
 
-class MongoStore(TsStore, name='MONGO_DB'):
+class MongoStore(TsStore, resource_name='MONGO_DB'):
     ADMIN = 'admin'
 
     # fmt: off

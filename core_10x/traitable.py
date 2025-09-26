@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import functools
 import operator
 from collections.abc import Callable, Generator
 from itertools import chain
-from typing import Any, Self, get_origin
+from typing import Any, get_origin
 
 from core_10x_i import BTraitable, BTraitableClass
 
@@ -29,7 +31,7 @@ from core_10x.xnone import XNone, XNoneType
 class TraitAccessor:
     __slots__ = ('cls', 'obj')
 
-    def __init__(self, obj: 'Traitable'):
+    def __init__(self, obj: Traitable):
         self.cls = obj.__class__
         self.obj = obj
 
@@ -267,7 +269,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         self.T = TraitAccessor(self)
 
     @classmethod
-    def existing_instance(cls, _collection_name: str = None, **trait_values) -> 'Traitable':
+    def existing_instance(cls, _collection_name: str = None, **trait_values) -> Traitable:
         obj = cls(_collection_name=_collection_name, _skip_init=True)
         if not obj.object_exists(trait_values):
             return None
@@ -275,14 +277,14 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return obj
 
     @classmethod
-    def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None) -> 'Traitable':
+    def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None) -> Traitable:
         if _id is None:
             _id = ID(_id_value, _collection_name)
         obj = cls(_id=_id)
         return obj if obj.id_exists() else None
 
     @classmethod
-    def update(cls, **kwargs) -> Self:
+    def update(cls, **kwargs) -> Traitable:
         o = cls(**{k: v for k, v in kwargs.items() if not (t := cls.s_dir.get(k)) or t.flags_on(T.ID)})
         o.set_values(**{k: v for k, v in kwargs.items() if (t := cls.s_dir.get(k)) and not t.flags_on(T.ID)}).throw()
         return o
@@ -319,7 +321,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls
 
     @classmethod
-    def deserialize(cls, serialized_data) -> 'Traitable':
+    def deserialize(cls, serialized_data) -> Traitable:
         return Traitable.deserialize_nx(cls.s_bclass, serialized_data)
 
     def to_str(self) -> str:
@@ -394,11 +396,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.delete_in_store(cls, id)
 
     @classmethod
-    def load(cls, id: ID) -> Self | None:
+    def load(cls, id: ID) -> Traitable | None:
         return cls.s_storage_helper.load(cls, id)
 
     @classmethod
-    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Self]:
+    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Traitable]:
         return cls.s_storage_helper.load_many(cls, query, _coll_name, _at_most, _order, _deserialize)
 
     @classmethod
@@ -489,7 +491,7 @@ class StorableHelper(NotStorableHelper):
         return RC_TRUE
 
     @staticmethod
-    def load(cls, id: ID) -> 'Traitable':
+    def load(cls, id: ID) -> Traitable:
         return cls.s_bclass.load(id)
 
     @staticmethod

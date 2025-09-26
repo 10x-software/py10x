@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal, Self
+from typing import Literal
 
 import rio
 
@@ -15,7 +15,7 @@ class RioTreeItemBase(rio.Component):
     tooltip: str | None = None
     editable: bool = False
     editing: bool = False
-    children: list[Self] = []
+    children: list[RioTreeItemBase] = []
     is_expanded: bool = False
 
     def build_primary_text(self):

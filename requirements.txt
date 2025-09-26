@@ -5,6 +5,7 @@ importlib-resources~=6.5.2
 numpy~=2.2.2
 scipy>=1.13
 python-dateutil~=2.9.0
+typing-extensions>=4.15.0
 core_10x_i@git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x
 
 

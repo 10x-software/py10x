@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import abc
 from collections.abc import Iterable
-from typing import Self
 
 from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
@@ -58,7 +59,7 @@ class TsStore(Resource, resource_type=TS_STORE):
     s_instances = {}
 
     @classmethod
-    def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> Self:
+    def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> TsStore:
         translated_kwargs = cls.translate_kwargs(kwargs)
         try:
             if not _cache:
@@ -94,7 +95,7 @@ class TsStore(Resource, resource_type=TS_STORE):
         return {kwargs_map[name][0]: value for name, value in def_kwargs.items()}
 
     @classmethod
-    def new_instance(cls, *args, password: str, **kwargs) -> 'TsStore':
+    def new_instance(cls, *args, password: str, **kwargs) -> TsStore:
         raise NotImplementedError
 
     def on_enter(self):
