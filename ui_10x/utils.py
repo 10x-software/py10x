@@ -138,6 +138,7 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
     return button
 
 class UxDialog(ux.Dialog):
+    __slots__ = ('accept_callback','cancel_callback','w_message',)
     def _create_button(self, ok: bool, button_spec) -> ux.PushButton|None:
         if not button_spec:
             return None
@@ -343,6 +344,7 @@ def ux_make_scrollable(w: ux.Widget, h = ux.SCROLL.AS_NEEDED, v = ux.SCROLL.AS_N
     return sa
 
 class UxSearchableList(ux.GroupBox):
+    __slots__ = ('case_sensitive', 'current_choices', 'hook', 'initial_choices', 'reset_selection', 'selection', 'sort', 'w_field', 'w_list')
     def __init__(
         self,
         text_widget: ux.LineEdit = None,
@@ -369,7 +371,7 @@ class UxSearchableList(ux.GroupBox):
         self.hook = select_hook
         self.reset_selection = reset_selection
         self.case_sensitive = case_sensitive
-        self.choice = None
+        self.selection = None
 
         if title:
             self.set_title(title)
@@ -432,12 +434,12 @@ class UxSearchableList(ux.GroupBox):
             text_s = '' if self.reset_selection else text
             self.w_field.set_text(text_s)
 
-        self.choice = text
+        self.selection = text
         if self.hook:
             self.hook(text)
 
     def choice(self) -> str:
-        return self.choice
+        return self.selection
 
     def reset(self):
         if not self.current_choices == self.initial_choices:

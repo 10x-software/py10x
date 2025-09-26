@@ -25,7 +25,7 @@ class UiHint:
     BORDER_COLOR    = 'border-color'
     BORDER_STYLE    = 'border-style'
 
-    class WIDGET_TYPE(Enum):  # noqa: N801
+    class WIDGET_TYPE(Enum):
         NONE        = ()
         LINE        = ()
         TEXT        = ()

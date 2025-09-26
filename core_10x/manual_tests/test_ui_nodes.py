@@ -1,14 +1,12 @@
-import gc
-from datetime import date
 from functools import partial
 from unittest.mock import MagicMock
 
 import pytest
+
 from core_10x.exec_control import BTP, INTERACTIVE
 from core_10x.rc import RC
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable
-from more_itertools.more import side_effect
 
 
 class X(Traitable):

@@ -136,7 +136,7 @@ class Keyboard:
         'asdfghjkl',
         '*zxcvbnm<'
     ]
-    s_specialChars = {
+    s_special_chars = {
         2:  {
             0:                      ( 'background-color: green; color: white',  GuessResult.accept_guess ),
             len(s_keys[2]) - 1:     ( 'background-color: red; color: white',    GuessResult.delete_char ),
@@ -145,7 +145,7 @@ class Keyboard:
 
     def __init__(self, guess: GuessResult):
         self.guess = guess
-        special_chars = self.s_specialChars
+        special_chars = self.s_special_chars
         num_rows = len(self.s_keys)
         self.keys = keys = [ [] ] * num_rows
         for i, symbols in enumerate(self.s_keys):

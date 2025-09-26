@@ -1,11 +1,12 @@
+from PyQt5.QtCore import QModelIndex, QPointF, QRect, QSize, Qt, QVariant
+from PyQt5.QtGui import QFont, QFontMetrics, QPainter, QPaintEvent
+from PyQt5.QtWidgets import QStyle, QStyleOptionHeader
+
 from ui_10x.platform import ux
-
-from PyQt5.QtCore import Qt, QRect, QPointF, QModelIndex, QSize, QVariant
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QPainter, QPalette, QFont, QFontMetrics, QPaintEvent
-from PyQt5.QtWidgets import QHeaderView, QStyleOptionHeader, QStyle, QWidget
-
 from ui_10x.traitable_view import TraitableView
 
+
+# ruff: noqa: N802 # Function name should be lowercase
 class HeaderModel(ux.StandardItemModel):
     def _create_subtree(self, traits: dict, root: ux.StandardItem, tree: dict):
         col = 0

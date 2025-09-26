@@ -10,8 +10,6 @@ from core_10x.ui_hint import Ui
 from core_10x.xdate_time import XDateTime, date, datetime
 from core_10x.xnone import XNone, XNoneType
 
-# ruff: noqa: N801
-
 
 class primitive_trait(Trait, register=False):
     s_ui_hint = Ui.NONE

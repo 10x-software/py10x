@@ -3,7 +3,13 @@ from collections.abc import Callable
 from datetime import date
 
 
-class Object(abc.ABC): ...  # noqa: B024
+class ABCMetaSlotted(abc.ABCMeta):
+    def __new__(cls, name, bases, class_dict, **kwargs):
+        class_dict.setdefault('__slots__', ())
+        return super().__new__(cls, name, bases, class_dict, **kwargs)
+
+
+class Object(abc.ABC, metaclass=ABCMetaSlotted): ...
 
 
 # fmt: off
@@ -15,7 +21,7 @@ BlockingQueuedConnection    = None
 # fmt: on
 
 
-class signal_decl(abc.ABC):  # noqa: N801
+class signal_decl(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def __init__(self, *args): ...
 
@@ -26,7 +32,7 @@ class signal_decl(abc.ABC):  # noqa: N801
     def emit(self, *args): ...
 
 
-class MouseEvent(abc.ABC):
+class MouseEvent(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def is_left_button(self) -> bool: ...
 
@@ -34,7 +40,7 @@ class MouseEvent(abc.ABC):
     def is_right_button(self) -> bool: ...
 
 
-class Point(abc.ABC):
+class Point(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def x(self) -> int: ...
 
@@ -42,22 +48,20 @@ class Point(abc.ABC):
     def y(self) -> int: ...
 
 
-class SizePolicy(abc.ABC):  # noqa: B024
+class SizePolicy(abc.ABC, metaclass=ABCMetaSlotted):
     MINIMUM_EXPANDING = None
     PREFERRED = None
 
 
-class FontMetrics(abc.ABC):
+class FontMetrics(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def average_char_width(self) -> int: ...
 
 
-class Color(abc.ABC): ...  # noqa: B024
+class Color(abc.ABC, metaclass=ABCMetaSlotted): ...
 
 
-class Widget(abc.ABC):
-    __slots__ = ()
-
+class Widget(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def __init__(self, *args, **kwargs) -> None: ...
 
@@ -113,7 +117,7 @@ Vertical    = 1
 # fmt: on
 
 
-class Layout(abc.ABC):
+class Layout(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def __init__(self, *args, **kwargs): ...
 
@@ -127,15 +131,15 @@ class Layout(abc.ABC):
     def set_contents_margins(self, left, top, right, bottom): ...
 
 
-class BoxLayout(Layout, abc.ABC):
+class BoxLayout(Layout, abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def add_layout(self, layout: 'Layout', **kwargs): ...
 
 
-class HBoxLayout(BoxLayout, abc.ABC): ...
+class HBoxLayout(BoxLayout, abc.ABC, metaclass=ABCMetaSlotted): ...
 
 
-class VBoxLayout(BoxLayout, abc.ABC): ...
+class VBoxLayout(BoxLayout, abc.ABC, metaclass=ABCMetaSlotted): ...
 
 
 class FormLayout(Layout):
@@ -158,13 +162,11 @@ class Splitter(Widget):
 
 
 class Label(Widget):
-    __slots__ = ()
-
     @abc.abstractmethod
     def set_text(self, text: str): ...
 
 
-class Style(abc.ABC):
+class Style(abc.ABC, metaclass=ABCMetaSlotted):
     State_Active = None
 
     @abc.abstractmethod
@@ -172,8 +174,6 @@ class Style(abc.ABC):
 
 
 class PushButton(Label):
-    __slots__ = ()
-
     @abc.abstractmethod
     def clicked_connect(self, bound_method): ...
 
@@ -232,8 +232,6 @@ class GroupBox(Widget):
 
 
 class RadioButton(Widget):
-    __slots__ = ()
-
     @abc.abstractmethod
     def set_checked(self, checked: bool): ...
 
@@ -249,7 +247,7 @@ class ButtonGroup(Widget):
     def checked_id(self) -> int: ...
 
 
-class ListItem(abc.ABC):
+class ListItem(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def row(self): ...
 
@@ -366,7 +364,7 @@ class Dialog(Widget):
     def show(self): ...
 
 
-class MessageBox(abc.ABC):
+class MessageBox(abc.ABC, metaclass=ABCMetaSlotted):
     @classmethod
     @abc.abstractmethod
     def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]) -> bool: ...
@@ -384,7 +382,7 @@ class MessageBox(abc.ABC):
     def is_yes_button(cls, sb) -> bool: ...
 
 
-class Application(abc.ABC):
+class Application(abc.ABC, metaclass=ABCMetaSlotted):
     @classmethod
     @abc.abstractmethod
     def instance(cls) -> 'Application': ...
@@ -393,7 +391,7 @@ class Application(abc.ABC):
     def style(self): ...
 
 
-class TEXT_ALIGN:  # noqa: N801
+class TEXT_ALIGN:
     # fmt: off
     TOP       = None
     V_CENTER  = None
@@ -404,7 +402,7 @@ class TEXT_ALIGN:  # noqa: N801
     # fmt: on
 
 
-class SCROLL(abc.ABC):  # noqa: B024
+class SCROLL(abc.ABC, metaclass=ABCMetaSlotted):
     # fmt: off
     OFF         = None
     ON          = None
@@ -423,7 +421,7 @@ class ScrollArea(Widget):
     def set_vertical_scroll_bar_policy(self, h): ...
 
 
-class StandardItem(abc.ABC):
+class StandardItem(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def __init__(self, *args): ...
 
@@ -431,7 +429,7 @@ class StandardItem(abc.ABC):
     def append_column(self, column: tuple): ...
 
 
-class StandardItemModel(abc.ABC):
+class StandardItemModel(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def set_item(self, row: int, col: int, item: StandardItem): ...
 
@@ -442,7 +440,7 @@ class StandardItemModel(abc.ABC):
     def index(self, row: int, col: int): ...
 
 
-class ModelIndex(abc.ABC):
+class ModelIndex(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def is_valid(self) -> bool: ...
 
@@ -459,10 +457,10 @@ class ModelIndex(abc.ABC):
     def data(self, role): ...
 
 
-class AbstractTableModel(abc.ABC): ...  # noqa: B024
+class AbstractTableModel(abc.ABC, metaclass=ABCMetaSlotted): ...
 
 
-class HeaderView(abc.ABC):
+class HeaderView(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def set_model(self, model): ...
 
@@ -473,7 +471,7 @@ class HeaderView(abc.ABC):
     def init_style_option(self, *args): ...
 
 
-class Palette(abc.ABC):
+class Palette(abc.ABC, metaclass=ABCMetaSlotted):
     # fmt: off
     ButtonText  = None
     Button      = None
@@ -484,7 +482,7 @@ class Palette(abc.ABC):
     def set_brush(self, br_type, brush): ...
 
 
-class StyleOptionHeader(abc.ABC):
+class StyleOptionHeader(abc.ABC, metaclass=ABCMetaSlotted):
     palette: Palette
 
 
@@ -492,7 +490,7 @@ ForegroundRole = None
 BackgroundRole = None
 
 
-class Separator(abc.ABC): ...  # noqa: B024
+class Separator(abc.ABC, metaclass=ABCMetaSlotted): ...
 
 
 # fmt: off

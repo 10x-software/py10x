@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import operator
+import types
 from collections import defaultdict
 from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
-from functools import partial
+from functools import partial, reduce
 
 from core_10x.exec_control import BTP, INTERACTIVE
 from core_10x.named_constant import Enum, NamedConstant
 from core_10x.rc import RC
+from core_10x.traitable import Traitable
 from core_10x.ts_store import TsStore
 from core_10x_i import BTraitableProcessor
 
@@ -111,7 +114,7 @@ class SizePolicy(Enum):
     PREFERRED = ()
 
 
-class TEXT_ALIGN(NamedConstant):  # noqa: N801
+class TEXT_ALIGN(NamedConstant):
     s_vertical = 0xF << 4
 
     LEFT = 1
@@ -286,21 +289,21 @@ class ComponentBuilder:
             return default
 
     def callback(self, callback):
-        def cb(*args, **kwargs):
-            with session_context(self.component.session):
+        def cb(widget, *args, **kwargs):
+            with session_context(widget.component.session):
                 # note - callback must not yield the event loop!
                 return callback(*args, **kwargs)
 
-        return cb
+        return types.MethodType(cb, self)
 
 
 class Widget(ComponentBuilder, i.Widget):
+    __slots__ = ('_layout',)
+
     s_component_class = rio.Container
     s_stretch_arg = 'grow_x'
     s_default_layout_factory = lambda: FlowLayout()
     s_default_kwargs = dict(grow_y=False, align_y=0)
-
-    __slots__ = ('_layout',)
 
     def __init_subclass__(cls, **kwargs):
         cls.s_default_layout_factory = None
@@ -310,6 +313,35 @@ class Widget(ComponentBuilder, i.Widget):
         super().__init__(*children, **kwargs)
         layout_factory = self.__class__.s_default_layout_factory
         self._layout = layout_factory() if layout_factory else None
+
+    def __getstate__(self):
+        assert getattr(self, '__dict__', self) is self, f'widgets should not have __dict__: {self}'
+
+        def unbind(o):
+            if isinstance(o, types.MethodType) and o.__self__:
+                if isinstance((s := o.__self__), Traitable):
+                    return '__rebind_traitable__', type(s), s.id(), o.__func__
+                if o.__self__ is self:
+                    return '__rebind_self__', o.__func__
+                raise RuntimeError(f'cannot handle bound method {o}')
+            return o
+
+        def slot_set(c):
+            slots = getattr(c, '__slots__', ())
+            return {slots} if isinstance(slots, str) else set(slots)
+
+        all_slots = reduce(operator.or_, (slot_set(base) for base in self.__class__.__mro__), set())
+        return {k: unbind(getattr(self, k)) for k in all_slots}
+
+    def __setstate__(self, state):
+        for k, v in state.items():
+            if isinstance(v, tuple):
+                if v[0] == '__rebind_traitable__':
+                    t_class, t_id, func = v[1:]
+                    v = func.__get__(t_class(t_id))
+                elif v[0] == '__rebind_self__':
+                    v = v[1].__get__(self)
+            setattr(self, k, v)
 
     def set_layout(self, layout: i.Layout):
         self._layout = layout
