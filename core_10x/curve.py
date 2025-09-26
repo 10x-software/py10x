@@ -9,7 +9,7 @@ from core_10x.named_constant import NamedConstant
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
 
 
-class IP_KIND(NamedConstant, lowercase_values=True):  # noqa: N801
+class IP_KIND(NamedConstant, lowercase_values=True):
     # fmt: off
     #-- NOTE: enum labels specify the minimum number of points required!
     LINEAR      = ( 2, )

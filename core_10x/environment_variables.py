@@ -23,7 +23,7 @@ from core_10x.xdate_time import XDateTime, date, datetime
 # ===================================================================================================================================
 
 
-class classproperty(property):  # noqa: N801
+class classproperty(property):
     def __get__(self, obj, objtype: type = None):
         return self.fget(objtype)
 

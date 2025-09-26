@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -13,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class Dialog(Widget, i.Dialog):
-    __slots__ = ('_dialog', '_modal', '_parent', '_server')
+    __slots__ = ('_dialog', '_modal', '_parent', '_server', 'accepted', 'on_accept', 'on_reject', 'title')
     s_component_class = rio.Column
     s_forced_kwargs = {'grow_x': True, 'grow_y': True}
 
@@ -74,17 +73,37 @@ class Dialog(Widget, i.Dialog):
         assert not self._parent, 'Parent is not allowed for top level dialog'
 
         title = self.title or 'Dialog'
+        sessions = set()
 
         def on_session_start(session):
-            session.attach(UserSessionContext(host='localhost', dbname='test'))  # TODO: backbone
+            sessions.add(session)
+            print('on_session_start:', len(sessions))
+
+        def on_session_close(session):
+            for component in session._weak_components_by_id.values():
+                if isinstance(component, DynamicComponent):
+                    component.builder.component = None
+                    component.builder.subcomponent = None
+            sessions.remove(session)
+            print('on_session_close:', len(sessions))
 
         def build():
-            return DynamicComponent(builder=copy.deepcopy(self))
+            print('build:', len(sessions))
+            if len(sessions) == 1:
+                component = DynamicComponent(builder=self)
+                if component.session in sessions:
+                    return component
+
+            from rio.components.error_placeholder import ErrorPlaceholder
+
+            return ErrorPlaceholder(error_summary='Only one session is allowed for `Dialog.exec`', error_details='')
 
         app = rio.App(
             name=title,
             build=build,
             on_session_start=on_session_start,
+            on_session_close=on_session_close,
+            default_attachments=[UserSessionContext(host='localhost', dbname='test')],
         )
         debug = True
         if debug:

@@ -36,6 +36,7 @@ class ListItem(Widget, i.ListItem):
 
 
 class ListWidget(Widget, i.ListWidget):
+    __slots__ = ('_on_press',)
     s_component_class = rio.ListView
     s_default_kwargs = dict(selection_mode='single')
 

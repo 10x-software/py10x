@@ -5,9 +5,7 @@ import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import Layout
 
 
-class BoxLayout(Layout):
-    def _get_children(self):
-        return super()._get_children()  # + [Spacer()]
+class BoxLayout(Layout): ...
 
 
 class VBoxLayout(BoxLayout, i.VBoxLayout):
@@ -33,4 +31,4 @@ class FormLayout(Layout, i.FormLayout):
         self.add_children(args)
 
     def _build_children(self, session: rio.Session):
-        return [[child(session) for child in children] for children in self._get_children()]  # TODO: cleanup?
+        return [[child(session) for child in children] for children in self._get_children()]  # children are 2d array

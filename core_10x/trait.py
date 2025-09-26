@@ -306,7 +306,7 @@ class Trait(BTrait):
 
 # ---- Methods Associated with a trait
 # fmt: off
-class TRAIT_METHOD(NamedConstant): # noqa: N801
+class TRAIT_METHOD(NamedConstant):
     GET                 = Trait.create_f_get
     SET                 = Trait.create_f_set
     VERIFY              = Trait.create_f_plain
@@ -322,7 +322,7 @@ class TRAIT_METHOD(NamedConstant): # noqa: N801
 # fmt: on
 
 
-class generic_trait(Trait, register=False):  # noqa: N801
+class generic_trait(Trait, register=False):
     s_ui_hint = Ui.NONE
 
     def post_ctor(self):
@@ -336,7 +336,7 @@ class generic_trait(Trait, register=False):  # noqa: N801
         return value1 is value2
 
 
-class trait_value:  # noqa: N801
+class trait_value:
     def __init__(self, value, *args):
         self.value = value
         self.args = args

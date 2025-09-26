@@ -104,7 +104,7 @@ class Choice:
 
 
 class MultiChoice(Choice):
-    class SELECT_MODE(Enum): # noqa: N801
+    class SELECT_MODE(Enum):
         ANY     = ()
         LEAF    = ()
         SUBDIR  = ()

@@ -4,7 +4,7 @@ from core_10x.named_constant import NamedConstant
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
 
 
-class WEIGHT_QU( NamedConstant ): # noqa: N801
+class WEIGHT_QU( NamedConstant ):
     LB =    ( 'lb',     1. )
     KG =    ( 'kg',     2.205 )
     G =     ( 'g',      0.002205 )

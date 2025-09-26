@@ -1,14 +1,16 @@
 import inspect
-from PyQt5.QtWidgets import QTableView, QAbstractScrollArea
-from PyQt5.QtCore import Qt, QModelIndex, QVariant, QAbstractTableModel
 
-from core_10x.traitable import Traitable, Trait
+from core_10x.traitable import Trait, Traitable
+from PyQt5.QtCore import QAbstractTableModel, QModelIndex, Qt, QVariant
+from PyQt5.QtWidgets import QAbstractScrollArea, QTableView
 
-from ui_10x.utils import UxStyleSheet, ux_text_alignment
-from ui_10x.table_header_view import HeaderView, HeaderModel
+from ui_10x.table_header_view import HeaderModel, HeaderView
 from ui_10x.traitable_editor import TraitableEditor
 from ui_10x.traitable_view import TraitableView
+from ui_10x.utils import UxStyleSheet, ux_text_alignment
 
+
+# ruff: noqa: N802 # Function name should be lowercase
 class Model(QAbstractTableModel):
     def __init__(self, model: HeaderModel, data, parent = None):
         super().__init__(parent = parent)

@@ -551,10 +551,10 @@ class StorableHelper(NotStorableHelper):
         return rc
 
 
-class THIS_CLASS(Traitable): ...  # noqa: N801 #-- to use for traits with the same Traitable class type
+class THIS_CLASS(Traitable): ...  # -- to use for traits with the same Traitable class type
 
 
-class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):  # noqa: N801
+class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):
     def post_ctor(self): ...
 
     def check_integrity(self, cls, rc: RC):

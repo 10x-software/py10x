@@ -14,7 +14,7 @@ from core_10x.trait import Trait
 
 
 # fmt: off
-class _mongo_label: # noqa: N801
+class _mongo_label:
     EQ      = '$eq'
     NE      = '$ne'
     GT      = '$gt'
@@ -32,7 +32,7 @@ class _mongo_label: # noqa: N801
 LABEL = _mongo_label
 
 
-class _filter(ABC):  # noqa: N801
+class _filter(ABC):
     @abstractmethod
     def eval(self, left_value) -> bool: ...
     @abstractmethod
@@ -61,7 +61,7 @@ class Op(_filter, ABC):
         }
 
 
-class NOT_EMPTY(Op, label=''):  # noqa: N801
+class NOT_EMPTY(Op, label=''):
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
         raise NotImplementedError
 
@@ -173,7 +173,7 @@ class OR(BoolOp):
         return any(e.eval(left_value) for e in self.right_value)
 
 
-class f(_filter):  # noqa: N801
+class f(_filter):
     def __init__(self, _f: _filter = None, _t: BTraitableClass = None, **named_expressions):
         self.filter = _f
         self.traitable_class = _t

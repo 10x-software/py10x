@@ -1,5 +1,6 @@
-from core_10x.code_samples.person import Person
 from infra_10x.mongodb_store import MongoStore
+
+from core_10x.code_samples.person import Person
 
 db = MongoStore.instance(hostname = 'localhost', dbname = 'test')
 db.begin_using()

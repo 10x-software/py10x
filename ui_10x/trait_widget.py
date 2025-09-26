@@ -9,6 +9,7 @@ from ui_10x.utils import UxStyleSheet, ux
 
 
 class TraitWidget:
+    # __slots__ = ('program_edit', 'refresh_context', 'style_sheet', 'trait', 'trait_editor')
     s_hinted_widgets = {}
 
     def __init_subclass__(cls, widget_type: Ui.WIDGET_TYPE = None, **kwargs):
