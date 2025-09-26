@@ -1,4 +1,4 @@
-from typing import Self
+from __future__ import annotations
 
 from core_10x_i import BNucleus
 
@@ -45,19 +45,19 @@ class Nucleus:
         raise NotImplementedError
 
     @classmethod
-    def deserialize(cls, serialized_data) -> Self:
+    def deserialize(cls, serialized_data) -> Nucleus:
         raise NotImplementedError
 
     @classmethod
-    def from_str(cls, s: str) -> Self:
+    def from_str(cls, s: str) -> Nucleus:
         raise NotImplementedError
 
     @classmethod
-    def from_any_xstr(cls, value) -> Self:
+    def from_any_xstr(cls, value) -> Nucleus:
         raise NotImplementedError
 
     @classmethod
-    def from_any(cls, value) -> Self:
+    def from_any(cls, value) -> Nucleus:
         if isinstance(value, cls):
             return value
 

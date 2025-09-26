@@ -1,4 +1,6 @@
-from typing import Any, Self
+from __future__ import annotations
+
+from typing import Any
 
 from core_10x.nucleus import Nucleus
 
@@ -39,7 +41,7 @@ class NamedConstant(Nucleus):
         return self
 
     @classmethod
-    def _create(cls, args: Any) -> Self:
+    def _create(cls, args: Any) -> NamedConstant:
         cdef = cls()
         if type(args) is not tuple:  # -- just a value
             cdef.value = args
@@ -75,7 +77,7 @@ class NamedConstant(Nucleus):
         return self.name
 
     @classmethod
-    def deserialize(cls, name: str) -> Self:
+    def deserialize(cls, name: str) -> NamedConstant:
         sdir = cls.s_dir
         cdef = sdir.get(name, sdir)
         if cdef is sdir:
@@ -84,11 +86,11 @@ class NamedConstant(Nucleus):
         return cdef
 
     @classmethod
-    def from_str(cls, s: str) -> Self:
+    def from_str(cls, s: str) -> NamedConstant:
         return cls.s_dir.get(s)
 
     @classmethod
-    def from_any_xstr(cls, data) -> Self:
+    def from_any_xstr(cls, data) -> NamedConstant | None:
         if type(data) is cls.s_data_type:
             reverse_dir = cls.s_reverse_dir
             if reverse_dir:
@@ -110,7 +112,7 @@ class NamedConstant(Nucleus):
 
     # ===================================================================================================================
 
-    s_dir: dict[str, Self] = {}
+    s_dir: dict[str, NamedConstant] = {}
     s_reverse_dir = {}
     s_data_type = None
     s_default_labels = False
@@ -202,7 +204,7 @@ class Enum(NamedConstant):
         return self.value
 
     @classmethod
-    def _create(cls, args: Any) -> Self:
+    def _create(cls, args: Any) -> Enum:
         cdef = cls()
         if args == ():
             return cdef
@@ -273,7 +275,7 @@ class EnumBits(NamedConstant):
         return value
 
     @classmethod
-    def from_str(cls, s: str) -> Self:
+    def from_str(cls, s: str) -> EnumBits:
         if not s:
             return getattr(cls, NO_FLAGS_TAG)
 
@@ -286,7 +288,7 @@ class EnumBits(NamedConstant):
         return cls(s, s, value)
 
     @classmethod
-    def from_int(cls, value: int) -> Self:
+    def from_int(cls, value: int) -> EnumBits:
         cnames = cls.names_from_value(value)
         if not cnames:
             return getattr(cls, NO_FLAGS_TAG)
@@ -295,7 +297,7 @@ class EnumBits(NamedConstant):
         return cls(name, name, value)
 
     @classmethod
-    def from_any_xstr(cls, data) -> Self:
+    def from_any_xstr(cls, data) -> EnumBits:
         dt = type(data)
         if dt is int:
             return cls.from_int(data)
@@ -310,7 +312,7 @@ class EnumBits(NamedConstant):
         return None
 
     @classmethod
-    def deserialize(cls, data) -> Self:
+    def deserialize(cls, data) -> EnumBits:
         return cls.from_str(data)
 
     @classmethod

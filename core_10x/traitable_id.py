@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from functools import total_ordering
-from typing import Self
 
 
 @total_ordering
@@ -10,7 +11,7 @@ class ID:
         self.value = id_value
         self.collection_name = collection_name
 
-    def __eq__(self, other: Self):
+    def __eq__(self, other: ID):
         if not isinstance(other, ID):
             return NotImplemented
         return self.value == other.value and self.collection_name == other.collection_name
@@ -24,7 +25,7 @@ class ID:
     def __hash__(self):
         return hash((self.value, self.collection_name))
 
-    def __lt__(self, other: Self) -> bool:
+    def __lt__(self, other: ID) -> bool:
         if not isinstance(other, ID):
             return NotImplemented
         return (self.collection_name, self.value) < (other.collection_name, other.value)

@@ -119,17 +119,17 @@ class Resource(abc.ABC):
     s_resource_type: ResourceType = None
     s_driver_name: str = None
 
-    def __init_subclass__(cls, resource_type: ResourceType = None, name: str = None):
+    def __init_subclass__(cls, resource_type: ResourceType = None, resource_name: str = None, **kwargs):
         if cls.s_resource_type is None:  # -- must be a top class of a particular resource type, e.g. TsStore
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
-            assert name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
+            assert resource_name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
             cls.s_resource_type = resource_type
 
         else:  # -- a Resource of a particular resource type
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
-            assert name and isinstance(name, str), 'a unique Resource name is expected'
-            cls.s_resource_type.register_driver(name, cls)
-            cls.s_driver_name = name
+            assert resource_name and isinstance(resource_name, str), 'a unique Resource name is expected'
+            cls.s_resource_type.register_driver(resource_name, cls)
+            cls.s_driver_name = resource_name
 
     def __enter__(self):
         return self.begin_using()

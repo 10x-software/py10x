@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import heapq
 import itertools
 import operator
 from collections.abc import Iterable
 from itertools import zip_longest
-from typing import Self
 
 from core_10x.nucleus import Nucleus
 from core_10x.trait_filter import EQ, f
@@ -110,7 +111,7 @@ class TsUnionCollection(TsCollection):
         return None
 
 
-class TsUnion(TsStore, name='TS_UNION'):
+class TsUnion(TsStore, resource_name='TS_UNION'):
     @classmethod
     def is_running_with_auth(cls, host_name: str) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
@@ -120,7 +121,7 @@ class TsUnion(TsStore, name='TS_UNION'):
         return tuple(cls.s_resource_type.resource_driver(kw['driver_name']).standard_key(**kw) for kw in args)
 
     @classmethod
-    def new_instance(cls, *args, **kwargs) -> Self:
+    def new_instance(cls, *args, **kwargs) -> TsUnion:
         stores = [cls.s_resource_type.resource_driver(kw.pop('driver_name')).instance(**kw) for kw in args]
         return TsUnion(*stores)
 
