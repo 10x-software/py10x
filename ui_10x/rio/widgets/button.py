@@ -12,14 +12,16 @@ from ui_10x.rio.component_builder import Widget
 class Label(Widget, i.Label):
     s_component_class = rio.Text
     s_forced_kwargs = {'selectable': False}  # , 'align_x': 0}
-    s_default_kwargs = {'text': ''}
     s_single_child = True
     s_children_attr = 'text'
+    s_default_kwargs = {'text': ''}
 
 
 class PushButton(Label, i.PushButton):
     s_component_class = rio.Button
     s_forced_kwargs = {}
+    s_children_attr = 'content'
+    s_default_kwargs = {'content': ''}
 
     def clicked_connect(self, bound_method: Callable[[bool], None]):
         unbound_params = [
@@ -39,5 +41,5 @@ class PushButton(Label, i.PushButton):
             label = args[-1]
             assert label is not None
             icon = args[0] if len(args) > 1 else None
-            self['text'] = label
+            self.set_text(label)
             self['icon'] = icon

@@ -20,9 +20,16 @@ dependencies = [
 ]
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.3.4",
-    "pytest-cov>=6.0.0",
-    "ruff>=0.13.0",
+    "alt-pytest-asyncio==0.7.2",
+    "asyncio-atexit>=1.0.1,<2.0",
+    #"coverage>=7.2,<8.0",
+    #"hatch>=1.11.1,<2.0",
+    "playwright>=1.44,<1.56",
+    #"pre-commit>=3.1,<5.0",
+    #"pyfakefs>=5.7.3,<6.0",
+    "pytest>=8.3.4,<9.0",
+    "pytest-cov>=6.0,<8.0",
+    "ruff>=0.13,<0.14",
     "uv>=0.8.19",
 ]
 rio = [
@@ -35,7 +42,7 @@ qt = [
     "PyQt6_sip (==13.10.0)",
 ]
 [build-system]
-requires = ["hatchling>=1.17.0"]
+requires = ["hatchling>=1.17.0","hatch-build-scripts","playwright"]
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
@@ -43,44 +50,11 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["core_10x", "infra_10x", "ui_10x"]
-
-[tool.ruff]
-src = ["core_10x", "infra_10x", "ui_10x"]
-line-length = 150
-
-[tool.ruff.format]
-quote-style = "single"
 exclude = [
-    "core_10x/xnone.py",
-    "core_10x/code_samples/*",
-    "core_10x/manual_tests/*",
-    "core_10x/experimental/*",
-    "ui_10x/qt6/*",
-    "ui_10x/examples/*",
-    "ui_10x/py_data_browser.py",
-    "ui_10x/choice.py",
-    "ui_10x/table*.py",
-    "ui_10x/utils.py",
+  "**/*_tests/**",
 ]
 
-[tool.ruff.lint]
-ignore = ["RUF013","RUF012"]
-extend-select = [
-  "B",   # flake8-bugbear
-  "I",   # isort
-  "PGH", # pygrep-hooks
-  "RUF", # Ruff-specific
-  "UP",  # pyupgrade
-  "N",   # naming
-  "F",   # pyflakes
-  "C90", # complexity
+[[tool.hatch.build.hooks.build-scripts.scripts]]
+commands = [
+    "playwright install --with-deps chromium",
 ]
-
-[tool.ruff.lint.per-file-ignores]
-"ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N801","N802","N816"]
-"ui_10x/table*.py" = ["N802","I001","F401"]
-"*.pyi" = ["N801","N802"]
-"*/manual_tests/*" = ["N801","N802"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 12 # Flag errors (`C901`) whenever the complexity level exceeds this

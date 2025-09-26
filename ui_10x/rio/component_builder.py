@@ -290,7 +290,7 @@ class ComponentBuilder:
 
     def callback(self, callback):
         def cb(widget, *args, **kwargs):
-            with session_context(widget.component.session):
+            with session_context(widget.subcomponent.session):
                 # note - callback must not yield the event loop!
                 return callback(*args, **kwargs)
 
@@ -384,7 +384,10 @@ class Widget(ComponentBuilder, i.Widget):
         self['tooltip'] = tooltip
 
     def set_text(self, text: str):
-        self['text'] = text
+        if self.s_single_child:
+            self[self.s_children_attr] = text
+            return
+        self._not_supported()
 
     def set_read_only(self, read_only: bool):
         self['is_sensitive'] = not read_only
