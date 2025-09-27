@@ -123,9 +123,11 @@ class NamedConstant(Nucleus):
         cls,
         default_labels: bool    = None,    #-- if True and a label is not defined, creates it by calling default_label(name)
         lowercase_values: bool  = None,    #-- if a value is not defined, sets it to name, or name.lower() if True
+        data_type: type         = None,    #-- if value is not defined it is taken from superclass or the first value
     ):
         # fmt: on
         sdir = cls.s_dir = {name: cls(cdef.name, cdef.label, cdef.value) for name, cdef in cls.s_dir.items()}
+
 
         if default_labels is not None:
             cls.s_default_labels = default_labels
@@ -137,7 +139,11 @@ class NamedConstant(Nucleus):
         else:
             lowercase_values = cls.s_lowercase_values
 
-        data_type = cls.s_data_type
+        if data_type is not None:
+            cls.s_data_type = data_type
+        else:
+            data_type = cls.s_data_type
+
         for name, constant_definition in cls.__dict__.items():
             if not name.isupper():
                 continue
