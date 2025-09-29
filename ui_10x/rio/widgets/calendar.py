@@ -17,7 +17,7 @@ class CalendarWidget(Widget, i.CalendarWidget):
         pass
 
     def set_selected_date(self, selected_date: date):
-        self.set_children(selected_date)
+        self['value'] = selected_date
 
     def selected_date(self) -> date:
-        return self.get_children()
+        return self['value']
