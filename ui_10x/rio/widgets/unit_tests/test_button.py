@@ -6,27 +6,31 @@ from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import PushButton
 
 
-# @pytest.mark.async_timeout(20)
 async def test_handler() -> None:
     widget = PushButton('Hello')
     handler = MagicMock()
     widget.clicked_connect(handler)
+    check_flat = 'document.querySelector(".rio-buttonstyle-plain-text");'
 
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
         await asyncio.sleep(1)
-        center_x = test_client.window_width_in_pixels * 0.5
-        center_y = test_client.window_height_in_pixels * 0.5
-        await test_client.click(center_x, center_y)
+        await test_client.click(10, 10)
+        assert handler.call_count == 1
 
-        assert handler.called
+        assert not await test_client.execute_js(check_flat)
+        widget.set_flat(True)
+        await test_client.wait_for_refresh()
 
+        assert await test_client.execute_js(check_flat)
 
 async def test_button() -> None:
+    hello = 'Hello'
+    done = 'Done'
     widget = PushButton('Hello')
 
     async with rio.testing.DummyClient(lambda: DynamicComponent(widget)) as test_client:
         text_component = test_client.get_component(rio.Text)
-        assert text_component.text == 'Hello'
-        widget.set_text('Done')
+        assert text_component.text == hello
+        widget.set_text(done)
         await test_client.wait_for_refresh()
-        assert text_component.text == 'Done'
+        assert text_component.text == done

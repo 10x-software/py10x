@@ -137,15 +137,19 @@ class TEXT_ALIGN(NamedConstant):
 
 class DynamicComponent(rio.Component):
     builder: ComponentBuilder | None = None
-    revision: int = 0
 
     def __post_init__(self):
         self.key = f'dc_{id(self.builder)}'
 
     def build(self) -> rio.Component:
-        _ = self.revision
-        component = self.builder.build(self.session)
-        return component
+        assert self.builder, 'DynamicComponent has no builder'
+        subcomponent = self.builder.build(self.session)
+        if not self.builder.component:
+            self.builder.component = self
+            self.builder.subcomponent = subcomponent
+        else:
+            assert self.builder.component is self, 'DynamicComponent reused!'
+        return subcomponent
 
 
 class ComponentBuilder:
@@ -172,10 +176,10 @@ class ComponentBuilder:
         return [children] if self.s_single_child else children
 
     def get_children(self):
-        return self[self.s_children_attr]
+        return self._kwargs[self.s_children_attr]
 
     def set_children(self, children):
-        self[self.s_children_attr] = children
+        self._kwargs[self.s_children_attr] = children
         self.force_update()
 
     def child_count(self):
@@ -241,13 +245,13 @@ class ComponentBuilder:
             if size_adjustment in kwargs:
                 kwargs[size_adjustment] /= session.pixels_per_font_height
         children: list = self._build_children(session)
-        self.subcomponent = self.create_component(*children, **kwargs)
-        return self.subcomponent
+        return self.create_component(*children, **kwargs)
 
     def __call__(self, session: rio.Session) -> rio.Component:
         kw = {k: self[k] for k in self.s_layout_attrs if k in self}
-        self.component = DynamicComponent(builder=self, **kw) if self.s_dynamic else self.build(session)
-        return self.component
+        if self.s_dynamic:
+            return DynamicComponent(builder=self, **kw) if not self.component else self.component
+        return self.build(session) #TODO - get rid of this branch - all widgets should be dynamic
 
     def __getitem__(self, item):
         if hasattr(self.subcomponent, item):
@@ -272,7 +276,6 @@ class ComponentBuilder:
     def force_update(self):
         component: rio.Component = self.component
         if component:
-            component.revision = component.revision + 1
             component.force_refresh()
 
     def setdefault(self, item, default):
@@ -304,6 +307,7 @@ class Widget(ComponentBuilder, i.Widget):
     s_stretch_arg = 'grow_x'
     s_default_layout_factory = lambda: FlowLayout()
     s_default_kwargs = dict(grow_y=False, align_y=0)
+    s_unwrap_single_child = True
 
     def __init_subclass__(cls, **kwargs):
         cls.s_default_layout_factory = None
@@ -430,7 +434,7 @@ class Widget(ComponentBuilder, i.Widget):
 
     @classmethod
     def create_component(cls, *children, **kwargs) -> rio.Component | None:
-        if len(children) == 1 and isinstance(first_child := children[0], rio.Component):
+        if cls.s_unwrap_single_child and len(children) == 1 and isinstance(first_child := children[0], rio.Component):
             if kwargs:
                 cls._not_supported(f'ignored kwargs {kwargs}')
             return first_child
@@ -463,10 +467,11 @@ class FlowLayout(Layout, i.Layout):
     s_component_class = rio.FlowContainer
 
 
-@dataclass
 class Point(i.Point):
-    _x: int = 0
-    _y: int = 0
+    __slots__ = ('_x', '_y')
+    def __init__(self, x: int = 0, y: int = 0):
+        self._x = x
+        self._y = y
 
     def x(self) -> int:
         return self._x

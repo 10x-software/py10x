@@ -39,6 +39,7 @@ class ListWidget(Widget, i.ListWidget):
     __slots__ = ('_on_press',)
     s_component_class = rio.ListView
     s_default_kwargs = dict(selection_mode='single')
+    s_unwrap_single_child = False
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -63,7 +64,9 @@ class ListWidget(Widget, i.ListWidget):
         self.force_update()
 
     def clear(self):
-        self.set_children([])
+        self._kwargs['children'] = []
+        self._kwargs['selected_items'] = []
+        self.force_update()
 
     def find_items(self, text, flags):
         assert flags == FindFlags.MATCH_EXACTLY, 'only MatchExactly supported'
