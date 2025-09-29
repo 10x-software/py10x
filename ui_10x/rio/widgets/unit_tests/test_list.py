@@ -13,7 +13,7 @@ async def test_list() -> None:
     widget.clicked_connect(handler)
     find_selected_text = 'document.querySelector(".selected").querySelector(".rio-text").children[0].innerText;'
 
-    def check_item(expected_text,selected_text):
+    def check_item(expected_text, selected_text):
         assert expected_text == selected_text
         item = handler.call_args.args[0]
         assert expected_text == item['text']
@@ -21,16 +21,16 @@ async def test_list() -> None:
         return item
 
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         items = []
 
         await test_client.click(10, 1)
         assert handler.call_count == 1
-        items.append(check_item('A',await test_client.execute_js(find_selected_text)))
+        items.append(check_item('A', await test_client.execute_js(find_selected_text)))
 
         await test_client.click(10, test_client.window_height_in_pixels - 1)
         assert handler.call_count == 2
-        items.append(check_item('B',await test_client.execute_js(find_selected_text)))
+        items.append(check_item('B', await test_client.execute_js(find_selected_text)))
 
         assert widget.get_children() == items
 
@@ -45,11 +45,9 @@ async def test_list() -> None:
 
         await test_client.click(10, 1)
         assert handler.call_count == 3
-        item = check_item('C',await test_client.execute_js(find_selected_text))
+        item = check_item('C', await test_client.execute_js(find_selected_text))
 
         assert item == widget.take_item(0)
         assert not widget.get_children()
         await test_client.wait_for_refresh()
         assert not widget.subcomponent.selected_items
-
-

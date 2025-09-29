@@ -158,7 +158,6 @@ class ComponentBuilder:
     s_component_class: type[rio.Component] = None
     s_forced_kwargs = {}
     s_default_kwargs = {}
-    s_dynamic = True
     s_children_attr = 'children'
     s_single_child = False
     s_pass_children_in_kwargs = False
@@ -227,7 +226,7 @@ class ComponentBuilder:
         return self.__class__(*args, **self._kwargs)
 
     def _build_children(self, session: rio.Session):
-        return [child(session) if isinstance(child, ComponentBuilder) else child for child in self._get_children() if child is not None]
+        return [child() if isinstance(child, ComponentBuilder) else child for child in self._get_children() if child is not None]
 
     @classmethod
     def create_component(cls, *children, **kwargs) -> rio.Component | None:
@@ -247,11 +246,9 @@ class ComponentBuilder:
         children: list = self._build_children(session)
         return self.create_component(*children, **kwargs)
 
-    def __call__(self, session: rio.Session) -> rio.Component:
+    def __call__(self) -> rio.Component:
         kw = {k: self[k] for k in self.s_layout_attrs if k in self}
-        if self.s_dynamic:
-            return DynamicComponent(builder=self, **kw) if not self.component else self.component
-        return self.build(session) #TODO - get rid of this branch - all widgets should be dynamic
+        return DynamicComponent(builder=self, **kw) if not self.component else self.component
 
     def __getitem__(self, item):
         if hasattr(self.subcomponent, item):
@@ -268,7 +265,9 @@ class ComponentBuilder:
 
     def __setitem__(self, item, value):
         if item != self.s_children_attr and not hasattr(self.s_component_class, item):
-            return self._not_supported(item)
+            self._not_supported(item=item)
+            return
+
         if hasattr(self.subcomponent, item):
             setattr(self.subcomponent, item, value)
         self._kwargs[item] = value
@@ -469,6 +468,7 @@ class FlowLayout(Layout, i.Layout):
 
 class Point(i.Point):
     __slots__ = ('_x', '_y')
+
     def __init__(self, x: int = 0, y: int = 0):
         self._x = x
         self._y = y

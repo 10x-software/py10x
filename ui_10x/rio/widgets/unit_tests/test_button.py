@@ -13,7 +13,7 @@ async def test_handler() -> None:
     check_flat = 'document.querySelector(".rio-buttonstyle-plain-text");'
 
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)
         await test_client.click(10, 10)
         assert handler.call_count == 1
 
@@ -22,6 +22,7 @@ async def test_handler() -> None:
         await test_client.wait_for_refresh()
 
         assert await test_client.execute_js(check_flat)
+
 
 async def test_button() -> None:
     hello = 'Hello'

@@ -8,16 +8,18 @@ import rio
 class RadioButton(rio.Component):
     label: str = ''
     value: str = ''
-    selected_value: bool = False
-    on_select: rio.EventHandler[str] = None
+    checked: bool = False
+    on_select: rio.EventHandler[[]] = None
 
     async def on_press(self, button) -> None:
         if self.on_select:
-            self.on_select(self.value)
+            self.on_select()
+        else:
+            self.checked = not self.checked
         button.icon = self.icon_name()
 
     def icon_name(self) -> str:
-        return f'radio_button_{"checked" if self.selected_value == self.value else "unchecked"}'
+        return f'radio_button_{"checked" if self.checked else "unchecked"}'
 
     def build(self) -> rio.Component:
         # Use an icon to visually represent the radio button state

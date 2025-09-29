@@ -35,6 +35,7 @@ class UxAsync(ux.Object):
 
 
 class UxRadioBox(ux.GroupBox):
+    __slots__ = ('group', 'nm_class', 'values',)
     def __init__(self, named_constant_class, title = '', horizontal = False, default_value: NamedConstant = None):
         assert inspect.isclass(named_constant_class) and issubclass(named_constant_class, NamedConstant), 'subclass of NamedConstant is expected'
 
