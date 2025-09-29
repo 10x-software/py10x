@@ -13,7 +13,8 @@ def running_with_coverage(config):
 
     return not config.getoption('--no-cov', default=False)
 
-@pytest.fixture(scope="session", autouse=True)
+
+@pytest.fixture(scope='session', autouse=True)
 async def manage_server(request):
     if running_with_coverage(request.config):
         # run headless client even if running with coverage

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from functools import partial
 from typing import TYPE_CHECKING
 
 import rio
@@ -119,7 +118,7 @@ class Dialog(Widget, i.Dialog):
             self.exec()
         else:
             future = self.current_session().show_custom_dialog(
-                build=partial(self, self.current_session()),
+                build=self,
                 on_close=self._on_close,
                 modal=self._modal,
                 user_closable=False,

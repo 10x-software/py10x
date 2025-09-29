@@ -21,5 +21,4 @@ class LineEditComponent(rio.Component):
         if self.tooltip is None:
             return text_input
 
-        tooltip = rio.Tooltip(text_input, self.tooltip)
-        return rio.Stack(tooltip, text_input)
+        return rio.Tooltip(anchor=text_input, tip=self.tooltip)
