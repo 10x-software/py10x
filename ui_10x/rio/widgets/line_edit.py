@@ -21,7 +21,7 @@ class LineEdit(Widget, i.LineEdit):
         self['on_change'] = self.callback(lambda ev: bound_method(ev.text))
 
     def set_password_mode(self):
-        self['is_password'] = True
+        self['is_secret'] = True
 
     def editing_finished_connect(self, bound_method):
         self['on_lose_focus'] = self.callback(lambda ev: bound_method())
