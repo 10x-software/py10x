@@ -8,6 +8,7 @@ class LineEditComponent(rio.Component):
     on_change: rio.EventHandler[[str]] = None
     on_lose_focus: rio.EventHandler[[str]] = None
     text_style: rio.TextStyle | None = None
+    is_secret: bool = False
 
     def build(self):
         text_input = rio.TextInput(
@@ -16,6 +17,7 @@ class LineEditComponent(rio.Component):
             on_change=self.on_change,
             on_lose_focus=self.on_lose_focus,
             text_style=self.text_style,
+            is_secret=self.is_secret,
         )
 
         if self.tooltip is None:
