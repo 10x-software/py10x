@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import rio
 import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, Widget
+from ui_10x.rio.internals.app import App10x
 
 if TYPE_CHECKING:
     import uvicorn
@@ -109,8 +110,7 @@ class Dialog(Widget, i.Dialog):
             from rio.debug.monkeypatches import apply_monkeypatches
 
             apply_monkeypatches()
-        # app._run_in_window(debug_mode=debug,on_server_created=self._on_server_created) #TODO: !!!
-        app._run_as_web_server(debug_mode=debug, port=8081)
+        App10x(app)._run_in_window(debug_mode=debug, on_server_created=self._on_server_created)
         return self.accepted
 
     def show(self):
