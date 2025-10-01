@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable
+import pathlib
 from dataclasses import dataclass
 from functools import partial
 from threading import Thread
-from typing import Any
+from typing import TYPE_CHECKING
 
-import fastapi
+import ordered_set
 import uvicorn
-import webview
-from rio.app import guard_against_rio_run
 from webview_proc import WebViewProcess
 
 import rio
-from rio import utils, maybes
+from rio import app_server, errors, session, utils
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable
 
 
 @dataclass
@@ -28,10 +29,14 @@ class App10x:
     #   --> (only one per process!)
     #   --> custom session class communicates with out-of-process webview (rather than using webview_shim)
     """
+
     app: rio.App
+    webview: WebViewProcess | None = None
 
     @staticmethod
-    def _update_window_size(width, height) -> None:
+    def _update_window_size(width: float | None, height: float | None) -> None:
+        import webview  # imported here as called in separate process
+
         if width is None and height is None:
             return
         window = webview.windows[0]
@@ -50,36 +55,31 @@ class App10x:
         window.resize(width_in_pixels, height_in_pixels)
 
     def _run_in_window(
-            self,
-            *,
-            quiet: bool = True,
-            maximized: bool = False,
-            fullscreen: bool = False,
-            width: float | None = None,
-            height: float | None = None,
-            debug_mode: bool = False,
-            on_server_created: Callable[[uvicorn.Server], None] | None = None,
+        self,
+        *,
+        quiet: bool = True,
+        maximized: bool = False,
+        fullscreen: bool = False,
+        width: float | None = None,
+        height: float | None = None,
+        debug_mode: bool = False,
+        on_server_created: Callable[[uvicorn.Server], None] | None = None,
     ) -> None:
-        """
-        Internal equivalent of `run_in_window` that takes additional arguments (experimental):
-        `debug_mode`: Run the app in debug mode (without calling `apply_monkey_patches` though).
-        """
-
-        host = "localhost"
+        host = 'localhost'
         port = utils.ensure_valid_port(host, None)
-        url = f"http://{host}:{port}"
+        url = f'http://{host}:{port}'
 
         server: uvicorn.Server | None = None
 
-        # Fetch the icon in the main thread
         icon_path = asyncio.run(self.app._fetch_icon_as_png_path())
-        webview = WebViewProcess(
+
+        self.webview = webview = WebViewProcess(
             url=url,
             title=self.app.name,
             maximized=maximized,
             fullscreen=fullscreen,
             icon_path=icon_path,
-            func=partial(self._update_window_size,width,height),
+            func=partial(self._update_window_size, width, height),
         )
 
         def _on_server_created(serv: uvicorn.Server) -> None:
@@ -89,126 +89,178 @@ class App10x:
                 on_server_created(server)
 
         try:
-            def start_webview_process() -> None:
-                webview.start() # TODO: integrate monitor into webview via callback
 
-                def monitor_process():
+            def start_webview_process() -> None:
+                webview.start()  # TODO: integrate monitor into webview via callback
+
+                def monitor_process() -> None:
                     webview.join()
                     if server:
                         server.should_exit = True
 
                 Thread(target=monitor_process, daemon=True).start()
 
-            self._run_as_web_server(
-                host=host,
-                port=port,
-                quiet=quiet,
-                running_in_window=True,
-                internal_on_app_start=start_webview_process,
-                internal_on_server_created=_on_server_created,
-                debug_mode=debug_mode,
-            )
+            # run = uvicorn.Server.run
+            server = app_server.fastapi_server.FastapiServer
+            try:
+                # uvicorn.Server.run = lambda svr: None
+                app_server.fastapi_server.FastapiServer = lambda *args, **kwargs: FastapiServer(*args, **kwargs, app10x=self)
+                self.app._run_as_web_server(
+                    host=host,
+                    port=port,
+                    quiet=quiet,
+                    running_in_window=True,
+                    internal_on_app_start=start_webview_process,
+                    internal_on_server_created=_on_server_created,
+                    debug_mode=debug_mode,
+                )
+            finally:
+                # uvicorn.Server.run = run
+                app_server.fastapi_server.FastapiServer = server
+
+            # fastapi_server = cast('app_server.FastapiServer', server.config.app)
+            # server.config.app = FastapiServer.from_rio_fastapi_server(fastapi_server, self)
+            # server.run()
+
         except Exception as e:
-            print(f"Error running app: {e}")
+            print(f'Error running app: {e}')
         finally:
             if webview.is_alive():
                 webview.close()
                 webview.join()
 
-    def _run_as_web_server(
-        self,
-        *,
-        host: str = "localhost",
-        port: int = 8000,
-        quiet: bool = False,
-        running_in_window: bool = False,
-        internal_on_app_start: Callable[[], None] | None = None,
-        internal_on_server_created: Callable[[uvicorn.Server], None]
-        | None = None,
-        base_url: rio.URL | str | None = None,
-        debug_mode: bool = False,
-    ) -> None:
-        """
-        Internal equivalent of `run_as_web_server` that takes additional
-        arguments.
-        """
 
-        port = utils.ensure_valid_port(host, port)
+class FastapiServer(app_server.FastapiServer):
+    def __init__(self, *args, app10x: App10x, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.app10x = app10x
 
-        # Suppress stdout messages if requested
-        kwargs = {}
+    async def create_session(self, *args, **kwargs) -> rio.Session:
+        rio_session = session.Session
+        try:
+            session.Session = lambda *args, **kwargs: Session(*args, **kwargs, app10x=self.app10x)
+            return await super().create_session(*args, **kwargs)
+        finally:
+            session.Session = rio_session
 
-        if quiet:
-            kwargs["log_config"] = {
-                "version": 1,
-                "disable_existing_loggers": True,
-                "formatters": {},
-                "handlers": {},
-                "loggers": {},
-            }
-
-        # Create the FastAPI server
-        fastapi_app = self._as_fastapi(
-            debug_mode=debug_mode,
-            running_in_window=running_in_window,
-            internal_on_app_start=internal_on_app_start,
-            base_url=base_url,
-        )
-
-        # Suppress stdout messages if requested
-        log_level = "error" if quiet else "info"
-
-        config = uvicorn.Config(
-            fastapi_app,
-            host=host,
-            port=port,
-            log_level=log_level,
-            timeout_graceful_shutdown=1,  # Without a timeout, sometimes the server just deadlocks
-        )
-        server = uvicorn.Server(config)
-
-        if internal_on_server_created is not None:
-            internal_on_server_created(server)
-
-        server.run()
-
-    def _as_fastapi(
-        self,
-        *,
-        debug_mode: bool,
-        running_in_window: bool,
-        internal_on_app_start: Callable[[], Any] | None,
-        base_url: rio.URL | str | None,
-    ) -> fastapi.FastAPI:
-        """
-        Internal equivalent of `as_fastapi` that takes additional arguments.
-        """
-        # Make sure all globals are initialized. This should be done as late as
-        # possible, because it depends on which modules have been imported into
-        # `sys.modules`.
-        maybes.initialize()
-
-        # For convenience, this method can accept a string as the base URL.
-        # Convert that
-        if isinstance(base_url, str):
-            base_url = rio.URL(base_url)
-
-        # Build the fastapi instance
-        result = fastapi_server.FastapiServer(
+class Session(rio.Session):
+    app10x: App10x | None = None
+    def __init__(
             self,
-            debug_mode=debug_mode,
-            running_in_window=running_in_window,
-            internal_on_app_start=internal_on_app_start,
+            app_server_: app_server.AbstractAppServer,
+            transport: AbstractTransport,
+            client_ip: str,
+            client_port: int,
+            http_headers: starlette.datastructures.Headers,
+            timezone: tzinfo,
+            preferred_languages: t.Iterable[str],
+            month_names_long: tuple[
+                str, str, str, str, str, str, str, str, str, str, str, str
+            ],
+            day_names_long: tuple[str, str, str, str, str, str, str],
+            date_format_string: str,
+            first_day_of_week: int,
+            decimal_separator: str,  # == 1 character
+            thousands_separator: str,  # <= 1 character
+            screen_width: float,
+            screen_height: float,
+            window_width: float,
+            window_height: float,
+            pixels_per_font_height: float,
+            scroll_bar_size: float,
+            primary_pointer_type: t.Literal[mouse, touch],
+            base_url: rio.URL,
+            active_page_url: rio.URL,
+            theme_: theme.Theme,
+            app10x: App10x,
+    ) -> None:
+        super().__init__(
+            app_server_=app_server_,
+            transport=transport,
+            client_ip=client_ip,
+            client_port=client_port,
+            http_headers=http_headers,
+            timezone=timezone,
+            preferred_languages=preferred_languages,
+            month_names_long=month_names_long,
+            day_names_long=day_names_long,
+            date_format_string=date_format_string,
+            first_day_of_week=first_day_of_week,
+            decimal_separator=decimal_separator,
+            thousands_separator=thousands_separator,
+            screen_width=screen_width,
+            screen_height=screen_height,
+            window_width=window_width,
+            window_height=window_height,
+            pixels_per_font_height=pixels_per_font_height,
+            scroll_bar_size=scroll_bar_size,
+            primary_pointer_type=primary_pointer_type,
             base_url=base_url,
+            active_page_url=active_page_url,
+            theme_=theme_,
+        )
+        self.app10x = app10x
+
+    async def _close(self, close_remote_session: bool) -> None:
+        if not self.running_in_window:
+            await super()._close(close_remote_session=close_remote_session)
+
+        await super()._close(close_remote_session=False)
+        if close_remote_session:
+            self.app10x.webview.close()
+
+    async def _get_webview_window(self):
+        raise RuntimeError('Should not be called required in out-of-process webview')
+
+    async def set_title(self, title: str) -> None:
+        if not self.running_in_window:
+            await super().set_title(title)
+
+        self.app10x.webview.set_title(title)
+
+    async def pick_folder(self) -> pathlib.Path:
+        if not self.running_in_window:
+            return await super().pick_folder()
+
+        return pathlib.Path(self.app10x.webview.pick_folder())
+
+    async def pick_file(
+        self,
+        *,
+        file_types: Iterable[str] | None = None,
+        multiple: bool = False,
+    ) -> utils.FileInfo | list[utils.FileInfo]:
+        if not self.running_in_window:
+            return await super().pick_file(file_types=file_types, multiple=multiple)
+
+        # Normalize the file types
+        if file_types is not None:
+            # Normalize and deduplicate, but maintain the order
+            file_types = list(ordered_set.OrderedSet(utils.normalize_file_extension(file_type) for file_type in file_types))
+
+        selected = self.app10x.webview.pick_file(
+            file_types=[f'{extension} (*.{extension})' for extension in file_types],
+            multiple=multiple,
         )
 
-        # Call all extension event handlers
-        self._call_event_handlers_sync(
-            self._extension_on_as_fastapi_handlers,
-            rio.ExtensionAsFastapiEvent(
-                self,
-                result,
-            ),
-        )
+        if not selected:
+            raise errors.NoFileSelectedError()
 
-        return result
+        return [utils.FileInfo._from_path(path) for path in selected] if multiple else utils.FileInfo._from_path(selected)
+
+    async def save_file(
+        self,
+        file_contents: pathlib.Path | str | bytes,
+        file_name: str = 'Unnamed File',
+        *,
+        media_type: str | None = None,
+        directory: pathlib.Path | None = None,
+    ) -> None:
+        if not self.running_in_window:
+            return super().save_file(file_contents, file_name, media_type=media_type, directory=directory)
+
+        return self.app10x.webview.save_file(
+            file_contents=file_contents,
+            directory='' if directory is None else str(directory),
+            filename=file_name,
+        )

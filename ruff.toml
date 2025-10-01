@@ -24,6 +24,9 @@ ignore = [
     "N801",  # Class name should use CapWords convention
 ]
 extend-select = [
+  #"TCH", # type checking
+  #"ANN", # annotations
+  #"TID", # tidy imports
   "B",   # flake8-bugbear
   "I",   # isort
   "PGH", # pygrep-hooks
