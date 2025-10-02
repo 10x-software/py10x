@@ -12,11 +12,10 @@ import uvicorn
 from webview_proc import WebViewProcess
 
 import rio
-from rio import app_server, errors, session, utils
+from rio import app_server, errors, utils
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
-
 
 @dataclass
 class App10x:
@@ -26,7 +25,6 @@ class App10x:
     # --> run webview out-of-process
     # --> run fastapi server in-process
     # --> uses a subclass fo FastAPIServer to create a custom session class
-    #   --> (only one per process!)
     #   --> custom session class communicates with out-of-process webview (rather than using webview_shim)
     """
 
@@ -136,70 +134,13 @@ class FastapiServer(app_server.FastapiServer):
         self.app10x = app10x
 
     async def create_session(self, *args, **kwargs) -> rio.Session:
-        rio_session = session.Session
-        try:
-            session.Session = lambda *args, **kwargs: Session(*args, **kwargs, app10x=self.app10x)
-            return await super().create_session(*args, **kwargs)
-        finally:
-            session.Session = rio_session
+        session = await super().create_session(*args, **kwargs)
+        session.__class__ = Session
+        session.app10x = self.app10x
+        return session
 
 class Session(rio.Session):
     app10x: App10x | None = None
-    def __init__(
-            self,
-            app_server_: app_server.AbstractAppServer,
-            transport: AbstractTransport,
-            client_ip: str,
-            client_port: int,
-            http_headers: starlette.datastructures.Headers,
-            timezone: tzinfo,
-            preferred_languages: t.Iterable[str],
-            month_names_long: tuple[
-                str, str, str, str, str, str, str, str, str, str, str, str
-            ],
-            day_names_long: tuple[str, str, str, str, str, str, str],
-            date_format_string: str,
-            first_day_of_week: int,
-            decimal_separator: str,  # == 1 character
-            thousands_separator: str,  # <= 1 character
-            screen_width: float,
-            screen_height: float,
-            window_width: float,
-            window_height: float,
-            pixels_per_font_height: float,
-            scroll_bar_size: float,
-            primary_pointer_type: t.Literal[mouse, touch],
-            base_url: rio.URL,
-            active_page_url: rio.URL,
-            theme_: theme.Theme,
-            app10x: App10x,
-    ) -> None:
-        super().__init__(
-            app_server_=app_server_,
-            transport=transport,
-            client_ip=client_ip,
-            client_port=client_port,
-            http_headers=http_headers,
-            timezone=timezone,
-            preferred_languages=preferred_languages,
-            month_names_long=month_names_long,
-            day_names_long=day_names_long,
-            date_format_string=date_format_string,
-            first_day_of_week=first_day_of_week,
-            decimal_separator=decimal_separator,
-            thousands_separator=thousands_separator,
-            screen_width=screen_width,
-            screen_height=screen_height,
-            window_width=window_width,
-            window_height=window_height,
-            pixels_per_font_height=pixels_per_font_height,
-            scroll_bar_size=scroll_bar_size,
-            primary_pointer_type=primary_pointer_type,
-            base_url=base_url,
-            active_page_url=active_page_url,
-            theme_=theme_,
-        )
-        self.app10x = app10x
 
     async def _close(self, close_remote_session: bool) -> None:
         if not self.running_in_window:
@@ -264,3 +205,6 @@ class Session(rio.Session):
             directory='' if directory is None else str(directory),
             filename=file_name,
         )
+
+Session._local_methods_ = rio.Session._local_methods_.copy()
+Session._remote_methods_ = rio.Session._remote_methods_.copy()
