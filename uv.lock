@@ -1620,7 +1620,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.13,<0.14" },
     { name = "typing-extensions", specifier = ">=4.15.0" },
     { name = "uv", marker = "extra == 'dev'", specifier = ">=0.8.19" },
-    { name = "webview-proc", marker = "extra == 'rio'", specifier = ">=0.1.0rc3" },
+    { name = "webview-proc", marker = "extra == 'rio'", specifier = ">=0.1.0rc4" },
 ]
 provides-extras = ["dev", "rio", "qt"]
 
@@ -2723,14 +2723,14 @@ wheels = [
 
 [[package]]
 name = "webview-proc"
-version = "0.1.0rc3"
+version = "0.1.0rc4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pywebview" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/2b/c7/e1d749cd1df8d334405ff9bd114e83a5e84c890839a2bd843f1719be1516/webview_proc-0.1.0rc3.tar.gz", hash = "sha256:4ef293197a0878bc8edf9f8855197d64fd87684e037b65ec5046af350f584af9", size = 9465, upload-time = "2025-09-30T17:56:36.013Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/80/00/a1e58a0bf54d4708be93de7454976c6c6bae8621c3e54f452548386e39d9/webview_proc-0.1.0rc4.tar.gz", hash = "sha256:4cc7bb3f83fc901bfcaef866da9d42693519b92f9a2a6b3fe99ce9227f946a17", size = 9732, upload-time = "2025-10-02T01:57:33.661Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/80/27/ce517d6f3147ceec5bac75a79db516864c356535673aca561e183ac8c419/webview_proc-0.1.0rc3-py3-none-any.whl", hash = "sha256:5cd4caebfaa1f9deff009830096aa9bf6be7e04b80084525f91b97c81d4b0d65", size = 8197, upload-time = "2025-09-30T17:56:34.614Z" },
+    { url = "https://files.pythonhosted.org/packages/b8/45/d1687f70278c42e235deeddb3415a5cc855142f95b73099b96b7b0fea2ee/webview_proc-0.1.0rc4-py3-none-any.whl", hash = "sha256:4b503442895c4aad61afeda018f4d1291eac88c8f71c429120e122820ad413d6", size = 8449, upload-time = "2025-10-02T01:57:32.848Z" },
 ]
 
 [[package]]

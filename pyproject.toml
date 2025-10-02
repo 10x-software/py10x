@@ -33,7 +33,7 @@ dev = [
 rio = [
     "rio-ui @ git+https://github.com/ilya-pevzner/rio.git@on-resize",
     "matplotlib~=3.10.6",
-    "webview-proc>=0.1.0rc3",
+    "webview-proc>=0.1.0rc4",
     "aiofiles>=24.1",
 ]
 qt = [
