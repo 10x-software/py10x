@@ -8,7 +8,6 @@ from threading import Thread
 from typing import TYPE_CHECKING
 
 import ordered_set
-import uvicorn
 from webview_proc import WebViewProcess
 
 import rio
@@ -16,6 +15,8 @@ from rio import app_server, errors, utils
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
+
+    import uvicorn
 
 @dataclass
 class App10x:
@@ -80,9 +81,13 @@ class App10x:
             func=partial(self._update_window_size, width, height),
         )
 
-        def _on_server_created(serv: uvicorn.Server) -> None:
+        def _on_server_created(_server: uvicorn.Server) -> None:
             nonlocal server
-            server = serv
+            server = _server
+
+            fastapi_server = server.config.app
+            fastapi_server.__class__ = FastapiServer
+            fastapi_server.app10x = self
             if on_server_created:
                 on_server_created(server)
 
@@ -98,27 +103,15 @@ class App10x:
 
                 Thread(target=monitor_process, daemon=True).start()
 
-            # run = uvicorn.Server.run
-            server = app_server.fastapi_server.FastapiServer
-            try:
-                # uvicorn.Server.run = lambda svr: None
-                app_server.fastapi_server.FastapiServer = lambda *args, **kwargs: FastapiServer(*args, **kwargs, app10x=self)
-                self.app._run_as_web_server(
-                    host=host,
-                    port=port,
-                    quiet=quiet,
-                    running_in_window=True,
-                    internal_on_app_start=start_webview_process,
-                    internal_on_server_created=_on_server_created,
-                    debug_mode=debug_mode,
-                )
-            finally:
-                # uvicorn.Server.run = run
-                app_server.fastapi_server.FastapiServer = server
-
-            # fastapi_server = cast('app_server.FastapiServer', server.config.app)
-            # server.config.app = FastapiServer.from_rio_fastapi_server(fastapi_server, self)
-            # server.run()
+            self.app._run_as_web_server(
+                host=host,
+                port=port,
+                quiet=quiet,
+                running_in_window=True,
+                internal_on_app_start=start_webview_process,
+                internal_on_server_created=_on_server_created,
+                debug_mode=debug_mode,
+            )
 
         except Exception as e:
             print(f'Error running app: {e}')
@@ -129,10 +122,7 @@ class App10x:
 
 
 class FastapiServer(app_server.FastapiServer):
-    def __init__(self, *args, app10x: App10x, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.app10x = app10x
-
+    app10x: App10x
     async def create_session(self, *args, **kwargs) -> rio.Session:
         session = await super().create_session(*args, **kwargs)
         session.__class__ = Session
@@ -140,7 +130,7 @@ class FastapiServer(app_server.FastapiServer):
         return session
 
 class Session(rio.Session):
-    app10x: App10x | None = None
+    app10x: App10x
 
     async def _close(self, close_remote_session: bool) -> None:
         if not self.running_in_window:
@@ -172,7 +162,10 @@ class Session(rio.Session):
         multiple: bool = False,
     ) -> utils.FileInfo | list[utils.FileInfo]:
         if not self.running_in_window:
-            return await super().pick_file(file_types=file_types, multiple=multiple)
+            return await super().pick_file(
+                file_types=file_types,
+                multiple=multiple
+            )
 
         # Normalize the file types
         if file_types is not None:
@@ -198,12 +191,12 @@ class Session(rio.Session):
         directory: pathlib.Path | None = None,
     ) -> None:
         if not self.running_in_window:
-            return super().save_file(file_contents, file_name, media_type=media_type, directory=directory)
+            return await super().save_file(file_contents, file_name, media_type=media_type, directory=directory)
 
-        return self.app10x.webview.save_file(
+        self.app10x.webview.save_file(
             file_contents=file_contents,
             directory='' if directory is None else str(directory),
-            filename=file_name,
+            file_name=file_name,
         )
 
 Session._local_methods_ = rio.Session._local_methods_.copy()
