@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import abc
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
 from core_10x.py_class import PyClass
 from core_10x.resource import TS_STORE, Resource
 from core_10x.trait_filter import f
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class TsCollection(abc.ABC):

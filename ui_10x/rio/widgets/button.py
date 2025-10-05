@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import inspect
-from collections.abc import Callable
 from functools import partial
+from typing import TYPE_CHECKING
 
 import rio
 import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import Widget
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class Label(Widget, i.Label):

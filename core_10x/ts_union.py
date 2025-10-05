@@ -3,12 +3,15 @@ from __future__ import annotations
 import heapq
 import itertools
 import operator
-from collections.abc import Iterable
 from itertools import zip_longest
+from typing import TYPE_CHECKING
 
 from core_10x.nucleus import Nucleus
 from core_10x.trait_filter import EQ, f
 from core_10x.ts_store import TsCollection, TsStore
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
 class _OrderKey:
