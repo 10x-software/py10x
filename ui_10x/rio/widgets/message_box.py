@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import ui_10x.platform_interface as i
 import ui_10x.rio.components as rio_components
@@ -17,6 +16,9 @@ from . import (
     Style,
     VBoxLayout,
 )
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class Separator(Widget, i.Separator):

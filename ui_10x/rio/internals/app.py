@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
     import uvicorn
 
+
 @dataclass
 class App10x:
     """
@@ -123,11 +124,13 @@ class App10x:
 
 class FastapiServer(app_server.FastapiServer):
     app10x: App10x
+
     async def create_session(self, *args, **kwargs) -> rio.Session:
         session = await super().create_session(*args, **kwargs)
         session.__class__ = Session
         session.app10x = self.app10x
         return session
+
 
 class Session(rio.Session):
     app10x: App10x
@@ -162,10 +165,7 @@ class Session(rio.Session):
         multiple: bool = False,
     ) -> utils.FileInfo | list[utils.FileInfo]:
         if not self.running_in_window:
-            return await super().pick_file(
-                file_types=file_types,
-                multiple=multiple
-            )
+            return await super().pick_file(file_types=file_types, multiple=multiple)
 
         # Normalize the file types
         if file_types is not None:
@@ -198,6 +198,7 @@ class Session(rio.Session):
             directory='' if directory is None else str(directory),
             file_name=file_name,
         )
+
 
 Session._local_methods_ = rio.Session._local_methods_.copy()
 Session._remote_methods_ = rio.Session._remote_methods_.copy()

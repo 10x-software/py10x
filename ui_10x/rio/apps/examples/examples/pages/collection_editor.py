@@ -3,9 +3,8 @@ from __future__ import annotations
 from core_10x.code_samples.person import Person
 
 import rio
-
-from .. import UserSessionContext
-from .. import components as comps
+from examples import UserSessionContext
+from examples import components as comps
 
 
 def guard(event: rio.GuardEvent) -> str | None:

@@ -22,11 +22,13 @@ ignore = [
     "RUF013", # PEP 484 prohibits implicit `Optional`
     "E731",  # E731 Do not assign a `lambda` expression, use a `def`
     "N801",  # Class name should use CapWords convention
+    "E501",  # Line too long
 ]
 extend-select = [
-  #"TCH", # type checking
+  "TC", # type checking
   #"ANN", # annotations
-  #"TID", # tidy imports
+  "TID", # tidy imports
+  "FA",  # future annotations
   "B",   # flake8-bugbear
   "I",   # isort
   "PGH", # pygrep-hooks
@@ -34,9 +36,11 @@ extend-select = [
   "UP",  # pyupgrade
   "N",   # naming
   "F",   # pyflakes
+  "E",   # pycodestyle
   "C90", # complexity
 ]
-mccabe.max-complexity = 13 # Flag errors (`C901`) whenever the complexity level exceeds this
+mccabe.max-complexity = 15 # Flag errors (`C901`) whenever the complexity level exceeds this
+#future-annotations = true # add "from __future__ import annotations" to enable more aggressive optimizations
 
 [lint.per-file-ignores]
 "ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]

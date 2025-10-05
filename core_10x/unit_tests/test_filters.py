@@ -1,4 +1,6 @@
-from datetime import date
+from __future__ import annotations
+
+from datetime import date  # noqa: TC003
 
 import pytest
 from core_10x.trait_filter import (

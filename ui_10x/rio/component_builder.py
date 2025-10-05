@@ -5,21 +5,25 @@ import inspect
 import operator
 import types
 from collections import defaultdict
-from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import partial, reduce
+from typing import TYPE_CHECKING
 
 from core_10x.exec_control import BTP, INTERACTIVE
 from core_10x.named_constant import Enum, NamedConstant
-from core_10x.rc import RC
 from core_10x.traitable import Traitable
-from core_10x.ts_store import TsStore
-from core_10x_i import BTraitableProcessor
 
 import rio
 import ui_10x.platform_interface as i
 from ui_10x.rio.style_sheet import StyleSheet
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from core_10x.rc import RC
+    from core_10x.ts_store import TsStore
+    from core_10x_i import BTraitableProcessor
 
 
 @dataclass

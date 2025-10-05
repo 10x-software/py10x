@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import functools
 import operator
-from collections.abc import Callable, Generator
+import sys
 from itertools import chain
-from typing import Any, get_origin
+from typing import TYPE_CHECKING, Any, get_origin
 
 from core_10x_i import BTraitable, BTraitableClass
 
@@ -26,6 +26,9 @@ from core_10x.trait_filter import f
 from core_10x.traitable_id import ID
 from core_10x.ts_store import TS_STORE, TsCollection, TsStore
 from core_10x.xnone import XNone, XNoneType
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Generator
 
 
 class TraitAccessor:
@@ -127,7 +130,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         annotations = class_dict.get('__annotations__') or {}
 
         annotations |= {k: XNoneType for k, v in class_dict.items() if isinstance(v, TraitModification) and k not in annotations}
-
+        module_dict = sys.modules[class_dict['__module__']].__dict__ if '__module__' in class_dict else {}
         for trait_name, trait_def in class_dict.items():
             if isinstance(trait_def, TraitDefinition) and trait_name not in annotations:
                 rc <<= f'{trait_name} = T(...), but the trait is missing a data type annotation. Use `Any` if needed.'
@@ -137,12 +140,19 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             if trait_def is not class_dict and not isinstance(trait_def, TraitDefinition):
                 continue
 
+            if isinstance(dt, str):
+                try:
+                    dt = eval(dt, class_dict, module_dict)
+                except Exception as e:
+                    rc <<= f'Failed to evaluate type annotation string `{dt}` for `{trait_name}`: {e}'
+                    continue
+
             try:
                 dt_valid = isinstance(dt, type) or get_origin(dt) is not None
             except TypeError:
                 dt_valid = False
             if not dt_valid:
-                rc <<= f'Expected type for `{trait_name}`, but found {dt}.'
+                rc <<= f'Expected type for `{trait_name}`, but found {dt} of type {type(dt)}.'
                 continue
 
             old_trait: Trait = inherited_trait_dir.get(trait_name)
