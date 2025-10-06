@@ -1,13 +1,20 @@
+from __future__ import annotations
+
 import inspect
 from collections import deque
-from collections.abc import Callable
-from datetime import date
+from typing import TYPE_CHECKING
 
-from core_10x.directory import Directory
 from core_10x.global_cache import singleton
 from core_10x.named_constant import NamedConstant
+from core_10x.rc import RC
 
 from ui_10x.platform import ux
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from datetime import date
+
+    from core_10x.directory import Directory
 
 
 class UxAsync(ux.Object):
@@ -224,9 +231,9 @@ class UxDialog(ux.Dialog):
 
     def on_ok(self):
         if self.accept_callback:
-            rc = self.accept_callback()
+            rc: RC = self.accept_callback()
             if not rc:
-                self.message(rc.err())
+                self.message(rc.error())
                 return
 
         self.done(1)

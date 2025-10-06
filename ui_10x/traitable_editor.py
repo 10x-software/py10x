@@ -1,15 +1,22 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from core_10x.exec_control import INTERACTIVE
 from core_10x.global_cache import cache
 from core_10x.py_class import PyClass
-from core_10x.rc import RC, RC_TRUE
+from core_10x.rc import RC_TRUE
 from core_10x.trait import Ui
 from core_10x.traitable import Traitable
 
 from ui_10x.trait_editor import TraitEditor
 from ui_10x.traitable_view import TraitableView
 from ui_10x.utils import UxDialog, ux, ux_warning
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from core_10x.rc import RC
 
 
 class TraitableEditor:
@@ -54,7 +61,7 @@ class TraitableEditor:
         verify_custom_class: bool   = True,     #-- if a custom editor class should be verified if exists
         view: TraitableView         = None,     #-- if a specific view for the entity should be used
         read_only: bool             = False     #-- browser if True
-    ) -> 'TraitableEditor':
+    ) -> TraitableEditor:
         # fmt: on
         editor_class = TraitableEditor.find_editor_class(
             entity.__class__,

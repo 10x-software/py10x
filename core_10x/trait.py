@@ -1,19 +1,27 @@
+from __future__ import annotations
+
 import ast
 import copy
 import functools
 import inspect
 import locale
 import platform
+import sys
 from inspect import Parameter
 from types import GenericAlias
-from typing import get_origin
+from typing import TYPE_CHECKING, get_origin, get_type_hints
 
-from core_10x_i import BTrait, BTraitable
+from core_10x_i import BTrait
 
 from core_10x.named_constant import NamedConstant
 from core_10x.rc import RC
-from core_10x.trait_definition import T, TraitDefinition, Ui
+from core_10x.trait_definition import T, Ui
 from core_10x.xnone import XNone
+
+if TYPE_CHECKING:
+    from core_10x_i import BTraitable
+
+    from core_10x.trait_definition import TraitDefinition
 
 
 class Trait(BTrait):
@@ -94,7 +102,7 @@ class Trait(BTrait):
     #    return Trait(self.t_def.copy(), btrait = self)
 
     @staticmethod
-    def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, annotations: dict, rc: RC) -> 'Trait':
+    def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, annotations: dict, rc: RC) -> Trait:
         dt = annotations.get(trait_name) or t_def.data_type
         if isinstance(dt, GenericAlias):
             dt = get_origin(dt)  # get original type, e.g. `list` from `list[int]`
@@ -161,8 +169,10 @@ class Trait(BTrait):
             return None
 
         # -- custom setter
+        resolved_hints = get_type_hints(f, sys.modules[f.__module__].__dict__ if f.__module__ in sys.modules else {}, f.__class__.__dict__)
+        assert resolved_hints.get('return') is RC, f'{f.__name__} - setter must return RC'
+
         sig = inspect.signature(f)
-        assert sig.return_annotation is RC, f'{f.__name__} - setter must return RC'
         params = tuple(sig.parameters.values())
         n = len(params)
         if n < 3:

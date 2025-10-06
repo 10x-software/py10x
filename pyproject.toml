@@ -18,6 +18,7 @@ dependencies = [
     "infra-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x",
     "pymongo (>=4.7.3)",
     "typing-extensions>=4.15.0",
+    "scipy>=1.15.3",
 ]
 [project.optional-dependencies]
 dev = [

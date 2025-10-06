@@ -22,3 +22,10 @@ async def manage_server(request):
 
     async with rio.testing.browser_client.prepare_browser_client():
         yield
+
+
+@pytest.fixture(autouse=True)
+def setup_ui_platform(monkeypatch):
+    monkeypatch.setenv('UI_PLATFORM', 'Rio')
+    yield
+    monkeypatch.undo()

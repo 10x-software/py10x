@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from core_10x_i import BTraitableClass
+if TYPE_CHECKING:
+    from core_10x_i import BTraitableClass
 
-from core_10x.trait import Trait
+    from core_10x.trait import Trait
 
 # ===================================================================================================================================
 #

@@ -24,11 +24,13 @@ from core_10x.trait_definition import (  # noqa: F401
 )
 from core_10x.trait_filter import f
 from core_10x.traitable_id import ID
-from core_10x.ts_store import TS_STORE, TsCollection, TsStore
+from core_10x.ts_store import TS_STORE
 from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+
+    from core_10x.ts_store import TsCollection, TsStore
 
 
 class TraitAccessor:

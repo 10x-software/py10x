@@ -1,12 +1,17 @@
+from __future__ import annotations
+
 import inspect
 import io
 import pickle
 import shlex
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from importlib_resources import files
 
 from core_10x.global_cache import cache
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class PyClass:

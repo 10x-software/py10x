@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from argparse import ArgumentError
 from collections import deque
 from datetime import date, timedelta
@@ -125,7 +127,7 @@ class Calendar(Traitable, _keep_history=True):
         return '_'.join(p for p in parts if p)
 
     @classmethod
-    def AND(cls, *calendars) -> 'Calendar':  # noqa: N802
+    def AND(cls, *calendars) -> Calendar:  # noqa: N802
         if not calendars:
             return None
 
@@ -135,7 +137,7 @@ class Calendar(Traitable, _keep_history=True):
     intersection = AND
 
     @classmethod
-    def OR(cls, *calendars) -> 'Calendar':  # noqa: N802
+    def OR(cls, *calendars) -> Calendar:  # noqa: N802
         if not calendars:
             return None
 
@@ -143,7 +145,7 @@ class Calendar(Traitable, _keep_history=True):
         return cls(name=name)
 
     @classmethod
-    def union(cls, *calendars) -> 'Calendar':
+    def union(cls, *calendars) -> Calendar:
         if len(calendars) > 1:
             return cls.OR(*calendars)
         assert calendars, 'At least one calendar is required for union()'

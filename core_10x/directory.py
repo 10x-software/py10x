@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import inspect
 from typing import Any
 
@@ -18,7 +20,7 @@ class Directory:
         return Directory
 
     @staticmethod
-    def instance(value: Any = None, **kwargs) -> 'Directory':
+    def instance(value: Any = None, **kwargs) -> Directory:
         dir_class = Directory._dir_class(value)
         return dir_class(value=value, **kwargs)
 
@@ -28,7 +30,7 @@ class Directory:
         name: str           = '',
         value               = None,
         members: dict       = None,
-        parent: 'Directory' = None
+        parent: Directory   = None
     ):
         # fmt: on
         self.check_dir_value(value)
@@ -52,7 +54,7 @@ class Directory:
     def subdirs(self) -> dict:
         return self.members
 
-    def _add_subdir(self, subdir: 'Directory'):
+    def _add_subdir(self, subdir: Directory):
         self.members[subdir.value] = subdir
         subdir.parent = self
 
@@ -77,7 +79,7 @@ class Directory:
         for value in values:
             self._get_or_add_subdir(value, **subdir_values)
 
-    def subdir_at(self, *path) -> 'Directory':
+    def subdir_at(self, *path) -> Directory:
         if not path:
             return self
 
@@ -181,7 +183,7 @@ class Directory:
         return list(res)
 
     @classmethod
-    def define(cls, value_name, members: list) -> 'Directory':
+    def define(cls, value_name, members: list) -> Directory:
         if isinstance(value_name, tuple):     #-- ( value, name ) is given
             assert len(value_name) == 2, 'a pair of ( value, name ) is expected'
             value, name = value_name

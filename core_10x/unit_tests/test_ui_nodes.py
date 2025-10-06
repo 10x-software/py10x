@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from functools import partial
 from unittest.mock import MagicMock
 
 import pytest
-
 from core_10x.exec_control import BTP, INTERACTIVE
 from core_10x.rc import RC
 from core_10x.trait_method_error import TraitMethodError
@@ -15,20 +16,23 @@ class X(Traitable):
     z: int
 
     def x_set(self, trait, value) -> RC:
-        self.raw_set_value(trait,value)
+        self.raw_set_value(trait, value)
         return self.set_values(y=value)
 
     def z_get(self):
         return self.x
 
+
 def callback(btp, x, t, v):
     assert btp is BTP.current()
-    #assert x.get_value(t) == v
+    # assert x.get_value(t) == v
     print(btp, BTP.current())
-    x.bui_class().update_ui_node(x,t)
+    x.bui_class().update_ui_node(x, t)
+
 
 def test_ui_nodes():
     x = X(x=1)
+
     def t(ov, v):
         mx = MagicMock(side_effect=partial(callback, BTP.current(), x, x.T.x, v))
         my = MagicMock(side_effect=partial(callback, BTP.current(), x, x.T.y, v))
@@ -39,39 +43,39 @@ def test_ui_nodes():
 
         assert x.x == x.y == x.z == ov
 
-        x.x=v
+        x.x = v
 
-        assert mx.call_count == my.call_count ==  mz.call_count == 1
+        assert mx.call_count == my.call_count == mz.call_count == 1
         assert x.x == x.y == x.z == v
 
-        return mx,my,mz
+        return mx, my, mz
 
     with INTERACTIVE() as i0:
         print(i0)
-        mx,my,mz = t(1,2)
+        mx, my, mz = t(1, 2)
         with INTERACTIVE() as i:
             print(i)
-            t(2,3)
+            t(2, 3)
         i.export_nodes()
         assert x.x == x.y == x.z == 3
-        assert mx.call_count == my.call_count ==  mz.call_count == 2
+        assert mx.call_count == my.call_count == mz.call_count == 2
 
 
 def test_exception():
     def callback():
-        x.bui_class().update_ui_node(x, x.T.x) #TODO: should not be required when throwing
+        x.bui_class().update_ui_node(x, x.T.x)  # TODO: should not be required when throwing
         raise RuntimeError('test')
 
     x = X(x=1)
     with INTERACTIVE():
         m = MagicMock(side_effect=callback)
         x.bui_class().create_ui_node(x, x.T.x, m)
-        with pytest.raises(TraitMethodError): #TODO: should be throwing RuntimeError?
+        with pytest.raises(TraitMethodError):  # TODO: should be throwing RuntimeError?
             x.x = 2
-        assert x.x == 2                       #TODO: should bot set value when callback failed?
+        assert x.x == 2  # TODO: should not set value when callback failed?
         with INTERACTIVE() as i:
             x.x = 3
-        with pytest.raises(RuntimeError):     #TODO: Runtime eroro or TraitMetodError?
+        with pytest.raises(RuntimeError):  # TODO: RuntimeError or TraitMethodError?
             i.export_nodes()
 
         assert m.call_count == 2

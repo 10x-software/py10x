@@ -1,6 +1,13 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from core_10x.backbone.backbone_store import BackboneStore
-from core_10x.traitable import RC, RT, T, Traitable, TraitDefinition  # noqa: F401
-from core_10x.ts_store import TsStore
+from core_10x.traitable import RT, T, Traitable, TraitDefinition  # noqa: F401
+
+if TYPE_CHECKING:
+    from core_10x.traitable import RC
+    from core_10x.ts_store import TsStore
 
 
 class BackboneTraitable(Traitable):

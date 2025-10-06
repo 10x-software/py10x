@@ -1,12 +1,11 @@
-from collections.abc import Callable
+from __future__ import annotations
+
 from contextlib import nullcontext
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from core_10x.concrete_traits import date_trait, dict_trait, flags_trait, list_trait
-from core_10x.entity import Entity
-from core_10x.exec_control import BTP
-from core_10x.rc import RC
-from core_10x.trait import T, Trait, Ui
+from core_10x.trait import T, Ui
 from core_10x.traitable import traitable_trait
 
 import ui_10x.concrete_trait_widgets  # noqa: F401 - registers trait widgets
@@ -14,6 +13,14 @@ from ui_10x.choice import MultiChoice
 from ui_10x.py_data_browser import PyDataBrowser
 from ui_10x.trait_widget import TraitWidget
 from ui_10x.utils import UxDialog, UxStyleSheet, ux, ux_pick_date
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from core_10x.entity import Entity
+    from core_10x.exec_control import BTP
+    from core_10x.rc import RC
+    from core_10x.trait import Trait
 
 
 @dataclass

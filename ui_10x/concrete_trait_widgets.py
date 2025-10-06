@@ -1,9 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 from core_10x.concrete_traits import list_trait
-from core_10x.trait import Trait, Ui
+from core_10x.trait import Ui
 
 from ui_10x.choice import Choice
 from ui_10x.trait_widget import TraitWidget
 from ui_10x.utils import UxClipBoard, ux, ux_push_button
+
+if TYPE_CHECKING:
+    from core_10x.trait import Trait
 
 
 class LineEditWidget(TraitWidget, ux.LineEdit, widget_type=Ui.WIDGET_TYPE.LINE):

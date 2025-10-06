@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core_10x.rc import RC, RC_TRUE
-from core_10x.trait import T, Trait, Ui
+from core_10x.trait import T, Ui
 
 from ui_10x.utils import UxStyleSheet, ux
+
+if TYPE_CHECKING:
+    from core_10x.trait import Trait
 
 
 class TraitWidget:
