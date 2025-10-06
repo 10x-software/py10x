@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import bisect
 import math
 from datetime import date, timedelta
@@ -184,7 +186,7 @@ class Curve(Traitable):
 
         return (times_unique, values_unique)
 
-    def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> 'Curve':  # noqa: N802
+    def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> Curve:  # noqa: N802
         times_unique, values_unique = self._uniqueTimesValues(self.times(), self.values(), keep_last_update)
         if copy_curve:
             return self.clone(times=times_unique, values=values_unique)

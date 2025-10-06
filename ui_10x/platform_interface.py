@@ -1,6 +1,11 @@
+from __future__ import annotations
+
 import abc
-from collections.abc import Callable
-from datetime import date
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from datetime import date
 
 
 class ABCMetaSlotted(abc.ABCMeta):
@@ -66,7 +71,7 @@ class Widget(abc.ABC, metaclass=ABCMetaSlotted):
     def __init__(self, *args, **kwargs) -> None: ...
 
     @abc.abstractmethod
-    def set_layout(self, layout: 'Layout'): ...
+    def set_layout(self, layout: Layout): ...
 
     @abc.abstractmethod
     def set_style_sheet(self, sh: str): ...
@@ -133,7 +138,7 @@ class Layout(abc.ABC, metaclass=ABCMetaSlotted):
 
 class BoxLayout(Layout, abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
-    def add_layout(self, layout: 'Layout', **kwargs): ...
+    def add_layout(self, layout: Layout, **kwargs): ...
 
 
 class HBoxLayout(BoxLayout, abc.ABC, metaclass=ABCMetaSlotted): ...
@@ -385,7 +390,7 @@ class MessageBox(abc.ABC, metaclass=ABCMetaSlotted):
 class Application(abc.ABC, metaclass=ABCMetaSlotted):
     @classmethod
     @abc.abstractmethod
-    def instance(cls) -> 'Application': ...
+    def instance(cls) -> Application: ...
 
     @abc.abstractmethod
     def style(self): ...

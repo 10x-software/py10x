@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 from collections import defaultdict
 
@@ -70,7 +72,7 @@ class TraitDefinition:
         ui_hint = getattr(self, UI_HINT_TAG)
         ui_hint.widget_type = widget_type
 
-    def copy(self) -> 'TraitDefinition':
+    def copy(self) -> TraitDefinition:
         return copy.deepcopy(self)
 
     def flags_change(self, flags_value):

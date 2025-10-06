@@ -1,4 +1,6 @@
-from collections.abc import Generator
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import core_10x.trait_definition as trait_definition
 from core_10x.entity import RC, RC_TRUE, RT, Entity, T, Ui
@@ -7,6 +9,8 @@ from ui_10x.platform_interface import HBoxLayout, PushButton, VBoxLayout, Widget
 from ui_10x.table_view import TableView
 from ui_10x.utils import UxDialog, ux
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 class CHAR_STATE:
     NONE        = ( 'lightgray',    'black' )

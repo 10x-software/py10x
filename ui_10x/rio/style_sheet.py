@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from core_10x.rc import RC
 from core_10x.trait import Trait
 from core_10x.traitable import Traitable

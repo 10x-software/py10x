@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import importlib
 import inspect
 
@@ -103,7 +105,7 @@ class PackageRefactoring:
         return cls
 
     @staticmethod
-    def _find_or_create_instance(canonical_class_name) -> 'PackageRefactoring':
+    def _find_or_create_instance(canonical_class_name) -> PackageRefactoring:
         parts = canonical_class_name.split('.', maxsplit=1)
         if len(parts) < 2:
             raise ValueError(f'Invalid canonical class name {canonical_class_name}')

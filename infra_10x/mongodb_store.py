@@ -4,13 +4,14 @@ from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsStore, f, standard_key
+from core_10x.ts_store import TsCollection, TsStore, standard_key
 from infra_10x_i import MongoCollectionHelper
 from pymongo import MongoClient, errors
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from core_10x.ts_store import f
     from pymongo.collection import Collection
     from pymongo.database import Database
 

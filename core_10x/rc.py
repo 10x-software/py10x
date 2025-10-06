@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 import sys
 import traceback
-from types import TracebackType
+from typing import TYPE_CHECKING
 
 from core_10x.named_constant import Enum, ErrorCode
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 
 class RC:
@@ -105,7 +110,7 @@ class RC:
         # -- multiple errors
         return '\n'.join(payload)
 
-    def add_error(self, err) -> 'RC':
+    def add_error(self, err) -> RC:
         if self.__bool__():
             self.rc = False
 
@@ -121,7 +126,7 @@ class RC:
 
         return self
 
-    def add_data(self, data) -> 'RC':
+    def add_data(self, data) -> RC:
         assert self.__bool__(), 'May not add_data() to an "error" RC'
         self.payload.append(data)
         return self

@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import copy
 import inspect
+from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
-from core_10x.trait import T, Trait
+from core_10x.trait import T
 from core_10x.traitable import Traitable
 from core_10x.ui_hint import Ui, UiMod
+
+if TYPE_CHECKING:
+    from core_10x.trait import Trait
 
 
 class TraitableView:
