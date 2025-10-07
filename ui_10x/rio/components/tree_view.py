@@ -5,7 +5,7 @@ from typing import Literal
 import rio
 
 
-class RioTreeItemBase(rio.Component):
+class RioTreeItem(rio.Component):
     """same as SimpleTreeItem, but includes tooltip and supports double-click"""
 
     text: str = ''
@@ -15,7 +15,7 @@ class RioTreeItemBase(rio.Component):
     tooltip: str | None = None
     editable: bool = False
     editing: bool = False
-    children: list[RioTreeItemBase] = []
+    children: list[RioTreeItem] = []
     is_expanded: bool = False
 
     def build_primary_text(self):
@@ -54,12 +54,6 @@ class RioTreeItemBase(rio.Component):
             is_expanded=self.is_expanded,
             on_press=self.on_press,
         )
-
-
-class RioTreeItem(RioTreeItemBase):
-    def __init__(self, *children, text='', **kwargs):
-        super().__init__(children=list(children), key=text, text=text, **kwargs)
-
 
 class RioTreeView(rio.Component):
     """makes item-level callbacks available on the tree level"""
