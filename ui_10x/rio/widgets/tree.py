@@ -10,6 +10,7 @@ from ui_10x.rio.component_builder import Widget
 class TreeItem(Widget, i.TreeItem):
     __slots__ = ('handlers',)
     s_component_class = rio_components.RioTreeItem
+    s_pass_children_in_kwargs = True
 
     def __init__(self, parent: TreeWidget | TreeItem, *args, **kwargs):
         super().__init__(*args, **kwargs)
