@@ -29,12 +29,12 @@ dev = [
     "pytest>=8.3.4,<9.0",
     "pytest-cov>=6.0,<8.0",
     "ruff>=0.13,<0.14",
-    "uv>=0.8.19",
+    "uv>=0.9",
 ]
 rio = [
     "rio-ui @ git+https://github.com/ilya-pevzner/rio.git@on-resize",
     "matplotlib~=3.10.6",
-    "webview-proc>=0.1.0rc4",
+    "webview-proc>=0.1.0rc6",
     "aiofiles>=24.1",
 ]
 qt = [

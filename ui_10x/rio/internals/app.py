@@ -4,7 +4,6 @@ import asyncio
 import pathlib
 from dataclasses import dataclass
 from functools import partial
-from threading import Thread
 from typing import TYPE_CHECKING
 
 import ordered_set
@@ -80,6 +79,7 @@ class App10x:
             fullscreen=fullscreen,
             icon_path=icon_path,
             func=partial(self._update_window_size, width, height),
+            on_close=lambda: server and setattr(server,'should_exit',True),
         )
 
         def _on_server_created(_server: uvicorn.Server) -> None:
@@ -93,34 +93,21 @@ class App10x:
                 on_server_created(server)
 
         try:
-
-            def start_webview_process() -> None:
-                webview.start()  # TODO: integrate monitor into webview via callback
-
-                def monitor_process() -> None:
-                    webview.join()
-                    if server:
-                        server.should_exit = True
-
-                Thread(target=monitor_process, daemon=True).start()
-
             self.app._run_as_web_server(
                 host=host,
                 port=port,
                 quiet=quiet,
                 running_in_window=True,
-                internal_on_app_start=start_webview_process,
+                internal_on_app_start=webview.start,
                 internal_on_server_created=_on_server_created,
                 debug_mode=debug_mode,
             )
-
         except Exception as e:
             print(f'Error running app: {e}')
         finally:
             if webview.is_alive():
                 webview.close()
                 webview.join()
-
 
 class FastapiServer(app_server.FastapiServer):
     app10x: App10x
