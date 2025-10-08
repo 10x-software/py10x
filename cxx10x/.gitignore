@@ -3,3 +3,4 @@ cmake-build*/
 CMakeFiles
 *install_manifest.txt
 .DS_Store
+/infra_10x/py_linkage.h
