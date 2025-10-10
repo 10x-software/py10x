@@ -55,6 +55,7 @@ class RioTreeItem(rio.Component):
             on_press=self.on_press,
         )
 
+
 class RioTreeView(rio.Component):
     """makes item-level callbacks available on the tree level"""
 

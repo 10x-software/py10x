@@ -79,7 +79,7 @@ class App10x:
             fullscreen=fullscreen,
             icon_path=icon_path,
             func=partial(self._update_window_size, width, height),
-            on_close=lambda: server and setattr(server,'should_exit',True),
+            on_close=lambda: server and setattr(server, 'should_exit', True),
         )
 
         def _on_server_created(_server: uvicorn.Server) -> None:
@@ -108,6 +108,7 @@ class App10x:
             if webview.is_alive():
                 webview.close()
                 webview.join()
+
 
 class FastapiServer(app_server.FastapiServer):
     app10x: App10x
