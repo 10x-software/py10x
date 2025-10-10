@@ -19,12 +19,14 @@ def mock_db_ops(monkeypatch):
     monkeypatch.setattr(Person, 'load_data', lambda id: {sasha.id(): sasha, ilya.id(): ilya}[id])
     yield
 
+
 @pytest.fixture(autouse=True)
 def interactive_mode():
     interactive = INTERACTIVE()
     interactive.begin_using()
     yield
     interactive.end_using()
+
 
 async def test_collection_editor() -> None:
     coll = Collection(cls=Person)

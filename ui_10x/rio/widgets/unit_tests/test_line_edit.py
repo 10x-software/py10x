@@ -1,5 +1,4 @@
 import asyncio
-from unittest.mock import MagicMock
 
 import pytest
 import rio.testing
@@ -13,10 +12,18 @@ async def test_line_edit() -> None:
     find_edited_text = 'document.querySelector(".rio-input-box").querySelector("input")'
     find_tool_tip = 'document.querySelector(".rio-tooltip-popup").querySelector(".rio-text").children[0].innerText'
 
-    edited_handler = MagicMock()
+    edited_calls = []
+
+    def edited_handler(text):
+        edited_calls.append(text)
+
     widget.text_edited_connect(edited_handler)
 
-    finished_handler = MagicMock()
+    finished_calls = []
+
+    def finished_handler():
+        finished_calls.append(True)
+
     widget.editing_finished_connect(finished_handler)
 
     def build() -> rio.Component:
@@ -34,12 +41,12 @@ async def test_line_edit() -> None:
         await test_client.execute_js(find_edited_text + '.value = "Goodbye";')
         await test_client.execute_js(find_edited_text + '.dispatchEvent(new Event("input"));')
         await asyncio.sleep(1)  # wait for change delay
-        edited_handler.assert_called_once_with('Goodbye')
-        finished_handler.assert_not_called()
+        assert edited_calls == ['Goodbye']
+        assert len(finished_calls) == 0
         assert widget.text() == component.text == 'Goodbye'
         await test_client.execute_js(find_edited_text + '.blur();')
         assert widget.text() == component.text == 'Goodbye'
-        finished_handler.assert_called_once_with()
+        assert len(finished_calls) == 1
 
         widget.set_text('Done')
         await test_client.wait_for_refresh()
