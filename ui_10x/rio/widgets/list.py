@@ -98,3 +98,8 @@ class ListWidget(Widget, i.ListWidget):
             selected_items.remove(key)
         print(selected_items)
         self['selected_items'] = selected_items
+
+    def set_enabled(self, enabled: bool):
+        self['selection_mode'] = 'single' if enabled else 'none'
+        for item in self._kwargs[self.s_children_attr]:
+            item['on_press'] = partial(self._handle_on_press, item) if enabled else None
