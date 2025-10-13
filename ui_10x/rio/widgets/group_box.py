@@ -8,16 +8,17 @@ from ui_10x.rio.component_builder import Widget
 class GroupBox(Widget, i.GroupBox):
     s_component_class = rio_components.GroupBox
     s_pass_children_in_kwargs = True
+    s_unwrap_single_child = False
 
     def __init__(self, *args, **kwargs):
-        parent = None
+        _parent = None
         title = kwargs.pop('title', '')
         children = ()
-        if len(args) >= 1:
-            parent = args[0]
-        if len(args) >= 2:
+        if len(args) == 1:
+            _parent = args[0]
+        elif len(args) >= 2:
             assert not title, 'title specified twice'
-            parent, title = args  # noqa: RUF059 - review
+            _parent, title = args[:2]
             children = args[2:]
         super().__init__(*children, **kwargs)
         self['title'] = title
