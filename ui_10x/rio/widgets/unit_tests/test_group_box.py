@@ -1,6 +1,6 @@
 import asyncio
 
-import rio.testing.browser_client
+import rio.testing
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import CheckBox, GroupBox, Label, PushButton
 
