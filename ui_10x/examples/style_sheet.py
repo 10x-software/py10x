@@ -1,5 +1,5 @@
 from core_10x.traitable import T, Traitable, Ui
-from core_10x.ts_union import TsUnion
+from core_10x.exec_control import CACHE_ONLY
 
 COLORS = ('black', 'white', 'green', 'lightgreen', 'red', 'blue', 'grey')
 
@@ -39,7 +39,7 @@ class StyleSheet(Traitable):
 if __name__ == '__main__':
     from ui_10x.traitable_editor import TraitableEditor
 
-    with TsUnion():
+    with CACHE_ONLY():
         sheet = StyleSheet()
         e = TraitableEditor(sheet, _confirm = True)
         e.dialog().exec()

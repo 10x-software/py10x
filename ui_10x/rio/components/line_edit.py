@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import rio
 
 
@@ -9,9 +11,10 @@ class LineEditComponent(rio.Component):
     on_lose_focus: rio.EventHandler[[str]] = None
     text_style: rio.TextStyle | None = None
     is_secret: bool = False
+    on_pointer_up: rio.EventHandler[[rio.PointerEvent]] = None
 
     def build(self):
-        text_input = rio.TextInput(
+        component = rio.TextInput(
             self.bind().text,
             is_sensitive=self.is_sensitive,
             on_change=self.on_change,
@@ -20,7 +23,15 @@ class LineEditComponent(rio.Component):
             is_secret=self.is_secret,
         )
 
-        if self.tooltip is None:
-            return text_input
+        if self.on_pointer_up is not None:
+            component = rio.PointerEventListener(
+                component,
+                on_pointer_up=self.on_pointer_up,
+                consume_events=False,
+                capture_events=True,
+            )
 
-        return rio.Tooltip(anchor=text_input, tip=self.tooltip)
+        if self.tooltip is not None:
+            component = rio.Tooltip(anchor=component, tip=self.tooltip)
+
+        return component

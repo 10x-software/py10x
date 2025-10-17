@@ -5,7 +5,7 @@ from weakref import WeakKeyDictionary
 from core_10x.code_samples.person import WEIGHT_QU, Person
 from core_10x.exec_control import BTP, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.trait_definition import RT, T
-from core_10x.ts_union import TsUnion
+from core_10x.exec_control import CACHE_ONLY
 from core_10x.xnone import XNone
 
 
@@ -52,7 +52,7 @@ class TestablePerson(Person):
 
 class TestGraphBase(TestCase):
     def setUp(self):
-        with TsUnion():
+        with CACHE_ONLY():
             self.p = TestablePerson(first_name='John', last_name='Smith')
 
     def tearDown(self):
@@ -147,7 +147,7 @@ class TestGraphOn(TestGraphBase):
     def setUp(self):
         self.graph_on = GRAPH_ON()
         self.graph_on.begin_using()
-        with TsUnion():
+        with CACHE_ONLY():
             self.p = TestablePerson(first_name='Jane', last_name='Smith')
         self.pid = self.p.id()
         self.p.age = 30
@@ -204,7 +204,7 @@ class TestExecControl(TestGraphBase):
         self.test_get_set()
 
     def test(self, graph=False, convert=False, debug=False):
-        with TsUnion():
+        with CACHE_ONLY():
             self.test_graph(on=graph)
             self.reset()
             self.test_convert(on=convert)
