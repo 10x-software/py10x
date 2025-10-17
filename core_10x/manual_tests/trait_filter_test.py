@@ -1,9 +1,9 @@
 from core_10x.code_samples.person import Person
 from core_10x.trait_filter import BETWEEN, NE, OR, f
-from core_10x.ts_union import TsUnion
+from core_10x.exec_control import CACHE_ONLY
 
 if __name__ == '__main__':
-    with TsUnion():
+    with CACHE_ONLY():
         p = Person(first_name = 'Sasha', last_name = 'Davidovich')
 
     r = OR(

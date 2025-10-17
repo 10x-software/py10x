@@ -5,7 +5,7 @@ from core_10x.exec_control import CONVERT_VALUES_ON, DEBUG_ON
 from core_10x.trait_definition import T
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable
-from core_10x.ts_union import TsUnion
+from core_10x.exec_control import CACHE_ONLY
 from core_10x.xnone import XNone, XNoneType
 
 
@@ -37,7 +37,7 @@ def _test_i(data_type: type, values, expected_values):
 
 
 def _test(data_type, values, expected_types):
-    with TsUnion():  # TODO: remove when db access is sorted
+    with CACHE_ONLY():  # TODO: remove when db access is sorted
         _test_i(data_type, values, expected_types)
 
 

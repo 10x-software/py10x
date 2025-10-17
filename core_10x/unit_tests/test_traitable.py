@@ -2,10 +2,10 @@ import unittest
 import uuid
 
 from core_10x.code_samples.person import Person
+from core_10x.exec_control import CACHE_ONLY
 from core_10x.trait_definition import RT, M, T
 from core_10x.traitable import Traitable
 from core_10x.traitable_id import ID
-from core_10x.ts_union import TsUnion
 from core_10x_i import BFlags
 
 
@@ -54,7 +54,7 @@ class TestTraitableTraits(unittest.TestCase):
         assert 'is not storable' in SubTraitable(trait1=uuid.uuid1().int).save().error()
 
     def test_trait_update(self):
-        with TsUnion():
+        with CACHE_ONLY():
             instance = SubTraitable(trait1=10, trait2='hello')
             assert instance.trait2 == 'hello'
 
@@ -75,7 +75,7 @@ class TestTraitableSlots(unittest.TestCase):
         self.assertEqual(SubTraitable.__slots__, expected_slots)
 
     def test_instance_slots(self):
-        with TsUnion():
+        with CACHE_ONLY():
             instance = SubTraitable(trait1=10)
         with self.assertRaises(AttributeError):
             instance.non_existent_attr = 'value'
@@ -88,13 +88,13 @@ class TestTraitable(unittest.TestCase):
         self.assertEqual(p.id(), pid)
 
     def test_init_with_trait_values(self):
-        with TsUnion():
+        with CACHE_ONLY():
             p = Person(first_name='John', last_name='Smith')
         self.assertEqual(p.first_name, 'John')
         self.assertEqual(p.last_name, 'Smith')
 
     def test_set_values(self):
-        with TsUnion():
+        with CACHE_ONLY():
             p = Person(first_name='John', last_name='Smith')
         rc = p.set_values(age=19, weight_lb=200)
         self.assertTrue(rc)

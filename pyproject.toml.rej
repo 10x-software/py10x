@@ -1,0 +1,16 @@
+@@ -12,11 +12,12 @@
+ test = ["pytest"]
+ 
+ [build-system]
+-requires = [
+-    "scikit-build-core>=0.10.7",
+-]
++requires = ["scikit-build-core>=0.10.7", "pybind11>=2.12"]
+ build-backend = "scikit_build_core.build"
+ 
++[tool.scikit-build]
++sdist.include = ["../core_10x/py_linkage.h"]
++
+ [tool.cibuildwheel]
+ test-command = "python {project}/tests/test.py"
+ 

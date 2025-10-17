@@ -92,6 +92,8 @@ async def test_group_box_add_remove_children() -> None:
         assert 0 == await test_client.execute_js('document.querySelectorAll(".rio-button").length')
 
 
+#TODO: should disabling group-box disable all widgets in it?
+#
 # async def test_group_box_enabled_disabled() -> None:
 #     """Test GroupBox enabled/disabled state."""
 #     widget = GroupBox(title = 'Enabled Group')
