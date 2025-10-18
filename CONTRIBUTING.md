@@ -78,8 +78,8 @@ def test_traitable_creation():
     from core_10x.traitable import Traitable, T
     
     class TestEntity(Traitable):
-        name: str = T()
-        value: int = T()
+        name: str
+        value: int
     
     entity = TestEntity(name="test", value=42)
     assert entity.name == "test"

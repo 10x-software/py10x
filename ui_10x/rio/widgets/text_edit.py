@@ -11,7 +11,7 @@ class TextEdit(Widget, i.TextEdit):
     def _make_kwargs(self, **kwargs):
         kw = super()._make_kwargs(**kwargs)
         handler = self.focus_out_event
-        if handler.__func__ != TextEdit.focus_out_event: # do not set unless implemented
+        if handler.__func__ != TextEdit.focus_out_event:  # do not set unless implemented
             kw['on_lose_focus'] = self.callback(handler)
         # TODO: test clipboard interactions
         return kw
@@ -25,5 +25,4 @@ class TextEdit(Widget, i.TextEdit):
     def set_read_only(self, readonly: bool):
         self['is_sensitive'] = not readonly
 
-    def focus_out_event(self, event):
-        ...
+    def focus_out_event(self, event): ...

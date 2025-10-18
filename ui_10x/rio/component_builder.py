@@ -115,6 +115,7 @@ class MouseEvent(i.MouseEvent):
     def is_right_button(self) -> bool:
         return self.event.button == 'right'
 
+
 class FontMetrics(i.FontMetrics):
     __slots__ = ('_widget',)
 
