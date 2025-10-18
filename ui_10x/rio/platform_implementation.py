@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from core_10x.global_cache import cache
 
-from ui_10x.platform_interface import MouseEvent
 from ui_10x.rio import component_builder, widgets
 
 

@@ -3,9 +3,8 @@ from unittest import TestCase
 from weakref import WeakKeyDictionary
 
 from core_10x.code_samples.person import WEIGHT_QU, Person
-from core_10x.exec_control import BTP, GRAPH_OFF, GRAPH_ON, INTERACTIVE
+from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.trait_definition import RT, T
-from core_10x.exec_control import CACHE_ONLY
 from core_10x.xnone import XNone
 
 

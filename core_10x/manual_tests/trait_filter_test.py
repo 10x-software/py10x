@@ -1,6 +1,6 @@
 from core_10x.code_samples.person import Person
-from core_10x.trait_filter import BETWEEN, NE, OR, f
 from core_10x.exec_control import CACHE_ONLY
+from core_10x.trait_filter import BETWEEN, NE, OR, f
 
 if __name__ == '__main__':
     with CACHE_ONLY():

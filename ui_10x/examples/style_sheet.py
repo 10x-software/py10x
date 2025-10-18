@@ -1,5 +1,5 @@
-from core_10x.traitable import T, Traitable, Ui
 from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import T, Traitable, Ui
 
 COLORS = ('black', 'white', 'green', 'lightgreen', 'red', 'blue', 'grey')
 

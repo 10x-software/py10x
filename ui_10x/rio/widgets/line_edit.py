@@ -29,7 +29,7 @@ class LineEdit(Widget, i.LineEdit):
     def _make_kwargs(self, **kwargs):
         kw = super()._make_kwargs(**kwargs)
         handler = self.mouse_press_event
-        if handler.__func__ != LineEdit.mouse_press_event: # do not set unless re-implemented
+        if handler.__func__ != LineEdit.mouse_press_event:  # do not set unless re-implemented
             kw['on_pointer_up'] = self.callback(lambda event: handler(MouseEvent(event)))
         return kw
 

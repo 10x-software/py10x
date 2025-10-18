@@ -69,7 +69,7 @@ class ProcessContext(BProcessContext):
 class FlagsContext:
     s_default_flags = 0
 
-    def __init__(self,flags=None):
+    def __init__(self, flags=None):
         self._flags = flags if flags is not None else self.s_default_flags
 
     def __enter__(self):
@@ -77,7 +77,8 @@ class FlagsContext:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._flags =  ProcessContext.reset_flags(self._flags)
+        self._flags = ProcessContext.reset_flags(self._flags)
+
 
 class CACHE_ONLY(FlagsContext):
     s_default_flags = ProcessContext.CACHE_ONLY

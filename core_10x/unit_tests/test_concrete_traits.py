@@ -1,11 +1,10 @@
 from types import NoneType
 
 import pytest
-from core_10x.exec_control import CONVERT_VALUES_ON, DEBUG_ON
+from core_10x.exec_control import CACHE_ONLY, CONVERT_VALUES_ON, DEBUG_ON
 from core_10x.trait_definition import T
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable
-from core_10x.exec_control import CACHE_ONLY
 from core_10x.xnone import XNone, XNoneType
 
 
