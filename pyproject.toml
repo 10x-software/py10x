@@ -20,6 +20,19 @@ dependencies = [
     "typing-extensions>=4.15.0",
     "scipy>=1.15.3",
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: User Interfaces",
+]
 [project.optional-dependencies]
 dev = [
     "alt-pytest-asyncio==0.7.2",
@@ -49,18 +62,6 @@ Repository = "https://github.com/10X-LLC/py10x"
 Issues = "https://github.com/10X-LLC/py10x/issues"
 Documentation = "https://github.com/10X-LLC/py10x#readme"
 
-[project.classifiers]
-Programming Language :: Python :: 3
-Programming Language :: Python :: 3.10
-Programming Language :: Python :: 3.11
-Programming Language :: Python :: 3.12
-Programming Language :: Python :: 3.13
-License :: OSI Approved :: MIT License
-Operating System :: OS Independent
-Development Status :: 3 - Alpha
-Intended Audience :: Developers
-Topic :: Software Development :: Libraries :: Python Modules
-Topic :: Software Development :: User Interfaces
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-build-scripts","playwright"]
