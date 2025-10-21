@@ -55,6 +55,8 @@ pip install -e ".[dev]"  # Development tools
 
 ## Quick Start
 
+For a comprehensive introduction to py10x, see our [Getting Started Guide](GETTING_STARTED.md).
+
 ### Core Data Modeling with Object Identification
 
 ```python
