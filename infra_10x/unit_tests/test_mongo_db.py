@@ -3,7 +3,6 @@ from uuid import uuid4
 
 import pymongo.errors
 import pytest
-
 from core_10x.code_samples.person import Person
 from infra_10x.mongodb_store import MongoStore
 
@@ -15,17 +14,17 @@ MONGO_URL = 'mongodb://localhost:27017/'
 TEST_DB = 'test_db'
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope='session')
 def mongo_setup():
     mongo = MongoStore.instance(hostname=MONGO_URL, dbname=TEST_DB)
     patch1 = mock.patch('core_10x.package_refactoring.PackageRefactoring.find_class_id', return_value=TEST_COLLECTION)
     patch2 = mock.patch('core_10x.package_refactoring.PackageRefactoring.find_class_id', return_value=TEST_COLLECTION1)
-    
+
     with mongo:
         with patch1:
             p = Person(first_name='John', last_name='Doe')
             p.set_values(age=30, weight_lbs=100)
-            assert not p._rev
+            assert p._rev == 0
             p.save()
             assert p._rev == 1
             p.save()
@@ -37,22 +36,23 @@ def mongo_setup():
             p1.save()
             assert p1.age == 32
             assert p1._rev == 1
-    
+
     yield mongo, p, p1
-    
+
     # Cleanup
     for cn in [TEST_COLLECTION, TEST_COLLECTION1]:
         mongo.delete_collection(cn)
     assert not {TEST_COLLECTION, TEST_COLLECTION1}.intersection(mongo.collection_names('.*'))
 
+
 def test_collection(mongo_setup):
-    mongo, p, p1 = mongo_setup
+    mongo, _p, _p1 = mongo_setup
     collection = mongo.collection(TEST_COLLECTION)
     assert collection is not None
 
 
 def test_save(mongo_setup):
-    mongo, p, p1 = mongo_setup
+    mongo, p, _p1 = mongo_setup
     collection = mongo.collection(TEST_COLLECTION)
     serialized_entity = p.serialize_object()
     _rev = collection.save(serialized_entity.copy())
@@ -112,7 +112,7 @@ def test_save(mongo_setup):
 
 
 def test_delete_restore(mongo_setup):
-    mongo, p, p1 = mongo_setup
+    mongo, p, _p1 = mongo_setup
     collection = mongo.collection(TEST_COLLECTION)
     serialized_entity = p.serialize_object()
     id_value = serialized_entity['_id']
@@ -125,7 +125,7 @@ def test_delete_restore(mongo_setup):
 
 
 def test_find(mongo_setup):
-    mongo, p, p1 = mongo_setup
+    mongo, p, _p1 = mongo_setup
     collection = mongo.collection(TEST_COLLECTION)
     result = collection.find()
     assert next(result) == p.serialize_object()
@@ -133,7 +133,7 @@ def test_find(mongo_setup):
 
 
 def test_load(mongo_setup):
-    mongo, p, p1 = mongo_setup
+    mongo, p, _p1 = mongo_setup
     collection = mongo.collection(TEST_COLLECTION)
     id_value = p.id().value
     result = collection.load(id_value)
@@ -141,7 +141,7 @@ def test_load(mongo_setup):
 
 
 def test_delete(mongo_setup):
-    mongo, p, p1 = mongo_setup
+    mongo, _p, p1 = mongo_setup
     collection = mongo.collection(TEST_COLLECTION1)
     id_value = p1.id().value
     result = collection.delete(id_value)

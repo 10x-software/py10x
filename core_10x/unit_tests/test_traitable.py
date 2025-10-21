@@ -1,7 +1,6 @@
 import uuid
 
 import pytest
-
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.trait_definition import RT, M, T

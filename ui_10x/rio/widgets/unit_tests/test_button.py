@@ -40,7 +40,6 @@ async def test_button_comprehensive() -> None:
 async def test_button_disabled_interaction() -> None:
     """Test PushButton disabled state blocks user interaction."""
     widget = PushButton('Test Button')
-    find_button = 'document.querySelector(".rio-button")'
 
     clicked_calls = []
 

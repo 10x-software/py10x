@@ -2,7 +2,6 @@ import functools
 from weakref import WeakKeyDictionary
 
 import pytest
-
 from core_10x.code_samples.person import WEIGHT_QU, Person
 from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.trait_definition import RT, T
@@ -71,6 +70,7 @@ def reset_person(p):
             # TODO: use nodes?
             ...
 
+
 def test_get_set(testable_person):
     on = BTP.current().flags() & BTP.ON_GRAPH
     p = testable_person
@@ -102,6 +102,7 @@ def test_get_set(testable_person):
     with CallCount(p, TestablePerson.weight_get) as cc:
         assert p.weight_lbs == 100 * WEIGHT_QU.KG.value
         assert cc.call_count == 0
+
 
 def test_dep_change(testable_person):
     on = BTP.current().flags() & BTP.ON_GRAPH
@@ -162,7 +163,7 @@ def graph_on_person():
 
 
 def test_nested(graph_on_person):
-    p, pid, graph_on = graph_on_person
+    p, _pid, _graph_on = graph_on_person
     assert p.full_name == 'Jane Smith'
     with INTERACTIVE() as i1:
         p.last_name = 'Baker'
