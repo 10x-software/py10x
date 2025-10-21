@@ -10,6 +10,7 @@ from core_10x.traitable import Traitable
 
 class Person(Traitable):
     """Test traitable with converter methods."""
+
     # Runtime traitable: omit T() so no storage context is required
     name: bytes
     status: str
@@ -27,9 +28,8 @@ class Person(Traitable):
         return str(value).lower()
 
 
-
-@pytest.mark.parametrize("graph_mode", [GRAPH_OFF, GRAPH_ON])
-@pytest.mark.parametrize("debug_mode", [DEBUG_OFF, DEBUG_ON])
+@pytest.mark.parametrize('graph_mode', [GRAPH_OFF, GRAPH_ON])
+@pytest.mark.parametrize('debug_mode', [DEBUG_OFF, DEBUG_ON])
 def test_converter_usage_with_execution_modes(graph_mode, debug_mode):
     """Test that converters work with different execution mode combinations."""
     with graph_mode(), debug_mode():
@@ -49,6 +49,3 @@ def test_converter_usage_with_execution_modes(graph_mode, debug_mode):
                 person.status = True
                 assert person.status is True
                 assert person.name == 'john'
-
-
-
