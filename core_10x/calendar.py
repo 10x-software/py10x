@@ -109,8 +109,8 @@ class CalendarAdjustment(Traitable):
     # fmt: on
 
 
-# -- TODO: _default_cache = True:
-class Calendar(Traitable, _keep_history=True):
+#-- TODO: _default_cache = True:
+class Calendar(Traitable, _keep_history = True):
     # fmt: off
     name: str               = T(T.ID | T.READONLY)
     name_base: str          = T(T.NOT_EMPTY)
@@ -132,7 +132,7 @@ class Calendar(Traitable, _keep_history=True):
             return None
 
         name = CalendarNameParser.operation_repr(CalendarNameParser.AND_CHAR, *calendars)
-        return cls(name=name)
+        return cls(name = name)
 
     intersection = AND
 
@@ -203,7 +203,7 @@ class Calendar(Traitable, _keep_history=True):
         return d not in self._non_working_days
 
     def next_bizday(self, d: date) -> date:
-        dt = timedelta(days=1)
+        dt = timedelta(days = 1)
         d += dt
         while not self.is_bizday(d):
             d += dt
@@ -211,12 +211,12 @@ class Calendar(Traitable, _keep_history=True):
         return d
 
     def prev_bizday(self, d: date) -> date:
-        dt = timedelta(days=-1)
+        dt = timedelta(days = -1)
         d += dt
         while not self.is_bizday(d):
             d += dt
 
-        return d
+        return d    #-- TODO: if the cal has ALL days as holidays... :-)
 
     def advance_bizdays(self, d: date, biz_days: int) -> date:
         if not biz_days:
