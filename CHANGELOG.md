@@ -59,10 +59,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced tests, documentation and examples
 - Trait validation (automatic verification methods)
 - Automatic resource management via enterprise backbone
-- Additional UI components for traitable editing
-- Performance optimizations
-- Extended storage backends
-- UI theme and styling system
 
 ---
 

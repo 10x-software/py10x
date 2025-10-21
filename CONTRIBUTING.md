@@ -228,16 +228,6 @@ The UI framework focuses on traitable editing and management:
 - [ ] CHANGELOG updated
 - [ ] Release notes prepared
 
-## Getting Started Guide
-
-A comprehensive getting started guide is planned to walk through different features, execution modes, and traitable management. This will provide extensive examples and tutorials for:
-
-- Traitable framework fundamentals
-- Object identification and sharing
-- Dependency graph and execution control
-- UI components for traitable editing
-- Storage integration patterns
-
 ## Getting Help
 
 - Check existing issues and discussions
