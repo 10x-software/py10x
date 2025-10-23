@@ -4,7 +4,7 @@ if __name__ == '__main__':
 
     from infra_10x.mongodb_store import MongoStore
 
-    from core_10x.calendar import Calendar
+    from core_10x.xxcalendar import Calendar
 
     db = MongoStore.instance(hostname = 'localhost', dbname = 'test')
     db.begin_using()
