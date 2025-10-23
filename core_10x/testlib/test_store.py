@@ -11,8 +11,10 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from core_10x_i import BNucleus
+
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
+from core_10x.ts_store import TsCollection, TsStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -27,89 +29,84 @@ class TestCollection(TsCollection):
 
     def __init__(self, store: TestStore, collection_name: str):
         self.store = store
-        self._collection_name = collection_name
+        self.collection_name = collection_name
         self._documents = {}  # id -> document
         self._indexes = {}  # index_name -> index_info
-
-    def collection_name(self) -> str:
-        return self._collection_name
 
     def id_exists(self, id_value: str) -> bool:
         """Check if a document with the given ID exists."""
         return id_value in self._documents
 
-    def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
+    def find(self, query: f = None, _at_most: int = 0, _order: dict = None, _filter: f = None) -> Iterable:
         """Find documents matching the query."""
         documents = list(self._documents.values())
 
         # Apply query filter if provided
         if query:
-            documents = [doc for doc in documents if query.eval(doc)]
+            filtered_docs = []
+            for doc in documents:
+                if self._matches_query(doc, query):
+                    filtered_docs.append(doc)
+            documents = filtered_docs
 
         # Apply ordering if provided
         if _order:
-            # Sort by all fields at once, with the last field taking precedence
-            # We need to reverse the order of fields so the last one is applied first
-            sort_fields = list(_order.items())
-            sort_fields.reverse()  # Last field first
-
-            for field, direction in sort_fields:
+            for field, direction in _order.items():
                 documents.sort(key=lambda x: x.get(field, ''), reverse=(direction == -1))
 
         # Apply limit if specified
         if _at_most > 0:
             documents = documents[:_at_most]
 
-        return (dict(doc) for doc in documents)
+        return iter(documents)
+
+
+    def _matches_query(self, document: dict, query: f) -> bool:
+        """Fallback simple query matching."""
+        if not query:
+            return True
+
+        serialized_dict = {
+            BNucleus.CLASS_TAG(): self.collection_name,
+            #BNucleus.TYPE_TAG(): BNucleus.NX_RECORD_TAG(),
+            #BNucleus.OBJECT_TAG(): document
+            '_type': '_nx',
+            '_obj': document,
+        }
+        # Deserialize the document into a traitable entity
+        traitable = BNucleus.deserialize_dict(serialized_dict)
+
+        # Use the filter's eval functionality
+        return query.eval(traitable)
+
 
     def count(self, query: f = None) -> int:
         """Count documents matching the query."""
         return len(list(self.find(query)))
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
+    def save_new(self, serialized_traitable: dict) -> int:
         """Save a new document."""
-
-        # Handle MongoDB-style operations
-        if '$set' in serialized_traitable:
-            # This is a MongoDB-style update operation
-            from datetime import datetime
-
-            # Extract the data from $set
-            data = serialized_traitable['$set'].copy()
-
-            # Handle $currentDate operations
-            if '$currentDate' in serialized_traitable:
-                current_date_fields = serialized_traitable['$currentDate']
-                for field in current_date_fields:
-                    if current_date_fields[field] is True:
-                        data[field] = datetime.utcnow()
-
-            serialized_traitable = data
-
-        id_tag = self.s_id_tag
-        id_value = serialized_traitable.get(id_tag)
-
-        if not id_value:
+        doc_id = serialized_traitable.get(self.s_id_tag)
+        if not doc_id:
             return 0
 
-        if id_value in self._documents and not overwrite:
-            raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value})
+        if doc_id in self._documents:
+            return 0  # Document already exists
 
-        self._documents[id_value] = serialized_traitable
+        # Server-side fields are now handled at the store level
+        self._documents[doc_id] = serialized_traitable.copy()
         return 1
 
     def save(self, serialized_traitable: dict) -> int:
         """Save or update a document."""
-        rev_tag = Nucleus.REVISION_TAG()
-        revision = serialized_traitable[rev_tag]
-        if revision == 0:
-            return self.save_new(serialized_traitable | {rev_tag: 1})
-
         undef_variable = next((k[1:] for k in serialized_traitable if k.startswith('$')), None)
         if undef_variable:
             raise RuntimeError(f'Use of undefined variable: {undef_variable}')
         doc_id = serialized_traitable.get(self.s_id_tag)
         assert doc_id
+
+        rev_tag = Nucleus.REVISION_TAG()
+        revision = serialized_traitable[rev_tag]
 
         existing_doc = self._documents.get(doc_id)
         existing_revision = existing_doc[rev_tag] if existing_doc else 0
@@ -154,7 +151,7 @@ class TestCollection(TsCollection):
         return min_doc
 
 
-class TestStore(TsStore, resource_name='TEST_DB'):
+class TestStore(TsStore, resource_name='TestStore'):
     """In-memory store implementation for testing."""
 
     s_driver_name = 'TestStore'
