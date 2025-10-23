@@ -6,7 +6,6 @@ import sys
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Self, get_origin
 
@@ -33,6 +32,7 @@ from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
+    from datetime import datetime
 
     from core_10x.ts_store import TsCollection, TsStore
 
