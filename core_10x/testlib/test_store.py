@@ -41,15 +41,16 @@ class TestCollection(TsCollection):
 
         # Apply query filter if provided
         if query:
-            filtered_docs = []
-            for doc in documents:
-                if self._matches_query(doc, query):
-                    filtered_docs.append(doc)
-            documents = filtered_docs
+            documents = [doc for doc in documents if query.eval(doc)]
 
         # Apply ordering if provided
         if _order:
-            for field, direction in _order.items():
+            # Sort by all fields at once, with the last field taking precedence
+            # We need to reverse the order of fields so the last one is applied first
+            sort_fields = list(_order.items())
+            sort_fields.reverse()  # Last field first
+
+            for field, direction in sort_fields:
                 documents.sort(key=lambda x: x.get(field, ''), reverse=(direction == -1))
 
         # Apply limit if specified
@@ -57,24 +58,6 @@ class TestCollection(TsCollection):
             documents = documents[:_at_most]
 
         return iter(documents)
-
-    def _matches_query(self, document: dict, query: f) -> bool:
-        """Fallback simple query matching."""
-        if not query:
-            return True
-
-        serialized_dict = {
-            Nucleus.CLASS_TAG(): self.collection_name,
-            # Nucleus.TYPE_TAG(): Nucleus.NX_RECORD_TAG(),
-            # Nucleus.OBJECT_TAG(): document
-            '_type': '_nx',
-            '_obj': document,
-        }
-        # Deserialize the document into a traitable entity
-        traitable = Nucleus.deserialize_dict(serialized_dict)
-
-        # Use the filter's eval functionality
-        return query.eval(traitable)
 
     def count(self, query: f = None) -> int:
         """Count documents matching the query."""
@@ -96,7 +79,7 @@ class TestCollection(TsCollection):
                 current_date_fields = serialized_traitable['$currentDate']
                 for field in current_date_fields:
                     if current_date_fields[field] is True:
-                        data[field] = datetime.utcnow()
+                        data[field] = datetime.now()
 
             # Generate a new ID if not provided
             if '_id' not in data:
