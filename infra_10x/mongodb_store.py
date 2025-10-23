@@ -39,7 +39,15 @@ class MongoCollection(TsCollection):
         return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})
 
     def save_new(self, serialized_traitable: dict) -> int:
-        res = self.coll.insert_one(serialized_traitable)
+        if '$set' not in serialized_traitable:
+            res = self.coll.insert_one(serialized_traitable)
+        else:
+            id_tag = self.s_id_tag
+            id_value = serialized_traitable['$set'][id_tag]
+            res = self.coll.update_one({id_tag: id_value}, serialized_traitable, upsert=True)
+            if res.matched_count:  # -- e.g. this id/revision already existed
+                raise AssertionError(f'{self.coll} {id_value} was found existing while insert was attempted')
+
         return 1 if res.acknowledged else 0
 
     def save(self, serialized_traitable: dict) -> int:
@@ -292,3 +300,6 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
 
         finally:
             client.close()
+
+    def auth_user(self) -> str | None:
+        return self.username

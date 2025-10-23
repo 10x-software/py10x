@@ -118,3 +118,6 @@ class TsStore(Resource, resource_type=TS_STORE):
 
     @classmethod
     def is_running_with_auth(cls, host_name: str) -> tuple: ...  # -- (is_running, with_auth)
+
+    @abc.abstractmethod
+    def auth_user(self) -> str | None: ...

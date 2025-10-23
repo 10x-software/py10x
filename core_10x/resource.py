@@ -149,7 +149,8 @@ class Resource(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def instance(cls, *args, **kwargs): ...
+    def instance(cls, *args, **kwargs):
+        raise NotImplementedError
 
     @abc.abstractmethod
     def on_enter(self): ...
