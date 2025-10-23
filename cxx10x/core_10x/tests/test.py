@@ -6,6 +6,8 @@ from core_10x.code_samples.person import Person
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON
 from core_10x.ts_union import TsUnion
 
+from core_10x.traitable_id import ID
+
 
 def _test1():
     p = Person(first_name = 'Sasha', last_name = 'Davidovich')
@@ -90,6 +92,12 @@ def test_5():
         print(y,y.serialize_object())
         y = Z(y=y)
         print(y,y.serialize_object())
+def test_6():
+    class X(Traitable):
+        s_custom_collection=True
+        x:int
+
+    x=X(_collection_name='123')
 
 if __name__ == '__main__':
     import core_10x_i
@@ -98,7 +106,8 @@ if __name__ == '__main__':
     #test_2()
     #test_3()
     #test_4()
-    test_5()
+    #test_5()
+    test_6()
 
 
 

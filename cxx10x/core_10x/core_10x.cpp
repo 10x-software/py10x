@@ -53,10 +53,15 @@ PYBIND11_MODULE(core_10x_i, m)
             ;
 
     py::class_<BNucleus>(m, "BNucleus")
-            .def_static("ID_TAG",                       &BNucleus::ID_TAG)
-            .def_static("COLLECTION_TAG",               &BNucleus::COLLECTION_TAG)
+            .def_static("TYPE_TAG",                     &BNucleus::TYPE_TAG)
             .def_static("CLASS_TAG",                    &BNucleus::CLASS_TAG)
             .def_static("REVISION_TAG",                 &BNucleus::REVISION_TAG)
+            .def_static("OBJECT_TAG",                   &BNucleus::OBJECT_TAG)
+            .def_static("COLLECTION_TAG",               &BNucleus::COLLECTION_TAG)
+            .def_static("ID_TAG",                       &BNucleus::ID_TAG)
+            .def_static("NX_RECORD_TAG",                &BNucleus::NX_RECORD_TAG)
+            .def_static("TYPE_RECORD_TAG",              &BNucleus::TYPE_RECORD_TAG)
+            .def_static("PICKLE_RECORD_TAG",            &BNucleus::PICKLE_RECORD_TAG)
 
             .def_static("serialize_any",                &BNucleus::serialize_any)
             .def_static("deserialize_any",              &BNucleus::deserialize_any)

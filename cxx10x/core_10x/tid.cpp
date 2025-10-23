@@ -9,10 +9,10 @@
 TID::TID(BTraitableClass* cls, const py::object& id) : m_class(cls) {
     m_id = id;
     if (cls->is_custom_collection()) {
-        if (!coll_name().cast<bool>())
+        if (!py::bool_(coll_name()))
             throw py::type_error(py::str("{}() requires _collection_name").format(cls->name()));
     }
-    else if (coll_name().cast<bool>())
+    else if (py::bool_(coll_name()))
         throw py::type_error(py::str("{}() _collection_name may not be provided").format(cls->name()));
 }
 
