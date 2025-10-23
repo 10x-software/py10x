@@ -85,23 +85,23 @@ class TestCollection(TsCollection):
         # Handle MongoDB-style operations
         if '$set' in serialized_traitable:
             # This is a MongoDB-style update operation
-            from datetime import datetime
             import uuid
-            
+            from datetime import datetime
+
             # Extract the data from $set
             data = serialized_traitable['$set'].copy()
-            
+
             # Handle $currentDate operations
             if '$currentDate' in serialized_traitable:
                 current_date_fields = serialized_traitable['$currentDate']
                 for field in current_date_fields:
                     if current_date_fields[field] is True:
                         data[field] = datetime.utcnow()
-            
+
             # Generate a new ID if not provided
             if '_id' not in data:
                 data['_id'] = str(uuid.uuid4())
-            
+
             # Store the document
             doc_id = data['_id']
             self._documents[doc_id] = data
@@ -172,7 +172,7 @@ class TestCollection(TsCollection):
         return min_doc
 
 
-class TestStore(TsStore, resource_name='TestStore'):
+class TestStore(TsStore, resource_name='TEST_DB'):
     """In-memory store implementation for testing."""
 
     s_driver_name = 'TestStore'
@@ -224,10 +224,6 @@ class TestStore(TsStore, resource_name='TestStore'):
         """Clear all collections (useful for test cleanup)."""
         self._collections.clear()
         self._collection_names.clear()
-    
-    def auth_user(self) -> str:
-        """Get the current authenticated user (for testing)."""
-        return getattr(self, 'username', 'test_user')
 
     def get_document_count(self, collection_name: str) -> int:
         """Get the number of documents in a collection (for testing)."""
