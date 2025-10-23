@@ -4,11 +4,9 @@ from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
+from core_10x.ts_store import TsCollection, TsStore, standard_key
 from infra_10x_i import MongoCollectionHelper
 from pymongo import MongoClient, errors
-from pymongo.errors import DuplicateKeyError
-from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -26,9 +24,6 @@ class MongoCollection(TsCollection):
     def __init__(self, db, collection_name: str):
         self.coll: Collection = db[collection_name]
 
-    def collection_name(self) -> str:
-        return self.coll.name
-
     def id_exists(self, id_value: str) -> bool:
         return self.coll.count_documents({self.s_id_tag: id_value}) > 0
 
@@ -43,26 +38,17 @@ class MongoCollection(TsCollection):
     def count(self, query: f = None) -> int:
         return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
-        needs_upsert = (set_values := serialized_traitable.get('$set')) or overwrite
-        id_tag = self.s_id_tag
-        id_value = (set_values or serialized_traitable)[id_tag]
-        e = None
-
-        if not needs_upsert:
-            try:
-                res = self.coll.insert_one(serialized_traitable)
-                ack, cnt = res.acknowledged, 0
-            except DuplicateKeyError:
-                ack, cnt = False, 1
+    def save_new(self, serialized_traitable: dict) -> int:
+        if '$set' not in serialized_traitable:
+            res = self.coll.insert_one(serialized_traitable)
         else:
-            res = self.coll.update_one({id_tag: id_value}, serialized_traitable if set_values else {'$set': serialized_traitable}, upsert=True)
-            ack, cnt = res.acknowledged, res.matched_count
+            id_tag = self.s_id_tag
+            id_value = serialized_traitable['$set'][id_tag]
+            res = self.coll.update_one({id_tag: id_value}, serialized_traitable, upsert=True)
+            if res.matched_count:  # -- e.g. this id/revision already existed
+                raise AssertionError(f'{self.coll} {id_value} was found existing while insert was attempted')
 
-        if cnt and not overwrite:  # -- e.g. this id/revision already existed
-            raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value}) from e
-
-        return int(ack)
+        return 1 if res.acknowledged else 0
 
     def save(self, serialized_traitable: dict) -> int:
         rev_tag = Nucleus.REVISION_TAG()
@@ -79,7 +65,6 @@ class MongoCollection(TsCollection):
 
         filter = {}
         pipeline = []
-        serialized_traitable = dict(serialized_traitable)  # -- copy to avoid modifying the input
         MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
         # self.filter_and_pipeline(serialized_traitable, filter, pipeline)
 
@@ -238,8 +223,6 @@ class MongoCollection(TsCollection):
 
 
 class MongoStore(TsStore, resource_name='MONGO_DB'):
-    PROTOCOL = 'mongodb'
-
     ADMIN = 'admin'
 
     # fmt: off
@@ -282,27 +265,6 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
     def new_instance(cls, hostname: str, dbname: str, username: str, password: str, **kwargs) -> TsStore:
         client = cls.connect(hostname, username, password, **kwargs)
         return cls(client, client[dbname], username)
-
-    @classmethod
-    def parse_uri(cls, uri: str) -> dict:
-        params = pymongo_parse_uri(uri)
-        try:
-            # fmt: off
-            hostname, port  = params['nodelist'][0]
-            kwargs          = params['options']
-            kwargs[cls.PORT_TAG]  = port
-            args = {
-                cls.HOSTNAME_TAG:   hostname,
-                cls.DBNAME_TAG:     params['database'],
-                cls.USERNAME_TAG:   params['username'],
-                cls.PASSWORD_TAG:   params['password'],
-            }
-            # fmt: on
-            args.update(kwargs)
-            return args
-
-        except Exception as e:
-            raise ValueError(f'Invalid URI = {uri}') from e
 
     def __init__(self, client: MongoClient, db: Database, username: str):
         self.client = client
