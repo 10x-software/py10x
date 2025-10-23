@@ -11,8 +11,6 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
-from core_10x_i import BNucleus
-
 from core_10x.nucleus import Nucleus
 from core_10x.ts_store import TsCollection, TsStore
 
@@ -60,25 +58,23 @@ class TestCollection(TsCollection):
 
         return iter(documents)
 
-
     def _matches_query(self, document: dict, query: f) -> bool:
         """Fallback simple query matching."""
         if not query:
             return True
 
         serialized_dict = {
-            BNucleus.CLASS_TAG(): self.collection_name,
-            #BNucleus.TYPE_TAG(): BNucleus.NX_RECORD_TAG(),
-            #BNucleus.OBJECT_TAG(): document
+            Nucleus.CLASS_TAG(): self.collection_name,
+            # Nucleus.TYPE_TAG(): Nucleus.NX_RECORD_TAG(),
+            # Nucleus.OBJECT_TAG(): document
             '_type': '_nx',
             '_obj': document,
         }
         # Deserialize the document into a traitable entity
-        traitable = BNucleus.deserialize_dict(serialized_dict)
+        traitable = Nucleus.deserialize_dict(serialized_dict)
 
         # Use the filter's eval functionality
         return query.eval(traitable)
-
 
     def count(self, query: f = None) -> int:
         """Count documents matching the query."""
@@ -86,16 +82,41 @@ class TestCollection(TsCollection):
 
     def save_new(self, serialized_traitable: dict) -> int:
         """Save a new document."""
-        doc_id = serialized_traitable.get(self.s_id_tag)
-        if not doc_id:
-            return 0
+        # Handle MongoDB-style operations
+        if '$set' in serialized_traitable:
+            # This is a MongoDB-style update operation
+            from datetime import datetime
+            import uuid
+            
+            # Extract the data from $set
+            data = serialized_traitable['$set'].copy()
+            
+            # Handle $currentDate operations
+            if '$currentDate' in serialized_traitable:
+                current_date_fields = serialized_traitable['$currentDate']
+                for field in current_date_fields:
+                    if current_date_fields[field] is True:
+                        data[field] = datetime.utcnow()
+            
+            # Generate a new ID if not provided
+            if '_id' not in data:
+                data['_id'] = str(uuid.uuid4())
+            
+            # Store the document
+            doc_id = data['_id']
+            self._documents[doc_id] = data
+            return 1
+        else:
+            # Regular save operation
+            doc_id = serialized_traitable.get(self.s_id_tag)
+            if not doc_id:
+                return 0
 
-        if doc_id in self._documents:
-            return 0  # Document already exists
+            if doc_id in self._documents:
+                return 0  # Document already exists
 
-        # Server-side fields are now handled at the store level
-        self._documents[doc_id] = serialized_traitable.copy()
-        return 1
+            self._documents[doc_id] = serialized_traitable.copy()
+            return 1
 
     def save(self, serialized_traitable: dict) -> int:
         """Save or update a document."""
@@ -203,6 +224,10 @@ class TestStore(TsStore, resource_name='TestStore'):
         """Clear all collections (useful for test cleanup)."""
         self._collections.clear()
         self._collection_names.clear()
+    
+    def auth_user(self) -> str:
+        """Get the current authenticated user (for testing)."""
+        return getattr(self, 'username', 'test_user')
 
     def get_document_count(self, collection_name: str) -> int:
         """Get the number of documents in a collection (for testing)."""
