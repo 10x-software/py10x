@@ -185,12 +185,12 @@ class f(_filter):
             name: expression if isinstance(expression, _filter) else EQ(expression) for name, expression in named_expressions.items()
         }
 
-    def eval(self, traitable) -> bool:
+    def eval(self, traitable_or_dict) -> bool:
         if self.filter:
-            if not self.filter.eval(traitable):
+            if not self.filter.eval(traitable_or_dict):
                 return False
 
-        return all(item.eval(traitable.id().value if name == '_id' else traitable.get_value(name)) for name, item in self.named_expressions.items())
+        return all(item.eval(traitable_or_dict[name]) for name, item in self.named_expressions.items())
 
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
         traitable_class = traitable_class or self.traitable_class
