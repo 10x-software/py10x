@@ -4,7 +4,7 @@ import functools
 import operator
 import sys
 from itertools import chain
-from typing import TYPE_CHECKING, Any, get_origin
+from typing import TYPE_CHECKING, Any, Self, get_origin
 
 from core_10x_i import BTraitable, BTraitableClass
 
@@ -412,7 +412,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.load(cls, id)
 
     @classmethod
-    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Traitable]:
+    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Self]:
         return cls.s_storage_helper.load_many(cls, query, _coll_name, _at_most, _order, _deserialize)
 
     @classmethod

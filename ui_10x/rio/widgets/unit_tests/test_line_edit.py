@@ -2,6 +2,7 @@ import asyncio
 
 import pytest
 import rio.testing
+from ui_10x import platform_interface as i
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import LineEdit
 
@@ -30,8 +31,7 @@ async def test_line_edit_comprehensive() -> None:
 
         # 1) Verify client shows widget value
         assert widget.text() == 'Initial Text'
-        client_value = await test_client.execute_js(find_input + '.value')
-        assert client_value == 'Initial Text'
+        assert widget.text() == await test_client.execute_js(find_input + '.value')
 
         # 2) Modify client value (user typing)
         await test_client.execute_js(find_input + '.focus();')
@@ -40,13 +40,15 @@ async def test_line_edit_comprehensive() -> None:
         await asyncio.sleep(1)  # wait for change delay
 
         # 3) Verify widget reflects client value
-        assert len(edited_calls) == 1
-        assert edited_calls[0] == 'User Typed Text'
         assert widget.text() == 'User Typed Text'
+        assert widget.text() == await test_client.execute_js(find_input + '.value')
+        assert len(edited_calls) == 1
+        assert widget.text() == edited_calls[0]
 
         # Test editing finished
         await test_client.execute_js(find_input + '.blur();')
         assert len(finished_calls) == 1
+        assert widget.text() == await test_client.execute_js(find_input + '.value')
 
         # Test widget changes propagate to client with timeout protection
         widget.set_text('Widget Updated')
@@ -71,8 +73,19 @@ async def test_line_edit_comprehensive() -> None:
 
 async def test_line_edit_disabled_interaction() -> None:
     """Test LineEdit disabled state blocks user interaction."""
-    widget = LineEdit('Initial Text')
-    find_input = 'document.querySelector(".rio-input-box").querySelector("input")'
+
+    right_button_presses = []
+    left_button_presses = []
+
+    class MyLineEdit(LineEdit):
+        def mouse_press_event(self, event: i.MouseEvent):
+            if event.is_right_button():
+                right_button_presses.append(event)
+            else:
+                left_button_presses.append(event)
+
+    widget = MyLineEdit('Initial Text')
+    find_input = 'document.querySelector(".rio-input-box input")'
 
     edited_calls = []
 
@@ -85,12 +98,24 @@ async def test_line_edit_disabled_interaction() -> None:
         await asyncio.sleep(0.5)
 
         # Test initial enabled state - typing should work
-        await test_client.execute_js(find_input + '.focus();')
-        await test_client.execute_js(find_input + '.value = "User Typed";')
-        await test_client.execute_js(find_input + '.dispatchEvent(new Event("input"));')
-        await asyncio.sleep(1)
-        assert len(edited_calls) == 1
-        assert edited_calls[0] == 'User Typed'
+        async def test_interaction(old_content, new_content, enabled=True):
+            initial_left = len(left_button_presses)
+            initial_right = len(right_button_presses)
+            initial_edited = len(edited_calls)
+            await test_client.click(10, 20, button='right')  # handler
+            await test_client._page.click('.rio-input-box input', click_count=3, force=True)  # select all
+            await test_client._page.keyboard.press(new_content)
+            await asyncio.sleep(1)
+
+            right, left, edited, content = (1, 3, 1, new_content) if enabled else (1, 3, 0, old_content)
+
+            assert len(right_button_presses) == right + initial_right
+            assert len(left_button_presses) == left + initial_left
+            assert len(edited_calls) == edited + initial_edited
+            assert edited_calls[-1] == content
+            assert widget.text() == content
+
+        await test_interaction(widget.text(), 'A')
 
         # Disable widget
         widget.set_enabled(False)
@@ -101,11 +126,7 @@ async def test_line_edit_disabled_interaction() -> None:
         assert client_disabled is True
 
         # Test that typing is blocked when disabled
-        initial_calls = len(edited_calls)
-        await test_client.execute_js(find_input + '.value = "Blocked Text";')
-        await test_client.execute_js(find_input + '.dispatchEvent(new Event("input"));')
-        await asyncio.sleep(1)
-        assert len(edited_calls) == initial_calls  # No additional calls
+        await test_interaction(widget.text(), 'B', enabled=False)
 
         # Re-enable widget
         widget.set_enabled(True)
@@ -116,8 +137,4 @@ async def test_line_edit_disabled_interaction() -> None:
         assert client_disabled is False
 
         # Test that typing works again
-        await test_client.execute_js(find_input + '.value = "Re-enabled Text";')
-        await test_client.execute_js(find_input + '.dispatchEvent(new Event("input"));')
-        await asyncio.sleep(1)
-        assert len(edited_calls) == initial_calls + 1
-        assert edited_calls[-1] == 'Re-enabled Text'
+        await test_interaction(widget.text(), 'C')

@@ -6,8 +6,8 @@ authors = [
     { name = "Sasha Davidovich", email = "founders@10x-software.org" },
     { name = "Ilya Pevzner", email = "founders@10x-software.org" }
 ]
-#license = {text = "MIT"}
-#readme = "README.md"
+license = {text = "MIT"}
+readme = "README.md"
 requires-python = ">=3.10,<4.0"
 dependencies = [
     "core-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x",
@@ -19,6 +19,19 @@ dependencies = [
     "pymongo (>=4.7.3)",
     "typing-extensions>=4.15.0",
     "scipy>=1.15.3",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: User Interfaces",
 ]
 [project.optional-dependencies]
 dev = [
@@ -42,6 +55,14 @@ qt = [
     "PyQt6-Qt6 (==6.8.2)",
     "PyQt6_sip (==13.10.0)",
 ]
+
+[project.urls]
+Homepage = "https://github.com/10X-LLC/py10x"
+Repository = "https://github.com/10X-LLC/py10x"
+Issues = "https://github.com/10X-LLC/py10x/issues"
+Documentation = "https://github.com/10X-LLC/py10x#readme"
+
+
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-build-scripts","playwright"]
 build-backend = "hatchling.build"
