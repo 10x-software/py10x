@@ -7,9 +7,10 @@ import unittest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from core_10x.test_store import TestStore
+from core_10x.testlib.test_store import TestStore
 from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
 from core_10x.traitable_id import ID
+from core_10x.rc import RC_TRUE
 
 
 class TestTraitableClass(Traitable):
@@ -32,29 +33,38 @@ class TestTraitableHistory(unittest.TestCase):
         history_name_custom = TraitableHistory.collection_name(TestTraitableClass, 'custom_collection')
         self.assertEqual(history_name_custom, 'custom_collection#history')
 
-    def test_traitable_history_create_entry(self):
-        """Test history entry creation - now just returns a copy without _who and _at."""
-        serialized_data = {'_id': 'test-123', 'name': 'Test Item', 'value': 42}
-
-        history_entry = TraitableHistory.create_history_entry(serialized_data)
-
-        # Should just return a copy of the original data
-        # _who and _at are now computed server-side
-        expected_entry = {'_id': 'test-123', 'name': 'Test Item', 'value': 42}
-
-        self.assertEqual(history_entry, expected_entry)
-
-    def test_traitable_history_create_entry_no_server_side_fields(self):
-        """Test that create_history_entry no longer adds _who and _at fields."""
-        serialized_data = {'_id': 'test-123', 'name': 'Test'}
-
-        history_entry = TraitableHistory.create_history_entry(serialized_data)
-
-        # Should not contain _who and _at fields (computed server-side)
-        self.assertNotIn('_at', history_entry)
-        self.assertNotIn('_who', history_entry)
-        self.assertEqual(history_entry['_id'], 'test-123')
-        self.assertEqual(history_entry['name'], 'Test')
+    def test_traitable_history_save_history(self):
+        """Test the new save_history method."""
+        from unittest.mock import Mock
+        
+        # Mock store and collection
+        mock_store = Mock()
+        mock_store.auth_user.return_value = 'test_user'
+        mock_collection = Mock()
+        
+        serialized_data = {'_id': 'test-123', '_rev': 1, 'name': 'Test Item', 'value': 42}
+        
+        # Call the new save_history method
+        TraitableHistory.save_history(serialized_data, mock_store, mock_collection)
+        
+        # Verify that save_new was called with the expected structure
+        mock_collection.save_new.assert_called_once()
+        call_args = mock_collection.save_new.call_args[0][0]
+        
+        # Check that the call contains $set and $currentDate operations
+        self.assertIn('$set', call_args)
+        self.assertIn('$currentDate', call_args)
+        
+        # Check the $set data structure
+        set_data = call_args['$set']
+        self.assertEqual(set_data['_traitable_id'], 'test-123')
+        self.assertEqual(set_data['_traitable_rev'], 1)
+        self.assertEqual(set_data['_who'], 'test_user')
+        self.assertEqual(set_data['name'], 'Test Item')
+        self.assertEqual(set_data['value'], 42)
+        
+        # Check that $currentDate is set for _at
+        self.assertEqual(call_args['$currentDate'], {'_at': True})
 
     def test_asof_context_manager(self):
         """Test AsOfContext functionality."""
@@ -238,8 +248,8 @@ class TestStorableHelperHistory(unittest.TestCase):
 
         # Mock history collection and data
         mock_history_data = [
-            {'_id': 'test-123', 'name': 'Test', 'value': 42, '_at': datetime(2023, 1, 1, 12, 0, 0), '_who': 'user1'},
-            {'_id': 'test-456', 'name': 'Test2', 'value': 84, '_at': datetime(2023, 1, 1, 11, 0, 0), '_who': 'user2'},
+            {'_id': 'hist-123', '_traitable_id': 'test-123', 'name': 'Test', 'value': 42, '_at': datetime(2023, 1, 1, 12, 0, 0), '_who': 'user1'},
+            {'_id': 'hist-456', '_traitable_id': 'test-456', 'name': 'Test2', 'value': 84, '_at': datetime(2023, 1, 1, 11, 0, 0), '_who': 'user2'},
         ]
 
         # Mock the final cursor result directly
@@ -253,7 +263,7 @@ class TestStorableHelperHistory(unittest.TestCase):
         # Test history method
         history_entries = TraitableHistory.history(self.traitable_class, _at_most=2)
         self.assertEqual(len(history_entries), 2)
-        self.assertEqual(history_entries[0]['_id'], 'test-123')
+        self.assertEqual(history_entries[0]['_traitable_id'], 'test-123')
         self.assertEqual(history_entries[0]['_who'], 'user1')
 
         # Test latest_revision method
@@ -264,7 +274,7 @@ class TestStorableHelperHistory(unittest.TestCase):
 
         self.mock_history_collection.find.return_value = mock_cursor_latest
         latest = TraitableHistory.latest_revision(self.traitable_class, 'test-123')
-        self.assertEqual(latest['_id'], 'test-123')
+        self.assertEqual(latest['_traitable_id'], 'test-123')
         self.assertEqual(latest['_who'], 'user1')
 
     def test_traitable_class_history_methods(self):
@@ -275,9 +285,9 @@ class TestStorableHelperHistory(unittest.TestCase):
             patch('core_10x.traitable.TraitableHistory.latest_revision') as mock_latest,
             patch('core_10x.traitable.TraitableHistory.restore') as mock_restore,
         ):
-            mock_history.return_value = [{'_id': 'test-123', '_who': 'user1'}]
-            mock_latest.return_value = {'_id': 'test-123', '_who': 'user1'}
-            mock_restore.return_value = True
+            mock_history.return_value = [{'_traitable_id': 'test-123', '_who': 'user1'}]
+            mock_latest.return_value = {'_traitable_id': 'test-123', '_who': 'user1'}
+            mock_restore.return_value = RC_TRUE
 
             # Test history method
             history = TestTraitableClass.history(_at_most=5)
