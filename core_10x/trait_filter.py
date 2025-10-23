@@ -190,7 +190,7 @@ class f(_filter):
             if not self.filter.eval(traitable):
                 return False
 
-        return all(item.eval(traitable.get_value(name)) for name, item in self.named_expressions.items())
+        return all(item.eval(traitable.id().value if name == '_id' else traitable.get_value(name)) for name, item in self.named_expressions.items())
 
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
         traitable_class = traitable_class or self.traitable_class

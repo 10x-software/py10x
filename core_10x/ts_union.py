@@ -138,4 +138,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         return TsUnionCollection(*(store.collection(collection_name) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:
-        return self.stores[0].delete_collection(collection_name)
+        return self.stores[0].delete_collection(collection_name) if self.stores else False
+
+    def auth_user(self) -> str | None:
+        return self.stores[0].auth_user() if self.stores else None

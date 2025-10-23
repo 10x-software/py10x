@@ -2,10 +2,10 @@ from unittest.mock import MagicMock
 
 import pytest
 from core_10x.nucleus import Nucleus
+from core_10x.test_store import TestStore
 from core_10x.trait_filter import GT, f
 from core_10x.ts_store import TsStore
 from core_10x.ts_union import TsUnion, TsUnionCollection, _OrderKey
-from infra_10x.mongodb_store import MongoStore
 
 
 @pytest.fixture
@@ -285,14 +285,14 @@ def test_delete_collection(union_store):
 
 
 def test_new_instance():
-    store_spec = dict(driver_name='MONGO_DB', hostname='localhost', dbname='dbname1', username='')
+    store_spec = dict(driver_name='TEST_DB', hostname='localhost', dbname='dbname1', username='')
 
     union_store = TsUnion.instance(store_spec, store_spec | dict(dbname='dbname2'))
     assert isinstance(union_store, TsUnion)
-    assert all(isinstance(store, MongoStore) for store in union_store.stores)
+    assert all(isinstance(store, TestStore) for store in union_store.stores)
 
     assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, TsUnion)) == 1
-    assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, MongoStore)) == 2
+    assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, TestStore)) == 2
 
     assert list(TsUnion.s_instances.keys()) == [
         (('dbname', 'dbname1'), ('hostname', 'localhost'), ('username', '')),
