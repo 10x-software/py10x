@@ -27,7 +27,7 @@ def signal_decl(arg=object):
     return SignalDecl()
 
 
-class MouseEvent: ...
+MouseEvent = component_builder.MouseEvent
 
 
 SCROLL = widgets.SCROLL

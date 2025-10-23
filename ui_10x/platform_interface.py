@@ -186,7 +186,7 @@ class PushButton(Label):
     def set_flat(self, flat: bool): ...
 
 
-class LineEdit(Label):
+class LineEdit(Label, abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def text(self) -> str: ...
 
@@ -205,8 +205,11 @@ class LineEdit(Label):
     @abc.abstractmethod
     def set_tool_tip(self, tooltip: str): ...
 
+    @abc.abstractmethod
+    def mouse_press_event(self, event: MouseEvent): ...
 
-class TextEdit(Widget):
+
+class TextEdit(Widget, abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def to_plain_text(self) -> str: ...
 
@@ -215,6 +218,9 @@ class TextEdit(Widget):
 
     @abc.abstractmethod
     def set_read_only(self, readonly: bool): ...
+
+    @abc.abstractmethod
+    def focus_out_event(self, event): ...
 
 
 class CheckBox(Label):

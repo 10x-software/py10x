@@ -258,6 +258,15 @@ class EnumBits(NamedConstant):
         cls = self.__class__
         return cls.from_int(value)
 
+    def __and__(self, other):
+        the_value = self.value
+        value = the_value & other.value
+        if value == the_value:
+            return self
+
+        cls = self.__class__
+        return cls.from_int(value)
+
     def __sub__(self, other):
         the_value = self.value
         value = the_value & ~other.value

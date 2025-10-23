@@ -4,15 +4,14 @@ from datetime import date
 import pytest
 import rio.testing.browser_client
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import INTERACTIVE
-from core_10x.ts_union import TsUnion
+from core_10x.exec_control import CACHE_ONLY, INTERACTIVE
 from ui_10x.collection_editor import Collection, CollectionEditor
 from ui_10x.rio.component_builder import DynamicComponent
 
 
 @pytest.fixture(autouse=True)
 def mock_db_ops(monkeypatch):
-    with TsUnion():
+    with CACHE_ONLY():
         sasha = Person(first_name='Sasha', last_name='Davidovich', weight_lbs=150)
         ilya = Person(first_name='Ilya', last_name='Pevzner', weight_lbs=200, dob=date(1971, 7, 3))
     monkeypatch.setattr(Person, 'load_ids', lambda: [sasha.id(), ilya.id()])

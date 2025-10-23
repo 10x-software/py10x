@@ -103,6 +103,19 @@ class SignalDecl:
             conn.value(partial(self._wrapper, BTP.current(), handler), *args)
 
 
+class MouseEvent(i.MouseEvent):
+    __slots__ = ('event',)
+
+    def __init__(self, event: rio.PointerEvent):
+        self.event = event
+
+    def is_left_button(self) -> bool:
+        return self.event.button == 'left'
+
+    def is_right_button(self) -> bool:
+        return self.event.button == 'right'
+
+
 class FontMetrics(i.FontMetrics):
     __slots__ = ('_widget',)
 

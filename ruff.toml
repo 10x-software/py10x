@@ -39,7 +39,7 @@ extend-select = [
   "N",   # naming
   "F",   # pyflakes
   "E",   # pycodestyle
-  "C90", # complexity
+    "C90", # complexity
 ]
 mccabe.max-complexity = 15 # Flag errors (`C901`) whenever the complexity level exceeds this
 future-annotations = true # add "from __future__ import annotations" to enable more aggressive optimizations
@@ -50,3 +50,6 @@ exclude = [
 
 [lint.per-file-ignores]
 "ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]
+"core_10x/rdate.py" = [ 
+    "N802", # Function names should be lowercase
+]
