@@ -79,6 +79,7 @@ FREQUENCY_TABLE = NamedConstantTable(TENOR_FREQUENCY, TENOR_PARAMS,
     #IMM_QUARTER = ( 'IMM',      lambda d, n: IMMQuarter.which( d ).ith( n ).last(), None,                                               None ),
 )
 
+
 class RDate(Nucleus):
     """
     rd = RDate('1Y')
@@ -86,6 +87,8 @@ class RDate(Nucleus):
     rd.apply(dt, Calendar.existing_instance_by_id('FB'), BIZDAY_ROLL_RULE.FOLLOWING)
     -> date(2026, 1, 1)
     """
+
+    # s_spot_tenors = { 'ON', 'TN', 'SN' }
 
     #-- RDate('3M') or RDate(TENOR_FREQUENCY.MONTH, 3)
     #def __init__(self, symbol_or_frequency = None, count: int = None):
