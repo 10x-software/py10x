@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""
+Simple TraitableHistory Demo
+
+Demonstrates server-side history tracking with MongoDB.
+"""
+from datetime import date, datetime
+
+from infra_10x.mongodb_store import MongoStore
+
+from core_10x.code_samples.person import Person
+from core_10x.traitable import TraitableHistory
+
+if __name__=='__main__':
+    with MongoStore.instance(hostname="localhost", dbname="traitable_history_demo"):
+        Person.delete_collection()
+        Person.store().delete_collection(TraitableHistory.collection_name(Person))
+        
+        # Create and save a person
+        person = Person(first_name="Alyssa", last_name="Lees", dob=date(1985,7,5))
+        person.save()
+
+        ts = datetime.utcnow()
+
+        # Update and save again
+        person.dob=date(1985,7,6)
+        person.save()
+
+        # Check history
+        history = Person.history()
+
+        # Verify server-side fields
+        for entry in history:
+            print(f"  - Revision {entry['_traitable_rev']}: {entry['first_name']} (dob: {entry['dob']})")
+            print(f"    _who: {entry['_who']}, _at: {entry['_at']}")
+
+        assert person.dob==date(1985,7,6)
+
+        print(Person.restore(person.id(),timestamp=ts))
+        assert person.dob==date(1985,7,5)
+
+        person.reload()
+        assert person.dob == date(1985, 7, 6)
+
+        print(Person.restore(person.id(),timestamp=ts,save=True))
+        assert person.dob==date(1985,7,5)
+        person.reload()
+        assert person.dob == date(1985, 7, 5)
+
