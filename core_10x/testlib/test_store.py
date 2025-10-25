@@ -35,7 +35,7 @@ class TestCollection(TsCollection):
         """Check if a document with the given ID exists."""
         return id_value in self._documents
 
-    def find(self, query: f = None, _at_most: int = 0, _order: dict = None, _filter: f = None) -> Iterable:
+    def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
         """Find documents matching the query."""
         documents = list(self._documents.values())
 
@@ -63,7 +63,7 @@ class TestCollection(TsCollection):
         """Count documents matching the query."""
         return len(list(self.find(query)))
 
-    def save_new(self, serialized_traitable: dict) -> int:
+    def save_new(self, serialized_traitable: dict, overwrite: bool=False) -> int:
         """Save a new document."""
         # Handle MongoDB-style operations
         if '$set' in serialized_traitable:
