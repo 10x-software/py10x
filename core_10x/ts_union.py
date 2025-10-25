@@ -65,9 +65,6 @@ class TsUnionCollection(TsCollection):
     def __init__(self, *collections: TsCollection):
         self.collections = collections
 
-    def collection_name(self) -> str:
-        return self.collections[0].collection_name() if self.collections else ''
-
     def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
         order = tuple((_order or {'_id': 1}).items())  # FIX: assumes _id is always there!
         order_key = _OrderKey.key
@@ -76,7 +73,7 @@ class TsUnionCollection(TsCollection):
         results = (item for _, item in heapq.merge(*keyed_iterables, key=operator.itemgetter(0)))
         return (item for i, item in enumerate(results) if i < _at_most) if _at_most else results
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
+    def save_new(self, serialized_traitable: dict, overwrite: bool=False) -> int:
         return self.collections[0].save_new(serialized_traitable, overwrite=overwrite)
 
     def save(self, serialized_traitable):

@@ -456,19 +456,19 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return AsOfContext(cls, as_of_time)
 
     @classmethod
-    def history(cls, _at_most: int = -1, _filter: f = None, **named_filters) -> list:
+    def history(cls, _at_most: int = 0, _filter: f = None, **named_filters) -> list:
         """Get history entries for this traitable class."""
         return TraitableHistory.history(cls, _filter, _at_most, **named_filters)
 
     @classmethod
-    def latest_revision(cls, entity_id: ID) -> dict:
+    def latest_revision(cls, entity_id: ID, timestamp: datetime = None) -> dict:
         """Get the latest revision of an entity from history."""
-        return TraitableHistory.latest_revision(cls, entity_id)
+        return TraitableHistory.latest_revision(cls, entity_id, timestamp)
 
     @classmethod
-    def restore(cls, entity_id, timestamp: datetime = None) -> bool:
+    def restore(cls, entity_id, timestamp: datetime = None, save=False) -> bool:
         """Restore an entity to a specific point in time."""
-        return TraitableHistory.restore(cls, entity_id, timestamp)
+        return TraitableHistory.restore(cls, entity_id, timestamp, save=save)
 
 
 @dataclass
@@ -706,7 +706,7 @@ class TraitableHistory:
         )
 
     @staticmethod
-    def history(cls, _filter: f = None, _at_most: int = -1, _collection_name: str = None, **named_filters) -> list[dict]:
+    def history(cls, _filter: f = None, _at_most: int = 0, _collection_name: str = None, **named_filters) -> list[dict]:
         """Get history entries for a traitable class."""
         if not cls.s_keep_history:
             raise RuntimeError(f'{cls} does not keep history')
@@ -751,15 +751,24 @@ class TraitableHistory:
     @staticmethod
     def deserialize(cls, _coll_name: str, serialized_entry: dict) -> Traitable:
         traitable_data = TraitableHistory.prepare_to_deserialize(serialized_entry)
-        return Traitable.deserialize_object(cls.s_bclass, _coll_name, traitable_data) # -- replaces the shared version!
+        return Traitable.deserialize_object(cls.s_bclass, _coll_name, traitable_data)  # -- replaces the shared version!
 
     @staticmethod
-    def restore(cls, traitable_id: ID, timestamp: datetime = None) -> bool:
+    def restore(cls, traitable_id: ID, timestamp: datetime = None, save: bool = True) -> bool:
         """Restore an entity to a specific point in time."""
         serialized_entry = TraitableHistory.latest_revision(cls, traitable_id, timestamp)
+        if not serialized_entry:
+            return False
         traitable = TraitableHistory.deserialize(cls, traitable_id.collection_name, serialized_entry)
-        return traitable.save()  # TODO: need to force revision!
-
+        if save:
+            serialized_traitable = TraitableHistory.prepare_to_deserialize(serialized_entry)
+            return bool(
+                traitable.collection(traitable_id.collection_name).save_new(
+                    {'$set': serialized_traitable},
+                    force = True
+                )
+            )
+        return True
 
 @dataclass
 class AsOfContext:
