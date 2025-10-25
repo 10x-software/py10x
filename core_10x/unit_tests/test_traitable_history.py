@@ -318,3 +318,230 @@ class TestTraitableHistoryWithTestStore:
 
         assert john.age == 30  # Original age
         assert jane.age == 25  # Original age
+
+    def test_history_without_s_keep_history(self, test_store):
+        """Test that history is not created when s_keep_history is False."""
+
+        # Create a class without history tracking
+        class NoHistoryTraitable(Traitable):
+            name: str = T()
+            s_keep_history = False
+
+        # Create and save an instance
+        item = NoHistoryTraitable()
+        item.name = 'Test Item'
+        item.save()
+
+        # Check that no history collection was created
+        history_collection = test_store.collection(f'test_traitable_history/{NoHistoryTraitable.__name__}#history')
+        assert history_collection.count() == 0
+
+    def test_latest_revision_with_timestamp(self, test_store):
+        """Test latest_revision with specific timestamp."""
+        # Create a person
+        person = PersonTraitable()
+        person.name = 'Time Test Person'
+        person.age = 30
+        person.save()
+
+        # Record time after first save
+        query_time = datetime.now()
+
+        # Update the person
+        person.age = 31
+        person.save()
+
+        # Get latest revision as of the query time
+        latest = TraitableHistory.latest_revision(PersonTraitable, person.id(), timestamp=query_time)
+
+        # Should be the first revision (age 30)
+        assert latest['age'] == 30
+        assert latest['_traitable_rev'] == 1
+
+    def test_history_with_empty_collection(self, test_store):
+        """Test history method with no history entries."""
+        # Create a person but don't save it
+        person = PersonTraitable()
+        person.name = 'Unsaved Person'
+
+        # Get history - should be empty
+        history = PersonTraitable.history()
+        assert len(history) == 0
+
+    def test_latest_revision_with_nonexistent_id(self, test_store):
+        """Test latest_revision with non-existent ID."""
+        from core_10x.traitable_id import ID
+
+        # Try to get latest revision for non-existent ID
+        latest = PersonTraitable.latest_revision(ID('nonexistent'))
+        assert latest is None
+
+    def test_history_default_at_most_parameter(self, test_store):
+        """Test that history method uses default _at_most=0 (no limit)."""
+        # Create a person
+        person = PersonTraitable()
+        person.name = 'Test Person'
+        person.age = 30
+        person.save()
+        
+        # Update multiple times
+        person.age = 31
+        person.save()
+        person.age = 32
+        person.save()
+        
+        # Get all history entries (should get all 3)
+        history = PersonTraitable.history()
+        assert len(history) == 3
+        
+        # Test with explicit _at_most=2
+        history_limited = PersonTraitable.history(_at_most=2)
+        assert len(history_limited) == 2
+
+    def test_latest_revision_with_timestamp_parameter(self, test_store):
+        """Test that latest_revision accepts timestamp parameter."""
+        # Create a person
+        person = PersonTraitable()
+        person.name = 'Timestamp Test'
+        person.age = 25
+        person.save()
+        
+        # Record time after first save
+        query_time = datetime.now()
+        
+        # Update the person
+        person.age = 26
+        person.save()
+        
+        # Test latest_revision with timestamp
+        latest = PersonTraitable.latest_revision(person.id(), timestamp=query_time)
+        assert latest is not None
+        assert latest['age'] == 25  # Should be the first revision
+        
+        # Test latest_revision without timestamp (should get latest)
+        latest_no_timestamp = PersonTraitable.latest_revision(person.id())
+        assert latest_no_timestamp is not None
+        assert latest_no_timestamp['age'] == 26  # Should be the latest revision
+
+    def test_restore_with_save_parameter(self, test_store):
+        """Test restore method with save parameter."""
+        # Create a person
+        person = PersonTraitable()
+        person.name = 'Restore Test'
+        person.age = 30
+        person.save()
+        
+        # Record time after first save
+        query_time = datetime.now()
+        
+        # Update the person
+        person.age = 31
+        person.save()
+        
+        # Test restore without save (should not persist)
+        result = PersonTraitable.restore(person.id(), timestamp=query_time, save=False)
+        assert result is True
+        assert person.age == 30
+        
+        # The person should still have the latest age
+        person.reload()
+        assert person.age == 31
+        
+        # Test restore with save (should persist)
+        result = PersonTraitable.restore(person.id(), timestamp=query_time, save=True)
+        assert result is True
+        assert person.age == 30
+        person.reload()
+        assert person.age == 30
+        
+    def test_restore_with_nonexistent_timestamp(self, test_store):
+        """Test restore method with non-existent timestamp."""
+        # Create a person
+        person = PersonTraitable()
+        person.name = 'Restore Test'
+        person.age = 30
+        person.save()
+        
+        # Try to restore to a time before the person existed
+        past_time = datetime(2020, 1, 1)
+        result = PersonTraitable.restore(person.id(), timestamp=past_time, save=False)
+        assert result is False
+
+    def test_restore_with_nonexistent_id(self, test_store):
+        """Test restore method with non-existent ID."""
+        from core_10x.traitable_id import ID
+        
+        # Try to restore non-existent ID
+        result = PersonTraitable.restore(ID('nonexistent'), save=False)
+        assert result is False
+
+    def test_traitable_history_deserialize(self, test_store):
+        """Test TraitableHistory.deserialize method."""
+        # Create a person
+        person = PersonTraitable()
+        person.name = 'Deserialize Test'
+        person.age = 25
+        person.save()
+        
+        # Get history entry
+        history = PersonTraitable.history()
+        assert len(history) == 1
+        
+        history_entry = history[0]
+        
+        # Test deserialize
+        restored_person = TraitableHistory.deserialize(PersonTraitable, person.id().collection_name, history_entry)
+        
+        assert restored_person.name == 'Deserialize Test'
+        assert restored_person.age == 25
+        assert restored_person.id().value == person.id().value
+
+    def test_traitable_history_prepare_to_deserialize(self, test_store):
+        """Test TraitableHistory.prepare_to_deserialize method."""
+        # Create a person
+        person = PersonTraitable()
+        person.name = 'Prepare Test'
+        person.age = 28
+        person.save()
+        
+        # Get history entry
+        history = PersonTraitable.history()
+        history_entry = history[0]
+        
+        # Test prepare_to_deserialize
+        prepared_data = TraitableHistory.prepare_to_deserialize(history_entry)
+        
+        # Should have the traitable data without history-specific fields
+        assert prepared_data['name'] == 'Prepare Test'
+        assert prepared_data['age'] == 28
+        assert prepared_data['_id'] == person.id().value
+        assert prepared_data['_rev'] == person._rev
+        assert '_traitable_id' not in prepared_data
+        assert '_traitable_rev' not in prepared_data
+        assert '_who' not in prepared_data
+        assert '_at' not in prepared_data
+
+
+    def test_save_new_with_overwrite_parameter(self, test_store):
+        """Test TestCollection.save_new with overwrite parameter."""
+        # Test save_new with MongoDB-style $set operation
+        collection = test_store.collection('test_collection')
+        result = collection.save_new({'$set': {'_id': 'new-id', 'name': 'New Person', 'age': 25}})
+        assert result == 1  # Should succeed for new document
+        
+        # Fails because the document already exists
+        with pytest.raises(AssertionError):
+            collection.save_new({'$set': {'_id': 'new-id'}})
+
+    def test_find_without_filter_parameter(self, test_store):
+        """Test TestCollection.find without _filter parameter."""
+        # Create some test data directly in the collection
+        collection = test_store.collection('test_collection')
+        
+        # Add documents directly to the collection
+        collection._documents['doc1'] = {'name': 'Person 1', 'age': 25}
+        collection._documents['doc2'] = {'name': 'Person 2', 'age': 30}
+        
+        # Test find without _filter parameter
+        results = list(collection.find())
+        assert len(results) == 2  # Should find both persons
