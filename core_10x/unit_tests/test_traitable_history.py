@@ -533,6 +533,8 @@ class TestTraitableHistoryWithTestStore:
         with pytest.raises(AssertionError):
             collection.save_new({'$set': {'_id': 'new-id'}})
 
+        collection.save_new({'$set': {'_id': 'new-id'}}, overwrite=True)
+
     def test_find_without_filter_parameter(self, test_store):
         """Test TestCollection.find without _filter parameter."""
         # Create some test data directly in the collection

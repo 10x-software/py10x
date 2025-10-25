@@ -461,14 +461,14 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return TraitableHistory.history(cls, _filter, _at_most, **named_filters)
 
     @classmethod
-    def latest_revision(cls, entity_id: ID, timestamp: datetime = None) -> dict:
+    def latest_revision(cls, traitable_id: ID, timestamp: datetime = None) -> dict:
         """Get the latest revision of an entity from history."""
-        return TraitableHistory.latest_revision(cls, entity_id, timestamp)
+        return TraitableHistory.latest_revision(cls, traitable_id, timestamp)
 
     @classmethod
-    def restore(cls, entity_id, timestamp: datetime = None, save=False) -> bool:
-        """Restore an entity to a specific point in time."""
-        return TraitableHistory.restore(cls, entity_id, timestamp, save=save)
+    def restore(cls, traitable_id, timestamp: datetime = None, save=False) -> bool:
+        """Restore an traitable to a specific point in time."""
+        return TraitableHistory.restore(cls, traitable_id, timestamp, save=save)
 
 
 @dataclass
@@ -630,7 +630,7 @@ class StorableHelper(AbstractStorableHelper):
         if not rc:
             return rc
 
-        rc = traitable_instance.share(False)  # -- not accepting existing entity values, if any
+        rc = traitable_instance.share(False)  # -- not accepting existing traitable values, if any
         if not rc:
             return rc
 
@@ -730,7 +730,7 @@ class TraitableHistory:
 
     @staticmethod
     def latest_revision(cls, traitable_id: ID, timestamp: datetime = None) -> dict | None:
-        """Get the latest revision of an entity from history."""
+        """Get the latest revision of an traitable from history."""
 
         for entry in TraitableHistory.history(
             cls, _filter=f(**TraitableHistory.filter(traitable_id.value, timestamp)), _collection_name=traitable_id.collection_name, _at_most=1
@@ -741,12 +741,12 @@ class TraitableHistory:
 
     @staticmethod
     def prepare_to_deserialize(serialized_entry: dict) -> dict:
-        entity_data = serialized_entry.copy()
-        del entity_data['_at']
-        del entity_data['_who']
-        entity_data['_id'] = entity_data.pop('_traitable_id', None)
-        entity_data['_rev'] = entity_data.pop('_traitable_rev', None)
-        return entity_data
+        traitable_data = serialized_entry.copy()
+        del traitable_data['_at']
+        del traitable_data['_who']
+        traitable_data['_id'] = traitable_data.pop('_traitable_id', None)
+        traitable_data['_rev'] = traitable_data.pop('_traitable_rev', None)
+        return traitable_data
 
     @staticmethod
     def deserialize(cls, _coll_name: str, serialized_entry: dict) -> Traitable:
@@ -755,7 +755,7 @@ class TraitableHistory:
 
     @staticmethod
     def restore(cls, traitable_id: ID, timestamp: datetime = None, save: bool = True) -> bool:
-        """Restore an entity to a specific point in time."""
+        """Restore a traitable to a specific point in time."""
         serialized_entry = TraitableHistory.latest_revision(cls, traitable_id, timestamp)
         if not serialized_entry:
             return False
@@ -765,14 +765,14 @@ class TraitableHistory:
             return bool(
                 traitable.collection(traitable_id.collection_name).save_new(
                     {'$set': serialized_traitable},
-                    force = True
+                    overwrite = True
                 )
             )
         return True
 
 @dataclass
 class AsOfContext:
-    """Context manager for time-based entity loading."""
+    """Context manager for time-based traitable loading."""
 
     # TODO: generalize so that context created on baseclass applies to all subclasses
     traitable_class: type[Traitable]

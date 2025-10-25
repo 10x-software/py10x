@@ -68,7 +68,6 @@ class TestCollection(TsCollection):
         # Handle MongoDB-style operations
         if '$set' in serialized_traitable:
             # This is a MongoDB-style update operation
-            import uuid
             from datetime import datetime
 
             # Extract the data from $set
@@ -81,12 +80,10 @@ class TestCollection(TsCollection):
                     if current_date_fields[field] is True:
                         data[field] = datetime.now()
 
-            # Generate a new ID if not provided
-            if '_id' not in data:
-                data['_id'] = str(uuid.uuid4())
-
             # Store the document
             doc_id = data['_id']
+            if doc_id in self._documents and not overwrite:
+                raise AssertionError(f'{self.collection_name} {doc_id} was found existing while insert was attempted')
             self._documents[doc_id] = data
             return 1
         else:
