@@ -40,6 +40,10 @@ class NamedConstant(Nucleus):
     def __deepcopy__(self, memo=None):
         return self
 
+    #-- Makes sense only for NamedConstants with Callable values
+    def __call__(self, *args, **kwargs):
+        return self.value(*args, **kwargs)
+
     @classmethod
     def _create(cls, args: Any) -> NamedConstant:
         cdef = cls()
