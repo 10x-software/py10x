@@ -19,7 +19,7 @@ protected:
 
 public:
     explicit BTraitable(BTraitableClass* cls, const py::object& id) : m_tid(cls, id) {}
-    ~BTraitable();
+    virtual ~BTraitable();
 
     py::object endogenous_id();
     py::object endogenous_id(bool& non_id_traits_set);  // TODO: we may NOT need this overload anymore
@@ -171,7 +171,7 @@ public:
     py::object          serialize_nx(bool embed);      //-- Nucleus' method
 
     static py::object   deserialize_object(BTraitableClass* cls, const py::object& coll_name, const py::dict& trait_values);
-    void                deserialize_traits(const py::dict& trait_values);
+    virtual void        deserialize_traits(const py::dict& trait_values);
     static py::object   deserialize_nx(BTraitableClass* cls, const py::object& serialized_data);
     bool                reload();
 

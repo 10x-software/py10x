@@ -19,6 +19,13 @@ namespace py = pybind11;
 #include "xcache.h"
 #include "os_user.h"
 
+struct PyBTraitable : BTraitable {
+        using BTraitable::BTraitable;
+
+        void deserialize_traits(const py::dict& trait_values) override {
+                PYBIND11_OVERRIDE(void, BTraitable, deserialize_traits, trait_values);
+        }
+};
 
 PYBIND11_MODULE(core_10x_i, m)
 {
@@ -216,7 +223,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("load",                        &BTraitableClass::load)
             ;
 
-    py::class_<BTraitable>(m, "BTraitable")
+    py::class_<BTraitable,PyBTraitable>(m, "BTraitable")
             .def(py::init<BTraitableClass*, const py::object&>())
             .def("initialize",                  &BTraitable::initialize)
             .def("share",                       &BTraitable::share)
@@ -253,6 +260,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("serialize_nx",                &BTraitable::serialize_nx)
             .def_static("deserialize_nx",       &BTraitable::deserialize_nx)
             .def("serialize_object",            &BTraitable::serialize_object)
+            .def("deserialize_traits",            &BTraitable::deserialize_traits)
             .def_static("deserialize_object",   &BTraitable::deserialize_object)
             .def("reload",                      &BTraitable::reload)
             .def("bui_class",                   &BTraitable::bui_class, py::return_value_policy::reference)

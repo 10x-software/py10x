@@ -3,10 +3,12 @@ from datetime import date
 from core_10x.xnone import XNone
 from core_10x.traitable import Traitable,T,RT
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY
 from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
+
+from core_10x_i import BTraitableProcessor,XCache
 
 
 def _test1():
@@ -97,7 +99,31 @@ def test_6():
         s_custom_collection=True
         x:int
 
-    x=X(_collection_name='123')
+    x=X(x=1,_collection_name='123')
+    assert x.x==1
+
+    XCache.clear()
+    BTraitableProcessor.current().end_using()
+    assert x.x is XNone
+
+    x.x=1
+    assert x.x==1
+
+
+def test_7():
+    class X(Traitable):
+        s_custom_collection=True
+        x:int = T(T.ID)
+        y:int = T()
+
+        def deserialize_traits(self,trait_values:dict):
+            return super().deserialize_traits(trait_values|dict(y=trait_values['x']+1))
+
+    with CACHE_ONLY():
+        x=X(x=1,_collection_name='123')
+        x = Traitable.deserialize_object(X.s_bclass,'123',dict(_rev=1,_id='1',x=1))
+        assert x.x==1
+        assert x.y==2
 
 if __name__ == '__main__':
     import core_10x_i
@@ -107,7 +133,8 @@ if __name__ == '__main__':
     #test_3()
     #test_4()
     #test_5()
-    test_6()
+    #test_6()
+    test_7()
 
 
 
