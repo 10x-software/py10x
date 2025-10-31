@@ -361,9 +361,12 @@ class BoundTrait:
         # self.args = ()
 
     def __getattr__(self, attr_name):
-        trait_attr = getattr(self.trait, attr_name)
-        # if callable(trait_attr):
-        return trait_attr
+        trait_attr = getattr(self.trait, attr_name, None)
+        if trait_attr:
+            # if callable(trait_attr):
+            return trait_attr
+
+        return lambda: getattr(self.obj, attr_name)(self.trait)
 
     def __call__(self):
         return self.trait
