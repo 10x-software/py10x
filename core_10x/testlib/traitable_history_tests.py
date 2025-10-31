@@ -15,28 +15,23 @@ except ImportError:
 
 class NameValueTraitableBase(Traitable):
     """Test traitable class for testing."""
-
     name: str = T()
     value: int = T()
-
 
 class NameValueTraitableCustomCollection(NameValueTraitableBase):
     s_custom_collection = True
 
-
 class PersonTraitableBase(Traitable):
     """Test person class for testing."""
-
     name: str = T()
     age: int = T()
     email: str = T()
 
+PersonTraitable: Traitable = type(f'PersonTraitable#{uuid.uuid1().hex}',(PersonTraitableBase,),{'__module__':__name__})
+NameValueTraitable: Traitable = type(f'PersonTraitable#{uuid.uuid1().hex}',(NameValueTraitableBase,),{'__module__':__name__})
 
-PersonTraitable: Traitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (PersonTraitableBase,), {'__module__': __name__})
-NameValueTraitable: Traitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (NameValueTraitableBase,), {'__module__': __name__})
-
-globals()[NameValueTraitable.__name__] = NameValueTraitable
-globals()[PersonTraitable.__name__] = PersonTraitable
+globals()[NameValueTraitable.__name__]=NameValueTraitable
+globals()[PersonTraitable.__name__]=PersonTraitable
 
 
 @pytest.fixture
@@ -58,7 +53,6 @@ def test_store(ts_instance):
         store.delete_collection(cls.collection().collection_name())
         store.delete_collection(cls.s_history_class.collection().collection_name())
     store.end_using()
-
 
 class TestTraitableHistory:
     """Test TraitableHistory functionality."""
@@ -154,7 +148,7 @@ class TestTraitableHistory:
         person.save()
 
         # Check that history was created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        history_collection = test_store.collection(f'{__name__.replace(".","/")}/{PersonTraitable.__name__}#history')
         assert history_collection.count() == 1
 
         # Verify history entry structure
@@ -184,7 +178,7 @@ class TestTraitableHistory:
         person.save()
 
         # Check that two history entries were created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        history_collection = test_store.collection(f'{__name__.replace(".","/")}/{PersonTraitable.__name__}#history')
         assert history_collection.count() == 2
 
         # Verify both history entries
@@ -291,7 +285,7 @@ class TestTraitableHistory:
         person.save()
 
         # Load the person as of the initial time
-        historical_person = person.as_of(initial_time)
+        historical_person = PersonTraitable.as_of(person.id(),initial_time)
         assert historical_person.age == 30  # Original age
         assert historical_person.name == 'John Doe'
         assert historical_person == person  # person's trait values also get updated due to shared cache
@@ -348,7 +342,7 @@ class TestTraitableHistory:
         item.save()
 
         # Check that no history collection was created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{NoHistoryTraitable.__name__}#history')
+        history_collection = test_store.collection(f'{__name__.replace(".","/")}/{NoHistoryTraitable.__name__}#history')
         assert history_collection.count() == 0
 
     def test_latest_revision_with_timestamp(self, test_store):

@@ -454,10 +454,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return rc
 
     # TODO: move into storage helper
-    def as_of(self, as_of_time: datetime) -> Self:
-        cls = self.__class__
+    @classmethod
+    def as_of(cls, traitable_id: ID, as_of_time: datetime) -> Self:
         with AsOfContext([cls], as_of_time):
-            return cls.load(self.id())
+            return cls.load(traitable_id)
 
     @classmethod
     def history(
@@ -479,7 +479,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             _order=dict(_at=-1),
             _at_most=_at_most,
             _deserialize=_deserialize,
-            _coll_name=_collection_name + '#history' if _collection_name else None,
+            _coll_name=_collection_name+'#history' if _collection_name else None
         )
 
         return list(cursor)
