@@ -479,7 +479,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             _order=dict(_at=-1),
             _at_most=_at_most,
             _deserialize=_deserialize,
-            _coll_name=_collection_name+'#history' if _collection_name else None
+            _coll_name=_collection_name + '#history' if _collection_name else None,
         )
 
         return list(cursor)
