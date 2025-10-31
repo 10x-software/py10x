@@ -24,6 +24,9 @@ class MongoCollection(TsCollection):
     def __init__(self, db, collection_name: str):
         self.coll: Collection = db[collection_name]
 
+    def collection_name(self) -> str:
+        return self.coll.name
+
     def id_exists(self, id_value: str) -> bool:
         return self.coll.count_documents({self.s_id_tag: id_value}) > 0
 
@@ -38,8 +41,16 @@ class MongoCollection(TsCollection):
     def count(self, query: f = None) -> int:
         return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})
 
-    def save_new(self, serialized_traitable: dict) -> int:
-        res = self.coll.insert_one(serialized_traitable)
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
+        if '$set' not in serialized_traitable:
+            res = self.coll.insert_one(serialized_traitable)
+        else:
+            id_tag = self.s_id_tag
+            id_value = serialized_traitable['$set'][id_tag]
+            res = self.coll.update_one({id_tag: id_value}, serialized_traitable, upsert=True)
+            if res.matched_count and not overwrite:  # -- e.g. this id/revision already existed
+                raise AssertionError(f'{self.coll} {id_value} was found existing while insert was attempted')
+
         return 1 if res.acknowledged else 0
 
     def save(self, serialized_traitable: dict) -> int:
@@ -57,6 +68,7 @@ class MongoCollection(TsCollection):
 
         filter = {}
         pipeline = []
+        serialized_traitable = dict(serialized_traitable)  # -- copy to avoid modifying the input
         MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
         # self.filter_and_pipeline(serialized_traitable, filter, pipeline)
 
@@ -292,3 +304,6 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
 
         finally:
             client.close()
+
+    def auth_user(self) -> str | None:
+        return self.username
