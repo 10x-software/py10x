@@ -2,10 +2,10 @@ from unittest.mock import MagicMock
 
 import pytest
 from core_10x.nucleus import Nucleus
+from core_10x.testlib.test_store import TestStore as TraitableStore
 from core_10x.trait_filter import GT, f
 from core_10x.ts_store import TsStore
 from core_10x.ts_union import TsUnion, TsUnionCollection, _OrderKey
-from infra_10x.mongodb_store import MongoStore
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def test_save_new(union_collection):
     union, collection1, collection2 = union_collection
     serialized_traitable = {Nucleus.ID_TAG(): 1}
     union.save_new(serialized_traitable)
-    collection1.save_new.assert_called_once_with(serialized_traitable)
+    collection1.save_new.assert_called_once_with(serialized_traitable, overwrite=False)
     collection2.save.assert_not_called()
 
 
@@ -284,22 +284,28 @@ def test_delete_collection(union_store):
     mock_store2.delete_collection.assert_not_called()
 
 
-def test_new_instance():
-    store_spec = dict(driver_name='MONGO_DB', hostname='localhost', dbname='dbname1', username='')
-
+@pytest.fixture
+def ts_union():
+    assert not TsUnion.s_instances
+    store_spec = dict(driver_name='TEST_DB', hostname='localhost', dbname='dbname1', username='')
     union_store = TsUnion.instance(store_spec, store_spec | dict(dbname='dbname2'))
-    assert isinstance(union_store, TsUnion)
-    assert all(isinstance(store, MongoStore) for store in union_store.stores)
+    yield union_store
+    TsUnion.s_instances.clear()
+
+
+def test_new_instance(ts_union):
+    assert isinstance(ts_union, TsUnion)
+    assert all(isinstance(store, TraitableStore) for store in ts_union.stores)
 
     assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, TsUnion)) == 1
-    assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, MongoStore)) == 2
+    assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, TraitableStore)) == 2
 
     assert list(TsUnion.s_instances.keys()) == [
         (('dbname', 'dbname1'), ('hostname', 'localhost'), ('username', '')),
         (('dbname', 'dbname2'), ('hostname', 'localhost'), ('username', '')),
         (
-            (('dbname', 'dbname1'), ('driver_name', 'MONGO_DB'), ('hostname', 'localhost'), ('username', '')),
-            (('dbname', 'dbname2'), ('driver_name', 'MONGO_DB'), ('hostname', 'localhost'), ('username', '')),
+            (('dbname', 'dbname1'), ('driver_name', 'TEST_DB'), ('hostname', 'localhost'), ('username', '')),
+            (('dbname', 'dbname2'), ('driver_name', 'TEST_DB'), ('hostname', 'localhost'), ('username', '')),
         ),
     ]
 
