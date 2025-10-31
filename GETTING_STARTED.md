@@ -14,7 +14,7 @@ This comprehensive guide will walk you through the fundamental concepts, install
 5. [Object Identification System](#object-identification-system)
 6. [Storage and Persistence](#storage-and-persistence)
 7. [Dependency Graph and Execution Control](#dependency-graph-and-execution-control)
-8. [Entity Store](#entity-store)
+8. [Traitable Store](#traitable-store)
 9. [UI Framework Integration](#ui-framework-integration)
 10. [Advanced Features](#advanced-features)
 11. [Next Steps](#next-steps)
@@ -855,9 +855,9 @@ with CACHE_ONLY():
     assert person.full_name == "Alice Smith"  # Computed and cached in memory
 ```
 
-## Entity Store
+## Traitable Store
 
-Entity Store is essential for persistence and data management. 
+Traitable Store is essential for persistence and data management. 
 The storage context is used for finding and loading traitables.
 
 ### Storage Context and Traitable Creation
@@ -885,9 +885,9 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
     person.save()  # Persists to MongoDB
 ```
 
-### Entity Finding Methods
+### Traitable Finding Methods
 
-Entity store provides several methods for finding and loading traitables:
+Traitable store provides several methods for finding and loading traitables:
 
 #### Load by ID
 
@@ -1159,9 +1159,9 @@ assert user_perms.value == 3  # 3 (binary: 11)
 assert user_perms & Permissions.READ  # User has read access
 ```
 
-### Entity Filters
+### Traitable Filters
 
-Entity filters provide powerful querying capabilities:
+Traitable filters provide powerful querying capabilities:
 
 ```python
 from core_10x.trait_filter import f, EQ, GT, LT, AND, OR
