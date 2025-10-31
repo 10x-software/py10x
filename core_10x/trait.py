@@ -9,14 +9,19 @@ import platform
 import sys
 from inspect import Parameter
 from types import GenericAlias
-from typing import get_origin, get_type_hints
+from typing import TYPE_CHECKING, get_origin, get_type_hints
 
 from core_10x_i import BTrait
 
 from core_10x.named_constant import NamedConstant
 from core_10x.rc import RC
-from core_10x.trait_definition import T, TraitDefinition, Ui
+from core_10x.trait_definition import T, Ui
 from core_10x.xnone import XNone
+
+if TYPE_CHECKING:
+    from core_10x_i import BTraitable
+
+    from core_10x.trait_definition import TraitDefinition
 
 
 class Trait(BTrait):
@@ -97,8 +102,8 @@ class Trait(BTrait):
     #    return Trait(self.t_def.copy(), btrait = self)
 
     @staticmethod
-    def create(trait_name: str, t_def: TraitDefinition) -> Trait:
-        dt = t_def.data_type
+    def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, annotations: dict, rc: RC) -> Trait:
+        dt = annotations.get(trait_name) or t_def.data_type
         if isinstance(dt, GenericAlias):
             dt = get_origin(dt)  # get original type, e.g. `list` from `list[int]`
             # TODO: could be useful to also keep get_args(dt) for extra checking?
@@ -112,6 +117,7 @@ class Trait(BTrait):
             trait.fmt = t_def.fmt
 
         trait.create_proc()
+        Trait.set_trait_funcs(class_dict, rc, trait, t_def)
 
         trait.post_ctor()
         ui_hint: Ui = copy.deepcopy(t_def.ui_hint)
@@ -126,26 +132,14 @@ class Trait(BTrait):
             for method_key, method_def in TRAIT_METHOD.s_dir.items()
         }
 
-    def set_trait_funcs(self, traitable_cls, rc):
-        for method_name, (method_suffix, method_def) in Trait.method_defs(self.name).items():
-            method = getattr(traitable_cls, method_name, None)
-            if method and method_suffix == 'get' and self.t_def.default is not XNone:  # -- getter and default are defined - figure out which to use
-                for cls in traitable_cls.__mro__:
-                    cls_vars = vars(cls)
-                    if method_name in cls_vars:  # -- found method on cls - use method, unless
-                        if isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default is on same cls then - error
-                            rc.add_error(
-                                f'Ambiguous definition for {method_name} on {cls} - both trait.default and traitable.{method_name} are defined.'
-                            )
-                    elif isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default found on cls - use default
-                        method = None  # use default
-                    else:
-                        continue
-                    break
-
-            f = method_def.value(self, method, method_suffix, rc)
+    @staticmethod
+    def set_trait_funcs(class_dict, rc, trait, t_def):
+        for method_name, (method_suffix, method_def) in Trait.method_defs(t_def.name or trait.name).items():
+            method = t_def.params.get(method_suffix) or class_dict.get(method_name)
+            f = method_def.value(trait, method, method_suffix, rc)
             if f:
-                set_f = getattr(self, f'set_f_{method_suffix}')
+                cpp_name = f'set_f_{method_suffix}'
+                set_f = getattr(trait, cpp_name)
                 set_f(f, bool(method))
 
     def create_f_get(self, f, attr_name: str, rc: RC):
@@ -155,8 +149,6 @@ class Trait(BTrait):
             params = ()
 
         else:
-            # TODO: if default is defined in a subclass relative to where the getter is defined, override the getter?
-
             sig = inspect.signature(f)
             params = []
             param: Parameter
@@ -207,7 +199,7 @@ class Trait(BTrait):
     def create_f_common_trait_with_value_static(self, f, attr_name: str, rc: RC):
         cls = self.__class__
         if f:
-            assert isinstance(f.__self__, type), f'{f.__name__} must be declared as @classmethod'
+            assert isinstance(f, classmethod), f'{f.__name__} must be declared as @classmethod'
         else:
             f = getattr(cls, attr_name, None)
         return self.create_f_common_trait_with_value(f, attr_name, rc)
@@ -240,7 +232,7 @@ class Trait(BTrait):
             return value
 
         try:
-            return locale.setlocale(locale.LC_NUMERIC, self.__class__.s_locales.get(platform.system(), 'en_US'))
+            return locale.setlocale(locale.LC_NUMERIC, self.__class_.s_locales.get(platform.system(), 'en_US'))
         except Exception:
             return None
 
@@ -308,14 +300,15 @@ class Trait(BTrait):
     def choices(self):
         return XNone
 
+    # TODO: consider binding traitable_class at trait creation time
     # TODO: unify XNone/None conversions with object serialization/deserializatoin in c++
     # TODO: call these from c++ directly in place of f_serialize/f_deserialize?
-    def serialize_value(self, value, replace_xnone=False):
-        value = self.f_serialize(self, value)
+    def serialize_for_traitable_class(self, traitable_class: BTraitable, value, replace_xnone=False):
+        value = self.f_serialize.__get__(None, traitable_class)(self, value)
         return None if replace_xnone and value is XNone else value
 
-    def deserialize_value(self, value, replace_none=False):
-        value = self.f_deserialize(self, value)
+    def deserialize_for_traitable_class(self, traitable_class: BTraitable, value, replace_none=False):
+        value = self.f_deserialize.__get__(None, traitable_class)(self, value)
         return XNone if replace_none and value is None else value
 
     # ===================================================================================================================
