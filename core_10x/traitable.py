@@ -3,9 +3,9 @@ from __future__ import annotations
 import functools
 import operator
 import sys
-import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from datetime import datetime  # noqa: TC003
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Self, get_origin
 
@@ -32,7 +32,6 @@ from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
-    from datetime import datetime
 
     from core_10x.ts_store import TsCollection, TsStore
 
@@ -79,7 +78,7 @@ class TraitableMetaclass(type(BTraitable)):
         t_def: TraitDefinition = T(T.RESERVED | T.RUNTIME)
 
         def get(self):
-            return self.id().collection_name
+            return self.id().collection_name or XNone
 
         def set(self, t, cname) -> RC:
             self.id().collection_name = cname
@@ -239,14 +238,16 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         '_default_cache',
     )
     s_custom_collection = False
-    s_keep_history = True
+    s_history_class = XNone
 
     def __init_subclass__(cls, custom_collection: bool = None, keep_history: bool = None, **kwargs):
         if custom_collection is not None:
             cls.s_custom_collection = custom_collection
 
-        if keep_history is not None:
-            cls.s_keep_history = keep_history
+        if keep_history is True or (keep_history is None and cls.s_history_class is XNone):
+            cls.s_history_class = TraitableHistory.history_class(cls)
+        elif cls.s_history_class == XNone:
+            cls.s_history_class = None
 
         cls.s_bclass = BTraitableClass(cls)
 
@@ -422,18 +423,16 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.delete_in_store(id)
 
     @classmethod
-    def load(cls, id: ID, as_of: datetime = None) -> Traitable | None:
-        return cls.s_storage_helper.load(id, as_of)
+    def load(cls, id: ID) -> Traitable | None:
+        return cls.s_storage_helper.load(id)
 
     @classmethod
-    def load_many(
-        cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, as_of: datetime = None
-    ) -> list[Self]:
-        return cls.s_storage_helper.load_many(query, _coll_name, _at_most, _order, _deserialize, as_of)
+    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Self]:
+        return cls.s_storage_helper.load_many(query, _coll_name, _at_most, _order, _deserialize)
 
     @classmethod
-    def load_ids(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, as_of: datetime = None) -> list[ID]:
-        return cls.s_storage_helper.load_ids(query, _coll_name, _at_most, _order, as_of)
+    def load_ids(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
+        return cls.s_storage_helper.load_ids(query, _coll_name, _at_most, _order)
 
     @classmethod
     def delete_collection(cls, _coll_name: str = None) -> bool:
@@ -450,25 +449,66 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         # TODO: implement
         return rc
 
-    @classmethod
-    def as_of(cls, as_of_time: datetime) -> AsOfContext:
-        """Create an asOf context for time-based entity loading."""
-        return AsOfContext(cls, as_of_time)
+    # TODO: move into storage helper
+    def as_of(self, as_of_time: datetime) -> Self:
+        cls = self.__class__
+        with AsOfContext([cls], as_of_time):
+            return cls.load(self.id())
 
     @classmethod
-    def history(cls, _at_most: int = 0, _filter: f = None, **named_filters) -> list:
+    def history(
+        cls, _at_most: int = 0, _filter: f = None, _deserialize=False, _collection_name: str = None, _before: datetime = None, **named_filters
+    ) -> list:
         """Get history entries for this traitable class."""
-        return TraitableHistory.history(cls, _filter, _at_most, **named_filters)
+        if not cls.s_history_class:
+            raise RuntimeError(f'{cls} does not keep history')
+
+        as_of = {'_at': LE(_before)} if _before else {}
+        cursor = cls.s_history_class.load_many(
+            f(_filter, **named_filters, **as_of),
+            _order=dict(_at=-1),
+            _at_most=_at_most,
+            _deserialize=_deserialize,
+            _coll_name=_collection_name,
+        )
+
+        return list(cursor)
 
     @classmethod
-    def latest_revision(cls, traitable_id: ID, timestamp: datetime = None) -> dict:
+    def latest_revision(cls, traitable_id: ID, timestamp: datetime = None, deserialize: bool = False) -> dict | TraitableHistory | None:
         """Get the latest revision of an entity from history."""
-        return TraitableHistory.latest_revision(cls, traitable_id, timestamp)
+        for entry in cls.history(
+            _filter=f(_traitable_id=traitable_id.value),
+            _collection_name=traitable_id.collection_name,
+            _at_most=1,
+            _deserialize=deserialize,
+            _before=timestamp,
+        ):
+            return entry  # Return the raw history entry dict
+
+        return None
 
     @classmethod
     def restore(cls, traitable_id, timestamp: datetime = None, save=False) -> bool:
         """Restore an traitable to a specific point in time."""
-        return TraitableHistory.restore(cls, traitable_id, timestamp, save=save)
+        history_entry = cls.latest_revision(
+            traitable_id,
+            timestamp,
+            deserialize=True,
+        )
+        if not history_entry or not history_entry.traitable:
+            return False
+
+        if save:
+            return bool(
+                cls.collection(
+                    traitable_id.collection_name,
+                ).save_new(
+                    {'$set': history_entry.serialized_traitable},
+                    overwrite=True,
+                )
+            )
+        return True
 
 
 @dataclass
@@ -489,24 +529,22 @@ class AbstractStorableHelper(ABC):
     def delete_in_store(self, id: ID) -> RC: ...
 
     @abstractmethod
-    def load(self, id: ID, as_of: datetime = None) -> Traitable | None: ...
+    def load(self, id: ID) -> Traitable | None: ...
 
     @abstractmethod
-    def load_many(
-        self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, as_of: datetime = None
-    ) -> list[Traitable]: ...
+    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Traitable]: ...
 
     @abstractmethod
-    def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, as_of: datetime = None) -> list[ID]: ...
+    def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]: ...
 
     @abstractmethod
     def delete_collection(self, _coll_name: str = None) -> bool: ...
 
     @abstractmethod
-    def save(self, traitable_instance) -> RC: ...
+    def save(self, traitable: Traitable) -> RC: ...
 
     @abstractmethod
-    def delete(self, traitable_instance) -> RC: ...
+    def delete(self, traitable: Traitable) -> RC: ...
 
 
 class NotStorableHelper(AbstractStorableHelper):
@@ -522,24 +560,22 @@ class NotStorableHelper(AbstractStorableHelper):
     def delete_in_store(self, id: ID) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
-    def load(self, id: ID, as_of: datetime = None) -> Traitable | None:
+    def load(self, id: ID) -> Traitable | None:
         return None
 
-    def load_many(
-        self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, as_of: datetime = None
-    ) -> list[Traitable]:
+    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Traitable]:
         return []
 
-    def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, as_of: datetime = None) -> list[ID]:
+    def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
         return []
 
     def delete_collection(self, _coll_name: str = None) -> bool:
         return False
 
-    def save(self, traitable_instance) -> RC:
+    def save(self, traitable: Traitable) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
-    def delete(self, traitable_instance) -> RC:
+    def delete(self, traitable: Traitable) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
 
@@ -568,26 +604,25 @@ class StorableHelper(AbstractStorableHelper):
             return RC(False, f'{cls} - failed to delete {id.value} from {coll}')
         return RC_TRUE
 
-    def load(self, id: ID, as_of: datetime = None) -> Traitable | None:
+    def load(self, id: ID) -> Traitable | None:
         cls = self.traitable_class
-        as_of = as_of or self.as_of_time
-        if as_of is not None:
-            return TraitableHistory.deserialize(cls, id.collection_name, TraitableHistory.latest_revision(cls, id, as_of))
+        if self.as_of_time is not None:
+            history_entry = cls.latest_revision(id, self.as_of_time, deserialize=True)
+            return history_entry.traitable if history_entry else None
         return cls.s_bclass.load(id)
 
     def load_many(
-        self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True, as_of: datetime = None
+        self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True
     ) -> list[Traitable] | list[dict]:
         cls = self.traitable_class
-        as_of = as_of or self.as_of_time
 
-        if as_of is not None:
-            cursor = TraitableHistory.history(
-                cls,
-                _filter=f(query, **TraitableHistory.filter(timestamp=as_of)),
+        if self.as_of_time is not None:
+            cursor = cls.history(
+                _before=self.as_of_time,
                 _collection_name=_coll_name,
+                _deserialize=True,
             )  # TODO: only one per ID!
-            cursor = (TraitableHistory.prepare_to_deserialize(item) for item in cursor)
+            cursor = (item.serialized_traitable for item in cursor)
         else:
             coll = self.collection(_coll_name=_coll_name)
             cursor = coll.find(f(query, cls.s_bclass), _at_most=_at_most, _order=_order)
@@ -598,20 +633,20 @@ class StorableHelper(AbstractStorableHelper):
         f_deserialize = functools.partial(Traitable.deserialize_object, cls.s_bclass, _coll_name)
         return [f_deserialize(serialized_data) for serialized_data in cursor]
 
-    def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, as_of: datetime = None) -> list[ID]:
+    def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
         # Use instance as_of_time if not provided
         cls = self.traitable_class
-        as_of = as_of or self.as_of_time
         coll = self.collection(_coll_name=_coll_name)
         id_tag = coll.s_id_tag
 
-        if as_of is not None:
-            cursor = TraitableHistory.history(
-                cls,
-                _filter=f(query, **TraitableHistory.filter(timestamp=as_of)),
+        if self.as_of_time is not None:
+            cursor = cls.history(
+                _filter=query,
+                _before=self.as_of_time,
                 _collection_name=_coll_name,
+                _deserialize=True,
             )  # TODO: only one per ID!
-            cursor = (TraitableHistory.prepare_to_deserialize(entry) for entry in cursor)
+            cursor = (entry.serialized_traitable for entry in cursor)
         else:
             cursor = coll.find(query, _at_most=_at_most, _order=_order)
 
@@ -625,20 +660,20 @@ class StorableHelper(AbstractStorableHelper):
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
         return store.delete_collection(collection_name=cname)
 
-    def save(self, traitable_instance) -> RC:
-        rc = traitable_instance.verify()
+    def save(self, traitable: Traitable) -> RC:
+        rc = traitable.verify()
         if not rc:
             return rc
 
-        rc = traitable_instance.share(False)  # -- not accepting existing traitable values, if any
+        rc = traitable.share(False)  # -- not accepting existing traitable values, if any
         if not rc:
             return rc
 
-        serialized_data = traitable_instance.serialize_object()
+        serialized_data = traitable.serialize_object()
         if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
             return RC_TRUE
 
-        coll = self.collection(traitable_instance.id().collection_name)
+        coll = self.collection(traitable.id().collection_name)
         if not coll:
             return RC(False, f'{self.__class__} - no store available')
 
@@ -647,150 +682,108 @@ class StorableHelper(AbstractStorableHelper):
         except Exception as e:
             return RC(False, f'Error saving traitable: {e}')
 
-        if traitable_instance.get_revision() != rev and self.traitable_class.s_keep_history:
+        if traitable.get_revision() != rev and self.traitable_class.s_history_class:
             try:
-                TraitableHistory.save_history(
-                    serialized_data,
-                    self.traitable_class.store(),
-                    TraitableHistory.collection(self.traitable_class, traitable_instance._collection_name),
-                    rev,
-                )
+                self.traitable_class.s_history_class(
+                    serialized_traitable=serialized_data,
+                    _traitable_rev=rev,
+                    _collection_name=traitable._collection_name + '#history',  # -- add #history suffix
+                ).save().throw()
             except Exception as e:
                 return RC(False, f'Error saving history: {e}')  # TODO: rollback traitable save!!
 
-        traitable_instance.set_revision(rev)
+        traitable.set_revision(rev)
         return RC_TRUE
 
-    def delete(self, traitable_instance: Traitable) -> RC:
-        rc = self.delete_in_store(traitable_instance.id())
+    def delete(self, traitable: Traitable) -> RC:
+        rc = self.delete_in_store(traitable.id())
         if rc:
-            traitable_instance.set_revision(0)
+            traitable.set_revision(0)
         return rc
 
 
-class TraitableHistory:
-    """Special collection for storing traitable history with _at timestamp and _who fields."""
+class THIS_CLASS(Traitable, keep_history=False): ...  # -- to use for traits with the same Traitable class type
 
-    # TODO: make this a traitable representing a history entry - perhaps a special traitable class for each traitable.
 
-    @staticmethod
-    def collection_name(cls, _coll_name: str = None):
-        base_name = _coll_name or PackageRefactoring.find_class_id(cls)
-        return f'{base_name}#history'
+class TraitableHistory(Traitable):
+    s_history_class = None  # TODO: make such classes immutable by default
+    s_traitable_class = None
+    s_trait_name_map = dict(_traitable_id='_id', _traitable_rev='_rev')
 
-    @staticmethod
-    def collection(cls, _coll_name: str = None) -> TsCollection:
-        """Get the history collection name for a traitable class."""
-        history_coll = cls.store().collection(TraitableHistory.collection_name(cls, _coll_name))
+    traitable: Traitable = RT() // 'original traitable'
+    serialized_traitable: dict = RT()
 
-        # Create index on _id and _at for efficient time-based queries
-        history_coll.create_index('history_id_time', [history_coll.s_id_tag, '_at'])
-        # Create index on _at for time-based filtering
-        history_coll.create_index('history_time', '_at')
+    _at: datetime = T() // 'time saved'
+    _who: str = T() // 'authenticated user, if any'
+    _traitable_id: str = T() // 'original traitable id'
+    _traitable_rev: int = T() // 'original traitable rev'
 
-        return history_coll
+    def _traitable_id_get(self) -> str:
+        return self.serialized_traitable['_id']
 
-    @staticmethod
-    def save_history(serialized_data: dict, store: TsStore, history_coll: TsCollection, new_rev: int) -> None:
-        serialized_data |= {
-            '_id': uuid.uuid1().hex,  # TODO: exogenous_id,
-            '_who': store.auth_user(),
-            '_traitable_id': serialized_data['_id'],
-            '_traitable_rev': new_rev,
+    def serialize_object(self):
+        return {
+            '_rev': 0,
+            '$currentDate': {'_at': True},
+            '$set': self.serialized_traitable | super().serialize_object() | {'_who': self.store().auth_user()},
         }
-        history_coll.save_new(
-            {
-                '$set': serialized_data,
-                '$currentDate': {'_at': True},
-            }
+
+    def traitable_get(self):
+        return Traitable.deserialize_object(
+            self.s_traitable_class.s_bclass,
+            self._collection_name.rsplit('#', 1)[0] or None,  # -- strip #history suffix
+            self.serialized_traitable,
         )
 
-    @staticmethod
-    def history(cls, _filter: f = None, _at_most: int = 0, _collection_name: str = None, **named_filters) -> list[dict]:
-        """Get history entries for a traitable class."""
-        if not cls.s_keep_history:
-            raise RuntimeError(f'{cls} does not keep history')
-
-        cursor = TraitableHistory.collection(cls, _collection_name).find(
-            f(_filter, **named_filters),
-            _order=dict(_at=-1),
-            _at_most=_at_most,
-        )
-
-        return list(cursor)
+    def deserialize_traits(self, serialized_data):
+        hist_data = {trait.name: serialized_data.pop(trait.name, None) for trait in self.traits(flags_off=T.RUNTIME)}
+        self.serialized_traitable = serialized_data | {v: hist_data[k] for k, v in self.s_trait_name_map.items()}
+        return super().deserialize_traits(hist_data)
 
     @staticmethod
-    def filter(traitable_id: str = None, timestamp: datetime = None) -> dict:
-        query = {}
-        if traitable_id:
-            query['_traitable_id'] = traitable_id
-        if timestamp:
-            query['_at'] = LE(timestamp)
-        return query
-
-    @staticmethod
-    def latest_revision(cls, traitable_id: ID, timestamp: datetime = None) -> dict | None:
-        """Get the latest revision of an traitable from history."""
-
-        for entry in TraitableHistory.history(
-            cls, _filter=f(**TraitableHistory.filter(traitable_id.value, timestamp)), _collection_name=traitable_id.collection_name, _at_most=1
-        ):
-            return entry  # Return the raw history entry dict
-        else:
-            return None
-
-    @staticmethod
-    def prepare_to_deserialize(serialized_entry: dict) -> dict:
-        traitable_data = serialized_entry.copy()
-        del traitable_data['_at']
-        del traitable_data['_who']
-        traitable_data['_id'] = traitable_data.pop('_traitable_id', None)
-        traitable_data['_rev'] = traitable_data.pop('_traitable_rev', None)
-        return traitable_data
-
-    @staticmethod
-    def deserialize(cls, _coll_name: str, serialized_entry: dict) -> Traitable:
-        traitable_data = TraitableHistory.prepare_to_deserialize(serialized_entry)
-        return Traitable.deserialize_object(cls.s_bclass, _coll_name, traitable_data)  # -- replaces the shared version!
-
-    @staticmethod
-    def restore(cls, traitable_id: ID, timestamp: datetime = None, save: bool = True) -> bool:
-        """Restore a traitable to a specific point in time."""
-        serialized_entry = TraitableHistory.latest_revision(cls, traitable_id, timestamp)
-        if not serialized_entry:
-            return False
-        traitable = TraitableHistory.deserialize(cls, traitable_id.collection_name, serialized_entry)
-        if save:
-            serialized_traitable = TraitableHistory.prepare_to_deserialize(serialized_entry)
-            return bool(
-                traitable.collection(traitable_id.collection_name).save_new(
-                    {'$set': serialized_traitable},
-                    overwrite = True
-                )
+    @cache
+    def history_class(traitable_class: type[Traitable]):
+        module_dict = sys.modules[traitable_class.__module__].__dict__
+        history_class_name = f'{traitable_class.__name__}#history'
+        history_class = module_dict.get(history_class_name)
+        if history_class is None:
+            history_class = type(
+                history_class_name,
+                (TraitableHistory,),
+                dict(
+                    s_traitable_class=traitable_class,
+                    s_custom_collection=traitable_class.s_custom_collection,
+                    __module__=traitable_class.__module__,
+                ),
             )
-        return True
+            module_dict[history_class_name] = history_class
+        return history_class
+
 
 @dataclass
 class AsOfContext:
     """Context manager for time-based traitable loading."""
 
     # TODO: generalize so that context created on baseclass applies to all subclasses
-    traitable_class: type[Traitable]
+    traitable_classes: list[type[Traitable]]
     as_of_time: datetime
-    _original_as_of_time: datetime = None
+    _original_as_of_times: dict[type[Traitable], datetime] = None
+
+    def __post_init__(self):
+        self._original_as_of_times = {}
 
     def __enter__(self):
-        # Store original as_of_time and set new one
-        self._original_as_of_time = self.traitable_class.s_storage_helper.as_of_time
-        self.traitable_class.s_storage_helper.as_of_time = self.as_of_time
+        original_times = self._original_as_of_times
+        for traitable_class in self.traitable_classes:
+            original_times[traitable_class] = traitable_class.s_storage_helper.as_of_time
+            traitable_class.s_storage_helper.as_of_time = self.as_of_time
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Restore original as_of_time
-        self.traitable_class.s_storage_helper.as_of_time = self._original_as_of_time
-
-
-class THIS_CLASS(Traitable): ...  # -- to use for traits with the same Traitable class type
+        original_times = self._original_as_of_times
+        for traitable_class in self.traitable_classes:
+            traitable_class.s_storage_helper.as_of_time = original_times[traitable_class]
 
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):

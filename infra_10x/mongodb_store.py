@@ -38,14 +38,14 @@ class MongoCollection(TsCollection):
     def count(self, query: f = None) -> int:
         return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})
 
-    def save_new(self, serialized_traitable: dict, force: bool = False) -> int:
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
         if '$set' not in serialized_traitable:
             res = self.coll.insert_one(serialized_traitable)
         else:
             id_tag = self.s_id_tag
             id_value = serialized_traitable['$set'][id_tag]
             res = self.coll.update_one({id_tag: id_value}, serialized_traitable, upsert=True)
-            if res.matched_count and not force:  # -- e.g. this id/revision already existed
+            if res.matched_count and not overwrite:  # -- e.g. this id/revision already existed
                 raise AssertionError(f'{self.coll} {id_value} was found existing while insert was attempted')
 
         return 1 if res.acknowledged else 0
