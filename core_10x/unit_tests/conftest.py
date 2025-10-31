@@ -9,10 +9,3 @@ def ts_instance():
     assert not TsStore.s_instances
     yield TestStore.instance()
     TsStore.s_instances.clear()
-
-
-@pytest.fixture(autouse=True)
-def traitable_store_uri():
-    from core_10x.environment_variables import EnvVars
-
-    EnvVars.traitable_store_uri = ''
