@@ -312,6 +312,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def set_values(self, _ignore_unknown_traits=True, **trait_values) -> RC:
         return self._set_values(trait_values, _ignore_unknown_traits)
 
+    def __getitem__(self, item):
+        return self.get_value(item)
+
+    def __setitem__(self, key, value):
+        return self.set_value(key, value)
+
     # ===================================================================================================================
     #   The following methods are available from c++
     #
