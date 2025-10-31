@@ -6,10 +6,15 @@ from core_10x_i import BNucleus
 class Nucleus:
     # fmt: off
     __slots__           = ()
-    ID_TAG              = BNucleus.ID_TAG
-    COLLECTION_TAG      = BNucleus.COLLECTION_TAG
+    TYPE_TAG            = BNucleus.TYPE_TAG
     CLASS_TAG           = BNucleus.CLASS_TAG
     REVISION_TAG        = BNucleus.REVISION_TAG
+    OBJECT_TAG          = BNucleus.OBJECT_TAG
+    COLLECTION_TAG      = BNucleus.COLLECTION_TAG
+    ID_TAG              = BNucleus.ID_TAG
+    NX_RECORD_TAG       = BNucleus.NX_RECORD_TAG
+    TYPE_RECORD_TAG     = BNucleus.TYPE_RECORD_TAG
+    PICKLE_RECORD_TAG   = BNucleus.PICKLE_RECORD_TAG
 
     serialize_any       = BNucleus.serialize_any
     deserialize_any     = BNucleus.deserialize_any
