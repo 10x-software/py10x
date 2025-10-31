@@ -1,4 +1,3 @@
-from unittest import mock
 from uuid import uuid4
 
 import pytest
@@ -30,25 +29,21 @@ TEST_COLLECTION1 = PackageRefactoring.find_class_id(Person1)
 
 @pytest.fixture(scope='module')
 def ts_setup(ts_instance):
-    patch1 = mock.patch('core_10x.package_refactoring.PackageRefactoring.find_class_id', return_value=TEST_COLLECTION)
-    patch2 = mock.patch('core_10x.package_refactoring.PackageRefactoring.find_class_id', return_value=TEST_COLLECTION1)
 
     with ts_instance:
-        with patch1:
-            p = Person(first_name='John', last_name='Doe')  # , _collection_name=TEST_COLLECTION)
-            p.set_values(age=30, weight_lbs=100)
-            assert p._rev == 0
-            assert p.save() == RC_TRUE
-            assert p._rev == 1
-            assert p.save() == RC_TRUE
-            assert p._rev == 1
+        p = Person(first_name='John', last_name='Doe')  # , _collection_name=TEST_COLLECTION)
+        p.set_values(age=30, weight_lbs=100)
+        assert p._rev == 0
+        assert p.save() == RC_TRUE
+        assert p._rev == 1
+        assert p.save() == RC_TRUE
+        assert p._rev == 1
 
-        with patch2:
-            p1 = Person1(first_name='Joe', last_name='Doe')  # , _collection_name=TEST_COLLECTION1)
-            p1.set_values(age=32, weight_lbs=200)
-            assert p1.save()
-            assert p1.age == 32
-            assert p1._rev == 1
+        p1 = Person1(first_name='Joe', last_name='Doe')  # , _collection_name=TEST_COLLECTION1)
+        p1.set_values(age=32, weight_lbs=200)
+        assert p1.save()
+        assert p1.age == 32
+        assert p1._rev == 1
 
     yield ts_instance, p, p1
 
