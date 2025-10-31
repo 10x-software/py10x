@@ -40,6 +40,10 @@ class NamedConstant(Nucleus):
     def __deepcopy__(self, memo=None):
         return self
 
+    # -- Makes sense only for NamedConstants with Callable values
+    def __call__(self, *args, **kwargs):
+        return self.value(*args, **kwargs)
+
     @classmethod
     def _create(cls, args: Any) -> NamedConstant:
         cdef = cls()
@@ -363,7 +367,7 @@ class NamedConstantValue:
         try:
             return self.data[key]  # -- if it's a known NamedConstant
 
-        except KeyError as e:
+        except Exception as e:
             # -- check if it is a name of a constant
             named_constant_class = self.named_constant_class
             cdef = named_constant_class.s_dir.get(key)
@@ -392,3 +396,10 @@ class NamedConstantTable(NamedConstantValue):
         col_defs = self.col_named_constant_class.s_dir
         assert len(row) == len(col_defs), f'{cdef.name} must have {len(col_defs)} values'
         data[cdef] = NamedConstantValue(self.col_named_constant_class, **{col_name: row[i] for i, col_name in enumerate(col_defs)})
+
+    def primary_key(self, sec_key, value):
+        for primary_key, row in self.data.items():
+            if row[sec_key] == value:
+                return primary_key
+
+        return None

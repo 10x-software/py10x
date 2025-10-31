@@ -290,19 +290,27 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         self.T = TraitAccessor(self)
 
     @classmethod
-    def existing_instance(cls, _collection_name: str = None, **trait_values) -> Traitable:
+    def existing_instance(cls, _collection_name: str = None, _throw=True, **trait_values) -> Traitable:
         obj = cls(_collection_name=_collection_name, _skip_init=True)
         if not obj.object_exists(trait_values):
+            if _throw:
+                raise ValueError(f'Instance does not exist: {cls}({trait_values})')
             return None
 
         return obj
 
     @classmethod
-    def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None) -> Traitable:
+    def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None, _throw=True) -> Traitable:
         if _id is None:
             _id = ID(_id_value, _collection_name)
         obj = cls(_id=_id)
-        return obj if obj.id_exists() else None
+        if obj.id_exists():
+            return obj
+
+        if _throw:
+            raise ValueError(f'Instance does not exist: {cls}.{_id_value}')
+
+        return None
 
     @classmethod
     def update(cls, **kwargs) -> Traitable:
