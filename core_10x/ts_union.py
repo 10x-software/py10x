@@ -138,7 +138,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         return list(set(itertools.chain(*(store.collection_names(regexp) for store in self.stores))))
 
     def collection(self, collection_name):
-        return TsUnionCollection(*(store.collection(collection_name) for store in self.stores))
+        return TsUnionCollection( *(store.collection(collection_name) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:
         return self.stores[0].delete_collection(collection_name) if self.stores else False
