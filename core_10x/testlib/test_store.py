@@ -57,13 +57,13 @@ class TestCollection(TsCollection):
         if _at_most > 0:
             documents = documents[:_at_most]
 
-        return iter(documents)
+        return (dict(doc) for doc in documents)
 
     def count(self, query: f = None) -> int:
         """Count documents matching the query."""
         return len(list(self.find(query)))
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool=False) -> int:
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
         """Save a new document."""
         # Handle MongoDB-style operations
         if '$set' in serialized_traitable:
@@ -80,34 +80,35 @@ class TestCollection(TsCollection):
                     if current_date_fields[field] is True:
                         data[field] = datetime.now()
 
-            # Store the document
-            doc_id = data['_id']
+            doc_id = data[self.s_id_tag]
             if doc_id in self._documents and not overwrite:
                 raise AssertionError(f'{self.collection_name} {doc_id} was found existing while insert was attempted')
-            self._documents[doc_id] = data
-            return 1
+            serialized_traitable = data
         else:
             # Regular save operation
             doc_id = serialized_traitable.get(self.s_id_tag)
-            if not doc_id:
-                return 0
 
-            if doc_id in self._documents:
-                return 0  # Document already exists
+        if not doc_id:
+            return 0
 
-            self._documents[doc_id] = serialized_traitable.copy()
-            return 1
+        if doc_id in self._documents and not overwrite:
+            return 0  # Document already exists
+
+        self._documents[doc_id] = serialized_traitable | {Nucleus.REVISION_TAG(): 1}
+        return 1
 
     def save(self, serialized_traitable: dict) -> int:
         """Save or update a document."""
+        rev_tag = Nucleus.REVISION_TAG()
+        revision = serialized_traitable[rev_tag]
+        if revision == 0:
+            return self.save_new(serialized_traitable)
+
         undef_variable = next((k[1:] for k in serialized_traitable if k.startswith('$')), None)
         if undef_variable:
             raise RuntimeError(f'Use of undefined variable: {undef_variable}')
         doc_id = serialized_traitable.get(self.s_id_tag)
         assert doc_id
-
-        rev_tag = Nucleus.REVISION_TAG()
-        revision = serialized_traitable[rev_tag]
 
         existing_doc = self._documents.get(doc_id)
         existing_revision = existing_doc[rev_tag] if existing_doc else 0

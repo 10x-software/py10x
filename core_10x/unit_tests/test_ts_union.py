@@ -55,7 +55,7 @@ def test_save_new(union_collection):
     union, collection1, collection2 = union_collection
     serialized_traitable = {Nucleus.ID_TAG(): 1}
     union.save_new(serialized_traitable)
-    collection1.save_new.assert_called_once_with(serialized_traitable,overwrite=False)
+    collection1.save_new.assert_called_once_with(serialized_traitable, overwrite=False)
     collection2.save.assert_not_called()
 
 
