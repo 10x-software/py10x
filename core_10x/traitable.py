@@ -238,18 +238,17 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         '_default_cache',
     )
     s_custom_collection = False
-    s_history_class = XNone
+    s_history_class = XNone  # -- will be set in __init__subclass__ for storable traitables unless keep_history = False. affects storage only.
+    s_immutable = XNone  # -- will be turned on in __init__subclass__ for traitables without history unless immutable=False. affects storage only.
 
-    def __init_subclass__(cls, custom_collection: bool = None, keep_history: bool = None, **kwargs):
+    def __init_subclass__(cls, custom_collection: bool = None, keep_history: bool = None, immutable: bool = None, **kwargs):
         if custom_collection is not None:
             cls.s_custom_collection = custom_collection
 
-        if keep_history is True or (keep_history is None and cls.s_history_class is XNone):
-            cls.s_history_class = TraitableHistory.history_class(cls)
-        elif cls.s_history_class == XNone:
-            cls.s_history_class = None
-
         cls.s_bclass = BTraitableClass(cls)
+
+        if keep_history is False:
+            cls.s_history_class = None
 
         if not cls.is_storable():
             del cls.s_dir[Nucleus.REVISION_TAG()]
@@ -257,6 +256,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             cls.s_storage_helper = NotStorableHelper(cls)
         else:
             cls.s_storage_helper = StorableHelper(cls)
+            if cls.s_history_class is not None:
+                cls.s_history_class = TraitableHistory.history_class(cls)
+
+        if immutable is None:
+            cls.s_immutable = cls.s_history_class is None
 
         rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
@@ -471,13 +475,19 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if not cls.s_history_class:
             raise RuntimeError(f'{cls} does not keep history')
 
+        if cls.s_custom_collection and not _collection_name:
+            raise RuntimeError(f'{cls} requires custom _collection_name')
+
+        if not cls.s_custom_collection and _collection_name:
+            raise RuntimeError(f'{cls} does not support custom _collection_name')
+
         as_of = {'_at': LE(_before)} if _before else {}
         cursor = cls.s_history_class.load_many(
             f(_filter, **named_filters, **as_of),
             _order=dict(_at=-1),
             _at_most=_at_most,
             _deserialize=_deserialize,
-            _coll_name=_collection_name,
+            _coll_name=_collection_name+'#history' if _collection_name else None
         )
 
         return list(cursor)
@@ -498,7 +508,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def restore(cls, traitable_id, timestamp: datetime = None, save=False) -> bool:
-        """Restore an traitable to a specific point in time."""
+        """Restore a traitable to a specific point in time."""
         history_entry = cls.latest_revision(
             traitable_id,
             timestamp,
@@ -686,7 +696,7 @@ class StorableHelper(AbstractStorableHelper):
             return RC(False, f'{self.__class__} - no store available')
 
         try:
-            rev = coll.save(dict(serialized_data))  # TODO: fix - have to copy to avoid modification in filter construction
+            rev = coll.save_new(serialized_data) if traitable.s_immutable else coll.save(serialized_data)
         except Exception as e:
             return RC(False, f'Error saving traitable: {e}')
 
@@ -730,10 +740,11 @@ class TraitableHistory(Traitable):
         return self.serialized_traitable['_id']
 
     def serialize_object(self):
+        serialized_data = {**self.serialized_traitable, **super().serialize_object(), '_who': self.store().auth_user()}
+        del serialized_data['_at']
         return {
-            '_rev': 0,
             '$currentDate': {'_at': True},
-            '$set': self.serialized_traitable | super().serialize_object() | {'_who': self.store().auth_user()},
+            '$set': serialized_data,
         }
 
     def traitable_get(self):
