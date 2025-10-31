@@ -24,6 +24,9 @@ class MongoCollection(TsCollection):
     def __init__(self, db, collection_name: str):
         self.coll: Collection = db[collection_name]
 
+    def collection_name(self) -> str:
+        return self.coll.name
+
     def id_exists(self, id_value: str) -> bool:
         return self.coll.count_documents({self.s_id_tag: id_value}) > 0
 
@@ -65,6 +68,7 @@ class MongoCollection(TsCollection):
 
         filter = {}
         pipeline = []
+        serialized_traitable = dict(serialized_traitable)  # -- copy to avoid modifying the input
         MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
         # self.filter_and_pipeline(serialized_traitable, filter, pipeline)
 
