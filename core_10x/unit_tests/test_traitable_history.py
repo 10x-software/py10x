@@ -1,4 +1,5 @@
 """Tests for TraitableHistory functionality using pytest and real TestStore."""
+
 import uuid
 from datetime import datetime
 
@@ -34,12 +35,14 @@ def test_store():
     yield store
     store.end_using()
 
+
 @pytest.fixture
 def test_collection(test_store):
     """Create a test collection for testing."""
-    collection_name=f'test_collection_{uuid.uuid1()}'
+    collection_name = f'test_collection_{uuid.uuid1()}'
     yield test_store.collection(collection_name=collection_name)
     test_store.delete_collection(collection_name=collection_name)
+
 
 # @pytest.fixture(scope='module')
 # def test_store():
@@ -70,9 +73,9 @@ class TestTraitableHistory:
     def test_traitable_history_collection(self, test_store):
         """Test TraitableHistory collection name generation."""
         # Test with default collection name
-        coll =NameValueTraitable.collection()
-        history_coll =NameValueTraitable.s_history_class.collection()
-        assert coll.collection_name+'#history' == history_coll.collection_name
+        coll = NameValueTraitable.collection()
+        history_coll = NameValueTraitable.s_history_class.collection()
+        assert coll.collection_name + '#history' == history_coll.collection_name
 
     def test_traitable_history_save(self, test_store, test_collection):
         serialized_data = {'_id': 'test-123', '_rev': 1, 'name': 'Test Item', 'value': 42}
