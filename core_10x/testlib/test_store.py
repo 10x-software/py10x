@@ -27,9 +27,12 @@ class TestCollection(TsCollection):
 
     def __init__(self, store: TestStore, collection_name: str):
         self.store = store
-        self.collection_name = collection_name
+        self._collection_name = collection_name
         self._documents = {}  # id -> document
         self._indexes = {}  # index_name -> index_info
+        
+    def collection_name(self) -> str:
+        return self._collection_name
 
     def id_exists(self, id_value: str) -> bool:
         """Check if a document with the given ID exists."""
@@ -78,11 +81,11 @@ class TestCollection(TsCollection):
                 current_date_fields = serialized_traitable['$currentDate']
                 for field in current_date_fields:
                     if current_date_fields[field] is True:
-                        data[field] = datetime.now()
+                        data[field] = datetime.utcnow()
 
             doc_id = data[self.s_id_tag]
             if doc_id in self._documents and not overwrite:
-                raise AssertionError(f'{self.collection_name} {doc_id} was found existing while insert was attempted')
+                raise AssertionError(f'{self._collection_name} {doc_id} was found existing while insert was attempted')
             serialized_traitable = data
         else:
             # Regular save operation
