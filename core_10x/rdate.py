@@ -250,3 +250,8 @@ class RDate(Nucleus):
         d1 = rd1.apply(d, cal, roll_rule)
         d2 = rd2.apply(d, cal, roll_rule)
         return rel_op(d1, d2)
+
+    @classmethod
+    def from_tenors(cls, tenors_str: str, delim = ',') -> list:
+        tenors = tenors_str.split(delim)
+        return [RDate(tenor.strip()) for tenor in tenors]
