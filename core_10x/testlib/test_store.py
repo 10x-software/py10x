@@ -30,7 +30,7 @@ class TestCollection(TsCollection):
         self._collection_name = collection_name
         self._documents = {}  # id -> document
         self._indexes = {}  # index_name -> index_info
-        
+
     def collection_name(self) -> str:
         return self._collection_name
 
