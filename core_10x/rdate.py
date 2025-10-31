@@ -3,11 +3,13 @@ from __future__ import annotations
 import math
 import re
 from datetime import date
+
 from dateutil.relativedelta import relativedelta
 
 from core_10x.named_constant import NamedConstant, NamedConstantTable
-from core_10x.xxcalendar import Calendar
 from core_10x.nucleus import Nucleus
+from core_10x.xxcalendar import Calendar
+
 
 #=====
 #   Biz Day Roll Rules
@@ -137,7 +139,7 @@ class RDate(Nucleus):
             assert len(value) == 2, 'tenor frequency and count are expected'
             return cls(freq = value[0], count = value[1])
 
-        assert False, 'unexpected type'
+        raise AssertionError('unexpected type')
 
     @classmethod
     def same_values(cls, value1, value2) -> bool:
@@ -203,8 +205,8 @@ class RDate(Nucleus):
         if isinstance(add, str):
             try:
                 add = RDate(add)
-            except Exception:
-                raise ValueError( f'cannot convert adder {add} to RDate' )
+            except Exception as e:
+                raise ValueError( f'cannot convert adder {add} to RDate' ) from e
 
         if isinstance(add, RDate):
             rd1, rd2 = self.equate_freq(add)
