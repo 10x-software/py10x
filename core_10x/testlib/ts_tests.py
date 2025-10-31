@@ -29,7 +29,6 @@ TEST_COLLECTION1 = PackageRefactoring.find_class_id(Person1)
 
 @pytest.fixture(scope='module')
 def ts_setup(ts_instance):
-
     with ts_instance:
         p = Person(first_name='John', last_name='Doe')  # , _collection_name=TEST_COLLECTION)
         p.set_values(age=30, weight_lbs=100)
