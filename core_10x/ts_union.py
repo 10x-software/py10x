@@ -65,6 +65,9 @@ class TsUnionCollection(TsCollection):
     def __init__(self, *collections: TsCollection):
         self.collections = collections
 
+    def collection_name(self) -> str:
+        return self.collections[0].collection_name() if self.collections else ''
+
     def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
         order = tuple((_order or {'_id': 1}).items())  # FIX: assumes _id is always there!
         order_key = _OrderKey.key
@@ -135,7 +138,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         return list(set(itertools.chain(*(store.collection_names(regexp) for store in self.stores))))
 
     def collection(self, collection_name):
-        return TsUnionCollection(*(store.collection(collection_name) for store in self.stores))
+        return TsUnionCollection( *(store.collection(collection_name) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:
         return self.stores[0].delete_collection(collection_name) if self.stores else False
