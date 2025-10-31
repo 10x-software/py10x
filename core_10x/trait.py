@@ -134,7 +134,7 @@ class Trait(BTrait):
 
     @staticmethod
     def set_trait_funcs(class_dict, rc, trait, t_def):
-        for method_name, (method_suffix, method_def) in Trait.method_defs(t_def.name).items():
+        for method_name, (method_suffix, method_def) in Trait.method_defs(t_def.name or trait.name).items():
             method = t_def.params.get(method_suffix) or class_dict.get(method_name)
             f = method_def.value(trait, method, method_suffix, rc)
             if f:
