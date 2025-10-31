@@ -142,5 +142,3 @@ def test_collection_name_trait():
 
     assert y.id().collection_name == 'test'
     assert y._collection_name == 'test'
-
-
