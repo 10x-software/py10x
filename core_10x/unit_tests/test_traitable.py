@@ -121,3 +121,26 @@ def test_dynamic_traits():
 
     assert y.T.y.data_type is int
     assert y.y == 20
+
+
+def test_collection_name_trait():
+    class X(Traitable):
+        x: int
+
+    assert not X.is_storable()
+    assert not X.trait('_collection_name')
+
+    class Y(Traitable):
+        s_default_trait_factory = T
+        s_custom_collection = True
+        y: int
+
+    assert Y.is_storable()
+    assert Y.trait('_collection_name')
+
+    y = Y(_collection_name='test')
+
+    assert y.id().collection_name == 'test'
+    assert y._collection_name == 'test'
+
+
