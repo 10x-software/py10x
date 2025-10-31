@@ -40,7 +40,7 @@ class NamedConstant(Nucleus):
     def __deepcopy__(self, memo=None):
         return self
 
-    #-- Makes sense only for NamedConstants with Callable values
+    # -- Makes sense only for NamedConstants with Callable values
     def __call__(self, *args, **kwargs):
         return self.value(*args, **kwargs)
 
@@ -368,7 +368,7 @@ class NamedConstantValue:
             return self.data[key]  # -- if it's a known NamedConstant
 
         except Exception as e:
-            #-- check if it is a name of a constant
+            # -- check if it is a name of a constant
             named_constant_class = self.named_constant_class
             cdef = named_constant_class.s_dir.get(key)
             if not cdef:

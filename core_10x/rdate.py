@@ -11,24 +11,26 @@ from core_10x.nucleus import Nucleus
 from core_10x.xxcalendar import Calendar
 
 
-#=====
+# =====
 #   Biz Day Roll Rules
 #   1. Preceding (rolls backwards): go to the prev biz day, if not already
 #   2. Following (rolls forward):   go to the next biz day, if not already
 #   3. Modified following:          go to the next biz day unless the next biz day is in the next month, otherwise go to 1.
 #   4. Modified preceding:          go to the prev biz day unless the prev biz day is in the prev month, otherwise go to 2.
-#=====
+# =====
 def bizday_roll_preceding(d: date, cal: Calendar) -> date:
     if cal.is_bizday(d):
         return d
 
     return cal.prev_bizday(d)
 
+
 def bizday_roll_following(d: date, cal: Calendar) -> date:
     if cal.is_bizday(d):
         return d
 
     return cal.next_bizday(d)
+
 
 def bizday_roll_mod_following(d: date, cal: Calendar) -> date:
     if cal.is_bizday(d):
@@ -37,6 +39,7 @@ def bizday_roll_mod_following(d: date, cal: Calendar) -> date:
     res = cal.next_bizday(d)
     return res if res.month == d.month else cal.prev_bizday(d)
 
+
 def bizday_roll_mod_preceding(d: date, cal: Calendar) -> date:
     if cal.is_bizday(d):
         return d
@@ -44,6 +47,8 @@ def bizday_roll_mod_preceding(d: date, cal: Calendar) -> date:
     res = cal.prev_bizday(d)
     return res if res.month == d.month else cal.next_bizday(d)
 
+
+# fmt: off
 class BIZDAY_ROLL_RULE(NamedConstant):
     PRECEDING       = bizday_roll_preceding
     FOLLOWING       = bizday_roll_following
@@ -67,7 +72,6 @@ class TENOR_PARAMS(NamedConstant):
     CONVERSIONS     = ()
     MIN_FREQUENCY   = ()
 
-
 FREQUENCY_TABLE = NamedConstantTable(TENOR_FREQUENCY, TENOR_PARAMS,
     #              CHAR         RELATIVE_DELTA                              CONVERSIONS                                         MIN_FREQUENCY
     BIZDAY      = ('B',         None,                                       None,                                               None),
@@ -80,6 +84,7 @@ FREQUENCY_TABLE = NamedConstantTable(TENOR_FREQUENCY, TENOR_PARAMS,
 
     #IMM_QUARTER = ( 'IMM',      lambda d, n: IMMQuarter.which( d ).ith( n ).last(), None,                                               None ),
 )
+# fmt: on
 
 
 class RDate(Nucleus):
@@ -92,8 +97,8 @@ class RDate(Nucleus):
 
     # s_spot_tenors = { 'ON', 'TN', 'SN' }
 
-    #-- RDate('3M') or RDate(TENOR_FREQUENCY.MONTH, 3)
-    #def __init__(self, symbol_or_frequency = None, count: int = None):
+    # -- RDate('3M') or RDate(TENOR_FREQUENCY.MONTH, 3)
+    # def __init__(self, symbol_or_frequency = None, count: int = None):
     def __init__(self, symbol: str = None, freq: TENOR_FREQUENCY = None, count: int = None):
         if symbol is not None:
             match = re.match(r'(-?\d+)([a-zA-Z]+)', symbol)
@@ -102,7 +107,7 @@ class RDate(Nucleus):
 
             freq = FREQUENCY_TABLE.primary_key(TENOR_PARAMS.CHAR, letter.upper())
             if freq is None:
-                raise AttributeError( f"Invalid tenor symbol '{symbol}'" )
+                raise AttributeError(f"Invalid tenor symbol '{symbol}'")
 
         else:
             assert freq is not None, 'freq must be a valid TENOR_FREQUENCY'
@@ -115,7 +120,7 @@ class RDate(Nucleus):
     def symbol(self) -> str:
         return f'{self.count}{FREQUENCY_TABLE[self.freq][TENOR_PARAMS.CHAR]}'
 
-    #---- Nucleus methods
+    # ---- Nucleus methods
     def to_str(self) -> str:
         return self.symbol()
 
@@ -124,20 +129,20 @@ class RDate(Nucleus):
 
     @classmethod
     def deserialize(cls, serialized_data) -> Nucleus:
-        return cls(symbol = serialized_data)
+        return cls(symbol=serialized_data)
 
     @classmethod
     def from_str(cls, s: str) -> Nucleus:
-        return cls(symbol = s)
+        return cls(symbol=s)
 
     @classmethod
     def from_any_xstr(cls, value) -> Nucleus:
         if isinstance(value, cls):
-            return cls(freq = value.freq, count = value.count)
+            return cls(freq=value.freq, count=value.count)
 
         if isinstance(value, tuple):
             assert len(value) == 2, 'tenor frequency and count are expected'
-            return cls(freq = value[0], count = value[1])
+            return cls(freq=value[0], count=value[1])
 
         raise AssertionError('unexpected type')
 
@@ -145,7 +150,7 @@ class RDate(Nucleus):
     def same_values(cls, value1, value2) -> bool:
         return value1.freq == value2.freq and value1.count == value2.count
 
-    #----
+    # ----
 
     def apply(self, d: date, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> date:
         if self.freq is TENOR_FREQUENCY.BIZDAY:
@@ -159,7 +164,7 @@ class RDate(Nucleus):
     def conversion_freq_multiplier(self, other_freq: TENOR_FREQUENCY) -> float:
         my_freq = self.freq
         if my_freq is other_freq:
-            return 1.
+            return 1.0
 
         dont_handle_freqs = (TENOR_FREQUENCY.BIZDAY, TENOR_FREQUENCY.CALDAY, TENOR_FREQUENCY.WEEK)
         if my_freq in dont_handle_freqs or other_freq in dont_handle_freqs:
@@ -175,27 +180,21 @@ class RDate(Nucleus):
         if self.freq is other.freq:
             return (self, other)
 
-        mult = self.conversion_freq_multiplier(other.freq)   #-- either int or 1/int
+        mult = self.conversion_freq_multiplier(other.freq)  # -- either int or 1/int
         mult_i = int(mult)
         if mult_i >= 1:
-            return (
-                RDate(freq = other.freq, count = self.count * mult_i),
-                other
-            )
+            return (RDate(freq=other.freq, count=self.count * mult_i), other)
 
-        return (
-            self,
-            RDate(freq = self.freq, count = other.count * int(1 / mult))
-        )
+        return (self, RDate(freq=self.freq, count=other.count * int(1 / mult)))
 
     def _fract_count_to_RDate(self, count: float, freq: TENOR_FREQUENCY, freq_to_try: TENOR_FREQUENCY) -> RDate:
         if math.isclose(count, round(count)):
-            return RDate(freq = freq, count = round(count))
+            return RDate(freq=freq, count=round(count))
 
         conv_to_min_freq = self.conversion_freq_multiplier(freq_to_try)
-        return RDate(freq = freq_to_try, count = round(conv_to_min_freq * count))
+        return RDate(freq=freq_to_try, count=round(conv_to_min_freq * count))
 
-    def multadd(self, mult: float, add, freq_to_try_for_fract_count = None) -> RDate:
+    def multadd(self, mult: float, add, freq_to_try_for_fract_count=None) -> RDate:
         if isinstance(add, (int, float)):
             if add:
                 raise ValueError(f'cannot add a non-zero number {add} to RDate {self}: the result is ambiguous')
@@ -206,7 +205,7 @@ class RDate(Nucleus):
             try:
                 add = RDate(add)
             except Exception as e:
-                raise ValueError( f'cannot convert adder {add} to RDate' ) from e
+                raise ValueError(f'cannot convert adder {add} to RDate') from e
 
         if isinstance(add, RDate):
             rd1, rd2 = self.equate_freq(add)
@@ -215,20 +214,20 @@ class RDate(Nucleus):
         raise ValueError(f'cannot calc a linear combination of {mult} * {self} + {add}')
 
     def __mul__(self, other: float) -> RDate:
-        return self.multadd(other, 0, freq_to_try_for_fract_count = FREQUENCY_TABLE[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
+        return self.multadd(other, 0, freq_to_try_for_fract_count=FREQUENCY_TABLE[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
 
     def __rmul__(self, other: float) -> RDate:
-        return self.multadd(other, 0, freq_to_try_for_fract_count = FREQUENCY_TABLE[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
+        return self.multadd(other, 0, freq_to_try_for_fract_count=FREQUENCY_TABLE[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
 
     def __truediv__(self, other):
         if isinstance(other, (int, float)):
-            return self.multadd(1 / other, 0, freq_to_try_for_fract_count = FREQUENCY_TABLE[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
+            return self.multadd(1 / other, 0, freq_to_try_for_fract_count=FREQUENCY_TABLE[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
 
         rd1, rd2 = self.equate_freq(other)
         return rd1.count / rd2.count
 
     def __add__(self, other) -> RDate:
-        return self.multadd(1., other, freq_to_try_for_fract_count = FREQUENCY_TABLE[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
+        return self.multadd(1.0, other, freq_to_try_for_fract_count=FREQUENCY_TABLE[self.freq][TENOR_PARAMS.MIN_FREQUENCY])
 
     @classmethod
     def add_bizdays(cls, d: date, biz_days: int, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> date:
@@ -254,6 +253,6 @@ class RDate(Nucleus):
         return rel_op(d1, d2)
 
     @classmethod
-    def from_tenors(cls, tenors_str: str, delim = ',') -> list:
+    def from_tenors(cls, tenors_str: str, delim=',') -> list:
         tenors = tenors_str.split(delim)
         return [RDate(tenor.strip()) for tenor in tenors]
