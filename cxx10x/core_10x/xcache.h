@@ -222,7 +222,7 @@ public:
         return oc;
     }
 
-    ObjectCache* find_or_create_object_cache(const TID& tid);
+    ObjectCache* find_or_create_object_cache(const TID& tid, bool load_if_missing);
 
     //-- Lookup in this cache ONLY! (ignore the parent)
     [[nodiscard]] ObjectCache* find_object_cache(const TID& tid) const {

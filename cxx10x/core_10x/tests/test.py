@@ -1,9 +1,10 @@
+import collections
 from datetime import date
 
 from core_10x.xnone import XNone
-from core_10x.traitable import Traitable,T,RT
+from core_10x.traitable import Traitable,T,RT,THIS_CLASS
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP
 from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
@@ -94,6 +95,7 @@ def test_5():
         print(y,y.serialize_object())
         y = Z(y=y)
         print(y,y.serialize_object())
+
 def test_6():
     class X(Traitable):
         s_custom_collection=True
@@ -125,6 +127,35 @@ def test_7():
         assert x.x==1
         assert x.y==2
 
+def test_8():
+    class X(Traitable):
+        k:int = T(T.ID)
+        v:int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data',id.value)
+            return {'_id':id.value,'k':int(id.value),'v':int(id.value)*10,'_rev':1}
+
+    class Y(X):
+        c:X = T()
+
+        @classmethod
+        def load_data(cls, id):
+            return super().load_data(id) | {'c': {'_id':str(int(id.value)+1)}}
+
+    with BTP.create(1,1,1,True,True):
+        x = Y(ID('1'))
+        assert x.id().value == '1'
+        assert x.k==1
+        #assert x.v==10
+        #assert x.c.v==20
+
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -134,7 +165,8 @@ if __name__ == '__main__':
     #test_4()
     #test_5()
     #test_6()
-    test_7()
+    #test_7()
+    test_8()
 
 
 

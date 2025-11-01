@@ -5,6 +5,7 @@
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
+using pybind11::literals::operator""_a;
 
 #include "py_linkage.h"
 #include "bnucleus.h"
@@ -271,7 +272,8 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_readonly_static("DEBUG",       &BTraitableProcessor::DEBUG)
             .def_readonly_static("CONVERT_VALUES",  &BTraitableProcessor::CONVERT_VALUES)
             .def_readonly_static("ON_GRAPH",    &BTraitableProcessor::ON_GRAPH)
-            .def_static("create",               &BTraitableProcessor::create)
+            .def_static("create",               &BTraitableProcessor::create, "Create a new BTraitableProcessor based on parameters",
+                        "on_graph"_a, "convert_values"_a, "debug"_a, "use_parent_cache"_a, "use_default_cache"_a)
             .def_static("create_interactive",   &BTraitableProcessor::create_interactive)
             .def_static("change_mode",          &BTraitableProcessor::change_mode)
             .def_static("current",              &BTraitableProcessor::current, py::return_value_policy::reference)

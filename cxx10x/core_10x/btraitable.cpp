@@ -228,10 +228,15 @@ py::object BTraitable::serialize_nx(bool embed) {
 py::object BTraitable::deserialize_nx(BTraitableClass *cls, const py::object& serialized_data) {
     auto id = TID::deserialize_id(serialized_data, false);  //-- may or may not be there
     if (!id.is_none()) {     //-- external reference
-        if (ThreadContext::current_traitable_proc()->flags_on(BTraitableProcessor::DEBUG))
-            return cls->load(id);
+        auto lazy_ref = cls->py_class()(id);     // cls(_id = id)   - keep lazy reference
+        if (ThreadContext::current_traitable_proc()->flags_on(BTraitableProcessor::DEBUG)) {
+            const auto tid =lazy_ref.cast<BTraitable*>()->tid();
+            const auto cache = ThreadContext::current_traitable_proc()->cache();
+            cache->find_or_create_object_cache(tid,false); //-- create object, if necessary cache without loading
+            cls->load(id); //-- force loading the object in debug mode
+        }
 
-        return cls->py_class()(id);     // cls(_id = id)   - keep lazy reference
+        return lazy_ref;
     }
 
     //-- Embedded traitable
