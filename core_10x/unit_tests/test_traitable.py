@@ -147,46 +147,49 @@ def test_collection_name_trait():
     assert y.id().collection_name == 'test'
     assert y._collection_name == 'test'
 
-@pytest.mark.parametrize('on_graph',[0,1])
-@pytest.mark.parametrize('debug',[0,1])
-@pytest.mark.parametrize('convert_values',[0,1])
-@pytest.mark.parametrize('use_parent_cache',[True,False])
-@pytest.mark.parametrize('use_default_cache',[True,False])
-def test_traitable_ref_load(on_graph,debug,convert_values,use_parent_cache,use_default_cache):
+
+@pytest.mark.parametrize('on_graph', [0, 1])
+@pytest.mark.parametrize('debug', [0, 1])
+@pytest.mark.parametrize('convert_values', [0, 1])
+@pytest.mark.parametrize('use_parent_cache', [True, False])
+@pytest.mark.parametrize('use_default_cache', [True, False])
+def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache):
     load_calls = collections.Counter()
+
     class X(Traitable):
         i: int = T(T.ID)
         x: THIS_CLASS = T()
+
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
             return False
-        
+
         @classmethod
         def load_data(cls, id: ID) -> dict | None:
             v = id.value
-            load_calls[v]+=1
+            load_calls[v] += 1
             i = int(v)
             return {'_id': v, 'i': i, '_rev': 1} | ({'x': {'_id': str(i + 1)}} if i < 3 else {})
 
-    with BTP.create(on_graph,convert_values,debug,use_parent_cache,use_default_cache):
+    with BTP.create(on_graph, convert_values, debug, use_parent_cache, use_default_cache):
         x = X(ID('1'))
-        x1 = X(i=3,x=x)
+        x1 = X(i=3, x=x)
         assert x1.x is x
         assert not load_calls
 
         assert x.i == 1
-        expected = lambda n:{str(i):1 for i in range(1,n+1)}
+        expected = lambda n: {str(i): 1 for i in range(1, n + 1)}
         if debug:
             assert load_calls == expected(3)
-            assert x.x.x == x1 # found existing instance
-            assert x1.x is XNone # reload in debug mode
+            assert x.x.x == x1  # found existing instance
+            assert x1.x is XNone  # reload in debug mode
         else:
             assert load_calls == expected(1)
             assert x.x
             assert load_calls == expected(1)
             assert x.x.i == 2
             assert load_calls == expected(2)
-            assert x.x.x == x1 # found existing instance
-            assert x1.x is x # no reload
+            assert x.x.x == x1  # found existing instance
+            assert x1.x is x  # no reload
 
-    #TODO: change flags; as_of context
+    # TODO: change flags; as_of context
