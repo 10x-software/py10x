@@ -139,6 +139,10 @@ def test_collection_name_trait():
         s_custom_collection = True
         y: int
 
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            return None
+
     assert Y.is_storable()
     assert Y.trait('_collection_name')
 
