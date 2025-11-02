@@ -173,10 +173,6 @@ def test_traitable_ref_load(on_graph,debug,convert_values,use_parent_cache,use_d
         x1 = X(i=3,x=x)
         assert x1.x is x
         assert not load_calls
-        if not on_graph:
-            assert x.i is XNone  # TODO: should be the same
-            assert not load_calls
-            return
 
         assert x.i == 1
         expected = lambda n:{str(i):1 for i in range(1,n+1)}
@@ -192,3 +188,5 @@ def test_traitable_ref_load(on_graph,debug,convert_values,use_parent_cache,use_d
             assert load_calls == expected(2)
             assert x.x.x == x1 # found existing instance
             assert x1.x is x # no reload
+
+    #TODO: change flags; as_of context
