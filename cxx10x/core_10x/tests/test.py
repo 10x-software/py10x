@@ -148,7 +148,7 @@ def test_8():
         def load_data(cls, id):
             return super().load_data(id) | {'c': {'_id':str(int(id.value)+1)}}
 
-    with BTP.create(1,1,1,True,True):
+    with BTP.create(0,1,1,True,True):
         x = Y(ID('1'))
         assert x.id().value == '1'
         assert x.k==1

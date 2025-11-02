@@ -10,6 +10,14 @@
 
 
 py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+    auto tid = obj->tid();
+    auto cache = proc->cache();
+    if (!cache->find_object_cache(tid)) {
+        //-- The object cache doesn't exist, we have a lazy reference - let's load the object, if any
+        cache->create_object_cache(tid); //-- Create object cache to avoid repeated loading
+        tid.cls()->load(tid.id());
+    }
+
     auto node = proc->cache()->find_node(obj->tid(), trait);
     if (node && node->is_set())
         return node->value();
