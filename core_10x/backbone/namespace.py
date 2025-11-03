@@ -1,7 +1,9 @@
 from core_10x.named_constant import NamedConstant
 
+
+# fmt: off
 BACKBONE_STORE_CLASS_NAME   = 'infra_10x.mongo_db.Mongo'
-#BACKBONE_USER_NAME          = 'core_10x.backbone.backbone_admin.BACKBONE_USER'
+#BACKBONE_USER_NAME         = 'core_10x.backbone.backbone_admin.BACKBONE_USER'
 
 AUTO_PASSWORD_LENGTH        = 32
 
@@ -71,6 +73,8 @@ class USER_ROLE(NamedConstant):
 class COLL_PLACEHOLDER:
     TAG         = '__coll_placeholder'
     USERNAME    = 'username'
+# fmt: on
+
 
 class CUSTOM_ROLE(NamedConstant):
     """
@@ -78,18 +82,21 @@ class CUSTOM_ROLE(NamedConstant):
     permissions_per_db_name: a dict: each key is either a db_name or db_name/collection_name, value is PERMISSION, e.g.,
     { 'catalog': PERMISSION.READ_ONLY, 'logs/errors': PERMISSION.READ_WRITE }
     """
+
     @classmethod
-    def coll_placeholder(cls, value) -> tuple:   #-- (coll_placeholder, stripped_value)
+    def coll_placeholder(cls, value) -> tuple:  # -- (coll_placeholder, stripped_value)
         cvalue = dict(value)
-        return (cvalue.pop( COLL_PLACEHOLDER.TAG, None ), value)
+        return (cvalue.pop(COLL_PLACEHOLDER.TAG, None), value)
 
     @classmethod
     def user_role_name(cls, username: str) -> str:
         return f'{username.upper()}_USR'
 
+
+# fmt: off
 SECURITY_KEYS_MISSING = 'Sec keys are missing. If you are using a new computer, please run "xx user new machine" from your shell'
 SECURITY_KEYS_INCOMPATIBLE = 'Sec keys are incompatible with an encrypted password'
 
 SECRETS_CLIENT_ARGS     = dict(service_name = 'secretmanager', region_name = 'me-south-1')
 SECRETS_PATH_PREFIX     = '/external-secrets/xx'
-
+# fmt: on

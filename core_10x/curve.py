@@ -8,7 +8,7 @@ from typing import Any
 from scipy import interpolate
 
 from core_10x.named_constant import NamedConstant
-from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, AnonymousTraitable
+from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, T, Traitable
 
 
 class IP_KIND(NamedConstant, lowercase_values=True):

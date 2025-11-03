@@ -157,7 +157,8 @@ def test_collection_name_trait():
 @pytest.mark.parametrize('convert_values', [0, 1])
 @pytest.mark.parametrize('use_parent_cache', [True, False])
 @pytest.mark.parametrize('use_default_cache', [True, False])
-def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache):
+@pytest.mark.parametrize('use_existing_instance_by_id', [True, False])
+def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache, use_existing_instance_by_id):
     load_calls = collections.Counter()
 
     class X(Traitable):
@@ -166,7 +167,7 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
 
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
-            return False
+            return id.value == '1'
 
         @classmethod
         def load_data(cls, id: ID) -> dict | None:
@@ -176,7 +177,7 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             return {'_id': v, 'i': i, '_rev': 1} | ({'x': {'_id': str(i + 1)}} if i < 3 else {})
 
     with BTP.create(on_graph, convert_values, debug, use_parent_cache, use_default_cache):
-        x = X(ID('1'))
+        x = X.existing_instance_by_id(ID('1')) if use_existing_instance_by_id else X.existing_instance(i=1)
         x1 = X(i=3, x=x)
         assert x1.x is x
         assert not load_calls
