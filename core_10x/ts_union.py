@@ -65,6 +65,9 @@ class TsUnionCollection(TsCollection):
     def __init__(self, *collections: TsCollection):
         self.collections = collections
 
+    def collection_name(self) -> str:
+        return self.collections[0].collection_name() if self.collections else ''
+
     def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
         order = tuple((_order or {'_id': 1}).items())  # FIX: assumes _id is always there!
         order_key = _OrderKey.key
@@ -73,8 +76,8 @@ class TsUnionCollection(TsCollection):
         results = (item for _, item in heapq.merge(*keyed_iterables, key=operator.itemgetter(0)))
         return (item for i, item in enumerate(results) if i < _at_most) if _at_most else results
 
-    def save_new(self, serialized_traitable):
-        return self.collections[0].save_new(serialized_traitable)
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
+        return self.collections[0].save_new(serialized_traitable, overwrite=overwrite)
 
     def save(self, serialized_traitable):
         # if serialized_traitable was not loaded from the union head, we need to call save_new
@@ -138,4 +141,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         return TsUnionCollection(*(store.collection(collection_name) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:
-        return self.stores[0].delete_collection(collection_name)
+        return self.stores[0].delete_collection(collection_name) if self.stores else False
+
+    def auth_user(self) -> str | None:
+        return self.stores[0].auth_user() if self.stores else None

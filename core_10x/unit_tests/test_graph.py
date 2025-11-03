@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import functools
 from weakref import WeakKeyDictionary
 
@@ -5,6 +7,7 @@ import pytest
 from core_10x.code_samples.person import WEIGHT_QU, Person
 from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.trait_definition import RT, T
+from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
 
 
@@ -47,6 +50,10 @@ class TestablePerson(Person):
     @call_counter
     def young_get(self) -> bool:
         return self.age < 30
+
+    @classmethod
+    def load_data(cls, id: ID) -> dict | None:
+        return None
 
 
 @pytest.fixture

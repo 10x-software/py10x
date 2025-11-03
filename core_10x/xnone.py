@@ -16,6 +16,8 @@ class XNoneType:
 
     def __getattr__(self, item):              return self
     def __setattr__(self, key, value):        raise AttributeError('May not setattr to XNone')
+    def __getitem__(self, item):              return self
+    def __setitem__(self, key, value):        raise TypeError('\'XNone\' object does not support item assignment')
     def __call__(self, *args, **kwargs):      return self
     def __hash__(self):                       return id(self)
 

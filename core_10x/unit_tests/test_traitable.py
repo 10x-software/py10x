@@ -1,11 +1,15 @@
+from __future__ import annotations
+
+import collections
 import uuid
 
 import pytest
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import CACHE_ONLY
+from core_10x.exec_control import BTP, CACHE_ONLY
 from core_10x.trait_definition import RT, M, T
-from core_10x.traitable import Traitable
+from core_10x.traitable import THIS_CLASS, Traitable
 from core_10x.traitable_id import ID
+from core_10x.xnone import XNone
 from core_10x_i import BFlags
 
 
@@ -121,3 +125,75 @@ def test_dynamic_traits():
 
     assert y.T.y.data_type is int
     assert y.y == 20
+
+
+def test_collection_name_trait():
+    class X(Traitable):
+        x: int
+
+    assert not X.is_storable()
+    assert not X.trait('_collection_name')
+
+    class Y(Traitable):
+        s_default_trait_factory = T
+        s_custom_collection = True
+        y: int
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            return None
+
+    assert Y.is_storable()
+    assert Y.trait('_collection_name')
+
+    y = Y(_collection_name='test')
+
+    assert y.id().collection_name == 'test'
+    assert y._collection_name == 'test'
+
+
+@pytest.mark.parametrize('on_graph', [0, 1])
+@pytest.mark.parametrize('debug', [0, 1])
+@pytest.mark.parametrize('convert_values', [0, 1])
+@pytest.mark.parametrize('use_parent_cache', [True, False])
+@pytest.mark.parametrize('use_default_cache', [True, False])
+def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache):
+    load_calls = collections.Counter()
+
+    class X(Traitable):
+        i: int = T(T.ID)
+        x: THIS_CLASS = T()
+
+        @classmethod
+        def exists_in_store(cls, id: ID) -> bool:
+            return False
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            v = id.value
+            load_calls[v] += 1
+            i = int(v)
+            return {'_id': v, 'i': i, '_rev': 1} | ({'x': {'_id': str(i + 1)}} if i < 3 else {})
+
+    with BTP.create(on_graph, convert_values, debug, use_parent_cache, use_default_cache):
+        x = X(ID('1'))
+        x1 = X(i=3, x=x)
+        assert x1.x is x
+        assert not load_calls
+
+        assert x.i == 1
+        expected = lambda n: {str(i): 1 for i in range(1, n + 1)}
+        if debug:
+            assert load_calls == expected(3)
+            assert x.x.x == x1  # found existing instance
+            assert x1.x is XNone  # reload in debug mode
+        else:
+            assert load_calls == expected(1)
+            assert x.x
+            assert load_calls == expected(1)
+            assert x.x.i == 2
+            assert load_calls == expected(2)
+            assert x.x.x == x1  # found existing instance
+            assert x1.x is x  # no reload
+
+    # TODO: change flags; as_of context

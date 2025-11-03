@@ -378,19 +378,23 @@ class Dialog(Widget):
 class MessageBox(abc.ABC, metaclass=ABCMetaSlotted):
     @classmethod
     @abc.abstractmethod
-    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]) -> bool: ...
+    def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]) -> bool:
+        raise NotImplementedError
 
     @classmethod
     @abc.abstractmethod
-    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]): ...
+    def warning(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]):
+        raise NotImplementedError
 
     @classmethod
     @abc.abstractmethod
-    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]): ...
+    def information(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]):
+        raise NotImplementedError
 
     @classmethod
     @abc.abstractmethod
-    def is_yes_button(cls, sb) -> bool: ...
+    def is_yes_button(cls, sb) -> bool:
+        raise NotImplementedError
 
 
 class Application(abc.ABC, metaclass=ABCMetaSlotted):

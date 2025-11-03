@@ -134,7 +134,7 @@ class Trait(BTrait):
 
     @staticmethod
     def set_trait_funcs(class_dict, rc, trait, t_def):
-        for method_name, (method_suffix, method_def) in Trait.method_defs(t_def.name).items():
+        for method_name, (method_suffix, method_def) in Trait.method_defs(t_def.name or trait.name).items():
             method = t_def.params.get(method_suffix) or class_dict.get(method_name)
             f = method_def.value(trait, method, method_suffix, rc)
             if f:
@@ -361,9 +361,12 @@ class BoundTrait:
         # self.args = ()
 
     def __getattr__(self, attr_name):
-        trait_attr = getattr(self.trait, attr_name)
-        # if callable(trait_attr):
-        return trait_attr
+        trait_attr = getattr(self.trait, attr_name, None)
+        if trait_attr:
+            # if callable(trait_attr):
+            return trait_attr
+
+        return lambda: getattr(self.obj, attr_name)(self.trait)
 
     def __call__(self):
         return self.trait
