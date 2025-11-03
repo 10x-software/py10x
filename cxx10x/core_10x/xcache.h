@@ -340,5 +340,5 @@ public:
         }
     }
 
-    void export_nodes();
+    void export_nodes() const;
 };

@@ -61,38 +61,6 @@ py::object BTraitable::endogenous_id(bool& non_id_traits_set) {
     return py::str("|").attr("join")(regulars);
 }
 
-py::object BTraitable::endogenous_id() {
-    py::list regulars;
-    auto hasher = PyHasher();
-
-    auto proc = ThreadContext::current_traitable_proc();
-    auto cache = proc->cache();
-    for (auto item : my_class()->trait_dir()) {
-        auto trait = item.second.cast<BTrait*>();
-        if (trait->flags_on(BTraitFlags::ID)) {
-            auto value = proc->get_trait_value(this, trait);
-
-            BTraitableProcessor::check_value(this, trait, value);
-
-            if (value.is(PyLinkage::XNone()))   //-- TODO: we probably don't need this anymore (see above)
-                throw py::value_error(py::str("{}.{} is undefined").format(class_name(), item.first));
-
-            auto value_for_id = trait->wrapper_f_to_id(this, value);
-            if (!trait->flags_on(BTraitFlags::HASH))
-                regulars.append(value_for_id);
-            else
-                hasher.update(value_for_id);
-        }
-    }
-
-    if (hasher.is_updated()) {
-        regulars.append(hasher.hexdigest());
-        regulars.append(py::str("00"));     //-- for possible hash collision
-    }
-
-    return py::str("|").attr("join")(regulars);
-}
-
 //======================================================================================================================
 //  Must be called right after constructing the object with **kwargs.
 //  - kwargs must only have values for traits necessary to build the object ID
@@ -141,10 +109,10 @@ bool BTraitable::id_exists() {
     if( !tid().is_valid())
         return false;
 
-    return ThreadContext::current_traitable_proc()->object_exists(this);
+    return ThreadContext::current_traitable_proc()->accept_existing(this);
 }
 
-bool BTraitable::object_exists(const py::dict& trait_values) {
+bool BTraitable::accept_existing(const py::dict& trait_values) {
     auto cls = my_class();
     if (!cls->is_id_endogenous())
         return false;
@@ -153,7 +121,7 @@ bool BTraitable::object_exists(const py::dict& trait_values) {
     if (!rc)
         throw py::value_error(py::str(rc.error()));
 
-    return ThreadContext::current_traitable_proc()->object_exists(this);
+    return ThreadContext::current_traitable_proc()->accept_existing(this);
 }
 
 py::object BTraitable::from_any(BTrait* trait, const py::object& value) {

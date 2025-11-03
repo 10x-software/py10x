@@ -3,6 +3,9 @@
 //
 
 #include "btraitable_processor.h"
+
+#include <filesystem>
+
 #include "bnode.h"
 #include "btrait.h"
 #include "btraitable.h"
@@ -40,41 +43,34 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
 }
 
 bool BTraitableProcessor::object_exists(const TID& tid) const {
-    auto oc = m_cache->find_object_cache(tid);
-    return oc || tid.cls()->instance_in_store(tid);
+    return m_cache->find_object_cache(tid) || tid.cls()->instance_in_store(tid);
+}
+bool BTraitableProcessor::object_exists(BTraitableClass *cls, const py::object &id_value, const py::object &coll_name) const {
+    return object_exists(TID(cls, PyLinkage::traitable_id(id_value, coll_name)));
 }
 
-bool BTraitableProcessor::object_exists(BTraitable *obj) {
+bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
     if(obj->tid().is_valid())
         return object_exists(obj->tid());
 
     auto id_value = obj->endogenous_id();
-    m_cache->remove_temp_object_cache(obj->tid());
+    if ( !object_exists(obj->my_class(), id_value,obj->tid().coll_name())) //-- Does not exist - nothing to do
+        return false;
 
-    auto id_to_be = PyLinkage::traitable_id(id_value, obj->tid().coll_name());
-    auto cls = obj->my_class();
-    TID tid(cls, id_to_be);
-    auto oc = m_cache->find_object_cache(tid);
-    bool exists = (oc != nullptr) || cls->instance_in_store(tid);
-    if(exists) {
-        obj->set_id_value(id_value);
-        if(!oc)
-            cls->load(id_value);
-    }
-    return exists;
+    //-- Will be using the existing instance - clear temporary cache
+    m_cache->remove_temp_object_cache(obj->tid());
+    obj->set_id_value(id_value); //--  Will be loaded lazily, if needed
+    return true;
 }
 
-py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existing) {
+py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existing) const {
     if (obj->tid().is_valid())
         return PyLinkage::RC_TRUE();
 
     bool non_id_traits_set;
     auto id_value = obj->endogenous_id(non_id_traits_set);
-    auto id_to_be = PyLinkage::traitable_id(id_value, obj->tid().coll_name());
-    auto cls = obj->my_class();
-    TID tid(cls, id_to_be);
-    auto oc = m_cache->find_object_cache(tid);
-    if (!oc && !cls->instance_in_store(tid)) {
+
+    if (!object_exists(obj->my_class(), id_value,obj->tid().coll_name())) {
         obj->set_id_value(id_value);
         m_cache->make_permanent(obj->tid());
         return PyLinkage::RC_TRUE();
@@ -87,16 +83,13 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existi
         return rc();
     }
 
-    //-- Accepting the existing instance, finishing
+    //-- Accepting the existing instance - clear temporary cache
     m_cache->remove_temp_object_cache(obj->tid());
-    obj->set_id_value(id_value);
-    if (!oc)
-        cls->load(obj->id());
-
+    obj->set_id_value(id_value); //-- object will be loaded lazily, if needed
     return PyLinkage::RC_TRUE();
 }
 
-void BTraitableProcessor::export_nodes() {
+void BTraitableProcessor::export_nodes() const {
     m_cache->export_nodes();
 }
 

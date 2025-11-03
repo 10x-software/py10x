@@ -156,6 +156,29 @@ def test_8():
         #assert x.c.v==20
 
 
+def test_9():
+    class X(Traitable):
+        #s_custom_collection=True
+        k:str = T(T.ID)
+        v:int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return int(id.value) < 2
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data',id.value)
+            return {'_id':id.value,'k':id.value,'v':int(id.value)*10,'_rev':1}
+
+    x1 = X.existing_instance(k='1')
+    x2 = X.existing_instance(k='2',_throw=False)
+    assert x1
+    assert not x2
+
+    assert x1.v==10
+
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -166,7 +189,8 @@ if __name__ == '__main__':
     #test_5()
     #test_6()
     #test_7()
-    test_8()
+    #test_8()
+    test_9()
 
 
 

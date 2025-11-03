@@ -125,11 +125,12 @@ public:
     BasicNode*              get_node(BTraitable* obj, BTrait* trait) const;
     BasicNode*              get_node(BTraitable* obj, BTrait* trait, const py::args& args) const;
 
-    bool                    object_exists(const TID& tid) const;
-    bool                    object_exists(BTraitable* obj);
-    py::object              share_object(BTraitable* obj, bool accept_existing);
+    [[nodiscard]] bool      object_exists(const TID& tid) const;
+    [[nodiscard]] bool      object_exists(BTraitableClass *cls, const py::object &id_value, const py::object &coll_name) const;
+    bool                    accept_existing(BTraitable* obj) const;
+    py::object              share_object(BTraitable* obj, bool accept_existing) const;
 
-    void                    export_nodes();
+    void                    export_nodes() const;
 
     virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait) = 0;
     virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;

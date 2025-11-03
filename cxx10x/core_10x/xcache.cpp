@@ -56,7 +56,7 @@ BasicNode* XCache::find_or_create_node(const TID& tid, BTrait* trait, int node_t
     return node;
 }
 
-void XCache::export_nodes() {
+void XCache::export_nodes() const {
     auto dst_node_type = m_parent->default_node_type();
     for (const auto& oc_item : m_data) {
         const auto& tid = oc_item.first;

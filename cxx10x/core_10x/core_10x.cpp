@@ -227,8 +227,11 @@ PYBIND11_MODULE(core_10x_i, m)
     py::class_<BTraitable,PyBTraitable>(m, "BTraitable")
             .def(py::init<BTraitableClass*, const py::object&>())
             .def("initialize",                  &BTraitable::initialize)
-            .def("share",                       &BTraitable::share)
-            .def("object_exists",               &BTraitable::object_exists)
+            .def("share",                       &BTraitable::share,
+                        "Share object",
+                        "accept_existing"_a
+                )
+            .def("accept_existing",               &BTraitable::accept_existing)
             .def("id_exists",                   &BTraitable::id_exists)
             .def("id",                          &BTraitable::id)
             .def("id_value",                    &BTraitable::id_value)
@@ -261,8 +264,11 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("serialize_nx",                &BTraitable::serialize_nx)
             .def_static("deserialize_nx",       &BTraitable::deserialize_nx)
             .def("serialize_object",            &BTraitable::serialize_object)
-            .def("deserialize_traits",            &BTraitable::deserialize_traits)
-            .def_static("deserialize_object",   &BTraitable::deserialize_object)
+            .def("deserialize_traits",          &BTraitable::deserialize_traits)
+            .def_static("deserialize_object",   &BTraitable::deserialize_object,
+                        "Deserialize object",
+                        "bclass"_a, "collection_name"_a, "serialized_data"_a
+                )
             .def("reload",                      &BTraitable::reload)
             .def("bui_class",                   &BTraitable::bui_class, py::return_value_policy::reference)
             ;
@@ -272,10 +278,15 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_readonly_static("DEBUG",       &BTraitableProcessor::DEBUG)
             .def_readonly_static("CONVERT_VALUES",  &BTraitableProcessor::CONVERT_VALUES)
             .def_readonly_static("ON_GRAPH",    &BTraitableProcessor::ON_GRAPH)
-            .def_static("create",               &BTraitableProcessor::create, "Create a new BTraitableProcessor based on parameters",
-                        "on_graph"_a, "convert_values"_a, "debug"_a, "use_parent_cache"_a, "use_default_cache"_a)
+            .def_static("create",               &BTraitableProcessor::create,
+                        "Create a new BTraitableProcessor based on parameters",
+                        "on_graph"_a, "convert_values"_a, "debug"_a, "use_parent_cache"_a, "use_default_cache"_a
+                )
             .def_static("create_interactive",   &BTraitableProcessor::create_interactive)
-            .def_static("change_mode",          &BTraitableProcessor::change_mode)
+            .def_static("change_mode",          &BTraitableProcessor::change_mode,
+                        "Change the current BTraitableProcessor based on parameters",
+                        "convert_values"_a, "debug"_a, "use_default_cache"_a
+                )
             .def_static("current",              &BTraitableProcessor::current, py::return_value_policy::reference)
             .def("cache",                       &BTraitableProcessor::cache)
             .def("begin_using",                 &BTraitableProcessor::begin_using)
