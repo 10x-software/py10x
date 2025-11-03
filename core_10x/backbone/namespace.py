@@ -1,6 +1,5 @@
 from core_10x.named_constant import NamedConstant
 
-
 # fmt: off
 BACKBONE_STORE_CLASS_NAME   = 'infra_10x.mongo_db.Mongo'
 #BACKBONE_USER_NAME         = 'core_10x.backbone.backbone_admin.BACKBONE_USER'
