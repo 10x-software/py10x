@@ -240,9 +240,12 @@ py::object BTraitable::deserialize_object(BTraitableClass *cls, const py::object
 
     auto py_traitable = cls->py_class()(id);    // cls(_id = id)
     auto obj = py_traitable.cast<BTraitable*>();
-    obj->set_revision(rev);
+    if (obj->get_revision().cast<int>()>=0) {       //-- avoid infinite recursion into deserializing self-referencing objects
+        obj->set_revision(py::int_(-1));   //-- mark object as being deserialized using negative revision
+        obj->deserialize_traits(serialized_data);
+        obj->set_revision(rev);                     //-- set correct revision
+    }
 
-    obj->deserialize_traits(serialized_data);
     return py_traitable;
 }
 

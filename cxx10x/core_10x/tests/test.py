@@ -148,7 +148,7 @@ def test_8():
         def load_data(cls, id):
             return super().load_data(id) | {'c': {'_id':str(int(id.value)+1)}}
 
-    with BTP.create(0,1,1,True,True):
+    with BTP.create(1,1,1,True,True):
         x = Y(ID('1'))
         assert x.id().value == '1'
         assert x.k==1
@@ -179,6 +179,34 @@ def test_9():
     assert x1.v==10
 
 
+def test_10():
+    class X(Traitable):
+        a:int = T(T.ID)
+        x:THIS_CLASS = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            v = int(id.value)
+            serialized_data = {'_id':id.value,'a':v,'_rev':1,'x': {'_id':str(int(not v))}}
+            print('load_data',v, serialized_data)
+            return serialized_data
+
+        @classmethod
+        def deserialize(cls,serialized_data:dict):
+            print('deserialize',serialized_data)
+            return super().deserialize(serialized_data)
+
+
+    with  BTP.create(1,1,1,True,True):
+        x = X(ID("0"))
+        print(x,x,x,x.x.a)
+        assert x.x.a==1
+
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -190,7 +218,8 @@ if __name__ == '__main__':
     #test_6()
     #test_7()
     #test_8()
-    test_9()
+    #test_9()
+    test_10()
 
 
 
