@@ -158,7 +158,8 @@ def test_collection_name_trait():
 @pytest.mark.parametrize('use_parent_cache', [True, False])
 @pytest.mark.parametrize('use_default_cache', [True, False])
 @pytest.mark.parametrize('use_existing_instance_by_id', [True, False])
-def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache, use_existing_instance_by_id):
+@pytest.mark.parametrize('self_ref', [True, False])
+def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache, use_existing_instance_by_id, self_ref):
     load_calls = collections.Counter()
 
     class X(Traitable):
@@ -174,7 +175,7 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             v = id.value
             load_calls[v] += 1
             i = int(v)
-            return {'_id': v, 'i': i, '_rev': 1} | ({'x': {'_id': str(i + 1)}} if i < 3 else {})
+            return {'_id': v, 'i': i, '_rev': 1} | ({'x': {'_id': str(i + int(not self_ref))}} if i < 3 else {})
 
     with BTP.create(on_graph, convert_values, debug, use_parent_cache, use_default_cache):
         x = X.existing_instance_by_id(ID('1')) if use_existing_instance_by_id else X.existing_instance(i=1)
@@ -183,18 +184,19 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
         assert not load_calls
 
         assert x.i == 1
-        expected = lambda n: {str(i): 1 for i in range(1, n + 1)}
-        if debug:
+        expected = lambda n: {str(i): 1 + int(debug and self_ref) for i in range(1, n + 1)}
+        if debug and not self_ref:
             assert load_calls == expected(3)
             assert x.x.x == x1  # found existing instance
             assert x1.x is XNone  # reload in debug mode
         else:
             assert load_calls == expected(1)
             assert x.x
+            assert not self_ref or x == x.x
             assert load_calls == expected(1)
-            assert x.x.i == 2
-            assert load_calls == expected(2)
-            assert x.x.x == x1  # found existing instance
+            assert x.x.i == 1 + int(not self_ref)
+            assert load_calls == expected(1 + int(not self_ref))
+            assert x.x.x == (x if self_ref else x1)  # found existing instance
             assert x1.x is x  # no reload
 
     # TODO: change flags; as_of context
