@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from core_10x_i import OsUser
-from core_10x.trait_filter import f
+
+from core_10x.backbone.backbone_traitable import RT, BackboneTraitable, T
+from core_10x.backbone.namespace import FUNCTIONAL_ACCOUNT_PREFIX, USER_ADMIN_SUFFIX
 from core_10x.global_cache import cache
-from core_10x.backbone.backbone_traitable import BackboneTraitable, T, RT, RC
-from core_10x.backbone.namespace import USER_ADMIN_SUFFIX, FUNCTIONAL_ACCOUNT_PREFIX
+from core_10x.trait_filter import f
+
 
 class BackboneUserGroup(BackboneTraitable):
+    # fmt: off
     name: str           = T(T.ID)
     description: str    = T()
     everyone: bool      = T(False)
@@ -16,6 +19,7 @@ class BackboneUserGroup(BackboneTraitable):
     user_ids: list      = T()
 
     users: set          = RT()
+    # fmt: on
 
     def users_get(self) -> set:
         return set(self.user_ids)
@@ -23,7 +27,9 @@ class BackboneUserGroup(BackboneTraitable):
     def is_member(self, user_id: str) -> bool:
         return user_id in self.users if not self.everyone else False
 
+
 class BackboneUser(BackboneTraitable):
+    # fmt: off
     user_id: str        = T(T.ID)   // 'OS login'
     suspended: bool     = T(False)
     public_key: bytes   = T()
@@ -31,6 +37,7 @@ class BackboneUser(BackboneTraitable):
     is_admin: bool      = RT()
     downloaded: bool    = RT(False)
     builtin_roles: list = RT()
+    # fmt: on
 
     def user_id_get(self) -> str:
         return OsUser.me.name()
@@ -56,4 +63,4 @@ class BackboneUser(BackboneTraitable):
     @classmethod
     @cache
     def me(cls) -> BackboneUser:
-        return cls.existing_instance(user_id = OsUser.me.name())
+        return cls.existing_instance(user_id=OsUser.me.name())
