@@ -36,16 +36,17 @@ class IP_KIND(NamedConstant, lowercase_values=True):
     #     return name.replace( '_', '-' ).lower()
 
 
-class CurveParams(AnonymousTraitable):
+#-- TODO: it must be derived from AnonymousTraitable. Had to make it RT and derive from Traitable due to a bug - trying to load the embedded portion from its own collection
+class CurveParams(Traitable):
     # fmt: off
     DEFAULT_INTERPOLATOR = interpolate.interp1d
 
     interpolator: Any   = RT(default = DEFAULT_INTERPOLATOR)
-    ip_kind: IP_KIND    = T(IP_KIND.LINEAR)
-    assume_sorted: bool = T(True)
-    copy: bool          = T(False)
-    fill_value: str     = T('extrapolate')
-    bounds_error: bool  = T(False)
+    ip_kind: IP_KIND    = RT(IP_KIND.LINEAR)
+    assume_sorted: bool = RT(True)
+    copy: bool          = RT(False)
+    fill_value: str     = RT('extrapolate')
+    bounds_error: bool  = RT(False)
     # fmt: on
 
 
@@ -53,7 +54,7 @@ class Curve(Traitable):
     # fmt: off
     times: list         = T([])       #-- only ints or floats are allowed
     values: list        = T([])
-    params: CurveParams = T(T.EMBEDDED)
+    params: CurveParams = RT()  #-- TODO: must be T(T.EMBEDDED)
 
     beginning_of_time: Any  = T(None)    #-- may be float or int
 
@@ -136,7 +137,7 @@ class Curve(Traitable):
         # fmt: off
         return params.interpolator(
             self.times, self.values,
-            kind            = params.ip_kind,
+            kind            = params.ip_kind.value,
             assume_sorted   = params.assume_sorted,
             copy            = params.copy,
             fill_value      = params.fill_value,
