@@ -8,7 +8,7 @@ from typing import Any
 from scipy import interpolate
 
 from core_10x.named_constant import NamedConstant
-from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, T, Traitable
+from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
 
 
 class IP_KIND(NamedConstant, lowercase_values=True):
@@ -36,7 +36,7 @@ class IP_KIND(NamedConstant, lowercase_values=True):
     #     return name.replace( '_', '-' ).lower()
 
 
-#-- TODO: it must be derived from AnonymousTraitable. Had to make it RT and derive from Traitable due to a bug - trying to load the embedded portion from its own collection
+# -- TODO: it must be derived from AnonymousTraitable. Had to make it RT and derive from Traitable due to a bug - trying to load the embedded portion from its own collection
 class CurveParams(Traitable):
     # fmt: off
     DEFAULT_INTERPOLATOR = interpolate.interp1d
