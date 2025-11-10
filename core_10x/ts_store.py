@@ -13,6 +13,11 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 
+class TsDuplicateKeyError(Exception):
+    """Raised when attempting to insert a document with a duplicate key."""
+    pass
+
+
 class TsCollection(abc.ABC):
     s_id_tag: str = None
 
