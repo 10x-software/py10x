@@ -4,9 +4,10 @@ from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsStore, standard_key
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
 from infra_10x_i import MongoCollectionHelper
 from pymongo import MongoClient, errors
+from pymongo.errors import DuplicateKeyError
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -42,16 +43,25 @@ class MongoCollection(TsCollection):
         return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})
 
     def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
-        if '$set' not in serialized_traitable:
-            res = self.coll.insert_one(serialized_traitable)
-        else:
-            id_tag = self.s_id_tag
-            id_value = serialized_traitable['$set'][id_tag]
-            res = self.coll.update_one({id_tag: id_value}, serialized_traitable, upsert=True)
-            if res.matched_count and not overwrite:  # -- e.g. this id/revision already existed
-                raise AssertionError(f'{self.coll} {id_value} was found existing while insert was attempted')
+        needs_upsert = (set_values := serialized_traitable.get('$set')) or overwrite
+        id_tag = self.s_id_tag
+        id_value = (set_values or serialized_traitable)[id_tag]
+        e = None
 
-        return 1 if res.acknowledged else 0
+        if not needs_upsert:
+            try:
+                res = self.coll.insert_one(serialized_traitable)
+                ack, cnt = res.acknowledged, 0
+            except DuplicateKeyError:
+                ack, cnt = False, 1
+        else:
+            res = self.coll.update_one({id_tag: id_value}, serialized_traitable if set_values else {'$set': serialized_traitable}, upsert=True)
+            ack, cnt = res.acknowledged, res.matched_count
+
+        if cnt and not overwrite:  # -- e.g. this id/revision already existed
+            raise TsDuplicateKeyError(f'Duplicate key error collection{self.collection_name()} dup key: {{{id_tag}: {id_value}}} was found existing while insert was attempted.') from e
+
+        return int(ack)
 
     def save(self, serialized_traitable: dict) -> int:
         rev_tag = Nucleus.REVISION_TAG()
