@@ -1,16 +1,18 @@
 import sys
 
-from core_10x.traitable import Traitable, RT, RC, RC_TRUE
+from core_10x.traitable import RC, RC_TRUE, RT, Traitable
+
 
 class TraitableCli(Traitable):
     s_master = None
     s_switch = {}
+
     def __init_subclass__(cls, _command: str = None, **kwargs):
         cls.s_switch = {}
-        if cls.s_master is None:    #-- master parser
+        if cls.s_master is None:  # -- master parser
             assert _command is None, 'master may not have a command'
             cls.s_master = cls
-        else:   #-- subordinate parser
+        else:  # -- subordinate parser
             assert _command and _command.isidentifier(), 'command must be a valid identifier'
             cls.s_master.s_switch[_command] = cls
             cls.s_master = cls
@@ -18,7 +20,7 @@ class TraitableCli(Traitable):
         super().__init_subclass__(**kwargs)
 
     @classmethod
-    def from_command_line(cls) -> tuple:    #-- (RC, Traitable)
+    def from_command_line(cls) -> tuple:  # -- (RC, Traitable)
         """
         Creates an instance of target traitable parsing positional args to obtain the right target class and then taking trait values
         in the name = value pairs form.
@@ -41,7 +43,7 @@ class TraitableCli(Traitable):
         return cls.instantiate(args, trait_values)
 
     @classmethod
-    def instantiate(cls, args, trait_values: dict) -> tuple:   #-- (RC, target_traitable)
+    def instantiate(cls, args, trait_values: dict) -> tuple:  # -- (RC, target_traitable)
         if not args:
             try:
                 res = cls()
@@ -49,11 +51,11 @@ class TraitableCli(Traitable):
                 for name, value in trait_values.items():
                     trait = cls.trait(name)
                     if not trait:
-                        return (RC(False, f"unknown attribute {name}\nValid attributes: {', '.join(cls.s_dir)}" ), None)
+                        return (RC(False, f'unknown attribute {name}\nValid attributes: {", ".join(cls.s_dir)}'), None)
 
                     rc = res.set_value(trait, value)
                     if not rc:
-                        return (RC(False, f'{name}: {rc.err()}' ), None)
+                        return (RC(False, f'{name}: {rc.err()}'), None)
 
                 return (RC_TRUE, res)
 
@@ -86,7 +88,7 @@ class TraitableCli(Traitable):
                     deal_with_args = False
                     eq_expected = False
                     first, second = parts
-                    if not first and not second:    #-- just '='
+                    if not first and not second:  # -- just '='
                         if i:
                             trait_name = args.pop(-1)
                             new_vp = False
@@ -94,13 +96,13 @@ class TraitableCli(Traitable):
                             return RC(False, 'May not start with "="')
 
                     elif first:
-                        if not second:  #-- xxx=
+                        if not second:  # -- xxx=
                             trait_name = first
                             new_vp = False
-                        else:           #-- xxx=yyy
+                        else:  # -- xxx=yyy
                             trait_values[first] = second
                             new_vp = True
-                    else:       #-- =yyy
+                    else:  # -- =yyy
                         if i:
                             trait_name = args.pop(-1)
                             trait_values[trait_name] = second
@@ -127,7 +129,7 @@ class TraitableCli(Traitable):
                 else:
                     if not eq_expected:
                         if n == 2:
-                            return RC(False, f'Invalid "=": {input_args[ i - 1 ]} {arg}')
+                            return RC(False, f'Invalid "=": {input_args[i - 1]} {arg}')
 
                         trait_values[trait_name] = parts[0]
                         new_vp = True
@@ -137,7 +139,7 @@ class TraitableCli(Traitable):
                             return RC(False, f'"=" is expected before {arg}')
 
                         if parts[0]:
-                            return RC(False, f'{input_args[ i - 1]} {arg}')
+                            return RC(False, f'{input_args[i - 1]} {arg}')
 
                         if parts[1]:
                             trait_values[trait_name] = parts[1]
