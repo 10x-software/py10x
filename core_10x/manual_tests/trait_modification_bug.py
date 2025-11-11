@@ -1,4 +1,5 @@
-from core_10x.traitable import Traitable, RT, M
+from core_10x.traitable import RT, M, Traitable
+
 
 class A(Traitable):
     funny_message: str  = RT()

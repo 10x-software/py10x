@@ -64,15 +64,15 @@ class TraitableMetaclass(type(BTraitable)):
     def rev_trait() -> Trait:
         trait_name = Nucleus.REVISION_TAG()
         # noinspection PyTypeChecker
-        t_def: TraitDefinition = T(0, T.RESERVED)
-        return Trait.create(trait_name, t_def, {}, {trait_name: int}, RC_TRUE)
+        t_def: TraitDefinition = T(0, T.RESERVED, data_type=int)
+        return Trait.create(trait_name, t_def, {}, RC_TRUE)
 
     @staticmethod
     @cache
     def collection_name_trait() -> Trait:
         trait_name = COLL_NAME_TAG
         # noinspection PyTypeChecker
-        t_def: TraitDefinition = T(T.RESERVED | T.RUNTIME)
+        t_def: TraitDefinition = T(T.RESERVED | T.RUNTIME, data_type=str)
 
         def get(self):
             return self.id().collection_name
@@ -88,7 +88,6 @@ class TraitableMetaclass(type(BTraitable)):
                 f'{trait_name}_get': get,
                 f'{trait_name}_set': set,
             },
-            {trait_name: str},
             RC_TRUE,
         )
 
@@ -129,42 +128,31 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             return
 
         default_trait_factory = next(TraitableMetaclass.find_symbols(bases, class_dict, 's_default_trait_factory'), RT)
-        annotations = class_dict.get('__annotations__') or {}
+        type_annotations = class_dict.get('__annotations__') or {}
 
-        annotations |= {k: XNoneType for k, v in class_dict.items() if isinstance(v, TraitModification) and k not in annotations}
+        type_annotations |= {k: XNoneType for k, v in class_dict.items() if isinstance(v, TraitModification) and k not in type_annotations}
         module_dict = sys.modules[class_dict['__module__']].__dict__ if '__module__' in class_dict else {}
+        check_trait_type = next(TraitableMetaclass.find_symbols(bases, class_dict, 'check_trait_type'))
+
         for trait_name, trait_def in class_dict.items():
-            if isinstance(trait_def, TraitDefinition) and trait_name not in annotations:
+            if isinstance(trait_def, TraitDefinition) and trait_name not in type_annotations:
                 rc <<= f'{trait_name} = T(...), but the trait is missing a data type annotation. Use `Any` if needed.'
 
-        for trait_name, dt in annotations.items():
+        for trait_name, dt in type_annotations.items():
             trait_def = class_dict.get(trait_name, class_dict)
             if trait_def is not class_dict and not isinstance(trait_def, TraitDefinition):
                 continue
 
-            if isinstance(dt, str):
-                try:
-                    dt = eval(dt, class_dict, module_dict)
-                except Exception as e:
-                    rc <<= f'Failed to evaluate type annotation string `{dt}` for `{trait_name}`: {e}'
-                    continue
-
-            try:
-                dt_valid = isinstance(dt, type) or get_origin(dt) is not None
-            except TypeError:
-                dt_valid = False
-            if not dt_valid:
-                rc <<= f'Expected type for `{trait_name}`, but found {dt} of type {type(dt)}.'
+            old_trait: Trait = inherited_trait_dir.get(trait_name)
+            if not (dt:=check_trait_type(trait_name,trait_def,old_trait,dt,class_dict,module_dict,rc)):
                 continue
 
-            old_trait: Trait = inherited_trait_dir.get(trait_name)
+            if dt is Any:
+                dt = XNoneType
+
             if trait_def is class_dict:  # -- only annotation, not in class_dict
-                if old_trait and dt is not old_trait.data_type:
-                    rc <<= f'Attempt to implicitly redefine type for previously defined trait `{trait_name}`.  Use M() if needed.'
-                    continue
                 trait_def = default_trait_factory()
 
-            dt = XNoneType if not dt or dt is Any else dt
             if isinstance(trait_def, TraitModification):
                 if not old_trait:
                     rc <<= f'{trait_name} = M(...), but the trait is not defined previously'
@@ -178,22 +166,54 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             yield trait_name, trait_def
 
     @staticmethod
+    def check_trait_type(trait_name,trait_def,old_trait,dt,class_dict,module_dict,rc):
+        if not dt and old_trait:
+            return old_trait.data_type
+        
+        if isinstance(dt, str):
+            try:
+                dt = eval(dt, class_dict, module_dict)
+            except Exception as e:
+                rc <<= f'Failed to evaluate type annotation string `{dt}` for `{trait_name}`: {e}'
+                return None
+
+        try:
+            dt_valid = isinstance(dt, type) or get_origin(dt) is not None
+        except TypeError:
+            dt_valid = False
+        if not dt_valid:
+            rc <<= f'Expected type for `{trait_name}`, but found {dt} of type {type(dt)}.'
+            return None
+
+        if trait_def is class_dict:  # -- only annotation, not in class_dict
+            if old_trait and dt is not old_trait.data_type:
+                rc <<= f'Attempt to implicitly redefine type for previously defined trait `{trait_name}`.  Use M() if needed.'
+                return None
+
+        return dt
+
+    @staticmethod
     def build_trait_dir(bases, class_dict, trait_dir) -> RC:
         rc = RC(True)
         own_trait_definitions: Callable[[tuple, dict, dict, RC], Generator[tuple[str, TraitDefinition]]] = next(
             TraitableMetaclass.find_symbols(bases, class_dict, 'own_trait_definitions')
         )
         trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(bases, class_dict, 's_dir'), {})  # -- shallow copy!
-        annotations = class_dict.get('__annotations__') or {}
+        type_annotations = class_dict.get('__annotations__') or {}
+        module_dict = sys.modules[class_dict['__module__']].__dict__ if '__module__' in class_dict else {}
+        check_trait_type = next(TraitableMetaclass.find_symbols(bases, class_dict, 'check_trait_type'))
 
         for trait_name, old_trait in trait_dir.items():
-            if any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
-                t_def = old_trait.t_def
-                trait_dir[trait_name] = Trait.create(trait_name, t_def, class_dict, {trait_name: t_def.data_type} | annotations, rc)
+            trait_def = class_dict.get(trait_name,class_dict)
+            dt = type_annotations.get(trait_name)
+            if trait_def is class_dict and any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
+                if check_trait_type(trait_name,trait_def,old_trait,dt,class_dict,module_dict,rc):
+                    trait_def = old_trait.t_def.copy()
+                    trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, rc)
 
         for trait_name, trait_def in own_trait_definitions(bases, trait_dir, class_dict, rc):
             trait_def.name = trait_name
-            trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, {}, rc)
+            trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, rc)
 
         return rc
 
