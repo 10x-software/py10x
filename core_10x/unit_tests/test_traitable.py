@@ -213,14 +213,15 @@ def test_trait_methods():
 
     class C(B):
         t: str = M()
+
         def t_get(self):
             return 2
 
     class D(C):
         t: date = M()
 
-    for t, dt in zip([A,B,C,D],[int,int,str,date],strict=True):
+    for t, dt in zip([A, B, C, D], [int, int, str, date], strict=True):
         assert t.trait('t').data_type is dt
 
-    for t, v in zip([A,B,C,D],[XNone,1,2,2],strict=True):
+    for t, v in zip([A, B, C, D], [XNone, 1, 2, 2], strict=True):
         assert t().t is v
