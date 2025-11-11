@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import collections
 import uuid
+from datetime import date
 
 import pytest
 from core_10x.code_samples.person import Person
@@ -200,3 +201,26 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             assert x1.x is x  # no reload
 
     # TODO: change flags; as_of context
+
+
+def test_trait_methods():
+    class A(Traitable):
+        t: int
+
+    class B(A):
+        def t_get(self):
+            return 1
+
+    class C(B):
+        t: str = M()
+        def t_get(self):
+            return 2
+
+    class D(C):
+        t: date = M()
+
+    for t, dt in zip([A,B,C,D],[int,int,str,date],strict=True):
+        assert t.trait('t').data_type is dt
+
+    for t, v in zip([A,B,C,D],[XNone,1,2,2],strict=True):
+        assert t().t is v

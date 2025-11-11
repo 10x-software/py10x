@@ -102,8 +102,8 @@ class Trait(BTrait):
     #    return Trait(self.t_def.copy(), btrait = self)
 
     @staticmethod
-    def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, annotations: dict, rc: RC) -> Trait:
-        dt = annotations.get(trait_name) or t_def.data_type
+    def create(trait_name: str, t_def: TraitDefinition, class_dict: dict, rc: RC) -> Trait:
+        dt = t_def.data_type
         if isinstance(dt, GenericAlias):
             dt = get_origin(dt)  # get original type, e.g. `list` from `list[int]`
             # TODO: could be useful to also keep get_args(dt) for extra checking?
@@ -135,7 +135,11 @@ class Trait(BTrait):
     @staticmethod
     def set_trait_funcs(class_dict, rc, trait, t_def):
         for method_name, (method_suffix, method_def) in Trait.method_defs(t_def.name or trait.name).items():
-            method = t_def.params.get(method_suffix) or class_dict.get(method_name)
+            method = class_dict.get(method_name)
+            if method:
+                t_def.params[method_suffix] = method
+            else:
+                method = t_def.params.get(method_suffix)
             f = method_def.value(trait, method, method_suffix, rc)
             if f:
                 cpp_name = f'set_f_{method_suffix}'
