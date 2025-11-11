@@ -1,6 +1,6 @@
 import sys
 
-from core_10x.traitable import RC, RC_TRUE, RT, Traitable
+from core_10x.traitable import RC, RC_TRUE, Traitable
 
 
 class TraitableCli(Traitable):
@@ -29,7 +29,7 @@ class TraitableCli(Traitable):
         :return:    (rc, traitable) - RC and a traitable according to args and trait values parsed from sys.argv.
                     rc holds error message(s) if instantiation fails for any reason (traitable is set to None)
         """
-        script, *args = sys.argv
+        _script, *args = sys.argv
         return cls.instance_from_args(args)
 
     @classmethod
@@ -38,7 +38,7 @@ class TraitableCli(Traitable):
         trait_values = {}
         rc = cls.parse(input_args, args, trait_values)
         if not rc:
-            return (rc, None)
+            return rc, None
 
         return cls.instantiate(args, trait_values)
 
@@ -47,30 +47,29 @@ class TraitableCli(Traitable):
         if not args:
             try:
                 res = cls()
-                trait: RT
                 for name, value in trait_values.items():
                     trait = cls.trait(name)
                     if not trait:
-                        return (RC(False, f'unknown attribute {name}\nValid attributes: {", ".join(cls.s_dir)}'), None)
+                        return RC(False, f'unknown attribute {name}\nValid attributes: {", ".join(cls.s_dir)}'), None
 
                     rc = res.set_value(trait, value)
                     if not rc:
-                        return (RC(False, f'{name}: {rc.err()}'), None)
+                        return RC(False, f'{name}: {rc.err()}'), None
 
-                return (RC_TRUE, res)
+                return RC_TRUE, res
 
             except Exception as ex:
-                return (RC(False, str(ex)), None)
+                return RC(False, str(ex)), None
 
         command, *args = args
         parser = cls.s_switch.get(command)
         if not parser or not issubclass(parser, TraitableCli):
-            return (RC(False, f'Unknown argument {command}'), None)
+            return RC(False, f'Unknown argument {command}'), None
 
         return parser.instantiate(args, trait_values)
 
     @classmethod
-    def parse(cls, input_args: tuple, args: list, trait_values: dict) -> RC:
+    def parse(cls, input_args: tuple, args: list, trait_values: dict) -> RC:  # noqa: C901
         if not input_args:
             return RC_TRUE
 
