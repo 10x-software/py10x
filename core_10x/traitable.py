@@ -144,7 +144,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
                 continue
 
             old_trait: Trait = inherited_trait_dir.get(trait_name)
-            if not (dt:=check_trait_type(trait_name,trait_def,old_trait,dt,class_dict,module_dict,rc)):
+            if not (dt := check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc)):
                 continue
 
             if dt is Any:
@@ -166,10 +166,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             yield trait_name, trait_def
 
     @staticmethod
-    def check_trait_type(trait_name,trait_def,old_trait,dt,class_dict,module_dict,rc):
+    def check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc):
         if not dt and old_trait:
             return old_trait.data_type
-        
+
         if isinstance(dt, str):
             try:
                 dt = eval(dt, class_dict, module_dict)
@@ -204,10 +204,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         check_trait_type = next(TraitableMetaclass.find_symbols(bases, class_dict, 'check_trait_type'))
 
         for trait_name, old_trait in trait_dir.items():
-            trait_def = class_dict.get(trait_name,class_dict)
+            trait_def = class_dict.get(trait_name, class_dict)
             dt = type_annotations.get(trait_name)
             if trait_def is class_dict and any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
-                if check_trait_type(trait_name,trait_def,old_trait,dt,class_dict,module_dict,rc):
+                if check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc):
                     trait_def = old_trait.t_def.copy()
                     trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, rc)
 

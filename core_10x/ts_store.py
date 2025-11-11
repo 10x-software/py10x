@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 class TsDuplicateKeyError(Exception):
     """Raised when attempting to insert a document with a duplicate key."""
+
     pass
 
 
