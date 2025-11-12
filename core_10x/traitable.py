@@ -63,16 +63,15 @@ class TraitableMetaclass(type(BTraitable)):
     @cache
     def rev_trait() -> Trait:
         trait_name = Nucleus.REVISION_TAG()
-        # noinspection PyTypeChecker
-        t_def: TraitDefinition = T(0, T.RESERVED, data_type=int)
-        return Trait.create(trait_name, t_def, {}, RC_TRUE)
+        return Trait.create(
+            trait_name,
+            T(0, T.RESERVED, data_type=int),
+        )
 
     @staticmethod
     @cache
     def collection_name_trait() -> Trait:
         trait_name = COLL_NAME_TAG
-        # noinspection PyTypeChecker
-        t_def: TraitDefinition = T(T.RESERVED | T.RUNTIME, data_type=str)
 
         def get(self):
             return self.id().collection_name
@@ -83,12 +82,7 @@ class TraitableMetaclass(type(BTraitable)):
 
         return Trait.create(
             trait_name,
-            t_def,
-            {
-                f'{trait_name}_get': get,
-                f'{trait_name}_set': set,
-            },
-            RC_TRUE,
+            T(T.RESERVED | T.RUNTIME, data_type=str, get=get, set=set),
         )
 
     def __new__(cls, name, bases, class_dict, **kwargs):
@@ -209,11 +203,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             if trait_def is class_dict and any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
                 if check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc):
                     trait_def = old_trait.t_def.copy()
-                    trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, rc)
+                    trait_dir[trait_name] = Trait.create(trait_name, trait_def)
 
         for trait_name, trait_def in own_trait_definitions(bases, trait_dir, class_dict, rc):
             trait_def.name = trait_name
-            trait_dir[trait_name] = Trait.create(trait_name, trait_def, class_dict, rc)
+            trait_dir[trait_name] = Trait.create(trait_name, trait_def)
 
         return rc
 
@@ -271,6 +265,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
+            trait.set_trait_funcs(cls, rc)
             if trait.data_type is THIS_CLASS:
                 trait.data_type = cls
             trait.check_integrity(cls, rc)
