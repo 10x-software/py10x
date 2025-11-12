@@ -59,9 +59,7 @@ class MongoCollection(TsCollection):
             ack, cnt = res.acknowledged, res.matched_count
 
         if cnt and not overwrite:  # -- e.g. this id/revision already existed
-            raise TsDuplicateKeyError(
-                f'Duplicate key error collection{self.collection_name()} dup key: {{{id_tag}: {id_value}}} was found existing while insert was attempted.'
-            ) from e
+            raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value}) from e
 
         return int(ack)
 
