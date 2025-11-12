@@ -6,6 +6,7 @@ from core_10x_i import BTraitableProcessor, XCache
 from core_10x.code_samples.person import Person as BasePerson
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.rc import RC_TRUE
+from core_10x.ts_store import TsDuplicateKeyError
 
 test_classes = {
     cls_name: type(
@@ -155,3 +156,77 @@ class TestTSStore:
         assert result
         result = collection.load(id_value)
         assert result is None
+
+    def test_save_new_with_overwrite(self, ts_setup):
+        """Test save_new with overwrite=True flag."""
+        ts_store, p, _p1 = ts_setup
+        collection = ts_store.collection(TEST_COLLECTION)
+        serialized_entity = p.serialize_object()
+        id_value = serialized_entity['_id']
+
+        # Try to save_new with overwrite=True on existing document
+        result = collection.save_new(serialized_entity.copy(), overwrite=True)
+        assert result == 1
+        assert collection.load(id_value) == serialized_entity
+
+    def test_save_new_with_set_operation(self, ts_setup):
+        """Test save_new with $set MongoDB-style operation."""
+        ts_store, _p, _p1 = ts_setup
+        collection = ts_store.collection(TEST_COLLECTION)
+
+        # Create a new document with $set
+        doc_id = 'test_doc_123'
+        serialized_entity = {'$set': {'_id': doc_id, 'name': 'Test Document', 'value': 42}}
+
+        result = collection.save_new(serialized_entity)
+        assert result == 1
+
+        loaded = collection.load(doc_id)
+        assert loaded == serialized_entity['$set']
+
+    def test_save_new_duplicate_key_error(self, ts_setup):
+        """Test that save_new raises TsDuplicateKeyError when inserting duplicate without overwrite."""
+        ts_store, _p, _p1 = ts_setup
+        collection = ts_store.collection(TEST_COLLECTION)
+
+        # Test 1: Duplicate without $set
+        doc_id = 'duplicate_test_123'
+        serialized_entity = {'_id': doc_id, 'name': 'First Document'}
+
+        result = collection.save_new(serialized_entity)
+        assert result == 1
+
+        # Try to insert the same document again without overwrite (no $set)
+        with pytest.raises(TsDuplicateKeyError, match=f'Duplicate key error collection.*dup key.*{doc_id}'):
+            collection.save_new(serialized_entity, overwrite=False)
+
+        # Test 2: Duplicate with $set
+        doc_id2 = 'duplicate_test_456'
+        serialized_entity2 = {'$set': {'_id': doc_id2, 'name': 'First Document with $set'}}
+
+        result = collection.save_new(serialized_entity2)
+        assert result == 1
+
+        # Try to insert the same document again without overwrite (with $set)
+        with pytest.raises(TsDuplicateKeyError, match=f'Duplicate key error collection.*dup key.*{doc_id2}'):
+            collection.save_new(serialized_entity2, overwrite=False)
+
+    def test_save_new_with_set_and_overwrite(self, ts_setup):
+        """Test save_new with $set and overwrite=True."""
+        ts_store, _p, _p1 = ts_setup
+        collection = ts_store.collection(TEST_COLLECTION)
+
+        doc_id = 'set_overwrite_test_123'
+        # First insert
+        serialized_entity1 = {'_id': doc_id, 'name': 'Original'}
+        result = collection.save_new(serialized_entity1)
+        assert result == 1
+
+        # Update with $set and overwrite=True
+        serialized_entity2 = {'$set': {'_id': doc_id, 'name': 'Updated', 'new_field': 'new_value'}}
+        result = collection.save_new(serialized_entity2, overwrite=True)
+        assert result == 1
+
+        loaded = collection.load(doc_id)
+        assert loaded['name'] == 'Updated'
+        assert loaded['new_field'] == 'new_value'
