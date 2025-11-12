@@ -58,11 +58,7 @@ class Op(_filter, ABC):
 
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
         # noinspection PyTypeChecker
-        return {
-            self.label: trait.serialize_for_traitable_class(traitable_class, self.right_value, replace_xnone=True)
-            if trait and traitable_class
-            else self.right_value
-        }
+        return {self.label: trait.serialize_value(self.right_value, replace_xnone=True) if trait and traitable_class else self.right_value}
 
 
 class NOT_EMPTY(Op, label=''):

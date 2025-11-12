@@ -208,31 +208,30 @@ def test_named_serializers():
         def age_serialize(cls, t, v):
             return f'age:{v}'  # noinspection PyUnusedLocal
 
-    traitable_class = P.s_bclass
-    trait = traitable_class.trait_dir()['age']
+    trait = P.trait('age')
 
-    # assert trait is Person.trait('age') #TODO: why not??
+    assert trait is P.trait('age')
 
-    assert trait.serialize_for_traitable_class(traitable_class, 5) == 'age:5'
+    assert trait.serialize_value(5) == 'age:5'
 
-    assert EQ(5).prefix_notation(trait=trait, traitable_class=traitable_class) == {'$eq': 'age:5'}
+    assert EQ(5).prefix_notation(trait=trait, traitable_class=P.s_bclass) == {'$eq': 'age:5'}
 
-    assert BETWEEN(1, 5).prefix_notation(trait=trait, traitable_class=traitable_class) == {
+    assert BETWEEN(1, 5).prefix_notation(trait=trait, traitable_class=P.s_bclass) == {
         '$gte': 'age:1',
         '$lte': 'age:5',
     }
 
     x = OR(f(age=LE(70)), f(first_name=NE('Sasha')), f(last_name=XNone))
-    assert x.prefix_notation(traitable_class=traitable_class) == {
+    assert x.prefix_notation(traitable_class=P.s_bclass) == {
         '$or': [{'age': {'$lte': 'age:70'}}, {'first_name': {'$ne': 'Sasha'}}, {'last_name': {'$eq': None}}]
     }
 
     x = f(age=BETWEEN(50, 70), first_name=NE('Sasha'))
 
-    assert f(x, P.s_bclass).prefix_notation() == x.prefix_notation(traitable_class=traitable_class)
+    assert f(x, P.s_bclass).prefix_notation() == x.prefix_notation(traitable_class=P.s_bclass)
 
     r = OR(f(age=BETWEEN(50, 70), first_name=NE('Sasha')), f(age=17))
-    assert r.prefix_notation(traitable_class=traitable_class) == {
+    assert r.prefix_notation(traitable_class=P.s_bclass) == {
         '$or': [
             {'age': {'$gte': 'age:50', '$lte': 'age:70'}, 'first_name': {'$ne': 'Sasha'}},
             {'age': {'$eq': 'age:17'}},
