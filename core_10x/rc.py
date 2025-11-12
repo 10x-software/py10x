@@ -111,18 +111,20 @@ class RC:
         return '\n'.join(payload)
 
     def add_error(self, err) -> RC:
-        if self.__bool__():
-            self.rc = False
-
         dt = type(err)
         if dt is str:
             self.payload.append(err)
 
         elif dt is RC:
+            if err:
+                return self
             self.payload.extend(err.payload)
 
         else:
             raise ValueError(f'Expected str or RC; got {type(err)}')
+
+        if self.__bool__():
+            self.rc = False
 
         return self
 

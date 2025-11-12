@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from argparse import ArgumentError
 from collections import deque
 from datetime import date, timedelta
 
-from core_10x.traitable import RT, T, Traitable, Ui
+from core_10x.traitable import RT, T, Traitable
 
 
 class CalendarNameParser:
@@ -33,16 +32,16 @@ class CalendarNameParser:
         return any(sym in name for sym in cls.s_ops.keys())
 
     @classmethod
-    def operation_repr(cls, op_char: str, *calendars) -> str:
+    def operation_repr(cls, calendar_cls, op_char: str, *calendars) -> str:
         assert len(calendars) > 1, 'there must be at least 2 calendars'
         assert op_char in cls.s_ops, f'Unknown op char = {op_char}'
 
         cal_names = []
         for cal_or_name in calendars:
-            if isinstance(cal_or_name, Calendar):
+            if isinstance(cal_or_name, calendar_cls):
                 cname = cal_or_name.name
             elif isinstance(cal_or_name, str):
-                cal = Calendar.existing_instance_by_id(_id_value=cal_or_name)
+                cal = calendar_cls.existing_instance(name=cal_or_name)
                 assert cal, f"Unknown calendar '{cal_or_name}'"
                 cname = cal_or_name
             else:
@@ -57,14 +56,15 @@ class CalendarNameParser:
         self.non_working_days = set()
 
     @classmethod
-    def parse(cls, name: str) -> set:
+    def parse(cls, calendar_cls, name: str) -> set:
         parser = cls()
         non_working_days = parser.non_working_days
         stack = parser.stack
 
         operation_repr_list = name.split(cls.OP_CHAR)
         if len(operation_repr_list) == 1:  # -- regular (stored) calendar
-            return None
+            cal = calendar_cls.existing_instance(name=name)
+            return cal._non_working_days
 
         for operation_repr in operation_repr_list:
             if not operation_repr:
@@ -74,7 +74,7 @@ class CalendarNameParser:
             if len(name_list_op_num_args) > 1:  # -- name list followed by op with num_args
                 for cname in name_list_op_num_args[:-1]:
                     if cname:
-                        cal: Calendar = Calendar.existing_instance_by_id(_id_value=cname)
+                        cal = calendar_cls.existing_instance(name=cname)
                         assert cal, f"Unknown calendar '{cname}"
                         stack.append(cal._non_working_days)
 
@@ -85,7 +85,7 @@ class CalendarNameParser:
             try:
                 num_args = int(op_with_num_args[1:])
             except Exception as e:
-                raise ArgumentError(f'Invalid num_args = {op_with_num_args[1:]}') from e
+                raise RuntimeError(f'Invalid num_args = {op_with_num_args[1:]}') from e
 
             for _ in range(num_args):
                 _non_working_days = stack.pop()
@@ -109,29 +109,23 @@ class CalendarAdjustment(Traitable):
     # fmt: on
 
 
-# -- TODO: _default_cache = True:
-class Calendar(Traitable, _keep_history=True):
+# -- TODO: _keep_history=True, _default_cache = True:
+class Calendar(Traitable):
     # fmt: off
-    name: str               = T(T.ID | T.READONLY)
-    name_base: str          = T(T.NOT_EMPTY)
-    qualifier: str          = T('')
-    adjusted_for: str       = T('')
-    description: str        = T(T.NOT_EMPTY, ui_hint = Ui('Calendar Description'))
-    non_working_days: list  = T(ui_hint = Ui('Non-Working Days'))
+    name: str               = T(T.ID)
+    adjusted_for: str       = T(T.ID,   default = '')   // 'Name of a specific adjustment to this calendar, if any'
+    description: str        = T(T.NOT_EMPTY)            // 'Calendar Description'
+    non_working_days: list  = T()                       // 'Non-Working Days'
 
     _non_working_days: set  = RT()
     # fmt: on
-
-    def name_get(self) -> str:
-        parts = (self.name_base, self.qualifier, self.adjusted_for)
-        return '_'.join(p for p in parts if p)
 
     @classmethod
     def AND(cls, *calendars) -> Calendar:  # noqa: N802
         if not calendars:
             return None
 
-        name = CalendarNameParser.operation_repr(CalendarNameParser.AND_CHAR, *calendars)
+        name = CalendarNameParser.operation_repr(cls, CalendarNameParser.AND_CHAR, *calendars)
         return cls(name=name)
 
     intersection = AND
@@ -141,7 +135,7 @@ class Calendar(Traitable, _keep_history=True):
         if not calendars:
             return None
 
-        name = CalendarNameParser.operation_repr(CalendarNameParser.OR_CHAR, *calendars)
+        name = CalendarNameParser.operation_repr(cls, CalendarNameParser.OR_CHAR, *calendars)
         return cls(name=name)
 
     @classmethod
@@ -152,11 +146,13 @@ class Calendar(Traitable, _keep_history=True):
         return cls(name=calendars[0])
 
     def non_working_days_get(self) -> list:
-        non_working_days = CalendarNameParser.parse(self.name)
-        ca = CalendarAdjustment.existing_instance_by_id(_id_value=self.adjusted_for)
-        if ca:
-            self.add_days(non_working_days, ca.add_days)
-            self.remove_days(non_working_days, ca.remove_days)
+        non_working_days = CalendarNameParser.parse(self.__class__, self.name)
+        adjusted_for = self.adjusted_for
+        if adjusted_for:
+            ca = CalendarAdjustment.existing_instance_by_id(_id_value=adjusted_for, _throw=False)
+            if ca:
+                self.add_days(non_working_days, *ca.add_days)
+                self.remove_days(non_working_days, *ca.remove_days)
 
         return sorted(non_working_days) if non_working_days else []
 

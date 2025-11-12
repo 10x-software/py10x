@@ -4,13 +4,13 @@ if __name__ == '__main__':
 
     from infra_10x.mongodb_store import MongoStore
 
-    from core_10x.xxcalendar import Calendar
+    from core_10x.xxcalendar import Calendar, CalendarAdjustment
 
     db = MongoStore.instance(hostname = 'localhost', dbname = 'test')
     db.begin_using()
 
     us_c = Calendar(
-        name_base           = 'US',
+        name                = 'US',
         non_working_days    = [
             date(2025,1,1), date(2025,1,20), date(2025,2,17), date(2025,5,26), date(2025,7,4),
             date(2025,9,1), date(2025,10,13), date(2025,11,11), date(2025,11,27), date(2025,12, 25)
@@ -18,7 +18,7 @@ if __name__ == '__main__':
     )
 
     uk_c = Calendar(
-        name_base           = 'UK',
+        name                = 'UK',
         non_working_days    = [
             date(2025,1,1), date(2025,4,18), date(2025,5,5), date(2025,5,26), date(2025,8,25),
             date(2025,12, 25), date(2025,12, 26)
@@ -30,3 +30,11 @@ if __name__ == '__main__':
 
     c2 = Calendar.intersection('US', 'UK')
     cross_nwds = c2.non_working_days
+
+    sofr_adjust = CalendarAdjustment(
+        name        = 'SOFR',
+        add_days    = [date(2019, 4, 4)]
+    )
+
+    ca = Calendar(name = 'US', adjusted_for = 'SOFR')
+    nwds_ca = ca.non_working_days
