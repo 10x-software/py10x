@@ -24,9 +24,11 @@ protected:
 
     eval_once(BTraitableClass, bool, is_storable);
     eval_once(BTraitableClass, bool, is_id_endogenous);
+    eval_once(BTraitableClass, bool, is_anonymous);
 
-    bool    is_storable_get();
-    bool    is_id_endogenous_get();
+    bool    is_storable_get() const;
+    bool    is_id_endogenous_get() const;
+    bool    is_anonymous_get() const;
 
     BUiClass* bui_class();
 

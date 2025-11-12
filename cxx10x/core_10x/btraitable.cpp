@@ -178,7 +178,7 @@ void BTraitable::set_revision(const py::object& rev) {
 //-- Nucleus' serialize (not for top-level objects)
 py::object BTraitable::serialize_nx(bool embed) {
     if (!embed) {   //-- external reference
-        if (PyLinkage::issubclass(my_class()->py_class(), PyLinkage::anonymous_class()))
+        if (my_class()->is_anonymous())
             throw py::type_error(py::str("{} - anonymous' instance may not be serialized as external reference").format(class_name()));
 
         py::dict res;
@@ -187,7 +187,7 @@ py::object BTraitable::serialize_nx(bool embed) {
         return res;
     }
 
-    if (!PyLinkage::issubclass(my_class()->py_class(), PyLinkage::anonymous_class()))
+    if (!my_class()->is_anonymous())
         throw py::type_error(py::str("{}/{} - embedded instance must be anonymous").format(class_name(), id_value()));
 
     return serialize_traits();

@@ -246,10 +246,22 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("get_value",                   py::overload_cast<BTrait*, const py::args&>(&BTraitable::get_value))
             .def("get_style_sheet",             &BTraitable::get_style_sheet)
             .def("get_choices",                 &BTraitable::get_choices)
-            .def("set_value",                   py::overload_cast<const py::str&, const py::object&>(&BTraitable::set_value))
-            .def("set_value",                   py::overload_cast<const py::str&, const py::object&, const py::args&>(&BTraitable::set_value))
-            .def("set_value",                   py::overload_cast<BTrait*, const py::object&>(&BTraitable::set_value))
-            .def("set_value",                   py::overload_cast<BTrait*, const py::object&, const py::args&>(&BTraitable::set_value))
+            .def("set_value",                   py::overload_cast<const py::str&, const py::object&>(&BTraitable::set_value),
+                        "Set trait value",
+                        "trait_name"_a, "value"_a
+                )
+            .def("set_value",                   py::overload_cast<const py::str&, const py::object&, const py::args&>(&BTraitable::set_value),
+                        "Set trait value with *args",
+                        "trait_name"_a, "value"_a
+                )
+            .def("set_value",                   py::overload_cast<BTrait*, const py::object&>(&BTraitable::set_value),
+                        "Set trait value",
+                        "trait"_a, "value"_a
+                )
+            .def("set_value",                   py::overload_cast<BTrait*, const py::object&, const py::args&>(&BTraitable::set_value),
+                        "Set trait value with *args",
+                        "trait"_a, "value"_a
+                )
             .def("is_valid",                    py::overload_cast<const py::str&>(&BTraitable::is_valid))
             .def("is_valid",                    py::overload_cast<BTrait*>(&BTraitable::is_valid))
             .def("invalidate_value",            py::overload_cast<const py::str&>(&BTraitable::invalidate_value))

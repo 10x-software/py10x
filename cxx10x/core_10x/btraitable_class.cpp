@@ -24,7 +24,7 @@ BUiClass* BTraitableClass::bui_class() {
     return m_ui_class;
 }
 
-bool BTraitableClass::is_storable_get() {
+bool BTraitableClass::is_storable_get() const {
     for (auto item : trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (!trait->flags_on(BTraitFlags::RUNTIME) && !trait->flags_on(BTraitFlags::RESERVED))
@@ -33,13 +33,17 @@ bool BTraitableClass::is_storable_get() {
     return false;
 }
 
-bool BTraitableClass::is_id_endogenous_get() {
+bool BTraitableClass::is_id_endogenous_get() const {
     for (auto item : trait_dir()) {
         auto trait = item.second.cast<BTrait*>();
         if (trait->flags_on(BTraitFlags::ID))
             return true;
     }
     return false;
+}
+
+bool BTraitableClass::is_anonymous_get() const {
+    return PyLinkage::issubclass(py_class(), PyLinkage::anonymous_class());
 }
 
 BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
@@ -63,7 +67,7 @@ bool BTraitableClass::instance_in_store(const TID &tid) const {
 }
 
 py::object BTraitableClass::load(const py::object& id) {
-    if (!is_storable() || !TID::is_valid(id) || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
+    if (!is_storable() || is_anonymous() || !TID::is_valid(id) || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
         return py::none();
 
     auto serialized_data = load_data(id);

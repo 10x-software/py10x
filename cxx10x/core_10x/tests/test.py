@@ -2,7 +2,8 @@ import collections
 from datetime import date
 
 from core_10x.xnone import XNone
-from core_10x.traitable import Traitable,T,RT,THIS_CLASS
+from core_10x.traitable import Traitable,T,RT,M,THIS_CLASS,AnonymousTraitable
+from core_10x.trait_method_error import TraitMethodError
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP
 from core_10x.ts_union import TsUnion
@@ -207,6 +208,100 @@ def test_10():
         assert x.x.a==1
 
 
+def test_11():
+    class X(AnonymousTraitable):
+        a:int = T()
+
+        # @classmethod
+        # def load_data(cls, id):
+        #     return None
+
+        # @classmethod
+        # def exists_in_store(cls, id):
+        #     return False
+
+    class Y(Traitable):
+        y:int = T(T.ID)
+        x:Traitable = T()
+
+        @classmethod
+        def load_data(cls, id):
+            return None
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+    class Z(Y):
+        x:AnonymousTraitable = M(T.EMBEDDED)
+
+    x = X(a=1)
+    s = x.serialize(True)
+    print(s)
+
+
+    y = Y(y=0,x=x)
+    try:
+        y.serialize_object()
+    except TraitMethodError as e:
+        assert "test_11.<locals>.X - anonymous' instance may not be serialized as external reference" in str(e)
+    else:
+        assert False
+
+    z = Z(y=1,x=x)
+    s = z.serialize_object()
+    print(s)
+    assert s['x']['a']==1
+
+    z = Z(y=2, x=Y(y=3))
+    try:
+        z.serialize_object()
+    except TraitMethodError as e:
+        assert "test_11.<locals>.Y/3 - embedded instance must be anonymous" in str(e)
+    else:
+        assert False
+
+
+def test_12():
+    class A(Traitable):
+        s_default_trait_factory = T
+        t: int
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            return None
+
+    class B(A):
+        def t_get(self):
+            return 1
+        @classmethod
+        def t_serialize(cls, trait, value):
+            return value + 1
+
+    class C(B):
+        t: str = M()
+
+        def t_get(self):
+            return 2
+
+        @classmethod
+        def t_serialize(cls, trait, value):
+            return value + 2
+
+    class D(C):
+        t: date = M()
+
+    for t, dt in zip([A, B, C, D], [int, int, str, date], strict=True):
+        assert t.trait('t').data_type is dt
+
+    for t, v in zip([A, B, C, D], [XNone, 1, 2, 2], strict=True):
+        assert t().t is v
+        assert t().serialize_object()['t'] == (v * 2 or None)
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -219,7 +314,8 @@ if __name__ == '__main__':
     #test_7()
     #test_8()
     #test_9()
-    test_10()
+    #test_10()
+    test_12()
 
 
 

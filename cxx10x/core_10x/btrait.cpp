@@ -120,8 +120,7 @@ py::object BTrait::wrapper_f_to_str(BTraitable* obj, const py::object& value) {
 
 py::object BTrait::wrapper_f_serialize(BTraitableClass* cls, const py::object& value) {
     try {
-        //TODO: bind traits to classes in __init__subclass__?
-        return f_serialize.attr("__get__")(py::none(),cls->py_class())(this, value);
+        return f_serialize(this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, cls, f_serialize, &value, nullptr);
     }
@@ -129,8 +128,7 @@ py::object BTrait::wrapper_f_serialize(BTraitableClass* cls, const py::object& v
 
 py::object BTrait::wrapper_f_deserialize(BTraitableClass* cls, const py::object& value) {
     try {
-        //TODO: bind traits to classes in __init__subclass__?
-        return f_deserialize.attr("__get__")(py::none(),cls->py_class())(this, value);
+        return f_deserialize(this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, cls, f_deserialize, &value, nullptr);
     }
