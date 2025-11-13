@@ -4,7 +4,7 @@ import functools
 import operator
 import sys
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime  # noqa: TC003
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Self, get_origin
@@ -453,12 +453,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         # TODO: implement
         return rc
 
+    # TODO: move into storage helper
+
     @classmethod
     def as_of(cls, traitable_id: ID, as_of_time: datetime) -> Self:
         history_entry = cls.latest_revision(traitable_id, as_of_time, deserialize=True)
         return history_entry.traitable if history_entry else None
 
-    # TODO: move into storage helper
     @classmethod
     def history(
         cls, _at_most: int = 0, _filter: f = None, _deserialize=False, _collection_name: str = None, _before: datetime = None, **named_filters
@@ -524,7 +525,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 @dataclass
 class AbstractStorableHelper(ABC):
     traitable_class: type[Traitable]
-    as_of_time: datetime = None
 
     @abstractmethod
     def collection(self, _coll_name: str = None) -> TsCollection | None: ...
@@ -596,15 +596,9 @@ class StorableHelper(AbstractStorableHelper):
         return cls.store().collection(cname)
 
     def exists_in_store(self, id: ID) -> bool:
-        if self.as_of_time is not None:
-            history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize=True)
-            return bool(history_entry)  # TODO: optimize by not downloading the latest revision
         return self.collection(_coll_name=id.collection_name).id_exists(id.value)
 
     def load_data(self, id: ID) -> dict | None:
-        if self.as_of_time is not None:
-            history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize=True)
-            return history_entry.serialized_traitable if history_entry else None
         return self.collection(_coll_name=id.collection_name).load(id.value)
 
     def delete_in_store(self, id: ID) -> RC:
@@ -619,45 +613,24 @@ class StorableHelper(AbstractStorableHelper):
     def load(self, id: ID) -> Traitable | None:
         return self.traitable_class.s_bclass.load(id)
 
+    def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
+        coll = self.collection(_coll_name=_coll_name)
+        return coll.find(f(query, self.traitable_class.s_bclass), _at_most=_at_most, _order=_order)
+
     def load_many(
         self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True
     ) -> list[Traitable] | list[dict]:
-        cls = self.traitable_class
-
-        if self.as_of_time is not None:
-            cursor = cls.history(
-                _before=self.as_of_time,
-                _collection_name=_coll_name,
-                _deserialize=True,
-            )  # TODO: only one per ID!
-            cursor = (item.serialized_traitable for item in cursor)
-        else:
-            coll = self.collection(_coll_name=_coll_name)
-            cursor = coll.find(f(query, cls.s_bclass), _at_most=_at_most, _order=_order)
+        cursor = self._find(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
 
         if not _deserialize:
             return list(cursor)
 
-        f_deserialize = functools.partial(Traitable.deserialize_object, cls.s_bclass, _coll_name)
+        f_deserialize = functools.partial(Traitable.deserialize_object, self.traitable_class.s_bclass, _coll_name)
         return [f_deserialize(serialized_data) for serialized_data in cursor]
 
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
-        # Use instance as_of_time if not provided
-        cls = self.traitable_class
-        coll = self.collection(_coll_name=_coll_name)
-        id_tag = coll.s_id_tag
-
-        if self.as_of_time is not None:
-            cursor = cls.history(
-                _filter=query,
-                _before=self.as_of_time,
-                _collection_name=_coll_name,
-                _deserialize=True,
-            )  # TODO: only one per ID!
-            cursor = (entry.serialized_traitable for entry in cursor)
-        else:
-            cursor = coll.find(query, _at_most=_at_most, _order=_order)
-
+        id_tag = self.collection(_coll_name=_coll_name).s_id_tag  # better?
+        cursor = self._find(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
         return [ID(serialized_data.get(id_tag), _coll_name) for serialized_data in cursor]
 
     def delete_collection(self, _coll_name: str = None) -> bool:
@@ -710,6 +683,36 @@ class StorableHelper(AbstractStorableHelper):
         return rc
 
 
+@dataclass
+class StorableHelperAsOf(StorableHelper):
+    as_of_time: datetime
+    storage_helper: StorableHelper = field(init=False)
+
+    def __post_init__(self):
+        if not self.traitable_class.is_storable():
+            raise RuntimeError('Attempting to use AsOf on non-storable class')
+        self.storage_helper = self.traitable_class.s_storage_helper
+
+    def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
+        return (
+            item.serialized_traitable
+            for item in self.traitable_class.history(
+                _filter=query,
+                _before=self.as_of_time,
+                _collection_name=_coll_name,
+                _deserialize=True,
+            )  # TODO: only one per ID!
+        )
+
+    def exists_in_store(self, id: ID) -> bool:
+        history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize=True)
+        return bool(history_entry)  # TODO: optimize by not downloading the latest revision
+
+    def load_data(self, id: ID) -> dict | None:
+        history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize=True)
+        return history_entry.serialized_traitable if history_entry else None
+
+
 class THIS_CLASS(Traitable, keep_history=False): ...  # -- to use for traits with the same Traitable class type
 
 
@@ -718,13 +721,15 @@ class TraitableHistory(Traitable):
     s_traitable_class = None
     s_trait_name_map = dict(_traitable_id='_id', _traitable_rev='_rev')
 
-    traitable: Traitable = RT() // 'original traitable'
-    serialized_traitable: dict = RT()
+    # fmt: off
+    traitable: Traitable        = RT() // 'original traitable'
+    serialized_traitable: dict  = RT()
 
-    _at: datetime = T() // 'time saved'
-    _who: str = T() // 'authenticated user, if any'
-    _traitable_id: str = T() // 'original traitable id'
-    _traitable_rev: int = T() // 'original traitable rev'
+    _at: datetime               = T() // 'time saved'
+    _who: str                   = T() // 'authenticated user, if any'
+    _traitable_id: str          = T() // 'original traitable id'
+    _traitable_rev: int         = T() // 'original traitable rev'
+    # fmt: on
 
     def _traitable_id_get(self) -> str:
         return self.serialized_traitable['_id']
@@ -785,17 +790,18 @@ class AsOfContext:
     def __enter__(self):
         self._btp = btp = BTraitableProcessor.create(-1, -1, -1, False, False)
         btp.begin_using()
-        original_times = self._original_as_of_times
+        # Replace storage helpers with asof helpers
         for traitable_class in self.traitable_classes:
-            original_times[traitable_class] = traitable_class.s_storage_helper.as_of_time
-            traitable_class.s_storage_helper.as_of_time = self.as_of_time
+            traitable_class.s_storage_helper = StorableHelperAsOf(
+                traitable_class=traitable_class,
+                as_of_time=self.as_of_time,
+            )
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # Restore original as_of_time
-        original_times = self._original_as_of_times
+        # Restore original helpers
         for traitable_class in self.traitable_classes:
-            traitable_class.s_storage_helper.as_of_time = original_times[traitable_class]
+            traitable_class.s_storage_helper = traitable_class.s_storage_helper.storage_helper
         self._btp.end_using()
 
 
