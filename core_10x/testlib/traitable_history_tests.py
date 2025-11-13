@@ -6,6 +6,7 @@ from datetime import datetime
 import pytest
 
 from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
+from core_10x.ts_store import TsDuplicateKeyError
 
 try:
     from infra_10x.mongodb_store import MongoStore
@@ -546,7 +547,7 @@ class TestTraitableHistory:
         assert result == 1  # Should succeed for new document
 
         # Fails because the document already exists
-        with pytest.raises(AssertionError):
+        with pytest.raises(TsDuplicateKeyError):
             test_collection.save_new({'$set': {'_id': 'new-id'}})
 
         test_collection.save_new({'$set': {'_id': 'new-id'}}, overwrite=True)
