@@ -2,7 +2,6 @@ from datetime import date
 
 from infra_10x.mongodb_store import MongoStore
 
-from core_10x.exec_control import ProcessContext
 from core_10x.named_constant import NamedConstant
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, T, Traitable
 
@@ -31,15 +30,15 @@ class Person(Traitable):
     address: Address                    = T(T.EMBEDDED)
 
 if __name__ == '__main__':
-    ProcessContext.set_flags(ProcessContext.CACHE_ONLY) #TODO: can't create AnonymousEntity without CACHE_ONLY - FIX
     address = Address(street="145 Austin Dr", cszip="Burlington, VT 05401")
-
+            
     db = MongoStore.instance(hostname='localhost', dbname='test')
     db.begin_using()
 
     woman       = Person(ssn = '008-59-6666', name = 'Alice Smith',     dob = date(1972, 8, 21))
     daughter    = Person(ssn = '008-77-7777', name = 'Ann Smith',       dob = date(1997, 6, 17))
     son         = Person(ssn = '008-99-5555', name = 'Nathan Smith',    dob = date(1999, 9, 23))
+
 
     man     = Person(
         ssn     = '009-87-4444',
@@ -53,6 +52,7 @@ if __name__ == '__main__':
     )
 
     ss = man.serialize_object()
+
     man2 = Person.deserialize_object(Person.s_bclass, None, ss)
 
     print(man == man2)

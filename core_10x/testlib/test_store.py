@@ -87,17 +87,15 @@ class TestCollection(TsCollection):
             serialized_traitable = data
 
         id_tag = self.s_id_tag
-        doc_id = serialized_traitable.get(id_tag)
+        id_value = serialized_traitable.get(id_tag)
 
-        if not doc_id:
+        if not id_value:
             return 0
 
-        if doc_id in self._documents and not overwrite:
-            raise TsDuplicateKeyError(
-                f'Duplicate key error collection{self.collection_name()} dup key: {{{id_tag}: {doc_id}}} was found existing while insert was attempted.'
-            )
+        if id_value in self._documents and not overwrite:
+            raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value})
 
-        self._documents[doc_id] = serialized_traitable
+        self._documents[id_value] = serialized_traitable
         return 1
 
     def save(self, serialized_traitable: dict) -> int:
