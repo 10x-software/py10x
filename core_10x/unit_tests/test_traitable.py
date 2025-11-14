@@ -2,16 +2,25 @@ from __future__ import annotations
 
 import collections
 import uuid
+from collections import Counter
 from datetime import date
+from typing import TYPE_CHECKING
 
 import pytest
+from core_10x import trait_definition
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import BTP, CACHE_ONLY
-from core_10x.trait_definition import RT, M, T
-from core_10x.traitable import THIS_CLASS, Traitable
+from core_10x.rc import RC, RC_TRUE
+from core_10x.trait import Trait
+from core_10x.trait_definition import RT, M, T, TraitDefinition
+from core_10x.trait_method_error import TraitMethodError
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
 from core_10x_i import BFlags
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 
 class SubTraitable(Traitable):
@@ -205,17 +214,34 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
 
 def test_trait_methods():
     class A(Traitable):
+        s_default_trait_factory = T
         t: int
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            return None
 
     class B(A):
         def t_get(self):
             return 1
+
+        @classmethod
+        def t_serialize(cls, trait, value):
+            return value + 1
 
     class C(B):
         t: str = M()
 
         def t_get(self):
             return 2
+
+        @classmethod
+        def t_serialize(cls, trait, value):
+            return value + 2
 
     class D(C):
         t: date = M()
@@ -225,3 +251,100 @@ def test_trait_methods():
 
     for t, v in zip([A, B, C, D], [XNone, 1, 2, 2], strict=True):
         assert t().t is v
+        assert t().serialize_object()['t'] == (v * 2 or None)
+
+
+def test_anonymous_traitable():
+    class X(AnonymousTraitable):
+        a: int = T()
+
+    class Y(Traitable):
+        y: int = T(T.ID)
+        x: Traitable = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+    class Z(Y):
+        x: AnonymousTraitable = M(T.EMBEDDED)
+
+    x = X(a=1)
+    assert x.serialize(True) == {'a': 1}
+
+    y = Y(y=0, x=x)
+    with pytest.raises(
+        TraitMethodError, match=r"test_anonymous_traitable.<locals>.X - anonymous' instance may not be serialized as external reference"
+    ):
+        y.serialize_object()
+
+    z = Z(y=1, x=x)
+    s = z.serialize_object()
+    assert s['x'] == {'a': 1}
+
+    z = Z(y=2, x=Y(y=3))
+    with pytest.raises(TraitMethodError, match=r'test_anonymous_traitable.<locals>.Y/3 - embedded instance must be anonymous'):
+        z.serialize_object()
+
+
+def test_own_trait_defs_and_override():
+    cnt = Counter()
+
+    def assert_and_cont(what, obj, arg, trait=None):
+        assert isinstance(obj, Traitable)
+        if trait:
+            assert isinstance(trait, Trait)
+            assert trait.data_type is int
+            assert trait.flags_on(T.RUNTIME | T.EXPENSIVE)
+        cnt[what] += arg
+
+    class X(Traitable):
+        @staticmethod
+        def own_trait_definitions(
+            bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC
+        ) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
+            def get(self, arg) -> int:
+                assert_and_cont('get', self, arg)
+                return 1
+
+            def set(self, trait, value, arg) -> RC:
+                assert_and_cont('set', self, arg, trait)
+                self.raw_set_value(trait, value + 1, arg)
+                return RC_TRUE
+
+            yield 'x', TraitDefinition(T.RUNTIME | T.EXPENSIVE, data_type=int, get=get, set=set)
+
+    t = X.trait('x')
+    assert list(t.t_def.params.keys()) == ['get', 'set']
+    assert cnt == {}
+    x = X()
+    assert x.x(1) == 1
+    assert cnt == {'get': 1}
+
+    x.set_value(t, 2, 1)
+    assert x.x(1) == 3
+    assert cnt == {'get': 1, 'set': 1}
+
+
+def test_trait_func_override():
+    class X(Traitable):
+        x: int = RT(get=lambda self: 1)
+
+    assert X().x == 1
+
+    with pytest.raises(
+        RuntimeError,
+        match=r'Ambiguous definition for geting trait x on <class \'test_traitable.test_trait_func_override.<locals>.Y\'> - both trait.get and traitable.x_get are defined.',
+    ):
+
+        class Y(X):
+            def x_get(self):
+                return 2
+
+    class Z(X):
+        x = M(get=None)
+
+        def x_get(self):
+            return 3
+
+    assert Z().x == 3
