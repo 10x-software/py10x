@@ -256,3 +256,53 @@ class RDate(Nucleus):
     def from_tenors(cls, tenors_str: str, delim=',') -> list:
         tenors = tenors_str.split(delim)
         return [RDate(tenor.strip()) for tenor in tenors]
+
+
+## maybe put these in "date helper functions"; should it be in core or fin?
+## need start/end/pay date sequences
+def period_dates_for_tenor( start: date, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
+    # start           = RDate().roll_to_bizday(start, calendar, roll_rule)              ##TODO: WTF
+    start           = roll_rule( start, calendar )                                ##TODO: remove after fixing the prev line
+    non_rolled_date = start
+    # no_cal    = Calendar.existing_instance(name = 'EMPTY', non_working_days = [])     ##TODO: must be standard
+    all_dates = [start]
+    step      = RDate(freq=freq, count=1)
+    for period in range(count-1):
+        non_rolled_date = step.apply( non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)  ##TODO: calendar doesnt matter
+        # all_dates.append(RDate().roll_to_bizday(non_rolled_date, calendar, roll_rule))    ##TODO: WTF
+        all_dates.append(roll_rule(non_rolled_date, calendar))                        ##TODO: remove after fixing the prev line
+    return all_dates
+
+def start_dates_for_tenor( start: date, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
+    all_dates = period_dates_for_tenor(start, freq, count, calendar, roll_rule)
+    return all_dates[:len(all_dates)-1]
+
+def end_dates_for_tenor( start: date, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
+    all_dates = period_dates_for_tenor(start, freq, count, calendar, roll_rule)
+    return all_dates[1:]
+
+## BAD THING: as a general "date helper" fn it's ok to calc the pay date here, but mkt conventions do this, so we repeat code and may diverge
+## NOTE: tenor/count/calendar/roll_rule are for payment settlements! should we name them pay_tenor/pay_count/pay_calendar/pay_roll_rule?
+def pay_dates_from_end_dates( end_dates: list, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
+    step = RDate(freq = freq, count = count)
+    return [ step.apply(end_date, calendar, roll_rule) for end_date in end_dates ]
+
+def start_end_pay_dates(
+        start: date,
+        period_freq: TENOR_FREQUENCY, period_count: int, period_calendar: Calendar, period_roll_rule: BIZDAY_ROLL_RULE,
+        pay_freq: TENOR_FREQUENCY,    pay_count: int,    pay_calendar: Calendar,    pay_roll_rule: BIZDAY_ROLL_RULE
+) -> tuple:
+    starts = start_dates_for_tenor(start, period_freq, period_count, period_calendar, period_roll_rule)
+    ends   = end_dates_for_tenor(  start, period_freq, period_count, period_calendar, period_roll_rule)
+    pays   = pay_dates_from_end_dates(ends, pay_freq, pay_count, pay_calendar, pay_roll_rule)
+    return ( starts, ends, pays )
+
+def last_pay_date(
+        start: date,
+        period_freq: TENOR_FREQUENCY, period_count: int, period_calendar: Calendar, period_roll_rule: BIZDAY_ROLL_RULE,
+        pay_freq: TENOR_FREQUENCY,    pay_count: int,    pay_calendar: Calendar,    pay_roll_rule: BIZDAY_ROLL_RULE
+) -> date:
+    _, _, pays = start_end_pay_dates(start,
+        period_freq, period_count, period_calendar, period_roll_rule,
+        pay_freq,    pay_count,    pay_calendar,    pay_roll_rule)
+    return pays[-1]
