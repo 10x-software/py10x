@@ -302,7 +302,11 @@ def last_pay_date(
         period_freq: TENOR_FREQUENCY, period_count: int, period_calendar: Calendar, period_roll_rule: BIZDAY_ROLL_RULE,
         pay_freq: TENOR_FREQUENCY,    pay_count: int,    pay_calendar: Calendar,    pay_roll_rule: BIZDAY_ROLL_RULE
 ) -> date:
-    _, _, pays = start_end_pay_dates(start,
-        period_freq, period_count, period_calendar, period_roll_rule,
-        pay_freq,    pay_count,    pay_calendar,    pay_roll_rule)
-    return pays[-1]
+    # _, _, pays = start_end_pay_dates(start,
+    #     period_freq, period_count, period_calendar, period_roll_rule,
+    #     pay_freq,    pay_count,    pay_calendar,    pay_roll_rule)
+    # return pays[-1]
+    ## to avoid all the loops in period_dates fn
+    last_end = RDate(freq=period_freq, count=period_count).apply(start, period_calendar, period_roll_rule)
+    last_pay = RDate(freq=pay_freq, count=pay_count).apply(last_end, pay_calendar, pay_roll_rule)
+    return last_pay
