@@ -10,6 +10,7 @@ from core_10x.named_constant import NamedConstant, NamedConstantTable
 from core_10x.nucleus import Nucleus
 from core_10x.xxcalendar import Calendar
 
+_DBG = False
 
 # =====
 #   Biz Day Roll Rules
@@ -260,53 +261,99 @@ class RDate(Nucleus):
 
 ## maybe put these in "date helper functions"; should it be in core or fin?
 ## need start/end/pay date sequences
-def period_dates_for_tenor( start: date, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
-    # start           = RDate().roll_to_bizday(start, calendar, roll_rule)              ##TODO: WTF
-    start           = roll_rule( start, calendar )                                ##TODO: remove after fixing the prev line
-    non_rolled_date = start
+
+class PROPAGATE_PERIODS(NamedConstant):
+    BACKWARD   = ()
+    FORWARD    = ()
+
+## BACKWARD period propagation is more standard for G10 interest rate swaps
+
+## if the tenor is not an integral multiple of the frequency (e.g., 30-month annual swap: tenor = 5S, freq = YEAR)
+## then there would be a period "shorter than the frequency" (e.g., half-year in the 30-month annual swap)
+## call such a period a STUB. it maybe in the front (1st period) for BACKWARD propagation or in the back (last period) for FORWARD
+
+def period_dates_for_tenor( start: date, tenor: RDate, freq: TENOR_FREQUENCY, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE,
+                            stub_period: PROPAGATE_PERIODS = PROPAGATE_PERIODS.BACKWARD, allow_stub_period = True) -> tuple:
+    start = roll_rule(start, calendar)                                ##TODO: replace after RDate().roll_to_bizday
+    end   = tenor.apply( start, calendar, roll_rule)
+    return period_dates(start, end, freq, calendar, roll_rule, stub_period, allow_stub_period)
+
+
+def period_dates(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calendar,
+                           roll_rule: BIZDAY_ROLL_RULE,
+                           date_propagation: PROPAGATE_PERIODS = PROPAGATE_PERIODS.BACKWARD,
+                           allow_stub_period=True) -> tuple:
+
     # no_cal    = Calendar.existing_instance(name = 'EMPTY', non_working_days = [])     ##TODO: must be standard
-    all_dates = [start]
-    step      = RDate(freq=freq, count=1)
-    for period in range(count-1):
-        non_rolled_date = step.apply( non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)  ##TODO: calendar doesnt matter
-        # all_dates.append(RDate().roll_to_bizday(non_rolled_date, calendar, roll_rule))    ##TODO: WTF
-        all_dates.append(roll_rule(non_rolled_date, calendar))                        ##TODO: remove after fixing the prev line
-    return all_dates
 
-def start_dates_for_tenor( start: date, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
-    all_dates = period_dates_for_tenor(start, freq, count, calendar, roll_rule)
-    return all_dates[:len(all_dates)-1]
+    start = roll_rule(start, calendar)      ##TODO: replace after RDate().roll_to_bizday
+    end   = roll_rule(end,   calendar)      ## ditto
 
-def end_dates_for_tenor( start: date, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
-    all_dates = period_dates_for_tenor(start, freq, count, calendar, roll_rule)
-    return all_dates[1:]
+    begin  = end                    if date_propagation == PROPAGATE_PERIODS.BACKWARD else start
+    finish = start                  if date_propagation == PROPAGATE_PERIODS.BACKWARD else end
+    dir    = -1                     if date_propagation == PROPAGATE_PERIODS.BACKWARD else 1
+    exceed = (lambda x, y: x<y)     if date_propagation == PROPAGATE_PERIODS.BACKWARD else (lambda x, y: x>y)
+    exOReq = (lambda x, y: x<=y)    if date_propagation == PROPAGATE_PERIODS.BACKWARD else (lambda x, y: x>=y)
+    step   = RDate(freq=freq, count=dir)
+
+    prev_rolled_date= begin
+    rolled_date     = begin
+    non_rolled_date = begin
+
+    all_dates = []
+    while exOReq(finish, rolled_date):
+        all_dates.append(rolled_date)
+        non_rolled_date = step.apply(non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)     ##TODO: calendar doesnt matter, but prefer EMPTY cal
+        rolled_date = roll_rule(non_rolled_date, calendar)                              ##TODO: replace after RDate().roll_to_bizday
+        assert exceed(rolled_date, prev_rolled_date), f'infinite loop: next date {rolled_date} vs previous date {prev_rolled_date} for date_propagation = {date_propagation.name}'
+        if exceed(rolled_date, finish):
+            break
+        prev_rolled_date = rolled_date
+
+    if not allow_stub_period:
+        if _DBG: print(f'stub check: start = {start}, end = {end}, freq = {freq.name}, date_prop = {date_propagation.name}, all_dates: {all_dates}')
+        assert prev_rolled_date == finish, f'the period sequence has a stub period bound by {prev_rolled_date} and {finish}'
+
+    all_dates.sort()
+
+    start_dates = all_dates[:len(all_dates)-1]
+    end_dates   = all_dates[1:]
+
+    return start_dates, end_dates, all_dates
 
 ## BAD THING: as a general "date helper" fn it's ok to calc the pay date here, but mkt conventions do this, so we repeat code and may diverge
-## NOTE: tenor/count/calendar/roll_rule are for payment settlements! should we name them pay_tenor/pay_count/pay_calendar/pay_roll_rule?
 def pay_dates_from_end_dates( end_dates: list, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
     step = RDate(freq = freq, count = count)
     return [ step.apply(end_date, calendar, roll_rule) for end_date in end_dates ]
 
-def start_end_pay_dates(
-        start: date,
-        period_freq: TENOR_FREQUENCY, period_count: int, period_calendar: Calendar, period_roll_rule: BIZDAY_ROLL_RULE,
-        pay_freq: TENOR_FREQUENCY,    pay_count: int,    pay_calendar: Calendar,    pay_roll_rule: BIZDAY_ROLL_RULE
+## tenor-defined swap rolls dates forward and, usually, has no stub (but can, e.g., a 30-month annually settling swap, i.e, tenor = 5S, freq = YEAR)
+## hence the defaults
+def start_end_pay_dates_for_tenor(
+        start: date, tenor: RDate,
+        period_freq: TENOR_FREQUENCY,                 period_calendar: Calendar, period_roll_rule: BIZDAY_ROLL_RULE,
+        pay_freq: TENOR_FREQUENCY,    pay_count: int, pay_calendar: Calendar,    pay_roll_rule: BIZDAY_ROLL_RULE,
+        date_propagation: PROPAGATE_PERIODS = PROPAGATE_PERIODS.FORWARD, allow_stub_period = False
 ) -> tuple:
-    starts = start_dates_for_tenor(start, period_freq, period_count, period_calendar, period_roll_rule)
-    ends   = end_dates_for_tenor(  start, period_freq, period_count, period_calendar, period_roll_rule)
-    pays   = pay_dates_from_end_dates(ends, pay_freq, pay_count, pay_calendar, pay_roll_rule)
+    starts, ends, _ = period_dates_for_tenor(start, tenor, period_freq, period_calendar, period_roll_rule, date_propagation, allow_stub_period)
+    pays            = pay_dates_from_end_dates(ends, pay_freq, pay_count, pay_calendar, pay_roll_rule)
     return ( starts, ends, pays )
 
-def last_pay_date(
-        start: date,
-        period_freq: TENOR_FREQUENCY, period_count: int, period_calendar: Calendar, period_roll_rule: BIZDAY_ROLL_RULE,
+## it is common to use date back propagation in rate swaps given by start and end (and, possibly, have a stub in the front)
+def start_end_pay_dates(
+        start: date, end: date,
+        period_freq: TENOR_FREQUENCY,                 period_calendar: Calendar, period_roll_rule: BIZDAY_ROLL_RULE,
+        pay_freq: TENOR_FREQUENCY,    pay_count: int, pay_calendar: Calendar,    pay_roll_rule: BIZDAY_ROLL_RULE,
+        date_propagation: PROPAGATE_PERIODS = PROPAGATE_PERIODS.BACKWARD, allow_stub_period = True
+) -> tuple:
+    starts, ends, _ = period_dates(start, end, period_freq, period_calendar, period_roll_rule, date_propagation, allow_stub_period)
+    pays            = pay_dates_from_end_dates(ends, pay_freq, pay_count, pay_calendar, pay_roll_rule)
+    return ( starts, ends, pays )
+
+def last_pay_periods_date_for_tenor(
+        start: date, tenor: RDate, period_calendar: Calendar, period_roll_rule: BIZDAY_ROLL_RULE,
         pay_freq: TENOR_FREQUENCY,    pay_count: int,    pay_calendar: Calendar,    pay_roll_rule: BIZDAY_ROLL_RULE
 ) -> date:
-    # _, _, pays = start_end_pay_dates(start,
-    #     period_freq, period_count, period_calendar, period_roll_rule,
-    #     pay_freq,    pay_count,    pay_calendar,    pay_roll_rule)
-    # return pays[-1]
-    ## to avoid all the loops in period_dates fn
-    last_end = RDate(freq=period_freq, count=period_count).apply(start, period_calendar, period_roll_rule)
-    last_pay = RDate(freq=pay_freq, count=pay_count).apply(last_end, pay_calendar, pay_roll_rule)
-    return last_pay
+    return last_pay_periods_date(tenor.apply(start, period_calendar, period_roll_rule), pay_freq, pay_count, pay_calendar, pay_roll_rule )
+
+def last_pay_periods_date( end: date, pay_freq: TENOR_FREQUENCY, pay_count: int, pay_calendar: Calendar, pay_roll_rule: BIZDAY_ROLL_RULE ) -> date:
+    return RDate(freq=pay_freq, count=pay_count).apply(end, pay_calendar, pay_roll_rule)
