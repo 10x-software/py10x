@@ -161,24 +161,3 @@ py::object BTrait::wrapper_f_style_sheet(BTraitable *obj)  {
     }
 }
 
-//======================================================================================================================
-//  Regular Trait
-//======================================================================================================================
-
-BasicNode* BTrait::find_node(BTraitableProcessor* proc, BTraitable* obj) {
-    return proc->cache()->find_node(obj->tid(), this);
-}
-
-BasicNode* BTrait::find_node(BTraitableProcessor* proc, BTraitable* obj, const py::args& args) {
-    return proc->cache()->find_node(obj->tid(), this, args);
-}
-
-BasicNode* BTrait::find_or_create_node(BTraitableProcessor* proc, BTraitable* obj, int node_type) {
-    return proc->cache()->find_or_create_node(obj->tid(), this);
-}
-
-BasicNode* BTrait::find_or_create_node(BTraitableProcessor* proc, BTraitable* obj, int node_type, const py::args& args) {
-    return proc->cache()->find_or_create_node(obj->tid(), this, args);
-}
-
-

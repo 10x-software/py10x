@@ -73,11 +73,6 @@ protected:
         return trait_error(exc, obj, nullptr, f, value, args);
     }
 
-    virtual BasicNode*  find_node(BTraitableProcessor* proc, BTraitable* obj);
-    virtual BasicNode*  find_node(BTraitableProcessor* proc, BTraitable* obj, const py::args& args);
-
-    virtual BasicNode*  find_or_create_node(BTraitableProcessor* proc, BTraitable* obj, int node_type);
-    virtual BasicNode*  find_or_create_node(BTraitableProcessor* proc, BTraitable* obj, int node_type, const py::args& args);
 
 public:
 
