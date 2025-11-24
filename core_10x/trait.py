@@ -9,17 +9,14 @@ import platform
 import sys
 from inspect import Parameter
 from types import GenericAlias
-from typing import TYPE_CHECKING, get_origin, get_type_hints
+from typing import get_origin, get_type_hints
 
 from core_10x_i import BTrait
 
 from core_10x.named_constant import NamedConstant
 from core_10x.rc import RC
-from core_10x.trait_definition import T, Ui
+from core_10x.trait_definition import T, TraitDefinition, Ui
 from core_10x.xnone import XNone
-
-if TYPE_CHECKING:
-    from core_10x.trait_definition import TraitDefinition
 
 
 class Trait(BTrait):
@@ -131,14 +128,18 @@ class Trait(BTrait):
 
     def set_trait_funcs(self, traitable_cls, rc):
         for method_name, (method_suffix, method_def) in Trait.method_defs(self.name).items():
-            method = self.t_def.params.get(method_suffix)
-            if method:
-                if hasattr(traitable_cls, method_name):
-                    rc.add_error(
-                        f'Ambiguous definition for {method_suffix}ing trait {self.name} on {traitable_cls} - both trait.{method_suffix} and traitable.{method_name} are defined.'
-                    )
-            else:
-                method = getattr(traitable_cls, method_name, None)
+            method_from_trait = self.t_def.params.get(method_suffix)
+            method_from_class = getattr(traitable_cls, method_name, None)
+            method = method_from_trait or method_from_class
+            if method_from_trait and method_from_class:
+                traitable_cls_vars = vars(traitable_cls)
+                if method_name in traitable_cls_vars:  # -- method from class defined on this class
+                    method = method_from_class
+                    trait_trait_def_of_none = traitable_cls_vars.get(self.name)
+                    if isinstance(traitable_cls_vars.get(self.name),TraitDefinition): # -- method from trait defined on this class (this called before we setattr the actual trait)
+                        rc.add_error(
+                            f'Ambiguous definition for {method_name} on {traitable_cls} - both trait.{method_suffix} and traitable.{method_name} are defined.'
+                        )
 
             f = method_def.value(self, method, method_suffix, rc)
             if f:
@@ -152,6 +153,8 @@ class Trait(BTrait):
             params = ()
 
         else:
+            # TODO: if default is defined in a subclass relative to where the getter is defined, override the getter?
+
             sig = inspect.signature(f)
             params = []
             param: Parameter
