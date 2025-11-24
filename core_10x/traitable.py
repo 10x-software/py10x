@@ -86,6 +86,8 @@ class TraitableMetaclass(type(BTraitable)):
         )
 
     def __new__(cls, name, bases, class_dict, **kwargs):
+        #TODO: this could go back to __init_subclass__ as we do not need to add traits to __slots__
+
         build_trait_dir = next(cls.find_symbols(bases, class_dict, 'build_trait_dir'))
         special_attributes = tuple(chain.from_iterable(cls.find_symbols(bases, class_dict, 's_special_attributes')))
 
@@ -96,13 +98,9 @@ class TraitableMetaclass(type(BTraitable)):
 
         build_trait_dir(bases, class_dict, trait_dir).throw(exc=TypeError)  # -- build trait dir_from trait definitions in class_dict
 
-        for item in trait_dir:
-            if item in class_dict:
-                del class_dict[item]  # -- delete trait names from class_dict as they will be in __slots__
-
         class_dict.update(
             s_dir=trait_dir,
-            __slots__=(*special_attributes, *tuple(trait_dir.keys())),
+            __slots__=special_attributes,
             s_special_attributes=special_attributes,
         )
 
@@ -284,6 +282,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, **trait_values):
         cls = self.__class__
+
         if _id is not None:
             assert _collection_name is None, f'{self.__class__}(id_value) may not be invoked with _collection_name'
             assert not trait_values, f'{self.__class__}(id_value) may not be invoked with trait_values'
@@ -463,6 +462,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         # TODO: implement
         return rc
 
+Traitable.s_bclass = BTraitableClass(Traitable)
 
 class NotStorableHelper:
     @staticmethod

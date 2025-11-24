@@ -7,6 +7,7 @@ import pytest
 from core_10x.code_samples.person import WEIGHT_QU, Person
 from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.trait_definition import RT, T
+from core_10x.traitable import Traitable
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
 
@@ -286,3 +287,74 @@ def test_graph_debug(testable_person):
             test_exec_control(testable_person, False, False, False)
         with GRAPH_OFF(debug=False, convert_values=True):
             test_exec_control(testable_person, False, True, False)
+
+
+@pytest.mark.parametrize('on_graph', [0, 1])
+@pytest.mark.parametrize('debug', [0, 1])
+@pytest.mark.parametrize('convert_values', [0, 1])
+@pytest.mark.parametrize('on_graph2', [0, 1])
+@pytest.mark.parametrize('debug2', [0, 1])
+@pytest.mark.parametrize('convert_values2', [0, 1])
+def test_traitable_processor_creation(on_graph,debug,convert_values,on_graph2,debug2,convert_values2):
+    class X(Traitable):
+        x:int = RT(T.ID)
+        v:int = RT()
+
+    X(x=1,v=10)
+    assert X(x=1).v == 10
+
+    default_cache = BTP.current().cache()
+    with BTP.create(on_graph,debug,convert_values, use_parent_cache=False,use_default_cache=False):
+        X(x=2,v=20)
+        parent_cache = BTP.current().cache()
+        assert default_cache is not parent_cache
+        with BTP.create(on_graph2,debug2,convert_values2, use_parent_cache=False,use_default_cache=False):
+            X(x=3,v=30)
+            child_cache = BTP.current().cache()
+            assert child_cache is not parent_cache
+            assert child_cache is not default_cache
+            assert X(x=1).v == 10
+            assert X(x=2).v == 20
+
+        with BTP.create(on_graph2,debug2,convert_values2,use_parent_cache=True,use_default_cache=False):
+            X(x=4,v=40)
+            child_cache = BTP.current().cache()
+            if on_graph == on_graph2: # use_parent_cache only works if both parent and child are either on_graph or off_graph
+                assert child_cache is parent_cache
+            else:
+                assert child_cache is not parent_cache
+                assert child_cache is not default_cache
+        with BTP.create(on_graph2,debug2,convert_values2,use_parent_cache=False,use_default_cache=True):
+            X(x=5,v=50)
+            child_cache = BTP.current().cache()
+            if not on_graph2: # use_default_cache only works for off-graph mode
+                assert child_cache is default_cache
+                assert X(x=2).v is XNone
+            else:
+                assert child_cache is not parent_cache
+                assert child_cache is not default_cache
+                assert X(x=2).v == 20 # from parent
+            assert X(x=1).v == 10
+
+        assert X(x=1).v == 10 # from parent caches
+        assert X(x=2).v == 20 # set in this cache
+        assert X(x=3).v is XNone # not set as was set in child with use_parent_cache=False
+        if on_graph == on_graph2: # use_parent_cache only works if both parent and child are either on_graph or off_graph
+            assert X(x=4).v == 40 # this cache, as was set in child with use_parent_cache=True
+        if not on_graph2: # use_default_cache only works for off-graph mode
+            assert X(x=5).v == 50 # in default cache, which is our parent
+
+    assert X(x=1).v == 10
+    assert X(x=2).v is XNone
+    assert X(x=3).v is XNone
+    assert X(x=4).v is XNone
+    if not on_graph2: # use_default_cache only works for off-graph mode
+        assert X(x=5).v == 50 # we are in default cache, and it was set in default cache
+
+    #TODO assert behavior with conflicting params, e.g.
+    #
+    # with pytest.raises(Exception):
+    #     BTP.create(-1,-1,-1,use_parent_cache=True,use_default_cache=True)
+
+
+    #TODO: node set, cleared, checked - each in nested cache level

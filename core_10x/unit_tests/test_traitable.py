@@ -3,6 +3,7 @@ from __future__ import annotations
 import collections
 import uuid
 from collections import Counter
+from contextlib import nullcontext
 from datetime import date
 from typing import TYPE_CHECKING
 
@@ -82,14 +83,14 @@ def test_trait_update():
 
 
 def test_traitable_slots():
-    expected_slots = ('T', '_default_cache', '_rev', '_collection_name')
+    expected_slots = ('T', '_default_cache')
     assert Traitable.__slots__ == expected_slots
-
+    assert not hasattr(Traitable(),'__dict__')
 
 def test_subclass_slots():
-    expected_slots = ('special_attr', *Traitable.__slots__, 'trait1', 'trait2')
+    expected_slots = ('special_attr', *Traitable.__slots__)
     assert SubTraitable.__slots__ == expected_slots
-
+    assert not hasattr(SubTraitable(trait1=1),'__dict__')
 
 def test_instance_slots():
     with CACHE_ONLY():
@@ -169,7 +170,8 @@ def test_collection_name_trait():
 @pytest.mark.parametrize('use_default_cache', [True, False])
 @pytest.mark.parametrize('use_existing_instance_by_id', [True, False])
 @pytest.mark.parametrize('self_ref', [True, False])
-def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache, use_existing_instance_by_id, self_ref):
+@pytest.mark.parametrize('nested', [True,False])
+def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache, use_existing_instance_by_id, self_ref,nested):
     load_calls = collections.Counter()
 
     class X(Traitable):
@@ -200,16 +202,18 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             assert x.x.x == x1  # found existing instance
             assert x1.x is XNone  # reload in debug mode
         else:
-            assert load_calls == expected(1)
-            assert x.x
-            assert not self_ref or x == x.x
-            assert load_calls == expected(1)
-            assert x.x.i == 1 + int(not self_ref)
-            assert load_calls == expected(1 + int(not self_ref))
-            assert x.x.x == (x if self_ref else x1)  # found existing instance
-            assert x1.x is x  # no reload
+            with BTP.create(-1,-1,-1,use_parent_cache=False,use_default_cache=False) if nested else nullcontext():
+                assert load_calls == expected(1)
+                assert x.x
+                assert not self_ref or x == x.x
+                assert load_calls == expected(1)
+                assert x.x.i == 1 + int(not self_ref)
+                assert load_calls == expected(1 + int(not self_ref))
+                assert x.x.x == (x if self_ref else x1)  # found existing instance
+                assert x1.x is x  # no reload
 
-    # TODO: change flags; as_of context
+    #TODO: change_flags; as_of context
+    #TODO: nodes with args...
 
 
 def test_trait_methods():
@@ -334,17 +338,25 @@ def test_trait_func_override():
 
     with pytest.raises(
         RuntimeError,
-        match=r'Ambiguous definition for geting trait x on <class \'test_traitable.test_trait_func_override.<locals>.Y\'> - both trait.get and traitable.x_get are defined.',
+        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_func_override.<locals>.Y\'> - both trait.get and traitable.x_get are defined.',
     ):
 
         class Y(X):
+            x: int = RT(get=lambda self: 2)
             def x_get(self):
                 return 2
 
     class Z(X):
-        x = M(get=None)
-
         def x_get(self):
             return 3
 
+    class T(Z):
+        def x_get(self):
+            return 4
+
+    class S(T):
+        x: int = RT(get=lambda self: 5)
+
     assert Z().x == 3
+    assert T().x == 4
+    assert S().x == 5
