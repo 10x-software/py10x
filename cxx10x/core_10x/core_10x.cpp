@@ -197,6 +197,11 @@ PYBIND11_MODULE(core_10x_i, m)
 
     py::class_<XCache>(m, "XCache")
             .def_static("clear", &XCache::clear)
+            .def("__repr__", [](const XCache& obj) {
+                std::ostringstream oss;
+                oss << "<XCache object at 0x" << std::hex << reinterpret_cast<uintptr_t>(&obj) << ">";
+                return oss.str();
+                })
 //            .def(py::init<>())
 //            .def("find_object_cache",           &XCache::find_object_cache)
 //            .def("find_node",                   py::overload_cast<const TID&, BTrait*>(XCache::find_node))
@@ -295,20 +300,26 @@ PYBIND11_MODULE(core_10x_i, m)
                         "on_graph"_a, "convert_values"_a, "debug"_a, "use_parent_cache"_a, "use_default_cache"_a
                 )
             .def_static("create_interactive",   &BTraitableProcessor::create_interactive)
+            .def_static("create_root",          &BTraitableProcessor::create_root)
             .def_static("change_mode",          &BTraitableProcessor::change_mode,
                         "Change the current BTraitableProcessor based on parameters",
                         "convert_values"_a, "debug"_a, "use_default_cache"_a
                 )
             .def_static("current",              &BTraitableProcessor::current, py::return_value_policy::reference)
-            .def("cache",                       &BTraitableProcessor::cache)
-            .def("begin_using",                 &BTraitableProcessor::begin_using)
+            .def("cache",                       &BTraitableProcessor::cache, py::return_value_policy::reference)
+            .def("begin_using",                 &BTraitableProcessor::begin_using, py::return_value_policy::reference)
             .def("end_using",                   &BTraitableProcessor::end_using)
             .def("__enter__",                   &BTraitableProcessor::py_enter)
             .def("__exit__",                    &BTraitableProcessor::py_exit)
             .def("flags",                       &BTraitableProcessor::flags)
             .def("share_object",                &BTraitableProcessor::share_object)
             .def("export_nodes",                &BTraitableProcessor::export_nodes)
-            ;
+            .def("__repr__", [](const BTraitableProcessor& obj) {
+                std::ostringstream oss;
+                oss << "<BTraitableProcessor object at 0x" << std::hex << reinterpret_cast<uintptr_t>(&obj) << ">";
+                return oss.str();
+                })
+        ;
 
     py::class_<BFlags>(m, "BFlags")
             .def(py::init<>())

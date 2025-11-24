@@ -222,7 +222,51 @@ public:
         return oc;
     }
 
-    ObjectCache* find_or_create_object_cache(const TID& tid, bool load_if_missing);
+    ObjectCache* find_object_cache_and_load(const TID& tid) {
+        // find an existing object cache in this cache or in parents
+        // if none found, handle lazy load (if applicable)
+        // return nullptr unless found (or created) in *this* cache
+        auto parent = this;
+        while(parent) {
+            if (const auto oc = parent->find_object_cache(tid))
+                return parent == this ? oc : nullptr;
+            parent = parent->m_parent;
+        }
+        if (tid.is_valid()) {
+            const auto oc = new_object_cache(tid);
+            tid.cls()->load(tid.id());
+            return oc;
+        }
+        return nullptr;
+    }
+    BasicNode* find_set_or_invalid_node_in_parents(const TID& tid, BTrait* trait, const bool parents_only=true) const {
+        auto parent = parents_only ? m_parent : this;
+        while(parent) {
+            if (const auto node = parent->find_node(tid, trait)) {
+                if (node->is_set() || !node->is_valid()) {
+                    return node;
+                }
+            }
+            parent = parent->m_parent;
+        }
+        return nullptr;
+    }
+    BasicNode* find_set_or_invalid_node_in_parents(const TID& tid, BTrait* trait, const py::args& args, const bool parents_only=true) const {
+        auto parent = parents_only ? m_parent : this;
+        while(parent) {
+            if (const auto node = parent->find_node(tid, trait, args)) {
+                if (node->is_set() || !node->is_valid())
+                    return node;
+            }
+            parent = parent->m_parent;
+        }
+        return nullptr;
+    }
+    ObjectCache* find_or_create_object_cache(const TID& tid) {
+        if (const auto oc = find_object_cache_and_load(tid))
+            return oc;
+        return new_object_cache(tid);
+    }
 
     //-- Lookup in this cache ONLY! (ignore the parent)
     [[nodiscard]] ObjectCache* find_object_cache(const TID& tid) const {

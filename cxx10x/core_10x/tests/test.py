@@ -5,7 +5,7 @@ from core_10x.xnone import XNone
 from core_10x.traitable import Traitable,T,RT,M,THIS_CLASS,AnonymousTraitable
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP, INTERACTIVE
 from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
@@ -302,6 +302,144 @@ def test_12():
         assert t().t is v
         assert t().serialize_object()['t'] == (v * 2 or None)
 
+def test_13():
+    class X(Traitable):
+        x:int = RT(T.ID)
+        v:int = RT()
+
+    X(x=1,v=10)
+    assert X(x=1).v == 10
+
+    default_cache = BTP.current().cache()
+    with BTP.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False) as btp0:
+        #assert btp0.flags() & BTP.ON_GRAPH
+        X(x=2,v=20)
+        parent_cache = BTP.current().cache()
+        assert default_cache is not parent_cache
+        with BTP.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False) as btp:
+            #assert btp.flags() & BTP.ON_GRAPH
+            X(x=3,v=30)
+            child_cache = BTP.current().cache()
+            assert child_cache is not parent_cache
+            assert child_cache is not default_cache
+            assert X(x=1).v == 10
+            assert X(x=2).v == 20
+
+        with BTP.create(-1,-1,-1,use_parent_cache=True,use_default_cache=False):
+            X(x=4,v=40)
+            child_cache = BTP.current().cache()
+            assert child_cache is parent_cache
+        with BTP.create(0,-1,-1,use_parent_cache=False,use_default_cache=True):
+            X(x=5,v=50)
+            child_cache = BTP.current().cache()
+            assert child_cache is default_cache # use_default_cache only works for off-graph mode
+            assert X(x=1).v == 10
+            assert X(x=2).v is XNone
+
+        assert X(x=1).v == 10 # from parent caches
+        assert X(x=2).v == 20 # set in this cache
+        assert X(x=3).v is XNone # not set as was set in child with use_parent_cache=False
+        assert X(x=4).v == 40 # this cache, as was set in child with use_parent_cache=True
+        assert X(x=5).v == 50 # in default cache, which is our parent
+
+    assert X(x=1).v == 10
+    assert X(x=2).v is XNone
+    assert X(x=3).v is XNone
+    assert X(x=4).v is XNone
+    assert X(x=5).v == 50
+
+    #TODO assert behavior with conflicting params
+
+def test_14():
+    class X(Traitable):
+        x: int = RT(0)
+
+    x = X()
+    assert x.x == 0
+    x.x = 1
+    assert x.x == 1
+
+    with BTraitableProcessor.create(on_graph=1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+        with BTraitableProcessor.create(on_graph=-1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+            assert x.x==1
+
+    with BTraitableProcessor.create(on_graph=1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+        assert x.x == 1
+        # this node is not set and no valid, so falls back to parent
+        with BTraitableProcessor.create(on_graph=-1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+            assert x.x==1
+
+    print('in', BTraitableProcessor.current().cache())
+
+    with BTraitableProcessor.create(on_graph=1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+        print('in', BTraitableProcessor.current().cache())
+        x.invalidate_value('x')
+
+        # this node is set and not valid, so works as white-out
+        with BTraitableProcessor.create(on_graph=-1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+            print('in', BTraitableProcessor.current().cache())
+            assert x.x==0
+
+def test_15():
+    class X(Traitable):
+        #s_custom_collection=True
+        k:str = T(T.ID)
+        v:int = T()
+        v1:int = T(default=0)
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return int(id.value) < 4
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data',id.value, BTraitableProcessor.current().cache())
+            return {'_id':id.value,'k':id.value,'v':int(id.value)*10,'_rev':1}
+
+    x1 = X.existing_instance(k='1')
+    x2 = X.existing_instance(k='2')
+    x3 = X.existing_instance(k='3')
+    assert x1
+    #assert x2
+    #assert x3
+    assert x1.v1==0
+    x1.v1=1
+    print('in', BTraitableProcessor.current().cache())
+    with BTraitableProcessor.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False):
+        assert x1.v1==1
+        x1.invalidate_value('v1')
+        print('in', BTraitableProcessor.current().cache())
+        with BTraitableProcessor.create(on_graph=1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+            print('in', BTraitableProcessor.current().cache())
+            assert x1.v==10
+            assert x1.v1==0
+            assert x2.v==20
+
+    assert x1.v==10
+    assert x2.v==20
+    assert x3.v==30
+
+def test_16():
+    class X(Traitable):
+        x: int = RT()
+        #y: int = RT()
+        z: int = RT()
+        def z_get(self):
+            return self.x + 1#self.y
+
+    with GRAPH_ON() as g1:
+        print('in', g1.cache())
+        x = X(x=10,y=1)
+        print('getting z')
+        assert x.z == 11
+        with GRAPH_ON() as g2:
+            print('in', g2.cache())
+            print('getting x')
+            x.x = 20
+            print('getting z')
+            print(x.z)
+            assert x.z == 21
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -315,7 +453,11 @@ if __name__ == '__main__':
     #test_8()
     #test_9()
     #test_10()
-    test_12()
+    #test_12()
+    test_13()
+    #test_14()
+    #test_15()
+    #test_16()
 
 
 

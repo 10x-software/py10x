@@ -74,6 +74,8 @@ public:
     // int param: -1 - inherit, 0 - reset, 1 - set
     static BTraitableProcessor* create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache);
 
+    static BTraitableProcessor* create_root();
+
     static BTraitableProcessor* create_interactive() {
         auto proc = create(1, 1, 1, false, false);
         proc->allow_empty_objects(true);
@@ -122,8 +124,8 @@ public:
     bool                    is_set(BTraitable* obj, BTrait* trait) const;
     bool                    is_set(BTraitable* obj, BTrait* trait, const py::args& args) const;
 
-    BasicNode*              get_node(BTraitable* obj, BTrait* trait) const;
-    BasicNode*              get_node(BTraitable* obj, BTrait* trait, const py::args& args) const;
+    // BasicNode*              get_node(BTraitable* obj, BTrait* trait) const;
+    // BasicNode*              get_node(BTraitable* obj, BTrait* trait, const py::args& args) const;
 
     [[nodiscard]] bool      object_exists(const TID& tid) const;
     [[nodiscard]] bool      object_exists(BTraitableClass *cls, const py::object &id_value, const py::object &coll_name) const;

@@ -12,7 +12,14 @@
 
 //BTraitable::BTraitable(const py::object& cls) {
 //    m_tid.set_class(cls.cast<BTraitableClass*>());
-//}
+//
+
+// TODO:
+// - lazy ref => (delayed) load in cache where it was created...
+// - use lazy ref even even in constructor
+// - if an object has ptr to cache, it's a lazy ref and should be (delayed) loaded before use
+// - review exceptions in constructor due to non-id traits...
+// - consider/test a reload of a lazy ref...
 
 BTraitable::~BTraitable() {
     if (!m_tid.is_valid()) {    //-- remove temp obj's nodes
@@ -106,7 +113,7 @@ void BTraitable::initialize(const py::dict& trait_values) {
 }
 
 bool BTraitable::id_exists() {
-    if( !tid().is_valid())
+    if (!tid().is_valid())
         return false;
 
     return ThreadContext::current_traitable_proc()->accept_existing(this);
@@ -200,7 +207,8 @@ py::object BTraitable::deserialize_nx(BTraitableClass *cls, const py::object& se
         if (ThreadContext::current_traitable_proc()->flags_on(BTraitableProcessor::DEBUG)) {
             const auto tid =lazy_ref.cast<BTraitable*>()->tid();
             const auto cache = ThreadContext::current_traitable_proc()->cache();
-            cache->find_or_create_object_cache(tid,false); //-- create object, if necessary cache without loading
+            if (!cache->find_object_cache(tid))
+                cache->create_object_cache(tid); //-- create object, if necessary
             cls->load(id); //-- force loading the object in debug mode
         }
 
@@ -208,7 +216,7 @@ py::object BTraitable::deserialize_nx(BTraitableClass *cls, const py::object& se
     }
 
     //-- Embedded traitable
-    auto py_traitable = cls->py_class()();      // cls() - exogeneous iD!
+    auto py_traitable = cls->py_class()();      // cls() - exogenous iD!
     auto obj = py_traitable.cast<BTraitable*>();
     obj->deserialize_traits(serialized_data);
     return py_traitable;

@@ -130,13 +130,13 @@ bool BTraitableProcessor::is_set(BTraitable* obj, BTrait* trait, const py::args&
     return node != nullptr && node->is_set();
 }
 
-BasicNode* BTraitableProcessor::get_node(BTraitable *obj, BTrait *trait) const {
-    return cache()->find_node(obj->tid(), trait);
-}
-
-BasicNode* BTraitableProcessor::get_node(BTraitable *obj, BTrait *trait, const py::args& args) const {
-    return cache()->find_node(obj->tid(), trait, args);
-}
+// BasicNode* BTraitableProcessor::get_node(BTraitable *obj, BTrait *trait) const {
+//     return cache()->find_node(obj->tid(), trait);
+// }
+//
+// BasicNode* BTraitableProcessor::get_node(BTraitable *obj, BTrait *trait, const py::args& args) const {
+//     return cache()->find_node(obj->tid(), trait, args);
+// }
 
 //---- Setting a value
 
@@ -329,7 +329,19 @@ BTraitableProcessor* BTraitableProcessor::create_raw(unsigned int flags) {
     return proc;
 }
 
-BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache) {
+BTraitableProcessor* BTraitableProcessor::create_root() {
+    // create a processor with no parent cache
+    auto parent = current();
+    auto flags = parent->flags();
+    auto proc = create_raw(flags);
+    auto cache = new XCache();
+    if (flags & ON_GRAPH)
+        cache->set_default_node_type(NODE_TYPE::BASIC_GRAPH);
+    proc->use_own_cache(cache);
+    return proc;
+}
+
+BTraitableProcessor* BTraitableProcessor::create(const int on_graph, const int convert_values, const int debug, const bool use_parent_cache, const bool use_default_cache) {
     auto parent = current();
     auto parent_flags = parent->flags();
 
@@ -344,6 +356,11 @@ BTraitableProcessor* BTraitableProcessor::create(int on_graph, int convert_value
         flags = debug == 1? flags | DEBUG : flags & ~DEBUG;
 
     auto proc = create_raw(flags);
+
+    // 1. use_parent_cache uses parent's cache as its own *only* when parent and new proc are either ON_GRAPH or OFF_GRAPH
+    // 2. use_default_cache forces using the default cache *only* when the new processor is OFF_GRAPH
+    // 3. when both use_parent_cache and use_default_cache are true, use_default_cache takes precedence for OFF_GRAPH processors
+    // TODO: should we throw exceptions when parameters are ignored?
 
     if (flags & ON_GRAPH) {
         if (!use_parent_cache || !(parent_flags & ON_GRAPH)) {
