@@ -349,16 +349,16 @@ public:
         return oc->find_node(trait, args);
     }
 
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait) {
-        return find_or_create_node(tid, trait, m_default_node_type);
+    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const bool import_from_parents) {
+        return find_or_create_node(tid, trait, m_default_node_type, import_from_parents);
     }
 
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args) {
-        return find_or_create_node(tid, trait, m_default_node_type, args);
+    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, const bool import_from_parents) {
+        return find_or_create_node(tid, trait, m_default_node_type, args, import_from_parents);
     }
 
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type);
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type, const py::args& args);
+    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type, bool import_from_parents);
+    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type, const py::args& args, bool import_from_parents);
 
     void remove_node(const TID& tid, BTrait* trait) {
         if (tid.is_valid()) {

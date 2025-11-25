@@ -111,7 +111,7 @@ BTrait* BUiClass::bui_trait(BTrait *trait) const {
 void BUiClass::create_ui_node(BTraitable *obj, BTrait *trait, py::object f_refresh) {
     auto ui_trait = bui_trait(trait);
     auto proc = ThreadContext::current_traitable_proc();
-    auto ui_node = (BUiNode*) proc->cache()->find_or_create_node(obj->tid(), ui_trait, NODE_TYPE::UI);
+    const auto ui_node = static_cast<BUiNode *>(proc->cache()->find_or_create_node(obj->tid(), ui_trait, NODE_TYPE::UI, false));
     ui_node->set_refresh_emit(f_refresh);
 
     ui_trait->proc()->get_value_on_graph(proc, obj, trait);  //-- to create necessary deps for ui_node!

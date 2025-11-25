@@ -9,31 +9,40 @@
 XCache* XCache::s_default = new XCache();
 
 
-BasicNode* XCache::find_or_create_node(const TID& tid, BTrait* trait, int node_type) {
+BasicNode* XCache::find_or_create_node(const TID& tid, BTrait* trait, int node_type, const bool import_from_parents) {
     const auto oc = find_or_create_object_cache(tid);
     auto node = oc->find_node(trait);
     if (!node) {
         node = BasicNode::create(node_type);
         oc->insert_node(trait, node);
 
-        if(auto parent_node = find_set_or_invalid_node_in_parents(tid, trait)) {
-            if (parent_node->is_valid())
-                node->set_imported(parent_node->value());
-        }
+        if (!import_from_parents)
+            return node;
+
+        const auto parent_node = find_set_or_invalid_node_in_parents(tid, trait);
+        if (!parent_node || !parent_node->is_valid())
+            return node;
+
+        node->set_imported(parent_node->value());
     }
     return node;
 }
 
-BasicNode* XCache::find_or_create_node(const TID& tid, BTrait* trait, int node_type, const py::args& args) {
+BasicNode* XCache::find_or_create_node(const TID& tid, BTrait* trait, int node_type, const py::args& args, const bool import_from_parents) {
     const auto oc = find_or_create_object_cache(tid);
     auto node = oc->find_node(trait, args);
     if (!node) {
         node = BasicNode::create(node_type);
         oc->insert_node(trait, node, args);
 
-        if(auto parent_node = find_set_or_invalid_node_in_parents(tid, trait, args))
-            if (parent_node->is_valid())
-                node->set_imported(parent_node->value());
+        if (!import_from_parents)
+            return node;
+
+        const auto parent_node = find_set_or_invalid_node_in_parents(tid, trait, args);
+        if (!parent_node || !parent_node->is_valid())
+            return node;
+
+        node->set_imported(parent_node->value());
     }
     return node;
 }
