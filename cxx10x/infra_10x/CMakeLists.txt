@@ -18,7 +18,7 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/sizmailov/pybind11-stubgen.git
         GIT_TAG v2.5.5
 )
-FetchContent_MakeAvailable(pybind11_stubgen)
+FetchContent_MakeAvailable(pybind11 pybind11_stubgen)
 #FetchContent_Declare(
 #        mongo-cxx-driver
 #        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
