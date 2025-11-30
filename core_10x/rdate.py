@@ -262,11 +262,10 @@ class RDate(Nucleus):
 ## maybe put these in "date helper functions"; should it be in core or fin?
 ## need start/end/pay date sequences
 
+## BACKWARD period propagation is more standard for G10 interest rate swaps
 class PROPAGATE_PERIODS(NamedConstant):
     BACKWARD   = ()
     FORWARD    = ()
-
-## BACKWARD period propagation is more standard for G10 interest rate swaps
 
 ## if the tenor is not an integral multiple of the frequency (e.g., 30-month annual swap: tenor = 5S, freq = YEAR)
 ## then there would be a period "shorter than the frequency" (e.g., half-year in the 30-month annual swap)
@@ -278,19 +277,33 @@ def period_dates_for_tenor( start: date, tenor: RDate, freq: TENOR_FREQUENCY, ca
     end   = tenor.apply( start, calendar, roll_rule)
     return period_dates(start, end, freq, calendar, roll_rule, stub_period, allow_stub_period)
 
-
 def period_dates(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calendar,
                            roll_rule: BIZDAY_ROLL_RULE,
                            date_propagation: PROPAGATE_PERIODS = PROPAGATE_PERIODS.BACKWARD,
                            allow_stub_period=True) -> tuple:
 
-    # no_cal    = Calendar.existing_instance(name = 'EMPTY', non_working_days = [])     ##TODO: must be standard
+    all_dates   = dates_schedule(start, end, freq, calendar, roll_rule, date_propagation, allow_stub_period)
+    start_dates = all_dates[:len(all_dates)-1]
+    end_dates   = all_dates[1:]
 
-    start = roll_rule(start, calendar)      ##TODO: replace after RDate().roll_to_bizday
-    end   = roll_rule(end,   calendar)      ## ditto
+    return start_dates, end_dates, all_dates
 
-    begin  = end                    if date_propagation == PROPAGATE_PERIODS.BACKWARD else start
-    finish = start                  if date_propagation == PROPAGATE_PERIODS.BACKWARD else end
+def dates_schedule( start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calendar,
+                    roll_rule: BIZDAY_ROLL_RULE,
+                    date_propagation: PROPAGATE_PERIODS = PROPAGATE_PERIODS.BACKWARD,
+                    allow_stub_period=True) -> list:
+
+    ##TODO: replace roll_rule when fix after RDate().roll_to_bizday
+    rolled_start = roll_rule(start, calendar)
+    assert rolled_start >= start, f'rolled start date {rolled_start} is before non-working start date {start} according to calendar {calendar.name} and roll rule {roll_rule.name}'
+    rolled_end   = roll_rule(end,   calendar)
+    assert rolled_end <= end, f'rolled end date {rolled_end} is after non-working end date {end} according to calendar {calendar.name} and roll rule {roll_rule.name}'
+
+    # start = rolled_start
+    # end   = rolled_end
+
+    begin  = rolled_end             if date_propagation == PROPAGATE_PERIODS.BACKWARD else rolled_start
+    finish = rolled_start           if date_propagation == PROPAGATE_PERIODS.BACKWARD else rolled_end
     dir    = -1                     if date_propagation == PROPAGATE_PERIODS.BACKWARD else 1
     exceed = (lambda x, y: x<y)     if date_propagation == PROPAGATE_PERIODS.BACKWARD else (lambda x, y: x>y)
     exOReq = (lambda x, y: x<=y)    if date_propagation == PROPAGATE_PERIODS.BACKWARD else (lambda x, y: x>=y)
@@ -301,6 +314,7 @@ def period_dates(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calend
     non_rolled_date = begin
 
     all_dates = []
+    # no_cal    = Calendar.existing_instance(name = 'EMPTY', non_working_days = [])     ##TODO: must be standard
     while exOReq(finish, rolled_date):
         all_dates.append(rolled_date)
         non_rolled_date = step.apply(non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)     ##TODO: calendar doesnt matter, but prefer EMPTY cal
@@ -311,15 +325,13 @@ def period_dates(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calend
         prev_rolled_date = rolled_date
 
     if not allow_stub_period:
-        if _DBG: print(f'stub check: start = {start}, end = {end}, freq = {freq.name}, date_prop = {date_propagation.name}, all_dates: {all_dates}')
+        if _DBG: print(f'stub check: start/rolled_start = {start}/{rolled_start}, end/rolled_end = {end}/{rolled_end}, '
+                       f'freq = {freq.name}, date_prop = {date_propagation.name}, all_dates: {all_dates}')
         assert prev_rolled_date == finish, f'the period sequence has a stub period bound by {prev_rolled_date} and {finish}'
 
     all_dates.sort()
 
-    start_dates = all_dates[:len(all_dates)-1]
-    end_dates   = all_dates[1:]
-
-    return start_dates, end_dates, all_dates
+    return all_dates
 
 ## BAD THING: as a general "date helper" fn it's ok to calc the pay date here, but mkt conventions do this, so we repeat code and may diverge
 def pay_dates_from_end_dates( end_dates: list, freq: TENOR_FREQUENCY, count: int, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
@@ -358,18 +370,5 @@ def last_pay_periods_date_for_tenor(
 def last_pay_periods_date( end: date, pay_freq: TENOR_FREQUENCY, pay_count: int, pay_calendar: Calendar, pay_roll_rule: BIZDAY_ROLL_RULE ) -> date:
     return RDate(freq=pay_freq, count=pay_count).apply(end, pay_calendar, pay_roll_rule)
 
-def sampling_curve(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calendar,
-                     roll_rule: BIZDAY_ROLL_RULE,
-                     date_propagation: PROPAGATE_PERIODS = PROPAGATE_PERIODS.FORWARD,  ## probably do not need it here
-                     # allow_stub_period=True   ## not well-def
-                   ) -> list:
-    _, _, all_dates = period_dates(start, end, freq, calendar, roll_rule, date_propagation)
-
-    ## start/end should not be rolled to a bizday for sampling curves (e.g., all bizdays within a month with non-biz start/end dates)
-    if all_dates[0] < start:
-        all_dates.pop(0)
-    if all_dates[-1] > end:
-        all_dates.pop(-1)
-    assert all_dates[0] >= start and all_dates[-1] <= end
-
-    return all_dates
+def sampling_curve(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
+    return dates_schedule(start, end, freq, calendar, roll_rule, date_propagation=PROPAGATE_PERIODS.FORWARD, allow_stub_period=True)
