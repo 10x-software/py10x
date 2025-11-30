@@ -370,5 +370,5 @@ def last_pay_periods_date_for_tenor(
 def last_pay_periods_date( end: date, pay_freq: TENOR_FREQUENCY, pay_count: int, pay_calendar: Calendar, pay_roll_rule: BIZDAY_ROLL_RULE ) -> date:
     return RDate(freq=pay_freq, count=pay_count).apply(end, pay_calendar, pay_roll_rule)
 
-def sampling_curve(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
+def sampling_dates(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> list:
     return dates_schedule(start, end, freq, calendar, roll_rule, date_propagation=PROPAGATE_PERIODS.FORWARD, allow_stub_period=True)
