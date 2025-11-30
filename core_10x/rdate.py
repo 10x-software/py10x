@@ -357,3 +357,19 @@ def last_pay_periods_date_for_tenor(
 
 def last_pay_periods_date( end: date, pay_freq: TENOR_FREQUENCY, pay_count: int, pay_calendar: Calendar, pay_roll_rule: BIZDAY_ROLL_RULE ) -> date:
     return RDate(freq=pay_freq, count=pay_count).apply(end, pay_calendar, pay_roll_rule)
+
+def sampling_curve(start: date, end: date, freq: TENOR_FREQUENCY, calendar: Calendar,
+                     roll_rule: BIZDAY_ROLL_RULE,
+                     date_propagation: PROPAGATE_PERIODS = PROPAGATE_PERIODS.FORWARD,  ## probably do not need it here
+                     # allow_stub_period=True   ## not well-def
+                   ) -> list:
+    _, _, all_dates = period_dates(start, end, freq, calendar, roll_rule, date_propagation)
+
+    ## start/end should not be rolled to a bizday for sampling curves (e.g., all bizdays within a month with non-biz start/end dates)
+    if all_dates[0] < start:
+        all_dates.pop(0)
+    if all_dates[-1] > end:
+        all_dates.pop(-1)
+    assert all_dates[0] >= start and all_dates[-1] <= end
+
+    return all_dates
