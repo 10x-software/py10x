@@ -156,7 +156,7 @@ class Curve(Traitable):
                 return self.values[times.index(t)]
 
         bot = self.beginning_of_time
-        return float(self.interpolator(t)) if (not bot) or (t >= bot) else math.nan
+        return float(self.interpolator(t)) if (bot is not None) or (t >= bot) else math.nan
 
     def values_at(self, dates) -> tuple:
         return tuple(self.value(d) for d in dates)
@@ -164,39 +164,38 @@ class Curve(Traitable):
     def reset(self):
         self.invalidate_value('interpolator')
 
-    @classmethod
-    def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:  # noqa: N802
-        assert len(times) == len(values), f'{len(times)} != {len(values)}: sizes of times and values must be equal'
-
-        last_t = times[0]
-        last_i = 0
-        times_unique = [last_t]
-        values_unique = [values[0]]
-
-        for t, v in zip(times, values, strict=True):
-            assert t >= last_t, f'times must be a non-decreasing list, but {t} < {last_t}'
-
-            if t > last_t:
-                last_t = t
-                last_i += 1
-                times_unique.append(t)
-                values_unique.append(v)
-            else:
-                if keep_last_update:
-                    values_unique[last_i] = v
-
-        return (times_unique, values_unique)
-
-    def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> Curve:  # noqa: N802
-        times_unique, values_unique = self._uniqueTimesValues(self.times(), self.values(), keep_last_update)
-        if copy_curve:
-            return self.clone(times=times_unique, values=values_unique)
-
-        self.times = times_unique
-        self.values = values_unique
-        self.reset()
-        return self
-
+    # @classmethod
+    # def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:  # noqa: N802
+    #     assert len(times) == len(values), f'{len(times)} != {len(values)}: sizes of times and values must be equal'
+    #
+    #     last_t = times[0]
+    #     last_i = 0
+    #     times_unique = [last_t]
+    #     values_unique = [values[0]]
+    #
+    #     for t, v in zip(times, values, strict=True):
+    #         assert t >= last_t, f'times must be a non-decreasing list, but {t} < {last_t}'
+    #
+    #         if t > last_t:
+    #             last_t = t
+    #             last_i += 1
+    #             times_unique.append(t)
+    #             values_unique.append(v)
+    #         else:
+    #             if keep_last_update:
+    #                 values_unique[last_i] = v
+    #
+    #     return (times_unique, values_unique)
+    #
+    # def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> Curve:  # noqa: N802
+    #     times_unique, values_unique = self._uniqueTimesValues(self.times(), self.values(), keep_last_update)
+    #     if copy_curve:
+    #         return self.clone(times=times_unique, values=values_unique)
+    #
+    #     self.times = times_unique
+    #     self.values = values_unique
+    #     self.reset()
+    #     return self
 
 class TwoFuncInterpolator:
     def __init__(self, in_func, out_func, in_func_on_arrays=None, _interpolator=interpolate.interp1d):
@@ -244,7 +243,7 @@ class DateCurve(Curve):
         return [f(x) for x in self.times]
 
     def dates_set(self, trait, value) -> RC:
-        f = self._to_number
+        f = self._to_number     #-- TODO: possibly improve performance by using a different f (which doesn't check the type)
         times = [f(d) for d in value]
         return self.set_value('times', times)
 
@@ -252,6 +251,9 @@ class DateCurve(Curve):
         t = self._to_number(d)
         self.raw_set_value(trait, t)
         return RC_TRUE
+
+    def beginning_of_time_as_date(self) -> date:
+        return self._from_number(self.beginning_of_time)
 
     def start_time(self) -> date:
         times = self.dates
@@ -287,29 +289,26 @@ class DateCurve(Curve):
         self.values = values
         self.update(d, new_value)
 
-    def bracketDateNodes(self, d: date) -> tuple:  # noqa: N802
-        t = self._to_number(d)
-
-        times: list = self.times
-        last_time = times[-1]
-        first_time = times[0]
-        if t > last_time:
-            return (self._from_number(last_time), None)
-
-        if t < first_time:
-            return (None, self._from_number(first_time))
-
-        i = bisect.bisect_left(times, t)
-        if times[i] == t:
-            d = self._from_number(times[i])
-            return (d, d)
-
-        d_left = self._from_number(times[i - 1])
-        d_right = self._from_number(times[i])
-        return (d_left, d_right)
-
-    def beginning_of_time_as_date(self) -> date:
-        return DateCurve._from_number(self.beginning_of_time)
+    # def bracketDateNodes(self, d: date) -> tuple:  # noqa: N802
+    #     t = self._to_number(d)
+    #
+    #     times: list = self.times
+    #     last_time = times[-1]
+    #     first_time = times[0]
+    #     if t > last_time:
+    #         return (self._from_number(last_time), None)
+    #
+    #     if t < first_time:
+    #         return (None, self._from_number(first_time))
+    #
+    #     i = bisect.bisect_left(times, t)
+    #     if times[i] == t:
+    #         d = self._from_number(times[i])
+    #         return (d, d)
+    #
+    #     d_left = self._from_number(times[i - 1])
+    #     d_right = self._from_number(times[i])
+    #     return (d_left, d_right)
 
     def dates_values(self, min_date: date = None, max_date: date = None) -> list:
         dates = self.dates
