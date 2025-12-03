@@ -8,7 +8,7 @@ from typing import Any
 from scipy import interpolate
 
 from core_10x.named_constant import NamedConstant
-from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
+from core_10x.traitable import RC, RC_TRUE, RT, T, M, Traitable, AnonymousTraitable
 
 
 class IP_KIND(NamedConstant, lowercase_values=True):
@@ -50,7 +50,7 @@ class CurveParams(Traitable):
     # fmt: on
 
 
-class Curve(Traitable):
+class Curve(AnonymousTraitable):
     # fmt: off
     times: list         = T([])       #-- only ints or floats are allowed
     values: list        = T([])
@@ -77,6 +77,9 @@ class Curve(Traitable):
         return times[-1] if times else None
 
     def update(self, t, value, reset=True):
+        if type(value) is not float:        #-- TODO: we sometimes have np.floats
+            value = float(value)
+
         times = self.times
         values = self.values
         i = bisect.bisect_left(times, t)
@@ -221,6 +224,7 @@ class TwoFuncInterpolator:
 
 
 class DateCurve(Curve):
+    beginning_of_time: int = M()        #-- TODO: looks like Any trait fails to get deserialized - bug
     dates: list = RT()
 
     s_epoch_date = date(1970, 1, 1)
