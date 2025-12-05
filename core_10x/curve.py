@@ -77,7 +77,7 @@ class Curve(AnonymousTraitable):
         return times[-1] if times else None
 
     def update(self, t, value, reset=True):
-        if type(value) is not float:        #-- TODO: we sometimes have np.floats
+        if type(value) is not float:  # -- TODO: we sometimes have np.floats
             value = float(value)
 
         times = self.times
@@ -200,6 +200,7 @@ class Curve(AnonymousTraitable):
     #     self.reset()
     #     return self
 
+
 class TwoFuncInterpolator:
     def __init__(self, in_func, out_func, in_func_on_arrays=None, _interpolator=interpolate.interp1d):
         if in_func:
@@ -224,7 +225,7 @@ class TwoFuncInterpolator:
 
 
 class DateCurve(Curve):
-    beginning_of_time: int = M()        #-- TODO: looks like Any trait fails to get deserialized - bug
+    beginning_of_time: int = M()  # -- TODO: looks like Any trait fails to get deserialized - bug
     dates: list = RT()
 
     s_epoch_date = date(1970, 1, 1)
@@ -247,7 +248,7 @@ class DateCurve(Curve):
         return [f(x) for x in self.times]
 
     def dates_set(self, trait, value) -> RC:
-        f = self._to_number     #-- TODO: possibly improve performance by using a different f (which doesn't check the type)
+        f = self._to_number  # -- TODO: possibly improve performance by using a different f (which doesn't check the type)
         times = [f(d) for d in value]
         return self.set_value('times', times)
 
