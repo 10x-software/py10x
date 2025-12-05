@@ -11,13 +11,13 @@ from core_10x.nucleus import Nucleus
 from core_10x.xxcalendar import Calendar
 
 
-#=====
+# =====
 #   Biz Day Roll Rules
 #   1. Preceding (rolls backwards): go to the prev biz day, if not already
 #   2. Following (rolls forward):   go to the next biz day, if not already
 #   3. Modified following:          go to the next biz day unless the next biz day is in the next month, otherwise go to 1.
 #   4. Modified preceding:          go to the prev biz day unless the prev biz day is in the prev month, otherwise go to 2.
-#=====
+# =====
 def bizday_roll_preceding(d: date, cal: Calendar) -> date:
     if cal.is_bizday(d):
         return d
@@ -88,8 +88,8 @@ FREQUENCY_TABLE = NamedConstantTable(TENOR_FREQUENCY, TENOR_PARAMS,
 
 
 class PROPAGATE_DATES(NamedConstant):
-    BACKWARD   = ()         ## BACKWARD period propagation is more standard for G10 interest rate swaps
-    FORWARD    = ()
+    BACKWARD = ()  ## BACKWARD period propagation is more standard for G10 interest rate swaps
+    FORWARD = ()
 
 
 class RDate(Nucleus):
@@ -262,11 +262,17 @@ class RDate(Nucleus):
         tenors = tenors_str.split(delim)
         return [RDate(tenor.strip()) for tenor in tenors]
 
-    def dates_schedule(self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True) -> list:
+    def dates_schedule(
+        self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True
+    ) -> list:
         rolled_start = roll_rule(start, calendar)
-        assert rolled_start >= start, f'rolled start date {rolled_start} is before non-working start date {start} according to calendar {calendar.name} and roll rule {roll_rule.name}'
-        rolled_end   = roll_rule(end, calendar)
-        assert rolled_end <= end, f'rolled end date {rolled_end} is after non-working end date {end} according to calendar {calendar.name} and roll rule {roll_rule.name}'
+        assert rolled_start >= start, (
+            f'rolled start date {rolled_start} is before non-working start date {start} according to calendar {calendar.name} and roll rule {roll_rule.name}'
+        )
+        rolled_end = roll_rule(end, calendar)
+        assert rolled_end <= end, (
+            f'rolled end date {rolled_end} is after non-working end date {end} according to calendar {calendar.name} and roll rule {roll_rule.name}'
+        )
 
         if date_propagation == PROPAGATE_DATES.BACKWARD:
             begin = rolled_end
@@ -275,46 +281,51 @@ class RDate(Nucleus):
             exceed = lambda x, y: x < y
             ex_or_eq = lambda x, y: x <= y
         else:
-            begin  = rolled_start
+            begin = rolled_start
             finish = rolled_end
-            dir    = 1
+            dir = 1
             exceed = lambda x, y: x > y
             ex_or_eq = lambda x, y: x >= y
 
         step = self * dir
-    
-        prev_rolled_date= begin
-        rolled_date     = begin
+
+        prev_rolled_date = begin
+        rolled_date = begin
         non_rolled_date = begin
-    
+
         all_dates = []
         while ex_or_eq(finish, rolled_date):
             all_dates.append(rolled_date)
             non_rolled_date = step.apply(non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)
             rolled_date = roll_rule(non_rolled_date, calendar)
-            assert exceed(rolled_date, prev_rolled_date), f'infinite loop: next date {rolled_date} vs previous date {prev_rolled_date} for date_propagation = {date_propagation.name}'
+            assert exceed(rolled_date, prev_rolled_date), (
+                f'infinite loop: next date {rolled_date} vs previous date {prev_rolled_date} for date_propagation = {date_propagation.name}'
+            )
             if exceed(rolled_date, finish):
                 break
             prev_rolled_date = rolled_date
-    
+
         if not allow_stub:
             assert prev_rolled_date == finish, f'the date sequence has a stub period bound by {prev_rolled_date} and {finish}'
-    
+
         all_dates.sort()
         return all_dates
 
-    def period_dates(self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True) -> tuple:
-        all_dates   = self.dates_schedule(start, end, calendar, roll_rule, date_propagation, allow_stub)
-        start_dates = all_dates[:len(all_dates)-1]
-        end_dates   = all_dates[1:]
+    def period_dates(
+        self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True
+    ) -> tuple:
+        all_dates = self.dates_schedule(start, end, calendar, roll_rule, date_propagation, allow_stub)
+        start_dates = all_dates[: len(all_dates) - 1]
+        end_dates = all_dates[1:]
 
         return start_dates, end_dates, all_dates
 
     ## if the tenor is not an integral multiple of the frequency (e.g., 30-month annual swap: tenor = 5S, freq = YEAR)
     ## then there would be a period "shorter than the frequency" (e.g., half-year in the 30-month annual swap)
     ## call such a period a STUB. it maybe in the front (1st period) for BACKWARD propagation or in the back (last period) for FORWARD
-    def period_dates_for_tenor(self, start: date, tenor: RDate, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True) -> tuple:
+    def period_dates_for_tenor(
+        self, start: date, tenor: RDate, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True
+    ) -> tuple:
         start = roll_rule(start, calendar)
-        end   = tenor.apply( start, calendar, roll_rule)
+        end = tenor.apply(start, calendar, roll_rule)
         return self.period_dates(start, end, calendar, roll_rule, date_propagation, allow_stub)
-
