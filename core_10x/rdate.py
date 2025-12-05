@@ -10,6 +10,7 @@ from core_10x.named_constant import NamedConstant, NamedConstantTable
 from core_10x.nucleus import Nucleus
 from core_10x.xxcalendar import Calendar
 
+
 #=====
 #   Biz Day Roll Rules
 #   1. Preceding (rolls backwards): go to the prev biz day, if not already
@@ -272,13 +273,13 @@ class RDate(Nucleus):
             finish = rolled_start
             dir = -1
             exceed = lambda x, y: x < y
-            exOReq = lambda x, y: x <= y
+            ex_or_eq = lambda x, y: x <= y
         else:
             begin  = rolled_start
             finish = rolled_end
             dir    = 1
             exceed = lambda x, y: x > y
-            exOReq = lambda x, y: x >= y
+            ex_or_eq = lambda x, y: x >= y
 
         step = self * dir
     
@@ -287,7 +288,7 @@ class RDate(Nucleus):
         non_rolled_date = begin
     
         all_dates = []
-        while exOReq(finish, rolled_date):
+        while ex_or_eq(finish, rolled_date):
             all_dates.append(rolled_date)
             non_rolled_date = step.apply(non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)
             rolled_date = roll_rule(non_rolled_date, calendar)

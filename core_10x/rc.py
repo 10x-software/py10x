@@ -88,7 +88,6 @@ class RC:
         return (self.rc, self.payload)
 
     def data(self):
-        print('cpp payload() called: ', self.payload)
         payload = self.payload
         return payload if len(payload) > 1 else payload[0]
 
