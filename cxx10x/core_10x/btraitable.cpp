@@ -22,9 +22,17 @@
 // - consider/test a reload of a lazy ref...
 
 BTraitable::~BTraitable() {
+    // TODO: what if it gets collected while a different cache is active? or on different thread?
+    // Perhaps,
+    // 1) remember creation_thread (together with creation_cache)
+    // 2) find current cache on creation_thread
+    // 3) remove from the current cache on creation_thread its parents
+    // Q: What if nodes exist in caches on other than the creation thread?
+    //    Are traitables only usable on the thread they were created on?
+
     if (!m_tid.is_valid()) {    //-- remove temp obj's nodes
         auto cache = ThreadContext::current_traitable_proc()->cache();
-        cache->remove_object_cache(m_tid, true);
+        cache->remove_temp_object_cache(m_tid);
     }
 }
 

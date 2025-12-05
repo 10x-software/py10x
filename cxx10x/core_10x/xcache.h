@@ -288,20 +288,20 @@ public:
         delete oc;
     }
 
-    ObjectCache* remove_object_cache(const TID& tid, bool discard = false) {
-        auto it = m_data.find(tid);
-        if (it == m_data.end())
-            return nullptr;
-
-        auto oc = it->second;
-        m_data.erase(it);
-
-        if (discard) {
-            delete oc;
-            return nullptr;
-        }
-        return oc;
-    }
+    // ObjectCache* remove_object_cache(const TID& tid, bool discard = false) {
+    //     auto it = m_data.find(tid);
+    //     if (it == m_data.end())
+    //         return nullptr;
+    //
+    //     auto oc = it->second;
+    //     m_data.erase(it);
+    //
+    //     if (discard) {
+    //         delete oc;
+    //         return nullptr;
+    //     }
+    //     return oc;
+    // }
 
     bool make_permanent(const TID& tid) {
         if (!tid.is_valid())

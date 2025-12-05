@@ -1,3 +1,4 @@
+import gc
 from datetime import date
 
 from core_10x.xnone import XNone
@@ -439,6 +440,26 @@ def test_16():
             print(x.z)
             assert x.z == 21
 
+
+def test_17():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        z: int = RT()
+
+    x = X(x=1)
+    x.z = 10
+
+    try:
+        X(x=1,z=1)
+    except ValueError:
+        pass
+    else:
+        assert False, "Expected ValueError as X is already created"
+
+    x1 = X(x=1)
+    assert x1.z == 10
+
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -456,7 +477,8 @@ if __name__ == '__main__':
     #test_13()
     #test_14()
     #test_15()
-    test_16()
+    #test_16()
+    test_17()
 
 
 
