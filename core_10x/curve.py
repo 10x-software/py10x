@@ -8,7 +8,7 @@ from typing import Any
 from scipy import interpolate
 
 from core_10x.named_constant import NamedConstant
-from core_10x.traitable import RC, RC_TRUE, RT, T, M, Traitable, AnonymousTraitable
+from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, M, T, Traitable
 
 
 class IP_KIND(NamedConstant, lowercase_values=True):
@@ -168,7 +168,7 @@ class Curve(AnonymousTraitable):
         self.invalidate_value('interpolator')
 
     # @classmethod
-    # def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:  # noqa: N802
+    # def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:
     #     assert len(times) == len(values), f'{len(times)} != {len(values)}: sizes of times and values must be equal'
     #
     #     last_t = times[0]
@@ -190,7 +190,7 @@ class Curve(AnonymousTraitable):
     #
     #     return (times_unique, values_unique)
     #
-    # def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> Curve:  # noqa: N802
+    # def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> Curve:
     #     times_unique, values_unique = self._uniqueTimesValues(self.times(), self.values(), keep_last_update)
     #     if copy_curve:
     #         return self.clone(times=times_unique, values=values_unique)
@@ -293,7 +293,7 @@ class DateCurve(Curve):
         self.values = values
         self.update(d, new_value)
 
-    # def bracketDateNodes(self, d: date) -> tuple:  # noqa: N802
+    # def bracketDateNodes(self, d: date) -> tuple:
     #     t = self._to_number(d)
     #
     #     times: list = self.times

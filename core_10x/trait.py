@@ -136,7 +136,7 @@ class Trait(BTrait):
                 if method_name in traitable_cls_vars:  # -- method from class defined on this class
                     method = method_from_class
                     trait_trait_def_of_none = traitable_cls_vars.get(self.name)
-                    if isinstance(traitable_cls_vars.get(self.name),TraitDefinition): # -- method from trait defined on this class (this called before we setattr the actual trait)
+                    if isinstance(trait_trait_def_of_none, TraitDefinition): # -- method from trait defined on this class (this called before we setattr the actual trait)
                         rc.add_error(
                             f'Ambiguous definition for {method_name} on {traitable_cls} - both trait.{method_suffix} and traitable.{method_name} are defined.'
                         )

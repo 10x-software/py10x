@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import re
 import uuid
 from collections import Counter
 from contextlib import nullcontext
@@ -10,7 +11,7 @@ from typing import TYPE_CHECKING
 import pytest
 from core_10x import trait_definition
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import BTP, CACHE_ONLY
+from core_10x.exec_control import BTP, CACHE_ONLY, INTERACTIVE
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition
@@ -360,3 +361,53 @@ def test_trait_func_override():
     assert Z().x == 3
     assert T().x == 4
     assert S().x == 5
+
+
+def test_create_and_share():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID)
+        z: int = RT()
+        t: int = RT()
+        def y_get(self):
+            return self.t
+
+    with pytest.raises(TypeError, match=re.escape('test_create_and_share.<locals>.X expects at least one ID trait value')):
+        X()
+
+    with pytest.raises(TypeError, match=re.escape("test_create_and_share.<locals>.X.y (<class 'int'>) - invalid value ''")):
+        X(x=1)
+
+
+    X(x=1,y=1,z=1)
+
+    with pytest.raises(ValueError, match=re.escape("test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values")):
+        X(x=1,y=1,z=2)
+
+    with pytest.raises(ValueError, match=re.escape("test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values")):
+        X(x=1,y=1,z=1)
+
+    with pytest.raises(
+        ValueError, match=re.escape('test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values')
+    ):
+        X(x=1, t=1, z=1)
+
+    #assert X(x=1,t=1).z == 1 #TODO: should this succeed?
+    assert X(x=1, y=1).z == 1
+
+    with INTERACTIVE():
+        x = X() # empty object allowed - OK!
+        y = X() # partial id not allowed
+        z = X(x=1,y=1) # works here!
+        assert z.z == 1 # found from parent
+
+        x.x =1
+        x.y =1
+        x.share(False)
+        assert x.z == 1
+
+        y.x = 1
+        y.y = 1
+        y.z = 2
+        y.share(False) ## TODO: should this fail?
+        assert x.z == 1 ## TODO: ignored?
