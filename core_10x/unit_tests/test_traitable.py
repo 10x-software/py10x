@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import re
 import uuid
 from collections import Counter
 from contextlib import nullcontext
@@ -10,7 +11,7 @@ from typing import TYPE_CHECKING
 import pytest
 from core_10x import trait_definition
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import BTP, CACHE_ONLY
+from core_10x.exec_control import BTP, CACHE_ONLY, INTERACTIVE
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition
@@ -85,12 +86,14 @@ def test_trait_update():
 def test_traitable_slots():
     expected_slots = ('T', '_default_cache')
     assert Traitable.__slots__ == expected_slots
-    assert not hasattr(Traitable(),'__dict__')
+    assert not hasattr(Traitable(), '__dict__')
+
 
 def test_subclass_slots():
     expected_slots = ('special_attr', *Traitable.__slots__)
     assert SubTraitable.__slots__ == expected_slots
-    assert not hasattr(SubTraitable(trait1=1),'__dict__')
+    assert not hasattr(SubTraitable(trait1=1), '__dict__')
+
 
 def test_instance_slots():
     with CACHE_ONLY():
@@ -170,8 +173,8 @@ def test_collection_name_trait():
 @pytest.mark.parametrize('use_default_cache', [True, False])
 @pytest.mark.parametrize('use_existing_instance_by_id', [True, False])
 @pytest.mark.parametrize('self_ref', [True, False])
-@pytest.mark.parametrize('nested', [True,False])
-def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache, use_existing_instance_by_id, self_ref,nested):
+@pytest.mark.parametrize('nested', [True, False])
+def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, use_default_cache, use_existing_instance_by_id, self_ref, nested):
     load_calls = collections.Counter()
 
     class X(Traitable):
@@ -202,7 +205,7 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             assert x.x.x == x1  # found existing instance
             assert x1.x is XNone  # reload in debug mode
         else:
-            with BTP.create(-1,-1,-1,use_parent_cache=False,use_default_cache=False) if nested else nullcontext():
+            with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False) if nested else nullcontext():
                 assert load_calls == expected(1)
                 assert x.x
                 assert not self_ref or x == x.x
@@ -212,8 +215,8 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
                 assert x.x.x == (x if self_ref else x1)  # found existing instance
                 assert x1.x is x  # no reload
 
-    #TODO: change_flags; as_of context
-    #TODO: nodes with args...
+    # TODO: change_flags; as_of context
+    # TODO: nodes with args...
 
 
 def test_trait_methods():
@@ -343,6 +346,7 @@ def test_trait_func_override():
 
         class Y(X):
             x: int = RT(get=lambda self: 2)
+
             def x_get(self):
                 return 2
 
@@ -360,3 +364,57 @@ def test_trait_func_override():
     assert Z().x == 3
     assert T().x == 4
     assert S().x == 5
+
+
+def test_create_and_share():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID)
+        z: int = RT()
+        t: int = RT()
+
+        def y_get(self):
+            return self.t
+
+    with pytest.raises(TypeError, match=re.escape('test_create_and_share.<locals>.X expects at least one ID trait value')):
+        X()
+
+    with pytest.raises(TypeError, match=re.escape("test_create_and_share.<locals>.X.y (<class 'int'>) - invalid value ''")):
+        X(x=1)
+
+    X(x=1, y=1, z=1)
+
+    with pytest.raises(
+        ValueError, match=re.escape('test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values')
+    ):
+        X(x=1, y=1, z=2)
+
+    with pytest.raises(
+        ValueError, match=re.escape('test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values')
+    ):
+        X(x=1, y=1, z=1)
+
+    with pytest.raises(
+        ValueError, match=re.escape('test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values')
+    ):
+        X(x=1, t=1, z=1)
+
+    # assert X(x=1,t=1).z == 1 #TODO: should this succeed?
+    assert X(x=1, y=1).z == 1
+
+    with INTERACTIVE():
+        x = X()  # empty object allowed - OK!
+        y = X()  # partial id not allowed
+        z = X(x=1, y=1)  # works here!
+        assert z.z == 1  # found from parent
+
+        x.x = 1
+        x.y = 1
+        x.share(False)
+        assert x.z == 1
+
+        y.x = 1
+        y.y = 1
+        y.z = 2
+        y.share(False)  ## TODO: should this fail?
+        assert x.z == 1  ## TODO: ignored?
