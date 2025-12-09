@@ -8,7 +8,7 @@ from typing import Any
 from scipy import interpolate
 
 from core_10x.named_constant import NamedConstant
-from core_10x.traitable import RC, RC_TRUE, RT, T, M, Traitable, AnonymousTraitable
+from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, M, T, Traitable
 
 
 class IP_KIND(NamedConstant, lowercase_values=True):
@@ -77,7 +77,7 @@ class Curve(AnonymousTraitable):
         return times[-1] if times else None
 
     def update(self, t, value, reset=True):
-        if type(value) is not float:        #-- TODO: we sometimes have np.floats
+        if type(value) is not float:  # -- TODO: we sometimes have np.floats
             value = float(value)
 
         times = self.times
@@ -168,7 +168,7 @@ class Curve(AnonymousTraitable):
         self.invalidate_value('interpolator')
 
     # @classmethod
-    # def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:  # noqa: N802
+    # def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:
     #     assert len(times) == len(values), f'{len(times)} != {len(values)}: sizes of times and values must be equal'
     #
     #     last_t = times[0]
@@ -190,7 +190,7 @@ class Curve(AnonymousTraitable):
     #
     #     return (times_unique, values_unique)
     #
-    # def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> Curve:  # noqa: N802
+    # def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> Curve:
     #     times_unique, values_unique = self._uniqueTimesValues(self.times(), self.values(), keep_last_update)
     #     if copy_curve:
     #         return self.clone(times=times_unique, values=values_unique)
@@ -199,6 +199,7 @@ class Curve(AnonymousTraitable):
     #     self.values = values_unique
     #     self.reset()
     #     return self
+
 
 class TwoFuncInterpolator:
     def __init__(self, in_func, out_func, in_func_on_arrays=None, _interpolator=interpolate.interp1d):
@@ -224,7 +225,7 @@ class TwoFuncInterpolator:
 
 
 class DateCurve(Curve):
-    beginning_of_time: int = M()        #-- TODO: looks like Any trait fails to get deserialized - bug
+    beginning_of_time: int = M()  # -- TODO: looks like Any trait fails to get deserialized - bug
     dates: list = RT()
 
     s_epoch_date = date(1970, 1, 1)
@@ -247,7 +248,7 @@ class DateCurve(Curve):
         return [f(x) for x in self.times]
 
     def dates_set(self, trait, value) -> RC:
-        f = self._to_number     #-- TODO: possibly improve performance by using a different f (which doesn't check the type)
+        f = self._to_number  # -- TODO: possibly improve performance by using a different f (which doesn't check the type)
         times = [f(d) for d in value]
         return self.set_value('times', times)
 
@@ -293,7 +294,7 @@ class DateCurve(Curve):
         self.values = values
         self.update(d, new_value)
 
-    # def bracketDateNodes(self, d: date) -> tuple:  # noqa: N802
+    # def bracketDateNodes(self, d: date) -> tuple:
     #     t = self._to_number(d)
     #
     #     times: list = self.times
