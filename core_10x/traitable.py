@@ -369,7 +369,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def from_str(cls, s: str) -> Nucleus:
-        return cls(ID(s))  # collection name?
+        #return cls(ID(s))  # collection name?
+        return cls.existing_instance_by_id(_id_value = s)
 
     @classmethod
     def from_any_xstr(cls, value) -> Nucleus:
@@ -380,11 +381,14 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def same_values(cls, value1, value2) -> bool:
+        if type(value2) is str:
+            return value1.id().value == value2
+
         return value1.id() == value2.id()
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   Storage related methods
-    # ===================================================================================================================
+    #===================================================================================================================
 
     @staticmethod
     @cache
@@ -623,7 +627,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
         raise ValueError(f'{self.data_type} - may not be constructed from {def_value}')
 
     def from_str(self, s: str):
-        return self.data_type.instance_by_id(s)
+        return self.data_type.from_str(s)
 
     def from_any_xstr(self, value):
         if not isinstance(value, dict):
