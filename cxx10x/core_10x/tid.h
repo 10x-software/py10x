@@ -20,7 +20,7 @@ public:
 
     static bool is_valid(const py::object& id)                      { return !id.attr("value").is_none(); }
 
-    void set_id_value(const py::str& id_value)                      { m_id.attr("value") = id_value; }
+    void set_id_value(const py::object& id_value) const             { m_id.attr("value") = id_value; }
 
     [[nodiscard]] bool                  is_valid() const            { return !id_value().is_none(); }
     [[nodiscard]] TID*                  ptr() const                 { return (TID*)this; }

@@ -6,12 +6,12 @@
 class BProcessContext {
 public:
     //-- Unsigned properties by topic
-    inline static const unsigned  TP_TYPE       = 0;    //-- Trait Processor Type
+    static constexpr unsigned  TP_TYPE       = 0;    //-- Trait Processor Type
     //...
-    inline static const unsigned  N_UNS_TOPICS  = 1;    //-- count
+    static constexpr unsigned  N_UNS_TOPICS  = 1;    //-- count
 
     //-- Flags
-    inline static const unsigned  CACHE_ONLY    = 0x1;
+    static constexpr unsigned  CACHE_ONLY    = 0x1;
     //...
 
 private:

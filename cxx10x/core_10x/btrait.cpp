@@ -30,7 +30,7 @@ void BTrait::create_proc() {
     m_proc = new BTraitProcessor();
 }
 
-py::error_already_set BTrait::trait_error(py::error_already_set &exc, BTraitable *obj, BTraitableClass *cls, const py::object& f, const py::object* value, const py::args* args) {
+py::error_already_set BTrait::trait_error(py::error_already_set &exc, BTraitable *obj, BTraitableClass *cls, const py::object& f, const py::object* value, const py::args* args) const {
     auto py_exc = PyLinkage::create_trait_method_error(obj, cls, name(), f.attr("__name__"), value, args, &exc);
     PyErr_SetObject(py_exc.get_type().ptr(), py_exc.ptr());
     return {};
@@ -52,7 +52,7 @@ py::object BTrait::wrapper_f_get(BTraitable* obj, const py::args& args) {
     }
 }
 
-py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value) {
+py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value) const {
     try {
         return f_set(obj, this, value);
     } catch (py::error_already_set& exc) {
@@ -60,7 +60,7 @@ py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value) {
     }
 }
 
-py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value, const py::args& args) {
+py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value, const py::args& args) const {
     try {
         return f_set(obj, this, value, *args);
     } catch (py::error_already_set& exc) {
@@ -76,7 +76,7 @@ py::object BTrait::wrapper_f_verify(BTraitable* obj, const py::object& value) {
     }
 }
 
-py::object BTrait::wrapper_f_from_str(BTraitable* obj, const py::object& value) {
+py::object BTrait::wrapper_f_from_str(BTraitable* obj, const py::object& value) const {
     try {
         auto res = f_from_str(obj, this, value);
         if (res.is(PyLinkage::XNone()))
@@ -89,7 +89,7 @@ py::object BTrait::wrapper_f_from_str(BTraitable* obj, const py::object& value) 
     }
 }
 
-py::object BTrait::wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) {
+py::object BTrait::wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) const {
     try {
         auto res = f_from_any_xstr(obj, this, value);
         if (res.is(PyLinkage::XNone()))
@@ -101,7 +101,7 @@ py::object BTrait::wrapper_f_from_any_xstr(BTraitable* obj, const py::object& va
     }
 }
 
-bool BTrait::wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value) {
+bool BTrait::wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value) const {
     try {
         auto res = f_is_acceptable_type(obj, this, value);
         return py::cast<bool>(res);

@@ -58,23 +58,24 @@ protected:
 
 public:
 
-    inline static const unsigned   PLAIN                = 0x0;
-    inline static const unsigned   DEBUG                = 0x1;
-    inline static const unsigned   CONVERT_VALUES       = 0x2;
-    inline static const unsigned   ON_GRAPH             = 0x4;
-    inline static const unsigned   PROC_TYPE            = ON_GRAPH | CONVERT_VALUES | DEBUG;
+    static constexpr unsigned   PLAIN                = 0x0;
+    static constexpr unsigned   DEBUG                = 0x1;
+    static constexpr unsigned   CONVERT_VALUES       = 0x2;
+    static constexpr unsigned   ON_GRAPH             = 0x4;
+    static constexpr unsigned   PROC_TYPE            = ON_GRAPH | CONVERT_VALUES | DEBUG;
 
-    inline static const unsigned   EMPTY_OBJ_ALLOWED    = 0x8;
+    static constexpr unsigned   EMPTY_OBJ_ALLOWED    = 0x8;
 
     static void set_default_type(unsigned proc_type)        { s_default_type = proc_type; }
     static unsigned default_type()                          { return s_default_type; }
 
     static BTraitableProcessor* create_default();
+    static BTraitableProcessor* create_root();
 
     // int param: -1 - inherit, 0 - reset, 1 - set
     static BTraitableProcessor* create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache);
 
-    static BTraitableProcessor* create_root();
+    static BTraitableProcessor* create_for_lazy_load(XCache *cache);
 
     static BTraitableProcessor* create_interactive() {
         auto proc = create(1, 1, 1, false, false);
@@ -106,23 +107,23 @@ public:
     void                    set_flags(unsigned flags)       { m_flags = flags; }
     [[nodiscard]] bool      flags_on(unsigned flags) const  { return m_flags & flags; }
 
-    static void             check_value(BTraitable* obj, BTrait* trait, const py::object& value);
+    static void             check_value(BTraitable *obj, const BTrait *trait, const py::object &value);
 
     void                    begin_using();
-    void                    end_using();
+    void                    end_using() const;
     BTraitableProcessor*    py_enter()                      { begin_using(); return this; }
-    void                    py_exit(const py::args&)        { end_using(); }
+    void                    py_exit(const py::args&) const { end_using(); }
 
-    virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value);
-    virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);
+    virtual py::object      set_trait_value(BTraitable *obj, const BTrait *trait, const py::object &value) const;
+    virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) const;
 
     virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait) = 0;
     virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;
 
-    bool                    is_valid(BTraitable* obj, BTrait* trait) const;
-    bool                    is_valid(BTraitable* obj, BTrait* trait, const py::args& args) const;
-    bool                    is_set(BTraitable* obj, BTrait* trait) const;
-    bool                    is_set(BTraitable* obj, BTrait* trait, const py::args& args) const;
+    bool                    is_valid(const BTraitable* obj, const BTrait* trait) const;
+    bool                    is_valid(const BTraitable* obj, const BTrait* trait, const py::args& args) const;
+    bool                    is_set(const BTraitable* obj, const BTrait* trait) const;
+    bool                    is_set(const BTraitable* obj, const BTrait* trait, const py::args& args) const;
 
     // BasicNode*              get_node(BTraitable* obj, BTrait* trait) const;
     // BasicNode*              get_node(BTraitable* obj, BTrait* trait, const py::args& args) const;
@@ -130,7 +131,7 @@ public:
     [[nodiscard]] bool      object_exists(const TID& tid) const;
     [[nodiscard]] bool      object_exists(BTraitableClass *cls, const py::object &id_value, const py::object &coll_name) const;
     bool                    accept_existing(BTraitable* obj) const;
-    py::object              share_object(BTraitable* obj, bool accept_existing) const;
+    py::object              share_object(BTraitable *obj, bool accept_existing) const;
 
     void                    export_nodes() const;
 
@@ -140,9 +141,9 @@ public:
     virtual py::object      get_choices(BTraitable* obj, BTrait* trait) = 0;
     virtual py::object      get_style_sheet(BTraitable* obj, BTrait* trait) = 0;
 
-    virtual py::object      adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;
-    virtual py::object      raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) = 0;
-    virtual py::object      raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) = 0;
+    virtual py::object      adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const = 0;
+    virtual py::object      raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const = 0;
+    virtual py::object      raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const = 0;
 
     class Use {
         bool    m_temp;

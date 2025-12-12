@@ -5,7 +5,7 @@
 #include "btraitable.h"
 #include "py_hasher.h"
 #include "bprocess_context.h"
-#include "btraitable_ui_extension.h"
+//#include "btraitable_ui_extension.h"
 #include "bnucleus.h"
 
 #include "brc.h"
@@ -31,31 +31,27 @@ BTraitable::~BTraitable() {
     //    Are traitables only usable on the thread they were created on?
 
     if (!m_tid.is_valid()) {    //-- remove temp obj's nodes
-        auto cache = ThreadContext::current_traitable_proc()->cache();
+        const auto cache = ThreadContext::current_traitable_proc()->cache();
         cache->remove_temp_object_cache(m_tid);
     }
+    //TODO: class flag to indicate if objects is auto-disposable default = true
 }
 
 py::object BTraitable::exogenous_id() {
     return PyHasher::uuid();
 }
 
-py::object BTraitable::endogenous_id(bool& non_id_traits_set) {
+py::object BTraitable::endogenous_id() {
     py::list regulars;
     auto hasher = PyHasher();
-
-    auto proc = ThreadContext::current_traitable_proc();
-    auto cache = proc->cache();
-    bool non_id_set = false;
-    for (auto item : my_class()->trait_dir()) {
-        auto trait = item.second.cast<BTrait*>();
-        if (trait->flags_on(BTraitFlags::ID)) {
+    const auto proc = ThreadContext::current_traitable_proc();
+    for (const auto [trait_name, trait_handle] : my_class()->trait_dir()) {
+        if (const auto trait = trait_handle.cast<BTrait*>(); trait->flags_on(BTraitFlags::ID)) {
             auto value = proc->get_trait_value(this, trait);
-
             BTraitableProcessor::check_value(this, trait, value);
 
             if (value.is(PyLinkage::XNone()))   //-- TODO: we probably don't need this anymore (see above)
-                throw py::value_error(py::str("{}.{} is undefined").format(class_name(), item.first));
+                throw py::value_error(py::str("{}.{} is undefined").format(class_name(), trait_name));
 
             auto value_for_id = trait->wrapper_f_to_id(this, value);
             if (!trait->flags_on(BTraitFlags::HASH))
@@ -63,10 +59,7 @@ py::object BTraitable::endogenous_id(bool& non_id_traits_set) {
             else
                 hasher.update(value_for_id);
         }
-        else
-            non_id_set |= proc->is_set(this, trait);
     }
-    non_id_traits_set = non_id_set;
 
     if (hasher.is_updated()) {
         regulars.append(hasher.hexdigest());
@@ -79,17 +72,18 @@ py::object BTraitable::endogenous_id(bool& non_id_traits_set) {
 //======================================================================================================================
 //  Must be called right after constructing the object with **kwargs.
 //  - kwargs must only have values for traits necessary to build the object ID
-//      -- usually ID trait
+//      -- an ID trait (the usual case)
 //      -- an ID trait with custom getter may be missing
-//      -- may have a non-ID trait with custom setter which sets some ID traits
-//  - any attempt to set non ID traits (either directly via other setters) will throw
+//      -- a non-ID trait with custom setter which sets some ID traits or used in an ID trait getter may also be present
+//  - any traits set in kwargs, other than ID traits will be ignored after the ID is built
+//  - ID traits will be set, even if they are computed using getters
 //  - trait-name value pairs will be processed in the order they are given
 //      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
 //======================================================================================================================
-void BTraitable::initialize(const py::dict& trait_values) {
-    auto cls = my_class();
-    if (cls->is_id_endogenous()) {
-        auto proc = ThreadContext::current_traitable_proc();
+void BTraitable::initialize(const py::dict& trait_values, const bool force=false) {
+    if (const auto cls = my_class(); cls->is_id_endogenous()) {
+        const auto proc = ThreadContext::current_traitable_proc();
+
         if (trait_values.empty()) {  // kwargs empty
             if (!proc->is_empty_object_allowed())
                 throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
@@ -97,26 +91,32 @@ void BTraitable::initialize(const py::dict& trait_values) {
         }
 
         //-- setting trait values (not calling set_values() for performance reasons and throwing immediately on error
-        for (auto item : trait_values) {
-            auto trait_name = item.first.cast<py::object>();
-            auto trait = cls->find_trait(trait_name);
-            if (trait) {    // skipping unknown trait names
-                auto value = item.second.cast<py::object>();
-                BRC rc(proc->set_trait_value(this, trait, value));
-                if (!rc)
+        std::unordered_map<const BTrait *,py::object> non_id_traits_set;
+        for (auto &[trait_name, value] : trait_values) {
+            if (const auto trait = cls->find_trait(trait_name.cast<py::object>())) {    // skipping unknown trait names
+                if (!trait->flags_on(BTraitFlags::ID)) {
+                    if (!force)
+                        throw py::value_error(py::str("{}.{} - non-ID trait value cannot be set during initialization").format(class_name(), trait_name));
+                    non_id_traits_set[trait] = value.cast<py::object>();
+                    continue;
+                }
+                if (const BRC rc(proc->set_trait_value(this, trait, value.cast<py::object>())); !rc)
                     throw py::value_error(rc.error());
             }
         }
-
-        BRC rc(proc->share_object(this, false));   //-- not silently accepting possibly existing instance
-        if (!rc)
+        if (const BRC rc(proc->share_object(this,true)); !rc)
             throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
+
+        for (auto &[trait, value] : non_id_traits_set) {
+            if (const BRC rc(proc->set_trait_value(this, trait, value)); !rc)
+                throw py::value_error(rc.error());
+        }
     }
     else {        // ID exogenous
         m_tid.set_id_value(exogenous_id());
-        BRC rc(set_values(trait_values));
-        if (!rc)
+        if (const BRC rc(set_values(trait_values)); !rc)
             throw py::value_error(py::str(rc.error()));
+
     }
 }
 
@@ -139,7 +139,7 @@ bool BTraitable::accept_existing(const py::dict& trait_values) {
     return ThreadContext::current_traitable_proc()->accept_existing(this);
 }
 
-py::object BTraitable::from_any(BTrait* trait, const py::object& value) {
+py::object BTraitable::from_any(const BTrait* trait, const py::object& value) {
     if (py::isinstance(value, trait->m_datatype))
         return value;
 
@@ -180,13 +180,12 @@ py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unkn
 //======================================================================================================================
 
 py::object BTraitable::get_revision() {
-    auto rt = my_class()->find_trait(BNucleus::REVISION_TAG());
+    const auto rt = my_class()->find_trait(BNucleus::REVISION_TAG());
     return rt ? get_value(rt) : py::int_(0);
 }
 
 void BTraitable::set_revision(const py::object& rev) {
-    auto rt = my_class()->find_trait(BNucleus::REVISION_TAG());
-    if (rt)
+    if (const auto rt = my_class()->find_trait(BNucleus::REVISION_TAG()))
         set_value(rt, rev);
 }
 
@@ -244,23 +243,18 @@ py::object BTraitable::serialize_object() {
 }
 
 py::object BTraitable::deserialize_object(BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data) {
-    auto class_id = cls->get_field(serialized_data, BNucleus::CLASS_TAG(), false);
-    if (!class_id.is_none()) {
-        auto py_class = cls->deseriaize_class_id(class_id);
-        cls = py_class.attr("s_bclass").cast<BTraitableClass*>();
+    if (const auto class_id = cls->get_field(serialized_data, BNucleus::CLASS_TAG(), false); !class_id.is_none()) {
+        cls = cls->deseriaize_class_id(class_id).attr("s_bclass").cast<BTraitableClass*>();
     }
 
-    auto id_value = cls->get_field(serialized_data, BNucleus::ID_TAG());
-    auto id = PyLinkage::traitable_id(id_value, coll_name);
-    auto rev = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+    const auto id_value = cls->get_field(serialized_data, BNucleus::ID_TAG());
+    const auto rev = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
 
-    auto py_traitable = cls->py_class()(id);    // cls(_id = id)
-    auto obj = py_traitable.cast<BTraitable*>();
-    if (obj->get_revision().cast<int>()>=0) {       //-- avoid infinite recursion into deserializing self-referencing objects
-        obj->set_revision(py::int_(-1));   //-- mark object as being deserialized using negative revision
-        obj->deserialize_traits(serialized_data);
-        obj->set_revision(rev);                     //-- set correct revision
-    }
+    auto py_traitable = cls->py_class()(PyLinkage::traitable_id(id_value, coll_name));    // cls(_id = id)
+
+    const auto obj = py_traitable.cast<BTraitable*>();
+    obj->deserialize_traits(serialized_data);
+    obj->set_revision(rev);
 
     return py_traitable;
 }

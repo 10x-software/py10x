@@ -1,4 +1,4 @@
-import gc
+from collections import Counter
 from datetime import date
 
 from core_10x.xnone import XNone
@@ -460,6 +460,52 @@ def test_17():
     assert x1.z == 10
 
 
+def test_18():
+
+    count = Counter()
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data', id.value)
+            count[id.value] += 1
+            return {'_id': id.value, 'x': int(id.value), 'y': int(id.value) * 10, '_rev': 1}
+
+
+    x = X(ID('1')) # lazy ref
+
+    # with GRAPH_ON():
+    #     assert x.y == 10 # load
+    #     assert count[x.id().value] == 1, count
+
+    assert x.y == 10
+    assert count[x.id().value] == 1
+
+def test_19():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID)
+        z: int = RT()
+
+    z = X(x=1, y=1, z=1,_force=True)
+    with INTERACTIVE():
+        x = X()  # empty object allowed - OK!
+        assert z.z == 1
+
+        x.x = 1
+        x.y = 1
+        #x.z = 2
+        #assert x.z == 2
+
+        assert not x.share(False)
+
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -478,7 +524,9 @@ if __name__ == '__main__':
     #test_14()
     #test_15()
     #test_16()
-    test_17()
+    #test_17()
+    test_18()
+    test_19()
 
 
 

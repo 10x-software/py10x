@@ -12,18 +12,20 @@ class BTraitableProcessor;
 class BTraitFlags {
 public:
     //---- Trait Flags
-    inline static const unsigned RESERVED       = 0x1;
-    inline static const unsigned ID             = 0x2;
-    inline static const unsigned HASH           = 0x4;
-    inline static const unsigned READONLY       = 0x8;
-    inline static const unsigned NOT_EMPTY      = 0x10;
-    inline static const unsigned RUNTIME        = 0x20;
-    inline static const unsigned EMBEDDED       = 0x40;
-    inline static const unsigned EVAL_ONCE      = 0x80;
-    inline static const unsigned EXPENSIVE      = 0x100;
-    inline static const unsigned HIDDEN         = 0x200;
+    static constexpr unsigned RESERVED       = 0x1;
+    static constexpr unsigned ID             = 0x2;
+    static constexpr unsigned HASH           = 0x4;
+    static constexpr unsigned READONLY       = 0x8;
+    static constexpr unsigned NOT_EMPTY      = 0x10;
+    static constexpr unsigned RUNTIME        = 0x20;
+    static constexpr unsigned EMBEDDED       = 0x40;
+    static constexpr unsigned EVAL_ONCE      = 0x80;
+    static constexpr unsigned EXPENSIVE      = 0x100;
+    static constexpr unsigned HIDDEN         = 0x200;
+    static constexpr unsigned FAKE           = 0x300;
+    static constexpr unsigned FAKE_ID        = ID|FAKE;
 
-    inline static const unsigned LAST_FLAG = HIDDEN;
+    static constexpr unsigned LAST_FLAG = FAKE_ID; //TODO: remove?
 
     // TODO: review the below CUSTOM_F_*- they do not seem to be used anywhere..
     inline static const uint64_t CUSTOM_F_GET           = uint64_t(0x1)       << 32;
@@ -65,11 +67,11 @@ public:
     py::object      f_style_sheet;      // style sheet from py          dict    f(obj, trait)
 
 protected:
-    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args);
-    py::error_already_set trait_error(py::error_already_set& exc, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) {
+    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const;
+    py::error_already_set trait_error(py::error_already_set& exc, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const {
         return trait_error(exc, nullptr, cls, f, value, args);
     }
-    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args) {
+    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args) const {
         return trait_error(exc, obj, nullptr, f, value, args);
     }
 
@@ -118,14 +120,14 @@ public:
     py::object wrapper_f_get(BTraitable* obj);
     py::object wrapper_f_get(BTraitable* obj, const py::args& args);
 
-    py::object wrapper_f_set(BTraitable* obj, const py::object& value);
-    py::object wrapper_f_set(BTraitable* obj, const py::object& value, const py::args& args);
+    py::object wrapper_f_set(BTraitable* obj, const py::object& value) const;
+    py::object wrapper_f_set(BTraitable* obj, const py::object& value, const py::args& args) const;
 
     py::object wrapper_f_verify(BTraitable* obj, const py::object& value);
-    py::object wrapper_f_from_str(BTraitable* obj, const py::object& value);
-    py::object wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value);
+    py::object wrapper_f_from_str(BTraitable* obj, const py::object& value) const;
+    py::object wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_to_str(BTraitable* obj, const py::object& value);
-    bool       wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value);
+    bool       wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_serialize(BTraitableClass* cls, const py::object& value);
     py::object wrapper_f_deserialize(BTraitableClass* cls, const py::object& value);
     py::object wrapper_f_to_id(BTraitable* obj, const py::object& value);

@@ -43,37 +43,37 @@ public:
 
     //---- Invalidating trait value
 
-    void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) final {
+    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait) final {
         assert(false);
     }
 
-    void invalidate_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) final {
+    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait, const py::args &args) final {
         assert(false);
     }
 
-    void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) final {
+    void invalidate_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait) final {
         assert(false);
     }
 
-    void invalidate_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) final {
+    void invalidate_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args) final {
         assert(false);
     }
 
     //---- Setting (raw) trait value
 
-    py::object raw_set_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object raw_set_value_off_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         assert(false);   return py::none();
     }
 
-    py::object raw_set_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
+    py::object raw_set_value_off_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const final {
         assert(false);  return py::none();
     }
 
-    py::object raw_set_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object raw_set_value_on_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         assert(false);  return py::none();
     }
 
-    py::object raw_set_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
+    py::object raw_set_value_on_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const final {
         assert(false);  return py::none();
     }
 
@@ -111,7 +111,7 @@ BTrait* BUiClass::bui_trait(BTrait *trait) const {
 void BUiClass::create_ui_node(BTraitable *obj, BTrait *trait, py::object f_refresh) {
     auto ui_trait = bui_trait(trait);
     auto proc = ThreadContext::current_traitable_proc();
-    const auto ui_node = static_cast<BUiNode *>(proc->cache()->find_or_create_node(obj->tid(), ui_trait, NODE_TYPE::UI, false));
+    const auto ui_node = static_cast<BUiNode *>(proc->cache()->find_or_create_node(obj, ui_trait, NODE_TYPE::UI, false));
     ui_node->set_refresh_emit(f_refresh);
 
     ui_trait->proc()->get_value_on_graph(proc, obj, trait);  //-- to create necessary deps for ui_node!

@@ -42,50 +42,51 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
     return proc;
 }
 
+//TODO: check usage
 bool BTraitableProcessor::object_exists(const TID& tid) const {
-    return m_cache->find_object_cache(tid) || tid.cls()->instance_in_store(tid);
-}
-bool BTraitableProcessor::object_exists(BTraitableClass *cls, const py::object &id_value, const py::object &coll_name) const {
-    return object_exists(TID(cls, PyLinkage::traitable_id(id_value, coll_name)));
+    return m_cache->find_origin_cache(tid) || tid.cls()->instance_in_store(tid);
 }
 
+//TODO: fold this into share_object
 bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
-    if(obj->tid().is_valid())
-        return object_exists(obj->tid());
-
-    auto id_value = obj->endogenous_id();
-    if ( !object_exists(obj->my_class(), id_value,obj->tid().coll_name())) //-- Does not exist - nothing to do
+    const auto id_value = obj->tid().is_valid() ? obj->id_value() : obj->endogenous_id();
+    const auto tid = TID(obj->my_class(), PyLinkage::traitable_id(id_value, obj->tid().coll_name()));
+    const auto origin_cache = m_cache->find_origin_cache(tid);
+    const bool object_exists = origin_cache || obj->my_class()->instance_in_store(tid);
+    if (!object_exists)
         return false;
 
-    //-- Will be using the existing instance - clear temporary cache
-    m_cache->remove_temp_object_cache(obj->tid());
-    obj->set_id_value(id_value); //--  Will be loaded lazily, if needed
-    return true;
+    if (!origin_cache) {
+        // -- object exists in store but not yet in cache
+        share_object(obj, true); // initialize origin cache and id value if necessary
+        return true;
+    }
+   return true;
 }
 
-py::object BTraitableProcessor::share_object(BTraitable* obj, bool accept_existing) const {
+py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_existing) const {
     if (obj->tid().is_valid())
         return PyLinkage::RC_TRUE();
 
-    bool non_id_traits_set;
-    auto id_value = obj->endogenous_id(non_id_traits_set);
-
-    if (!object_exists(obj->my_class(), id_value,obj->tid().coll_name())) {
+    const auto id_value = obj->endogenous_id(); //-- raises if any id trait is undefined
+    const auto &tid = obj->tid();
+    if (const auto origin_cache =  m_cache->find_origin_cache(TID(tid.cls(), PyLinkage::traitable_id(id_value, tid.coll_name())))) {
+        if (!accept_existing) {
+            // -- possible conflict with existing instance!
+            BRC rc;
+            rc.add_data(id_value);
+            return rc();
+        }
+        m_cache->remove_temp_object_cache(tid);
         obj->set_id_value(id_value);
-        m_cache->make_permanent(obj->tid());
+        obj->set_origin_cache(origin_cache);
         return PyLinkage::RC_TRUE();
     }
 
-    if (!accept_existing and non_id_traits_set) {
-        //-- some of the obj's non-ID traits were set - possible conflict with the existing instance!
-        BRC rc;
-        rc.add_data(id_value);    //-- returning the endogenous ID
-        return rc();
-    }
-
-    //-- Accepting the existing instance - clear temporary cache
-    m_cache->remove_temp_object_cache(obj->tid());
-    obj->set_id_value(id_value); //-- object will be loaded lazily, if needed
+    // -- new object
+    obj->set_id_value(id_value);
+    m_cache->make_permanent(tid);
+    m_cache->set_lazy_load_flags(tid, accept_existing && obj->my_class()->is_storable() ? XCache::LOAD_REQUIRED : 0);
     return PyLinkage::RC_TRUE();
 }
 
@@ -94,14 +95,13 @@ void BTraitableProcessor::export_nodes() const {
 }
 
 void BTraitableProcessor::begin_using() {
-    auto cache = own_cache();
-    if (cache)
+    if (const auto cache = own_cache())
         ThreadContext::cache_push(cache);
 
     ThreadContext::traitable_proc_push(this);
 }
 
-void BTraitableProcessor::end_using() {
+void BTraitableProcessor::end_using() const {
     auto tp = ThreadContext::traitable_proc_pop();
     if (tp != this)
         throw py::value_error(py::str("Mismanaged XControl block"));
@@ -110,23 +110,23 @@ void BTraitableProcessor::end_using() {
         ThreadContext::cache_pop();
 }
 
-bool BTraitableProcessor::is_valid(BTraitable* obj, BTrait* trait) const {
-    auto node = cache()->find_node(obj->tid(), trait);
+bool BTraitableProcessor::is_valid(const BTraitable* obj, const BTrait* trait) const {
+    const auto node = cache()->find_node(obj->tid(), trait);
     return node != nullptr && node->is_valid();
 }
 
-bool BTraitableProcessor::is_valid(BTraitable* obj, BTrait* trait, const py::args& args) const {
-    auto node = cache()->find_node(obj->tid(), trait, args);
+bool BTraitableProcessor::is_valid(const BTraitable* obj, const BTrait* trait, const py::args& args) const {
+    const auto node = cache()->find_node(obj->tid(), trait, args);
     return node != nullptr && node->is_valid();
 }
 
-bool BTraitableProcessor::is_set(BTraitable* obj, BTrait* trait) const {
-    auto node = cache()->find_node(obj->tid(), trait);
+bool BTraitableProcessor::is_set(const BTraitable* obj, const BTrait* trait) const {
+    const auto node = cache()->find_node(obj->tid(), trait);
     return node != nullptr && node->is_set();
 }
 
-bool BTraitableProcessor::is_set(BTraitable* obj, BTrait* trait, const py::args& args) const {
-    auto node = cache()->find_node(obj->tid(), trait, args);
+bool BTraitableProcessor::is_set(const BTraitable* obj, const BTrait* trait, const py::args& args) const {
+    const auto node = cache()->find_node(obj->tid(), trait, args);
     return node != nullptr && node->is_set();
 }
 
@@ -140,23 +140,22 @@ bool BTraitableProcessor::is_set(BTraitable* obj, BTrait* trait, const py::args&
 
 //---- Setting a value
 
-void BTraitableProcessor::check_value(BTraitable *obj, BTrait *trait, const py::object& value) {
-    auto value_type = PyLinkage::type(value);
-    auto rc = trait->wrapper_f_is_acceptable_type(obj, value_type);
-    if (!rc)
+void BTraitableProcessor::check_value(BTraitable *obj, const BTrait *trait, const py::object& value) {
+    const auto value_type = PyLinkage::type(value);
+    if (const auto rc = trait->wrapper_f_is_acceptable_type(obj, value_type); !rc)
         throw py::type_error(py::str("{}.{} ({}) - invalid value '{}'").format(obj->class_name(), trait->name(), trait->data_type(), value));
 }
 
-py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value) {
-    auto converted_value = adjust_set_value(obj, trait, value);
+py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *trait, const py::object& value) const {
+    const auto converted_value = adjust_set_value(obj, trait, value);
     if (!trait->f_set.is_none())     // custom setter is defined
         return trait->wrapper_f_set(obj, converted_value);
 
     return raw_set_trait_value(obj, trait, converted_value);
 }
 
-py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value, const py::args& args) {
-    auto converted_value = adjust_set_value(obj, trait, value);
+py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value, const py::args& args) const {
+    const auto converted_value = adjust_set_value(obj, trait, value);
     if (!trait->f_set.is_none())     // custom setter is defined
         return trait->wrapper_f_set(obj, converted_value, args);
 
@@ -189,22 +188,22 @@ public:
         return trait->proc()->get_style_sheet_off_graph(this, obj, trait);
     }
 
-    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) override {
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override {
         return value;
     }
 
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         return trait->proc()->raw_set_value_off_graph(this, obj, trait, value);
     }
 
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) final {
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const final {
         return trait->proc()->raw_set_value_off_graph(this, obj, trait, value, args);
     }
 };
 
 class OffGraphNoConvertDebug : public OffGraphNoConvertNoDebug {
 public:
-    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         if (value.is_none() || value.is(PyLinkage::XNone()))
             return value;
 
@@ -215,7 +214,7 @@ public:
 
 class OffGraphConvertNoDebug : public OffGraphNoConvertNoDebug {
 public:
-    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         if (value.is_none() || value.is(PyLinkage::XNone()))
             return value;
 
@@ -225,7 +224,7 @@ public:
 
 class OffGraphConvertDebug : public OffGraphNoConvertNoDebug {
 public:
-    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         if (value.is_none() || value.is(PyLinkage::XNone()))
             return value;
 
@@ -261,22 +260,22 @@ public:
         return trait->proc()->get_style_sheet_on_graph(this, obj, trait);
     }
 
-    py::object adjust_set_value(BTraitable *obj, BTrait* trait, const py::object& value) override {
+    py::object adjust_set_value(BTraitable *obj, const BTrait* trait, const py::object& value) const override {
         return value;
     }
 
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value) override {
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override {
         return trait->proc()->raw_set_value_on_graph(this, obj, trait, value);
     }
 
-    py::object raw_set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override {
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const override {
         return trait->proc()->raw_set_value_on_graph(this, obj, trait, value, args);
     }
 };
 
 class OnGraphNoConvertDebug : public OnGraphNoConvertNoDebug {
 public:
-    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         if (value.is_none() || value.is(PyLinkage::XNone()))
             return value;
 
@@ -287,7 +286,7 @@ public:
 
 class OnGraphConvertNoDebug : public OnGraphNoConvertNoDebug {
 public:
-    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         if (value.is_none() || value.is(PyLinkage::XNone()))
             return value;
 
@@ -297,7 +296,7 @@ public:
 
 class OnGraphConvertDebug : public OnGraphNoConvertNoDebug {
 public:
-    py::object adjust_set_value(BTraitable* obj, BTrait* trait, const py::object& value) final {
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         if (value.is_none() || value.is(PyLinkage::XNone()))
             return value;
 
@@ -307,10 +306,9 @@ public:
     }
 };
 
-BTraitableProcessor* BTraitableProcessor::create_raw(unsigned int flags) {
+BTraitableProcessor* BTraitableProcessor::create_raw(const unsigned int flags) {
     BTraitableProcessor *proc;
-    auto proc_type = flags & PROC_TYPE;
-    switch(proc_type) {
+    switch(flags & PROC_TYPE) {
         case PLAIN:                         proc = new OffGraphNoConvertNoDebug();  break;
         case DEBUG:                         proc = new OffGraphNoConvertDebug();    break;
         case CONVERT_VALUES:                proc = new OffGraphConvertNoDebug();    break;
@@ -384,6 +382,12 @@ BTraitableProcessor* BTraitableProcessor::create(const int on_graph, const int c
         }
     }
 
+    return proc;
+}
+
+BTraitableProcessor * BTraitableProcessor::create_for_lazy_load(XCache *cache) {
+    const auto proc = create_raw(cache->default_node_type() == NODE_TYPE::BASIC_GRAPH ? ON_GRAPH : PLAIN);
+    proc->use_cache(cache);
     return proc;
 }
 
