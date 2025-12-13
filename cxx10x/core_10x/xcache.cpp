@@ -11,7 +11,7 @@ XCache* XCache::s_default = new XCache();
 XCache *XCache::find_origin_cache(const TID &tid) {
     auto parent = this;
     while(parent) {
-        if (const auto oc = parent->find_object_cache(tid))
+        if (parent->find_object_cache(tid))
             return parent;
         parent = parent->m_parent;
     }
@@ -37,9 +37,8 @@ ObjectCache * XCache::find_object_cache_and_load(const BTraitable *obj) const {
     if (!parent)
         throw py::type_error(py::str("{}.{} - origin cache not reachable").format(obj->class_name(), obj->id_value()));
 
-    if (origin_cache->lazy_load_flags(tid) & XCache::LOAD_REQUIRED) {
-        obj->lazy_load();
-    }
+    obj->lazy_load();
+
 
     return find_object_cache(tid);
 }

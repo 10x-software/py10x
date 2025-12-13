@@ -111,6 +111,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_property_readonly_static("EVAL_ONCE",  [](const py::object&) { return BFlags(BTraitFlags::EVAL_ONCE); })
             .def_property_readonly_static("EXPENSIVE",  [](const py::object&) { return BFlags(BTraitFlags::EXPENSIVE); })
             .def_property_readonly_static("HIDDEN",     [](const py::object&) { return BFlags(BTraitFlags::HIDDEN); })
+            .def_property_readonly_static("ID_LIKE",     [](const py::object&) { return BFlags(BTraitFlags::ID_LIKE); })
             ;
 
     py::class_<BTrait>(m, "BTrait")

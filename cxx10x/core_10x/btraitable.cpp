@@ -46,7 +46,7 @@ py::object BTraitable::endogenous_id() {
     auto hasher = PyHasher();
     const auto proc = ThreadContext::current_traitable_proc();
     for (const auto [trait_name, trait_handle] : my_class()->trait_dir()) {
-        if (const auto trait = trait_handle.cast<BTrait*>(); trait->flags_on(BTraitFlags::ID)) {
+        if (const auto trait = trait_handle.cast<BTrait*>(); trait->flags_on(BTraitFlags::ID) && !trait->flags_on(BTraitFlags::FAUX)) {
             auto value = proc->get_trait_value(this, trait);
             BTraitableProcessor::check_value(this, trait, value);
 
@@ -128,12 +128,10 @@ bool BTraitable::id_exists() {
 }
 
 bool BTraitable::accept_existing(const py::dict& trait_values) {
-    auto cls = my_class();
-    if (!cls->is_id_endogenous())
+    if (auto cls = my_class(); !cls->is_id_endogenous())
         return false;
 
-    BRC rc(set_values(trait_values));
-    if (!rc)
+    if (BRC rc(set_values(trait_values)); !rc)
         throw py::value_error(py::str(rc.error()));
 
     return ThreadContext::current_traitable_proc()->accept_existing(this);
@@ -212,20 +210,14 @@ py::object BTraitable::deserialize_nx(BTraitableClass *cls, const py::object& se
     if (!id.is_none()) {     //-- external reference
         auto lazy_ref = cls->py_class()(id);     // cls(_id = id)   - keep lazy reference
         if (ThreadContext::current_traitable_proc()->flags_on(BTraitableProcessor::DEBUG)) {
-            const auto tid =lazy_ref.cast<BTraitable*>()->tid();
-            const auto cache = ThreadContext::current_traitable_proc()->cache();
-            if (!cache->find_object_cache(tid))
-                cache->create_object_cache(tid); //-- create object, if necessary
-            cls->load(id); //-- force loading the object in debug mode
+            lazy_ref.cast<BTraitable*>()->lazy_load();
         }
-
         return lazy_ref;
     }
 
     //-- Embedded traitable
     auto py_traitable = cls->py_class()();      // cls() - exogenous iD!
-    auto obj = py_traitable.cast<BTraitable*>();
-    obj->deserialize_traits(serialized_data);
+    py_traitable.cast<BTraitable*>()->deserialize_traits(serialized_data);
     return py_traitable;
 }
 

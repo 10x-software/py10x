@@ -42,26 +42,25 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
     return proc;
 }
 
-//TODO: check usage
-bool BTraitableProcessor::object_exists(const TID& tid) const {
-    return m_cache->find_origin_cache(tid) || tid.cls()->instance_in_store(tid);
-}
 
-//TODO: fold this into share_object
 bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
     const auto id_value = obj->tid().is_valid() ? obj->id_value() : obj->endogenous_id();
     const auto tid = TID(obj->my_class(), PyLinkage::traitable_id(id_value, obj->tid().coll_name()));
-    const auto origin_cache = m_cache->find_origin_cache(tid);
-    const bool object_exists = origin_cache || obj->my_class()->instance_in_store(tid);
-    if (!object_exists)
-        return false;
-
-    if (!origin_cache) {
-        // -- object exists in store but not yet in cache
-        share_object(obj, true); // initialize origin cache and id value if necessary
+    if (const auto origin_cache = m_cache->find_origin_cache(tid)) {
+        if ( origin_cache->lazy_load_flags(tid) & XCache::LOAD_REQUIRED_MUST_EXIST && !obj->my_class()->instance_in_store(tid))
+            // e.g. created with existing_object_by_id
+            return false;
+        obj->set_id_value(id_value);
+        obj->set_origin_cache(origin_cache);
         return true;
     }
-   return true;
+    if (obj->my_class()->instance_in_store(tid)) {
+        m_cache->remove_temp_object_cache(obj->tid());
+        obj->set_id_value(id_value);
+        m_cache->set_lazy_load_flags(tid, XCache::LOAD_REQUIRED_MUST_EXIST|m_flags&DEBUG);
+        return true;
+    }
+    return false;
 }
 
 py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_existing) const {
@@ -86,7 +85,7 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_
     // -- new object
     obj->set_id_value(id_value);
     m_cache->make_permanent(tid);
-    m_cache->set_lazy_load_flags(tid, accept_existing && obj->my_class()->is_storable() ? XCache::LOAD_REQUIRED : 0);
+    m_cache->set_lazy_load_flags(tid, accept_existing && obj->my_class()->is_storable() ? XCache::LOAD_REQUIRED|m_flags&DEBUG : 0);
     return PyLinkage::RC_TRUE();
 }
 
@@ -385,8 +384,9 @@ BTraitableProcessor* BTraitableProcessor::create(const int on_graph, const int c
     return proc;
 }
 
-BTraitableProcessor * BTraitableProcessor::create_for_lazy_load(XCache *cache) {
-    const auto proc = create_raw(cache->default_node_type() == NODE_TYPE::BASIC_GRAPH ? ON_GRAPH : PLAIN);
+BTraitableProcessor * BTraitableProcessor::create_for_lazy_load(XCache *cache, const unsigned lazy_load_flags) {
+    const auto proc_type = cache->default_node_type() == NODE_TYPE::BASIC_GRAPH ? ON_GRAPH : PLAIN;
+    const auto proc = create_raw(proc_type|(lazy_load_flags&DEBUG));
     proc->use_cache(cache);
     return proc;
 }

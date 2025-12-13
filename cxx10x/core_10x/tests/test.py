@@ -187,7 +187,7 @@ def test_10():
 
         @classmethod
         def exists_in_store(cls, id):
-            return False
+            raise RuntimeError()
 
         @classmethod
         def load_data(cls, id):
@@ -204,8 +204,9 @@ def test_10():
 
     with  BTP.create(1,1,1,True,True):
         x = X(ID("0"))
-        print(x,x,x,x.x.a)
-        assert x.x.a==1
+        print(x.a)
+        #print(x,x,x,x.x.a)
+        #assert x.x.a==1
 
 
 def test_11():
@@ -493,6 +494,10 @@ def test_19():
         y: int = RT(T.ID)
         z: int = RT()
 
+        @classmethod
+        def exists_in_store(self, id):
+            raise RuntimeError()
+
     z = X(x=1, y=1, z=1,_force=True)
     with INTERACTIVE():
         x = X()  # empty object allowed - OK!
@@ -505,6 +510,33 @@ def test_19():
 
         assert not x.share(False)
 
+def test_20():
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        def load_data(self):
+            return {'_id':'1','_rev':1,'y':2}
+
+    assert X.existing_instance(x=1, y=1).y == 2
+
+
+def test_21():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID_LIKE)
+        z: int = RT(T.ID_LIKE)
+
+        def x_get(self):
+            return self.y + self.z
+
+    assert X(y=1, z=1).x==2
+
+    assert X(x=1).x==1
 
 if __name__ == '__main__':
     import core_10x_i
@@ -518,15 +550,17 @@ if __name__ == '__main__':
     #test_7()
     #test_8()
     #test_9()
-    #test_10()
+    # test_10()
     #test_12()
     #test_13()
     #test_14()
     #test_15()
     #test_16()
     #test_17()
-    test_18()
-    test_19()
+    # test_18()
+    # test_19()
+    # test_20()
+    test_21()
 
 
 

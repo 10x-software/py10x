@@ -22,10 +22,10 @@ public:
     static constexpr unsigned EVAL_ONCE      = 0x80;
     static constexpr unsigned EXPENSIVE      = 0x100;
     static constexpr unsigned HIDDEN         = 0x200;
-    static constexpr unsigned FAKE           = 0x300;
-    static constexpr unsigned FAKE_ID        = ID|FAKE;
+    static constexpr unsigned FAUX           = 0x300;
+    static constexpr unsigned ID_LIKE        = ID|FAUX;
 
-    static constexpr unsigned LAST_FLAG = FAKE_ID; //TODO: remove?
+    static constexpr unsigned LAST_FLAG = ID_LIKE; //TODO: remove?
 
     // TODO: review the below CUSTOM_F_*- they do not seem to be used anywhere..
     inline static const uint64_t CUSTOM_F_GET           = uint64_t(0x1)       << 32;

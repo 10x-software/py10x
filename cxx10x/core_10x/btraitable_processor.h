@@ -75,7 +75,7 @@ public:
     // int param: -1 - inherit, 0 - reset, 1 - set
     static BTraitableProcessor* create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache);
 
-    static BTraitableProcessor* create_for_lazy_load(XCache *cache);
+    static BTraitableProcessor* create_for_lazy_load(XCache *cache, unsigned lazy_load_flags);
 
     static BTraitableProcessor* create_interactive() {
         auto proc = create(1, 1, 1, false, false);

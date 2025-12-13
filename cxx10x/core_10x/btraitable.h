@@ -79,7 +79,8 @@ public:
                 if (!cls->is_storable()) {
                     throw std::runtime_error(std::format("{}/{}: cannot construct a lazy reference to non-storable that does not exist in memory:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
                 }
-                m_origin_cache->set_lazy_load_flags(m_tid, XCache::LOAD_REQUIRED|XCache::MUST_EXIST_IN_STORE);
+                const auto debug_flag = BTraitableProcessor::DEBUG & proc->flags();
+                m_origin_cache->set_lazy_load_flags(m_tid, XCache::LOAD_REQUIRED_MUST_EXIST|debug_flag);
             }
         }
     }
@@ -88,12 +89,14 @@ public:
     py::object endogenous_id();
 
     void lazy_load() const {
+        if (!(m_origin_cache->lazy_load_flags(m_tid) & XCache::LOAD_REQUIRED))
+            return;
         if (!my_class()->is_storable()) {
             throw std::runtime_error(std::format("{}/{}: cannot lazy load non-storable object:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
         }
         const auto lazy_load_flags = m_origin_cache->lazy_load_flags(m_tid);
         m_origin_cache->set_lazy_load_flags(m_tid, 0);;
-        auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache));
+        auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, lazy_load_flags));
         if (m_tid.cls()->load(m_tid.id()).is_none() && lazy_load_flags & XCache::MUST_EXIST_IN_STORE) {
             throw std::runtime_error(std::format("{}/{}: object reference not found in store:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
         }
