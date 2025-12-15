@@ -18,11 +18,10 @@ XCache *XCache::find_origin_cache(const TID &tid) {
     return nullptr;
 }
 
-ObjectCache * XCache::find_object_cache_and_load(const BTraitable *obj) const {
-    // find an existing object cache in this cache or in parents
-    // if none found, handle lazy load (if applicable)
-    // return nullptr unless found (or created) in *this* cache
-
+ObjectCache * XCache::find_or_create_object_cache(const BTraitable *obj) {
+    // check if object's origin cache is reachable from *this*
+    // handle lazy load if needed
+    // find or create object cache in *this*
 
     const auto &tid = obj->tid();
     const auto origin_cache = obj->origin_cache();
@@ -35,18 +34,13 @@ ObjectCache * XCache::find_object_cache_and_load(const BTraitable *obj) const {
     }
 
     if (!parent)
-        throw py::type_error(py::str("{}.{} - origin cache not reachable").format(obj->class_name(), obj->id_value()));
+        //-- origin cache is not reachable!
+        // TODO: factor out into xcache->exception?
+        throw std::runtime_error(std::format("{}/{}: object not usable - origin cache has been destroyed:\n{}", std::string(obj->class_name()), std::string(obj->id_value()),current_stacktrace()));
 
-    obj->lazy_load();
+    obj->lazy_load_if_needed();
 
-
-    return find_object_cache(tid);
-}
-
-ObjectCache * XCache::find_or_create_object_cache(BTraitable *obj) {
-    if (const auto oc = find_object_cache_and_load(obj))
-        return oc;
-    return new_object_cache(obj->tid());
+    return _find_or_create_object_cache(tid);
 }
 
 BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int node_type, const bool import_from_parents) {
@@ -93,7 +87,7 @@ void XCache::export_nodes() const {
         const auto& tid = oc_item.first;
         auto oc = oc_item.second;
 
-        auto dst_oc = m_parent->create_object_cache(tid);
+        auto dst_oc = m_parent->_find_or_create_object_cache(tid);
         //-- argsless nodes
         for (auto item : oc->argless_nodes()) {
             auto trait = item.first;

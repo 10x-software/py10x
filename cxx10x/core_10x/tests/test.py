@@ -1,3 +1,4 @@
+import gc
 from collections import Counter
 from datetime import date
 
@@ -183,6 +184,7 @@ def test_9():
 def test_10():
     class X(Traitable):
         a:int = T(T.ID)
+        b:int = T()
         x:THIS_CLASS = T()
 
         @classmethod
@@ -203,6 +205,7 @@ def test_10():
 
 
     with  BTP.create(1,1,1,True,True):
+        x1 = X(a=1,b=1,_force=True)
         x = X(ID("0"))
         print(x.a)
         #print(x,x,x,x.x.a)
@@ -538,6 +541,30 @@ def test_21():
 
     assert X(x=1).x==1
 
+def test_22():
+    class X(Traitable):
+        x: int = T(T.ID)
+        z: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            print('exists_in_store', id.value)
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data', id.value)
+
+    x = X(x=1)
+    x.z = 1
+    assert x.z == 1
+
+    del x
+    gc.collect()
+
+    x = X(x=1)
+    assert x.z == 1
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -550,7 +577,7 @@ if __name__ == '__main__':
     #test_7()
     #test_8()
     #test_9()
-    # test_10()
+    test_10()
     #test_12()
     #test_13()
     #test_14()
@@ -560,7 +587,8 @@ if __name__ == '__main__':
     # test_18()
     # test_19()
     # test_20()
-    test_21()
+    #test_21()
+    # test_22()
 
 
 

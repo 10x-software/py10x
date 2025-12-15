@@ -12,7 +12,7 @@
 py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
     const auto & tid = obj->tid();
     const auto cache = proc->cache();
-    cache->find_object_cache_and_load(obj); // handle lazy load
+    cache->find_or_create_object_cache(obj); // handle lazy load
     if (const auto node = cache->find_set_or_invalid_node_in_parents(obj->tid(), trait, false))
         if (node->is_valid())
             return node->value();
@@ -23,7 +23,7 @@ py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTrai
 py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
     const auto & tid = obj->tid();
     const auto cache = proc->cache();
-    cache->find_object_cache_and_load(obj); // handle lazy load
+    cache->find_or_create_object_cache(obj); // handle lazy load
     if (const auto node = cache->find_set_or_invalid_node_in_parents(tid, trait, args, false))
         if (node->is_valid())
             return node->value();
@@ -113,7 +113,7 @@ void BTraitProcessor::invalidate_value_off_graph(const BTraitableProcessor* proc
 void BTraitProcessor::invalidate_value_on_graph(const BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
     const auto cache = proc->cache();
     const auto &tid = obj->tid();
-    cache->find_object_cache_and_load(obj); // handle lazy load
+    cache->find_or_create_object_cache(obj); // handle lazy load
     if (const auto node = cache->find_node(tid, trait))
         node->invalidate();
     else if (const auto parent_node = cache->find_set_or_invalid_node_in_parents(tid, trait))
@@ -124,7 +124,7 @@ void BTraitProcessor::invalidate_value_on_graph(const BTraitableProcessor* proc,
 void BTraitProcessor::invalidate_value_on_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) {
     const auto cache = proc->cache();
     const auto &tid = obj->tid();
-    cache->find_object_cache_and_load(obj); // handle lazy load
+    cache->find_or_create_object_cache(obj); // handle lazy load
     if (const auto node = cache->find_node(tid, trait, args))
         node->invalidate();
     else if (const auto parent_node = cache->find_set_or_invalid_node_in_parents(tid, trait, args))

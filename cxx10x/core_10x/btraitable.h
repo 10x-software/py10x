@@ -43,13 +43,13 @@
 
 - Traitable validation/lazy load
     - When in the course of normal operations we need access to object cache, we do the following
-      [] if creation_cache is not reachable from the current cache via parent chain
-          [] it's an error! (in find_object_cache_and_load)
-      [] If creation_cache has load_required flag (this is all in lazy_load)
-          [] set load_required=false
-          [] load in creation_cache
-            [] If not found, and must_exist_in_storage==true
-              [] it's an error!
+      [x] if creation_cache is not reachable from the current cache via parent chain
+          [x] it's an error! (in find_or_create_object_cache)
+      [x] If creation_cache has load_required flag (this is all in lazy_load)
+          [x] set load_required=false
+          [x] load in creation_cache
+            [x] If not found, and must_exist_in_storage==true
+              [x] it's an error!
 
 - Note: get_value_off_graph already needs access to object_cache
   currently to make sure lazy load occurs if necessary, so we are not
@@ -74,13 +74,11 @@ public:
         if (m_tid.is_valid()) {
             //-- lazy reference, must exist in store unless exists in memory
             if (const auto existing_cache = m_origin_cache->find_origin_cache(m_tid))
-                m_origin_cache = existing_cache;
+                set_origin_cache(existing_cache);
             else {
-                if (!cls->is_storable()) {
+                if (!cls->is_storable())
                     throw std::runtime_error(std::format("{}/{}: cannot construct a lazy reference to non-storable that does not exist in memory:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
-                }
-                const auto debug_flag = BTraitableProcessor::DEBUG & proc->flags();
-                m_origin_cache->set_lazy_load_flags(m_tid, XCache::LOAD_REQUIRED_MUST_EXIST|debug_flag);
+                set_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST|proc->flags()&BTraitableProcessor::DEBUG);
             }
         }
     }
@@ -88,20 +86,27 @@ public:
 
     py::object endogenous_id();
 
-    void lazy_load() const {
-        if (!(m_origin_cache->lazy_load_flags(m_tid) & XCache::LOAD_REQUIRED))
+    void set_lazy_load_flags(const unsigned flags) const        {m_origin_cache->set_lazy_load_flags(m_tid, flags); }
+    void clear_lazy_load_flags(unsigned lazy_load_flags) const  { m_origin_cache->clear_lazy_load_flags(m_tid, lazy_load_flags); }
+    [[nodiscard]] unsigned lazy_load_flags() const              { return m_origin_cache->lazy_load_flags(m_tid); }
+
+    void lazy_load_if_needed() const {
+        const auto flags = lazy_load_flags();
+        if (!(flags & XCache::LOAD_REQUIRED))
             return;
         if (!my_class()->is_storable()) {
             throw std::runtime_error(std::format("{}/{}: cannot lazy load non-storable object:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
         }
-        const auto lazy_load_flags = m_origin_cache->lazy_load_flags(m_tid);
-        m_origin_cache->set_lazy_load_flags(m_tid, 0);;
-        auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, lazy_load_flags));
-        if (m_tid.cls()->load(m_tid.id()).is_none() && lazy_load_flags & XCache::MUST_EXIST_IN_STORE) {
+        auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, flags));
+
+        clear_lazy_load_flags(flags);
+        const auto py_obj = m_tid.cls()->load(m_tid.id());
+        set_lazy_load_flags(flags & BTraitableProcessor::DEBUG);
+
+        if (py_obj.is_none() && flags & XCache::MUST_EXIST_IN_STORE) {
             throw std::runtime_error(std::format("{}/{}: object reference not found in store:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
         }
     }
-
 
     static py::object exogenous_id();
 
@@ -253,7 +258,7 @@ public:
 
     static py::object   deserialize_object(BTraitableClass* cls, const py::object& coll_name, const py::dict& trait_values);
     virtual void        deserialize_traits(const py::dict& trait_values);
-    static py::object   deserialize_nx(BTraitableClass* cls, const py::object& serialized_data);
+    static py::object   deserialize_nx(const BTraitableClass* cls, const py::object& serialized_data);
     bool                reload();
 
 };

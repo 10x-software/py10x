@@ -7,6 +7,7 @@
 #include <filesystem>
 
 #include "bnode.h"
+#include "bprocess_context.h"
 #include "btrait.h"
 #include "btraitable.h"
 #include "xcache.h"
@@ -44,6 +45,7 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
 
 
 bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
+    // returns true if the object existed in cache or storage
     const auto id_value = obj->tid().is_valid() ? obj->id_value() : obj->endogenous_id();
     const auto tid = TID(obj->my_class(), PyLinkage::traitable_id(id_value, obj->tid().coll_name()));
     if (const auto origin_cache = m_cache->find_origin_cache(tid)) {
@@ -57,7 +59,8 @@ bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
     if (obj->my_class()->instance_in_store(tid)) {
         m_cache->remove_temp_object_cache(obj->tid());
         obj->set_id_value(id_value);
-        m_cache->set_lazy_load_flags(tid, XCache::LOAD_REQUIRED_MUST_EXIST|m_flags&DEBUG);
+        obj->set_origin_cache(m_cache);
+        obj->set_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST| flags() & DEBUG);
         return true;
     }
     return false;
@@ -82,10 +85,12 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_
         return PyLinkage::RC_TRUE();
     }
 
-    // -- new object
+    // -- object does not exist in any cache
     obj->set_id_value(id_value);
+    obj->set_origin_cache(m_cache);
     m_cache->make_permanent(tid);
-    m_cache->set_lazy_load_flags(tid, accept_existing && obj->my_class()->is_storable() ? XCache::LOAD_REQUIRED|m_flags&DEBUG : 0);
+    if (accept_existing && obj->my_class()->may_exist_in_store())
+        obj->set_lazy_load_flags(XCache::LOAD_REQUIRED | flags() & DEBUG);
     return PyLinkage::RC_TRUE();
 }
 

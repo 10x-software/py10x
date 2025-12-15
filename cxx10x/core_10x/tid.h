@@ -23,7 +23,7 @@ public:
     void set_id_value(const py::object& id_value) const             { m_id.attr("value") = id_value; }
 
     [[nodiscard]] bool                  is_valid() const            { return !id_value().is_none(); }
-    [[nodiscard]] TID*                  ptr() const                 { return (TID*)this; }
+    [[nodiscard]] TID*                  ptr() const                 { return const_cast<TID *>(this); }
     [[nodiscard]] py::object            id() const                  { return m_id; }
     [[nodiscard]] py::object            id_value() const            { return m_id.attr("value"); }
     [[nodiscard]] py::object            coll_name() const           { return m_id.attr("collection_name"); }

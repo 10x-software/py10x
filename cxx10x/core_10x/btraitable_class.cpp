@@ -60,14 +60,14 @@ bool BTraitableClass::instance_in_cache(const TID &tid) {
 }
 
 bool BTraitableClass::instance_in_store(const TID &tid) const {
-    if (!tid.is_valid() || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
+    if (!may_exist_in_store() || !tid.is_valid())
         return false;
 
     return m_py_class.attr("exists_in_store")(tid.id()).cast<bool>();
 }
 
 py::object BTraitableClass::load(const py::object& id) {
-    if (!is_storable() || is_anonymous() || !TID::is_valid(id) || BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY))
+    if (!may_exist_in_store() || !TID::is_valid(id))
         return py::none();
 
     auto serialized_data = load_data(id);

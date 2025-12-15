@@ -107,6 +107,8 @@ void BTraitable::initialize(const py::dict& trait_values, const bool force=false
         if (const BRC rc(proc->share_object(this,true)); !rc)
             throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
 
+        if (!non_id_traits_set.empty())
+            clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
         for (auto &[trait, value] : non_id_traits_set) {
             if (const BRC rc(proc->set_trait_value(this, trait, value)); !rc)
                 throw py::value_error(rc.error());
@@ -114,9 +116,9 @@ void BTraitable::initialize(const py::dict& trait_values, const bool force=false
     }
     else {        // ID exogenous
         m_tid.set_id_value(exogenous_id());
+            clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
         if (const BRC rc(set_values(trait_values)); !rc)
             throw py::value_error(py::str(rc.error()));
-
     }
 }
 
@@ -205,12 +207,12 @@ py::object BTraitable::serialize_nx(bool embed) {
     return serialize_traits();
 }
 
-py::object BTraitable::deserialize_nx(BTraitableClass *cls, const py::object& serialized_data) {
-    auto id = TID::deserialize_id(serialized_data, false);  //-- may or may not be there
-    if (!id.is_none()) {     //-- external reference
+py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::object& serialized_data) {
+    if (auto id = TID::deserialize_id(serialized_data, false); !id.is_none()) {     //-- external reference
         auto lazy_ref = cls->py_class()(id);     // cls(_id = id)   - keep lazy reference
-        if (ThreadContext::current_traitable_proc()->flags_on(BTraitableProcessor::DEBUG)) {
-            lazy_ref.cast<BTraitable*>()->lazy_load();
+        if (const auto obj = lazy_ref.cast<BTraitable*>(); obj->lazy_load_flags() & BTraitableProcessor::DEBUG) {
+            obj->set_lazy_load_flags(XCache::LOAD_REQUIRED);
+            obj->lazy_load_if_needed();
         }
         return lazy_ref;
     }
@@ -276,7 +278,6 @@ py::dict BTraitable::serialize_traits() {
 
 void BTraitable::deserialize_traits(const py::dict& trait_values) {
     auto proc = ThreadContext::current_traitable_proc();
-    proc->cache()->create_object_cache(m_tid);
 
     auto XNone = PyLinkage::XNone();
     for (auto item : my_class()->trait_dir()) {
@@ -299,12 +300,10 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
 }
 
 bool BTraitable::reload() {
-    auto cls = my_class();
-    if (cls->is_storable() && m_tid.is_valid() && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY)) {
-        const auto serialized_data = my_class()->load_data(id());
-
-        if (!serialized_data.is_none()) {
-            auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+    if (const auto cls = my_class(); cls->may_exist_in_store() && m_tid.is_valid()) {
+        // TODO: check lazy load flags
+        if (const auto serialized_data = my_class()->load_data(id()); !serialized_data.is_none()) {
+            const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
             set_revision(revision);
             deserialize_traits(serialized_data);
             return true;

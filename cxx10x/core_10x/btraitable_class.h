@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "bprocess_context.h"
 #include "py_linkage.h"
 #include "eval_once.h"
 
@@ -22,9 +23,13 @@ protected:
 
     BUiClass*       m_ui_class = nullptr;
 
-    eval_once(BTraitableClass, bool, is_storable);
-    eval_once(BTraitableClass, bool, is_id_endogenous);
-    eval_once(BTraitableClass, bool, is_anonymous);
+    eval_once_const(BTraitableClass, bool, is_storable);
+    eval_once_const(BTraitableClass, bool, is_id_endogenous);
+    eval_once_const(BTraitableClass, bool, is_anonymous);
+
+    [[nodiscard]] bool may_exist_in_store() const {
+        return is_storable() && !is_anonymous() && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY);
+    }
 
     bool    is_storable_get() const;
     bool    is_id_endogenous_get() const;
