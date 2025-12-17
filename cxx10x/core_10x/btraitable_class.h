@@ -52,11 +52,11 @@ public:
         return m_py_class.attr("serialize_class_id")();
     }
 
-    py::object deseriaize_class_id(const py::object& class_id) {
+    py::object deserialize_class_id(const py::object& class_id) const {
         return m_py_class.attr("deserialize_class_id")(class_id);
     }
 
-    bool check_coll_kwargs(py::dict& coll_kwargs);
+   // bool check_coll_kwargs(py::dict& coll_kwargs);
 
     const py::object& py_class() const {
         return m_py_class;

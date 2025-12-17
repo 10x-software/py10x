@@ -28,6 +28,7 @@ public:
     [[nodiscard]] py::object            id_value() const            { return m_id.attr("value"); }
     [[nodiscard]] py::object            coll_name() const           { return m_id.attr("collection_name"); }
     [[nodiscard]] BTraitableClass*      cls() const                 { return m_class; }
+    [[nodiscard]] py::object            traitable_id() const        { return PyLinkage::traitable_id(id_value(), coll_name()); }
 
     bool operator == (const TID& other) const {
         return m_class == other.m_class && id_value().equal(other.id_value());

@@ -190,14 +190,18 @@ void BTraitable::set_revision(const py::object& rev) {
 }
 
 //-- Nucleus' serialize (not for top-level objects)
-py::object BTraitable::serialize_nx(bool embed) {
+py::object BTraitable::serialize_nx(const bool embed) {
     if (!embed) {   //-- external reference
         if (my_class()->is_anonymous())
             throw py::type_error(py::str("{} - anonymous' instance may not be serialized as external reference").format(class_name()));
 
         py::dict res;
         m_tid.serialize_id(res, embed);
-        //-- TODO: must save the object if not in store!
+        if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES && !ThreadContext::serialization_memo().contains(m_tid)) {
+            auto py_traitable = my_class()->py_class()(m_tid.traitable_id());    // cls(_id = id)
+            if (const auto rc = py_traitable.attr("save")(); !py::cast<bool>(rc))
+                throw py::value_error(py::str("{}/{} - failed to save referenced object:").format(class_name(), id_value(),rc.attr("error")()));
+        }
         return res;
     }
 
@@ -223,22 +227,41 @@ py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::obje
     return py_traitable;
 }
 
-py::object BTraitable::serialize_object() {
+py::object BTraitable::serialize_object(const bool save_references) {
+    if (lazy_load_flags() & XCache::LOAD_REQUIRED) {
+        return py::none();
+    }
+
     py::dict serialized_data;
 
     serialized_data[BNucleus::ID_TAG()] = id_value();
     serialized_data[BNucleus::REVISION_TAG()] = get_revision();
 
-    auto class_id = my_class()->serialize_class_id();
-    if (!class_id.is_none())
+    if (const auto class_id = my_class()->serialize_class_id(); !class_id.is_none())
         serialized_data[BNucleus::CLASS_TAG()] = class_id;
 
-    return serialized_data | serialize_traits();
+    const auto original_flags = ThreadContext::flags();
+    auto &memo = ThreadContext::serialization_memo();
+
+    if (save_references) {
+        ThreadContext::set_flags(ThreadContext::SAVE_REFERENCES);
+    }
+    if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES) {
+        memo.insert(m_tid);
+    }
+    serialized_data |= serialize_traits();
+
+    if (save_references) {
+        ThreadContext::set_flags(original_flags);
+        memo.clear();
+    }
+
+    return serialized_data;
 }
 
 py::object BTraitable::deserialize_object(BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data) {
     if (const auto class_id = cls->get_field(serialized_data, BNucleus::CLASS_TAG(), false); !class_id.is_none()) {
-        cls = cls->deseriaize_class_id(class_id).attr("s_bclass").cast<BTraitableClass*>();
+        cls = cls->deserialize_class_id(class_id).attr("s_bclass").cast<BTraitableClass*>();
     }
 
     const auto id_value = cls->get_field(serialized_data, BNucleus::ID_TAG());
@@ -247,6 +270,7 @@ py::object BTraitable::deserialize_object(BTraitableClass *cls, const py::object
     auto py_traitable = cls->py_class()(PyLinkage::traitable_id(id_value, coll_name));    // cls(_id = id)
 
     const auto obj = py_traitable.cast<BTraitable*>();
+    obj->clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
     obj->deserialize_traits(serialized_data);
     obj->set_revision(rev);
 
@@ -299,16 +323,20 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
     }
 }
 
-bool BTraitable::reload() {
+py::object BTraitable::_reload() {
     if (const auto cls = my_class(); cls->may_exist_in_store() && m_tid.is_valid()) {
-        // TODO: check lazy load flags
-        if (const auto serialized_data = my_class()->load_data(id()); !serialized_data.is_none()) {
+        const auto needs_lazy_load = lazy_load_flags() & XCache::LOAD_REQUIRED;
+        const auto serialized_data = needs_lazy_load ? lazy_load_if_needed() : cls->load_data(id());
+        if (needs_lazy_load && ThreadContext::current_cache() == m_origin_cache)
+            return serialized_data; // -- already loaded in current cache
+
+        if (!serialized_data.is_none()) {
             const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
             set_revision(revision);
             deserialize_traits(serialized_data);
-            return true;
+            return serialized_data;
         }
     }
-    return false;
+    return py::none();
 }
 

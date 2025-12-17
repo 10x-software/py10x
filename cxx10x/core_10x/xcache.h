@@ -277,7 +277,7 @@ public:
         }
         return nullptr;
     }
-    ObjectCache* find_or_create_object_cache(const BTraitable *obj);
+    ObjectCache* find_or_create_object_cache(BTraitable *obj);
 
     //-- Lookup in this cache ONLY! (ignore the parent)
     [[nodiscard]] ObjectCache* find_object_cache(const TID& tid) const {

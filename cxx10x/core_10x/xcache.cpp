@@ -18,7 +18,7 @@ XCache *XCache::find_origin_cache(const TID &tid) {
     return nullptr;
 }
 
-ObjectCache * XCache::find_or_create_object_cache(const BTraitable *obj) {
+ObjectCache * XCache::find_or_create_object_cache(BTraitable *obj) {
     // check if object's origin cache is reachable from *this*
     // handle lazy load if needed
     // find or create object cache in *this*
@@ -36,7 +36,7 @@ ObjectCache * XCache::find_or_create_object_cache(const BTraitable *obj) {
     if (!parent)
         //-- origin cache is not reachable!
         // TODO: factor out into xcache->exception?
-        throw std::runtime_error(std::format("{}/{}: object not usable - origin cache has been destroyed:\n{}", std::string(obj->class_name()), std::string(obj->id_value()),current_stacktrace()));
+        throw std::runtime_error(std::format("{}/{}: object not usable - origin cache is not reachable:\n{}", std::string(obj->class_name()), std::string(obj->id_value()),current_stacktrace()));
 
     obj->lazy_load_if_needed();
 

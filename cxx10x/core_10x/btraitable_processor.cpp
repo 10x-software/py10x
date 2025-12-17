@@ -151,6 +151,8 @@ void BTraitableProcessor::check_value(BTraitable *obj, const BTrait *trait, cons
 }
 
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *trait, const py::object& value) const {
+    if (trait->flags_on(BTraitFlags::ID) && obj->tid().is_valid() && obj->is_set(trait))
+        return PyLinkage::RC_TRUE(); // nothing to do for ID traits that are already set if ID is already valid
     const auto converted_value = adjust_set_value(obj, trait, value);
     if (!trait->f_set.is_none())     // custom setter is defined
         return trait->wrapper_f_set(obj, converted_value);

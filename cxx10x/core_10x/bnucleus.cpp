@@ -35,7 +35,7 @@ py::object deserialize_nx_record(const py::object& data_type, const py::object& 
 }
 
 py::object deserialize_type_record(const py::object& data_type, const py::object& serialized_data) {
-    auto method = BNucleus::deserialization_method(data_type);
+    const auto method = BNucleus::deserialization_method(data_type);
     if (!method)
         throw py::type_error(py::str("{} - deserializer is missing").format(data_type));
 
@@ -44,8 +44,8 @@ py::object deserialize_type_record(const py::object& data_type, const py::object
 
 py::object deserialize_pickle_record(const py::object& data_type, const py::object& serialized_data) {
     auto res = PyLinkage::unpickle(serialized_data);
-    if (!py::type(res).is(data_type))
-        throw py::type_error(py::str("PICKLE_RECORD - {} is expected, unpickled {}").format(data_type, py::type(res)));
+    if (!py::type::of(res).is(data_type))
+        throw py::type_error(py::str("PICKLE_RECORD - {} is expected, unpickled {}").format(data_type, py::type::of(res)));
     return res;
 }
 
@@ -53,8 +53,7 @@ py::object BNucleus::serialize_any(const py::object& value, bool embed) {
     auto cls = PyLinkage::type(value);
 
     //-- 1. Check if there's a built-in serializer
-    auto serializer = serialization_method(cls);
-    if (serializer) {
+    if (const auto serializer = serialization_method(cls)) {
         auto serialized = serializer(value, embed);
         auto serialized_type = PyLinkage::type(serialized);
 
@@ -88,7 +87,7 @@ py::object BNucleus::serialize_any(const py::object& value, bool embed) {
 
 py::object BNucleus::deserialize_any(const py::object& value, const py::object& expected_class) {
     auto cls = expected_class.is_none() ? PyLinkage::type(value) : expected_class;
-    auto deserializer = deserialization_method(cls);
+    const auto deserializer = deserialization_method(cls);
     if (!deserializer)
         throw py::value_error(py::str("May not deserialize {}").format(cls));
 
@@ -97,7 +96,7 @@ py::object BNucleus::deserialize_any(const py::object& value, const py::object& 
 
 py::object BNucleus::serialize_list(const py::object& list, bool embed) {
     py::list res;
-    for (auto item : list) {
+    for (auto &item : list) {
         auto value = serialize_any(item.cast<py::object>(), embed);
         res.append(value);
     }
@@ -106,7 +105,7 @@ py::object BNucleus::serialize_list(const py::object& list, bool embed) {
 
 py::object BNucleus::deserialize_list(const py::object& list) {
     py::list res;
-    for (auto item : list) {
+    for (auto &item : list) {
         auto value = deserialize_any(item.cast<py::object>());
         res.append(value);
     }
@@ -115,24 +114,23 @@ py::object BNucleus::deserialize_list(const py::object& list) {
 
 py::object BNucleus::serialize_dict(const py::object& dict, bool embed) {
     py::dict res;
-    for (auto item : dict.cast<py::dict>()) {
-        auto value = serialize_any(item.second.cast<py::object>(), embed);
-        res[item.first] = value;
+    for (auto &[key, value] : dict.cast<py::dict>()) {
+        auto serialized_value = serialize_any(value.cast<py::object>(), embed);
+        res[key] = serialized_value;
     }
     return res;
 }
 
 py::object BNucleus::deserialize_dict(const py::object& dict) {
-    auto rec = dict.cast<py::dict>();
-    auto res1 = deserialize_record(rec);
-    if (!res1.is_none())
+    const auto rec = dict.cast<py::dict>();
+    if (auto res1 = deserialize_record(rec); !res1.is_none())
         return res1;
 
     //-- this must be just a dict of values then
     py::dict res2;
-    for (auto item : rec) {
-        auto value = deserialize_any(item.second.cast<py::object>());
-        res2[item.first] = value;
+    for (auto &[key, serialized_value] : rec) {
+        auto value = deserialize_any(serialized_value.cast<py::object>());
+        res2[key] = value;
     }
     return res2;
 }
@@ -169,6 +167,7 @@ BNucleus::SerializationMethod BNucleus::serialization_method(const py::object& d
 
         //-- known external classes
         s_serialization_map->insert({py::module_::import("numpy").attr("number"),   serialize_as_is});
+        s_serialization_map->insert({py::module_::import("numpy").attr("float64"),   serialize_as_is});
     }
 
     auto it = s_serialization_map->find(data_type);
@@ -195,6 +194,7 @@ BNucleus::DeserializationMethod BNucleus::deserialization_method(const py::objec
 
         //-- known external classes
         s_deserialization_map->insert({py::module_::import("numpy").attr("number"), deserialize_as_is});
+        s_deserialization_map->insert({py::module_::import("numpy").attr("float64"), deserialize_as_is});
     }
 
     auto it = s_deserialization_map->find(data_type);

@@ -1,9 +1,11 @@
 import gc
 from collections import Counter
 from datetime import date
+from typing import Any
 
+import numpy as np
 from core_10x.xnone import XNone
-from core_10x.traitable import Traitable,T,RT,M,THIS_CLASS,AnonymousTraitable
+from core_10x.traitable import Traitable,T,RT,M,THIS_CLASS,AnonymousTraitable,RC
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP, INTERACTIVE
@@ -565,6 +567,87 @@ def test_22():
     x = X(x=1)
     assert x.z == 1
 
+def test_23():
+    save_calls = Counter()
+
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: THIS_CLASS = T()
+
+        def save(self, save_references=False):
+            if self.serialize_object(save_references):
+                save_calls[self.id().value] += 1
+            return RC(True)
+
+    x = X(x=1, y=X(x=2, y=X(x=1), _force=True), _force=True)
+    x.save()
+    assert save_calls == {'1': 1}
+    save_calls.clear()
+
+    x.save(save_references=True)
+    assert save_calls == {'1': 1, '2': 1}
+    save_calls.clear()
+
+    x = X(x=1, y=X(_id=ID('3')), _force=True)
+    x.save(save_references=True)
+    assert save_calls == {'1': 1}  # save of a lazy load is noop
+
+def test_24():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    x = X(x=1)
+    assert x.x == 1
+    try:
+        x.x = 2
+    except ValueError:
+        pass
+    else:
+        assert False, "Expected ValueError on setting ID trait"
+
+def test_25():
+    rev = 0
+    class X(Traitable):
+        x: int = T(T.ID)
+
+        @staticmethod
+        def load_data(id):
+            nonlocal rev
+            rev += 1
+            data = {'_id': id.value, 'x': int(id.value), '_rev': rev}
+            print('load_data', id.value, data)
+            return data
+
+    # reload of lazy ref
+    x = X(ID('1'))
+    x.reload()
+    assert x._rev == 1
+
+    x.reload()
+    assert x._rev == 2
+
+    x = X(ID('2'))
+    with GRAPH_ON():
+        x.reload()
+        assert x._rev == 3
+        assert rev == 3
+
+    assert x._rev == 3
+    assert rev == 3
+
+def test_26():
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: Any = T()
+
+    with GRAPH_ON():
+        x = X(x=1, y=np.float64(1.1), _force=True)
+        s = x.serialize_object()
+        print(s)
+
+    with GRAPH_ON():
+        assert s == X.deserialize_object(x.s_bclass, None, s).serialize_object()
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -577,7 +660,7 @@ if __name__ == '__main__':
     #test_7()
     #test_8()
     #test_9()
-    test_10()
+    # test_10()
     #test_12()
     #test_13()
     #test_14()
@@ -589,6 +672,9 @@ if __name__ == '__main__':
     # test_20()
     #test_21()
     # test_22()
-
+    # test_23()
+    #test_24()
+    # test_25()
+    test_26()
 
 

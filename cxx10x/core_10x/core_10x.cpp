@@ -269,7 +269,7 @@ PYBIND11_MODULE(core_10x_i, m)
                         "trait"_a, "value"_a
                 )
             .def("is_valid",                    py::overload_cast<const py::str&>(&BTraitable::is_valid))
-            .def("is_valid",                    py::overload_cast<BTrait*>(&BTraitable::is_valid))
+            .def("is_valid",                    py::overload_cast<const BTrait*>(&BTraitable::is_valid))
             .def("invalidate_value",            py::overload_cast<const py::str&>(&BTraitable::invalidate_value))
             .def("invalidate_value",            py::overload_cast<const py::str&, const py::args&>(&BTraitable::invalidate_value))
             .def("invalidate_value",            py::overload_cast<BTrait*>(&BTraitable::invalidate_value))
@@ -281,7 +281,10 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("_set_values",                 &BTraitable::set_values)
             .def("serialize_nx",                &BTraitable::serialize_nx)
             .def_static("deserialize_nx",       &BTraitable::deserialize_nx)
-            .def("serialize_object",            &BTraitable::serialize_object)
+            .def("serialize_object",            &BTraitable::serialize_object,
+                        "Serialize object",
+                        "save_references"_a=false
+                )
             .def("deserialize_traits",          &BTraitable::deserialize_traits)
             .def_static("deserialize_object",   &BTraitable::deserialize_object,
                         "Deserialize object",

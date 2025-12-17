@@ -90,22 +90,23 @@ public:
     void clear_lazy_load_flags(unsigned lazy_load_flags) const  { m_origin_cache->clear_lazy_load_flags(m_tid, lazy_load_flags); }
     [[nodiscard]] unsigned lazy_load_flags() const              { return m_origin_cache->lazy_load_flags(m_tid); }
 
-    void lazy_load_if_needed() const {
+    py::object lazy_load_if_needed() {
         const auto flags = lazy_load_flags();
         if (!(flags & XCache::LOAD_REQUIRED))
-            return;
+            return py::none();
         if (!my_class()->is_storable()) {
             throw std::runtime_error(std::format("{}/{}: cannot lazy load non-storable object:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
         }
         auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, flags));
 
         clear_lazy_load_flags(flags);
-        const auto py_obj = m_tid.cls()->load(m_tid.id());
-        set_lazy_load_flags(flags & BTraitableProcessor::DEBUG);
+        const auto serialized_data = _reload();
+        set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set
 
-        if (py_obj.is_none() && flags & XCache::MUST_EXIST_IN_STORE) {
+        if (serialized_data.is_none() && flags & XCache::MUST_EXIST_IN_STORE) {
             throw std::runtime_error(std::format("{}/{}: object reference not found in store:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
         }
+        return serialized_data;
     }
 
     static py::object exogenous_id();
@@ -134,24 +135,24 @@ public:
     }
 
     [[nodiscard]] BTrait* check_trait(const py::str& trait_name) const {
-        auto trait = my_class()->find_trait(trait_name);
+        const auto trait = my_class()->find_trait(trait_name);
         if (!trait)
             throw py::type_error(py::str("Unknown trait {}.{}").format(class_name(), trait_name));
 
         return trait;
     }
 
-    bool is_valid(const py::str& trait_name) {
+    [[nodiscard]] bool is_valid(const py::str& trait_name) {
         return is_valid(check_trait(trait_name));
     }
 
-    bool is_valid(BTrait* trait) {
-        auto proc = ThreadContext::current_traitable_proc();
+    [[nodiscard]] bool is_valid(const BTrait* trait) {
+        const auto proc = ThreadContext::current_traitable_proc();
         return proc->is_valid(this, trait);
     }
 
-    bool is_set(BTrait* trait) {
-        auto proc = ThreadContext::current_traitable_proc();
+    [[nodiscard]] bool is_set(const BTrait* trait) const {
+        const auto proc = ThreadContext::current_traitable_proc();
         return proc->is_set(this, trait);
     }
 
@@ -253,13 +254,14 @@ public:
     void                set_revision(const py::object& rev);
 
     py::dict            serialize_traits();
-    py::object          serialize_object();
+    py::object          serialize_object(bool save_references);
     py::object          serialize_nx(bool embed);      //-- Nucleus' method
 
     static py::object   deserialize_object(BTraitableClass* cls, const py::object& coll_name, const py::dict& trait_values);
     virtual void        deserialize_traits(const py::dict& trait_values);
     static py::object   deserialize_nx(const BTraitableClass* cls, const py::object& serialized_data);
-    bool                reload();
+    py::object          _reload();
+    bool                reload() {return !_reload().is_none();}
 
 };
 
