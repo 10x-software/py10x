@@ -232,7 +232,10 @@ PYBIND11_MODULE(core_10x_i, m)
 
     py::class_<BTraitable,PyBTraitable>(m, "BTraitable")
             .def(py::init<BTraitableClass*, const py::object&>())
-            .def("initialize",                  &BTraitable::initialize)
+            .def("initialize",                  &BTraitable::initialize,
+                    "Initialize object",
+                    "trait_values"_a, "_force"_a=false
+                    )
             .def("share",                       &BTraitable::share,
                         "Share object",
                         "accept_existing"_a
