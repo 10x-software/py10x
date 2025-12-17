@@ -1,17 +1,28 @@
+from typing import Any
 from uuid import uuid4
 
+import numpy
 import pytest
 from core_10x_i import BTraitableProcessor, XCache
 
 from core_10x.code_samples.person import Person as BasePerson
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.rc import RC_TRUE
+from core_10x.trait_definition import T
 from core_10x.ts_store import TsDuplicateKeyError
+
+
+class EnhancedPerson(BasePerson):
+    numpy_weight_lbs: Any = T()
+
+    def numpy_weight_lbs_get(self):
+        return numpy.float64(self.weight_lbs)
+
 
 test_classes = {
     cls_name: type(
         cls_name,
-        (BasePerson,),
+        (EnhancedPerson,),
         {
             '__module__': __name__,
             #'s_custom_collection': True

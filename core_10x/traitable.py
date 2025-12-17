@@ -7,6 +7,7 @@ from itertools import chain
 from typing import TYPE_CHECKING, Any, Self, get_origin
 
 from core_10x_i import BTraitable, BTraitableClass
+from typing_extensions import deprecated
 
 import core_10x.concrete_traits as concrete_traits
 from core_10x.global_cache import cache
@@ -280,7 +281,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #     #    return cls.load(id_value)
     #     return cls(_id = id_value)      #-- TODO: we may not need this method, unless used to enforce loading
 
-    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, **trait_values):
+    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _force=False, **trait_values):
         cls = self.__class__
 
         if _id is not None:
@@ -290,7 +291,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         else:
             super().__init__(cls.s_bclass, ID(collection_name=_collection_name))
             if not _skip_init:
-                self.initialize(trait_values)
+                if '_force' in BTraitable.initialize.__doc__:
+                    self.initialize(trait_values, _force)
+                else:
+                    # TODO: compatibility code - remove
+                    self.initialize(trait_values)
 
         self.T = TraitAccessor(self)
 
@@ -318,7 +323,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return None
 
     @classmethod
+    @deprecated('Use constructor with _force=True instead.')
     def update(cls, **kwargs) -> Traitable:
+        if '_force' in BTraitable.initialize.__doc__:
+            return cls(**kwargs, _force=True)
+
+        # TODO: compatibility code - remove
         o = cls(**{k: v for k, v in kwargs.items() if not (t := cls.s_dir.get(k)) or t.flags_on(T.ID)})
         o.set_values(**{k: v for k, v in kwargs.items() if (t := cls.s_dir.get(k)) and not t.flags_on(T.ID)}).throw()
         return o
@@ -369,8 +379,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def from_str(cls, s: str) -> Nucleus:
-        #return cls(ID(s))  # collection name?
-        return cls.existing_instance_by_id(_id_value = s)
+        # return cls(ID(s))  # collection name?
+        return cls.existing_instance_by_id(_id_value=s)
 
     @classmethod
     def from_any_xstr(cls, value) -> Nucleus:
@@ -386,9 +396,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         return value1.id() == value2.id()
 
-    #===================================================================================================================
+    # ===================================================================================================================
     #   Storage related methods
-    #===================================================================================================================
+    # ===================================================================================================================
 
     @staticmethod
     @cache
@@ -566,7 +576,7 @@ class StorableHelper(NotStorableHelper):
         return store.delete_collection(collection_name=cname)
 
     @staticmethod
-    def save(self) -> RC:
+    def save(self, save_references=False) -> RC:
         cls = self.__class__
         rc = self.verify()
         if not rc:
@@ -576,7 +586,12 @@ class StorableHelper(NotStorableHelper):
         if not rc:
             return rc
 
-        serialized_data = self.serialize_object()
+        if 'save_refernces' in BTraitable.serialize_object.__doc__:
+            serialized_data = self.serialize_object(save_references)
+        else:
+            # TODO: compatibility code - remove
+            serialized_data = self.serialize_object()
+
         if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
             return RC_TRUE
 

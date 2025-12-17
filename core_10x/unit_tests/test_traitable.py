@@ -6,12 +6,13 @@ import uuid
 from collections import Counter
 from contextlib import nullcontext
 from datetime import date
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pytest
 from core_10x import trait_definition
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import BTP, CACHE_ONLY, INTERACTIVE
+from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition
@@ -19,7 +20,7 @@ from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
-from core_10x_i import BFlags
+from core_10x_i import BFlags, BTraitable
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -73,7 +74,7 @@ def test_is_storable():
 
 def test_trait_update():
     with CACHE_ONLY():
-        instance = SubTraitable(trait1=10, trait2='hello')
+        instance = SubTraitable(trait1=10, trait2='hello', _force=True)
         assert instance.trait2 == 'hello'
 
         assert instance == SubTraitable.update(trait1=10, trait2='world')
@@ -103,9 +104,10 @@ def test_instance_slots():
 
 
 def test_init_with_id():
-    pid = ID('John|Smith')
-    p = Person(pid)
-    assert p.id() == pid
+    with GRAPH_ON():  # isolate lazy reference so it does not affect other tests
+        pid = ID('John|Smith')
+        p = Person(pid)
+        assert p.id() == pid
 
 
 def test_init_with_trait_values():
@@ -194,12 +196,14 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
 
     with BTP.create(on_graph, convert_values, debug, use_parent_cache, use_default_cache):
         x = X.existing_instance_by_id(ID('1')) if use_existing_instance_by_id else X.existing_instance(i=1)
-        x1 = X(i=3, x=x)
+        assert x
+        x1 = X(i=3, x=x, _force=True)
         assert x1.x is x
         assert not load_calls
 
         assert x.i == 1
-        expected = lambda n: {str(i): 1 + int(debug and self_ref) for i in range(1, n + 1)}
+        compat = '_force' not in BTraitable.initialize.__doc__  # TODO: remove
+        expected = lambda n: {str(i): 1 + int(debug and self_ref and compat) for i in range(1, n + 1)}
         if debug and not self_ref:
             assert load_calls == expected(3)
             assert x.x.x == x1  # found existing instance
@@ -279,17 +283,17 @@ def test_anonymous_traitable():
     x = X(a=1)
     assert x.serialize(True) == {'a': 1}
 
-    y = Y(y=0, x=x)
+    y = Y(y=0, x=x, _force=True)
     with pytest.raises(
         TraitMethodError, match=r"test_anonymous_traitable.<locals>.X - anonymous' instance may not be serialized as external reference"
     ):
         y.serialize_object()
 
-    z = Z(y=1, x=x)
+    z = Z(y=1, x=x, _force=True)
     s = z.serialize_object()
     assert s['x'] == {'a': 1}
 
-    z = Z(y=2, x=Y(y=3))
+    z = Z(y=2, x=Y(y=3), _force=True)
     with pytest.raises(TraitMethodError, match=r'test_anonymous_traitable.<locals>.Y/3 - embedded instance must be anonymous'):
         z.serialize_object()
 
@@ -371,7 +375,7 @@ def test_create_and_share():
         x: int = RT(T.ID)
         y: int = RT(T.ID)
         z: int = RT()
-        t: int = RT()
+        t: int = RT(T.ID_LIKE)
 
         def y_get(self):
             return self.t
@@ -382,39 +386,162 @@ def test_create_and_share():
     with pytest.raises(TypeError, match=re.escape("test_create_and_share.<locals>.X.y (<class 'int'>) - invalid value ''")):
         X(x=1)
 
-    X(x=1, y=1, z=1)
+    X(x=1, y=1, z=1, _force=True)
 
-    with pytest.raises(
-        ValueError, match=re.escape('test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values')
-    ):
+    with pytest.raises(ValueError, match=re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
         X(x=1, y=1, z=2)
 
-    with pytest.raises(
-        ValueError, match=re.escape('test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values')
-    ):
+    with pytest.raises(ValueError, match=re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
         X(x=1, y=1, z=1)
 
-    with pytest.raises(
-        ValueError, match=re.escape('test_create_and_share.<locals>.X/1|1 - already exists with potentially different non-ID trait values')
-    ):
+    with pytest.raises(ValueError, match=re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
         X(x=1, t=1, z=1)
 
-    # assert X(x=1,t=1).z == 1 #TODO: should this succeed?
+    assert X(x=1, t=1).z == 1
     assert X(x=1, y=1).z == 1
 
     with INTERACTIVE():
         x = X()  # empty object allowed - OK!
-        y = X()  # partial id not allowed
-        z = X(x=1, y=1)  # works here!
+        z = X(x=1, y=1)
         assert z.z == 1  # found from parent
 
         x.x = 1
         x.y = 1
-        x.share(False)
-        assert x.z == 1
+        assert not x.share(False)
+        assert x.z is XNone
 
-        y.x = 1
-        y.y = 1
-        y.z = 2
-        y.share(False)  ## TODO: should this fail?
-        assert x.z == 1  ## TODO: ignored?
+
+def test_serialize():
+    save_calls = Counter()
+
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: THIS_CLASS = T()
+
+        def save(self, save_references=False):
+            if self.serialize_object(save_references):
+                save_calls[self.id().value] += 1
+            return RC(True)
+
+    x = X(x=1, y=X(x=2, y=X(x=1), _force=True), _force=True)
+    x.save()
+    assert save_calls == {'1': 1}
+    save_calls.clear()
+
+    x.save(save_references=True)
+    assert save_calls == {'1': 1, '2': 1}
+    save_calls.clear()
+
+    x = X(x=3, y=X(_id=ID('4')), _force=True)
+    x.save(save_references=True)
+    assert save_calls == {'3': 1}  # save of a lazy load is noop
+
+
+def test_id_trait_set():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    with INTERACTIVE():
+        x = X()
+        x.x = 1
+        assert x.x == 1
+        x.x = 2
+        assert x.x == 2
+
+        x.share(False)
+        x.x = 3
+        assert x.x == 2  # not updated on shared object
+
+    x = X(x=1)
+    x.x = 2
+    assert x.x == 1  # not updated on shared object
+
+
+def test_reload():
+    rev = 0
+
+    class X(Traitable):
+        x: int = T(T.ID)
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            nonlocal rev
+            rev += 1
+            data = {'_id': id.value, 'x': int(id.value), '_rev': rev}
+            return data
+
+    # reload of lazy ref
+    x = X(ID('1'))
+    x.reload()
+    assert x._rev == 1
+
+    x.reload()
+    assert x._rev == 2
+
+    x = X(ID('2'))
+    with GRAPH_ON():
+        x.reload()
+        assert x._rev == 3
+        assert rev == 3
+    assert x._rev == 3
+    assert rev == 3
+
+    x = X(ID('3'))
+    with GRAPH_ON():
+        y = X(ID('3'))
+        assert y._rev == 4
+    assert x._rev == 4
+
+
+def test_separation():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT()
+
+    with GRAPH_ON() as g1:
+        x1 = X(x=1, y=1, _force=True)
+
+    with GRAPH_ON() as g2:
+        x2 = X(x=1, y=2, _force=True)
+
+    assert X(x=1).y is XNone
+
+    with g1:
+        assert X(x=1).y == 1
+        with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
+            x2.get_value('y')
+
+    with g2:
+        assert X(x=1).y == 2
+        with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
+            x1.get_value('y')
+
+    with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
+        x1.get_value('y')
+
+    with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
+        x2.get_value('y')
+
+
+@pytest.mark.parametrize('value', [{'x': 1}, {}, [], [1], np.float64(1.1)])
+def test_any_trait(value):
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: Any = T()
+        z: list = T()
+
+    with GRAPH_ON():
+        x = X(x=1, y=value, z=[value], _force=True)
+        assert x.y == value
+        assert x.z[0] == value
+        assert type(x.y) is type(value)
+        assert type(x.z[0]) is type(value)
+        s = x.serialize_object()
+
+    with GRAPH_ON():
+        x = X.deserialize_object(x.s_bclass, None, s)
+        assert x.y == value
+        assert x.z[0] == value
+        assert type(x.y) is type(value)
+        assert type(x.z[0]) is type(value)
+        assert s == x.serialize_object()
