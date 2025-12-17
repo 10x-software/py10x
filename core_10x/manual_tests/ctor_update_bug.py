@@ -1,5 +1,6 @@
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
 
+
 class Cross(Traitable):
     cross: str              = RT(T.ID)  // 'e.g., GBP/USD or CHF/JPY'
 
