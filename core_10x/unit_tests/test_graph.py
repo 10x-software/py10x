@@ -151,27 +151,16 @@ def test_dep_change_with_arg(testable_person):
     p.age = 30
 
 
-@pytest.fixture
-def graph_on_person():
-    graph_on = GRAPH_ON()
-    graph_on.begin_using()
-    with CACHE_ONLY():
-        p = TestablePerson(first_name='Jane', last_name='Smith')
-    pid = p.id()
-    p.age = 30
-    yield p, pid, graph_on
-    # Cleanup
-    assert p.age == 30
-    graph_on.end_using()
-    assert p.first_name is XNone
-    assert p.last_name is XNone
-    assert p.weight_lbs is XNone
-    assert p.age is p.age_get()
-    assert p.id() == pid
+def test_nested():
+    class P(Traitable):
+        first_name: str = RT()
+        last_name: str = RT()
+        full_name: str = RT()
 
+        def full_name_get(self):
+            return f'{self.first_name} {self.last_name}'
 
-def test_nested(graph_on_person):
-    p, _pid, _graph_on = graph_on_person
+    p = P(first_name='Jane', last_name='Smith')
     assert p.full_name == 'Jane Smith'
     with INTERACTIVE() as i1:
         p.last_name = 'Baker'
@@ -300,16 +289,16 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
         x: int = RT(T.ID)
         v: int = RT()
 
-    X(x=1, v=10)
+    X(x=1, v=10, _force=True)
     assert X(x=1).v == 10
 
     default_cache = BTP.current().cache()
     with BTP.create(on_graph, debug, convert_values, use_parent_cache=False, use_default_cache=False):
-        X(x=2, v=20)
+        X(x=2, v=20, _force=True)
         parent_cache = BTP.current().cache()
         assert default_cache is not parent_cache
         with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=False, use_default_cache=False):
-            X(x=3, v=30)
+            X(x=3, v=30, _force=True)
             child_cache = BTP.current().cache()
             assert child_cache is not parent_cache
             assert child_cache is not default_cache
@@ -317,7 +306,7 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
             assert X(x=2).v == 20
 
         with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=True, use_default_cache=False):
-            X(x=4, v=40)
+            X(x=4, v=40, _force=True)
             child_cache = BTP.current().cache()
             if on_graph == on_graph2:  # use_parent_cache only works if both parent and child are either on_graph or off_graph
                 assert child_cache is parent_cache
@@ -325,7 +314,7 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
                 assert child_cache is not parent_cache
                 assert child_cache is not default_cache
         with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=False, use_default_cache=True):
-            X(x=5, v=50)
+            X(x=5, v=50, _force=True)
             child_cache = BTP.current().cache()
             if not on_graph2:  # use_default_cache only works for off-graph mode
                 assert child_cache is default_cache

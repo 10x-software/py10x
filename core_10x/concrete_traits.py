@@ -268,10 +268,10 @@ class any_trait(Trait, data_type=XNoneType):  # -- any
         return True
 
     def serialize(self, value):
-        return Nucleus.serialize_any(value, self.flags_on(T.EMBEDDED))  # serializes to record (dict)
+        return Nucleus.serialize_any(value, self.flags_on(T.EMBEDDED))
 
     def deserialize(self, value):
-        return Nucleus.deserialize_dict(value)  # interprets dict as record first
+        return Nucleus.deserialize_any(value, None)  # expected class unknown
 
     def same_values(self, value1, value2) -> bool:
         return value1 is value2
