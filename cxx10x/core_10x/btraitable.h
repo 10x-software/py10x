@@ -77,7 +77,7 @@ public:
                 set_origin_cache(existing_cache);
             else {
                 if (!cls->is_storable())
-                    throw std::runtime_error(std::format("{}/{}: cannot construct a lazy reference to non-storable that does not exist in memory:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
+                    throw runtime_error("construction failed for lazy reference to non-storable that does not exist in memory");
                 set_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST|proc->flags()&BTraitableProcessor::DEBUG);
             }
         }
@@ -90,23 +90,10 @@ public:
     void clear_lazy_load_flags(unsigned lazy_load_flags) const  { m_origin_cache->clear_lazy_load_flags(m_tid, lazy_load_flags); }
     [[nodiscard]] unsigned lazy_load_flags() const              { return m_origin_cache->lazy_load_flags(m_tid); }
 
-    py::object lazy_load_if_needed() {
-        const auto flags = lazy_load_flags();
-        if (!(flags & XCache::LOAD_REQUIRED))
-            return py::none();
-        if (!my_class()->is_storable()) {
-            throw std::runtime_error(std::format("{}/{}: cannot lazy load non-storable object:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
-        }
-        auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, flags));
+    py::object lazy_load_if_needed();
 
-        clear_lazy_load_flags(flags);
-        const auto serialized_data = _reload();
-        set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set
-
-        if (serialized_data.is_none() && flags & XCache::MUST_EXIST_IN_STORE) {
-            throw std::runtime_error(std::format("{}/{}: object reference not found in store:\n{}", std::string(class_name()), std::string(id_value()),current_stacktrace()));
-        }
-        return serialized_data;
+    std::runtime_error runtime_error(const char *str) const {
+        return std::runtime_error(std::format("{}/{}: object {}:\n{}", std::string(class_name()), std::string(id_value()), str, current_stacktrace()));
     }
 
     static py::object exogenous_id();
@@ -257,7 +244,7 @@ public:
     py::object          serialize_object(bool save_references);
     py::object          serialize_nx(bool embed);      //-- Nucleus' method
 
-    static py::object   deserialize_object(BTraitableClass* cls, const py::object& coll_name, const py::dict& trait_values);
+    static py::object   deserialize_object(BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data);
     virtual void        deserialize_traits(const py::dict& trait_values);
     static py::object   deserialize_nx(const BTraitableClass* cls, const py::object& serialized_data);
     py::object          _reload();

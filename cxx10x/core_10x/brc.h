@@ -48,7 +48,6 @@ public:
         return m_rc;
     }
 
-    // TODO: these are just virtual calls into python -- use pybind..
     [[nodiscard]] py::object add_error(const std::string& err) const {
         const auto py_f = m_rc.attr("add_error");
         return py_f(py::str(err));

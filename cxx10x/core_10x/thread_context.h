@@ -23,19 +23,24 @@ class ThreadContext {
     TraitableProcessorStack     m_traitable_proc_stack;
     CacheStack                  m_cache_stack;
     unsigned                    m_flags = 0;
-    std::unordered_set<TID>    m_serialization_memo;
+    std::unordered_set<TID>     m_serialization_memo;
 
 public:
-    static constexpr unsigned  SAVE_REFERENCES    = 0x1;
-    static void set_flags(const unsigned flags) {current_context().m_flags = flags; }
-    [[nodiscard]] static unsigned flags() {return current_context().m_flags;}
-
 
     ThreadContext() : m_tid(std::this_thread::get_id()) {}
 
     static ThreadContext &current_context() {
         thread_local ThreadContext ctx;
         return ctx;
+    }
+
+    static constexpr unsigned SAVE_REFERENCES       = 0x1;
+    static void set_flags(const unsigned flags)     { current_context().m_flags = flags; }
+    [[nodiscard]] static unsigned flags()           { return current_context().m_flags; }
+
+    static std::unordered_set<TID> &serialization_memo() {
+        auto &context = current_context();
+        return context.m_serialization_memo;
     }
 
     static XCache* current_cache() {
@@ -47,11 +52,6 @@ public:
         }
 
         return cache;
-    }
-
-    static std::unordered_set<TID> &serialization_memo() {
-        auto &context = current_context();
-        return context.m_serialization_memo;
     }
 
     static void cache_push(XCache* cache) {

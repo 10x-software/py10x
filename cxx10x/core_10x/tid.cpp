@@ -16,7 +16,7 @@ TID::TID(BTraitableClass* cls, const py::object& id) : m_class(cls) {
         throw py::type_error(py::str("{}() _collection_name may not be provided").format(cls->name()));
 }
 
-void TID::serialize_id(py::dict& res, bool embed) {
+void TID::serialize_id(const py::dict& res, const bool embed) const {
     res[BNucleus::ID_TAG()] = id_value();
     auto cname = coll_name();
     if (!embed && !cname.is_none())

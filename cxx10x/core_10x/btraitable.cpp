@@ -14,13 +14,6 @@
 //    m_tid.set_class(cls.cast<BTraitableClass*>());
 //
 
-// TODO:
-// - lazy ref => (delayed) load in cache where it was created...
-// - use lazy ref even even in constructor
-// - if an object has ptr to cache, it's a lazy ref and should be (delayed) loaded before use
-// - review exceptions in constructor due to non-id traits...
-// - consider/test a reload of a lazy ref...
-
 BTraitable::~BTraitable() {
     // TODO: what if it gets collected while a different cache is active? or on different thread?
     // Perhaps,
@@ -35,6 +28,22 @@ BTraitable::~BTraitable() {
         cache->remove_temp_object_cache(m_tid);
     }
     //TODO: class flag to indicate if objects is auto-disposable default = true
+}
+
+py::object BTraitable::lazy_load_if_needed() {
+    const auto flags = lazy_load_flags();
+    if (!(flags & XCache::LOAD_REQUIRED))
+        return py::none();
+
+    auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, flags));
+    clear_lazy_load_flags(flags);
+    const auto serialized_data = _reload();
+    set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set
+
+    if (serialized_data.is_none() && flags & XCache::MUST_EXIST_IN_STORE) {
+        throw runtime_error("reference not found in store");
+    }
+    return serialized_data;
 }
 
 py::object BTraitable::exogenous_id() {
@@ -130,7 +139,7 @@ bool BTraitable::id_exists() {
 }
 
 bool BTraitable::accept_existing(const py::dict& trait_values) {
-    if (auto cls = my_class(); !cls->is_id_endogenous())
+    if (const auto cls = my_class(); !cls->is_id_endogenous())
         return false;
 
     if (BRC rc(set_values(trait_values)); !rc)
@@ -150,15 +159,15 @@ py::object BTraitable::from_any(const BTrait* trait, const py::object& value) {
 }
 
 py::object BTraitable::value_to_str(BTrait* trait) {
-    auto value = get_value(trait);
+    const auto value = get_value(trait);
     return trait->wrapper_f_to_str(this, value);
 }
 
 py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
     auto proc = ThreadContext::current_traitable_proc();
     for (auto item : trait_values) {
-        auto trait_name = item.first.cast<py::object>();
-        auto trait = my_class()->find_trait(trait_name);
+        const auto trait_name = item.first.cast<py::object>();
+        const auto trait = my_class()->find_trait(trait_name);
         if (!trait) {
             if (!ignore_unknown_traits)
                 throw py::type_error(py::str("{}.{} - unknown trait").format(class_name(), trait_name));
@@ -167,8 +176,7 @@ py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unkn
         }
 
         auto value = item.second.cast<py::object>();
-        BRC rc(proc->set_trait_value(this, trait, value));
-        if (!rc)
+        if (BRC rc(proc->set_trait_value(this, trait, value)); !rc)
             return rc();
     }
 
@@ -279,18 +287,17 @@ py::object BTraitable::deserialize_object(BTraitableClass *cls, const py::object
 
 py::dict BTraitable::serialize_traits() {
     py::dict res;
-    auto XNone = PyLinkage::XNone();
-    auto proc = ThreadContext::current_traitable_proc();
-    for (auto item : my_class()->trait_dir()) {
-        auto trait = item.second.cast<BTrait*>();
-        if (!trait->flags_on(BTraitFlags::RUNTIME) && !trait->flags_on(BTraitFlags::RESERVED)) {
-            auto trait_name = item.first.cast<py::object>();
-            auto value = proc->get_trait_value(this, trait);
+    const auto XNone = PyLinkage::XNone();
+    const auto proc = ThreadContext::current_traitable_proc();
+    for (const auto &[trait_name_handle, trait_value_handle] : my_class()->trait_dir()) {
+        if (const auto trait = trait_value_handle.cast<BTrait*>(); !trait->flags_on(BTraitFlags::RUNTIME) && !trait->flags_on(BTraitFlags::RESERVED)) {
+            const auto trait_name = trait_name_handle.cast<py::object>();
+            const auto value = proc->get_trait_value(this, trait);
             if (value.is_none())    //-- None is never serialized (user's decision to return or set None)
                 throw py::value_error(py::str("{}.{} - undefined value").format(class_name(), trait_name));
 
             //-- XNone is serialized as None (undefined)
-            auto ser_value = value.is(XNone) ? py::none() : trait->wrapper_f_serialize(my_class(), value);
+            const auto ser_value = value.is(XNone) ? py::none() : trait->wrapper_f_serialize(my_class(), value);
             res[trait_name] = ser_value;
         }
     }
@@ -301,23 +308,21 @@ py::dict BTraitable::serialize_traits() {
 }
 
 void BTraitable::deserialize_traits(const py::dict& trait_values) {
-    auto proc = ThreadContext::current_traitable_proc();
+    const auto proc = ThreadContext::current_traitable_proc();
 
-    auto XNone = PyLinkage::XNone();
-    for (auto item : my_class()->trait_dir()) {
-        auto trait = item.second.cast<BTrait*>();
+    const auto XNone = PyLinkage::XNone();
+    for (const auto &[trait_name_handle, trait_handle] : my_class()->trait_dir()) {
+        const auto trait = trait_handle.cast<BTrait*>();
         if (trait->flags_on(BTraitFlags::RESERVED) || trait->flags_on(BTraitFlags::RUNTIME))
             continue;
 
-        auto trait_name = item.first.cast<py::object>();
-        auto value = PyLinkage::dict_get(trait_values, trait_name);
-        if (value.is(XNone))
+        const auto trait_name = trait_name_handle.cast<py::object>();
+        if (auto value = PyLinkage::dict_get(trait_values, trait_name); value.is(XNone))
             proc->invalidate_trait_value(this, trait);      //-- TODO: should we set None instead?
         else {
             //-- As XNone is serialized as None, get it back, if any
-            auto deser_value = value.is_none() ? XNone : trait->wrapper_f_deserialize(my_class(), value);
-            BRC rc(set_value(trait, deser_value));
-            if (!rc)
+            const auto deser_value = value.is_none() ? XNone : trait->wrapper_f_deserialize(my_class(), value);
+            if (const BRC rc(set_value(trait, deser_value)); !rc)
                 throw py::value_error(rc.error());
         }
     }

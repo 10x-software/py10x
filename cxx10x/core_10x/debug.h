@@ -10,14 +10,12 @@
 inline std::string current_stacktrace()
 {
     backward::StackTrace st;
-    st.load_here(32);
-    st.skip_n_firsts(2);  // skip this function + your throw site
+    st.load_here();
 
     std::ostringstream oss;
-    oss << "C++ traceback (most recent call last):\n";
-
     backward::Printer p;
     p.color_mode = backward::ColorMode::never;
+    p.reverse = false;
     p.print(st, oss);     // ← this line works everywhere
 
     return oss.str();

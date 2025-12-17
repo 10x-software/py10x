@@ -23,7 +23,7 @@ public:
     void set_id_value(const py::object& id_value) const             { m_id.attr("value") = id_value; }
 
     [[nodiscard]] bool                  is_valid() const            { return !id_value().is_none(); }
-    [[nodiscard]] TID*                  ptr() const                 { return const_cast<TID *>(this); }
+    [[nodiscard]] const TID*            ptr() const                 { return const_cast<TID *>(this); }
     [[nodiscard]] py::object            id() const                  { return m_id; }
     [[nodiscard]] py::object            id_value() const            { return m_id.attr("value"); }
     [[nodiscard]] py::object            coll_name() const           { return m_id.attr("collection_name"); }
@@ -34,7 +34,7 @@ public:
         return m_class == other.m_class && id_value().equal(other.id_value());
     }
 
-    void serialize_id(py::dict& res, bool embed);
+    void serialize_id(const py::dict& res, bool embed) const;
     static py::object deserialize_id(const py::dict& serialized_data, bool must_exist = true);
 
 };

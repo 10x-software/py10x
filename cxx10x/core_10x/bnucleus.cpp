@@ -96,8 +96,8 @@ py::object BNucleus::deserialize_any(const py::object& value, const py::object& 
 
 py::object BNucleus::serialize_list(const py::object& list, bool embed) {
     py::list res;
-    for (auto &item : list) {
-        auto value = serialize_any(item.cast<py::object>(), embed);
+    for (const auto &item : list) {
+        const auto value = serialize_any(item.cast<py::object>(), embed);
         res.append(value);
     }
     return res;
@@ -105,8 +105,8 @@ py::object BNucleus::serialize_list(const py::object& list, bool embed) {
 
 py::object BNucleus::deserialize_list(const py::object& list) {
     py::list res;
-    for (auto &item : list) {
-        auto value = deserialize_any(item.cast<py::object>());
+    for (const auto &item : list) {
+        const auto value = deserialize_any(item.cast<py::object>());
         res.append(value);
     }
     return res;
@@ -114,8 +114,8 @@ py::object BNucleus::deserialize_list(const py::object& list) {
 
 py::object BNucleus::serialize_dict(const py::object& dict, bool embed) {
     py::dict res;
-    for (auto &[key, value] : dict.cast<py::dict>()) {
-        auto serialized_value = serialize_any(value.cast<py::object>(), embed);
+    for (const auto &[key, value] : dict.cast<py::dict>()) {
+        const auto serialized_value = serialize_any(value.cast<py::object>(), embed);
         res[key] = serialized_value;
     }
     return res;
@@ -123,13 +123,13 @@ py::object BNucleus::serialize_dict(const py::object& dict, bool embed) {
 
 py::object BNucleus::deserialize_dict(const py::object& dict) {
     const auto rec = dict.cast<py::dict>();
-    if (auto res1 = deserialize_record(rec); !res1.is_none())
+    if (const auto res1 = deserialize_record(rec); !res1.is_none())
         return res1;
 
     //-- this must be just a dict of values then
     py::dict res2;
-    for (auto &[key, serialized_value] : rec) {
-        auto value = deserialize_any(serialized_value.cast<py::object>());
+    for (const auto &[key, serialized_value] : rec) {
+        const auto value = deserialize_any(serialized_value.cast<py::object>());
         res2[key] = value;
     }
     return res2;

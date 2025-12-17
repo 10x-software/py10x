@@ -175,7 +175,7 @@ public:
 class XCache {
 protected:
     using Data      = std::unordered_map<TID, ObjectCache*>;
-    using TmpData   = std::unordered_map<TID*, ObjectCache*>;
+    using TmpData   = std::unordered_map<const TID*, ObjectCache*>;
 
     static XCache*  s_default;
 

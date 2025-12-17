@@ -67,7 +67,7 @@ public:
     py::object      f_style_sheet;      // style sheet from py          dict    f(obj, trait)
 
 protected:
-    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const;
+    py::error_already_set trait_error(const py::error_already_set& exc, BTraitable* obj, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const;
     py::error_already_set trait_error(py::error_already_set& exc, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const {
         return trait_error(exc, nullptr, cls, f, value, args);
     }
@@ -117,22 +117,22 @@ public:
 
     //-- Trait Method wrappers
 
-    py::object wrapper_f_get(BTraitable* obj);
-    py::object wrapper_f_get(BTraitable* obj, const py::args& args);
+    py::object wrapper_f_get(BTraitable* obj) const;
+    py::object wrapper_f_get(BTraitable* obj, const py::args& args) const;
 
     py::object wrapper_f_set(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_set(BTraitable* obj, const py::object& value, const py::args& args) const;
 
-    py::object wrapper_f_verify(BTraitable* obj, const py::object& value);
+    py::object wrapper_f_verify(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_from_str(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) const;
-    py::object wrapper_f_to_str(BTraitable* obj, const py::object& value);
+    py::object wrapper_f_to_str(BTraitable* obj, const py::object& value) const;
     bool       wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value) const;
-    py::object wrapper_f_serialize(BTraitableClass* cls, const py::object& value);
-    py::object wrapper_f_deserialize(BTraitableClass* cls, const py::object& value);
-    py::object wrapper_f_to_id(BTraitable* obj, const py::object& value);
-    py::object wrapper_f_choices(BTraitable* obj);
-    py::object wrapper_f_style_sheet(BTraitable* obj);
+    py::object wrapper_f_serialize(BTraitableClass* cls, const py::object& value) const;
+    py::object wrapper_f_deserialize(BTraitableClass* cls, const py::object& value) const;
+    py::object wrapper_f_to_id(BTraitable* obj, const py::object& value) const;
+    py::object wrapper_f_choices(BTraitable* obj) const;
+    py::object wrapper_f_style_sheet(BTraitable* obj) const;
 
     // TODO: review the below custom_f_*- they do not seem to be used anywhere..
     [[nodiscard]] py::object custom_f_get() const           { return m_flags & BTraitFlags::CUSTOM_F_GET ? f_get : py::none(); }
