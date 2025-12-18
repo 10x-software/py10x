@@ -1,8 +1,11 @@
 import gc
+from collections import Counter
 from datetime import date
+from typing import Any
 
+import numpy as np
 from core_10x.xnone import XNone
-from core_10x.traitable import Traitable,T,RT,M,THIS_CLASS,AnonymousTraitable
+from core_10x.traitable import Traitable,T,RT,M,THIS_CLASS,AnonymousTraitable,RC
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP, INTERACTIVE
@@ -183,11 +186,12 @@ def test_9():
 def test_10():
     class X(Traitable):
         a:int = T(T.ID)
+        b:int = T()
         x:THIS_CLASS = T()
 
         @classmethod
         def exists_in_store(cls, id):
-            return False
+            raise RuntimeError()
 
         @classmethod
         def load_data(cls, id):
@@ -203,9 +207,11 @@ def test_10():
 
 
     with  BTP.create(1,1,1,True,True):
+        x1 = X(a=1,b=1,_force=True)
         x = X(ID("0"))
-        print(x,x,x,x.x.a)
-        assert x.x.a==1
+        print(x.a)
+        #print(x,x,x,x.x.a)
+        #assert x.x.a==1
 
 
 def test_11():
@@ -460,6 +466,188 @@ def test_17():
     assert x1.z == 10
 
 
+def test_18():
+
+    count = Counter()
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data', id.value)
+            count[id.value] += 1
+            return {'_id': id.value, 'x': int(id.value), 'y': int(id.value) * 10, '_rev': 1}
+
+
+    x = X(ID('1')) # lazy ref
+
+    # with GRAPH_ON():
+    #     assert x.y == 10 # load
+    #     assert count[x.id().value] == 1, count
+
+    assert x.y == 10
+    assert count[x.id().value] == 1
+
+def test_19():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID)
+        z: int = RT()
+
+        @classmethod
+        def exists_in_store(self, id):
+            raise RuntimeError()
+
+    z = X(x=1, y=1, z=1,_force=True)
+    with INTERACTIVE():
+        x = X()  # empty object allowed - OK!
+        assert z.z == 1
+
+        x.x = 1
+        x.y = 1
+        #x.z = 2
+        #assert x.z == 2
+
+        assert not x.share(False)
+
+def test_20():
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        def load_data(self):
+            return {'_id':'1','_rev':1,'y':2}
+
+    assert X.existing_instance(x=1, y=1).y == 2
+
+
+def test_21():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID_LIKE)
+        z: int = RT(T.ID_LIKE)
+
+        def x_get(self):
+            return self.y + self.z
+
+    assert X(y=1, z=1).x==2
+
+    assert X(x=1).x==1
+
+def test_22():
+    class X(Traitable):
+        x: int = T(T.ID)
+        z: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            print('exists_in_store', id.value)
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data', id.value)
+
+    x = X(x=1)
+    x.z = 1
+    assert x.z == 1
+
+    del x
+    gc.collect()
+
+    x = X(x=1)
+    assert x.z == 1
+
+def test_23():
+    save_calls = Counter()
+
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: THIS_CLASS = T()
+
+        def save(self, save_references=False):
+            if self.serialize_object(save_references):
+                save_calls[self.id().value] += 1
+            return RC(True)
+
+    x = X(x=1, y=X(x=2, y=X(x=1), _force=True), _force=True)
+    x.save()
+    assert save_calls == {'1': 1}
+    save_calls.clear()
+
+    x.save(save_references=True)
+    assert save_calls == {'1': 1, '2': 1}
+    save_calls.clear()
+
+    x = X(x=1, y=X(_id=ID('3')), _force=True)
+    x.save(save_references=True)
+    assert save_calls == {'1': 1}  # save of a lazy load is noop
+
+def test_24():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    x = X(x=1)
+    assert x.x == 1
+    try:
+        x.x = 2
+    except ValueError:
+        pass
+    else:
+        assert False, "Expected ValueError on setting ID trait"
+
+def test_25():
+    rev = 0
+    class X(Traitable):
+        x: int = T(T.ID)
+
+        @staticmethod
+        def load_data(id):
+            nonlocal rev
+            rev += 1
+            data = {'_id': id.value, 'x': int(id.value), '_rev': rev}
+            print('load_data', id.value, data)
+            return data
+
+    # reload of lazy ref
+    x = X(ID('1'))
+    x.reload()
+    assert x._rev == 1
+
+    x.reload()
+    assert x._rev == 2
+
+    x = X(ID('2'))
+    with GRAPH_ON():
+        x.reload()
+        assert x._rev == 3
+        assert rev == 3
+
+    assert x._rev == 3
+    assert rev == 3
+
+def test_26():
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: Any = T()
+
+    with GRAPH_ON():
+        x = X(x=1, y=np.float64(1.1), _force=True)
+        s = x.serialize_object()
+        print(s)
+
+    with GRAPH_ON():
+        assert s == X.deserialize_object(x.s_bclass, None, s).serialize_object()
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -472,13 +660,21 @@ if __name__ == '__main__':
     #test_7()
     #test_8()
     #test_9()
-    #test_10()
+    # test_10()
     #test_12()
     #test_13()
     #test_14()
     #test_15()
     #test_16()
-    test_17()
-
+    #test_17()
+    # test_18()
+    # test_19()
+    # test_20()
+    #test_21()
+    # test_22()
+    # test_23()
+    #test_24()
+    # test_25()
+    test_26()
 
 

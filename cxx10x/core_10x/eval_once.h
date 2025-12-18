@@ -21,7 +21,7 @@ public:
         return m_value.value();
     }
 
-    void reset() {
+    void reset() const {
         m_value.reset();
     }
 };
@@ -29,7 +29,7 @@ public:
 #define eval_once(X, T, method)      EvalOnce<T, X> m_##method = EvalOnce<T, X>([](X* self) { return self->method##_get(); }); \
     public: T method() { return m_##method.get(this); }
 
-#define eval_once_const(X, T, method)   EvalOnce<T, X> m_##method = EvalOnce<T, X>([](X* self) { return self->method##_get(); }); \
+#define eval_once_const(X, T, method)   EvalOnce<T, const X> m_##method = EvalOnce<T, const X>([](const X* self) { return self->method##_get(); }); \
     public: T method() const { return m_##method.get(this); }
 
 //-- NOTE: you must define a member function: 'method'_get() const which returns py::object* - newly allocated

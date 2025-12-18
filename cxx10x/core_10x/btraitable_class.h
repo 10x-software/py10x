@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "bprocess_context.h"
 #include "py_linkage.h"
 #include "eval_once.h"
 
@@ -22,9 +23,13 @@ protected:
 
     BUiClass*       m_ui_class = nullptr;
 
-    eval_once(BTraitableClass, bool, is_storable);
-    eval_once(BTraitableClass, bool, is_id_endogenous);
-    eval_once(BTraitableClass, bool, is_anonymous);
+    eval_once_const(BTraitableClass, bool, is_storable);
+    eval_once_const(BTraitableClass, bool, is_id_endogenous);
+    eval_once_const(BTraitableClass, bool, is_anonymous);
+
+    [[nodiscard]] bool may_exist_in_store() const {
+        return is_storable() && !is_anonymous() && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY);
+    }
 
     bool    is_storable_get() const;
     bool    is_id_endogenous_get() const;
@@ -47,11 +52,11 @@ public:
         return m_py_class.attr("serialize_class_id")();
     }
 
-    py::object deseriaize_class_id(const py::object& class_id) {
+    py::object deserialize_class_id(const py::object& class_id) const {
         return m_py_class.attr("deserialize_class_id")(class_id);
     }
 
-    bool check_coll_kwargs(py::dict& coll_kwargs);
+   // bool check_coll_kwargs(py::dict& coll_kwargs);
 
     const py::object& py_class() const {
         return m_py_class;

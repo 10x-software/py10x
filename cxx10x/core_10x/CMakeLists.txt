@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.27)
+cmake_minimum_required(VERSION 3.27...3.30)
 project(core_10x_i)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -14,6 +14,7 @@ FetchContent_Declare(
         OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(pybind11)
+find_package(pybind11 REQUIRED)
 
 FetchContent_Declare(
         pybind11_stubgen
@@ -22,7 +23,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pybind11_stubgen)
 
-find_package(pybind11 REQUIRED)
+FetchContent_Declare(
+        backward
+        GIT_REPOSITORY https://github.com/bombela/backward-cpp.git
+        GIT_TAG master
+)
+FetchContent_MakeAvailable(backward)
 
 pybind11_add_module(core_10x_i
         bnucleus.cpp
@@ -34,7 +40,6 @@ pybind11_add_module(core_10x_i
         btraitable_processor.cpp
         core_10x.cpp
         py_linkage.cpp
-        thread_context.cpp
         tid.cpp
         bprocess_context.cpp
         btraitable_ui_extension.cpp
@@ -42,7 +47,7 @@ pybind11_add_module(core_10x_i
         os_user.cpp
 )
 
-target_include_directories(core_10x_i PRIVATE ${stduuid_SOURCE_DIR}/include)
+target_include_directories(core_10x_i PRIVATE ${backward_SOURCE_DIR})
 
 
 # Generate .pyi stubs after building the module
@@ -77,3 +82,4 @@ install(TARGETS core_10x_i
 
 # Install the generated .pyi alongside the module
 install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/core_10x_i.pyi DESTINATION .)
+target_link_libraries(core_10x_i PRIVATE Backward::Backward)

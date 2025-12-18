@@ -111,6 +111,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_property_readonly_static("EVAL_ONCE",  [](const py::object&) { return BFlags(BTraitFlags::EVAL_ONCE); })
             .def_property_readonly_static("EXPENSIVE",  [](const py::object&) { return BFlags(BTraitFlags::EXPENSIVE); })
             .def_property_readonly_static("HIDDEN",     [](const py::object&) { return BFlags(BTraitFlags::HIDDEN); })
+            .def_property_readonly_static("ID_LIKE",     [](const py::object&) { return BFlags(BTraitFlags::ID_LIKE); })
             ;
 
     py::class_<BTrait>(m, "BTrait")
@@ -191,8 +192,8 @@ PYBIND11_MODULE(core_10x_i, m)
             ;
 
     py::class_<ObjectCache>(m, "ObjectCache")
-            .def("find_node",                   py::overload_cast<BTrait*>(&ObjectCache::find_node, py::const_))
-            .def("find_node",                   py::overload_cast<BTrait*, const py::args&>(&ObjectCache::find_node, py::const_))
+            .def("find_node",                   py::overload_cast<const BTrait*>(&ObjectCache::find_node, py::const_))
+            .def("find_node",                   py::overload_cast<const BTrait*, const py::args&>(&ObjectCache::find_node, py::const_))
             ;
 
     py::class_<XCache>(m, "XCache")
@@ -231,7 +232,10 @@ PYBIND11_MODULE(core_10x_i, m)
 
     py::class_<BTraitable,PyBTraitable>(m, "BTraitable")
             .def(py::init<BTraitableClass*, const py::object&>())
-            .def("initialize",                  &BTraitable::initialize)
+            .def("initialize",                  &BTraitable::initialize,
+                    "Initialize object",
+                    "trait_values"_a, "_force"_a=false
+                    )
             .def("share",                       &BTraitable::share,
                         "Share object",
                         "accept_existing"_a
@@ -268,7 +272,7 @@ PYBIND11_MODULE(core_10x_i, m)
                         "trait"_a, "value"_a
                 )
             .def("is_valid",                    py::overload_cast<const py::str&>(&BTraitable::is_valid))
-            .def("is_valid",                    py::overload_cast<BTrait*>(&BTraitable::is_valid))
+            .def("is_valid",                    py::overload_cast<const BTrait*>(&BTraitable::is_valid))
             .def("invalidate_value",            py::overload_cast<const py::str&>(&BTraitable::invalidate_value))
             .def("invalidate_value",            py::overload_cast<const py::str&, const py::args&>(&BTraitable::invalidate_value))
             .def("invalidate_value",            py::overload_cast<BTrait*>(&BTraitable::invalidate_value))
@@ -280,7 +284,10 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("_set_values",                 &BTraitable::set_values)
             .def("serialize_nx",                &BTraitable::serialize_nx)
             .def_static("deserialize_nx",       &BTraitable::deserialize_nx)
-            .def("serialize_object",            &BTraitable::serialize_object)
+            .def("serialize_object",            &BTraitable::serialize_object,
+                        "Serialize object",
+                        "save_references"_a=false
+                )
             .def("deserialize_traits",          &BTraitable::deserialize_traits)
             .def_static("deserialize_object",   &BTraitable::deserialize_object,
                         "Deserialize object",

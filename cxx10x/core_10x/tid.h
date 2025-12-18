@@ -20,20 +20,21 @@ public:
 
     static bool is_valid(const py::object& id)                      { return !id.attr("value").is_none(); }
 
-    void set_id_value(const py::str& id_value)                      { m_id.attr("value") = id_value; }
+    void set_id_value(const py::object& id_value) const             { m_id.attr("value") = id_value; }
 
     [[nodiscard]] bool                  is_valid() const            { return !id_value().is_none(); }
-    [[nodiscard]] TID*                  ptr() const                 { return (TID*)this; }
+    [[nodiscard]] const TID*            ptr() const                 { return const_cast<TID *>(this); }
     [[nodiscard]] py::object            id() const                  { return m_id; }
     [[nodiscard]] py::object            id_value() const            { return m_id.attr("value"); }
     [[nodiscard]] py::object            coll_name() const           { return m_id.attr("collection_name"); }
     [[nodiscard]] BTraitableClass*      cls() const                 { return m_class; }
+    [[nodiscard]] py::object            traitable_id() const        { return PyLinkage::traitable_id(id_value(), coll_name()); }
 
     bool operator == (const TID& other) const {
         return m_class == other.m_class && id_value().equal(other.id_value());
     }
 
-    void serialize_id(py::dict& res, bool embed);
+    void serialize_id(const py::dict& res, bool embed) const;
     static py::object deserialize_id(const py::dict& serialized_data, bool must_exist = true);
 
 };

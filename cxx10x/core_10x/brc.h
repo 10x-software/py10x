@@ -48,13 +48,13 @@ public:
         return m_rc;
     }
 
-    py::object add_error(const std::string& err) {
-        auto py_f = m_rc.attr("add_error");
+    [[nodiscard]] py::object add_error(const std::string& err) const {
+        const auto py_f = m_rc.attr("add_error");
         return py_f(py::str(err));
     }
 
-    py::object add_error(const py::object& rc) {
-        auto py_f = m_rc.attr("add_error");
+    [[nodiscard]] py::object add_error(const py::object& rc) const {
+        const auto py_f = m_rc.attr("add_error");
         return py_f(rc);
     }
 

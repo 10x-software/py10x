@@ -8,6 +8,8 @@
 #include "tid.h"
 #include "bnode.h"
 #include "btraitable_class.h"
+#include "btraitable_processor.h"
+#include "debug.h"
 
 class BTrait;
 class BTraitable;
@@ -29,7 +31,7 @@ class BTraitable;
 
 using NodesWithArgs = std::unordered_map<py::args, BasicNode*>;
 
-class TraitNodesWithArgs : public std::unordered_map<BTrait*, NodesWithArgs*> {
+class TraitNodesWithArgs : public std::unordered_map<const BTrait*, NodesWithArgs*> {
 public:
     ~TraitNodesWithArgs() {
         for (auto item : *this) {
@@ -44,7 +46,7 @@ public:
         clear();
     }
 
-    BasicNode* find_node(BTrait* trait, const py::args& args) const {
+    BasicNode* find_node(const BTrait* trait, const py::args& args) const {
         auto iter = find(trait);
         if (iter == end())
             return nullptr;
@@ -54,7 +56,7 @@ public:
         return it != nwa->end() ? it->second : nullptr;
     }
 
-    void insert_node(BTrait* trait, BasicNode* node, const py::args& args) {
+    void insert_node(const BTrait* trait, BasicNode* node, const py::args& args) {
         NodesWithArgs* nwa;
 
         auto iter = find(trait);
@@ -67,7 +69,7 @@ public:
         nwa->insert({args, node});
     }
 
-    BasicNode* find_or_create_node(BTrait* trait, int node_type, const py::args& args) {
+    BasicNode* find_or_create_node(const BTrait* trait, int node_type, const py::args& args) {
         NodesWithArgs* nwa;
 
         auto iter = find(trait);
@@ -89,7 +91,7 @@ public:
         return node;
     }
 
-    void remove_node(BTrait* trait, const py::args& args) {
+    void remove_node(const BTrait* trait, const py::args& args) {
         auto iter = find(trait);
         if (iter == end())
             return;
@@ -106,7 +108,7 @@ public:
     }
 };
 
-class ArglessNodes : public std::unordered_map<BTrait*, BasicNode*> {
+class ArglessNodes : public std::unordered_map<const BTrait*, BasicNode*> {
 public:
     ~ArglessNodes() {
         for (auto item : *this) {
@@ -117,12 +119,12 @@ public:
         clear();
     }
 
-    BasicNode* find_node(BTrait* trait) const {
+    BasicNode* find_node(const BTrait* trait) const {
         auto it = find(trait);
         return it != end() ? it->second : nullptr;
     }
 
-    BasicNode* find_or_create_node(BTrait* trait, int node_type) {
+    BasicNode* find_or_create_node(const BTrait* const trait, const int node_type) {
         auto it = find(trait);
         if (it != end())
             return it->second;
@@ -132,7 +134,7 @@ public:
         return node;
     }
 
-    void remove_node(BTrait* trait) {
+    void remove_node(const BTrait* trait) {
         auto it = find(trait);
         if (it == end())
             return;
@@ -147,29 +149,33 @@ public:
 class ObjectCache {
     ArglessNodes        m_nodes;
     TraitNodesWithArgs  m_nodes_with_args;
+    unsigned            m_lazy_load_flags = 0;
 
 public:
 
-    [[nodiscard]] const ArglessNodes& argless_nodes() const                                 { return m_nodes; }
-    [[nodiscard]] const TraitNodesWithArgs& nodes_with_args() const                         { return m_nodes_with_args; }
+    [[nodiscard]] const ArglessNodes& argless_nodes() const                                     { return m_nodes; }
+    [[nodiscard]] const TraitNodesWithArgs& nodes_with_args() const                             { return m_nodes_with_args; }
+    [[nodiscard]] unsigned lazy_load_flags() const                                              { return m_lazy_load_flags; }
 
-    BasicNode*  find_node(BTrait* trait) const                                              { return m_nodes.find_node(trait); }
-    BasicNode*  find_node(BTrait* trait, const py::args& args) const                        { return m_nodes_with_args.find_node(trait, args); }
+    BasicNode*  find_node(const BTrait* trait) const                                            { return m_nodes.find_node(trait); }
+    BasicNode*  find_node(const BTrait* trait, const py::args& args) const                      { return m_nodes_with_args.find_node(trait, args); }
 
-    void        insert_node(BTrait* trait, BasicNode* node)                                 { m_nodes.insert({trait, node}); }
-    void        insert_node(BTrait* trait, BasicNode* node, const py::args& args)           { m_nodes_with_args.insert_node(trait, node, args); }
-    BasicNode*  find_or_create_node(BTrait* trait, int node_type)                           { return m_nodes.find_or_create_node(trait, node_type); }
-    BasicNode*  find_or_create_node(BTrait* trait, int node_type, const py::args& args)     { return m_nodes_with_args.find_or_create_node(trait, node_type, args); }
+    void        insert_node(const BTrait* trait, BasicNode* node)                               { m_nodes.insert({trait, node}); }
+    void        insert_node(const BTrait* trait, BasicNode* node, const py::args& args)         { m_nodes_with_args.insert_node(trait, node, args); }
+    BasicNode*  find_or_create_node(const BTrait* trait, int node_type)                         { return m_nodes.find_or_create_node(trait, node_type); }
+    BasicNode*  find_or_create_node(const BTrait* trait, int node_type, const py::args& args)   { return m_nodes_with_args.find_or_create_node(trait, node_type, args); }
 
-    void        remove_node(BTrait* trait)                                                  { m_nodes.remove_node(trait); }
-    void        remove_node(BTrait* trait, const py::args& args)                            { m_nodes_with_args.remove_node(trait, args); }
+    void        remove_node(const BTrait* trait)                                                { m_nodes.remove_node(trait); }
+    void        remove_node(const BTrait* trait, const py::args& args)                          { m_nodes_with_args.remove_node(trait, args); }
 
+    void        set_lazy_load_flags(const unsigned lazy_load_flags)                             { m_lazy_load_flags |= lazy_load_flags; }
+    void        clear_lazy_load_flags(const unsigned lazy_load_flags)                           { m_lazy_load_flags &= ~lazy_load_flags; }
 };
 
 class XCache {
 protected:
     using Data      = std::unordered_map<TID, ObjectCache*>;
-    using TmpData   = std::unordered_map<TID*, ObjectCache*>;
+    using TmpData   = std::unordered_map<const TID*, ObjectCache*>;
 
     static XCache*  s_default;
 
@@ -177,8 +183,54 @@ protected:
     Data            m_data;
     TmpData         m_tmp_data;
     int             m_default_node_type = NODE_TYPE::BASIC;
+    ObjectCache* _find_or_create_object_cache(const TID& tid, ObjectCache* oc = nullptr) {
+        if (tid.is_valid()) {
+            auto it = m_data.find(tid);
+            if (it != m_data.end())
+                return it->second;
 
+            if (!oc)
+                oc = new ObjectCache();
+            m_data.insert({tid, oc});
+            return oc;
+        }
+
+        auto it = m_tmp_data.find(tid.ptr());
+        if (it != m_tmp_data.end())
+            return it->second;
+
+        if (!oc)
+            oc = new ObjectCache();
+        m_tmp_data.insert({tid.ptr(), oc});
+        return oc;
+    }
 public:
+    // lazy load flags flags
+    static constexpr unsigned   LOAD_REQUIRED                = 64;
+    static constexpr unsigned   MUST_EXIST_IN_STORE          = 128;
+    static constexpr unsigned   LOAD_REQUIRED_MUST_EXIST     = LOAD_REQUIRED|MUST_EXIST_IN_STORE;
+    [[nodiscard]] unsigned lazy_load_flags(const TID& tid) const {
+        if (!tid.is_valid())
+            return 0;
+        const ObjectCache * oc = find_object_cache(tid);
+        if (!oc)
+            throw py::value_error(py::str("{}/{} - no object cache found in origin cache").format(tid.cls()->name(), tid.id_value()));
+        return oc->lazy_load_flags();
+    }
+
+    void set_lazy_load_flags(const TID& tid, const unsigned lazy_load_flags) {
+        if (!tid.is_valid())
+            throw py::value_error("Cannot set lazy load flags for temporary object");
+
+       _find_or_create_object_cache(tid)->set_lazy_load_flags(lazy_load_flags);
+    }
+
+    void clear_lazy_load_flags(const TID & tid, unsigned lazy_load_flags) {
+        if (!tid.is_valid())
+            throw py::value_error("Cannot set lazy load flags for temporary object");
+        _find_or_create_object_cache(tid)->clear_lazy_load_flags(lazy_load_flags);
+    }
+
     static void clear() {
         delete s_default;
         s_default = new XCache();
@@ -200,46 +252,9 @@ public:
         return oc;
     }
 
-    ObjectCache* create_object_cache(const TID& tid, ObjectCache* oc = nullptr) {
-        if (tid.is_valid()) {
-            auto it = m_data.find(tid);
-            if (it != m_data.end())
-                return it->second;
+    XCache *find_origin_cache(const TID &tid);
 
-            if (!oc)
-                oc = new ObjectCache();
-            m_data.insert({tid, oc});
-            return oc;
-        }
-
-        auto it = m_tmp_data.find(tid.ptr());
-        if (it != m_tmp_data.end())
-            return it->second;
-
-        if (!oc)
-            oc = new ObjectCache();
-        m_tmp_data.insert({tid.ptr(), oc});
-        return oc;
-    }
-
-    ObjectCache* find_object_cache_and_load(const TID& tid) {
-        // find an existing object cache in this cache or in parents
-        // if none found, handle lazy load (if applicable)
-        // return nullptr unless found (or created) in *this* cache
-        auto parent = this;
-        while(parent) {
-            if (const auto oc = parent->find_object_cache(tid))
-                return parent == this ? oc : nullptr;
-            parent = parent->m_parent;
-        }
-        if (tid.is_valid()) {
-            const auto oc = new_object_cache(tid);
-            tid.cls()->load(tid.id());
-            return oc;
-        }
-        return nullptr;
-    }
-    BasicNode* find_set_or_invalid_node_in_parents(const TID& tid, BTrait* trait, const bool parents_only=true) const {
+    BasicNode* find_set_or_invalid_node_in_parents(const TID& tid, const BTrait* trait, const bool parents_only=true) const {
         auto parent = parents_only ? m_parent : this;
         while(parent) {
             if (const auto node = parent->find_node(tid, trait)) {
@@ -251,7 +266,7 @@ public:
         }
         return nullptr;
     }
-    BasicNode* find_set_or_invalid_node_in_parents(const TID& tid, BTrait* trait, const py::args& args, const bool parents_only=true) const {
+    BasicNode* find_set_or_invalid_node_in_parents(const TID& tid, const BTrait* trait, const py::args& args, const bool parents_only=true) const {
         auto parent = parents_only ? m_parent : this;
         while(parent) {
             if (const auto node = parent->find_node(tid, trait, args)) {
@@ -262,11 +277,7 @@ public:
         }
         return nullptr;
     }
-    ObjectCache* find_or_create_object_cache(const TID& tid) {
-        if (const auto oc = find_object_cache_and_load(tid))
-            return oc;
-        return new_object_cache(tid);
-    }
+    ObjectCache* find_or_create_object_cache(BTraitable *obj);
 
     //-- Lookup in this cache ONLY! (ignore the parent)
     [[nodiscard]] ObjectCache* find_object_cache(const TID& tid) const {
@@ -307,18 +318,16 @@ public:
         if (!tid.is_valid())
             throw std::runtime_error("May not call this with a temp ID");
 
-        auto i2 = m_data.find(tid);
-        if (i2 != m_data.end())
-            return false;
+        if ( m_data.contains(tid) )
+            return false; // already permanent
 
-        auto it = m_tmp_data.find(tid.ptr());
+        const auto it = m_tmp_data.find(tid.ptr());
         if (it == m_tmp_data.end())
             throw std::runtime_error("Can't find this ID");
 
-        auto oc = it->second;
+        m_data.insert({tid, it->second});
         m_tmp_data.erase(it);
 
-        m_data.insert({tid, oc});
         return true;
     }
 
@@ -332,7 +341,7 @@ public:
 //    }
 
     //-- Lookup in this cache ONLY! (ignore the parent)
-    BasicNode* find_node(const TID& tid, BTrait* trait) const {
+    BasicNode* find_node(const TID& tid, const BTrait* trait) const {
         auto oc = find_object_cache(tid);
         if (!oc)
             return nullptr;
@@ -341,7 +350,7 @@ public:
     }
 
     //-- Lookup in this cache ONLY! (ignore the parent)
-    BasicNode* find_node(const TID& tid, BTrait* trait, const py::args& args) const {
+    BasicNode* find_node(const TID& tid, const BTrait* trait, const py::args& args) const {
         auto oc = find_object_cache(tid);
         if (!oc)
             return nullptr;
@@ -349,18 +358,18 @@ public:
         return oc->find_node(trait, args);
     }
 
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const bool import_from_parents) {
-        return find_or_create_node(tid, trait, m_default_node_type, import_from_parents);
+    BasicNode* find_or_create_node(BTraitable *obj, const BTrait* trait, const bool import_from_parents) {
+        return find_or_create_node(obj, trait, m_default_node_type, import_from_parents);
     }
 
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, const py::args& args, const bool import_from_parents) {
-        return find_or_create_node(tid, trait, m_default_node_type, args, import_from_parents);
+    BasicNode* find_or_create_node(BTraitable *obj, const BTrait* trait, const py::args& args, const bool import_from_parents) {
+        return find_or_create_node(obj, trait, m_default_node_type, args, import_from_parents);
     }
 
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type, bool import_from_parents);
-    BasicNode* find_or_create_node(const TID& tid, BTrait* trait, int node_type, const py::args& args, bool import_from_parents);
+    BasicNode* find_or_create_node(BTraitable *obj, const BTrait* trait, int node_type, bool import_from_parents);
+    BasicNode* find_or_create_node(BTraitable *obj, const BTrait* trait, int node_type, const py::args& args, bool import_from_parents);
 
-    void remove_node(const TID& tid, BTrait* trait) {
+    void remove_node(const TID& tid, const BTrait* trait) {
         if (tid.is_valid()) {
             auto oci = m_data.find(tid);
             if (oci != m_data.end())
@@ -372,7 +381,7 @@ public:
         }
     }
 
-    void remove_node(const TID& tid, BTrait* trait, const py::args& args) {
+    void remove_node(const TID& tid, const BTrait* trait, const py::args& args) {
         if (tid.is_valid()) {
             auto oci = m_data.find(tid);
             if (oci != m_data.end())
