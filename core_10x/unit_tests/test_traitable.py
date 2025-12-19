@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import contextlib
 import re
 import uuid
 from collections import Counter
@@ -182,6 +183,7 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
     class X(Traitable):
         i: int = T(T.ID)
         x: THIS_CLASS = T()
+        y: int = T()
 
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
@@ -192,14 +194,16 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             v = id.value
             load_calls[v] += 1
             i = int(v)
-            return {'_id': v, 'i': i, '_rev': 1} | ({'x': {'_id': str(i + int(not self_ref))}} if i < 3 else {})
+            return {'_id': v, 'i': i, '_rev': 1, 'y': 1} | ({'x': {'_id': str(i + int(not self_ref))}} if i < 3 else {})
 
     with BTP.create(on_graph, convert_values, debug, use_parent_cache, use_default_cache):
         x = X.existing_instance_by_id(ID('1')) if use_existing_instance_by_id else X.existing_instance(i=1)
         assert x
-        x1 = X(i=3, x=x, _force=True)
+        x1 = X(i=3, x=x, y=2, _force=True)
         assert x1.x is x
-        assert not load_calls
+        assert x1.y == 2  # still 2 as lazy-load occurs before setting parameters passed
+        assert load_calls == {'3': 1}  # lazy-load since no db access in constructor
+        load_calls.clear()
 
         assert x.i == 1
         compat = '_force' not in BTraitable.initialize.__doc__  # TODO: remove
@@ -276,6 +280,10 @@ def test_anonymous_traitable():
         @classmethod
         def exists_in_store(cls, id):
             return False
+
+        @classmethod
+        def load_data(cls, id):
+            return None
 
     class Z(Y):
         x: AnonymousTraitable = M(T.EMBEDDED)
@@ -413,28 +421,76 @@ def test_create_and_share():
 
 def test_serialize():
     save_calls = Counter()
+    load_calls = Counter()
+    serialized = {}
 
     class X(Traitable):
         x: int = T(T.ID)
         y: THIS_CLASS = T()
+        z: int = T(default=1)
 
-        def save(self, save_references=False):
-            if self.serialize_object(save_references):
-                save_calls[self.id().value] += 1
-            return RC(True)
+        @classmethod
+        def exists_in_store(cls, id: ID) -> bool:
+            return id.value in serialized or int(id.value) > 3
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            load_calls[id.value] += 1
+            return serialized.get(id.value)
+
+        @classmethod
+        def collection(cls, _coll_name: str = None):
+            class Collection:
+                def save(self, serialized_data):
+                    if serialized_data:
+                        id_value = serialized_data['_id']
+                        save_calls[id_value] += 1
+                        serialized[id_value] = serialized_data
+
+            return Collection()
+
+        # def save(self, save_references=False):
+        #     serialized_data = self.serialize_object(save_references)
+        #     if serialized_data:
+        #         save_calls[self.id().value] += 1
+        #         serialized[self.id().value] = serialized_data
+        #     return RC(True)
+
+        def z_get(self) -> int:
+            return self.y._rev if self.y and self.y._rev else 0
+
+    x = X(x=0)
+    assert not serialized
+    x.save()
+    assert not load_calls
+    assert save_calls == {'0': 1}
+    assert serialized['0']['z'] == 0
+    save_calls.clear()
+    load_calls.clear()
 
     x = X(x=1, y=X(x=2, y=X(x=1), _force=True), _force=True)
     x.save()
     assert save_calls == {'1': 1}
+    assert load_calls == {str(i): 1 for i in range(1, 3)}
     save_calls.clear()
+    load_calls.clear()
 
     x.save(save_references=True)
     assert save_calls == {'1': 1, '2': 1}
+    assert load_calls == {}
     save_calls.clear()
 
-    x = X(x=3, y=X(_id=ID('4')), _force=True)
-    x.save(save_references=True)
+    X(x=3, y=X(_id=ID('4')), z=0, _force=True).save(save_references=True)
+    assert load_calls == {'3': 1}
     assert save_calls == {'3': 1}  # save of a lazy load is noop
+
+    with pytest.raises(
+        TraitMethodError,
+        match=re.escape(
+            "Failed in <class 'test_traitable.test_serialize.<locals>.X'>.z.z_get\n    object = 5;\n    value = ()\n    args = test_serialize.<locals>.X/6: object reference not found in store"
+        ),
+    ):
+        X(x=5, y=X(_id=ID('6')), _force=True).save(save_references=True)
 
 
 def test_id_trait_set():
@@ -530,6 +586,10 @@ def test_any_trait(value):
         y: Any = T()
         z: list = T()
 
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            return None
+
     with GRAPH_ON():
         x = X(x=1, y=value, z=[value], _force=True)
         assert x.y == value
@@ -545,3 +605,27 @@ def test_any_trait(value):
         assert type(x.y) is type(value)
         assert type(x.z[0]) is type(value)
         assert s == x.serialize_object()
+
+
+@pytest.mark.parametrize('t', [T, RT])
+def test_exceptions(t):
+    class X(Traitable):
+        x: int = t(T.ID)
+        y: int = t(default=1)
+
+    with CACHE_ONLY():
+        with (
+            pytest.raises(
+                RuntimeError,
+                match=r'test_exceptions.<locals>.X/1: object construction failed for lazy reference to non-storable that does not exist in memory',
+            )
+            if t is RT
+            else contextlib.nullcontext()
+        ):
+            x = X(_id=ID('1'))
+            with (
+                pytest.raises(RuntimeError, match=r'test_exceptions.<locals>.X/1: object reference not found in store')
+                if t is T
+                else contextlib.nullcontext()
+            ):
+                assert x.y == 1
