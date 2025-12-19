@@ -116,8 +116,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool force=false
         if (const BRC rc(proc->share_object(this,true)); !rc)
             throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
 
-        if (!non_id_traits_set.empty())
-            clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
+        //-- now we have a potentially lazy reference which might be loaded as we set any non-id traits below
         for (auto &[trait, value] : non_id_traits_set) {
             if (const BRC rc(proc->set_trait_value(this, trait, value)); !rc)
                 throw py::value_error(rc.error());
@@ -237,7 +236,10 @@ py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::obje
 
 py::object BTraitable::serialize_object(const bool save_references) {
     if (lazy_load_flags() & XCache::LOAD_REQUIRED) {
-        return py::none();
+        if (my_class()->instance_in_store(m_tid))
+            return py::none();                                //-- lazy reference exists in store - nothing to save
+        clear_lazy_load_flags(XCache::LOAD_REQUIRED);         //-- does not exist in store - nothing to load
+        // we continue on so we can e.g. save new objects with ID traits only
     }
 
     py::dict serialized_data;
@@ -248,21 +250,8 @@ py::object BTraitable::serialize_object(const bool save_references) {
     if (const auto class_id = my_class()->serialize_class_id(); !class_id.is_none())
         serialized_data[BNucleus::CLASS_TAG()] = class_id;
 
-    const auto original_flags = ThreadContext::flags();
-    auto &memo = ThreadContext::serialization_memo();
-
-    if (save_references) {
-        ThreadContext::set_flags(ThreadContext::SAVE_REFERENCES);
-    }
-    if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES) {
-        memo.insert(m_tid);
-    }
+    ThreadContext::SerializationScope scope(save_references, m_tid);
     serialized_data |= serialize_traits();
-
-    if (save_references) {
-        ThreadContext::set_flags(original_flags);
-        memo.clear();
-    }
 
     return serialized_data;
 }
