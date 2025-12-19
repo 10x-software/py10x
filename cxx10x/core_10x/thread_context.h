@@ -43,6 +43,27 @@ public:
         return context.m_serialization_memo;
     }
 
+    class SerializationScope {
+        bool m_save_references;
+        unsigned m_original_flags;
+
+    public:
+        SerializationScope(const bool save_references, const TID& tid)
+            : m_save_references(save_references), m_original_flags(flags()) {
+            if (m_save_references) {
+                set_flags(SAVE_REFERENCES);
+                serialization_memo().insert(tid);
+            }
+        }
+
+        ~SerializationScope() {
+            if (m_save_references) {
+                set_flags(m_original_flags);
+                serialization_memo().clear();
+            }
+        }
+    };
+
     static XCache* current_cache() {
         auto &context = current_context();
         auto cache = context.m_cache_stack.top();

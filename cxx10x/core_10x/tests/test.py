@@ -648,6 +648,57 @@ def test_26():
     with GRAPH_ON():
         assert s == X.deserialize_object(x.s_bclass, None, s).serialize_object()
 
+
+def test_27():
+    save_calls = Counter()
+    serialized = {}
+
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: THIS_CLASS = T()
+        z: int = T(default=1)
+
+        @classmethod
+        def exists_in_store(cls, id: ID) -> bool:
+            return id.value in serialized or int(id.value) > 3
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            return serialized.get(id.value)
+
+        def save(self, save_references=False):
+            serialized_data = self.serialize_object(save_references)
+            if serialized_data:
+                save_calls[self.id().value] += 1
+                serialized[self.id().value] = serialized_data
+            return RC(True)
+
+        def y_get(self) -> 'X':
+            i = int(self.id().value)
+            return X(ID(str(i+10))) if i<10 else XNone
+
+        def z_get(self)-> int:
+           return self.y._rev
+
+    assert not serialized
+    assert X(x=1,z=1,_force=True).save()
+    assert save_calls == {'1': 1}
+    assert serialized['1']['z'] == 1
+    save_calls.clear()
+
+    x = X(x=3, y=X(_id=ID('4')), _force=True)
+    try:
+        x.save(save_references=True)
+    except Exception:
+        pass
+    else:
+        assert False, "expected exception"
+    assert save_calls == {}  # lazy load forced by z_get, cause exception as ID 4 does not exist
+    save_calls.clear()
+
+    X(x=5, y=X(_id=ID('6')), z=0, _force=True).save(save_references=True)
+    assert save_calls == {'5': 1}  # save of a lazy load is noop
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -675,6 +726,7 @@ if __name__ == '__main__':
     # test_23()
     #test_24()
     # test_25()
-    test_26()
+    #test_26()
+    test_27()
 
 
