@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <format>
 #include "py_linkage.h"
 
 #include "tid.h"
