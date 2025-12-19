@@ -465,8 +465,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def delete_collection(cls, _coll_name: str = None) -> bool:
         return cls.s_storage_helper.delete_collection(cls, _coll_name)
 
-    def save(self) -> RC:
-        return self.__class__.s_storage_helper.save(self)
+    def save(self, save_references=False) -> RC:
+        return self.__class__.s_storage_helper.save(self, save_references=save_references)
 
     def delete(self) -> RC:
         return self.__class__.s_storage_helper.delete(self)
@@ -514,7 +514,7 @@ class NotStorableHelper:
         return False
 
     @staticmethod
-    def save(self) -> RC:
+    def save(self, save_references) -> RC:
         return RC(False, f'{self.__class__} is not storable')
 
     @staticmethod
@@ -576,7 +576,7 @@ class StorableHelper(NotStorableHelper):
         return store.delete_collection(collection_name=cname)
 
     @staticmethod
-    def save(self, save_references=False) -> RC:
+    def save(self, save_references) -> RC:
         cls = self.__class__
         rc = self.verify()
         if not rc:
@@ -586,7 +586,7 @@ class StorableHelper(NotStorableHelper):
         if not rc:
             return rc
 
-        if 'save_refernces' in BTraitable.serialize_object.__doc__:
+        if 'save_references' in BTraitable.serialize_object.__doc__:
             serialized_data = self.serialize_object(save_references)
         else:
             # TODO: compatibility code - remove
