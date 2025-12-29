@@ -4,11 +4,17 @@ Thank you for your interest in contributing to py10x! This document provides gui
 
 ## Development Setup
 
+For detailed installation instructions including all prerequisites and platform-specific setup, see [INSTALLATION.md](../INSTALLATION.md).
+
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.12 (recommended), 3.10+ supported
 - Git
-- [UV](https://docs.astral.sh/uv/) (recommended) or pip
+- [UV](https://docs.astral.sh/uv/) - Python installer and package manager
+- C++ compiler with C++20 support (GCC 10+, Clang 10+, MSVC 2022+, or equivalent)
+  - Required for building cxx10x dependencies
+- Node.js and npm (for Rio UI backend)
+  - Required if using Rio UI components
 
 ### Clone and Install
 

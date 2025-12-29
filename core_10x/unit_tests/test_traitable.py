@@ -442,19 +442,11 @@ def test_serialize():
         def collection(cls, _coll_name: str = None):
             class Collection:
                 def save(self, serialized_data):
-                    if serialized_data:
-                        id_value = serialized_data['_id']
-                        save_calls[id_value] += 1
-                        serialized[id_value] = serialized_data
+                    id_value = serialized_data['_id']
+                    save_calls[id_value] += 1
+                    serialized[id_value] = serialized_data
 
             return Collection()
-
-        # def save(self, save_references=False):
-        #     serialized_data = self.serialize_object(save_references)
-        #     if serialized_data:
-        #         save_calls[self.id().value] += 1
-        #         serialized[self.id().value] = serialized_data
-        #     return RC(True)
 
         def z_get(self) -> int:
             return self.y._rev if self.y and self.y._rev else 0
