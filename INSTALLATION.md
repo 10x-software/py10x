@@ -26,9 +26,9 @@ This guide provides comprehensive installation instructions for py10x, including
 
 ### Optional Database Dependencies
 
-- **MongoDB** (for persistent storage and testing)
+- **MongoDB** (for running tests and examples)
   - Required for running tests and examples that use MongoDB storage
-  - Local MongoDB instance on default port 27017
+  - Local passwordless MongoDB instance on default port 27017
 
 ## Installation Methods
 
