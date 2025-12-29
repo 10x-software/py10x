@@ -13,6 +13,8 @@ For detailed installation instructions including all prerequisites and platform-
 - [UV](https://docs.astral.sh/uv/) - Python installer and package manager
 - C++ compiler with C++20 support (GCC 10+, Clang 10+, MSVC 2022+, or equivalent)
   - Required for building cxx10x dependencies
+- MongoDB (for running tests and examples)
+  - Local passwordless MongoDB instance required for running tests and examples
 - Node.js and npm (for Rio UI backend)
   - Required if using Rio UI components
 
@@ -55,6 +57,8 @@ ruff format .
 
 #### Running Tests
 
+**Note**: The `infra_10x/unit_tests/` suite requires a local MongoDB instance running on the default port (27017).
+
 ```bash
 # Run all unit tests (with coverage by default)
 pytest
@@ -62,7 +66,7 @@ pytest
 # Run specific test suites
 pytest core_10x/unit_tests/
 pytest ui_10x/unit_tests/
-pytest infra_10x/unit_tests/
+pytest infra_10x/unit_tests/  # Requires MongoDB
 
 # Manual tests are debugging scripts (run directly)
 python core_10x/manual_tests/trivial_graph_test.py
