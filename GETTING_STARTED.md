@@ -32,7 +32,7 @@ This comprehensive guide will walk you through the fundamental concepts, install
 
 ### Prerequisites
 
-- Python 3.10 or higher
+- Python 3.12 (recommended), 3.10+ supported
 
 ### Install
 

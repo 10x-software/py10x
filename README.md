@@ -18,10 +18,16 @@ The `-i` packages (core_10x_i, infra_10x_i) contain the underlying C++ implement
 
 ## Installation
 
-### Prerequisites
+For detailed installation instructions including all prerequisites and platform-specific setup, see [INSTALLATION.md](INSTALLATION.md).
 
-- Python 3.10 or higher
-- [UV](https://docs.astral.sh/uv/) (recommended) or pip
+### Quick Prerequisites
+
+- Python 3.12 (recommended), 3.10+ supported
+- [UV](https://docs.astral.sh/uv/) - Python installer and package manager
+- C++ compiler with C++20 support (GCC 10+, Clang 10+, MSVC 2022+, or equivalent)
+  - Required for building cxx10x dependencies
+- Node.js and npm (for Rio UI backend)
+  - Required if using Rio UI components
 
 ### Install with UV (Recommended)
 
