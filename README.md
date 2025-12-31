@@ -68,9 +68,9 @@ For a comprehensive introduction to py10x, see our [Getting Started Guide](GETTI
 ### Core Data Modeling with Object Identification
 
 ```python
-from core_10x.traitable import Traitable, T, RC, RC_TRUE
+from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE
 from core_10x.exec_control import CACHE_ONLY
-from datetime import date
+from datetime import date, datetime
 
 # Endogenous traitable example
 class Person(Traitable):
@@ -104,10 +104,11 @@ class Person(Traitable):
         if value > 150:
             return RC(False, "Age cannot exceed 150")
         
-        # Calculate date of birth from age
+        # Calculate year of birth from age
         today = date.today()
         birth_year = today.year - value
-        self.dob = date(birth_year, today.month, today.day)
+        dob = self.dob
+        self.dob = date(birth_year, dob.month, dob.day)
         return RC_TRUE
     
     # Note: Verification methods (e.g., age_verify) are not currently 
@@ -128,6 +129,7 @@ with CACHE_ONLY():
     # Endogenous traitables (with ID traits) share trait values globally
     person1 = Person(first_name="Alice", last_name="Smith")
     person1.dob = date(1990, 5, 15)  # Set a non-ID trait
+    print( '---',person1.dob)
 
     # Using setter method for age validation
     person1.age = 25  # Set age, updates date of birth
@@ -142,7 +144,7 @@ with CACHE_ONLY():
 
     person2 = Person(first_name="Alice", last_name="Smith")  # Same ID traits
     # person2 automatically has the same dob value as person1
-    assert person2.dob == date(1990, 5, 15)  # Shared trait values
+    assert person2.dob == date(2000, 5, 15)  # Shared trait values
     assert person1 == person2  # Equal due to same ID traits
     # Note: person1 is person2 would be False - they're different objects
 
@@ -188,51 +190,18 @@ with GRAPH_ON():
     print(calc.sum)      # 13
 ```
 
-### Seamless UI Framework Switching
-
-```python
-# UI framework is selected automatically based on installed packages
-# or environment variables - no code changes needed!
-
-from ui_10x import Application, LineEdit, PushButton, VBoxLayout
-from ui_10x.traitable_editor import TraitableEditor
-from core_10x.code_samples.person import Person
-
-def main():
-    # Framework automatically chosen: Rio if available, Qt6 otherwise
-    app = Application()
-    
-    # Create UI components (same API regardless of backend)
-    line_edit = LineEdit(text="Enter text here")
-    button = PushButton(text="Click me")
-    
-    # Layout
-    layout = VBoxLayout()
-    layout.add(line_edit)
-    layout.add(button)
-    
-    # Traitable editor works with any UI framework
-    person = Person(first_name="Alice", last_name="Smith")
-    editor = TraitableEditor.editor(person)
-    
-    app.run(layout)
-
-if __name__ == "__main__":
-    main()
-```
-
 ### MongoDB Integration
 
 ```python
-from infra_10x import MongoStore
-from core_10x import Traitable
+from infra_10x.mongodb_store import MongoStore
+from core_10x.traitable import Traitable
+from core_10x.code_samples.person import Person
+from datetime import date
 
 # Connect to MongoDB
 traitable_store = MongoStore.instance(
     hostname="localhost",
     dbname="myapp", 
-    username="user",
-    password="pass"
 )
 
 # Use traitable store context for persistence

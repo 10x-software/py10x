@@ -154,10 +154,10 @@ class Person(Traitable):
         return today.year - self.dob.year
 
 # Usage
-with CACHE_ONLY:
-    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15))
+with CACHE_ONLY():
+    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _force=True)
     assert person.full_name == "Alice Smith"  # Computed
-    assert person.age == 34  # Computed from dob
+    assert person.age == 35  # Computed from dob
 ```
 
 ### Setters (Validation and Transformation)
@@ -194,14 +194,14 @@ person = Person()
 # Setters are called automatically on assignment
 try:
     person.email = 'invalid-email'  # Throws exception with "Invalid email format"
-except ValueError as e:
+except RuntimeError as e:
     assert "Invalid email format" in str(e)
 
 person.email = 'alice@example.com'  # Valid email - succeeds
 person.age = 25  # Valid age - succeeds
 
 # Programmatic setting with accumulated RC
-result = person.set(age=30, email='bob@example.com')
+result = person.set_values(age=30, email='bob@example.com')
 if not result:
     assert False, f"Set failed: {result.errors()}"
 ```
@@ -432,7 +432,7 @@ class DataRecord(Traitable):
 
 # Anonymous traitables: each instance gets its own ID
 with CACHE_ONLY():
-    record = DataRecord(name="sensor_001", data=AnonymousData(value="temp: 72.5", timestamp=1234567890.0))
+    record = DataRecord(name="sensor_001", data=AnonymousData(value="temp: 72.5", timestamp=1234567890.0), _force=True)
     assert record.data.id() is not None  # Instance-specific ID
 ```
 
@@ -504,7 +504,8 @@ class Person(Traitable):
         # Calculate date of birth from age
         today = date.today()
         birth_year = today.year - value
-        self.dob = date(birth_year, today.month, today.day)
+        dob = self.dob
+        self.dob = date(birth_year, dob.month, dob.day)
         return RC_TRUE
 
 # Regular traits require storage context
@@ -514,12 +515,12 @@ with CACHE_ONLY():  # No traitable store, in-memory caching only
     person.weight_lbs = 130.0
     
     # Access computed traits
-    assert person.age == 34           # Computed from dob
+    assert person.age == 35         # Computed from dob
     assert person.full_name == "Alice Smith" # Computed from first_name + last_name
     
     # Use setter with validation
     person.age = 25  # Updates dob automatically
-    assert person.dob == date(1999, 5, 15)  # Updated DOB
+    assert person.dob == date(2000, 5, 15)  # Updated DOB
 ```
 
 ### MongoDB Storage Integration
@@ -626,8 +627,8 @@ class Employee(Traitable):
 
 # Create company and employee
 with CACHE_ONLY():
-    company = Company(name="Acme Corp", founded_year=2020)
-    employee = Employee(first_name="Alice", last_name="Smith", company=company)
+    company = Company(name="Acme Corp", founded_year=2020, _force=True)
+    employee = Employee(first_name="Alice", last_name="Smith", company=company, _force=True)
     
     # The company is stored by reference
     assert employee.serialize_object()['company'] == {'_id': 'Acme Corp'}
@@ -657,7 +658,8 @@ with CACHE_ONLY():
     person = Person(
         first_name="Alice",
         last_name="Smith",
-        address=Address(street="123 Main St", city="Anytown", zip_code="12345")
+        address=Address(street="123 Main St", city="Anytown", zip_code="12345"),
+        _force=True
     )
     
     # The address is stored embedded within the person
@@ -696,7 +698,7 @@ with GRAPH_ON():
     calc = Calculator(x=5, y=3)
     assert calc.sum == 8  # Computed and cached
     assert calc.sum == 8  # From cache
-    x = 6
+    calc.x = 6
     assert calc.sum == 9  # Getter called again due to dependency change
 
 # Without dependency tracking, fresh computation every time
@@ -704,7 +706,7 @@ with GRAPH_OFF():
     calc = Calculator(x=5, y=3)
     assert calc.sum == 8  # Getter called
     assert calc.sum == 8  # Getter called again (no caching)
-    x = 6
+    calc.x = 6
     assert calc.sum == 9  # Getter called again (no caching)
 ```
 
@@ -811,7 +813,8 @@ with DEBUG_ON():
     try:
         calc.x = "five"  # Detailed type error
     except TypeError as e:
-        assert str(e) == "TypeError: Calculator.x (<class 'int'>) - invalid value 'five'"  # Comprehensive error information
+        print('===',str(e))
+        assert str(e) == "Calculator.x (<class 'int'>) - invalid value 'five'"  # Comprehensive error information
 
     
 # Production mode
@@ -819,11 +822,11 @@ with DEBUG_OFF():
     calc.x = "five" # No checking
     calc.y = 3
     try:
-        assert calc.sum == 8 # Error in the getter du to type mismatch
+        calc.sum # Error in the getter due to type mismatch
     except TraitMethodError as e:
         assert (
             str(e)
-            == f"""Failed in <class '__main__.Calculator'>.sum.sum_get
+            == f"""Failed in <class 'Calculator'>.sum.sum_get
     object = {calc.id().value};
     value = ()
     args = can only concatenate str (not "int") to str"""
@@ -919,6 +922,7 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
 from core_10x.traitable_id import ID
 from infra_10x.mongodb_store import MongoStore
 from core_10x.traitable import Traitable, T
+from core_10x.trait_filter import f,IN
 from datetime import date
 
 class Person(Traitable):
@@ -937,8 +941,8 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
     person2.save()
 
     # Load multiple traitables by their IDs
-    person_ids = [ID("Alice|Smith"), ID("Bob|Johnson")]
-    people = Person.load_ids(person_ids)
+    person_ids = ["Alice|Smith", "Bob|Johnson"]
+    people = Person.load_many(f(_id=IN(person_ids)))
     assert len(people) == 2
     assert people[0].first_name == "Alice"
     assert people[0].last_name == "Smith"
@@ -946,12 +950,13 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
     assert people[1].last_name == "Johnson"
 ```
 
-#### Find with Filters
+#### Filters
 
 ```python
 from core_10x.trait_filter import f, GT, AND
 from infra_10x.mongodb_store import MongoStore
 from core_10x.traitable import Traitable, T
+from core_10x.trait_filter import f, GT, AND
 from datetime import date
 
 class Person(Traitable):
@@ -962,13 +967,13 @@ class Person(Traitable):
 # Find traitables using filters (requires storage context)
 with MongoStore.instance(hostname="localhost", dbname="myapp"):
     # Find all people with last name "Smith"
-    smith_people = Person.find(last_name="Smith")
+    smith_people = Person.load_many(f(last_name="Smith"))
     
     # Find people born after 1990
-    young_people = Person.find(dob=GT(date(1990, 1, 1)))
+    young_people = Person.load_many(f(dob=GT(date(1990, 1, 1))))
     
     # Complex filter: Smiths born after 1990
-    young_smiths = Person.find(
+    young_smiths = Person.load_many(
         AND(f(last_name="Smith"), f(dob=GT(date(1990, 1, 1))))
     )
     
@@ -1025,8 +1030,15 @@ with CACHE_ONLY():
 #### MongoDB Integration
 
 ```python
+from core_10x.traitable import Traitable, T
+from datetime import date
 from infra_10x.mongodb_store import MongoStore
 
+class Person(Traitable):
+    first_name: str = T(T.ID)
+    last_name: str = T(T.ID)
+    dob: date = T()
+    
 # Connect to MongoDB
 with MongoStore.instance(hostname="localhost", dbname="myapp"):
     person = Person(first_name="Alice", last_name="Smith")
@@ -1230,8 +1242,8 @@ class IdentifiedPerson(Person):
     name: str = M(T.ID)  # make it an id trait
 
 with CACHE_ONLY():
-    person = Person(name='John', age=10)
-    person2 = IdentifiedPerson(name='John', age=11)
+    person = Person(name='John', age=10, _force=True)
+    person2 = IdentifiedPerson(name='John', age=11, _force=True)
     assert person.id()!=person2.id()
 ```
 
