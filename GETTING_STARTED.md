@@ -363,14 +363,14 @@ class Person(Traitable):
     # ID traits - define identity for global sharing
     first_name: str = RT(T.ID)
     last_name: str = RT(T.ID)
-    
+
     # Runtime traits, computed on-demand
     full_name: str
     initials: str
 
     def full_name_get(self) -> str:
         return f"{self.first_name} {self.last_name}"
-    
+
     def initials_get(self) -> str:
         return f"{self.first_name[0]}{self.last_name[0]}"
 
@@ -385,6 +385,38 @@ assert person1 == person2  # Equal due to same ID
 assert person1.id() == person2.id()  # Same ID
 # Note: person1 is person2 would be False - they're different objects
 ```
+
+#### Constructor Parameter: `_force=True`
+
+When creating endogenous traitable instances with **non-ID traits** (regular or runtime traits), you must use the `_force=True` parameter to indicate that an existing instance should be updated if found:
+
+```python
+from core_10x.traitable import Traitable, T
+from core_10x.exec_control import CACHE_ONLY
+from datetime import date
+
+class Person(Traitable):
+    # ID traits
+    first_name: str = T(T.ID)
+    last_name: str = T(T.ID)
+
+    # Non-ID traits (require _force=True when provided in constructor)
+    dob: date = T()
+    age: int
+
+    def age_get(self) -> int:
+        if not self.dob:
+            return 0
+        today = date.today()
+        return today.year - self.dob.year
+
+# Use _force=True when providing non-ID traits in constructor
+with CACHE_ONLY():
+    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _force=True)
+    assert person.age > 30  # Computed from dob (age depends on current year)
+```
+
+Without `_force=True`, providing non-ID traits in the constructor would raise an error, as the framework assumes ID-only construction for endogenous traitables by default.
 
 ### Exogenous Traitables (Auto-generated UUID)
 
