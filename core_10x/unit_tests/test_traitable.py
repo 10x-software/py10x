@@ -18,7 +18,7 @@ from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitAccessor
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
 from core_10x_i import BFlags, BTraitable
@@ -28,7 +28,6 @@ if TYPE_CHECKING:
 
 
 class SubTraitable(Traitable):
-    s_special_attributes = ('special_attr',)
     trait1: int = RT(T.ID)
     trait2: str = RT()
 
@@ -85,21 +84,11 @@ def test_trait_update():
         assert instance.trait2 is None
 
 
-def test_traitable_slots():
-    expected_slots = ('T', '_default_cache')
-    assert Traitable.__slots__ == expected_slots
-    assert not hasattr(Traitable(), '__dict__')
-
-
-def test_subclass_slots():
-    expected_slots = ('special_attr', *Traitable.__slots__)
-    assert SubTraitable.__slots__ == expected_slots
-    assert not hasattr(SubTraitable(trait1=1), '__dict__')
-
-
 def test_instance_slots():
-    with CACHE_ONLY():
-        instance = SubTraitable(trait1=10)
+    assert Traitable.__slots__ == ()
+    assert SubTraitable.__slots__ == ()
+    instance = SubTraitable(trait1=10)
+    assert not hasattr(instance, '__dict__')
     with pytest.raises(AttributeError):
         instance.non_existent_attr = 'value'
 
@@ -621,3 +610,44 @@ def test_exceptions(t):
                 else contextlib.nullcontext()
             ):
                 assert x.y == 1
+
+
+def test_multiple_inheritance():
+    """Test universal multiple inheritance with __slots__=() and MRO resolution"""
+
+    # Test 1: Basic multiple inheritance works
+    class EntityA(Traitable):
+        name: str = RT(T.ID)
+        value: int = RT()
+
+        def value_get(self) -> int:
+            return 42
+
+    class EntityB(Traitable):
+        rev: int = RT(T.ID)
+        value: str = RT()
+
+        def value_get(self) -> str:
+            return 'forty two'
+
+    class Combined(EntityA, EntityB):
+        extra: str = RT()
+
+    assert EntityA.__slots__ == ()
+    assert EntityB.__slots__ == ()
+    assert Combined.__slots__ == ()
+
+    # Verify MRO
+    mro_names = [cls.__name__ for cls in Combined.__mro__]
+    assert mro_names[:4] == ['Combined', 'EntityA', 'EntityB', 'Traitable']
+
+    obj = Combined(name='test', rev=1)
+
+    assert obj.name == 'test'
+    assert obj.value == 42
+    assert obj.rev == 1
+
+    assert isinstance(obj.T, TraitAccessor)
+    assert obj.T.name.data_type is str
+    assert obj.T.value.data_type is int
+    assert obj.T.rev.data_type is int
