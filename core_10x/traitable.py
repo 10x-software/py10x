@@ -49,6 +49,13 @@ class TraitAccessor:
         return self.cls.trait(trait_name, throw=True)
 
 
+class UnboundTraitAccessor:
+    __slots__ = ()
+
+    def __get__(self, instance, owner):
+        return TraitAccessor(instance)
+
+
 COLL_NAME_TAG = '_collection_name'
 
 
@@ -86,11 +93,8 @@ class TraitableMetaclass(type(BTraitable)):
             T(T.RESERVED | T.RUNTIME, data_type=str, get=get, set=set),
         )
 
-    def __new__(cls, name, bases, class_dict, **kwargs):
-        # TODO: this could go back to __init_subclass__ as we do not need to add traits to __slots__
-
+    def __new__(cls, name, bases, class_dict, _mixin=False, **kwargs):
         build_trait_dir = next(cls.find_symbols(bases, class_dict, 'build_trait_dir'))
-        special_attributes = tuple(chain.from_iterable(cls.find_symbols(bases, class_dict, 's_special_attributes')))
 
         trait_dir = {
             Nucleus.REVISION_TAG(): cls.rev_trait(),  # -- insert _rev as the first trait and delete later if not needed
@@ -101,8 +105,7 @@ class TraitableMetaclass(type(BTraitable)):
 
         class_dict.update(
             s_dir=trait_dir,
-            __slots__=special_attributes,
-            s_special_attributes=special_attributes,
+            __slots__=(),
         )
 
         return super().__new__(cls, name, bases, class_dict, **kwargs)
@@ -112,6 +115,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_dir = {}
     s_default_trait_factory = RT
     s_own_trait_definitions = {}
+    T = UnboundTraitAccessor()
 
     @staticmethod
     def own_trait_definitions(bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC) -> Generator[tuple[str, TraitDefinition]]:
@@ -191,7 +195,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         own_trait_definitions: Callable[[tuple, dict, dict, RC], Generator[tuple[str, TraitDefinition]]] = next(
             TraitableMetaclass.find_symbols(bases, class_dict, 'own_trait_definitions')
         )
-        trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(bases, class_dict, 's_dir'), {})  # -- shallow copy!
+        trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(reversed(bases), class_dict, 's_dir'), {})  # -- shallow copy!
         type_annotations = class_dict.get('__annotations__') or {}
         module_dict = sys.modules[class_dict['__module__']].__dict__ if '__module__' in class_dict else {}
         check_trait_type = next(TraitableMetaclass.find_symbols(bases, class_dict, 'check_trait_type'))
@@ -243,10 +247,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     s_bclass: BTraitableClass = None
     s_traitdef_dir = {}
-    s_special_attributes = (
-        'T',
-        '_default_cache',
-    )
     s_custom_collection = False
 
     def __init_subclass__(cls, custom_collection: bool = None, **kwargs):
@@ -296,8 +296,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
                 else:
                     # TODO: compatibility code - remove
                     self.initialize(trait_values)
-
-        self.T = TraitAccessor(self)
 
     @classmethod
     def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Traitable | None:
