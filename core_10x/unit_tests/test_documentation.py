@@ -64,19 +64,9 @@ def extract_code_blocks_from_docs() -> Generator[tuple[str, str, str], None, Non
 def is_ui_code_block(code_block: str) -> bool:
     """Check if a code block contains UI-related imports or usage."""
     ui_indicators = [
-        'import rio',
-        'from rio',
-        'rio.',
         'import ui_10x',
         'from ui_10x',
         'ui_10x.',
-        'class.*Component',
-        'def build(',
-        '@rio.page',
-        'rio.Text(',
-        'rio.Button(',
-        'rio.Column(',
-        'rio.Row(',
     ]
     return any(indicator in code_block for indicator in ui_indicators)
 
@@ -108,7 +98,6 @@ def test_documentation_code_block_execution(test_name: str, code_block: str, sou
     assert validate_python_syntax(code_block), f'Syntax error in {source_file} {test_name}'
 
     import builtins
-    import sys
 
     # Create a minimal namespace that avoids complex traitable issues
     # We'll just check that the code can be executed in a basic context

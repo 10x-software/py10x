@@ -157,7 +157,7 @@ class Person(Traitable):
 with CACHE_ONLY():
     person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _force=True)
     assert person.full_name == "Alice Smith"  # Computed
-    assert person.age == 35  # Computed from dob
+    assert person.age == 36  # Computed from dob
 ```
 
 ### Setters (Validation and Transformation)
@@ -547,12 +547,12 @@ with CACHE_ONLY():  # No traitable store, in-memory caching only
     person.weight_lbs = 130.0
     
     # Access computed traits
-    assert person.age == 35         # Computed from dob
+    assert person.age == 36         # Computed from dob
     assert person.full_name == "Alice Smith" # Computed from first_name + last_name
     
     # Use setter with validation
     person.age = 25  # Updates dob automatically
-    assert person.dob == date(2000, 5, 15)  # Updated DOB
+    assert person.dob == date(2001, 5, 15)  # Updated DOB
 ```
 
 ### MongoDB Storage Integration

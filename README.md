@@ -144,7 +144,7 @@ with CACHE_ONLY():
 
     person2 = Person(first_name="Alice", last_name="Smith")  # Same ID traits
     # person2 automatically has the same dob value as person1
-    assert person2.dob == date(2000, 5, 15)  # Shared trait values
+    assert person2.dob == date(2001, 5, 15)  # Shared trait values
     assert person1 == person2  # Equal due to same ID traits
     # Note: person1 is person2 would be False - they're different objects
 
