@@ -128,20 +128,20 @@ class Trait(BTrait):
 
     def set_trait_funcs(self, traitable_cls, rc):
         for method_name, (method_suffix, method_def) in Trait.method_defs(self.name).items():
-            method_from_trait = self.t_def.params.get(method_suffix)
-            method_from_class = getattr(traitable_cls, method_name, None)
-            method = method_from_trait or method_from_class
-            if method_from_trait and method_from_class:
-                traitable_cls_vars = vars(traitable_cls)
-                if method_name in traitable_cls_vars:  # -- method from class defined on this class
-                    method = method_from_class
-                    trait_trait_def_of_none = traitable_cls_vars.get(self.name)
-                    if isinstance(
-                        trait_trait_def_of_none, TraitDefinition
-                    ):  # -- method from trait defined on this class (this called before we setattr the actual trait)
-                        rc.add_error(
-                            f'Ambiguous definition for {method_name} on {traitable_cls} - both trait.{method_suffix} and traitable.{method_name} are defined.'
-                        )
+            method = getattr(traitable_cls, method_name, None)
+            if method and method_suffix == 'get' and self.t_def.default is not XNone: # -- getter and default are defined - figure out which to use
+                for cls in traitable_cls.__mro__:
+                    cls_vars = vars(cls)
+                    if method_name in cls_vars:  # -- found method on cls - use method, unless
+                        if isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default is on same cls then - error
+                            rc.add_error(
+                                f'Ambiguous definition for {method_name} on {cls} - both trait.default and traitable.{method_name} are defined.'
+                            )
+                    elif isinstance(cls_vars.get(self.name), TraitDefinition): # -- default found on cls - use default
+                        method = None # use default
+                    else:
+                        continue
+                    break
 
             f = method_def.value(self, method, method_suffix, rc)
             if f:

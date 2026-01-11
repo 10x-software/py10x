@@ -116,7 +116,7 @@ def test_set_values():
 
 def test_dynamic_traits():
     class X(Traitable):
-        s_own_trait_definitions = dict(x=RT(data_type=int, get=lambda self: 10))
+        s_own_trait_definitions = dict(x=RT(data_type=int, default=10))
 
     x = X()
     assert x.T.x.data_type is int
@@ -295,7 +295,7 @@ def test_anonymous_traitable():
         z.serialize_object()
 
 
-def test_own_trait_defs_and_override():
+def test_own_trait_defs():
     cnt = Counter()
 
     def assert_and_cont(what, obj, arg, trait=None):
@@ -307,21 +307,20 @@ def test_own_trait_defs_and_override():
         cnt[what] += arg
 
     class X(Traitable):
+        def x_get(self, arg) -> int:
+            assert_and_cont('get', self, arg)
+            return 1
+
+        def x_set(self, trait, value, arg) -> RC:
+            assert_and_cont('set', self, arg, trait)
+            self.raw_set_value(trait, value + 1, arg)
+            return RC_TRUE
+        
         @classmethod
         def own_trait_definitions(cls) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
-            def get(self, arg) -> int:
-                assert_and_cont('get', self, arg)
-                return 1
-
-            def set(self, trait, value, arg) -> RC:
-                assert_and_cont('set', self, arg, trait)
-                self.raw_set_value(trait, value + 1, arg)
-                return RC_TRUE
-
-            yield 'x', TraitDefinition(T.RUNTIME | T.EXPENSIVE, data_type=int, get=get, set=set)
+            yield 'x', TraitDefinition(T.RUNTIME | T.EXPENSIVE, data_type=int)
 
     t = X.trait('x')
-    assert list(t.t_def.params.keys()) == ['get', 'set']
     assert cnt == {}
     x = X()
     assert x.x(1) == 1
@@ -332,19 +331,19 @@ def test_own_trait_defs_and_override():
     assert cnt == {'get': 1, 'set': 1}
 
 
-def test_trait_func_override():
+def test_trait_get_default_override():
     class X(Traitable):
-        x: int = RT(get=lambda self: 1)
+        x: int = RT(default = 1)
 
     assert X().x == 1
 
     with pytest.raises(
         RuntimeError,
-        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_func_override.<locals>.Y\'> - both trait.get and traitable.x_get are defined.',
+        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'> - both trait.default and traitable.x_get are defined.',
     ):
 
         class Y(X):
-            x: int = RT(get=lambda self: 2)
+            x: int = RT(default = 2)
 
             def x_get(self):
                 return 2
@@ -358,7 +357,7 @@ def test_trait_func_override():
             return 4
 
     class S(T):
-        x: int = RT(get=lambda self: 5)
+        x: int = RT(default = 5)
 
     assert Z().x == 3
     assert T().x == 4
@@ -414,7 +413,7 @@ def test_serialize():
     class X(Traitable):
         x: int = T(T.ID)
         y: Self = T()
-        z: int = T(default=1)
+        z: int = T()
 
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
