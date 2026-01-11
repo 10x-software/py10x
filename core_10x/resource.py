@@ -114,6 +114,7 @@ class Resource(abc.ABC):
     PORT_TAG        = 'port'
     USERNAME_TAG    = 'username'
     DBNAME_TAG      = 'dbname'
+    PASSWORD_TAG    = 'password'
     SSL_TAG         = 'ssl'
     # fmt: on
     s_resource_type: ResourceType = None
