@@ -66,7 +66,7 @@ def test_is_storable():
     assert not SubTraitable.is_storable()
     assert SubTraitable2.is_storable()
 
-    with pytest.raises(OSError, match='No Store is available'):
+    with pytest.raises(OSError, match='No Traitable Store is specified: neither explicitly, nor via backbone or URI'):
         SubTraitable2().save()
 
     assert 'is not storable' in SubTraitable(trait1=uuid.uuid1().int).save().error()
