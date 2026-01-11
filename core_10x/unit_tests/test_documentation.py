@@ -5,14 +5,19 @@ This module automatically extracts Python code blocks from documentation files
 and runs them as tests to ensure examples remain functional.
 """
 
+from __future__ import annotations
+
 import ast
 import re
 import sys
-from collections.abc import Generator
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 from core_10x.ts_store import TsStore
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 # Add the project root to Python path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -29,10 +34,7 @@ DOCUMENTATION_FILES = [
 
 def extract_code_blocks_from_file(filepath: Path) -> Generator[tuple[str, str], None, None]:
     """Extract Python code blocks from a markdown file."""
-    try:
-        content = filepath.read_text(encoding='utf-8')
-    except FileNotFoundError:
-        return
+    content = filepath.read_text(encoding='utf-8')
 
     # Find code blocks (```python ... ```)
     pattern = r'```python\s*\n(.*?)\n```'
@@ -58,7 +60,7 @@ def extract_code_blocks_from_docs() -> Generator[tuple[str, str, str], None, Non
     for doc_file in DOCUMENTATION_FILES:
         filepath = docs_dir / doc_file
         for test_name, code_block in extract_code_blocks_from_file(filepath):
-            yield f'{doc_file}_{test_name}', code_block, doc_file
+            yield f'{test_name}', code_block, doc_file
 
 
 def is_ui_code_block(code_block: str) -> bool:
@@ -81,42 +83,40 @@ def validate_python_syntax(code: str) -> bool:
 
 
 @pytest.mark.parametrize(
-    'test_name,code_block,source_file',
+    'test_name,code_block,future_annotations',
     [
-        (f'{src}_{name}', code, src)
+        (name, code, future_annotations)
         for name, code, src in extract_code_blocks_from_docs()
+        for future_annotations in (True, False)
         if not is_ui_code_block(code)  # Skip UI code blocks - tested separately
     ],
 )
-def test_documentation_code_block_execution(test_name: str, code_block: str, source_file: str):
+def test_documentation_code_block_execution(test_name: str, code_block: str, future_annotations: bool):
     """Test that documentation code blocks can execute successfully."""
     # Skip if code block is empty
     if not code_block.strip():
         pytest.skip('Empty code block')
 
     # Validate syntax
-    assert validate_python_syntax(code_block), f'Syntax error in {source_file} {test_name}'
+    assert validate_python_syntax(code_block), f'Syntax error in {test_name}'
 
-    import builtins
+    doc_file_name = test_name.split('_block_')[0]
+    fake_module_name = f'__doc_test_{doc_file_name}__'
+    if fake_module_name not in sys.modules:
+        fake_module = type(sys)('module')
+        fake_module.__dict__.update(
+            {
+                '__name__': fake_module_name,
+                '__file__': f'<{doc_file_name}>',
+                '__builtins__': __builtins__,
+            }
+        )
+        sys.modules[fake_module_name] = fake_module
+    if future_annotations:
+        exec('from __future__ import annotations', fake_module.__dict__)
 
-    # Create a minimal namespace that avoids complex traitable issues
-    # We'll just check that the code can be executed in a basic context
-    namespace = {
-        '__builtins__': builtins.__dict__.copy(),
-    }
-
-    # Add a fake module to sys.modules to avoid KeyError
-    fake_module_name = f'__doc_test_{test_name}__'
-    fake_module = type(sys)('module')
-    fake_module.__dict__.update(
-        {
-            '__name__': fake_module_name,
-            '__file__': f'<{source_file}_{test_name}>',
-        }
-    )
-    sys.modules[fake_module_name] = fake_module
     try:
-        exec(code_block, namespace)
+        exec(code_block, fake_module.__dict__)
     finally:
         # Clean up the fake module
         if fake_module_name in sys.modules:
@@ -157,9 +157,9 @@ def test_documentation_files_and_code_blocks():
         assert filepath.stat().st_size > 0, f'Documentation file {filename} is empty'
 
     # Check that files contain Python code blocks
-    for test_name, code_block, source_file in extract_code_blocks_from_docs():
+    for _name, code, _src in extract_code_blocks_from_docs():
         total_blocks += 1
-        if is_ui_code_block(code_block):
+        if is_ui_code_block(code):
             ui_blocks += 1
         else:
             core_blocks += 1

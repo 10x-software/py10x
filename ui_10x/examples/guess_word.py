@@ -195,9 +195,9 @@ class Game(Entity):
     def guess_res_class_get(self):
         num_chars = self.num_chars
         class Demo(GuessResult):
-            @staticmethod
-            def own_trait_definitions(bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
-                yield from (tri for i in range( num_chars ) if ( tri := GuessResult._create_char_trait( i ) ))
+            @classmethod
+            def own_trait_definitions(cls) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
+                yield from (tri for i in range( num_chars ) if ( tri := GuessResult._create_char_trait(i) ))
 
         Demo.traits()
         return Demo
