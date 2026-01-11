@@ -8,6 +8,7 @@ from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standa
 from infra_10x_i import MongoCollectionHelper
 from pymongo import MongoClient, errors
 from pymongo.errors import DuplicateKeyError
+from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -237,6 +238,8 @@ class MongoCollection(TsCollection):
 
 
 class MongoStore(TsStore, resource_name='MONGO_DB'):
+    PROTOCOL = 'mongodb'
+
     ADMIN = 'admin'
 
     # fmt: off
@@ -279,6 +282,26 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
     def new_instance(cls, hostname: str, dbname: str, username: str, password: str, **kwargs) -> TsStore:
         client = cls.connect(hostname, username, password, **kwargs)
         return cls(client, client[dbname], username)
+
+    @classmethod
+    def parse_uri(cls, uri: str) -> dict:
+        params = pymongo_parse_uri(uri)
+        try:
+            hostname, port  = params['nodelist'][0]
+            kwargs          = params['options']
+            kwargs[cls.PORT_TAG]  = port
+            args = {
+                cls.HOSTNAME_TAG:   hostname,
+                cls.DBNAME_TAG:     params['database'],
+                cls.USERNAME_TAG:   params['username'],
+                cls.PASSWORD_TAG:   params['password'],
+            }
+            args.update(kwargs)
+            return args
+
+        except Exception:
+            raise ValueError(f'Invalid URI = {uri}')
+
 
     def __init__(self, client: MongoClient, db: Database, username: str):
         self.client = client
