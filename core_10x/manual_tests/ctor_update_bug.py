@@ -2,10 +2,10 @@ from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
 
 
 class Cross(Traitable):
-    cross: str              = RT(T.ID)  // 'e.g., GBP/USD or CHF/JPY'
+    cross: str = RT(T.ID) // 'e.g., GBP/USD or CHF/JPY'
 
-    base_ccy: str           = RT()      // 'Base (left) currency'
-    quote_ccy: str          = RT()      // 'Quote (right) currency'
+    base_ccy: str = RT(T.ID_LIKE) // 'Base (left) currency'
+    quote_ccy: str = RT(T.ID_LIKE) // 'Quote (right) currency'
 
     def cross_get(self) -> str:
         return f'{self.base_ccy}/{self.quote_ccy}'
@@ -23,18 +23,18 @@ class Cross(Traitable):
         rc <<= rc2
         return rc
 
+
 if __name__ == '__main__':
     cross = 'A/B'
 
-    #-- Complains that non-ID traits can't be set during initialization.
-    #-- Is this what we agreed on?
-    try:
-        c1 = Cross(base_ccy = 'A', quote_ccy = 'B')
-    except Exception as e:
-        print(e)
+    # -- Does not complain that non-ID traits can't be set during initialization.
+    # -- Note the T.ID_LIKE declaration!
+    c1 = Cross(base_ccy='A', quote_ccy='B')
 
-    #-- Apparently, after setting base_ccy and quote_ccy, the cross is correct, but the id is wrong!
-    c2 = Cross(_force = True, base_ccy = 'A', quote_ccy = 'B')
+    # -- Apparently, after setting base_ccy and quote_ccy, the cross is correct, but the id is wrong!
+    # -- This is also fixed by the T.ID_LIKE declaration!
+    c2 = Cross(_force=True, base_ccy='A', quote_ccy='B')
+    assert c2.id().value == 'A/B'
 
     # #-- Case 1 - doesn't allow to create the second instance claiming it sets non-ID traits
     # c1 = Cross(cross = cross)
