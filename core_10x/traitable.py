@@ -83,20 +83,18 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @classmethod
     @cache
     def collection_name_trait(cls) -> Trait:
-        trait_name = COLL_NAME_TAG
-
-        def get(self):
-            return self.id().collection_name
-
-        def set(self, t, cname) -> RC:
-            self.id().collection_name = cname
-            return RC_TRUE
-
         return Trait.create(
-            trait_name,
-            T(T.RESERVED | T.RUNTIME, data_type=str, get=get, set=set),
+            COLL_NAME_TAG,
+            T(T.RESERVED | T.RUNTIME, data_type=str),
         )
-
+    
+    def _collection_name_get(self) -> str:
+        return self.id().collection_name
+    
+    def _collection_name_set(self,trait,value) -> RC:
+        self.id().collection_name = value
+        return RC_TRUE
+    
     @classmethod
     def own_trait_definitions(cls) -> Generator[tuple[str, TraitDefinition]]:
         class_dict = dict(cls.__dict__)
