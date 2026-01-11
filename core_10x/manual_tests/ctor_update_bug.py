@@ -26,22 +26,33 @@ class Cross(Traitable):
 if __name__ == '__main__':
     cross = 'A/B'
 
-    #-- Case 1 - doesn't allow to create the second instance claiming it sets non-ID traits
-    c1 = Cross(cross = cross)
+    #-- Complains that non-ID traits can't be set during initialization.
+    #-- Is this what we agreed on?
     try:
-        c2 = Cross(cross = cross)
+        c1 = Cross(base_ccy = 'A', quote_ccy = 'B')
     except Exception as e:
         print(e)
 
-    #-- Case 2 - update is "working" exactly as the ctor
-    try:
-        c3 = Cross.update(cross = cross)
-    except Exception as e:
-        print(e)
+    #-- Apparently, after setting base_ccy and quote_ccy, the cross is correct, but the id is wrong!
+    c2 = Cross(_force = True, base_ccy = 'A', quote_ccy = 'B')
 
-    #-- Case 3: update complains about not setting at least one ID-trait - WRONG!
-    try:
-        c4 = Cross.update(base_ccy = 'A', quote_ccy = 'B')
-    except Exception as e:
-        print(e)
-
+    # #-- Case 1 - doesn't allow to create the second instance claiming it sets non-ID traits
+    # c1 = Cross(cross = cross)
+    # try:
+    #     c2 = Cross(cross = cross)
+    # except Exception as e:
+    #     print(e)
+    #
+    # #-- Case 2 - update is "working" exactly as the ctor
+    # try:
+    #     c3 = Cross.update(cross = cross)
+    # except Exception as e:
+    #     print(e)
+    #
+    # #-- Case 3: update complains about not setting at least one ID-trait - WRONG!
+    # try:
+    #     c4 = Cross.update(base_ccy = 'A', quote_ccy = 'B')
+    # except Exception as e:
+    #     print(e)
+    #
+    # #-- Case 4:
