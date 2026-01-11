@@ -474,10 +474,12 @@ def test_serialize():
 def test_id_trait_set():
     class X(Traitable):
         x: int = RT(T.ID)
+        y: int = RT(T.ID_LIKE)
 
     with INTERACTIVE():
         x = X()
         x.x = 1
+        x.y = 1
         assert x.x == 1
         x.x = 2
         assert x.x == 2
@@ -485,6 +487,9 @@ def test_id_trait_set():
         x.share(False)
         x.x = 3
         assert x.x == 2  # not updated on shared object
+
+        x.y = 4
+        assert x.y == 1
 
     x = X(x=1)
     x.x = 2
