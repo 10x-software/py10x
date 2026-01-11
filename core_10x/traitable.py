@@ -25,13 +25,14 @@ from core_10x.trait_definition import (  # noqa: F401
 )
 from core_10x.trait_filter import f
 from core_10x.traitable_id import ID
-from core_10x.ts_store import TS_STORE
+from core_10x.ts_store import TS_STORE, TsStore
+from core_10x.environment_variables import EnvVars
 from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from core_10x.ts_store import TsCollection, TsStore
+    from core_10x.ts_store import TsCollection
 
 
 class TraitAccessor:
@@ -411,9 +412,19 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def store(cls) -> TsStore:
         store: TsStore = TS_STORE.current_resource()
         if not store:
-            store = cls.preferred_store()
-            if not store:
-                raise OSError(f'{cls} - failed to find a store')
+            bb_host = EnvVars.backbone_store_host_name
+            if not bb_host:
+                store_uri = EnvVars.traitable_store_uri
+                if not store_uri:
+                    raise OSError('No Traitable Store is specified: neither explicitly, nor via backbone or URI')
+
+                store = TsStore.instance_from_uri(store_uri)
+                store.begin_using()
+
+            else:
+                store = cls.preferred_store()
+                if not store:
+                    raise OSError(f'{cls} - failed to find a store')
 
         return store
 
