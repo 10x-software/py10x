@@ -3,11 +3,11 @@ from __future__ import annotations
 import functools
 import operator
 import sys
-from itertools import chain
-from typing import TYPE_CHECKING, Any, Self, get_origin
+import warnings
+from typing import TYPE_CHECKING, Any, get_origin
 
 from core_10x_i import BTraitable, BTraitableClass
-from typing_extensions import deprecated
+from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
 from core_10x.global_cache import cache
@@ -29,7 +29,7 @@ from core_10x.ts_store import TS_STORE
 from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Generator
 
     from core_10x.ts_store import TsCollection, TsStore
 
@@ -60,25 +60,28 @@ COLL_NAME_TAG = '_collection_name'
 
 
 class TraitableMetaclass(type(BTraitable)):
-    @staticmethod
-    def find_symbols(bases, class_dict, symbol):
-        return chain(
-            (res for res in (class_dict.get(symbol, class_dict),) if res is not class_dict),
-            (res for base in bases if (res := getattr(base, symbol, class_dict)) is not class_dict),
-        )
+    def __new__(cls, name, bases, class_dict, **kwargs):
+        return super().__new__(cls, name, bases, class_dict | {'__slots__': ()}, **kwargs)
 
-    @staticmethod
+
+class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
+    s_dir = {}
+    s_default_trait_factory = RT
+    s_own_trait_definitions = None
+    T = UnboundTraitAccessor()
+
+    @classmethod
     @cache
-    def rev_trait() -> Trait:
+    def rev_trait(cls) -> Trait:
         trait_name = Nucleus.REVISION_TAG()
         return Trait.create(
             trait_name,
             T(0, T.RESERVED, data_type=int),
         )
 
-    @staticmethod
+    @classmethod
     @cache
-    def collection_name_trait() -> Trait:
+    def collection_name_trait(cls) -> Trait:
         trait_name = COLL_NAME_TAG
 
         def get(self):
@@ -93,44 +96,19 @@ class TraitableMetaclass(type(BTraitable)):
             T(T.RESERVED | T.RUNTIME, data_type=str, get=get, set=set),
         )
 
-    def __new__(cls, name, bases, class_dict, _mixin=False, **kwargs):
-        build_trait_dir = next(cls.find_symbols(bases, class_dict, 'build_trait_dir'))
-
-        trait_dir = {
-            Nucleus.REVISION_TAG(): cls.rev_trait(),  # -- insert _rev as the first trait and delete later if not needed
-            COLL_NAME_TAG: cls.collection_name_trait(),
-        }
-
-        build_trait_dir(bases, class_dict, trait_dir).throw(exc=TypeError)  # -- build trait dir_from trait definitions in class_dict
-
-        class_dict.update(
-            s_dir=trait_dir,
-            __slots__=(),
-        )
-
-        return super().__new__(cls, name, bases, class_dict, **kwargs)
-
-
-class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
-    s_dir = {}
-    s_default_trait_factory = RT
-    s_own_trait_definitions = {}
-    T = UnboundTraitAccessor()
-
-    @staticmethod
-    def own_trait_definitions(bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC) -> Generator[tuple[str, TraitDefinition]]:
+    @classmethod
+    def own_trait_definitions(cls) -> Generator[tuple[str, TraitDefinition]]:
+        class_dict = dict(cls.__dict__)
         own_trait_definitions = class_dict.get('s_own_trait_definitions')
-        if own_trait_definitions:
-            yield from own_trait_definitions.items()
+        if own_trait_definitions is not None:
+            yield from cls.s_own_trait_definitions.items()
             return
 
-        default_trait_factory = next(TraitableMetaclass.find_symbols(bases, class_dict, 's_default_trait_factory'), RT)
-        type_annotations = class_dict.get('__annotations__') or {}
-
+        module_dict = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
+        type_annotations = cls.__annotations__
         type_annotations |= {k: XNoneType for k, v in class_dict.items() if isinstance(v, TraitModification) and k not in type_annotations}
-        module_dict = sys.modules[class_dict['__module__']].__dict__ if '__module__' in class_dict else {}
-        check_trait_type = next(TraitableMetaclass.find_symbols(bases, class_dict, 'check_trait_type'))
 
+        rc = RC(True)
         for trait_name, trait_def in class_dict.items():
             if isinstance(trait_def, TraitDefinition) and trait_name not in type_annotations:
                 rc <<= f'{trait_name} = T(...), but the trait is missing a data type annotation. Use `Any` if needed.'
@@ -140,15 +118,15 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             if trait_def is not class_dict and not isinstance(trait_def, TraitDefinition):
                 continue
 
-            old_trait: Trait = inherited_trait_dir.get(trait_name)
-            if not (dt := check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc)):
+            old_trait: Trait = cls.s_dir.get(trait_name)
+            if not (dt := cls.check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc)):
                 continue
 
             if dt is Any:
                 dt = XNoneType
 
             if trait_def is class_dict:  # -- only annotation, not in class_dict
-                trait_def = default_trait_factory()
+                trait_def = cls.s_default_trait_factory()
 
             if isinstance(trait_def, TraitModification):
                 if not old_trait:
@@ -162,8 +140,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
             yield trait_name, trait_def
 
-    @staticmethod
-    def check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc):
+        rc.throw(TypeError)
+
+    @classmethod
+    def check_trait_type(cls, trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc):
         if not dt and old_trait:
             return old_trait.data_type
 
@@ -173,7 +153,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             except Exception as e:
                 rc <<= f'Failed to evaluate type annotation string `{dt}` for `{trait_name}`: {e}'
                 return None
-
+        if dt is Self:
+            dt = cls
         try:
             dt_valid = isinstance(dt, type) or get_origin(dt) is not None
         except TypeError:
@@ -189,30 +170,40 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         return dt
 
-    @staticmethod
-    def build_trait_dir(bases, class_dict, trait_dir) -> RC:
-        rc = RC(True)
-        own_trait_definitions: Callable[[tuple, dict, dict, RC], Generator[tuple[str, TraitDefinition]]] = next(
-            TraitableMetaclass.find_symbols(bases, class_dict, 'own_trait_definitions')
-        )
-        trait_dir |= functools.reduce(operator.or_, TraitableMetaclass.find_symbols(reversed(bases), class_dict, 's_dir'), {})  # -- shallow copy!
-        type_annotations = class_dict.get('__annotations__') or {}
-        module_dict = sys.modules[class_dict['__module__']].__dict__ if '__module__' in class_dict else {}
-        check_trait_type = next(TraitableMetaclass.find_symbols(bases, class_dict, 'check_trait_type'))
+    @classmethod
+    def inherited_trait_dirs(cls) -> Generator[dict[str, Trait]]:
+        return (base.s_dir for base in reversed(cls.__bases__) if issubclass(base, Traitable))
 
+    @classmethod
+    def build_trait_dir(cls):
+        class_dict = dict(cls.__dict__)
+        module_dict = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
+        type_annotations = cls.__annotations__
+        trait_dir = cls.s_dir
+        reserved_storable_traits = {
+            Nucleus.REVISION_TAG(): cls.rev_trait(),
+            COLL_NAME_TAG: cls.collection_name_trait(),
+        }
+        trait_dir |= reserved_storable_traits
+        trait_dir |= functools.reduce(operator.or_, cls.inherited_trait_dirs(), {})
+
+        rc = RC(True)
         for trait_name, old_trait in trait_dir.items():
             trait_def = class_dict.get(trait_name, class_dict)
             dt = type_annotations.get(trait_name)
             if trait_def is class_dict and any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
-                if check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc):
+                if cls.check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc):
                     trait_def = old_trait.t_def.copy()
                     trait_dir[trait_name] = Trait.create(trait_name, trait_def)
 
-        for trait_name, trait_def in own_trait_definitions(bases, trait_dir, class_dict, rc):
+        for trait_name, trait_def in cls.own_trait_definitions():
             trait_def.name = trait_name
             trait_dir[trait_name] = Trait.create(trait_name, trait_def)
 
-        return rc
+        if not cls.is_storable():
+            for trait_name in reserved_storable_traits:
+                del trait_dir[trait_name]
+        rc.throw(TypeError)
 
     @classmethod
     def traits(cls, flags_on: int = 0, flags_off: int = 0) -> Generator[Trait, None, None]:
@@ -246,27 +237,22 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return traitable_class
 
     s_bclass: BTraitableClass = None
-    s_traitdef_dir = {}
     s_custom_collection = False
 
     def __init_subclass__(cls, custom_collection: bool = None, **kwargs):
         if custom_collection is not None:
             cls.s_custom_collection = custom_collection
 
+        cls.s_dir = {}
         cls.s_bclass = BTraitableClass(cls)
 
-        if not cls.is_storable():
-            del cls.s_dir[Nucleus.REVISION_TAG()]
-            del cls.s_dir[COLL_NAME_TAG]
-            cls.s_storage_helper = NotStorableHelper()
-        else:
-            cls.s_storage_helper = StorableHelper()
+        cls.build_trait_dir()  # -- build cls.s_dir from trait definitions in cls.__dict__
+
+        cls.s_storage_helper = NotStorableHelper() if not cls.is_storable() else StorableHelper()
 
         rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
             trait.set_trait_funcs(cls, rc)
-            if trait.data_type is THIS_CLASS:
-                trait.data_type = cls
             trait.check_integrity(cls, rc)
             setattr(cls, trait_name, trait)
         cls.check_integrity(rc)
@@ -613,7 +599,11 @@ class StorableHelper(NotStorableHelper):
         return rc
 
 
-class THIS_CLASS(Traitable): ...  # -- to use for traits with the same Traitable class type
+def __getattr__(name):
+    if name == 'THIS_CLASS':  # -- to use for traits with the same Traitable class type
+        warnings.warn('THIS_CLASS is deprecated; use typing.Self instead', DeprecationWarning, stacklevel=2)
+        return Self
+    raise AttributeError(name)
 
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):

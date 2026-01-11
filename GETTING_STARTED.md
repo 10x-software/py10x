@@ -858,7 +858,7 @@ with DEBUG_OFF():
     except TraitMethodError as e:
         assert (
             str(e)
-            == f"""Failed in <class 'Calculator'>.sum.sum_get
+            == f"""Failed in <class '__doc_test_GETTING_STARTED__.Calculator'>.sum.sum_get
     object = {calc.id().value};
     value = ()
     args = can only concatenate str (not "int") to str"""

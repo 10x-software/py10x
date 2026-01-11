@@ -7,7 +7,7 @@ import uuid
 from collections import Counter
 from contextlib import nullcontext
 from datetime import date
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
 import pytest
@@ -307,10 +307,8 @@ def test_own_trait_defs_and_override():
         cnt[what] += arg
 
     class X(Traitable):
-        @staticmethod
-        def own_trait_definitions(
-            bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC
-        ) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
+        @classmethod
+        def own_trait_definitions(cls) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
             def get(self, arg) -> int:
                 assert_and_cont('get', self, arg)
                 return 1
@@ -415,7 +413,7 @@ def test_serialize():
 
     class X(Traitable):
         x: int = T(T.ID)
-        y: THIS_CLASS = T()
+        y: Self = T()
         z: int = T(default=1)
 
         @classmethod
