@@ -58,7 +58,8 @@ Traitables are the fundamental data models in py10x. They are Python classes tha
 Traits are typed attributes that can be:
 - **Regular traits**: Stored and searchable (use `T()`)
 - **Runtime traits**: Not stored, computed on-demand (use `RT()` or omit)
-- **ID traits**: Define traitable identity for global sharing (use `T(T.ID)`)
+- **ID traits**: Define traitable identity for global sharing (use `T(T.ID)` or `RT(T.ID)`)
+- **ID_LIKE traits**: Helper traits that participate in ID construction indirectly (use `T(T.ID_LIKE)` or `RT(T.ID_LIKE)`)
 
 **Note**: Any trait (regular or runtime) can be computed on-demand if there is a getter method defined.
 
@@ -388,7 +389,7 @@ assert person1.id() == person2.id()  # Same ID
 
 #### Constructor Parameter: `_force=True`
 
-When creating endogenous traitable instances with **non-ID traits** (regular or runtime traits), you must use the `_force=True` parameter to indicate that an existing instance should be updated if found:
+The `_force` parameter controls whether non-ID traits can be provided during traitable initialization. By default (`_force=False`), only ID traits and ID_LIKE traits can be set during construction. When `_force=True`, non-ID traits can also be provided, potentially modifying an existing object with the same ID.
 
 ```python
 from core_10x.traitable import Traitable, T
@@ -416,7 +417,20 @@ with CACHE_ONLY():
     assert person.age > 30  # Computed from dob (age depends on current year)
 ```
 
-Without `_force=True`, providing non-ID traits in the constructor would raise an error, as the framework assumes ID-only construction for endogenous traitables by default.
+**Technical Details:**
+- **Without `_force=True`**: Only ID traits (`T.ID`) and ID_LIKE traits (`T.ID_LIKE`) can be provided during construction. Attempting to provide non-ID traits raises a `ValueError`.
+- **With `_force=True`**: All traits can be provided during construction. The initialization process:
+  1. Sets ID and ID_LIKE traits first to compute the object ID
+  2. Shares with any existing object having the same ID (accepting existing values)
+  3. Then sets any non-ID traits provided in the constructor
+
+**When to use `_force=True`:**
+- When providing non-ID traits during construction
+- When you want to ensure an existing object gets updated with new values
+
+#### ID_LIKE Traits
+
+ID_LIKE traits participate in ID construction indirectly by affecting ID traits through getters or setters, but are not included in the ID calculation directly. They can be set during initialization without requiring `_force=True` because they may be needed to compute the actual ID traits.
 
 ### Exogenous Traitables (Auto-generated UUID)
 
