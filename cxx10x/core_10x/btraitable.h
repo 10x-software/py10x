@@ -23,12 +23,13 @@
 
 [x] Traitable constructors:
     [x] Using trait values
-      [x] trait values must be for ID - anything else is used while ID is computed and then discarded
-      [x] constructor makes ID, sets ID traits and discards non-iod traits (in share - accept_existing=true)
+      [x] trait values are only used for ID construction and must be ID or ID_LIKE - anything else will throw (unless _force is true)
+      [x] constructor makes ID, sets ID and ID_LIKE traits (in share - accept_existing=true)
       [x] storage flags (in share - accept_exiting=true)
         [x] load_required = true (only if not runtime object) (in share, accept_existing=true)
         [x] must_exist_in_storage = false (in initialize())
       [x] creation_cache = current_cache (in BTraitable ctor) or existing_cache, if found (in share)
+      [x] id _force = true, set non-id traits, possibly causing a lazy load (in initialize)
     [x] Using ID (lazy ref)
       [x] if runtime object and not in memory
         [x] it's an error!
