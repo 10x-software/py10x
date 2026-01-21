@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import os
+import random
 
 import core_10x.trait_definition as trait_definition
-from core_10x.entity import RC, RC_TRUE, RT, Entity, T, Ui
+from core_10x.traitable import RC, RC_TRUE, RT, Traitable, T, Ui
+from core_10x.global_cache import cache
 
+from ui_10x.utils import ux, UxDialog
 from ui_10x.platform_interface import HBoxLayout, PushButton, VBoxLayout, Widget
-from ui_10x.table_view import TableView
-from ui_10x.utils import UxDialog, ux
+#from ui_10x.table_view import TableView
+#from ui_10x.traitable_editor import TraitableEditor
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -18,7 +22,7 @@ class CHAR_STATE:
     BINGO       = ( 'darkgreen',    'white' )
 
 
-class GuessResult( Entity ):
+class GuessResult(Traitable):
     the_word: str    = RT()
     guess: str       = RT()
     num_chars: int   = RT()
@@ -168,9 +172,10 @@ class Keyboard:
     def widget( self ) -> Widget:
         ...
 
-class Game(Entity):
+class Game(Traitable):
+    num_chars: int  = RT(5)
+
     the_word: str   = RT()
-    num_chars: int  = RT()
     guess: str      = RT( ui_hint = Ui('>'))
     push: bool      = RT( ui_hint = Ui('*', widget_type = Ui.WIDGET_TYPE.PUSH, right_label = True, max_width = 3))
 
@@ -179,25 +184,21 @@ class Game(Entity):
 
     guess_res_class: type   = RT()
     attempts: list          = RT()
-    table: TableView        = RT()
+    #table: TableView        = RT()
 
-    def the_word_set(self, trait, value: str) -> RC:
-        self.raw_set_value(trait, value.upper())
-        return RC_TRUE
+    def the_word_get(self) -> str:
+        return _GuessWordData.new_word(self.num_chars).upper()
 
     def guess_set(self, trait, value: str) -> RC:
         self.raw_set_value(trait, value.upper())
         return RC_TRUE
 
-    def num_chars_get(self) -> int:
-        return len(self.the_word)
-
     def guess_res_class_get(self):
         num_chars = self.num_chars
         class Demo(GuessResult):
-            @staticmethod
-            def own_trait_definitions(bases: tuple, inherited_trait_dir: dict, class_dict: dict, rc: RC) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
-                yield from (tri for i in range( num_chars ) if ( tri := GuessResult._create_char_trait( i ) ))
+            @classmethod
+            def own_trait_definitions(cls) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
+                yield from (tri for i in range( num_chars ) if ( tri := GuessResult._create_char_trait(i) ))
 
         Demo.traits()
         return Demo
@@ -235,12 +236,12 @@ class Game(Entity):
         self.current = current
 
 
-    def table_get( self ) -> TableView:
-        table = TableView( self.attempts() )
-        hv = table.horizontalHeader()
-        hv.setStretchLastSection( False )
-
-        return table
+    # def table_get( self ) -> TableView:
+    #     table = TableView( self.attempts() )
+    #     hv = table.horizontalHeader()
+    #     hv.setStretchLastSection( False )
+    #
+    #     return table
 
     s_keys = [
         'qwertyuiop',
@@ -253,53 +254,118 @@ class Game(Entity):
             len( s_keys[ 2 ] ) - 1:     'background-color: red; color: white'
         }
     }
-    def keyboard( self ):
+    def keyboard(self):
         w = Widget()
         lay = VBoxLayout()
-        w.setLayout( lay )
+        w.set_layout(lay)
 
-        for i, keys in enumerate( self.s_keys ):
+        for i, keys in enumerate(self.s_keys):
             hlay = HBoxLayout()
-            for j, c in enumerate( keys ):
-                b = PushButton( c )
-                styles = self.s_style.get( i )
+            for j, c in enumerate(keys):
+                b = PushButton(c)
+                styles = self.s_style.get(i)
                 if styles:
-                    sh = styles.get( j )
+                    sh = styles.get(j)
                     if sh:
-                        b.setStyleSheet( sh )
+                        b.set_style_sheet(sh)
 
-                avg_char_width = w.fontMetrics().averageCharWidth()
+                avg_char_width = w.font_metrics().average_char_width()
                 b.setMaximumWidth( 3 * avg_char_width )
 
-                hlay.addWidget( b )
-            lay.addLayout( hlay )
+                hlay.add_widget(b)
+            lay.add_layout(hlay)
 
         return w
 
-    def widget( self ):
+    def widget(self):
         ux.init()
         w = Widget()
         lay = VBoxLayout()
-        w.setLayout( lay )
+        w.set_layout(lay)
 
-        self.m_top_editor = top_editor = EntityEditor( self )
+        self.m_top_editor = top_editor = ( self )
         top = top_editor.row()
-        lay.addLayout( top )
-        lay.addWidget( ux.separator() )
+        lay.add_layout(top)
+        lay.add_widget(ux.separator())
 
         table = self.table()
-        lay.addWidget( table )
+        lay.add_widget(table)
 
-        lay.addWidget( ux.separator() )
-        lay.addWidget( self.keyboard() )
+        lay.add_widget(ux.separator())
+        lay.add_widget(self.keyboard())
 
         return w
 
+class _GuessWordData:
+    MODULE_NAME = '_guess_word_data'
+    NUM_CHARS   = (5, 6)
+
+    @classmethod
+    def download_nouns(cls, filename: str):
+        import nltk
+        from nltk.corpus import wordnet as wn
+
+        if os.path.exists(filename):
+            return
+
+        nltk.download('wordnet')
+        NOUN_POOL = [
+            w.name() for s in wn.all_synsets('n') for w in s.lemmas()
+            if len(w.name()) in cls.NUM_CHARS and w.name().isalpha() and w.name().islower()
+        ]
+
+        with open(filename, 'w') as f:
+            print('NOUN_POOL = {', file = f)
+            for n in cls.NUM_CHARS:
+                print(f'\t{n}: [', file = f)
+                pool = [ w for w in NOUN_POOL if len(w) == n ]
+                for w in pool:
+                    print(f'\t\t{repr(w)},', file = f)
+                print('\t],', file = f)
+            print('}', file = f)
+
+    @classmethod
+    @cache
+    def noun_pool(cls) -> dict:
+        import importlib
+        import importlib.util
+        from pathlib import Path
+
+        package_name = cls.__module__.rsplit('.', 1)[0]
+        spec = importlib.util.find_spec(package_name)
+        assert spec.submodule_search_locations
+        package_dir = Path(spec.submodule_search_locations[0])
+        file_name = package_dir / f'{cls.MODULE_NAME}.py'
+        cls.download_nouns(file_name)
+
+        module_name = f'{package_name}.{cls.MODULE_NAME}'
+        m = importlib.import_module(module_name)
+        noun_pool = getattr(m, 'NOUN_POOL', None)
+        assert noun_pool and type(noun_pool) is dict, 'NOUN_POOL must be a non-empty dict by num chars'
+        return noun_pool
+
+    @classmethod
+    def word_exists(cls, w: str) -> bool:
+        noun_pool = cls.noun_pool()
+        n = len(w)
+        words = noun_pool.get(n)
+        return words and w in words
+
+    @classmethod
+    def new_word(cls, n: int) -> str:
+        noun_pool = cls.noun_pool()
+        words = noun_pool.get(n)
+        if words is None:
+            raise AssertionError(f'There are no {n}-letter words available')
+        return random.choice(words)
+
 if __name__ == '__main__':
-    from asu.ui.entity_editor import EntityEditor
+    from ui_10x.examples.guess_word import _GuessWordData, Game
 
-    game = Game( the_word = 'credo' )
-    w = game.widget()
+    game = Game()
+    #w = game.widget()
 
-    d = UxDialog( w, title = f'You have {game.count()} attempts to guess a word' )
-    d.exec_()
+    w = game.the_word
+
+    #d = UxDialog( w, title = f'You have {game.count()} attempts to guess a word' )
+    #d.exec()

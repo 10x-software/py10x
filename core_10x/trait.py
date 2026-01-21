@@ -9,17 +9,14 @@ import platform
 import sys
 from inspect import Parameter
 from types import GenericAlias
-from typing import TYPE_CHECKING, get_origin, get_type_hints
+from typing import get_origin, get_type_hints
 
 from core_10x_i import BTrait
 
 from core_10x.named_constant import NamedConstant
 from core_10x.rc import RC
-from core_10x.trait_definition import T, Ui
+from core_10x.trait_definition import T, TraitDefinition, Ui
 from core_10x.xnone import XNone
-
-if TYPE_CHECKING:
-    from core_10x.trait_definition import TraitDefinition
 
 
 class Trait(BTrait):
@@ -131,14 +128,20 @@ class Trait(BTrait):
 
     def set_trait_funcs(self, traitable_cls, rc):
         for method_name, (method_suffix, method_def) in Trait.method_defs(self.name).items():
-            method = self.t_def.params.get(method_suffix)
-            if method:
-                if hasattr(traitable_cls, method_name):
-                    rc.add_error(
-                        f'Ambiguous definition for {method_suffix}ing trait {self.name} on {traitable_cls} - both trait.{method_suffix} and traitable.{method_name} are defined.'
-                    )
-            else:
-                method = getattr(traitable_cls, method_name, None)
+            method = getattr(traitable_cls, method_name, None)
+            if method and method_suffix == 'get' and self.t_def.default is not XNone: # -- getter and default are defined - figure out which to use
+                for cls in traitable_cls.__mro__:
+                    cls_vars = vars(cls)
+                    if method_name in cls_vars:  # -- found method on cls - use method, unless
+                        if isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default is on same cls then - error
+                            rc.add_error(
+                                f'Ambiguous definition for {method_name} on {cls} - both trait.default and traitable.{method_name} are defined.'
+                            )
+                    elif isinstance(cls_vars.get(self.name), TraitDefinition): # -- default found on cls - use default
+                        method = None # use default
+                    else:
+                        continue
+                    break
 
             f = method_def.value(self, method, method_suffix, rc)
             if f:
@@ -152,6 +155,8 @@ class Trait(BTrait):
             params = ()
 
         else:
+            # TODO: if default is defined in a subclass relative to where the getter is defined, override the getter?
+
             sig = inspect.signature(f)
             params = []
             param: Parameter

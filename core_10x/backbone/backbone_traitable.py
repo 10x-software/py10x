@@ -11,13 +11,13 @@ if TYPE_CHECKING:
 
 
 class BackboneTraitable(Traitable):
-    @staticmethod
-    def build_trait_dir(bases, class_dict, trait_dir) -> RC:
-        for trait_def in class_dict.values():
+    @classmethod
+    def build_trait_dir(cls) -> RC:
+        for trait_def in cls.__dict__.values():
             if isinstance(trait_def, TraitDefinition):
                 trait_def.flags_change(T.EVAL_ONCE)
 
-        return Traitable.build_trait_dir(bases, class_dict, trait_dir)
+        return Traitable.build_trait_dir()
 
     @classmethod
     def store(cls) -> TsStore:
