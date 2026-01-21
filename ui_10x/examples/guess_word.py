@@ -92,7 +92,7 @@ class GuessResult(Traitable):
                 **{
                     trait_definition.NAME_TAG:      name,
                     trait_definition.DATATYPE_TAG:  str,
-                    trait_definition.FLAGS_TAG:     T.RUNTIME
+                    trait_definition.FLAGS_TAG:     T.RUNTIME,
                 }
             )
         )
@@ -142,7 +142,7 @@ class Keyboard:
     s_keys = [
         'qwertyuiop',
         'asdfghjkl',
-        '*zxcvbnm<'
+        '*zxcvbnm<',
     ]
     s_special_chars = {
         2:  {
