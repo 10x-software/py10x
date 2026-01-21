@@ -73,11 +73,11 @@ class FlagsContext:
         self._flags = flags if flags is not None else self.s_default_flags
 
     def __enter__(self):
-        BProcessContext.BPC.set_flags(self._flags)
+        self._old_flags = ProcessContext.set_flags(self._flags)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        BProcessContext.BPC.reset_flags(self._flags)
+        ProcessContext.BPC.replace_flags(self._old_flags)
 
 
 class CACHE_ONLY(FlagsContext):
