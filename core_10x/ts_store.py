@@ -8,6 +8,7 @@ from core_10x.global_cache import standard_key
 from core_10x.py_class import PyClass
 from core_10x.resource import TS_STORE, Resource
 from core_10x.trait_filter import f
+from core_10x.ts_store_type import TS_STORE_TYPE
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -46,6 +47,8 @@ class TsCollection(abc.ABC):
 
 
 class TsStore(Resource, resource_type=TS_STORE):
+    PROTOCOL = ''
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
         assert cls.__mro__[1] is TsStore, 'TsStore must be the first base class'
@@ -62,6 +65,14 @@ class TsStore(Resource, resource_type=TS_STORE):
         return standard_key(args, kwargs)
 
     s_instances = {}
+
+    @classmethod
+    def instance_from_uri(cls, uri: str) -> TsStore:
+        parts = uri.split(':', maxsplit=1)
+        protocol = parts[0]
+        ts_class = TS_STORE_TYPE.ts_store_class(protocol)
+        args_kwargs = ts_class.parse_uri(uri)
+        return ts_class.instance(**args_kwargs)
 
     @classmethod
     def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> TsStore:
@@ -101,6 +112,10 @@ class TsStore(Resource, resource_type=TS_STORE):
 
     @classmethod
     def new_instance(cls, *args, password: str, **kwargs) -> TsStore:
+        raise NotImplementedError
+
+    @classmethod
+    def parse_uri(cls, uri: str) -> dict:
         raise NotImplementedError
 
     def on_enter(self):
