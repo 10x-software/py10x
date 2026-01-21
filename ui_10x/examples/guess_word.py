@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 import os
 import random
+from typing import TYPE_CHECKING
 
 import core_10x.trait_definition as trait_definition
-from core_10x.traitable import RC, RC_TRUE, RT, Traitable, T, Ui
 from core_10x.global_cache import cache
+from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
 
-from ui_10x.utils import ux, UxDialog
 from ui_10x.platform_interface import HBoxLayout, PushButton, VBoxLayout, Widget
+from ui_10x.utils import ux
+
 #from ui_10x.table_view import TableView
 #from ui_10x.traitable_editor import TraitableEditor
 
@@ -320,7 +321,7 @@ class _GuessWordData:
                 print(f'\t{n}: [', file = f)
                 pool = [ w for w in NOUN_POOL if len(w) == n ]
                 for w in pool:
-                    print(f'\t\t{repr(w)},', file = f)
+                    print(f'\t\t{w!r},', file = f)
                 print('\t],', file = f)
             print('}', file = f)
 
@@ -360,7 +361,7 @@ class _GuessWordData:
         return random.choice(words)
 
 if __name__ == '__main__':
-    from ui_10x.examples.guess_word import _GuessWordData, Game
+    from ui_10x.examples.guess_word import Game, _GuessWordData
 
     game = Game()
     #w = game.widget()

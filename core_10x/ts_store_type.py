@@ -1,6 +1,7 @@
 from core_10x.named_constant import NamedConstant
 from core_10x.py_class import PyClass
 
+
 class TS_STORE_TYPE(NamedConstant):
     """
     All known TsStore subclasses must be "registered" here.
