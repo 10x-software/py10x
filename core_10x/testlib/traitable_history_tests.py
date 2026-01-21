@@ -88,7 +88,8 @@ class TestTraitableHistory:
     def test_traitable_history_save(self, test_store, test_collection):
         serialized_data = {'_id': 'test-123', '_rev': 1, 'name': 'Test Item', 'value': 42}
 
-        class CustomCollectionHistory(TraitableHistory, custom_collection=True): ...
+        class CustomCollectionHistory(TraitableHistory, custom_collection=True):
+            s_traitable_class = Traitable
 
         CustomCollectionHistory(
             serialized_traitable=serialized_data,
