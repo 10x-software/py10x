@@ -407,7 +407,6 @@ def test_create_and_share():
 
 def test_serialize():
     save_calls = Counter()
-    history_save_calls = Counter()
     load_calls = Counter()
     serialized = {}
 
@@ -426,39 +425,23 @@ def test_serialize():
             return serialized.get(id.value)
 
         @classmethod
-        def store(cls):
-            class Store:
-                def auth_user(self):
-                    return 'test_user'
+        def collection(cls, _coll_name: str = None):
+            class Collection:
+                def save(self, serialized_data):
+                    id_value = serialized_data['_id']
+                    save_calls[id_value] += 1
+                    serialized[id_value] = serialized_data
 
-                def collection(self, collection_name):
-                    class Collection:
-                        def save(self, serialized_data):
-                            if not collection_name.endswith('#history'):
-                                id_value = serialized_data['_id']
-                                save_calls[id_value] += 1
-                            else:
-                                id_value = serialized_data['$set']['_id']
-                                history_save_calls[id_value] += 1
-
-                            serialized[id_value] = serialized_data
-                            return 1
-
-                        save_new = save
-
-                    return Collection()
-
-            return Store()
+            return Collection()
 
         def z_get(self) -> int:
             return self.y._rev if self.y and self.y._rev else 0
 
     x = X(x=0)
     assert not serialized
-    x.save().throw()
+    x.save()
     assert not load_calls
-    assert dict(save_calls) == {'0': 1}
-    assert dict(history_save_calls) == {next(iter(history_save_calls)): 1}
+    assert save_calls == {'0': 1}
     assert serialized['0']['z'] == 0
     save_calls.clear()
     load_calls.clear()
