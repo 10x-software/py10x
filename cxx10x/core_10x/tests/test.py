@@ -656,29 +656,41 @@ def test_27():
     class X(Traitable):
         x: int = T(T.ID)
         y: THIS_CLASS = T()
-        z: int = T(default=1)
+        z: int = T()
 
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
-            return id.value in serialized or int(id.value) > 3
+            return id.value in serialized or 100 > int(id.value) > 3
 
         @classmethod
         def load_data(cls, id: ID) -> dict | None:
             return serialized.get(id.value)
 
-        def save(self, save_references=False):
-            serialized_data = self.serialize_object(save_references)
-            if serialized_data:
-                save_calls[self.id().value] += 1
-                serialized[self.id().value] = serialized_data
-            return RC(True)
+
+        @classmethod
+        def collection(cls, _coll_name: str = None):
+            class Collection:
+                def save(self, serialized_data):
+                    id_value = serialized_data['_id']
+                    save_calls[id_value] += 1
+                    serialized[id_value] = serialized_data
+
+            return Collection()
 
         def y_get(self) -> 'X':
             i = int(self.id().value)
             return X(ID(str(i+10))) if i<10 else XNone
 
         def z_get(self)-> int:
-           return self.y._rev
+           return self.y._rev if int(self.id().value) < 100 else 0
+
+    x = X(x=100)
+    assert X.serialize_object(x)
+    assert not X.exists_in_store(ID('100'))
+    assert x.save()
+    assert save_calls == {'100': 1}
+    serialized.clear()
+    save_calls.clear()
 
     assert not serialized
     assert X(x=1,z=1,_force=True).save()
