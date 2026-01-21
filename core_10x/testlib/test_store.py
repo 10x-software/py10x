@@ -12,7 +12,7 @@ import re
 from typing import TYPE_CHECKING
 
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsStore
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -68,6 +68,7 @@ class TestCollection(TsCollection):
 
     def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
         """Save a new document."""
+
         # Handle MongoDB-style operations
         if '$set' in serialized_traitable:
             # This is a MongoDB-style update operation
@@ -83,21 +84,18 @@ class TestCollection(TsCollection):
                     if current_date_fields[field] is True:
                         data[field] = datetime.utcnow()
 
-            doc_id = data[self.s_id_tag]
-            if doc_id in self._documents and not overwrite:
-                raise AssertionError(f'{self._collection_name} {doc_id} was found existing while insert was attempted')
             serialized_traitable = data
-        else:
-            # Regular save operation
-            doc_id = serialized_traitable.get(self.s_id_tag)
 
-        if not doc_id:
+        id_tag = self.s_id_tag
+        id_value = serialized_traitable.get(id_tag)
+
+        if not id_value:
             return 0
 
-        if doc_id in self._documents and not overwrite:
-            return 0  # Document already exists
+        if id_value in self._documents and not overwrite:
+            raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value})
 
-        self._documents[doc_id] = serialized_traitable | {Nucleus.REVISION_TAG(): 1}
+        self._documents[id_value] = serialized_traitable
         return 1
 
     def save(self, serialized_traitable: dict) -> int:
@@ -105,7 +103,7 @@ class TestCollection(TsCollection):
         rev_tag = Nucleus.REVISION_TAG()
         revision = serialized_traitable[rev_tag]
         if revision == 0:
-            return self.save_new(serialized_traitable)
+            return self.save_new(serialized_traitable | {rev_tag: 1})
 
         undef_variable = next((k[1:] for k in serialized_traitable if k.startswith('$')), None)
         if undef_variable:
