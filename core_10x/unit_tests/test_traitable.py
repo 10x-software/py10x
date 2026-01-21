@@ -315,7 +315,7 @@ def test_own_trait_defs():
             assert_and_cont('set', self, arg, trait)
             self.raw_set_value(trait, value + 1, arg)
             return RC_TRUE
-        
+
         @classmethod
         def own_trait_definitions(cls) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
             yield 'x', TraitDefinition(T.RUNTIME | T.EXPENSIVE, data_type=int)
@@ -333,7 +333,7 @@ def test_own_trait_defs():
 
 def test_trait_get_default_override():
     class X(Traitable):
-        x: int = RT(default = 1)
+        x: int = RT(default=1)
 
     assert X().x == 1
 
@@ -343,7 +343,7 @@ def test_trait_get_default_override():
     ):
 
         class Y(X):
-            x: int = RT(default = 2)
+            x: int = RT(default=2)
 
             def x_get(self):
                 return 2
@@ -357,7 +357,7 @@ def test_trait_get_default_override():
             return 4
 
     class S(T):
-        x: int = RT(default = 5)
+        x: int = RT(default=5)
 
     assert Z().x == 3
     assert T().x == 4

@@ -287,6 +287,7 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
     def parse_uri(cls, uri: str) -> dict:
         params = pymongo_parse_uri(uri)
         try:
+            # fmt: off
             hostname, port  = params['nodelist'][0]
             kwargs          = params['options']
             kwargs[cls.PORT_TAG]  = port
@@ -296,12 +297,12 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
                 cls.USERNAME_TAG:   params['username'],
                 cls.PASSWORD_TAG:   params['password'],
             }
+            # fmt: on
             args.update(kwargs)
             return args
 
         except Exception:
             raise ValueError(f'Invalid URI = {uri}')
-
 
     def __init__(self, client: MongoClient, db: Database, username: str):
         self.client = client
