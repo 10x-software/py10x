@@ -113,7 +113,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool force=false
                     throw py::value_error(rc.error());
             }
         }
-        if (const BRC rc(proc->share_object(this,true)); !rc)
+        if (const BRC rc(proc->share_object(this,true)); !rc) // -- this never happens as accept_existing==true
             throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
 
         //-- now we have a potentially lazy reference which might be loaded as we set any non-id traits below
