@@ -10,6 +10,7 @@ from core_10x_i import BTraitable, BTraitableClass
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
+from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 from core_10x.package_manifest import PackageManifest
@@ -26,7 +27,6 @@ from core_10x.trait_definition import (  # noqa: F401
 from core_10x.trait_filter import f
 from core_10x.traitable_id import ID
 from core_10x.ts_store import TS_STORE, TsStore
-from core_10x.environment_variables import EnvVars
 from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
