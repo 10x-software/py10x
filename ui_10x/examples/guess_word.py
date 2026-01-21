@@ -19,15 +19,18 @@ if TYPE_CHECKING:
 
 
 class CHAR_STATE:
-    NONE = ('lightgray', 'black')
-    WRONG_POS = ('white', 'black')
-    BINGO = ('darkgreen', 'white')
+    # fmt: off
+    NONE        = ( 'lightgray',    'black' )
+    WRONG_POS   = ( 'white',        'black' )
+    BINGO       = ( 'darkgreen',    'white' )
+    # fmt: on
 
 
 class GuessResult(Traitable):
-    the_word: str = RT()
-    guess: str = RT()
-    num_chars: int = RT()
+    # fmt: off
+    the_word: str    = RT()
+    guess: str       = RT()
+    num_chars: int   = RT()
 
     demo_class: type = RT()
 
@@ -35,6 +38,7 @@ class GuessResult(Traitable):
 
     guessed_chars: list = RT()
     current_char: int = RT(0)
+    # fmt: on
 
     def guessed_chars_get(self) -> list:
         return list(self.num_chars * ' ')
@@ -88,12 +92,18 @@ class GuessResult(Traitable):
         setattr(cls, getter_name, getter)
         setattr(cls, sh_name, sh_getter)
         # return ( name, T( str, f'{i+1}' ) )
+        # fmt: off
         return (
             name,
             trait_definition.TraitDefinition(
-                **{trait_definition.NAME_TAG: name, trait_definition.DATATYPE_TAG: str, trait_definition.FLAGS_TAG: T.RUNTIME}
-            ),
+                **{
+                    trait_definition.NAME_TAG:      name,
+                    trait_definition.DATATYPE_TAG:  str,
+                    trait_definition.FLAGS_TAG:     T.RUNTIME,
+                }
+            )
         )
+        # fmt: on
 
     def keyboard(self):
         w = Widget()
@@ -139,13 +149,19 @@ class Key:
 
 
 class Keyboard:
-    s_keys = ['qwertyuiop', 'asdfghjkl', '*zxcvbnm<']
+    # fmt: off
+    s_keys = [
+        'qwertyuiop',
+        'asdfghjkl',
+        '*zxcvbnm<',
+    ]
     s_special_chars = {
-        2: {
-            0: ('background-color: green; color: white', GuessResult.accept_guess),
-            len(s_keys[2]) - 1: ('background-color: red; color: white', GuessResult.delete_char),
+        2:  {
+            0:                      ( 'background-color: green; color: white',  GuessResult.accept_guess ),
+            len(s_keys[2]) - 1:     ( 'background-color: red; color: white',    GuessResult.delete_char ),
         }
     }
+    # fmt: on
 
     def __init__(self, guess: GuessResult):
         self.guess = guess
@@ -169,18 +185,20 @@ class Keyboard:
 
 
 class Game(Traitable):
-    num_chars: int = RT(5)
+    # fmt: off
+    num_chars: int  = RT(5)
 
-    the_word: str = RT()
-    guess: str = RT(ui_hint=Ui('>'))
-    push: bool = RT(ui_hint=Ui('*', widget_type=Ui.WIDGET_TYPE.PUSH, right_label=True, max_width=3))
+    the_word: str   = RT()
+    guess: str      = RT( ui_hint = Ui('>'))
+    push: bool      = RT( ui_hint = Ui('*', widget_type = Ui.WIDGET_TYPE.PUSH, right_label = True, max_width = 3))
 
-    count: int = RT(6)
-    current: int = RT(0)
+    count: int      = RT(6)
+    current: int    = RT(0)
 
-    guess_res_class: type = RT()
-    attempts: list = RT()
-    # table: TableView        = RT()
+    guess_res_class: type   = RT()
+    attempts: list          = RT()
+    #table: TableView        = RT()
+    # fmt: on
 
     def the_word_get(self) -> str:
         return _GuessWordData.new_word(self.num_chars).upper()
@@ -232,6 +250,7 @@ class Game(Traitable):
 
         self.current = current
 
+
     # def table_get( self ) -> TableView:
     #     table = TableView( self.attempts() )
     #     hv = table.horizontalHeader()
@@ -239,8 +258,19 @@ class Game(Traitable):
     #
     #     return table
 
-    s_keys = ['qwertyuiop', 'asdfghjkl', '*zxcvbnm<']
-    s_style = {2: {0: 'background-color: green; color: white', len(s_keys[2]) - 1: 'background-color: red; color: white'}}
+    # fmt: off
+    s_keys = [
+        'qwertyuiop',
+        'asdfghjkl',
+        '*zxcvbnm<'
+    ]
+    s_style = {
+        2:  {
+            0:                          'background-color: green; color: white',
+            len( s_keys[ 2 ] ) - 1:     'background-color: red; color: white'
+        }
+    }
+    # fmt: on
 
     def keyboard(self):
         w = Widget()
@@ -286,8 +316,10 @@ class Game(Traitable):
 
 
 class _GuessWordData:
+    # fmt: off
     MODULE_NAME = '_guess_word_data'
-    NUM_CHARS = (5, 6)
+    NUM_CHARS   = (5, 6)
+    # fmt: on
 
     @classmethod
     def download_nouns(cls, filename: str):
