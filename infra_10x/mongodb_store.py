@@ -301,8 +301,8 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
             args.update(kwargs)
             return args
 
-        except Exception:
-            raise ValueError(f'Invalid URI = {uri}')
+        except Exception as e:
+            raise ValueError(f'Invalid URI = {uri}') from e
 
     def __init__(self, client: MongoClient, db: Database, username: str):
         self.client = client
