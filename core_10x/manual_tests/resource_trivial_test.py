@@ -1,6 +1,5 @@
 import keyring
-
-from core_10x.ts_store import TsStore
+from core_10x.ts_store import TS_STORE_TYPE, TsStore
 
 db1 = TsStore.instance_from_uri('mongodb://localhost:27017/mkt_data')
 # db.begin_using()
