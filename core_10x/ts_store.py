@@ -6,12 +6,20 @@ from typing import TYPE_CHECKING
 from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
 from core_10x.py_class import PyClass
+from core_10x.rc import RC
 from core_10x.resource import TS_STORE, Resource
 from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+
+class TsDuplicateKeyError(Exception):
+    """Raised when attempting to insert a document with a duplicate key."""
+
+    def __init__(self, collection_name: str, duplicate_key: dict):
+        super().__init__(f'Duplicate key error collection {collection_name} dup key: {duplicate_key} was found while insert was attempted.')
 
 
 class TsCollection(abc.ABC):
@@ -44,6 +52,20 @@ class TsCollection(abc.ABC):
     def load(self, id_value: str) -> dict | None:
         for data in self.find(f(**{self.s_id_tag: id_value})):
             return data
+
+    def copy_to(self, to_coll: TsCollection, overwrite: bool = False) -> RC:
+        """Copy all documents from this collection to another collection."""
+        rc = RC(True)
+
+        for doc in self.find():
+            try:
+                if not to_coll.save_new(doc, overwrite=overwrite):
+                    rc.add_error(f'Failed to save {doc.get(to_coll.s_id_tag)} to {to_coll.collection_name()}')
+            except TsDuplicateKeyError:
+                if overwrite:
+                    raise  # -- we do not expect an exception in case of overwrite, so raise
+
+        return rc
 
 
 class TsStore(Resource, resource_type=TS_STORE):
@@ -138,3 +160,14 @@ class TsStore(Resource, resource_type=TS_STORE):
 
     @abc.abstractmethod
     def auth_user(self) -> str | None: ...
+
+    def copy_to(self, to_store: TsStore, overwrite: bool = False) -> RC:
+        """Copy all collections from this store to another store."""
+        rc = RC(True)
+
+        for collection_name in self.collection_names():
+            from_coll = self.collection(collection_name)
+            to_coll = to_store.collection(collection_name)
+            rc += from_coll.copy_to(to_coll, overwrite=overwrite)
+
+        return rc
