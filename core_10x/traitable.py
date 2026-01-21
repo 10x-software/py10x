@@ -7,7 +7,7 @@ import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime  # noqa: TC003
-from typing import TYPE_CHECKING, Any, Self, get_origin
+from typing import TYPE_CHECKING, Any, get_origin
 
 from core_10x_i import BTraitable, BTraitableClass, BTraitableProcessor
 from typing_extensions import Self, deprecated
@@ -35,7 +35,7 @@ from core_10x.xnone import XNone, XNoneType
 if TYPE_CHECKING:
     from collections.abc import Generator
 
-    from core_10x.ts_store import TsCollection, TsStore
+    from core_10x.ts_store import TsCollection
 
 
 class TraitAccessor:
