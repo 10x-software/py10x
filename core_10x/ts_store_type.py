@@ -1,11 +1,13 @@
 from core_10x.named_constant import NamedConstant
 from core_10x.py_class import PyClass
 
+
 class TS_STORE_TYPE(NamedConstant):
     """
     All known TsStore subclasses must be "registered" here.
     """
-    MONGODB     = 'infra_10x.mongodb_store.MongoStore'
+
+    MONGODB = 'infra_10x.mongodb_store.MongoStore'
     ...
 
     @classmethod
@@ -22,4 +24,3 @@ class TS_STORE_TYPE(NamedConstant):
             raise TypeError(f'{symbol.value} - unknown TsStore class')
 
         return ts_class
-
