@@ -129,7 +129,7 @@ class Trait(BTrait):
     def set_trait_funcs(self, traitable_cls, rc):
         for method_name, (method_suffix, method_def) in Trait.method_defs(self.name).items():
             method = getattr(traitable_cls, method_name, None)
-            if method and method_suffix == 'get' and self.t_def.default is not XNone: # -- getter and default are defined - figure out which to use
+            if method and method_suffix == 'get' and self.t_def.default is not XNone:  # -- getter and default are defined - figure out which to use
                 for cls in traitable_cls.__mro__:
                     cls_vars = vars(cls)
                     if method_name in cls_vars:  # -- found method on cls - use method, unless
@@ -137,8 +137,8 @@ class Trait(BTrait):
                             rc.add_error(
                                 f'Ambiguous definition for {method_name} on {cls} - both trait.default and traitable.{method_name} are defined.'
                             )
-                    elif isinstance(cls_vars.get(self.name), TraitDefinition): # -- default found on cls - use default
-                        method = None # use default
+                    elif isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default found on cls - use default
+                        method = None  # use default
                     else:
                         continue
                     break
