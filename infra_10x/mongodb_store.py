@@ -203,7 +203,7 @@ class MongoCollection(TsCollection):
         q = {self.s_id_tag: id_value}
         return self.coll.delete_one(q).acknowledged
 
-    def create_index(self, name: str, trait_name: str, **index_args) -> str | None:
+    def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str | None:
         index_info = self.coll.index_information()
         if name in index_info:
             return None
