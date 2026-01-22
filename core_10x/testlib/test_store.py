@@ -34,9 +34,6 @@ class TestCollection(TsCollection):
     def collection_name(self) -> str:
         return self._collection_name
 
-    def collection_name(self) -> str:
-        return self._collection_name
-
     def id_exists(self, id_value: str) -> bool:
         """Check if a document with the given ID exists."""
         return id_value in self._documents
