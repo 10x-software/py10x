@@ -509,7 +509,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         as_of = {'_at': LE(_before)} if _before else {}
         cursor = cls.s_history_class.load_many(
             f(_filter, **named_filters, **as_of),
-            _order=dict(_at=-1),
+            _order=dict(_traitable_id=1, _at=-1),
             _at_most=_at_most,
             _deserialize=_deserialize,
             _coll_name=_collection_name + '#history' if _collection_name else None,
@@ -649,6 +649,7 @@ class StorableHelper(AbstractStorableHelper):
         return self.traitable_class.s_bclass.load(id)
 
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
+        # TODO FUTURE - current state as history query?
         coll = self.collection(_coll_name=_coll_name)
         return coll.find(f(query, self.traitable_class.s_bclass), _at_most=_at_most, _order=_order)
 
@@ -734,15 +735,17 @@ class StorableHelperAsOf(StorableHelper):
         self.storage_helper = self.traitable_class.s_storage_helper
 
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
-        return (
-            item.serialized_traitable
-            for item in self.traitable_class.history(
-                _filter=query,
-                _before=self.as_of_time,
-                _collection_name=_coll_name,
-                _deserialize=True,
-            )  # TODO: only one per ID!
-        )
+        last_id = None
+        for item in self.traitable_class.history(
+            _filter=query,
+            _before=self.as_of_time,
+            _collection_name=_coll_name,
+            _deserialize=True,
+        ):
+            # TODO: optimize by returning one entry per id using a pipeline query
+            if last_id != item._traitable_id:
+                last_id = item._traitable_id
+                yield item.serialized_traitable
 
     def exists_in_store(self, id: ID) -> bool:
         history_entry = self.traitable_class.latest_revision(id, self.as_of_time, deserialize=True)
@@ -760,8 +763,7 @@ def __getattr__(name):
     raise AttributeError(name)
 
 
-class TraitableHistory(Traitable):
-    s_history_class = None  # TODO: make such classes immutable by default
+class TraitableHistory(Traitable, keep_history=False):
     s_traitable_class = None
     s_trait_name_map = dict(_traitable_id='_id', _traitable_rev='_rev')
 
@@ -802,6 +804,12 @@ class TraitableHistory(Traitable):
     def store(cls):
         return cls.s_traitable_class.store()
 
+    @classmethod
+    def collection(cls, _coll_name: str = None) -> TsCollection | None:
+        collection = cls.s_storage_helper.collection(_coll_name)
+        collection.create_index('idx_by_traitable_id_time', [('_traitable_id', 1), ('_at', -1)])
+        return collection
+
     @staticmethod
     @cache
     def history_class(traitable_class: type[Traitable]):
@@ -836,7 +844,7 @@ class AsOfContext:
         self._original_as_of_times = {}
 
     def __enter__(self):
-        self._btp = btp = BTraitableProcessor.create(-1, -1, -1, False, False)
+        self._btp = btp = BTraitableProcessor.create_root()
         btp.begin_using()
         # Replace storage helpers with asof helpers
         for traitable_class in self.traitable_classes:

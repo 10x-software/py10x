@@ -91,7 +91,7 @@ class TsUnionCollection(TsCollection):
         # if id_value exists in the union tail, return False as the object wasn't fully deleted
         return self.collections[0].delete(id_value) and not self.exists(f(**{Nucleus.ID_TAG(): EQ(id_value)}))
 
-    def create_index(self, name, trait_name, **index_args):
+    def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
         # TODO: verify that index exists in the union tail
         return self.collections[0].create_index(name, trait_name, **index_args)
 

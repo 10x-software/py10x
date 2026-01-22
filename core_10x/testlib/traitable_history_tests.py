@@ -1,11 +1,18 @@
 """Tests for TraitableHistory functionality using pytest and real TestStore."""
 
+from __future__ import annotations
+
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 import pytest
+from core_10x_i import BTraitableProcessor
+from typing_extensions import Self
 
+from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
+from core_10x.rc import RC, RC_TRUE
 from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
+from core_10x.traitable_id import ID
 from core_10x.ts_store import TsDuplicateKeyError
 
 try:
@@ -31,10 +38,18 @@ class PersonTraitableBase(Traitable):
     name: str = T()
     age: int = T()
     email: str = T()
+    dob: date = T()
+    spouse: Self = T()
+
+    def spouse_set(self, trait, spouse) -> RC:
+        self.raw_set_value(trait, spouse)
+        if spouse:
+            spouse.raw_set_value(trait, self)
+        return RC_TRUE
 
 
-PersonTraitable: Traitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (PersonTraitableBase,), {'__module__': __name__})
-NameValueTraitable: Traitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (NameValueTraitableBase,), {'__module__': __name__})
+NameValueTraitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (NameValueTraitableBase,), {'__module__': __name__})
+PersonTraitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (PersonTraitableBase,), {'__module__': __name__})
 
 globals()[NameValueTraitable.__name__] = NameValueTraitable
 globals()[PersonTraitable.__name__] = PersonTraitable
@@ -275,6 +290,64 @@ class TestTraitableHistory:
             assert historical_person.age == 30  # Original age
             assert historical_person.name == 'John Doe'
 
+    def test_as_of_error_cases(self, test_store):
+        with BTraitableProcessor.create_root():
+            # Create and save a person
+            person = PersonTraitable(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _force=True)
+            person.spouse = PersonTraitable(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _force=True)
+            person.spouse.save().throw()
+            person.save().throw()
+
+            ts = datetime.utcnow()
+
+            # Update and save again
+            person.dob = date(1985, 7, 6)
+            person.spouse.dob = date(1985, 7, 6)
+            person.spouse.save().throw()
+            person.save().throw()
+
+            person_id = person.id()
+            print(person.serialize_object())
+
+            person.spouse.id()
+
+        with CACHE_ONLY():
+            assert not PersonTraitable.existing_instance_by_id(person_id, _throw=False)
+
+        for ctx in (
+            INTERACTIVE,
+            GRAPH_ON,
+            GRAPH_OFF,
+        ):
+            for as_of in (
+                ts,
+                None,
+            ):
+                with ctx():
+                    person1 = PersonTraitable(person_id)
+                    assert person1.dob == date(1985, 7, 6)
+
+                    person_as_of = PersonTraitable.as_of(person_id, as_of_time=ts)
+
+                    with AsOfContext([PersonTraitable], as_of_time=as_of):
+                        with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+                            _ = person1.dob
+
+                        with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+                            _ = person_as_of.dob
+
+                        person2 = PersonTraitable(person_id)
+                        assert person2.dob == (date(1985, 7, 5 + (as_of is None)))
+                        assert person2.spouse.dob == (date(1985, 7, 5 + (as_of is None)))
+
+                    assert person1.spouse.dob == date(1985, 7, 6)
+                    assert person_as_of.dob == date(1985, 7, 5)
+
+                    assert person_as_of.spouse.dob == date(1985, 7, 6)  # note - since no AsOfContext was used, nested objects are not loaded "as_of".
+
+                    with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+                        _ = person2.dob
+
     def test_load_as_of(self, test_store):
         """Test loading a traitable as of a specific time."""
 
@@ -337,8 +410,8 @@ class TestTraitableHistory:
             assert john.age == 30  # Original age
             assert jane.age == 25  # Original age
 
-        assert john.age == 31  # Current age
-        assert jane.age == 26  # Current age
+        assert person1.age == 31  # Current age
+        assert person2.age == 26  # Current age
 
     def test_history_without_keep_history(self, test_store):
         """Test that history is not created when keep_history is False."""
@@ -390,7 +463,6 @@ class TestTraitableHistory:
 
     def test_latest_revision_with_nonexistent_id(self, test_store):
         """Test latest_revision with non-existent ID."""
-        from core_10x.traitable_id import ID
 
         # Try to get latest revision for non-existent ID
         latest = PersonTraitable.latest_revision(ID('nonexistent'))
@@ -489,7 +561,6 @@ class TestTraitableHistory:
 
     def test_restore_with_nonexistent_id(self, test_store):
         """Test restore method with non-existent ID."""
-        from core_10x.traitable_id import ID
 
         # Try to restore non-existent ID
         result = PersonTraitable.restore(ID('nonexistent'), save=False)

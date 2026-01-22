@@ -130,10 +130,10 @@ class TestCollection(TsCollection):
             return True
         return False
 
-    def create_index(self, name: str, trait_name: str, **index_args) -> str:
+    def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
         """Create an index (in-memory implementation just stores the index info)."""
         self._indexes[name] = {'trait_name': trait_name, 'args': index_args}
-        return f'index_{name}_created'
+        return name
 
     def max(self, trait_name: str, filter: f = None) -> dict:
         """Find the document with the maximum value for the given trait."""
