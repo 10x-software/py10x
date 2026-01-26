@@ -288,7 +288,7 @@ def test_anonymous_traitable():
 
     z = Z(y=1, x=x, _force=True)
     s = z.serialize_object()
-    assert s['x'] == {'a': 1}
+    assert s['x'] == {'a': 1, '_cls': 'test_traitable/test_anonymous_traitable/<locals>/X'}
 
     z = Z(y=2, x=Y(y=3), _force=True)
     with pytest.raises(TraitMethodError, match=r'test_anonymous_traitable.<locals>.Y/3 - embedded instance must be anonymous'):
@@ -407,6 +407,7 @@ def test_create_and_share():
 
 def test_serialize():
     save_calls = Counter()
+    history_save_calls = Counter()
     load_calls = Counter()
     serialized = {}
 
@@ -425,23 +426,44 @@ def test_serialize():
             return serialized.get(id.value)
 
         @classmethod
-        def collection(cls, _coll_name: str = None):
-            class Collection:
-                def save(self, serialized_data):
-                    id_value = serialized_data['_id']
-                    save_calls[id_value] += 1
-                    serialized[id_value] = serialized_data
+        def store(cls):
+            class Store:
+                def auth_user(self):
+                    return 'test_user'
 
-            return Collection()
+                def collection(self, collection_name):
+                    class Collection:
+                        def create_index(self, name, trait_name):
+                            return name
+
+                        def save(self, serialized_data):
+                            if not collection_name.endswith('#history'):
+                                id_value = serialized_data['_id']
+                                save_calls[id_value] += 1
+                            else:
+                                id_value = serialized_data['$set']['_id']
+                                history_save_calls[id_value] += 1
+
+                            serialized[id_value] = serialized_data
+                            return 1
+
+                        save_new = save
+
+                    return Collection()
+
+            return Store()
 
         def z_get(self) -> int:
             return self.y._rev if self.y and self.y._rev else 0
 
+    class Y(X): ...
+
     x = X(x=0)
     assert not serialized
-    x.save()
+    x.save().throw()
     assert not load_calls
-    assert save_calls == {'0': 1}
+    assert dict(save_calls) == {'0': 1}
+    assert dict(history_save_calls) == {next(iter(history_save_calls)): 1}
     assert serialized['0']['z'] == 0
     save_calls.clear()
     load_calls.clear()
@@ -458,10 +480,11 @@ def test_serialize():
     assert load_calls == {}
     save_calls.clear()
 
-    X(x=3, y=X(_id=ID('4')), z=0, _force=True).save(save_references=True)
+    X(x=3, y=Y(_id=ID('4')), z=0, _force=True).save(save_references=True)
     assert load_calls == {'3': 1}
     assert save_calls == {'3': 1}  # save of a lazy load is noop
 
+    assert X(x=3).y.__class__ is Y
     with pytest.raises(
         TraitMethodError,
         match=re.escape(
