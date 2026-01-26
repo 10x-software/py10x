@@ -71,7 +71,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_static("TYPE_RECORD_TAG",              &BNucleus::TYPE_RECORD_TAG)
             .def_static("PICKLE_RECORD_TAG",            &BNucleus::PICKLE_RECORD_TAG)
 
-            .def_static("serialize_any",                &BNucleus::serialize_any)
+            .def_static("serialize_any",                &BNucleus::serialize_any, "value"_a, "embed"_a)
             .def_static("deserialize_any",              &BNucleus::deserialize_any)
 
             .def_static("serialize_type",               &BNucleus::serialize_type)
@@ -84,6 +84,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_static("deserialize_list",             &BNucleus::deserialize_list)
             .def_static("serialize_dict",               &BNucleus::serialize_dict)
             .def_static("deserialize_dict",             &BNucleus::deserialize_dict)
+            .def_static("deserialize_record",           &BNucleus::deserialize_record)
             ;
 
     py::class_<BProcessContext>(m, "BProcessContext")

@@ -711,6 +711,17 @@ def test_27():
     X(x=5, y=X(_id=ID('6')), z=0, _force=True).save(save_references=True)
     assert save_calls == {'5': 1}  # save of a lazy load is noop
 
+from core_10x.named_constant import NamedConstant
+class Status(NamedConstant):
+    DEPRECATED = 'DEPRECATED'
+
+def test_28():
+    from core_10x.nucleus import Nucleus
+
+
+    print(Nucleus.serialize_any(Status.DEPRECATED,True))
+    print(Nucleus.deserialize_record({'_type': '_nx','_cls': '__main__/Status', '_obj': 'DEPRECATED'}))
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -739,6 +750,7 @@ if __name__ == '__main__':
     #test_24()
     # test_25()
     #test_26()
-    test_27()
+    #test_27()
+    test_28()
 
 
