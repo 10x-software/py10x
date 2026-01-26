@@ -288,7 +288,7 @@ def test_anonymous_traitable():
 
     z = Z(y=1, x=x, _force=True)
     s = z.serialize_object()
-    assert s['x'] == {'a': 1, '_cls': 'test_traitable/test_anonymous_traitable/<locals>/X'}
+    assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable/test_anonymous_traitable/<locals>/X'}
 
     z = Z(y=2, x=Y(y=3), _force=True)
     with pytest.raises(TraitMethodError, match=r'test_anonymous_traitable.<locals>.Y/3 - embedded instance must be anonymous'):

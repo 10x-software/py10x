@@ -29,6 +29,7 @@ class Nucleus:
     deserialize_list    = BNucleus.deserialize_list
     serialize_dict      = BNucleus.serialize_dict
     deserialize_dict    = BNucleus.deserialize_dict
+    deserialize_record  = BNucleus.deserialize_record
     # fmt: on
     # ===============================================================================================================================
     #   The following methods must be implemented by a subclass of Nucleus

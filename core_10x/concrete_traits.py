@@ -299,17 +299,16 @@ class nucleus_trait(Trait, data_type=Nucleus, base_class=True):
         return self.data_type.same_values(value1, value2)
 
     def serialize(self, value: Nucleus):
-        serialized_value = value.serialize(self.flags_on(T.EMBEDDED))
-        if type(value) is not self.data_type:
-            # -- if serialized value is not a dict, this will fail, and so it should otherwise, it will deserialize wrong type
-            # TODO: perhaps deserialize should always handle a dict?
-            serialized_value |= {Nucleus.CLASS_TAG(): PackageRefactoring.find_class_id(type(value))}
-        return serialized_value
+        if type(value) is self.data_type:
+            return value.serialize(self.flags_on(T.EMBEDDED))
+
+        return Nucleus.serialize_any(value, self.flags_on(T.EMBEDDED))
 
     def deserialize(self, serialized_value) -> Nucleus:
-        serialized_type = serialized_value.get(Nucleus.CLASS_TAG()) if isinstance(serialized_value, dict) else None
-        data_type = PackageRefactoring.find_class(serialized_type) if serialized_type else self.data_type
-        return data_type.deserialize(serialized_value)
+        if isinstance(serialized_value, dict) and (value := Nucleus.deserialize_record(serialized_value)):
+            return value
+
+        return self.data_type.deserialize(serialized_value)
 
     def choices(self):
         return self.data_type.choose_from()
