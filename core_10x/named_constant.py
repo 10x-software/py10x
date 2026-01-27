@@ -44,6 +44,9 @@ class NamedConstant(Nucleus):
     def __call__(self, *args, **kwargs):
         return self.value(*args, **kwargs)
 
+    def is_member_by_name(self, other_class) -> bool:
+        return self.name in other_class.s_dir
+
     @classmethod
     def _create(cls, args: Any) -> NamedConstant:
         cdef = cls()
@@ -177,6 +180,19 @@ class NamedConstant(Nucleus):
 
         for name, cdef in sdir.items():
             setattr(cls, name, cdef)
+
+    @staticmethod
+    def union(*named_constant_classes):
+        class _union(NamedConstant):
+            pass
+        dir = _union.s_dir
+        for cls in named_constant_classes:
+            dir.update(cls.s_dir)
+
+        for name, value in dir.items():
+            setattr(_union, name, value)
+
+        return _union
 
     @classmethod
     def default_label(cls, name: str) -> str:

@@ -135,7 +135,7 @@ class Trait(BTrait):
                     if method_name in cls_vars:  # -- found method on cls - use method, unless
                         if isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default is on same cls then - error
                             rc.add_error(
-                                f'Ambiguous definition for {method_name} on {cls} - both trait.default and traitable.{method_name} are defined.'
+                                f'Ambiguous definition for {method_name} on {cls} - both {self.name}.default and {traitable_cls}.{method_name} are defined.'
                             )
                     elif isinstance(cls_vars.get(self.name), TraitDefinition):  # -- default found on cls - use default
                         method = None  # use default
