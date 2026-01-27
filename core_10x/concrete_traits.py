@@ -299,9 +299,15 @@ class nucleus_trait(Trait, data_type=Nucleus, base_class=True):
         return self.data_type.same_values(value1, value2)
 
     def serialize(self, value: Nucleus):
-        return value.serialize(self.flags_on(T.EMBEDDED))
+        if type(value) is self.data_type:
+            return value.serialize(self.flags_on(T.EMBEDDED))
+
+        return Nucleus.serialize_any(value, self.flags_on(T.EMBEDDED))
 
     def deserialize(self, serialized_value) -> Nucleus:
+        if isinstance(serialized_value, dict) and (value := Nucleus.deserialize_record(serialized_value)):
+            return value
+
         return self.data_type.deserialize(serialized_value)
 
     def choices(self):
