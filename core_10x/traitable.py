@@ -902,10 +902,8 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
 class NamedTsStore(Traitable):
     # fmt: off
-    traitable: Traitable        = RT() // 'original traitable'
     logical_name: str   = T(T.ID)
     uri: str            = T()
-    traitable: Traitable        = RT() // 'original traitable'
     # fmt: on
 
 
