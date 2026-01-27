@@ -66,31 +66,57 @@ bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
     return false;
 }
 
-py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_existing) const {
+py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_existing, const bool replace_existing) const {
+    if (accept_existing && replace_existing)
+        throw py::value_error("Cannot use both accept_existing and replace_existing");
+
     if (obj->tid().is_valid())
         return PyLinkage::RC_TRUE();
 
     const auto id_value = obj->endogenous_id(); //-- raises if any id trait is undefined
     const auto &tid = obj->tid();
-    if (const auto origin_cache =  m_cache->find_origin_cache(TID(tid.cls(), PyLinkage::traitable_id(id_value, tid.coll_name())))) {
-        if (!accept_existing) {
-            // -- possible conflict with existing instance!
+    const auto &cls = tid.cls();
+    const auto valid_tid = TID(cls, PyLinkage::traitable_id(id_value, tid.coll_name()));
+    if (const auto origin_cache =  m_cache->find_origin_cache(valid_tid)) {
+        // -- possible conflict with existing instance!
+        if (accept_existing) {
+            m_cache->remove_temp_object_cache(tid);
+            obj->set_id_value(id_value);
+            obj->set_origin_cache(origin_cache);
+            return PyLinkage::RC_TRUE();
+        }
+        if (!replace_existing) {
             BRC rc;
             rc.add_data(id_value);
             return rc();
         }
-        m_cache->remove_temp_object_cache(tid);
-        obj->set_id_value(id_value);
-        obj->set_origin_cache(origin_cache);
-        return PyLinkage::RC_TRUE();
+        // -- replacing existing instance
+        if (m_cache!=origin_cache)
+            throw py::value_error("Cannot only replace the existing instance in origin cache");
+        BTraitable existing_obj(cls, valid_tid.traitable_id());
+        existing_obj.clear_lazy_load_flags(existing_obj.lazy_load_flags()); // don't load existing object - we will lazy load revision later, as needed
+        // copy _rev from existing object and invalidate all set traits
+        obj->set_revision(existing_obj.get_revision());
+        // invalidate all set traits to maintain dependencies
+        for (const auto &trait_value_handle: cls->trait_dir() | std::views::values) {
+            const auto trait = trait_value_handle.cast<BTrait*>();
+            if (is_set(&existing_obj, trait))
+                invalidate_trait_value(&existing_obj, trait);
+        }
+        // discard object cache to prepare for make_permanent
+        m_cache->remove_object_cache(valid_tid, true);
     }
 
     // -- object does not exist in any cache
     obj->set_id_value(id_value);
     obj->set_origin_cache(m_cache);
     m_cache->make_permanent(tid);
-    if (accept_existing && obj->my_class()->may_exist_in_store())
-        obj->set_lazy_load_flags(XCache::LOAD_REQUIRED | flags() & DEBUG);
+    if ((accept_existing || replace_existing) && cls->may_exist_in_store() && obj->get_revision().cast<int>()==0) {
+        auto lazy_load_flags = XCache::LOAD_REQUIRED | flags() & DEBUG;
+        if (replace_existing)
+            lazy_load_flags |= XCache::LOAD_REV_ONLY;
+        obj->set_lazy_load_flags(lazy_load_flags);
+    }
     return PyLinkage::RC_TRUE();
 }
 
@@ -176,11 +202,11 @@ py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, 
 
 class OffGraphNoConvertNoDebug : public BTraitableProcessor {
 public:
-    void invalidate_trait_value(BTraitable* obj, BTrait* trait) final {
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait) const final {
         trait->proc()->invalidate_value_off_graph(this, obj, trait);
     }
 
-    void invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const final {
         trait->proc()->invalidate_value_off_graph(this, obj, trait, args);
     }
 
@@ -248,11 +274,11 @@ public:
 
 class OnGraphNoConvertNoDebug : public BTraitableProcessor {
 public:
-    void invalidate_trait_value(BTraitable* obj, BTrait* trait) final {
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait) const final {
         trait->proc()->invalidate_value_on_graph(this, obj, trait);
     }
 
-    void invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const final {
         trait->proc()->invalidate_value_on_graph(this, obj, trait, args);
     }
 

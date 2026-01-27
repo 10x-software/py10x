@@ -33,10 +33,10 @@ public:
 
     //---- Invalidating trait value
 
-    virtual void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait);
-    virtual void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait, const py::args &args);
+    virtual void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const;
+    virtual void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args) const;
 
-    virtual void invalidate_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait);
+    virtual void invalidate_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const;
     virtual void invalidate_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args);
 
     //---- Setting (raw) trait value
@@ -65,11 +65,11 @@ public:
         return get_value_off_graph(proc, obj, trait, args);
     }
 
-    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait) final {
+    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const final {
         dont_touch_me(obj, trait);
     }
 
-    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait, const py::args &args) final {
+    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args) const final {
         dont_touch_me(obj, trait);
     }
 

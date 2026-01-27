@@ -117,8 +117,8 @@ public:
     virtual py::object      set_trait_value(BTraitable *obj, const BTrait *trait, const py::object &value);
     virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) const;
 
-    virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait) = 0;
-    virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;
+    virtual void            invalidate_trait_value(BTraitable* obj, const BTrait* trait) const = 0;
+    virtual void            invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const = 0;
 
     bool                    is_valid(const BTraitable* obj, const BTrait* trait) const;
     bool                    is_valid(const BTraitable* obj, const BTrait* trait, const py::args& args) const;
@@ -129,7 +129,9 @@ public:
     // BasicNode*              get_node(BTraitable* obj, BTrait* trait, const py::args& args) const;
 
     bool                    accept_existing(BTraitable* obj) const;
-    py::object              share_object(BTraitable *obj, bool accept_existing) const;
+
+
+    py::object              share_object(BTraitable *obj, bool accept_existing, const bool replace_existing=false) const;
 
     void                    export_nodes() const;
 

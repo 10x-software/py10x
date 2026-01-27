@@ -4,6 +4,8 @@
 //
 #pragma once
 
+#include <ranges>
+
 #include "py_linkage.h"
 #include "tid.h"
 #include "bnode.h"
@@ -52,7 +54,7 @@ public:
             return nullptr;
 
         auto nwa = iter->second;
-        auto it = nwa ->find(args);
+        auto it = nwa->find(args);
         return it != nwa->end() ? it->second : nullptr;
     }
 
@@ -208,6 +210,7 @@ public:
     // lazy load flags flags
     static constexpr unsigned   LOAD_REQUIRED                = 64;
     static constexpr unsigned   MUST_EXIST_IN_STORE          = 128;
+    static constexpr unsigned   LOAD_REV_ONLY                = 256;
     static constexpr unsigned   LOAD_REQUIRED_MUST_EXIST     = LOAD_REQUIRED|MUST_EXIST_IN_STORE;
     [[nodiscard]] unsigned lazy_load_flags(const TID& tid) const {
         if (!tid.is_valid())
@@ -299,20 +302,20 @@ public:
         delete oc;
     }
 
-    // ObjectCache* remove_object_cache(const TID& tid, bool discard = false) {
-    //     auto it = m_data.find(tid);
-    //     if (it == m_data.end())
-    //         return nullptr;
-    //
-    //     auto oc = it->second;
-    //     m_data.erase(it);
-    //
-    //     if (discard) {
-    //         delete oc;
-    //         return nullptr;
-    //     }
-    //     return oc;
-    // }
+    ObjectCache* remove_object_cache(const TID& tid, const bool discard = false) {
+        auto it = m_data.find(tid);
+        if (it == m_data.end())
+            return nullptr;
+
+        const auto oc = it->second;
+        m_data.erase(it);
+
+        if (discard) {
+            delete oc;
+            return nullptr;
+        }
+        return oc;
+    }
 
     bool make_permanent(const TID& tid) {
         if (!tid.is_valid())

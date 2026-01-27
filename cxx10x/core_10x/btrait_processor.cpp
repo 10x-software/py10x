@@ -94,7 +94,7 @@ py::object BTraitProcessor::get_style_sheet_on_graph(BTraitableProcessor* proc, 
 
 //---- Invalidating trait value
 
-void BTraitProcessor::invalidate_value_off_graph(const BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+void BTraitProcessor::invalidate_value_off_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) const {
     const auto cache = proc->cache();
     cache->remove_node(obj->tid(), trait);
     if (auto node = cache->find_set_or_invalid_node_in_parents(obj->tid(), trait))
@@ -102,7 +102,7 @@ void BTraitProcessor::invalidate_value_off_graph(const BTraitableProcessor* proc
             cache->find_or_create_node(obj, trait, false); // create invalid node
 }
 
-void BTraitProcessor::invalidate_value_off_graph(const BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
+void BTraitProcessor::invalidate_value_off_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) const {
     const auto cache = proc->cache();
     cache->remove_node(obj->tid(), trait, args);
     if (const auto node = cache->find_set_or_invalid_node_in_parents(obj->tid(), trait, args))
@@ -110,7 +110,7 @@ void BTraitProcessor::invalidate_value_off_graph(const BTraitableProcessor* proc
             cache->find_or_create_node(obj, trait, args, false); // create invalid node
 }
 
-void BTraitProcessor::invalidate_value_on_graph(const BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+void BTraitProcessor::invalidate_value_on_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) const {
     const auto cache = proc->cache();
     const auto &tid = obj->tid();
     cache->find_or_create_object_cache(obj); // handle lazy load

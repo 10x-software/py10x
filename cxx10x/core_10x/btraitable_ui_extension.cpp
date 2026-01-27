@@ -43,15 +43,15 @@ public:
 
     //---- Invalidating trait value
 
-    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait) final {
+    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const final {
         assert(false);
     }
 
-    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait, const py::args &args) final {
+    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args) const final {
         assert(false);
     }
 
-    void invalidate_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, BTrait *trait) final {
+    void invalidate_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const final {
         assert(false);
     }
 

@@ -23,13 +23,12 @@
 
 [x] Traitable constructors:
     [x] Using trait values
-      [x] trait values are only used for ID construction and must be ID or ID_LIKE - anything else will throw (unless _force is true)
+      [x] trait values are only used for ID construction and must be ID or ID_LIKE - anything else will throw
       [x] constructor makes ID, sets ID and ID_LIKE traits (in share - accept_existing=true)
       [x] storage flags (in share - accept_exiting=true)
         [x] load_required = true (only if not runtime object) (in share, accept_existing=true)
         [x] must_exist_in_storage = false (in initialize())
       [x] creation_cache = current_cache (in BTraitable ctor) or existing_cache, if found (in share)
-      [x] id _force = true, set non-id traits, possibly causing a lazy load (in initialize)
     [x] Using ID (lazy ref)
       [x] if runtime object and not in memory
         [x] it's an error!
@@ -88,7 +87,7 @@ public:
 
     py::object endogenous_id();
 
-    void set_lazy_load_flags(const unsigned flags) const        {m_origin_cache->set_lazy_load_flags(m_tid, flags); }
+    void set_lazy_load_flags(const unsigned flags) const        { m_origin_cache->set_lazy_load_flags(m_tid, flags); }
     void clear_lazy_load_flags(unsigned lazy_load_flags) const  { m_origin_cache->clear_lazy_load_flags(m_tid, lazy_load_flags); }
     [[nodiscard]] unsigned lazy_load_flags() const              { return m_origin_cache->lazy_load_flags(m_tid); }
 
@@ -100,7 +99,7 @@ public:
 
     static py::object exogenous_id();
 
-    void initialize(const py::dict &trait_values, bool force);
+    void initialize(const py::dict &trait_values, bool create_or_replace);
     bool accept_existing(const py::dict& trait_values);
     bool id_exists();
 
@@ -249,7 +248,7 @@ public:
     static py::object   deserialize_object(BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data);
     virtual void        deserialize_traits(const py::dict& trait_values);
     static py::object   deserialize_nx(const BTraitableClass* cls, const py::object& serialized_data);
-    py::object          _reload();
+    py::object          _reload(const bool rev_only = false);
     bool                reload() {return !_reload().is_none();}
 
 };

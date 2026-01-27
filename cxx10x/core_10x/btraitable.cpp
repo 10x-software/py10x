@@ -37,7 +37,7 @@ py::object BTraitable::lazy_load_if_needed() {
 
     auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, flags));
     clear_lazy_load_flags(flags);
-    const auto serialized_data = _reload();
+    const auto serialized_data = _reload(flags & XCache::LOAD_REV_ONLY);
     set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set
 
     if (serialized_data.is_none() && flags & XCache::MUST_EXIST_IN_STORE) {
@@ -89,7 +89,7 @@ py::object BTraitable::endogenous_id() {
 //  - trait-name value pairs will be processed in the order they are given
 //      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
 //======================================================================================================================
-void BTraitable::initialize(const py::dict& trait_values, const bool force=false) {
+void BTraitable::initialize(const py::dict& trait_values, const bool replace_existing=false) {
     if (const auto cls = my_class(); cls->is_id_endogenous()) {
         const auto proc = ThreadContext::current_traitable_proc();
 
@@ -104,7 +104,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool force=false
         for (auto &[trait_name, value] : trait_values) {
             if (const auto trait = cls->find_trait(trait_name.cast<py::object>())) {    // skipping unknown trait names
                 if (!trait->flags_on(BTraitFlags::ID)) {
-                    if (!force)
+                    if (!replace_existing)
                         throw py::value_error(py::str("{}.{} - non-ID trait value cannot be set during initialization").format(class_name(), trait_name));
                     non_id_traits_set[trait] = value.cast<py::object>();
                     continue;
@@ -113,13 +113,15 @@ void BTraitable::initialize(const py::dict& trait_values, const bool force=false
                     throw py::value_error(rc.error());
             }
         }
-        if (const BRC rc(proc->share_object(this,true)); !rc) // -- this never happens as accept_existing==true
+        if (const BRC rc(proc->share_object(this,!replace_existing, replace_existing)); !rc) // -- this never happens as accept_existing==true
             throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
 
-        //-- now we have a potentially lazy reference which might be loaded as we set any non-id traits below
-        for (auto &[trait, value] : non_id_traits_set) {
-            if (const BRC rc(proc->set_trait_value(this, trait, value)); !rc)
-                throw py::value_error(rc.error());
+        if (replace_existing) {
+            //-- now we have a potentially lazy reference which might be loaded as we set any non-id traits below
+            for (auto &[trait, value] : non_id_traits_set) {
+                if (const BRC rc(proc->set_trait_value(this, trait, value)); !rc)
+                    throw py::value_error(rc.error());
+            }
         }
     }
     else {        // ID exogenous
@@ -317,19 +319,25 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
     }
 }
 
-py::object BTraitable::_reload() {
+py::object BTraitable::_reload(const bool rev_only) {
     if (const auto cls = my_class(); cls->may_exist_in_store() && m_tid.is_valid()) {
         const auto needs_lazy_load = lazy_load_flags() & XCache::LOAD_REQUIRED;
         const auto serialized_data = needs_lazy_load ? lazy_load_if_needed() : cls->load_data(id());
+        if (serialized_data.is_none())
+            return serialized_data;
+
+        if (rev_only) {
+            const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+            serialized_data.cast<py::dict>().clear();
+            serialized_data[BNucleus::REVISION_TAG()] = revision;
+        }
         if (needs_lazy_load && ThreadContext::current_cache() == m_origin_cache)
             return serialized_data; // -- already loaded in current cache
 
-        if (!serialized_data.is_none()) {
-            const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
-            set_revision(revision);
-            deserialize_traits(serialized_data);
-            return serialized_data;
-        }
+        const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+        set_revision(revision);
+        deserialize_traits(serialized_data);
+        return serialized_data;
     }
     return py::none();
 }

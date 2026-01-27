@@ -1,11 +1,11 @@
 import gc
 from collections import Counter
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Self
 
 import numpy as np
 from core_10x.xnone import XNone
-from core_10x.traitable import Traitable,T,RT,M,THIS_CLASS,AnonymousTraitable,RC
+from core_10x.traitable import Traitable,T,RT,M,AnonymousTraitable,RC
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP, INTERACTIVE
@@ -199,7 +199,7 @@ def test_10():
     class X(Traitable):
         a:int = T(T.ID)
         b:int = T()
-        x:THIS_CLASS = T()
+        x:Self = T()
 
         @classmethod
         def exists_in_store(cls, id):
@@ -219,7 +219,7 @@ def test_10():
 
 
     with  BTP.create(1,1,1,True,True):
-        x1 = X(a=1,b=1,_force=True)
+        x1 = X(a=1,b=1,_replace=True)
         x = X(ID("0"))
         print(x.a)
         #print(x,x,x,x.x.a)
@@ -325,18 +325,18 @@ def test_13():
         x:int = RT(T.ID)
         v:int = RT()
 
-    X(x=1,v=10,_force=True)
+    X(x=1,v=10,_replace=True)
     assert X(x=1).v == 10
 
     default_cache = BTP.current().cache()
     with BTP.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False) as btp0:
         #assert btp0.flags() & BTP.ON_GRAPH
-        X(x=2,v=20,_force=True)
+        X(x=2,v=20,_replace=True)
         parent_cache = BTP.current().cache()
         assert default_cache is not parent_cache
         with BTP.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False) as btp:
             #assert btp.flags() & BTP.ON_GRAPH
-            X(x=3,v=30,_force=True)
+            X(x=3,v=30,_replace=True)
             child_cache = BTP.current().cache()
             assert child_cache is not parent_cache
             assert child_cache is not default_cache
@@ -344,11 +344,11 @@ def test_13():
             assert X(x=2).v == 20
 
         with BTP.create(-1,-1,-1,use_parent_cache=True,use_default_cache=False):
-            X(x=4,v=40,_force=True)
+            X(x=4,v=40,_replace=True)
             child_cache = BTP.current().cache()
             assert child_cache is parent_cache
         with BTP.create(0,-1,-1,use_parent_cache=False,use_default_cache=True):
-            X(x=5,v=50,_force=True)
+            X(x=5,v=50,_replace=True)
             child_cache = BTP.current().cache()
             assert child_cache is default_cache # use_default_cache only works for off-graph mode
             assert X(x=1).v == 10
@@ -515,7 +515,7 @@ def test_19():
         def exists_in_store(self, id):
             raise RuntimeError()
 
-    z = X(x=1, y=1, z=1,_force=True)
+    z = X(x=1, y=1, z=1,_replace=True)
     with INTERACTIVE():
         x = X()  # empty object allowed - OK!
         assert z.z == 1
@@ -585,7 +585,7 @@ def test_23():
 
     class X(Traitable):
         x: int = T(T.ID)
-        y: THIS_CLASS = T()
+        y: Self = T()
 
         def save(self, save_references=False):
             if self.serialize_object(save_references):
@@ -604,11 +604,11 @@ def test_23():
         def store(cls):
             return XNone
 
-    y = X(x=2, y=X(x=1), _force=True)
+    y = X(x=2, y=X(x=1), _replace=True)
     assert load_calls == {'2': 1}
 
-    x = X(x=1, y=y, _force=True)
-    assert load_calls == {'1': 1, '2': 1}
+    x = X(x=1, y=y, _replace=True)
+    assert load_calls == {'1': 1, '2': 1}, load_calls
 
     x.save()
     assert save_calls == {'1': 1}
@@ -624,7 +624,7 @@ def test_23():
     x.save()
     assert save_calls == {} # save of a lazy ref is noop
 
-    x = X(x=1, y=X(_id=ID('4')), _force=True)
+    x = X(x=1, y=X(_id=ID('4')), _replace=True)
     x.save(save_references=True)
     print(save_calls)
     assert save_calls == {'1': 1}  # save of a lazy ref is noop
@@ -690,7 +690,7 @@ def test_26():
             return None
 
     with GRAPH_ON():
-        x = X(x=1, y=np.float64(1.1), _force=True)
+        x = X(x=1, y=np.float64(1.1), _replace=True)
         s = x.serialize_object()
         print(s)
 
@@ -704,7 +704,7 @@ def test_27():
 
     class X(Traitable,keep_history=False):
         x: int = T(T.ID)
-        y: THIS_CLASS = T()
+        y: Self = T()
         z: int = T()
 
         @classmethod
@@ -735,7 +735,7 @@ def test_27():
             return X(ID(str(i+10))) if i<10 else XNone
 
         def z_get(self)-> int:
-           return self.y._rev if int(self.id().value) < 100 else 0
+            return self.y._rev if int(self.id().value) < 100 else 0
 
     x = X(x=100)
     assert X.serialize_object(x)
@@ -746,12 +746,12 @@ def test_27():
     save_calls.clear()
 
     assert not serialized
-    assert X(x=1,z=1,_force=True).save()
+    assert X(x=1,z=1,_replace=True).save()
     assert save_calls == {'1': 1}
     assert serialized['1']['z'] == 1
     save_calls.clear()
 
-    x = X(x=3, y=X(_id=ID('4')), _force=True)
+    x = X(x=3, y=X(_id=ID('4')), _replace=True)
     try:
         x.save(save_references=True)
     except Exception:
@@ -761,7 +761,7 @@ def test_27():
     assert save_calls == {}  # lazy load forced by z_get, cause exception as ID 4 does not exist
     save_calls.clear()
 
-    X(x=5, y=X(_id=ID('6')), z=0, _force=True).save(save_references=True)
+    X(x=5, y=X(_id=ID('6')), z=0, _replace=True).save(save_references=True)
     assert save_calls == {'5': 1}  # save of a lazy load is noop
 
 from core_10x.named_constant import NamedConstant
@@ -774,6 +774,75 @@ def test_28():
 
     print(Nucleus.serialize_any(Status.DEPRECATED,True))
     print(Nucleus.deserialize_record({'_type': '_nx','_cls': '__main__/Status', '_obj': 'DEPRECATED'}))
+
+
+def test_29():
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data', id.value)
+            return {'_id': id.value, 'x': int(id.value), 'y': int(id.value) * 10, '_rev': 1}
+
+
+    x = X(ID('1')) # lazy ref
+    assert x.y == 10 # load
+
+    x = X(x=2,y=10,_replace=True)
+    assert x.y == 10
+
+def test_30():
+    from core_10x.testlib.test_store import TestStore
+    cnt=0
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+        z: int = T(10)
+
+        @classmethod
+        def load_data(cls, id):
+            nonlocal cnt
+            cnt += 1
+            print('load_data', id.value)
+            return super().load_data(id)
+
+    with TestStore():
+        x = X.new_or_replace(x=1,y=10,z=100)
+        assert cnt == 1 # lazy load when setting non-id traits
+        assert x._rev == 0
+        assert x.y == 10
+        assert x.z == 100
+        x.save()
+        assert x._rev == 1
+        assert x.y == 10
+        assert x.z == 100
+        x.reload()
+        assert cnt == 2
+        assert x._rev == 1
+        assert x.y == 10
+        assert x.z == 100
+
+        x = X.new_or_replace(x=1,y=20)
+        assert cnt == 2
+        assert x._rev == 1
+        assert x.y == 20
+        assert x.z == 10
+        x.save()
+        assert x._rev == 2
+        assert x.y == 20
+        assert x.z == 10
+        x.reload()
+        assert x._rev == 2
+        assert x.y == 20
+        assert x.z == 10
+        assert cnt == 3
+
 
 if __name__ == '__main__':
     import core_10x_i
@@ -805,5 +874,7 @@ if __name__ == '__main__':
     test_26()
     test_27()
     test_28()
+    test_29()
+    test_30()
 
 
