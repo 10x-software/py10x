@@ -103,10 +103,11 @@ class _EnvVars:
 
 class EnvVars(_EnvVars, env_name='XX'):
     build_area: str
-    parent_build_area: str = 'dev'
-    traitable_store_uri: str = 'mongodb://localhost:27017/main'
-    backbone_store_class_name: str = ''  # = 'infra_10x.mongodb_store.MongoStore'
-    backbone_store_host_name: str = ''  # = 'localhost'
+    parent_build_area: str          = 'dev'
+
+    main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27017/main'
+    use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
+
     date_format: str = XDateTime.FORMAT_ISO
 
     sdlc_area: str

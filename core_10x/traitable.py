@@ -10,6 +10,7 @@ from core_10x_i import BTraitable, BTraitableClass
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
+from core_10x.py_class import PyClass
 from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
@@ -406,23 +407,32 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         bbd = Traitable._bound_data_domain(rr.domain)
         return bbd.resource(rr.category, throw=False) if bbd else None
 
+    @staticmethod
+    @cache
+    def main_store() -> TsStore:
+        store_uri = EnvVars.main_ts_store_uri
+        return TsStore.instance_from_uri(store_uri) if store_uri else None
+
+    @classmethod
+    @cache
+    def store_per_class(cls) -> TsStore:
+        store = Traitable.main_store()                  #-- check if there's XX_MAIN_TS_STORE_URI defining a valid store
+        if not store:
+            raise OSError('No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI')
+
+        #-- check if there's a specific store association with this cls
+        if EnvVars.use_ts_store_per_class:
+            ts_uri = TsClassAssociation.ts_uri(cls)
+            if ts_uri:
+                store = TsStore.instance_from_uri(ts_uri)
+
+        return store
+
     @classmethod
     def store(cls) -> TsStore:
-        store: TsStore = TS_STORE.current_resource()
+        store: TsStore = TS_STORE.current_resource()    #-- if current TsStore is set, use it!
         if not store:
-            bb_host = EnvVars.backbone_store_host_name
-            if not bb_host:
-                store_uri = EnvVars.traitable_store_uri
-                if not store_uri:
-                    raise OSError('No Traitable Store is specified: neither explicitly, nor via backbone or URI')
-
-                store = TsStore.instance_from_uri(store_uri)
-                store.begin_using()
-
-            else:
-                store = cls.preferred_store()
-                if not store:
-                    raise OSError(f'{cls} - failed to find a store')
+            store = cls.store_per_class()               #-- otherwise, use per class store or main store, if any
 
         return store
 
@@ -648,6 +658,38 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
             return None
 
         return self.data_type(**value)
+
+class NamedTsStore(Traitable):
+    logical_name: str   = T(T.ID)
+    uri: str            = T()
+
+class TsClassAssociation(Traitable):
+    py_canonical_name: str  = T(T.ID)
+    ts_logical_name: str    = T(Ui.choice('Store Name'))
+
+    def ts_logical_name_choices(self, trait) -> tuple:
+        return tuple(nts.logical_name for nts in NamedTsStore.load_many())
+
+    @classmethod
+    @cache
+    def store_per_class(cls) -> TsStore:
+        return Traitable.main_store()
+
+    @classmethod
+    def ts_uri(cls, traitable_class) -> str:
+        canonical_name = PyClass.name(traitable_class)
+        while True:
+            association = cls.existing_instance(py_canonical_name = canonical_name, _throw = False)
+            if association:
+                named_store = NamedTsStore.existing_instance(logical_name = association.ts_logical_name)
+                return named_store.uri
+
+            parts = canonical_name.rsplit('.', maxsplit = 1)
+            name = parts[0]
+            if name == canonical_name:      #-- checked all packages bottom up
+                return ''                   #-- there is no URI for a class, its module or any package
+
+            canonical_name = name
 
 
 class Bundle(Traitable):
