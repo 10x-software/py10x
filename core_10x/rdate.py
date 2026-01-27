@@ -170,7 +170,7 @@ class RDate(Nucleus):
     def apply_rule(cls, d: date, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE, comma_separated_rdates_str: str) -> date:
         rdates = comma_separated_rdates_str.split(',')
         for rdate_symbol in rdates:
-            rdate = RDate(symbol = rdate_symbol)
+            rdate = RDate(symbol=rdate_symbol)
             d = rdate.apply(d, cal, roll_rule)
         return d
 

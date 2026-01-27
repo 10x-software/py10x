@@ -426,11 +426,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @classmethod
     @cache
     def store_per_class(cls) -> TsStore:
-        store = Traitable.main_store()                  #-- check if there's XX_MAIN_TS_STORE_URI defining a valid store
+        store = Traitable.main_store()  # -- check if there's XX_MAIN_TS_STORE_URI defining a valid store
         if not store:
             raise OSError('No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI')
 
-        #-- check if there's a specific store association with this cls
+        # -- check if there's a specific store association with this cls
         if EnvVars.use_ts_store_per_class:
             ts_uri = TsClassAssociation.ts_uri(cls)
             if ts_uri:
@@ -440,9 +440,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def store(cls) -> TsStore:
-        store: TsStore = TS_STORE.current_resource()    #-- if current TsStore is set, use it!
+        store: TsStore = TS_STORE.current_resource()  # -- if current TsStore is set, use it!
         if not store:
-            store = cls.store_per_class()               #-- otherwise, use per class store or main store, if any
+            store = cls.store_per_class()  # -- otherwise, use per class store or main store, if any
 
         return store
 
@@ -899,13 +899,21 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
         return self.data_type(**value)
 
+
 class NamedTsStore(Traitable):
+    # fmt: off
+    traitable: Traitable        = RT() // 'original traitable'
     logical_name: str   = T(T.ID)
     uri: str            = T()
+    traitable: Traitable        = RT() // 'original traitable'
+    # fmt: on
+
 
 class TsClassAssociation(Traitable):
+    # fmt: off
     py_canonical_name: str  = T(T.ID)
     ts_logical_name: str    = T(Ui.choice('Store Name'))
+    # fmt: on
 
     def ts_logical_name_choices(self, trait) -> tuple:
         return tuple(nts.logical_name for nts in NamedTsStore.load_many())
@@ -919,15 +927,15 @@ class TsClassAssociation(Traitable):
     def ts_uri(cls, traitable_class) -> str:
         canonical_name = PyClass.name(traitable_class)
         while True:
-            association = cls.existing_instance(py_canonical_name = canonical_name, _throw = False)
+            association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
             if association:
-                named_store = NamedTsStore.existing_instance(logical_name = association.ts_logical_name)
+                named_store = NamedTsStore.existing_instance(logical_name=association.ts_logical_name)
                 return named_store.uri
 
-            parts = canonical_name.rsplit('.', maxsplit = 1)
+            parts = canonical_name.rsplit('.', maxsplit=1)
             name = parts[0]
-            if name == canonical_name:      #-- checked all packages bottom up
-                return ''                   #-- there is no URI for a class, its module or any package
+            if name == canonical_name:  # -- checked all packages bottom up
+                return ''  # -- there is no URI for a class, its module or any package
 
             canonical_name = name
 
