@@ -3,8 +3,6 @@ import keyring
 from core_10x.ts_store import TsStore
 
 db1 = TsStore.instance_from_uri('mongodb://localhost:27017/mkt_data')
-# db.begin_using()
-
 print(db1.collection_names())
 
 user = 'admin'
