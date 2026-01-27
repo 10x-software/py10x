@@ -13,12 +13,12 @@ from core_10x_i import BTraitable, BTraitableClass, BTraitableProcessor
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
-from core_10x.py_class import PyClass
 from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 from core_10x.package_manifest import PackageManifest
 from core_10x.package_refactoring import PackageRefactoring
+from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value  # noqa: F401
 from core_10x.trait_definition import (  # noqa: F401

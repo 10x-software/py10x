@@ -1,5 +1,6 @@
-from core_10x.traitable import Traitable, T, TsClassAssociation, NamedTsStore, TsStore
 from core_10x.code_samples.person import Person
+from core_10x.traitable import NamedTsStore, T, Traitable, TsClassAssociation
+
 
 class Dummy1(Traitable):
     text: str   = T()
