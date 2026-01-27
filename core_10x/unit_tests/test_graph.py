@@ -289,16 +289,16 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
         x: int = RT(T.ID)
         v: int = RT()
 
-    X(x=1, v=10, _force=True)
+    X(x=1, v=10, _replace=True)
     assert X(x=1).v == 10
 
     default_cache = BTP.current().cache()
     with BTP.create(on_graph, debug, convert_values, use_parent_cache=False, use_default_cache=False):
-        X(x=2, v=20, _force=True)
+        X(x=2, v=20, _replace=True)
         parent_cache = BTP.current().cache()
         assert default_cache is not parent_cache
         with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=False, use_default_cache=False):
-            X(x=3, v=30, _force=True)
+            X(x=3, v=30, _replace=True)
             child_cache = BTP.current().cache()
             assert child_cache is not parent_cache
             assert child_cache is not default_cache
@@ -306,7 +306,7 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
             assert X(x=2).v == 20
 
         with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=True, use_default_cache=False):
-            X(x=4, v=40, _force=True)
+            X(x=4, v=40, _replace=True)
             child_cache = BTP.current().cache()
             if on_graph == on_graph2:  # use_parent_cache only works if both parent and child are either on_graph or off_graph
                 assert child_cache is parent_cache
@@ -314,7 +314,7 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
                 assert child_cache is not parent_cache
                 assert child_cache is not default_cache
         with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=False, use_default_cache=True):
-            X(x=5, v=50, _force=True)
+            X(x=5, v=50, _replace=True)
             child_cache = BTP.current().cache()
             if not on_graph2:  # use_default_cache only works for off-graph mode
                 assert child_cache is default_cache

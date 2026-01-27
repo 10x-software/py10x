@@ -14,7 +14,7 @@ if __name__ == '__main__':
     db.begin_using()
 
     with BTraitableProcessor.create_root():
-        MarriedPerson(first_name='Ilya', last_name='Pevzner', spouse=MarriedPerson(first_name='Tatiana', last_name='Pevzner'), _force=True).save(
+        MarriedPerson(first_name='Ilya', last_name='Pevzner', spouse=MarriedPerson(first_name='Tatiana', last_name='Pevzner'), _replace=True).save(
             save_references=True
         )
 

@@ -29,8 +29,8 @@ if __name__ == '__main__':
 
         with BTP.create_root():
             # Create and save a person
-            person = MarriedPerson(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _force=True)
-            person.spouse = MarriedPerson(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _force=True)
+            person = MarriedPerson(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _replace=True)
+            person.spouse = MarriedPerson(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _replace=True)
             person.spouse.save()
             person.save()
 

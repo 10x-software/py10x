@@ -282,7 +282,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #     #    return cls.load(id_value)
     #     return cls(_id = id_value)      #-- TODO: we may not need this method, unless used to enforce loading
 
-    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _force=False, **trait_values):
+    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _replace=False, **trait_values):
         cls = self.__class__
 
         if _id is not None:
@@ -292,11 +292,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         else:
             super().__init__(cls.s_bclass, ID(collection_name=_collection_name))
             if not _skip_init:
-                if '_force' in BTraitable.initialize.__doc__:
-                    self.initialize(trait_values, _force)
-                else:
-                    # TODO: compatibility code - remove
-                    self.initialize(trait_values)
+                self.initialize(trait_values, _replace=_replace)
 
     @classmethod
     def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Traitable | None:
@@ -322,15 +318,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return None
 
     @classmethod
-    @deprecated('Use constructor with _force=True instead.')
+    @deprecated('Use create_or_replace instead.')
     def update(cls, **kwargs) -> Traitable:
-        if '_force' in BTraitable.initialize.__doc__:
-            return cls(**kwargs, _force=True)
+        return cls(**kwargs, _replace=True)
 
-        # TODO: compatibility code - remove
-        o = cls(**{k: v for k, v in kwargs.items() if not (t := cls.s_dir.get(k)) or t.flags_on(T.ID)})
-        o.set_values(**{k: v for k, v in kwargs.items() if (t := cls.s_dir.get(k)) and not t.flags_on(T.ID)}).throw()
-        return o
+    @classmethod
+    def new_or_replace(cls, **kwargs) -> Traitable:
+        return cls(**kwargs, _replace=True)
 
     def set_values(self, _ignore_unknown_traits=True, **trait_values) -> RC:
         return self._set_values(trait_values, _ignore_unknown_traits)

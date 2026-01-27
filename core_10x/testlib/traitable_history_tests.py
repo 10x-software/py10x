@@ -293,8 +293,8 @@ class TestTraitableHistory:
     def test_as_of_error_cases(self, test_store):
         with BTraitableProcessor.create_root():
             # Create and save a person
-            person = PersonTraitable(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _force=True)
-            person.spouse = PersonTraitable(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _force=True)
+            person = PersonTraitable(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _replace=True)
+            person.spouse = PersonTraitable(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _replace=True)
             person.spouse.save().throw()
             person.save().throw()
 

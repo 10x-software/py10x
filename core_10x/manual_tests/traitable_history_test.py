@@ -10,7 +10,7 @@ if __name__ == '__main__':
         Person.s_history_class.delete_collection()
 
         # Create and save a person
-        person = Person(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _force=True)
+        person = Person(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _replace=True)
         person.save()
 
         ts = datetime.utcnow()

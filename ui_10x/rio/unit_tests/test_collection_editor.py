@@ -12,8 +12,8 @@ from ui_10x.rio.component_builder import DynamicComponent
 @pytest.fixture(autouse=True)
 def mock_db_ops(monkeypatch):
     with CACHE_ONLY():
-        sasha = Person(first_name='Sasha', last_name='Davidovich', weight_lbs=150, _force=True)
-        ilya = Person(first_name='Ilya', last_name='Pevzner', weight_lbs=200, dob=date(1971, 7, 3), _force=True)
+        sasha = Person(first_name='Sasha', last_name='Davidovich', weight_lbs=150, _replace=True)
+        ilya = Person(first_name='Ilya', last_name='Pevzner', weight_lbs=200, dob=date(1971, 7, 3), _replace=True)
     monkeypatch.setattr(Person, 'load_ids', lambda: [sasha.id(), ilya.id()])
     monkeypatch.setattr(Person, 'load_data', lambda id: {sasha.id(): sasha, ilya.id(): ilya}[id])
     yield
