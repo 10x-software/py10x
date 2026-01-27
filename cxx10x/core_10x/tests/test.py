@@ -94,12 +94,20 @@ def test_5():
     class X(Traitable):
         x:int = T(T.ID)
 
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
     class Y(X):
         d:date = T(date.today())
 
     class Z(Traitable):
         y:Y = T(T.ID)
         t:datetime = T(datetime.now())
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
 
     with TsUnion():
         y = Y(x=1)
@@ -730,6 +738,10 @@ def test_27():
                     return Collection()
             return Store()
 
+        @classmethod
+        def collection(cls, _coll_name: str = None):
+            return cls.store().collection(_coll_name)
+
         def y_get(self) -> 'X':
             i = int(self.id().value)
             return X(ID(str(i+10))) if i<10 else XNone
@@ -767,6 +779,7 @@ def test_27():
 from core_10x.named_constant import NamedConstant
 class Status(NamedConstant):
     DEPRECATED = 'DEPRECATED'
+    __module__ = '__test__'
 
 def test_28():
     from core_10x.nucleus import Nucleus
@@ -800,17 +813,22 @@ def test_29():
 def test_30():
     from core_10x.testlib.test_store import TestStore
     cnt=0
-    class X(Traitable):
+    class X(Traitable,keep_history=False,immutable=False):
         x: int = T(T.ID)
         y: int = T()
         z: int = T(10)
 
         @classmethod
+        def collection(cls, _coll_name: str = None):
+            return cls.store().collection('__main__/test_30/<locals>/X')
+
+        @classmethod
         def load_data(cls, id):
             nonlocal cnt
             cnt += 1
-            print('load_data', id.value)
-            return super().load_data(id)
+            res = super().load_data(id)
+            print('load_data', res)
+            return res
 
     with TestStore():
         x = X.new_or_replace(x=1,y=10,z=100)
@@ -818,7 +836,7 @@ def test_30():
         assert x._rev == 0
         assert x.y == 10
         assert x.z == 100
-        x.save()
+        x.save().throw()
         assert x._rev == 1
         assert x.y == 10
         assert x.z == 100
