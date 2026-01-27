@@ -222,7 +222,7 @@ class RDate(Nucleus):
 
         if isinstance(add, RDate):
             rd1, rd2 = self.equate_freq(add)
-            return self._fract_count_to_RDate(mult * rd1.count + rd2.count, rd1.tenor, freq_to_try_for_fract_count)
+            return self._fract_count_to_RDate(mult * rd1.count + rd2.count, rd1.freq, freq_to_try_for_fract_count)
 
         raise ValueError(f'cannot calc a linear combination of {mult} * {self} + {add}')
 
