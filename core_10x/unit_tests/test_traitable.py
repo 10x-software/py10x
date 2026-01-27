@@ -66,7 +66,7 @@ def test_is_storable():
     assert not SubTraitable.is_storable()
     assert SubTraitable2.is_storable()
 
-    with pytest.raises(OSError, match='No Traitable Store is specified: neither explicitly, nor via backbone or URI'):
+    with pytest.raises(OSError, match='No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI'):
         SubTraitable2().save()
 
     assert 'is not storable' in SubTraitable(trait1=uuid.uuid1().int).save().error()
@@ -338,7 +338,7 @@ def test_trait_get_default_override():
 
     with pytest.raises(
         RuntimeError,
-        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'> - both trait.default and traitable.x_get are defined.',
+        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'> - both x.default and <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'>.x_get are defined.',
     ):
 
         class Y(X):
@@ -509,19 +509,26 @@ def test_id_trait_set():
         x.share(False)
         with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '2' to '3'"):
             x.x = 3
-        assert x.x == 2  # not updated on shared object
-        x.x = 2  # same value works..
+
+        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '2' to '2'"):
+            x.x = 2
+        assert x.x == 2
 
         with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.y \(<class 'int'>\) - cannot change ID_LIKE trait value from '1' to '4'"):
             x.y = 4
+
+        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.y \(<class 'int'>\) - cannot change ID_LIKE trait value from '1' to '1'"):
+            x.y = 1
+
         assert x.y == 1
-        x.y = 1  # same value works..
 
     x = X(x=1)
     with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '1' to '2'"):
         x.x = 2
-    assert x.x == 1  # not updated on shared object
-    x.x = 1  # same value works..
+
+    with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '1' to '1'"):
+        x.x = 1
+    assert x.x == 1
 
 
 def test_reload():
