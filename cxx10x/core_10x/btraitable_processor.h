@@ -78,7 +78,7 @@ public:
     static BTraitableProcessor* create_for_lazy_load(XCache *cache, unsigned lazy_load_flags);
 
     static BTraitableProcessor* create_interactive() {
-        auto proc = create(1, 1, 1, false, false);
+        const auto proc = create(1, 1, 1, false, false);
         proc->allow_empty_objects(true);
         return proc;
     }

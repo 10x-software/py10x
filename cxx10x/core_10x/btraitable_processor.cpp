@@ -38,7 +38,7 @@ BTraitableProcessor::~BTraitableProcessor() {
 }
 
 BTraitableProcessor* BTraitableProcessor::create_default() {
-    auto proc = create_raw(s_default_type);
+    const auto proc = create_raw(s_default_type);
     proc->use_cache(XCache::default_cache());
     return proc;
 }
@@ -179,8 +179,6 @@ void BTraitableProcessor::check_value(BTraitable *obj, const BTrait *trait, cons
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *trait, const py::object& value) {
     if (trait->flags_on(BTraitFlags::ID) && obj->tid().is_valid() && obj->is_set(trait)) {
         const auto trait_value=get_trait_value(obj, trait);
-        if (trait_value.equal(value)) // TODO: avoid comparison?
-            return PyLinkage::RC_TRUE(); // nothing to do for ID traits that are already set if ID is already valid
         const auto trait_type = trait->flags_on(BTraitFlags::FAUX) ? "ID_LIKE" : "ID";
         throw py::value_error(py::str("{}.{} ({}) - cannot change {} trait value from '{}' to '{}'").format(obj->class_name(), trait->name(), trait->data_type(), trait_type, trait_value,value));
     }
@@ -367,10 +365,10 @@ BTraitableProcessor* BTraitableProcessor::create_raw(const unsigned int flags) {
 
 BTraitableProcessor* BTraitableProcessor::create_root() {
     // create a processor with no parent cache
-    auto parent = current();
-    auto flags = parent->flags();
-    auto proc = create_raw(flags);
-    auto cache = new XCache();
+    const auto parent = current();
+    const auto flags = parent->flags();
+    const auto proc = create_raw(flags);
+    const auto cache = new XCache();
     if (flags & ON_GRAPH)
         cache->set_default_node_type(NODE_TYPE::BASIC_GRAPH);
     proc->use_own_cache(cache);

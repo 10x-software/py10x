@@ -843,6 +843,18 @@ def test_30():
         assert x.z == 10
         assert cnt == 3
 
+def test_31():
+    from core_10x.testlib.test_store import TestStore
+    from core_10x.code_samples.person import Person
+
+    with TestStore():
+        with BTP.create_root():
+            Person.new_or_replace(first_name='ilya', last_name = 'pevzner', weight_lbs=200).save()
+
+        with BTP.create_root():
+            Person.new_or_replace(first_name='ilya', last_name = 'pevzner', weight_lbs=205).save()
+
+        assert Person(first_name='ilya', last_name = 'pevzner').weight_lbs == 205
 
 if __name__ == '__main__':
     import core_10x_i
@@ -876,5 +888,6 @@ if __name__ == '__main__':
     test_28()
     test_29()
     test_30()
+    test_31()
 
 

@@ -304,7 +304,7 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
     const auto XNone = PyLinkage::XNone();
     for (const auto &[trait_name_handle, trait_handle] : my_class()->trait_dir()) {
         const auto trait = trait_handle.cast<BTrait*>();
-        if (trait->flags_on(BTraitFlags::RESERVED) || trait->flags_on(BTraitFlags::RUNTIME))
+        if (trait->flags_on(BTraitFlags::RESERVED) || trait->flags_on(BTraitFlags::RUNTIME) || trait->flags_on(BTraitFlags::ID) && is_set(trait))
             continue;
 
         const auto trait_name = trait_name_handle.cast<py::object>();
@@ -322,13 +322,14 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
 py::object BTraitable::_reload(const bool rev_only) {
     if (const auto cls = my_class(); cls->may_exist_in_store() && m_tid.is_valid()) {
         const auto needs_lazy_load = lazy_load_flags() & XCache::LOAD_REQUIRED;
-        const auto serialized_data = needs_lazy_load ? lazy_load_if_needed() : cls->load_data(id());
-        if (serialized_data.is_none())
-            return serialized_data;
+        const auto loaded_data = needs_lazy_load ? lazy_load_if_needed() : cls->load_data(id());
+        if (loaded_data.is_none())
+            return loaded_data;
 
+        auto serialized_data = loaded_data.cast<py::dict>();
         if (rev_only) {
             const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
-            serialized_data.cast<py::dict>().clear();
+            serialized_data.clear();
             serialized_data[BNucleus::REVISION_TAG()] = revision;
         }
         if (needs_lazy_load && ThreadContext::current_cache() == m_origin_cache)
