@@ -12,21 +12,21 @@ class UiTraitProcessor : public BTraitProcessor {
 public:
     //---- Getting trait value
 
-    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) final {
+    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) final {
         assert(false);  return py::none();
     }
 
-    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) final {
+    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) final {
         assert(false);   return py::none();
     }
 
-    static py::object ui_getter(BTraitable* obj, BTrait* trait) {
+    static py::object ui_getter(BTraitable* obj, const BTrait* trait) {
         obj->get_value(trait);          //-- dep on the value node
         obj->get_style_sheet(trait);    //-- dep on the style_sheet node
         return PyLinkage::XNone();
     }
 
-    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) final {
+    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) final {
         auto ui_class = obj->bui_class();
         auto ui_trait = ui_class->bui_trait(trait);
         auto ui_node = proc->cache()->find_node(obj->tid(), ui_trait);
@@ -37,7 +37,7 @@ public:
         return BTraitProcessor::get_node_value_on_graph(proc, ui_node, bound_getter);
     }
 
-    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) final {
+    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) final {
         assert(false);   return py::none();
     }
 
@@ -100,7 +100,7 @@ BUiClass::BUiClass(BTraitableClass* cls) : m_class(cls) {
     }
 }
 
-BTrait* BUiClass::bui_trait(BTrait *trait) const {
+BTrait* BUiClass::bui_trait(const BTrait *trait) const {
     auto i = m_own_dir.find(trait);
     if (i == m_own_dir.end())
         throw py::type_error(py::str("{}.{} - missing ui trait").format(m_class->name(), trait->name()));

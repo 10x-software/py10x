@@ -171,12 +171,12 @@ public:
         return get_value(check_trait(trait_name), args);
     }
 
-    py::object get_value(BTrait* trait) {
+    py::object get_value(const BTrait* trait) {
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait);
     }
 
-    py::object get_value(BTrait* trait, const py::args& args) {
+    py::object get_value(const BTrait* trait, const py::args& args) {
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait, args);
     }
@@ -186,7 +186,7 @@ public:
         return proc->get_choices(this, trait);
     }
 
-    py::object get_style_sheet(BTrait* trait) {
+    py::object get_style_sheet(const BTrait* trait) {
         if (trait->custom_f_style_sheet().is_none())
             return PyLinkage::XNone();
 

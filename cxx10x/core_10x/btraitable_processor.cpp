@@ -150,9 +150,15 @@ void BTraitableProcessor::check_value(BTraitable *obj, const BTrait *trait, cons
         throw py::type_error(py::str("{}.{} ({}) - invalid value '{}'").format(obj->class_name(), trait->name(), trait->data_type(), value));
 }
 
-py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *trait, const py::object& value) const {
-    if (trait->flags_on(BTraitFlags::ID) && obj->tid().is_valid() && obj->is_set(trait))
-        return PyLinkage::RC_TRUE(); // nothing to do for ID traits that are already set if ID is already valid
+py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *trait, const py::object& value) {
+    if (trait->flags_on(BTraitFlags::ID) && obj->tid().is_valid() && obj->is_set(trait)) {
+        const auto trait_value=get_trait_value(obj, trait);
+        if (trait_value.equal(value)) // TODO: avoid comparison?
+            return PyLinkage::RC_TRUE(); // nothing to do for ID traits that are already set if ID is already valid
+        const auto trait_type = trait->flags_on(BTraitFlags::FAUX) ? "ID_LIKE" : "ID";
+        throw py::value_error(py::str("{}.{} ({}) - cannot change {} trait value from '{}' to '{}'").format(obj->class_name(), trait->name(), trait->data_type(), trait_type, trait_value,value));
+    }
+
     const auto converted_value = adjust_set_value(obj, trait, value);
     if (!trait->f_set.is_none())     // custom setter is defined
         return trait->wrapper_f_set(obj, converted_value);
@@ -178,11 +184,11 @@ public:
         trait->proc()->invalidate_value_off_graph(this, obj, trait, args);
     }
 
-    py::object get_trait_value(BTraitable* obj, BTrait* trait) final {
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait) final {
         return trait->proc()->get_value_off_graph(this, obj, trait);
     }
 
-    py::object get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) final {
         return trait->proc()->get_value_off_graph(this, obj, trait, args);
     }
 
@@ -190,7 +196,7 @@ public:
         return trait->proc()->get_choices_off_graph(this, obj, trait);
     }
 
-    py::object get_style_sheet(BTraitable* obj, BTrait* trait) final {
+    py::object get_style_sheet(BTraitable* obj, const BTrait* trait) final {
         return trait->proc()->get_style_sheet_off_graph(this, obj, trait);
     }
 
@@ -250,11 +256,11 @@ public:
         trait->proc()->invalidate_value_on_graph(this, obj, trait, args);
     }
 
-    py::object get_trait_value(BTraitable* obj, BTrait* trait) final {
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait) final {
         return trait->proc()->get_value_on_graph(this, obj, trait);
     }
 
-    py::object get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) final {
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) final {
         return trait->proc()->get_value_on_graph(this, obj, trait, args);
     }
 
@@ -262,7 +268,7 @@ public:
         return trait->proc()->get_choices_on_graph(this, obj, trait);
     }
 
-    py::object get_style_sheet(BTraitable* obj, BTrait* trait) final {
+    py::object get_style_sheet(BTraitable* obj, const BTrait* trait) final {
         return trait->proc()->get_style_sheet_on_graph(this, obj, trait);
     }
 

@@ -9,7 +9,7 @@
 #include "thread_context.h"
 
 
-py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) {
     const auto & tid = obj->tid();
     const auto cache = proc->cache();
     cache->find_or_create_object_cache(obj); // handle lazy load
@@ -20,7 +20,7 @@ py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTrai
     return trait->wrapper_f_get(obj);
 }
 
-py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
+py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) {
     const auto & tid = obj->tid();
     const auto cache = proc->cache();
     cache->find_or_create_object_cache(obj); // handle lazy load
@@ -60,13 +60,13 @@ py::object BTraitProcessor::get_node_value_on_graph(BTraitableProcessor* proc, B
     return value;
 }
 
-py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) {
     const auto node = proc->cache()->find_or_create_node(obj, trait, true);
     auto bound_getter = [trait, obj]() { return trait->wrapper_f_get(obj); };
     return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
 }
 
-py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
+py::object BTraitProcessor::get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) {
     const auto node = proc->cache()->find_or_create_node(obj, trait, args, true);
     auto bound_getter = [trait, obj, args]() { return trait->wrapper_f_get(obj, args); };
     return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
@@ -82,11 +82,11 @@ py::object BTraitProcessor::get_choices_on_graph(BTraitableProcessor *proc, BTra
     return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
 }
 
-py::object BTraitProcessor::get_style_sheet_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+py::object BTraitProcessor::get_style_sheet_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) {
     return trait->wrapper_f_style_sheet(obj);
 }
 
-py::object BTraitProcessor::get_style_sheet_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+py::object BTraitProcessor::get_style_sheet_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) {
     const auto node = proc->cache()->find_or_create_node(obj, trait, PyLinkage::style_sheet_args(), true);
     auto bound_getter = [trait, obj]() { return trait->wrapper_f_style_sheet(obj); };
     return BTraitProcessor::get_node_value_on_graph(proc, node, bound_getter);
@@ -168,7 +168,7 @@ py::object BTraitProcessor::raw_set_value_on_graph(const BTraitableProcessor* pr
 //  - may not be set or invalidated
 //======================================================================================================================
 
-py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) {
+py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) {
     const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
     const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, true);
     if(node->is_valid())
@@ -179,7 +179,7 @@ py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitab
     return value;
 }
 
-py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) {
+py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) {
     const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
     const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, args, true);
     if(node->is_valid())

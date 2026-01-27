@@ -1,6 +1,6 @@
 import gc
 from collections import Counter
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 import numpy as np
@@ -15,6 +15,9 @@ from core_10x.traitable_id import ID
 
 from core_10x_i import BTraitableProcessor,XCache
 
+from core_10x.environment_variables import EnvVars
+
+EnvVars.traitable_store_uri = ''
 
 def _test1():
     p = Person(first_name = 'Sasha', last_name = 'Davidovich')
@@ -37,30 +40,35 @@ def test_1():
 def test_2():
     with TsUnion():
         p = Person(first_name = 'Sasha', last_name = 'Davidovich')
-    with CONVERT_VALUES_ON():
-        p.set_values(dob='December 1, 2000')
-    age = (date.today().toordinal() - p.dob.toordinal())/365.25
-    assert int(age) == p.age, f'Expected age around {int(age)}, got {p.age}'
+        with CONVERT_VALUES_ON():
+            p.set_values(dob='December 1, 2000')
+        age = (date.today().toordinal() - p.dob.toordinal())/365.25
+        assert int(age) == p.age, f'Expected age around {int(age)}, got {p.age}'
 
 def test_3():
     class X(Traitable):
         x:int = RT(T.ID)
         t:date = RT()
     p = X(x=1)
-    p.t = XNone
-    print(p.t)
+    p.t = date(2000,1,1)
+    assert p.t == date(2000,1,1)
 
     with DEBUG_ON():
-        p.t = 'December 1, 2000'
+        try:
+            p.t = 'December 1, 2000'
+        except TypeError as e:
+            assert "invalid value" in str(e)
+        else:
+            assert False, "Expected TypeError"
     print(p.t)
 
-    # with CONVERT_VALUES_ON():
-    #     p.t = 1577836800
-    # print(p.t)
+    with CONVERT_VALUES_ON():
+        p.t = datetime.fromordinal(2000)
+    print(p.t)
 
 def test_4():
     class X(Traitable):
-        x:int = T(T.ID)
+        x:int = T()
 
         @classmethod
         def x_serialize(cls,t,v):
@@ -71,7 +79,6 @@ def test_4():
         def x_deserialize(cls,t,v):
             assert t is cls.trait(t.name)
             return int(v.split(':')[-1])+1
-
 
     with TsUnion():
         p = X(x=1)
@@ -110,10 +117,15 @@ def test_6():
 
     XCache.clear()
     BTraitableProcessor.current().end_using()
-    assert x.x is XNone
+    try:
+        assert x.x
+    except RuntimeError as e:
+        assert 'object not usable - origin cache is not reachable' in str(e)
 
-    x.x=1
-    assert x.x==1
+    try:
+        x.x=1
+    except RuntimeError as e:
+        assert 'object not usable - origin cache is not reachable' in str(e)
 
 
 def test_7():
@@ -313,18 +325,18 @@ def test_13():
         x:int = RT(T.ID)
         v:int = RT()
 
-    X(x=1,v=10)
+    X(x=1,v=10,_force=True)
     assert X(x=1).v == 10
 
     default_cache = BTP.current().cache()
     with BTP.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False) as btp0:
         #assert btp0.flags() & BTP.ON_GRAPH
-        X(x=2,v=20)
+        X(x=2,v=20,_force=True)
         parent_cache = BTP.current().cache()
         assert default_cache is not parent_cache
         with BTP.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False) as btp:
             #assert btp.flags() & BTP.ON_GRAPH
-            X(x=3,v=30)
+            X(x=3,v=30,_force=True)
             child_cache = BTP.current().cache()
             assert child_cache is not parent_cache
             assert child_cache is not default_cache
@@ -332,11 +344,11 @@ def test_13():
             assert X(x=2).v == 20
 
         with BTP.create(-1,-1,-1,use_parent_cache=True,use_default_cache=False):
-            X(x=4,v=40)
+            X(x=4,v=40,_force=True)
             child_cache = BTP.current().cache()
             assert child_cache is parent_cache
         with BTP.create(0,-1,-1,use_parent_cache=False,use_default_cache=True):
-            X(x=5,v=50)
+            X(x=5,v=50,_force=True)
             child_cache = BTP.current().cache()
             assert child_cache is default_cache # use_default_cache only works for off-graph mode
             assert X(x=1).v == 10
@@ -569,6 +581,7 @@ def test_22():
 
 def test_23():
     save_calls = Counter()
+    load_calls = Counter()
 
     class X(Traitable):
         x: int = T(T.ID)
@@ -579,18 +592,42 @@ def test_23():
                 save_calls[self.id().value] += 1
             return RC(True)
 
-    x = X(x=1, y=X(x=2, y=X(x=1), _force=True), _force=True)
+        @classmethod
+        def exists_in_store(cls, id):
+            return int(id.value)>2
+
+        @classmethod
+        def load_data(cls, id):
+            load_calls[id.value] += 1
+
+        @classmethod
+        def store(cls):
+            return XNone
+
+    y = X(x=2, y=X(x=1), _force=True)
+    assert load_calls == {'2': 1}
+
+    x = X(x=1, y=y, _force=True)
+    assert load_calls == {'1': 1, '2': 1}
+
     x.save()
     assert save_calls == {'1': 1}
+    assert load_calls == {'1': 1, '2': 1}
+
     save_calls.clear()
 
     x.save(save_references=True)
     assert save_calls == {'1': 1, '2': 1}
     save_calls.clear()
 
-    x = X(x=1, y=X(_id=ID('3')), _force=True)
+    x = X(_id=ID('4'))
+    x.save()
+    assert save_calls == {} # save of a lazy ref is noop
+
+    x = X(x=1, y=X(_id=ID('4')), _force=True)
     x.save(save_references=True)
-    assert save_calls == {'1': 1}  # save of a lazy load is noop
+    print(save_calls)
+    assert save_calls == {'1': 1}  # save of a lazy ref is noop
 
 def test_24():
     class X(Traitable):
@@ -640,6 +677,18 @@ def test_26():
         x: int = T(T.ID)
         y: Any = T()
 
+        @classmethod
+        def store(cls):
+            return XNone
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            return None
+
     with GRAPH_ON():
         x = X(x=1, y=np.float64(1.1), _force=True)
         s = x.serialize_object()
@@ -653,7 +702,7 @@ def test_27():
     save_calls = Counter()
     serialized = {}
 
-    class X(Traitable):
+    class X(Traitable,keep_history=False):
         x: int = T(T.ID)
         y: THIS_CLASS = T()
         z: int = T()
@@ -668,14 +717,18 @@ def test_27():
 
 
         @classmethod
-        def collection(cls, _coll_name: str = None):
-            class Collection:
-                def save(self, serialized_data):
-                    id_value = serialized_data['_id']
-                    save_calls[id_value] += 1
-                    serialized[id_value] = serialized_data
+        def store(cls):
+            class Store:
+                @classmethod
+                def collection(cls, _coll_name: str = None):
+                    class Collection:
+                        def save_new(self, serialized_data):
+                            id_value = serialized_data['_id']
+                            save_calls[id_value] += 1
+                            serialized[id_value] = serialized_data
 
-            return Collection()
+                    return Collection()
+            return Store()
 
         def y_get(self) -> 'X':
             i = int(self.id().value)
@@ -725,32 +778,32 @@ def test_28():
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
-    #test_1()
-    #test_2()
-    #test_3()
-    #test_4()
-    #test_5()
-    #test_6()
-    #test_7()
-    #test_8()
-    #test_9()
-    # test_10()
-    #test_12()
-    #test_13()
-    #test_14()
-    #test_15()
-    #test_16()
-    #test_17()
-    # test_18()
-    # test_19()
-    # test_20()
-    #test_21()
-    # test_22()
-    # test_23()
-    #test_24()
-    # test_25()
-    #test_26()
-    #test_27()
+    test_1()
+    test_2()
+    test_3()
+    test_4()
+    test_5()
+    test_6()
+    test_7()
+    test_8()
+    test_9()
+    test_10()
+    test_12()
+    test_13()
+    test_14()
+    test_15()
+    test_16()
+    test_17()
+    test_18()
+    test_19()
+    test_20()
+    test_21()
+    test_22()
+    test_23()
+    test_24()
+    test_25()
+    test_26()
+    test_27()
     test_28()
 
 

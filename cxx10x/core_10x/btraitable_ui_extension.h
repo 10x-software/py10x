@@ -13,7 +13,7 @@ class BTraitable;
 class BTrait;
 
 class BUiClass {
-    using Dir = std::unordered_map<BTrait*, BTrait*>;
+    using Dir = std::unordered_map<const BTrait*, BTrait*>;
 
     BTraitableClass*    m_class;
     Dir                 m_own_dir;
@@ -21,7 +21,7 @@ class BUiClass {
 public:
     explicit BUiClass(BTraitableClass* cls);
 
-    BTrait *bui_trait(BTrait *trait) const;
+    BTrait *bui_trait(const BTrait *trait) const;
 
     void create_ui_node(BTraitable* obj, BTrait* trait, py::object f_refresh);
     void update_ui_node(BTraitable* obj, BTrait* trait);

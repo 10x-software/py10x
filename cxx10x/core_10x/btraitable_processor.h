@@ -114,7 +114,7 @@ public:
     BTraitableProcessor*    py_enter()                      { begin_using(); return this; }
     void                    py_exit(const py::args&) const { end_using(); }
 
-    virtual py::object      set_trait_value(BTraitable *obj, const BTrait *trait, const py::object &value) const;
+    virtual py::object      set_trait_value(BTraitable *obj, const BTrait *trait, const py::object &value);
     virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) const;
 
     virtual void            invalidate_trait_value(BTraitable* obj, BTrait* trait) = 0;
@@ -133,11 +133,11 @@ public:
 
     void                    export_nodes() const;
 
-    virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait) = 0;
-    virtual py::object      get_trait_value(BTraitable* obj, BTrait* trait, const py::args& args) = 0;
+    virtual py::object      get_trait_value(BTraitable* obj, const BTrait* trait) = 0;
+    virtual py::object      get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) = 0;
 
     virtual py::object      get_choices(BTraitable* obj, BTrait* trait) = 0;
-    virtual py::object      get_style_sheet(BTraitable* obj, BTrait* trait) = 0;
+    virtual py::object      get_style_sheet(BTraitable* obj, const BTrait* trait) = 0;
 
     virtual py::object      adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const = 0;
     virtual py::object      raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const = 0;

@@ -19,17 +19,17 @@ public:
 
     //---- Getting trait value
 
-    virtual py::object  get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
-    virtual py::object  get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args);
+    virtual py::object  get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait);
+    virtual py::object  get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args);
 
-    virtual py::object  get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
-    virtual py::object  get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args);
+    virtual py::object  get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait);
+    virtual py::object  get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args);
 
     py::object get_choices_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
     py::object get_choices_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
 
-    py::object get_style_sheet_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
-    py::object get_style_sheet_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait);
+    py::object get_style_sheet_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait);
+    py::object get_style_sheet_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait);
 
     //---- Invalidating trait value
 
@@ -54,14 +54,14 @@ class EvalOnceProc : public BTraitProcessor {
 
 public:
 
-    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) final;
-    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) final;
+    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) final;
+    py::object get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) final;
 
-    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait) final {
+    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) final {
         return get_value_off_graph(proc, obj, trait);
     }
 
-    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, BTrait* trait, const py::args& args) final {
+    py::object get_value_on_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) final {
         return get_value_off_graph(proc, obj, trait, args);
     }
 
