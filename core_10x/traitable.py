@@ -635,14 +635,14 @@ class StorableHelper(AbstractStorableHelper):
         return cls.store().collection(cname)
 
     def exists_in_store(self, id: ID) -> bool:
-        return self.collection(_coll_name=id.collection_name).id_exists(id.value)
+        return self.traitable_class.collection(_coll_name=id.collection_name).id_exists(id.value)
 
     def load_data(self, id: ID) -> dict | None:
-        return self.collection(_coll_name=id.collection_name).load(id.value)
+        return self.traitable_class.collection(_coll_name=id.collection_name).load(id.value)
 
     def delete_in_store(self, id: ID) -> RC:
         cls = self.traitable_class
-        coll = self.collection(_coll_name=id.collection_name)
+        coll = cls.collection(_coll_name=id.collection_name)
         if not coll:
             return RC(False, f'{cls} - no store available')
         if not coll.delete(id.value):
@@ -654,8 +654,9 @@ class StorableHelper(AbstractStorableHelper):
 
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
         # TODO FUTURE - current state as history query?
-        coll = self.collection(_coll_name=_coll_name)
-        return coll.find(f(query, self.traitable_class.s_bclass), _at_most=_at_most, _order=_order)
+        cls = self.traitable_class
+        coll = cls.collection(_coll_name=_coll_name)
+        return coll.find(f(query, cls.s_bclass), _at_most=_at_most, _order=_order)
 
     def load_many(
         self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True
@@ -669,7 +670,7 @@ class StorableHelper(AbstractStorableHelper):
         return [f_deserialize(serialized_data) for serialized_data in cursor]
 
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
-        id_tag = self.collection(_coll_name=_coll_name).s_id_tag  # better?
+        id_tag = self.traitable_class.collection(_coll_name=_coll_name).s_id_tag  # better?
         cursor = self._find(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
         return [ID(serialized_data.get(id_tag), _coll_name) for serialized_data in cursor]
 
@@ -690,11 +691,7 @@ class StorableHelper(AbstractStorableHelper):
         if not rc:
             return rc
 
-        if 'save_references' in BTraitable.serialize_object.__doc__:
-            serialized_data = traitable.serialize_object(save_references)
-        else:
-            # TODO: compatibility code - remove
-            serialized_data = traitable.serialize_object()
+        serialized_data = traitable.serialize_object(save_references)
 
         if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
             return RC_TRUE

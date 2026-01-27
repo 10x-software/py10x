@@ -14,6 +14,7 @@ import pytest
 from core_10x import trait_definition
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE
+from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition
@@ -257,7 +258,9 @@ def test_trait_methods():
         assert t().serialize_object()['t'] == (v * 2 or None)
 
 
-def test_anonymous_traitable():
+def test_anonymous_traitable(monkeypatch):
+    monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
+
     class X(AnonymousTraitable):
         a: int = T()
 
@@ -287,7 +290,7 @@ def test_anonymous_traitable():
 
     z = Z(y=1, x=x, _replace=True)
     s = z.serialize_object()
-    assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable/test_anonymous_traitable/<locals>/X'}
+    assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X'}
 
     z = Z(y=2, x=Y(y=3), _replace=True)
     with pytest.raises(TraitMethodError, match=r'test_anonymous_traitable.<locals>.Y/3 - embedded instance must be anonymous'):
@@ -404,7 +407,8 @@ def test_create_and_share():
         assert x.z is XNone
 
 
-def test_serialize():
+def test_serialize(monkeypatch):
+    monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
     save_calls = Counter()
     history_save_calls = Counter()
     load_calls = Counter()

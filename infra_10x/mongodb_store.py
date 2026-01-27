@@ -51,6 +51,7 @@ class MongoCollection(TsCollection):
 
         if not needs_upsert:
             try:
+                serialized_traitable[Nucleus.REVISION_TAG()] = 1
                 res = self.coll.insert_one(serialized_traitable)
                 ack, cnt = res.acknowledged, 0
             except DuplicateKeyError:
@@ -72,7 +73,6 @@ class MongoCollection(TsCollection):
         assert revision >= 0, 'revision must be >= 0'
 
         if revision == 0:
-            serialized_traitable[rev_tag] = 1
             return self.save_new(serialized_traitable)
 
         id_value = serialized_traitable.get(id_tag)

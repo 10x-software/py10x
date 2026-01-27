@@ -10,6 +10,7 @@ from core_10x_i import BTraitableProcessor
 from typing_extensions import Self
 
 from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
+from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
 from core_10x.traitable_id import ID
@@ -413,8 +414,9 @@ class TestTraitableHistory:
         assert person1.age == 31  # Current age
         assert person2.age == 26  # Current age
 
-    def test_history_without_keep_history(self, test_store):
+    def test_history_without_keep_history(self, test_store, monkeypatch):
         """Test that history is not created when keep_history is False."""
+        monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
 
         # Create a class without history tracking
         class NoHistoryTraitable(Traitable, keep_history=False):
