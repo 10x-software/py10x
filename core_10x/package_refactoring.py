@@ -28,6 +28,8 @@ class PackageRefactoring:
         if canonical_class_name is None:
             assert cls and inspect.isclass(cls), f'{cls} is not a valid class'
             canonical_class_name = PyClass.name(cls)
+            assert '__main__' not in canonical_class_name, f'{cls} is defined in __main__ and does not have a stable id'
+            assert '<locals>' not in canonical_class_name, f'{cls} is defined locally in a function and cannot be reconstructed'
         return canonical_class_name.replace('.', CLASS_ID_DELIMITER)
 
     def __init__(self, top_package_name: str):

@@ -102,6 +102,7 @@ class _EnvVars:
 
 
 class EnvVars(_EnvVars, env_name='XX'):
+    # fmt: off
     build_area: str
     parent_build_area: str          = 'dev'
 
@@ -111,6 +112,7 @@ class EnvVars(_EnvVars, env_name='XX'):
     date_format: str = XDateTime.FORMAT_ISO
 
     sdlc_area: str
+    # fmt: on
 
     def build_area_get(self) -> str:
         return OsUser.me.name()

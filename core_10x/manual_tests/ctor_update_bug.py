@@ -33,7 +33,7 @@ if __name__ == '__main__':
 
     # -- Apparently, after setting base_ccy and quote_ccy, the cross is correct, but the id is wrong!
     # -- This is also fixed by the T.ID_LIKE declaration!
-    c2 = Cross(_force=True, base_ccy='A', quote_ccy='B')
+    c2 = Cross(_replace=True, base_ccy='A', quote_ccy='B')
     assert c2.id().value == 'A/B'
 
     # #-- Case 1 - doesn't allow to create the second instance claiming it sets non-ID traits

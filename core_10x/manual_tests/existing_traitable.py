@@ -1,12 +1,11 @@
 if __name__ == '__main__':
-
     from core_10x.code_samples.person import Person
 
     ppl_stored = [
-        Person(last_name='Davidovich', first_name='Sasha', weight_lbs=170, _force=True),
-        Person(last_name='Pevzner', first_name='Ilya', weight_lbs=200, _force=True),
-        Person(last_name='Lesin', first_name='Alex', weight_lbs=190, _force=True),
-        Person(last_name='Smith', first_name='John', weight_lbs=180, _force=True),
+        Person(last_name='Davidovich', first_name='Sasha', weight_lbs=170, _replace=True),
+        Person(last_name='Pevzner', first_name='Ilya', weight_lbs=200, _replace=True),
+        Person(last_name='Lesin', first_name='Alex', weight_lbs=190, _replace=True),
+        Person(last_name='Smith', first_name='John', weight_lbs=180, _replace=True),
     ]
 
     id_traits = ('last_name', 'first_name')

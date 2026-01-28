@@ -170,7 +170,7 @@ class RDate(Nucleus):
     def apply_rule(cls, d: date, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE, comma_separated_rdates_str: str) -> date:
         rdates = comma_separated_rdates_str.split(',')
         for rdate_symbol in rdates:
-            rdate = RDate(symbol = rdate_symbol)
+            rdate = RDate(symbol=rdate_symbol)
             d = rdate.apply(d, cal, roll_rule)
         return d
 
@@ -222,7 +222,7 @@ class RDate(Nucleus):
 
         if isinstance(add, RDate):
             rd1, rd2 = self.equate_freq(add)
-            return self._fract_count_to_RDate(mult * rd1.count + rd2.count, rd1.tenor, freq_to_try_for_fract_count)
+            return self._fract_count_to_RDate(mult * rd1.count + rd2.count, rd1.freq, freq_to_try_for_fract_count)
 
         raise ValueError(f'cannot calc a linear combination of {mult} * {self} + {add}')
 

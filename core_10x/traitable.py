@@ -13,12 +13,12 @@ from core_10x_i import BTraitable, BTraitableClass, BTraitableProcessor
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
-from core_10x.py_class import PyClass
 from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 from core_10x.package_manifest import PackageManifest
 from core_10x.package_refactoring import PackageRefactoring
+from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value  # noqa: F401
 from core_10x.trait_definition import (  # noqa: F401
@@ -283,7 +283,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #     #    return cls.load(id_value)
     #     return cls(_id = id_value)      #-- TODO: we may not need this method, unless used to enforce loading
 
-    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _force=False, **trait_values):
+    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _replace=False, **trait_values):
         cls = self.__class__
 
         if _id is not None:
@@ -293,11 +293,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         else:
             super().__init__(cls.s_bclass, ID(collection_name=_collection_name))
             if not _skip_init:
-                if '_force' in BTraitable.initialize.__doc__:
-                    self.initialize(trait_values, _force)
-                else:
-                    # TODO: compatibility code - remove
-                    self.initialize(trait_values)
+                self.initialize(trait_values, _replace=_replace)
 
     @classmethod
     def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Traitable | None:
@@ -323,15 +319,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return None
 
     @classmethod
-    @deprecated('Use constructor with _force=True instead.')
+    @deprecated('Use create_or_replace instead.')
     def update(cls, **kwargs) -> Traitable:
-        if '_force' in BTraitable.initialize.__doc__:
-            return cls(**kwargs, _force=True)
+        return cls(**kwargs, _replace=True)
 
-        # TODO: compatibility code - remove
-        o = cls(**{k: v for k, v in kwargs.items() if not (t := cls.s_dir.get(k)) or t.flags_on(T.ID)})
-        o.set_values(**{k: v for k, v in kwargs.items() if (t := cls.s_dir.get(k)) and not t.flags_on(T.ID)}).throw()
-        return o
+    @classmethod
+    def new_or_replace(cls, **kwargs) -> Traitable:
+        return cls(**kwargs, _replace=True)
 
     def set_values(self, _ignore_unknown_traits=True, **trait_values) -> RC:
         return self._set_values(trait_values, _ignore_unknown_traits)
@@ -432,11 +426,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @classmethod
     @cache
     def store_per_class(cls) -> TsStore:
-        store = Traitable.main_store()                  #-- check if there's XX_MAIN_TS_STORE_URI defining a valid store
+        store = Traitable.main_store()  # -- check if there's XX_MAIN_TS_STORE_URI defining a valid store
         if not store:
             raise OSError('No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI')
 
-        #-- check if there's a specific store association with this cls
+        # -- check if there's a specific store association with this cls
         if EnvVars.use_ts_store_per_class:
             ts_uri = TsClassAssociation.ts_uri(cls)
             if ts_uri:
@@ -446,9 +440,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def store(cls) -> TsStore:
-        store: TsStore = TS_STORE.current_resource()    #-- if current TsStore is set, use it!
+        store: TsStore = TS_STORE.current_resource()  # -- if current TsStore is set, use it!
         if not store:
-            store = cls.store_per_class()               #-- otherwise, use per class store or main store, if any
+            store = cls.store_per_class()  # -- otherwise, use per class store or main store, if any
 
         return store
 
@@ -641,14 +635,14 @@ class StorableHelper(AbstractStorableHelper):
         return cls.store().collection(cname)
 
     def exists_in_store(self, id: ID) -> bool:
-        return self.collection(_coll_name=id.collection_name).id_exists(id.value)
+        return self.traitable_class.collection(_coll_name=id.collection_name).id_exists(id.value)
 
     def load_data(self, id: ID) -> dict | None:
-        return self.collection(_coll_name=id.collection_name).load(id.value)
+        return self.traitable_class.collection(_coll_name=id.collection_name).load(id.value)
 
     def delete_in_store(self, id: ID) -> RC:
         cls = self.traitable_class
-        coll = self.collection(_coll_name=id.collection_name)
+        coll = cls.collection(_coll_name=id.collection_name)
         if not coll:
             return RC(False, f'{cls} - no store available')
         if not coll.delete(id.value):
@@ -660,8 +654,9 @@ class StorableHelper(AbstractStorableHelper):
 
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
         # TODO FUTURE - current state as history query?
-        coll = self.collection(_coll_name=_coll_name)
-        return coll.find(f(query, self.traitable_class.s_bclass), _at_most=_at_most, _order=_order)
+        cls = self.traitable_class
+        coll = cls.collection(_coll_name=_coll_name)
+        return coll.find(f(query, cls.s_bclass), _at_most=_at_most, _order=_order)
 
     def load_many(
         self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True
@@ -675,7 +670,7 @@ class StorableHelper(AbstractStorableHelper):
         return [f_deserialize(serialized_data) for serialized_data in cursor]
 
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
-        id_tag = self.collection(_coll_name=_coll_name).s_id_tag  # better?
+        id_tag = self.traitable_class.collection(_coll_name=_coll_name).s_id_tag  # better?
         cursor = self._find(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
         return [ID(serialized_data.get(id_tag), _coll_name) for serialized_data in cursor]
 
@@ -696,11 +691,7 @@ class StorableHelper(AbstractStorableHelper):
         if not rc:
             return rc
 
-        if 'save_references' in BTraitable.serialize_object.__doc__:
-            serialized_data = traitable.serialize_object(save_references)
-        else:
-            # TODO: compatibility code - remove
-            serialized_data = traitable.serialize_object()
+        serialized_data = traitable.serialize_object(save_references)
 
         if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
             return RC_TRUE
@@ -905,13 +896,19 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
         return self.data_type(**value)
 
+
 class NamedTsStore(Traitable):
+    # fmt: off
     logical_name: str   = T(T.ID)
     uri: str            = T()
+    # fmt: on
+
 
 class TsClassAssociation(Traitable):
+    # fmt: off
     py_canonical_name: str  = T(T.ID)
     ts_logical_name: str    = T(Ui.choice('Store Name'))
+    # fmt: on
 
     def ts_logical_name_choices(self, trait) -> tuple:
         return tuple(nts.logical_name for nts in NamedTsStore.load_many())
@@ -936,15 +933,15 @@ class TsClassAssociation(Traitable):
         #-- 2) check the module and packages
         canonical_name = traitable_class.__module__
         while True:
-            association = cls.existing_instance(py_canonical_name = canonical_name, _throw = False)
+            association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
             if association:
-                named_store = NamedTsStore.existing_instance(logical_name = association.ts_logical_name)
+                named_store = NamedTsStore.existing_instance(logical_name=association.ts_logical_name)
                 return named_store.uri
 
-            parts = canonical_name.rsplit('.', maxsplit = 1)
+            parts = canonical_name.rsplit('.', maxsplit=1)
             name = parts[0]
-            if name == canonical_name:      #-- checked all packages bottom up
-                return ''                   #-- there is no URI for a class, its module or any package
+            if name == canonical_name:  # -- checked all packages bottom up
+                return ''  # -- there is no URI for a class, its module or any package
 
             canonical_name = name
 

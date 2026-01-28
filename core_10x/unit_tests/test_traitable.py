@@ -14,6 +14,7 @@ import pytest
 from core_10x import trait_definition
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE
+from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition
@@ -21,7 +22,7 @@ from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitAccessor
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
-from core_10x_i import BFlags, BTraitable
+from core_10x_i import BFlags
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -66,7 +67,7 @@ def test_is_storable():
     assert not SubTraitable.is_storable()
     assert SubTraitable2.is_storable()
 
-    with pytest.raises(OSError, match='No Traitable Store is specified: neither explicitly, nor via backbone or URI'):
+    with pytest.raises(OSError, match='No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI'):
         SubTraitable2().save()
 
     assert 'is not storable' in SubTraitable(trait1=uuid.uuid1().int).save().error()
@@ -74,7 +75,7 @@ def test_is_storable():
 
 def test_trait_update():
     with CACHE_ONLY():
-        instance = SubTraitable(trait1=10, trait2='hello', _force=True)
+        instance = SubTraitable(trait1=10, trait2='hello', _replace=True)
         assert instance.trait2 == 'hello'
 
         assert instance == SubTraitable.update(trait1=10, trait2='world')
@@ -188,15 +189,14 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
     with BTP.create(on_graph, convert_values, debug, use_parent_cache, use_default_cache):
         x = X.existing_instance_by_id(ID('1')) if use_existing_instance_by_id else X.existing_instance(i=1)
         assert x
-        x1 = X(i=3, x=x, y=2, _force=True)
+        x1 = X(i=3, x=x, y=2, _replace=True)
         assert x1.x is x
         assert x1.y == 2  # still 2 as lazy-load occurs before setting parameters passed
         assert load_calls == {'3': 1}  # lazy-load since no db access in constructor
         load_calls.clear()
 
         assert x.i == 1
-        compat = '_force' not in BTraitable.initialize.__doc__  # TODO: remove
-        expected = lambda n: {str(i): 1 + int(debug and self_ref and compat) for i in range(1, n + 1)}
+        expected = lambda n: {str(i): 1 for i in range(1, n + 1)}
         if debug and not self_ref:
             assert load_calls == expected(3)
             assert x.x.x == x1  # found existing instance
@@ -258,7 +258,9 @@ def test_trait_methods():
         assert t().serialize_object()['t'] == (v * 2 or None)
 
 
-def test_anonymous_traitable():
+def test_anonymous_traitable(monkeypatch):
+    monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
+
     class X(AnonymousTraitable):
         a: int = T()
 
@@ -280,17 +282,17 @@ def test_anonymous_traitable():
     x = X(a=1)
     assert x.serialize(True) == {'a': 1}
 
-    y = Y(y=0, x=x, _force=True)
+    y = Y(y=0, x=x, _replace=True)
     with pytest.raises(
         TraitMethodError, match=r"test_anonymous_traitable.<locals>.X - anonymous' instance may not be serialized as external reference"
     ):
         y.serialize_object()
 
-    z = Z(y=1, x=x, _force=True)
+    z = Z(y=1, x=x, _replace=True)
     s = z.serialize_object()
-    assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable/test_anonymous_traitable/<locals>/X'}
+    assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X'}
 
-    z = Z(y=2, x=Y(y=3), _force=True)
+    z = Z(y=2, x=Y(y=3), _replace=True)
     with pytest.raises(TraitMethodError, match=r'test_anonymous_traitable.<locals>.Y/3 - embedded instance must be anonymous'):
         z.serialize_object()
 
@@ -339,7 +341,7 @@ def test_trait_get_default_override():
 
     with pytest.raises(
         RuntimeError,
-        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'> - both trait.default and traitable.x_get are defined.',
+        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'> - both x.default and <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'>.x_get are defined.',
     ):
 
         class Y(X):
@@ -380,7 +382,7 @@ def test_create_and_share():
     with pytest.raises(TypeError, match=re.escape("test_create_and_share.<locals>.X.y (<class 'int'>) - invalid value ''")):
         X(x=1)
 
-    X(x=1, y=1, z=1, _force=True)
+    X(x=1, y=1, z=1, _replace=True)
 
     with pytest.raises(ValueError, match=re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
         X(x=1, y=1, z=2)
@@ -405,7 +407,8 @@ def test_create_and_share():
         assert x.z is XNone
 
 
-def test_serialize():
+def test_serialize(monkeypatch):
+    monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
     save_calls = Counter()
     history_save_calls = Counter()
     load_calls = Counter()
@@ -468,7 +471,7 @@ def test_serialize():
     save_calls.clear()
     load_calls.clear()
 
-    x = X(x=1, y=X(x=2, y=X(x=1), _force=True), _force=True)
+    x = X(x=1, y=X(x=2, y=X(x=1), _replace=True), _replace=True)
     x.save()
     assert save_calls == {'1': 1}
     assert load_calls == {str(i): 1 for i in range(1, 3)}
@@ -480,7 +483,7 @@ def test_serialize():
     assert load_calls == {}
     save_calls.clear()
 
-    X(x=3, y=Y(_id=ID('4')), z=0, _force=True).save(save_references=True)
+    X(x=3, y=Y(_id=ID('4')), z=0, _replace=True).save(save_references=True)
     assert load_calls == {'3': 1}
     assert save_calls == {'3': 1}  # save of a lazy load is noop
 
@@ -491,7 +494,7 @@ def test_serialize():
             "Failed in <class 'test_traitable.test_serialize.<locals>.X'>.z.z_get\n    object = 5;\n    value = ()\n    args = test_serialize.<locals>.X/6: object reference not found in store"
         ),
     ):
-        X(x=5, y=X(_id=ID('6')), _force=True).save(save_references=True)
+        X(x=5, y=X(_id=ID('6')), _replace=True).save(save_references=True)
 
 
 def test_id_trait_set():
@@ -508,15 +511,28 @@ def test_id_trait_set():
         assert x.x == 2
 
         x.share(False)
-        x.x = 3
-        assert x.x == 2  # not updated on shared object
+        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '2' to '3'"):
+            x.x = 3
 
-        x.y = 4
+        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '2' to '2'"):
+            x.x = 2
+        assert x.x == 2
+
+        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.y \(<class 'int'>\) - cannot change ID_LIKE trait value from '1' to '4'"):
+            x.y = 4
+
+        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.y \(<class 'int'>\) - cannot change ID_LIKE trait value from '1' to '1'"):
+            x.y = 1
+
         assert x.y == 1
 
     x = X(x=1)
-    x.x = 2
-    assert x.x == 1  # not updated on shared object
+    with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '1' to '2'"):
+        x.x = 2
+
+    with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '1' to '1'"):
+        x.x = 1
+    assert x.x == 1
 
 
 def test_reload():
@@ -561,10 +577,10 @@ def test_separation():
         y: int = RT()
 
     with GRAPH_ON() as g1:
-        x1 = X(x=1, y=1, _force=True)
+        x1 = X(x=1, y=1, _replace=True)
 
     with GRAPH_ON() as g2:
-        x2 = X(x=1, y=2, _force=True)
+        x2 = X(x=1, y=2, _replace=True)
 
     assert X(x=1).y is XNone
 
@@ -597,7 +613,7 @@ def test_any_trait(value):
             return None
 
     with GRAPH_ON():
-        x = X(x=1, y=value, z=[value], _force=True)
+        x = X(x=1, y=value, z=[value], _replace=True)
         assert x.y == value
         assert x.z[0] == value
         assert type(x.y) is type(value)

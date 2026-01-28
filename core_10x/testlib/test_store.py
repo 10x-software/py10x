@@ -85,6 +85,8 @@ class TestCollection(TsCollection):
                         data[field] = datetime.utcnow()
 
             serialized_traitable = data
+        else:
+            serialized_traitable[Nucleus.REVISION_TAG()] = 1
 
         id_tag = self.s_id_tag
         id_value = serialized_traitable.get(id_tag)
@@ -103,7 +105,7 @@ class TestCollection(TsCollection):
         rev_tag = Nucleus.REVISION_TAG()
         revision = serialized_traitable[rev_tag]
         if revision == 0:
-            return self.save_new(serialized_traitable | {rev_tag: 1})
+            return self.save_new(serialized_traitable)
 
         undef_variable = next((k[1:] for k in serialized_traitable if k.startswith('$')), None)
         if undef_variable:

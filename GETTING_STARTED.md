@@ -156,7 +156,7 @@ class Person(Traitable):
 
 # Usage
 with CACHE_ONLY():
-    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _force=True)
+    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _replace=True)
     assert person.full_name == "Alice Smith"  # Computed
     assert person.age == 36  # Computed from dob
 ```
@@ -387,9 +387,9 @@ assert person1.id() == person2.id()  # Same ID
 # Note: person1 is person2 would be False - they're different objects
 ```
 
-#### Constructor Parameter: `_force=True`
+#### Constructor Parameter: `_replace=True`
 
-The `_force` parameter controls whether non-ID traits can be provided during traitable initialization. By default (`_force=False`), only ID traits and ID_LIKE traits can be set during construction. When `_force=True`, non-ID traits can also be provided, potentially modifying an existing object with the same ID.
+The `_force` parameter controls whether non-ID traits can be provided during traitable initialization. By default (`_replace=False`), only ID traits and ID_LIKE traits can be set during construction. When `_replace=True`, non-ID traits can also be provided, potentially modifying an existing object with the same ID.
 
 ```python
 from core_10x.traitable import Traitable, T
@@ -401,7 +401,7 @@ class Person(Traitable):
     first_name: str = T(T.ID)
     last_name: str = T(T.ID)
 
-    # Non-ID traits (require _force=True when provided in constructor)
+    # Non-ID traits (require _replace=True when provided in constructor)
     dob: date = T()
     age: int
 
@@ -411,26 +411,26 @@ class Person(Traitable):
         today = date.today()
         return today.year - self.dob.year
 
-# Use _force=True when providing non-ID traits in constructor
+# Use _replace=True when providing non-ID traits in constructor
 with CACHE_ONLY():
-    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _force=True)
+    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _replace=True)
     assert person.age > 30  # Computed from dob (age depends on current year)
 ```
 
 **Technical Details:**
-- **Without `_force=True`**: Only ID traits (`T.ID`) and ID_LIKE traits (`T.ID_LIKE`) can be provided during construction. Attempting to provide non-ID traits raises a `ValueError`.
-- **With `_force=True`**: All traits can be provided during construction. The initialization process:
+- **Without `_replace=True`**: Only ID traits (`T.ID`) and ID_LIKE traits (`T.ID_LIKE`) can be provided during construction. Attempting to provide non-ID traits raises a `ValueError`.
+- **With `_replace=True`**: All traits can be provided during construction. The initialization process:
   1. Sets ID and ID_LIKE traits first to compute the object ID
   2. Shares with any existing object having the same ID (accepting existing values)
   3. Then sets any non-ID traits provided in the constructor
 
-**When to use `_force=True`:**
+**When to use `_replace=True`:**
 - When providing non-ID traits during construction
 - When you want to ensure an existing object gets updated with new values
 
 #### ID_LIKE Traits
 
-ID_LIKE traits participate in ID construction indirectly by affecting ID traits through getters or setters, but are not included in the ID calculation directly. They can be set during initialization without requiring `_force=True` because they may be needed to compute the actual ID traits.
+ID_LIKE traits participate in ID construction indirectly by affecting ID traits through getters or setters, but are not included in the ID calculation directly. They can be set during initialization without requiring `_replace=True` because they may be needed to compute the actual ID traits.
 
 ### Exogenous Traitables (Auto-generated UUID)
 
@@ -478,7 +478,7 @@ class DataRecord(Traitable):
 
 # Anonymous traitables: each instance gets its own ID
 with CACHE_ONLY():
-    record = DataRecord(name="sensor_001", data=AnonymousData(value="temp: 72.5", timestamp=1234567890.0), _force=True)
+    record = DataRecord(name="sensor_001", data=AnonymousData(value="temp: 72.5", timestamp=1234567890.0), _replace=True)
     assert record.data.id() is not None  # Instance-specific ID
 ```
 
@@ -673,8 +673,8 @@ class Employee(Traitable):
 
 # Create company and employee
 with CACHE_ONLY():
-    company = Company(name="Acme Corp", founded_year=2020, _force=True)
-    employee = Employee(first_name="Alice", last_name="Smith", company=company, _force=True)
+    company = Company(name="Acme Corp", founded_year=2020, _replace=True)
+    employee = Employee(first_name="Alice", last_name="Smith", company=company, _replace=True)
     
     # The company is stored by reference
     assert employee.serialize_object()['company'] == {'_id': 'Acme Corp'}
@@ -705,7 +705,7 @@ with CACHE_ONLY():
         first_name="Alice",
         last_name="Smith",
         address=Address(street="123 Main St", city="Anytown", zip_code="12345"),
-        _force=True
+        _replace=True
     )
     
     # The address is stored embedded within the person
@@ -1288,8 +1288,8 @@ class IdentifiedPerson(Person):
     name: str = M(T.ID)  # make it an id trait
 
 with CACHE_ONLY():
-    person = Person(name='John', age=10, _force=True)
-    person2 = IdentifiedPerson(name='John', age=11, _force=True)
+    person = Person(name='John', age=10, _replace=True)
+    person2 = IdentifiedPerson(name='John', age=11, _replace=True)
     assert person.id()!=person2.id()
 ```
 

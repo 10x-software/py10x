@@ -30,12 +30,12 @@ class Person(Traitable):
 if __name__ == '__main__':
     address = Address(street="145 Austin Dr", cszip="Burlington, VT 05401")
             
-    woman       = Person(ssn = '008-59-6666', name = 'Alice Smith',     dob = date(1972, 8, 21), _force = True)
-    daughter    = Person(ssn = '008-77-7777', name = 'Ann Smith',       dob = date(1997, 6, 17), _force = True)
-    son         = Person(ssn = '008-99-5555', name = 'Nathan Smith',    dob = date(1999, 9, 23), _force = True)
+    woman       = Person(ssn = '008-59-6666', name = 'Alice Smith',     dob = date(1972, 8, 21), _replace = True)
+    daughter    = Person(ssn = '008-77-7777', name = 'Ann Smith',       dob = date(1997, 6, 17), _replace = True)
+    son         = Person(ssn = '008-99-5555', name = 'Nathan Smith',    dob = date(1999, 9, 23), _replace = True)
 
 
-    man     = Person(_force = True,
+    man     = Person(_replace = True,
         ssn     = '009-87-4444',
         name    = 'John Smith',
         gender  = True,
