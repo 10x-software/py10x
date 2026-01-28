@@ -114,7 +114,7 @@ def test_overriding_init_disallowed():
     ):
 
         class DisallowedInit(Traitable):
-            def __init__(self, *args, **kwargs):  # type: ignore[override]
+            def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
 
 
@@ -280,6 +280,47 @@ def test_trait_methods():
     for t, v in zip([A, B, C, D], [XNone, 1, 2, 2], strict=True):
         assert t().t is v
         assert t().serialize_object()['t'] == (v * 2 or None)
+
+
+def test_trait_modification_inheritance_with_flags():
+    """Test complex trait modification inheritance with M() overriding flags and getters."""
+    from core_10x_i import BFlags
+
+    class X(Traitable):
+        x: int = RT(T.ID)
+        v: int = RT(T.ID)
+
+        def v_get(self):
+            return self.x + 1
+
+    class Y(X):
+        # M() removes ID flag; getter from X is inherited
+        v: int = M(flags=(BFlags(0), T.ID))
+
+    class Z(Y):
+        # M() changes data type; value is provided by v_get defined here
+        v: float = M()
+
+        def v_get(self):
+            return float(self.x + 3)
+
+    x = X(x=1)
+    y = Y(x=1)
+    z = Z(x=1)
+
+    # X: v is computed via v_get
+    assert x.v == 2  # x + 1
+
+    # Y: v inherits v_get from X, but no longer has ID flag
+    assert y.v == 2
+
+    # Z: v uses its own v_get and returns float
+    assert z.v == 4.0  # x + 3, as float
+
+    # Verify trait definitions
+    assert X.trait('v').flags_on(T.ID)
+    assert not Y.trait('v').flags_on(T.ID)  # ID flag removed
+    assert Z.trait('v').data_type is float
 
 
 def test_anonymous_traitable(monkeypatch):
@@ -521,6 +562,64 @@ def test_serialize(monkeypatch):
         X(x=5, y=X(_id=ID('6')), _replace=True).save(save_references=True)
 
 
+def test_reference_serialization_roundtrip(monkeypatch):
+    """Test that references are correctly serialized and can be loaded back in a round-trip."""
+    monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
+    serialized = {}
+
+    class Person(Traitable):
+        first_name: str = T(T.ID)
+        last_name: str = T(T.ID)
+        spouse: Self = T()
+
+        @classmethod
+        def exists_in_store(cls, id: ID) -> bool:
+            return id.value in serialized
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            return serialized.get(id.value)
+
+        @classmethod
+        def store(cls):
+            class Store:
+                def auth_user(self):
+                    return 'test_user'
+
+                def collection(self, collection_name):
+                    class Collection:
+                        def create_index(self, name, trait_name):
+                            return name
+
+                        def save(self, serialized_data):
+                            id_value = serialized_data['_id']
+                            serialized[id_value] = serialized_data
+                            return 1
+
+                        save_new = save
+
+                    return Collection()
+
+            return Store()
+
+    # Create both people
+    p2 = Person(first_name='Tatiana', last_name='Pevzner', _replace=True)
+    p1 = Person(first_name='Ilya', last_name='Pevzner', spouse=p2, _replace=True)
+
+    # Manually serialize both with references (simulating save_references=True behavior)
+    serialized['Tatiana|Pevzner'] = p2.serialize_object()
+    serialized['Ilya|Pevzner'] = p1.serialize_object()
+    assert serialized['Ilya|Pevzner']['spouse'] == {'_id': 'Tatiana|Pevzner'}
+
+    # Reload and verify references are preserved
+    loaded_p1 = Person.load(ID('Ilya|Pevzner'))
+    assert loaded_p1.first_name == 'Ilya'
+    assert loaded_p1.spouse is not None
+    assert loaded_p1.spouse.first_name == 'Tatiana'
+    assert loaded_p1.spouse.last_name == 'Pevzner'
+    assert type(loaded_p1.spouse) is Person
+
+
 def test_id_trait_set():
     class X(Traitable):
         x: int = RT(T.ID)
@@ -623,6 +722,81 @@ def test_separation():
 
     with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
         x2.get_value('y')
+
+
+def test_id_like_with_replace_and_non_id_update():
+    class Cross(Traitable):
+        cross: str = RT(T.ID)  # e.g., GBP/USD or CHF/JPY
+        base_ccy: str = RT(T.ID_LIKE)  # Base (left) currency
+        quote_ccy: str = RT(T.ID_LIKE)  # Quote (right) currency
+        value: str = RT()
+        value2: str = RT()
+
+        def cross_get(self) -> str:
+            return f'{self.base_ccy}/{self.quote_ccy}'
+
+    c1 = Cross(base_ccy='A', quote_ccy='B', value='123', value2='456', _replace=True)
+    assert c1.cross == 'A/B'
+    assert c1.id().value == 'A/B'
+    assert c1.value == '123'
+    assert c1.value2 == '456'
+
+    c2 = Cross(base_ccy='A', quote_ccy='B')
+    assert c2.cross == 'A/B'
+    assert c2.id().value == 'A/B'
+    assert c2.value == '123'
+    assert c2.value2 == '456'
+
+    c3 = Cross(base_ccy='A', quote_ccy='B', value='234', _replace=True)
+    assert c2.cross == 'A/B'
+    assert c2.id().value == 'A/B'
+    assert c2.value == '234'
+    assert c2.value2 is XNone
+
+    assert c1 == c2 == c3  # all objects with the same ID are equal
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape('test_id_like_with_replace_and_non_id_update.<locals>.Cross.value - non-ID trait value cannot be set during initialization'),
+    ):
+        Cross(base_ccy='A', quote_ccy='B', value='234')
+
+
+def test_existing_instance_api_variants():
+    # Mirror existing_traitable.py manual test using Person, but in CACHE_ONLY
+    id_traits = ('last_name', 'first_name')
+
+    with CACHE_ONLY():
+        ppl_stored = [
+            Person(last_name='Davidovich', first_name='Sasha', weight_lbs=170, _replace=True),
+            Person(last_name='Pevzner', first_name='Ilya', weight_lbs=200, _replace=True),
+            Person(last_name='Lesin', first_name='Alex', weight_lbs=190, _replace=True),
+            Person(last_name='Smith', first_name='John', weight_lbs=180, _replace=True),
+        ]
+
+        existing_id_traits = [{name: getattr(p, name) for name in id_traits} for p in ppl_stored]
+
+        ppl_found = [Person.existing_instance(**id_values) for id_values in existing_id_traits]
+        assert ppl_found == ppl_stored
+
+        # Positive / negative lookups with _throw flag
+        p1 = Person.existing_instance(last_name='Smith', first_name='John')
+        assert p1
+
+        p2 = Person.existing_instance(last_name='Smith', first_name='Josh', _throw=False)
+        assert p2 is None
+
+        # existing_instance_by_id with ID and raw id value
+        id1 = ppl_found[0].id()
+        p3 = Person.existing_instance_by_id(_id=id1)
+
+        id1_val = id1.value
+        p4 = Person.existing_instance_by_id(_id_value=id1_val)
+        assert p3 == p4
+
+        id2_val = 'Smith|Josh'
+        p5 = Person.existing_instance_by_id(_id_value=id2_val, _throw=False)
+        assert p5 is None
 
 
 @pytest.mark.parametrize('value', [{'x': 1}, {}, [], [1], np.float64(1.1)])

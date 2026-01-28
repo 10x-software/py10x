@@ -135,6 +135,41 @@ class TestCalendarAdjustment:
         assert CalendarAdjustment.is_storable()
         assert CalendarAdjustment.trait('name')  # Has ID trait
 
+    def test_calendar_adjustment_with_adjusted_for(self, ts_instance):
+        """Test Calendar with adjusted_for parameter applies CalendarAdjustment."""
+        with ts_instance:
+            # Create base calendar
+            base_cal = Calendar(
+                _replace=True,
+                name='BASE',
+                description='Base calendar',
+                non_working_days=[date(2025, 1, 1), date(2025, 12, 25)],
+            )
+            base_cal.save()
+
+            # Create adjustment that adds and removes days
+            adj = CalendarAdjustment(
+                _replace=True,
+                name='TEST_ADJ',
+                add_days=[date(2025, 1, 15)],
+                remove_days=[date(2025, 1, 1)],
+            )
+            adj.save()
+
+            # Create adjusted calendar
+            adjusted_cal = Calendar(
+                _replace=True,
+                name='BASE',
+                adjusted_for='TEST_ADJ',
+            )
+            adjusted_cal.save()
+
+            # Adjusted calendar should have base days + add_days - remove_days
+            nwds = set(adjusted_cal.non_working_days)
+            assert date(2025, 1, 1) not in nwds  # removed
+            assert date(2025, 1, 15) in nwds  # added
+            assert date(2025, 12, 25) in nwds  # kept from base
+
 
 class TestCalendar:
     """Unit tests for Calendar class."""
@@ -336,9 +371,58 @@ class TestCalendar:
 
     def test_union(self):
         """Test union class method."""
-        # Test with single calendar (would require actual instance)
+        # Test with no calendars
         with pytest.raises(AssertionError, match='At least one calendar is required for union'):
             Calendar.union()
+
+    def test_calendar_union_and_intersection_real_calendars(self, ts_instance):
+        """Test Calendar.union and Calendar.intersection on real stored calendars."""
+        with ts_instance:
+            us_holidays = {
+                date(2025, 1, 1),
+                date(2025, 1, 20),
+                date(2025, 2, 17),
+                date(2025, 5, 26),
+                date(2025, 7, 4),
+                date(2025, 9, 1),
+                date(2025, 10, 13),
+                date(2025, 11, 11),
+                date(2025, 11, 27),
+                date(2025, 12, 25),
+            }
+            uk_holidays = {
+                date(2025, 1, 1),
+                date(2025, 4, 18),
+                date(2025, 5, 5),
+                date(2025, 5, 26),
+                date(2025, 8, 25),
+                date(2025, 12, 25),
+                date(2025, 12, 26),
+            }
+
+            us_c = Calendar(
+                _replace=True,
+                name='US',
+                description='US calendar',
+                non_working_days=sorted(us_holidays),
+            )
+            uk_c = Calendar(
+                _replace=True,
+                name='UK',
+                description='UK calendar',
+                non_working_days=sorted(uk_holidays),
+            )
+
+            assert us_c.save()
+            assert uk_c.save()
+
+            union_cal = Calendar.union('US', 'UK')
+            assert isinstance(union_cal, Calendar)
+            assert set(union_cal.non_working_days) == us_holidays | uk_holidays
+
+            intersection_cal = Calendar.intersection('US', 'UK')
+            assert isinstance(intersection_cal, Calendar)
+            assert set(intersection_cal.non_working_days) == us_holidays & uk_holidays
 
     def test_intersection_alias(self):
         """Test that intersection is an alias for AND."""

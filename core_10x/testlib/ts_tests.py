@@ -241,3 +241,40 @@ class TestTSStore:
         loaded = collection.load(doc_id)
         assert loaded['name'] == 'Updated'
         assert loaded['new_field'] == 'new_value'
+
+    def test_ts_class_association_ts_uri_resolution(self, ts_setup):
+        """Test that TsClassAssociation.ts_uri correctly resolves store URIs for classes and their subclasses."""
+        from core_10x.py_class import PyClass
+        from core_10x.traitable import NamedTsStore, T, Traitable, TsClassAssociation
+
+        ts_store, _p, _p1 = ts_setup
+
+        class Dummy1(Traitable):
+            text: str = T(T.ID)
+
+        class Dummy2(Traitable):
+            text: str = T(T.ID)
+
+        class Dummy3(Dummy2): ...
+
+        dummy_uri1 = 'mongodb://localhost/dummy1'
+        dummy_uri2 = 'mongodb://localhost/dummy2'
+
+        with ts_store:
+            # Create and save NamedTsStore objects
+            ns1 = NamedTsStore(logical_name='dummy1', uri=dummy_uri1, _replace=True)
+            ns1.save()
+            ns2 = NamedTsStore(logical_name='dummy2', uri=dummy_uri2, _replace=True)
+            ns2.save()
+
+            # Create and save TsClassAssociation objects
+            name1 = PyClass.name(Dummy1)
+            name2 = PyClass.name(Dummy2)
+            TsClassAssociation(py_canonical_name=name1, ts_logical_name='dummy1', _replace=True).save()
+            TsClassAssociation(py_canonical_name=name2, ts_logical_name='dummy2', _replace=True).save()
+
+            # Class-specific association
+            assert TsClassAssociation.ts_uri(Dummy1) == dummy_uri1
+
+            # Subclass should inherit parent's association if it has none of its own
+            assert TsClassAssociation.ts_uri(Dummy3) == dummy_uri2

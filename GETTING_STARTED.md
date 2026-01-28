@@ -389,7 +389,7 @@ assert person1.id() == person2.id()  # Same ID
 
 #### Constructor Parameter: `_replace=True`
 
-The `_force` parameter controls whether non-ID traits can be provided during traitable initialization. By default (`_replace=False`), only ID traits and ID_LIKE traits can be set during construction. When `_replace=True`, non-ID traits can also be provided, potentially modifying an existing object with the same ID.
+The `_replace` parameter controls whether non-ID traits can be provided during traitable initialization and whether existing cached trait values for the same ID are overwritten. By default (`_replace=False`), only ID traits and ID_LIKE traits can be set during construction. When `_replace=True`, non-ID traits can also be provided, and any existing cached values for those traits (for the same ID) are intentionally replaced.
 
 ```python
 from core_10x.traitable import Traitable, T
@@ -418,19 +418,39 @@ with CACHE_ONLY():
 ```
 
 **Technical Details:**
-- **Without `_replace=True`**: Only ID traits (`T.ID`) and ID_LIKE traits (`T.ID_LIKE`) can be provided during construction. Attempting to provide non-ID traits raises a `ValueError`.
-- **With `_replace=True`**: All traits can be provided during construction. The initialization process:
-  1. Sets ID and ID_LIKE traits first to compute the object ID
-  2. Shares with any existing object having the same ID (accepting existing values)
-  3. Then sets any non-ID traits provided in the constructor
+- **Construction always creates a new Python instance**: you should compare traitables by `==` (or by `id().value`), not by `is`.
+- **Without `_replace=True`**:
+  - Only ID traits (`T.ID`) and ID_LIKE traits (`T.ID_LIKE`) can be provided during construction.
+  - Attempting to provide non-ID traits raises a `ValueError`.
+  - ID is computed from the ID traits (which may themselves be computed from ID_LIKE traits via getters/setters).
+- **With `_replace=True`**:
+  - All traits can be provided during construction.
+  - The initialization process:
+    1. Sets ID and ID_LIKE traits first to compute the object ID (for example, an ID getter may derive the ID from ID_LIKE traits).
+    2. Clears any existing non-ID trait values cached for the computed ID in the global cache.
+    3. Then sets the non-ID traits provided in the constructor in the global cache (any non-ID traits not provided become `XNone`).
 
 **When to use `_replace=True`:**
-- When providing non-ID traits during construction
-- When you want to ensure an existing object gets updated with new values
+- When providing non-ID traits during construction.
+- When you intentionally want to overwrite existing non-ID trait values for an ID (for example, when recomputing an entity based on updated ID_LIKE inputs).
 
 #### ID_LIKE Traits
 
-ID_LIKE traits participate in ID construction indirectly by affecting ID traits through getters or setters, but are not included in the ID calculation directly. They can be set during initialization without requiring `_replace=True` because they may be needed to compute the actual ID traits.
+ID_LIKE traits participate in ID construction **indirectly** by affecting ID traits through getters or setters, but are not included in the ID calculation directly. A common pattern is:
+
+```python
+from core_10x.traitable import Traitable, RT, T
+
+class Cross(Traitable):
+    cross: str = RT(T.ID)         # ID trait, e.g. "GBP/USD"
+    base_ccy: str = RT(T.ID_LIKE)  # helper traits
+    quote_ccy: str = RT(T.ID_LIKE)
+
+    def cross_get(self) -> str:
+        return f'{self.base_ccy}/{self.quote_ccy}'
+```
+
+Here `base_ccy` and `quote_ccy` are ID_LIKE traits; changing them changes the `cross` ID trait value via the getter, and thus the logical identity, even though only `cross` is marked as `T.ID`. They can be set during initialization without requiring `_replace=True` because they are often needed to compute the actual ID traits.
 
 ### Exogenous Traitables (Auto-generated UUID)
 
