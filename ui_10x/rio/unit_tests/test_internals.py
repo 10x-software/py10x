@@ -7,7 +7,7 @@ custom Rio app functionality for running in webview windows.
 
 import pathlib
 import sys
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from ui_10x.rio.internals.app import App10x, FastapiServer, Session, app_server
@@ -20,7 +20,7 @@ class TestApp10x:
 
     def test_app10x_initialization(self):
         """Test App10x initialization with default values."""
-        mock_app = Mock(spec=rio.App)
+        mock_app = Mock()
         app10x = App10x(app=mock_app)
 
         assert app10x.app is mock_app
@@ -28,7 +28,7 @@ class TestApp10x:
 
     def test_app10x_initialization_with_webview(self):
         """Test App10x initialization with webview provided."""
-        mock_app = Mock(spec=rio.App)
+        mock_app = Mock()
         mock_webview = Mock()
         app10x = App10x(app=mock_app, webview=mock_webview)
 
@@ -101,7 +101,7 @@ class TestApp10x:
         mock_webview.is_alive.return_value = True
         mock_webview_process.return_value = mock_webview
 
-        mock_app = Mock(spec=rio.App)
+        mock_app = Mock()
         mock_app.name = 'Test App'
         app10x = App10x(app=mock_app)
 
@@ -137,7 +137,7 @@ class TestApp10x:
         mock_webview.is_alive.return_value = True
         mock_webview_process.return_value = mock_webview
 
-        mock_app = Mock(spec=rio.App)
+        mock_app = Mock()
         mock_app.name = 'Test App'
         app10x = App10x(app=mock_app)
         mock_app._run_as_web_server = Mock()
@@ -166,7 +166,7 @@ class TestApp10x:
         mock_webview.is_alive.return_value = True
         mock_webview_process.return_value = mock_webview
 
-        mock_app = Mock(spec=rio.App)
+        mock_app = Mock()
         mock_app.name = 'Test App'
         mock_app._run_as_web_server.side_effect = Exception('Test error')
         app10x = App10x(app=mock_app)
@@ -190,7 +190,7 @@ class TestApp10x:
         mock_webview.is_alive.return_value = True
         mock_webview_process.return_value = mock_webview
 
-        mock_app = Mock(spec=rio.App)
+        mock_app = Mock()
         mock_app.name = 'Test App'
         app10x = App10x(app=mock_app)
 
@@ -244,15 +244,20 @@ class TestFastapiServer:
 
     async def test_fastapi_server_create_session(self):
         """Test create_session method creates Session with app10x attribute."""
-        # Create a mock server
-        server = Mock(spec=FastapiServer)
+        # Create a mock server that behaves like FastapiServer
+        server = Mock()
+        server.__class__ = FastapiServer
         server.app10x = Mock()
 
         # Mock the parent create_session method
         mock_session = Mock(spec=rio.Session)
-        with patch.object(
-            app_server.FastapiServer, 'create_session', new_callable=AsyncMock, return_value=mock_session
-        ) as mock_parent_create_session:
+        mock_parent_create_session = Mock()
+
+        async def fake_create_session(*args, **kwargs):
+            mock_parent_create_session(*args, **kwargs)
+            return mock_session
+
+        with patch.object(app_server.FastapiServer, 'create_session', fake_create_session):
             # Call the actual FastapiServer.create_session method
             result = await FastapiServer.create_session(server)
 
@@ -307,66 +312,91 @@ class TestSession:
     async def test_session_close_not_running_in_window(self):
         """Test _close when not running in window calls parent method twice."""
         # Create a mock session with the actual Session class behavior
-        session = Mock(spec=Session)
+        session = Mock()
+        session.__class__ = Session
         session.running_in_window = False
 
         # Mock the parent _close method
-        with patch.object(rio.Session, '_close', new_callable=AsyncMock) as mock_parent_close:
+        mock_parent_close = Mock()
+
+        async def fake_close(*args, **kwargs):
+            mock_parent_close(*args, **kwargs)
+
+        with patch.object(rio.Session, '_close', fake_close):
             # Call the actual Session._close method
             await Session._close(session, close_remote_session=True)
 
             # Should call parent method twice: once with original parameter, once with False
             assert mock_parent_close.call_count == 2
-            mock_parent_close.assert_any_call(close_remote_session=True)
-            mock_parent_close.assert_any_call(close_remote_session=False)
+            mock_parent_close.assert_any_call(session, close_remote_session=True)
+            mock_parent_close.assert_any_call(session, close_remote_session=False)
 
     async def test_session_close_running_in_window(self):
         """Test _close when running in window calls parent with False and closes webview."""
-        session = Mock(spec=Session)
+        session = Mock()
+        session.__class__ = Session
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
 
         # Mock the parent _close method
-        with patch.object(rio.Session, '_close', new_callable=AsyncMock) as mock_parent_close:
+        mock_parent_close = Mock()
+
+        async def fake_close(*args, **kwargs):
+            mock_parent_close(*args, **kwargs)
+
+        with patch.object(rio.Session, '_close', fake_close):
             # Call the actual Session._close method
             await Session._close(session, close_remote_session=True)
 
             # Should call parent method once with close_remote_session=False
-            mock_parent_close.assert_called_once_with(close_remote_session=False)
+            mock_parent_close.assert_called_once_with(session, close_remote_session=False)
 
             # Should close webview
             session.app10x.webview.close.assert_called_once()
 
     async def test_session_get_webview_window_raises_error(self):
         """Test _get_webview_window raises RuntimeError."""
-        session = Mock(spec=Session)
+        session = Mock()
+        session.__class__ = Session
 
         with pytest.raises(RuntimeError, match='Should not be called required in out-of-process webview'):
             await Session._get_webview_window(session)
 
     async def test_session_set_title_not_running_in_window(self):
         """Test set_title when not running in window calls parent method."""
-        session = Mock(spec=Session)
+        session = Mock()
+        session.__class__ = Session
         session.running_in_window = False
 
         # Mock the parent set_title method
-        with patch.object(rio.Session, 'set_title', new_callable=AsyncMock) as mock_parent_set_title:
+        mock_parent_set_title = Mock()
+
+        async def fake_set_title(*args, **kwargs):
+            mock_parent_set_title(*args, **kwargs)
+
+        with patch.object(rio.Session, 'set_title', fake_set_title):
             # Call the actual Session.set_title method
             await Session.set_title(session, 'Test Title')
 
             # Should call parent method
-            mock_parent_set_title.assert_called_once_with('Test Title')
+            mock_parent_set_title.assert_called_once_with(session, 'Test Title')
 
     async def test_session_set_title_running_in_window(self):
         """Test set_title when running in window calls webview instead of parent."""
-        session = Mock(spec=Session)
+        session = Mock()
+        session.__class__ = Session
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
 
         # Mock the parent set_title method
-        with patch.object(rio.Session, 'set_title', new_callable=AsyncMock) as mock_parent_set_title:
+        mock_parent_set_title = Mock()
+
+        async def fake_set_title(*args, **kwargs):
+            mock_parent_set_title(*args, **kwargs)
+
+        with patch.object(rio.Session, 'set_title', fake_set_title):
             # Call the actual Session.set_title method
             await Session.set_title(session, 'Test Title')
 
@@ -378,12 +408,19 @@ class TestSession:
 
     async def test_session_pick_folder_not_running_in_window(self):
         """Test pick_folder when not running in window calls parent method."""
-        session = Mock(spec=Session)
+        session = Mock()
+        session.__class__ = Session
         session.running_in_window = False
         expected_path = pathlib.Path('/test/path')
 
         # Mock the parent pick_folder method
-        with patch.object(rio.Session, 'pick_folder', new_callable=AsyncMock, return_value=expected_path) as mock_parent_pick_folder:
+        mock_parent_pick_folder = Mock()
+
+        async def fake_pick_folder(*args, **kwargs):
+            mock_parent_pick_folder(*args, **kwargs)
+            return expected_path
+
+        with patch.object(rio.Session, 'pick_folder', fake_pick_folder):
             # Call the actual Session.pick_folder method
             result = await Session.pick_folder(session)
 
@@ -393,7 +430,7 @@ class TestSession:
 
     async def test_session_pick_folder_running_in_window(self):
         """Test pick_folder when running in window calls webview and returns Path."""
-        session = Mock(spec=Session)
+        session = Mock()
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
@@ -408,22 +445,29 @@ class TestSession:
 
     async def test_session_pick_file_not_running_in_window(self):
         """Test pick_file when not running in window calls parent method."""
-        session = Mock(spec=Session)
+        session = Mock()
+        session.__class__ = Session
         session.running_in_window = False
         expected_file_info = Mock()
 
         # Mock the parent pick_file method
-        with patch.object(rio.Session, 'pick_file', new_callable=AsyncMock, return_value=expected_file_info) as mock_parent_pick_file:
+        mock_parent_pick_file = Mock()
+
+        async def fake_pick_file(*args, **kwargs):
+            mock_parent_pick_file(*args, **kwargs)
+            return expected_file_info
+
+        with patch.object(rio.Session, 'pick_file', fake_pick_file):
             # Call the actual Session.pick_file method
             result = await Session.pick_file(session, file_types=['txt'], multiple=False)
 
             # Should call parent method and return its result
-            mock_parent_pick_file.assert_called_once_with(file_types=['txt'], multiple=False)
+            mock_parent_pick_file.assert_called_once_with(session, file_types=['txt'], multiple=False)
             assert result == expected_file_info
 
     async def test_session_pick_file_running_in_window_single(self):
         """Test pick_file when running in window (single file) calls webview."""
-        session = Mock(spec=Session)
+        session = Mock()
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
@@ -441,7 +485,7 @@ class TestSession:
 
     async def test_session_pick_file_running_in_window_multiple(self):
         """Test pick_file when running in window (multiple files) calls webview."""
-        session = Mock(spec=Session)
+        session = Mock()
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
@@ -460,7 +504,7 @@ class TestSession:
 
     async def test_session_pick_file_no_selection(self):
         """Test pick_file when no file is selected raises NoFileSelectedError."""
-        session = Mock(spec=Session)
+        session = Mock()
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
@@ -472,7 +516,7 @@ class TestSession:
 
     async def test_session_pick_file_normalize_file_types(self):
         """Test pick_file normalizes and deduplicates file types."""
-        session = Mock(spec=Session)
+        session = Mock()
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
@@ -488,20 +532,28 @@ class TestSession:
 
     async def test_session_save_file_not_running_in_window(self):
         """Test save_file when not running in window calls parent method."""
-        session = Mock(spec=Session)
+        session = Mock()
+        session.__class__ = Session
         session.running_in_window = False
 
         # Mock the parent save_file method
-        with patch.object(rio.Session, 'save_file', new_callable=AsyncMock) as mock_parent_save_file:
+        mock_parent_save_file = Mock()
+
+        async def fake_save_file(*args, **kwargs):
+            mock_parent_save_file(*args, **kwargs)
+
+        with patch.object(rio.Session, 'save_file', fake_save_file):
             # Call the actual Session.save_file method
             await Session.save_file(session, 'test content', 'test.txt', media_type='text/plain', directory=pathlib.Path('/test'))
 
             # Should call parent method
-            mock_parent_save_file.assert_called_once_with('test content', 'test.txt', media_type='text/plain', directory=pathlib.Path('/test'))
+            mock_parent_save_file.assert_called_once_with(
+                session, 'test content', 'test.txt', media_type='text/plain', directory=pathlib.Path('/test')
+            )
 
     async def test_session_save_file_running_in_window(self):
         """Test save_file when running in window calls webview."""
-        session = Mock(spec=Session)
+        session = Mock()
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
@@ -514,7 +566,7 @@ class TestSession:
 
     async def test_session_save_file_running_in_window_no_directory(self):
         """Test save_file when running in window with no directory calls webview."""
-        session = Mock(spec=Session)
+        session = Mock()
         session.running_in_window = True
         session.app10x = Mock()
         session.app10x.webview = Mock()
@@ -542,7 +594,7 @@ class TestIntegration:
         mock_webview_process.return_value = mock_webview
 
         # Create mock Rio app
-        mock_app = Mock(spec=rio.App)
+        mock_app = Mock()
         mock_app.name = 'Integration Test App'
         mock_app._run_as_web_server = Mock()
 

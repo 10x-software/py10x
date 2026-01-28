@@ -49,7 +49,7 @@ async def test_collection_editor() -> None:
         assert await test_client.execute_js('document.querySelectorAll("input")[16].value') == 'LB'
         assert await test_client.execute_js('document.querySelectorAll("input")[15].value') == '200.00'
 
-        button_id = next(b._id_ for b in test_client.get_components(rio.Button) if b.icon == 'material/arrow_downward')
+        button_id = next(b._id_ for b in reversed(tuple(test_client.get_components(rio.Button))) if b.icon == 'material/arrow_downward')
         await test_client.execute_js(f'''document.querySelector('[dbg-id="{button_id}"]').querySelector('rio-pressable-element').click()''')
         await asyncio.sleep(0.5)
 

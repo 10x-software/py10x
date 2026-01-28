@@ -233,13 +233,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def is_storable(cls) -> bool:
         return cls.s_bclass.is_storable()
 
-    @staticmethod
-    def find_storable_class(class_id: str):
-        traitable_class = PackageRefactoring.find_class(class_id)
-        if not issubclass(traitable_class, Traitable) or not traitable_class.is_storable():
-            raise TypeError(f'{traitable_class} is not a storable Traitable')
-
-        return traitable_class
+    # @staticmethod
+    # def find_storable_class(class_id: str):
+    #     traitable_class = PackageRefactoring.find_class(class_id)
+    #     if not issubclass(traitable_class, Traitable) or not traitable_class.is_storable():
+    #         raise TypeError(f'{traitable_class} is not a storable Traitable')
+    #
+    #     return traitable_class
 
     s_bclass: BTraitableClass = None
     s_custom_collection = False

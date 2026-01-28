@@ -1847,7 +1847,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=6.0,<8.0" },
     { name = "python-dateutil", specifier = ">=2.9.0,<2.10.0" },
     { name = "requests", specifier = ">=2.32.5" },
-    { name = "rio-ui", marker = "extra == 'rio'", git = "https://github.com/ilya-pevzner/rio.git?rev=on-resize" },
+    { name = "rio-ui", marker = "extra == 'rio'", specifier = "==0.12" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.13,<0.14" },
     { name = "scipy", specifier = ">=1.15.3" },
     { name = "typing-extensions", specifier = ">=4.15.0" },
@@ -2571,8 +2571,8 @@ wheels = [
 
 [[package]]
 name = "rio-ui"
-version = "0.11.2rc7"
-source = { git = "https://github.com/ilya-pevzner/rio.git?rev=on-resize#6cdd3b523fce1f29d6604f79d3e4da45e51df572" }
+version = "0.12"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "crawlerdetect" },
     { name = "cssutils" },
@@ -2600,6 +2600,9 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"] },
     { name = "watchfiles" },
     { name = "yarl" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b0/0d/bbbf58b69cd4dd97daca7ad373295cf854088a74699fa93ff18a764f9d76/rio_ui-0.12-py3-none-any.whl", hash = "sha256:f78272ffd29dbefff16fd2d7ae0622fc859d087b46198d4a9b834e32adae0d50", size = 5393448, upload-time = "2025-12-30T14:53:44.465Z" },
 ]
 
 [[package]]
@@ -2922,15 +2925,15 @@ wheels = [
 
 [[package]]
 name = "uniserde"
-version = "0.4.1rc0"
+version = "0.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "python-dateutil" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/58/bf/17f881d973bd31c1e29db19fc4dfa7a0bae674f8b3dfd8bda4c0b81ddbd2/uniserde-0.4.1rc0.tar.gz", hash = "sha256:685217a609005c00df8090ec0d7f6c77c93ab5089ac4cfa68cc1e584d74801ec", size = 44048, upload-time = "2025-10-10T09:45:59.575Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/b7/4917e500c29e064a9f514b856cf0a4a27f2c906a295d7218ce30c1ad2165/uniserde-0.4.1.tar.gz", hash = "sha256:1fa540e2fbfbed7e4d71e9e1e471f003281142f8ea36bdcac3554d2200734a93", size = 44040, upload-time = "2025-12-01T16:29:40.725Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c5/b7/b7a144bf9a9089865dd13f873a548ad2b1008346b0b49ea8ca0c16a53525/uniserde-0.4.1rc0-py3-none-any.whl", hash = "sha256:221435d058bb7715623e65519b1144c952e6edba223d3c7ac53a0ebb8492d057", size = 39606, upload-time = "2025-10-10T09:45:58.008Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/f1/e29dc64eec88681d0d910e96c926163e49371595a39667bea6fcf185125e/uniserde-0.4.1-py3-none-any.whl", hash = "sha256:5d0db1e1b5e2a4d50b89badf72a804229902fe8b754a2af3f32956e1e32279e8", size = 39578, upload-time = "2025-12-01T16:29:39.526Z" },
 ]
 
 [[package]]

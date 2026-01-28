@@ -51,7 +51,7 @@ dev = [
     "uv>=0.9",
 ]
 rio = [
-    "rio-ui @ git+https://github.com/ilya-pevzner/rio.git@on-resize",
+    "rio-ui==0.12",
     "matplotlib~=3.10.6",
     "webview-proc>=0.1.0rc6",
     "aiofiles>=24.1",
@@ -78,11 +78,7 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["core_10x", "infra_10x", "ui_10x"]
-exclude = [
-  "**/*_tests/**",
-]
+#exclude = [ "**/*_tests/**" ]
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]
-commands = [
-    "playwright install --with-deps chromium",
-]
+commands = [ "playwright install --with-deps chromium" ]

@@ -28,7 +28,7 @@ class LineEditComponent(rio.Component):
                 component,
                 on_pointer_up=self.on_pointer_up,
                 consume_events=False,
-                capture_events=True,
+                event_order='before-child',
             )
 
         if self.tooltip is not None:
