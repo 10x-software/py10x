@@ -12,9 +12,9 @@ class Dummy3(Dummy2):
     ...
 
 if __name__ == '__main__':
+    from core_10x.environment_variables import EnvVars
     from core_10x.manual_tests.ts_class_association_test import Dummy1, Dummy2, Dummy3
     from core_10x.py_class import PyClass
-    from core_10x.environment_variables import EnvVars
 
     #-- 0) Create a Person instance and save - must go to the main TsStore - no association
     p = Person(first_name = 'A', last_name = 'B')
