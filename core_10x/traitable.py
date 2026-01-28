@@ -928,6 +928,7 @@ class TsClassAssociation(Traitable):
 
     @classmethod
     def ts_uri(cls, traitable_class) -> str:
+        #-- 1) Check TsStore association for the class itself, its module and packages
         canonical_name = PyClass.name(traitable_class)
         while True:
             association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
@@ -938,10 +939,21 @@ class TsClassAssociation(Traitable):
             parts = canonical_name.rsplit('.', maxsplit=1)
             name = parts[0]
             if name == canonical_name:  # -- checked all packages bottom up
-                return ''  # -- there is no URI for a class, its module or any package
+                break   #-- no asscciation for the class. module, packages
 
             canonical_name = name
 
+        #-- 2) Check TsStore association for the class' parent Traitables
+        parent_classes = traitable_class.__mro__
+        for pclass in parent_classes[1:]:
+            if issubclass(pclass, Traitable):
+                canonical_name = PyClass.name(pclass)
+                association = cls.existing_instance(py_canonical_name = canonical_name, _throw = False)
+                if association:
+                    named_store = NamedTsStore.existing_instance(logical_name = association.ts_logical_name)
+                    return named_store.uri
+
+        return ''
 
 class Bundle(Traitable):
     s_bundle_base = None
