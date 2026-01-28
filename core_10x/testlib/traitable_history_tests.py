@@ -636,3 +636,104 @@ class TestTraitableHistory:
         # Test find without _filter parameter
         results = list(test_collection.find())
         assert len(results) == 2  # Should find both persons
+
+    def test_immutability_of_classes_without_history(self, test_store, test_collection):
+        """Test immutability of storable classes that do not keep history."""
+
+        class NoHistoryImmutableTraitable(NameValueTraitableCustomCollection, keep_history=False): ...
+
+        # Classes without history should be marked immutable
+        assert NoHistoryImmutableTraitable.s_history_class is None
+        assert NoHistoryImmutableTraitable.s_immutable is True
+
+        # First save should succeed and create a single record
+        item = NoHistoryImmutableTraitable(_collection_name=test_collection.collection_name())
+        item.name = 'First'
+        rc1 = item.save()
+        assert rc1
+        assert item.name == 'First'
+        assert item._rev == 1
+        assert test_collection.count() == 1
+
+        # Second save should fail (cannot update immutable records)
+        item.name = 'Second'
+        rc2 = item.save()
+        assert not rc2
+        assert item.name == 'Second'
+        assert item._rev == 1
+
+        # After reload, state should still reflect the original save
+        item.reload()
+        assert item.name == 'First'
+        assert item._rev == 1
+
+    def test_history_entries_are_immutable(self, test_store):
+        """Test that individual history entries cannot be modified once written."""
+
+        # Create and save a person twice to generate multiple history entries
+        person = PersonTraitable()
+        person.name = 'Immutable History'
+        person.age = 30
+        person.email = 'immutable@example.com'
+        person.save()
+
+        person.age = 31
+        person.save()
+
+        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        assert history_collection.count() == 2
+
+        # Load a history entry as TraitableHistory instance
+        history_entries = PersonTraitable.history(_deserialize=True)
+        assert len(history_entries) == 2
+
+        entry = history_entries[0]
+        original_who = entry._who
+
+        # Attempting to modify and re-save the history entry should fail
+        entry._who = 'someone-else'
+        rc = entry.save()
+        assert not rc
+
+        # Reload from the store and verify that the stored entry was not changed
+        reloaded_docs = list(history_collection.find())
+        assert len(reloaded_docs) == 2
+        assert any(doc['_who'] == original_who for doc in reloaded_docs)
+        assert all(doc['_who'] != 'someone-else' for doc in reloaded_docs)
+
+    def test_asof_find_returns_one_record_per_id(self, test_store):
+        """Test that the AsOf _find implementation returns at most one record per _id."""
+
+        # Create two people and multiple history entries for each
+        person1 = PersonTraitable()
+        person1.name = 'Person One'
+        person1.age = 30
+        person1.email = 'one@example.com'
+        person1.save()
+
+        person1.age = 31
+        person1.save()
+
+        person2 = PersonTraitable()
+        person2.name = 'Person Two'
+        person2.age = 25
+        person2.email = 'two@example.com'
+        person2.save()
+
+        person2.age = 26
+        person2.save()
+
+        # Sanity check: we indeed have multiple history records per person
+        history = PersonTraitable.history()
+        assert len(history) >= 4
+
+        as_of_time = datetime.utcnow()
+
+        # AsOfContext uses StorableHelperAsOf._find under the hood for load_many
+        with AsOfContext([PersonTraitable], as_of_time):
+            people_as_of = PersonTraitable.load_many()
+
+        # We should get exactly one record per traitable id
+        assert len(people_as_of) == 2
+        ids = [p.id().value for p in people_as_of]
+        assert len(set(ids)) == len(ids)

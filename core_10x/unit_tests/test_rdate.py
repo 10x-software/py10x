@@ -3,14 +3,12 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
-
 from core_10x.rdate import (
     BIZDAY_ROLL_RULE,
     PROPAGATE_DATES,
-    RDate,
     TENOR_FREQUENCY,
+    RDate,
 )
-from core_10x.xxcalendar import Calendar
 
 
 class TestRDate:
@@ -141,6 +139,7 @@ class TestRDate:
 
             def advance_bizdays(self, d, count):
                 from datetime import timedelta
+
                 return d + timedelta(days=count)
 
         cal = MockCalendar()
@@ -166,6 +165,7 @@ class TestRDate:
 
             def advance_bizdays(self, d, count):
                 from datetime import timedelta
+
                 return d + timedelta(days=count)
 
         cal = MockCalendar()
@@ -191,6 +191,7 @@ class TestRDate:
 
             def advance_bizdays(self, d, count):
                 from datetime import timedelta
+
                 return d + timedelta(days=count)
 
         cal = MockCalendar()
@@ -317,6 +318,7 @@ class TestRDate:
 
             def advance_bizdays(self, d, count):
                 from datetime import timedelta
+
                 return d + timedelta(days=count)
 
         cal = MockCalendar()
@@ -390,10 +392,7 @@ class TestRDate:
 
         cal = MockCalendar()
 
-        dates = rd.dates_schedule(
-            start_date, end_date, cal, BIZDAY_ROLL_RULE.NO_ROLL,
-            PROPAGATE_DATES.FORWARD, allow_stub=True
-        )
+        dates = rd.dates_schedule(start_date, end_date, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.FORWARD, allow_stub=True)
 
         # Should generate dates: Jan 15, Apr 15, Jul 15
         expected = [date(2023, 1, 15), date(2023, 4, 15), date(2023, 7, 15)]
@@ -417,10 +416,7 @@ class TestRDate:
 
         cal = MockCalendar()
 
-        dates = rd.dates_schedule(
-            start_date, end_date, cal, BIZDAY_ROLL_RULE.NO_ROLL,
-            PROPAGATE_DATES.BACKWARD, allow_stub=True
-        )
+        dates = rd.dates_schedule(start_date, end_date, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.BACKWARD, allow_stub=True)
 
         # Should generate dates: Jul 15, Apr 15, Jan 15 (backward from end)
         expected = [date(2023, 1, 15), date(2023, 4, 15), date(2023, 7, 15)]
@@ -445,8 +441,7 @@ class TestRDate:
         cal = MockCalendar()
 
         start_dates, end_dates, all_dates = rd.period_dates(
-            start_date, end_date, cal, BIZDAY_ROLL_RULE.NO_ROLL,
-            PROPAGATE_DATES.FORWARD, allow_stub=True
+            start_date, end_date, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.FORWARD, allow_stub=True
         )
 
         expected_all = [date(2023, 1, 15), date(2023, 4, 15), date(2023, 7, 15)]
@@ -476,8 +471,7 @@ class TestRDate:
         cal = MockCalendar()
 
         start_dates, end_dates, all_dates = rd.period_dates_for_tenor(
-            start_date, tenor, cal, BIZDAY_ROLL_RULE.NO_ROLL,
-            PROPAGATE_DATES.FORWARD, allow_stub=True
+            start_date, tenor, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.FORWARD, allow_stub=True
         )
 
         # Start at Jan 15, end at Oct 15 (9M later), with 3M periods

@@ -94,6 +94,30 @@ def test_instance_slots():
         instance.non_existent_attr = 'value'
 
 
+def test_post_init_called():
+    calls = []
+
+    class X(Traitable):
+        x: int = RT()
+
+        def __post_init__(self):
+            calls.append(self)
+
+    x = X(x=1)
+    assert calls == [x]
+
+
+def test_overriding_init_disallowed():
+    with pytest.raises(
+        TypeError,
+        match=r'Overriding __init__ is not allowed in DisallowedInit\. Use __post_init__ instead\.',
+    ):
+
+        class DisallowedInit(Traitable):
+            def __init__(self, *args, **kwargs):  # type: ignore[override]
+                super().__init__(*args, **kwargs)
+
+
 def test_init_with_id():
     with GRAPH_ON():  # isolate lazy reference so it does not affect other tests
         pid = ID('John|Smith')

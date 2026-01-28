@@ -66,6 +66,8 @@ COLL_NAME_TAG = '_collection_name'
 
 class TraitableMetaclass(type(BTraitable)):
     def __new__(cls, name, bases, class_dict, **kwargs):
+        if '__init__' in class_dict and name != 'Traitable':
+            raise TypeError(f'Overriding __init__ is not allowed in {name}. Use __post_init__ instead.')
         return super().__new__(cls, name, bases, class_dict | {'__slots__': ()}, **kwargs)
 
 
@@ -294,6 +296,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             super().__init__(cls.s_bclass, ID(collection_name=_collection_name))
             if not _skip_init:
                 self.initialize(trait_values, _replace=_replace)
+
+        self.__post_init__()
+
+    def __post_init__(self):
+        # Default no-op; users can override this in subclasses
+        pass
 
     @classmethod
     def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Traitable | None:
