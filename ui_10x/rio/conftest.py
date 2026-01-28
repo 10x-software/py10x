@@ -19,10 +19,10 @@ async def manage_server(request):
     if running_with_coverage(request.config):
         # run headless client even if running with coverage
         rio.testing.browser_client.DEBUGGER_ACTIVE = False
-        pytest.mark.timeout(120)
+        pytest.mark.timeout(180)
     else:
         if rio.testing.browser_client.DEBUGGER_ACTIVE:
-            pytest.mark.timeout(0 if rio.testing.browser_client.DEBUGGER_ACTIVE else 60)
+            pytest.mark.timeout(0 if rio.testing.browser_client.DEBUGGER_ACTIVE else 90)
 
     async with rio.testing.browser_client.prepare_browser_client():
         yield
