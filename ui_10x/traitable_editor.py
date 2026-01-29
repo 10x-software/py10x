@@ -124,8 +124,8 @@ class TraitableEditor:
 
         stretched_trait_found = False
         for te in self.trait_editors.values():
-            stretch = te.ui_hint.param('stretch', None)
-            if stretch is not None:
+            stretch = te.ui_hint.param('stretch', 0)
+            if stretch:
                 stretched_trait_found = True
 
             row.add_widget(te.new_label())

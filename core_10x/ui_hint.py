@@ -74,40 +74,40 @@ class UiHint:
         return self.params.get(param_name, default_value)
 
     @staticmethod
-    def line(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, align_h: int = 1):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.LINE, min_width=min_width, align_h=align_h)
+    def line(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, align_h: int = 1, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.LINE, min_width=min_width, align_h=align_h, **kwargs)
 
     @staticmethod
-    def text(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.TEXT, min_width=min_width)
+    def text(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.TEXT, min_width=min_width, **kwargs)
 
     @staticmethod
-    def text4list(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.TEXT4LIST, min_width=min_width)
+    def text4list(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.TEXT4LIST, min_width=min_width, **kwargs)
 
     @staticmethod
-    def password(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 10):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PASSWORD, min_width=min_width)
+    def password(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 10, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PASSWORD, min_width=min_width, **kwargs)
 
     @staticmethod
-    def check(label: str = None, flags: int = 0x0, tip: str = None, right_label: bool = False, align_h: int = 1):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.CHECK, right_label=right_label, align_h=align_h)
+    def check(label: str = None, flags: int = 0x0, tip: str = None, right_label: bool = False, align_h: int = 1, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.CHECK, right_label=right_label, align_h=align_h, **kwargs)
 
     @staticmethod
-    def choice(label: str = None, flags: int = 0x0, tip: str = None, align_h: int = 1):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.CHOICE, align_h=align_h)
+    def choice(label: str = None, flags: int = 0x0, tip: str = None, align_h: int = 1, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.CHOICE, align_h=align_h, **kwargs)
 
     @staticmethod
-    def pixmap(label: str = None, flags: int = 0x0, tip: str = None, w: int = 10, h: int = 10):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PIXMAP, w=w, h=h)
+    def pixmap(label: str = None, flags: int = 0x0, tip: str = None, w: int = 10, h: int = 10, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PIXMAP, w=w, h=h, **kwargs)
 
     @staticmethod
-    def button(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PUSH, min_width=min_width)
+    def button(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.PUSH, min_width=min_width, **kwargs)
 
     @staticmethod
-    def file(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1):
-        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.FILE, min_width=min_width)
+    def file(label: str = None, flags: int = 0x0, tip: str = None, min_width: int = 1, **kwargs):
+        return Ui(label=label, flags=flags, tip=tip, widget_type=Ui.WIDGET_TYPE.FILE, min_width=min_width, **kwargs)
 
 
 class UiHintModification(UiHint):
