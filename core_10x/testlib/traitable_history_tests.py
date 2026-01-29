@@ -84,14 +84,14 @@ class TestTraitableHistory:
         """Test AsOfContext enter and exit."""
         as_of_time = datetime(2023, 1, 1, 12, 0, 0)
 
-        with AsOfContext([NameValueTraitable], as_of_time) as context:
+        with AsOfContext(as_of_time, [NameValueTraitable]) as context:
             assert context.as_of_time == as_of_time
 
     def test_asof_context_manager(self):
         """Test AsOfContext as context manager."""
         as_of_time = datetime(2023, 1, 1, 12, 0, 0)
 
-        with AsOfContext([NameValueTraitable], as_of_time) as context:
+        with AsOfContext(as_of_time, [NameValueTraitable]) as context:
             assert context.as_of_time == as_of_time
 
     def test_traitable_history_collection(self, test_store):
@@ -286,7 +286,7 @@ class TestTraitableHistory:
         person.save()
 
         # Load the person as of the query time (should be the original version)
-        with AsOfContext([PersonTraitable], query_time):
+        with AsOfContext(query_time):
             historical_person = PersonTraitable.load(person.id())
             assert historical_person.age == 30  # Original age
             assert historical_person.name == 'John Doe'
@@ -312,6 +312,8 @@ class TestTraitableHistory:
 
             person.spouse.id()
 
+        assert PersonTraitable.existing_instance_by_id(person_id, _throw=False)
+
         with CACHE_ONLY():
             assert not PersonTraitable.existing_instance_by_id(person_id, _throw=False)
 
@@ -330,7 +332,7 @@ class TestTraitableHistory:
 
                     person_as_of = PersonTraitable.as_of(person_id, as_of_time=ts)
 
-                    with AsOfContext([PersonTraitable], as_of_time=as_of):
+                    with AsOfContext(traitable_classes=[PersonTraitable], as_of_time=as_of):
                         with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
                             _ = person1.dob
 
@@ -398,7 +400,7 @@ class TestTraitableHistory:
         person2.age = 26
         person2.save()
 
-        with AsOfContext([PersonTraitable], query_time):
+        with AsOfContext(query_time, [PersonTraitable]):
             historical_people = PersonTraitable.load_many()
 
             # Should have 2 people with original ages
@@ -444,13 +446,38 @@ class TestTraitableHistory:
         original_helper = NoHistoryTraitable.s_storage_helper
         as_of_time = datetime(2020, 1, 1, 12, 0, 0)
 
-        with AsOfContext([NoHistoryTraitable], as_of_time):
-            found = NoHistoryTraitable.existing_instance(key='k1')
-            assert found is not None
-            assert found.value == 'v1'
-            assert found == item
+        with pytest.raises(
+            ValueError,
+            match=r"<class 'core_10x.testlib.traitable_history_tests.TestTraitableHistory.test_asof_with_keep_history_false_is_noop.<locals>.NoHistoryTraitable'> is not storable or does not keep history",
+        ):
+            with AsOfContext(as_of_time, [NoHistoryTraitable]):
+                pass
+            assert type(NoHistoryTraitable.s_storage_helper) is type(original_helper)
+        assert NoHistoryTraitable.existing_instance(key='k1') == item
 
-        assert NoHistoryTraitable.s_storage_helper is original_helper
+    def test_asof_default_applies_to_all_traitable_subclasses(self, test_store):
+        """AsOfContext with default traitable_classes (None) applies to all Traitable subclasses via __mro__."""
+        # Create and save a person
+        person = PersonTraitable()
+        person.name = 'Default AsOf Test'
+        person.age = 25
+        person.save()
+
+        query_time = datetime.utcnow()
+
+        person.age = 26
+        person.save()
+
+        # Default: no traitable_classes => [Traitable]; PersonTraitable is a subclass so gets AsOf
+        with AsOfContext(as_of_time=query_time):
+            historical = PersonTraitable.load(person.id())
+            assert historical is not None
+            assert historical.age == 25
+            assert historical.name == 'Default AsOf Test'
+
+        # Outside context: current data
+        current = PersonTraitable.load(person.id())
+        assert current.age == 26
 
     def test_latest_revision_with_timestamp(self, test_store):
         """Test latest_revision with specific timestamp."""
@@ -751,7 +778,7 @@ class TestTraitableHistory:
         as_of_time = datetime.utcnow()
 
         # AsOfContext uses StorableHelperAsOf._find under the hood for load_many
-        with AsOfContext([PersonTraitable], as_of_time):
+        with AsOfContext(as_of_time, [PersonTraitable]):
             people_as_of = PersonTraitable.load_many()
 
         # We should get exactly one record per traitable id

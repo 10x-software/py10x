@@ -79,8 +79,7 @@ class TraitDefinition:
         dt = type(flags_value)
         if dt is tuple:
             assert len(flags_value) == 2, f'Changing {self.name} flags expects (flags_to_set, flags_to_reset)'
-            flags_to_set, flags_to_reset = flags_value
-            self.flags.set_reset(0 if flags_to_set is None else flags_to_set.value(), flags_to_reset.value())
+            self.flags.set_reset(*(0 if flag is None else flag.value() for flag in flags_value))
         else:
             self.flags.set(flags_value.value())
 
