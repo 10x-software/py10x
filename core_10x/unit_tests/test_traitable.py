@@ -907,3 +907,18 @@ def test_multiple_inheritance():
     assert obj.T.name.data_type is str
     assert obj.T.value.data_type is int
     assert obj.T.rev.data_type is int
+
+
+def test_mutable_default():
+    class X(Traitable):
+        x: dict = RT(default={})
+
+    x = X()
+    y = X()
+    with GRAPH_ON():
+        x.x.update(a=1)
+
+        assert x.x == {'a': 1}
+        assert y.x == {}
+
+
