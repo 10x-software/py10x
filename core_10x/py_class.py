@@ -279,11 +279,11 @@ class PyClass:
                 res.extend([f'{full_module_name}.{cname}' for cname in class_names])
 
     @staticmethod
-    def all_classes(*package_names, exclude_packages = (), parent_classes = ()) -> tuple:
+    def all_classes(*package_names, exclude_packages=(), parent_classes=()) -> tuple:
         """
         Warning! This function will import every class in the packages specified.
         """
-        all_class_names = PyClass.canonical_class_names(*package_names, exclude_packages = exclude_packages)
+        all_class_names = PyClass.canonical_class_names(*package_names, exclude_packages=exclude_packages)
         return tuple(cls for class_name in all_class_names if (cls := PyClass.find(class_name, *parent_classes)))
 
     @staticmethod
