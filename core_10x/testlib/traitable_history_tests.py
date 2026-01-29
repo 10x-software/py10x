@@ -431,6 +431,27 @@ class TestTraitableHistory:
         history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{NoHistoryTraitable.__name__}#history')
         assert history_collection.count() == 0
 
+    def test_asof_with_keep_history_false_is_noop(self, test_store, monkeypatch):
+        """AsOfContext with a class that has keep_history=False is a no-op: current data is used."""
+        monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
+
+        class NoHistoryTraitable(Traitable, keep_history=False):
+            key: str = T(T.ID)
+            value: str = T()
+
+        item = NoHistoryTraitable(key='k1', value='v1', _replace=True)
+        item.save()
+        original_helper = NoHistoryTraitable.s_storage_helper
+        as_of_time = datetime(2020, 1, 1, 12, 0, 0)
+
+        with AsOfContext([NoHistoryTraitable], as_of_time):
+            found = NoHistoryTraitable.existing_instance(key='k1')
+            assert found is not None
+            assert found.value == 'v1'
+            assert found == item
+
+        assert NoHistoryTraitable.s_storage_helper is original_helper
+
     def test_latest_revision_with_timestamp(self, test_store):
         """Test latest_revision with specific timestamp."""
         # Create a person

@@ -5,7 +5,7 @@ import operator
 import sys
 import warnings
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, get_origin
 
@@ -76,6 +76,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_default_trait_factory = RT
     s_own_trait_definitions = None
     T = UnboundTraitAccessor()
+
+    _collection_name: str = XNone
+    _rev: int = XNone
 
     @classmethod
     @cache
@@ -267,6 +270,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             cls.s_immutable = cls.s_history_class is None if immutable is None else immutable  # TODO: review, test.
         else:
             cls.s_storage_helper = NotStorableHelper(cls)
+            cls.s_history_class = XNone
 
         rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
@@ -736,12 +740,6 @@ class StorableHelper(AbstractStorableHelper):
 @dataclass
 class StorableHelperAsOf(StorableHelper):
     as_of_time: datetime
-    storage_helper: StorableHelper = field(init=False)
-
-    def __post_init__(self):
-        if not self.traitable_class.is_storable():
-            raise RuntimeError('Attempting to use AsOf on non-storable class')
-        self.storage_helper = self.traitable_class.s_storage_helper
 
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
         last_id = None
@@ -846,17 +844,15 @@ class AsOfContext:
     # TODO: generalize so that context created on baseclass applies to all subclasses
     traitable_classes: list[type[Traitable]]
     as_of_time: datetime
-    _original_as_of_times: dict[type[Traitable], datetime] = None
-    _btp: BTraitableProcessor = None
-
-    def __post_init__(self):
-        self._original_as_of_times = {}
+    _btp: BTraitableProcessor | None = None
+    _all_relevant_classes: set[type[Traitable]] | None = None
 
     def __enter__(self):
         self._btp = btp = BTraitableProcessor.create_root()
         btp.begin_using()
-        # Replace storage helpers with asof helpers
-        for traitable_class in self.traitable_classes:
+        # Replace storage helpers with asof helpers for classes that keep history
+        self._all_relevant_classes = {c for c in self.traitable_classes if c.s_history_class}
+        for traitable_class in self._all_relevant_classes:
             traitable_class.s_storage_helper = StorableHelperAsOf(
                 traitable_class=traitable_class,
                 as_of_time=self.as_of_time,
@@ -864,10 +860,13 @@ class AsOfContext:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # Restore original helpers
-        for traitable_class in self.traitable_classes:
-            traitable_class.s_storage_helper = traitable_class.s_storage_helper.storage_helper
-        self._btp.end_using()
+        if self._all_relevant_classes is not None:
+            for traitable_class in self._all_relevant_classes:
+                traitable_class.s_storage_helper = StorableHelper(traitable_class)
+        if self._btp is not None:
+            self._btp.end_using()
+        self._all_relevant_classes = None
+        self._btp = None
 
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):
