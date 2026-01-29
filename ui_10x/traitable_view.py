@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class TraitableView:
     """
-    To create an instance of EntityView you need to pass the following args:
+    To create an instance of TraitableView you need to pass the following args:
     1) entity_or_class: a subclass of Entity or an instance of it
     2) _header_data: a dictionary with each item as follows:
         either
