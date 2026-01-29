@@ -32,8 +32,12 @@ BTraitable::~BTraitable() {
 
 py::object BTraitable::lazy_load_if_needed() {
     const auto flags = lazy_load_flags();
+
     if (!(flags & XCache::LOAD_REQUIRED))
         return py::none();
+
+    if (flags & XCache::MUST_EXIST_IN_STORE && !my_class()->is_storable())
+        throw runtime_error( "is an invalid lazy reference to non-storable that does not exist in memory" );
 
     auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, flags));
     clear_lazy_load_flags(flags);
@@ -41,7 +45,7 @@ py::object BTraitable::lazy_load_if_needed() {
     set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set
 
     if (serialized_data.is_none() && flags & XCache::MUST_EXIST_IN_STORE) {
-        throw runtime_error("reference not found in store");
+        throw runtime_error( "reference not found in store" );
     }
     return serialized_data;
 }
@@ -258,7 +262,7 @@ py::object BTraitable::serialize_object(const bool save_references) {
     return serialized_data;
 }
 
-py::object BTraitable::deserialize_object(BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data) {
+py::object BTraitable::deserialize_object(const BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data) {
     if (const auto class_id = cls->get_field(serialized_data, BNucleus::CLASS_TAG(), false); !class_id.is_none()) {
         cls = cls->deserialize_class_id(class_id).attr("s_bclass").cast<BTraitableClass*>();
     }

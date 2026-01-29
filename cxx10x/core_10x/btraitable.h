@@ -31,7 +31,7 @@
       [x] creation_cache = current_cache (in BTraitable ctor) or existing_cache, if found (in share)
     [x] Using ID (lazy ref)
       [x] if runtime object and not in memory
-        [x] it's an error!
+        [x] same as below, but will throw on use. this is used in existing_object_by_id(_throw=False) for runtime objects.
       [x] storage flags (in BTraitable  ctor)
         [x] load_required = true (in BTraitable ctor)
         [x] must_exist_in_storage = true (in BTraitable ctor)
@@ -50,7 +50,7 @@
           [x] set load_required=false
           [x] load in creation_cache
             [x] If not found, and must_exist_in_storage==true
-              [x] it's an error!
+              [x] it's an error! + specific error for non-storable objects (in lazy_load)
 
 - Note: get_value_off_graph already needs access to object_cache
   currently to make sure lazy load occurs if necessary, so we are not
@@ -77,8 +77,6 @@ public:
             if (const auto existing_cache = m_origin_cache->find_origin_cache(m_tid))
                 set_origin_cache(existing_cache);
             else {
-                if (!cls->is_storable())
-                    throw runtime_error("construction failed for lazy reference to non-storable that does not exist in memory");
                 set_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST|proc->flags()&BTraitableProcessor::DEBUG);
             }
         }
@@ -106,7 +104,7 @@ public:
     void set_id_value(const py::object& id_value) const         { m_tid.set_id_value(id_value); }
     void set_origin_cache(XCache *oc)                           { m_origin_cache = oc; }
 
-    [[nodiscard]] XCache * origin_cache() const                 { return m_origin_cache; }
+    [[nodiscard]] XCache*           origin_cache() const        { return m_origin_cache; }
     [[nodiscard]] BTraitableClass*  my_class() const            { return m_tid.cls(); }
     [[nodiscard]] BUiClass*         bui_class() const           { return my_class()->bui_class(); }
     [[nodiscard]] py::str           class_name() const          { return my_class()->name(); }
@@ -245,7 +243,7 @@ public:
     py::object          serialize_object(bool save_references);
     py::object          serialize_nx(bool embed);      //-- Nucleus' method
 
-    static py::object   deserialize_object(BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data);
+    static py::object   deserialize_object(const BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data);
     virtual void        deserialize_traits(const py::dict& trait_values);
     static py::object   deserialize_nx(const BTraitableClass* cls, const py::object& serialized_data);
     py::object          _reload(const bool rev_only = false);
