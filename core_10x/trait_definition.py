@@ -4,6 +4,7 @@ import copy
 from collections import defaultdict
 
 from core_10x_i import BFlags, BTraitFlags
+from typing_extensions import Never
 
 from core_10x.ui_hint import Ui, UiHintModification
 from core_10x.xnone import XNone, XNoneType
@@ -31,7 +32,6 @@ class TraitDefinition:
         FORMAT_TAG,
         PARAMS_TAG,
         UI_HINT_TAG,
-        #*tuple(cdef.value for cdef in TRAIT_METHOD.s_dir.values())
     )
 
     s_known_attributes = {
@@ -79,7 +79,8 @@ class TraitDefinition:
         dt = type(flags_value)
         if dt is tuple:
             assert len(flags_value) == 2, f'Changing {self.name} flags expects (flags_to_set, flags_to_reset)'
-            self.flags.set_reset(flags_value[0].value(), flags_value[1].value())
+            flags_to_set, flags_to_reset = flags_value
+            self.flags.set_reset(0 if flags_to_set is None else flags_to_set.value(), flags_to_reset.value())
         else:
             self.flags.set(flags_value.value())
 
@@ -123,9 +124,9 @@ class TraitDefinition:
 class TraitModification(TraitDefinition):
     # fmt: off
     s_known_attributes = {
-        FLAGS_TAG:      XNone,
-        DEFAULT_TAG:    XNone,      #-- TODO: for M(..., default = XNone), the old default will NOT be changed to XNone
-        FORMAT_TAG:     XNone,
+        FLAGS_TAG:      lambda: Never,
+        DEFAULT_TAG:    lambda: Never,
+        FORMAT_TAG:     lambda: Never,
         UI_HINT_TAG:    UiHintModification
     }
 
@@ -138,7 +139,7 @@ class TraitModification(TraitDefinition):
         modifiers = self.__class__.s_modifiers
         for attr_name in self.__class__.s_known_attributes:
             modified_value = getattr(self, attr_name)
-            if modified_value is not XNone:
+            if modified_value is not Never:
                 modifier = modifiers.get(attr_name)
                 if modifier:
                     modifier(res, modified_value)

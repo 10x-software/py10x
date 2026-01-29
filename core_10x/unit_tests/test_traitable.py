@@ -22,7 +22,6 @@ from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitAccessor
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
-from core_10x_i import BFlags
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -36,7 +35,7 @@ class SubTraitable(Traitable):
 
 
 class SubTraitable2(SubTraitable):
-    trait1 = M(flags=(BFlags(0), T.ID))  # removes ID flag
+    trait1 = M(flags=(None, T.ID))  # removes ID flag
     trait2: int = M()
     trait3: float = T() // 'trait definition comment'
     trait4: int = RT(0)
@@ -284,7 +283,6 @@ def test_trait_methods():
 
 def test_trait_modification_inheritance_with_flags():
     """Test complex trait modification inheritance with M() overriding flags and getters."""
-    from core_10x_i import BFlags
 
     class X(Traitable):
         x: int = RT(T.ID)
@@ -295,11 +293,11 @@ def test_trait_modification_inheritance_with_flags():
 
     class Y(X):
         # M() removes ID flag; getter from X is inherited
-        v: int = M(flags=(BFlags(0), T.ID))
+        v: int = M(flags=(None, T.ID), default=3)
 
     class Z(Y):
         # M() changes data type; value is provided by v_get defined here
-        v: float = M()
+        v: float = M(default=XNone)
 
         def v_get(self):
             return float(self.x + 3)
@@ -311,8 +309,8 @@ def test_trait_modification_inheritance_with_flags():
     # X: v is computed via v_get
     assert x.v == 2  # x + 1
 
-    # Y: v inherits v_get from X, but no longer has ID flag
-    assert y.v == 2
+    # Y: v uses default
+    assert y.v == 3
 
     # Z: v uses its own v_get and returns float
     assert z.v == 4.0  # x + 3, as float
@@ -321,6 +319,10 @@ def test_trait_modification_inheritance_with_flags():
     assert X.trait('v').flags_on(T.ID)
     assert not Y.trait('v').flags_on(T.ID)  # ID flag removed
     assert Z.trait('v').data_type is float
+
+    assert X.trait('v').default is XNone
+    assert Y.trait('v').default == 3
+    assert Z.trait('v').default is XNone
 
 
 def test_anonymous_traitable(monkeypatch):
@@ -426,9 +428,24 @@ def test_trait_get_default_override():
     class S(T):
         x: int = RT(default=5)
 
+    class R(S):
+        x: int = RT(default=XNone)
+
+    with pytest.raises(
+        RuntimeError,
+        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.P\'> - both x.default and <class \'test_traitable.test_trait_get_default_override.<locals>.P\'>.x_get are defined.',
+    ):
+
+        class P(S):
+            x: int = M()
+
+            def x_get(self):
+                return 6
+
     assert Z().x == 3
     assert T().x == 4
     assert S().x == 5
+    assert R().x == 4
 
 
 def test_create_and_share():
