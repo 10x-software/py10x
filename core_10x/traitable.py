@@ -928,11 +928,14 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
     def check_integrity(self, cls, rc: RC):
         is_anonymous = issubclass(self.data_type, AnonymousTraitable)
+        is_runtime = self.flags_on(T.RUNTIME)
         if self.flags_on(T.EMBEDDED):
+            if is_runtime:
+                rc.add_error(f'{cls.__name__}.{self.name} - cannot be both RUNTIME adn EMBEDDED')
             if not is_anonymous:
                 rc.add_error(f'{cls.__name__}.{self.name} - EMBEDDED traitable must be a subclass of AnonymousTraitable')
         else:
-            if is_anonymous:
+            if is_anonymous and not is_runtime:
                 rc.add_error(f'{cls.__name__}.{self.name} - may not have a reference to AnonymousTraitable (the trait must be T.EMBEDDED)')
 
     def default_value(self):
