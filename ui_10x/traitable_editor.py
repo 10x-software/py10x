@@ -111,10 +111,8 @@ class TraitableEditor:
 
         te: TraitEditor
         for te in self.trait_editors.values():
-            w = te.new_widget()
-            if not w:
-                continue
             label = te.new_label()
+            w = te.new_widget()
             lay.add_row(label, w)
             if te.ui_hint.flags_on(Ui.SEPARATOR):
                 lay.add_row(ux.separator())
@@ -130,12 +128,8 @@ class TraitableEditor:
             if stretch:
                 stretched_trait_found = True
 
-            w = te.new_widget()
-            if not w:
-                continue
-
             row.add_widget(te.new_label())
-            row.add_widget(w, stretch=stretch)
+            row.add_widget(te.new_widget(), stretch=stretch)
 
             if te.ui_hint.flags_on(Ui.SEPARATOR):
                 row.add_widget(ux.separator(horizontal = False))
