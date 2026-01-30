@@ -131,7 +131,8 @@ class TraitModification(TraitDefinition):
     }
 
     s_modifiers = {
-        FLAGS_TAG:  lambda self, flags_modification: self.flags_change(flags_modification),
+        FLAGS_TAG:      lambda self, flags_modification: self.flags_change(flags_modification),
+        UI_HINT_TAG:    lambda self, ui_hint_modification: ui_hint_modification.apply(self)
     }
     # fmt: on
     def apply(self, trait_def: TraitDefinition) -> TraitDefinition:
