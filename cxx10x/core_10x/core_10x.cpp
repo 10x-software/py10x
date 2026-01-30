@@ -227,6 +227,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def("trait_dir",                   &BTraitableClass::trait_dir)
             .def("is_storable",                 &BTraitableClass::is_storable)
             .def("is_id_endogenous",            &BTraitableClass::is_id_endogenous)
+            .def("is_custom_collection",        &BTraitableClass::is_custom_collection)
             .def("find_trait",                  &BTraitableClass::find_trait)
             .def("load",                        &BTraitableClass::load)
             ;
