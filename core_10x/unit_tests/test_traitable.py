@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import collections
-import contextlib
 import re
 import uuid
 from collections import Counter
@@ -17,7 +16,7 @@ from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import Trait
-from core_10x.trait_definition import RT, M, T, TraitDefinition
+from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitAccessor
 from core_10x.traitable_id import ID
@@ -780,40 +779,47 @@ def test_id_like_with_replace_and_non_id_update():
 
 
 def test_existing_instance_api_variants():
-    # Mirror existing_traitable.py manual test using Person, but in CACHE_ONLY
-    id_traits = ('last_name', 'first_name')
+    class RuntimePerson(Person):
+        @classmethod
+        def own_trait_definitions(cls) -> Generator[tuple[str, TraitDefinition]]:
+            for trait_name, trait in Person.s_dir.items():
+                if not trait.flags_on(T.RUNTIME | T.RESERVED):
+                    yield trait_name, TraitModification(flags=T.RUNTIME).apply(trait.t_def)
+
+    assert not RuntimePerson.is_storable()
 
     with CACHE_ONLY():
         ppl_stored = [
             Person(last_name='Davidovich', first_name='Sasha', weight_lbs=170, _replace=True),
             Person(last_name='Pevzner', first_name='Ilya', weight_lbs=200, _replace=True),
-            Person(last_name='Lesin', first_name='Alex', weight_lbs=190, _replace=True),
-            Person(last_name='Smith', first_name='John', weight_lbs=180, _replace=True),
+            RuntimePerson(last_name='Lesin', first_name='Alex', weight_lbs=190, _replace=True),
+            RuntimePerson(last_name='Smith', first_name='John', weight_lbs=180, _replace=True),
         ]
 
-        existing_id_traits = [{name: getattr(p, name) for name in id_traits} for p in ppl_stored]
+        existing_id_traits = [{trait.name: p.get_value(trait) for trait in p.traits(flags_on=T.ID.value())} for p in ppl_stored]
 
-        ppl_found = [Person.existing_instance(**id_values) for id_values in existing_id_traits]
+        ppl_found = [obj.__class__.existing_instance(**id_values) for obj, id_values in zip(ppl_stored, existing_id_traits, strict=True)]
         assert ppl_found == ppl_stored
 
         # Positive / negative lookups with _throw flag
-        p1 = Person.existing_instance(last_name='Smith', first_name='John')
+        p1 = RuntimePerson.existing_instance(last_name='Smith', first_name='John')
         assert p1
 
-        p2 = Person.existing_instance(last_name='Smith', first_name='Josh', _throw=False)
+        p2 = RuntimePerson.existing_instance(last_name='Smith', first_name='Josh', _throw=False)
         assert p2 is None
 
-        # existing_instance_by_id with ID and raw id value
-        id1 = ppl_found[0].id()
-        p3 = Person.existing_instance_by_id(_id=id1)
+        for i, cls in enumerate(ppl_stored):
+            # existing_instance_by_id with ID and raw id value
+            id1 = ppl_found[i].id()
+            p3 = cls.existing_instance_by_id(_id=id1)
 
-        id1_val = id1.value
-        p4 = Person.existing_instance_by_id(_id_value=id1_val)
-        assert p3 == p4
+            id1_val = id1.value
+            p4 = cls.existing_instance_by_id(_id_value=id1_val)
+            assert p3 == p4
 
-        id2_val = 'Smith|Josh'
-        p5 = Person.existing_instance_by_id(_id_value=id2_val, _throw=False)
-        assert p5 is None
+            id2_val = 'Smith|Josh'
+            p5 = cls.existing_instance_by_id(_id_value=id2_val, _throw=False)
+            assert p5 is None
 
 
 @pytest.mark.parametrize('value', [{'x': 1}, {}, [], [1], np.float64(1.1)])
@@ -851,21 +857,14 @@ def test_exceptions(t):
         y: int = t(default=1)
 
     with CACHE_ONLY():
-        with (
-            pytest.raises(
-                RuntimeError,
-                match=r'test_exceptions.<locals>.X/1: object construction failed for lazy reference to non-storable that does not exist in memory',
-            )
+        x = X(_id=ID('1'))
+        match = (
+            r'test_exceptions.<locals>.X/1: object is an invalid lazy reference to non-storable that does not exist in memory'
             if t is RT
-            else contextlib.nullcontext()
-        ):
-            x = X(_id=ID('1'))
-            with (
-                pytest.raises(RuntimeError, match=r'test_exceptions.<locals>.X/1: object reference not found in store')
-                if t is T
-                else contextlib.nullcontext()
-            ):
-                assert x.y == 1
+            else r'test_exceptions.<locals>.X/1: object reference not found in store'
+        )
+        with pytest.raises(RuntimeError, match=match):
+            assert x.y == 1
 
 
 def test_multiple_inheritance():
@@ -907,3 +906,16 @@ def test_multiple_inheritance():
     assert obj.T.name.data_type is str
     assert obj.T.value.data_type is int
     assert obj.T.rev.data_type is int
+
+
+def test_mutable_default():
+    class X(Traitable):
+        x: dict = RT(default={})
+
+    x = X()
+    y = X()
+    with GRAPH_ON():
+        x.x.update(a=1)
+
+        assert x.x == {'a': 1}
+        assert y.x == {}

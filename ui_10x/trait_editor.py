@@ -100,9 +100,12 @@ class TraitEditor:
 
         return label
 
-    def new_widget(self, update_self=True) -> TraitWidget:
+    def new_widget(self, update_self=True, throw = False) -> TraitWidget:
         tw: TraitWidget = TraitWidget.instance(self)
-        assert tw, f'{self.entity.entity.__class__}.{self.trait.name} - unknown trait widget class'
+        if not tw:
+            if throw:
+                raise AssertionError(f'{self.entity.entity.__class__}.{self.trait.name} - unknown trait widget class')
+            return None
 
         avg_char_width = tw.font_metrics().average_char_width()
         min_width = self.ui_hint.param('min_width', 0)

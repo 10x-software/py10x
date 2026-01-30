@@ -64,6 +64,36 @@ class UnboundTraitAccessor:
 COLL_NAME_TAG = '_collection_name'
 
 
+class StorageHelperDescriptor:
+    """Resolves s_storage_helper via __mro__ when in AsOf context; otherwise returns real helper."""
+
+    def __get__(self, obj: Traitable | None, owner: type[Traitable] | None = None) -> AbstractStorableHelper | Self:
+        if owner is None:
+            return self
+
+        if not (helper := owner.s_storage_helper_cached):
+            helper_as_of: StorableHelperAsOf = (
+                next(
+                    (
+                        base_helper
+                        for base in owner.__mro__
+                        if issubclass(base, Traitable) and isinstance(base_helper := base.s_storage_helper_cached, StorableHelperAsOf)
+                    ),
+                    None,
+                )
+                if owner.s_history_class
+                else None
+            )
+            if helper_as_of:
+                helper = StorableHelperAsOf(owner, helper_as_of.as_of_time)
+            else:
+                helper = StorableHelper(owner) if owner.is_storable() else NotStorableHelper(owner)
+
+            owner.s_storage_helper_cached = helper
+
+        return helper
+
+
 class TraitableMetaclass(type(BTraitable)):
     def __new__(cls, name, bases, class_dict, **kwargs):
         if '__init__' in class_dict and name != 'Traitable':
@@ -76,6 +106,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_default_trait_factory = RT
     s_own_trait_definitions = None
     T = UnboundTraitAccessor()
+
+    _collection_name: str = XNone
+    _rev: int = XNone
 
     @classmethod
     @cache
@@ -247,10 +280,18 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_immutable = (
         XNone  # -- will be turned on in __init__subclass__ for storable traitables without history unless immutable=False. affects storage only.
     )
+    s_direct_subclasses: list[type[Traitable]] = []
+    s_storage_helper: AbstractStorableHelper = StorageHelperDescriptor()
+    s_storage_helper_cached: AbstractStorableHelper | None = None
 
     def __init_subclass__(cls, custom_collection: bool = None, keep_history: bool = None, immutable: bool = None, **kwargs):
         if custom_collection is not None:
             cls.s_custom_collection = custom_collection
+
+        cls.s_direct_subclasses = []
+        for base in cls.__bases__:
+            if issubclass(base, Traitable):
+                base.s_direct_subclasses.append(cls)
 
         cls.s_dir = {}
         cls.s_bclass = BTraitableClass(cls)
@@ -258,7 +299,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         cls.build_trait_dir()  # -- build cls.s_dir from trait definitions in cls.__dict__
 
         if cls.is_storable():
-            cls.s_storage_helper = StorableHelper(cls)
             if keep_history is False:
                 cls.s_history_class = None
             if cls.s_history_class is not None:
@@ -266,7 +306,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
             cls.s_immutable = cls.s_history_class is None if immutable is None else immutable  # TODO: review, test.
         else:
-            cls.s_storage_helper = NotStorableHelper(cls)
+            cls.s_history_class = XNone
 
         rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
@@ -736,12 +776,6 @@ class StorableHelper(AbstractStorableHelper):
 @dataclass
 class StorableHelperAsOf(StorableHelper):
     as_of_time: datetime
-    storage_helper: StorableHelper = field(init=False)
-
-    def __post_init__(self):
-        if not self.traitable_class.is_storable():
-            raise RuntimeError('Attempting to use AsOf on non-storable class')
-        self.storage_helper = self.traitable_class.s_storage_helper
 
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
         last_id = None
@@ -841,33 +875,52 @@ class TraitableHistory(Traitable, keep_history=False):
 
 @dataclass
 class AsOfContext:
-    """Context manager for time-based traitable loading."""
+    """Context manager for time-based traitable loading.
 
-    # TODO: generalize so that context created on baseclass applies to all subclasses
-    traitable_classes: list[type[Traitable]]
+    Applies to the given traitable_classes and all their subclasses (discovered via
+    s_direct_subclasses). Default is [Traitable], so all storable Traitable subclasses
+    use AsOf resolution. s_storage_helper is resolved dynamically via __mro__ and
+    cached; the cache is invalidated on enter/exit for all relevant subclasses.
+    """
+
     as_of_time: datetime
-    _original_as_of_times: dict[type[Traitable], datetime] = None
-    _btp: BTraitableProcessor = None
+    traitable_classes: list[type[Traitable]] = field(default_factory=lambda: [Traitable])
+
+    _btp: BTraitableProcessor | None = None
 
     def __post_init__(self):
-        self._original_as_of_times = {}
+        invalid_class = next((traitable_class for traitable_class in self.traitable_classes if not traitable_class.s_history_class), None)
+        if invalid_class and invalid_class is not Traitable:  # we use Traitable as a special case to cover *all* traitables
+            raise ValueError(f'{invalid_class} is not storable or does not keep history')
+
+    def _reset_storage_helpers(self):
+        visited: set[type[Traitable]] = set()
+        stack = list(self.traitable_classes)
+        while stack:
+            traitable_class = stack.pop()
+            if traitable_class in visited:
+                continue
+            visited.add(traitable_class)
+            traitable_class.s_storage_helper_cached = None
+            for sub in traitable_class.s_direct_subclasses:
+                stack.append(sub)
 
     def __enter__(self):
-        self._btp = btp = BTraitableProcessor.create_root()
-        btp.begin_using()
-        # Replace storage helpers with asof helpers
+        self._reset_storage_helpers()
         for traitable_class in self.traitable_classes:
-            traitable_class.s_storage_helper = StorableHelperAsOf(
-                traitable_class=traitable_class,
-                as_of_time=self.as_of_time,
-            )
+            traitable_class.s_storage_helper_cached = StorableHelperAsOf(traitable_class, self.as_of_time)
+
+        btp = BTraitableProcessor.create_root()
+        btp.begin_using()
+        self._btp = btp
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # Restore original helpers
-        for traitable_class in self.traitable_classes:
-            traitable_class.s_storage_helper = traitable_class.s_storage_helper.storage_helper
-        self._btp.end_using()
+        if self._btp is not None:
+            self._btp.end_using()
+            self._btp = None
+
+        self._reset_storage_helpers()
 
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):
@@ -875,11 +928,14 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
     def check_integrity(self, cls, rc: RC):
         is_anonymous = issubclass(self.data_type, AnonymousTraitable)
+        is_runtime = self.flags_on(T.RUNTIME)
         if self.flags_on(T.EMBEDDED):
+            if is_runtime:
+                rc.add_error(f'{cls.__name__}.{self.name} - cannot be both RUNTIME adn EMBEDDED')
             if not is_anonymous:
                 rc.add_error(f'{cls.__name__}.{self.name} - EMBEDDED traitable must be a subclass of AnonymousTraitable')
         else:
-            if is_anonymous:
+            if is_anonymous and not is_runtime:
                 rc.add_error(f'{cls.__name__}.{self.name} - may not have a reference to AnonymousTraitable (the trait must be T.EMBEDDED)')
 
     def default_value(self):

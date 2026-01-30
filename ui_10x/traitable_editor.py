@@ -111,8 +111,10 @@ class TraitableEditor:
 
         te: TraitEditor
         for te in self.trait_editors.values():
-            label = te.new_label()
             w = te.new_widget()
+            if not w:
+                continue
+            label = te.new_label()
             lay.add_row(label, w)
             if te.ui_hint.flags_on(Ui.SEPARATOR):
                 lay.add_row(ux.separator())
@@ -128,8 +130,12 @@ class TraitableEditor:
             if stretch:
                 stretched_trait_found = True
 
+            w = te.new_widget()
+            if not w:
+                continue
+
             row.add_widget(te.new_label())
-            row.add_widget(te.new_widget(), stretch=stretch)
+            row.add_widget(w, stretch=stretch)
 
             if te.ui_hint.flags_on(Ui.SEPARATOR):
                 row.add_widget(ux.separator(horizontal = False))
@@ -194,7 +200,7 @@ class TraitableEditor:
         return self._dialog(layout, title, ok, min_width, on_accept=on_accept)
 
     def popup(self, layout: ux.Layout = None, copy_entity = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0) -> None:
-        self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width).show()
+        self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width).exec()
 
     def warning(self, msg: str, title: str = ''):
         ux_warning(msg, parent = self.main_w, title = title, on_close=lambda ctx: None)
