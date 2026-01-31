@@ -263,9 +263,10 @@ py::object BTraitable::serialize_object(const bool save_references) {
 }
 
 py::object BTraitable::deserialize_object(const BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data) {
-    if (const auto class_id = cls->get_field(serialized_data, BNucleus::CLASS_TAG(), false); !class_id.is_none()) {
+    if (!cls)
+        throw std::runtime_error("BTraitable class is required!");
+    if (const auto class_id = cls->get_field(serialized_data, BNucleus::CLASS_TAG(), false); !class_id.is_none())
         cls = cls->deserialize_class_id(class_id).attr("s_bclass").cast<BTraitableClass*>();
-    }
 
     const auto id_value = cls->get_field(serialized_data, BNucleus::ID_TAG());
     const auto rev = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
