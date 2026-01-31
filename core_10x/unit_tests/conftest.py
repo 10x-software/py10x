@@ -11,8 +11,3 @@ def ts_instance():
     TsStore.s_instances.clear()
 
 
-@pytest.fixture(autouse=True)
-def traitable_store_uri():
-    from core_10x.environment_variables import EnvVars
-
-    EnvVars.traitable_store_uri = ''

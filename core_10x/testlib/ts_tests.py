@@ -193,7 +193,7 @@ class TestTSStore:
         assert result == 1
 
         loaded = collection.load(doc_id)
-        assert loaded == serialized_entity['$set']
+        assert loaded == serialized_entity['$set'] | {'_rev': 1}
 
     def test_save_new_duplicate_key_error(self, ts_setup):
         """Test that save_new raises TsDuplicateKeyError when inserting duplicate without overwrite."""
