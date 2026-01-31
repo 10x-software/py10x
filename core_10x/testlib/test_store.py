@@ -11,6 +11,8 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
+from core_10x_i import BTraitable
+
 from core_10x.nucleus import Nucleus
 from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
 
@@ -44,7 +46,10 @@ class TestCollection(TsCollection):
 
         # Apply query filter if provided
         if query:
-            documents = [doc for doc in documents if query.eval(doc)]
+            bclass = query.traitable_class
+            coll = self._collection_name if bclass and bclass.is_custom_collection() else None
+            deserialize_doc = BTraitable.deserialize_object if bclass else lambda *args: args[2]
+            documents = [doc for doc in documents if query.eval(deserialize_doc(bclass, coll, doc))]
 
         # Apply ordering if provided
         if _order:

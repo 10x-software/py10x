@@ -311,12 +311,10 @@ class Trait(BTrait):
     # TODO: unify XNone/None conversions with object serialization/deserializatoin in c++
     # TODO: call these from c++ directly in place of f_serialize/f_deserialize?
     def serialize_value(self, value, replace_xnone=False):
-        value = self.f_serialize(self, value)
-        return None if replace_xnone and value is XNone else value
+        return None if replace_xnone and value is XNone else self.f_serialize(self, value)
 
     def deserialize_value(self, value, replace_none=False):
-        value = self.f_deserialize(self, value)
-        return XNone if replace_none and value is None else value
+        return XNone if replace_none and value is None else self.f_deserialize(self, value)
 
     # ===================================================================================================================
 
