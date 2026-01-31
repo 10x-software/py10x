@@ -9,6 +9,8 @@ from core_10x.trait import T
 from core_10x.traitable import Traitable
 from core_10x.ui_hint import Ui, UiMod
 
+from ui_10x.trait_widget import TraitWidget
+
 if TYPE_CHECKING:
     from core_10x.trait import Trait
 
@@ -42,7 +44,7 @@ class TraitableView:
                 return None
 
         flags = T.HIDDEN | T.RESERVED if _skip_reserved else T.HIDDEN
-        return None if trait.flags_on(flags) or trait.getter_params else trait
+        return None if trait.flags_on(flags) or trait.getter_params or trait.s_ui_hint.widget_type == Ui.WIDGET_TYPE.NONE else trait
 
     @classmethod
     def slice(cls, traitable_class, _header_data: dict = None, **named_ui_hint_changes) -> TraitableView:

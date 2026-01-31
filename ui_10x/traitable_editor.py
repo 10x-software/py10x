@@ -194,7 +194,7 @@ class TraitableEditor:
         return self._dialog(layout, title, ok, min_width, on_accept=on_accept)
 
     def popup(self, layout: ux.Layout = None, copy_entity = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0) -> None:
-        self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width).show()
+        self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width).exec()
 
     def warning(self, msg: str, title: str = ''):
         ux_warning(msg, parent = self.main_w, title = title, on_close=lambda ctx: None)
