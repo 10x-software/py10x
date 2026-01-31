@@ -49,13 +49,16 @@ class MongoCollection(TsCollection):
         id_value = (set_values or serialized_traitable)[id_tag]
         e = None
 
+        # TODO: overwrite via save(), not save_new() so that revision is incremented rather than reset
+        (set_values or serialized_traitable)[Nucleus.REVISION_TAG()] = 1
+
         if not needs_upsert:
             try:
-                serialized_traitable[Nucleus.REVISION_TAG()] = 1
                 res = self.coll.insert_one(serialized_traitable)
-                ack, cnt = res.acknowledged, 0
             except DuplicateKeyError:
                 ack, cnt = False, 1
+            else:
+                ack, cnt = res.acknowledged, 0
         else:
             res = self.coll.update_one({id_tag: id_value}, serialized_traitable if set_values else {'$set': serialized_traitable}, upsert=True)
             ack, cnt = res.acknowledged, res.matched_count

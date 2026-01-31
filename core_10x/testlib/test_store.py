@@ -8,8 +8,11 @@ that can be used for unit tests without external dependencies like MongoDB.
 
 from __future__ import annotations
 
+import copy
 import re
 from typing import TYPE_CHECKING
+
+from core_10x_i import BTraitable, BTraitableProcessor
 
 from core_10x.nucleus import Nucleus
 from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
@@ -38,13 +41,27 @@ class TestCollection(TsCollection):
         """Check if a document with the given ID exists."""
         return id_value in self._documents
 
+    def _eval(self, doc, query):
+        if query.eval(doc):
+            return True
+
+        if bclass := query.traitable_class:
+            # TODO: fix - need to deserialize as dictionary-based eval doesn't support nested objects
+            coll = self._collection_name if bclass and bclass.is_custom_collection() else None
+            with BTraitableProcessor.create_root():
+                try:
+                    return query.eval(BTraitable.deserialize_object(bclass, coll, copy.copy(doc)))
+                except KeyError:
+                    return False
+        return False
+
     def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
         """Find documents matching the query."""
         documents = list(self._documents.values())
 
         # Apply query filter if provided
         if query:
-            documents = [doc for doc in documents if query.eval(doc)]
+            documents = [doc for doc in documents if self._eval(doc, query)]
 
         # Apply ordering if provided
         if _order:
@@ -85,8 +102,8 @@ class TestCollection(TsCollection):
                         data[field] = datetime.utcnow()
 
             serialized_traitable = data
-        else:
-            serialized_traitable[Nucleus.REVISION_TAG()] = 1
+
+        serialized_traitable[Nucleus.REVISION_TAG()] = 1
 
         id_tag = self.s_id_tag
         id_value = serialized_traitable.get(id_tag)

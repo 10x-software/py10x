@@ -56,9 +56,12 @@ class Op(_filter, ABC):
         obj.right_value = expression
         return obj
 
+    def serialize_right_value(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
+        return trait.serialize_value(self.right_value, replace_xnone=True) if trait and traitable_class else self.right_value
+
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
         # noinspection PyTypeChecker
-        return {self.label: trait.serialize_value(self.right_value, replace_xnone=True) if trait and traitable_class else self.right_value}
+        return {self.label: self.serialize_right_value(trait,traitable_class)}
 
 
 class NOT_EMPTY(Op, label=''):
@@ -103,6 +106,9 @@ class IN(Op):
     def __new__(cls, values: list | tuple):
         assert isinstance(values, list) or isinstance(values, tuple), f'{cls.__name__}() requires a list or tuple'
         return super().__new__(cls, values)
+
+    def serialize_right_value(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
+        return [trait.serialize_value(value, replace_xnone=True) for value in self.right_value] if trait and traitable_class else self.right_value
 
     def eval(self, left_value) -> bool:
         return left_value in self.right_value
