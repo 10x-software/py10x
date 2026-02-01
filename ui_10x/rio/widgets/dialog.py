@@ -69,7 +69,11 @@ class Dialog(Widget, i.Dialog):
         self._dialog = future
 
     def exec(self):
-        assert not self.current_session(), 'Cannot start another event loop - use show() with callbacks instead'
+        if self.current_session():
+            print('Cannot exec() in an existing event loop - using show() instead. WARNING: this only works with callbacks!')
+            self.show()
+            return
+
         assert not self._parent, 'Parent is not allowed for top level dialog'
 
         title = self.title or 'Dialog'

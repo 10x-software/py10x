@@ -9,8 +9,6 @@ from core_10x.trait import T
 from core_10x.traitable import Traitable
 from core_10x.ui_hint import Ui, UiMod
 
-from ui_10x.trait_widget import TraitWidget
-
 if TYPE_CHECKING:
     from core_10x.trait import Trait
 

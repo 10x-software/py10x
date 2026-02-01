@@ -1,17 +1,19 @@
-from core_10x.exec_control import INTERACTIVE
-from core_10x.py_class import PyClass
-from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE, AnonymousTraitable, XNone
 from core_10x.directory import Directory
 from core_10x.environment_variables import EnvVars
+from core_10x.exec_control import INTERACTIVE
+from core_10x.py_class import PyClass
+from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, Traitable, XNone
 
+from ui_10x.collection_editor import Collection, CollectionEditor
 from ui_10x.traitable_editor import TraitableEditor
 from ui_10x.traitable_view import Ui
-from ui_10x.collection_editor import Collection, CollectionEditor
-from ui_10x.utils import ux, UxDialog
+from ui_10x.utils import UxDialog, ux
+
 
 class CEApp(Traitable):
     s_exclude_packages = ('manual_tests', 'unit_tests')
 
+    # fmt: off
     main_store_uri: str     = RT()
     top_package: str        = RT()
     exclude_packages: list  = RT(Ui(flags = Ui.HIDDEN))
@@ -20,6 +22,7 @@ class CEApp(Traitable):
     my_editor: TraitableEditor  = RT()
     col_editor: CollectionEditor = RT()
     main_w: ux.Splitter         = RT()
+    # fmt: on
 
     def main_store_uri_get(self) -> str:
         return EnvVars.main_ts_store_uri
@@ -35,8 +38,8 @@ class CEApp(Traitable):
 
     def current_class_set(self, trait, value) -> RC:
         self.raw_set_value(trait, value)
-        coll = Collection(cls = value)
-        ce = CollectionEditor(coll = coll)
+        coll = Collection(cls=value)
+        ce = CollectionEditor(coll=coll)
         self.col_editor = ce
         w = ce.main_widget()
         self.main_w.replace_widget(0, w)
@@ -48,9 +51,9 @@ class CEApp(Traitable):
         if not top_package:
             return XNone
 
-        all_traitables = PyClass.all_classes(self.top_package, exclude_packages = self.exclude_packages, parent_classes = (Traitable,))
+        all_traitables = PyClass.all_classes(self.top_package, exclude_packages=self.exclude_packages, parent_classes=(Traitable,))
         all_storables = tuple(cls for cls in all_traitables if cls.is_storable() and not issubclass(cls, AnonymousTraitable))
-        dir = Directory(name = 'Classes')
+        dir = Directory(name='Classes')
         for cls in all_storables:
             path = cls.__module__.split('.')
             dir.insert(PyClass.name(cls), *path)
@@ -58,7 +61,7 @@ class CEApp(Traitable):
         return dir
 
     def my_editor_get(self) -> TraitableEditor:
-        return TraitableEditor(self, _confirm = True)
+        return TraitableEditor(self, _confirm=True)
 
     def main_widget(self) -> ux.Widget:
         w = ux.Widget()
@@ -76,11 +79,12 @@ class CEApp(Traitable):
 
         sp.add_widget(ux.Widget())
         sp.set_stretch_factor(0, 1)
-        sp.set_stretch_factor(1, 2)  #-- TODO: set it for extra panes as needed
+        sp.set_stretch_factor(1, 2)  # -- TODO: set it for extra panes as needed
 
         self.main_w = sp
 
         return w
+
 
 if __name__ == '__main__':
     from ui_10x.apps.collection_editor_app import CEApp
@@ -88,7 +92,7 @@ if __name__ == '__main__':
     ux.init()
 
     top_package = input('Top level package:')
-    ce_app = CEApp(top_package = top_package)
+    ce_app = CEApp(top_package=top_package)
 
     with INTERACTIVE():
         w = ce_app.main_widget()

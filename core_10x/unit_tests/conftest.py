@@ -9,5 +9,3 @@ def ts_instance():
     assert not TsStore.s_instances
     yield TestStore.instance()
     TsStore.s_instances.clear()
-
-
