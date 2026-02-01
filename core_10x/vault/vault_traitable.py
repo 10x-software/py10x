@@ -2,19 +2,24 @@ import keyring
 
 from core_10x_i import OsUser
 
-from core_10x.traitable import Traitable, T, RT, TsStore, cache
+from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE, TsStore, cache
 from core_10x.environment_variables import EnvVars
 
 class VaultTraitable(Traitable):
     @classmethod
     @cache
-    def master_password(cls) -> str:
+    def retrieve_master_password(cls) -> str:
         username = OsUser.me.name()
         pwd = keyring.get_password(EnvVars.master_password_key, username)
         if pwd is None:
             raise EnvironmentError(f'XX MasterPassword for {username} is not in the Vault')
 
         return pwd
+
+    @classmethod
+    def keep_master_password(cls, password: str):
+        username = OsUser.me.name()
+        keyring.set_password(EnvVars.master_password_key, username, password)
 
     @classmethod
     @cache
@@ -28,6 +33,6 @@ class VaultTraitable(Traitable):
 
         username = OsUser.me.name()
         kwargs[ts_class.USERNAME_TAG]   = username
-        kwargs[ts_class.PASSWORD_TAG]   = cls.master_password()
+        kwargs[ts_class.PASSWORD_TAG]   = cls.retrieve_master_password()
 
         return ts_class.instance(**kwargs)

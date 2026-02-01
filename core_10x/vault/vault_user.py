@@ -1,16 +1,8 @@
-import keyring
-
-from core_10x.vault.vault_traitable import VaultTraitable, T, RT, OsUser, cache, EnvVars
+from core_10x.environment_variables import EnvVars
+from core_10x.vault.vault_traitable import VaultTraitable, T, RT, RC, OsUser, cache
 from core_10x.vault.sec_keys import SecKeys
 
-"""
-user = 'admin'
-db2 = TsStore.instance_from_uri(f'mongodb://{user}:{keyring.get_password("mongodb_local", user)}@localhost:27018/test')
-"""
-
 class VaultUser(VaultTraitable):
-    FUNCTIONAL_ACCOUNT_PREFIX = 'xx'
-
     # fmt: off
     user_id: str                    = T(T.ID)   // 'OS login'
     suspended: bool                 = T(False)
@@ -25,20 +17,24 @@ class VaultUser(VaultTraitable):
         return OsUser.me.name()
 
     def sec_keys_get(self) -> SecKeys:
-        return SecKeys(self.private_key_encrypted, self.public_key, self.master_password())
+        return SecKeys(self.private_key_encrypted, self.public_key, VaultTraitable.retrieve_master_password())
 
-    #-- TODO: what about resetting ALL the resource accessors in Vault?
-    def set_master_password(self, pwd: str):
-        keyring.set_password(EnvVars.master_password_key, self.user_id, pwd)
+    @classmethod
+    def create_new(cls, master_password: str, save = True) -> 'VaultUser':
+        VaultTraitable.keep_master_password(master_password)
         private_key_pem, public_key_pem = SecKeys.generate_keys()
-        self.public_key = public_key_pem
-        self.private_key_encrypted = SecKeys.encrypt_private_key(private_key_pem, pwd)
+        me = VaultUser()
+        me.public_key = public_key_pem
+        me.private_key_encrypted = SecKeys.encrypt_private_key(private_key_pem, master_password)
 
-        self.save().throw()
+        if save:
+            me.save().throw()
+
+        return me
 
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:
-        return user_id.split('-', 1) == cls.FUNCTIONAL_ACCOUNT_PREFIX
+        return user_id.split('-', 1) == EnvVars.functional_account_prefix
 
     @classmethod
     @cache

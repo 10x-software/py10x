@@ -121,6 +121,7 @@ class EnvVars(_EnvVars, env_name='XX'):
 
     master_password_key: str        = 'XX_MASTER_PASSWORD'
 
+    functional_account_prefix: str  = 'xx'          #-- used in user names to distinguish a regular user name from a functional account
     vault_ts_store_uri: str         = ''            #-- if defined, used to store/auto retrieve security credentials for each user/resource
     main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27017/main'
     use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
