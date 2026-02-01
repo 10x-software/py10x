@@ -89,12 +89,16 @@ class TsStore(Resource, resource_type=TS_STORE):
     s_instances = {}
 
     @classmethod
-    def instance_from_uri(cls, uri: str) -> TsStore:
+    def class_kwargs_from_uri(cls, uri: str) -> tuple:
         parts = uri.split(':', maxsplit=1)
         protocol = parts[0]
         ts_class = TS_STORE_TYPE.ts_store_class(protocol)
-        args_kwargs = ts_class.parse_uri(uri)
-        return ts_class.instance(**args_kwargs)
+        return (ts_class, ts_class.parse_uri(uri))
+
+    @classmethod
+    def instance_from_uri(cls, uri: str) -> TsStore:
+        ts_class, kwargs = cls.class_kwargs_from_uri(uri)
+        return ts_class.instance(**kwargs)
 
     @classmethod
     def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> TsStore:

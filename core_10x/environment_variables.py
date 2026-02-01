@@ -74,7 +74,7 @@ class _EnvVars:
         return cache(f)
 
     s_env_name: str = None
-
+    assert_var = None
     def __init_subclass__(cls, env_name: str = None, **kwargs):
         assert env_name, 'env_name is required'
 
@@ -100,12 +100,28 @@ class _EnvVars:
             full_getter = cls.full_getter(data_type, var_name, f_get, f_apply)
             setattr(cls, name, classproperty(full_getter))
 
+            cls.assert_var = cls.AssertVar(cls)
+
+    class AssertVar:
+        def __init__(self, env_vars_class):
+            self.env_vars_class = env_vars_class
+
+        def __getattr__(self, item):
+            value = getattr(self.env_vars_class, item)
+            if not value:
+                raise AssertionError(f'{self.env_vars_class.s_env_name}_{item.upper()} is not defined')
+            return value
+
+
 
 class EnvVars(_EnvVars, env_name='XX'):
     # fmt: off
     build_area: str
     parent_build_area: str          = 'dev'
 
+    master_password_key: str        = 'XX_MASTER_PASSWORD'
+
+    vault_ts_store_uri: str         = ''            #-- if defined, used to store/auto retrieve security credentials for each user/resource
     main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27017/main'
     use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
 
