@@ -42,18 +42,16 @@ class TestCollection(TsCollection):
         return id_value in self._documents
 
     def _eval(self, doc, query):
-        if query.eval(doc):
-            return True
-
-        if bclass := query.traitable_class:
+        bclass = query.traitable_class
+        try:
+            return query.eval(doc)
+        except AttributeError:
             # TODO: fix - need to deserialize as dictionary-based eval doesn't support nested objects
-            coll = self._collection_name if bclass and bclass.is_custom_collection() else None
+            if not bclass:
+                raise  # likely and ID query from load(ID)
+            coll = self._collection_name if bclass.is_custom_collection() else None
             with BTraitableProcessor.create_root():
-                try:
-                    return query.eval(BTraitable.deserialize_object(bclass, coll, copy.copy(doc)))
-                except KeyError:
-                    return False
-        return False
+                return query.eval(BTraitable.deserialize_object(bclass, coll, copy.copy(doc)))
 
     def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
         """Find documents matching the query."""
