@@ -12,9 +12,10 @@ PWD_SIZE    = 24
 ENCODING    = 'utf-8'
 # fmt: on
 
+
 class SecKeys:
     @classmethod
-    def generate_password(cls, length = PWD_SIZE) -> str:
+    def generate_password(cls, length=PWD_SIZE) -> str:
         return secrets.token_urlsafe(length)
 
     @classmethod
@@ -102,8 +103,8 @@ class SecKeys:
         if type(password) is str:
             password = bytes(password, encoding=ENCODING)
 
-        self.private_key    = load_pem_private_key(private_key_with_password, password=password)
-        self.public_key     = load_pem_public_key(public_key_pem)
+        self.private_key = load_pem_private_key(private_key_with_password, password=password)
+        self.public_key = load_pem_public_key(public_key_pem)
 
     def encrypt_text(self, text: str) -> bytes:
         message = bytes(text, encoding=ENCODING)

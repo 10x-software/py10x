@@ -15,7 +15,7 @@ class Dummy(Traitable):
         return 'AMD'
 
 if __name__ == '__main__':
-    from core_10x.manual_tests.traitable_trivial_test import Event, Dummy
+    from core_10x.manual_tests.traitable_trivial_test import Dummy, Event
 
     e = Event()
     print(e.id_value())

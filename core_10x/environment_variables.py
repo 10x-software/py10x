@@ -6,6 +6,7 @@ from core_10x_i import OsUser
 from core_10x.global_cache import cache
 from core_10x.rc import RC
 from core_10x.xdate_time import XDateTime, date, datetime
+from core_10x.resource import Resource
 
 # ===================================================================================================================================
 #   date_format: str    = default_value
@@ -37,6 +38,7 @@ class _EnvVars:
         str:        lambda s: s,
         date:       lambda s: XDateTime.str_to_date(s),
         datetime:   lambda s: XDateTime.str_to_datetime(s),
+        #Resource:   lambda s: Resource
     }
     # fmt: on
 
@@ -75,6 +77,7 @@ class _EnvVars:
 
     s_env_name: str = None
     assert_var = None
+
     def __init_subclass__(cls, env_name: str = None, **kwargs):
         assert env_name, 'env_name is required'
 
@@ -113,7 +116,6 @@ class _EnvVars:
             return value
 
 
-
 class EnvVars(_EnvVars, env_name='XX'):
     # fmt: off
     build_area: str
@@ -121,10 +123,11 @@ class EnvVars(_EnvVars, env_name='XX'):
 
     master_password_key: str        = 'XX_MASTER_PASSWORD'
 
-    functional_account_prefix: str  = 'xx'          #-- used in user names to distinguish a regular user name from a functional account
+    examples_ts_store_uri: str      = ''            #-- e.g., mongodb://localhost/examples
     vault_ts_store_uri: str         = ''            #-- if defined, used to store/auto retrieve security credentials for each user/resource
-    main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27017/main'
+    main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27018/main'
     use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
+    functional_account_prefix: str  = 'xx'          #-- used in user names to distinguish a regular user name from a functional account
 
     date_format: str = XDateTime.FORMAT_ISO
 

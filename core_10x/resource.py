@@ -107,6 +107,17 @@ class ResourceType:
         stack = self.resource_stack
         return stack[-1] if stack else None
 
+class ResourceSpec:
+    def __init__(self, resource_class, kwargs: dict):
+        self.resource_class = resource_class
+        self.kwargs = kwargs
+
+    def set_credentials(self, username: str = None, password: str = None):
+        if username is not None:
+            self.kwargs[self.resource_class.USERNAME_TAG] = username
+        if password is not None:
+            self.kwargs[self.resource_class.PASSWORD_TAG] = password
+
 
 class Resource(abc.ABC):
     # fmt: off
@@ -150,23 +161,17 @@ class Resource(abc.ABC):
 
     @classmethod
     def instance_from_uri(cls, uri: str, username: str = None, password: str = None) -> Resource:
-        resource_class, kwargs = cls.class_kwargs_from_uri(uri)
-        if username is not None:
-            kwargs[resource_class.USERNAME_TAG] = username
-        if password is not None:
-            kwargs[resource_class.PASSWORD_TAG] = password
-
-        return resource_class.instance(**kwargs)
+        spec = cls.spec_from_uri(uri)
+        spec.set_credentials(username = username, password = password)
+        return spec.resource_class.instance(**spec.kwargs)
 
     @classmethod
     @abc.abstractmethod
-    def class_kwargs_from_uri(cls, uri: str) -> tuple:  #-- (resource_class, kwargs: dict)
-        ...
+    def spec_from_uri(cls, uri: str) -> ResourceSpec:   ...
 
     @classmethod
     @abc.abstractmethod
-    def instance(cls, *args, **kwargs):
-        raise NotImplementedError
+    def instance(cls, *args, **kwargs) -> Resource: ...
 
     @abc.abstractmethod
     def on_enter(self): ...

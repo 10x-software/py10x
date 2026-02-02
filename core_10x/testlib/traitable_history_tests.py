@@ -344,7 +344,7 @@ class TestTraitableHistory:
                         assert person2.spouse.dob == (date(1985, 7, 5 + (as_of is None)))
 
                     assert person1.spouse.dob == date(1985, 7, 6)
-                    assert person_as_of.dob == date(1985, 7, 5)
+                    assert person_as_of.dob == date(1985, 7, 5), person_as_of.dob
 
                     assert person_as_of.spouse.dob == date(1985, 7, 6)  # note - since no AsOfContext was used, nested objects are not loaded "as_of".
 

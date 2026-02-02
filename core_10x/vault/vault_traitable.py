@@ -25,14 +25,16 @@ class VaultTraitable(Traitable):
     @cache
     def store(cls) -> TsStore:
         uri = EnvVars.assert_var.vault_ts_store_uri
-        ts_class, kwargs = TsStore.class_kwargs_from_uri(uri)
+        spec = TsStore.spec_from_uri(uri)
+        kwargs = spec.kwargs
+        ts_class = spec.resource_class
         hostname = kwargs[ts_class.HOSTNAME_TAG]
         is_running, with_auth = ts_class.is_running_with_auth(hostname)
         if not is_running or not with_auth:
             raise EnvironmentError(f'Vault host {hostname} must be run with auth')
 
         username = OsUser.me.name()
-        kwargs[ts_class.USERNAME_TAG]   = username
-        kwargs[ts_class.PASSWORD_TAG]   = cls.retrieve_master_password()
+        kwargs[ts_class.USERNAME_TAG] = username
+        kwargs[ts_class.PASSWORD_TAG] = cls.retrieve_master_password()
 
         return ts_class.instance(**kwargs)
