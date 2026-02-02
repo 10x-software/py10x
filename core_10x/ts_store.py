@@ -7,7 +7,7 @@ from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
 from core_10x.py_class import PyClass
 from core_10x.rc import RC
-from core_10x.resource import TS_STORE, Resource
+from core_10x.resource import TS_STORE, Resource, ResourceSpec
 from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
 
@@ -89,11 +89,11 @@ class TsStore(Resource, resource_type=TS_STORE):
     s_instances = {}
 
     @classmethod
-    def class_kwargs_from_uri(cls, uri: str) -> tuple:
+    def spec_from_uri(cls, uri: str) -> ResourceSpec:
         parts = uri.split(':', maxsplit=1)
         protocol = parts[0]
         ts_class = TS_STORE_TYPE.ts_store_class(protocol)
-        return (ts_class, ts_class.parse_uri(uri))
+        return ResourceSpec(ts_class, ts_class.parse_uri(uri))
 
     @classmethod
     def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> TsStore:
