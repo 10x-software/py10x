@@ -97,12 +97,13 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
     if (const auto cls = my_class(); cls->is_id_endogenous()) {
         const auto proc = ThreadContext::current_traitable_proc();
 
-        /* The following check seems too restrictive: Traitable may have getters for ID traits */
-//        if (trait_values.empty()) {  // kwargs empty
-//            if (!proc->is_empty_object_allowed())
-//                throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
-//            return;
-//        }
+        if (trait_values.empty()) {  // kwargs empty
+            if (!proc->is_empty_object_allowed()) {
+                /* The following check seems too restrictive: Traitable may have getters for ID traits */
+                //throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
+            } else
+                return;
+        }
 
         //-- setting trait values (not calling set_values() for performance reasons and throwing immediately on error
         std::unordered_map<const BTrait *,py::object> non_id_traits_set;
