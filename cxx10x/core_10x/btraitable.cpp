@@ -248,9 +248,14 @@ py::object BTraitable::serialize_nx(const bool embed) {
 
         py::dict res;
         m_tid.serialize_id(res, embed);
-        if (!my_class()->is_storable() && my_class()->is_id_endogenous()) {
-            res[BNucleus::ID_TAG()] = serialize_id_traits();
-        } else if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES && !ThreadContext::serialization_memo().contains(m_tid)) {
+        if (!my_class()->is_storable()) {
+            if (my_class()->is_id_endogenous()) {
+                res[BNucleus::ID_TAG()] = serialize_id_traits();
+                return res;
+            }
+            throw py::type_error(py::str("{}/{} - cannot serialize a non-storable exogenous reference").format(class_name(), id_value()));
+        }
+        if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES && !ThreadContext::serialization_memo().contains(m_tid)) {
             auto py_traitable = my_class()->py_class()(m_tid.traitable_id());    // cls(_id = id)
             if (const auto rc = py_traitable.attr("save")(); !py::cast<bool>(rc))
                 throw py::value_error(py::str("{}/{} - failed to save referenced object:").format(class_name(), id_value(),rc.attr("error")()));
