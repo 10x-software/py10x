@@ -97,7 +97,7 @@ public:
 
     static py::object exogenous_id();
 
-    void initialize(const py::dict &trait_values, bool create_or_replace);
+    void initialize(const py::dict &trait_values, bool replace_existing);
     bool accept_existing(const py::dict& trait_values);
     bool id_exists();
 
@@ -242,10 +242,13 @@ public:
     py::dict            serialize_traits();
     py::object          serialize_object(bool save_references);
     py::object          serialize_nx(bool embed);      //-- Nucleus' method
+    py::list            serialize_id_traits();
+    static py::dict     deserialize_id_traits(const BTraitableClass* cls, const py::list& serialized_data);
+
 
     static py::object   deserialize_object(const BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data);
     virtual void        deserialize_traits(const py::dict& trait_values);
-    static py::object   deserialize_nx(const BTraitableClass* cls, const py::object& serialized_data);
+    static py::object   deserialize_nx(const BTraitableClass* cls, const py::dict& serialized_data);
     py::object          _reload(const bool rev_only = false);
     bool                reload() {return !_reload().is_none();}
 

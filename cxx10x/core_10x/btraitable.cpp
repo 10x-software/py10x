@@ -117,7 +117,9 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
                     throw py::value_error(rc.error());
             }
         }
-        if (const BRC rc(proc->share_object(this,!replace_existing, replace_existing)); !rc) // -- this never happens as accept_existing==true
+        const auto replace = (lazy_load_flags() & XCache::LOAD_REQUIRED_MUST_EXIST) ? true : replace_existing; // -- if existing is a lazy reference, replace it
+        if (const BRC rc(proc->share_object(this,!replace, replace)); !rc)
+            // -- this never happens as either accept_existing==true or replace_existing==true
             throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
 
         if (replace_existing) {
@@ -202,6 +204,36 @@ void BTraitable::set_revision(const py::object& rev) {
         set_value(rt, rev);
 }
 
+py::list  BTraitable::serialize_id_traits() {
+    py::list serialized_id;
+    for (const auto &[trait_name_handle, trait_value_handle] : my_class()->trait_dir()) {
+        const auto trait = trait_value_handle.cast<BTrait*>();
+        if (trait->flags_on(BTraitFlags::ID)) {
+            const auto trait_name = trait_name_handle.cast<py::object>();
+            const auto value = get_value(trait);
+            if (value.is_none())
+                throw py::value_error(py::str("{}.{} - undefined ID trait value").format(class_name(), trait_name));
+
+            serialized_id.append(trait->wrapper_f_serialize(my_class(), value));
+        }
+    }
+    return serialized_id;
+}
+
+py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py::list& serialized_data) {
+    py::dict id_traits;
+    size_t i = 0;
+    for (const auto &[trait_name_handle, trait_value_handle] : cls->trait_dir()) {
+        if (const auto trait = trait_value_handle.cast<BTrait*>(); trait->flags_on(BTraitFlags::ID)) {
+            if (i >= serialized_data.size())
+                throw py::value_error(py::str("{} - insufficient serialized ID traits data").format(cls->name()));
+            id_traits[trait_name_handle.cast<py::object>()] = trait->wrapper_f_deserialize(cls, serialized_data[i]);
+            ++i;
+        }
+    }
+    return id_traits;
+}
+
 //-- Nucleus' serialize (not for top-level objects)
 py::object BTraitable::serialize_nx(const bool embed) {
     if (!embed) {   //-- external reference
@@ -210,7 +242,9 @@ py::object BTraitable::serialize_nx(const bool embed) {
 
         py::dict res;
         m_tid.serialize_id(res, embed);
-        if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES && !ThreadContext::serialization_memo().contains(m_tid)) {
+        if (!my_class()->is_storable() && my_class()->is_id_endogenous()) {
+            res[BNucleus::ID_TAG()] = serialize_id_traits();
+        } else if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES && !ThreadContext::serialization_memo().contains(m_tid)) {
             auto py_traitable = my_class()->py_class()(m_tid.traitable_id());    // cls(_id = id)
             if (const auto rc = py_traitable.attr("save")(); !py::cast<bool>(rc))
                 throw py::value_error(py::str("{}/{} - failed to save referenced object:").format(class_name(), id_value(),rc.attr("error")()));
@@ -224,7 +258,12 @@ py::object BTraitable::serialize_nx(const bool embed) {
     return serialize_traits();
 }
 
-py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::object& serialized_data) {
+py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict& serialized_data) {
+    if (!cls->is_storable() && cls->is_id_endogenous()) {
+        const py::kwargs id_traits = deserialize_id_traits(cls, serialized_data[BNucleus::ID_TAG()]);
+        return cls->py_class()(**id_traits);  //-- cls(**id_traits)
+    }
+
     if (auto id = TID::deserialize_id(serialized_data, false); !id.is_none()) {     //-- external reference
         auto lazy_ref = cls->py_class()(id);     // cls(_id = id)   - keep lazy reference
         if (const auto obj = lazy_ref.cast<BTraitable*>(); obj->lazy_load_flags() & BTraitableProcessor::DEBUG) {

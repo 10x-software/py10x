@@ -24,8 +24,8 @@ void TID::serialize_id(const py::dict& res, const bool embed) const {
 }
 
 py::object TID::deserialize_id(const py::dict& serialized_data, bool must_exist) {
-    auto XNone = PyLinkage::XNone();
-    auto id_value = PyLinkage::dict_get(serialized_data, BNucleus::ID_TAG());
+    const auto XNone = PyLinkage::XNone();
+    const auto id_value = PyLinkage::dict_get(serialized_data, BNucleus::ID_TAG());
     if (id_value.is(XNone)) {
         if (must_exist)
             throw py::value_error(py::str("Corrupted record - missing {} field\n{}").format(BNucleus::ID_TAG(), serialized_data));

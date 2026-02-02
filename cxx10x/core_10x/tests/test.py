@@ -874,6 +874,24 @@ def test_31():
 
         assert Person(first_name='ilya', last_name = 'pevzner').weight_lbs == 205
 
+
+def test_32():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID)
+
+    assert not X.existing_instance_by_id(ID('1|2'),_throw=False)
+    x = X(x=1,y=2)
+    print(x.x,x.y)
+    assert X.existing_instance_by_id(ID('1|2'),_throw=False) == x
+
+    s = x.serialize(False)
+    print('===',s)
+    x1 = X.deserialize_nx(X.s_bclass,s)
+    assert x1.x==1
+    assert x1.y==2
+
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)

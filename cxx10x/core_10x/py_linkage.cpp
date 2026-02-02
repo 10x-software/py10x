@@ -149,7 +149,7 @@ PyLinkage::PyLinkage(const py::dict& package_names) {
 
 py::object PyLinkage::create_trait_method_error(
         BTraitable* obj,
-        BTraitableClass* cls,
+        const BTraitableClass* cls,
         const py::str& trait_name,
         const py::object& method_name,
         const py::object* value,

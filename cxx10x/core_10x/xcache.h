@@ -211,6 +211,7 @@ public:
     static constexpr unsigned   LOAD_REQUIRED                = 64;
     static constexpr unsigned   MUST_EXIST_IN_STORE          = 128;
     static constexpr unsigned   LOAD_REV_ONLY                = 256;
+    static constexpr unsigned   REPLACE_EXISTING             = 512;
     static constexpr unsigned   LOAD_REQUIRED_MUST_EXIST     = LOAD_REQUIRED|MUST_EXIST_IN_STORE;
     [[nodiscard]] unsigned lazy_load_flags(const TID& tid) const {
         if (!tid.is_valid())

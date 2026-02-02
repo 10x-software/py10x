@@ -49,9 +49,11 @@ bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
     const auto id_value = obj->tid().is_valid() ? obj->id_value() : obj->endogenous_id();
     const auto tid = TID(obj->my_class(), PyLinkage::traitable_id(id_value, obj->tid().coll_name()));
     if (const auto origin_cache = m_cache->find_origin_cache(tid)) {
-        if ( origin_cache->lazy_load_flags(tid) & XCache::LOAD_REQUIRED_MUST_EXIST && !obj->my_class()->instance_in_store(tid))
+        if ( origin_cache->lazy_load_flags(tid) & XCache::LOAD_REQUIRED_MUST_EXIST && !obj->my_class()->instance_in_store(tid)) {
             // e.g. created with existing_object_by_id
+            origin_cache->set_lazy_load_flags(tid, XCache::REPLACE_EXISTING);
             return false;
+        }
         obj->set_id_value(id_value);
         obj->set_origin_cache(origin_cache);
         return true;
@@ -78,17 +80,19 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_
     const auto &cls = tid.cls();
     const auto valid_tid = TID(cls, PyLinkage::traitable_id(id_value, tid.coll_name()));
     if (const auto origin_cache =  m_cache->find_origin_cache(valid_tid)) {
-        // -- possible conflict with existing instance!
-        if (accept_existing) {
-            m_cache->remove_temp_object_cache(tid);
-            obj->set_id_value(id_value);
-            obj->set_origin_cache(origin_cache);
-            return PyLinkage::RC_TRUE();
-        }
-        if (!replace_existing) {
-            BRC rc;
-            rc.add_data(id_value);
-            return rc();
+        if (! (origin_cache->lazy_load_flags(valid_tid) & XCache::REPLACE_EXISTING)) {
+            // -- possible conflict with existing instance!
+            if (accept_existing) {
+                m_cache->remove_temp_object_cache(tid);
+                obj->set_id_value(id_value);
+                obj->set_origin_cache(origin_cache);
+                return PyLinkage::RC_TRUE();
+            }
+            if (!replace_existing) {
+                BRC rc;
+                rc.add_data(id_value);
+                return rc();
+            }
         }
         // -- replacing existing instance
         if (m_cache!=origin_cache)

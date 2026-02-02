@@ -137,7 +137,7 @@ PYBIND11_MODULE(core_10x_i, m)
             //.def_readonly("f_acceptable_type", &BTrait::f_is_acceptable_type)
 
             .def("set_name",                    &BTrait::set_name)
-            .def("flags_on",                    py::overload_cast<uint64_t>(&BTrait::flags_on, py::const_))
+            .def("flags_on",                    py::overload_cast<const uint64_t>(&BTrait::flags_on, py::const_))
             .def("flags_on",                    py::overload_cast<const BFlags&>(&BTrait::flags_on, py::const_))
             .def("set_flags",                   &BTrait::set_flags)
             .def("reset_flags",                 &BTrait::reset_flags)

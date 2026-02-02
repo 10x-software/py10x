@@ -30,7 +30,7 @@ void BTrait::create_proc() {
     m_proc = new BTraitProcessor();
 }
 
-py::error_already_set BTrait::trait_error(const py::error_already_set &exc, BTraitable *obj, BTraitableClass *cls, const py::object& f, const py::object* value, const py::args* args) const {
+py::error_already_set BTrait::trait_error(const py::error_already_set &exc, BTraitable *obj, const BTraitableClass *cls, const py::object& f, const py::object* value, const py::args* args) const {
     auto py_exc = PyLinkage::create_trait_method_error(obj, cls, name(), f.attr("__name__"), value, args, &exc);
     PyErr_SetObject(py_exc.get_type().ptr(), py_exc.ptr());
     return {};
@@ -118,7 +118,7 @@ py::object BTrait::wrapper_f_to_str(BTraitable* obj, const py::object& value) co
     }
 }
 
-py::object BTrait::wrapper_f_serialize(BTraitableClass* cls, const py::object& value) const {
+py::object BTrait::wrapper_f_serialize(const BTraitableClass* cls, const py::object& value) const {
     try {
         return f_serialize(this, value);
     } catch (py::error_already_set& exc) {
@@ -126,7 +126,7 @@ py::object BTrait::wrapper_f_serialize(BTraitableClass* cls, const py::object& v
     }
 }
 
-py::object BTrait::wrapper_f_deserialize(BTraitableClass* cls, const py::object& value) const {
+py::object BTrait::wrapper_f_deserialize(const BTraitableClass* cls, const py::object& value) const {
     try {
         return f_deserialize(this, value);
     } catch (py::error_already_set& exc) {

@@ -28,14 +28,14 @@ public:
     static constexpr unsigned LAST_FLAG = ID_LIKE; //TODO: remove?
 
     // TODO: review the below CUSTOM_F_*- they do not seem to be used anywhere..
-    inline static const uint64_t CUSTOM_F_GET           = uint64_t(0x1)       << 32;
-    inline static const uint64_t CUSTOM_F_VERIFY        = uint64_t(0x2)       << 32;
-    inline static const uint64_t CUSTOM_F_FROM_STR      = uint64_t(0x4)       << 32;
-    inline static const uint64_t CUSTOM_F_FROM_ANY_XSTR = uint64_t(0x8)       << 32;
-    inline static const uint64_t CUSTOM_F_TO_STR        = uint64_t(0x10)      << 32;
-    inline static const uint64_t CUSTOM_F_SERIALIZE     = uint64_t(0x20)      << 32;
-    inline static const uint64_t CUSTOM_F_TO_ID         = uint64_t(0x40)      << 32;
-    inline static const uint64_t CUSTOM_F_CHOICES       = uint64_t(0x80)      << 32;
+    static constexpr uint64_t CUSTOM_F_GET           = static_cast<uint64_t>(0x1)       << 32;
+    static constexpr uint64_t CUSTOM_F_VERIFY        = static_cast<uint64_t>(0x2)       << 32;
+    static constexpr uint64_t CUSTOM_F_FROM_STR      = static_cast<uint64_t>(0x4)       << 32;
+    static constexpr uint64_t CUSTOM_F_FROM_ANY_XSTR = static_cast<uint64_t>(0x8)       << 32;
+    static constexpr uint64_t CUSTOM_F_TO_STR        = static_cast<uint64_t>(0x10)      << 32;
+    static constexpr uint64_t CUSTOM_F_SERIALIZE     = static_cast<uint64_t>(0x20)      << 32;
+    static constexpr uint64_t CUSTOM_F_TO_ID         = static_cast<uint64_t>(0x40)      << 32;
+    static constexpr uint64_t CUSTOM_F_CHOICES       = static_cast<uint64_t>(0x80)      << 32;
 
     static const BFlags* flag(const unsigned v)     { return new BFlags(v); }
 };
@@ -67,11 +67,11 @@ public:
     py::object      f_style_sheet;      // style sheet from py          dict    f(obj, trait)
 
 protected:
-    py::error_already_set trait_error(const py::error_already_set& exc, BTraitable* obj, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const;
-    py::error_already_set trait_error(py::error_already_set& exc, BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const {
+    py::error_already_set trait_error(const py::error_already_set& exc, BTraitable* obj, const BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const;
+    py::error_already_set trait_error(const py::error_already_set& exc, const BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const {
         return trait_error(exc, nullptr, cls, f, value, args);
     }
-    py::error_already_set trait_error(py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args) const {
+    py::error_already_set trait_error(const py::error_already_set& exc, BTraitable* obj, const py::object& f, const py::object* value, const py::args* args) const {
         return trait_error(exc, obj, nullptr, f, value, args);
     }
 
@@ -95,25 +95,25 @@ public:
 
     [[nodiscard]] const py::object& name() const            { return m_name; }
     [[nodiscard]] const py::object& data_type() const       { return m_datatype; }
-    [[nodiscard]] bool flags_on(uint64_t flags) const       { return m_flags & flags; }
+    [[nodiscard]] bool flags_on(const uint64_t flags) const       { return m_flags & flags; }
 
     [[nodiscard]] bool flags_on(const BFlags& flags) const  { return m_flags & flags.value(); }
     void set_flags(uint64_t flags_to_set)                   { m_flags |= flags_to_set; }
     void reset_flags(uint64_t flags_to_reset)               { m_flags &= ~flags_to_reset; }
     void modify_flags(uint64_t to_set, uint64_t to_reset)   { m_flags = (m_flags | to_set) & ~to_reset; }
 
-    void set_f_get(py::object f, bool custom)               { f_get = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_GET; }
-    void set_f_set(py::object f, bool custom)               { f_set = f; }
-    void set_f_verify(py::object f, bool custom)            { f_verify = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_VERIFY; }
-    void set_f_from_str(py::object f, bool custom)          { f_from_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_STR; }
-    void set_f_from_any_xstr(py::object f, bool custom)     { f_from_any_xstr = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_ANY_XSTR; }
-    void set_f_to_str(py::object f, bool custom)            { f_to_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_STR; }
-    void set_f_serialize(py::object f, bool custom)         { f_serialize = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_SERIALIZE; }
-    void set_f_is_acceptable_type(py::object f, bool custom) { f_is_acceptable_type = f; }
-    void set_f_deserialize(py::object f, bool custom)       { f_deserialize = f; }
-    void set_f_to_id(py::object f, bool custom)             { f_to_id = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_ID; }
-    void set_f_choices(py::object f, bool custom)           { f_choices = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_CHOICES; }
-    void set_f_style_sheet(py::object f, bool custom)       { f_style_sheet = f; }
+    void set_f_get(const py::object &f, bool custom)               { f_get = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_GET; }
+    void set_f_set(const py::object &f, bool custom)               { f_set = f; }
+    void set_f_verify(const py::object &f, bool custom)            { f_verify = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_VERIFY; }
+    void set_f_from_str(const py::object &f, bool custom)          { f_from_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_STR; }
+    void set_f_from_any_xstr(const py::object &f, bool custom)     { f_from_any_xstr = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_ANY_XSTR; }
+    void set_f_to_str(const py::object &f, bool custom)            { f_to_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_STR; }
+    void set_f_serialize(const py::object &f, bool custom)         { f_serialize = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_SERIALIZE; }
+    void set_f_is_acceptable_type(const py::object &f, bool custom) { f_is_acceptable_type = f; }
+    void set_f_deserialize(const py::object &f, bool custom)       { f_deserialize = f; }
+    void set_f_to_id(const py::object &f, bool custom)             { f_to_id = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_ID; }
+    void set_f_choices(const py::object &f, bool custom)           { f_choices = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_CHOICES; }
+    void set_f_style_sheet(const py::object &f, bool custom)       { f_style_sheet = f; }
 
     //-- Trait Method wrappers
 
@@ -128,8 +128,8 @@ public:
     py::object wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_to_str(BTraitable* obj, const py::object& value) const;
     bool       wrapper_f_is_acceptable_type(BTraitable* obj, const py::object& value) const;
-    py::object wrapper_f_serialize(BTraitableClass* cls, const py::object& value) const;
-    py::object wrapper_f_deserialize(BTraitableClass* cls, const py::object& value) const;
+    py::object wrapper_f_serialize(const BTraitableClass* cls, const py::object& value) const;
+    py::object wrapper_f_deserialize(const BTraitableClass* cls, const py::object& value) const;
     py::object wrapper_f_to_id(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_choices(BTraitable* obj) const;
     py::object wrapper_f_style_sheet(BTraitable* obj) const;
