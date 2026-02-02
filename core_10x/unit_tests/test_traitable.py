@@ -280,6 +280,22 @@ def test_trait_methods():
         assert t().serialize_object()['t'] == (v * 2 or None)
 
 
+def test_serialize_rt_object():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID)
+
+    assert not X.existing_instance_by_id(ID('1|2'), _throw=False)  # not found, can't find by id
+    x = X.existing_instance(x=1, y=2)  # creates new instance by id traits
+    assert x == X.existing_instance_by_id(ID('1|2'))
+    assert x == X(x=1, y=2)
+
+    s = x.serialize(False)
+    assert s == {'_id': [1, 2]}
+
+    assert X.deserialize(s) == x
+
+
 def test_trait_modification_inheritance_with_flags():
     """Test complex trait modification inheritance with M() overriding flags and getters."""
 
@@ -457,7 +473,8 @@ def test_create_and_share():
         def y_get(self):
             return self.t
 
-    with pytest.raises(TypeError, match=re.escape('test_create_and_share.<locals>.X expects at least one ID trait value')):
+    #   with pytest.raises(TypeError, match=re.escape('test_create_and_share.<locals>.X expects at least one ID trait value')):
+    with pytest.raises(TypeError, match=re.escape("test_create_and_share.<locals>.X.x (<class 'int'>) - invalid value ''")):
         X()
 
     with pytest.raises(TypeError, match=re.escape("test_create_and_share.<locals>.X.y (<class 'int'>) - invalid value ''")):
@@ -805,7 +822,7 @@ def test_existing_instance_api_variants():
         p1 = RuntimePerson.existing_instance(last_name='Smith', first_name='John')
         assert p1
 
-        p2 = RuntimePerson.existing_instance(last_name='Smith', first_name='Josh', _throw=False)
+        p2 = Person.existing_instance(last_name='Pevzner', first_name='Arthur', _throw=False)
         assert p2 is None
 
         for i, cls in enumerate(ppl_stored):
@@ -919,3 +936,14 @@ def test_mutable_default():
 
         assert x.x == {'a': 1}
         assert y.x == {}
+
+
+def test_runtime_id_error():
+    with pytest.raises(
+        RuntimeError,
+        match=r"<class 'test_traitable.test_runtime_id_error.<locals>.X'>.x is a RUNTIME ID trait - traitable must not be storable \(all traits must be RUNTIME\)",
+    ):
+
+        class X(Traitable):
+            x: int = RT(T.ID)
+            y: int = T()

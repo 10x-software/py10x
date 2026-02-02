@@ -160,7 +160,7 @@ class Resource(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def class_kwargs_from_uri(cls, uri: str) -> tuple:  #-- (resource_class, kwargs: dict)
+    def class_kwargs_from_uri(cls, uri: str) -> tuple:  # -- (resource_class, kwargs: dict)
         ...
 
     @classmethod

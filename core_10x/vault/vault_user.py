@@ -1,6 +1,7 @@
 from core_10x.environment_variables import EnvVars
-from core_10x.vault.vault_traitable import VaultTraitable, T, RT, RC, OsUser, cache
 from core_10x.vault.sec_keys import SecKeys
+from core_10x.vault.vault_traitable import RT, OsUser, T, VaultTraitable, cache
+
 
 class VaultUser(VaultTraitable):
     # fmt: off
@@ -20,7 +21,7 @@ class VaultUser(VaultTraitable):
         return SecKeys(self.private_key_encrypted, self.public_key, VaultTraitable.retrieve_master_password())
 
     @classmethod
-    def create_new(cls, master_password: str, save = True) -> 'VaultUser':
+    def create_new(cls, master_password: str, save=True) -> 'VaultUser':
         VaultTraitable.keep_master_password(master_password)
         private_key_pem, public_key_pem = SecKeys.generate_keys()
         me = VaultUser()
