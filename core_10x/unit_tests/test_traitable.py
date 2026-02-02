@@ -947,3 +947,15 @@ def test_runtime_id_error():
         class X(Traitable):
             x: int = RT(T.ID)
             y: int = T()
+
+
+def test_serialize_runtime_exogenous_reference():
+    class X(Traitable):
+        x: int = RT()
+
+    x = X(x=1)
+    with pytest.raises(
+        TypeError,
+        match=rf'test_serialize_runtime_exogenous_reference.<locals>.X/{x.id_value()} - cannot serialize a non-storable exogenous reference',
+    ):
+        x.serialize(False)
