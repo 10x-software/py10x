@@ -179,6 +179,32 @@ class date_trait(Trait, data_type=date):
     def to_id(self, value) -> str:
         return XDateTime.date_to_str(value)
 
+class bytes_trait(Trait, data_type=bytes):
+    s_ui_hint = Ui.NONE
+
+    def to_str(self, value):
+        return value.decode(encoding='utf-8')
+
+    def to_id(self, value) -> str:
+        return self.to_str(value)
+
+    def same_values(self, value1, value2) -> bool:
+        return value1 == value2
+
+    def from_str(self, s: str):
+        return bytes(s, encoding='utf-8')
+
+    def from_any_xstr(self, value):
+        return XNone  # may not be called!
+
+    #def is_acceptable_type(self, data_type: type) -> bool:
+    #    ...
+
+    def serialize(self, value):
+        return value
+
+    def deserialize(self, value):
+        return value
 
 class class_trait(Trait, data_type=type):
     s_ui_hint = Ui.line(align_h=-1)
