@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from core_10x.backbone.backbone_store import BackboneStore
-from core_10x.traitable import RT, T, Traitable, TraitDefinition  # noqa: F401
+from core_10x.traitable import RT, T, Traitable, TraitDefinition
 
 if TYPE_CHECKING:
     from core_10x.traitable import RC

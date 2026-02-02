@@ -8,6 +8,7 @@ exclude = [
     "core_10x/code_samples/*",
     "core_10x/manual_tests/*",
     "core_10x/experimental/*",
+    "core_10x/vault/*",
     "ui_10x/qt6/*",
     "ui_10x/examples/*",
     "ui_10x/py_data_browser.py",
@@ -33,24 +34,27 @@ extend-select = [
   #"TID", # tidy imports
   "FA",  # future annotations
   "B",   # flake8-bugbear
-  "I",   # isort
+  #"I",   # isort
   "PGH", # pygrep-hooks
   "RUF", # Ruff-specific
   "UP",  # pyupgrade
   "N",   # naming
   "F",   # pyflakes
   "E",   # pycodestyle
-    "C90", # complexity
+  "C90", # complexity
 ]
 mccabe.max-complexity = 15 # Flag errors (`C901`) whenever the complexity level exceeds this
 future-annotations = true # add "from __future__ import annotations" to enable more aggressive optimizations
 
 exclude = [
-    "ui_10x/table*.py",
+    "ui_10x/table*.py"
 ]
 
 [lint.per-file-ignores]
 "ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]
 "core_10x/rdate.py" = [ 
     "N802", # Function names should be lowercase
+]
+"core_10x/vault/vault_user.py" = [
+    "UP037", # Remove quotes from type annotation
 ]

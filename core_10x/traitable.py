@@ -20,8 +20,8 @@ from core_10x.package_manifest import PackageManifest
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
-from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value  # noqa: F401
-from core_10x.trait_definition import (  # noqa: F401
+from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value
+from core_10x.trait_definition import (
     RT,
     M,
     TraitDefinition,

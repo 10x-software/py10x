@@ -107,6 +107,7 @@ class ResourceType:
         stack = self.resource_stack
         return stack[-1] if stack else None
 
+
 class ResourceSpec:
     def __init__(self, resource_class, kwargs: dict):
         self.resource_class = resource_class
@@ -162,12 +163,12 @@ class Resource(abc.ABC):
     @classmethod
     def instance_from_uri(cls, uri: str, username: str = None, password: str = None) -> Resource:
         spec = cls.spec_from_uri(uri)
-        spec.set_credentials(username = username, password = password)
+        spec.set_credentials(username=username, password=password)
         return spec.resource_class.instance(**spec.kwargs)
 
     @classmethod
     @abc.abstractmethod
-    def spec_from_uri(cls, uri: str) -> ResourceSpec:   ...
+    def spec_from_uri(cls, uri: str) -> ResourceSpec: ...
 
     @classmethod
     @abc.abstractmethod

@@ -5,6 +5,7 @@ from core_10x_i import OsUser
 from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE, TsStore, cache
 from core_10x.environment_variables import EnvVars
 
+
 class VaultTraitable(Traitable):
     @classmethod
     @cache
@@ -12,7 +13,7 @@ class VaultTraitable(Traitable):
         username = OsUser.me.name()
         pwd = keyring.get_password(EnvVars.master_password_key, username)
         if pwd is None:
-            raise EnvironmentError(f'XX MasterPassword for {username} is not in the Vault')
+            raise OSError(f'XX MasterPassword for {username} is not in the Vault')
 
         return pwd
 
@@ -31,7 +32,7 @@ class VaultTraitable(Traitable):
         hostname = kwargs[ts_class.HOSTNAME_TAG]
         is_running, with_auth = ts_class.is_running_with_auth(hostname)
         if not is_running or not with_auth:
-            raise EnvironmentError(f'Vault host {hostname} must be run with auth')
+            raise OSError(f'Vault host {hostname} must be run with auth')
 
         username = OsUser.me.name()
         kwargs[ts_class.USERNAME_TAG] = username

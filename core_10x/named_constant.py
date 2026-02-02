@@ -5,7 +5,7 @@ from typing import Any
 from core_10x.nucleus import Nucleus
 
 
-#-- TODO: should I re-incarnate deriving from a metaclass, so that I can do: NAMED_CONSTANT[name] ?
+# -- TODO: should I re-incarnate deriving from a metaclass, so that I can do: NAMED_CONSTANT[name] ?
 class NamedConstant(Nucleus):
     """
     In a subclass, each line representing a member must be one of the following:

@@ -323,7 +323,7 @@ class RDate(Nucleus):
         self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True
     ) -> tuple:
         all_dates = self.dates_schedule(start, end, calendar, roll_rule, date_propagation, allow_stub)
-        start_dates = all_dates[: len(all_dates) - 1]
+        start_dates = all_dates[:-1]
         end_dates = all_dates[1:]
 
         return start_dates, end_dates, all_dates
