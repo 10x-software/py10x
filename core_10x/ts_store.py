@@ -96,11 +96,6 @@ class TsStore(Resource, resource_type=TS_STORE):
         return (ts_class, ts_class.parse_uri(uri))
 
     @classmethod
-    def instance_from_uri(cls, uri: str) -> TsStore:
-        ts_class, kwargs = cls.class_kwargs_from_uri(uri)
-        return ts_class.instance(**kwargs)
-
-    @classmethod
     def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> TsStore:
         translated_kwargs = cls.translate_kwargs(kwargs)
         try:

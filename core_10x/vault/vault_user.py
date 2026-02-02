@@ -14,7 +14,7 @@ class VaultUser(VaultTraitable):
     # fmt: on
 
     def user_id_get(self) -> str:
-        return OsUser.me.name()
+        return self.__class__.myname()
 
     def sec_keys_get(self) -> SecKeys:
         return SecKeys(self.private_key_encrypted, self.public_key, VaultTraitable.retrieve_master_password())
@@ -38,5 +38,10 @@ class VaultUser(VaultTraitable):
 
     @classmethod
     @cache
+    def myname(cls) -> str:
+        return OsUser.me.name()
+
+    @classmethod
+    @cache
     def me(cls) -> 'VaultUser':
-        return cls.existing_instance(user_id=OsUser.me.name())
+        return cls.existing_instance(user_id=cls.myname())

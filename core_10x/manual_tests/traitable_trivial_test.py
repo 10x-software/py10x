@@ -7,9 +7,15 @@ from core_10x.traitable import T, Traitable
 class Event(Traitable):
     at: datetime = T()
 
+class Dummy(Traitable):
+    name: str       = T(T.ID)
+    payload: float  = T(3.1415)
+
+    def name_get(self):
+        return 'AMD'
 
 if __name__ == '__main__':
-    #ProcessContext.set_flags(ProcessContext.CACHE_ONLY)
+    from core_10x.manual_tests.traitable_trivial_test import Event, Dummy
 
     e = Event()
     print(e.id_value())
@@ -42,3 +48,18 @@ if __name__ == '__main__':
     print(p2.age)
 
     #print(Nucleus.serialize_any(p,False))
+
+    name = 'AMD'
+    d = Dummy()
+    assert d.name == name
+    d.payload = 100.
+
+    d2 = Dummy(name = name)
+    assert d2.name == d.name
+
+    dx = Dummy.existing_instance(name = name)
+    assert dx.payload == 100.
+
+    dx2 = Dummy.existing_instance()
+    assert dx2.payload == 100.
+

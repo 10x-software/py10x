@@ -149,6 +149,21 @@ class Resource(abc.ABC):
         self.on_exit()
 
     @classmethod
+    def instance_from_uri(cls, uri: str, username: str = None, password: str = None) -> Resource:
+        resource_class, kwargs = cls.class_kwargs_from_uri(uri)
+        if username is not None:
+            kwargs[resource_class.USERNAME_TAG] = username
+        if password is not None:
+            kwargs[resource_class.PASSWORD_TAG] = password
+
+        return resource_class.instance(**kwargs)
+
+    @classmethod
+    @abc.abstractmethod
+    def class_kwargs_from_uri(cls, uri: str) -> tuple:  #-- (resource_class, kwargs: dict)
+        ...
+
+    @classmethod
     @abc.abstractmethod
     def instance(cls, *args, **kwargs):
         raise NotImplementedError
