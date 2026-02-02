@@ -97,23 +97,28 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
     if (const auto cls = my_class(); cls->is_id_endogenous()) {
         const auto proc = ThreadContext::current_traitable_proc();
 
-        if (trait_values.empty()) {  // kwargs empty
-            if (!proc->is_empty_object_allowed())
-                throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
-            return;
-        }
+        /* The following check seems too restrictive: Traitable may have getters for ID traits */
+//        if (trait_values.empty()) {  // kwargs empty
+//            if (!proc->is_empty_object_allowed())
+//                throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
+//            return;
+//        }
 
         //-- setting trait values (not calling set_values() for performance reasons and throwing immediately on error
         std::unordered_map<const BTrait *,py::object> non_id_traits_set;
         for (auto &[trait_name, value] : trait_values) {
             if (const auto trait = cls->find_trait(trait_name.cast<py::object>())) {    // skipping unknown trait names
+                auto py_value = value.cast<py::object>();
+                if (py_value.is(PyLinkage::XNone()))    //-- skipping XNone (deferring ID trait value to the getter)
+                    continue;
+
                 if (!trait->flags_on(BTraitFlags::ID)) {
                     if (!replace_existing)
                         throw py::value_error(py::str("{}.{} - non-ID trait value cannot be set during initialization").format(class_name(), trait_name));
-                    non_id_traits_set[trait] = value.cast<py::object>();
+                    non_id_traits_set[trait] = py_value;
                     continue;
                 }
-                if (const BRC rc(proc->set_trait_value(this, trait, value.cast<py::object>())); !rc)
+                if (const BRC rc(proc->set_trait_value(this, trait, py_value)); !rc)
                     throw py::value_error(rc.error());
             }
         }
