@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, get_origin
 
-from core_10x_i import BTraitable, BTraitableClass, BTraitableProcessor
+from core_10x_i import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
@@ -244,7 +244,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         rc.throw(TypeError)
 
     @classmethod
-    def traits(cls, flags_on: int = 0, flags_off: int = 0) -> Generator[Trait, None, None]:
+    def traits(cls, flags_on: int | BTraitFlags = 0, flags_off: int | BTraitFlags = 0) -> Generator[Trait, None, None]:
         return (t for t in cls.s_dir.values() if (not flags_on or t.flags_on(flags_on)) and not t.flags_on(flags_off))
 
     def __hash__(self):
@@ -318,7 +318,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def check_integrity(cls, rc: RC):
-        pass
+        if cls.is_storable() and (rt_id_trait := next((trait for trait in cls.traits(flags_on=T.ID) if trait.flags_on((T.RUNTIME))), None)):
+            rc.add_error(f'{cls}.{rt_id_trait.name} is a RUNTIME ID trait - traitable must not be storable (all traits must be RUNTIME)')
 
     # @classmethod
     # def instance_by_id(cls, id_value: str) -> 'Traitable':
@@ -345,6 +346,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Traitable | None:
+        if not cls.is_storable() and cls.is_id_endogenous():  # runtime endogenous instances are created on the fly
+            return cls(_collection_name=_collection_name, **trait_values)
+
         obj = cls(_collection_name=_collection_name, _skip_init=True)
         if not obj.accept_existing(trait_values):
             if _throw:

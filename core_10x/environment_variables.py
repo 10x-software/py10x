@@ -77,6 +77,7 @@ class _EnvVars:
 
     s_env_name: str = None
     assert_var = None
+
     def __init_subclass__(cls, env_name: str = None, **kwargs):
         assert env_name, 'env_name is required'
 
@@ -113,7 +114,6 @@ class _EnvVars:
             if not value:
                 raise AssertionError(f'{self.env_vars_class.s_env_name}_{item.upper()} is not defined')
             return value
-
 
 
 class EnvVars(_EnvVars, env_name='XX'):
