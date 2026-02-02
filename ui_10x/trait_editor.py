@@ -8,7 +8,7 @@ from core_10x.concrete_traits import date_trait, dict_trait, flags_trait, list_t
 from core_10x.trait import T, Ui
 from core_10x.traitable import traitable_trait
 
-import ui_10x.concrete_trait_widgets  # noqa: F401 - registers trait widgets
+import ui_10x.concrete_trait_widgets  # do not remove -- this registers trait widgets
 from ui_10x.choice import MultiChoice
 from ui_10x.py_data_browser import PyDataBrowser
 from ui_10x.trait_widget import TraitWidget

@@ -1,4 +1,4 @@
-from core_10x.testlib.ts_tests import TestTSStore, ts_setup  # noqa: F401
+from core_10x.testlib.ts_tests import TestTSStore, ts_setup
 from infra_10x.mongodb_store import MongoCollection, MongoStore
 
 

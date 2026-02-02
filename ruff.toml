@@ -23,13 +23,14 @@ ignore = [
     "E731",  # E731 Do not assign a `lambda` expression, use a `def`
     "N801",  # Class name should use CapWords convention
     "E501",  # Line too long
+    "F401",  # Unused imports
     "TC001", # Overly aggressive suggestion to move imports to if TYPE_CHECKING
     "TC002", # Overly aggressive suggestion to move imports to if TYPE_CHECKING
 ]
 extend-select = [
   "TC", # type checking
   #"ANN", # annotations
-  "TID", # tidy imports
+  #"TID", # tidy imports
   "FA",  # future annotations
   "B",   # flake8-bugbear
   "I",   # isort
