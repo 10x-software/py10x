@@ -67,7 +67,5 @@ if __name__ == '__main__':
     wqu_t   = Person.trait('weight_qu')
     w_t     = Person.trait('weight')
 
-    #CG = BTraitFlags.CUSTOM_GET
-    CG = T.CUSTOM_GET
-    print(f'first_name = {fn_t.flags_on(CG)}; weight_qu = {wqu_t.flags_on(CG)}; weight = {w_t.flags_on(CG)}')
+    print(f'first_name = {fn_t.has_custom_getter()}; weight_qu = {wqu_t.has_custom_getter()}; weight = {w_t.has_custom_getter()}')
 
