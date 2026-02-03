@@ -1,4 +1,5 @@
 import gc
+import traceback
 from collections import Counter
 from datetime import date, datetime
 from typing import Any, Self
@@ -892,6 +893,23 @@ def test_32():
     assert x1.y==2
 
 
+def test_33():
+    class X(Traitable):
+        x: int = RT()
+
+        def bombing_method(self):
+            return 1/0
+
+        def x_get(self):
+            return self.bombing_method()
+
+    try:
+        print('===',X().x)
+    except TraitMethodError as e:
+        print(e)
+        traceback.print_exc()
+
+
 if __name__ == '__main__':
     import core_10x_i
     print(core_10x_i.__file__)
@@ -925,5 +943,7 @@ if __name__ == '__main__':
     test_29()
     test_30()
     test_31()
+    test_32()
+    test_33()
 
 

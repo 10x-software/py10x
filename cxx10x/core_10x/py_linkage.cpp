@@ -156,13 +156,13 @@ py::object PyLinkage::create_trait_method_error(
         const py::args* args,
         const py::error_already_set* other_exc
 ) {
-    auto create = s_py_linkage->m_trait_method_error_class.attr("create");
+    const auto create = s_py_linkage->m_trait_method_error_class.attr("create");
     auto py_value = value ? *value : s_py_linkage->m_xnone;
     auto py_args = args? *args : py::args();
     auto py_other_exc = other_exc ? other_exc->value() : py::none();
     auto py_cls = cls ? cls->py_class() : py::none();
 
-    return create(obj, py_cls, trait_name, method_name, py_value, py_args, py_other_exc);
+    return create(obj, py_cls, trait_name, method_name, py_value, py_other_exc, py_args);
 }
 
 void PyLinkage::redirect_stdout_to_python() {
