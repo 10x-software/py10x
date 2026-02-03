@@ -8,7 +8,7 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.11,<3.12"
 dependencies = [
     "py10x_core @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x",
     "importlib-resources (>=6.5.2,<6.6.0)",
@@ -26,10 +26,8 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Development Status :: 3 - Alpha",
