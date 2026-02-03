@@ -479,7 +479,7 @@ wheels = [
 [[package]]
 name = "core-10x-i"
 version = "0.1.1"
-source = { git = "https://github.com/10X-LLC/cxx10x.git?subdirectory=core_10x#7d33a2457372e34557b90f36db26194565664ee8" }
+source = { git = "https://github.com/10X-LLC/cxx10x.git?subdirectory=core_10x#ac1f7851db421c7fadde98b9fa293d1b5a2f74d1" }
 
 [[package]]
 name = "coverage"
@@ -965,7 +965,7 @@ docstrings = [
 [[package]]
 name = "infra-10x-i"
 version = "0.1.1"
-source = { git = "https://github.com/10X-LLC/cxx10x.git?subdirectory=infra_10x#7d33a2457372e34557b90f36db26194565664ee8" }
+source = { git = "https://github.com/10X-LLC/cxx10x.git?subdirectory=infra_10x#ac1f7851db421c7fadde98b9fa293d1b5a2f74d1" }
 
 [[package]]
 name = "iniconfig"
