@@ -71,9 +71,9 @@ class NamedConstant(Nucleus):
 
         return cdef
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   Nucleus Interface implementation
-    # ===================================================================================================================
+    #===================================================================================================================
 
     def to_str(self) -> str:
         return f'{self.__class__.__name__}.{self.name}'
@@ -203,6 +203,9 @@ class NamedConstant(Nucleus):
     def next_auto_value(cls):
         return None
 
+    @classmethod
+    def item(cls, symbol_name: str) -> NamedConstant:
+        return cls.s_dir.get(symbol_name)
 
 class Enum(NamedConstant):
     """

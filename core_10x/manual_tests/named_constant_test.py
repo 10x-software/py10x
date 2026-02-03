@@ -104,6 +104,8 @@ class TEXT_ALIGN(NamedConstant):
         return ((self.value >> 4 if self.value & self.s_vertical else self.value)-1) /10
 
 if __name__ == '__main__':
+    from core_10x.manual_tests.named_constant_test import COLOR, XCOLOR
+
     print( COLOR.LIGHTGREEN.value)
     sgreen = Nucleus.serialize_any(COLOR.GREEN, False)
     swhite = Nucleus.serialize_any(XCOLOR.WHITE, False)
