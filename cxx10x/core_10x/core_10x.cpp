@@ -28,7 +28,7 @@ struct PyBTraitable : BTraitable {
         }
 };
 
-PYBIND11_MODULE(core_10x_i, m)
+PYBIND11_MODULE(py10x_core, m)
 {
     m.doc() = "10x kernel";
 

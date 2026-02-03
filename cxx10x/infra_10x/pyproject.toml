@@ -1,5 +1,5 @@
 [project]
-name = "infra_10x_i"
+name = "py10x_infra"
 version = "0.1.1"
 authors = [
     { name = "Sasha Davidovich", email = "founders@10x-software.org" },

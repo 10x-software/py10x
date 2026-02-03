@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.27)
-project(infra_10x_i)
+project(py10x_infra)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXXFLAGS_DEBUG "-g -O0")
@@ -40,13 +40,13 @@ if(EXISTS "${PY_LINKAGE_SRC}")
     endif()
 endif()
 
-pybind11_add_module(infra_10x_i
+pybind11_add_module(py10x_infra
         #mongo_db_driver.cpp
         mongo_collection_helper.cpp
-        infra_10x_i.cpp
+        py10x_infra.cpp
 )
 
-#target_include_directories(infra_10x_i PRIVATE
+#target_include_directories(py10x_infra PRIVATE
 #        ${mongo-cxx-driver_SOURCE_DIR}/mongocxx/include/mongocxx/v_noabi
 #        ${mongo-cxx-driver_BINARY_DIR}/mongocxx/lib/mongocxx/v_noabi
 #)
@@ -69,20 +69,20 @@ set(STUBGEN_PYTHONPATH "${pybind11_stubgen_SOURCE_DIR}${PATH_SEP}${CMAKE_LIBRARY
 #message("STUBGEN_PYTHONPATH: ${STUBGEN_PYTHONPATH}")
 
 add_custom_command(
-        TARGET infra_10x_i POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen infra_10x_i -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        TARGET py10x_infra POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen py10x_infra -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Generating type stubs for infra_10x_i"
+        COMMENT "Generating type stubs for py10x_infra"
         VERBATIM
 )
 
-install(TARGETS infra_10x_i
+install(TARGETS py10x_infra
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
 )
 
 # Install the generated .pyi alongside the module
-install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/infra_10x_i.pyi DESTINATION .)
+install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/py10x_infra.pyi DESTINATION .)
 
-#target_link_libraries(infra_10x_i PRIVATE mongocxx_static)
+#target_link_libraries(py10x_infra PRIVATE mongocxx_static)
 

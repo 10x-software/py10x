@@ -4,5 +4,8 @@
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/cmake-build-debug-event-trace/_deps/backward-src" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/cmake-build-debug/_deps/backward-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/cmake-build-nanobind/_deps/backward-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/cmake-build-nanobind/_deps/nanobind-src" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/cmake-build-nanobind/_deps/nanobind-src/ext/robin_map" vcs="Git" />
   </component>
 </project>
