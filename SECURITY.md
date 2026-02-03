@@ -19,7 +19,7 @@ We take security vulnerabilities seriously. If you discover a security vulnerabi
 
 Instead, please report security vulnerabilities privately by emailing:
 
-- **Primary**: security@10xconcepts.com
+- **Primary**: security@10x-software.com
 - **Backup**: founders@10x-software.org
 
 ### What to Include
@@ -121,7 +121,7 @@ Security advisories will be published:
 
 For security-related questions or concerns:
 
-- **Email**: security@10xconcepts.com
+- **Email**: security@10x-software.com
 - **GitHub**: Use private security reporting (not public issues)
 
 ## Legal

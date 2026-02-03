@@ -325,7 +325,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-- **Project Contact**: py10x@10xconcepts.com
+- **Project Contact**: py10x@10x-software.com
 
 ## Community
 
@@ -342,4 +342,4 @@ Join our community on [Discord](https://discord.gg/m7AQSXfFwf) for discussion, s
 
 - Sasha Davidovich <founders@10x-software.org>
 - Ilya Pevzner <founders@10x-software.org>
-- **Project Contact**: py10x@10xconcepts.com
+- **Project Contact**: py10x@10x-software.com
