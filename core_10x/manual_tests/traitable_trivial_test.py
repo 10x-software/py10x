@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 from core_10x.code_samples.person import Person
-from core_10x.traitable import T, Traitable
+from core_10x.traitable import T, Traitable, Trait, BTraitFlags
 
 
 class Event(Traitable):
@@ -62,4 +62,12 @@ if __name__ == '__main__':
 
     dx2 = Dummy.existing_instance()
     assert dx2.payload == 100.
+
+    fn_t    = Person.trait('first_name')
+    wqu_t   = Person.trait('weight_qu')
+    w_t     = Person.trait('weight')
+
+    #CG = BTraitFlags.CUSTOM_GET
+    CG = T.CUSTOM_GET
+    print(f'first_name = {fn_t.flags_on(CG)}; weight_qu = {wqu_t.flags_on(CG)}; weight = {w_t.flags_on(CG)}')
 
