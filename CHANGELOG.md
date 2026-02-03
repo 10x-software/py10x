@@ -85,5 +85,5 @@ This is the initial pre-release, so no breaking changes from previous versions.
 
 ## Acknowledgments
 
-- Relies on core-10x-i and infra-10x-i packages containing the underlying C++ implementation
+- Relies on py10x_core and py10x_infra packages containing the underlying C++ implementation
 - UI components based on Rio and Qt6 frameworks, focused on traitable editing and management
