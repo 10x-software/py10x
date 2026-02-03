@@ -113,7 +113,6 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_property_readonly_static("EXPENSIVE",  [](const py::object&) { return BFlags(BTraitFlags::EXPENSIVE); })
             .def_property_readonly_static("HIDDEN",     [](const py::object&) { return BFlags(BTraitFlags::HIDDEN); })
             .def_property_readonly_static("ID_LIKE",    [](const py::object&) { return BFlags(BTraitFlags::ID_LIKE); })
-            .def_property_readonly_static("CUSTOM_GET", [](const py::object&) { return BFlags(BTraitFlags::CUSTOM_F_GET); })
             ;
 
     py::class_<BTrait>(m, "BTrait")
@@ -137,6 +136,7 @@ PYBIND11_MODULE(core_10x_i, m)
             .def_readonly("f_to_id",            &BTrait::f_to_id)
             //.def_readonly("f_acceptable_type", &BTrait::f_is_acceptable_type)
 
+            .def("has_custom_getter",           &BTrait::has_custom_getter)
             .def("set_name",                    &BTrait::set_name)
             .def("flags_on",                    py::overload_cast<const uint64_t>(&BTrait::flags_on, py::const_))
             .def("flags_on",                    py::overload_cast<const BFlags&>(&BTrait::flags_on, py::const_))
