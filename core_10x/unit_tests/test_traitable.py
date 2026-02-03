@@ -588,9 +588,7 @@ def test_serialize(monkeypatch):
     assert X(x=3).y.__class__ is Y
     with pytest.raises(
         TraitMethodError,
-        match=re.escape(
-            "Failed in <class 'test_traitable.test_serialize.<locals>.X'>.z.z_get\n    object = 5;\n    value = ()\n    args = test_serialize.<locals>.X/6: object reference not found in store"
-        ),
+        match=r"Failed in <class 'test_traitable.test_serialize.<locals>.X'>.z.z_get\n    object = 5;\noriginal exception = RuntimeError: test_serialize.<locals>.X/6: object reference not found in store",
     ):
         X(x=5, y=X(_id=ID('6')), _replace=True).save(save_references=True)
 

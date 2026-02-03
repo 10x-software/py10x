@@ -7,9 +7,9 @@ class TraitMethodError(Exception):
     """
 
     @staticmethod
-    def create(
-        traitable, traitable_class, trait_name: str, method_name: str, reason: str = '', value=XNone, args: tuple = (), other_exc: Exception = None
-    ):
+    def create(traitable, traitable_class, trait_name: str, method_name: str, value=XNone, other_exc: Exception = None, args=()):
+        assert other_exc
+
         if isinstance(other_exc, TraitMethodError):
             return other_exc
 
@@ -19,16 +19,18 @@ class TraitMethodError(Exception):
         if traitable:
             msg.append(f'    object = {traitable.id()};')
 
-        if reason:
-            msg.append(f'    reason = {reason}')
-
-        if value is not None:
+        if value is not XNone:
             msg.append(f'    value = {value}')
 
         if args:
             msg.append(f'    args = {args}')
 
         if other_exc:
-            msg.append(f'original exception = {other_exc!s}')
+            msg.append(f'original exception = {type(other_exc).__name__}: {other_exc!s}')
 
-        return TraitMethodError('\n'.join(msg))
+        exc = TraitMethodError('\n'.join(msg))
+
+        if other_exc and (tb := other_exc.__traceback__):
+            exc = exc.with_traceback(tb)
+
+        return exc

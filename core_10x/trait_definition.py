@@ -150,7 +150,7 @@ class TraitModification(TraitDefinition):
 
 
 class T(BTraitFlags):
-    def __new__(cls, *args, **kwargs) -> TraitDefinition:
+    def __new__(cls, *args: object, **kwargs: object) -> TraitDefinition:
         return TraitDefinition(*args, **kwargs)
 
     @staticmethod
