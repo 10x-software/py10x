@@ -1,4 +1,5 @@
 from core_10x.environment_variables import EnvVars
+from core_10x.ts_store import TsStore
 from core_10x.vault.vault_traitable import VaultTraitable, T, RT, RC, OsUser, cache
 from core_10x.vault.sec_keys import SecKeys
 
@@ -31,6 +32,28 @@ class VaultUser(VaultTraitable):
             me.save().throw()
 
         return me
+
+    @classmethod
+    def new_vault(cls, vault_uri: str, password: str, master_password: str = None):
+        username = cls.myname()
+        vault_db = TsStore.instance_from_uri(vault_uri, username = username, password = password)
+        with vault_db:
+            me = cls.existing_instance(user_id = username, _throw = False)
+            if not me:
+                if not master_password:
+                    raise AssertionError('Master password is required')
+                me = cls.create_new(master_password)
+            else:
+                try:
+                    existing_master_password = cls.retrieve_master_password()
+                except Exception:
+                    existing_master_password = None
+                if not existing_master_password:
+                    raise AssertionError('No existing MasterPassword found')
+                if existing_master_password != master_password:
+                    raise AssertionError('MasterPassword provided does not match the stored one')
+
+            cls.keep_vault_password(vault_uri, password)
 
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:

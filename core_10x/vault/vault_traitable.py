@@ -13,7 +13,7 @@ class VaultTraitable(Traitable):
         username = OsUser.me.name()
         pwd = keyring.get_password(EnvVars.master_password_key, username)
         if pwd is None:
-            raise OSError(f'XX MasterPassword for {username} is not in the Vault')
+            raise OSError(f'XX MasterPassword for {username} is not found')
 
         return pwd
 
@@ -24,7 +24,22 @@ class VaultTraitable(Traitable):
 
     @classmethod
     @cache
-    def store(cls) -> TsStore:
+    def retrieve_vault_password(cls, vault_uri: str) -> str:
+        username = OsUser.me.name()
+        pwd = keyring.get_password(vault_uri, username)
+        if pwd is None:
+            raise OSError(f'Password for {username} @ {vault_uri} is not found')
+
+        return pwd
+
+    @classmethod
+    def keep_vault_password(cls, vault_uri: str, password: str):
+        username = OsUser.me.name()
+        keyring.set_password(vault_uri, username, password)
+
+    @classmethod
+    @cache
+    def store_per_class(cls,) -> TsStore:
         uri = EnvVars.assert_var.vault_ts_store_uri
         spec = TsStore.spec_from_uri(uri)
         kwargs = spec.kwargs
