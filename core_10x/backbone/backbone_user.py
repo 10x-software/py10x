@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core_10x_i import OsUser
+from py10x_core import OsUser
 
 from core_10x.backbone.backbone_traitable import RT, BackboneTraitable, T
 from core_10x.backbone.namespace import FUNCTIONAL_ACCOUNT_PREFIX, USER_ADMIN_SUFFIX

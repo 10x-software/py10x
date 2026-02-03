@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import numpy
 import pytest
-from core_10x_i import BTraitableProcessor, XCache
+from py10x_core import BTraitableProcessor, XCache
 
 from core_10x.code_samples.person import Person as BasePerson
 from core_10x.package_refactoring import PackageRefactoring

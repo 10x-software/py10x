@@ -6,11 +6,11 @@ numpy~=2.2.2
 scipy>=1.13
 python-dateutil~=2.9.0
 keyring>=25.7.0
-core_10x_i@git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x
+py10x_core@git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x
 
 #infra
 pymongo>=4.7.3
-infra_10x_i@git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x
+py10x_infra@git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x
 
 #ui
 #---- Qt

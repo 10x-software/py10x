@@ -17,7 +17,7 @@ def test_mongo_parse_uri_round_trip():
 
 def test_filter_and_pipeline_equivalence():
     # This test mirrors infra_10x/manual_tests/test_prepare_filter_and_pipeline.py
-    from infra_10x_i import MongoCollectionHelper
+    from py10x_infra import MongoCollectionHelper
 
     # The helper only constructs filter/pipeline; no need for a live Mongo instance here.
     serialized_traitable = dict(_id='AAAA', _rev=10, name='test', age=60)

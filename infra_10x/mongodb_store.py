@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
-from infra_10x_i import MongoCollectionHelper
+from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, errors
 from pymongo.errors import DuplicateKeyError
 from pymongo.uri_parser import parse_uri as pymongo_parse_uri

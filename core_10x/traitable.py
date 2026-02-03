@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime  # noqa: TC003
 from typing import TYPE_CHECKING, Any, get_origin
 
-from core_10x_i import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags
+from py10x_core import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits

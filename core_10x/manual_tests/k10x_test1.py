@@ -1,4 +1,4 @@
-from core_10x_i import NODE_TYPE, BasicNode
+from py10x_core import NODE_TYPE, BasicNode
 
 from core_10x.xnone import XNone  # -- keep
 

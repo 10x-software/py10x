@@ -48,7 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Dependencies
 - Python 3.10+ support
 - Core dependencies: numpy, python-dateutil, cryptography
-- C++ implementation: core_10x_i, infra_10x_i packages
+- C++ implementation: py10x_core, py10x_infra packages
 - UI backends: Rio UI, PyQt6
 - Infrastructure: pymongo
 - Development: pytest, ruff, playwright

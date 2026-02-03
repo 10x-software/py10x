@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 from collections import defaultdict
 
-from core_10x_i import BFlags, BTraitFlags
+from py10x_core import BFlags, BTraitFlags
 from typing_extensions import Never
 
 from core_10x.ui_hint import Ui, UiHintModification

@@ -6,7 +6,7 @@ import uuid
 from datetime import date, datetime
 
 import pytest
-from core_10x_i import BTraitableProcessor
+from py10x_core import BTraitableProcessor
 from typing_extensions import Self
 
 from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE

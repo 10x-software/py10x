@@ -12,7 +12,7 @@ py10x is organized into three main packages:
 - **ui_10x**: Cross-platform UI components focused on traitable editing and management
 - **infra_10x**: Infrastructure components including MongoDB storage integration
 
-The `-i` packages (core_10x_i, infra_10x_i) contain the underlying C++ implementation dependencies.
+The `-i` packages (py10x_core, py10x_infra) contain the underlying C++ implementation dependencies.
 
 **Note**: This is a pre-release version. Future releases will include enhanced tests, documentation and examples; trait validation; and automatic resource management via enterprise backbone.
 
