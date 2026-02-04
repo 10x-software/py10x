@@ -31,17 +31,11 @@ jobs:
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: "universal2"
           CIBW_ARCHS_WINDOWS: "AMD64"
-          CIBW_BUILD_VERBOSITY: "1"
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-infra_10x-${{ matrix.os }}
           path: infra_10x/wheelhouse/*.whl
-      - name: Show produced wheels
-        shell: bash
-        run: |
-          ls -la infra_10x/wheelhouse || true
-          find . -maxdepth 4 -name "*.whl" -print || true
   upload:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build_wheels
