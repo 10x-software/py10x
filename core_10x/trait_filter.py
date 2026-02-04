@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from core_10x_i import BTraitableClass
+    from py10x_core import BTraitableClass
 
     from core_10x.trait import Trait
 

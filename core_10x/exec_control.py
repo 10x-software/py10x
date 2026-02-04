@@ -1,5 +1,5 @@
-from core_10x_i import BProcessContext
-from core_10x_i import BTraitableProcessor as BTP  # noqa: N817
+from py10x_core import BProcessContext
+from py10x_core import BTraitableProcessor as BTP  # noqa: N817
 
 # TODO: rename DEBUG to TYPE_CHECK?
 # TODO: make CONVERT/DEBUG mode default?

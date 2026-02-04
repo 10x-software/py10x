@@ -8,14 +8,14 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.10,<4.0"
+requires-python = ">=3.11,<3.12"
 dependencies = [
-    "core-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x",
+    "py10x_core @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy (>=2.2.2,<2.3.0)",
     "python-dateutil (>=2.9.0,<2.10.0)",
     "cryptography (>=45.0.7,<45.1.0)",
-    "infra-10x-i @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x",
+    "py10x_infra @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x",
     "pymongo (>=4.7.3)",
     "typing-extensions>=4.15.0",
     "scipy>=1.15.3",
@@ -26,10 +26,8 @@ dependencies = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Development Status :: 3 - Alpha",

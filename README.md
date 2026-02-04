@@ -12,8 +12,6 @@ py10x is organized into three main packages:
 - **ui_10x**: Cross-platform UI components focused on traitable editing and management
 - **infra_10x**: Infrastructure components including MongoDB storage integration
 
-The `-i` packages (core_10x_i, infra_10x_i) contain the underlying C++ implementation dependencies.
-
 **Note**: This is a pre-release version. Future releases will include enhanced tests, documentation and examples; trait validation; and automatic resource management via enterprise backbone.
 
 ## Installation
@@ -24,12 +22,19 @@ For detailed installation instructions including all prerequisites and platform-
 
 - Python 3.12 (recommended), 3.10+ supported
 - [UV](https://docs.astral.sh/uv/) - Python installer and package manager
-- C++ compiler with C++20 support (GCC 10+, Clang 10+, MSVC 2022+, or equivalent)
-  - Required for building cxx10x dependencies
 - MongoDB (for running tests and examples)
   - Local passwordless MongoDB instance required for running tests and examples
-- Node.js and npm (for Rio UI backend)
-  - Required if using Rio UI components
+
+## Component Licensing
+This package (`py10x`) relies on and automatically installs `py10x_core` and `py10x_infra`, also supplied by **10X CONCEPTS LLC**. 
+
+While these packages are provided free of charge, they have different legal terms:
+- **py10x (Framework):** Licensed under the [MIT License](https://10x-software.org/py10x/LICENSE).
+- **py10x-core (Core dependencies):** Proprietary; governed by the [10x Proprietary License](https://10x-llc.com/py_10x_core/LICENSE).
+- **py10x-infra (Infrastructure dependencies):** Proprietary; governed by the [10x Proprietary License](https://10x-llc.com/py_10x_infra/LICENSE).
+
+By installing `py10x`, you agree to the terms of the proprietary licenses for the core and infrastructure components.
+
 
 ### Install with UV (Recommended)
 
@@ -325,7 +330,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-- **Project Contact**: py10x@10xconcepts.com
+- **Project Contact**: py10x@10x-software.com
 
 ## Community
 
@@ -342,4 +347,4 @@ Join our community on [Discord](https://discord.gg/m7AQSXfFwf) for discussion, s
 
 - Sasha Davidovich <founders@10x-software.org>
 - Ilya Pevzner <founders@10x-software.org>
-- **Project Contact**: py10x@10xconcepts.com
+- **Project Contact**: py10x@10x-software.com

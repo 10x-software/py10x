@@ -1,7 +1,7 @@
 import copy
 import functools
 
-from core_10x_i import BTraitFlags as T
+from py10x_core import BTraitFlags as T
 
 from core_10x.named_constant import Enum
 

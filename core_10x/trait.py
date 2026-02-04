@@ -11,7 +11,7 @@ from inspect import Parameter
 from types import GenericAlias
 from typing import get_origin, get_type_hints
 
-from core_10x_i import BTrait
+from py10x_core import BTrait
 
 from core_10x.named_constant import NamedConstant
 from core_10x.rc import RC
