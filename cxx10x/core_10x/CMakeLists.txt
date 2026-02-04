@@ -4,7 +4,7 @@ project(py10x_core)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXXFLAGS_DEBUG "-g -O0")
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 
 include(FetchContent)
 FetchContent_Declare(

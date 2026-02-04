@@ -13,7 +13,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +30,10 @@ jobs:
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: "universal2"
-          CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_ARCHS_WINDOWS:
+          CIBW_BUILD_VERBOSITY: "1"
+          CIBW_ENVIRONMENT: >
+            CMAKE_ARGS="-DPython3_EXECUTABLE={python} -DPython_EXECUTABLE={python}"
 
       - uses: actions/upload-artifact@v4
         with:
