@@ -1378,6 +1378,6 @@ python core_10x/manual_tests/trivial_graph_test.py
 - **Security**: [SECURITY.md](SECURITY.md)
 - **Code of Conduct**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
 - **Community**: [Discord](https://discord.gg/m7AQSXfFwf)
-- **Contact**: py10x@10x-software.com
+- **Contact**: py10x@10x-software.org
 
 ---
