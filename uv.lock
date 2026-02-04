@@ -1018,8 +1018,34 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f2/cf/77d3e19b7fabd03895caca7857ef51e4c409e0ca6b37ee6e9f7daa50b642/proxy_tools-0.1.0.tar.gz", hash = "sha256:ccb3751f529c047e2d8a58440d86b205303cf0fe8146f784d1cbcd94f0a28010", size = 2978, upload-time = "2014-05-05T21:02:24.606Z" }
 
 [[package]]
-name = "py10x"
-version = "0.1.2"
+name = "py10x-core"
+version = "0.1.4"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dc/6c/433dc97deed0d5f6a7435628d0ded234e99be63c2c7be72f6619c898b5d1/py10x_core-0.1.4-cp311-cp311-macosx_13_0_universal2.whl", hash = "sha256:d5e79dd15edc65dda9a177ebb079d8f37201a1214ba6207f18c2325f93df221e", size = 558284, upload-time = "2026-02-04T05:39:14.178Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/13/b4909f343ef0fa5dd09e48e79a52977e0bd8c22953b8766f8dfe6214ec05/py10x_core-0.1.4-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:f6737716e6695f4a3388697d44dbd5f08016c0116dd2518764cd2dc917247d52", size = 401137, upload-time = "2026-02-04T05:39:16.357Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/1c/26168288dbc31a1233bb07f756c502b64075dd608b63db6a131c80958732/py10x_core-0.1.4-cp311-cp311-win_amd64.whl", hash = "sha256:78e0c3d811687087280c4b60fe61214025774e9b81da919f452ca8f22f579272", size = 334322, upload-time = "2026-02-04T05:39:18.188Z" },
+    { url = "https://files.pythonhosted.org/packages/4c/96/b61abaafda5b017b68b7dde7f762a0fecd9d74040ab886cca92bdb891c5f/py10x_core-0.1.4-cp312-cp312-macosx_13_0_universal2.whl", hash = "sha256:9a6e13157bcf5cd5682fef928e6b189244cb976dbb38224309a5fe12105215d3", size = 564020, upload-time = "2026-02-04T05:39:19.659Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/53/dbe8716496d4490154a6884cb517019bbb44fbe3d943b7814ee49834e7eb/py10x_core-0.1.4-cp312-cp312-manylinux_2_34_x86_64.whl", hash = "sha256:8d83bdfcde4cf73f345a8e085a532409dcc9bd39cb11910d5be12ad05064f311", size = 399436, upload-time = "2026-02-04T05:39:21.663Z" },
+    { url = "https://files.pythonhosted.org/packages/5e/d6/592ad1fbc85875385258e104677a7894f537cd27bacfc0b179e81bc6cc91/py10x_core-0.1.4-cp312-cp312-win_amd64.whl", hash = "sha256:572bd55b8c36feeeb073e758039285d8d5206598d84292e83c516c3582c560ab", size = 335307, upload-time = "2026-02-04T05:39:22.962Z" },
+]
+
+[[package]]
+name = "py10x-infra"
+version = "0.1.4"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/f7/87f2d16572611888108ff0979e9e15e4bd922d63d0dd02fa2a7102a8b37f/py10x_infra-0.1.4-cp311-cp311-macosx_13_0_universal2.whl", hash = "sha256:b95cc78afc83a74216b9be899254005296cac12529ace72970670af6509ee48c", size = 119950, upload-time = "2026-02-04T05:36:26.245Z" },
+    { url = "https://files.pythonhosted.org/packages/9e/b4/3839d3e973d2a5ce3c13084677cb0fdd8db384ecdae64b82a018aebe39be/py10x_infra-0.1.4-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3b22fefee3d63faccf41fdb1339347921d468d780086f6c466230c764eb51aee", size = 76224, upload-time = "2026-02-04T05:36:28.083Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/b5/fdaf85df95f84705f7bc61f59aa098ad12cfde54b0249e3681951d4cf5ee/py10x_infra-0.1.4-cp311-cp311-win_amd64.whl", hash = "sha256:925c61b3921793949e7c41e4f5184f9ecc5c41ad280b1e9d420ac6c3c3296e84", size = 69760, upload-time = "2026-02-04T05:36:29.652Z" },
+    { url = "https://files.pythonhosted.org/packages/9f/ac/fecab78a308fbe191a99d0497b0428ef46e7cd8b9c2e36c691d612d5ce11/py10x_infra-0.1.4-cp312-cp312-macosx_13_0_universal2.whl", hash = "sha256:157cc530c72dac8f78cb98807243cab85d74f223b02b1a67fd42252c634e2638", size = 119178, upload-time = "2026-02-04T05:36:30.642Z" },
+    { url = "https://files.pythonhosted.org/packages/43/ba/c526b9f37bffa55539d31dd6ce7da8f1e121feb8fdb299e8c6394230d080/py10x_infra-0.1.4-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:5291c9e60f35f5d2ef8f96e159fdbf343f89462b4c7906a46e3002f181f2d6ad", size = 75411, upload-time = "2026-02-04T05:36:31.751Z" },
+    { url = "https://files.pythonhosted.org/packages/81/76/11044db564ae19eb7f67471be8b89b13786ecd33ebe121b0d12bc0b508c8/py10x_infra-0.1.4-cp312-cp312-win_amd64.whl", hash = "sha256:fd8eeb0b80540e462d38e29be245fce634e4e0d8c061ee3cb9a0437690880055", size = 70268, upload-time = "2026-02-04T05:36:33.198Z" },
+]
+
+[[package]]
+name = "py10x-universe"
+version = "0.1.4"
 source = { editable = "." }
 dependencies = [
     { name = "cryptography" },
@@ -1094,32 +1120,6 @@ requires-dist = [
     { name = "webview-proc", marker = "extra == 'rio'", specifier = ">=0.1.0rc6" },
 ]
 provides-extras = ["dev", "rio", "qt"]
-
-[[package]]
-name = "py10x-core"
-version = "0.1.3"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d0/3b/609ffdc1ea474090e962cbf19b63e603333ed58534215c7f02482ddb0438/py10x_core-0.1.3-cp311-cp311-macosx_13_0_universal2.whl", hash = "sha256:10415e74335c0e977647181207edd15ff8fd2f9bad36b3a1c4bd34e6959423a9", size = 558297, upload-time = "2026-02-04T03:57:13.118Z" },
-    { url = "https://files.pythonhosted.org/packages/c0/94/ab127c9f47133298d0eb08af6eddffcfd2e6969f024d035c1054bbdac711/py10x_core-0.1.3-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:3221be824f3caf8873e8147f8b238cfcd73b1fd4a40638927777b93bbe39cac6", size = 401151, upload-time = "2026-02-04T03:57:14.995Z" },
-    { url = "https://files.pythonhosted.org/packages/cc/ff/ba7967414c8dd9386a4cee9ef92db68f7425627e200c6fe7bfc5b53f18c9/py10x_core-0.1.3-cp311-cp311-win_amd64.whl", hash = "sha256:b6b362ed51c76e504afb4696c87887d4e9107aa8b051f0a4ea8b28fc6eedde9f", size = 334336, upload-time = "2026-02-04T03:57:16.738Z" },
-    { url = "https://files.pythonhosted.org/packages/f1/a9/862f493ca8cffed1abf768e46d764893121740a24728b14411136f765aac/py10x_core-0.1.3-cp312-cp312-macosx_13_0_universal2.whl", hash = "sha256:f669ef64bdbb5b9a65c3b0165f54d4fcf62e2e5dc0140b35487c9a21fb25f0eb", size = 564035, upload-time = "2026-02-04T03:57:17.801Z" },
-    { url = "https://files.pythonhosted.org/packages/46/aa/04af5e4dc2e117a22ef9820565a089e598d7c0e8d710bd7908fe31ea2df4/py10x_core-0.1.3-cp312-cp312-manylinux_2_34_x86_64.whl", hash = "sha256:3066d7b2cb57ca1b4f29d231b1719a078948ec00ab72e89e430d8f366935e47b", size = 399450, upload-time = "2026-02-04T03:57:19.501Z" },
-    { url = "https://files.pythonhosted.org/packages/47/cc/61e49c6588f5c69b028f76128ab008b2017b6d5e450875e451d38f5a5ea8/py10x_core-0.1.3-cp312-cp312-win_amd64.whl", hash = "sha256:0ad19c1eb315585f544380ea3d507a2a73798458f72b1ddc699d0deefc001ea8", size = 335322, upload-time = "2026-02-04T03:57:20.795Z" },
-]
-
-[[package]]
-name = "py10x-infra"
-version = "0.1.3"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/d9/d74492b2056a2b74f7aa193a5d9aea75ed7860a3cd407268e42adcb9749a/py10x_infra-0.1.3-cp311-cp311-macosx_13_0_universal2.whl", hash = "sha256:97a31ccf772832233ea7c2aefc9a88c55bb0f583bef24072d8e8d09e301a08b2", size = 119963, upload-time = "2026-02-04T03:42:33.85Z" },
-    { url = "https://files.pythonhosted.org/packages/93/f9/4a8b2b389c643e5f7b88fe9ce3e7fbd8b9e071efbf622225507f7cfb2c3d/py10x_infra-0.1.3-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:dc9f844f5b5439baa027f32852dab97e4269ce8f614a792ac91df1a2fb2ce74d", size = 76237, upload-time = "2026-02-04T03:42:35.092Z" },
-    { url = "https://files.pythonhosted.org/packages/b5/8e/653aa32149b69cf510bb5d17d55962d56b38608497ea298ebc0a66276c97/py10x_infra-0.1.3-cp311-cp311-win_amd64.whl", hash = "sha256:badb8eec1ffe196fb5d92f44e507000b9c13b0baadeba22c81baaff8f1cb5d14", size = 69775, upload-time = "2026-02-04T03:42:36.71Z" },
-    { url = "https://files.pythonhosted.org/packages/ef/e9/bc087261d1152e6d61ddc485c62de34c709a1062b9b5d4500e930a6b4f86/py10x_infra-0.1.3-cp312-cp312-macosx_13_0_universal2.whl", hash = "sha256:82fd62708eb136ddb03185594c84ce8da3a167a1f1cb685913d1cfe4755986c2", size = 119191, upload-time = "2026-02-04T03:42:38.344Z" },
-    { url = "https://files.pythonhosted.org/packages/5e/3a/2db2633361182e052ed6db62a9bfd9ea400398d639ae25dc1a7679001909/py10x_infra-0.1.3-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:55f36578786710c986da57625f5a1ec1bc055cb16bebe8d68a2d08b6e6ae1462", size = 75424, upload-time = "2026-02-04T03:42:39.615Z" },
-    { url = "https://files.pythonhosted.org/packages/d6/d0/de3d225792f1dd490d3eedcdbd86fc3ac01ff792446449b124827861356c/py10x_infra-0.1.3-cp312-cp312-win_amd64.whl", hash = "sha256:c4dad686c7365c6d83dd5ebede81e07856d56d1cfdaffbe27bb330e3f3223134", size = 70279, upload-time = "2026-02-04T03:42:41.61Z" },
-]
 
 [[package]]
 name = "pycparser"
