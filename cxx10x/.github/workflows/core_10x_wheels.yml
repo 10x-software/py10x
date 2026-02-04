@@ -34,6 +34,15 @@ jobs:
           CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=13.3'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
 
+          CIBW_BEFORE_ALL_LINUX: >
+            yum -y install gcc-toolset-12-libstdc++-devel || true;
+            yum -y install libstdc++-devel || true
+
+          CIBW_ENVIRONMENT_LINUX: >
+            CC=/opt/rh/gcc-toolset-12/root/usr/bin/gcc
+            CXX=/opt/rh/gcc-toolset-12/root/usr/bin/g++
+
+
 
       - uses: actions/upload-artifact@v4
         with:
