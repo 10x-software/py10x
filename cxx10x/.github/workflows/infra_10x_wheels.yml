@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.12"
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.0
@@ -30,14 +30,20 @@ jobs:
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: "universal2"
-          CIBW_ARCHS_WINDOWS:
+          CIBW_ARCHS_WINDOWS: "AMD64"
           CIBW_BUILD_VERBOSITY: "1"
+          CIBW_ENVIRONMENT: >
+            CMAKE_ARGS="-DPython3_EXECUTABLE={python} -DPython_EXECUTABLE={python}"
 
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-infra_10x-${{ matrix.os }}
           path: infra_10x/wheelhouse/*.whl
-
+      - name: Show produced wheels
+        shell: bash
+        run: |
+          ls -la infra_10x/wheelhouse || true
+          find . -maxdepth 4 -name "*.whl" -print || true
   upload:
     if: startsWith(github.ref, 'refs/tags/')
     needs: build_wheels
