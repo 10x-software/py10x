@@ -39,8 +39,8 @@ class VaultTraitable(Traitable):
 
     @classmethod
     @cache
-    def store_per_class(cls,) -> TsStore:
-        uri = EnvVars.assert_var.vault_ts_store_uri
+    def store_per_class(cls) -> TsStore:
+        uri = EnvVars.var.vault_ts_store_uri.check()
         spec = TsStore.spec_from_uri(uri)
         kwargs = spec.kwargs
         ts_class = spec.resource_class

@@ -30,7 +30,25 @@ class classproperty(property):
 
 
 class _EnvVars:
-    # fmt: off
+    class Var:
+        def __init__(self, env_var_class, attr_name: str, value = None):
+            self.env_var_class = env_var_class
+            self.attr_name = attr_name
+            if value is None:
+                value = getattr(env_var_class, attr_name)
+            self.value = value
+
+        def __bool__(self):
+            return bool(self.value)
+
+        def check(self, f = None, err = 'is not defined'):
+            value = self.value
+            rc = bool(value) if not f else f(value)
+            if not rc:
+                raise ValueError(f'{self.env_var_class.var_name(self.attr_name)} {err}')
+
+            return value
+
     s_converters = {
         bool:       lambda s: ast.literal_eval(s.lower().capitalize()),
         int:        lambda s: ast.literal_eval(s),
@@ -40,11 +58,9 @@ class _EnvVars:
         datetime:   lambda s: XDateTime.str_to_datetime(s),
         #Resource:   lambda s: Resource
     }
-    # fmt: on
 
     @classmethod
     def _getter(cls, data_type, var_name: str, f_get, f_apply):
-        # print(var_name)
         str_value = os.getenv(var_name)
         if str_value is not None:
             f_convert = cls.s_converters.get(data_type)
@@ -64,7 +80,7 @@ class _EnvVars:
             try:
                 f_apply.__get__(cls)(value)
             except Exception as e:
-                rc = RC(False)  # -- capture the exc
+                rc = RC(False)  #-- capture the exc
                 raise ValueError(f'{cls}.{var_name} - failed while applying value: {value}\n{rc.error()}') from e
 
         return value
@@ -75,9 +91,16 @@ class _EnvVars:
         # return classmethod(cache(f))
         return cache(f)
 
-    s_env_name: str = None
-    assert_var = None
+    @classmethod
+    def create_var_name(cls, env_name: str, attr_name: str) -> str:
+        return f'{env_name}_{attr_name.upper()}'
 
+    @classmethod
+    def var_name(cls, attr_name: str) -> str:
+        return cls.create_var_name(cls.s_env_name, attr_name)
+
+    s_env_name: str = None
+    var = None
     def __init_subclass__(cls, env_name: str = None, **kwargs):
         assert env_name, 'env_name is required'
 
@@ -87,37 +110,37 @@ class _EnvVars:
 
         cls_dict = cls.__dict__
         for name, data_type in annotations.items():
-            def_value = cls_dict.get(name)
-            if def_value is None:  # -- no default value, let's locate the getter
+            default_value = cls_dict.get(name)
+            if default_value is None:  # -- no default value, let's locate the getter
                 f_get_name = f'{name}_get'
                 f_get = cls_dict.get(f_get_name)
                 assert f_get, f'Variable {name} must define either a default value or a getter {f_get_name}(cls)'
                 # -- TODO: check signature: f_get(cls)
             else:
-                f_get = lambda cls, def_value=def_value: def_value
+                f_get = lambda cls, def_value = default_value: def_value
 
             f_apply_name = f'{name}_apply'
             f_apply = cls_dict.get(f_apply_name)  # -- f(cls, value)
 
-            var_name = f'{env_name}_{name.upper()}'
+            var_name = cls.create_var_name(env_name, name)
             full_getter = cls.full_getter(data_type, var_name, f_get, f_apply)
             setattr(cls, name, classproperty(full_getter))
 
-            cls.assert_var = cls.AssertVar(cls)
+            cls.var = cls.AccessVar(cls)
 
-    class AssertVar:
+    class AccessVar:
         def __init__(self, env_vars_class):
             self.env_vars_class = env_vars_class
 
         def __getattr__(self, item):
-            value = getattr(self.env_vars_class, item)
-            if not value:
-                raise AssertionError(f'{self.env_vars_class.s_env_name}_{item.upper()} is not defined')
-            return value
+            cls = self.env_vars_class
+            value = getattr(cls, item)
+            if value is None:
+                raise AssertionError(f'Unknown var name {item}')
 
+            return _EnvVars.Var(cls, item, value)
 
 class EnvVars(_EnvVars, env_name='XX'):
-    # fmt: off
     build_area: str
     parent_build_area: str          = 'dev'
 
@@ -132,7 +155,6 @@ class EnvVars(_EnvVars, env_name='XX'):
     date_format: str = XDateTime.FORMAT_ISO
 
     sdlc_area: str
-    # fmt: on
 
     def build_area_get(self) -> str:
         return OsUser.me.name()
