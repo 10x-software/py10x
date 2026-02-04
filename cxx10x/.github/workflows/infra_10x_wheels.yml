@@ -26,8 +26,8 @@ jobs:
           package-dir: infra_10x
           output-dir: infra_10x/wheelhouse
         env:
-          CIBW_BUILD: "cp312-*"
-          CIBW_SKIP: "*-musllinux_*"
+          CIBW_BUILD: "cp311-* cp312-*"
+comcm          CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: "universal2"
           CIBW_ARCHS_WINDOWS: "AMD64"
