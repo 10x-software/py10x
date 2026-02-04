@@ -26,14 +26,12 @@ jobs:
           package-dir: infra_10x
           output-dir: infra_10x/wheelhouse
         env:
-          CIBW_BUILD: "cp312-*"
+          CIBW_BUILD: "cp311-* cp312-*"
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: "universal2"
           CIBW_ARCHS_WINDOWS:
           CIBW_BUILD_VERBOSITY: "1"
-          CIBW_ENVIRONMENT: >
-            CMAKE_ARGS="-DPython3_EXECUTABLE={python} -DPython_EXECUTABLE={python}"
 
       - uses: actions/upload-artifact@v4
         with:
