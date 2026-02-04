@@ -1,0 +1,60 @@
+name: wheels-core_10x
+
+on:
+  push:
+    tags:
+      - "py10x-core-v*"
+  workflow_dispatch:
+
+jobs:
+  build_wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.21.0
+        with:
+          package-dir: core_10x
+          output-dir: core_10x/wheelhouse
+        env:
+          CIBW_BUILD: "cp311-* cp312-*"
+          CIBW_SKIP: "*-musllinux_*"
+          CIBW_ARCHS_LINUX: "x86_64"
+          CIBW_ARCHS_MACOS: "universal2"
+          CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=13.3'
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_28"
+
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-core_10x-${{ matrix.os }}
+          path: core_10x/wheelhouse/*.whl
+
+  upload:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build_wheels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Flatten wheels
+        run: |
+          mkdir -p upload
+          find dist -name "*.whl" -exec cp {} upload/ \;
+
+      - name: Upload wheels to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload

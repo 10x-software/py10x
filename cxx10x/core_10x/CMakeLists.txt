@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.27...3.30)
-project(core_10x_i)
+project(py10x_core)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXXFLAGS_DEBUG "-g -O0")
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -30,7 +30,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(backward)
 
-pybind11_add_module(core_10x_i
+pybind11_add_module(py10x_core
         bnucleus.cpp
         bnode.cpp
         btrait.cpp
@@ -47,7 +47,7 @@ pybind11_add_module(core_10x_i
         os_user.cpp
 )
 
-target_include_directories(core_10x_i PRIVATE ${backward_SOURCE_DIR})
+target_include_directories(py10x_core PRIVATE ${backward_SOURCE_DIR})
 
 
 # Generate .pyi stubs after building the module
@@ -68,18 +68,18 @@ set(STUBGEN_PYTHONPATH "${pybind11_stubgen_SOURCE_DIR}${PATH_SEP}${CMAKE_LIBRARY
 #message("STUBGEN_PYTHONPATH: ${STUBGEN_PYTHONPATH}")
 
 add_custom_command(
-        TARGET core_10x_i POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen core_10x_i -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        TARGET py10x_core POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen py10x_core -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Generating type stubs for core_10x_i"
+        COMMENT "Generating type stubs for py10x_core"
         VERBATIM
 )
 
-install(TARGETS core_10x_i
+install(TARGETS py10x_core
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
 )
 
 # Install the generated .pyi alongside the module
-install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/core_10x_i.pyi DESTINATION .)
-target_link_libraries(core_10x_i PRIVATE Backward::Backward)
+install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/py10x_core.pyi DESTINATION .)
+target_link_libraries(py10x_core PRIVATE Backward::Backward)

@@ -1,0 +1,32 @@
+Proprietary License for 10X Universe Infrastructure Internals
+
+Copyright (c) 2025 10X CONCEPTS LLC. All rights reserved.
+
+This Software is a proprietary component of 10X CONCEPTS LLC. While provided
+free of charge for use with the py10x package, it is NOT an Open Source license.
+
+Permission is hereby granted, free of charge, to any person obtaining a binary
+copy of this software and associated documentation, to use and distribute
+the Software in binary form only, subject to the following conditions:
+
+1. **Distribution.** You may distribute the Software in binary form as part of
+   a software package, provided that you retain this license and all
+   copyright notices.
+
+2. **No Source Access.** No permission is granted to access, use, or
+   distribute the source code of the Software.
+
+3. **No Reverse Engineering.** You may not reverse engineer, decompile,
+   disassemble, or otherwise attempt to derive the source code, internal
+   logic, or structure from the binary form of the Software.
+
+4. **No Modification.** You may not modify, patch, or alter the binary
+   code of the Software in any way.
+
+5. **Disclaimer.** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY
+   KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+   CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+   TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+   SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

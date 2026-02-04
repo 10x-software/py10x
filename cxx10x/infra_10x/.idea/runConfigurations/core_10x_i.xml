@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="infra_10x_i" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-X dev test.py" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$/tests" PASS_PARENT_ENVS_2="true" PROJECT_NAME="infra_10x_i" TARGET_NAME="infra_10x_i" CONFIG_NAME="Debug" RUN_PATH="$PROJECT_DIR$/.venv/bin/python">
+  <configuration default="false" name="py10x_infra" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-X dev test.py" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$/tests" PASS_PARENT_ENVS_2="true" PROJECT_NAME="py10x_infra" TARGET_NAME="py10x_infra" CONFIG_NAME="Debug" RUN_PATH="$PROJECT_DIR$/.venv/bin/python">
     <envs>
       <env name="PYTHONPATH" value="../../../py10x:../../core_10x/cmake-build-debug:../cmake-build-debug" />
     </envs>

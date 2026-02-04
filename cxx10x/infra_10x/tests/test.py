@@ -1,4 +1,4 @@
-from infra_10x_i import MongoCollectionHelper
+from py10x_infra import MongoCollectionHelper
 from core_10x.traitable_id import ID
 from core_10x.trait_filter import f
 from core_10x.code_samples.person import Person

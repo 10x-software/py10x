@@ -14,7 +14,7 @@ from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
 
-from core_10x_i import BTraitableProcessor,XCache
+from py10x_core import BTraitableProcessor,XCache
 
 from core_10x.environment_variables import EnvVars
 
@@ -911,8 +911,8 @@ def test_33():
 
 
 if __name__ == '__main__':
-    import core_10x_i
-    print(core_10x_i.__file__)
+    import py10x_core
+    print(py10x_core.__file__)
     test_1()
     test_2()
     test_3()

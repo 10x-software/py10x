@@ -1,34 +1,28 @@
 [project]
-name = "infra_10x_i"
-version = "0.1.1"
+name = "py10x-infra"
+version = "0.1.3"
+description = "10X Universe Infrastructure Internals"
+license = {text = "Proprietary - See LICENSE file for details."}
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+
 authors = [
+    { name = "10X CONCEPTS LLC", email = "founders@10x-software.org" }
+]
+classifiers = [
+    "License :: Other/Proprietary License",
+    "Programming Language :: Python :: 3",
+]
+maintainers = [
     { name = "Sasha Davidovich", email = "founders@10x-software.org" },
     { name = "Ilya Pevzner", email = "founders@10x-software.org" }
 ]
-description = "10X Universe Infrastructure Internals"
-requires-python='>=3.10'
 
-[project.optional-dependencies]
-test = ["pytest"]
+[project.urls]
+Homepage = "https://10x-software.org"
 
 [build-system]
-requires = ["scikit-build-core>=0.10.7", "pybind11>=2.12"]
-build-backend = "scikit_build_core.build"
-
-[tool.scikit-build]
-sdist.cmake = true
-
-[tool.cibuildwheel]
-test-command = "python {project}/tests/test.py"
-
-[tool.ruff]
-target-version = "py37"
-
-[tool.ruff.lint]
-extend-select = [
-  "B",   # flake8-bugbear
-  "I",   # isort
-  "PGH", # pygrep-hooks
-  "RUF", # Ruff-specific
-  "UP",  # pyupgrade
+requires = [
+    "scikit-build-core>=0.10.7",
 ]
+build-backend = "scikit_build_core.build"
