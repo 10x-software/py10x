@@ -18,7 +18,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.x"
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.21.0
@@ -32,8 +32,6 @@ jobs:
           CIBW_ARCHS_MACOS: "universal2"
           CIBW_ARCHS_WINDOWS: "AMD64"
           CIBW_BUILD_VERBOSITY: "1"
-          CIBW_ENVIRONMENT: >
-            CMAKE_ARGS="-DPython3_EXECUTABLE={python} -DPython_EXECUTABLE={python}"
 
       - uses: actions/upload-artifact@v4
         with:

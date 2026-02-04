@@ -4,7 +4,7 @@ version = "0.1.2"
 description = "10X Universe Core Internals"
 license = {text = "Proprietary - See LICENSE file for details."}
 readme = "README.md"
-requires-python = ">=3.11,<=3.12"
+requires-python = ">=3.11,<3.13"
 
 authors = [
     { name = "10X CONCEPTS LLC", email = "founders@10x-software.org" }
