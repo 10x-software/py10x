@@ -1,21 +1,23 @@
 [project]
-name = "py10x"
-version = "0.1.2"
+name = "py10x-universe"
+version = "0.1.4"
 description = "10x Universe Core Packages"
 authors = [
-    { name = "Sasha Davidovich", email = "founders@10x-software.org" },
-    { name = "Ilya Pevzner", email = "founders@10x-software.org" }
+    { name = "10X CONCEPTS LLC", email = "founders@10x-software.org" }
+]
+maintainers = [
+    { name = "Sasha Davidovich & Ilya Pevzner", email = "py10x@10x-software.org" },
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.11,<3.12"
+requires-python = ">=3.11,<3.13"
 dependencies = [
-    "py10x_core @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=core_10x",
+    "py10x_core (~=0.1)",
+    "py10x_infra (~=0.1)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy (>=2.2.2,<2.3.0)",
     "python-dateutil (>=2.9.0,<2.10.0)",
     "cryptography (>=45.0.7,<45.1.0)",
-    "py10x_infra @ git+https://github.com/10X-LLC/cxx10x.git#subdirectory=infra_10x",
     "pymongo (>=4.7.3)",
     "typing-extensions>=4.15.0",
     "scipy>=1.15.3",
