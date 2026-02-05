@@ -1,5 +1,7 @@
 # py10x
 
+<img src="10x-jerboa.jpeg" alt="Jerboa Logo" width="200" height="300">
+
 **10x Universe Ecosystem Core**
 
 The core package of the 10x Universe software ecosystem, designed to make 10x engineers even more productive. The structure mirrors the real world: from particles (basic data types) to atoms (object models) and molecules (fundamental programming paradigms), extending to stars and planets (subject domains).
