@@ -3,10 +3,11 @@ name = "py10x-universe"
 version = "0.1.4"
 description = "10x Universe Core Packages"
 authors = [
-    { name = "10X CONCEPTS LLC", email = "founders@10x-software.org" }
+    { name = "Alexander Davidovich" },
+    { name = "Ilya Pevzner" },
 ]
 maintainers = [
-    { name = "Sasha Davidovich & Ilya Pevzner", email = "py10x@10x-software.org" },
+    { name = "Alexander Davidovich & Ilya Pevzner", email = "py10x@10x-software.org" },
 ]
 license = {text = "MIT"}
 readme = "README.md"
@@ -49,6 +50,7 @@ dev = [
     "pytest-cov>=6.0,<8.0",
     "ruff>=0.13,<0.14",
     "uv>=0.9",
+    "licensecheck",
 ]
 rio = [
     "rio-ui==0.12",
@@ -68,6 +70,9 @@ Repository = "https://github.com/10X-LLC/py10x"
 Issues = "https://github.com/10X-LLC/py10x/issues"
 Documentation = "https://github.com/10X-LLC/py10x#readme"
 
+#[tool.uv.sources]
+#py10x_core = { path = "../cxx10x/core_10x" }
+#py10x_infra = { path = "../cxx10x/infra_10x" }
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-build-scripts","playwright"]

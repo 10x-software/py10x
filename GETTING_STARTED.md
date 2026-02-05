@@ -32,7 +32,7 @@ This comprehensive guide will walk you through the fundamental concepts, install
 
 ### Prerequisites
 
-- Python 3.12 (recommended), 3.10+ supported
+- Python 3.12 (recommended), 3.11+ supported
 - MongoDB (for running storage examples)
   - Local passwordless MongoDB instance required for running storage examples
 

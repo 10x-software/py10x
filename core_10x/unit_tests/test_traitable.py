@@ -6,7 +6,8 @@ import uuid
 from collections import Counter
 from contextlib import nullcontext
 from datetime import date
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
+from typing_extensions import Self
 
 import numpy as np
 import pytest

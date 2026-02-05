@@ -22,7 +22,7 @@ For detailed installation instructions including all prerequisites and platform-
 
 ### Quick Prerequisites
 
-- Python 3.12 (recommended), 3.10+ supported
+- Python 3.12 (recommended), 3.11+ supported
 - [UV](https://docs.astral.sh/uv/) - Python installer and package manager
 - MongoDB (for running tests and examples)
   - Local passwordless MongoDB instance required for running tests and examples
@@ -328,7 +328,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. For copyright holders, proprietary components, and third-party attributions, see [NOTICE](NOTICE).
 
 ## Contact
 

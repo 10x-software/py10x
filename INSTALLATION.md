@@ -6,7 +6,7 @@ This guide provides comprehensive installation instructions for py10x, including
 
 ### Core Requirements
 
-- **Python 3.12 (recommended), 3.10+ supported** - Install via UV for best experience
+- **Python 3.12 (recommended), 3.11+ supported** - Install via UV for best experience
 - **[UV](https://docs.astral.sh/uv/)** - Python installer and package manager (recommended)
 - **Git** - For cloning the repository
 

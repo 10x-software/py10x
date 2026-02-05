@@ -8,7 +8,7 @@ For detailed installation instructions including all prerequisites and platform-
 
 ### Prerequisites
 
-- Python 3.12 (recommended), 3.10+ supported
+- Python 3.12 (recommended), 3.11+ supported
 - Git
 - [UV](https://docs.astral.sh/uv/) - Python installer and package manager
 - C++ compiler with C++20 support (GCC 10+, Clang 10+, MSVC 2022+, or equivalent)
@@ -248,3 +248,7 @@ The UI framework focuses on traitable editing and management:
 ## License
 
 Contributions are subject to the project's license terms.
+
+## Open Source & IP
+
+For maintainers: before publishing or major releases, see [Open Source & IP Checklist](docs/OPEN_SOURCE_IP_CHECKLIST.md) for intellectual property and license compliance.
