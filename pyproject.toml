@@ -1,6 +1,6 @@
 [project]
 name = "py10x-universe"
-version = "0.1.4"
+version = "0.1.5"
 description = "10x Universe Core Packages"
 authors = [
     { name = "Alexander Davidovich" },
@@ -33,7 +33,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: User Interfaces",
