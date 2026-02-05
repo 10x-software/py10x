@@ -1,6 +1,6 @@
 # py10x
 
-<img src="10x-jerboa.jpeg" alt="Jerboa Logo" width="200" height="300">
+<img src="10x-jerboa-in-desert.jpeg" alt="Jerboa Logo" width="200" height="300">
 
 **10x Universe Ecosystem Core**
 
