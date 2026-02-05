@@ -2,7 +2,8 @@ import gc
 import traceback
 from collections import Counter
 from datetime import date, datetime
-from typing import Any, Self
+from typing import Any
+from typing_extensions import Self
 
 import numpy as np
 from core_10x.xnone import XNone

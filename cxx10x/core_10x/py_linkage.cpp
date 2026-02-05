@@ -45,24 +45,28 @@ py::module_ import_module(const char* module_name) {
 }
 
 void PyLinkage::get_anonymous_class() {
-    auto mname = name_from_dict(CORE_10X::ANONYMOUS_MODULE_NAME, true);
+    const auto mname = name_from_dict(CORE_10X::ANONYMOUS_MODULE_NAME, true);
     try {
-        py::module_ mod = py::module_::import(mname.c_str());
+        const py::module_ mod = py::module_::import(mname.c_str());
         m_anonymous_class = mod.attr(name_from_dict(CORE_10X::ANONYMOUS_CLASS_NAME).c_str());
     }
-    catch (const py::error_already_set&) {
-        throw py::value_error(py::str("Failed to import module: {}").format(py::str(mname)));
+    catch (py::error_already_set& exc) {
+        const auto msg = py::str("Failed to import module: {}").format(py::str(mname));
+        py::raise_from(exc, PyExc_ValueError, msg.cast<std::string>().c_str());
+        throw py::error_already_set();
     }
 }
 
 void PyLinkage::get_rc_true() {
-    auto mname = name_from_dict(CORE_10X::RC_MODULE_NAME, true);
+    const auto mname = name_from_dict(CORE_10X::RC_MODULE_NAME, true);
     try {
-        py::module_ mod = py::module_::import(mname.c_str());
+        const py::module_ mod = py::module_::import(mname.c_str());
         m_rc_true = mod.attr(name_from_dict(CORE_10X::RC_TRUE_NAME).c_str());
     }
-    catch (const py::error_already_set&) {
-        throw py::value_error(py::str("Failed to import module: {}").format(py::str(mname)));
+    catch (py::error_already_set& exc) {
+        const auto msg = py::str("Failed to import module: {}").format(py::str(mname));
+        py::raise_from(exc, PyExc_ValueError, msg.cast<std::string>().c_str());
+        throw py::error_already_set();
     }
 }
 
@@ -131,16 +135,19 @@ PyLinkage::PyLinkage(const py::dict& package_names) {
         mod = py::module_::import(mname.c_str());
         pf_class = mod.attr(name_from_dict(CORE_10X::PACKAGE_REFACTORING_CLASS_NAME).c_str());
     }
-    catch (const py::error_already_set&) {
-        throw py::value_error(py::str("Failed to import module: {}").format(py::str(mname)));
+    catch (py::error_already_set& exc) {
+        const auto msg = py::str("Failed to import module: {}").format(py::str(mname));
+        py::raise_from(exc, PyExc_ValueError, msg.cast<std::string>().c_str());
+        throw py::error_already_set();
     }
 
     try {
         f_find_class = pf_class.attr(name_from_dict(CORE_10X::PACKAGE_REFACTORING_FIND_CLASS).c_str());
         f_find_class_id = pf_class.attr(name_from_dict(CORE_10X::PACKAGE_REFACTORING_FIND_CLASS_ID).c_str());
     }
-    catch (const py::error_already_set&) {
-        throw py::value_error(py::str("Failed to cache pf_class methods"));
+    catch (py::error_already_set& exc) {
+        py::raise_from(exc, PyExc_ValueError, "Failed to cache pf_class methods");
+        throw py::error_already_set();
     }
 
     create_choices_args();

@@ -1,20 +1,25 @@
 [project]
 name = "py10x-core"
-version = "0.1.4"
+version = "0.1.5"
 description = "10X Universe Core Internals"
 license = {text = "Proprietary - See LICENSE file for details."}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 
 authors = [
-    { name = "10X CONCEPTS LLC", email = "founders@10x-software.org" }
+    { name = "Alexander Davidovich" },
+    { name = "Ilya Pevzner" }
 ]
+
 classifiers = [
     "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 4 - Beta",
 ]
+
 maintainers = [
-    { name = "Sasha Davidovich & Ilya Pevzner", email = "py10x@10x-software.org" },
+    { name = "Alexander Davidovich & Ilya Pevzner", email = "py10x@10x-software.org" },
 ]
 
 [project.urls]
