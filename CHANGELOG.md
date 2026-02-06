@@ -137,7 +137,7 @@ No migration from previous versions is necessary - package versions will automat
 ## Contributors
 
 - Sasha Davidovich <founders@10x-software.org>
-- Ilya Pevzner <founders@10x-software.org>
+- Ilya Pevzner (on behalf of 10X CONCEPTS LLC) <founders@10x-software.org>
 
 ## Acknowledgments
 

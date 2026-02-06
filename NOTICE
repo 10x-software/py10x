@@ -1,10 +1,7 @@
 py10x-universe (10x Universe Core Packages)
-Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
+Copyright (c) 2025-2026 10X CONCEPTS LLC and Sasha Davidovich
 
 This project is licensed under the MIT License. See the LICENSE file for the full text.
-
-Logo images in this repository (10x-jerboa.jpeg, 10x-jerboa-in-desert.jpeg) are
-AI-generated. Use and attribution are subject to the generator’s terms.
 
 ================================================================================
 Proprietary components
@@ -15,12 +12,12 @@ which are not part of the MIT-licensed py10x-universe framework and are governed
 their own license terms:
 
   - py10x-core
-    Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
+    Copyright (c) 2025-2026 10X CONCEPTS LLC and Sasha Davidovich. All rights reserved.
     Proprietary; governed by Proprietary License for py10x-core.
     See: https://10x-software.org/py10x_core/LICENSE.txt
 
   - py10x-infra
-    Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
+    Copyright (c) 2025-2026 10X CONCEPTS LLC and Sasha Davidovich. All rights reserved.
     Proprietary; governed by Proprietary License for py10x-infra.
     See: https://10x-software.org/py10x_infra/LICENSE.txt
 
