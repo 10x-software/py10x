@@ -124,7 +124,7 @@ public:
     py::object wrapper_f_set(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_set(BTraitable* obj, const py::object& value, const py::args& args) const;
 
-    py::object wrapper_f_verify(BTraitable* obj, const py::object& value) const;
+    py::object wrapper_f_verify(BTraitable* obj) const;
     py::object wrapper_f_from_str(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_to_str(BTraitable* obj, const py::object& value) const;

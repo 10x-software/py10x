@@ -176,6 +176,10 @@ py::object BTraitable::value_to_str(BTrait* trait) {
     return trait->wrapper_f_to_str(this, value);
 }
 
+py::object BTraitable::verify_value(BTrait* trait) {
+    return trait->wrapper_f_verify(this);
+}
+
 py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
     auto proc = ThreadContext::current_traitable_proc();
     for (auto item : trait_values) {

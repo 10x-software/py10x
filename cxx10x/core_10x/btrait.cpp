@@ -68,9 +68,10 @@ py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value, const
     }
 }
 
-py::object BTrait::wrapper_f_verify(BTraitable* obj, const py::object& value) const {
+py::object BTrait::wrapper_f_verify(BTraitable* obj) const {
+    auto value = obj->get_value(this);
     try {
-        return f_verify(obj, value);
+        return f_verify(obj, this, value);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_verify, &value, nullptr);
     }

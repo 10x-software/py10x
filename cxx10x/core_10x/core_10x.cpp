@@ -256,6 +256,7 @@ PYBIND11_MODULE(py10x_core, m)
             .def("get_value",                   py::overload_cast<const py::str&, const py::args&>(&BTraitable::get_value))
             .def("get_value",                   py::overload_cast<const BTrait*>(&BTraitable::get_value))
             .def("get_value",                   py::overload_cast<const BTrait*, const py::args&>(&BTraitable::get_value))
+            .def("verify_value",                &BTraitable::verify_value)
             .def("get_style_sheet",             &BTraitable::get_style_sheet)
             .def("get_choices",                 &BTraitable::get_choices)
             .def("set_value",                   py::overload_cast<const py::str&, const py::object&>(&BTraitable::set_value),
