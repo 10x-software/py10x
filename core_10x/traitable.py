@@ -1080,3 +1080,105 @@ class AnonymousTraitable(Traitable):
     @classmethod
     def collection(cls, _coll_name: str = None):
         raise AssertionError('AnonymousTraitable may not have a collection')
+
+#=======================================================================================================================
+#   Vault related stuff
+#=======================================================================================================================
+from py10x_core import OsUser
+from core_10x.sec_keys import SecKeys
+from core_10x.resource import Resource
+
+class VaultTraitable(Traitable):
+    @classmethod
+    @cache
+    def store_per_class(cls) -> TsStore:
+        uri = SecKeys.check_vault_uri()
+        spec = TsStore.spec_from_uri(uri)
+        kwargs = spec.kwargs
+        ts_class = spec.resource_class
+        hostname = kwargs[ts_class.HOSTNAME_TAG]
+        is_running, with_auth = ts_class.is_running_with_auth(hostname)
+        if not is_running or not with_auth:
+            raise OSError(f'Vault host {hostname} must be run with auth')
+
+        username = OsUser.me.name()
+        kwargs[ts_class.USERNAME_TAG] = username
+        kwargs[ts_class.PASSWORD_TAG] = SecKeys.retrieve_master_password()
+
+        return ts_class.instance(**kwargs)
+
+class VaultUser(VaultTraitable):
+    user_id: str                    = T(T.ID)   // 'OS login'
+    suspended: bool                 = T(False)
+
+    private_key_encrypted: bytes    = T()
+    public_key: bytes               = T()
+
+    sec_keys: SecKeys               = RT(T.EVAL_ONCE)
+
+    def user_id_get(self) -> str:
+        return self.__class__.myname()
+
+    def sec_keys_get(self) -> SecKeys:
+        return SecKeys(self.private_key_encrypted, self.public_key, SecKeys.retrieve_master_password())
+
+    @classmethod
+    def is_functional_account(cls, user_id: str) -> bool:
+        return user_id.split('-', 1) == EnvVars.functional_account_prefix
+
+    @classmethod
+    @cache
+    def myname(cls) -> str:
+        return OsUser.me.name()
+
+    @classmethod
+    @cache
+    def me(cls) -> VaultUser:
+        return cls.existing_instance(user_id = cls.myname())
+
+class VaultResourceAccessor(VaultTraitable):
+    username: str           = T(T.ID)
+    resource_uri: str       = T(T.ID)
+
+    login: str              = T()
+    password: bytes         = T()
+
+    last_updated: datetime  = T(T.EVAL_ONCE)
+
+    user: VaultUser         = RT(T.EVAL_ONCE)
+    resource: Resource      = RT(T.EVAL_ONCE)
+
+    def username_get(self) -> str:
+        return VaultUser.myname()
+
+    def last_updated_get(self) -> datetime:
+        return datetime.utcnow()
+
+    def user_get(self) -> VaultUser:
+        return VaultUser.existing_instance(user_id = self.username)
+
+    def resource_get(self) -> Resource:
+        return Resource.instance_from_uri(
+            self.resource_uri,
+            username = self.username,
+            password = self.user.sec_keys.decrypt_text(self.password)
+        )
+
+    @classmethod
+    def save_ra(cls, resource_uri: str, password: str, login: str = None, username: str = XNone):
+        if login is None:
+            login = username
+
+        ra = cls(username = username, resource_uri = resource_uri)
+        user = ra.user
+        ra.set_values(
+            login = login,
+            password = user.sec_keys.encrypt_text(password)
+        ).throw()
+
+        ra.save().throw()
+
+    #-- strictly speaking this method isn't necessary as it just returning existing_instance()
+    @classmethod
+    def retrieve_ra(cls, resource_uri: str, username: str = XNone) -> VaultResourceAccessor:
+        return cls.existing_instance(username = username, resource_uri = resource_uri)

@@ -6,9 +6,9 @@ from py10x_core import OsUser
 from core_10x.global_cache import cache
 from core_10x.rc import RC
 from core_10x.xdate_time import XDateTime, date, datetime
-from core_10x.resource import Resource
+#from core_10x.resource import Resource
 
-# ===================================================================================================================================
+#===================================================================================================================================
 #   date_format: str    = default_value
 #
 #   def date_format_apply(cls, fmt: str):
@@ -21,7 +21,7 @@ from core_10x.resource import Resource
 #
 #   def datetime_format_apply(cls, value):
 #       ...
-# ===================================================================================================================================
+#===================================================================================================================================
 
 
 class classproperty(property):
@@ -96,8 +96,10 @@ class _EnvVars:
         return f'{env_name}_{attr_name.upper()}'
 
     @classmethod
-    def var_name(cls, attr_name: str) -> str:
-        return cls.create_var_name(cls.s_env_name, attr_name)
+    def var_name(cls, var_or_name) -> str:
+        if isinstance(var_or_name, cls.Var):
+            var_or_name = var_or_name.attr_name
+        return cls.create_var_name(cls.s_env_name, var_or_name)
 
     s_env_name: str = None
     var = None
