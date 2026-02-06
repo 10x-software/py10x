@@ -33,11 +33,11 @@ For detailed installation instructions including all prerequisites and platform-
 This package (`py10x-universe`) relies on and automatically installs `py10x-core` and `py10x-infra`, also developed by Alexander Davidovich and Ilya Pevzner. 
 
 While these packages are provided free of charge, they have different legal terms:
-- **py10x-universe (This package):** Licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).
-- **py10x-core (Core dependencies):** Proprietary; governed by the [10x Proprietary License](https://10x-software.org/py10x_core/LICENSE.txt).
-- **py10x-infra (Infrastructure dependencies):** Proprietary; governed by the [10x Proprietary License](https://10x-software.org/py10x_infra/LICENSE.txt).
+- **`py10x-universe` (This package):** Licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).
+- **`py10x-core`:** Proprietary; governed by the [Proprietary License for py10x-core](https://10x-software.org/py10x_core/LICENSE.txt).
+- **`py10x-infra`:** Proprietary; governed by the [Proprietary License for py10x-infra](https://10x-software.org/py10x_infra/LICENSE.txt).
 
-By installing `py10x-universe`, you agree to the terms of the proprietary licenses for the core and infrastructure components.
+By installing `py10x-universe`, you agree to the terms of the proprietary licenses for `py10x-core` and `py10x-infra`.
 
 
 ### Install with UV (Recommended)

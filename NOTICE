@@ -16,13 +16,13 @@ their own license terms:
 
   - py10x-core
     Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
-    Proprietary; governed by the 10x Proprietary License.
-    See: https://10x-llc.com/py_10x_core/LICENSE
+    Proprietary; governed by Proprietary License for py10x-core.
+    See: https://10x-software.org/py10x_core/LICENSE.txt
 
   - py10x-infra
     Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
-    Proprietary; governed by the 10x Proprietary License.
-    See: https://10x-llc.com/py_10x_infra/LICENSE
+    Proprietary; governed by Proprietary License for py10x-infra.
+    See: https://10x-software.org/py10x_infra/LICENSE.txt
 
 By installing or using py10x-universe, you agree to the terms of the proprietary
 licenses for the above components. See README.md for full details.
