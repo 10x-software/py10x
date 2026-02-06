@@ -243,7 +243,7 @@ class DxClass(Directory):
 
     # def matching_traitables(self) -> dict:
     #     """
-    #     Applicable for an entity class with a "reasonable" number of traitables in the collection
+    #     Applicable for a Traitable class with a "reasonable" number of traitables in the collection
     #     TODO: need to provide a different mechanism (a view) for huge collections
     #     """
     #     cls = self.value

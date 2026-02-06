@@ -16,7 +16,7 @@ import core_10x.concrete_traits as concrete_traits
 from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.package_manifest import PackageManifest
+#from core_10x.package_manifest import PackageManifest
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
@@ -441,32 +441,32 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         return value1.id() == value2.id()
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   Storage related methods
-    # ===================================================================================================================
+    #===================================================================================================================
 
-    @staticmethod
-    @cache
-    def _bound_data_domain(domain):
-        from core_10x.backbone.bound_data_domain import BoundDataDomain
-
-        bb_store = BoundDataDomain.store()
-        if not bb_store:
-            raise OSError('No Store is available: neither current Store is set nor 10X Backbone host is defined')
-
-        bbd = BoundDataDomain(domain=domain)
-        bbd.reload()
-        return bbd
-
-    @classmethod
-    @cache
-    def preferred_store(cls) -> TsStore | None:
-        rr = PackageManifest.resource_requirements(cls)
-        if not rr:
-            return None
-
-        bbd = Traitable._bound_data_domain(rr.domain)
-        return bbd.resource(rr.category, throw=False) if bbd else None
+    # @staticmethod
+    # @cache
+    # def _bound_data_domain(domain):
+    #     from core_10x.backbone.bound_data_domain import BoundDataDomain
+    #
+    #     bb_store = BoundDataDomain.store()
+    #     if not bb_store:
+    #         raise OSError('No Store is available: neither current Store is set nor 10X Backbone host is defined')
+    #
+    #     bbd = BoundDataDomain(domain=domain)
+    #     bbd.reload()
+    #     return bbd
+    #
+    # @classmethod
+    # @cache
+    # def preferred_store(cls) -> TsStore | None:
+    #     rr = PackageManifest.resource_requirements(cls)
+    #     if not rr:
+    #         return None
+    #
+    #     bbd = Traitable._bound_data_domain(rr.domain)
+    #     return bbd.resource(rr.category, throw=False) if bbd else None
 
     @staticmethod
     @cache
@@ -574,7 +574,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def latest_revision(cls, traitable_id: ID, timestamp: datetime = None, deserialize: bool = False) -> dict | TraitableHistory | None:
-        """Get the latest revision of an entity from history."""
+        """Get the latest revision of a traitable from history."""
         for entry in cls.history(
             _filter=f(_traitable_id=traitable_id.value),
             _collection_name=traitable_id.collection_name,

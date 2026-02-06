@@ -1,5 +1,5 @@
-from core_10x.backbone.backbone_traitable import RT, BackboneTraitable, T
-from core_10x.data_domain import DataDomain
+from core_10x.attic.backbone.backbone_traitable import RT, BackboneTraitable, T
+from core_10x.attic.data_domain import DataDomain
 from core_10x.environment_variables import EnvVars
 from core_10x.resource import Resource
 from core_10x.xnone import XNone

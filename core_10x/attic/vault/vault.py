@@ -2,8 +2,8 @@ from datetime import datetime
 
 from core_10x.xnone import XNone
 from core_10x.resource import Resource
-from core_10x.vault.vault_traitable import VaultTraitable, T, RT
-from core_10x.vault.vault_user import VaultUser
+from core_10x.attic.vault.vault_traitable import VaultTraitable, T, RT
+from core_10x.attic.vault.vault_user import VaultUser
 
 class ResourceAccessor(VaultTraitable):
     # fmt: off

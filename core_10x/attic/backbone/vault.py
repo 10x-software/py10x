@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from core_10x.backbone.backbone_traitable import RC, T, VaultTraitable
-from core_10x.vault.security_keys import SecKeys
+from core_10x.attic.backbone.backbone_traitable import RC, T, VaultTraitable
+from core_10x.attic.vault import SecKeys
 
 
 class ResourceAccessor(VaultTraitable):

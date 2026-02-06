@@ -6,7 +6,7 @@ from getpass import getpass
 
 import keyring
 import requests
-from core_10x.backbone.namespace import AUTO_PASSWORD_LENGTH, USER_ROLE
+from core_10x.attic.backbone import AUTO_PASSWORD_LENGTH, USER_ROLE
 from core_10x.global_cache import cache
 from core_10x.rc import RC
 

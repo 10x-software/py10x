@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from core_10x.backbone.backbone_store import BackboneStore
-from core_10x.traitable import RT, T, Traitable, TraitDefinition
+from core_10x.attic.backbone.backbone_store import BackboneStore
+from core_10x.traitable import T, Traitable, TraitDefinition
 
 if TYPE_CHECKING:
     from core_10x.traitable import RC

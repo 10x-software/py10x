@@ -1,7 +1,7 @@
 from core_10x.environment_variables import EnvVars
 from core_10x.ts_store import TsStore
-from core_10x.vault.vault_traitable import VaultTraitable, T, RT, RC, OsUser, cache
-from core_10x.vault.sec_keys import SecKeys
+from core_10x.attic.vault.vault_traitable import VaultTraitable, T, RT, OsUser, cache
+from core_10x.attic.vault.sec_keys import SecKeys
 
 class VaultUser(VaultTraitable):
     # fmt: off

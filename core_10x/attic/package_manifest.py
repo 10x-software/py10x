@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from core_10x.data_domain import GeneralDomain
+from core_10x.attic.data_domain import GeneralDomain
 from core_10x.py_class import PyClass
 from core_10x.resource import TS_STORE
 
