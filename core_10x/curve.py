@@ -12,7 +12,6 @@ from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, M, T, Traita
 
 
 class IP_KIND(NamedConstant, lowercase_values=True):
-    # fmt: off
     #-- NOTE: enum labels specify the minimum number of points required!
     LINEAR      = ( 2, )
     NEAREST     = ( 2, )
@@ -25,20 +24,8 @@ class IP_KIND(NamedConstant, lowercase_values=True):
     CUBIC       = ( 4, )    #-- spline interp of third order
 
     NO_INTERP   = ( 0, )    #-- NO interp outside of given nodes
-    # fmt: on
 
-    # @classmethod
-    # def labelFromValue( cls, value ) -> int:
-    #     return int( super().labelFromValue( value ) )
-    #
-    # @classmethod
-    # def defaultValueForName( cls, name: str ) -> str:
-    #     return name.replace( '_', '-' ).lower()
-
-
-# -- TODO: it must be derived from AnonymousTraitable. Had to make it RT and derive from Traitable due to a bug - trying to load the embedded portion from its own collection
 class CurveParams(Traitable):
-    # fmt: off
     DEFAULT_INTERPOLATOR = interpolate.interp1d
 
     interpolator: Any   = RT(default = DEFAULT_INTERPOLATOR)
@@ -47,20 +34,16 @@ class CurveParams(Traitable):
     copy: bool          = RT(False)
     fill_value: str     = RT('extrapolate')
     bounds_error: bool  = RT(False)
-    # fmt: on
-
 
 class Curve(AnonymousTraitable):
-    # fmt: off
     times: list         = T([])       #-- only ints or floats are allowed
     values: list        = T([])
-    params: CurveParams = RT()  #-- TODO: must be T(T.EMBEDDED)
+    params: CurveParams = RT()
 
     beginning_of_time: Any  = T(None)    #-- may be float or int
 
     interpolator: Any       = RT()
     min_curve_size: int     = RT()
-    # fmt: on
 
     def params_get(self) -> CurveParams:
         return CurveParams()
@@ -120,24 +103,8 @@ class Curve(AnonymousTraitable):
 
         return True
 
-    def perturb(self, t, new_value, perturb_existing_only=False):
-        if perturb_existing_only:
-            assert t in self.times, f't = {t} is not in the curve'
-
-        values = self.values
-        self.invalidate_value('values')
-        self.values = values
-        self.update(t, new_value)
-
-    def perturb_shift(self, t, value_shift, perturb_existing_only=False):
-        self.perturb(t, self.value(t) + value_shift, perturb_existing_only)
-
-    def perturb_proportional(self, t, value_shift_mult, perturb_existing_only=False):
-        self.perturb(t, self.value(t) * value_shift_mult, perturb_existing_only)
-
     def interpolator_get(self):
         params = self.params
-        # fmt: off
         return params.interpolator(
             self.times, self.values,
             kind            = params.ip_kind.value,
@@ -146,7 +113,6 @@ class Curve(AnonymousTraitable):
             fill_value      = params.fill_value,
             bounds_error    = params.bounds_error,
         )
-        # fmt: on
 
     def value(self, t) -> float:
         times = self.times
@@ -166,39 +132,6 @@ class Curve(AnonymousTraitable):
 
     def reset(self):
         self.invalidate_value('interpolator')
-
-    # @classmethod
-    # def _uniqueTimesValues(cls, times: list, values: list, keep_last_update: bool) -> tuple:
-    #     assert len(times) == len(values), f'{len(times)} != {len(values)}: sizes of times and values must be equal'
-    #
-    #     last_t = times[0]
-    #     last_i = 0
-    #     times_unique = [last_t]
-    #     values_unique = [values[0]]
-    #
-    #     for t, v in zip(times, values, strict=True):
-    #         assert t >= last_t, f'times must be a non-decreasing list, but {t} < {last_t}'
-    #
-    #         if t > last_t:
-    #             last_t = t
-    #             last_i += 1
-    #             times_unique.append(t)
-    #             values_unique.append(v)
-    #         else:
-    #             if keep_last_update:
-    #                 values_unique[last_i] = v
-    #
-    #     return (times_unique, values_unique)
-    #
-    # def uniquePointsCurve(self, keep_last_update=True, copy_curve=False) -> Curve:
-    #     times_unique, values_unique = self._uniqueTimesValues(self.times(), self.values(), keep_last_update)
-    #     if copy_curve:
-    #         return self.clone(times=times_unique, values=values_unique)
-    #
-    #     self.times = times_unique
-    #     self.values = values_unique
-    #     self.reset()
-    #     return self
 
 
 class TwoFuncInterpolator:
@@ -225,8 +158,8 @@ class TwoFuncInterpolator:
 
 
 class DateCurve(Curve):
-    beginning_of_time: int = M()  # -- TODO: looks like Any trait fails to get deserialized - bug
-    dates: list = RT()
+    beginning_of_time: int  = M()
+    dates: list             = RT()
 
     s_epoch_date = date(1970, 1, 1)
 
@@ -248,7 +181,7 @@ class DateCurve(Curve):
         return [f(x) for x in self.times]
 
     def dates_set(self, trait, value) -> RC:
-        f = self._to_number  # -- TODO: possibly improve performance by using a different f (which doesn't check the type)
+        f = self._to_number     #-- TODO: possibly improve performance by using a different f (which doesn't check the type)
         times = [f(d) for d in value]
         return self.set_value('times', times)
 
@@ -284,36 +217,6 @@ class DateCurve(Curve):
         t = self._to_number(d)
         if super().remove(t, reset=reset):
             self.invalidate_value('dates')
-
-    def perturb(self, d: date, new_value, perturb_existing_only=False):
-        if perturb_existing_only:
-            assert d in self.dates, f'{d} is not in the curve'
-
-        values = self.values
-        self.invalidate_value('values')
-        self.values = values
-        self.update(d, new_value)
-
-    # def bracketDateNodes(self, d: date) -> tuple:
-    #     t = self._to_number(d)
-    #
-    #     times: list = self.times
-    #     last_time = times[-1]
-    #     first_time = times[0]
-    #     if t > last_time:
-    #         return (self._from_number(last_time), None)
-    #
-    #     if t < first_time:
-    #         return (None, self._from_number(first_time))
-    #
-    #     i = bisect.bisect_left(times, t)
-    #     if times[i] == t:
-    #         d = self._from_number(times[i])
-    #         return (d, d)
-    #
-    #     d_left = self._from_number(times[i - 1])
-    #     d_right = self._from_number(times[i])
-    #     return (d_left, d_right)
 
     def dates_values(self, min_date: date = None, max_date: date = None) -> list:
         dates = self.dates

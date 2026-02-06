@@ -3,18 +3,18 @@ from __future__ import annotations
 import inspect
 from typing import Any
 
-from core_10x.entity import Entity
 from core_10x.py_class import PyClass
+from core_10x.traitable import Traitable
 from core_10x.xnone import XNone
 
 
 class Directory:
     @staticmethod
     def _dir_class(value):
-        if isinstance(value, Entity):
-            return DxEntity
+        if isinstance(value, Traitable):
+            return DxTraitable
 
-        if inspect.isclass(value) and issubclass(value, Entity):
+        if inspect.isclass(value) and issubclass(value, Traitable):
             return DxClass
 
         return Directory
@@ -217,15 +217,15 @@ class Directory:
         return dir
 
 
-class DxEntity(Directory):
+class DxTraitable(Directory):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.value: Entity
+        self.value: Traitable
         self.name = self.value.id()
 
     @classmethod
     def check_dir_value(cls, value):
-        assert isinstance(value, Entity), f'entity is expected ({value})'
+        assert isinstance(value, Traitable), f'Traitable is expected ({value})'
 
     def show_value(self) -> str:
         return self.value.id()  # -- TODO: id_repr()
@@ -239,12 +239,12 @@ class DxClass(Directory):
 
     @classmethod
     def check_dir_value(cls, value):
-        assert inspect.isclass(value) and issubclass(value, Entity), f'subclass of Entity is expected ({value})'
+        assert inspect.isclass(value) and issubclass(value, Traitable), f'subclass of Traitable is expected ({value})'
 
-    # def matching_entities(self) -> dict:
+    # def matching_traitables(self) -> dict:
     #     """
-    #     Applicable for an entity class with a "reasonable" number of entities in the collection
+    #     Applicable for an entity class with a "reasonable" number of traitables in the collection
     #     TODO: need to provide a different mechanism (a view) for huge collections
     #     """
     #     cls = self.value
-    #     return { e.id(): e for e in cls.sharedInstances( _cache = self.cache_only(), **self.filters() ) }
+    #     return { e.id(): e for e in cls.shared_instances( _cache = self.cache_only(), **self.filters() ) }

@@ -45,31 +45,31 @@ class TraitWidget:
 
         self.set_tool_tip(self.trait.ui_hint.tip)
 
-        entity = self.trait_editor.entity
+        traitable = self.trait_editor.traitable
 
         self.style_sheet = sheet = UxStyleSheet(self)
-        sh = entity.get_style_sheet(self.trait)
+        sh = traitable.get_style_sheet(self.trait)
         sheet.update(sh)
 
-        value = entity.get_value(self.trait)
+        value = traitable.get_value(self.trait)
         self.set_widget_value(value)
 
         self.refresh_context = ctx = RefreshContext(self)
-        entity.create_ui_node(self.trait, ctx.emit_signal)
+        traitable.create_ui_node(self.trait, ctx.emit_signal)
 
     def refresh(self):
-        entity = self.trait_editor.entity
+        traitable = self.trait_editor.traitable
         trait = self.trait
-        entity.update_ui_node(self.trait)
+        traitable.update_ui_node(self.trait)
 
         if not trait.flags_on(T.EXPENSIVE):
-            value = entity.get_value(trait)
+            value = traitable.get_value(trait)
             self.set_widget_value(value)
         else:
-            sh = entity.get_style_sheet(trait)
+            sh = traitable.get_style_sheet(trait)
             self.style_sheet.update(sh)
 
-            if not entity.is_valid(trait):
+            if not traitable.is_valid(trait):
                 self.style_sheet.update({Ui.BG_COLOR: 'lightblue'}, _system=True)
 
     def widget_value(self):
@@ -84,23 +84,23 @@ class TraitWidget:
             self.program_edit = False
             return False
 
-        sh = self.trait_editor.entity.get_style_sheet(self.trait)
+        sh = self.trait_editor.traitable.get_style_sheet(self.trait)
         self.style_sheet.update(sh)
         self.program_edit = False
         return True
 
     def update_trait_value(self, value: Any = None, invalidate: bool = False):
         if not self.program_edit:
-            entity = self.trait_editor.entity
+            traitable = self.trait_editor.traitable
             if invalidate:
-                entity.invalidate_value(self.trait)
+                traitable.invalidate_value(self.trait)
                 rc = RC_TRUE
             else:
                 if value is None:
                     value = self.widget_value()
 
                 try:
-                    rc = entity.set_value(self.trait, value)
+                    rc = traitable.set_value(self.trait, value)
                 except Exception as e:
                     rc = RC(False, str(e))
 

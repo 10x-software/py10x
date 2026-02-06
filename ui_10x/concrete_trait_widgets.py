@@ -38,7 +38,7 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type=Ui.WIDGET_TYPE.LINE):
         if event.is_right_button():
             if not self.trait_editor.is_read_only():
                 cb = UxClipBoard()
-                cb.popup(self, self.entity, self.trait.name)
+                cb.popup(self, self.traitable, self.trait.name)
             else:
                 ux.LineEdit.mouse_press_event(self, event)
 
@@ -147,9 +147,9 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type=Ui.WIDGET_TYPE.CHOICE):
         self.button = ux_push_button('', callback=self.show_popup, style_icon='ArrowDown')
         lay.add_widget(self.button)
 
-        entity = self.trait_editor.entity
+        traitable = self.trait_editor.traitable
         trait = self.trait
-        self.choice = Choice(f_choices=lambda: entity.get_choices(trait), f_selection_callback=lambda item: self.on_selection(item))
+        self.choice = Choice(f_choices=lambda: traitable.get_choices(trait), f_selection_callback=lambda item: self.on_selection(item))
 
     def _value(self):
         selection = self.choice.values_selected

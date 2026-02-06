@@ -1,5 +1,7 @@
 # py10x-universe
 
+Designed and developed by Sasha Davidovich and Ilya Pevzner
+
 <img src="https://10x-software.org/10x-jerboa.jpeg" alt="Jerboa Logo" width="200" height="300">
 
 > **Early preview release – USE AT YOUR OWN RISK. NO WARRANTIES.**
@@ -27,10 +29,10 @@ For detailed installation instructions including all prerequisites and platform-
 - Python 3.12 (recommended), 3.11+ supported
 - [UV](https://docs.astral.sh/uv/) - Python installer and package manager
 - MongoDB (for running tests and examples)
-  - Local passwordless MongoDB instance required for running tests and examples
+  - A passwordless MongoDB instance (localhost would be the easiest) required for running some tests and examples
 
 ## Component Licensing
-This package (`py10x-universe`) relies on and automatically installs `py10x-core` and `py10x-infra`, also developed by Alexander Davidovich and Ilya Pevzner. 
+This package (`py10x-universe`) relies on and automatically installs `py10x-core` and `py10x-infra`, also developed by Sasha Davidovich and Ilya Pevzner. 
 
 While these packages are provided free of charge, they have different legal terms:
 - **`py10x-universe` (This package):** Licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).
@@ -81,33 +83,33 @@ from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE
 from core_10x.exec_control import CACHE_ONLY
 from datetime import date, datetime
 
-# Endogenous traitable example
+# Endogenous Traitable object example
 class Person(Traitable):
-    # ID traits - entities with same ID share values globally
+    # ID traits - contribute the object ID. Objects with same ID share values globally
     first_name: str = T(T.ID)
-    last_name: str = T(T.ID)
+    last_name: str  = T(T.ID)
     
     # Regular traits (T() is required for persistence)
-    dob: date = T()
-    weight_lbs: float = T()
+    dob: date           = T()
+    weight_lbs: float   = T()
     
     # Runtime traits (not stored, computed on-demand)
-    age: int = RT()  # RT() is optional for runtime traits
-    full_name: str   # RT() omitted - still a runtime trait
+    age: int            = RT()  # RT() is optional for runtime traits
+    full_name: str              # RT() omitted - still a runtime trait
 
     def age_get(self) -> int:
-        """Getter method - computes age from date of birth."""
+        """age getter method - computes age from date of birth."""
         if not self.dob:
             return 0
         today = date.today()
         return today.year - self.dob.year
 
     def full_name_get(self) -> str:
-        """Getter method - combines first and last name."""
+        """full_name getter method - combines first and last name."""
         return f"{self.first_name} {self.last_name}"
     
     def age_set(self, trait, value: int) -> RC:
-        """Setter method - validates age and updates date of birth."""
+        """age setter method - validates age and updates date of birth."""
         if value < 0:
             return RC(False, "Age cannot be negative")
         if value > 150:
@@ -123,27 +125,27 @@ class Person(Traitable):
     # Note: Verification methods (e.g., age_verify) are not currently 
     # called automatically by the framework. Use setters with validation instead.
 
-# Exogeneous traitable example
+# Exogeneous Traitable object example
 class DataCaptureEvent(Traitable):
-    capture_time: datetime = T()
-    raw_data: str = T()
-    processed_data: str  # Runtime trait - RT() omitted (still not stored)
+    capture_time: datetime  = T()
+    raw_data: str           = T()
+    processed_data: str     # Runtime trait - RT() omitted (still not stored)
     
     def processed_data_get(self) -> str:
-        """Runtime computation - not stored in database."""
+        """Runtime computation - not stored in store."""
         return self.raw_data.upper().strip()
 
-# Use CACHE_ONLY mode - no backing database required
+# Use CACHE_ONLY mode - no backing store required
 with CACHE_ONLY():
     # Endogenous traitables (with ID traits) share trait values globally
-    person1 = Person(first_name="Alice", last_name="Smith")
+    person1 = Person(first_name='Alice', last_name='Smith')
     person1.dob = date(1990, 5, 15)  # Set a non-ID trait
     print( '---',person1.dob)
 
     # Using setter method for age validation
     person1.age = 25  # Set age, updates date of birth
-    print(f"Age: {person1.age}")  # 25
-    print(f"Date of birth: {person1.dob}")  # Calculated from age
+    print(f'Age: {person1.age}')  # 25
+    print(f'Date of birth: {person1.dob}')  # Calculated from age
     
     # Test validation
     try:
@@ -151,7 +153,7 @@ with CACHE_ONLY():
     except Exception as e:
         print(f"Validation error: {e}")
 
-    person2 = Person(first_name="Alice", last_name="Smith")  # Same ID traits
+    person2 = Person(first_name='Alice', last_name='Smith')  # Same ID traits
     # person2 automatically has the same dob value as person1
     assert person2.dob == date(2001, 5, 15)  # Shared trait values
     assert person1 == person2  # Equal due to same ID traits
@@ -163,11 +165,11 @@ with CACHE_ONLY():
         timestamp: float
 
     # Endogenous vs Exogenous demonstration
-    person = Person(first_name="Alice", last_name="Smith")  # Endogenous
-    event = DataCaptureEvent(data="sensor_reading", timestamp=1234567890.0)  # Exogenous
+    person = Person(first_name='Alice', last_name='Smith')  # Endogenous
+    event = DataCaptureEvent(data='sensor_reading', timestamp=1234567890.0)  # Exogenous
 
-    print(f"Person ID: {person.id()}")  # Based on ID traits (first_name, last_name)
-    print(f"Event ID: {event.id()}")  # Auto-generated UUID
+    print(f'Person ID: {person.id()}')  # Based on ID traits (first_name, last_name)
+    print(f'Event ID: {event.id()}')    # Auto-generated UUID
 ```
 
 ### Dependency Graph and Execution Control
@@ -179,8 +181,8 @@ from core_10x.traitable import Traitable, RT
 class Calculator(Traitable):
     x: int = RT()
     y: int = RT()
-    sum: int = RT()  # Computed via sum_get()
-    product: int = RT()  # Computed via product_get()
+    sum: int        = RT()  # Computed via sum_get()
+    product: int    = RT()  # Computed via product_get()
 
     def sum_get(self) -> int:
         return self.x + self.y
@@ -199,24 +201,23 @@ with GRAPH_ON():
     print(calc.sum)      # 13
 ```
 
-### MongoDB Integration
+### Using Storage
 
+Storable Traitable objects are kept in instances of TsStore. Currently, MongoDB is the only supportable type of TsStore.
+Here's how to use a store explicitly.
 ```python
 from infra_10x.mongodb_store import MongoStore
-from core_10x.traitable import Traitable
 from core_10x.code_samples.person import Person
 from datetime import date
 
 # Connect to MongoDB
-traitable_store = MongoStore.instance(
-    hostname="localhost",
-    dbname="myapp", 
-)
+traitable_store = MongoStore.instance(hostname='localhost', dbname='myapp') 
 
 # Use traitable store context for persistence
 with traitable_store:
-    person = Person(first_name="Alice", last_name="Smith")
+    person = Person(first_name='Alice', last_name='Smith')
     person.dob = date(1990, 5, 15)
+    
     person.save()  # Persists to traitable store backed by Mongo
 ```
 
@@ -314,7 +315,7 @@ uv build
 ### Core Components
 
 - **Nucleus**: Base serialization and type system
-- **Traitable**: Entity modeling with traits
+- **Traitable**: Object modeling with traits
 - **Trait System**: Type-safe attribute definitions
 - **Storage Layer**: Pluggable storage backends
 
