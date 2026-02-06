@@ -1,10 +1,10 @@
 from core_10x.code_samples.person import Person
-from infra_10x.mongodb_store import MongoStore
+from core_10x.ts_store import TsStore
 
 from ui_10x.traitable_editor import TraitableEditor, TraitableView
 
 if __name__ == '__main__':
-    db = MongoStore.instance(hostname='localhost', dbname='test')
+    db = TsStore.instance_from_uri('mongodb://localhost/test')
     db.begin_using()
 
     p = Person(first_name = 'Sasha', last_name = 'Davidovich')
