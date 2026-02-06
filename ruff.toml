@@ -1,5 +1,6 @@
 src = ["core_10x", "infra_10x", "ui_10x"]
 line-length = 150
+target-version = "py310"
 
 [format]
 quote-style = "single"

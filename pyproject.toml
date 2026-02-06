@@ -1,19 +1,20 @@
 [project]
 name = "py10x-universe"
-version = "0.1.4"
+version = "0.1.6"
 description = "10x Universe Core Packages"
 authors = [
-    { name = "10X CONCEPTS LLC", email = "founders@10x-software.org" }
+    { name = "Alexander Davidovich" },
+    { name = "Ilya Pevzner" },
 ]
 maintainers = [
-    { name = "Sasha Davidovich & Ilya Pevzner", email = "py10x@10x-software.org" },
+    { name = "Alexander Davidovich & Ilya Pevzner", email = "py10x@10x-software.org" },
 ]
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "py10x_core (~=0.1)",
-    "py10x_infra (~=0.1)",
+    "py10x-core (==0.1.6)",
+    "py10x-infra (==0.1.6)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy (>=2.2.2,<2.3.0)",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -31,8 +32,10 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Development Status :: 3 - Alpha",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: User Interfaces",
@@ -49,6 +52,7 @@ dev = [
     "pytest-cov>=6.0,<8.0",
     "ruff>=0.13,<0.14",
     "uv>=0.9",
+    "licensecheck",
 ]
 rio = [
     "rio-ui==0.12",
@@ -68,6 +72,9 @@ Repository = "https://github.com/10X-LLC/py10x"
 Issues = "https://github.com/10X-LLC/py10x/issues"
 Documentation = "https://github.com/10X-LLC/py10x#readme"
 
+#[tool.uv.sources]
+#py10x-core = { path = "../cxx10x/core_10x" }
+#py10x-infra = { path = "../cxx10x/infra_10x" }
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-build-scripts","playwright"]

@@ -1,4 +1,4 @@
-## py10x – Guide for AI Agents
+## py10x-universe – Guide for AI Agents
 
 This file is a **meta-guide** for tools and AI agents working in this repo.  
 It points to canonical docs and records only the minimal, project-specific rules that agents must obey.
@@ -27,7 +27,7 @@ Agents should **link to and rely on those files**, not duplicate them here.
     - `uv run ...` for Python tooling (`pytest`, `ruff`, etc.).
 
 - **Respect C++ / cxx10x backend**
-  - Treat `py10x_core` / `py10x_infra` (from `cxx10x`) as **opaque C++ backends**.
+  - Treat `core-10x-i` / `infra-10x-i` (from `cxx10x`) as **opaque C++ backends**.
   - Do **not** try to reimplement or bypass them in Python; use the public Python APIs.
 
 - **MongoDB & UI assumptions**
@@ -90,7 +90,7 @@ When adding new functionality, agents should **add or update tests** in the appr
   - If some behavior is already described in `README.md`, `GETTING_STARTED.md`, or tests, link or reference it rather than restating it.
 
 - **Be conservative with Traitable changes**
-  - Any change that touches `core_10x/traitable.py`, history, or storage helpers is high impact.
+  - Any changes in this package are potentially high impact.
   - Such changes should:
     - Be as small/local as possible.
     - Include focused tests.

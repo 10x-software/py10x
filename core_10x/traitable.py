@@ -160,9 +160,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             if not (dt := cls.check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc)):
                 continue
 
-            if dt is Any:
-                dt = XNoneType
-
             if trait_def is class_dict:  # -- only annotation, not in class_dict
                 trait_def = cls.s_default_trait_factory()
 
@@ -193,6 +190,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
                 return None
         if dt is Self:
             dt = cls
+        if dt is Any:
+            dt = XNoneType
         try:
             dt_valid = isinstance(dt, type) or get_origin(dt) is not None
         except TypeError:

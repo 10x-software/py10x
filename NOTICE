@@ -1,0 +1,91 @@
+py10x-universe (10x Universe Core Packages)
+Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
+
+This project is licensed under the MIT License. See the LICENSE file for the full text.
+
+Logo images in this repository (10x-jerboa.jpeg, 10x-jerboa-in-desert.jpeg) are
+AI-generated. Use and attribution are subject to the generator’s terms.
+
+================================================================================
+Proprietary components
+================================================================================
+
+This package relies on and installs the following proprietary components,
+which are not part of the MIT-licensed py10x-universe framework and are governed by
+their own license terms:
+
+  - py10x-core
+    Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
+    Proprietary; governed by Proprietary License for py10x-core.
+    See: https://10x-software.org/py10x_core/LICENSE.txt
+
+  - py10x-infra
+    Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
+    Proprietary; governed by Proprietary License for py10x-infra.
+    See: https://10x-software.org/py10x_infra/LICENSE.txt
+
+By installing or using py10x-universe, you agree to the terms of the proprietary
+licenses for the above components. See README.md for full details.
+
+================================================================================
+Third-party open source software
+================================================================================
+
+This software uses or depends on the following open source packages.
+Their respective copyright notices and licenses apply to those components only.
+
+  - cryptography
+    Copyright (c) individual contributors. Apache License 2.0 and/or BSD.
+    https://github.com/pyca/cryptography
+
+  - importlib-resources
+    Copyright (c) Jason R. Coombs and others. Apache License 2.0.
+    https://github.com/python/importlib_resources
+
+  - numpy
+    Copyright (c) NumPy Developers. BSD 3-Clause License.
+    https://numpy.org/
+
+  - python-dateutil
+    Copyright (c) 2003-2011, Gustavo Niemeyer; 2012-2022, Paul Ganssle.
+    Apache License 2.0 / BSD.
+    https://dateutil.readthedocs.io/
+
+  - pymongo
+    Copyright (c) 2008-2016, MongoDB, Inc. Apache License 2.0.
+    https://pymongo.readthedocs.io/
+
+  - requests
+    Copyright (c) 2011-present Kenneth Reitz. Apache License 2.0.
+    https://requests.readthedocs.io/
+
+  - scipy
+    Copyright (c) 2001-2002 Enthought, Inc.; and others. BSD 3-Clause License.
+    https://scipy.org/
+
+  - typing-extensions
+    Copyright (c) Python Software Foundation; and others. PSF License.
+    https://github.com/python/typing_extensions
+
+  - keyring
+    Copyright (c) Jason R. Coombs and others. MIT License.
+    https://github.com/jaraco/keyring
+
+  - hatchling
+    Copyright (c) 2015-present, Ofek Lev. MIT License.
+    https://github.com/pypa/hatch
+
+  - rio-ui (optional)
+    Copyright (c) 2024, Rio. MIT License.
+    https://github.com/nicohvi/rio
+
+  - PyQt6 (optional)
+    Copyright (c) The Qt Company; Riverbank Computing. GPL v3 / Commercial.
+    https://www.riverbankcomputing.com/software/pyqt/
+
+  - pytest, ruff, and other dev/optional dependencies
+    See their respective projects for copyright and license information.
+
+This NOTICE is not a substitute for the licenses of the above packages.
+Full license texts are typically included in each package's distribution
+or available at the project URLs above.

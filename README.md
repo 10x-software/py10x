@@ -1,6 +1,8 @@
-# py10x
+# py10x-universe
 
-<img src="10x-jerboa-in-desert.jpeg" alt="Jerboa Logo" width="200" height="300">
+<img src="https://10x-software.org/10x-jerboa.jpeg" alt="Jerboa Logo" width="200" height="300">
+
+> **Early preview release – USE AT YOUR OWN RISK. NO WARRANTIES.**
 
 **10x Universe Ecosystem Core**
 
@@ -8,7 +10,7 @@ The core package of the 10x Universe software ecosystem, designed to make 10x en
 
 ## Overview
 
-py10x is organized into three main packages:
+py10x-universe is organized into three main packages:
 
 - **core_10x**: Core data modeling with traits, traitables, and serialization
 - **ui_10x**: Cross-platform UI components focused on traitable editing and management
@@ -22,20 +24,20 @@ For detailed installation instructions including all prerequisites and platform-
 
 ### Quick Prerequisites
 
-- Python 3.12 (recommended), 3.10+ supported
+- Python 3.12 (recommended), 3.11+ supported
 - [UV](https://docs.astral.sh/uv/) - Python installer and package manager
 - MongoDB (for running tests and examples)
   - Local passwordless MongoDB instance required for running tests and examples
 
 ## Component Licensing
-This package (`py10x`) relies on and automatically installs `py10x_core` and `py10x_infra`, also supplied by **10X CONCEPTS LLC**. 
+This package (`py10x-universe`) relies on and automatically installs `py10x-core` and `py10x-infra`, also developed by Alexander Davidovich and Ilya Pevzner. 
 
 While these packages are provided free of charge, they have different legal terms:
-- **py10x (Framework):** Licensed under the [MIT License](https://10x-software.org/py10x/LICENSE).
-- **py10x-core (Core dependencies):** Proprietary; governed by the [10x Proprietary License](https://10x-llc.com/py_10x_core/LICENSE).
-- **py10x-infra (Infrastructure dependencies):** Proprietary; governed by the [10x Proprietary License](https://10x-llc.com/py_10x_infra/LICENSE).
+- **`py10x-universe` (This package):** Licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).
+- **`py10x-core`:** Proprietary; governed by the [Proprietary License for py10x-core](https://10x-software.org/py10x_core/LICENSE.txt).
+- **`py10x-infra`:** Proprietary; governed by the [Proprietary License for py10x-infra](https://10x-software.org/py10x_infra/LICENSE.txt).
 
-By installing `py10x`, you agree to the terms of the proprietary licenses for the core and infrastructure components.
+By installing `py10x-universe`, you agree to the terms of the proprietary licenses for `py10x-core` and `py10x-infra`.
 
 
 ### Install with UV (Recommended)
@@ -70,7 +72,7 @@ pip install -e ".[dev]"  # Development tools
 
 ## Quick Start
 
-For a comprehensive introduction to py10x, see our [Getting Started Guide](GETTING_STARTED.md).
+For a comprehensive introduction to py10x-universe, see our [Getting Started Guide](GETTING_STARTED.md).
 
 ### Core Data Modeling with Object Identification
 
@@ -328,7 +330,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. For copyright holders, proprietary components, and third-party attributions, see [NOTICE](NOTICE).
 
 ## Contact
 

@@ -1,5 +1,5 @@
 """
-Unit tests for converter methods in py10x traitables.
+Unit tests for converter methods in py10x-universe traitables.
 Tests verify that converter methods are called when appropriate.
 """
 
