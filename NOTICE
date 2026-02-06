@@ -14,12 +14,12 @@ This package relies on and installs the following proprietary components,
 which are not part of the MIT-licensed py10x-universe framework and are governed by
 their own license terms:
 
-  - py10x_core
+  - py10x-core
     Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
     Proprietary; governed by the 10x Proprietary License.
     See: https://10x-llc.com/py_10x_core/LICENSE
 
-  - py10x_infra
+  - py10x-infra
     Copyright (c) 2025 Alexander Davidovich and Ilya Pevzner
     Proprietary; governed by the 10x Proprietary License.
     See: https://10x-llc.com/py_10x_infra/LICENSE

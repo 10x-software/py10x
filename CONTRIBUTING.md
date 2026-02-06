@@ -1,6 +1,6 @@
-# Contributing to py10x
+# Contributing to py10x-universe
 
-Thank you for your interest in contributing to py10x! This document provides guidelines for development, testing, and submitting contributions.
+Thank you for your interest in contributing to py10x-universe! This document provides guidelines for development, testing, and submitting contributions.
 
 ## Development Setup
 

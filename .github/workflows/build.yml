@@ -1,4 +1,4 @@
-name: Publish py10x to PyPI (uv)
+name: Publish py10x-universe to PyPI (uv)
 on:
   push:
     tags:

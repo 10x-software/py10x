@@ -13,8 +13,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "py10x_core (~=0.1)",
-    "py10x_infra (~=0.1)",
+    "py10x-core (==0.1.6)",
+    "py10x-infra (==0.1.6)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy (>=2.2.2,<2.3.0)",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -32,7 +32,9 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules",
@@ -71,8 +73,8 @@ Issues = "https://github.com/10X-LLC/py10x/issues"
 Documentation = "https://github.com/10X-LLC/py10x#readme"
 
 #[tool.uv.sources]
-#py10x_core = { path = "../cxx10x/core_10x" }
-#py10x_infra = { path = "../cxx10x/infra_10x" }
+#py10x-core = { path = "../cxx10x/core_10x" }
+#py10x-infra = { path = "../cxx10x/infra_10x" }
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-build-scripts","playwright"]

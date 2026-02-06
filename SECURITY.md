@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-We provide security updates for the following versions of py10x:
+We provide security updates for the following versions of py10x-universe:
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -11,7 +11,7 @@ We provide security updates for the following versions of py10x:
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. If you discover a security vulnerability in py10x, please report it responsibly.
+We take security vulnerabilities seriously. If you discover a security vulnerability in py10x-universe, please report it responsibly.
 
 ### How to Report
 
@@ -51,7 +51,7 @@ We classify vulnerabilities using the following severity levels:
 
 ### For Users
 
-1. **Keep Dependencies Updated**: Regularly update py10x and its dependencies
+1. **Keep Dependencies Updated**: Regularly update py10x-universe and its dependencies
 2. **Secure Storage**: Use secure connections for MongoDB and other storage backends
 3. **Input Validation**: Always validate user input in your applications
 4. **Access Control**: Implement proper authentication and authorization
