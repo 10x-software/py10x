@@ -85,7 +85,7 @@ from datetime import date, datetime
 
 # Endogenous Traitable object example
 class Person(Traitable):
-    # ID traits - contribute the object ID. Objects with same ID share values globally
+    # ID traits - contribute to the object ID. Objects with same ID share values globally
     first_name: str = T(T.ID)
     last_name: str  = T(T.ID)
     
@@ -220,6 +220,36 @@ with traitable_store:
     
     person.save()  # Persists to traitable store backed by Mongo
 ```
+
+Alternatively, you can use TsStore with specific URI.
+```python
+from core_10x.ts_store import TsStore
+from core_10x.code_samples.person import Person
+from datetime import date
+
+# Connect to a "passwordless" myapp store 
+traitable_store = TsStore.instance_from_uri('mongodb://localhost/myapp') 
+
+# Use traitable store context for persistence
+with traitable_store:
+    person = Person(first_name='Alice', last_name='Smith')
+    person.dob = date(1990, 5, 15)
+    
+    person.save()  # Persists to traitable store myapp@localhost
+```
+Finally, you can specify a TsStore instance to use via an environment variable
+XX_MAIN_TS_STORE_URI.
+If it's defined, all storable traitable objects will be sought/saved there.
+```python
+from core_10x.code_samples.person import Person
+from datetime import date
+
+person = Person(first_name='Alice', last_name='Smith')
+person.dob = date(1990, 5, 15)
+
+person.save()  # Persists to traitable store specified in XX_MAIN_TS_STORE_URI 
+```
+For more complex scenarios, there's a way to associate particular subclasses of Traitable to different instances of TsStore.  
 
 ## Core Features
 
