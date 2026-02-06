@@ -239,15 +239,7 @@ with traitable_store:
 Finally, you can specify a TsStore instance to use via an environment variable
 XX_MAIN_TS_STORE_URI.
 If it's defined, all storable traitable objects will be sought/saved there.
-```python
-from core_10x.code_samples.person import Person
-from datetime import date
 
-person = Person(first_name='Alice', last_name='Smith')
-person.dob = date(1990, 5, 15)
-
-person.save()  # Persists to traitable store specified in XX_MAIN_TS_STORE_URI 
-```
 For more complex scenarios, there's a way to associate particular subclasses of Traitable to different instances of TsStore.  
 
 ## Core Features

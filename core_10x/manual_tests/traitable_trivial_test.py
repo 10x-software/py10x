@@ -69,3 +69,5 @@ if __name__ == '__main__':
 
     print(f'first_name = {fn_t.has_custom_getter()}; weight_qu = {wqu_t.has_custom_getter()}; weight = {w_t.has_custom_getter()}')
 
+    p3 = Person(first_name = 'S1', last_name = 'Davidovich')
+    p3.verify().throw()

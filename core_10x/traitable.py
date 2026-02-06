@@ -536,8 +536,19 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return self.__class__.s_storage_helper.delete(self)
 
     def verify(self) -> RC:
-        rc = RC_TRUE
-        # TODO: implement
+        #-- TODO: below is just a trivial implementation; revisit!
+        rc = RC(True)
+        trait: Trait
+        for trait in self.__class__.s_dir.values():
+            if trait.flags_on(T.NOT_EMPTY) and not self.get_value(trait):
+                rc.add_error(f"trait '{trait.name}' must not be empty")
+            f_verify = trait.f_verify
+            if f_verify:
+                rc.add_error(self.verify_value(trait))
+
+        if not rc:
+            rc.prepend_error_header(f'Failed in {self.__class__}.verify({self}):')
+
         return rc
 
     # TODO: move into storage helper
@@ -965,17 +976,12 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
 
 class NamedTsStore(Traitable):
-    # fmt: off
     logical_name: str   = T(T.ID)
     uri: str            = T()
-    # fmt: on
-
 
 class TsClassAssociation(Traitable):
-    # fmt: off
     py_canonical_name: str  = T(T.ID)
     ts_logical_name: str    = T(Ui.choice('Store Name'))
-    # fmt: on
 
     def ts_logical_name_choices(self, trait) -> tuple:
         return tuple(nts.logical_name for nts in NamedTsStore.load_many())

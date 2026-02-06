@@ -102,23 +102,19 @@ class CalendarNameParser:
 
 
 class CalendarAdjustment(Traitable):
-    # fmt: off
     name: str           = T(T.ID)
     add_days: list      = T()
     remove_days: list   = T()
-    # fmt: on
 
 
-# -- TODO: _keep_history=True, _default_cache = True:
+#-- TODO: _default_cache = True!
 class Calendar(Traitable):
-    # fmt: off
     name: str               = T(T.ID)
     adjusted_for: str       = T(T.ID,   default = '')   // 'Name of a specific adjustment to this calendar, if any'
-    description: str        = T(T.NOT_EMPTY)            // 'Calendar Description'
+    description: str        = T()                       // 'Calendar Description'
     non_working_days: list  = T()                       // 'Non-Working Days'
 
     _non_working_days: set  = RT()
-    # fmt: on
 
     @classmethod
     def AND(cls, *calendars) -> Calendar:  # noqa: N802

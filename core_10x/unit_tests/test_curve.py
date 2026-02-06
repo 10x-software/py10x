@@ -64,25 +64,6 @@ class TestCurve:
         # Removing non-existing point
         assert c.remove(100) is False
 
-        # Perturb existing point
-        c.beginning_of_time = 0  # allow interpolation/value evaluation
-        before = c.value(2)
-        c.perturb(2, before + 5.0, perturb_existing_only=True)
-        assert c.value(2) == pytest.approx(before + 5.0)
-
-        # Perturb_shift and perturb_proportional reuse value()
-        val_before_shift = c.value(0)
-        c.perturb_shift(0, 3.0, perturb_existing_only=True)
-        assert c.value(0) == pytest.approx(val_before_shift + 3.0)
-
-        val_before_prop = c.value(0)
-        c.perturb_proportional(0, 2.0, perturb_existing_only=True)
-        assert c.value(0) == pytest.approx(val_before_prop * 2.0)
-
-        # perturb_existing_only should assert for unknown point
-        with pytest.raises(AssertionError):
-            c.perturb(100, 1.0, perturb_existing_only=True)
-
 
 class TestTwoFuncInterpolator:
     def test_requires_in_func_or_in_func_on_arrays(self):

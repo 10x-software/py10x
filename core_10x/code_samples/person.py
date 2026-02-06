@@ -24,6 +24,11 @@ class Person(Traitable):
     older_than: bool
 
 
+    def first_name_verify(self, t, value: str) -> RC:
+        if value.isalpha():
+            return RC_TRUE
+        return RC(False, f'{t.name} is {value}, but may have letters only')
+
     def dob_set(self, trait, value: date) -> RC:
         today = date.today()
         if value and value > today:

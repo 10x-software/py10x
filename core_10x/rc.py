@@ -110,6 +110,9 @@ class RC:
         return '\n'.join(payload)
 
     def add_error(self, err) -> RC:
+        if err is RC_TRUE:
+            return self
+
         dt = type(err)
         if dt is str:
             self.payload.append(err)
@@ -124,6 +127,15 @@ class RC:
 
         if self.__bool__():
             self.rc = False
+
+        return self
+
+    def prepend_error_header(self, err: str) -> RC:
+        """
+        Inserts the first error (header), if self is already an error
+        """
+        if not self.__bool__():
+            self.payload.insert(0, err)
 
         return self
 
