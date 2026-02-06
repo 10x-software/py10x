@@ -1,25 +1,25 @@
 [project]
 name = "py10x-infra"
-version = "0.1.6"
+version = "0.1.7"
 description = "10X Universe Infrastructure Internals"
 license = {text = "Proprietary - See LICENSE file for details."}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 
 authors = [
-    { name = "Alexander Davidovich" },
-    { name = "Ilya Pevzner" }
+    { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
+    { name = "Sasha Davidovich" }
 ]
 
 classifiers = [
     "License :: Other/Proprietary License",
     "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
     "Development Status :: 4 - Beta",
-]
-
-maintainers = [
-    { name = "Alexander Davidovich & Ilya Pevzner", email = "py10x@10x-software.org" },
 ]
 
 [project.urls]
