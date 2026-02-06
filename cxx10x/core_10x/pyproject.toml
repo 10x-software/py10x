@@ -1,6 +1,6 @@
 [project]
 name = "py10x-core"
-version = "0.1.5"
+version = "0.1.6"
 description = "10X Universe Core Internals"
 license = {text = "Proprietary - See LICENSE file for details."}
 readme = "README.md"
