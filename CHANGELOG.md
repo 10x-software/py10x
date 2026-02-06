@@ -5,12 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.6] - 2026-02-05
+## [0.1.8] 2026-02-06
+
+### Added
+- **Traitable.verify()**: Implemented using `BTraitable.verify_value(trait)`; checks `NOT_EMPTY` and per-trait `f_verify`; error header via `RC.prepend_error_header()`.
+- **TsStore.populate()**: New method for server-side population of params (e.g. `_who`, `_at`) in serialized data; subclasses may override.
+- **RC.prepend_error_header()**: Inserts a leading error message on an error RC; `add_error(RC_TRUE)` is now a no-op.
+
+### Changed
+- **Attic**: Unused code moved to `core_10x/attic/` (backbone, vault, data_domain, entity, package_manifest). `Traitable._bound_data_domain` and `preferred_store()` commented out (backbone dependency).
+- **Removed**: `core_10x/entity_filter.py` (TraitFilter class).
+- Package and documentation refer to the pip-installable package as **py10x-universe** (hyphen); repo path remains **py10x**.
+- C++ dependency names in docs, NOTICE, and pyproject: **py10x-core**, **py10x-infra** (hyphen).
+- README: early-preview disclaimer; licensing/attribution and authors sections updated.
+- CHANGELOG: version order (newest first), 0.1.7 and 0.1.8 entries.
+
+## [0.1.7] - 2026-02-05
 
 ### Changed
 - README image URL for PyPI compatibility
+- OS compatibility classifiers (Windows, Linux, MacOS)
+
+## [0.1.6] - 2026-02-05
+
+### Changed
 - OS compatibility tagging
-- Invlusion of NOTICE
+- Inclusion of NOTICE
 
 ## [0.1.5] - 2026-02-05
 
@@ -38,7 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AGENTS.md**: Meta-guide for AI agents and tools working in the repo (canonical docs, tooling, traitable invariants, test layout)
 
 ### Changed
-- **Package and branding**: C++ packages renamed to `py10x-core` and `py10x-infra` (from core_10x_i / infra_10x_i); email domain updates
+- **Package and branding**: C++ packages renamed to `py10x_core` and `py10x_infra` (from core_10x_i / infra_10x_i); email domain updates
 - **Python**: Requires Python 3.11+ (up to <3.13) per pyproject.toml
 - **Rio UI**: Upgraded to Rio 0.12
 - **Dependencies**: Version bumps for numpy, cryptography, pymongo, etc.; keyring and requests added where needed
@@ -106,17 +126,14 @@ No separate changelog; see Version History below.
 - Infrastructure: pymongo
 - Development: pytest, ruff, playwright
 
-## [Unreleased]
-
-### Planned
-- Enhanced tests, documentation and examples
-- Trait validation (automatic verification methods)
-- Automatic resource management via enterprise backbone
-
 ---
 
 ## Version History
 
+- **0.1.8**: (unreleased) Traitable.verify(), TsStore.populate(), RC.prepend_error_header; attic move; entity_filter removed; naming (py10x-universe, py10x-core, py10x-infra); README disclaimer
+- **0.1.7**: OS classifiers, README image URL
+- **0.1.6**: NOTICE, OS tagging, README image
+- **0.1.5**: Beta classifier, CI cache
 - **0.1.4**: Pre-release; AsOf, per-class stores, backbone/vault, TraitableHeir, env vars, rdate, testlib, lifecycle and trait-modification improvements
 - **0.1.3**: Pre-release development version
 - **0.1.2**: Pre-release development version
@@ -134,10 +151,6 @@ No migration from previous versions is necessary - package versions will automat
 - **0.1.4**: Subclasses of `Traitable` must not override `__init__`; use `__post_init__` for customization. Python 3.10 no longer supported (3.11+ required). C++ packages are now `py10x-core` and `py10x-infra` (rename from core_10x_i / infra_10x_i if you referenced them directly).
 - **0.1.2 and earlier**: Initial pre-release; no breaking changes from previous versions.
 
-## Contributors
-
-- Sasha Davidovich <founders@10x-software.org>
-- Ilya Pevzner (on behalf of 10X CONCEPTS LLC) <founders@10x-software.org>
 
 ## Acknowledgments
 

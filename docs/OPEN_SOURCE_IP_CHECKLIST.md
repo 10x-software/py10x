@@ -8,7 +8,7 @@ This document helps you prepare the py10x-universe project for open-source relea
 
 | Item | Status | Notes |
 |------|--------|--------|
-| **Project license** | MIT | `LICENSE` file present; copyright Copyright 2025-2026 10X CONCEPTS LLC and Sasha Davidovich |
+| **Project license** | MIT | `LICENSE` file present; copyright Copyright 2025-2026 10X CONCEPTS LLC |
 | **Copyright in source** | Root only | No file-level copyright headers in `.py` files. Optional to add (see below). |
 | **Third-party code** | None found | No "Based on", "From", "Source:", or vendored copies detected in repo. |
 | **NOTICE / THIRD_PARTY** | Present | `NOTICE` in repo root; see README License section. |
@@ -129,7 +129,7 @@ No legal requirement for MIT, but some organizations add a short notice to each 
 
 ```python
 # SPDX-License-Identifier: MIT
-# Copyright (c) 2025-2026 10X CONCEPTS LLC and Sasha Davidovich
+# Copyright (c) 2025-2026 10X CONCEPTS LLC
 ```
 
 You can do this only for new files, or add project-wide via a one-time script and then enforce in CONTRIBUTING.

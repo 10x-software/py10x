@@ -1,7 +1,5 @@
 # py10x-universe
 
-Designed and developed by Sasha Davidovich and Ilya Pevzner (on behalf of 10X CONCEPTS LLC)
-
 <img src="https://10x-software.org/10x-jerboa.jpeg" alt="Jerboa Logo" width="200" height="300">
 
 > **Early preview release – USE AT YOUR OWN RISK. NO WARRANTIES.**
@@ -31,7 +29,7 @@ For detailed installation instructions including all prerequisites and platform-
   - A passwordless MongoDB instance (localhost would be the easiest) required for running some tests and examples
 
 ## Component Licensing
-This package (`py10x-universe`) relies on and automatically installs `py10x-core` and `py10x-infra`, also developed by 10X CONCEPTS LLC and Sasha Davidovich
+This package (`py10x-universe`) relies on and automatically installs `py10x-core` and `py10x-infra`, also developed by 10X CONCEPTS LLC.
 
 While these packages are provided free of charge, they have different legal terms:
 - **`py10x-universe` (This package):** Licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).
@@ -355,7 +353,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. For copyright holders, proprietary components, and third-party attributions, see [NOTICE](NOTICE).
 
 ## Legal & Security
-- This project is developed and maintained by **10x Concepts LLC** (solely owned by Ilya Pevzner) in collaboration with Sasha Davidovich. **USE AT YOUR OWN RISK. NO WARRANTIES.**
+- This project is developed and maintained by **10X CONCEPTS LLC**. **USE AT YOUR OWN RISK. NO WARRANTIES.**
 - Dependencies have been audited for known vulnerabilities and license compatibility (see checklist in release notes).
 - For security issues or vulnerabilities, please report privately to <security@10x-software.org> (do **not** open public issues).
 - See [SECURITY.md](SECURITY.md) for full security policy, reporting guidelines, and known issues.
@@ -371,8 +369,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Join our community on [Discord](https://discord.gg/m7AQSXfFwf) for discussion, support, and collaboration
 - Contact maintainers for complex issues
 
-## Authors
-
-- Sasha Davidovich <founders@10x-software.org>
-- Ilya Pevzner <founders@10x-software.org>
-- **Project Contact**: py10x@10x-software.org

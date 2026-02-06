@@ -160,6 +160,23 @@ class TsStore(Resource, resource_type=TS_STORE):
     @abc.abstractmethod
     def auth_user(self) -> str | None: ...
 
+    def populate(self, params: list[str], serialized_data: dict):
+        """Populate specified params on the server, if possible.
+        This should be overridden in subclasses as needed"""
+        populated_data = {
+            '$set': serialized_data,
+        }
+        for param in sorted(params, reverse=True):
+            if param == '_who':
+                serialized_data['_who'] = self.auth_user()
+                continue
+            if param == '_at':
+                del serialized_data['_at']
+                populated_data['$currentDate'] = {'_at': True}
+                continue
+            raise KeyError(param)
+        return populated_data
+
     def copy_to(self, to_store: TsStore, overwrite: bool = False) -> RC:
         """Copy all collections from this store to another store."""
         rc = RC(True)

@@ -48,6 +48,7 @@ mccabe.max-complexity = 15 # Flag errors (`C901`) whenever the complexity level 
 future-annotations = true # add "from __future__ import annotations" to enable more aggressive optimizations
 
 exclude = [
+    "core_10x/attic/*.py",
     "ui_10x/table*.py"
 ]
 
@@ -56,6 +57,6 @@ exclude = [
 "core_10x/rdate.py" = [ 
     "N802", # Function names should be lowercase
 ]
-"core_10x/vault/vault_user.py" = [
-    "UP037", # Remove quotes from type annotation
+"core_10x/apps/runme_1st_app.py" = [
+    "F841", # Local variable `available_stores` is assigned to but never used
 ]

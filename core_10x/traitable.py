@@ -6,20 +6,22 @@ import sys
 import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime  # noqa: TC003
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, get_origin
 
-from py10x_core import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags
+from py10x_core import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
 from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-#from core_10x.package_manifest import PackageManifest
+
+# from core_10x.package_manifest import PackageManifest
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
+from core_10x.resource import Resource
 from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value
 from core_10x.trait_definition import (
     RT,
@@ -31,6 +33,7 @@ from core_10x.trait_definition import (
 from core_10x.trait_filter import LE, f
 from core_10x.traitable_id import ID
 from core_10x.ts_store import TS_STORE, TsStore
+from core_10x.sec_keys import SecKeys
 from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
@@ -441,9 +444,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         return value1.id() == value2.id()
 
-    #===================================================================================================================
+    # ===================================================================================================================
     #   Storage related methods
-    #===================================================================================================================
+    # ===================================================================================================================
 
     # @staticmethod
     # @cache
@@ -536,7 +539,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return self.__class__.s_storage_helper.delete(self)
 
     def verify(self) -> RC:
-        #-- TODO: below is just a trivial implementation; revisit!
+        # -- TODO: below is just a trivial implementation; revisit!
         rc = RC(True)
         trait: Trait
         for trait in self.__class__.s_dir.values():
@@ -838,12 +841,8 @@ class TraitableHistory(Traitable, keep_history=False):
         return self.serialized_traitable['_id']
 
     def serialize_object(self, save_references: bool = False):
-        serialized_data = {**self.serialized_traitable, **super().serialize_object(save_references), '_who': self.store().auth_user()}
-        del serialized_data['_at']
-        return {
-            '$currentDate': {'_at': True},
-            '$set': serialized_data,
-        }
+        serialized_data = {**self.serialized_traitable, **super().serialize_object(save_references)}
+        return self.store().populate(['_who', '_at'], serialized_data)
 
     def traitable_get(self):
         return Traitable.deserialize_object(
@@ -976,12 +975,17 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
 
 class NamedTsStore(Traitable):
+    # fmt: off
     logical_name: str   = T(T.ID)
     uri: str            = T()
+    # fmt: on
+
 
 class TsClassAssociation(Traitable):
+    # fmt: off
     py_canonical_name: str  = T(T.ID)
     ts_logical_name: str    = T(Ui.choice('Store Name'))
+    # fmt: on
 
     def ts_logical_name_choices(self, trait) -> tuple:
         return tuple(nts.logical_name for nts in NamedTsStore.load_many())
@@ -1086,12 +1090,11 @@ class AnonymousTraitable(Traitable):
     def collection(cls, _coll_name: str = None):
         raise AssertionError('AnonymousTraitable may not have a collection')
 
-#=======================================================================================================================
+
+# =======================================================================================================================
 #   Vault related stuff
-#=======================================================================================================================
-from py10x_core import OsUser
-from core_10x.sec_keys import SecKeys
-from core_10x.resource import Resource
+# =======================================================================================================================
+
 
 class VaultTraitable(Traitable):
     @classmethod
@@ -1112,7 +1115,9 @@ class VaultTraitable(Traitable):
 
         return ts_class.instance(**kwargs)
 
+
 class VaultUser(VaultTraitable):
+    # fmt: off
     user_id: str                    = T(T.ID)   // 'OS login'
     suspended: bool                 = T(False)
 
@@ -1120,6 +1125,7 @@ class VaultUser(VaultTraitable):
     public_key: bytes               = T()
 
     sec_keys: SecKeys               = RT(T.EVAL_ONCE)
+    # fmt: on
 
     def user_id_get(self) -> str:
         return self.__class__.myname()
@@ -1139,9 +1145,11 @@ class VaultUser(VaultTraitable):
     @classmethod
     @cache
     def me(cls) -> VaultUser:
-        return cls.existing_instance(user_id = cls.myname())
+        return cls.existing_instance(user_id=cls.myname())
+
 
 class VaultResourceAccessor(VaultTraitable):
+    # fmt: off
     username: str           = T(T.ID)
     resource_uri: str       = T(T.ID)
 
@@ -1152,6 +1160,7 @@ class VaultResourceAccessor(VaultTraitable):
 
     user: VaultUser         = RT(T.EVAL_ONCE)
     resource: Resource      = RT(T.EVAL_ONCE)
+    # fmt: on
 
     def username_get(self) -> str:
         return VaultUser.myname()
@@ -1160,13 +1169,13 @@ class VaultResourceAccessor(VaultTraitable):
         return datetime.utcnow()
 
     def user_get(self) -> VaultUser:
-        return VaultUser.existing_instance(user_id = self.username)
+        return VaultUser.existing_instance(user_id=self.username)
 
     def resource_get(self) -> Resource:
         return Resource.instance_from_uri(
             self.resource_uri,
-            username = self.username,
-            password = self.user.sec_keys.decrypt_text(self.password)
+            username=self.username,
+            password=self.user.sec_keys.decrypt_text(self.password),
         )
 
     @classmethod
@@ -1174,16 +1183,16 @@ class VaultResourceAccessor(VaultTraitable):
         if login is None:
             login = username
 
-        ra = cls(username = username, resource_uri = resource_uri)
+        ra = cls(username=username, resource_uri=resource_uri)
         user = ra.user
         ra.set_values(
-            login = login,
-            password = user.sec_keys.encrypt_text(password)
+            login=login,
+            password=user.sec_keys.encrypt_text(password),
         ).throw()
 
         ra.save().throw()
 
-    #-- strictly speaking this method isn't necessary as it just returning existing_instance()
+    # -- strictly speaking this method isn't necessary as it just returning existing_instance()
     @classmethod
     def retrieve_ra(cls, resource_uri: str, username: str = XNone) -> VaultResourceAccessor:
-        return cls.existing_instance(username = username, resource_uri = resource_uri)
+        return cls.existing_instance(username=username, resource_uri=resource_uri)
