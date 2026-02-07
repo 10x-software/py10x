@@ -148,6 +148,9 @@ class Trait(BTrait):
                 set_f = getattr(self, f'set_f_{method_suffix}')
                 set_f(f, bool(method))
 
+        if self.getter_params:
+            self.set_getter_has_args()
+
     def create_f_get(self, f, attr_name: str, rc: RC):
         if not f:  # -- no custom getter, just the default value
             f = lambda traitable: self.default_value()

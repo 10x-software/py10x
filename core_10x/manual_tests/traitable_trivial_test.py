@@ -69,5 +69,8 @@ if __name__ == '__main__':
 
     print(f'first_name = {fn_t.has_custom_getter()}; weight_qu = {wqu_t.has_custom_getter()}; weight = {w_t.has_custom_getter()}')
 
-    p3 = Person(first_name = 'S1', last_name = 'Davidovich')
+    p3 = Person(_replace = True, first_name = 'S2', last_name = 'Davidovich2', dob = date(1963, 1, 1), weight_lbs = 250.)
     p3.verify().throw()
+
+    p4 = Person(_replace = True, first_name = 'S', last_name = 'Davidovich', dob = date(1963, 1, 1), weight_lbs = 250.)
+    p4.verify().throw()

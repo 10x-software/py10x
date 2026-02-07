@@ -538,21 +538,25 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def delete(self) -> RC:
         return self.__class__.s_storage_helper.delete(self)
 
-    def verify(self) -> RC:
-        # -- TODO: below is just a trivial implementation; revisit!
-        rc = RC(True)
-        trait: Trait
-        for trait in self.__class__.s_dir.values():
-            if trait.flags_on(T.NOT_EMPTY) and not self.get_value(trait):
-                rc.add_error(f"trait '{trait.name}' must not be empty")
-            f_verify = trait.f_verify
-            if f_verify:
-                rc.add_error(self.verify_value(trait))
+    def post_verify(self) -> RC:
+        return RC_TRUE
 
-        if not rc:
-            rc.prepend_error_header(f'Failed in {self.__class__}.verify({self}):')
+    # def verify(self) -> RC:
+    #     # -- TODO: below is just a trivial implementation; revisit!
+    #     rc = RC(True)
+    #     trait: Trait
+    #     for trait in self.__class__.s_dir.values():
+    #         if trait.flags_on(T.NOT_EMPTY) and not self.get_value(trait):
+    #             rc.add_error(f"trait '{trait.name}' must not be empty")
+    #         f_verify = trait.f_verify
+    #         if f_verify:
+    #             rc.add_error(self.verify_value(trait))
+    #
+    #     if not rc:
+    #         rc.prepend_error_header(f'Failed in {self.__class__}.verify({self}):')
+    #
+    #     return rc
 
-        return rc
 
     # TODO: move into storage helper
 

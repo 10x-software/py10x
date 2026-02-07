@@ -10,6 +10,12 @@ class WEIGHT_QU( NamedConstant ):
     G =     ( 'g',      0.002205 )
     CT =    ( 'ct',     0.0004409 )
 
+def verify_alpha(t, value: str) -> RC:
+    if value.isalpha():
+        return RC_TRUE
+    return RC(False, f'{t.name} is {value}, but may have letters only')
+
+
 class Person(Traitable):
     first_name: str         = T(T.ID)
     last_name: str          = T(T.ID)
@@ -23,11 +29,11 @@ class Person(Traitable):
 
     older_than: bool
 
-
     def first_name_verify(self, t, value: str) -> RC:
-        if value.isalpha():
-            return RC_TRUE
-        return RC(False, f'{t.name} is {value}, but may have letters only')
+        return verify_alpha(t, value)
+
+    def last_name_verify(self, t, value: str) -> RC:
+        return verify_alpha(t, value)
 
     def dob_set(self, trait, value: date) -> RC:
         today = date.today()
@@ -79,3 +85,9 @@ class Person(Traitable):
 
     def weight_to_str(self, trait, value) -> str:
         return f'{trait.to_str(value)} {self.weight_qu.label}'
+
+    def post_verify(self) -> RC:
+        print(f'{self.__class__}.post_verify()')
+        if self.age > 60 and self.weight_lbs > 200.:
+            return RC(False, f'{self.full_name} - overweight condition detected')
+        return RC_TRUE
