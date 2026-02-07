@@ -11,6 +11,7 @@
 BTrait::BTrait() {
     m_datatype  = PyLinkage::XNone();
     m_default   = PyLinkage::XNone();
+    m_getter_has_args = false;
 
     f_get           = py::none();
     f_set           = py::none();
@@ -69,7 +70,17 @@ py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value, const
 }
 
 py::object BTrait::wrapper_f_verify(BTraitable* obj) const {
+    if (getter_has_args())
+        return PyLinkage::RC_TRUE();
+
     auto value = obj->get_value(this);
+    return wrapper_f_verify(obj, value);
+}
+
+py::object BTrait::wrapper_f_verify(BTraitable* obj, const py::object& value) const {
+    if (f_verify.is_none())
+        return PyLinkage::RC_TRUE();
+
     try {
         return f_verify(obj, this, value);
     } catch (py::error_already_set& exc) {

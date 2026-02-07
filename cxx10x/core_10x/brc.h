@@ -53,6 +53,11 @@ public:
         return py_f(py::str(err));
     }
 
+    [[nodiscard]] py::object add_error(const py::str& err) const {
+        const auto py_f = m_rc.attr("add_error");
+        return py_f(err);
+    }
+
     [[nodiscard]] py::object add_error(const py::object& rc) const {
         const auto py_f = m_rc.attr("add_error");
         return py_f(rc);

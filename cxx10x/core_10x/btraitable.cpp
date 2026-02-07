@@ -176,8 +176,38 @@ py::object BTraitable::value_to_str(BTrait* trait) {
     return trait->wrapper_f_to_str(this, value);
 }
 
-py::object BTraitable::verify_value(BTrait* trait) {
+py::object BTraitable::verify() {
+    BRC brc;
+    for (const auto [trait_name, trait_handle] : my_class()->trait_dir()) {
+        auto trait = trait_handle.cast<BTrait *>();
+        if (trait->flags_on(BTraitFlags::NOT_EMPTY)) {
+            auto val = get_value(trait);
+            if (!py::bool_(val))
+                (void)brc.add_error(py::str("trait '{}' must not be empty").format(trait->name()));
+        }
+        auto rc = verify_trait(trait);
+        (void)brc.add_error(rc);
+    }
+    if (brc) {
+        auto rc = my_class()->py_class().attr("post_verify")(this);
+        (void)brc.add_error(rc);
+    }
+
+    if (brc)
+        return PyLinkage::RC_TRUE();
+
+    BRC res;
+    (void)res.add_error(py::str("Verification failed for {}.{}:").format(my_class()->name(), id_value()));
+    (void)res.add_error(brc());
+    return res();
+}
+
+py::object BTraitable::verify_trait(BTrait* trait) {
     return trait->wrapper_f_verify(this);
+}
+
+py::object BTraitable::verify_trait_value(BTrait* trait, const py::object& value) {
+    return trait->wrapper_f_verify(this, value);
 }
 
 py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
