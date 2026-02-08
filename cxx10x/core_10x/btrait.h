@@ -41,6 +41,7 @@ public:
 };
 
 class BTrait {
+    bool            m_getter_has_args;
 public:
     BTraitProcessor*    m_proc = nullptr;
 
@@ -86,6 +87,9 @@ public:
 
     [[nodiscard]]BTraitProcessor* proc() const                      { return m_proc; }
 
+    void set_getter_has_args()                                      { m_getter_has_args = true; }
+    [[nodiscard]]bool getter_has_args() const                       { return m_getter_has_args; }
+
     void set_name(const py::object& name) {
         m_name = name;
         m_cpp_name = name.cast<std::string>();
@@ -125,6 +129,8 @@ public:
     py::object wrapper_f_set(BTraitable* obj, const py::object& value, const py::args& args) const;
 
     py::object wrapper_f_verify(BTraitable* obj) const;
+    py::object wrapper_f_verify(BTraitable* obj, const py::object& value) const;
+
     py::object wrapper_f_from_str(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_from_any_xstr(BTraitable* obj, const py::object& value) const;
     py::object wrapper_f_to_str(BTraitable* obj, const py::object& value) const;

@@ -211,7 +211,9 @@ public:
 
     py::object set_values(const py::dict& trait_values, bool ignore_unknown_traits = true);
 
-    py::object verify_value(BTrait* trait);
+    py::object verify();
+    py::object verify_trait(BTrait* trait);
+    py::object verify_trait_value(BTrait* trait, const py::object& value);
 
     py::object raw_set_value(const py::str& trait_name, const py::object& value) {
         return raw_set_value(check_trait(trait_name), value);
