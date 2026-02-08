@@ -148,8 +148,8 @@ class EnvVars(_EnvVars, env_name='XX'):
 
     master_password_key: str        = 'XX_MASTER_PASSWORD'
 
-    examples_ts_store_uri: str      = ''            #-- e.g., mongodb://localhost/examples
-    vault_ts_store_uri: str         = ''            #-- if defined, used to store/auto retrieve security credentials for each user/resource
+    #examples_ts_store_uri: str      = ''            #-- e.g., mongodb://localhost/examples
+    vault_ts_store_uri: str         = ''            #-- to store/auto retrieve security credentials for each user/resource; default is main_ts_store_uri
     main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27018/main'
     use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
     functional_account_prefix: str  = 'xx'          #-- used in user names to distinguish a regular user name from a functional account
@@ -157,6 +157,9 @@ class EnvVars(_EnvVars, env_name='XX'):
     date_format: str = XDateTime.FORMAT_ISO
 
     sdlc_area: str
+
+    def vault_ts_store_uri_get(self) -> str:
+        return self.main_ts_store_uri
 
     def build_area_get(self) -> str:
         return OsUser.me.name()

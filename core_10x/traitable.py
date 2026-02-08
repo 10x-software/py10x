@@ -17,7 +17,6 @@ from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 
-# from core_10x.package_manifest import PackageManifest
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
@@ -323,11 +322,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if cls.is_storable() and (rt_id_trait := next((trait for trait in cls.traits(flags_on=T.ID) if trait.flags_on((T.RUNTIME))), None)):
             rc.add_error(f'{cls}.{rt_id_trait.name} is a RUNTIME ID trait - traitable must not be storable (all traits must be RUNTIME)')
 
-    # @classmethod
-    # def instance_by_id(cls, id_value: str) -> 'Traitable':
-    #     #    return cls.load(id_value)
-    #     return cls(_id = id_value)      #-- TODO: we may not need this method, unless used to enforce loading
-
     def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _replace=False, **trait_values):
         cls = self.__class__
 
@@ -390,18 +384,21 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def __setitem__(self, key, value):
         return self.set_value(key, value)
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   The following methods are available from c++
     #
     #   get_value(trait-or-name, *args) -> Any
     #   set_value(trait-or_name, value: Any, *args) -> RC
     #   raw_value(trait-or_name, value: Any, *args) -> RC
     #   invalidate_value(trait-or-name)
-    # ===================================================================================================================
+    #   verify_trait(trait) -> RC               #-- semantically equiv to verify_trait_value(trait. get_value(trait))
+    #   verify_trait_value(trait, value) -> RC
+    #   verify()                                #-- verifies each trait and calls post_verify()
+    #===================================================================================================================
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   Nucleus related methods
-    # ===================================================================================================================
+    #===================================================================================================================
 
     def serialize(self, embed: bool):
         return self.serialize_nx(embed)
@@ -444,59 +441,72 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         return value1.id() == value2.id()
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   Storage related methods
-    # ===================================================================================================================
+    #===================================================================================================================
 
-    # @staticmethod
-    # @cache
-    # def _bound_data_domain(domain):
-    #     from core_10x.backbone.bound_data_domain import BoundDataDomain
-    #
-    #     bb_store = BoundDataDomain.store()
-    #     if not bb_store:
-    #         raise OSError('No Store is available: neither current Store is set nor 10X Backbone host is defined')
-    #
-    #     bbd = BoundDataDomain(domain=domain)
-    #     bbd.reload()
-    #     return bbd
-    #
-    # @classmethod
-    # @cache
-    # def preferred_store(cls) -> TsStore | None:
-    #     rr = PackageManifest.resource_requirements(cls)
-    #     if not rr:
-    #         return None
-    #
-    #     bbd = Traitable._bound_data_domain(rr.domain)
-    #     return bbd.resource(rr.category, throw=False) if bbd else None
+    @classmethod
+    def store(cls) -> TsStore:
+        store: TsStore = TS_STORE.current_resource()    #-- if current TsStore is set, use it!
+        if not store:
+            store = cls.store_per_class()               #-- otherwise, use per class store, if any
+
+        if not store:
+            raise OSError(f'{cls} - no Traitable Store is available')
+
+        return store
+
+    @staticmethod
+    @cache
+    def vault_store() -> TsStore:
+        uri = SecKeys.check_vault_uri()
+        spec = TsStore.spec_from_uri(uri)
+        store_class: type[TsStore] = spec.resource_class
+        is_running, with_auth = store_class.is_running_with_auth(spec.hostname())
+        if not is_running:
+            raise OSError(f"Vault Store '{uri}' is not running")
+
+        if with_auth:
+            pwd = SecKeys.retrieve_vault_password(vault_uri = uri)
+            spec.set_credentials(pwd)
+
+        return store_class.instance(**spec.kwargs)
+
+    @staticmethod
+    def store_from_uri(uri: str) -> TsStore:
+        spec = TsStore.spec_from_uri(uri)
+        store_class: type[ TsStore ] = spec.resource_class
+        is_running, with_auth = store_class.is_running_with_auth(spec.hostname())
+        if not is_running:
+            raise OSError(f"TsStore '{uri}' is not running")
+
+        if with_auth:
+            with Traitable.vault_store():
+                ra = VaultResourceAccessor.retrieve_ra(uri)
+                return ra.resource
+
+        return store_class.instance(**spec.kwargs)
 
     @staticmethod
     @cache
     def main_store() -> TsStore:
-        store_uri = EnvVars.main_ts_store_uri
-        return TsStore.instance_from_uri(store_uri) if store_uri else None
+        v_store_uri = EnvVars.var.main_ts_store_uri
+        if not v_store_uri:
+            raise OSError(f'No Traitable Store is specified: neither explicitly, nor via environment variable {EnvVars.var_name(v_store_uri)}')
+
+        return Traitable.store_from_uri(v_store_uri.value)
 
     @classmethod
     @cache
     def store_per_class(cls) -> TsStore:
-        store = Traitable.main_store()  # -- check if there's XX_MAIN_TS_STORE_URI defining a valid store
-        if not store:
-            raise OSError('No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI')
-
-        # -- check if there's a specific store association with this cls
+        store = Traitable.main_store()
+        #-- check if there's a specific store association with this cls
         if EnvVars.use_ts_store_per_class:
-            ts_uri = TsClassAssociation.ts_uri(cls)
+            with store:
+                ts_uri = TsClassAssociation.ts_uri(cls)
+
             if ts_uri:
-                store = TsStore.instance_from_uri(ts_uri)
-
-        return store
-
-    @classmethod
-    def store(cls) -> TsStore:
-        store: TsStore = TS_STORE.current_resource()  # -- if current TsStore is set, use it!
-        if not store:
-            store = cls.store_per_class()  # -- otherwise, use per class store or main store, if any
+                store = Traitable.store_from_uri(ts_uri)
 
         return store
 
@@ -540,22 +550,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     def post_verify(self) -> RC:
         return RC_TRUE
-
-    # def verify(self) -> RC:
-    #     # -- TODO: below is just a trivial implementation; revisit!
-    #     rc = RC(True)
-    #     trait: Trait
-    #     for trait in self.__class__.s_dir.values():
-    #         if trait.flags_on(T.NOT_EMPTY) and not self.get_value(trait):
-    #             rc.add_error(f"trait '{trait.name}' must not be empty")
-    #         f_verify = trait.f_verify
-    #         if f_verify:
-    #             rc.add_error(self.verify_value(trait))
-    #
-    #     if not rc:
-    #         rc.prepend_error_header(f'Failed in {self.__class__}.verify({self}):')
-    #
-    #     return rc
 
 
     # TODO: move into storage helper
@@ -628,7 +622,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
 
 Traitable.s_bclass = BTraitableClass(Traitable)
-
 
 @dataclass
 class AbstractStorableHelper(ABC):
@@ -939,7 +932,6 @@ class AsOfContext:
 
         self._reset_storage_helpers()
 
-
 class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):
     def post_ctor(self): ...
 
@@ -978,56 +970,25 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
         return self.data_type(**value)
 
 
-class NamedTsStore(Traitable):
-    # fmt: off
-    logical_name: str   = T(T.ID)
-    uri: str            = T()
-    # fmt: on
-
-
-class TsClassAssociation(Traitable):
-    # fmt: off
-    py_canonical_name: str  = T(T.ID)
-    ts_logical_name: str    = T(Ui.choice('Store Name'))
-    # fmt: on
-
-    def ts_logical_name_choices(self, trait) -> tuple:
-        return tuple(nts.logical_name for nts in NamedTsStore.load_many())
+class AnonymousTraitable(Traitable):
+    _me = True
 
     @classmethod
-    @cache
-    def store_per_class(cls) -> TsStore:
-        return Traitable.main_store()
+    def check_integrity(cls, rc: RC):
+        if cls._me:
+            cls._me = False
+            return
+
+        if cls is not AnonymousTraitable:
+            if not cls.is_storable():
+                rc.add_error(f'{cls} - anonymous traitable must be storable')
+
+            if cls.is_id_endogenous():
+                rc.add_error(f'{cls} - anonymous traitable may not have ID traits')
 
     @classmethod
-    def ts_uri(cls, traitable_class) -> str:
-        # -- 1) Check TsStore association for the class itself, its module and packages
-        canonical_name = PyClass.name(traitable_class)
-        while True:
-            association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
-            if association:
-                named_store = NamedTsStore.existing_instance(logical_name=association.ts_logical_name)
-                return named_store.uri
-
-            parts = canonical_name.rsplit('.', maxsplit=1)
-            name = parts[0]
-            if name == canonical_name:  # -- checked all packages bottom up
-                break  # -- no asscciation for the class. module, packages
-
-            canonical_name = name
-
-        # -- 2) Check TsStore association for the class' parent Traitables
-        parent_classes = traitable_class.__mro__
-        for pclass in parent_classes[1:]:
-            if issubclass(pclass, Traitable):
-                canonical_name = PyClass.name(pclass)
-                association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
-                if association:
-                    named_store = NamedTsStore.existing_instance(logical_name=association.ts_logical_name)
-                    return named_store.uri
-
-        return ''
-
+    def collection(cls, _coll_name: str = None):
+        raise AssertionError('AnonymousTraitable may not have a collection')
 
 class Bundle(Traitable):
     s_bundle_base = None
@@ -1073,55 +1034,11 @@ class Bundle(Traitable):
 
         return actual_class
 
-
-class AnonymousTraitable(Traitable):
-    _me = True
-
-    @classmethod
-    def check_integrity(cls, rc: RC):
-        if cls._me:
-            cls._me = False
-            return
-
-        if cls is not AnonymousTraitable:
-            if not cls.is_storable():
-                rc.add_error(f'{cls} - anonymous traitable must be storable')
-
-            if cls.is_id_endogenous():
-                rc.add_error(f'{cls} - anonymous traitable may not have ID traits')
-
-    @classmethod
-    def collection(cls, _coll_name: str = None):
-        raise AssertionError('AnonymousTraitable may not have a collection')
-
-
-# =======================================================================================================================
+#=======================================================================================================================
 #   Vault related stuff
-# =======================================================================================================================
+#=======================================================================================================================
 
-
-class VaultTraitable(Traitable):
-    @classmethod
-    @cache
-    def store_per_class(cls) -> TsStore:
-        uri = SecKeys.check_vault_uri()
-        spec = TsStore.spec_from_uri(uri)
-        kwargs = spec.kwargs
-        ts_class = spec.resource_class
-        hostname = kwargs[ts_class.HOSTNAME_TAG]
-        is_running, with_auth = ts_class.is_running_with_auth(hostname)
-        if not is_running or not with_auth:
-            raise OSError(f'Vault host {hostname} must be run with auth')
-
-        username = OsUser.me.name()
-        kwargs[ts_class.USERNAME_TAG] = username
-        kwargs[ts_class.PASSWORD_TAG] = SecKeys.retrieve_master_password()
-
-        return ts_class.instance(**kwargs)
-
-
-class VaultUser(VaultTraitable):
-    # fmt: off
+class VaultUser(Traitable):
     user_id: str                    = T(T.ID)   // 'OS login'
     suspended: bool                 = T(False)
 
@@ -1129,7 +1046,6 @@ class VaultUser(VaultTraitable):
     public_key: bytes               = T()
 
     sec_keys: SecKeys               = RT(T.EVAL_ONCE)
-    # fmt: on
 
     def user_id_get(self) -> str:
         return self.__class__.myname()
@@ -1152,8 +1068,7 @@ class VaultUser(VaultTraitable):
         return cls.existing_instance(user_id=cls.myname())
 
 
-class VaultResourceAccessor(VaultTraitable):
-    # fmt: off
+class VaultResourceAccessor(Traitable):
     username: str           = T(T.ID)
     resource_uri: str       = T(T.ID)
 
@@ -1164,7 +1079,6 @@ class VaultResourceAccessor(VaultTraitable):
 
     user: VaultUser         = RT(T.EVAL_ONCE)
     resource: Resource      = RT(T.EVAL_ONCE)
-    # fmt: on
 
     def username_get(self) -> str:
         return VaultUser.myname()
@@ -1196,7 +1110,53 @@ class VaultResourceAccessor(VaultTraitable):
 
         ra.save().throw()
 
-    # -- strictly speaking this method isn't necessary as it just returning existing_instance()
+    #-- strictly speaking this method isn't necessary as it just returning existing_instance()
     @classmethod
     def retrieve_ra(cls, resource_uri: str, username: str = XNone) -> VaultResourceAccessor:
         return cls.existing_instance(username=username, resource_uri=resource_uri)
+
+class NamedTsStore(Traitable):
+    logical_name: str   = T(T.ID)
+    uri: str            = T()
+
+class TsClassAssociation(Traitable):
+    py_canonical_name: str  = T(T.ID)
+    ts_logical_name: str    = T(Ui.choice('Store Name'))
+
+    def ts_logical_name_choices(self, trait) -> tuple:
+        return tuple(nts.logical_name for nts in NamedTsStore.load_many())
+
+    @classmethod
+    @cache
+    def store_per_class(cls) -> TsStore:
+        return Traitable.main_store()
+
+    @classmethod
+    def ts_uri(cls, traitable_class) -> str:
+        #-- 1) Check TsStore association for the class itself, its module and packages
+        canonical_name = PyClass.name(traitable_class)
+        while True:
+            association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
+            if association:
+                named_store = NamedTsStore.existing_instance(logical_name=association.ts_logical_name)
+                return named_store.uri
+
+            parts = canonical_name.rsplit('.', maxsplit=1)
+            name = parts[0]
+            if name == canonical_name:  #-- checked all packages bottom up
+                break                   #-- no asscciation for the class. module, packages
+
+            canonical_name = name
+
+        #-- 2) Check TsStore association for the class' parent Traitables
+        parent_classes = traitable_class.__mro__
+        for pclass in parent_classes[1:]:
+            if issubclass(pclass, Traitable):
+                canonical_name = PyClass.name(pclass)
+                association = cls.existing_instance(py_canonical_name=canonical_name, _throw=False)
+                if association:
+                    named_store = NamedTsStore.existing_instance(logical_name=association.ts_logical_name)
+                    return named_store.uri
+
+        return ''
+#=======================================================================================================================
