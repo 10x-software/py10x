@@ -167,6 +167,12 @@ py::object PyLinkage::create_trait_method_error(
     auto py_value = value ? *value : s_py_linkage->m_xnone;
     auto py_args = args? *args : py::args();
     auto py_other_exc = other_exc ? other_exc->value() : py::none();
+    // set traceback for python < 3.12
+    if (other_exc && !py_other_exc.is_none()) {
+        if (const auto& tb = other_exc->trace(); !tb.is_none()) {
+            py_other_exc.attr("__traceback__") = tb;
+        }
+    }
     auto py_cls = cls ? cls->py_class() : py::none();
 
     return create(obj, py_cls, trait_name, method_name, py_value, py_other_exc, py_args);
