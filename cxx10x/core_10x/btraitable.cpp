@@ -321,9 +321,6 @@ py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict
         return cls->py_class()(**id_traits);  //-- cls(**id_traits)
     }
 
-    if (!py::isinstance<py::str>(id_value))
-        throw py::type_error(py::str("{} - expected a string ID value, but found a {}").format(cls->name(), id_value.get_type().attr("__name__")));
-
     if (auto id = TID::deserialize_id(serialized_data, false); !id.is_none()) {     //-- external reference
         auto lazy_ref = cls->py_class()(id);     // cls(_id = id)   - keep lazy reference
         if (const auto obj = lazy_ref.cast<BTraitable*>(); obj->lazy_load_flags() & BTraitableProcessor::DEBUG) {
