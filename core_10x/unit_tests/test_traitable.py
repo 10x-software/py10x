@@ -962,3 +962,65 @@ def test_serialize_runtime_exogenous_reference():
         match=rf'test_serialize_runtime_exogenous_reference.<locals>.X/{x.id_value()} - cannot serialize a non-storable exogenous reference',
     ):
         x.serialize(False)
+
+
+def test_verify_success():
+    """verify() returns success when all verifiers pass and NOT_EMPTY constraints are satisfied."""
+
+    class WithVerifier(Traitable):
+        code: str = RT()
+        limit: int = RT(0)
+
+        def code_verify(self, t, value: str) -> RC:
+            if value and not value.isalnum():
+                return RC(False, "code must be alphanumeric")
+            return RC_TRUE
+
+        def limit_verify(self, t, value: int) -> RC:
+            if value is not None and value > 100:
+                return RC(False, "limit must be <= 100")
+            return RC_TRUE
+
+    e = WithVerifier(code="valid", limit=50)
+    rc = e.verify()
+    assert rc
+    rc.throw()
+
+
+def test_verify_fails_when_verifier_returns_error():
+    """verify() returns failure and error message when a verifier fails."""
+
+    class WithVerifier(Traitable):
+        code: str = RT()
+
+        def code_verify(self, t, value: str) -> RC:
+            if value and not value.isalnum():
+                return RC(False, "code must be alphanumeric")
+            return RC_TRUE
+
+    e = WithVerifier()
+    e.code = "invalid-code"
+    assert e.code == "invalid-code"
+    rc = e.verify()
+    assert not rc
+    assert "code" in rc.error().lower() or "alphanumeric" in rc.error().lower()
+    assert "Failed in" in rc.error() or "verify" in rc.error().lower()
+
+
+def test_verify_not_called_on_set():
+    """Verifiers are not run on assignment; only on verify() or save(). Invalid value can be set."""
+
+    class WithVerifier(Traitable):
+        limit: int = RT(0)
+
+        def limit_verify(self, t, value: int) -> RC:
+            if value is not None and value > 100:
+                return RC(False, "limit must be <= 100")
+            return RC_TRUE
+
+    e = WithVerifier(limit=50)
+    e.limit = 150  # setter not defined; verifier not run on set
+    assert e.limit == 150
+    rc = e.verify()
+    assert not rc
+    assert "100" in rc.error()

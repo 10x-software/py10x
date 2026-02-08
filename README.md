@@ -118,9 +118,19 @@ class Person(Traitable):
         dob = self.dob
         self.dob = date(birth_year, dob.month, dob.day)
         return RC_TRUE
-    
-    # Note: Verification methods (e.g., age_verify) are not currently 
-    # called automatically by the framework. Use setters with validation instead.
+
+    def first_name_verify(self, t, value: str) -> RC:
+        """Verifier: run on entity.verify() or entity.save(); not on set."""
+        if value and value.isalpha():
+            return RC_TRUE
+        return RC(False, f"{t.name} may have letters only")
+
+    def last_name_verify(self, t, value: str) -> RC:
+        """Verifier: run on entity.verify() or entity.save(); not on set."""
+        if value and value.isalpha():
+            return RC_TRUE
+        return RC(False, f"{t.name} may have letters only")
+    # See [Verifiers](GETTING_STARTED.md#verifiers-validation-on-verify-and-save) for when verifiers run.
 
 # Exogeneous Traitable object example
 class DataCaptureEvent(Traitable):
@@ -149,6 +159,8 @@ with CACHE_ONLY():
         person1.age = -5  # This will fail validation
     except Exception as e:
         print(f"Validation error: {e}")
+
+    person1.verify().throw()  # Runs verifiers (e.g. first_name_verify); save() also calls verify()
 
     person2 = Person(first_name='Alice', last_name='Smith')  # Same ID traits
     # person2 automatically has the same dob value as person1
