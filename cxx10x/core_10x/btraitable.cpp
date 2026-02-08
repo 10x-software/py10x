@@ -184,6 +184,9 @@ py::object BTraitable::verify() {
     BRC brc;
     for (const auto trait_handle: my_class()->trait_dir() | std::views::values) {
         const auto trait = trait_handle.cast<BTrait *>();
+        if (trait->getter_has_args())
+            continue;
+
         if (trait->flags_on(BTraitFlags::NOT_EMPTY) && (!py::bool_(get_value(trait)))) {
             (void)brc.add_error(py::str("trait '{}' must not be empty").format(trait->name()));
         }
