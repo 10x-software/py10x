@@ -18,8 +18,7 @@ TID::TID(BTraitableClass* cls, const py::object& id) : m_class(cls) {
 
 void TID::serialize_id(const py::dict& res, const bool embed) const {
     res[BNucleus::ID_TAG()] = id_value();
-    auto cname = coll_name();
-    if (!embed && !cname.is_none())
+    if (auto cname = coll_name(); !embed && !cname.is_none())
         res[BNucleus::COLLECTION_TAG()] = cname;
 }
 

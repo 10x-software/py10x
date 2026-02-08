@@ -262,17 +262,22 @@ py::list  BTraitable::serialize_id_traits() {
     return serialized_id;
 }
 
-py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py::list& serialized_data) {
+py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py::object& serialized_data) {
     py::dict id_traits;
+    if (!py::isinstance<py::list>(serialized_data))
+        throw py::type_error(py::str("{} - expected a list of serialized ID trait values, but found {}").format(cls->name(), serialized_data.get_type().attr("__name__")));
+    const auto id_trait_value_list = serialized_data.cast<py::list>();
+    const auto id_trait_value_list_size = id_trait_value_list.size();
     size_t i = 0;
     for (const auto &[trait_name_handle, trait_value_handle] : cls->trait_dir()) {
         if (const auto trait = trait_value_handle.cast<BTrait*>(); trait->flags_on(BTraitFlags::ID)) {
-            if (i >= serialized_data.size())
-                throw py::value_error(py::str("{} - insufficient serialized ID traits data").format(cls->name()));
-            id_traits[trait_name_handle.cast<py::object>()] = trait->wrapper_f_deserialize(cls, serialized_data[i]);
+            if (i < id_trait_value_list_size)
+                id_traits[trait_name_handle.cast<py::object>()] = trait->wrapper_f_deserialize(cls, id_trait_value_list[i]);
             ++i;
         }
     }
+    if (i != id_trait_value_list_size)
+        throw py::value_error(py::str("{} - mismatching number of id traits. expected {}, but found {}").format(cls->name(), i, id_trait_value_list_size));
     return id_traits;
 }
 
@@ -306,10 +311,15 @@ py::object BTraitable::serialize_nx(const bool embed) {
 }
 
 py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict& serialized_data) {
+    auto const id_value = PyLinkage::dict_get(serialized_data, BNucleus::ID_TAG());
+
     if (!cls->is_storable() && cls->is_id_endogenous()) {
-        const py::kwargs id_traits = deserialize_id_traits(cls, serialized_data[BNucleus::ID_TAG()]);
+        const py::kwargs id_traits = deserialize_id_traits(cls, id_value);
         return cls->py_class()(**id_traits);  //-- cls(**id_traits)
     }
+
+    if (!py::isinstance<py::str>(id_value))
+        throw py::type_error(py::str("{} - expected a string ID value, but found a {}").format(cls->name(), id_value.get_type().attr("__name__")));
 
     if (auto id = TID::deserialize_id(serialized_data, false); !id.is_none()) {     //-- external reference
         auto lazy_ref = cls->py_class()(id);     // cls(_id = id)   - keep lazy reference

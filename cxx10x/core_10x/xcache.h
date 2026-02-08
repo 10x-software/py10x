@@ -286,7 +286,7 @@ public:
     //-- Lookup in this cache ONLY! (ignore the parent)
     [[nodiscard]] ObjectCache* find_object_cache(const TID& tid) const {
         if (tid.is_valid()) {
-            auto it = m_data.find(tid);
+            const auto it = m_data.find(tid);
             return it != m_data.end() ? it->second : nullptr;
         }
         auto it = m_tmp_data.find(tid.ptr());
@@ -294,11 +294,11 @@ public:
     }
 
     void remove_temp_object_cache(const TID& tid) {
-        auto it = m_tmp_data.find(tid.ptr());
+        const auto it = m_tmp_data.find(tid.ptr());
         if (it == m_tmp_data.end())
             return;
 
-        auto oc = it->second;
+        const auto oc = it->second;
         m_tmp_data.erase(it);
         delete oc;
     }

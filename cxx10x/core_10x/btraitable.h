@@ -247,7 +247,7 @@ public:
     py::object          serialize_object(bool save_references);
     py::object          serialize_nx(bool embed);      //-- Nucleus' method
     py::list            serialize_id_traits();
-    static py::dict     deserialize_id_traits(const BTraitableClass* cls, const py::list& serialized_data);
+    static py::dict     deserialize_id_traits(const BTraitableClass* cls, const py::object& serialized_data);
 
 
     static py::object   deserialize_object(const BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data);

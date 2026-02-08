@@ -910,6 +910,19 @@ def test_33():
         print(e)
         traceback.print_exc()
 
+def test_34():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    class Y(Traitable):
+        x: int = RT()
+
+    try:
+        Y.deserialize_nx(Y.s_bclass, X(x=1).serialize_nx(False))
+    except TypeError as e:
+        print(e)
+    else:
+        assert False, "Expected TypeError when deserializing X as Y"
 
 if __name__ == '__main__':
     import py10x_core
@@ -946,5 +959,5 @@ if __name__ == '__main__':
     test_31()
     test_32()
     test_33()
-
+    test_34()
 
