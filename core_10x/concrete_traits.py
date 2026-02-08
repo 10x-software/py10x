@@ -54,7 +54,7 @@ class bool_trait(primitive_trait, data_type=bool):
         ('true','false'),
         ('on','off')
     ]
-    fmt         = FORMATS[0]
+    s_fmt         = FORMATS[0]
     # fmt: on
 
     def to_id(self, value: bool) -> str:
@@ -71,13 +71,13 @@ class bool_trait(primitive_trait, data_type=bool):
 class int_trait(primitive_trait, data_type=int):
     s_ui_hint = Ui.line()
 
-    fmt = ','
+    s_fmt = ','
 
 
 class float_trait(primitive_trait, data_type=float):
     s_ui_hint = Ui.line()
 
-    fmt = ',.2f'
+    s_fmt = ',.2f'
 
     # def from_str(self, s: str) -> RC:
     #    return RC(True, locale.atof(s))
