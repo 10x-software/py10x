@@ -68,9 +68,9 @@ Repository = "https://github.com/10X-LLC/py10x"
 Issues = "https://github.com/10X-LLC/py10x/issues"
 Documentation = "https://github.com/10X-LLC/py10x#readme"
 
-#[tool.uv.sources]
-#py10x-core = { path = "../cxx10x/core_10x" }
-#py10x-infra = { path = "../cxx10x/infra_10x" }
+[tool.uv.sources]
+py10x-core = { path = "../cxx10x/core_10x" }
+py10x-infra = { path = "../cxx10x/infra_10x" }
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-build-scripts","playwright"]
