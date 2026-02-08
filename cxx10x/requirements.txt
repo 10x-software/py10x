@@ -3,6 +3,8 @@ importlib-resources>=6.4.0
 numpy~=2.2.2
 typing-extensions>=4.15.0
 python-dateutil>=2.9.0
+keyring>=25.7
+cryptography>=46.0
 
 # for infra
 pymongo>=4.7.3
