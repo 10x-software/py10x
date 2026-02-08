@@ -70,10 +70,10 @@ py::object BTrait::wrapper_f_set(BTraitable* obj, const py::object& value, const
 }
 
 py::object BTrait::wrapper_f_verify(BTraitable* obj) const {
-    if (getter_has_args())
+    if (f_verify.is_none() || getter_has_args())
         return PyLinkage::RC_TRUE();
 
-    auto value = obj->get_value(this);
+    const auto value = obj->get_value(this);
     return wrapper_f_verify(obj, value);
 }
 

@@ -177,24 +177,26 @@ py::object BTraitable::value_to_str(BTrait* trait) {
 }
 
 py::object BTraitable::verify() {
+    const auto &RC_TRUE = PyLinkage::RC_TRUE();
+    if (lazy_load_flags() & XCache::LOAD_REQUIRED) {
+        return RC_TRUE;
+    }
     BRC brc;
-    for (const auto [trait_name, trait_handle] : my_class()->trait_dir()) {
-        auto trait = trait_handle.cast<BTrait *>();
-        if (trait->flags_on(BTraitFlags::NOT_EMPTY)) {
-            auto val = get_value(trait);
-            if (!py::bool_(val))
-                (void)brc.add_error(py::str("trait '{}' must not be empty").format(trait->name()));
+    for (const auto trait_handle: my_class()->trait_dir() | std::views::values) {
+        const auto trait = trait_handle.cast<BTrait *>();
+        if (trait->flags_on(BTraitFlags::NOT_EMPTY) && (!py::bool_(get_value(trait)))) {
+            (void)brc.add_error(py::str("trait '{}' must not be empty").format(trait->name()));
         }
         auto rc = verify_trait(trait);
         (void)brc.add_error(rc);
     }
     if (brc) {
-        auto rc = my_class()->py_class().attr("post_verify")(this);
+        const auto rc = my_class()->py_class().attr("post_verify")(this);
         (void)brc.add_error(rc);
     }
 
     if (brc)
-        return PyLinkage::RC_TRUE();
+        return RC_TRUE;
 
     BRC res;
     (void)res.add_error(py::str("Verification failed for {}.{}:").format(my_class()->name(), id_value()));
@@ -202,11 +204,11 @@ py::object BTraitable::verify() {
     return res();
 }
 
-py::object BTraitable::verify_trait(BTrait* trait) {
+py::object BTraitable::verify_trait(const BTrait* trait) {
     return trait->wrapper_f_verify(this);
 }
 
-py::object BTraitable::verify_trait_value(BTrait* trait, const py::object& value) {
+py::object BTraitable::verify_trait_value(const BTrait* trait, const py::object& value) {
     return trait->wrapper_f_verify(this, value);
 }
 
