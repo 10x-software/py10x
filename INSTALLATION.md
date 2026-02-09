@@ -214,7 +214,7 @@ winget install OpenJS.NodeJS
 
 ## Build System
 
-py10x-universe uses the `ux` build system abstraction layer that provides unified APIs across different UI backends (Rio and Qt6). The build system automatically:
+py10x-universe uses the `ux` abstraction layer that provides unified APIs across different UI backends (Rio and Qt6). The `ux` layer automatically:
 
 - Detects available UI frameworks
 - Selects the appropriate backend based on installed packages

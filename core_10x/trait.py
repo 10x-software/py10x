@@ -19,10 +19,18 @@ from core_10x.trait_definition import T, TraitDefinition, Ui
 from core_10x.xnone import XNone
 
 
-class Trait(BTrait):
-    # TODO: re-enable __slots__ when the dust settles..
-    # __slots__ = ('t_def','getter_params')
+class TraitMetaclass(type(BTrait)):
+    def __new__(cls, name, bases, class_dict, **kwargs):
+        if '__slots__' not in class_dict:
+            class_dict['__slots__'] = ()
+        return super().__new__(cls, name, bases, class_dict, **kwargs)
+
+
+class Trait(BTrait, metaclass=TraitMetaclass):
+    __slots__ = ('fmt', 'getter_params', 't_def', 'ui_hint')
     s_datatype_traitclass_map = {}
+    s_ui_hint = None
+    s_fmt = None
 
     @staticmethod
     def register_by_datatype(trait_class, data_type):
@@ -54,8 +62,6 @@ class Trait(BTrait):
                 return tmap[base_class]
 
         return generic_trait
-
-    s_ui_hint = None
 
     def __init_subclass__(cls, data_type: type = None, register: bool = True, base_class: type = False):
         cls.s_baseclass = base_class
@@ -108,8 +114,7 @@ class Trait(BTrait):
         trait.data_type = dt
         trait.flags = t_def.flags.value()
         trait.default = t_def.default
-        if t_def.fmt:
-            trait.fmt = t_def.fmt
+        trait.fmt = t_def.fmt or trait.s_fmt
 
         trait.create_proc()
 

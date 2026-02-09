@@ -534,8 +534,8 @@ def test_serialize(monkeypatch):
                 def auth_user(self):
                     return 'test_user'
 
-                def populate(self,params,serialized_data):
-                    return TsStore.populate(self,params,serialized_data)
+                def populate(self, params, serialized_data):
+                    return TsStore.populate(self, params, serialized_data)
 
                 def collection(self, collection_name):
                     class Collection:
@@ -964,6 +964,24 @@ def test_serialize_runtime_exogenous_reference():
         x.serialize(False)
 
 
+def test_serialize_runtime_endogenous_reference():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    ser = X(x=1).serialize_nx(False)
+    assert ser == {'_id': [1]}
+
+    x = Traitable.deserialize_nx(X.s_bclass, ser)
+    assert isinstance(x, X)
+    assert x.x == 1
+
+    class Y(Traitable):
+        x: int = RT()
+
+    with pytest.raises(TypeError, match=r'Expected a string ID value, but found a list'):
+        Y.deserialize_nx(Y.s_bclass, ser)
+
+
 def test_verify_success():
     """verify() returns success when all verifiers pass and NOT_EMPTY constraints are satisfied."""
 
@@ -973,15 +991,15 @@ def test_verify_success():
 
         def code_verify(self, t, value: str) -> RC:
             if value and not value.isalnum():
-                return RC(False, "code must be alphanumeric")
+                return RC(False, 'code must be alphanumeric')
             return RC_TRUE
 
         def limit_verify(self, t, value: int) -> RC:
             if value is not None and value > 100:
-                return RC(False, "limit must be <= 100")
+                return RC(False, 'limit must be <= 100')
             return RC_TRUE
 
-    e = WithVerifier(code="valid", limit=50)
+    e = WithVerifier(code='valid', limit=50)
     rc = e.verify()
     assert rc
     rc.throw()
@@ -995,16 +1013,16 @@ def test_verify_fails_when_verifier_returns_error():
 
         def code_verify(self, t, value: str) -> RC:
             if value and not value.isalnum():
-                return RC(False, "code must be alphanumeric")
+                return RC(False, 'code must be alphanumeric')
             return RC_TRUE
 
     e = WithVerifier()
-    e.code = "invalid-code"
-    assert e.code == "invalid-code"
+    e.code = 'invalid-code'
+    assert e.code == 'invalid-code'
     rc = e.verify()
     assert not rc
-    assert "code" in rc.error().lower() or "alphanumeric" in rc.error().lower()
-    assert "Failed in" in rc.error() or "verify" in rc.error().lower()
+    assert 'code' in rc.error().lower() or 'alphanumeric' in rc.error().lower()
+    assert 'Failed in' in rc.error() or 'verify' in rc.error().lower()
 
 
 def test_verify_not_called_on_set():
@@ -1015,7 +1033,7 @@ def test_verify_not_called_on_set():
 
         def limit_verify(self, t, value: int) -> RC:
             if value is not None and value > 100:
-                return RC(False, "limit must be <= 100")
+                return RC(False, 'limit must be <= 100')
             return RC_TRUE
 
     e = WithVerifier(limit=50)
@@ -1023,4 +1041,4 @@ def test_verify_not_called_on_set():
     assert e.limit == 150
     rc = e.verify()
     assert not rc
-    assert "100" in rc.error()
+    assert '100' in rc.error()
