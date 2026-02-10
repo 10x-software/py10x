@@ -9,8 +9,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "py10x-core (==0.1.9)",
-    "py10x-infra (==0.1.9)",
+    "py10x-core (~=0.1.9)",
+    "py10x-infra (~=0.1.9)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy (>=2.2.2,<2.3.0)",
     "python-dateutil (>=2.9.0,<2.10.0)",
