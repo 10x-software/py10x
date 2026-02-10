@@ -40,3 +40,8 @@ PyLinkage.init({
     CORE_10X.PACKAGE_REFACTORING_FIND_CLASS:            'find_class',
     CORE_10X.PACKAGE_REFACTORING_FIND_CLASS_ID:         'find_class_id',
 })
+
+try:
+    from dev_10x.version import __version__
+except ImportError:
+    __version__ = '0.0.0+unknown'  # fallback for dev envs

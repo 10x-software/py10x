@@ -1,7 +1,7 @@
 [project]
 name = "py10x-universe"
-version = "0.1.9"
 description = "10x Universe Core Packages"
+dynamic = ["version"]
 authors = [
     { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
 ]
@@ -9,8 +9,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "py10x-core (==0.1.9)",
-    "py10x-infra (==0.1.9)",
+    "py10x-core (>=0.1.9,<0.2.0)",
+    "py10x-infra (>=0.1.9,<0.2.0)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy (>=2.2.2,<2.3.0)",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -36,19 +36,22 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Software Development :: User Interfaces",
 ]
+
 [project.optional-dependencies]
 dev = [
     "alt-pytest-asyncio==0.7.2",
     "asyncio-atexit>=1.0.1,<2.0",
     "hatchling>=1.27.0",
     "hatch-build-scripts>=1.0.0",
+    "licensecheck>=2025.1.0",
     "playwright>=1.44,<1.56",
     #"pre-commit>=3.1,<5.0",
     "pytest>=8.3.4,<9.0",
     "pytest-cov>=6.0,<8.0",
     "ruff>=0.13,<0.14",
+    "tomlkit>=0.13.3",
     "uv>=0.9",
-    "licensecheck",
+
 ]
 rio = [
     "rio-ui==0.12",
@@ -63,25 +66,27 @@ qt = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/10X-LLC/py10x"
-Repository = "https://github.com/10X-LLC/py10x"
-Issues = "https://github.com/10X-LLC/py10x/issues"
-Documentation = "https://github.com/10X-LLC/py10x#readme"
-
-#[tool.uv.sources]
-#py10x-core = { path = "../cxx10x/core_10x" }
-#py10x-infra = { path = "../cxx10x/infra_10x" }
+Homepage = "https://github.com/10x-software/py10x"
+Repository = "https://github.com/10x-software/py10x"
+Issues = "https://github.com/10x-software/py10x/issues"
+Documentation = "https://github.com/10x-software/py10x#readme"
 
 [build-system]
-requires = ["hatchling>=1.17.0","hatch-build-scripts","playwright"]
+requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright"]
 build-backend = "hatchling.build"
 
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["core_10x", "infra_10x", "ui_10x"]
+packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x"]
 #exclude = [ "**/*_tests/**" ]
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]
 commands = [ "playwright install --with-deps chromium" ]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "dev_10x/version.py"

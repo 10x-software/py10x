@@ -78,7 +78,7 @@ For developers who want to contribute to py10x-universe or need all features:
 
 ```bash
 # Clone the repository
-git clone https://github.com/10X-LLC/py10x.git
+git clone https://github.com/10x-software/py10x.git
 cd py10x
 
 # Install everything for development (recommended)
@@ -104,7 +104,7 @@ pip install py10x-universe[qt]     # With Qt6 UI backend
 pip install py10x-universe[rio,qt] # With both UI backends
 
 # Or install from source
-git clone https://github.com/10X-LLC/py10x.git
+git clone https://github.com/10x-software/py10x.git
 cd py10x
 pip install .
 ```
@@ -316,7 +316,7 @@ If you encounter permission errors during installation:
 
 ## Getting Help
 
-- Check the [README.md](README.md) for overview and examples
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup
+- Check the [README.md](https://github.com/10x-software/py10x/blob/main/README.md) for overview and examples
+- See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development setup
 - Join our [Discord community](https://discord.gg/m7AQSXfFwf) for support
-- Report issues on [GitHub](https://github.com/10X-LLC/py10x/issues)
+- Report issues on [GitHub](https://github.com/10x-software/py10x/issues)
