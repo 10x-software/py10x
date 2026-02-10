@@ -21,7 +21,7 @@ For detailed installation instructions including all prerequisites and platform-
 ### Clone and Install
 
 ```bash
-git clone https://github.com/10X-LLC/py10x.git
+git clone https://github.com/10x-software/py10x.git
 cd py10x
 
 # Install everything for development (recommended)
@@ -251,4 +251,4 @@ Contributions are subject to the project's license terms.
 
 ## Open Source & IP
 
-For maintainers: before publishing or major releases, see [Open Source & IP Checklist](docs/OPEN_SOURCE_IP_CHECKLIST.md) for intellectual property and license compliance.
+For maintainers: before publishing or major releases, see [Open Source & IP Checklist](https://github.com/10x-software/py10x/blob/main/docs/OPEN_SOURCE_IP_CHECKLIST.md) for intellectual property and license compliance.

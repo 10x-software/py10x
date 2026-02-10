@@ -45,7 +45,7 @@ pip install py10x-universe[rio]    # For Rio UI backend
 pip install py10x-universe[qt]     # For Qt6 backend
 ```
 
-**For Development**: See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
+**For Development**: See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development setup instructions.
 
 ## Core Concepts
 
@@ -1410,11 +1410,11 @@ python core_10x/manual_tests/trivial_graph_test.py
 
 ## Resources
 
-- **Documentation**: [README.md](README.md)
-- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md)
-- **Changelog**: [CHANGELOG.md](CHANGELOG.md)
-- **Security**: [SECURITY.md](SECURITY.md)
-- **Code of Conduct**: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+- **Documentation**: [README.md](https://github.com/10x-software/py10x/blob/main/README.md)
+- **Contributing**: [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md)
+- **Changelog**: [CHANGELOG.md](https://github.com/10x-software/py10x/blob/main/CHANGELOG.md)
+- **Security**: [SECURITY.md](https://github.com/10x-software/py10x/blob/main/SECURITY.md)
+- **Code of Conduct**: [CODE_OF_CONDUCT.md](https://github.com/10x-software/py10x/blob/main/CODE_OF_CONDUCT.md)
 - **Community**: [Discord](https://discord.gg/m7AQSXfFwf)
 - **Contact**: py10x@10x-software.org
 

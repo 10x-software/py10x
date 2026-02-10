@@ -19,7 +19,7 @@ py10x-universe is organized into three main packages:
 
 ## Installation
 
-For detailed installation instructions including all prerequisites and platform-specific setup, see [INSTALLATION.md](INSTALLATION.md).
+For detailed installation instructions including all prerequisites and platform-specific setup, see [INSTALLATION.md](https://github.com/10x-software/py10x/blob/main/INSTALLATION.md).
 
 ### Quick Prerequisites
 
@@ -43,7 +43,7 @@ By installing `py10x-universe`, you agree to the terms of the proprietary licens
 
 ```bash
 # Clone the repository
-git clone https://github.com/10X-LLC/py10x.git
+git clone https://github.com/10x-software/py10x.git
 cd py10x
 
 # Install everything (recommended for development)
@@ -59,7 +59,7 @@ uv sync --extra qt              # Qt6 UI only
 ### Install with pip
 
 ```bash
-git clone https://github.com/10X-LLC/py10x.git
+git clone https://github.com/10x-software/py10x.git
 cd py10x
 pip install -e .
 
@@ -71,7 +71,7 @@ pip install -e ".[dev]"  # Development tools
 
 ## Quick Start
 
-For a comprehensive introduction to py10x-universe, see our [Getting Started Guide](GETTING_STARTED.md).
+For a comprehensive introduction to py10x-universe, see our [Getting Started Guide](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md).
 
 ### Core Data Modeling with Object Identification
 
@@ -358,17 +358,18 @@ uv build
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development guidelines.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details. For copyright holders, proprietary components, and third-party attributions, see [NOTICE](NOTICE).
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/10x-software/py10x/blob/main/LICENSE) file for details. 
+For copyright holders, proprietary components, and third-party attributions, see [NOTICE](https://github.com/10x-software/py10x/blob/main/NOTICE).
 
 ## Legal & Security
 - This project is developed and maintained by **10X CONCEPTS LLC**. **USE AT YOUR OWN RISK. NO WARRANTIES.**
 - Dependencies have been audited for known vulnerabilities and license compatibility (see checklist in release notes).
 - For security issues or vulnerabilities, please report privately to <security@10x-software.org> (do **not** open public issues).
-- See [SECURITY.md](SECURITY.md) for full security policy, reporting guidelines, and known issues.
+- See [SECURITY.md](https://github.com/10x-software/py10x/blob/main/SECURITY.md) for full security policy, reporting guidelines, and known issues.
 
 ## Contact
 
