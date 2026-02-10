@@ -45,7 +45,6 @@ This Code of Conduct applies within all community spaces, and also applies when 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at:
 
 - **Email**: conduct@10x-software.org
-- **Project Maintainers**: founders@10x-software.org, founders@10x-software.org
 
 All complaints will be reviewed and investigated promptly and fairly.
 
