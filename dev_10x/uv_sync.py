@@ -63,7 +63,7 @@ def uv_sources_block(user_profile: str) -> TOMLDocument:
 
 
 def uv_sync(user_profile: str, uv_sources: TOMLDocument = None):
-    project_root = Path(__file__).resolve().parent.parent
+    project_root = Path('.').resolve()
     pyproject = project_root / 'pyproject.toml'
 
     if not pyproject.exists():
