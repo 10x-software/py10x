@@ -95,7 +95,7 @@ def main():
     else:
         profile = sys.argv[1]
         sources = uv_sources_block(profile)
-        s = sources and dumps(sources['tool']['uv']['sources'])
+        s = dumps(sources['tool']['uv']['sources']) if sources else ''
         print(f'Using the {"following" if s else "default"} sources for `{profile}` profile{":" if s else "."}\n{s}')
         if opts := EXTRA_OPTIONS[profile]:
             print(f'Using the following extra options for `{profile}` profile: {opts}')
