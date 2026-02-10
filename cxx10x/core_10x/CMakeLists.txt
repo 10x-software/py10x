@@ -38,7 +38,7 @@ pybind11_add_module(py10x_core
         btraitable.cpp
         btraitable_class.cpp
         btraitable_processor.cpp
-        core_10x.cpp
+        py10x_core.cpp
         py_linkage.cpp
         tid.cpp
         bprocess_context.cpp
@@ -73,6 +73,10 @@ add_custom_command(
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
         COMMENT "Generating type stubs for py10x_core"
         VERBATIM
+)
+
+target_compile_definitions(py10x_core PRIVATE
+        VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
 )
 
 install(TARGETS py10x_core

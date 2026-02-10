@@ -12,7 +12,13 @@ namespace py = pybind11;
 PYBIND11_MODULE(py10x_infra, m)
 {
     m.doc() = "10x infra";
-
+    m.attr("__version__") =
+        #ifdef VERSION_INFO
+            VERSION_INFO
+        #else
+            "unknown"
+        #endif
+        ;
 //    py::class_<MongoDbDriver>(m, "MongoDbDriver")
 //           .def_static("client", &MongoDbDriver::connect, py::return_value_policy::take_ownership)  // Ensures Python owns the returned client
 //           .def_static("collection", &MongoDbDriver::collection, py::return_value_policy::take_ownership, py::keep_alive<1, 0>())  // This alone is NOT enough

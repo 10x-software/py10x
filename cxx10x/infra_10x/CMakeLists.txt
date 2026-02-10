@@ -76,6 +76,10 @@ add_custom_command(
         VERBATIM
 )
 
+target_compile_definitions(py10x_infra PRIVATE
+        VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
+)
+
 install(TARGETS py10x_infra
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
