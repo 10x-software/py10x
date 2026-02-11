@@ -49,20 +49,23 @@ def source_version(src: str) -> str:
     return out.strip()
 
 
-def should_reinstall(dist_name: str, src: str) -> bool:
+def should_reinstall(dist_name: str, src: str, verbose=False, quiet=False) -> bool:
     if 'cxx10x' not in src:
-        print(f'No need to reinstall {dist_name} - editable installs work for python packages')
+        if verbose:
+            print(f'No need to reinstall {dist_name} - editable installs work for python packages')
         return False
+
     try:
         installed = md.version(dist_name)
         new_version = source_version(src)
     except md.PackageNotFoundError as e:
-        print(f'Got error {e}')
-        print(f'Will reinstall {dist_name} just in case')
+        if not quiet:
+            print(f'Will reinstall {dist_name} just in case: got error {e}')
         return True
 
     will_reinstall = installed != new_version
-    print(f'{"Will reinstall" if will_reinstall else "No need to reinstall"} {dist_name}: old_version={installed} new_version={new_version}')
+    if (will_reinstall or verbose) and not quiet:
+        print(f'{"Will reinstall" if will_reinstall else "No need to reinstall"} {dist_name}: old_version={installed} new_version={new_version}')
     return will_reinstall
 
 
