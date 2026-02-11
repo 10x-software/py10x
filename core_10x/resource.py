@@ -91,6 +91,9 @@ class ResourceSpec:
         self.resource_class = resource_class
         self.kwargs = kwargs
 
+    def hostname(self) -> str:
+        return self.kwargs[Resource.HOSTNAME_TAG]
+
     def set_credentials(self, username: str = None, password: str = None):
         if username is not None:
             self.kwargs[self.resource_class.USERNAME_TAG] = username
