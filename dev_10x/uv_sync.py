@@ -38,20 +38,21 @@ PROFILES = {
     'py10x-core-dev': ROOTS,
 }
 EXTRA_OPTIONS = {
-    profile: [f'--reinstall-package={package}' for package, source in sources.items() if source is ROOTS[package]]
+    profile: [f'--reinstall-package={package}' for package, source in sources.items() if source is ROOTS.get(package)]
     for profile, sources in PROFILES.items()
 }
 
 
-def uv_sources_block(user_profile: str) -> TOMLDocument:
+def uv_sources_block(user_profile: str) -> TOMLDocument | None:
+    uv_sources = PROFILES[user_profile]
+    if not uv_sources:
+        return None
+
     doc = document()
     doc['tool'] = tool_tbl = table()
     tool_tbl['uv'] = uv_tbl = table()
     uv_tbl['sources'] = sources_tbl = table()
 
-    uv_sources = PROFILES[user_profile]
-    if not uv_sources:
-        return doc
     for package, source in uv_sources.items():
         it = inline_table()
         # Stable key order for readability
@@ -62,8 +63,8 @@ def uv_sources_block(user_profile: str) -> TOMLDocument:
     return doc
 
 
-def uv_sync(user_profile: str, uv_sources: TOMLDocument = None):
-    project_root = Path(__file__).resolve().parent.parent
+def uv_sync(user_profile: str):
+    project_root = Path('.').resolve()
     pyproject = project_root / 'pyproject.toml'
 
     if not pyproject.exists():
@@ -76,27 +77,31 @@ def uv_sync(user_profile: str, uv_sources: TOMLDocument = None):
 
     src_block = uv_sources_block(user_profile)
     try:
-        if src_block:
+        if src_block is not None:
             shutil.copy2(pyproject, py_bak)
             with pyproject.open('a', encoding='utf-8', newline='\n') as f:
                 f.write('\n' + src_block.as_string())
-        subprocess.run(['uv', 'sync', *sys.argv[2:], *EXTRA_OPTIONS[profile]], cwd=project_root, check=True)
+        subprocess.run(['uv', 'sync', *sys.argv[2:], *EXTRA_OPTIONS[user_profile]], cwd=project_root, check=True)
 
     finally:
-        if src_block and py_bak.exists():
+        if src_block is not None and py_bak.exists():
             shutil.copy2(py_bak, pyproject)
             py_bak.unlink(missing_ok=True)
 
 
-if __name__ == '__main__':
+def main():
     if len(sys.argv) < 2 or sys.argv[1] not in PROFILES:
-        print(f'Usage: python uv_sync {"|".join(PROFILES)} [uv sync options (see uv sync --help for details)]')
+        print(f'Usage: uv run uv_sync {"|".join(PROFILES)} [uv sync options (see uv sync --help for details)]')
     else:
         profile = sys.argv[1]
         sources = uv_sources_block(profile)
-        s = dumps(sources['tool']['uv']['sources'])
+        s = dumps(sources['tool']['uv']['sources']) if sources else ''
         print(f'Using the {"following" if s else "default"} sources for `{profile}` profile{":" if s else "."}\n{s}')
         if opts := EXTRA_OPTIONS[profile]:
             print(f'Using the following extra options for `{profile}` profile: {opts}')
 
-        uv_sync(profile, sources)
+        uv_sync(profile)
+
+
+if __name__ == '__main__':
+    main()

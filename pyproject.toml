@@ -90,3 +90,7 @@ source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "dev_10x/version.py"
+
+
+[project.scripts]
+uv-sync = "dev_10x.uv_sync:main"

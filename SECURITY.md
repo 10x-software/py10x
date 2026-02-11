@@ -17,10 +17,10 @@ We take security vulnerabilities seriously. If you discover a security vulnerabi
 
 **DO NOT** create a public GitHub issue for security vulnerabilities.
 
-Instead, please report security vulnerabilities privately by emailing:
+Instead, please report security vulnerabilities privately:
 
-- **Primary**: security@10x-software.org
-- **Backup**: founders@10x-software.org
+- **Email**: security@10x-software.org
+- **GitHub**: Use private security reporting (not public issues)
 
 ### What to Include
 
@@ -117,12 +117,6 @@ Security advisories will be published:
 - In the CHANGELOG.md file
 - Via email to registered users (if applicable)
 
-## Contact
-
-For security-related questions or concerns:
-
-- **Email**: security@10x-software.org
-- **GitHub**: Use private security reporting (not public issues)
 
 ## Legal
 
