@@ -38,7 +38,7 @@ PROFILES = {
     'py10x-core-dev': ROOTS,
 }
 EXTRA_OPTIONS = {
-    profile: [f'--reinstall-package={package}' for package, source in sources.items() if source is ROOTS.get(package)]
+    profile: [f'--reinstall-package={package}' for package, source in sources.items() if source is ROOTS.get(package) and 'cxx10x' in source['path']]
     for profile, sources in PROFILES.items()
 }
 
@@ -63,7 +63,7 @@ def uv_sources_block(user_profile: str) -> TOMLDocument | None:
     return doc
 
 
-def uv_sync(user_profile: str):
+def uv_sync(user_profile: str, *args):
     project_root = Path('.').resolve()
     pyproject = project_root / 'pyproject.toml'
 
@@ -81,12 +81,30 @@ def uv_sync(user_profile: str):
             shutil.copy2(pyproject, py_bak)
             with pyproject.open('a', encoding='utf-8', newline='\n') as f:
                 f.write('\n' + src_block.as_string())
-        subprocess.run(['uv', 'sync', *sys.argv[2:], *EXTRA_OPTIONS[user_profile]], cwd=project_root, check=True)
+        subprocess.run(['uv', 'sync', *args, *EXTRA_OPTIONS[user_profile]], cwd=project_root, check=True)
 
     finally:
         if src_block is not None and py_bak.exists():
             shutil.copy2(py_bak, pyproject)
             py_bak.unlink(missing_ok=True)
+
+
+def ensure_chromium_installed() -> None:
+    try:
+        import playwright  # check package exists
+    except ImportError:
+        return  # playwright not installed → skip
+
+    from playwright.sync_api import sync_playwright, Error as PlaywrightError
+
+    try:
+        with sync_playwright() as p:
+            p.chromium.launch(headless=True)  # probe
+        return  # already good
+    except PlaywrightError:
+        print('Installing Playwright Chromium...')
+        subprocess.run(['playwright', 'install', 'chromium'], check=True)
+        print('Done.')
 
 
 def main():
@@ -100,7 +118,9 @@ def main():
         if opts := EXTRA_OPTIONS[profile]:
             print(f'Using the following extra options for `{profile}` profile: {opts}')
 
-        uv_sync(profile)
+        uv_sync(profile, *sys.argv[2:])
+        if profile == 'py10x-core-dev':
+            ensure_chromium_installed()
 
 
 if __name__ == '__main__':
