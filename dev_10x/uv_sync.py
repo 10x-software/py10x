@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
@@ -107,10 +108,27 @@ def ensure_chromium_installed() -> None:
         print('Done.')
 
 
+def reexec_if_windows_uvsync() -> None:
+    if sys.platform != 'win32':
+        return
+
+    if os.environ.get('UV_SYNC_REEXEC') == '1':
+        return
+
+    argv0 = (sys.argv[0] or '').lower()
+
+    if 'uv-sync' not in argv0:
+        return
+
+    cmd = [sys.executable, '-m', 'dev_10x.uv_sync', *sys.argv[1:]]
+    raise SystemExit(subprocess.call(cmd, env=os.environ | {'UV_SYNC_REEXEC': '1'}))
+
+
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in PROFILES:
         print(f'Usage: uv run uv_sync {"|".join(PROFILES)} [uv sync options (see uv sync --help for details)]')
     else:
+        reexec_if_windows_uvsync()
         profile = sys.argv[1]
         sources = uv_sources_block(profile)
         s = dumps(sources['tool']['uv']['sources']) if sources else ''
