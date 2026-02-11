@@ -22,7 +22,6 @@ dependencies = [
     "requests>=2.32.5",
     "hatchling>=1.27.0",
     "hatch-build-scripts>=1.0.0",
-    "tomlkit>=0.13.3",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -50,8 +49,9 @@ dev = [
     "pytest>=8.3.4,<9.0",
     "pytest-cov>=6.0,<8.0",
     "ruff>=0.13,<0.14",
+    "setuptools_scm>=9.2.2",
+    "tomlkit>=0.13.0",
     "uv>=0.9",
-
 ]
 rio = [
     "rio-ui==0.12",

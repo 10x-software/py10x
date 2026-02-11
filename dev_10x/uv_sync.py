@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+import importlib.metadata as md
 
 from tomlkit import document, dumps, inline_table, table, TOMLDocument
 
@@ -14,7 +15,6 @@ ROOTS = {
     'py10x-infra': {'path': '../cxx10x/infra_10x', 'editable': True},
 }
 
-# UPDATED: uv-native git source shape
 REPOS = {
     'py10x-universe': {
         'git': 'https://github.com/10x-software/py10x.git',
@@ -38,10 +38,40 @@ PROFILES = {
     'py10x-dev': REPOS | {'py10x-universe': ROOTS['py10x-universe']},
     'py10x-core-dev': ROOTS,
 }
-EXTRA_OPTIONS = {
-    profile: [f'--reinstall-package={package}' for package, source in sources.items() if source is ROOTS.get(package) and 'cxx10x' in source['path']]
-    for profile, sources in PROFILES.items()
-}
+
+
+def source_version(src: str) -> str:
+    out = subprocess.check_output(
+        [sys.executable, '-m', 'setuptools_scm'],
+        cwd=src,
+        text=True,
+    )
+    return out.strip()
+
+
+def should_reinstall(dist_name: str, src: str) -> bool:
+    if 'cxx10x' not in src:
+        print(f'No need to reinstall {dist_name} - editable installs work for python packages')
+        return False
+    try:
+        installed = md.version(dist_name)
+        new_version = source_version(src)
+    except md.PackageNotFoundError as e:
+        print(f'Got error {e}')
+        print(f'Will reinstall {dist_name} just in case')
+        return True
+
+    will_reinstall = installed != new_version
+    print(f'{"Will reinstall" if will_reinstall else "No need to reinstall"} {dist_name}: old_version={installed} new_version={new_version}')
+    return will_reinstall
+
+
+def get_extra_options(profile: str):
+    return [
+        f'--reinstall-package={package}'
+        for package, source in PROFILES[profile].items()
+        if source is ROOTS.get(package) and should_reinstall(package, source['path'])
+    ]
 
 
 def uv_sources_block(user_profile: str) -> TOMLDocument | None:
@@ -82,7 +112,7 @@ def uv_sync(user_profile: str, *args):
             shutil.copy2(pyproject, py_bak)
             with pyproject.open('a', encoding='utf-8', newline='\n') as f:
                 f.write('\n' + src_block.as_string())
-        subprocess.run(['uv', 'sync', *args, *EXTRA_OPTIONS[user_profile]], cwd=project_root, check=True)
+        subprocess.run(['uv', 'sync', *args], cwd=project_root, check=True)
 
     finally:
         if src_block is not None and py_bak.exists():
@@ -108,35 +138,18 @@ def ensure_chromium_installed() -> None:
         print('Done.')
 
 
-def reexec_if_windows_uvsync() -> None:
-    if sys.platform != 'win32':
-        return
-
-    if os.environ.get('UV_SYNC_REEXEC') == '1':
-        return
-
-    argv0 = (sys.argv[0] or '').lower()
-
-    if 'uv-sync' not in argv0:
-        return
-
-    cmd = [sys.executable, '-m', 'dev_10x.uv_sync', *sys.argv[1:]]
-    raise SystemExit(subprocess.call(cmd, env=os.environ | {'UV_SYNC_REEXEC': '1'}))
-
-
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in PROFILES:
-        print(f'Usage: uv run uv_sync {"|".join(PROFILES)} [uv sync options (see uv sync --help for details)]')
+        print(f'Usage: uvx --from "10x-universe[dev]" uv_sync {"|".join(PROFILES)} [uv sync options (see uv sync --help for details)]')
     else:
-        reexec_if_windows_uvsync()
         profile = sys.argv[1]
         sources = uv_sources_block(profile)
         s = dumps(sources['tool']['uv']['sources']) if sources else ''
         print(f'Using the {"following" if s else "default"} sources for `{profile}` profile{":" if s else "."}\n{s}')
-        if opts := EXTRA_OPTIONS[profile]:
+        if opts := get_extra_options(profile):
             print(f'Using the following extra options for `{profile}` profile: {opts}')
 
-        uv_sync(profile, *sys.argv[2:])
+        uv_sync(profile, *sys.argv[2:], *opts)
         if profile == 'py10x-core-dev':
             ensure_chromium_installed()
 
