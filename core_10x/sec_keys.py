@@ -45,10 +45,10 @@ class SecKeys:
 
     @classmethod
     @cache
-    def check_vault_uri(cls) -> str:
+    def check_vault_uri(cls, throw = True) -> str:
         v_vault_uri = EnvVars.var.vault_ts_store_uri
-        if not v_vault_uri:
-            raise OSError(f'Vault URI is not specified ({EnvVars.var_name(v_vault_uri)})')
+        if not v_vault_uri and throw:
+            raise OSError(f"Vault URI is not specified in either '{EnvVars.var_name(v_vault_uri)}' or {EnvVars.var_name('main_ts_store_uri')})")
 
         return v_vault_uri.value
 
@@ -57,11 +57,13 @@ class SecKeys:
     def retrieve_vault_password(cls, vault_uri: str = None, throw = True) -> str:
         username = OsUser.me.name()
         if vault_uri is None:
-            vault_uri = cls.check_vault_uri()
+            vault_uri = cls.check_vault_uri(throw = throw)
+            if vault_uri is None:
+                return None
 
         pwd = keyring.get_password(vault_uri, username)
         if pwd is None and throw:
-            raise OSError(f'Password for {username} @ {vault_uri} is not found')
+            raise OSError(f'Vault password for {username} @ {vault_uri} is not found')
 
         return pwd
 
