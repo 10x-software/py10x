@@ -1097,18 +1097,20 @@ class VaultResourceAccessor(Traitable):
         )
 
     @classmethod
-    def save_ra(cls, resource_uri: str, password: str, login: str = None, username: str = XNone):
+    def save_ra(cls, resource_uri: str, password: str, login: str = None, username: str = XNone) -> RC:
         if login is None:
             login = username
 
-        ra = cls(username=username, resource_uri=resource_uri)
+        ra = cls(username = username, resource_uri = resource_uri)
         user = ra.user
-        ra.set_values(
-            login=login,
-            password=user.sec_keys.encrypt_text(password),
-        ).throw()
+        rc = ra.set_values(
+            login       = login,
+            password    = user.sec_keys.encrypt_text(password),
+        )
+        if rc:
+            rc = ra.save()
 
-        ra.save().throw()
+        return rc
 
     #-- strictly speaking this method isn't necessary as it just returning existing_instance()
     @classmethod

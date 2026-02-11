@@ -4,61 +4,37 @@ import abc
 import inspect
 from collections import deque
 
-from py10x_core import OsUser
-
-# ===================================================================================================================================
-#   We'd like to do the following:
+#-- TODO: move to attic
+# class ResourceRequirements:
+#     def __init__(self, resource_type, *args, **kwargs):
+#         self.domain = None
+#         self.category: str = None
+#         self.resource_type = resource_type
+#         self.args = args
+#         self.kwargs = kwargs
 #
-#   class MongodbStore(Resource, resource_type = TS_STORE, name = 'MONGO'):
-#       ...
 #
-#   class RayCluster(Resource, resource_type = CLOUD_CLUSTER, name = 'RAY_CLUSTER'):
-#       ...
+# class ResourceBinding:
+#     def __init__(
+#         self, _resource_class: type = None, _resource_type: ResourceType = None, _resource_name: str = None, _driver_name: str = None, **kwargs
+#     ):
+#         if _resource_class:
+#             assert issubclass(_resource_class, Resource), f'{_resource_class} is not a subclass of Resource'
+#         else:
+#             if _resource_name:
+#                 _resource_type = ResourceType.instance(_resource_name)
+#             else:
+#                 assert _resource_type and isinstance(_resource_type, ResourceType), '_resource_type must be an instance of ResourceType'
 #
-#   class MDU(DataDomain):
-#       GENERAL             = TS_STORE()            #-- ResourceRequirements
-#       SYMBOLOGY           = REL_DB()              #--
-#       MKT_CLOSE_CLUSTER   = CLOUD_CLUSTER(...)    #--
+#             _resource_class = _resource_type.resource_drivers.get(_driver_name)
+#             assert _resource_class, f'Unknown _driver_name {_driver_name}'
 #
-#   MDU.bind(
-#       GENERAL             = R(TS_STORE.MONGO_DB,         hostname = 'dev.mongo.general.io', tsl = True, ...),
-#       SYMBOLOGY           = R(REL_DB.ORACLE_DB,          hostname = 'dev.oracle.io', a = '...', b = '...')
-#       MKT_CLOSE_CLUSTER   = R(CLOUD_CLUSTER.RAY_CLUSTER, hostname = 'dev.ray1.io', ...)
-#   )
+#         self.resource_class = _resource_class
+#         self.kwargs = kwargs
 #
-# ===================================================================================================================================
-
-
-class ResourceRequirements:
-    def __init__(self, resource_type, *args, **kwargs):
-        self.domain = None
-        self.category: str = None
-        self.resource_type = resource_type
-        self.args = args
-        self.kwargs = kwargs
-
-
-class ResourceBinding:
-    def __init__(
-        self, _resource_class: type = None, _resource_type: ResourceType = None, _resource_name: str = None, _driver_name: str = None, **kwargs
-    ):
-        if _resource_class:
-            assert issubclass(_resource_class, Resource), f'{_resource_class} is not a subclass of Resource'
-        else:
-            if _resource_name:
-                _resource_type = ResourceType.instance(_resource_name)
-            else:
-                assert _resource_type and isinstance(_resource_type, ResourceType), '_resource_type must be an instance of ResourceType'
-
-            _resource_class = _resource_type.resource_drivers.get(_driver_name)
-            assert _resource_class, f'Unknown _driver_name {_driver_name}'
-
-        self.resource_class = _resource_class
-        self.kwargs = kwargs
-
-
-R = ResourceBinding
-
+#
+# R = ResourceBinding
+#
 
 class ResourceType:
     s_dir = {}
@@ -115,35 +91,30 @@ class ResourceSpec:
         self.resource_class = resource_class
         self.kwargs = kwargs
 
-    def hostname(self) -> str:
-        return self.kwargs[Resource.HOSTNAME_TAG]
-
-    def set_credentials(self, password: str, username: str = None):
-        if username is None:
-            username = OsUser.me.name()
-
-        self.kwargs[self.resource_class.USERNAME_TAG] = username
-        self.kwargs[self.resource_class.PASSWORD_TAG] = password
+    def set_credentials(self, username: str = None, password: str = None):
+        if username is not None:
+            self.kwargs[self.resource_class.USERNAME_TAG] = username
+        if password is not None:
+            self.kwargs[self.resource_class.PASSWORD_TAG] = password
 
 class Resource(abc.ABC):
-    # fmt: off
     HOSTNAME_TAG    = 'hostname'
     PORT_TAG        = 'port'
     USERNAME_TAG    = 'username'
     DBNAME_TAG      = 'dbname'
     PASSWORD_TAG    = 'password'
     SSL_TAG         = 'ssl'
-    # fmt: on
+
     s_resource_type: ResourceType = None
     s_driver_name: str = None
 
     def __init_subclass__(cls, resource_type: ResourceType = None, resource_name: str = None, **kwargs):
-        if cls.s_resource_type is None:  # -- must be a top class of a particular resource type, e.g. TsStore
+        if cls.s_resource_type is None:     #-- must be a top class of a particular resource type, e.g. TsStore
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
             assert resource_name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
             cls.s_resource_type = resource_type
 
-        else:  # -- a Resource of a particular resource type
+        else:   #-- a Resource of a particular resource type
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
             assert resource_name and isinstance(resource_name, str), 'a unique Resource name is expected'
             cls.s_resource_type.register_driver(resource_name, cls)
@@ -186,9 +157,7 @@ class Resource(abc.ABC):
     def on_exit(self): ...
 
 
-# =========== Known Resource Types
-# fmt: off
+#=========== Known Resource Types
 TS_STORE        = ResourceType('TS_STORE')
 REL_DB          = ResourceType('REL_DB')
 CLOUD_CLUSTER   = ResourceType('CLOUD_CLUSTER')
-# fmt: on
