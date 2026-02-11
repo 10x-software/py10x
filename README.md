@@ -8,6 +8,57 @@
 
 The core package of the 10x Universe software ecosystem, designed to make 10x engineers even more productive. The structure mirrors the real world: from particles (basic data types) to atoms (object models) and molecules (fundamental programming paradigms), extending to stars and planets (subject domains).
 
+
+## Architecture & Licensing
+
+### Project Structure
+
+The 10x platform is developed and maintained by **10x Concepts LLC** and follows a layered architecture:
+
+```
+10x Concepts LLC
+    ├── MIT Python ecosystem
+    └── Proprietary C++ native extensions (binary distribution)
+```
+
+### MIT Python Ecosystem
+
+The core Python framework is released under the **MIT License**, including:
+
+- `py10x-universe`
+  - `core_10x`
+  - `infra_10x`
+  - `ui_10x`
+
+These packages implement the trait system, object modeling framework, dependency graph, UI abstractions, and infrastructure integrations.
+
+You are free to:
+
+- Use the code
+- Study it
+- Modify it
+- Fork it
+- Build on top of it
+
+All Python source in this repository is fully open under MIT.
+
+### Native C++ Components
+
+Some performance-critical functionality is implemented in C++ and exposed to Python via `pybind11`.
+
+- Distributed as compiled binaries  
+- Not included in this repository  
+- Governed by a separate proprietary license  
+- Required for full functionality of the framework  
+
+This separation allows the Python framework to remain transparent and extensible while delivering performance where it matters.
+
+### Licensing Summary
+
+- All Python source code in this repository is licensed under the **MIT License**.  
+- Native C++ binary components are proprietary and distributed separately.  
+- Use of proprietary components is subject to their respective license terms.
+
 ## Overview
 
 py10x-universe is organized into three main packages:
