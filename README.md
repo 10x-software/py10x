@@ -39,7 +39,7 @@ You are free to:
 - Fork it
 - Build on top of it
 
-All Python source in this repository is fully open and governed by the MIT license.
+All Python source in this repository is fully open and governed by the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).
 
 ### Native C++ Components
 
@@ -49,7 +49,7 @@ Some performance-critical functionality is implemented in C++ and exposed to Pyt
 - Not included in this repository  
 - Governed by a separate proprietary license  
 - Required for full functionality of the framework
-- You are free to use them as long as you agree to the license terms
+- You are free to use and distribute them subject to the license terms (see below)
 
 This separation allows the Python framework to remain transparent and extensible while delivering performance where it matters.
 
