@@ -1,6 +1,6 @@
 [project]
 name = "py10x-infra"
-description = "10X Universe Infrastructure Internals"
+description = "10X Platform Core Infrastructure"
 license = {text = "Proprietary - See LICENSE file for details."}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"

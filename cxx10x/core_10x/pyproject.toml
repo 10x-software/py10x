@@ -1,6 +1,6 @@
 [project]
 name = "py10x-kernel"
-description = "10X Universe Core Internals"
+description = "10X Platform Core Kernel"
 license = {text = "Proprietary - See LICENSE file for details."}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
