@@ -1,6 +1,6 @@
 # Open Source & Intellectual Property Checklist
 
-This document helps you prepare the py10x-universe project for open-source release and avoid unintentional IP infringement. It is not legal advice; consider review by your legal counsel before publishing.
+This document helps you prepare the `py10x-core` project for open-source release and avoid unintentional IP infringement. It is not legal advice; consider review by your legal counsel before publishing.
 
 ---
 
@@ -83,7 +83,7 @@ Running `licensecheck` in this project reports:
 
 ## 5. Trademarks, logos, and assets
 
-- **Names:** “py10x-universe”, “10x”, “10x Universe” – ensure you have rights to use these and that open-source use does not conflict with your trademark policy. Consider a short TRADEMARKS section in README or docs.
+- **Names:** “py10x-core”, “10x”, “10x Software”, "10x Platform" – ensure you have rights to use these and that open-source use does not conflict with your trademark policy. Consider a short TRADEMARKS section in README or docs.
 - **Images:** `10x-jerboa-in-desert.jpeg`, `10x-jerboa.jpeg` – both are **AI-generated**. Confirm the generator’s terms allow use in this project (and attribution if required); document in README or NOTICE if needed. To identify which tool was used, see “How to check which AI tool was used” below.
 - **Third-party logos:** If the repo or docs use logos of other products (e.g. MongoDB, Python), use them in line with their trademark guidelines.
 
@@ -118,7 +118,7 @@ Running `licensecheck` in this project reports:
   - Preserve copyright notices for your project.
   - Satisfy attribution requirements from dependencies (e.g. Apache 2.0 “NOTICE”).
 - **THIRD_PARTY_LICENSES** (when do you need it?):
-  - **Usually not required** for a library that only *declares* dependencies (like py10x-universe): users install your package and pip/uv installs dependencies from PyPI; each dependency ships its own license. A `NOTICE` file with third-party attributions (names, copyright, project URLs) is typically enough to satisfy Apache 2.0–style “give credit” requirements.
+  - **Usually not required** for a library that only *declares* dependencies (like `py10x-core`): users install your package and pip/uv installs dependencies from PyPI; each dependency ships its own license. A `NOTICE` file with third-party attributions (names, copyright, project URLs) is typically enough to satisfy Apache 2.0–style “give credit” requirements.
   - **Consider or required** when: you **vendor or bundle** third-party source inside your repo or distribution; you ship a **combined binary or application** that includes third-party code; or a dependency’s license explicitly requires “include a copy of this license” in *distributed works* and you are distributing a combined work (e.g. static linking, bundled app). In those cases, add a `THIRD_PARTY_LICENSES` file or `docs/licenses/` with the full license texts; some teams generate this from `pip`/`uv` output.
 
 ---

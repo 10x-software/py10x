@@ -10,13 +10,13 @@ import importlib.metadata as md
 from tomlkit import document, dumps, inline_table, table, TOMLDocument
 
 ROOTS = {
-    'py10x-universe': {'path': '../py10x', 'editable': True},
+    'py10x-core': {'path': '../py10x', 'editable': True},
     'py10x-kernel': {'path': '../cxx10x/core_10x', 'editable': True},
     'py10x-infra': {'path': '../cxx10x/infra_10x', 'editable': True},
 }
 
 REPOS = {
-    'py10x-universe': {
+    'py10x-core': {
         'git': 'https://github.com/10x-software/py10x.git',
         'branch': 'main',
     },
@@ -35,7 +35,7 @@ REPOS = {
 PROFILES = {
     'user': {},
     'domain-dev': REPOS,
-    'py10x-dev': REPOS | {'py10x-universe': ROOTS['py10x-universe']},
+    'py10x-dev': REPOS | {'py10x-core': ROOTS['py10x-core']},
     'py10x-core-dev': ROOTS,
 }
 

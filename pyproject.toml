@@ -1,6 +1,6 @@
 [project]
-name = "py10x-universe"
-description = "10x Universe Core Packages"
+name = "py10x-core"
+description = "10x Platform Core"
 dynamic = ["version"]
 authors = [
     { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },

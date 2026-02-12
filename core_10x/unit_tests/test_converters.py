@@ -1,8 +1,3 @@
-"""
-Unit tests for converter methods in py10x-universe traitables.
-Tests verify that converter methods are called when appropriate.
-"""
-
 import pytest
 from core_10x.exec_control import CONVERT_VALUES_OFF, CONVERT_VALUES_ON, DEBUG_OFF, DEBUG_ON, GRAPH_OFF, GRAPH_ON
 from core_10x.traitable import Traitable

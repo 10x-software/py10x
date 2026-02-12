@@ -1,13 +1,12 @@
-# py10x-universe
+# py10x-core
 
 <img src="https://10x-software.org/10x-jerboa.jpeg" alt="Jerboa Logo" width="200" height="300">
 
 > **Early preview release – USE AT YOUR OWN RISK. NO WARRANTIES.**
 
-**10x Universe Ecosystem Core**
+**10x Platform Core**
 
-The core package of the 10x Universe software ecosystem, designed to make 10x engineers even more productive. The structure mirrors the real world: from particles (basic data types) to atoms (object models) and molecules (fundamental programming paradigms), extending to stars and planets (subject domains).
-
+The purpose of this package is to make 10x engineers even more productive.
 
 ## Architecture & Licensing
 
@@ -16,17 +15,17 @@ The core package of the 10x Universe software ecosystem, designed to make 10x en
 The 10x platform is developed and maintained by **10X CONCEPTS LLC** and follows a layered architecture:
 
 ```
-10x Universe
-    ├── The 10x Universe Python ecosystem - this package (`py10x-universe` - open source and governed by the MIT License)
-    └── C++ native extensions - package dependencies (`py10x-kernel` and `py10x-infra` - binary distributions governed by their respective proprietary licenses (see below))
+10x Software Platform
+    ├── 10x Platform Core (Python) - open source and governed by the MIT License
+    └── Native extensions (C++) - binary distributions governed by proprietary licenses (see below))
 ```
 
-### The 10x Universe Python Ecosystem
+### 10x Platform Core
 
 This package implements the trait system, object modeling framework, dependency graph, UI abstractions, and infrastructure integrations.
-It is released under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt) and includes the following packages:
+It is released under the [MIT License](https://10x-software.org/MIT_LICENSE.txt) and includes the following packages:
 
-- `py10x-universe`
+- `py10x-core`
   - `core_10x`: Core data modeling with traits, traitables, and serialization
   - `ui_10x`: Cross-platform UI components focused on traitable editing and management
   - `infra_10x`: Infrastructure components including MongoDB storage integration
@@ -39,7 +38,7 @@ You are free to:
 - Fork it
 - Build on top of it
 
-All Python source in this repository is fully open and governed by the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).
+All Python source in this repository is fully open and governed by the [MIT License](https://10x-software.org/MIT_LICENSE.txt).
 
 ### Native C++ Components
 
@@ -55,12 +54,12 @@ This separation allows the Python framework to remain transparent and extensible
 
 ### Licensing Summary
 
-- All Python source code in this repository is licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).  
+- All Python source code in this repository is licensed under the [MIT License](https://10x-software.org/MIT_LICENSE.txt).
 - Native C++ binary components are proprietary and installed as package dependencies - `py10x-kernel` and `py10x-infra`
 - Use of proprietary components is subject to their respective license terms 
   - [py10x-kernel Proprietary License](https://10x-software.org/py10x_kernel/LICENSE.txt)
   - [py10x-infra Proprietary License](https://10x-software.org/py10x_infra/LICENSE.txt)
-- By installing `py10x-universe`, you agree to the terms of the proprietary licenses for `py10x-kernel` and `py10x-infra`.
+- By installing `py10x-core`, you agree to the terms of the proprietary licenses for `py10x-kernel` and `py10x-infra`.
 
 
 ## Installation
@@ -106,7 +105,7 @@ pip install -e ".[dev]"  # Development tools
 
 ## Quick Start
 
-For a comprehensive introduction to py10x-universe, see our [Getting Started Guide](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md).
+For a comprehensive introduction to `py10x-core`, see our [Getting Started Guide](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md).
 
 ### Core Data Modeling with Object Identification
 

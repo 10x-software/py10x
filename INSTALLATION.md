@@ -1,6 +1,6 @@
 # Installation Guide
 
-This guide provides comprehensive installation instructions for py10x-universe, including all prerequisites and setup steps for different use cases.
+This guide provides comprehensive installation instructions for `py10x-core`, including all prerequisites and setup steps for different use cases.
 
 ## Prerequisites
 
@@ -74,7 +74,7 @@ python --version  # Should show 3.12.x
 
 ### Development Installation (Recommended)
 
-For developers who want to contribute to py10x-universe or need all features:
+For developers who want to contribute to `py10x-core` or need all features:
 
 ```bash
 # Clone the repository
@@ -95,13 +95,13 @@ pip install -e ".[dev,qt]"   # Development + Qt6 UI
 
 ### User Installation
 
-For users who just want to use py10x-universe:
+For users who just want to use `py10x-core`:
 
 ```bash
 # Install from PyPI (when available)
-pip install py10x-universe[rio]    # With Rio UI backend
-pip install py10x-universe[qt]     # With Qt6 UI backend
-pip install py10x-universe[rio,qt] # With both UI backends
+pip install py10x-core[rio]    # With Rio UI backend
+pip install py10x-core[qt]     # With Qt6 UI backend
+pip install py10x-core[rio,qt] # With both UI backends
 
 # Or install from source
 git clone https://github.com/10x-software/py10x.git
@@ -214,7 +214,7 @@ winget install OpenJS.NodeJS
 
 ## Build System
 
-py10x-universe uses the `ux` abstraction layer that provides unified APIs across different UI backends (Rio and Qt6). The `ux` layer automatically:
+`py10x-core` uses the `ux` abstraction layer that provides unified APIs across different UI backends (Rio and Qt6). The `ux` layer automatically:
 
 - Detects available UI frameworks
 - Selects the appropriate backend based on installed packages

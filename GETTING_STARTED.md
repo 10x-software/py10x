@@ -1,13 +1,13 @@
 from core_10x.exec_control import CACHE_ONLY
 
-# Getting Started with py10x-universe
+# Getting Started with py10x-core
 
-Welcome to py10x-universe - the core of the 10x Universe Ecosystem!
-This comprehensive guide will walk you through the fundamental concepts, installation, and usage of py10x-universe packages.
+Welcome to `py10x-core`!
+This comprehensive guide will walk you through the fundamental concepts, installation, and usage of this package.
 
 ## Table of Contents
 
-1. [What is py10x-universe?](#whats-in-py10x-universe)
+1. [What is py10x-core?](#whats-in-py10x-core)
 2. [Installation](#installation)
 3. [Core Concepts](#core-concepts)
 4. [Your First Traitable](#your-first-traitable)
@@ -19,7 +19,7 @@ This comprehensive guide will walk you through the fundamental concepts, install
 10. [Advanced Features](#advanced-features)
 11. [Next Steps](#next-steps)
 
-## What's in py10x-universe?
+## What's in py10x-core?
 
 - **Traitable Framework**: Core data modeling with traits, traitables, and serialization
 - **Object Identification**: Endogenous, exogenous, and anonymous traitables with global sharing
@@ -39,10 +39,10 @@ This comprehensive guide will walk you through the fundamental concepts, install
 ### Install
 
 ```bash
-# Install py10x-universe with UI backend
-pip install py10x-universe[rio]    # For Rio UI backend
+# Install py10x-core with UI backend
+pip install py10x-core[rio]    # For Rio UI backend
 # or
-pip install py10x-universe[qt]     # For Qt6 backend
+pip install py10x-core[qt]     # For Qt6 backend
 ```
 
 **For Development**: See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development setup instructions.
@@ -51,7 +51,7 @@ pip install py10x-universe[qt]     # For Qt6 backend
 
 ### Traitables
 
-Traitables are the fundamental data models in py10x-universe. They are Python classes that inherit from `Traitable` and define typed attributes called "traits".
+Traitables are the fundamental data models in `py10x-core` They are Python classes that inherit from `Traitable` and define typed attributes called "traits".
 
 ### Traits
 
@@ -123,7 +123,7 @@ calc = Calculator(x=5, y=3)
 
 ## Getters, Setters, and Validation
 
-py10x-universe provides powerful mechanisms for computed traits, validation, and data transformation:
+`py10x-core`provides powerful mechanisms for computed traits, validation, and data transformation:
 
 ### Getters (Computed Traits)
 
@@ -772,7 +772,7 @@ with CACHE_ONLY():
 
 ## Execution Modes and Control
 
-py10x-universe provides fine-grained control over computation and execution through execution modes. Each mode has specific overhead and benefits that should be considered based on your use case.
+`py10x-core`provides fine-grained control over computation and execution through execution modes. Each mode has specific overhead and benefits that should be considered based on your use case.
 
 ### Graph Execution Modes
 
@@ -1151,7 +1151,7 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
 
 ## UI Framework Integration
 
-py10x-universe provides seamless UI framework switching between Rio and Qt6 with specialized components for traitable editing:
+`py10x-core`provides seamless UI framework switching between Rio and Qt6 with specialized components for traitable editing:
 
 ### Traitable Editor
 
@@ -1221,7 +1221,7 @@ os.environ['UI_PLATFORM'] = 'Qt'
 
 ### Named Constants
 
-py10x-universe provides powerful named constant systems for type-safe enumerations and flags:
+`py10x-core`provides powerful named constant systems for type-safe enumerations and flags:
 
 #### Basic Named Constants
 

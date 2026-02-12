@@ -1,4 +1,4 @@
-## py10x-universe – Guide for AI Agents
+## py10x-core – Guide for AI Agents
 
 This file is a **meta-guide** for tools and AI agents working in this repo.  
 It points to canonical docs and records only the minimal, project-specific rules that agents must obey.

@@ -5,13 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.12] - 2026-02-12
+### Changed
+- **Package rename:** This package is now **py10x-core**. Updated throughout: `pyproject.toml`, README, NOTICE, docs, and code references.
+
 ## [0.1.11] - 2026-02-11
 
 ### Added
 - **uv-sync installable command**: `uv_sync` available as an installable CLI command when using dev_10x.
 
 ### Changed
-- **C++ package rename**: The native C++ dependency is now **py10x-kernel** (replacing `py10x-core`). Updated throughout: `pyproject.toml`, README, NOTICE, docs, and code references; license URL now `py10x_kernel`.
+- **C++ package rename**: The native C++ dependency is now **py10x-kernel**. Updated throughout: `pyproject.toml`, README, NOTICE, docs, and code references; license URL now `py10x_kernel`.
 - **dev_10x.uv_sync**: Reduced verbosity; avoids unnecessary rebuilds; re-exec on Windows for correct environment; improved behavior when locating `pyproject.toml` (checks current directory).
 - **dev_10x.uv_sync**: Fixed info message for user profile.
 - **Documentation**: README updates and merged redundant sections.
@@ -20,12 +24,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Dynamic versioning**: Version read from `dev_10x.version`; `core_10x`, `infra_10x`, and `ui_10x` expose `__version__` with fallback when `dev_10x` is not installed.
-- **dev_10x.uv_sync**: Profile-based `uv sync` helper (e.g. `user`, `domain-dev`, `py10x-dev`, `py10x-core-dev`) that injects `[tool.uv.sources]` for py10x-universe, py10x-core, and py10x-infra from git or local paths.
+- **dev_10x.uv_sync**: Profile-based `uv sync` helper (e.g. `user`, `domain-dev`, `py10x-dev`, `py10x-core-dev`) that injects `[tool.uv.sources]` for `py10x-core`, `py10x-kernel`, and `py10x-infra` from git or local paths.
 - **Version tests**: `core_10x/unit_tests/test_version.py` and `infra_10x/unit_tests/test_version.py` assert package versions are set (no `0.0.0` or `unknown`).
 
 ### Changed
 - **Documentation links**: Git and doc references updated from `10X-LLC` to `10x-software`; GETTING_STARTED, INSTALLATION, README, and CONTRIBUTING use full GitHub URLs where appropriate.
-- **C++ dependency constraints**: py10x-core and py10x-infra relaxed from exact (`==0.1.9`) to `>=0.1.9,<0.2.0` to allow minor non-breaking releases.
+- **C++ dependency constraints**: Relaxed from exact (`==0.1.9`) to `>=0.1.9,<0.2.0` to allow minor non-breaking releases.
 - **Build**: `pyproject.toml` uses `dynamic = ["version"]` and version-file; dev dependencies include `tomlkit` and `licensecheck`; package list includes `dev_10x`.
 
 ## [0.1.9] - 2026-02-08
@@ -36,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Trait**: `Trait` now uses a custom metaclass and `__slots__`; default `fmt` uses `t_def.fmt or trait.s_fmt`; `s_ui_hint` and `s_fmt` moved to class-level defaults.
-- **pyproject**: Version set to 0.1.9; dependency pins for py10x-core and py10x-infra.
+- **pyproject**: Version set to 0.1.9; dependency pins for py10x c++ packages.
 
 ## [0.1.8] - 2026-02-06
 
@@ -46,8 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Attic**: Unused code moved to `core_10x/attic/` (backbone, vault, data_domain, entity, package_manifest).
-- Package and documentation refer to the pip-installable package as **py10x-universe** (hyphen); repo path remains **py10x**.
-- C++ dependency names in docs, NOTICE, and pyproject: **py10x-core**, **py10x-infra** (hyphen).
+- Package and documentation refer to the pip-installable package as **py10x-core** (hyphen); repo path remains **py10x**.
 - README: early-preview disclaimer; licensing/attribution and authors sections updated.
 - CHANGELOG: version order (newest first), 0.1.7 and 0.1.8 entries.
 
@@ -112,7 +115,7 @@ No separate changelog; see Version History below.
 ## [0.1.2] - 2024-12-19
 
 ### Added
-- Initial pre-release of py10x-universe (10x Universe Ecosystem Core)
+- Initial pre-release
 - Core data modeling with `Traitable` framework
 - Trait-based traitable definitions with type safety
 - Object identification system (endogenous/exogenous traitables)
@@ -152,7 +155,7 @@ No separate changelog; see Version History below.
 ### Dependencies
 - Python 3.11+ support
 - Core dependencies: numpy, python-dateutil, cryptography
-- C++ implementation: py10x-core, py10x-infra packages
+- C++ implementation: our core and infra packages
 - UI backends: Rio UI, PyQt6
 - Infrastructure: pymongo
 - Development: pytest, ruff, playwright
@@ -161,10 +164,11 @@ No separate changelog; see Version History below.
 
 ## Version History
 
-- **0.1.11**: C++ package rename py10x-core → py10x-kernel; uv-sync installable command; uv_sync verbosity/rebuilds/Windows/doc fixes
+- **0.1.12**: This package rename to `py10x-universe` → `py10x-core`; docs updated
+- **0.1.11**: C++ package rename `py10x-core` → `py10x-kernel`; `uv-sync` installable command; uv_sync verbosity/rebuilds/Windows/doc fixes
 - **0.1.10**: Dynamic versioning (dev_10x), dev_10x.uv_sync, version tests; doc links to 10x-software; C++ deps relaxed to >=0.1.9,<0.2.0
 - **0.1.9**: Verifiers docs and tests; Trait metaclass/slots and fmt handling; pyproject 0.1.9
-- **0.1.8**: Traitable.verify(), TsStore.populate(), RC.prepend_error_header; attic move; entity_filter removed; naming (py10x-universe, py10x-core, py10x-infra); README disclaimer
+- **0.1.8**: Traitable.verify(), TsStore.populate(), RC.prepend_error_header; attic move; entity_filter removed; naming (`py10x-universe`, `py10x-core`, `py10x-infra`); README disclaimer
 - **0.1.7**: OS classifiers, README image URL
 - **0.1.6**: NOTICE, OS tagging, README image
 - **0.1.5**: Beta classifier, CI cache
@@ -182,8 +186,9 @@ No migration from previous versions is necessary - package versions will automat
 
 ### Breaking Changes
 
+- **0.1.12**: This package renamed: use **py10x-core** instead of `py10x-universe` in dependencies, CI, or local installs.
 - **0.1.11**: C++ dependency renamed: use **py10x-kernel** instead of `py10x-core` in dependencies, CI, or local installs.
-- **0.1.4**: Subclasses of `Traitable` must not override `__init__`; use `__post_init__` for customization. Python 3.10 no longer supported (3.11+ required). C++ packages are now `py10x-kernel` and `py10x-infra` (rename from core_10x_i / infra_10x_i if you referenced them directly).
+- **0.1.4**: Subclasses of `Traitable` must not override `__init__`; use `__post_init__` for customization. Python 3.10 no longer supported (3.11+ required). C++ packages are now `py10x-core` and `py10x-infra` (rename from core_10x_i / infra_10x_i if you referenced them directly).
 - **0.1.2 and earlier**: Initial pre-release; no breaking changes from previous versions.
 
 
