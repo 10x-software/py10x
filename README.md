@@ -13,24 +13,23 @@ The core package of the 10x Universe software ecosystem, designed to make 10x en
 
 ### Project Structure
 
-The 10x platform is developed and maintained by **10x Concepts LLC** and follows a layered architecture:
+The 10x platform is developed and maintained by **10X CONCEPTS LLC** and follows a layered architecture:
 
 ```
-10x Concepts LLC
-    ├── MIT Python ecosystem
-    └── Proprietary C++ native extensions (binary distribution)
+10x Universe
+    ├── The 10x Universe Python ecosystem - this package (`py10x-universe` - open source and governed by the MIT License)
+    └── C++ native extensions - package dependencies (`py10x-core` and `py10x-infra` - binary distributions governed by their respective proprietary licenses (see below))
 ```
 
-### MIT Python Ecosystem
+### The 10x Universe Python Ecosystem
 
-The core Python framework is released under the **MIT License**, including:
+This package implements the trait system, object modeling framework, dependency graph, UI abstractions, and infrastructure integrations.
+It is released under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt) and includes the following packages:
 
 - `py10x-universe`
-  - `core_10x`
-  - `infra_10x`
-  - `ui_10x`
-
-These packages implement the trait system, object modeling framework, dependency graph, UI abstractions, and infrastructure integrations.
+  - `core_10x`: Core data modeling with traits, traitables, and serialization
+  - `ui_10x`: Cross-platform UI components focused on traitable editing and management
+  - `infra_10x`: Infrastructure components including MongoDB storage integration
 
 You are free to:
 
@@ -40,7 +39,7 @@ You are free to:
 - Fork it
 - Build on top of it
 
-All Python source in this repository is fully open under MIT.
+All Python source in this repository is fully open and governed by the MIT license.
 
 ### Native C++ Components
 
@@ -49,23 +48,19 @@ Some performance-critical functionality is implemented in C++ and exposed to Pyt
 - Distributed as compiled binaries  
 - Not included in this repository  
 - Governed by a separate proprietary license  
-- Required for full functionality of the framework  
+- Required for full functionality of the framework
+- You are free to use them as long as you agree to the license terms
 
 This separation allows the Python framework to remain transparent and extensible while delivering performance where it matters.
 
 ### Licensing Summary
 
-- All Python source code in this repository is licensed under the **MIT License**.  
-- Native C++ binary components are proprietary and distributed separately.  
-- Use of proprietary components is subject to their respective license terms.
-
-## Overview
-
-py10x-universe is organized into three main packages:
-
-- **core_10x**: Core data modeling with traits, traitables, and serialization
-- **ui_10x**: Cross-platform UI components focused on traitable editing and management
-- **infra_10x**: Infrastructure components including MongoDB storage integration
+- All Python source code in this repository is licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).  
+- Native C++ binary components are proprietary and installed as package dependencies - `py10x-core` and `py10x-infra`
+- Use of proprietary components is subject to their respective license terms 
+  - [py10x-core Proprietary License](https://10x-software.org/py10x_core/LICENSE.txt)
+  - [py10x-infra Proprietary License](https://10x-software.org/py10x_infra/LICENSE.txt)
+- By installing `py10x-universe`, you agree to the terms of the proprietary licenses for `py10x-core` and `py10x-infra`.
 
 
 ## Installation
@@ -78,17 +73,6 @@ For detailed installation instructions including all prerequisites and platform-
 - [UV](https://docs.astral.sh/uv/) - Python installer and package manager
 - MongoDB (for running tests and examples)
   - A passwordless MongoDB instance (localhost would be the easiest) required for running some tests and examples
-
-## Component Licensing
-This package (`py10x-universe`) relies on and automatically installs `py10x-core` and `py10x-infra`, also developed by 10X CONCEPTS LLC.
-
-While these packages are provided free of charge, they have different legal terms:
-- **`py10x-universe` (This package):** Licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).
-- **`py10x-core`:** Proprietary; governed by the [Proprietary License for py10x-core](https://10x-software.org/py10x_core/LICENSE.txt).
-- **`py10x-infra`:** Proprietary; governed by the [Proprietary License for py10x-infra](https://10x-software.org/py10x_infra/LICENSE.txt).
-
-By installing `py10x-universe`, you agree to the terms of the proprietary licenses for `py10x-core` and `py10x-infra`.
-
 
 ### Install with UV (Recommended)
 
