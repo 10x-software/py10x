@@ -576,7 +576,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         as_of = {'_at': LE(_before)} if _before else {}
         cursor = cls.s_history_class.load_many(
             f(_filter, **named_filters, **as_of),
-            _order=dict(_traitable_id=1, _at=-1),
+            _order=dict(_traitable_id=1, _at=-1, _traitable_rev=-1),
             _at_most=_at_most,
             _deserialize=_deserialize,
             _coll_name=_collection_name + '#history' if _collection_name else None,

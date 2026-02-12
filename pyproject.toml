@@ -48,6 +48,7 @@ dev = [
     #"pre-commit>=3.1,<5.0",
     "pytest>=8.3.4,<9.0",
     "pytest-cov>=6.0,<8.0",
+    "pytest-mock>=3.5.11<4.0.0",
     "ruff>=0.13,<0.14",
     "setuptools_scm>=9.2.2",
     "tomlkit>=0.13.0",

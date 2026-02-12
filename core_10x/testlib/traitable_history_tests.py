@@ -16,11 +16,23 @@ from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
 from core_10x.traitable_id import ID
 from core_10x.ts_store import TsDuplicateKeyError
 
-try:
-    from infra_10x.mongodb_store import MongoStore
-except ImportError:
-    MongoStore = None
 
+@pytest.fixture(params=[True, False], ids=['frozen', 'flowing'], autouse=True)
+def clock_freezer(mocker, ts_instance, request):
+    class ClockFreezer(list):
+        def utcnow(self):
+            tm = datetime.utcnow()
+            if self:
+                tm, self[0] = self[0], tm
+            return tm
+
+    frozen_now = ClockFreezer()
+    if request.param:
+        frozen_now.append(datetime.utcnow())
+        mock_dt = mocker.patch('core_10x.testlib.test_store.datetime', autospec=True)
+        mock_dt.utcnow.side_effect = lambda: frozen_now[0]
+        mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
+    yield frozen_now
 
 class NameValueTraitableBase(Traitable):
     """Test traitable class for testing."""
@@ -128,7 +140,7 @@ class TestTraitableHistory:
         assert saved_doc['value'] == 42
         assert isinstance(saved_doc['_at'], datetime)
 
-    def test_traitable_class_history_methods(self, test_store, test_collection):
+    def test_traitable_class_history_methods(self, test_store, test_collection, clock_freezer):
         """Test Traitable class history methods."""
         # Create a test traitable and save it with history
         test_item = NameValueTraitableCustomCollection(_collection_name=test_collection.collection_name())
@@ -150,7 +162,7 @@ class TestTraitableHistory:
         assert history[0]['name'] == 'Test Item'
         assert history[0]['value'] == 42
 
-        ts = datetime.utcnow()
+        ts = clock_freezer.utcnow()
         test_item.value = 43
         test_item.save()
         assert test_item._rev == 2
@@ -268,7 +280,7 @@ class TestTraitableHistory:
         assert '_at' in latest
         assert latest['age'] == 31  # Updated age
 
-    def test_asof_context_manager_ops(self, test_store):
+    def test_asof_context_manager_ops(self, test_store, clock_freezer):
         """Test AsOfContext with real data."""
 
         # Create a person
@@ -279,7 +291,7 @@ class TestTraitableHistory:
         person.save()
 
         # Record the time after creation
-        query_time = datetime.utcnow()
+        query_time = clock_freezer.utcnow()
 
         # Update the person
         person.age = 31
@@ -291,7 +303,7 @@ class TestTraitableHistory:
             assert historical_person.age == 30  # Original age
             assert historical_person.name == 'John Doe'
 
-    def test_as_of_error_cases(self, test_store):
+    def test_as_of_error_cases(self, test_store, clock_freezer):
         with BTraitableProcessor.create_root():
             # Create and save a person
             person = PersonTraitable(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _replace=True)
@@ -299,7 +311,7 @@ class TestTraitableHistory:
             person.spouse.save().throw()
             person.save().throw()
 
-            ts = datetime.utcnow()
+            ts = clock_freezer.utcnow()
 
             # Update and save again
             person.dob = date(1985, 7, 6)
@@ -351,7 +363,7 @@ class TestTraitableHistory:
                     with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
                         _ = person2.dob
 
-    def test_load_as_of(self, test_store):
+    def test_load_as_of(self, test_store, clock_freezer):
         """Test loading a traitable as of a specific time."""
 
         # Create a person
@@ -362,7 +374,7 @@ class TestTraitableHistory:
         person.save()
 
         # Record the time after creation
-        initial_time = datetime.utcnow()
+        initial_time = clock_freezer.utcnow()
 
         # Update the person
         person.age = 31
@@ -374,7 +386,7 @@ class TestTraitableHistory:
         assert historical_person.name == 'John Doe'
         assert historical_person == person  # person's trait values also get updated due to shared cache
 
-    def test_load_many_with_as_of(self, test_store):
+    def test_load_many_with_as_of(self, test_store, clock_freezer):
         """Test loading multiple traitables as of a specific time."""
 
         # Create two people
@@ -391,7 +403,7 @@ class TestTraitableHistory:
         person2.save()
 
         # Record the time after creation
-        query_time = datetime.utcnow()
+        query_time = clock_freezer.utcnow()
 
         # Update both people
         person1.age = 31
@@ -455,7 +467,7 @@ class TestTraitableHistory:
             assert type(NoHistoryTraitable.s_storage_helper) is type(original_helper)
         assert NoHistoryTraitable.existing_instance(key='k1') == item
 
-    def test_asof_default_applies_to_all_traitable_subclasses(self, test_store):
+    def test_asof_default_applies_to_all_traitable_subclasses(self, test_store, clock_freezer):
         """AsOfContext with default traitable_classes (None) applies to all Traitable subclasses via __mro__."""
         # Create and save a person
         person = PersonTraitable()
@@ -463,7 +475,7 @@ class TestTraitableHistory:
         person.age = 25
         person.save()
 
-        query_time = datetime.utcnow()
+        query_time = clock_freezer.utcnow()
 
         person.age = 26
         person.save()
@@ -479,7 +491,7 @@ class TestTraitableHistory:
         current = PersonTraitable.load(person.id())
         assert current.age == 26
 
-    def test_latest_revision_with_timestamp(self, test_store):
+    def test_latest_revision_with_timestamp(self, test_store, clock_freezer):
         """Test latest_revision with specific timestamp."""
         # Create a person
         person = PersonTraitable()
@@ -488,7 +500,7 @@ class TestTraitableHistory:
         person.save()
 
         # Record time after first save
-        query_time = datetime.utcnow()
+        query_time = clock_freezer.utcnow()
 
         # Update the person
         person.age = 31
@@ -540,7 +552,7 @@ class TestTraitableHistory:
         history_limited = PersonTraitable.history(_at_most=2)
         assert len(history_limited) == 2
 
-    def test_latest_revision_with_timestamp_parameter(self, test_store):
+    def test_latest_revision_with_timestamp_parameter(self, test_store, clock_freezer):
         """Test that latest_revision accepts timestamp parameter."""
         # Create a person
         person = PersonTraitable()
@@ -549,7 +561,7 @@ class TestTraitableHistory:
         person.save()
 
         # Record time after first save
-        query_time = datetime.utcnow()
+        query_time = clock_freezer.utcnow()
 
         # Update the person
         person.age = 26
@@ -565,7 +577,7 @@ class TestTraitableHistory:
         assert latest_no_timestamp is not None
         assert latest_no_timestamp['age'] == 26  # Should be the latest revision
 
-    def test_restore(self, test_store):
+    def test_restore(self, test_store, clock_freezer):
         """Test restore method with save parameter."""
         # Create a person
         person = PersonTraitable()
@@ -574,7 +586,7 @@ class TestTraitableHistory:
         person.save()
 
         # Record time after first save
-        query_time = datetime.utcnow()
+        query_time = clock_freezer.utcnow()
 
         # Update the person
         person.age = 31
@@ -749,7 +761,7 @@ class TestTraitableHistory:
         assert any(doc['_who'] == original_who for doc in reloaded_docs)
         assert all(doc['_who'] != 'someone-else' for doc in reloaded_docs)
 
-    def test_asof_find_returns_one_record_per_id(self, test_store):
+    def test_asof_find_returns_one_record_per_id(self, test_store, clock_freezer):
         """Test that the AsOf _find implementation returns at most one record per _id."""
 
         # Create two people and multiple history entries for each
@@ -775,7 +787,7 @@ class TestTraitableHistory:
         history = PersonTraitable.history()
         assert len(history) >= 4
 
-        as_of_time = datetime.utcnow()
+        as_of_time = clock_freezer.utcnow()
 
         # AsOfContext uses StorableHelperAsOf._find under the hood for load_many
         with AsOfContext(as_of_time, [PersonTraitable]):

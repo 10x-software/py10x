@@ -9,6 +9,7 @@ that can be used for unit tests without external dependencies like MongoDB.
 from __future__ import annotations
 
 import copy
+from datetime import datetime
 import re
 from typing import TYPE_CHECKING
 
@@ -87,7 +88,6 @@ class TestCollection(TsCollection):
         # Handle MongoDB-style operations
         if '$set' in serialized_traitable:
             # This is a MongoDB-style update operation
-            from datetime import datetime
 
             # Extract the data from $set
             data = serialized_traitable['$set'].copy()
