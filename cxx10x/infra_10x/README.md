@@ -1,7 +1,8 @@
 # py10x-infra
 
-10X Universe Core Infrastructure — C++ extension and Python bindings for infrastructure components.
-This package is a dependency of `py10x_universe` and is intended to be used in conjunction with `py10x_universe` only.
+10X Platform Core Infrastructure is a C++ extension and Python bindings for core infrastructure related utilities.
+
+This package is a dependency of `py10x-core` and is intended to be used in conjunction with [py10x-core](https://github.com/10x-software/py10x/blob/main/README.md) only.
 
 ## Requirements
 

@@ -1,4 +1,4 @@
-# 10x Universe dependencies
+# 10x Platform dependencies
 
-- py10x_kernel (core_10x)
-- py10x_infra (infra_10x)
+- [py10x_kernel](core_10x/README.md)
+- [py10x_infra](infra_10x/README.md)
