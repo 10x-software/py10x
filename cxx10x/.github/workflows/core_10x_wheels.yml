@@ -3,7 +3,7 @@ name: wheels-core_10x
 on:
   push:
     tags:
-      - "py10x-core-v*"
+      - "py10x-kernel-v*"
   workflow_dispatch:
 
 jobs:

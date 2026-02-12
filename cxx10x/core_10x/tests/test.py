@@ -15,7 +15,7 @@ from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
 
-from py10x_core import BTraitableProcessor,XCache
+from py10x_kernel import BTraitableProcessor,XCache
 
 from core_10x.environment_variables import EnvVars
 
@@ -925,8 +925,8 @@ def test_34():
         assert False, "Expected TypeError when deserializing X as Y"
 
 if __name__ == '__main__':
-    import py10x_core
-    print(py10x_core.__file__)
+    import py10x_kernel
+    print(py10x_kernel.__file__)
     test_1()
     test_2()
     test_3()

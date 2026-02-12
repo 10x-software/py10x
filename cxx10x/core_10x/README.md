@@ -1,4 +1,4 @@
-# py10x-core
+# py10x-kernel
 
 10X Universe Core Internals — C++ extension and Python bindings for core runtime, traits, nodes, and utilities.
 This package is a dependency of `py10x_universe` and is intended to be used in conjunction with `py10x_universe` only.
@@ -10,4 +10,4 @@ This package is a dependency of `py10x_universe` and is intended to be used in c
 
 ## License
 
-See the [LICENSE](https://10x-software.org/py10x_core/LICENSE.txt).
+See the [LICENSE](https://10x-software.org/py10x_kernel/LICENSE.txt).

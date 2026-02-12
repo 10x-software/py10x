@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="py10x_kernel" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="test.py" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$/core_10x/tests" PASS_PARENT_ENVS_2="true" PROJECT_NAME="10x_i" TARGET_NAME="py10x_kernel" CONFIG_NAME="Debug" RUN_PATH="$PROJECT_DIR$/.venv/bin/python">
+    <envs>
+      <env name="PYTHONPATH" value="../cmake-build-debug:../../../py10x" />
+    </envs>
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>

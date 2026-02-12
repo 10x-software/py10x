@@ -28,7 +28,7 @@ struct PyBTraitable : BTraitable {
     }
 };
 
-PYBIND11_MODULE(py10x_core, m)
+PYBIND11_MODULE(py10x_kernel, m)
 {
     m.doc() = "10x kernel";
     m.attr("__version__") =
