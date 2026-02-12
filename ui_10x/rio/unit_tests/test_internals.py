@@ -562,7 +562,7 @@ class TestSession:
         await Session.save_file(session, 'test content', 'test.txt', media_type='text/plain', directory=pathlib.Path('/test'))
 
         # Should call webview save_file
-        session.app10x.webview.save_file.assert_called_once_with(file_contents='test content', directory='/test', file_name='test.txt')
+        session.app10x.webview.save_file.assert_called_once_with(file_contents='test content', directory=str(pathlib.Path('/test')), file_name='test.txt')
 
     async def test_session_save_file_running_in_window_no_directory(self):
         """Test save_file when running in window with no directory calls webview."""

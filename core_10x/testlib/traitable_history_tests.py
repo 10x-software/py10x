@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from datetime import date, datetime
 
@@ -24,6 +25,9 @@ def clock_freezer(mocker, ts_instance, request):
             tm = datetime.utcnow()
             if self:
                 tm, self[0] = self[0], tm
+            else:
+                time.sleep(0.001)
+
             return tm
 
     frozen_now = ClockFreezer()
