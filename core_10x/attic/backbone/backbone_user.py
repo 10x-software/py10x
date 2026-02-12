@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from py10x_core import OsUser
+from py10x_kernel import OsUser
 
 from core_10x.traitable import RT, T
 from core_10x.attic.backbone.backbone_traitable import BackboneTraitable

@@ -4,7 +4,7 @@
 # path_to_core_10x = path.dirname(pp)
 import atexit
 
-from py10x_core import CORE_10X, PyLinkage, XCache
+from py10x_kernel import CORE_10X, PyLinkage, XCache
 
 
 # fmt: off

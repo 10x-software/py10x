@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from py10x_core import BNucleus
+from py10x_kernel import BNucleus
 
 
 class Nucleus:

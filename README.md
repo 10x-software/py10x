@@ -18,7 +18,7 @@ The 10x platform is developed and maintained by **10X CONCEPTS LLC** and follows
 ```
 10x Universe
     ├── The 10x Universe Python ecosystem - this package (`py10x-universe` - open source and governed by the MIT License)
-    └── C++ native extensions - package dependencies (`py10x-core` and `py10x-infra` - binary distributions governed by their respective proprietary licenses (see below))
+    └── C++ native extensions - package dependencies (`py10x-kernel` and `py10x-infra` - binary distributions governed by their respective proprietary licenses (see below))
 ```
 
 ### The 10x Universe Python Ecosystem
@@ -56,11 +56,11 @@ This separation allows the Python framework to remain transparent and extensible
 ### Licensing Summary
 
 - All Python source code in this repository is licensed under the [MIT License](https://10x-software.org/py10x_universe/LICENSE.txt).  
-- Native C++ binary components are proprietary and installed as package dependencies - `py10x-core` and `py10x-infra`
+- Native C++ binary components are proprietary and installed as package dependencies - `py10x-kernel` and `py10x-infra`
 - Use of proprietary components is subject to their respective license terms 
-  - [py10x-core Proprietary License](https://10x-software.org/py10x_core/LICENSE.txt)
+  - [py10x-kernel Proprietary License](https://10x-software.org/py10x_kernel/LICENSE.txt)
   - [py10x-infra Proprietary License](https://10x-software.org/py10x_infra/LICENSE.txt)
-- By installing `py10x-universe`, you agree to the terms of the proprietary licenses for `py10x-core` and `py10x-infra`.
+- By installing `py10x-universe`, you agree to the terms of the proprietary licenses for `py10x-kernel` and `py10x-infra`.
 
 
 ## Installation

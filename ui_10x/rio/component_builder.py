@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
     from core_10x.rc import RC
     from core_10x.ts_store import TsStore
-    from py10x_core import BTraitableProcessor
+    from py10x_kernel import BTraitableProcessor
 
 
 @dataclass

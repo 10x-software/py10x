@@ -1,7 +1,7 @@
 import ast
 import os
 
-from py10x_core import OsUser
+from py10x_kernel import OsUser
 
 from core_10x.global_cache import cache
 from core_10x.rc import RC

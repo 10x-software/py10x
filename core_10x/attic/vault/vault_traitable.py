@@ -1,6 +1,6 @@
 import keyring
 
-from py10x_core import OsUser
+from py10x_kernel import OsUser
 
 from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE, TsStore, cache
 from core_10x.environment_variables import EnvVars

@@ -1,4 +1,4 @@
-from py10x_core import BTraitableProcessor
+from py10x_kernel import BTraitableProcessor
 
 from core_10x.code_samples.person import Person
 from core_10x.trait_definition import T

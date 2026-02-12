@@ -6,7 +6,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
 
-from py10x_core import OsUser
+from py10x_kernel import OsUser
 from core_10x.global_cache import cache
 from core_10x.environment_variables import EnvVars
 

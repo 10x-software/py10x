@@ -20,15 +20,15 @@ This document helps you prepare the py10x-universe project for open-source relea
 
 The project **requires** two packages that are currently **proprietary** (see README and NOTICE):
 
-- **py10x-core** – C++ backend (used in `core_10x/`, `ui_10x/`, etc.)
+- **py10x-kernel** – C++ backend (used in `core_10x/`, `ui_10x/`, etc.)
 - **py10x-infra** – C++ backend (used in `infra_10x/mongodb_store.py`, tests)
 
 **Implications:**
 
 - As long as installation depends on these proprietary packages, the **combined** offering is not fully open source, even though the Python code in this repo is MIT.
 - To make the **project** open source in practice, you need one of:
-  - **Option A:** Open-source `py10x-core` and `py10x-infra` (or replace them with MIT-compatible implementations), and keep them as required dependencies; or
-  - **Option B:** Make `py10x-core` and `py10x-infra` **optional** and provide a way to run/test the MIT-licensed Python code without them (e.g., stubs or a “community” backend); then the **published repo** can be clearly “MIT” and the proprietary pieces are an add-on.
+  - **Option A:** Open-source `py10x-kernel` and `py10x-infra` (or replace them with MIT-compatible implementations), and keep them as required dependencies; or
+  - **Option B:** Make `py10x-kernel` and `py10x-infra` **optional** and provide a way to run/test the MIT-licensed Python code without them (e.g., stubs or a “community” backend); then the **published repo** can be clearly “MIT” and the proprietary pieces are an add-on.
 
 Until one of these is done, README and docs should clearly state that the full product depends on proprietary components and link to their licenses.
 
@@ -68,8 +68,8 @@ Running `licensecheck` in this project reports:
 
 - **Compatible (✔):** All third-party open-source dependencies (e.g. cryptography, pymongo, numpy, scipy, requests, importlib-resources, keyring, typing-extensions, etc.) are MIT-compatible (Apache 2.0, BSD, MIT, MPL 2.0, PSF, ISC).
 - **Flagged (✖), expected and documented:**
-  - **py10x-core**, **py10x-infra** — `OTHER_PROPRIETARY LICENSE`. These are the proprietary components documented in README and NOTICE; no action needed for the open-source framework’s compliance.
-  - **hatchling** — License sometimes reported empty by licensecheck; hatchling is MIT-licensed. If you run licensecheck in CI, allow-list these three (py10x-core, py10x-infra, hatchling) so the check does not fail on known exceptions; see the tool’s docs for ignore/allow-list options.
+  - **py10x-kernel**, **py10x-infra** — `OTHER_PROPRIETARY LICENSE`. These are the proprietary components documented in README and NOTICE; no action needed for the open-source framework’s compliance.
+  - **hatchling** — License sometimes reported empty by licensecheck; hatchling is MIT-licensed. If you run licensecheck in CI, allow-list these three (py10x-kernel, py10x-infra, hatchling) so the check does not fail on known exceptions; see the tool’s docs for ignore/allow-list options.
 
 ---
 
@@ -140,7 +140,7 @@ You can do this only for new files, or add project-wide via a one-time script an
 
 Before publishing the repo as open source:
 
-- [x] Resolve or clearly document **proprietary dependencies** (§2) (optional backends or open-sourcing py10x-core/py10x-infra).
+- [x] Resolve or clearly document **proprietary dependencies** (§2) (optional backends or open-sourcing py10x-kernel/py10x-infra).
 - [x] Run a **dependency license audit** and add any required attributions (§3, §6).
 - [x] Confirm **no in-bound code** is used without proper license/attribution (§4).
 - [x] Confirm **trademarks and assets** (logos, images) are cleared for public use (§5).

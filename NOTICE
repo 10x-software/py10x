@@ -11,10 +11,10 @@ This package relies on and installs the following proprietary components,
 which are not part of the MIT-licensed py10x-universe framework and are governed by
 their own license terms:
 
-  - py10x-core
+  - py10x-kernel
     Copyright (c) 2025-2026 10X CONCEPTS LLC. All rights reserved.
-    Proprietary; governed by Proprietary License for py10x-core.
-    See: https://10x-software.org/py10x_core/LICENSE.txt
+    Proprietary; governed by Proprietary License for py10x-kernel.
+    See: https://10x-software.org/py10x_kernel/LICENSE.txt
 
   - py10x-infra
     Copyright (c) 2025-2026 10X CONCEPTS LLC. All rights reserved.

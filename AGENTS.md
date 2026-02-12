@@ -27,7 +27,7 @@ Agents should **link to and rely on those files**, not duplicate them here.
     - `uv run ...` for Python tooling (`pytest`, `ruff`, etc.).
 
 - **Respect C++ / cxx10x backend**
-  - Treat `core-10x-i` / `infra-10x-i` (from `cxx10x`) as **opaque C++ backends**.
+  - Treat `py10x-kernel` / `py10x-infra` (from `cxx10x`) as **opaque C++ backends**.
   - Do **not** try to reimplement or bypass them in Python; use the public Python APIs.
 
 - **MongoDB & UI assumptions**

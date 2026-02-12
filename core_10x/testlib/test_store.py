@@ -12,7 +12,7 @@ import copy
 import re
 from typing import TYPE_CHECKING
 
-from py10x_core import BTraitable, BTraitableProcessor
+from py10x_kernel import BTraitable, BTraitableProcessor
 
 from core_10x.nucleus import Nucleus
 from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore

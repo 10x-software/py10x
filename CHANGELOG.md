@@ -78,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AGENTS.md**: Meta-guide for AI agents and tools working in the repo (canonical docs, tooling, traitable invariants, test layout)
 
 ### Changed
-- **Package and branding**: C++ packages renamed to `py10x_core` and `py10x_infra` (from core_10x_i / infra_10x_i); email domain updates
+- **Package and branding**: C++ packages renamed to `py10x_kernel` and `py10x_infra` (from core_10x_i / infra_10x_i); email domain updates
 - **Python**: Requires Python 3.11+ (up to <3.13) per pyproject.toml
 - **Rio UI**: Upgraded to Rio 0.12
 - **Dependencies**: Version bumps for numpy, cryptography, pymongo, etc.; keyring and requests added where needed
