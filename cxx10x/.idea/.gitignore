@@ -7,3 +7,5 @@
 /dataSources/
 /dataSources.local.xml
 /copilot.data.migration.edit.xml
+/copilot.data.migration.agent.xml
+/copilot.data.migration.ask2agent.xml
