@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.11] - 2026-02-11
+
+### Added
+- **uv-sync installable command**: `uv_sync` available as an installable CLI command when using dev_10x.
+
+### Changed
+- **C++ package rename**: The native C++ dependency is now **py10x-kernel** (replacing `py10x-core`). Updated throughout: `pyproject.toml`, README, NOTICE, docs, and code references; license URL now `py10x_kernel`.
+- **dev_10x.uv_sync**: Reduced verbosity; avoids unnecessary rebuilds; re-exec on Windows for correct environment; improved behavior when locating `pyproject.toml` (checks current directory).
+- **dev_10x.uv_sync**: Fixed info message for user profile.
+- **Documentation**: README updates and merged redundant sections.
+
 ## [0.1.10] - 2026-02-09
 
 ### Added
@@ -150,6 +161,7 @@ No separate changelog; see Version History below.
 
 ## Version History
 
+- **0.1.11**: C++ package rename py10x-core → py10x-kernel; uv-sync installable command; uv_sync verbosity/rebuilds/Windows/doc fixes
 - **0.1.10**: Dynamic versioning (dev_10x), dev_10x.uv_sync, version tests; doc links to 10x-software; C++ deps relaxed to >=0.1.9,<0.2.0
 - **0.1.9**: Verifiers docs and tests; Trait metaclass/slots and fmt handling; pyproject 0.1.9
 - **0.1.8**: Traitable.verify(), TsStore.populate(), RC.prepend_error_header; attic move; entity_filter removed; naming (py10x-universe, py10x-core, py10x-infra); README disclaimer
@@ -170,11 +182,12 @@ No migration from previous versions is necessary - package versions will automat
 
 ### Breaking Changes
 
-- **0.1.4**: Subclasses of `Traitable` must not override `__init__`; use `__post_init__` for customization. Python 3.10 no longer supported (3.11+ required). C++ packages are now `py10x-core` and `py10x-infra` (rename from core_10x_i / infra_10x_i if you referenced them directly).
+- **0.1.11**: C++ dependency renamed: use **py10x-kernel** instead of `py10x-core` in dependencies, CI, or local installs.
+- **0.1.4**: Subclasses of `Traitable` must not override `__init__`; use `__post_init__` for customization. Python 3.10 no longer supported (3.11+ required). C++ packages are now `py10x-kernel` and `py10x-infra` (rename from core_10x_i / infra_10x_i if you referenced them directly).
 - **0.1.2 and earlier**: Initial pre-release; no breaking changes from previous versions.
 
 
 ## Acknowledgments
 
-- Relies on py10x-core and py10x-infra packages containing the underlying C++ implementation
+- Relies on py10x-kernel and py10x-infra packages containing the underlying C++ implementation
 - UI components based on Rio and Qt6 frameworks, focused on traitable editing and management
