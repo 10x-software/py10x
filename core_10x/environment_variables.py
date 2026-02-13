@@ -6,6 +6,7 @@ from py10x_kernel import OsUser
 from core_10x.global_cache import cache
 from core_10x.rc import RC
 from core_10x.xdate_time import XDateTime, date, datetime
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF
 #from core_10x.resource import Resource
 
 #===================================================================================================================================
@@ -153,6 +154,8 @@ class EnvVars(_EnvVars, env_name='XX'):
     main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27018/main'
     use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
     functional_account_prefix: str  = 'xx'          #-- used in user names to distinguish a regular user name from a functional account
+
+    graph_on: bool                  = False         #-- whether GRAPH is ON by default
 
     date_format: str = XDateTime.FORMAT_ISO
 
