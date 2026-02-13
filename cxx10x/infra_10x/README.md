@@ -11,4 +11,4 @@ This package is a dependency of `py10x-core` and is intended to be used in conju
 
 ## License
 
-See the [LICENSE](https://10x-software.org/py10x_infra/LICENSE.txt).
+MIT License. See [LICENSE](LICENSE) in this repository.
