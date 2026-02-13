@@ -4,7 +4,7 @@ Thank you for your interest in contributing to `py10x-core`! This document provi
 
 ## Development Setup
 
-For detailed installation instructions including all prerequisites and platform-specific setup, see [INSTALLATION.md](../INSTALLATION.md).
+For detailed installation instructions including all prerequisites and platform-specific setup, see [INSTALLATION.md](https://github.com/10x-software/py10x/blob/main/INSTALLATION.md).
 
 ### Prerequisites
 

@@ -47,8 +47,8 @@ For persistence—**Traitable Store** ([per-class store association](https://git
 
 ## 🤝 Contact & Support
 
-* **Getting Started:** [GETTING_STARTED.md](GETTING_STARTED.md) — Full technical manual.
-* **Installation:** [INSTALLATION.md](INSTALLATION.md) — Environment setup.
-* **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md) — How to contribute.
+* **Getting Started:** [GETTING_STARTED.md](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md) — Full technical manual.
+* **Installation:** [INSTALLATION.md](https://github.com/10x-software/py10x/blob/main/INSTALLATION.md) — Environment setup.
+* **Contributing:** [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) — How to contribute.
 * **Discord:** [Join the 10x Community](https://discord.gg/m7AQSXfFwf)
 * **Security:** Report vulnerabilities to [security@10x-software.org](mailto:security@10x-software.org)

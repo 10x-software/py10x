@@ -41,7 +41,7 @@ pip install py10x-core[rio]    # For Rio UI backend
 pip install py10x-core[qt]     # For Qt6 backend
 ```
 
-**For Development**: See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
+**For Development**: See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development setup instructions.
 
 ## Core Concepts
 
