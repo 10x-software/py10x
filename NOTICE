@@ -4,27 +4,6 @@ Copyright (c) 2025-2026 10X CONCEPTS LLC
 This project is licensed under the MIT License. See the LICENSE file for the full text.
 
 ================================================================================
-Proprietary components
-================================================================================
-
-This package relies on and installs the following proprietary components,
-which are not part of the MIT-licensed py10x-core package and are governed by
-their own license terms:
-
-  - py10x-kernel
-    Copyright (c) 2025-2026 10X CONCEPTS LLC. All rights reserved.
-    Proprietary; governed by Proprietary License for py10x-kernel.
-    See: https://10x-software.org/py10x_kernel/LICENSE.txt
-
-  - py10x-infra
-    Copyright (c) 2025-2026 10X CONCEPTS LLC. All rights reserved.
-    Proprietary; governed by Proprietary License for py10x-infra.
-    See: https://10x-software.org/py10x_infra/LICENSE.txt
-
-By installing or using py10x-core, you agree to the terms of the proprietary
-licenses for the above components. See README.md for full details.
-
-================================================================================
 Third-party open source software
 ================================================================================
 

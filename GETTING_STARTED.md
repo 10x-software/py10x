@@ -1,13 +1,10 @@
-from core_10x.exec_control import CACHE_ONLY
+# Getting Started with `py10x-core`
 
-# Getting Started with py10x-core
-
-Welcome to `py10x-core`!
-This comprehensive guide will walk you through the fundamental concepts, installation, and usage of this package.
+This guide covers the technical implementation and advanced usage of the py10x framework.
 
 ## Table of Contents
 
-1. [What is py10x-core?](#whats-in-py10x-core)
+1. [What is `py10x-core`?](#whats-in-py10x-core)
 2. [Installation](#installation)
 3. [Core Concepts](#core-concepts)
 4. [Your First Traitable](#your-first-traitable)
@@ -19,13 +16,13 @@ This comprehensive guide will walk you through the fundamental concepts, install
 10. [Advanced Features](#advanced-features)
 11. [Next Steps](#next-steps)
 
-## What's in py10x-core?
+## What's in `py10x-core`?
 
 - **Traitable Framework**: Core data modeling with traits, traitables, and serialization
 - **Object Identification**: Endogenous, exogenous, and anonymous traitables with global sharing
 - **Dependency Graph**: Automatic computation and dependency tracking
 - **Seamless UI Integration**: Rio and Qt6 backends with unified API
-- **Storage Integration**: MongoDB and in-memory caching
+- **Storage Integration**: Traitable Store (MongoDB backend or in-process store, e.g. for tests)
 - **Built-in Caching**: Automatic trait value and traitable state management
 
 ## Installation
@@ -33,25 +30,24 @@ This comprehensive guide will walk you through the fundamental concepts, install
 ### Prerequisites
 
 - Python 3.12 (recommended), 3.11+ supported
-- MongoDB (for running storage examples)
-  - Local passwordless MongoDB instance required for running storage examples
+- **Traitable Store backend:** `core_10x` tests use the in-process store; `infra_10x` tests use the MongoDB-backed store (where `MongoStore` is implemented). For `infra_10x` tests or persistence examples: local passwordless MongoDB on port 27017.
 
 ### Install
 
 ```bash
-# Install py10x-core with UI backend
+# Install `py10x-core` with UI backend
 pip install py10x-core[rio]    # For Rio UI backend
 # or
 pip install py10x-core[qt]     # For Qt6 backend
 ```
 
-**For Development**: See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development setup instructions.
+**For Development**: See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
 
 ## Core Concepts
 
 ### Traitables
 
-Traitables are the fundamental data models in `py10x-core` They are Python classes that inherit from `Traitable` and define typed attributes called "traits".
+Traitables are the fundamental data models in `py10x-core`. They are Python classes that inherit from `Traitable` and define typed attributes called "traits".
 
 ### Traits
 
@@ -123,7 +119,7 @@ calc = Calculator(x=5, y=3)
 
 ## Getters, Setters, and Validation
 
-`py10x-core`provides powerful mechanisms for computed traits, validation, and data transformation:
+`py10x-core` provides powerful mechanisms for computed traits, validation, and data transformation:
 
 ### Getters (Computed Traits)
 
@@ -627,14 +623,16 @@ with CACHE_ONLY():  # No traitable store, in-memory caching only
     assert person.dob == date(2001, 5, 15)  # Updated DOB
 ```
 
-### MongoDB Storage Integration
+### Traitable Store and persistence
+
+The framework uses a **Traitable Store** for persistence. Implementations include the MongoDB-backed store (`MongoStore`, in `infra_10x`) and an in-process store (used by `core_10x` tests). Example with the MongoDB backend:
 
 ```python
 from datetime import date
 from infra_10x.mongodb_store import MongoStore
 from core_10x.code_samples.person import Person
 
-# Connect to MongoDB
+# Connect to a Traitable Store (MongoDB backend)
 traitable_store = MongoStore.instance(
     hostname="localhost",
     dbname="myapp", 
@@ -646,6 +644,15 @@ with traitable_store:
     person.dob = date(1990, 5, 15)
     person.save()  # Persists to traitable store backed by Mongo
 ```
+To persist a traitable and all of its referenced objects (including self-references), use `person.save(save_references=True)`.
+
+### Connecting to stores
+
+You can connect to a store in three ways:
+
+1. **Direct instance:** `MongoStore.instance(hostname='localhost', dbname='myapp')`
+2. **URI:** `TsStore.instance_from_uri('mongodb://localhost/myapp')` (from `core_10x.ts_store`)
+3. **Environment variable:** Set `XX_MAIN_TS_STORE_URI` to define a default global store used by all storable traitables.
 
 ### Traitable Store Union (TsUnion)
 
@@ -772,7 +779,7 @@ with CACHE_ONLY():
 
 ## Execution Modes and Control
 
-`py10x-core`provides fine-grained control over computation and execution through execution modes. Each mode has specific overhead and benefits that should be considered based on your use case.
+`py10x-core` provides fine-grained control over computation and execution through execution modes. Each mode has specific overhead and benefits that should be considered based on your use case.
 
 ### Graph Execution Modes
 
@@ -968,6 +975,10 @@ with CACHE_ONLY():
 Traitable Store is essential for persistence and data management. 
 The storage context is used for finding and loading traitables.
 
+### Per-class store association
+
+You can associate particular Traitable classes (or modules) with specific store instances. When `use_ts_store_per_class` is enabled, the framework resolves the store for a class via `TsClassAssociation` and `NamedTsStore` (create and persist those traitables in your main store so each class or module maps to a logical store name and URI). This allows different Traitable subclasses to use different stores (e.g. different MongoDB databases or backends).
+
 ### Storage Context and Traitable Creation
 
 Storage context is required for traitable creation because the constructor needs to:
@@ -990,7 +1001,7 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
     # Constructor uses storage to find existing instances
     person = Person(first_name="Alice", last_name="Smith")
     person.dob = date(1990, 5, 15)
-    person.save()  # Persists to MongoDB
+    person.save()  # Persists to the traitable store
 ```
 
 ### Traitable Finding Methods
@@ -1130,7 +1141,7 @@ with CACHE_ONLY():
     # No persistence, but full traitable functionality available
 ```
 
-#### MongoDB Integration
+#### Traitable Store integration
 
 ```python
 from core_10x.traitable import Traitable, T
@@ -1142,16 +1153,16 @@ class Person(Traitable):
     last_name: str = T(T.ID)
     dob: date = T()
     
-# Connect to MongoDB
+# Connect to a Traitable Store (MongoDB backend in this example)
 with MongoStore.instance(hostname="localhost", dbname="myapp"):
     person = Person(first_name="Alice", last_name="Smith")
     person.dob = date(1990, 5, 15)
-    person.save()  # Persists to MongoDB
+    person.save()  # Persists to the traitable store
 ```
 
 ## UI Framework Integration
 
-`py10x-core`provides seamless UI framework switching between Rio and Qt6 with specialized components for traitable editing:
+`py10x-core` provides seamless UI framework switching between Rio and Qt6 with specialized components for traitable editing:
 
 ### Traitable Editor
 
@@ -1221,7 +1232,7 @@ os.environ['UI_PLATFORM'] = 'Qt'
 
 ### Named Constants
 
-`py10x-core`provides powerful named constant systems for type-safe enumerations and flags:
+`py10x-core` provides powerful named constant systems for type-safe enumerations and flags:
 
 #### Basic Named Constants
 

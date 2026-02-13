@@ -26,9 +26,9 @@ This guide provides comprehensive installation instructions for `py10x-core`, in
 
 ### Optional Database Dependencies
 
-- **MongoDB** (for running tests and examples)
-  - Required for running tests and examples that use MongoDB storage
-  - Local passwordless MongoDB instance on default port 27017
+- **Traitable Store backend** (for running `infra_10x` tests and persistence examples)
+  - `core_10x` tests use the in-process store. 
+  - `infra_10x` tests use the MongoDB-backed store (where it is implemented); for those, a local passwordless MongoDB instance on port 27017 is required.
 
 ## Installation Methods
 

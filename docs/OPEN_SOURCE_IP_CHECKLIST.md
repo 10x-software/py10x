@@ -11,30 +11,11 @@ This document helps you prepare the `py10x-core` project for open-source release
 | **Project license** | MIT | `LICENSE` file present; copyright Copyright 2025-2026 10X CONCEPTS LLC |
 | **Copyright in source** | Root only | No file-level copyright headers in `.py` files. Optional to add (see below). |
 | **Third-party code** | None found | No "Based on", "From", "Source:", or vendored copies detected in repo. |
-| **NOTICE / THIRD_PARTY** | Present | `NOTICE` in repo root; see README License section. |
-| **Proprietary dependencies** | Documented | README and NOTICE; see §2. |
+| **NOTICE / THIRD_PARTY** | Optional | `NOTICE` in repo root if used for third-party attribution. |
 
 ---
 
-## 2. Proprietary dependencies (critical for “open source”)
-
-The project **requires** two packages that are currently **proprietary** (see README and NOTICE):
-
-- **py10x-kernel** – C++ backend (used in `core_10x/`, `ui_10x/`, etc.)
-- **py10x-infra** – C++ backend (used in `infra_10x/mongodb_store.py`, tests)
-
-**Implications:**
-
-- As long as installation depends on these proprietary packages, the **combined** offering is not fully open source, even though the Python code in this repo is MIT.
-- To make the **project** open source in practice, you need one of:
-  - **Option A:** Open-source `py10x-kernel` and `py10x-infra` (or replace them with MIT-compatible implementations), and keep them as required dependencies; or
-  - **Option B:** Make `py10x-kernel` and `py10x-infra` **optional** and provide a way to run/test the MIT-licensed Python code without them (e.g., stubs or a “community” backend); then the **published repo** can be clearly “MIT” and the proprietary pieces are an add-on.
-
-Until one of these is done, README and docs should clearly state that the full product depends on proprietary components and link to their licenses.
-
----
-
-## 3. Third-party Python dependencies (MIT compatibility)
+## 2. Third-party Python dependencies (MIT compatibility)
 
 All direct dependencies in `pyproject.toml` are commonly used under permissive licenses that are compatible with distributing your project under MIT. You should still **verify** licenses (e.g. with a tool or manually) before release.
 
@@ -51,7 +32,7 @@ All direct dependencies in `pyproject.toml` are commonly used under permissive l
 | requests | Apache 2.0 | Yes |
 | hatchling | MIT | Yes |
 | hatch-build-scripts | (check) | (verify) |
-| Optional: PyQt6 / Rio / pytest / ruff / etc. | GPL / MIT / BSD etc. | PyQt6 is GPL/Commercial – see §5 |
+| Optional: PyQt6 / Rio / pytest / ruff / etc. | GPL / MIT / BSD etc. | PyQt6 is GPL/Commercial – see §4 |
 
 **Recommended:** Before release, run a dependency license checker and fix or document any exceptions:
 
@@ -60,7 +41,7 @@ uv run licensecheck
 # Or: pip install licensecheck && licensecheck
 ```
 
-Add any **attribution or notice** required by your dependencies to a `NOTICE` or `THIRD_PARTY_LICENSES` file (see §6).
+Add any **attribution or notice** required by your dependencies to a `NOTICE` or `THIRD_PARTY_LICENSES` file (see §5).
 
 ### licensecheck results (summary)
 
@@ -68,12 +49,11 @@ Running `licensecheck` in this project reports:
 
 - **Compatible (✔):** All third-party open-source dependencies (e.g. cryptography, pymongo, numpy, scipy, requests, importlib-resources, keyring, typing-extensions, etc.) are MIT-compatible (Apache 2.0, BSD, MIT, MPL 2.0, PSF, ISC).
 - **Flagged (✖), expected and documented:**
-  - **py10x-kernel**, **py10x-infra** — `OTHER_PROPRIETARY LICENSE`. These are the proprietary components documented in README and NOTICE; no action needed for the open-source framework’s compliance.
-  - **hatchling** — License sometimes reported empty by licensecheck; hatchling is MIT-licensed. If you run licensecheck in CI, allow-list these three (py10x-kernel, py10x-infra, hatchling) so the check does not fail on known exceptions; see the tool’s docs for ignore/allow-list options.
+  - **hatchling** — License sometimes reported empty by licensecheck; hatchling is MIT-licensed. If you run licensecheck in CI, allow-list hatchling so the check does not fail on this known exception; see the tool’s docs for ignore/allow-list options.
 
 ---
 
-## 4. Your own code and contributions
+## 3. Your own code and contributions
 
 - **Ownership:** Confirm that all code in the repo is either (a) written by 10x (or contractors with appropriate assignments) or (b) used under a compatible license with correct attribution.
 - **No copied code:** Do not paste in code from Stack Overflow, blogs, or other projects without verifying license and adding attribution where required.
@@ -81,7 +61,7 @@ Running `licensecheck` in this project reports:
 
 ---
 
-## 5. Trademarks, logos, and assets
+## 4. Trademarks, logos, and assets
 
 - **Names:** “py10x-core”, “10x”, “10x Software”, "10x Platform" – ensure you have rights to use these and that open-source use does not conflict with your trademark policy. Consider a short TRADEMARKS section in README or docs.
 - **Images:** `10x-jerboa-in-desert.jpeg`, `10x-jerboa.jpeg` – both are **AI-generated**. Confirm the generator’s terms allow use in this project (and attribution if required); document in README or NOTICE if needed. To identify which tool was used, see “How to check which AI tool was used” below.
@@ -111,7 +91,7 @@ Running `licensecheck` in this project reports:
 
 ---
 
-## 6. NOTICE and attribution
+## 5. NOTICE and attribution
 
 - **LICENSE:** Keep the root MIT `LICENSE` as-is.
 - **NOTICE (optional but good practice):** Create a `NOTICE` file in the repo root if you need to:
@@ -123,7 +103,7 @@ Running `licensecheck` in this project reports:
 
 ---
 
-## 7. Optional: file-level copyright headers
+## 6. Optional: file-level copyright headers
 
 No legal requirement for MIT, but some organizations add a short notice to each source file:
 
@@ -136,22 +116,21 @@ You can do this only for new files, or add project-wide via a one-time script an
 
 ---
 
-## 8. Pre-release checklist (summary)
+## 7. Pre-release checklist (summary)
 
 Before publishing the repo as open source:
 
-- [x] Resolve or clearly document **proprietary dependencies** (§2) (optional backends or open-sourcing py10x-kernel/py10x-infra).
-- [x] Run a **dependency license audit** and add any required attributions (§3, §6).
-- [x] Confirm **no in-bound code** is used without proper license/attribution (§4).
-- [x] Confirm **trademarks and assets** (logos, images) are cleared for public use (§5).
-- [x] Add **NOTICE** (and if needed **THIRD_PARTY_LICENSES**) (§6).
-- [ ] Optionally add **SPDX/copyright** to key or all source files (§7).
-- [x] Update **README** to state license, dependency situation, and (if applicable) trademark notice.
-- [x] Consider a short **SECURITY.md** and **CONTRIBUTING.md** (you already have these; ensure they mention license and IP for contributors).
+- [x] Run a **dependency license audit** and add any required attributions (§2, §5).
+- [x] Confirm **no in-bound code** is used without proper license/attribution (§3).
+- [x] Confirm **trademarks and assets** (logos, images) are cleared for public use (§4).
+- [x] Add **NOTICE** (and if needed **THIRD_PARTY_LICENSES**) (§5).
+- [ ] Optionally add **SPDX/copyright** to key or all source files (§6).
+- [x] Update **README** as needed (no requirement to state license or internal dependencies).
+- [x] Consider a short **SECURITY.md** and **CONTRIBUTING.md** (you already have these; ensure they mention license and IP for contributors where appropriate).
 
 ---
 
-## 9. Ongoing
+## 8. Ongoing
 
 - Run a **license check** in CI (e.g. `licensecheck` or similar) to catch new dependencies that are not MIT-compatible or need attribution.
 - When adding dependencies, **check license and notice requirements** before merging.

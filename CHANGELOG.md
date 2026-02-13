@@ -5,7 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.13] - 2026-02-13
+
+### Fixed
+- **Windows tests**: Fixes and skips for tests that were failing on Windows (traitable history tests, infra mongo history, UI Rio internals).
+- **History**: Fix history bug in traitable/store logic; traitable history tests made more robust.
+
+### Changed
+- **Licensing:** **py10x-kernel** and **py10x-infra** are now open source (MIT). README, NOTICE, and `docs/OPEN_SOURCE_IP_CHECKLIST.md` updated accordingly; the full platform (py10x-core + py10x-kernel + py10x-infra) is fully open source.
+
 ## [0.1.12] - 2026-02-12
+
 ### Changed
 - **Package rename:** This package is now **py10x-core**. Updated throughout: `pyproject.toml`, README, NOTICE, docs, and code references.
 
@@ -164,6 +174,7 @@ No separate changelog; see Version History below.
 
 ## Version History
 
+- **0.1.13**: Windows test fixes; history bug fix and more robust traitable history tests; pyproject fix; docs updated
 - **0.1.12**: This package rename to `py10x-universe` → `py10x-core`; docs updated
 - **0.1.11**: C++ package rename `py10x-core` → `py10x-kernel`; `uv-sync` installable command; uv_sync verbosity/rebuilds/Windows/doc fixes
 - **0.1.10**: Dynamic versioning (dev_10x), dev_10x.uv_sync, version tests; doc links to 10x-software; C++ deps relaxed to >=0.1.9,<0.2.0
@@ -194,5 +205,4 @@ No migration from previous versions is necessary - package versions will automat
 
 ## Acknowledgments
 
-- Relies on py10x-kernel and py10x-infra packages containing the underlying C++ implementation
 - UI components based on Rio and Qt6 frameworks, focused on traitable editing and management

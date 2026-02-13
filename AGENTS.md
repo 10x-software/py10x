@@ -1,4 +1,4 @@
-## py10x-core – Guide for AI Agents
+## `py10x-core` – Guide for AI Agents
 
 This file is a **meta-guide** for tools and AI agents working in this repo.  
 It points to canonical docs and records only the minimal, project-specific rules that agents must obey.
@@ -27,11 +27,11 @@ Agents should **link to and rely on those files**, not duplicate them here.
     - `uv run ...` for Python tooling (`pytest`, `ruff`, etc.).
 
 - **Respect C++ / cxx10x backend**
-  - Treat `py10x-kernel` / `py10x-infra` (from `cxx10x`) as **opaque C++ backends**.
+  - Treat the C++ backends (from `cxx10x`) as **opaque** — do not reimplement or bypass them in Python; use the public Python APIs.
   - Do **not** try to reimplement or bypass them in Python; use the public Python APIs.
 
-- **MongoDB & UI assumptions**
-  - Some tests require a local passwordless MongoDB on port 27017.
+- **Traitable Store & UI assumptions**
+  - `core_10x` tests use the in-process Traitable Store. `infra_10x` tests use the MongoDB-backed store (where it is implemented) and require a local passwordless MongoDB on port 27017.
   - UI work should assume Rio/Qt backends as configured in `INSTALLATION.md` / `pyproject.toml`.
 
 For any environment ambiguity, favor the patterns and instructions in `INSTALLATION.md` and `CONTRIBUTING.md`.
