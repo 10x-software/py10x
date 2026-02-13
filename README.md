@@ -69,6 +69,8 @@ with CACHE_ONLY(), GRAPH_ON():
 Want automatic persistence, per-class stores, store unions, querying, nested objects, UI generation, verifiers, and more?
 → Dive into [GETTING_STARTED.md](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md) for the full technical manual.
 
+---
+
 ## 🧠 When Should You Use py10x?
 
 py10x-core is a good fit when:
