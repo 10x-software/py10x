@@ -4,3 +4,16 @@ CMakeFiles
 *install_manifest.txt
 .DS_Store
 /infra_10x/py_linkage.h
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
