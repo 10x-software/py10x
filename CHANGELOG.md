@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.14] - 2026-02-14
+
+### Added
+- **Open source release:** Repository opened for public access; `py10x-core` and documentation are available under the MIT License.
+
+### Changed
+- **README:** Overhauled for clarity and first-time visitors: value proposition, Hello World with shared-identity example, "When to use" and "How is this different" sections, and full GitHub links throughout. Removed redundant licensing/architecture block; LICENSE and NOTICE remain the source of truth.
+
 ## [0.1.13] - 2026-02-13
 
 ### Fixed
@@ -174,6 +182,7 @@ No separate changelog; see Version History below.
 
 ## Version History
 
+- **0.1.14**: Open source release; README overhaul (value prop, Hello World, when to use, full GitHub links)
 - **0.1.13**: Windows test fixes; history bug fix and more robust traitable history tests; pyproject fix; docs updated
 - **0.1.12**: This package rename to `py10x-universe` → `py10x-core`; docs updated
 - **0.1.11**: C++ package rename `py10x-core` → `py10x-kernel`; `uv-sync` installable command; uv_sync verbosity/rebuilds/Windows/doc fixes
