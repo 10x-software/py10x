@@ -102,7 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backbone and vault**: `core_10x.backbone` (backbone_store, vault, namespace, bound_data_domain) and `core_10x.vault` (vault, vault_user, vault_traitable, sec_keys) for credentials and lightweight backbone
 - **TraitableHeir**: Traitable that delegates trait values from a grantor traitable (`_grantor`); heir getters and serialization that omit unset grantor traits
 - **Environment variables**: `core_10x.environment_variables` with typed env vars, classproperty getters, optional `*_apply` hooks, and `AssertVar` for required vars
-- **Rdate**: Business-day roll rules (preceding, following, modified preceding/following) and calendar-aware date utilities in `core_10x.rdate`
+- **Rdate**: Business-day roll rules (preceding, following, modified preceding/following) and calendar-aware date utilities in `xx_common.rdate`
 - **NamedConstant**: `core_10x.named_constant` with `NamedConstant`, `NamedConstantTable`, and `cls.item(symbol_name)` lookup
 - **Testlib**: Shared test utilities in `core_10x.testlib` (test_store, traitable_history_tests, ts_tests)
 - **Trait modification**: Unset trait default in trait modification; support `None` as `flags_to_set` (clearer than `BFlags(0)`)
