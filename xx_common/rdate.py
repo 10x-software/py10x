@@ -64,6 +64,8 @@ class TENOR_FREQUENCY(NamedConstant):
     QUARTER     = ()
     HALF_YEAR   = ()
     YEAR        = ()
+    SOM         = ()
+    EOM         = ()
     #IMM_QUARTER = ()   # TODO - use later
 
 class TENOR_PARAMS(NamedConstant):
@@ -73,14 +75,16 @@ class TENOR_PARAMS(NamedConstant):
     MIN_FREQUENCY   = ()
 
 FREQUENCY_TABLE = NamedConstantTable(TENOR_FREQUENCY, TENOR_PARAMS,
-    #              CHAR         RELATIVE_DELTA                              CONVERSIONS                                         MIN_FREQUENCY
-    BIZDAY      = ('B',         None,                                       None,                                               None),
-    CALDAY      = ('C',         lambda n: relativedelta(days    = n),       dict(C = 1,     W = 1/7),                           TENOR_FREQUENCY.CALDAY),
-    WEEK        = ('W',         lambda n: relativedelta(weeks   = n),       dict(C = 7,     W = 1),                             TENOR_FREQUENCY.CALDAY),
-    MONTH       = ('M',         lambda n: relativedelta(months  = n),       dict(M = 1,     Q = 1/3,    S = 1/6,    Y = 1/12),  TENOR_FREQUENCY.MONTH),
-    QUARTER     = ('Q',         lambda n: relativedelta(months  = n * 3),   dict(M = 3,     Q = 1,      S = 0.5,    Y = 0.25),  TENOR_FREQUENCY.MONTH),
-    HALF_YEAR   = ('S',         lambda n: relativedelta(months  = n * 6),   dict(M = 6,     Q = 2,      S = 1,      Y = 0.5),   TENOR_FREQUENCY.MONTH),
-    YEAR        = ('Y',         lambda n: relativedelta(years   = n),       dict(M = 12,    Q = 4,      S = 2,      Y = 1),     TENOR_FREQUENCY.MONTH),
+    #              CHAR         RELATIVE_DELTA                                      CONVERSIONS                                         MIN_FREQUENCY
+    BIZDAY      = ('B',         None,                                               None,                                               None),
+    CALDAY      = ('C',         lambda d, n: d + relativedelta(days    = n),        dict(C = 1,     W = 1/7),                           TENOR_FREQUENCY.CALDAY),
+    WEEK        = ('W',         lambda d, n: d + relativedelta(weeks   = n),        dict(C = 7,     W = 1),                             TENOR_FREQUENCY.CALDAY),
+    MONTH       = ('M',         lambda d, n: d + relativedelta(months  = n),        dict(M = 1,     Q = 1/3,    S = 1/6,    Y = 1/12),  TENOR_FREQUENCY.MONTH),
+    QUARTER     = ('Q',         lambda d, n: d + relativedelta(months  = n * 3),    dict(M = 3,     Q = 1,      S = 0.5,    Y = 0.25),  TENOR_FREQUENCY.MONTH),
+    HALF_YEAR   = ('S',         lambda d, n: d + relativedelta(months  = n * 6),    dict(M = 6,     Q = 2,      S = 1,      Y = 0.5),   TENOR_FREQUENCY.MONTH),
+    YEAR        = ('Y',         lambda d, n: d + relativedelta(years   = n),        dict(M = 12,    Q = 4,      S = 2,      Y = 1),     TENOR_FREQUENCY.MONTH),
+    SOM         = ('SOM',       lambda d, n: date(d.year, d.month, 1) + relativedelta(months=n),                            None,   None),
+    EOM         = ('EOM',       lambda d, n: date(d.year, d.month, 1) + relativedelta(months=n+1) + relativedelta(days=-1), None,   None),
 
     #IMM_QUARTER = ( 'IMM',      lambda d, n: IMMQuarter.which( d ).ith( n ).last(), None,                                               None ),
 )
@@ -159,10 +163,10 @@ class RDate(Nucleus):
 
     def apply(self, d: date, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE) -> date:
         if self.freq is TENOR_FREQUENCY.BIZDAY:
-            not_rolled = cal.advance_bizdays(d, self.count)
+            not_rolled = cal.advance_bizdays(d, self.count)     ## roll to bizday for '0B'
         else:
             fn = FREQUENCY_TABLE[self.freq][TENOR_PARAMS.RELATIVE_DELTA]
-            not_rolled = d + fn(self.count)
+            not_rolled = fn(d, self.count)
 
         return roll_rule(not_rolled, cal)
 
