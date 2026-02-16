@@ -67,22 +67,24 @@ class VaultUtils:
         return me
 
     @classmethod
-    def get_vault(cls) -> TsStore:
-        vault_uri = input('Please enter vault URI: ')
-        vp = SecKeys.retrieve_vault_password(vault_uri = vault_uri, throw = False)
-        if not vp:
-            vp = getpass.getpass('Please enter password for the vault: ')
+    def get_vault(cls, vault_uri: str = None) -> TsStore:
+        if vault_uri is None:
+            vault_uri = input('Please enter vault URI: ')
 
-        return TsStore.instance_from_uri(vault_uri, username = VaultUser.myname(), password = vp)
+        vault_password = SecKeys.retrieve_vault_password(vault_uri = vault_uri, throw = False)
+        if not vault_password:
+            vault_password = getpass.getpass('Please enter password for the vault: ')
+
+        return TsStore.instance_from_uri(vault_uri, username = VaultUser.myname(), password = vault_password)
 
     @classmethod
-    def new_vault(cls) -> RC:
+    def register_vault(cls) -> RC:
         if not SecKeys.retrieve_master_password(throw = False):
             rc = cls.create_master_password()
             if not rc:
                 return rc
 
-        vault_uri = input('Please enter a new vault URI (e.g., mongodb://vaultdb.xxx.io[:27017]/vault): ')
+        vault_uri = input('Please enter vault URI (e.g., mongodb://vaultdb.xxx.io[:27017]/vault): ')
         password = getpass.getpass('Please enter password for the vault (should have been given to you by admin): ')
 
         username = VaultUser.myname()
