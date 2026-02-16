@@ -4,7 +4,7 @@ import math
 from datetime import date
 
 import pytest
-from core_10x.curve import IP_KIND, Curve, CurveParams, DateCurve, TwoFuncInterpolator
+from xx_common.curve import IP_KIND, Curve, CurveParams, DateCurve, TwoFuncInterpolator
 
 
 class TestCurve:

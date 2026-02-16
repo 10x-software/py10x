@@ -8,7 +8,7 @@ from dateutil.relativedelta import relativedelta
 
 from core_10x.named_constant import NamedConstant, NamedConstantTable
 from core_10x.nucleus import Nucleus
-from core_10x.xxcalendar import Calendar
+from xx_common.xxcalendar import Calendar
 
 
 # =====

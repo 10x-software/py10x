@@ -2,7 +2,7 @@ if __name__ == '__main__':
 
     from datetime import date
 
-    from core_10x.xxcalendar import Calendar, CalendarAdjustment
+    from xx_common.xxcalendar import Calendar, CalendarAdjustment
 
     us_c = Calendar(_replace = True,
         name                = 'US',
