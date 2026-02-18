@@ -4,41 +4,37 @@ import os
 import random
 from typing import TYPE_CHECKING
 
+from PyQt6.QtWidgets import QHeaderView
+
 import core_10x.trait_definition as trait_definition
 from core_10x.global_cache import cache
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
 
-from ui_10x.platform_interface import HBoxLayout, PushButton, VBoxLayout, Widget
-from ui_10x.utils import ux
+from ui_10x.utils import ux, ux_warning, ux_success, ux_push_button
 
-# from ui_10x.table_view import TableView
-# from ui_10x.traitable_editor import TraitableEditor
+from ui_10x.table_view import TableView
+from ui_10x.traitable_editor import TraitableEditor
 
 if TYPE_CHECKING:
     from collections.abc import Generator
 
 
 class CHAR_STATE:
-    # fmt: off
-    NONE        = ( 'lightgray',    'black' )
-    WRONG_POS   = ( 'white',        'black' )
-    BINGO       = ( 'darkgreen',    'white' )
-    # fmt: on
-
+    NONE        = ('lightgray',    'black')
+    WRONG_POS   = ('white',        'black')
+    BINGO       = ('darkgreen',    'white')
 
 class GuessResult(Traitable):
-    # fmt: off
-    the_word: str    = RT()
-    guess: str       = RT()
-    num_chars: int   = RT()
+    the_word: str    = RT(T.HIDDEN)
+    guess: str       = RT(T.HIDDEN)
+    num_chars: int   = RT(T.HIDDEN)
 
-    demo_class: type = RT()
+    demo_class: type = RT(T.HIDDEN)
 
-    char_state: list = RT()
+    char_state: list = RT(T.HIDDEN)
 
-    guessed_chars: list = RT()
-    current_char: int = RT(0)
-    # fmt: on
+    guessed_chars: list = RT(T.HIDDEN)
+    current_char: int = RT(T.HIDDEN, default = 0)
 
     def guessed_chars_get(self) -> list:
         return list(self.num_chars * ' ')
@@ -91,8 +87,6 @@ class GuessResult(Traitable):
         sh_getter.__name__ = sh_name
         setattr(cls, getter_name, getter)
         setattr(cls, sh_name, sh_getter)
-        # return ( name, T( str, f'{i+1}' ) )
-        # fmt: off
         return (
             name,
             trait_definition.TraitDefinition(
@@ -103,102 +97,101 @@ class GuessResult(Traitable):
                 }
             )
         )
-        # fmt: on
-
-    def keyboard(self):
-        w = Widget()
-        lay = VBoxLayout()
-        w.set_layout(lay)
-
-        for i, keys in enumerate(self.s_keys):
-            hlay = HBoxLayout()
-            for j, c in enumerate(keys):
-                b = PushButton(c)
-                styles = self.s_style.get(i)
-                if styles:
-                    sh = styles.get(j)
-                    if sh:
-                        b.set_style_sheet(sh)
-
-                avg_char_width = w.font_metrics().average_char_width()
-                b.setMaximumWidth(3 * avg_char_width)
-
-                hlay.add_widget(b)
-            lay.add_layout(hlay)
-
-        return w
 
 
-class Key:
-    def __init__(self, guess: GuessResult, c: str, stylesheet: str, callback):
-        self.guess = guess
-        self.c = c
-        self.stylesheet = stylesheet
-        self.callback = callback
-        self.w: PushButton = None
-
-    def widget(self, parent_w: Widget) -> PushButton:
-        if not self.w:
-            self.w = b = PushButton(self.c)
-            b.clicked_connect(lambda w: self.callback(w))
-            b.set_style_sheet(self.stylesheet)
-            avg_char_width = parent_w.font_metrics().average_char_width()
-            b.setMaximumWidth(3 * avg_char_width)
-
-        return self.w
-
-
-class Keyboard:
-    # fmt: off
-    s_keys = [
-        'qwertyuiop',
-        'asdfghjkl',
-        '*zxcvbnm<',
-    ]
-    s_special_chars = {
-        2:  {
-            0:                      ( 'background-color: green; color: white',  GuessResult.accept_guess ),
-            len(s_keys[2]) - 1:     ( 'background-color: red; color: white',    GuessResult.delete_char ),
-        }
-    }
-    # fmt: on
-
-    def __init__(self, guess: GuessResult):
-        self.guess = guess
-        special_chars = self.s_special_chars
-        num_rows = len(self.s_keys)
-        self.keys = keys = [[]] * num_rows
-        for i, symbols in enumerate(self.s_keys):
-            for j, c in enumerate(symbols):
-                sh = ''
-                cb = GuessResult.set_current_char
-                exc = special_chars.get(i)
-                if exc:
-                    spec = exc.get(j)
-                    if spec:
-                        sh, cb = spec
-
-                key = Key(guess, c, sh, cb)
-                keys[i].append(key)
-
-    def widget(self) -> Widget: ...
-
+# class Key:
+#     def __init__(self, guess: GuessResult, c: str, stylesheet: str, callback):
+#         self.guess = guess
+#         self.c = c
+#         self.stylesheet = stylesheet
+#         self.callback = callback
+#         self.w = None
+#
+#     # def widget(self, parent_w: ux.Widget) -> ux.PushButton:
+#     def widget(self) -> ux.PushButton:
+#         if not self.w:
+#             self.w = b = ux.PushButton(self.c)
+#             b.clicked_connect(lambda w: self.callback(w))
+#             b.set_style_sheet(self.stylesheet)
+#
+#         return self.w
+#
+#
+# class Keyboard:
+#     s_keys = [
+#         'qwertyuiop',
+#         'asdfghjkl',
+#         '*zxcvbnm<',
+#     ]
+#     s_special_chars = {
+#         2:  {
+#             0:                      ( 'background-color: green; color: white',  GuessResult.accept_guess ),
+#             len(s_keys[2]) - 1:     ( 'background-color: red; color: white',    GuessResult.delete_char ),
+#         }
+#     }
+#
+#     def __init__(self, guess: GuessResult):
+#         self.guess = guess
+#         special_chars = self.s_special_chars
+#         num_rows = len(self.s_keys)
+#         self.keys = keys = [[]] * num_rows
+#         for i, symbols in enumerate(self.s_keys):
+#             for j, c in enumerate(symbols):
+#                 sh = ''
+#                 cb = GuessResult.set_current_char
+#                 exc = special_chars.get(i)
+#                 if exc:
+#                     spec = exc.get(j)
+#                     if spec:
+#                         sh, cb = spec
+#
+#                 key = Key(guess, c, sh, cb)
+#                 keys[i].append(key)
+#
+#     def widget(self) -> ux.Widget:
+#         w = ux.Widget()
+#         lay = ux.VBoxLayout()
+#         w.set_layout(lay)
+#
+#         special_chars = self.s_special_chars
+#         for i, keys in enumerate(self.s_keys):
+#             hlay = ux.HBoxLayout()
+#             for j, c in enumerate(keys):
+#                 sh = ''
+#                 cb = GuessResult.set_current_char
+#                 exc = special_chars.get(i)
+#                 if exc:
+#                     spec = exc.get(j)
+#                     if spec:
+#                         sh, cb = spec
+#
+#                 b = ux_push_button(c, callback = cb)
+#                 b.set_style_sheet(sh)
+#                 avg_char_width = w.font_metrics().average_char_width()
+#                 b.setMaximumWidth(3 * avg_char_width)
+#
+#                 hlay.add_widget(b)
+#             lay.add_layout(hlay)
+#
+#
+#         return w
 
 class Game(Traitable):
-    # fmt: off
-    num_chars: int  = RT(5)
+    num_chars: int  = RT(T.HIDDEN, default = 5)
 
-    the_word: str   = RT()
+    the_word: str   = RT(T.HIDDEN)
     guess: str      = RT( ui_hint = Ui('>'))
-    push: bool      = RT( ui_hint = Ui('*', widget_type = Ui.WIDGET_TYPE.PUSH, right_label = True, max_width = 3))
+    push: bool      = RT( ui_hint = Ui('Try', widget_type = Ui.WIDGET_TYPE.PUSH, right_label = True))
 
-    count: int      = RT(6)
-    current: int    = RT(0)
+    count: int      = RT(T.HIDDEN, default = 6)
+    current: int    = RT(T.HIDDEN, default = 0)
 
-    guess_res_class: type   = RT()
-    attempts: list          = RT()
-    #table: TableView        = RT()
-    # fmt: on
+    guess_res_class: type   = RT(T.HIDDEN)
+    attempts: list          = RT(T.HIDDEN)
+
+    top_editor: TraitableEditor = RT()
+    table: TableView        = RT()
+    # keyboard: Keyboard      = RT()
 
     def the_word_get(self) -> str:
         return _GuessWordData.new_word(self.num_chars).upper()
@@ -230,96 +223,60 @@ class Game(Traitable):
         return [self.guess_result(num_chars * ' ') for _ in range(self.count)]
 
     def push_action(self, editor):
-        current = self.current()
-        guess = self.guess()
-        if len(guess) != self.num_chars():
-            ux.warning(f'The word is {self.num_chars()} characters long.')
+        current = self.current
+        guess = self.guess
+        if len(guess) != self.num_chars:
+            ux_warning(f'The word is {self.num_chars} characters long.')
             return
 
-        gr = self.guess_result(self.guess())
-        attempts = self.attempts()
+        gr = self.guess_result(self.guess)
+        attempts = self.attempts
         attempts[current] = gr
-        self.table().renderEntity(current, None)
+        self.table.render_entity(current, None)
 
-        if all(s == CHAR_STATE.BINGO for s in gr.char_state()):
-            ux.success('Great job - you got it!')
+        if all(s == CHAR_STATE.BINGO for s in gr.char_state):
+            ux_success('Great job - you got it!')
+            return
 
         current += 1
-        if current >= self.count():
-            ux.warning('Unfortunately you have failed this time')
+        if current >= self.count:
+            ux_warning('Unfortunately you have failed this time')
 
         self.current = current
 
+    def top_editor_get(self) -> TraitableEditor:
+        return TraitableEditor.editor(self)
 
-    # def table_get( self ) -> TableView:
-    #     table = TableView( self.attempts() )
-    #     hv = table.horizontalHeader()
-    #     hv.setStretchLastSection( False )
-    #
-    #     return table
+    def table_get(self) -> TableView:
+        table = TableView(self.attempts)
+        hv = table.horizontalHeader()
+        hv.setStretchLastSection(False)
+        return table
 
-    # fmt: off
-    s_keys = [
-        'qwertyuiop',
-        'asdfghjkl',
-        '*zxcvbnm<'
-    ]
-    s_style = {
-        2:  {
-            0:                          'background-color: green; color: white',
-            len( s_keys[ 2 ] ) - 1:     'background-color: red; color: white'
-        }
-    }
-    # fmt: on
-
-    def keyboard(self):
-        w = Widget()
-        lay = VBoxLayout()
-        w.set_layout(lay)
-
-        for i, keys in enumerate(self.s_keys):
-            hlay = HBoxLayout()
-            for j, c in enumerate(keys):
-                b = PushButton(c)
-                styles = self.s_style.get(i)
-                if styles:
-                    sh = styles.get(j)
-                    if sh:
-                        b.set_style_sheet(sh)
-
-                avg_char_width = w.font_metrics().average_char_width()
-                b.setMaximumWidth(3 * avg_char_width)
-
-                hlay.add_widget(b)
-            lay.add_layout(hlay)
-
-        return w
+    # def keyboard_get(self) -> Keyboard:
+    #     return Keyboard(GuessResult())
 
     def widget(self):
         ux.init()
-        w = Widget()
-        lay = VBoxLayout()
+        w = ux.Widget()
+        lay = ux.VBoxLayout()
         w.set_layout(lay)
 
-        self.m_top_editor = top_editor = self
-        top = top_editor.row()
+        top = self.top_editor.row_layout()
         lay.add_layout(top)
         lay.add_widget(ux.separator())
 
-        table = self.table()
-        lay.add_widget(table)
+        lay.add_widget(self.table)
 
-        lay.add_widget(ux.separator())
-        lay.add_widget(self.keyboard())
+        #lay.add_widget(ux.separator())
+        #lay.add_widget(self.keyboard.widget())
 
         return w
 
 
 class _GuessWordData:
-    # fmt: off
     MODULE_NAME = '_guess_word_data'
     NUM_CHARS   = (5, 6)
-    # fmt: on
 
     @classmethod
     def download_nouns(cls, filename: str):
@@ -356,11 +313,11 @@ class _GuessWordData:
         assert spec.submodule_search_locations
         package_dir = Path(spec.submodule_search_locations[0])
         file_name = package_dir / f'{cls.MODULE_NAME}.py'
-        cls.download_nouns(file_name)
+        #cls.download_nouns(file_name)
 
         module_name = f'{package_name}.{cls.MODULE_NAME}'
         m = importlib.import_module(module_name)
-        noun_pool = getattr(m, 'noun_pool', None)
+        noun_pool = getattr(m, 'NOUN_POOL', None)
         assert noun_pool and type(noun_pool) is dict, 'noun_pool must be a non-empty dict by num chars'
         return noun_pool
 
@@ -381,12 +338,13 @@ class _GuessWordData:
 
 
 if __name__ == '__main__':
+    from core_10x.exec_control import INTERACTIVE
     from ui_10x.examples.guess_word import Game, _GuessWordData
+    from ui_10x.utils import UxDialog
 
-    game = Game()
-    # w = game.widget()
+    with INTERACTIVE():
+        game = Game()
+        w = game.widget()
 
-    w = game.the_word
-
-    # d = UxDialog( w, title = f'You have {game.count()} attempts to guess a word' )
-    # d.exec()
+        d = UxDialog(w, title = f'You have {game.count} attempts to guess a word')
+        d.exec()

@@ -5,8 +5,10 @@ from PyQt6.QtWidgets import QWidget, QLayout, QBoxLayout, QVBoxLayout, QHBoxLayo
 from PyQt6.QtWidgets import QLabel, QCalendarWidget, QMessageBox, QGroupBox, QButtonGroup, QRadioButton
 from PyQt6.QtWidgets import QListWidgetItem, QListWidget, QLineEdit, QPlainTextEdit, QTreeWidgetItem, QTreeWidget, QCheckBox, QComboBox
 from PyQt6.QtWidgets import QFrame, QSplitter, QDialog, QScrollArea, QPushButton, QStyle, QSizePolicy, QStyleOptionHeader
-from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QBuffer, QIODevice, QPoint    #, QByteArray
+from PyQt6.QtWidgets import QHeaderView, QTableView
+from PyQt6.QtCore import Qt, QObject, QThread, pyqtSignal, QBuffer, QIODevice, QPoint, QModelIndex    #, QByteArray
 from PyQt6.QtGui import QColor, QGuiApplication, QPixmap, QMouseEvent, QFontMetrics, QPalette, QPainter
+from PyQt6.QtGui import QStandardItemModel, QStandardItem
 
 import platform
 
@@ -36,6 +38,15 @@ Point                           = QPoint
 SizePolicy                      = QSizePolicy
 SizePolicy.MINIMUM_EXPANDING    = QSizePolicy.Policy.MinimumExpanding
 SizePolicy.PREFERRED            = QSizePolicy.Policy.Preferred
+
+StandardItemModel               = QStandardItemModel
+StandardItemModel.__getattr__   = missing_attr
+
+StandardItem                    = QStandardItem
+ModelIndex                      = QModelIndex
+
+HeaderView                      = QHeaderView
+HeaderView.section_resized_connect  = lambda self, bound_method: self.sectionResized.connect(bound_method)
 
 Color                           = QColor
 

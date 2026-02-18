@@ -206,6 +206,13 @@ class PushButtonWidget(TraitWidget, ux.PushButton, widget_type=Ui.WIDGET_TYPE.PU
         ux.PushButton.__init__(self)
         self.set_text(self.trait.ui_hint.label)
 
+        callback_name = f'{self.trait.name}_action'
+        ed = self.trait_editor
+        traitable = ed.traitable.traitable
+        cb = getattr(traitable.__class__, callback_name, None)
+        if cb:
+            self.clicked_connect(lambda dummy: cb(traitable, ed))
+
     ...
 
     def _set_read_only(self, flag):

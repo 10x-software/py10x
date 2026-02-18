@@ -1,12 +1,11 @@
-from PyQt5.QtCore import QModelIndex, QPointF, QRect, QSize, Qt, QVariant
-from PyQt5.QtGui import QFont, QFontMetrics, QPainter, QPaintEvent
-from PyQt5.QtWidgets import QStyle, QStyleOptionHeader
+# from PyQt5.QtCore import QModelIndex, QPointF, QRect, QSize, Qt, QVariant
+# from PyQt5.QtGui import QFont, QFontMetrics, QPainter, QPaintEvent
+# from PyQt5.QtWidgets import QStyle, QStyleOptionHeader
 
 from ui_10x.platform import ux
 from ui_10x.traitable_view import TraitableView
 
 
-# ruff: noqa: N802 # Function name should be lowercase
 class HeaderModel(ux.StandardItemModel):
     def _create_subtree(self, traits: dict, root: ux.StandardItem, tree: dict):
         col = 0
@@ -122,9 +121,11 @@ class HeaderView(ux.HeaderView):
         super().__init__(ux.Horizontal, parent = parent)
         self.model = HeaderModel(view.ui_hints, view.header)
         self.set_model(self.model)
+        #self.setStretchLastSection(False)
+        self.setSectionResizeMode(ux.HeaderView.ResizeMode.Stretch)
 
         self.painted_cells = set()
-        self.section_resized_connect(self.on_section_resized)
+        ##self.section_resized_connect(self.on_section_resized)
 
     def set_foreground_brush(self, opt: ux.StyleOptionHeader, index: ux.ModelIndex ):
         fgb = index.data(ux.ForegroundRole)
@@ -178,128 +179,128 @@ class HeaderView(ux.HeaderView):
 
         return opt
 
-    def cell_size(self, leaf_index: ux.ModelIndex, style_options: ux.StyleOptionHeader) -> ux.Size:
-        res = ux.Size()
-        variant = QVariant(leaf_index.data(Qt.SizeHintRole))
-        if variant.isValid():
-            res = variant   # TODO: cast?
-        fnt = QFont(self.font())
-        var = QVariant(leaf_index.data(Qt.FontRole))
-        if var.isValid():
-            fnt = var
-        fnt.setBold(True)
-        fm = QFontMetrics(fnt)
-        size = QSize(fm.size(0, leaf_index.data(Qt.DisplayRole)))
-        if leaf_index.data(Qt.UserRole):      # isValid()
-            size.transpose()
-        decoration_size = self.style().sizeFromContents(QStyle.CT_HeaderSection, style_options, QSize(), self)
-        empty_text_size = QSize(fm.size( 0, '' ))
-        return res.expandedTo(size + decoration_size - empty_text_size)
-
-    def current_cell_width(self, searched_index: QModelIndex, leaf_index: QModelIndex, section_index: int) -> int:
-        leaves = HeaderModel.leaves(searched_index)
-        if not leaves:
-            return self.section_size(section_index)
-
-        first_leaf_section_index = section_index - leaves.index(leaf_index)
-        return sum(self.section_size(first_leaf_section_index + i) for i in range(len(leaves)))
-
-    def current_cell_left(self, searched_index: QModelIndex, leaf_index: QModelIndex, section_index: int, left: int) -> int:
-        leaves = HeaderModel.leaves(searched_index)
-        if leaves:
-            n = leaves.index(leaf_index)
-            first_leaf_section_index = section_index - n
-            n -= 1
-            left -= sum(self.section_size(first_leaf_section_index + i) for i in range(n))
-        return left
-
-    def paint_horizontal_cell(self, painter: QPainter, cell_index: QModelIndex, leaf_index: QModelIndex, logical_index: int, style_options: QStyleOptionHeader, section_rect: QRect, top: int) -> int:
-        uniopt = QStyleOptionHeader(style_options)
-        self.set_foreground_brush(uniopt, cell_index)
-        self.set_background_brush(uniopt, cell_index)   # TODO!
-
-        height = self.cell_size(cell_index, uniopt).height()
-
-        if cell_index == leaf_index:
-            height = section_rect.height() - top
-
-        left    = self.current_cell_left(cell_index, leaf_index, logical_index, section_rect.left())
-        width   = self.current_cell_width(cell_index, leaf_index, logical_index)
-
-        if cell_index not in self.painted_cells:
-            self.painted_cells.add(cell_index)
-            r = QRect(left, top, width, height)
-
-            uniopt.text = cell_index.data(Qt.DisplayRole)
-            painter.save()
-            uniopt.rect = r
-            self.style().drawControl(QStyle.CE_Header, uniopt, painter, self)
-
-            painter.restore()
-
-        return top + height
-
-    def paintEvent(self, event: QPaintEvent):
-        self.painted_cells = set()
-        super().paintEvent(event)
-
-    def paintSection(self, painter: QPainter, rect: QRect, logical_index: int):
-        if rect.isValid():
-            leaf_index = self.model.leaf_index(logical_index)
-            if leaf_index.is_valid():
-                old_bo = QPointF(painter.brushOrigin())
-                top = rect.y()
-                indexes = HeaderModel.parent_indexes(leaf_index)
-                style_options = self.style_option_for_cell(logical_index)
-                for i in range(len(indexes)):
-                    real_style_options = QStyleOptionHeader(style_options)
-                    state = int(real_style_options.state)
-                    if i < (len(indexes) - 1) and (bool(state & QStyle.State_Sunken) or bool(state & QStyle.State_On)):
-                        real_style_options.state &= ~(QStyle.State_Sunken | QStyle.State_On)
-
-                    cell = indexes[i]
-                    top = self.paint_horizontal_cell(painter, cell, leaf_index, logical_index, real_style_options, rect, top)
-
-                painter.setBrushOrigin(old_bo)
-                return
-
-        super().paintSection(painter, rect, logical_index)
-
-    def sectionSizeFromContents(self, logical_index: int ) -> QSize:
-        cur_leaf_index = QModelIndex(self.model.leaf_index(logical_index))
-        if not cur_leaf_index.is_valid():
-            return super().sectionSizeFromContents(logical_index)
-
-        style_option = QStyleOptionHeader(self.style_option_for_cell(logical_index ))
-        s = QSize(self.cell_size(cur_leaf_index, style_option))
-        cur_leaf_index = cur_leaf_index.parent()
-        while cur_leaf_index.is_valid():
-            s.setHeight(s.height() + self.cell_size(cur_leaf_index, style_option).height())
-            cur_leaf_index = cur_leaf_index.parent()
-
-        return s
-
-    def on_section_resized(self, logical_index: int, i2, i3 ):
-        if self.is_section_hidden(logical_index):
-            return
-
-        leaf_index = QModelIndex(self.model.leaf_index(logical_index))
-        if leaf_index.is_valid():
-            root_index = HeaderModel.find_root_index(leaf_index)
-            leaves = HeaderModel.leaves(root_index)
-            try:
-                n = leaves.index(leaf_index)
-                while n > 0:
-                    logical_index -= 1
-
-                    w = self.viewport().width()
-                    h = self.viewport().height()
-                    pos = self.sectionViewportPosition(logical_index)
-                    r = QRect(pos, 0, w - pos, h)
-                    if self.isRightToLeft():
-                        r.setRect(0, 0, pos + self.sectionSize(logical_index), h)
-
-                    self.viewport().update( r.normalized() )
-                    n -= 1
-            except Exception:
-                pass
+    # def cell_size(self, leaf_index: ux.ModelIndex, style_options: ux.StyleOptionHeader) -> ux.Size:
+    #     res = ux.Size()
+    #     variant = QVariant(leaf_index.data(Qt.SizeHintRole))
+    #     if variant.isValid():
+    #         res = variant   # TODO: cast?
+    #     fnt = QFont(self.font())
+    #     var = QVariant(leaf_index.data(Qt.FontRole))
+    #     if var.isValid():
+    #         fnt = var
+    #     fnt.setBold(True)
+    #     fm = QFontMetrics(fnt)
+    #     size = QSize(fm.size(0, leaf_index.data(Qt.DisplayRole)))
+    #     if leaf_index.data(Qt.UserRole):      # isValid()
+    #         size.transpose()
+    #     decoration_size = self.style().sizeFromContents(QStyle.CT_HeaderSection, style_options, QSize(), self)
+    #     empty_text_size = QSize(fm.size( 0, '' ))
+    #     return res.expandedTo(size + decoration_size - empty_text_size)
+    #
+    # def current_cell_width(self, searched_index: QModelIndex, leaf_index: QModelIndex, section_index: int) -> int:
+    #     leaves = HeaderModel.leaves(searched_index)
+    #     if not leaves:
+    #         return self.section_size(section_index)
+    #
+    #     first_leaf_section_index = section_index - leaves.index(leaf_index)
+    #     return sum(self.section_size(first_leaf_section_index + i) for i in range(len(leaves)))
+    #
+    # def current_cell_left(self, searched_index: QModelIndex, leaf_index: QModelIndex, section_index: int, left: int) -> int:
+    #     leaves = HeaderModel.leaves(searched_index)
+    #     if leaves:
+    #         n = leaves.index(leaf_index)
+    #         first_leaf_section_index = section_index - n
+    #         n -= 1
+    #         left -= sum(self.section_size(first_leaf_section_index + i) for i in range(n))
+    #     return left
+    #
+    # def paint_horizontal_cell(self, painter: QPainter, cell_index: QModelIndex, leaf_index: QModelIndex, logical_index: int, style_options: QStyleOptionHeader, section_rect: QRect, top: int) -> int:
+    #     uniopt = QStyleOptionHeader(style_options)
+    #     self.set_foreground_brush(uniopt, cell_index)
+    #     self.set_background_brush(uniopt, cell_index)   # TODO!
+    #
+    #     height = self.cell_size(cell_index, uniopt).height()
+    #
+    #     if cell_index == leaf_index:
+    #         height = section_rect.height() - top
+    #
+    #     left    = self.current_cell_left(cell_index, leaf_index, logical_index, section_rect.left())
+    #     width   = self.current_cell_width(cell_index, leaf_index, logical_index)
+    #
+    #     if cell_index not in self.painted_cells:
+    #         self.painted_cells.add(cell_index)
+    #         r = QRect(left, top, width, height)
+    #
+    #         uniopt.text = cell_index.data(Qt.DisplayRole)
+    #         painter.save()
+    #         uniopt.rect = r
+    #         self.style().drawControl(QStyle.CE_Header, uniopt, painter, self)
+    #
+    #         painter.restore()
+    #
+    #     return top + height
+    #
+    # def paintEvent(self, event: QPaintEvent):
+    #     self.painted_cells = set()
+    #     super().paintEvent(event)
+    #
+    # def paintSection(self, painter: QPainter, rect: QRect, logical_index: int):
+    #     if rect.isValid():
+    #         leaf_index = self.model.leaf_index(logical_index)
+    #         if leaf_index.is_valid():
+    #             old_bo = QPointF(painter.brushOrigin())
+    #             top = rect.y()
+    #             indexes = HeaderModel.parent_indexes(leaf_index)
+    #             style_options = self.style_option_for_cell(logical_index)
+    #             for i in range(len(indexes)):
+    #                 real_style_options = QStyleOptionHeader(style_options)
+    #                 state = int(real_style_options.state)
+    #                 if i < (len(indexes) - 1) and (bool(state & QStyle.State_Sunken) or bool(state & QStyle.State_On)):
+    #                     real_style_options.state &= ~(QStyle.State_Sunken | QStyle.State_On)
+    #
+    #                 cell = indexes[i]
+    #                 top = self.paint_horizontal_cell(painter, cell, leaf_index, logical_index, real_style_options, rect, top)
+    #
+    #             painter.setBrushOrigin(old_bo)
+    #             return
+    #
+    #     super().paintSection(painter, rect, logical_index)
+    #
+    # def sectionSizeFromContents(self, logical_index: int ) -> QSize:
+    #     cur_leaf_index = QModelIndex(self.model.leaf_index(logical_index))
+    #     if not cur_leaf_index.is_valid():
+    #         return super().sectionSizeFromContents(logical_index)
+    #
+    #     style_option = QStyleOptionHeader(self.style_option_for_cell(logical_index ))
+    #     s = QSize(self.cell_size(cur_leaf_index, style_option))
+    #     cur_leaf_index = cur_leaf_index.parent()
+    #     while cur_leaf_index.is_valid():
+    #         s.setHeight(s.height() + self.cell_size(cur_leaf_index, style_option).height())
+    #         cur_leaf_index = cur_leaf_index.parent()
+    #
+    #     return s
+    #
+    # def on_section_resized(self, logical_index: int, i2, i3 ):
+    #     if self.is_section_hidden(logical_index):
+    #         return
+    #
+    #     leaf_index = QModelIndex(self.model.leaf_index(logical_index))
+    #     if leaf_index.is_valid():
+    #         root_index = HeaderModel.find_root_index(leaf_index)
+    #         leaves = HeaderModel.leaves(root_index)
+    #         try:
+    #             n = leaves.index(leaf_index)
+    #             while n > 0:
+    #                 logical_index -= 1
+    #
+    #                 w = self.viewport().width()
+    #                 h = self.viewport().height()
+    #                 pos = self.sectionViewportPosition(logical_index)
+    #                 r = QRect(pos, 0, w - pos, h)
+    #                 if self.isRightToLeft():
+    #                     r.setRect(0, 0, pos + self.sectionSize(logical_index), h)
+    #
+    #                 self.viewport().update( r.normalized() )
+    #                 n -= 1
+    #         except Exception:
+    #             pass
