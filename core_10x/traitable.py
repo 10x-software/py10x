@@ -148,7 +148,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             return
 
         module_dict = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
-        type_annotations = cls.__annotations__
+        type_annotations = class_dict.get('__annotations__',{})
         type_annotations |= {k: XNoneType for k, v in class_dict.items() if isinstance(v, TraitModification) and k not in type_annotations}
 
         rc = RC(True)
@@ -189,9 +189,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         if isinstance(dt, str):
             try:
-                dt = eval(dt, class_dict, module_dict)
+                dt = eval(dt, module_dict, class_dict)
             except Exception as e:
-                rc <<= f'Failed to evaluate type annotation string `{dt}` for `{trait_name}`: {e}'
+                rc <<= f'Failed to evaluate type annotation string `{dt}` for `{trait_name}`: {e} in {module_dict["__name__"]}'
                 return None
         if dt is Self:
             dt = cls
@@ -220,7 +220,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def build_trait_dir(cls):
         class_dict = dict(cls.__dict__)
         module_dict = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
-        type_annotations = cls.__annotations__
+        type_annotations = class_dict.get('__annotations__',{})
         trait_dir = cls.s_dir
         reserved_storable_traits = {
             Nucleus.REVISION_TAG(): cls.rev_trait(),
@@ -232,9 +232,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         rc = RC(True)
         for trait_name, old_trait in trait_dir.items():
             trait_def = class_dict.get(trait_name, class_dict)
-            dt = type_annotations.get(trait_name)
             if trait_def is class_dict and any(func_name in class_dict for func_name in Trait.method_defs(trait_name)):
-                if cls.check_trait_type(trait_name, trait_def, old_trait, dt, class_dict, module_dict, rc):
+                if cls.check_trait_type(trait_name, trait_def, old_trait, type_annotations.get(trait_name), class_dict, module_dict, rc):
                     trait_def = old_trait.t_def.copy()
                     trait_dir[trait_name] = Trait.create(trait_name, trait_def)
 
@@ -937,7 +936,7 @@ class TraitableHistory(Traitable, keep_history=False):
                 __module__=traitable_class.__module__,
             ),
         )
-        if traitable_class.__name__ in module_dict:
+        if traitable_class is module_dict.get(traitable_class.__name__):
             assert history_class_name not in module_dict
             module_dict[history_class_name] = history_class
         return history_class
