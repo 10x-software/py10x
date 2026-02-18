@@ -35,6 +35,7 @@ class HeaderModel(ux.StandardItemModel):
     def __init__(self, traits: dict, header_structure: dict):
         super().__init__()
         self.traits = traits
+        self.header_structure = header_structure
         self.create(header_structure)
 
     def create(self, header_structure: dict):
@@ -119,8 +120,9 @@ class HeaderModel(ux.StandardItemModel):
 class HeaderView(ux.HeaderView):
     def __init__(self, view: TraitableView, parent: ux.Widget = None):
         super().__init__(ux.Horizontal, parent = parent)
-        self.model = HeaderModel(view.ui_hints, view.header)
-        self.set_model(self.model)
+        self.m_model = HeaderModel(view.ui_hints, view.header)
+        self.set_model(self.m_model)
+
         #self.setStretchLastSection(False)
         self.setSectionResizeMode(ux.HeaderView.ResizeMode.Stretch)
 

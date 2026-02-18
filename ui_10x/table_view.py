@@ -29,6 +29,14 @@ class Model(QAbstractTableModel):
             return 0
         return len(self.col2name)
 
+    #-- TODO: comment out when HeaderView is working
+    def headerData(self, section, orientation, role = None):
+        if role == Qt.ItemDataRole.DisplayRole:
+            if orientation == Qt.Orientation.Horizontal:
+                return list(self.model.header_structure.values())[section]
+
+        return None
+
     def data(self, index: QModelIndex, role: int = None):
         if role == Qt.ItemDataRole.UserRole:
             return self.model
@@ -120,7 +128,7 @@ class TableView(QTableView):
         hv.setStretchLastSection(True)
 
         self.setHorizontalHeader(hv)
-        model = Model(hv.model, entities, self)
+        model = Model(hv.m_model, entities, self)
         self.setModel(model)
 
         self.setAlternatingRowColors(True)
@@ -162,13 +170,13 @@ class TableView(QTableView):
         else:
             super().mousePressEvent(*args, **kwargs)
 
-    def render_entity(self, row: int, entity: Traitable):
+    def render_traitable(self, row: int, entity: Traitable):
         last_col = len(self.model().col2name) - 1
         first_index = self.model().createIndex(row, 0)
         last_index = self.model().createIndex(row, last_col)
         self.model().dataChanged.emit(first_index, last_index)
 
-    def extendData( self, data ):
+    def extend_data(self, data):
         if self.model().extendData(data):
             self.resizeColumnsToContents()
             #self.resizeRowsToContents()

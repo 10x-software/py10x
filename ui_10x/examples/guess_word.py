@@ -94,6 +94,7 @@ class GuessResult(Traitable):
                     trait_definition.NAME_TAG:      name,
                     trait_definition.DATATYPE_TAG:  str,
                     trait_definition.FLAGS_TAG:     T.RUNTIME,
+                    trait_definition.UI_HINT_TAG:   Ui(label = f'{i+1}')
                 }
             )
         )
