@@ -17,16 +17,15 @@ def test_mongo_parse_uri_round_trip():
 
 
 def test_filter_and_pipeline_equivalence():
-    # This test mirrors infra_10x/manual_tests/test_prepare_filter_and_pipeline.py
     from py10x_infra import MongoCollectionHelper
+    from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
 
-    # The helper only constructs filter/pipeline; no need for a live Mongo instance here.
     serialized_traitable = dict(_id='AAAA', _rev=10, name='test', age=60)
 
     data1 = dict(serialized_traitable)
     pipeline1: list = []
     filter1: dict = {}
-    MongoCollection.filter_and_pipeline(data1, filter1, pipeline1)
+    MongoCollectionHelperStub.prepare_filter_and_pipeline(data1, filter1, pipeline1)
 
     data2 = dict(serialized_traitable)
     pipeline2: list = []
@@ -35,3 +34,4 @@ def test_filter_and_pipeline_equivalence():
 
     assert filter1 == filter2
     assert pipeline1 == pipeline2
+    assert data1 == data2

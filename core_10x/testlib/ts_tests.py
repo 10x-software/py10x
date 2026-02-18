@@ -35,12 +35,10 @@ test_classes = {
 globals().update(test_classes)
 
 
-
-@pytest.fixture(params=[True, False], ids=['custom_collection', 'default_collection'], scope='module')
+@pytest.fixture(params=[True, False], ids=['custom_collection', 'default_collection'])
 def ts_setup(ts_instance,request):
     Person, Person1 = list(test_classes.values())[request.param*2:][:2]
     c, c1 = [uuid4().hex if request.param else PackageRefactoring.find_class_id(cls) for cls in (Person,Person1)]
-
 
     with ts_instance:
         p = Person(first_name='John', last_name='Doe', _collection_name=c if request.param else None)

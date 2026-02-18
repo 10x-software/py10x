@@ -90,7 +90,6 @@ class MongoCollection(TsCollection):
         pipeline = []
         serialized_traitable = dict(serialized_traitable)  # -- copy to avoid modifying the input
         MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
-        # self.filter_and_pipeline(serialized_traitable, filter, pipeline)
 
         res = self.coll.update_one(filter, pipeline, **self._session_kw())
         if not res.acknowledged:
@@ -103,42 +102,6 @@ class MongoCollection(TsCollection):
             return revision
 
         return revision if res.modified_count != 1 else revision + 1
-
-    @classmethod
-    def filter_and_pipeline(cls, serialized_traitable, filter, pipeline):
-        rev_tag = Nucleus.REVISION_TAG()
-        id_tag = cls.s_id_tag
-        for key in (rev_tag, id_tag):
-            filter[key] = serialized_traitable.pop(key)
-
-        rev_condition = {'$and': [{'$eq': ['$' + name, {'$literal': value}]} for name, value in serialized_traitable.items()]}
-
-        # fmt: off
-        update_revision = {
-            '$cond': [
-                rev_condition,         #-- if each field is equal to its prev value
-                filter[rev_tag],       #       then, keep the revision as is
-                filter[rev_tag] + 1    #       else, increment it
-            ]
-        }
-
-        pipeline.append(
-            {
-                '$replaceRoot': {
-                    'newRoot': {
-                        id_tag:     filter[id_tag],
-                        rev_tag:    update_revision,
-                    }
-                }
-            }
-        )
-        # fmt: on
-
-        pipeline.extend(
-            {'$replaceWith': {'$setField': dict(field=field, input='$$ROOT', value={'$literal': value})}}
-            for field, value in serialized_traitable.items()
-        )
-
 
     def delete(self, id_value: str) -> bool:
         q = {self.s_id_tag: id_value}
