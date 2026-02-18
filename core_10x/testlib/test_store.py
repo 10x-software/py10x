@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from py10x_kernel import BTraitable, BTraitableProcessor
 
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, TsTransaction
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -38,9 +38,21 @@ class TestCollection(TsCollection):
     def collection_name(self) -> str:
         return self._collection_name
 
+    def _effective_documents(self) -> dict:
+        """Documents visible in the current transaction (committed + pending, minus pending deletes)."""
+        out = dict(self._documents)
+        tx = self.store._current_tx
+        if tx is not None:
+            pending = tx.pending_saves.get(self._collection_name, {})
+            deletes = tx.pending_deletes.get(self._collection_name, set())
+            out.update(pending)
+            for id_value in deletes:
+                out.pop(id_value, None)
+        return out
+
     def id_exists(self, id_value: str) -> bool:
         """Check if a document with the given ID exists."""
-        return id_value in self._documents
+        return id_value in self._effective_documents()
 
     def _eval(self, doc, query):
         bclass = query.traitable_class
@@ -56,7 +68,7 @@ class TestCollection(TsCollection):
 
     def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
         """Find documents matching the query."""
-        documents = list(self._documents.values())
+        documents = list(self._effective_documents().values())
 
         # Apply query filter if provided
         if query:
@@ -109,6 +121,17 @@ class TestCollection(TsCollection):
         if not id_value:
             return 0
 
+        tx = self.store._current_tx
+        if tx is not None:
+            effective = self._effective_documents()
+            if id_value in effective and not overwrite:
+                raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value})
+            if self._collection_name not in tx.pending_saves:
+                tx.pending_saves[self._collection_name] = {}
+            tx.pending_deletes.get(self._collection_name, set()).discard(id_value)
+            tx.pending_saves[self._collection_name][id_value] = dict(serialized_traitable)
+            return 1
+
         if id_value in self._documents and not overwrite:
             raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value})
 
@@ -128,7 +151,8 @@ class TestCollection(TsCollection):
         doc_id = serialized_traitable.get(self.s_id_tag)
         assert doc_id
 
-        existing_doc = self._documents.get(doc_id)
+        effective = self._effective_documents()
+        existing_doc = effective.get(doc_id)
         existing_revision = existing_doc[rev_tag] if existing_doc else 0
         assert revision == existing_revision
 
@@ -136,12 +160,31 @@ class TestCollection(TsCollection):
             return existing_revision
 
         revision += 1
-        self._documents[doc_id] = serialized_traitable | {rev_tag: revision}
+        new_doc = serialized_traitable | {rev_tag: revision}
 
+        tx = self.store._current_tx
+        if tx is not None:
+            if self._collection_name not in tx.pending_saves:
+                tx.pending_saves[self._collection_name] = {}
+            tx.pending_deletes.get(self._collection_name, set()).discard(doc_id)
+            tx.pending_saves[self._collection_name][doc_id] = new_doc
+            return revision
+
+        self._documents[doc_id] = new_doc
         return revision
 
     def delete(self, id_value: str) -> bool:
         """Delete a document by ID."""
+        tx = self.store._current_tx
+        if tx is not None:
+            effective = self._effective_documents()
+            if id_value not in effective:
+                return False
+            if self._collection_name not in tx.pending_deletes:
+                tx.pending_deletes[self._collection_name] = set()
+            tx.pending_deletes[self._collection_name].add(id_value)
+            tx.pending_saves.get(self._collection_name, {}).pop(id_value, None)
+            return True
         if id_value in self._documents:
             del self._documents[id_value]
             return True
@@ -170,16 +213,50 @@ class TestCollection(TsCollection):
         min_doc = min(documents, key=lambda x: x.get(trait_name, ''))
         return min_doc
 
+class TestStoreTransaction(TsTransaction):
+    """In-memory transaction: commit() applies pending writes, abort() discards them."""
+
+    def __init__(self, store: TestStore):
+        super().__init__()
+        self.store = store
+        self.pending_saves: dict[str, dict[str, dict]] = {}  # coll_name -> id -> doc
+        self.pending_deletes: dict[str, set[str]] = {}  # coll_name -> set of id
+        if not store._current_tx: #TODO - nested transactions are not supported in test store
+            store._current_tx = self
+
+    def _do_commit(self) -> None:
+        for coll_name, docs in self.pending_saves.items():
+            if coll_name not in self.store._collections:
+                continue
+            coll = self.store._collections[coll_name]
+            for id_value, doc in docs.items():
+                coll._documents[id_value] = doc
+        for coll_name, ids in self.pending_deletes.items():
+            if coll_name not in self.store._collections:
+                continue
+            coll = self.store._collections[coll_name]
+            for id_value in ids:
+                coll._documents.pop(id_value, None)
+
+    def _do_abort(self) -> None:
+        pass
+
+    def _unregister_from_store(self) -> None:
+        if self.store._current_tx is self:  # TODO - nested transactions are not supported in test store
+            self.store._current_tx = None
+
 
 class TestStore(TsStore, resource_name='TEST_DB'):
     """In-memory store implementation for testing."""
 
+    PROTOCOL = 'testdb'
     s_driver_name = 'TestStore'
 
     def __init__(self, *args, **kwargs):
         super().__init__()
         self._collections = {}
         self._collection_names = set()
+        self._current_tx = None
         # Set a default username for testing
         self.username = kwargs.get('username', 'test_user')
 
@@ -187,6 +264,13 @@ class TestStore(TsStore, resource_name='TEST_DB'):
     def new_instance(cls, *args, password: str = '', **kwargs) -> TestStore:
         """Create a new TestStore instance."""
         return cls(*args, **kwargs)
+
+    @classmethod
+    def parse_uri(cls, uri: str) -> dict:
+        """Parse a test store URI (e.g. testdb: or testdb://). Returns empty kwargs."""
+        if not uri.startswith('testdb:'):
+            raise ValueError(f'Invalid TestStore URI: {uri}')
+        return {}
 
     def collection_names(self, regexp: str = None) -> list:
         """Get collection names, optionally filtered by regexp."""
@@ -238,3 +322,6 @@ class TestStore(TsStore, resource_name='TEST_DB'):
 
     def auth_user(self) -> str | None:
         return self.username
+
+    def _begin_transaction(self) -> TestStoreTransaction:
+        return TestStoreTransaction(self)

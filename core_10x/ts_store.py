@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from core_10x.exec_control import ProcessContext
@@ -66,6 +67,38 @@ class TsCollection(abc.ABC):
                     raise  # -- we do not expect an exception in case of overwrite, so raise
 
         return rc
+
+
+class TsTransaction(abc.ABC):
+    """Transaction handle with manual commit() and abort(). Subclasses must implement _do_commit and _do_abort."""
+
+    _ended: bool = False
+
+    def commit(self) -> None:
+        """Commit the transaction. No-op if already ended."""
+        if self._ended:
+            return
+        self._ended = True
+        self._do_commit()
+        self._unregister_from_store()
+
+    def abort(self) -> None:
+        """Abort the transaction. No-op if already ended."""
+        if self._ended:
+            return
+        self._ended = True
+        self._do_abort()
+        self._unregister_from_store()
+
+    def _unregister_from_store(self) -> None:
+        """Override to clear store._current_tx when this transaction is the current one. No-op by default."""
+        pass
+
+    @abc.abstractmethod
+    def _do_commit(self) -> None: ...
+
+    @abc.abstractmethod
+    def _do_abort(self) -> None: ...
 
 
 class TsStore(Resource, resource_type=TS_STORE):
@@ -139,6 +172,10 @@ class TsStore(Resource, resource_type=TS_STORE):
     def parse_uri(cls, uri: str) -> dict:
         raise NotImplementedError
 
+    @classmethod
+    def is_running_with_auth(cls, host_name: str) -> tuple:   # -- (is_running, with_auth)
+        raise NotImplementedError
+
     def on_enter(self):
         self.bpc_flags = ProcessContext.reset_flags(ProcessContext.CACHE_ONLY)
 
@@ -153,9 +190,6 @@ class TsStore(Resource, resource_type=TS_STORE):
 
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...
-
-    @classmethod
-    def is_running_with_auth(cls, host_name: str) -> tuple: ...  # -- (is_running, with_auth)
 
     @abc.abstractmethod
     def auth_user(self) -> str | None: ...
@@ -187,3 +221,23 @@ class TsStore(Resource, resource_type=TS_STORE):
             rc += from_coll.copy_to(to_coll, overwrite=overwrite)
 
         return rc
+
+    @abc.abstractmethod
+    def _begin_transaction(self) -> TsTransaction:
+        """Start a transaction and return a transaction object. Must be implemented in subclasses."""
+        ...
+
+    @contextmanager
+    def transaction(self):
+        """Context manager for transactional operations. Yields a transaction object with commit() and abort()."""
+        tx = self._begin_transaction()
+        success = False
+        try:
+            yield tx
+            success = True
+        finally:
+            if not tx._ended:
+                if success:
+                    tx.commit()
+                else:
+                    tx.abort()

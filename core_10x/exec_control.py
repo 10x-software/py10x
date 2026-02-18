@@ -1,8 +1,8 @@
 from py10x_kernel import BProcessContext
 from py10x_kernel import BTraitableProcessor as BTP  # noqa: N817
 
-# TODO: rename DEBUG to TYPE_CHECK?
-# TODO: make CONVERT/DEBUG mode default?
+# TODO: consider splitting rename DEBUG into TYPE_CHECK and EAGER_LOAD.
+# TODO: consider making CONVERT/TYPE_CHECK mode default.
 
 
 def CHANGE_MODE(debug: bool = -1, convert_values: bool = -1):  # noqa: N802

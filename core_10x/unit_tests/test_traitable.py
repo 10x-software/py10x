@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import contextlib
 import re
 import uuid
 from collections import Counter
@@ -534,6 +535,9 @@ def test_serialize(monkeypatch):
                 def auth_user(self):
                     return 'test_user'
 
+                def transaction(self):
+                    return contextlib.nullcontext()
+
                 def populate(self, params, serialized_data):
                     return TsStore.populate(self, params, serialized_data)
 
@@ -592,10 +596,10 @@ def test_serialize(monkeypatch):
 
     assert X(x=3).y.__class__ is Y
     with pytest.raises(
-        TraitMethodError,
+        RuntimeError,
         match=r"Failed in <class 'test_traitable.test_serialize.<locals>.X'>.z.z_get\n    object = 5;\noriginal exception = RuntimeError: test_serialize.<locals>.X/6: object reference not found in store",
     ):
-        X(x=5, y=X(_id=ID('6')), _replace=True).save(save_references=True)
+        X(x=5, y=X(_id=ID('6')), _replace=True).save(save_references=True).throw()
 
 
 def test_reference_serialization_roundtrip(monkeypatch):
@@ -621,6 +625,9 @@ def test_reference_serialization_roundtrip(monkeypatch):
             class Store:
                 def auth_user(self):
                     return 'test_user'
+
+                def transaction(self):
+                    return contextlib.nullcontext()
 
                 def collection(self, collection_name):
                     class Collection:

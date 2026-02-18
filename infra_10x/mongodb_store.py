@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, TsTransaction, standard_key
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, errors
 from pymongo.errors import DuplicateKeyError
@@ -23,17 +23,22 @@ class MongoCollection(TsCollection):
 
     assert Nucleus.ID_TAG() == s_id_tag, f"Nucleus.ID_TAG() must be '{s_id_tag}'"
 
-    def __init__(self, db, collection_name: str):
+    def __init__(self, db, collection_name: str, store: MongoStore):
         self.coll: Collection = db[collection_name]
+        self.store = store
+
+    def _session_kw(self):
+        tx = self.store._current_tx
+        return {'session': tx.session} if tx is not None else {}
 
     def collection_name(self) -> str:
         return self.coll.name
 
     def id_exists(self, id_value: str) -> bool:
-        return self.coll.count_documents({self.s_id_tag: id_value}) > 0
+        return self.coll.count_documents({self.s_id_tag: id_value}, **self._session_kw()) > 0
 
     def find(self, query: f = None, _at_most: int = 0, _order: dict = None) -> Iterable:
-        cursor = self.coll.find(query.prefix_notation()) if query else self.coll.find()
+        cursor = self.coll.find(query.prefix_notation() if query else {}, **self._session_kw())
         if _order:
             cursor = cursor.sort(list(_order.items()))
         if _at_most:
@@ -41,7 +46,7 @@ class MongoCollection(TsCollection):
         return cursor
 
     def count(self, query: f = None) -> int:
-        return self.coll.count_documents(query.prefix_notation()) if query else self.coll.count_documents({})
+        return self.coll.count_documents(query.prefix_notation() if query else {}, **self._session_kw())
 
     def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
         needs_upsert = (set_values := serialized_traitable.get('$set')) or overwrite
@@ -52,15 +57,16 @@ class MongoCollection(TsCollection):
         # TODO: overwrite via save(), not save_new() so that revision is incremented rather than reset
         (set_values or serialized_traitable)[Nucleus.REVISION_TAG()] = 1
 
+        sk = self._session_kw()
         if not needs_upsert:
             try:
-                res = self.coll.insert_one(serialized_traitable)
+                res = self.coll.insert_one(serialized_traitable, **sk)
             except DuplicateKeyError:
                 ack, cnt = False, 1
             else:
                 ack, cnt = res.acknowledged, 0
         else:
-            res = self.coll.update_one({id_tag: id_value}, serialized_traitable if set_values else {'$set': serialized_traitable}, upsert=True)
+            res = self.coll.update_one({id_tag: id_value}, serialized_traitable if set_values else {'$set': serialized_traitable}, upsert=True, **sk)
             ack, cnt = res.acknowledged, res.matched_count
 
         if cnt and not overwrite:  # -- e.g. this id/revision already existed
@@ -86,7 +92,7 @@ class MongoCollection(TsCollection):
         MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
         # self.filter_and_pipeline(serialized_traitable, filter, pipeline)
 
-        res = self.coll.update_one(filter, pipeline)
+        res = self.coll.update_one(filter, pipeline, **self._session_kw())
         if not res.acknowledged:
             return revision
 
@@ -133,91 +139,30 @@ class MongoCollection(TsCollection):
             for field, value in serialized_traitable.items()
         )
 
-    # #---- TODO: move to C++
-    # def save(self, serialized_traitable: dict) -> int:
-    #     """
-    #     Updates (and inc _rev) only if at least one traits has been changed
-    #     :returns new revision if successful, otherwise the old one
-    #     """
-    #
-    #     rev_tag = Nucleus.REVISION_TAG
-    #     id_tag = self.s_id_tag
-    #
-    #     revision = serialized_traitable.get(rev_tag, -1)
-    #     assert revision >= 0, 'revision must be >= 0'
-    #
-    #     if revision == 0:
-    #         return self.save_new(serialized_traitable)
-    #
-    #     id_value = serialized_traitable.get(id_tag)
-    #     del serialized_traitable[id_tag]
-    #     del serialized_traitable[rev_tag]
-    #
-    #     filter = {
-    #         id_tag:     id_value,
-    #         rev_tag:    revision,
-    #     }
-    #
-    #     rev_condition = {
-    #         '$and': [ {'$eq': ['$' + name, {'$literal': value}] } for name, value in serialized_traitable.items() ]
-    #     }
-    #
-    #     update_revision = {
-    #         '$cond': [
-    #             rev_condition,  #-- if each field is equal to its prev value
-    #             revision,       #       then, keep the revision as is
-    #             revision + 1    #       else, increment it
-    #         ]
-    #     }
-    #
-    #     cmds = [
-    #         {
-    #             '$replaceRoot': {
-    #                 'newRoot': {
-    #                     id_tag:     id_value,
-    #                     rev_tag:    update_revision,
-    #                 }
-    #             }
-    #         }
-    #     ]
-    #
-    #     cmds.extend(
-    #         {
-    #             '$replaceWith': {
-    #                 '$setField': dict(field = field, input = '$$ROOT', value = {'$literal': value})
-    #             }
-    #         }
-    #         for field, value in serialized_traitable.items()
-    #     )
-    #
-    #     res = self.coll.update_one(filter, cmds)
-    #     if not res.acknowledged:
-    #         return revision
-    #
-    #     if not res.matched_count:  # -- e.g. restore from deleted
-    #         raise AssertionError(f'{self.coll} {id_value} has been most probably inapropriately restored from deleted')
-    #
-    #     if res.matched_count != 1:
-    #         return revision
-    #
-    #     return revision if res.modified_count != 1 else revision + 1
 
     def delete(self, id_value: str) -> bool:
         q = {self.s_id_tag: id_value}
-        return self.coll.delete_one(q).acknowledged
+        return self.coll.delete_one(q, **self._session_kw()).acknowledged
 
     def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str | None:
-        index_info = self.coll.index_information()
+        """Create index. When inside a transaction, defers to run on commit (MongoDB disallows createIndex in txn)."""
+        if self.store._current_tx is not None:
+            self.store._current_tx.pending_create_index.append(
+                (self.collection_name(), name, trait_name, dict(index_args))
+            )
+            return name
+        sk = self._session_kw()
+        index_info = self.coll.index_information(**sk)
         if name in index_info:
             return None
 
-        return self.coll.create_index(trait_name, name=name, **index_args)
+        return self.coll.create_index(trait_name, name=name, **{**index_args, **sk})
 
     def max(self, trait_name: str, filter: f = None) -> dict | None:
         if filter:
-            cur = self.coll.find(filter.prefix_notation()).sort({trait_name: -1}).limit(1)
+            cur = self.coll.find(filter.prefix_notation(), **self._session_kw()).sort({trait_name: -1}).limit(1)
         else:
-            cur = self.coll.find().sort({trait_name: -1}).limit(1)
+            cur = self.coll.find(**self._session_kw()).sort({trait_name: -1}).limit(1)
         for data in cur:
             return data
 
@@ -225,19 +170,68 @@ class MongoCollection(TsCollection):
 
     def min(self, trait_name: str, filter: f = None) -> dict | None:
         if filter:
-            cur = self.coll.find(filter.prefix_notation()).sort({trait_name: 1}).limit(1)
+            cur = self.coll.find(filter.prefix_notation(), **self._session_kw()).sort({trait_name: 1}).limit(1)
         else:
-            cur = self.coll.find().sort({trait_name: 1}).limit(1)
+            cur = self.coll.find(**self._session_kw()).sort({trait_name: 1}).limit(1)
         for data in cur:
             return data
 
         return None
 
     def load(self, id_value: str) -> dict | None:
-        for data in self.coll.find({self.s_id_tag: id_value}):
+        for data in self.coll.find({self.s_id_tag: id_value}, **self._session_kw()):
             return data
 
         return None
+
+
+class MongoTransaction(TsTransaction):
+    """MongoDB transaction handle. commit() / abort() end the session.
+    Same approach as TestStore: only the tx for which store._current_tx is self owns the session and commits/aborts.
+    Nested transaction() calls yield a tx that shares store._current_tx.session; only the owning tx commits/aborts.
+    """
+
+    def __init__(self, store: MongoStore):
+        super().__init__()
+        self.store = store
+        if (current_tx:=store._current_tx) is None:
+            session = store.client.start_session()
+            session.start_transaction()
+            self.session = session
+            self.pending_create_index: list[tuple[str, str, str | list[tuple[str, int]], dict]] = []
+            store._current_tx = self
+        else:
+            self.session = current_tx.session
+            self.pending_create_index = current_tx.pending_create_index
+
+    def _do_commit(self) -> None:
+        if self.store._current_tx is not self:
+            return
+        try:
+            self.session.commit_transaction()
+        finally:
+            self.session.end_session()
+        self._unregister_from_store()
+        self._run_pending_create_index()
+
+    def _run_pending_create_index(self) -> None:
+        """Run create_index calls that were deferred during the transaction (MongoDB disallows createIndex in txn)."""
+        for coll_name, name, trait_name, index_args in self.pending_create_index:
+            coll = self.store.collection(coll_name)
+            coll.create_index(name, trait_name, **index_args)
+        self.pending_create_index.clear()
+
+    def _do_abort(self) -> None:
+        if self.store._current_tx is not self:
+            return
+        try:
+            self.session.abort_transaction()
+        finally:
+            self.session.end_session()
+
+    def _unregister_from_store(self) -> None:
+        if self.store._current_tx is self:
+            self.store._current_tx = None
 
 
 class MongoStore(TsStore, resource_name='MONGO_DB'):
@@ -311,13 +305,25 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
         self.client = client
         self.db: Database = db
         self.username = username
+        self._current_tx: MongoTransaction | None = None
 
     def collection_names(self, regexp: str = None) -> list:
         filter = dict(name={'$regex': regexp}) if regexp else None
         return self.db.list_collection_names(filter=filter)
 
     def collection(self, collection_name: str) -> TsCollection:
-        return MongoCollection(self.db, collection_name)
+        return MongoCollection(self.db, collection_name, store=self)
+
+    def supports_transactions(self) -> bool:
+        """True if this MongoDB deployment supports multi-document transactions (replica set or mongos)."""
+        try:
+            res = self.client.admin.command('ismaster')
+            return 'setName' in res or res.get('msg') == 'isdbgrid'
+        except Exception:
+            return False
+
+    def _begin_transaction(self) -> TsTransaction:
+        return MongoTransaction(self)
 
     def delete_collection(self, collection_name: str) -> bool:
         self.db.drop_collection(collection_name)

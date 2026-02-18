@@ -7,7 +7,6 @@ from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import LineEdit
 
 
-@pytest.mark.async_timeout(10)
 async def test_line_edit_comprehensive() -> None:
     """Test LineEdit with comprehensive client-widget interaction verification."""
     widget = LineEdit('Initial Text')
