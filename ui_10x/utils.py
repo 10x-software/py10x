@@ -324,6 +324,24 @@ class UxStyleSheet:
         data.update(named_sheet_attrs)
         widget.set_style_sheet(cls.dumps(data))
 
+    @classmethod
+    def _color(cls, style_sheet: str, attr_name: str) -> ux.Color:
+        data = cls.loads(style_sheet)
+        str_color = data.get(attr_name)
+        return ux.Color(str_color) if str_color else None
+
+    @classmethod
+    def fg_color(cls, style_sheet: str) -> ux.Color:
+        return cls._color(style_sheet, 'color')
+
+    @classmethod
+    def bg_color(cls, style_sheet: str) -> ux.Color:
+        return cls._color(style_sheet, 'background-color')
+
+    @classmethod
+    def color(cls, style_sheet: str, background = False) -> ux.Color:
+        return cls.bg_color(style_sheet) if background else cls.fg_color(style_sheet)
+
 
 s_verticalAlignmentMap = { # noqa: N816
     -1:     ux.TEXT_ALIGN.TOP,
