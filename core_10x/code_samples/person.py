@@ -87,7 +87,6 @@ class Person(Traitable):
         return f'{trait.to_str(value)} {self.weight_qu.label}'
 
     def post_verify(self) -> RC:
-        print(f'{self.__class__}.post_verify()')
         if self.age > 60 and self.weight_lbs > 200.:
             return RC(False, f'{self.full_name} - overweight condition detected')
         return RC_TRUE
