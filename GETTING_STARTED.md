@@ -991,7 +991,7 @@ from infra_10x.mongodb_store import MongoStore
 from core_10x.traitable import Traitable, T
 from datetime import date
 
-class Person(Traitable):
+class Person(Traitable, keep_history=False):
     first_name: str = T(T.ID)
     last_name: str = T(T.ID)
     dob: date = T()
@@ -1039,7 +1039,7 @@ from core_10x.traitable import Traitable, T
 from core_10x.trait_filter import f,IN
 from datetime import date
 
-class Person(Traitable):
+class Person(Traitable, keep_history=False):
     first_name: str = T(T.ID)
     last_name: str = T(T.ID)
     dob: date = T()
@@ -1148,7 +1148,7 @@ from core_10x.traitable import Traitable, T
 from datetime import date
 from infra_10x.mongodb_store import MongoStore
 
-class Person(Traitable):
+class Person(Traitable,keep_history=False):
     first_name: str = T(T.ID)
     last_name: str = T(T.ID)
     dob: date = T()
@@ -1302,7 +1302,7 @@ class Status(NamedConstant):
     ACTIVE = ()
     INACTIVE = ()
 
-class Person(Traitable):
+class Person(Traitable,keep_history=False):
     status: Status = T(Status.ACTIVE)
     age: int = T()
     salary: float = T()
@@ -1347,7 +1347,7 @@ with MongoStore.instance(
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import Traitable, T, M
 
-class Person(Traitable):
+class Person(Traitable,keep_history=False):
     name: str = T()
     age: int = T()
 

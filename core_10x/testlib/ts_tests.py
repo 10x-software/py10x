@@ -25,58 +25,63 @@ test_classes = {
         (EnhancedPerson,),
         {
             '__module__': __name__,
-            #'s_custom_collection': True
         },
+        custom_collection=custom_collection
     )
-    for cls_name in (f'Person#{uuid4().hex}' for _ in range(2))
+    for custom_collection in (None,True)
+    for cls_name in (f'Person#{uuid4().hex}{custom_collection and "#Custom" or ""}' for _ in range(2))
 }
 
 globals().update(test_classes)
-Person, Person1 = test_classes.values()
-TEST_COLLECTION = PackageRefactoring.find_class_id(Person)
-TEST_COLLECTION1 = PackageRefactoring.find_class_id(Person1)
-
-# TODO: split out s_custom_collection vs regular tests
 
 
-@pytest.fixture(scope='module')
-def ts_setup(ts_instance):
+
+@pytest.fixture(params=[True, False], ids=['custom_collection', 'default_collection'], scope='module')
+def ts_setup(ts_instance,request):
+    Person, Person1 = list(test_classes.values())[request.param*2:][:2]
+    c, c1 = [uuid4().hex if request.param else PackageRefactoring.find_class_id(cls) for cls in (Person,Person1)]
+
+
     with ts_instance:
-        p = Person(first_name='John', last_name='Doe')  # , _collection_name=TEST_COLLECTION)
+        p = Person(first_name='John', last_name='Doe', _collection_name=c if request.param else None)
         p.set_values(age=30, weight_lbs=100)
         assert p._rev == 0
         assert p.save() == RC_TRUE
         assert p._rev == 1
         assert p.save() == RC_TRUE
         assert p._rev == 1
+        assert p.id().collection_name == (c if request.param else None)
 
-        p1 = Person1(first_name='Joe', last_name='Doe')  # , _collection_name=TEST_COLLECTION1)
+
+        p1 = Person1(first_name='Joe', last_name='Doe', _collection_name=c1 if request.param else None)
         p1.set_values(age=32, weight_lbs=200)
         assert p1.save()
         assert p1.age == 32
         assert p1._rev == 1
+        assert p1.id().collection_name == (c1 if request.param else None)
 
-    yield ts_instance, p, p1
+    yield ts_instance, p, p1, c, c1
 
     # Cleanup
     XCache.clear()
     BTraitableProcessor.current().end_using()
-    for cn in [TEST_COLLECTION, TEST_COLLECTION1]:
+    for cn in [c, c1]:
         ts_instance.delete_collection(cn)
-    assert not {TEST_COLLECTION, TEST_COLLECTION1}.intersection(ts_instance.collection_names('.*'))
+    assert not {c, c1}.intersection(ts_instance.collection_names('.*'))
 
 
 class TestTSStore:
     """Test class for TS Store functionality."""
 
     def test_collection(self, ts_setup):
-        ts_store, _p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, _p, _p1, c, _c1= ts_setup
+        collection = ts_store.collection(c)
         assert collection is not None
 
     def test_save(self, ts_setup):
-        ts_store, p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, p, _p1, c, _c1= ts_setup
+
+        collection = ts_store.collection(c)
         serialized_entity = p.serialize_object()
         _rev = collection.save(serialized_entity.copy())
         assert p._rev == _rev
@@ -134,8 +139,8 @@ class TestTSStore:
         assert collection.load(p.id().value) == serialized_entity
 
     def test_delete_restore(self, ts_setup):
-        ts_store, p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, p, _p1, c, _c1= ts_setup
+        collection = ts_store.collection(c)
         serialized_entity = p.serialize_object()
         id_value = serialized_entity['_id']
         assert collection.delete(id_value)
@@ -146,22 +151,22 @@ class TestTSStore:
         assert collection.load(id_value) == serialized_entity
 
     def test_find(self, ts_setup):
-        ts_store, p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, p, _p1, c, _c1= ts_setup
+        collection = ts_store.collection(c)
         result = collection.find()
         assert next(iter(result)) == p.serialize_object()
         assert list(result) == []
 
     def test_load(self, ts_setup):
-        ts_store, p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, p, _p1, c, _c1= ts_setup
+        collection = ts_store.collection(c)
         id_value = p.id().value
         result = collection.load(id_value)
         assert result == p.serialize_object()
 
     def test_delete(self, ts_setup):
-        ts_store, _p, p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION1)
+        ts_store, _p, p1, _c, c1= ts_setup
+        collection = ts_store.collection(c1)
         id_value = p1.id().value
         result = collection.delete(id_value)
         assert result
@@ -170,8 +175,8 @@ class TestTSStore:
 
     def test_save_new_with_overwrite(self, ts_setup):
         """Test save_new with overwrite=True flag."""
-        ts_store, p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, p, _p1, c, _c1= ts_setup
+        collection = ts_store.collection(c)
         serialized_entity = p.serialize_object()
         id_value = serialized_entity['_id']
 
@@ -182,8 +187,8 @@ class TestTSStore:
 
     def test_save_new_with_set_operation(self, ts_setup):
         """Test save_new with $set MongoDB-style operation."""
-        ts_store, _p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, _p, _p1, c, _c1= ts_setup
+        collection = ts_store.collection(c)
 
         # Create a new document with $set
         doc_id = 'test_doc_123'
@@ -197,8 +202,8 @@ class TestTSStore:
 
     def test_save_new_duplicate_key_error(self, ts_setup):
         """Test that save_new raises TsDuplicateKeyError when inserting duplicate without overwrite."""
-        ts_store, _p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, _p, _p1, c, _c1= ts_setup
+        collection = ts_store.collection(c)
 
         # Test 1: Duplicate without $set
         doc_id = 'duplicate_test_123'
@@ -224,8 +229,8 @@ class TestTSStore:
 
     def test_save_new_with_set_and_overwrite(self, ts_setup):
         """Test save_new with $set and overwrite=True."""
-        ts_store, _p, _p1 = ts_setup
-        collection = ts_store.collection(TEST_COLLECTION)
+        ts_store, _p, _p1, c, _c1= ts_setup
+        collection = ts_store.collection(c)
 
         doc_id = 'set_overwrite_test_123'
         # First insert
@@ -242,12 +247,10 @@ class TestTSStore:
         assert loaded['name'] == 'Updated'
         assert loaded['new_field'] == 'new_value'
 
-    def test_ts_class_association_ts_uri_resolution(self, ts_setup):
+    def test_ts_class_association_ts_uri_resolution(self, ts_instance):
         """Test that TsClassAssociation.ts_uri correctly resolves store URIs for classes and their subclasses."""
         from core_10x.py_class import PyClass
         from core_10x.traitable import NamedTsStore, T, Traitable, TsClassAssociation
-
-        ts_store, _p, _p1 = ts_setup
 
         class Dummy1(Traitable):
             text: str = T(T.ID)
@@ -260,7 +263,7 @@ class TestTSStore:
         dummy_uri1 = 'mongodb://localhost/dummy1'
         dummy_uri2 = 'mongodb://localhost/dummy2'
 
-        with ts_store:
+        with ts_instance:
             # Create and save NamedTsStore objects
             ns1 = NamedTsStore(logical_name='dummy1', uri=dummy_uri1, _replace=True)
             ns1.save()

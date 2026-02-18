@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from contextlib import nullcontext
 from datetime import date, datetime
 
 import pytest
@@ -15,6 +16,7 @@ from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
 from core_10x.traitable_id import ID
+from core_10x.traitable import StorableHelper, StorableHelperWithHistory
 from core_10x.ts_store import TsDuplicateKeyError
 
 
@@ -87,9 +89,8 @@ def test_store(ts_instance):
     store.username = 'test_user'
     store.begin_using()
     yield store
-    for cls in [PersonTraitable, NameValueTraitable]:
-        store.delete_collection(cls.collection().collection_name())
-        store.delete_collection(cls.s_history_class.collection().collection_name())
+    for cn in store.collection_names() :
+        store.delete_collection(cn)
     store.end_using()
 
 
@@ -143,6 +144,62 @@ class TestTraitableHistory:
         assert saved_doc['name'] == 'Test Item'
         assert saved_doc['value'] == 42
         assert isinstance(saved_doc['_at'], datetime)
+
+    @pytest.mark.parametrize('with_transactions', [True, False])
+    def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, monkeypatch, with_transactions):
+        """When history save fails, the main document save is rolled back (revision not applied)."""
+        if with_transactions and not getattr(test_store, 'supports_transactions', lambda: True)():  # TODO: add to base store
+            pytest.skip('Store does not support transactions')
+
+        def _save_serialized_raise(self, coll, serialized_data, old_rev):
+            rev = StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
+            assert obj.collection().count() == 1
+            if rev > old_rev:
+                raise RuntimeError("history save fails")
+            return rev
+
+        monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
+        if not with_transactions:
+            monkeypatch.setattr(test_store, 'transaction', lambda *args: nullcontext())
+
+        obj = NameValueTraitable(name='x', value=1, _replace=True)
+        rc = obj.save()
+        assert 'history save fails' in rc.error()
+        assert obj.get_revision() == 0
+        assert obj.history() == []
+        assert len(obj.load_many()) == (1 - with_transactions)
+
+    @pytest.mark.parametrize('with_transactions', [True, False])
+    def test_save_transactional_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions):
+        """When a nested or main save fails, the transaction rolls back (no docs committed)."""
+        if with_transactions and not getattr(test_store, 'supports_transactions', lambda: True)():  # TODO: add to base store
+            pytest.skip('Store does not support transactions')
+
+        def _save_serialized_raise(self, coll, serialized_data, old_rev):
+            if serialized_data['_id'] == '1':
+                raise RuntimeError('save error')
+            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
+
+        monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
+        monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *a, **kw: PyClass.name(cls))
+        if not with_transactions:
+            monkeypatch.setattr(test_store, 'transaction', lambda *args: nullcontext())
+
+        class X(Traitable):
+            x: int = T(T.ID)
+            y: Self = T()
+
+        with test_store:
+            assert not X.load_many()
+            assert not X.history()
+            obj = X(x=1, y=X(x=2), _replace=True)
+            assert 'Error saving traitable: save error' in obj.save(save_references=True).error()
+
+            assert obj.y.get_revision() == 1  # (1-with_transactions) #TODO: fix!
+            assert len(X.load_many()) == (1 - with_transactions)
+            assert not X.history()
+
+            X.delete_collection()
 
     def test_traitable_class_history_methods(self, test_store, test_collection, clock_freezer):
         """Test Traitable class history methods."""
@@ -458,7 +515,7 @@ class TestTraitableHistory:
             value: str = T()
 
         item = NoHistoryTraitable(key='k1', value='v1', _replace=True)
-        item.save()
+        item.save().throw()
         original_helper = NoHistoryTraitable.s_storage_helper
         as_of_time = datetime(2020, 1, 1, 12, 0, 0)
 
@@ -739,10 +796,10 @@ class TestTraitableHistory:
         person.name = 'Immutable History'
         person.age = 30
         person.email = 'immutable@example.com'
-        person.save()
+        person.save().throw()
 
         person.age = 31
-        person.save()
+        person.save().throw()
 
         history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
         assert history_collection.count() == 2

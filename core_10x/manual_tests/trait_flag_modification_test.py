@@ -30,13 +30,10 @@ if __name__ == '__main__':
     print(y, y.v)
     print(z, z.v)
 
-    print(getattr(x, '__dict__', 'n/a'))
-    print(getattr(y, '__dict__', 'n/a'))
-    print(getattr(z, '__dict__', 'n/a'))
+
 
 
 # NOTES:
-# current classes trait.get override base classes trait_get
-# current classes trait_get, overrides base classes trait.get, except if there is a trait modification  in this class, in which case, it needs to reset trait.get
-# en error is thrown if trait_get and trait.get are defined in the same class (or there is a trait modification that does nto reset trait.get)
-# TODO: should trait.default should work just as trait.get?
+# current classes trait.default override base classes trait_get
+# current classes trait_get, overrides base classes trait.default, except if there is a trait modification  in this class, in which case, it needs to reset trait.default
+# an error is thrown if trait_get and trait.default are defined in the same class (or there is a trait modification in the same class where trait_get is defined that does not reset trait.default from base class)
