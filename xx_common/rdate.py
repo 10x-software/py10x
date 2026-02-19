@@ -104,6 +104,13 @@ class RDate(Nucleus):
 
     s_tenor_frequency_class = TENOR_FREQUENCY
     s_frequency_table       = FREQUENCY_TABLE
+    def __init_subclass__(cls, tenor_frequency_class: type[TENOR_FREQUENCY] = None, frequency_table: NamedConstantTable = None):
+        assert tenor_frequency_class and issubclass(tenor_frequency_class, TENOR_FREQUENCY), 'tenor_frequency_class must be a subclass of TENOR_FREQUENCY'
+        assert frequency_table and isinstance(frequency_table, NamedConstantTable) and frequency_table.named_constant_class is tenor_frequency_class, f"""
+        frequency_table's named_constant_class must be {tenor_frequency_class}
+        """
+        cls.s_tenor_frequency_class = tenor_frequency_class
+        cls.s_frequency_table = frequency_table
 
     # s_spot_tenors = { 'ON', 'TN', 'SN' }
 

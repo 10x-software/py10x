@@ -130,8 +130,14 @@ XFREQ_TABLE = FREQ_TABLE.extend(XFREQUENCY,
     QUARTER =   ('Q',   lambda d, n: d + delta(months = n*3),   XFREQUENCY.MONTH),
 )
 
+from core_10x.traitable import Traitable, T
+
+class TestNamedConstant(Traitable):
+    count: int      = T()
+    freq: FREQUENCY = T()
+
 if __name__ == '__main__':
-    from core_10x.manual_tests.named_constant_test import COLOR, XCOLOR
+    from core_10x.manual_tests.named_constant_test import COLOR, XCOLOR, XFREQUENCY
 
     print( COLOR.LIGHTGREEN.value)
     sgreen = Nucleus.serialize_any(COLOR.GREEN, False)
@@ -146,3 +152,12 @@ if __name__ == '__main__':
 
     x,y = TEXT_ALIGN.from_str('left'), TEXT_ALIGN.from_str('v_center')
     print( x, y, x.rio_attr(), y.rio_attr(), x.value, y.value, x.rio_value(), y.rio_value() )
+
+    t1 = TestNamedConstant(count = 2, freq = FREQUENCY.WEEK)
+    s1 = t1.serialize_object()
+
+    t2 = TestNamedConstant(count = 2, freq = XFREQUENCY.MONTH)
+    s2 = t2.serialize_object()
+
+    t22 = TestNamedConstant.deserialize(s2)
+    assert t2.freq == t22.freq
