@@ -428,6 +428,10 @@ class NamedConstantTable(NamedConstantValue):
 
         res = NamedConstantTable(row_nc_subclass, self.col_named_constant_class, _check_num_values = False)
         res.data = data = dict(self.data)
+
+        num_values = len(row_nc_subclass.s_dir) - len(self.named_constant_class.s_dir)
+        assert len(named_tuple_values) == num_values, f'{row_nc_subclass} - number of named values must be {num_values}'
+
         c_defs = row_nc_subclass.s_dir
         for cname, value in named_tuple_values.items():
             cdef = c_defs.get(cname)
