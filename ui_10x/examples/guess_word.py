@@ -233,7 +233,7 @@ class Game(Traitable):
         gr = self.guess_result(self.guess)
         attempts = self.attempts
         attempts[current] = gr
-        self.table.render_entity(current, None)
+        self.table.render_traitable(current, None)
 
         if all(s == CHAR_STATE.BINGO for s in gr.char_state):
             ux_success('Great job - you got it!')
