@@ -767,7 +767,7 @@ def test_27():
 
     x = X(x=3, y=X(_id=ID('4')), _replace=True)
     try:
-        x.save(save_references=True)
+        x.save(save_references=True).throw()
     except Exception:
         pass
     else:
@@ -907,8 +907,9 @@ def test_33():
     try:
         print('===',X().x)
     except TraitMethodError as e:
-        print(e)
-        traceback.print_exc()
+        assert "bombing_method" in traceback.format_exc()
+    else:
+        assert False, "Expected TraitMethodError when calling bombing_method through x_get"
 
 def test_34():
     class X(Traitable):
@@ -920,9 +921,27 @@ def test_34():
     try:
         Y.deserialize_nx(Y.s_bclass, X(x=1).serialize_nx(False))
     except TypeError as e:
-        print(e)
+        assert "Expected a string ID value, but found a list" in str(e)
     else:
         assert False, "Expected TypeError when deserializing X as Y"
+
+
+def test_35():
+    class X(Traitable):
+        x: int = T(T.ID)
+
+        def save(self, save_references=False):
+            return RC(False, "save failed")
+
+    class Y(Traitable):
+        x: X = T()
+
+    try:
+        Y(x=X(x=1)).serialize_object(save_references=True)
+    except TraitMethodError as e:
+        assert "save failed" in str(e)
+    else:
+        assert False, "Expected TraitMethodError when serializing nested X with save_references=True"
 
 if __name__ == '__main__':
     import py10x_kernel
@@ -960,4 +979,5 @@ if __name__ == '__main__':
     test_32()
     test_33()
     test_34()
+    test_35()
 
