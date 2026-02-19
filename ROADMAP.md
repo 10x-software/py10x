@@ -12,6 +12,6 @@
 
 
 - **Finish UI Table Integration**
-  - examples.guess_word game
-  - examples.stock_simulator
-  - 
+  - examples.guess_word game (done)
+  - examples.stock_simulator (done)
+  - use *trait-name*_action(self) method for callback of Ui.PUSH_BUTTON trait (done)

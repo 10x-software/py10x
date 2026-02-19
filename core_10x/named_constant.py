@@ -5,7 +5,7 @@ from typing import Any
 from core_10x.nucleus import Nucleus
 
 
-# -- TODO: should I re-incarnate deriving from a metaclass, so that I can do: NAMED_CONSTANT[name] ?
+#-- TODO: should I re-incarnate deriving from a metaclass, so that I can do: NAMED_CONSTANT[name] ?
 class NamedConstant(Nucleus):
     """
     In a subclass, each line representing a member must be one of the following:
@@ -51,18 +51,18 @@ class NamedConstant(Nucleus):
     @classmethod
     def _create(cls, args: Any) -> NamedConstant:
         cdef = cls()
-        if type(args) is not tuple:  # -- just a value
+        if type(args) is not tuple:  #-- just a value
             cdef.value = args
 
         else:
             n = len(args)
-            if n == 0:  # -- ()
+            if n == 0:  #-- ()
                 pass
 
-            elif n == 1:  # -- just a label
+            elif n == 1:  #-- just a label
                 cdef.label = args[0]
 
-            elif n == 2:  # -- (label, value)
+            elif n == 2:  #-- (label, value)
                 cdef.label = args[0]
                 cdef.value = args[1]
 
@@ -104,7 +104,7 @@ class NamedConstant(Nucleus):
             if reverse_dir:
                 return reverse_dir.get(data)
 
-            # -- the last resort - this is slow!
+            #-- the last resort - this is slow!
             for cdef in cls.s_dir.values():
                 if cdef.value == data:
                     return cdef
@@ -118,7 +118,7 @@ class NamedConstant(Nucleus):
     def choose_from(cls):
         return cls.s_dir
 
-    # ===================================================================================================================
+    #===================================================================================================================
 
     s_dir: dict[str, NamedConstant] = {}
     s_reverse_dir = {}
@@ -126,16 +126,13 @@ class NamedConstant(Nucleus):
     s_default_labels = False
     s_lowercase_values = False
 
-    # fmt: off
     def __init_subclass__(
         cls,
         default_labels: bool    = None,    #-- if True and a label is not defined, creates it by calling default_label(name)
         lowercase_values: bool  = None,    #-- if a value is not defined, sets it to name, or name.lower() if True
         data_type: type         = None,    #-- if value is not defined it is taken from superclass or the first value
     ):
-        # fmt: on
         sdir = cls.s_dir = {name: cls(cdef.name, cdef.label, cdef.value) for name, cdef in cls.s_dir.items()}
-
 
         if default_labels is not None:
             cls.s_default_labels = default_labels
@@ -239,7 +236,7 @@ class Enum(NamedConstant):
         if args == ():
             return cdef
 
-        if type(args) is str:  # -- just a label
+        if type(args) is str:  #-- just a label
             cdef.label = args
             return cdef
 
@@ -254,14 +251,13 @@ class Enum(NamedConstant):
 
 NO_FLAGS_TAG = 'NONE'
 
-
 class EnumBits(NamedConstant):
     s_last_flag = 0x1
 
     def __init_subclass__(cls, **kwargs):
         cls.s_last_flag = cls.s_last_flag
         super().__init_subclass__(**kwargs)
-        setattr(cls, NO_FLAGS_TAG, cls(name=NO_FLAGS_TAG, value=0x0))
+        setattr(cls, NO_FLAGS_TAG, cls(name = NO_FLAGS_TAG, value = 0x0))
 
     @classmethod
     def next_auto_value(cls):
@@ -367,11 +363,14 @@ class ErrorCode(Enum, seed=-1, step=-1):
 class NamedConstantValue:
     __slots__ = 'data', 'named_constant_class'
 
-    def __init__(self, named_constant_class, **named_constant_values):
+    def __init__(self, named_constant_class, _check_num_values = True, **named_constant_values):
         assert issubclass(named_constant_class, NamedConstant), f'{named_constant_class} must be a subclass of NamedConstant'
         c_defs = named_constant_class.s_dir
-        num_values = len(c_defs)
-        assert num_values == len(named_constant_values), f'{named_constant_class} - number of named values must be {num_values}'
+
+        if _check_num_values:
+            num_values = len(c_defs)
+            assert num_values == len(named_constant_values), f'{named_constant_class} - number of named values must be {num_values}'
+
         self.named_constant_class = named_constant_class
 
         self.data = data = {}
@@ -385,10 +384,10 @@ class NamedConstantValue:
 
     def __getitem__(self, key):
         try:
-            return self.data[key]  # -- if it's a known NamedConstant
+            return self.data[key]  #-- if it's a known NamedConstant
 
         except Exception as e:
-            # -- check if it is a name of a constant
+            #-- check if it is a name of a constant
             named_constant_class = self.named_constant_class
             cdef = named_constant_class.s_dir.get(key)
             if not cdef:
@@ -406,10 +405,10 @@ class NamedConstantValue:
 class NamedConstantTable(NamedConstantValue):
     __slots__ = 'col_named_constant_class', 'data', 'named_constant_class'
 
-    def __init__(self, row_nc_class, col_nc_class, **named_tuple_values):
+    def __init__(self, row_nc_class, col_nc_class, _check_num_values = True, **named_tuple_values):
         assert issubclass(col_nc_class, NamedConstant), f'{col_nc_class} must be a subclass of NamedConstant'
         self.col_named_constant_class = col_nc_class
-        super().__init__(row_nc_class, **named_tuple_values)
+        super().__init__(row_nc_class, _check_num_values = _check_num_values, **named_tuple_values)
 
     def process_row(self, cdef: NamedConstant, data: dict, row):
         assert type(row) is tuple, f'{cdef.name} = is not a tuple'
@@ -423,3 +422,16 @@ class NamedConstantTable(NamedConstantValue):
                 return primary_key
 
         return None
+
+    def extend(self, row_nc_subclass: type[NamedConstant], **named_tuple_values) -> NamedConstantTable:
+        assert issubclass(row_nc_subclass, self.named_constant_class), f'row_nc_subclass must be a subclass of {self.named_constant_class}'
+
+        res = NamedConstantTable(row_nc_subclass, self.col_named_constant_class, _check_num_values = False)
+        res.data = data = dict(self.data)
+        c_defs = row_nc_subclass.s_dir
+        for cname, value in named_tuple_values.items():
+            cdef = c_defs.get(cname)
+            assert cdef, f'{row_nc_subclass}.{cname} - unknown named constant'
+            res.process_row(cdef, data, value)
+
+        return res

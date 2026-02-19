@@ -103,6 +103,33 @@ class TEXT_ALIGN(NamedConstant):
     def rio_value(self) -> float:
         return ((self.value >> 4 if self.value & self.s_vertical else self.value)-1) /10
 
+class FREQUENCY(NamedConstant):
+    CALDAY  = ()
+    WEEK    = ()
+
+class PARAMS(NamedConstant):
+    CHAR        = ()
+    FUNC        = ()
+    MIN_FREQ    = ()
+
+from dateutil.relativedelta import relativedelta as delta
+
+FREQ_TABLE = NamedConstantTable(FREQUENCY, PARAMS,
+    #           CHAR    FUNC                                MIN_FREQ
+    CALDAY  =   ('C',   lambda d, n: d + delta(days = n),   FREQUENCY.CALDAY ),
+    WEEK    =   ('W',   lambda d, n: d + delta(weeks = n),  FREQUENCY.CALDAY),
+)
+
+class XFREQUENCY(FREQUENCY):
+    MONTH   = ()
+    QUARTER = ()
+
+XFREQ_TABLE = FREQ_TABLE.extend(XFREQUENCY,
+    #           CHAR    FUNC                                    MIN_FREQ
+    MONTH   =   ('M',   lambda d, n: d + delta(months = n),     XFREQUENCY.MONTH),
+    QUARTER =   ('Q',   lambda d, n: d + delta(months = n*3),   XFREQUENCY.MONTH),
+)
+
 if __name__ == '__main__':
     from core_10x.manual_tests.named_constant_test import COLOR, XCOLOR
 
