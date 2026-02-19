@@ -68,8 +68,8 @@ def test_is_storable():
     assert not SubTraitable.is_storable()
     assert SubTraitable2.is_storable()
 
-    with pytest.raises(OSError, match='No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI'):
-        SubTraitable2().save()
+    with pytest.raises(RuntimeError, match='No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI'):
+        SubTraitable2().save().throw()
 
     assert 'is not storable' in SubTraitable(trait1=uuid.uuid1().int).save().error()
 

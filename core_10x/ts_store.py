@@ -194,6 +194,9 @@ class TsStore(Resource, resource_type=TS_STORE):
     @abc.abstractmethod
     def auth_user(self) -> str | None: ...
 
+    def supports_transactions(self) -> bool:
+        return True
+
     def populate(self, params: list[str], serialized_data: dict):
         """Populate specified params on the server, if possible.
         This should be overridden in subclasses as needed"""

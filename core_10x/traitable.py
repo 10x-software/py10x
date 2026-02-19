@@ -606,6 +606,9 @@ class AbstractStorableHelper(ABC):
     def save(self, traitable: Traitable, save_references: bool) -> RC: ...
 
     @abstractmethod
+    def _save_serialized(self, coll, serialized_data, old_rev): ...
+
+    @abstractmethod
     def delete(self, traitable: Traitable) -> RC: ...
 
     @abstractmethod
@@ -649,6 +652,9 @@ class NotStorableHelper(AbstractStorableHelper):
     def save(self, traitable: Traitable, save_references: bool) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
+    def _save_serialized(self, coll, serialized_data, old_rev):
+        return old_rev
+
     def delete(self, traitable: Traitable) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
@@ -663,6 +669,7 @@ class NotStorableHelper(AbstractStorableHelper):
 
     def restore(self, traitable_id, timestamp: datetime = None, save=False) -> bool:
         raise RuntimeError(f'{self.traitable_class} is not storable')
+
 
 
 class StorableHelper(AbstractStorableHelper):
@@ -728,19 +735,18 @@ class StorableHelper(AbstractStorableHelper):
         if not rc:
             return rc
 
-        transaction_ctx =  self.traitable_class.store().transaction() if save_references else self._transaction_ctx()
 
         try:
-            with transaction_ctx:
-                serialized_data = traitable.serialize_object(save_references)
+            serialized_data = traitable.serialize_object(save_references)
 
-                if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
-                    return RC_TRUE
+            if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
+                return RC_TRUE
 
-                coll = self.traitable_class.collection(traitable.id().collection_name)
-                if not coll:
-                    return RC(False, f'{self.__class__} - no store available')
+            coll = self.traitable_class.collection(traitable.id().collection_name)
+            if not coll:
+                return RC(False, f'{self.__class__} - no store available')
 
+            with self._transaction_ctx():
                 rev = self._save_serialized(coll, serialized_data, traitable.get_revision())
         except Exception as e:
             return RC(False, f'Error saving traitable: {e}')
@@ -772,9 +778,10 @@ class StorableHelper(AbstractStorableHelper):
     def restore(self, traitable_id, timestamp: datetime = None, save=False) -> bool:
         raise RuntimeError(f'{self.traitable_class} does not keep history')
 
+
 class StorableHelperWithHistory(StorableHelper):
     def _transaction_ctx(self):
-        return self.traitable_class.store().transaction()
+        return self.traitable_class.store().transaction() if EnvVars.use_ts_store_transactions else nullcontext()
 
     def _save_serialized(self, coll, serialized_data, old_rev) -> int:
         rev = super()._save_serialized(coll, serialized_data, old_rev)
@@ -845,6 +852,7 @@ class StorableHelperWithHistory(StorableHelper):
                 )
             )
         return True
+
 
 @dataclass
 class StorableHelperAsOf(StorableHelperWithHistory):

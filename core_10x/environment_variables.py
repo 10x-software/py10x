@@ -51,9 +51,9 @@ class _EnvVars:
             return value
 
     s_converters = {
-        bool:       lambda s: ast.literal_eval(s.lower().capitalize()),
-        int:        lambda s: ast.literal_eval(s),
-        float:      lambda s: ast.literal_eval(s),
+        bool:       lambda s: bool(ast.literal_eval(s.lower().capitalize())),
+        int:        lambda s: int(ast.literal_eval(s)),
+        float:      lambda s: float(ast.literal_eval(s)),
         str:        lambda s: s,
         date:       lambda s: XDateTime.str_to_date(s),
         datetime:   lambda s: XDateTime.str_to_datetime(s),
@@ -149,13 +149,14 @@ class EnvVars(_EnvVars, env_name='XX'):
 
     master_password_key: str        = 'XX_MASTER_PASSWORD'
 
-    #examples_ts_store_uri: str      = ''            #-- e.g., mongodb://localhost/examples
+    # examples_ts_store_uri: str    = ''            #-- e.g., mongodb://localhost/examples
     vault_ts_store_uri: str         = ''            #-- to store/auto retrieve security credentials for each user/resource; default is main_ts_store_uri
     main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27018/main'
     use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
-    functional_account_prefix: str  = 'xx'          #-- used in user names to distinguish a regular user name from a functional account
+    functional_account_prefix: str  = 'xx'          #-- used in usernames to distinguish a regular username from a functional account
 
     graph_on: bool                  = False         #-- whether GRAPH is ON by default
+    use_ts_store_transactions: bool = False         #-- TsStore transactions, e.g. when saving history
 
     date_format: str = XDateTime.FORMAT_ISO
 
