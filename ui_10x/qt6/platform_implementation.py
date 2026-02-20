@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys
 from typing import Callable, Any
 
 from PyQt6.QtWidgets import QWidget, QLayout, QBoxLayout, QVBoxLayout, QHBoxLayout, QFormLayout, QApplication
@@ -264,6 +265,11 @@ def init(style = '') -> QApplication:
 
     app = QApplication([])
     app.setStyle(style)
+
+    if sys.platform == 'darwin':
+        from ui_10x.qt6.mac_os_global_commit_filter import MacEditCommitFilter
+        MacEditCommitFilter.install(app)
+
     return app
 
 def to_clipboard(text: str, **kwargs):
