@@ -230,6 +230,10 @@ class Game(Traitable):
             ux_warning(f'The word is {self.num_chars} characters long.')
             return
 
+        if not _GuessWordData.word_exists(guess):
+            ux_warning(f"Unfamiliar noun '{guess}'")
+            return
+
         gr = self.guess_result(self.guess)
         attempts = self.attempts
         attempts[current] = gr
@@ -327,7 +331,7 @@ class _GuessWordData:
         noun_pool = cls.noun_pool()
         n = len(w)
         words = noun_pool.get(n)
-        return words and w in words
+        return words and w.lower() in words
 
     @classmethod
     def new_word(cls, n: int) -> str:

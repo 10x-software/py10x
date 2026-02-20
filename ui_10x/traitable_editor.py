@@ -21,9 +21,9 @@ if TYPE_CHECKING:
 
 class TraitableEditor:
     """
-    For many Traitables, a default Editor is sufficient.
+    For many a Traitable, a default Editor is sufficient.
     A custom Editor, if needed, should be in a particular class, module and package.
-    Suppose your traitable class is abc.zyz.messages.TextMessage
+    Suppose your Traitable subclass is abc.zyz.messages.TextMessage
     - the custom editor class must be TextMessageEditor
     - its module name must be messages_ui
     - the module may be in either abc.xyz, abc.xyz.ui or alternative packages
@@ -52,7 +52,6 @@ class TraitableEditor:
 
         return TraitableEditor
 
-    # fmt: off
     @staticmethod
     def editor(
         entity: Traitable,
@@ -62,7 +61,6 @@ class TraitableEditor:
         view: TraitableView         = None,     #-- if a specific view for the entity should be used
         read_only: bool             = False     #-- browser if True
     ) -> TraitableEditor:
-        # fmt: on
         editor_class = TraitableEditor.find_editor_class(
             entity.__class__,
             *alternative_packages,
@@ -70,6 +68,52 @@ class TraitableEditor:
             verify_custom_class     = verify_custom_class
         )
         return editor_class(entity, view = view, read_only = read_only, _confirm = True)
+
+    @staticmethod
+    def left_mouse_callback_name(trait_name: str) -> str:   return trait_name + '_left_mouse_cb'
+
+    @staticmethod
+    def right_mouse_callback_name(trait_name: str) -> str:  return trait_name + '_right_mouse_cb'
+
+    s_left_mouse_callbacks = {}     #-- { trait_name: <lm_cb> }  # def trait_name_left_mouse_cb(table_view, traitable): ...
+    s_right_mouse_callbacks = {}    #-- { trait_name: <rm_cb> }  # def trait_name_right_mouse_cb(table_view, traitable): ...
+    @classmethod
+    def set_mouse_callbacks(cls, trait_name: str):
+        lmc = getattr(cls, cls.left_mouse_callback_name(trait_name), None)
+        if lmc:
+            cls.s_left_mouse_callbacks[trait_name] = lmc
+        rmc = getattr(cls, cls.right_mouse_callback_name(trait_name), None)
+        if rmc:
+            cls.s_right_mouse_callbacks[trait_name] = rmc
+
+    @classmethod
+    def left_mouse_callback(cls, trait_name: str):
+        lmc = cls.s_left_mouse_callbacks.get(trait_name)
+        if not lmc:
+            lmc = cls.s_left_mouse_callbacks.get('')
+        return lmc
+
+    @classmethod
+    def right_mouse_callback(cls, trait_name: str):
+        rmc = cls.s_right_mouse_callbacks.get(trait_name)
+        if not rmc:
+            rmc = cls.s_right_mouse_callbacks.get('')
+        return rmc
+
+    s_traitable_class: type[Traitable] = None
+    def __init_subclass__(cls, traitable_class: type[Traitable] = None):
+        if traitable_class:
+            assert issubclass(traitable_class, Traitable), 'traitable_class must be a subclass of Traitable'
+
+            cls.s_traitable_class = traitable_class
+
+            #-- Mouse callbacks, if any
+            cls.s_left_mouse_callbacks = {}
+            cls.s_right_mouse_callbacks = {}
+
+            cls.set_mouse_callbacks('')     #-- common mouse callbacks
+            for trait_name in traitable_class.s_dir:
+                cls.set_mouse_callbacks(trait_name)
 
     def __init__(self, entity: Traitable, view: TraitableView = None, read_only = False, _confirm = False):
         assert _confirm, 'Do not call TraitableEditor() directly, use TraitableEditor.editor() instead'
@@ -93,7 +137,7 @@ class TraitableEditor:
 
         callbacks = self.callbacks_for_traits
         self.trait_editors = {
-            trait.name: TraitEditor(entity, trait, ui_hint, custom_callback = callbacks.get(trait.name), traitable_processor = lambda : self.traitable_processor)
+            trait.name: TraitEditor(entity, trait, ui_hint, custom_callback = callbacks.get(trait.name), traitable_processor = lambda: self.traitable_processor)
             for trait, ui_hint in trait_hints.items()
         }
 

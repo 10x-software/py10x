@@ -144,10 +144,10 @@ class TableView(QTableView):
         if self.wheel_enabled:
             QTableView.keyPressEvent(self, args[0])
 
-    def mousePressEvent(self, *args, **kwargs):
-        mouse_event = args[0]
-        row = self.rowAt(mouse_event.y())
-        col = self.columnAt(mouse_event.x())
+    def mousePressEvent(self, mouse_event):
+        pos = mouse_event.position()    #-- QPointF
+        row = self.rowAt(int(pos.y()))
+        col = self.columnAt(int(pos.x()))
         if row == -1 or col == -1:
             return
 
@@ -156,19 +156,19 @@ class TableView(QTableView):
         if not trait_name:
             return
 
-        editor_class = TraitableEditor.find_editor_class(entity.__class__)     #-- no alternative packages, look under ui subdir only
+        editor_class: type[TraitableEditor] = TraitableEditor.find_editor_class(entity.__class__)     #-- no alternative packages, look under ui subdir only
         mouse_btn = mouse_event.button()
         if mouse_btn == Qt.MouseButton.LeftButton:
-            cb = editor_class.leftMouseCallback(trait_name)
+            cb = editor_class.left_mouse_callback(trait_name)
         elif mouse_btn == Qt.MouseButton.RightButton:
-            cb = editor_class.rightMouseCallback(trait_name)
+            cb = editor_class.right_mouse_callback(trait_name)
         else:
             return
 
         if cb:
             cb(self, entity)
         else:
-            super().mousePressEvent(*args, **kwargs)
+            super().mousePressEvent(mouse_event)
 
     def render_traitable(self, row: int, entity: Traitable):
         last_col = len(self.model().col2name) - 1
