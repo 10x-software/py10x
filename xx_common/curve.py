@@ -11,19 +11,19 @@ from core_10x.named_constant import NamedConstant
 from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, M, T, Traitable
 
 
-class IP_KIND(NamedConstant, lowercase_values=True):
-    #-- NOTE: enum labels specify the minimum number of points required!
-    LINEAR      = ( 2, )
-    NEAREST     = ( 2, )
-    NEAREST_UP  = ( 2, )
-    PREVIOUS    = ( 2, )    #-- return the previous value of the point
-    NEXT        = ( 2, )    #-- ------ the next ----
-    ZERO        = ( 1, )    #-- spline interp of zeroth order
-    SLINEAR     = ( 2, )    #-- spline interp of first order
-    QUADRATIC   = ( 3, )    #-- spline interp of second order
-    CUBIC       = ( 4, )    #-- spline interp of third order
+class IP_KIND(NamedConstant, lowercase_values = True):
+    #-- NOTE: labels specify the minimum number of points required!
+    LINEAR      = (2, )
+    NEAREST     = (2, )
+    NEAREST_UP  = (2, )
+    PREVIOUS    = (2, )     #-- return the previous value of the point
+    NEXT        = (2, )     #-- ------ the next ----
+    ZERO        = (1, )     #-- spline interp of zeroth order
+    SLINEAR     = (2, )     #-- spline interp of first order
+    QUADRATIC   = (3, )     #-- spline interp of second order
+    CUBIC       = (4, )     #-- spline interp of third order
 
-    NO_INTERP   = ( 0, )    #-- NO interp outside of given nodes
+    NO_INTERP   = (0, )     #-- NO interp outside of given nodes
 
 class CurveParams(Traitable):
     DEFAULT_INTERPOLATOR = interpolate.interp1d
@@ -32,7 +32,7 @@ class CurveParams(Traitable):
     ip_kind: IP_KIND    = RT(IP_KIND.LINEAR)
     assume_sorted: bool = RT(True)
     copy: bool          = RT(False)
-    fill_value: Any     = RT('extrapolate')     ## it's this str or a tuple (curve.values[0], curve.values[-1]) for flat extrapolation
+    fill_value: Any     = RT('extrapolate')     ## it's 'extrapolate' or a tuple (left_value, right_value) for extrapolation
     bounds_error: bool  = RT(False)
 
 class Curve(AnonymousTraitable):
@@ -103,24 +103,18 @@ class Curve(AnonymousTraitable):
 
         return True
 
-    ## default; maybe no need other than reinforce default (could be done by invalidation?)
-    ## extrapolate according to the interpolation method
-    def extrapolate_params(self) -> CurveParams:
-        params = self.params
-        params.bounds_error = False
-        params.fill_value   = 'extrapolate'
-        self.params = params    ## TODO: is this right?
+    def set_curve_params(self, **param_values) -> RC:
+        rc = self.params.set_values(**param_values)
         self.reset()
-        return params
+        return rc
+
+    def set_curve_params_to_extrapolate(self) -> RC:
+        return self.set_curve_params(bounds_error = False, fill_value = 'extrapolate')
 
     ## extrapolate flat left (by the first value) and right (by last value)
-    def flat_extrapolate_params(self) -> CurveParams:
-        params = self.params
-        params.bounds_error = False
-        params.fill_value   = (self.values[0], self.values[-1])     ## initial type declaration in the CurveParams class was str for the default 'extrapolate'; this is a tuple, which is also acceptable by the scipy.interpolate.interp1d()
-        self.params = params    ## TODO: is this right?
-        self.reset()
-        return params
+    def set_curve_params_to_flat_extrapolate(self) -> RC:
+        values = self.values
+        return self.set_curve_params(bounds_error = False, fill_value = (values[0], values[-1]))
 
     def interpolator_get(self):
         params = self.params

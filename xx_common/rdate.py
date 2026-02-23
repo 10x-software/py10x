@@ -159,7 +159,8 @@ class RDate(Nucleus):
             return cls(freq = value.freq, count = value.count)
 
         if isinstance(value, tuple):
-            assert len(value) == 2, 'tenor frequency and count are expected'
+            if len(value) != 2:
+                raise AssertionError('tenor frequency and count are expected')
             return cls(freq = value[0], count = value[1])
 
         raise AssertionError('unexpected type')
@@ -191,20 +192,14 @@ class RDate(Nucleus):
         if my_freq is other_freq:
             return 1.0
 
-        dont_handle_freqs = (TENOR_FREQUENCY.BIZDAY,)
-        # dont_handle_freqs = (TENOR_FREQUENCY.BIZDAY, TENOR_FREQUENCY.CALDAY, TENOR_FREQUENCY.WEEK)
-        if my_freq in dont_handle_freqs or other_freq in dont_handle_freqs:
-            raise ValueError(f'cannot convert {my_freq} to {other_freq}')
-
         freq_table = self.__class__.s_frequency_table
         conversion_map = freq_table[my_freq][TENOR_PARAMS.CONVERSIONS]
         if not conversion_map:
             raise ValueError(f'{my_freq} cannot be converted into any other frequency')
 
         multiplier = conversion_map.get(freq_table[other_freq][TENOR_PARAMS.CHAR])
-        # multiplier = freq_table[my_freq][TENOR_PARAMS.CONVERSIONS].get(freq_table[other_freq][TENOR_PARAMS.CHAR])
         if not multiplier:
-            raise ValueError(f'cannot get a conversion multiple from {my_freq} to {other_freq}')
+            raise ValueError(f'cannot get a conversion multiplier from {my_freq} to {other_freq}')
 
         return multiplier
 
@@ -285,21 +280,18 @@ class RDate(Nucleus):
         return rel_op(d1, d2)
 
     @classmethod
-    def from_tenors(cls, tenors_str: str, delim=',') -> list:
+    def from_tenors(cls, tenors_str: str, delim = ',') -> list:
         tenors = tenors_str.split(delim)
         return [RDate(tenor.strip()) for tenor in tenors]
 
-    def dates_schedule(
-        self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True
-    ) -> list:
+    def dates_schedule(self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub = True) -> list:
         rolled_start = roll_rule(start, calendar)
-        assert rolled_start >= start, (
-            f'rolled start date {rolled_start} is before non-working start date {start} according to calendar {calendar.name} and roll rule {roll_rule.name}'
-        )
+        if rolled_start < start:
+            raise ValueError(f'rolled start date {rolled_start} is before non-working start date {start} according to calendar {calendar.name} and roll rule {roll_rule.name}')
+
         rolled_end = roll_rule(end, calendar)
-        assert rolled_end <= end, (
-            f'rolled end date {rolled_end} is after non-working end date {end} according to calendar {calendar.name} and roll rule {roll_rule.name}'
-        )
+        if rolled_end > end:
+            raise ValueError(f'rolled end date {rolled_end} is after non-working end date {end} according to calendar {calendar.name} and roll rule {roll_rule.name}')
 
         if date_propagation == PROPAGATE_DATES.BACKWARD:
             begin = rolled_end
@@ -325,24 +317,22 @@ class RDate(Nucleus):
             all_dates.append(rolled_date)
             non_rolled_date = step.apply(non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)
             rolled_date = roll_rule(non_rolled_date, calendar)
-            assert exceed(rolled_date, prev_rolled_date), (
-                f'infinite loop: next date {rolled_date} vs previous date {prev_rolled_date} for date_propagation = {date_propagation.name}'
-            )
+            if not exceed(rolled_date, prev_rolled_date):
+                raise ValueError(f'infinite loop: next date {rolled_date} vs previous date {prev_rolled_date} for date_propagation = {date_propagation.name}')
             if exceed(rolled_date, finish):
                 break
             prev_rolled_date = rolled_date
 
         if not allow_stub:
-            assert prev_rolled_date == finish, f'the date sequence has a stub period bound by {prev_rolled_date} and {finish}'
+            if prev_rolled_date != finish:
+                raise ValueError(f'the date sequence has a stub period bound by {prev_rolled_date} and {finish}')
         else:
             all_dates.append(finish)
 
         all_dates.sort()
         return all_dates
 
-    def period_dates(
-        self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True
-    ) -> tuple:
+    def period_dates(self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub = True) -> tuple:
         all_dates = self.dates_schedule(start, end, calendar, roll_rule, date_propagation, allow_stub)
         start_dates = all_dates[:-1]
         end_dates = all_dates[1:]
@@ -352,9 +342,7 @@ class RDate(Nucleus):
     ## if the tenor is not an integral multiple of the frequency (e.g., 30-month annual swap: tenor = 5S, freq = YEAR)
     ## then there would be a period "shorter than the frequency" (e.g., half-year in the 30-month annual swap)
     ## call such a period a STUB. it maybe in the front (1st period) for BACKWARD propagation or in the back (last period) for FORWARD
-    def period_dates_for_tenor(
-        self, start: date, tenor: RDate, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub=True
-    ) -> tuple:
+    def period_dates_for_tenor(self, start: date, tenor: RDate, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub = True) -> tuple:
         start = roll_rule(start, calendar)
         end = tenor.apply(start, calendar, roll_rule)
         return self.period_dates(start, end, calendar, roll_rule, date_propagation, allow_stub)
