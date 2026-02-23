@@ -348,6 +348,19 @@ class RDate(Nucleus):
         return self.period_dates(start, end, calendar, roll_rule, date_propagation, allow_stub)
 
     @classmethod
+    def bizdays_for_period(cls, start_date: date, end_date: date, calendar: Calendar) -> list:
+        if end_date < start_date:
+            start_date, end_date = end_date, start_date
+
+        bizdays = []
+        d = RDate.roll_to_bizday(start_date, calendar, BIZDAY_ROLL_RULE.FOLLOWING)
+        while d <= end_date:
+            bizdays.append(d)
+            d = RDate.add_bizdays(d, 1, calendar, BIZDAY_ROLL_RULE.NO_ROLL)
+
+        return bizdays
+
+    @classmethod
     def apply_bound(cls, rdate: RDate = None, cal: Calendar = None, roll_rule: BIZDAY_ROLL_RULE = None):
         kwargs = {}
         if rdate is not None:
