@@ -191,12 +191,18 @@ class RDate(Nucleus):
         if my_freq is other_freq:
             return 1.0
 
-        dont_handle_freqs = (TENOR_FREQUENCY.BIZDAY, TENOR_FREQUENCY.CALDAY, TENOR_FREQUENCY.WEEK)
+        dont_handle_freqs = (TENOR_FREQUENCY.BIZDAY,)
+        # dont_handle_freqs = (TENOR_FREQUENCY.BIZDAY, TENOR_FREQUENCY.CALDAY, TENOR_FREQUENCY.WEEK)
         if my_freq in dont_handle_freqs or other_freq in dont_handle_freqs:
             raise ValueError(f'cannot convert {my_freq} to {other_freq}')
 
         freq_table = self.__class__.s_frequency_table
-        multiplier = freq_table[my_freq][TENOR_PARAMS.CONVERSIONS].get(freq_table[other_freq][TENOR_PARAMS.CHAR])
+        conversion_map = freq_table[my_freq][TENOR_PARAMS.CONVERSIONS]
+        if not conversion_map:
+            raise ValueError(f'{my_freq} cannot be converted into any other frequency')
+
+        multiplier = conversion_map.get(freq_table[other_freq][TENOR_PARAMS.CHAR])
+        # multiplier = freq_table[my_freq][TENOR_PARAMS.CONVERSIONS].get(freq_table[other_freq][TENOR_PARAMS.CHAR])
         if not multiplier:
             raise ValueError(f'cannot get a conversion multiple from {my_freq} to {other_freq}')
 
@@ -328,6 +334,8 @@ class RDate(Nucleus):
 
         if not allow_stub:
             assert prev_rolled_date == finish, f'the date sequence has a stub period bound by {prev_rolled_date} and {finish}'
+        else:
+            all_dates.append(finish)
 
         all_dates.sort()
         return all_dates
