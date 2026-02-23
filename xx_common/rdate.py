@@ -327,7 +327,8 @@ class RDate(Nucleus):
             if prev_rolled_date != finish:
                 raise ValueError(f'the date sequence has a stub period bound by {prev_rolled_date} and {finish}')
         else:
-            all_dates.append(finish)
+            if finish not in all_dates:
+                all_dates.append(finish)
 
         all_dates.sort()
         return all_dates

@@ -218,7 +218,7 @@ class TestRDate:
 
         # Invalid conversions
         rd_bizday = RDate(freq=TENOR_FREQUENCY.BIZDAY, count=1)
-        with pytest.raises(ValueError, match='cannot convert'):
+        with pytest.raises(ValueError, match='cannot get a conversion multiplier'):
             rd_year.conversion_freq_multiplier(rd_bizday.freq)
 
     def test_equate_freq(self):
