@@ -19,17 +19,6 @@ jobs:
     name: Full tests
     runs-on: ubuntu-latest
 
-    services:
-      mongo:
-        image: mongo:8
-        ports:
-          - 27017:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.adminCommand({ ping: 1 })'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -50,6 +39,34 @@ jobs:
 
       - name: Install Chromium
         run: uv run playwright install --with-deps chromium
+
+      - name: Start Mongo replica-set server
+        run: |
+          docker run -d --name mongo-rs \
+            -p 27017:27017 \
+            mongo:8 \
+            --replSet rs0 --bind_ip_all
+
+      - name: Initialize Mongo replica set
+        run: |
+          for i in {1..30}; do
+            if docker exec mongo-rs mongosh --quiet --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+
+          docker exec mongo-rs mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}) || true"
+
+          for i in {1..60}; do
+            if docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary" | awk '/true/{found=1} END{exit(found?0:1)}'; then
+              echo "Mongo replica set is PRIMARY"
+              break
+            fi
+            sleep 1
+          done
+
+          docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary" | awk '/true/{found=1} END{exit(found?0:1)}'
 
       - name: Run full test suite
         env:
