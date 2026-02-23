@@ -22,7 +22,6 @@ jobs:
     services:
       mongo:
         image: mongo:8
-        command: ["--replSet", "rs0", "--bind_ip_all"]
         ports:
           - 27017:27017
         options: >-
@@ -52,7 +51,6 @@ jobs:
       - name: Install Chromium
         run: uv run playwright install --with-deps chromium
 
-     
       - name: Run full test suite
         env:
           PYTHONUNBUFFERED: "1"
