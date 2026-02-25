@@ -1,5 +1,6 @@
+from core_10x.testlib.fixtures import with_transactions
 from core_10x.testlib.ts_tests import TestTSStore, ts_setup # collected by pytest
-from core_10x.testlib.ts_store_transaction_tests import TestTsStoreTransaction # collected by pytest
+from core_10x.testlib.ts_store_transaction_tests import TestSaveIfChanged, TestTsStoreTransaction # collected by pytest
 from infra_10x.mongodb_store import MongoCollection, MongoStore
 
 

@@ -3,6 +3,12 @@ from uuid import uuid4
 
 import pytest
 
+from core_10x.rc import RC
+from core_10x.testlib.fixtures import with_transactions
+from core_10x.trait_definition import T
+from core_10x.traitable import Traitable
+from core_10x.ts_store import SaveIfChanged
+
 
 class TestTsStoreTransaction:
     """Transaction semantics: commit applies changes, abort discards. Runs against ts_instance from conftest."""
@@ -103,3 +109,60 @@ class TestTsStoreTransaction:
             tx.abort()
         assert coll.id_exists('del2')
         assert coll.count() == 1
+
+
+class TestSaveIfChanged:
+    @pytest.fixture
+    def coll_names(self,ts_instance):
+        coll_names = tuple(f'save_if_changed#{x}#{uuid4().hex}' for x in ('a','b'))
+        assert not set(coll_names).intersection(ts_instance.collection_names())
+        yield coll_names
+        for coll_name in coll_names:
+            ts_instance.delete_collection(coll_name)
+
+    def test_save_if_changed_filters_by_classes(self, ts_instance, coll_names, with_transactions):  # noqa: F811
+
+        coll_a_name, coll_b_name = coll_names
+        class TrackedA(Traitable, custom_collection=True):
+            i: int = T(T.ID)
+            value: int = T()
+
+        class TrackedB(Traitable, custom_collection=True):
+            i: int = T(T.ID)
+            value: int = T()
+
+            def save(self,save_references=True):
+                return RC(False,'boom')
+
+        with ts_instance:
+            a = TrackedA(i=1, _collection_name=coll_a_name)
+            b = TrackedB(i=2, _collection_name=coll_b_name)
+            with SaveIfChanged([TrackedA]) as tracker:
+                a.value = 10
+                b.value = 20
+                assert tracker.tracked_objects() == [a,b]
+
+            assert ts_instance.collection(coll_a_name).count() == 1
+            assert ts_instance.collection(coll_b_name).count() == 0
+
+            a.delete()
+            assert ts_instance.collection(coll_a_name).count() == 0
+
+            with pytest.raises(RuntimeError,match='boom'):
+                with SaveIfChanged() as tracker:
+                    a.value = 20
+                    b.value = 30
+                assert tracker.tracked_objects() == [a,b]
+
+            assert ts_instance.collection(coll_a_name).count() == int(not with_transactions)
+            assert ts_instance.collection(coll_b_name).count() == 0
+
+    def test_save_if_changed_requires_storable_classes(self):
+        class NotStorable:
+            @classmethod
+            def is_storable(cls):
+                return False
+
+        with pytest.raises(RuntimeError, match='SaveIfChanged must be storable'):
+            with SaveIfChanged([NotStorable]):
+                pass
