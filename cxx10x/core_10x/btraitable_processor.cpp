@@ -194,7 +194,7 @@ py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *t
     return raw_set_trait_value(obj, trait, converted_value);
 }
 
-py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value, const py::args& args) const {
+py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value, const py::args& args) {
     const auto converted_value = adjust_set_value(obj, trait, value);
     if (!trait->f_set.is_none())     // custom setter is defined
         return trait->wrapper_f_set(obj, converted_value, args);
@@ -444,5 +444,80 @@ BTraitableProcessor::Use::~Use() {
     auto tp = ThreadContext::traitable_proc_pop();
     if (m_temp)
         delete tp;
+}
+
+//---- BTraitableProcessorSetValueTracker
+BTraitableProcessorSetValueTracker::BTraitableProcessorSetValueTracker()
+    : m_parent(BTraitableProcessor::current())
+{
+    BTraitableProcessor::use_cache(m_parent->cache());
+    set_flags(m_parent->flags());
+}
+
+void BTraitableProcessorSetValueTracker::begin_using() {
+    m_objects_with_set_value_order.clear();
+    m_objects_with_set_value_seen.clear();
+    ThreadContext::traitable_proc_push(this);
+}
+
+void BTraitableProcessorSetValueTracker::end_using() const {
+    auto tp = ThreadContext::traitable_proc_pop();
+    if (tp != this)
+        throw py::value_error(py::str("Mismanaged XControl block"));
+}
+
+py::list BTraitableProcessorSetValueTracker::tracked_objects() const {
+    py::list result;
+    for (BTraitable* obj : m_objects_with_set_value_order)
+        result.append(py::cast(obj, py::return_value_policy::reference));
+    return result;
+}
+
+py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) {
+    if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
+        m_objects_with_set_value_order.push_back(obj);
+    return m_parent->set_trait_value(obj, trait, value);
+}
+
+py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) {
+    if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
+        m_objects_with_set_value_order.push_back(obj);
+    return m_parent->set_trait_value(obj, trait, value, args);
+}
+
+void BTraitableProcessorSetValueTracker::invalidate_trait_value(BTraitable* obj, const BTrait* trait) const {
+    m_parent->invalidate_trait_value(obj, trait);
+}
+
+void BTraitableProcessorSetValueTracker::invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const {
+    m_parent->invalidate_trait_value(obj, trait, args);
+}
+
+py::object BTraitableProcessorSetValueTracker::get_trait_value(BTraitable* obj, const BTrait* trait) {
+    return m_parent->get_trait_value(obj, trait);
+}
+
+py::object BTraitableProcessorSetValueTracker::get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) {
+    return m_parent->get_trait_value(obj, trait, args);
+}
+
+py::object BTraitableProcessorSetValueTracker::get_choices(BTraitable* obj, BTrait* trait) {
+    return m_parent->get_choices(obj, trait);
+}
+
+py::object BTraitableProcessorSetValueTracker::get_style_sheet(BTraitable* obj, const BTrait* trait) {
+    return m_parent->get_style_sheet(obj, trait);
+}
+
+py::object BTraitableProcessorSetValueTracker::adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const {
+    return m_parent->adjust_set_value(obj, trait, value);
+}
+
+py::object BTraitableProcessorSetValueTracker::raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const {
+    return m_parent->raw_set_trait_value(obj, trait, value);
+}
+
+py::object BTraitableProcessorSetValueTracker::raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const {
+    return m_parent->raw_set_trait_value(obj, trait, value, args);
 }
 

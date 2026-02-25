@@ -19,6 +19,7 @@ using pybind11::literals::operator""_a;
 #include "bprocess_context.h"
 #include "xcache.h"
 #include "os_user.h"
+#include "btraitable_processor.h"
 
 struct PyBTraitable : BTraitable {
     using BTraitable::BTraitable;
@@ -343,6 +344,11 @@ PYBIND11_MODULE(py10x_kernel, m)
                 return oss.str();
                 })
         ;
+
+    py::class_<BTraitableProcessorSetValueTracker, BTraitableProcessor>(m, "BTraitableProcessorSetValueTracker")
+            .def(py::init<>())
+            .def("tracked_objects", &BTraitableProcessorSetValueTracker::tracked_objects)
+            ;
 
     py::class_<BFlags>(m, "BFlags")
             .def(py::init<>())

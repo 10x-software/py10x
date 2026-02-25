@@ -15,7 +15,7 @@ from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
 
-from py10x_kernel import BTraitableProcessor,XCache
+from py10x_kernel import BTraitableProcessor, BTraitableProcessorSetValueTracker, XCache
 
 from core_10x.environment_variables import EnvVars
 
@@ -32,14 +32,14 @@ def _test1():
     assert p.weight == XNone
 
 
-def test_1():
+def test_person_xnone():
     with TsUnion():
         with GRAPH_ON():
             _test1()
             with GRAPH_OFF():
                 _test1()
 
-def test_2():
+def test_person_set_values_dob():
     with TsUnion():
         p = Person(first_name = 'Sasha', last_name = 'Davidovich')
         with CONVERT_VALUES_ON():
@@ -47,7 +47,7 @@ def test_2():
         age = (date.today().toordinal() - p.dob.toordinal())/365.25
         assert int(age) == p.age, f'Expected age around {int(age)}, got {p.age}'
 
-def test_3():
+def test_trait_date_convert_debug():
     class X(Traitable):
         x:int = RT(T.ID)
         t:date = RT()
@@ -68,7 +68,7 @@ def test_3():
         p.t = datetime.fromordinal(2000)
     print(p.t)
 
-def test_4():
+def test_custom_serialize():
     class X(Traitable):
         x:int = T()
 
@@ -91,7 +91,7 @@ def test_4():
         assert s['x']=='x:1'
         assert p.x==2
 
-def test_5():
+def test_nested_serialize():
     from datetime import datetime,date
     class X(Traitable):
         x:int = T(T.ID)
@@ -117,7 +117,7 @@ def test_5():
         y = Z(y=y)
         print(y,y.serialize_object())
 
-def test_6():
+def test_cache_unreachable():
     class X(Traitable):
         s_custom_collection=True
         x:int
@@ -138,7 +138,7 @@ def test_6():
         assert 'object not usable - origin cache is not reachable' in str(e)
 
 
-def test_7():
+def test_deserialize_traits_override():
     class X(Traitable):
         s_custom_collection=True
         x:int = T(T.ID)
@@ -153,7 +153,7 @@ def test_7():
         assert x.x==1
         assert x.y==2
 
-def test_8():
+def test_lazy_load_nested():
     class X(Traitable):
         k:int = T(T.ID)
         v:int = T()
@@ -182,7 +182,7 @@ def test_8():
         #assert x.c.v==20
 
 
-def test_9():
+def test_existing_instance():
     class X(Traitable):
         #s_custom_collection=True
         k:str = T(T.ID)
@@ -205,7 +205,7 @@ def test_9():
     assert x1.v==10
 
 
-def test_10():
+def test_self_trait_lazy():
     class X(Traitable):
         a:int = T(T.ID)
         b:int = T()
@@ -236,17 +236,11 @@ def test_10():
         #assert x.x.a==1
 
 
-def test_11():
+def test_anonymous_embedded():
     class X(AnonymousTraitable):
+        __qualname__ = 'test_anonymous_embedded.X'
         a:int = T()
-
-        # @classmethod
-        # def load_data(cls, id):
-        #     return None
-
-        # @classmethod
-        # def exists_in_store(cls, id):
-        #     return False
+    X.__module__ = 'test_module'
 
     class Y(Traitable):
         y:int = T(T.ID)
@@ -261,36 +255,38 @@ def test_11():
             return False
 
     class Z(Y):
+        __qualname__ = 'test_anonymous_embedded.Z'
         x:AnonymousTraitable = M(T.EMBEDDED)
+    Z.__module__ = 'test_module'
 
     x = X(a=1)
     s = x.serialize(True)
     print(s)
 
 
-    y = Y(y=0,x=x)
+    y = Y(y=0,x=x,_replace=True)
     try:
         y.serialize_object()
     except TraitMethodError as e:
-        assert "test_11.<locals>.X - anonymous' instance may not be serialized as external reference" in str(e)
+        assert "test_anonymous_embedded.X - anonymous' instance may not be serialized as external reference" in str(e)
     else:
         assert False
 
-    z = Z(y=1,x=x)
+    z = Z(y=1,x=x,_replace=True)
     s = z.serialize_object()
     print(s)
-    assert s['x']['a']==1
+    assert s['x']['_obj']['a']==1
 
-    z = Z(y=2, x=Y(y=3))
+    z = Z(y=2, x=Y(y=3),_replace=True)
     try:
         z.serialize_object()
     except TraitMethodError as e:
-        assert "test_11.<locals>.Y/3 - embedded instance must be anonymous" in str(e)
+        assert "test_anonymous_embedded.<locals>.Y/3 - embedded instance must be anonymous" in str(e)
     else:
         assert False
 
 
-def test_12():
+def test_trait_inheritance():
     class A(Traitable):
         s_default_trait_factory = T
         t: int
@@ -330,7 +326,7 @@ def test_12():
         assert t().t is v
         assert t().serialize_object()['t'] == (v * 2 or None)
 
-def test_13():
+def test_cache_hierarchy():
     class X(Traitable):
         x:int = RT(T.ID)
         v:int = RT()
@@ -378,7 +374,7 @@ def test_13():
 
     #TODO assert behavior with conflicting params
 
-def test_14():
+def test_default_trait_invalidate():
     class X(Traitable):
         x: int = RT(0)
 
@@ -408,7 +404,7 @@ def test_14():
             print('in', BTraitableProcessor.current().cache())
             assert x.x==0
 
-def test_15():
+def test_existing_multi_cache():
     class X(Traitable):
         #s_custom_collection=True
         k:str = T(T.ID)
@@ -447,7 +443,7 @@ def test_15():
     assert x2.v==20
     assert x3.v==30
 
-def test_16():
+def test_computed_trait():
     class X(Traitable):
         x: int = RT()
         #y: int = RT()
@@ -469,7 +465,7 @@ def test_16():
             assert x.z == 21
 
 
-def test_17():
+def test_duplicate_id():
     class X(Traitable):
         x: int = RT(T.ID)
         z: int = RT()
@@ -488,7 +484,7 @@ def test_17():
     assert x1.z == 10
 
 
-def test_18():
+def test_lazy_load_once():
 
     count = Counter()
     class X(Traitable):
@@ -515,7 +511,7 @@ def test_18():
     assert x.y == 10
     assert count[x.id().value] == 1
 
-def test_19():
+def test_empty_object_share():
     class X(Traitable):
         x: int = RT(T.ID)
         y: int = RT(T.ID)
@@ -537,7 +533,7 @@ def test_19():
 
         assert not x.share(False)
 
-def test_20():
+def test_load_data_instance():
     class X(Traitable):
         x: int = T(T.ID)
         y: int = T()
@@ -552,7 +548,7 @@ def test_20():
     assert X.existing_instance(x=1, y=1).y == 2
 
 
-def test_21():
+def test_id_like_computed():
     class X(Traitable):
         x: int = RT(T.ID)
         y: int = RT(T.ID_LIKE)
@@ -565,7 +561,7 @@ def test_21():
 
     assert X(x=1).x==1
 
-def test_22():
+def test_persist_after_gc():
     class X(Traitable):
         x: int = T(T.ID)
         z: int = T()
@@ -589,7 +585,7 @@ def test_22():
     x = X(x=1)
     assert x.z == 1
 
-def test_23():
+def test_save_load_calls():
     save_calls = Counter()
     load_calls = Counter()
 
@@ -639,7 +635,7 @@ def test_23():
     print(save_calls)
     assert save_calls == {'1': 1}  # save of a lazy ref is noop
 
-def test_24():
+def test_id_immutable():
     class X(Traitable):
         x: int = RT(T.ID)
 
@@ -652,7 +648,7 @@ def test_24():
     else:
         assert False, "Expected ValueError on setting ID trait"
 
-def test_25():
+def test_reload_rev():
     rev = 0
     class X(Traitable):
         x: int = T(T.ID)
@@ -682,7 +678,7 @@ def test_25():
     assert x._rev == 3
     assert rev == 3
 
-def test_26():
+def test_serialize_numpy():
     class X(Traitable):
         x: int = T(T.ID)
         y: Any = T()
@@ -708,7 +704,7 @@ def test_26():
         assert s == X.deserialize_object(x.s_bclass, None, s).serialize_object()
 
 
-def test_27():
+def test_store_save():
     save_calls = Counter()
     serialized = {}
 
@@ -783,7 +779,7 @@ class Status(NamedConstant):
     DEPRECATED = 'DEPRECATED'
     __module__ = '__test__'
 
-def test_28():
+def test_nucleus_named_constant():
     from core_10x.nucleus import Nucleus
 
 
@@ -791,7 +787,7 @@ def test_28():
     print(Nucleus.deserialize_record({'_type': '_nx','_cls': '__main__/Status', '_obj': 'DEPRECATED'}))
 
 
-def test_29():
+def test_lazy_ref_replace():
     class X(Traitable):
         x: int = T(T.ID)
         y: int = T()
@@ -812,7 +808,7 @@ def test_29():
     x = X(x=2,y=10,_replace=True)
     assert x.y == 10
 
-def test_30():
+def test_new_or_replace_store():
     from core_10x.testlib.test_store import TestStore
     cnt=0
     class X(Traitable,keep_history=False,immutable=False):
@@ -822,7 +818,7 @@ def test_30():
 
         @classmethod
         def collection(cls, _coll_name: str = None):
-            return cls.store().collection('__main__/test_30/<locals>/X')
+            return cls.store().collection('__main__/test_new_or_replace_store/<locals>/X')
 
         @classmethod
         def load_data(cls, id):
@@ -863,7 +859,7 @@ def test_30():
         assert x.z == 10
         assert cnt == 3
 
-def test_31():
+def test_create_root():
     from core_10x.testlib.test_store import TestStore
     from core_10x.code_samples.person import Person
 
@@ -877,7 +873,7 @@ def test_31():
         assert Person(first_name='ilya', last_name = 'pevzner').weight_lbs == 205
 
 
-def test_32():
+def test_existing_composite_id():
     class X(Traitable):
         x: int = RT(T.ID)
         y: int = RT(T.ID)
@@ -894,7 +890,7 @@ def test_32():
     assert x1.y==2
 
 
-def test_33():
+def test_trait_method_error():
     class X(Traitable):
         x: int = RT()
 
@@ -911,7 +907,7 @@ def test_33():
     else:
         assert False, "Expected TraitMethodError when calling bombing_method through x_get"
 
-def test_34():
+def test_deserialize_wrong_class():
     class X(Traitable):
         x: int = RT(T.ID)
 
@@ -926,7 +922,7 @@ def test_34():
         assert False, "Expected TypeError when deserializing X as Y"
 
 
-def test_35():
+def test_save_fails_error():
     class X(Traitable):
         x: int = T(T.ID)
 
@@ -943,41 +939,69 @@ def test_35():
     else:
         assert False, "Expected TraitMethodError when serializing nested X with save_references=True"
 
+
+def test_tracked_objects():
+    """BTraitableProcessorSetValueTracker returns objects in first-set order."""
+    from datetime import date
+
+    class X(Traitable):
+        x: int = RT(T.ID)
+        t: date = RT()
+
+    with BTraitableProcessorSetValueTracker() as tracker:
+        p1 = X(x=1)
+        p1.t = date(2000, 1, 1)
+        p2 = X(x=2)
+        p2.t = date(2001, 1, 1)
+        p3 = X(x=3)
+        assert p3.t is XNone
+
+    objs = tracker.tracked_objects()
+    assert len(objs) == 2, f"expected 2 objects, got {len(objs)}"
+    assert p1 in objs
+    assert p2 in objs
+    assert objs == [p1, p2]
+    # object that never had set_value is not in the tracked list
+    assert p3 not in objs
+
+
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
-    test_1()
-    test_2()
-    test_3()
-    test_4()
-    test_5()
-    test_6()
-    test_7()
-    test_8()
-    test_9()
-    test_10()
-    test_12()
-    test_13()
-    test_14()
-    test_15()
-    test_16()
-    test_17()
-    test_18()
-    test_19()
-    test_20()
-    test_21()
-    test_22()
-    test_23()
-    test_24()
-    test_25()
-    test_26()
-    test_27()
-    test_28()
-    test_29()
-    test_30()
-    test_31()
-    test_32()
-    test_33()
-    test_34()
-    test_35()
+    test_person_xnone()
+    test_person_set_values_dob()
+    test_trait_date_convert_debug()
+    test_custom_serialize()
+    test_nested_serialize()
+    test_cache_unreachable()
+    test_deserialize_traits_override()
+    test_lazy_load_nested()
+    test_existing_instance()
+    test_self_trait_lazy()
+    test_anonymous_embedded()
+    test_trait_inheritance()
+    test_cache_hierarchy()
+    test_default_trait_invalidate()
+    test_existing_multi_cache()
+    test_computed_trait()
+    test_duplicate_id()
+    test_lazy_load_once()
+    test_empty_object_share()
+    test_load_data_instance()
+    test_id_like_computed()
+    test_persist_after_gc()
+    test_save_load_calls()
+    test_id_immutable()
+    test_reload_rev()
+    test_serialize_numpy()
+    test_store_save()
+    test_nucleus_named_constant()
+    test_lazy_ref_replace()
+    test_new_or_replace_store()
+    test_create_root()
+    test_existing_composite_id()
+    test_trait_method_error()
+    test_deserialize_wrong_class()
+    test_save_fails_error()
+    test_tracked_objects()
 

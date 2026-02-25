@@ -5,7 +5,9 @@
 #pragma once
 
 #include <deque>
+#include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <thread>
 
 #include "py_linkage.h"
@@ -109,13 +111,13 @@ public:
 
     static void             check_value(BTraitable *obj, const BTrait *trait, const py::object &value);
 
-    void                    begin_using();
-    void                    end_using() const;
+    virtual void            begin_using();
+    virtual void            end_using() const;
     BTraitableProcessor*    py_enter()                      { begin_using(); return this; }
-    void                    py_exit(const py::args&) const { end_using(); }
+    void                    py_exit(const py::args&) const  { end_using(); }
 
     virtual py::object      set_trait_value(BTraitable *obj, const BTrait *trait, const py::object &value);
-    virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) const;
+    virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);
 
     virtual void            invalidate_trait_value(BTraitable* obj, const BTrait* trait) const = 0;
     virtual void            invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const = 0;
@@ -153,3 +155,33 @@ public:
     };
 };
 
+/// Processor that delegates to a parent and tracks BTraitable objects on which set_value was called (ID traits excluded).
+class BTraitableProcessorSetValueTracker : public BTraitableProcessor {
+    BTraitableProcessor* m_parent;
+    std::vector<BTraitable*> m_objects_with_set_value_order;
+    std::unordered_set<BTraitable*> m_objects_with_set_value_seen;
+
+public:
+    BTraitableProcessorSetValueTracker();
+
+    void begin_using() override;
+    void end_using() const override;
+
+    [[nodiscard]] py::list tracked_objects() const;
+
+    py::object set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) override;
+    py::object set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override;
+
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait) const override;
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const override;
+
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait) override;
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) override;
+
+    py::object get_choices(BTraitable* obj, BTrait* trait) override;
+    py::object get_style_sheet(BTraitable* obj, const BTrait* trait) override;
+
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override;
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override;
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const override;
+};
