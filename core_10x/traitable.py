@@ -368,6 +368,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         return None
 
+    #-- TODO: should probably have a better performance
+    @classmethod
+    def existing_instances_by_filter(cls, query: f, _coll_name: str = None, _at_most = 0, _order: dict = None) -> list[Traitable]:
+        ids = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
+        return [ obj for id in ids if(obj := cls.existing_instance_by_id(_id = id, _collection_name = _coll_name, _throw = False)) ]
+
     @classmethod
     @deprecated('Use create_or_replace instead.')
     def update(cls, **kwargs) -> Traitable:
