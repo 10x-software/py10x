@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import abc
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import TYPE_CHECKING
 
+from core_10x.environment_variables import EnvVars
 from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
 from core_10x.py_class import PyClass
@@ -11,9 +12,11 @@ from core_10x.rc import RC
 from core_10x.resource import TS_STORE, Resource, ResourceSpec
 from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
+from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
+    from core_10x.traitable import Traitable
 
 
 class TsDuplicateKeyError(Exception):
@@ -244,3 +247,28 @@ class TsStore(Resource, resource_type=TS_STORE):
                     tx.commit()
                 else:
                     tx.abort()
+
+
+@contextmanager
+def SaveIfChanged(classes: Sequence[type[Traitable]] = ()):  # noqa: N802
+    if any(not cls.is_storable() for cls in classes):
+        raise RuntimeError('Classes passed to SaveIfChanged must be storable.')
+
+    if not isinstance(classes,tuple):
+        classes = tuple(classes)
+
+    tracker = BTPTracker()
+    tracker.begin_using()
+    yield tracker
+    tracker.end_using()
+
+    tracked = tuple(traitable for traitable in tracker.tracked_objects() if traitable.is_storable())
+
+    with ExitStack() as tx_stack:
+        if EnvVars.use_ts_store_transactions:
+            for store in {cls.store() for cls in classes or tuple({traitable.__class__ for traitable in tracked})}:
+                tx_stack.enter_context(store.transaction())
+
+        for traitable in tracked:
+            if not classes or isinstance(traitable, classes):
+                traitable.save().throw()

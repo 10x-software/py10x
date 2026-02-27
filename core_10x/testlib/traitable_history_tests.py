@@ -14,6 +14,7 @@ from typing_extensions import Self
 from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
+from core_10x.testlib.fixtures import with_transactions
 from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
 from core_10x.traitable_id import ID
 from core_10x.traitable import StorableHelper, StorableHelperWithHistory
@@ -145,15 +146,7 @@ class TestTraitableHistory:
         assert saved_doc['value'] == 42
         assert isinstance(saved_doc['_at'], datetime)
 
-    @pytest.fixture(params=[True, False], ids=['with_transactions', 'without_transactions'])
-    def with_transactions(self,request,test_store, monkeypatch):
-        use_transactions = request.param
-        if use_transactions and not test_store.supports_transactions():
-            pytest.skip('Store does not support transactions')
-        monkeypatch.setattr('core_10x.traitable.EnvVars.use_ts_store_transactions', use_transactions)
-        yield use_transactions
-
-    def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, with_transactions, monkeypatch):
+    def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, with_transactions, monkeypatch):  # noqa: F811
         """When history save fails, the main document save is rolled back (revision not applied)."""
 
         def _save_serialized_raise(self, coll, serialized_data, old_rev):
