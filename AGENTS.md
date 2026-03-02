@@ -96,4 +96,49 @@ When adding new functionality, agents should **add or update tests** in the appr
     - Include focused tests.
     - Keep public semantics consistent with existing docs unless the change is explicitly a breaking redesign.
 
+---
 
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | Purpose | How to start |
+|---------|---------|-------------|
+| MongoDB 8 (replica set) | Required for `infra_10x` tests | `docker start mongo-rs` (container pre-exists in snapshot) |
+| Docker daemon | Hosts MongoDB container | `sudo dockerd &>/tmp/dockerd.log &` |
+| Playwright/Chromium | Required for `ui_10x/rio` browser-based tests | Pre-installed; no startup needed |
+
+### Starting services before running tests
+
+The Docker daemon and MongoDB container are already configured but **not auto-started**. Before running tests that touch `infra_10x`:
+
+```bash
+sudo dockerd &>/tmp/dockerd.log &
+sleep 3
+docker start mongo-rs
+```
+
+Wait for MongoDB to be writable (the replica set is already initiated):
+
+```bash
+docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary"
+# Should print: true
+```
+
+`core_10x`, `xx_common`, and `ui_10x` tests do **not** require MongoDB.
+
+### Running tests, lint, and build
+
+Standard commands per `CONTRIBUTING.md` and section 4 above:
+
+- **Tests:** `uv run pytest` (all), or scope to a package: `uv run pytest core_10x/unit_tests/`
+- **Lint:** `uv run ruff check .`
+- **Format:** `uv run ruff format .`
+- **Build:** `uv build`
+
+### Non-obvious caveats
+
+- MongoDB must run as a **replica set** (`--replSet rs0`), not standalone — the infra layer uses transactions.
+- The Docker socket permissions may need fixing after daemon restart: `sudo chmod 666 /var/run/docker.sock`.
+- The Docker storage driver is set to `fuse-overlayfs` and iptables uses `iptables-legacy` — these are required for nested container environments.
+- `uv` is installed at `~/.local/bin/uv`; ensure `$HOME/.local/bin` is on `PATH`.
