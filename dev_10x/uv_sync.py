@@ -143,7 +143,7 @@ def ensure_chromium_installed() -> None:
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in PROFILES:
-        print(f'Usage: uvx --from "10x-universe[dev]" uv_sync {"|".join(PROFILES)} [uv sync options (see uv sync --help for details)]')
+        print(f'Usage: uvx --from "10x-core[dev]" uv_sync {"|".join(PROFILES)} [uv sync options (see uv sync --help for details)]')
     else:
         profile = sys.argv[1]
         sources = uv_sources_block(profile)

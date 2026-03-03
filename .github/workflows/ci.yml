@@ -29,16 +29,12 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             **/pyproject.toml
-            uv.lock
 
       - name: Set up Python
         run: uv python install 3.12
 
       - name: Install dependencies
-        run: uv sync --all-extras
-
-      - name: Install Chromium
-        run: uv run playwright install --with-deps chromium
+        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
 
       - name: Start Mongo replica-set server
         run: |
