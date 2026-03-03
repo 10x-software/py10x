@@ -33,6 +33,9 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Checkout kernel/infra
+        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
+
       - name: Install dependencies
         run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
 
