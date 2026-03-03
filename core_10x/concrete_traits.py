@@ -254,6 +254,15 @@ class list_trait(Trait, data_type=list):
     def deserialize(self, value: list):
         return Nucleus.deserialize_list(value)
 
+class set_trait(list_trait, data_type = set):
+    def default_value(self) -> set:
+        return set(self.default)
+
+    def serialize(self, value: set):
+        return Nucleus.serialize_list(value, self.flags_on(T.EMBEDDED))
+
+    def deserialize(self, value: list):
+        return set(Nucleus.deserialize_list(value))
 
 class dict_trait(Trait, data_type=dict):
     s_ui_hint = Ui.line(flags=Ui.SELECT_ONLY)
@@ -299,7 +308,7 @@ class any_trait(Trait, data_type=XNoneType):  # -- any
         return Nucleus.serialize_any(value, self.flags_on(T.EMBEDDED))
 
     def deserialize(self, value):
-        return Nucleus.deserialize_any(value, None)  # expected class unknown
+        return Nucleus.deserialize_any(value)
 
     def same_values(self, value1, value2) -> bool:
         return value1 is value2

@@ -28,6 +28,8 @@ class Person(Traitable):
     address: Address                    = T(T.EMBEDDED)
 
 if __name__ == '__main__':
+    from core_10x.manual_tests.traitable_serialization_test import MARRITAL_STATUS, Address, Person
+
     address = Address(street="145 Austin Dr", cszip="Burlington, VT 05401")
             
     woman       = Person(ssn = '008-59-6666', name = 'Alice Smith',     dob = date(1972, 8, 21), _replace = True)
@@ -48,7 +50,12 @@ if __name__ == '__main__':
 
     ss = man.serialize_object()
 
-    man2 = Person.deserialize_object(Person.s_bclass, None, ss)
+    from core_10x.package_refactoring import PackageRefactoring
 
+    class_id = PackageRefactoring.find_class_id(Person)
+    p_cls = PackageRefactoring.find_class(class_id)
+    assert p_cls is Person
+
+    man2 = Person.deserialize_object(Person.s_bclass, None, ss)
     print(man == man2)
 
