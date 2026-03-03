@@ -82,6 +82,20 @@ std::string PyLinkage::name_from_dict(const CORE_10X& enum_key, bool module) {
     return full_name;
 }
 
+py::object PyLinkage::same_exact_type(const py::object& list_like) {
+    auto seq = list_like.cast<py::sequence>();  // throws if not a sequence
+    auto n = seq.size();
+    if (!n)
+        return py::none();
+
+    PyTypeObject* t0 = Py_TYPE(seq[0].ptr());
+    for (auto i = 1; i < n; ++i) {
+        if (Py_TYPE(seq[i].ptr()) != t0)
+            return py::none();
+    }
+    return py::reinterpret_borrow<py::object>((PyObject*)t0);
+}
+
 PyLinkage::PyLinkage(const py::dict& package_names) {
     m_package_names = package_names;
 

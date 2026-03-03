@@ -85,8 +85,8 @@ py::object BNucleus::serialize_any(const py::object& value, bool embed) {
     return res;
 }
 
-py::object BNucleus::deserialize_any(const py::object& value, const py::object& expected_class) {
-    auto cls = expected_class.is_none() ? PyLinkage::type(value) : expected_class;
+py::object BNucleus::deserialize_any(const py::object& value) {
+    auto cls = PyLinkage::type(value);
     const auto deserializer = deserialization_method(cls);
     if (!deserializer)
         throw py::value_error(py::str("May not deserialize {}").format(cls));
@@ -94,21 +94,79 @@ py::object BNucleus::deserialize_any(const py::object& value, const py::object& 
     return deserializer(value);
 }
 
+py::object BNucleus::serialize_any_typeless(const py::object& value, bool embed) {
+    auto cls = PyLinkage::type(value);
+
+    //-- 1. Check if there's a built-in serializer
+    if (const auto serializer = serialization_method(cls))
+        return serializer(value, embed);
+
+    //-- 2. Check if it is Nucleus
+    if (PyLinkage::issubclass(cls, PyLinkage::nucleus_class()))
+        return cls.attr("serialize")(value, embed);
+
+    throw py::type_error(py::str("Don't know how to serialize '{}'").format(value));
+}
+
+//-- [ item-class-or-None, *serialized_list_items ]
 py::object BNucleus::serialize_list(const py::object& list, bool embed) {
     py::list res;
-    for (const auto &item : list) {
-        const auto value = serialize_any(item.cast<py::object>(), embed);
-        res.append(value);
+    if (!py::len(list))
+        return res;
+
+    auto same_type = PyLinkage::same_exact_type(list);
+    if (same_type.is_none()) {   //-- heterogeneous sequence
+        res.append(same_type);
+        for (const auto& item: list) {
+            const auto value = serialize_any(item.cast<py::object>(), embed);
+            res.append(value);
+        }
+    }
+    else {
+        if (!deserialization_method(same_type) && !PyLinkage::issubclass(same_type, PyLinkage::nucleus_class()))
+            throw py::type_error(py::str("{} is not deserializable").format(same_type));
+
+        res.append(PyLinkage::find_class_id(same_type));
+        for (const auto& item: list) {
+            const auto value = serialize_any_typeless(item.cast<py::object>(), embed);
+            res.append(value);
+        }
     }
     return res;
 }
 
 py::object BNucleus::deserialize_list(const py::object& list) {
+    auto seq = list.cast<py::sequence>();
+    auto n = seq.size();
     py::list res;
-    for (const auto &item : list) {
-        const auto value = deserialize_any(item.cast<py::object>());
+    if (!n)
+        return res;
+
+    using Deserializer = std::function<py::object(const py::object&)>;
+    Deserializer deserializer;
+
+    py::object common_class = seq[0];
+    if (!common_class.is_none()) {     //-- homogeneous list
+        common_class = PyLinkage::find_class(common_class);
+        deserializer = deserialization_method(common_class);
+        if (!deserializer) {
+            auto method_name = "deserialize";
+            py::object f = py::getattr(common_class, method_name, py::none());
+            if (f.is_none())
+                throw py::type_error(py::str("{} is missing method {}()").format(common_class, method_name));
+
+            deserializer = [f](const py::object& v) -> py::object { return f(v); };
+        }
+    }
+    else
+        deserializer = deserialize_any;
+
+    for (auto i = 1; i < n; ++i) {
+        py::object item = seq[i];
+        const auto value = deserializer(item);
         res.append(value);
     }
+
     return res;
 }
 

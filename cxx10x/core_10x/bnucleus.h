@@ -36,7 +36,8 @@ public:
     static py::object deserialize_record(const py::dict& record);
 
     static py::object serialize_any(const py::object& value, bool embed);
-    static py::object deserialize_any(const py::object& value, const py::object& expected_class = py::none());
+    static py::object serialize_any_typeless(const py::object& value, bool embed);
+    static py::object deserialize_any(const py::object& value);
 
     static py::object serialize_list(const py::object& list, bool embed);
     static py::object deserialize_list(const py::object& list);

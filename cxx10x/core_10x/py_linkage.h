@@ -164,6 +164,8 @@ public:
         return res == 1;
     }
 
+    static py::object same_exact_type(const py::object& list_like);
+
     static py::object traitable_id(const py::object& id_value, const py::object& coll_name) {
         return s_py_linkage->m_traitable_id_class(id_value, coll_name);
     }
