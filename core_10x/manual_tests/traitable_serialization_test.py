@@ -27,6 +27,10 @@ class Person(Traitable):
 
     address: Address                    = T(T.EMBEDDED)
 
+class Dict(Traitable):
+    payload: dict                       = T()
+
+
 if __name__ == '__main__':
     from core_10x.manual_tests.traitable_serialization_test import MARRITAL_STATUS, Address, Person
 
@@ -59,3 +63,24 @@ if __name__ == '__main__':
     man2 = Person.deserialize_object(Person.s_bclass, None, ss)
     print(man == man2)
 
+    d1 = Dict(
+        _replace    = True,
+        payload     = {1: [1,1], 2: [2,2]}
+    )
+    s1 = d1.serialize_object()
+
+    d2 = Dict.deserialize_object(Dict.s_bclass, None, s1)
+    print(d1 == d2)
+
+    d3 = Dict(
+        _replace = True,
+        payload = {
+            woman:      1.0,
+            daughter:   2.0,
+            son:        -1.0
+        }
+    )
+    s3 = d3.serialize_object()
+
+    d4 = Dict.deserialize_object(Dict.s_bclass, None, s3)
+    print(d3 == d4)
