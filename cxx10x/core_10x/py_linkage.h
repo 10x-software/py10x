@@ -166,6 +166,14 @@ public:
 
     static py::object same_exact_type(const py::object& list_like);
 
+    static py::object dict_keys(const py::object& dict) {
+        return dict.attr("keys")();
+    }
+
+    static py::object dict_values(const py::object& dict) {
+        return dict.attr("values")();
+    }
+
     static py::object traitable_id(const py::object& id_value, const py::object& coll_name) {
         return s_py_linkage->m_traitable_id_class(id_value, coll_name);
     }

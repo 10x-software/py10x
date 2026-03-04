@@ -82,18 +82,44 @@ std::string PyLinkage::name_from_dict(const CORE_10X& enum_key, bool module) {
     return full_name;
 }
 
+//py::object PyLinkage::same_exact_type(const py::object& list_like) {
+//
+//    auto seq = list_like.cast<py::sequence>();  // throws if not a sequence
+//    auto n = seq.size();
+//    if (!n)
+//        return py::none();
+//
+//    PyTypeObject* t0 = Py_TYPE(seq[0].ptr());
+//    for (auto i = 1; i < n; ++i) {
+//        if (Py_TYPE(seq[i].ptr()) != t0)
+//            return py::none();
+//    }
+//    return py::reinterpret_borrow<py::object>((PyObject*)t0);
+//}
+
+//-- Returns: python type object if all elements have the same *exact* type, else None.
+//-- Works with sequences and iterables (dict_keys, dict_values, generators, etc.)
 py::object PyLinkage::same_exact_type(const py::object& list_like) {
-    auto seq = list_like.cast<py::sequence>();  // throws if not a sequence
-    auto n = seq.size();
-    if (!n)
+    py::iterator it = py::iter(list_like);
+    py::iterator end;
+
+    if (it == end)
         return py::none();
 
-    PyTypeObject* t0 = Py_TYPE(seq[0].ptr());
-    for (auto i = 1; i < n; ++i) {
-        if (Py_TYPE(seq[i].ptr()) != t0)
+    //-- the first item
+    py::handle first = *it;
+    PyTypeObject* t0 = Py_TYPE(first.ptr());
+
+    //-- remaining items...
+    ++it;
+    for (; it != end; ++it) {
+        py::handle h = *it;
+        if (Py_TYPE(h.ptr()) != t0) {
             return py::none();
+        }
     }
-    return py::reinterpret_borrow<py::object>((PyObject*)t0);
+
+    return py::reinterpret_borrow<py::object>(reinterpret_cast<PyObject*>(t0));
 }
 
 PyLinkage::PyLinkage(const py::dict& package_names) {

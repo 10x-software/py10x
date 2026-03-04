@@ -170,28 +170,67 @@ py::object BNucleus::deserialize_list(const py::object& list) {
     return res;
 }
 
+//py::object BNucleus::serialize_dict(const py::object& dict, bool embed) {
+//    py::dict res;
+//    for (const auto &[key, value] : dict.cast<py::dict>()) {
+//        const auto serialized_value = serialize_any(value.cast<py::object>(), embed);
+//        res[key] = serialized_value;
+//    }
+//    return res;
+//}
+
 py::object BNucleus::serialize_dict(const py::object& dict, bool embed) {
     py::dict res;
-    for (const auto &[key, value] : dict.cast<py::dict>()) {
-        const auto serialized_value = serialize_any(value.cast<py::object>(), embed);
-        res[key] = serialized_value;
-    }
+    res[DICT_KEYS_TAG()]    = serialize_list(PyLinkage::dict_keys(dict), embed);
+    res[DICT_VALUES_TAG()]  = serialize_list(PyLinkage::dict_values(dict), embed);
     return res;
 }
 
-py::object BNucleus::deserialize_dict(const py::object& dict) {
-    const auto rec = dict.cast<py::dict>();
-    if (const auto res1 = deserialize_record(rec); !res1.is_none())
-        return res1;
+py::object BNucleus::deserialize_dict(const py::object& pydict) {
+    const auto dict = pydict.cast<py::dict>();
 
-    //-- this must be just a dict of values then
-    py::dict res2;
-    for (const auto &[key, serialized_value] : rec) {
-        const auto value = deserialize_any(serialized_value.cast<py::object>());
-        res2[key] = value;
-    }
-    return res2;
+    //-- Check if it's a Record
+    auto rec = deserialize_record(dict);
+    if (!rec.is_none())
+        return rec;
+
+    //-- Must be a dict then
+    auto XNone = PyLinkage::XNone();
+    auto serialized_keys    = PyLinkage::dict_get(dict, DICT_KEYS_TAG());
+    if (serialized_keys.is(XNone))
+        throw py::type_error(py::str("Dict record is corrupted; missing '{}:'\n{}").format(DICT_KEYS_TAG(), dict));
+
+    auto serialized_values  = PyLinkage::dict_get(dict, DICT_VALUES_TAG());
+    if (serialized_values.is(XNone))
+        throw py::type_error(py::str("Dict record is corrupted; missing '{}:'\n{}").format(DICT_VALUES_TAG(), dict));
+
+    auto keys   = deserialize_list(serialized_keys).cast<py::list>();
+    auto values = deserialize_list(serialized_values).cast<py::list>();
+
+    auto n = py::len(keys);
+    if (n != py::len(values))
+        throw py::value_error(py::str("Dict record is corrupted - keys and values don't match\n{}").format(dict));
+
+    py::dict res;
+    for (auto i = 0; i < n; ++i)
+        res[keys[i]] = values[i];
+
+    return res;
 }
+
+//py::object BNucleus::deserialize_dict(const py::object& dict) {
+//    const auto rec = dict.cast<py::dict>();
+//    if (const auto res1 = deserialize_record(rec); !res1.is_none())
+//        return res1;
+//
+//    //-- this must be just a dict of values then
+//    py::dict res2;
+//    for (const auto &[key, serialized_value] : rec) {
+//        const auto value = deserialize_any(serialized_value.cast<py::object>());
+//        res2[key] = value;
+//    }
+//    return res2;
+//}
 
 BNucleus::DeserializationRecordMap * BNucleus::s_record_map = nullptr;
 BNucleus::DeserializationRecordMethod BNucleus::deserialization_record_method(const py::object& record_tag) {

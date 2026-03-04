@@ -31,6 +31,8 @@ public:
     static py::object ID_TAG()              { return py::str("_id"); }
     static py::object NX_RECORD_TAG()       { return py::str("_nx"); }
     static py::object TYPE_RECORD_TAG()     { return py::str("_dt"); }
+    static py::object DICT_KEYS_TAG()       { return py::str("_keys"); }
+    static py::object DICT_VALUES_TAG()     { return py::str("_vals"); }
     static py::object PICKLE_RECORD_TAG()   { return py::str("_pkl"); }
 
     static py::object deserialize_record(const py::dict& record);
