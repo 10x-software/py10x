@@ -29,16 +29,15 @@ jobs:
           enable-cache: true
           cache-dependency-glob: |
             **/pyproject.toml
-            uv.lock
 
       - name: Set up Python
         run: uv python install 3.12
 
-      - name: Install dependencies
-        run: uv sync --all-extras
+      - name: Checkout kernel/infra
+        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
 
-      - name: Install Chromium
-        run: uv run playwright install --with-deps chromium
+      - name: Install dependencies
+        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
 
       - name: Start Mongo replica-set server
         run: |
@@ -71,4 +70,6 @@ jobs:
       - name: Run full test suite
         env:
           PYTHONUNBUFFERED: "1"
-        run: uv run pytest
+        run: |
+          source .venv/bin/activate
+          pytest
