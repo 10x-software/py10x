@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 
 from core_10x.nucleus import Nucleus
 from core_10x.trait_filter import EQ, f
-from core_10x.ts_store import TsCollection, TsStore, TsTransaction
+from core_10x.ts_store import TsCollection, TsStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -118,6 +118,11 @@ class TsUnionCollection(TsCollection):
 
 
 class TsUnion(TsStore, resource_name='TS_UNION'):
+
+    @classmethod
+    def parse_uri(cls, uri: str) -> dict:
+        raise NotImplementedError('TsUnion does not support URI parsing')
+
     @classmethod
     def is_running_with_auth(cls, host_name: str) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
@@ -132,6 +137,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         return TsUnion(*stores)
 
     def __init__(self, *stores: TsStore):
+        super().__init__()
         self.stores = stores
 
     def collection_names(self, regexp: str = None) -> list:
@@ -145,19 +151,6 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
 
     def auth_user(self) -> str | None:
         return self.stores[0].auth_user() if self.stores else None
-
-    def _begin_transaction(self) -> TsTransaction:
-        """Delegate to the first store when present; otherwise no-op transaction."""
-        if not self.stores:
-            class _NoOpTransaction(TsTransaction):
-                def _do_commit(self) -> None:
-                    pass
-
-                def _do_abort(self) -> None:
-                    pass
-
-            return _NoOpTransaction()
-        return self.stores[0]._begin_transaction()
 
     def transaction(self):
         """Context manager for transactional operations. Delegates to base (no stores) or first store."""

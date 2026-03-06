@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+from collections import deque
 from contextlib import ExitStack, contextmanager
 from typing import TYPE_CHECKING
 
@@ -72,40 +73,50 @@ class TsCollection(abc.ABC):
         return rc
 
 
-class TsTransaction(abc.ABC):
-    """Transaction handle with manual commit() and abort(). Subclasses must implement _do_commit and _do_abort."""
-
-    _ended: bool = False
-
-    def commit(self) -> None:
-        """Commit the transaction. No-op if already ended."""
-        if self._ended:
-            return
-        self._ended = True
-        self._do_commit()
-        self._unregister_from_store()
-
-    def abort(self) -> None:
-        """Abort the transaction. No-op if already ended."""
-        if self._ended:
-            return
-        self._ended = True
-        self._do_abort()
-        self._unregister_from_store()
-
-    def _unregister_from_store(self) -> None:
-        """Override to clear store._current_tx when this transaction is the current one. No-op by default."""
-        pass
-
-    @abc.abstractmethod
-    def _do_commit(self) -> None: ...
-
-    @abc.abstractmethod
-    def _do_abort(self) -> None: ...
-
 
 class TsStore(Resource, resource_type=TS_STORE):
-    PROTOCOL = ''
+
+    class Transaction:
+        ended: bool = False
+
+        def __init__(self, store: TsStore):
+            self.store = store
+            store.begin_transaction(self)
+
+        def commit(self) -> None:
+            """Commit the transaction. No-op if already ended."""
+            if self.ended:
+                return
+            self.store.end_transaction(self)
+            self._do_commit()
+
+        def abort(self) -> None:
+            """Abort the transaction. No-op if already ended."""
+            if self.ended:
+                return
+            self.store.end_transaction(self)
+            self._do_abort()
+
+
+        def _do_commit(self) -> None: ...
+
+        def _do_abort(self) -> None: ...
+
+    def __init__(self):
+        self._active_transactions = deque()
+
+    def current_transaction(self) -> Transaction|None:
+        return self._active_transactions[-1] if self._active_transactions else None
+
+    def begin_transaction(self, transaction: Transaction) -> None:
+        self._active_transactions.append(transaction)
+
+    def end_transaction(self, transaction: Transaction) -> None:
+        if transaction != self.current_transaction():
+            raise RuntimeError(f'Transaction {transaction} is not currently active.')
+        if transaction:
+            self._active_transactions.pop()
+            transaction.ended = True
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -172,10 +183,6 @@ class TsStore(Resource, resource_type=TS_STORE):
         raise NotImplementedError
 
     @classmethod
-    def parse_uri(cls, uri: str) -> dict:
-        raise NotImplementedError
-
-    @classmethod
     def is_running_with_auth(cls, host_name: str) -> tuple:   # -- (is_running, with_auth)
         raise NotImplementedError
 
@@ -228,25 +235,19 @@ class TsStore(Resource, resource_type=TS_STORE):
 
         return rc
 
-    @abc.abstractmethod
-    def _begin_transaction(self) -> TsTransaction:
-        """Start a transaction and return a transaction object. Must be implemented in subclasses."""
-        ...
-
     @contextmanager
     def transaction(self):
         """Context manager for transactional operations. Yields a transaction object with commit() and abort()."""
-        tx = self._begin_transaction()
+        tx = self.Transaction(self)
         success = False
         try:
             yield tx
             success = True
         finally:
-            if not tx._ended:
-                if success:
-                    tx.commit()
-                else:
-                    tx.abort()
+            if success:
+                tx.commit()
+            else:
+                tx.abort()
 
 
 @contextmanager

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from py10x_kernel import BTraitable, BTraitableProcessor
 
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, TsTransaction
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -41,7 +41,7 @@ class TestCollection(TsCollection):
     def _effective_documents(self) -> dict:
         """Documents visible in the current transaction (committed + pending, minus pending deletes)."""
         out = dict(self._documents)
-        tx = self.store._current_tx
+        tx = self.store.current_transaction()
         if tx is not None:
             pending = tx.pending_saves.get(self._collection_name, {})
             deletes = tx.pending_deletes.get(self._collection_name, set())
@@ -121,7 +121,7 @@ class TestCollection(TsCollection):
         if not id_value:
             return 0
 
-        tx = self.store._current_tx
+        tx = self.store.current_transaction()
         if tx is not None:
             effective = self._effective_documents()
             if id_value in effective and not overwrite:
@@ -162,7 +162,7 @@ class TestCollection(TsCollection):
         revision += 1
         new_doc = serialized_traitable | {rev_tag: revision}
 
-        tx = self.store._current_tx
+        tx = self.store.current_transaction()
         if tx is not None:
             if self._collection_name not in tx.pending_saves:
                 tx.pending_saves[self._collection_name] = {}
@@ -175,7 +175,7 @@ class TestCollection(TsCollection):
 
     def delete(self, id_value: str) -> bool:
         """Delete a document by ID."""
-        tx = self.store._current_tx
+        tx = self.store.current_transaction()
         if tx is not None:
             effective = self._effective_documents()
             if id_value not in effective:
@@ -213,50 +213,46 @@ class TestCollection(TsCollection):
         min_doc = min(documents, key=lambda x: x.get(trait_name, ''))
         return min_doc
 
-class TestStoreTransaction(TsTransaction):
-    """In-memory transaction: commit() applies pending writes, abort() discards them."""
-
-    def __init__(self, store: TestStore):
-        super().__init__()
-        self.store = store
-        self.pending_saves: dict[str, dict[str, dict]] = {}  # coll_name -> id -> doc
-        self.pending_deletes: dict[str, set[str]] = {}  # coll_name -> set of id
-        if not store._current_tx: #TODO - nested transactions are not supported in test store
-            store._current_tx = self
-
-    def _do_commit(self) -> None:
-        for coll_name, docs in self.pending_saves.items():
-            if coll_name not in self.store._collections:
-                continue
-            coll = self.store._collections[coll_name]
-            for id_value, doc in docs.items():
-                coll._documents[id_value] = doc
-        for coll_name, ids in self.pending_deletes.items():
-            if coll_name not in self.store._collections:
-                continue
-            coll = self.store._collections[coll_name]
-            for id_value in ids:
-                coll._documents.pop(id_value, None)
-
-    def _do_abort(self) -> None:
-        pass
-
-    def _unregister_from_store(self) -> None:
-        if self.store._current_tx is self:  # TODO - nested transactions are not supported in test store
-            self.store._current_tx = None
 
 
 class TestStore(TsStore, resource_name='TEST_DB'):
     """In-memory store implementation for testing."""
 
-    PROTOCOL = 'testdb'
-    s_driver_name = 'TestStore'
+    class Transaction(TsStore.Transaction):
+        """In-memory transaction: commit() applies pending writes, abort() discards them."""
+
+        def __init__(self, store: TestStore):
+            if not (current_tx:=store.current_transaction()):
+                self.pending_saves: dict[str, dict[str, dict]] = {}  # coll_name -> id -> doc
+                self.pending_deletes: dict[str, set[str]] = {}  # coll_name -> set of id
+            else:
+                self.pending_saves = current_tx.pending_saves
+                self.pending_deletes = current_tx.pending_deletes
+            super().__init__(store)
+
+        def _do_commit(self) -> None:
+            if self.store.current_transaction():
+               return #-- no nested transactions supported
+            for coll_name, docs in self.pending_saves.items():
+                if coll_name not in self.store._collections:
+                    continue
+                coll = self.store._collections[coll_name]
+                for id_value, doc in docs.items():
+                    coll._documents[id_value] = doc
+            for coll_name, ids in self.pending_deletes.items():
+                if coll_name not in self.store._collections:
+                    continue
+                coll = self.store._collections[coll_name]
+                for id_value in ids:
+                    coll._documents.pop(id_value, None)
+
+        def _do_abort(self) -> None:
+            pass
 
     def __init__(self, *args, **kwargs):
         super().__init__()
         self._collections = {}
         self._collection_names = set()
-        self._current_tx = None
         # Set a default username for testing
         self.username = kwargs.get('username', 'test_user')
 
@@ -323,5 +319,3 @@ class TestStore(TsStore, resource_name='TEST_DB'):
     def auth_user(self) -> str | None:
         return self.username
 
-    def _begin_transaction(self) -> TestStoreTransaction:
-        return TestStoreTransaction(self)
