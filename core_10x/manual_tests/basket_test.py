@@ -3,7 +3,11 @@ from core_10x.trait_filter import f
 
 
 class FinInstrument(BasketLike, container = Basket):
-    name: str = T(T.ID)
+    name: str       = T(T.ID)
+    leaves: dict    = T()
+
+class FinLeaf(FinInstrument):
+    ...
 
 class FinBasket(Basket):
     member_class: type[BasketLike] = T(FinInstrument)
@@ -39,7 +43,15 @@ class Portfolio(BasketLike, container = BasketSet):
 if __name__ == '__main__':
     from core_10x.manual_tests.basket_test import Portfolio, Book, Trade, FinInstrument
 
-    f1 = FinInstrument(name = 'F1')
+    l1 = FinLeaf(name = 'Leaf 1')
+    l2 = FinLeaf(name = 'Leaf 2')
+
+    f1 = FinInstrument(
+        _replace = True,
+        name    = 'F1',
+        leaves = {l1: 5., l2: -6.}
+    )
+
     f2 = FinInstrument(name = 'F2')
     f3 = FinInstrument(name = 'F3')
 
@@ -81,3 +93,5 @@ if __name__ == '__main__':
     books = p.contents(Book)
 
     trades = p.contents(Trade)
+
+    leaves = p.contents(FinInstrument, leaves = True)

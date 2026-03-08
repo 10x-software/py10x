@@ -16,8 +16,6 @@ class BasketLike(Traitable):
     def is_member(self, obj: BasketLike) -> bool:   raise NotImplementedError
     def items(self):                                raise NotImplementedError
 
-    def leaves(self, member_filter: f = None) -> BasketLike:    raise NotImplementedError
-
     class ComboIter:
         def __init__(self, *iterators):
             assert iterators
@@ -39,16 +37,18 @@ class BasketLike(Traitable):
                 self.it = self.iterators[self.i]
                 return self.it.__next__()
 
-    def contents(self, member_class: type[BasketLike], qty: float = 1., member_filter: f = None, container: BasketContainer = None) -> BasketContainer:
+    def contents(self, target_class: type[BasketLike], leaves = False, filter: f = None, container: BasketContainer = None, qty: float = 1.) -> BasketContainer:
         if container is None:
-            container = member_class.s_container_class(member_class = member_class)
+            container = target_class.s_container_class(member_class = target_class)
 
         for member, mem_qty in self.items():
-            if isinstance(member, member_class):
-                if not member_filter or member_filter.eval(member):
+            if isinstance(member, target_class):
+                if leaves:
+                    container.add_items(member, qty = qty * mem_qty, member_filter = filter)
+                elif not filter or filter.eval(member):
                     container.add_member(member, qty * mem_qty)
             else:
-                member.contents(member_class, qty = qty * mem_qty, member_filter = member_filter, container = container)
+                member.contents(target_class, filter = filter, container = container, qty = qty * mem_qty)
 
         return container
 
@@ -56,8 +56,18 @@ class BasketContainer(BasketLike):
     member_class: type[BasketLike]  = T()
     subclasses_allowed: bool        = T(True)
 
-    def add_member(self, obj: BasketLike, qty: float = 1., check = True):                       raise NotImplementedError
-    def add_basket(self, basket: BasketContainer, qty: float = 1., member_filter: f = None):    raise NotImplementedError
+    def add_member(self, obj: BasketLike, qty: float = 1., check = True):               raise NotImplementedError
+
+    def add_items(self, obj: BasketLike, qty: float = 1., member_filter: f = None):
+        member_cls = self.member_class
+        subclasses_allowed = self.subclasses_allowed
+        for member, mem_qty in obj.items():
+            rc = isinstance(member, member_cls) if subclasses_allowed else member.__class__ is member_cls
+            if not rc:
+                continue
+
+            if not member_filter or member_filter.eval(member):
+                self.add_member(member, qty = qty * mem_qty, check = False)
 
     def check_new_member(self, obj: BasketLike):
         member_cls = self.member_class
@@ -80,16 +90,6 @@ class BasketSet(BasketContainer):
         if check:
             self.check_new_member(obj)
         self.members.add(obj)
-
-    def add_basket(self, basket: BasketContainer, qty: float = 1., member_filter: f = None):
-        if not isinstance(basket, BasketSet):
-            raise TypeError(f'{basket.__class__} is not a BasketSet')
-
-        if not basket.member_class is self.member_class:
-            raise TypeError(f'{basket.member_class} is not {self.member_class}')
-
-        new_members = { member for member in basket.members if member_filter.eval(member) } if member_filter else basket.members
-        self.members.update(new_members)
 
     class Iter:
         def __init__(self, members: set):
@@ -119,17 +119,6 @@ class Basket(BasketContainer):
         members = self.members
         ex_qty = members.get(obj, 0.)
         members[obj] = ex_qty + qty
-
-    def add_basket(self, basket: BasketContainer, qty: float = 1., member_filter: f = None):
-        if not isinstance(basket, Basket):
-            raise TypeError(f'{basket.__class__} is not a Basket')
-
-        if not basket.member_class is self.member_class:
-            raise TypeError(f'{basket.member_class} is not {self.member_class}')
-
-        for new_member, new_qty in basket.members.items():
-            if not member_filter or member_filter.eval(new_member):
-                self.add_member(new_member, new_qty * qty)
 
     def items(self):
         return self.members.items()
