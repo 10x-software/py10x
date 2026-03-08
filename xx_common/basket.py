@@ -1,130 +1,169 @@
 from __future__ import annotations
-from typing import Self
 
 from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE
-from core_10x.trait_filter import f
+from core_10x.trait_filter import f, OR
 
 
 class BasketLike(Traitable):
-    s_constituent_classes       = set()
-    s_is_container              = False
-    s_is_cumulative             = False
+    s_container_class: type[BasketContainer] = None
+    def __init_subclass__(cls, container = None, **kwargs):
+        if container is not None:
+            assert container in (BasketSet, Basket), 'container must be either BasketSet or Basket'
+            cls.s_container_class = container
 
-    def __init_subclass__(cls, is_base_class = False, may_contain = (), **kwargs):
-        if not is_base_class:
-            assert may_contain or cls.s_constituent_classes, 'may_contain must specify one or more constituent classes'
-            if may_contain:
-                assert type(may_contain) is tuple and all(issubclass(c, BasketLike) for c in may_contain), 'may_contain must be a tuple of subclasses of BasketLike'
-                cls.s_constituent_classes = set(may_contain)
+        super().__init_subclass__(**kwargs)
 
-    may_contain_subclasses: bool        = RT(False)
-    may_contain_self: bool              = RT(False)
-    constituents: list[BasketLike]      = RT()
-    basket: dict[BasketLike, float]     = RT()
+    def is_member(self, obj: BasketLike) -> bool:   raise NotImplementedError
+    def items(self):                                raise NotImplementedError
 
-    def is_member(self, other: BasketLike) -> bool:
-        return other in self.basket
+    def leaves(self, member_filter: f = None) -> BasketLike:    raise NotImplementedError
 
-    def check_new_constituent(self, other: BasketLike) -> RC:
-        cls = self.__class__
-        if not cls.s_is_container:
-            return RC(False, f'{cls}: may not add a constituent')
+    class ComboIter:
+        def __init__(self, *iterators):
+            assert iterators
+            self.iterators = iterators
+            self.i = 0
+            self.it = iterators[0]
 
-        other_cls = other.__class__
-        if not self.may_contain_subclasses:
-            valid_class = other_cls in cls.s_constituent_classes
-        else:
-            valid_class = any(issubclass(other_cls, base_cls) for base_cls in cls.s_constituent_classes)
-        if not valid_class:
-            return RC(False, f'{other.__class__} is not a valid constituent of {cls}')
+        def __iter__(self):
+            return self
 
-        if not self.may_contain_self and other == self:
-            return RC(False, f'{self} - may not contain itself')
+        def __next__(self):
+            try:
+                return self.it.__next__()
+            except StopIteration:
+                self.i += 1
+                if self.i == len(self.iterators):
+                    raise StopIteration
 
-        if not cls.s_is_cumulative and self.is_member(other):
-            return RC(False, f'{other} is already contained in {self}')
+                self.it = self.iterators[self.i]
+                return self.it.__next__()
 
-        return RC_TRUE
+    def contents(self, member_class: type[BasketLike], qty: float = 1., member_filter: f = None, container: BasketContainer = None) -> BasketContainer:
+        if container is None:
+            container = member_class.s_container_class(member_class = member_class)
 
-    def add_constituent(self, other: BasketLike, qty: float = 1.) -> RC:
-        rc = self.check_new_constituent(other)
-        if not rc:
-            return rc
-
-        basket = self.basket
-        existing_qty = basket.get(other, 0.)
-        basket[other] = qty + existing_qty
-        return RC_TRUE
-
-    def add_basket(self, other: BasketLike, qty: float = 1.) -> RC:
-        for member, q in other.basket.items():
-            rc = self.add_constituent(member, q * qty)
-            if not rc:
-                return rc
-
-        return RC_TRUE
-
-    @classmethod
-    def is_reachable(cls, basket_level: type[BasketLike]) -> bool:
-        constituent_classes = cls.s_constituent_classes
-        if basket_level in constituent_classes:
-            return True
-
-        for c in constituent_classes:
-            if c is not cls and c.is_reachable(basket_level):
-                return True
-
-        return False
-
-    @classmethod
-    def new_basket(cls) -> BasketLike:
-        if cls.s_is_cumulative:
-            return Basket()
-        else:
-            return BasketSet()
-
-    def roots(self) -> BasketLike:
-        return self
-
-    def leaves(self) -> BasketLike:
-        return self
-
-    def flatten(self, basket_level: type[BasketLike], member_filter: f = None) -> BasketLike:
-        res = basket_level.new_basket()
-        for member, q in self.basket.items():
-            member_class = member.__class__
-            if member_class is basket_level:
-                if member_filter.eval(member):
-                    res.add_constituent(member, q)
+        for member, mem_qty in self.items():
+            if isinstance(member, member_class):
+                if not member_filter or member_filter.eval(member):
+                    container.add_member(member, qty * mem_qty)
             else:
-                sub_basket = member.flatten(basket_level, member_filter = member_filter)
-                res.add_basket(sub_basket, q)
+                member.contents(member_class, qty = qty * mem_qty, member_filter = member_filter, container = container)
 
-        return res
+        return container
 
-    def contents(self, basket_level: type[BasketLike]) -> BasketLike:
-        cls = self.__class__
-        if basket_level is cls:
-            return self.leaves()
+class BasketContainer(BasketLike):
+    member_class: type[BasketLike]  = T()
+    subclasses_allowed: bool        = T(True)
 
-        if not cls.is_reachable(basket_level):
-            return None
+    def add_member(self, obj: BasketLike, qty: float = 1., check = True):                       raise NotImplementedError
+    def add_basket(self, basket: BasketContainer, qty: float = 1., member_filter: f = None):    raise NotImplementedError
 
-        return self.flatten(basket_level)
-
-
-class BasketSet(BasketLike, is_base_class = True):
-    s_is_container      = True
-    s_is_cumulative     = False
-
-class Basket(BasketLike, is_base_class = True):
-    s_is_container      = True
-    s_is_cumulative     = True
+    def check_new_member(self, obj: BasketLike):
+        member_cls = self.member_class
+        obj_cls = obj.__class__
+        rc = issubclass(obj_cls, member_cls) if self.subclasses_allowed else obj_cls is member_cls
+        if not rc:
+            raise TypeError(f'{obj_cls} may not be a member of {self.__class__}')
 
 
-class FinInstrument(BasketLike, may_contain = Self): ...
-class FinBasket(Basket, may_contain = FinInstrument): ...
-class Trade(BasketLike, may_contain = FinBasket): ...
-class Book(BasketLike, may_contain = Trade): ...
+class BasketSet(BasketContainer):
+    members: set[BasketLike]    = T()
 
-class Portfolio(BasketLike, may_contain = (Self, Book)): ...
+    def __post_init__(self):
+        self.members = self.members
+
+    def is_member(self, obj: Traitable) -> bool:
+        return obj in self.members
+
+    def add_member(self, obj: BasketLike, qty: float = 1., check = True):
+        if check:
+            self.check_new_member(obj)
+        self.members.add(obj)
+
+    def add_basket(self, basket: BasketContainer, qty: float = 1., member_filter: f = None):
+        if not isinstance(basket, BasketSet):
+            raise TypeError(f'{basket.__class__} is not a BasketSet')
+
+        if not basket.member_class is self.member_class:
+            raise TypeError(f'{basket.member_class} is not {self.member_class}')
+
+        new_members = { member for member in basket.members if member_filter.eval(member) } if member_filter else basket.members
+        self.members.update(new_members)
+
+    class Iter:
+        def __init__(self, members: set):
+            self.it = iter(members)
+
+        def __iter__(self):
+            return self
+
+        def __next__(self):
+            return (self.it.__next__(), 1.)
+
+    def items(self):
+        return self.Iter(self.members)
+
+class Basket(BasketContainer):
+    members: dict[BasketLike, float] = T({})
+
+    def __post_init__(self):
+        self.members = self.members
+
+    def is_member(self, obj: BasketLike) -> bool:
+        return obj in self.members.keys()
+
+    def add_member(self, obj: BasketLike, qty: float = 1., check = True):
+        if check:
+            self.check_new_member(obj)
+        members = self.members
+        ex_qty = members.get(obj, 0.)
+        members[obj] = ex_qty + qty
+
+    def add_basket(self, basket: BasketContainer, qty: float = 1., member_filter: f = None):
+        if not isinstance(basket, Basket):
+            raise TypeError(f'{basket.__class__} is not a Basket')
+
+        if not basket.member_class is self.member_class:
+            raise TypeError(f'{basket.member_class} is not {self.member_class}')
+
+        for new_member, new_qty in basket.members.items():
+            if not member_filter or member_filter.eval(new_member):
+                self.add_member(new_member, new_qty * qty)
+
+    def items(self):
+        return self.members.items()
+
+class FinInstrument(BasketLike, container = Basket):
+    name: str = T(T.ID)
+
+class FinBasket(Basket):
+    member_class: type[BasketLike] = T(FinInstrument)
+
+from datetime import datetime
+
+class Trade(FinBasket, container = Basket):
+    booked_at: datetime = T()
+    book1_name: str     = T()
+    book2_name: str     = T()
+
+class Book(Basket, container = BasketSet):
+    member_class: type[BasketLike]  = T(Trade)
+    name: str                       = T(T.ID)
+
+    def members_get(self) -> dict:
+        primary_trades      = { trade: 1.   for trade in Trade.existing_instances_by_filter(f(book1_name = self.name)) }
+        counterparty_trades = { trade: -1.  for trade in Trade.existing_instances_by_filter(f(book2_name = self.name)) }
+        return primary_trades | counterparty_trades
+
+class Portfolio(BasketLike, container = BasketSet):
+    name: str               = T(T.ID)
+
+    portfolios: BasketSet   = T()
+    books: BasketSet        = T()
+
+    def is_member(self, obj: BasketLike) -> bool:
+        return self.portfolios.is_member(obj) or self.books.is_member(obj)
+
+    def items(self):
+        return self.ComboIter(self.portfolios.items(), self.books.items())

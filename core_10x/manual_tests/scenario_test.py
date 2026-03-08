@@ -2,7 +2,9 @@ if __name__ == '__main__':
     from datetime import date
 
     from core_10x.scenario import Scenario
-    from core_10x.code_samples.person import Person
+    from core_10x.code_samples.person import Person, WEIGHT_QU
+
+    Person.s_print = True
 
     p = Person(
         _replace = True,
@@ -22,3 +24,11 @@ if __name__ == '__main__':
     with Scenario(fn):
         print(f'In Scenario({fn}): {p.weight}')
 
+    with Scenario():
+        print('In temp Scenario:')
+
+        print(f'\tage = {p.age}')
+        print(f'\tage = {p.age}')
+
+        p.dob = date(1960, 3, 12)
+        print(f'\tage = {p.age}')

@@ -13,3 +13,7 @@ if __name__ == '__main__':
 
     print(r.prefix_notation())
     print(r.eval(p))
+
+    name = 'IBM Book'
+    query = f(OR(f(book1_name = name), f(book2_name = name)))
+    print(query.prefix_notation())

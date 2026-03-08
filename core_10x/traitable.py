@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, get_origin
 
-from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser
+from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
@@ -368,11 +368,16 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         return None
 
-    #-- TODO: should probably have a better performance
     @classmethod
     def existing_instances_by_filter(cls, query: f, _coll_name: str = None, _at_most = 0, _order: dict = None) -> list[Traitable]:
-        ids = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
-        return [ obj for id in ids if(obj := cls.existing_instance_by_id(_id = id, _collection_name = _coll_name, _throw = False)) ]
+        # ids = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
+        # return [ obj for id in ids if(obj := cls.existing_instance_by_id(_id = id, _collection_name = _coll_name, _throw = False)) ]
+        ids_in_store = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
+        cache = BTraitableProcessor.current().cache()
+        ids_in_memory = cache.object_ids_by_class(cls.s_bclass)
+        ids_sought = { id for id in ids_in_memory if query.eval(cls(_id = id)) }
+        ids_sought.update(ids_in_store)
+        return [ cls(_id = id) for id in ids_sought ]
 
     @classmethod
     @deprecated('Use create_or_replace instead.')

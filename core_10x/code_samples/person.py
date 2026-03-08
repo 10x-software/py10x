@@ -49,6 +49,7 @@ class Person(Traitable):
         return {Ui.FG_COLOR: 'red' if age < 20 or age > 70 else 'green'}
 
     def full_name_set(self, trait, value: str) -> RC:
+        self.print('full_name')
         parts = value.split(' ')
         if(len(parts) != 2):
             return RC(False, f'"{value}" - must be "first_name last_name"')
@@ -58,6 +59,7 @@ class Person(Traitable):
         return RC_TRUE
 
     def age_get(self) -> int:
+        self.print('age')
         dob = self.dob
         if not dob:
             return 0
@@ -78,6 +80,7 @@ class Person(Traitable):
 
     #-- getter and setter for weight trait
     def weight_get(self) -> float:
+        self.print('weight')
         return self.weight_lbs / self.weight_qu.value
 
     def weight_set(self, trait, value) -> RC:  #-- trait setter gets its trait and the value and must return RC
@@ -90,3 +93,9 @@ class Person(Traitable):
         if self.age > 60 and self.weight_lbs > 200.:
             return RC(False, f'{self.full_name} - overweight condition detected')
         return RC_TRUE
+
+    s_print = False
+    def print(self, trait_name: str):
+        cls = self.__class__
+        if cls.s_print:
+            print(f'inside {cls.__name__}.{trait_name}_get()')
