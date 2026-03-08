@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, TsTransaction, standard_key
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, errors
 from pymongo.errors import DuplicateKeyError
@@ -28,7 +28,7 @@ class MongoCollection(TsCollection):
         self.store = store
 
     def _session_kw(self):
-        tx = self.store._current_tx
+        tx = self.store.current_transaction()
         return {'session': tx.session} if tx is not None else {}
 
     def collection_name(self) -> str:
@@ -109,8 +109,9 @@ class MongoCollection(TsCollection):
 
     def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str | None:
         """Create index. When inside a transaction, defers to run on commit (MongoDB disallows createIndex in txn)."""
-        if self.store._current_tx is not None:
-            self.store._current_tx.pending_create_index.append(
+        tx = self.store.current_transaction()
+        if tx is not None:
+            tx.pending_create_index.append(
                 (self.collection_name(), name, trait_name, dict(index_args))
             )
             return name
@@ -148,58 +149,9 @@ class MongoCollection(TsCollection):
         return None
 
 
-class MongoTransaction(TsTransaction):
-    """MongoDB transaction handle. commit() / abort() end the session.
-    Same approach as TestStore: only the tx for which store._current_tx is self owns the session and commits/aborts.
-    Nested transaction() calls yield a tx that shares store._current_tx.session; only the owning tx commits/aborts.
-    """
-
-    def __init__(self, store: MongoStore):
-        super().__init__()
-        self.store = store
-        if (current_tx:=store._current_tx) is None:
-            session = store.client.start_session()
-            session.start_transaction()
-            self.session = session
-            self.pending_create_index: list[tuple[str, str, str | list[tuple[str, int]], dict]] = []
-            store._current_tx = self
-        else:
-            self.session = current_tx.session
-            self.pending_create_index = current_tx.pending_create_index
-
-    def _do_commit(self) -> None:
-        if self.store._current_tx is not self:
-            return
-        try:
-            self.session.commit_transaction()
-        finally:
-            self.session.end_session()
-        self._unregister_from_store()
-        self._run_pending_create_index()
-
-    def _run_pending_create_index(self) -> None:
-        """Run create_index calls that were deferred during the transaction (MongoDB disallows createIndex in txn)."""
-        for coll_name, name, trait_name, index_args in self.pending_create_index:
-            coll = self.store.collection(coll_name)
-            coll.create_index(name, trait_name, **index_args)
-        self.pending_create_index.clear()
-
-    def _do_abort(self) -> None:
-        if self.store._current_tx is not self:
-            return
-        try:
-            self.session.abort_transaction()
-        finally:
-            self.session.end_session()
-
-    def _unregister_from_store(self) -> None:
-        if self.store._current_tx is self:
-            self.store._current_tx = None
 
 
 class MongoStore(TsStore, resource_name='MONGO_DB'):
-    PROTOCOL = 'mongodb'
-
     ADMIN = 'admin'
 
     # fmt: off
@@ -211,6 +163,41 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
     # fmt: on
 
     s_cached_connections: dict[tuple, MongoClient] = {}
+
+    class Transaction(TsStore.Transaction):
+        def __init__(self, store: MongoStore):
+            if not (current_tx:=store.current_transaction()):
+                self.session = session = store.client.start_session()
+                session.start_transaction()
+                self.pending_create_index: list[tuple[str, str, str | list[tuple[str, int]], dict]] = []
+            else:
+                self.session = current_tx.session
+                self.pending_create_index = current_tx.pending_create_index
+            super().__init__(store)
+
+        def _do_commit(self) -> None:
+            if self.store.current_transaction():
+                return  # -- no nested transactions supported
+            try:
+                self.session.commit_transaction()
+            finally:
+                self.session.end_session()
+            self._run_pending_create_index()
+
+        def _run_pending_create_index(self) -> None:
+            """Run create_index calls that were deferred during the transaction (MongoDB disallows createIndex in txn)."""
+            for coll_name, name, trait_name, index_args in self.pending_create_index:
+                coll = self.store.collection(coll_name)
+                coll.create_index(name, trait_name, **index_args)
+            self.pending_create_index.clear()
+
+        def _do_abort(self) -> None:
+            if self.store.current_transaction():
+                return  #-- no nested transactions supported
+            try:
+                self.session.abort_transaction()
+            finally:
+                self.session.end_session()
 
     @classmethod
     def connect(cls, hostname: str, username: str, password: str, _cache: bool = True, _throw: bool = True, **kwargs) -> MongoClient:
@@ -245,8 +232,8 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
 
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
-        params = pymongo_parse_uri(uri)
         try:
+            params = pymongo_parse_uri(uri)
             # fmt: off
             hostname, port  = params['nodelist'][0]
             kwargs          = params['options']
@@ -260,15 +247,14 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
             # fmt: on
             args.update(kwargs)
             return args
-
         except Exception as e:
             raise ValueError(f'Invalid URI = {uri}') from e
 
     def __init__(self, client: MongoClient, db: Database, username: str):
+        super().__init__()
         self.client = client
         self.db: Database = db
         self.username = username
-        self._current_tx: MongoTransaction | None = None
 
     def collection_names(self, regexp: str = None) -> list:
         filter = dict(name={'$regex': regexp}) if regexp else None
@@ -284,9 +270,6 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
             return 'setName' in res or res.get('msg') == 'isdbgrid'
         except Exception:
             return False
-
-    def _begin_transaction(self) -> TsTransaction:
-        return MongoTransaction(self)
 
     def delete_collection(self, collection_name: str) -> bool:
         self.db.drop_collection(collection_name)

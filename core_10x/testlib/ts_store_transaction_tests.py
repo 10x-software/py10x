@@ -40,7 +40,7 @@ class TestTsStoreTransaction:
     def test_transaction_yields_tx_with_commit_abort(self, store):
         with store.transaction() as tx:
             assert hasattr(tx, 'commit') and hasattr(tx, 'abort')
-            assert not tx._ended
+            assert not tx.ended
 
     def test_commit_applies_pending_writes(self, store, coll):
         coll.save_new({'_id': 'a', '_rev': 0}, overwrite=False)

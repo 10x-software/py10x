@@ -3,6 +3,7 @@ from __future__ import annotations
 import abc
 import inspect
 from collections import deque
+from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
 #-- TODO: move to attic
 # class ResourceRequirements:
@@ -48,8 +49,8 @@ class ResourceType:
         self.resource_stack = deque()
         self.resource_drivers = {}
 
-    def __call__(self, *args, **kwargs):
-        return ResourceRequirements(self, *args, **kwargs)
+    # def __call__(self, *args, **kwargs):
+    #     return ResourceRequirements(self, *args, **kwargs)
 
     def __getattr__(self, driver_name: str):
         return self.resource_drivers.get(driver_name)
@@ -100,16 +101,91 @@ class ResourceSpec:
         if password is not None:
             self.kwargs[self.resource_class.PASSWORD_TAG] = password
 
+    def uri(self) -> str:
+        kwargs = dict(self.kwargs)
+        protocol = kwargs.pop(Resource.PROTOCOL_TAG, None)
+        if not protocol:
+            raise ValueError('URI protocol is missing.')
+
+        username = kwargs.pop(Resource.USERNAME_TAG, None)
+        password = kwargs.pop(Resource.PASSWORD_TAG, None)
+        userinfo = ''
+        if username:
+            userinfo = quote(username, safe='')
+            if password:
+                userinfo += f':{quote(password, safe="")}'
+            userinfo += '@'
+
+        host_netloc = kwargs.pop(Resource.NETLOC_TAG, None)
+        if host_netloc is None:     #-- kwargs were constructed manually, not via parse_uri
+            host = kwargs.pop(Resource.HOSTNAME_TAG, '')
+            port = kwargs.pop(Resource.PORT_TAG, None)
+            host_netloc = f'{host}:{port}' if port else host
+        else:
+            kwargs.pop(Resource.HOSTNAME_TAG, None)
+            kwargs.pop(Resource.PORT_TAG, None)
+
+        dbname   = kwargs.pop(Resource.DBNAME_TAG, None)
+        query    = kwargs.pop(Resource.QUERY_TAG, '')
+        fragment = kwargs.pop(Resource.FRAGMENT_TAG, '')
+        if kwargs:
+            extra = urlencode(kwargs, doseq=True)
+            query = f'{query}&{extra}' if query else extra
+
+        #-- always emit '//' so empty-netloc URIs like duckdb:// or duckdb:///path round-trip correctly;
+        #-- urlunsplit drops '//' for unknown schemes when netloc is empty
+        netloc = userinfo + host_netloc
+        path   = f'/{dbname}' if dbname else ''
+        url    = f'{protocol}://{netloc}{path}'
+        if query:    url += f'?{query}'
+        if fragment: url += f'#{fragment}'
+        return url
+
 class Resource(abc.ABC):
+    PROTOCOL_TAG    = 'protocol'
+    NETLOC_TAG      = 'netloc'      #-- host+port portion of netloc, as formatted by urlsplit (IPv6 brackets preserved)
     HOSTNAME_TAG    = 'hostname'
     PORT_TAG        = 'port'
     USERNAME_TAG    = 'username'
     DBNAME_TAG      = 'dbname'
     PASSWORD_TAG    = 'password'
+    QUERY_TAG       = 'query'
+    FRAGMENT_TAG    = 'fragment'
     SSL_TAG         = 'ssl'
 
     s_resource_type: ResourceType = None
     s_driver_name: str = None
+
+    @classmethod
+    def parse_uri(cls, uri: str) -> dict:
+        try:
+            parts = urlsplit(uri)
+            if not parts.scheme:
+                raise ValueError(f'Invalid URI = {uri}')
+
+            kwargs = {
+                cls.PROTOCOL_TAG: parts.scheme,
+                cls.NETLOC_TAG:   parts.netloc.split('@', 1)[-1],   #-- strip userinfo; urlsplit already formatted host (IPv6 brackets etc.)
+                cls.USERNAME_TAG: parts.username,
+                cls.PASSWORD_TAG: parts.password,
+            }
+
+            if parts.hostname is not None:
+                kwargs[cls.HOSTNAME_TAG] = parts.hostname
+            if parts.port is not None:
+                kwargs[cls.PORT_TAG] = parts.port
+
+            db_name = parts.path.lstrip('/')
+            if db_name:
+                kwargs[cls.DBNAME_TAG] = db_name
+            if parts.query:
+                kwargs[cls.QUERY_TAG] = parts.query
+            if parts.fragment:
+                kwargs[cls.FRAGMENT_TAG] = parts.fragment
+
+            return kwargs
+        except Exception as e:
+            raise ValueError(f'Invalid URI = {uri}') from e
 
     def __init_subclass__(cls, resource_type: ResourceType = None, resource_name: str = None, **kwargs):
         if cls.s_resource_type is None:     #-- must be a top class of a particular resource type, e.g. TsStore
@@ -146,8 +222,8 @@ class Resource(abc.ABC):
         return spec.resource_class.instance(**spec.kwargs)
 
     @classmethod
-    @abc.abstractmethod
-    def spec_from_uri(cls, uri: str) -> ResourceSpec: ...
+    def spec_from_uri(cls, uri: str) -> ResourceSpec:
+        return ResourceSpec(cls, cls.parse_uri(uri))
 
     @classmethod
     @abc.abstractmethod
