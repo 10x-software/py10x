@@ -134,36 +134,3 @@ class Basket(BasketContainer):
     def items(self):
         return self.members.items()
 
-class FinInstrument(BasketLike, container = Basket):
-    name: str = T(T.ID)
-
-class FinBasket(Basket):
-    member_class: type[BasketLike] = T(FinInstrument)
-
-from datetime import datetime
-
-class Trade(FinBasket, container = Basket):
-    booked_at: datetime = T()
-    book1_name: str     = T()
-    book2_name: str     = T()
-
-class Book(Basket, container = BasketSet):
-    member_class: type[BasketLike]  = T(Trade)
-    name: str                       = T(T.ID)
-
-    def members_get(self) -> dict:
-        primary_trades      = { trade: 1.   for trade in Trade.existing_instances_by_filter(f(book1_name = self.name)) }
-        counterparty_trades = { trade: -1.  for trade in Trade.existing_instances_by_filter(f(book2_name = self.name)) }
-        return primary_trades | counterparty_trades
-
-class Portfolio(BasketLike, container = BasketSet):
-    name: str               = T(T.ID)
-
-    portfolios: BasketSet   = T()
-    books: BasketSet        = T()
-
-    def is_member(self, obj: BasketLike) -> bool:
-        return self.portfolios.is_member(obj) or self.books.is_member(obj)
-
-    def items(self):
-        return self.ComboIter(self.portfolios.items(), self.books.items())

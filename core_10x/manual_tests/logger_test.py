@@ -1,4 +1,6 @@
-from core_10x.logger import Logger, LogMessage
+if __name__ == '__main__':
 
-m = LogMessage(_replace = True, payload = dict(a = 1, b = 'ccc'))
-m.save()
+    from core_10x.logger import Logger, LogMessage
+
+    m = LogMessage(_replace = True, payload = dict(a = 1, b = 'ccc'))
+    m.save()

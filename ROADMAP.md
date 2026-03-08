@@ -10,7 +10,15 @@
   - runme_1st_app
   - command line utilities
 
-
+- **Kernel**
+  - runtime - allow getting traitable IDs by class from the current Cache through Cache parents, if any
+  
+- **Core**
+  - Added Traitable.existing_instances_by_filter()
+  - Added BasketLike facility (use case: Portfolio -> Book -> Trade -> FinBasket -> FinInstrument ->...)
+    - will also be used in parallelization
+  
+  
 - **Finish UI Table Integration**
   - examples.guess_word game (done)
   - examples.stock_simulator (done)
