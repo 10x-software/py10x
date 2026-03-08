@@ -215,6 +215,7 @@ PYBIND11_MODULE(py10x_kernel, m)
                 oss << "<XCache object at 0x" << std::hex << reinterpret_cast<uintptr_t>(&obj) << ">";
                 return oss.str();
                 })
+            .def("object_ids_by_class",         &XCache::object_ids_by_class)
 //            .def(py::init<>())
 //            .def("find_object_cache",           &XCache::find_object_cache)
 //            .def("find_node",                   py::overload_cast<const TID&, BTrait*>(XCache::find_node))

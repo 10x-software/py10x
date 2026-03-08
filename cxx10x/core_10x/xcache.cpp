@@ -18,6 +18,19 @@ XCache *XCache::find_origin_cache(const TID &tid) {
     return nullptr;
 }
 
+py::set XCache::object_ids_by_class(BTraitableClass* cls) const {
+    auto it = m_ids_by_class.find(cls);
+    py::set result;
+    if (it != m_ids_by_class.end())
+        result = it->second;
+
+    if (m_parent) {
+        auto p_result = m_parent->object_ids_by_class(cls);
+        result.attr("update")(p_result);
+    }
+    return result;
+}
+
 ObjectCache * XCache::find_or_create_object_cache(BTraitable *obj) {
     // check if object's origin cache is reachable from *this*
     // handle lazy load if needed

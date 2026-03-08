@@ -176,15 +176,36 @@ public:
 
 class XCache {
 protected:
+    using IDs           = py::set;
+    using IDsByClass    = std::unordered_map<BTraitableClass*, IDs>;    // extra map to facilitate obj search
+
     using Data      = std::unordered_map<TID, ObjectCache*>;
     using TmpData   = std::unordered_map<const TID*, ObjectCache*>;
 
     static XCache*  s_default;
 
     XCache*         m_parent = nullptr;
+    IDsByClass      m_ids_by_class;
     Data            m_data;
     TmpData         m_tmp_data;
     int             m_default_node_type = NODE_TYPE::BASIC;
+
+    void _add_object_id(const TID& tid) {
+        auto it = m_ids_by_class.find(tid.cls());
+        if (it == m_ids_by_class.end()) {
+            IDs obj_ids;
+            obj_ids.add(tid.id());
+            m_ids_by_class.insert({tid.cls(), obj_ids});
+        } else
+            it->second.add(tid.id());
+    }
+
+    void _remove_object_id(const TID& tid) {
+        auto it = m_ids_by_class.find(tid.cls());
+        if (it != m_ids_by_class.end())
+            it->second.attr("discard")(tid.id());
+    }
+
     ObjectCache* _find_or_create_object_cache(const TID& tid, ObjectCache* oc = nullptr) {
         if (tid.is_valid()) {
             auto it = m_data.find(tid);
@@ -194,6 +215,7 @@ protected:
             if (!oc)
                 oc = new ObjectCache();
             m_data.insert({tid, oc});
+            _add_object_id(tid);
             return oc;
         }
 
@@ -249,12 +271,16 @@ public:
 
     ObjectCache* new_object_cache(const TID& tid) {
         auto oc = new ObjectCache();
-        if (tid.is_valid())
+        if (tid.is_valid()) {
             m_data.insert({tid, oc});
+            _add_object_id(tid);
+        }
         else
             m_tmp_data.insert({tid.ptr(), oc});
         return oc;
     }
+
+    py::set object_ids_by_class(BTraitableClass* cls) const;
 
     XCache *find_origin_cache(const TID &tid);
 
@@ -310,6 +336,7 @@ public:
 
         const auto oc = it->second;
         m_data.erase(it);
+        _remove_object_id(tid);
 
         if (discard) {
             delete oc;
@@ -330,6 +357,7 @@ public:
             throw std::runtime_error("Can't find this ID");
 
         m_data.insert({tid, it->second});
+        _add_object_id(tid);
         m_tmp_data.erase(it);
 
         return true;
