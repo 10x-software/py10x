@@ -84,6 +84,9 @@ class Trait(BTrait, metaclass=TraitMetaclass):
         self.getter_params = ()
 
     def __get__(self, instance, owner):
+        if instance is None:
+            return self
+
         if not self.getter_params:
             return instance.get_value(self)
 

@@ -12,6 +12,9 @@ class FinLeaf(FinInstrument):
 class FinBasket(Basket):
     member_class: type[BasketLike] = T(FinInstrument)
 
+    def value(self, p: float) -> float:
+        return p * sum(self.members.values())
+
 from datetime import datetime
 
 class Trade(FinBasket, container = Basket):
@@ -59,6 +62,7 @@ if __name__ == '__main__':
         book1_name  = 'Book1',
         book2_name  = 'Book2',
         members     = {f1: 10., f2: -2.}
+
     )
 
     t2 = Trade(
@@ -95,3 +99,6 @@ if __name__ == '__main__':
     trades = p.contents(Trade)
 
     leaves = p.contents(FinInstrument, leaves = True)
+
+    r = trades.value(1500.)
+

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE
+import functools
+from typing import Callable
+
+from py10x_kernel import PyLinkage
+
+from core_10x.traitable import Traitable, Trait, T, RT, RC, RC_TRUE
 from core_10x.trait_filter import f, OR
 
 
@@ -12,6 +17,27 @@ class BasketLike(Traitable):
             cls.s_container_class = container
 
         super().__init_subclass__(**kwargs)
+
+    def _lifter(self, method_name: str, *args, **kwargs):
+        results = []
+        for member, qty in self.items():
+            trait = getattr(member.__class__, method_name, None)
+            if trait:
+                if isinstance(trait, Trait):
+                    value = member.get_value(trait) if not trait.getter_params else member.get_value(trait, *args)
+                elif isinstance(trait, Callable):   #-- 'trait' is a method of member.__class__
+                    value = trait(member, *args, **kwargs)
+                else:
+                    value = trait   #-- just some data attribute of member.__class__ (? - TODO: revisit)
+            else:
+                value = None
+
+            results.append((value, qty))
+
+        return results
+
+    def __getattr__(self, method_name: str):
+        return functools.partial(self._lifter, method_name)
 
     def is_member(self, obj: BasketLike) -> bool:   raise NotImplementedError
     def items(self):                                raise NotImplementedError
@@ -56,6 +82,35 @@ class BasketContainer(BasketLike):
     member_class: type[BasketLike]  = T()
     subclasses_allowed: bool        = T(True)
 
+    def _keys(self):    raise NotImplementedError
+
+    def _lifter(self, method_name: str, *args, **kwargs):
+        member_class = self.member_class
+        trait = getattr(member_class, method_name, None)
+        if trait:
+            if isinstance(trait, Trait):
+                if not trait.getter_params:
+                    f = lambda obj, *args, **kwargs: member_class.get_value(obj, trait)
+                else:
+                    f = lambda obj, *args, **kwargs: member_class.get_value(obj, trait, *args)
+            elif isinstance(trait, Callable):  #-- 'trait' is a method of member.__class__
+                f = lambda obj, *args, **kwargs: trait(obj, *args, **kwargs)
+            else:
+                f = lambda obj, *args, **kwargs: trait   # -- just some data attribute of member.__class__ (? - TODO: revisit)
+        else:
+            return None
+
+        return [ (f(member, *args, **kwargs), qty) for member, qty in self.items() ]
+
+    def __getattr__(self, method_name: str):
+        if not self.subclasses_allowed:
+            lifter = self._lifter
+        else:
+            same_type = PyLinkage.same_type(self._keys())
+            lifter = super()._lifter if same_type is None else self._lifter
+
+        return functools.partial(lifter, method_name)
+
     def add_member(self, obj: BasketLike, qty: float = 1., check = True):               raise NotImplementedError
 
     def add_items(self, obj: BasketLike, qty: float = 1., member_filter: f = None):
@@ -83,6 +138,8 @@ class BasketSet(BasketContainer):
     def __post_init__(self):
         self.members = self.members
 
+    def _keys(self):    return self.members
+
     def is_member(self, obj: Traitable) -> bool:
         return obj in self.members
 
@@ -109,6 +166,8 @@ class Basket(BasketContainer):
 
     def __post_init__(self):
         self.members = self.members
+
+    def _keys(self):    return self.members.keys()
 
     def is_member(self, obj: BasketLike) -> bool:
         return obj in self.members.keys()
