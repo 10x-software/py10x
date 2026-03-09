@@ -66,6 +66,7 @@ PYBIND11_MODULE(py10x_kernel, m)
     py::class_<PyLinkage>(m, "PyLinkage")
             .def_static("init",                         &PyLinkage::init)
             .def_static("clear",                        &PyLinkage::clear)
+            .def_static("same_type",                    &PyLinkage::same_exact_type)
             ;
 
     py::class_<BNucleus>(m, "BNucleus")
