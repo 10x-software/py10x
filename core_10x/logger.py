@@ -13,34 +13,6 @@ from core_10x.environment_variables import EnvVars
 from core_10x.resource import NULL_RESOURCE
 from core_10x.ts_store import TsStore
 
-class LOG:
-    def log(log_level: int, payload: Any):
-        if log_level > LOGGER.log_level:
-            return
-
-        if payload is not None:
-            data = dict(
-                ns          = time.perf_counter_ns(),
-                level       = log_level,
-                mem_pc      = LOGGER.ps.memory_percent(),
-                num_threads = LOGGER.ps.num_threads(),
-                payload     = payload
-            )
-        else:
-            data = None
-
-        LOGGER.log(data)
-
-    def __new__(cls, payload: Any): cls.log(0, payload)
-
-    def BRIEF(payload: Any):    LOG.log(0, payload)
-    BRIEF.value = 0
-    def MEDIUM(payload: Any):   LOG.log(1, payload)
-    MEDIUM.value = 1
-    def DETAILED(payload: Any): LOG.log(2, payload)
-    DETAILED.value = 2
-    def VERBOSE(payload: Any):  LOG.log(3, payload)
-    VERBOSE.value = 3
 
 class LogMessage(Traitable, custom_collection = True, keep_history = False):
     ns: int             = T(T.ID)
@@ -111,14 +83,43 @@ class Logger:
         self.queue.put(None)
         self.proc.join()
 
-    @classmethod
-    def init(cls, app_name: str, log_level = LOG.BRIEF):
+LOGGER: Logger = None
+class LOG:
+    def _log(log_level: int, payload: Any):
+        assert LOGGER, 'You must have called LOG.init(app_name, log_level)'
+        if log_level > LOGGER.log_level:
+            return
+
+        if payload is not None:
+            data = dict(
+                ns          = time.perf_counter_ns(),
+                level       = log_level,
+                mem_pc      = LOGGER.ps.memory_percent(),
+                num_threads = LOGGER.ps.num_threads(),
+                payload     = payload
+            )
+        else:
+            data = None
+
+        LOGGER.log(data)
+
+    def init(app_name: str, log_level):
         global LOGGER
         if LOGGER is None:
-            LOGGER = cls(app_name, log_level.value)
+            LOGGER = Logger(app_name, log_level.value)
             LOG.BRIEF(datetime.utcnow())
+
+    def __new__(cls, payload: Any): cls._log(0, payload)
+
+    def BRIEF(payload: Any):    LOG._log(0, payload)
+    BRIEF.value = 0
+    def MEDIUM(payload: Any):   LOG._log(1, payload)
+    MEDIUM.value = 1
+    def DETAILED(payload: Any): LOG._log(2, payload)
+    DETAILED.value = 2
+    def VERBOSE(payload: Any):  LOG._log(3, payload)
+    VERBOSE.value = 3
 
 class LogReader:
     ...
 
-LOGGER: Logger = None

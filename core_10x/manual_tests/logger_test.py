@@ -1,8 +1,8 @@
 if __name__ == '__main__':
 
-    from core_10x.logger import Logger, LOG
+    from core_10x.logger import LOG
 
-    Logger.init('test_logger', log_level = LOG.DETAILED)
+    LOG.init('test_logger', log_level = LOG.DETAILED)
 
     LOG('First message')
     LOG.MEDIUM(dict(a = 1, b = 'ccc'))
