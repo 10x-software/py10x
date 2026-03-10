@@ -7,5 +7,6 @@ if __name__ == '__main__':
     LOG('First message')
     LOG(dict(a = 1, b = 'ccc'))
     LOG('Regular message')
+
     LOG('Last message')
     LOG(None)
