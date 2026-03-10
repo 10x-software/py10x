@@ -13,21 +13,38 @@ from core_10x.environment_variables import EnvVars
 from core_10x.resource import NULL_RESOURCE
 from core_10x.ts_store import TsStore
 
-def LOG(payload: Any):
-    if payload is not None:
-        data = dict(
-            ns          = time.perf_counter_ns(),
-            mem_pc      = LOGGER.ps.memory_percent(),
-            num_threads = LOGGER.ps.num_threads(),
-            payload     = payload
-        )
-    else:
-        data = None
+class LOG:
+    def log(log_level: int, payload: Any):
+        if log_level > LOGGER.log_level:
+            return
 
-    LOGGER.log(data)
+        if payload is not None:
+            data = dict(
+                ns          = time.perf_counter_ns(),
+                level       = log_level,
+                mem_pc      = LOGGER.ps.memory_percent(),
+                num_threads = LOGGER.ps.num_threads(),
+                payload     = payload
+            )
+        else:
+            data = None
+
+        LOGGER.log(data)
+
+    def __new__(cls, payload: Any): cls.log(0, payload)
+
+    def BRIEF(payload: Any):    LOG.log(0, payload)
+    BRIEF.value = 0
+    def MEDIUM(payload: Any):   LOG.log(1, payload)
+    MEDIUM.value = 1
+    def DETAILED(payload: Any): LOG.log(2, payload)
+    DETAILED.value = 2
+    def VERBOSE(payload: Any):  LOG.log(3, payload)
+    VERBOSE.value = 3
 
 class LogMessage(Traitable, custom_collection = True, keep_history = False):
     ns: int             = T(T.ID)
+    level: int          = T()
     mem_pc: float       = T()
     num_threads: int    = T()
     payload: Any        = T()
@@ -69,10 +86,12 @@ class Logger:
     def __init__(
         self,
         app_name: str,
+        log_level: int,
         started_at: datetime = None,
         do_print = True
     ):
         self.app_name = app_name
+        self.log_level = log_level
         if started_at is None:
             started_at = datetime.utcnow()
         self.started_at = started_at
@@ -93,11 +112,11 @@ class Logger:
         self.proc.join()
 
     @classmethod
-    def init(cls, app_name: str):
+    def init(cls, app_name: str, log_level = LOG.BRIEF):
         global LOGGER
         if LOGGER is None:
-            LOGGER = cls(app_name)
-            LOG(datetime.utcnow())
+            LOGGER = cls(app_name, log_level.value)
+            LOG.BRIEF(datetime.utcnow())
 
 class LogReader:
     ...
