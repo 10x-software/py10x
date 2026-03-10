@@ -86,7 +86,7 @@ class Logger:
 LOGGER: Logger = None
 class LOG:
     def _log(log_level: int, payload: Any):
-        assert LOGGER, 'You must have called LOG.init(app_name, log_level)'
+        assert LOGGER, 'You must have called LOG.begin(app_name, log_level)'
         if log_level > LOGGER.log_level:
             return
 
@@ -103,11 +103,16 @@ class LOG:
 
         LOGGER.log(data)
 
-    def init(app_name: str, log_level):
+    @staticmethod
+    def begin(app_name: str, log_level):
         global LOGGER
         if LOGGER is None:
             LOGGER = Logger(app_name, log_level.value)
             LOG.BRIEF(datetime.utcnow())
+
+    @staticmethod
+    def end():
+        LOG._log(0, None)
 
     def __new__(cls, payload: Any): cls._log(0, payload)
 

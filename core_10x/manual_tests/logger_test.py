@@ -2,7 +2,7 @@ if __name__ == '__main__':
 
     from core_10x.logger import LOG
 
-    LOG.init('test_logger', log_level = LOG.DETAILED)
+    LOG.begin('test_logger', log_level = LOG.DETAILED)
 
     LOG('First message')
     LOG.MEDIUM(dict(a = 1, b = 'ccc'))
@@ -12,4 +12,4 @@ if __name__ == '__main__':
         LOG.VERBOSE(f'i = {i}')
 
     LOG('Last message')
-    LOG(None)
+    LOG.end()
