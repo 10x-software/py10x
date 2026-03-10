@@ -235,6 +235,14 @@ class Resource(abc.ABC):
     @abc.abstractmethod
     def on_exit(self): ...
 
+class NullResource:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
+NULL_RESOURCE = NullResource()
 
 #=========== Known Resource Types
 TS_STORE        = ResourceType('TS_STORE')

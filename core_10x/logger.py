@@ -9,7 +9,9 @@ import socket
 from py10x_kernel import OsUser
 from core_10x.traitable import Traitable, T, RT
 from core_10x.xdate_time import XDateTime
-
+from core_10x.environment_variables import EnvVars
+from core_10x.resource import NULL_RESOURCE
+from core_10x.ts_store import TsStore
 
 def LOG(payload: Any):
     if payload is not None:
@@ -35,22 +37,28 @@ def logger_process(
         coll_name: str,
         do_print: bool
 ):
+    uri = EnvVars.log_ts_store_uri
+    log_store = TsStore.instance_from_uri(uri) if uri else NULL_RESOURCE
+
     data = queue.get()
     if data is None:
         return
 
-    first_msg = LogMessage(_replace = True, _collection_name = coll_name, **data)
-    #start: datetime = first_msg.payload
-    t1 = first_msg.ns
-    first_msg.save()
+    with log_store:
+        first_msg = LogMessage(_replace = True, _collection_name = coll_name, **data)
+        #start: datetime = first_msg.payload
+        t1 = first_msg.ns
+        first_msg.save()
 
     while True:
         data = queue.get()
         if data is None:
             break
 
-        msg = LogMessage(_replace = True, _collection_name = coll_name, **data)
-        msg.save()
+        with log_store:
+            msg = LogMessage(_replace = True, _collection_name = coll_name, **data)
+            msg.save()
+
         if do_print:
             t2 = msg.ns
             dt = t2 - t1
