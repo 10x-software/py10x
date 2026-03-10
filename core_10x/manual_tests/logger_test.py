@@ -1,6 +1,11 @@
 if __name__ == '__main__':
 
-    from core_10x.logger import Logger, LogMessage
+    from core_10x.logger import Logger, LOG
 
-    m = LogMessage(_replace = True, payload = dict(a = 1, b = 'ccc'))
-    m.save()
+    Logger.init('test_logger')
+
+    LOG('First message')
+    LOG(dict(a = 1, b = 'ccc'))
+    LOG('Regular message')
+    LOG('Last message')
+    LOG(None)
