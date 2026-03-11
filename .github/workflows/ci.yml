@@ -34,7 +34,10 @@ jobs:
         run: uv python install 3.12
 
       - name: Checkout kernel/infra
-        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
+        run: |
+          git clone --depth 1 https://github.com/10x-software/cxx10x.git ../cxx10x
+          echo "py10x sha: $(git rev-parse HEAD)"
+          echo "cxx10x sha: $(git -C ../cxx10x rev-parse HEAD)"
 
       - name: Install dependencies
         run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
@@ -67,9 +70,7 @@ jobs:
 
           docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary" | awk '/true/{found=1} END{exit(found?0:1)}'
 
-      - name: Run full test suite
+      - name: Run full py10x test suite (validates local cxx10x checkout)
         env:
           PYTHONUNBUFFERED: "1"
-        run: |
-          source .venv/bin/activate
-          pytest
+        run: uv run pytest
