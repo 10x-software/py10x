@@ -1390,15 +1390,15 @@ with CACHE_ONLY():
 
 ```bash
 # Run unit tests
-uv run pytest
+pytest
 
 # Run specific test suites
-uv run pytest core_10x/unit_tests/
-uv run pytest ui_10x/unit_tests/
-uv run pytest infra_10x/unit_tests/
+pytest core_10x/unit_tests/
+pytest ui_10x/unit_tests/
+pytest infra_10x/unit_tests/
 
 # Run manual tests (debugging scripts)
-uv run python core_10x/manual_tests/trivial_graph_test.py
+python core_10x/manual_tests/trivial_graph_test.py
 ```
 
 ### 3. Build Your Application

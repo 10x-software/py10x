@@ -44,13 +44,13 @@ The project uses `ruff` for linting and formatting:
 
 ```bash
 # Check for issues
-uv run ruff check .
+ruff check .
 
 # Auto-fix issues where possible
-uv run ruff check --fix .
+ruff check --fix .
 
 # Format code
-uv run ruff format .
+ruff format .
 ```
 
 ### Testing
@@ -61,38 +61,16 @@ uv run ruff format .
 
 ```bash
 # Run all unit tests (with coverage by default)
-uv run pytest
+pytest
 
 # Run specific test suites
-uv run pytest core_10x/unit_tests/
-uv run pytest ui_10x/unit_tests/
-uv run pytest infra_10x/unit_tests/  # Requires MongoDB (Mongo Traitable Store is in infra_10x)
+pytest core_10x/unit_tests/
+pytest ui_10x/unit_tests/
+pytest infra_10x/unit_tests/  # Requires MongoDB (Mongo Traitable Store is in infra_10x)
 
 # Manual tests are debugging scripts (run directly)
-uv run python core_10x/manual_tests/trivial_graph_test.py
-uv run python ui_10x/rio/manual_tests/basic_test.py
-```
-
-#### Validating `cxx10x` Changes via `py10x` Tests
-
-`py10x` consumes local `cxx10x` sources in the `py10x-core-dev` profile. This avoids circular workflow issues by treating the full `py10x` test suite as the integration validation for `cxx10x` kernel/infra changes.
-
-```bash
-# Clone both repos as siblings
-git clone https://github.com/10x-software/py10x.git
-git clone https://github.com/10x-software/cxx10x.git
-cd py10x
-
-# Install py10x with local editable sources for py10x-kernel/py10x-infra from ../cxx10x
-uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
-
-# Start MongoDB replica set (required for infra tests)
-docker run -d --name mongo-rs -p 27017:27017 mongo:8 --replSet rs0 --bind_ip_all
-docker exec mongo-rs mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}) || true"
-docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary"
-
-# Full integration validation for local cxx10x + py10x
-uv run pytest
+python core_10x/manual_tests/trivial_graph_test.py
+python ui_10x/rio/manual_tests/basic_test.py
 ```
 
 #### Test Structure
@@ -153,8 +131,8 @@ py10x/
 2. **Create** a feature branch: `git checkout -b feature/your-feature-name`
 3. **Make** your changes following the coding standards
 4. **Add** tests for new functionality
-5. **Run** the test suite: `uv run pytest`
-6. **Check** code style: `uv run ruff check .`
+5. **Run** the test suite: `pytest`
+6. **Check** code style: `ruff check .`
 7. **Commit** with descriptive messages
 8. **Push** to your fork
 9. **Create** a Pull Request
