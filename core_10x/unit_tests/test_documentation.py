@@ -30,6 +30,15 @@ DOCUMENTATION_FILES = [
     'INSTALLATION.md',
     'CONTRIBUTING.md',
 ]
+MISSING_DOCUMENTATION_FILES = [doc_file for doc_file in DOCUMENTATION_FILES if not (project_root / doc_file).exists()]
+
+pytestmark = pytest.mark.skipif(
+    bool(MISSING_DOCUMENTATION_FILES),
+    reason=(
+        'Documentation files are not available in this installation: '
+        f'{", ".join(MISSING_DOCUMENTATION_FILES)}'
+    ),
+)
 
 
 def extract_code_blocks_from_file(filepath: Path) -> Generator[tuple[str, str], None, None]:
@@ -59,6 +68,8 @@ def extract_code_blocks_from_docs() -> Generator[tuple[str, str, str], None, Non
 
     for doc_file in DOCUMENTATION_FILES:
         filepath = docs_dir / doc_file
+        if not filepath.exists():
+            continue
         for test_name, code_block in extract_code_blocks_from_file(filepath):
             yield f'{test_name}', code_block, doc_file
 
