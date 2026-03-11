@@ -181,7 +181,7 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def_readonly_static("BASIC",       &NODE_TYPE::BASIC)
             .def_readonly_static("TREE",        &NODE_TYPE::TREE)
             .def_readonly_static("BASIC_GRAPH", &NODE_TYPE::BASIC_GRAPH)
-            .def_readonly_static("BASIC_GRAPH", &NODE_TYPE::UI)
+            .def_readonly_static("BASIC_UI",    &NODE_TYPE::UI)
             //.def_readonly_static("GRAPH",       &NODE_TYPE::GRAPH)
             ;
 
