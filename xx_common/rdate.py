@@ -371,3 +371,23 @@ class RDate(Nucleus):
         if roll_rule is not None:
             kwargs['roll_rule'] = roll_rule
         return functools.partial(cls.apply, **kwargs)
+
+    @classmethod
+    def prior_to(cls, ordered_rdates: list, start_date: date, end_date: date, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE, overstep = True) -> list:
+        if start_date > end_date or not ordered_rdates:
+            return []
+
+        rd: RDate
+        subset = [ (rd, d, i) for i, rd in enumerate(ordered_rdates) if (d := rd.apply(start_date, cal, roll_rule)) <= end_date ]
+
+        if len(subset) == len(ordered_rdates):  ## last d < end_date
+            return ordered_rdates
+
+        if not subset:
+            return ordered_rdates[0] if overstep else []
+
+        if overstep and subset[-1][1] < end_date:
+            i = subset[-1][2] + 1   #-- step over
+            subset.append((ordered_rdates[i], None, -1))  ## (rd, _, _)
+
+        return [rd for (rd, _, _) in subset]

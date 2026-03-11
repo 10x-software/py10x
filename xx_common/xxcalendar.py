@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import deque
 from datetime import date, timedelta
 
+from core_10x.global_cache import cache
 from core_10x.traitable import RT, T, Traitable
 
 
@@ -115,6 +116,11 @@ class Calendar(Traitable):
     non_working_days: list  = T()                       // 'Non-Working Days'
 
     _non_working_days: set  = RT()
+
+    @staticmethod
+    @cache
+    def none():
+        return Calendar(_replace = True, name = '__none__', non_working_days = [], description = 'Empty Calendar')
 
     @classmethod
     def AND(cls, *calendars) -> Calendar:  # noqa: N802
