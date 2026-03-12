@@ -87,6 +87,9 @@ allow-direct-references = true
 packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x"]
 #exclude = [ "**/*_tests/**" ]
 
+[tool.hatch.build.targets.wheel.force-include]
+"conftest.py" = "conftest.py"
+
 [[tool.hatch.build.hooks.build-scripts.scripts]]
 commands = [ "playwright install --with-deps chromium" ]
 
