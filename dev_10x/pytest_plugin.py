@@ -1,8 +1,13 @@
-PY10X_PACKAGE_DIRS = {'core_10x', 'dev_10x', 'infra_10x', 'ui_10x', 'xx_common'}
+from pathlib import Path
+
+
+import core_10x
+
+PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent
 
 
 def _is_py10x_path(collection_path) -> bool:
-    return any(part in PY10X_PACKAGE_DIRS for part in collection_path.parts)
+    return Path(collection_path).resolve().is_relative_to(PY10X_ROOT)
 
 
 def pytest_ignore_collect(collection_path, config):
