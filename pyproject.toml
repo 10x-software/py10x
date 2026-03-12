@@ -76,6 +76,9 @@ Repository = "https://github.com/10x-software/py10x"
 Issues = "https://github.com/10x-software/py10x/issues"
 Documentation = "https://github.com/10x-software/py10x#readme"
 
+[project.entry-points.pytest11]
+py10x_core = "dev_10x.pytest_plugin"
+
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright"]
 build-backend = "hatchling.build"
@@ -86,9 +89,6 @@ allow-direct-references = true
 [tool.hatch.build.targets.wheel]
 packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x"]
 #exclude = [ "**/*_tests/**" ]
-
-[tool.hatch.build.targets.wheel.force-include]
-"conftest.py" = "conftest.py"
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]
 commands = [ "playwright install --with-deps chromium" ]
