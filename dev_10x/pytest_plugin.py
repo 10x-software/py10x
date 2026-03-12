@@ -1,5 +1,15 @@
+PY10X_PACKAGE_DIRS = {'core_10x', 'dev_10x', 'infra_10x', 'ui_10x', 'xx_common'}
+
+
+def _is_py10x_path(collection_path) -> bool:
+    return any(part in PY10X_PACKAGE_DIRS for part in collection_path.parts)
+
+
 def pytest_ignore_collect(collection_path, config):
-    """Limit collection to package unit test directories and skip virtualenv files."""
+    """Only constrain collection for py10x package paths."""
+    if not _is_py10x_path(collection_path):
+        # Returning None means "no opinion" so user package collection is unaffected.
+        return None
     if any('.venv' in part for part in collection_path.parts):
         return True
     if collection_path.is_dir():
