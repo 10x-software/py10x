@@ -14,13 +14,13 @@ class VaultUtils:
         if n < cls.MIN_CHARS:
             rc.add_error(f'password must be at least {cls.MIN_CHARS} characters long')
         if not any(c.isalpha() for c in pwd):
-            rc.add_error(f'password must have at least one letter')
+            rc.add_error('password must have at least one letter')
         if not any(c.isupper() for c in pwd):
-            rc.add_error(f'password must have at least one capital letter')
+            rc.add_error('password must have at least one capital letter')
         if not any(c.isdigit() for c in pwd):
-            rc.add_error(f'password must have at least one digit')
+            rc.add_error('password must have at least one digit')
         if pwd != pwd2:
-            rc.add_error(f'passwords do not match')
+            rc.add_error('passwords do not match')
 
         if not rc:
             rc.prepend_error_header('New password cannot be used:')
@@ -28,8 +28,8 @@ class VaultUtils:
         return rc
 
     @classmethod
-    def create_master_password(cls, ovveride = False) -> RC:
-        if not ovveride:
+    def create_master_password(cls, override = False) -> RC:
+        if not override:
             mp = SecKeys.retrieve_master_password(throw = False)
             if mp is not None:
                 return RC(False, 'MasterPassword already exists')
@@ -50,7 +50,7 @@ class VaultUtils:
             if proceed.upper() != 'Y':
                 return RC_TRUE
 
-        return cls.create_master_password(ovveride = True)
+        return cls.create_master_password(override = True)
 
     @classmethod
     def _create_user(cls, save = True) -> VaultUser:  #-- must be called inside with vault_store block
@@ -117,7 +117,7 @@ class VaultUtils:
                         break
 
                     while True:
-                        login = input(f"Please enter login name for'{user_id}': ")
+                        login = input(f"Please enter login name for '{user_id}': ")
                         if not login:
                             break
 
@@ -128,7 +128,10 @@ class VaultUtils:
                         try:
                             Resource.instance_from_uri(uri, username = login, password = password)
                         except Exception as ex:
-                            print(f'{str(ex)}')
+                            print(f'Connection failed: {ex!s}')
+                            continue
 
                         VaultResourceAccessor.save_ra(uri, password, login = login, username = user_id)
+                        print(f"Resource accessor saved for '{user_id}' @ {uri}")
+                        break
 

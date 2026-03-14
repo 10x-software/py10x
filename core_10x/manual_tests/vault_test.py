@@ -8,4 +8,4 @@ if __name__ == '__main__':
     #EnvVars.vault_ts_store_uri
 
     #vault = MongoStore.instance(hostname = 'localhost', dbname = 'vault', port = 27018, username = 'AMD', password = '')
-    VaultUtils.new_vault()
+    VaultUtils.register_vault()

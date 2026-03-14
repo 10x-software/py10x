@@ -42,6 +42,7 @@ class SecKeys:
             raise AssertionError(f'MasterPassword for {username} is already set')
 
         keyring.set_password(EnvVars.master_password_key, username, password)
+        cls.retrieve_master_password.clear()
 
     @classmethod
     @cache
@@ -77,6 +78,7 @@ class SecKeys:
             raise AssertionError(f'Password for {username} @ {vault_uri} is already set')
 
         keyring.set_password(vault_uri, username, password)
+        cls.retrieve_vault_password.clear()
 
     @classmethod
     def generate_keys(cls, pwd = None) -> tuple:

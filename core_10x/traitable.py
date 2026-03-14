@@ -504,8 +504,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             raise OSError(f"Vault Store '{uri}' is not running")
 
         if with_auth:
-            pwd = SecKeys.retrieve_vault_password(vault_uri = uri)
-            spec.set_credentials(pwd)
+            pwd = SecKeys.retrieve_vault_password(vault_uri=uri)
+            spec.set_credentials(username=OsUser.me.name(), password=pwd)
 
         return store_class.instance(**spec.kwargs)
 
@@ -1078,7 +1078,7 @@ class AnonymousTraitable(Traitable, embeddable = True):
             cls._me = False
             return
 
-        if not cls is AnonymousTraitable:
+        if cls is not AnonymousTraitable:
             super().check_integrity(rc)
 
 class Bundle(Traitable):
@@ -1146,7 +1146,8 @@ class VaultUser(Traitable):
 
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:
-        return user_id.split('-', 1) == EnvVars.functional_account_prefix
+        prefix = EnvVars.functional_account_prefix
+        return user_id == prefix or user_id.startswith(prefix + '-')
 
     @classmethod
     @cache
@@ -1183,7 +1184,7 @@ class VaultResourceAccessor(Traitable):
     def resource_get(self) -> Resource:
         return Resource.instance_from_uri(
             self.resource_uri,
-            username=self.username,
+            username=self.login,
             password=self.user.sec_keys.decrypt_text(self.password),
         )
 
@@ -1192,11 +1193,12 @@ class VaultResourceAccessor(Traitable):
         if login is None:
             login = username
 
-        ra = cls(username = username, resource_uri = resource_uri)
+        ra = cls(username=username, resource_uri=resource_uri, _replace=True)
         user = ra.user
         rc = ra.set_values(
-            login       = login,
-            password    = user.sec_keys.encrypt_text(password),
+            login=login,
+            password=user.sec_keys.encrypt_text(password),
+            last_updated=datetime.utcnow(),
         )
         if rc:
             rc = ra.save()
