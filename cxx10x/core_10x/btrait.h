@@ -12,20 +12,21 @@ class BTraitableProcessor;
 class BTraitFlags {
 public:
     //---- Trait Flags
-    static constexpr unsigned RESERVED       = 0x1;
-    static constexpr unsigned ID             = 0x2;
-    static constexpr unsigned HASH           = 0x4;
-    static constexpr unsigned READONLY       = 0x8;
-    static constexpr unsigned NOT_EMPTY      = 0x10;
-    static constexpr unsigned RUNTIME        = 0x20;
-    static constexpr unsigned EMBEDDED       = 0x40;
-    static constexpr unsigned EVAL_ONCE      = 0x80;
-    static constexpr unsigned EXPENSIVE      = 0x100;
-    static constexpr unsigned HIDDEN         = 0x200;
-    static constexpr unsigned FAUX           = 0x300;
-    static constexpr unsigned ID_LIKE        = ID|FAUX;
+    static constexpr unsigned RESERVED      = 0x1;
+    static constexpr unsigned ID            = 0x2;
+    static constexpr unsigned HASH          = 0x4;
+    static constexpr unsigned READONLY      = 0x8;
+    static constexpr unsigned NOT_EMPTY     = 0x10;
+    static constexpr unsigned RUNTIME       = 0x20;
+    static constexpr unsigned EMBEDDED      = 0x40;
+    static constexpr unsigned EVAL_ONCE     = 0x80;
+    static constexpr unsigned EXPENSIVE     = 0x100;
+    static constexpr unsigned HIDDEN        = 0x200;
+    static constexpr unsigned FAUX          = 0x400;
+    static constexpr unsigned ID_LIKE       = ID|FAUX;
+    static constexpr unsigned OFFGRAPH_SET  = 0x800;
 
-    static constexpr unsigned LAST_FLAG = ID_LIKE; //TODO: remove?
+    static constexpr unsigned LAST_FLAG = OFFGRAPH_SET; //TODO: remove?
 
     // TODO: review the below CUSTOM_F_*- they do not seem to be used anywhere..
     static constexpr uint64_t CUSTOM_F_GET           = static_cast<uint64_t>(0x1)       << 32;

@@ -17,7 +17,11 @@ py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTrai
         if (node->is_valid())
             return node->value();
 
-    return trait->wrapper_f_get(obj);
+    auto value = trait->wrapper_f_get(obj);
+    if (trait->flags_on(BTraitFlags::OFFGRAPH_SET))
+        raw_set_value_off_graph(proc, obj, trait, value);
+
+    return value;
 }
 
 py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) {
@@ -28,7 +32,11 @@ py::object BTraitProcessor::get_value_off_graph(BTraitableProcessor* proc, BTrai
         if (node->is_valid())
             return node->value();
 
-    return trait->wrapper_f_get(obj, args);
+    auto value = trait->wrapper_f_get(obj, args);
+    if (trait->flags_on(BTraitFlags::OFFGRAPH_SET))
+        raw_set_value_off_graph(proc, obj, trait, value, args);
+
+    return value;
 }
 
 py::object BTraitProcessor::get_node_value_on_graph(BTraitableProcessor* proc, BasicNode *node, const PyBoundMethod& f) {
