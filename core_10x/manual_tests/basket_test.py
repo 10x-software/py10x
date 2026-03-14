@@ -1,43 +1,43 @@
-from core_10x.basket import BasketLike, BasketSet, Basket, T
+from core_10x.basket import Basket, BasketSet, BasketDict, T
 from core_10x.trait_filter import f
 
 
-class FinInstrument(BasketLike, container = Basket):
+class FinInstrument(Basket, container = BasketDict):
     name: str       = T(T.ID)
     leaves: dict    = T()
 
 class FinLeaf(FinInstrument):
     ...
 
-class FinBasket(Basket):
-    member_class: type[BasketLike] = T(FinInstrument)
+class FinBasket(BasketDict):
+    member_class: type[Basket] = T(FinInstrument)
 
     def value(self, p: float) -> float:
         return p * sum(self.members.values())
 
 from datetime import datetime
 
-class Trade(FinBasket, container = Basket):
+class Trade(FinBasket, container = BasketDict):
     booked_at: datetime = T()
     book1_name: str     = T()
     book2_name: str     = T()
 
-class Book(Basket, container = BasketSet):
-    member_class: type[BasketLike]  = T(Trade)
-    name: str                       = T(T.ID)
+class Book(BasketSet, container = BasketSet):
+    member_class: type[Basket]  = T(Trade)
+    name: str                   = T(T.ID)
 
     def members_get(self) -> dict:
         primary_trades      = { trade: 1.   for trade in Trade.existing_instances_by_filter(f(book1_name = self.name)) }
         counterparty_trades = { trade: -1.  for trade in Trade.existing_instances_by_filter(f(book2_name = self.name)) }
         return primary_trades | counterparty_trades
 
-class Portfolio(BasketLike, container = BasketSet):
+class Portfolio(Basket, container = BasketSet):
     name: str               = T(T.ID)
 
     portfolios: BasketSet   = T()
     books: BasketSet        = T()
 
-    def is_member(self, obj: BasketLike) -> bool:
+    def is_member(self, obj: Basket) -> bool:
         return self.portfolios.is_member(obj) or self.books.is_member(obj)
 
     def items(self):

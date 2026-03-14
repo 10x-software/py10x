@@ -1,0 +1,73 @@
+name: Setup MongoDB replica set
+description: Start MongoDB and initialize a single-node replica set
+
+inputs:
+  mongo-version:
+    description: MongoDB Docker image tag
+    required: false
+    default: "8"
+  container-name:
+    description: Docker container name
+    required: false
+    default: "mongo-rs"
+  port:
+    description: Host port to expose MongoDB
+    required: false
+    default: "27017"
+  replica-set-name:
+    description: Replica set name
+    required: false
+    default: "rs0"
+
+runs:
+  using: composite
+  steps:
+    - name: Start MongoDB container
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        CONTAINER_NAME="${{ inputs.container-name }}"
+        PORT="${{ inputs.port }}"
+        REPLICA_SET_NAME="${{ inputs.replica-set-name }}"
+        MONGO_VERSION="${{ inputs.mongo-version }}"
+
+        docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
+
+        docker run -d --name "$CONTAINER_NAME" \
+          -p "${PORT}:${PORT}" \
+          "mongo:${MONGO_VERSION}" \
+          --port "$PORT" \
+          --replSet "$REPLICA_SET_NAME" \
+          --bind_ip_all
+
+        ready=0
+        for _ in {1..30}; do
+          if docker exec "$CONTAINER_NAME" mongosh --port "$PORT" --quiet --eval "db.adminCommand({ ping: 1 })" >/dev/null 2>&1; then
+            ready=1
+            break
+          fi
+          sleep 1
+        done
+
+        if [[ "$ready" -ne 1 ]]; then
+          echo "MongoDB did not become ready in time." >&2
+          exit 1
+        fi
+
+        docker exec "$CONTAINER_NAME" mongosh --port "$PORT" --quiet --eval "rs.initiate({_id:'${REPLICA_SET_NAME}',members:[{_id:0,host:'localhost:${PORT}'}]})" >/dev/null 2>&1 || true
+
+        primary=0
+        for _ in {1..60}; do
+          if docker exec "$CONTAINER_NAME" mongosh --port "$PORT" --quiet --eval "db.hello().isWritablePrimary" | awk '/true/{found=1} END{exit(found?0:1)}'; then
+            primary=1
+            echo "Mongo replica set is PRIMARY"
+            break
+          fi
+          sleep 1
+        done
+
+        if [[ "$primary" -ne 1 ]]; then
+          echo "MongoDB replica set did not become PRIMARY in time." >&2
+          exit 1
+        fi

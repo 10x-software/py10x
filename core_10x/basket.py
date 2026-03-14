@@ -9,11 +9,11 @@ from core_10x.traitable import Traitable, Trait, T, RT, RC, RC_TRUE
 from core_10x.trait_filter import f, OR
 
 
-class BasketLike(Traitable):
+class Basket(Traitable):
     s_container_class: type[BasketContainer] = None
     def __init_subclass__(cls, container = None, **kwargs):
         if container is not None:
-            assert container in (BasketSet, Basket), 'container must be either BasketSet or Basket'
+            assert container in (BasketSet, BasketDict), 'container must be either BasketSet or BasketDict'
             cls.s_container_class = container
 
         super().__init_subclass__(**kwargs)
@@ -39,7 +39,7 @@ class BasketLike(Traitable):
     def __getattr__(self, method_name: str):
         return functools.partial(self._lifter, method_name)
 
-    def is_member(self, obj: BasketLike) -> bool:   raise NotImplementedError
+    def is_member(self, obj: Basket) -> bool:       raise NotImplementedError
     def items(self):                                raise NotImplementedError
 
     class ComboIter:
@@ -63,7 +63,7 @@ class BasketLike(Traitable):
                 self.it = self.iterators[self.i]
                 return self.it.__next__()
 
-    def contents(self, target_class: type[BasketLike], leaves = False, filter: f = None, container: BasketContainer = None, qty: float = 1.) -> BasketContainer:
+    def contents(self, target_class: type[Basket], leaves = False, filter: f = None, container: BasketContainer = None, qty: float = 1.) -> BasketContainer:
         if container is None:
             container = target_class.s_container_class(member_class = target_class)
 
@@ -78,9 +78,9 @@ class BasketLike(Traitable):
 
         return container
 
-class BasketContainer(BasketLike):
-    member_class: type[BasketLike]  = T()
-    subclasses_allowed: bool        = T(True)
+class BasketContainer(Basket):
+    member_class: type[Basket]  = T()
+    subclasses_allowed: bool    = T(True)
 
     def _keys(self):    raise NotImplementedError
 
@@ -111,9 +111,9 @@ class BasketContainer(BasketLike):
 
         return functools.partial(lifter, method_name)
 
-    def add_member(self, obj: BasketLike, qty: float = 1., check = True):               raise NotImplementedError
+    def add_member(self, obj: Basket, qty: float = 1., check = True):               raise NotImplementedError
 
-    def add_items(self, obj: BasketLike, qty: float = 1., member_filter: f = None):
+    def add_items(self, obj: Basket, qty: float = 1., member_filter: f = None):
         member_cls = self.member_class
         subclasses_allowed = self.subclasses_allowed
         for member, mem_qty in obj.items():
@@ -124,7 +124,7 @@ class BasketContainer(BasketLike):
             if not member_filter or member_filter.eval(member):
                 self.add_member(member, qty = qty * mem_qty, check = False)
 
-    def check_new_member(self, obj: BasketLike):
+    def check_new_member(self, obj: Basket):
         member_cls = self.member_class
         obj_cls = obj.__class__
         rc = issubclass(obj_cls, member_cls) if self.subclasses_allowed else obj_cls is member_cls
@@ -133,17 +133,17 @@ class BasketContainer(BasketLike):
 
 
 class BasketSet(BasketContainer):
-    members: set[BasketLike]    = T()
+    members: set[Basket]    = T()
 
     def __post_init__(self):
         self.members = self.members
 
     def _keys(self):    return self.members
 
-    def is_member(self, obj: Traitable) -> bool:
+    def is_member(self, obj: Basket) -> bool:
         return obj in self.members
 
-    def add_member(self, obj: BasketLike, qty: float = 1., check = True):
+    def add_member(self, obj: Basket, qty: float = 1., check = True):
         if check:
             self.check_new_member(obj)
         self.members.add(obj)
@@ -161,18 +161,18 @@ class BasketSet(BasketContainer):
     def items(self):
         return self.Iter(self.members)
 
-class Basket(BasketContainer):
-    members: dict[BasketLike, float] = T({})
+class BasketDict(BasketContainer):
+    members: dict[Basket, float] = T({})
 
     def __post_init__(self):
         self.members = self.members
 
     def _keys(self):    return self.members.keys()
 
-    def is_member(self, obj: BasketLike) -> bool:
+    def is_member(self, obj: Basket) -> bool:
         return obj in self.members.keys()
 
-    def add_member(self, obj: BasketLike, qty: float = 1., check = True):
+    def add_member(self, obj: Basket, qty: float = 1., check = True):
         if check:
             self.check_new_member(obj)
         members = self.members
