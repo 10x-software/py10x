@@ -45,8 +45,6 @@ enum class CORE_10X {
     RC_TRUE_NAME,
     NUCLEUS_MODULE_NAME,
     NUCLEUS_CLASS_NAME,
-    ANONYMOUS_MODULE_NAME,
-    ANONYMOUS_CLASS_NAME,
     TRAITABLE_ID_MODULE_NAME,
     TRAITABLE_ID_CLASS_NAME,
     TRAIT_METHOD_ERROR_MODULE_NAME,
@@ -80,7 +78,6 @@ class PyLinkage {
     py::dict            m_package_names;
     py::object          m_xnone;
     py::object          m_nucleus_class;
-    py::object          m_anonymous_class;
     py::object          m_traitable_id_class;
     py::object          m_trait_method_error_class;
     py::object          f_find_class;
@@ -97,7 +94,6 @@ class PyLinkage {
     std::string name_from_dict(const CORE_10X& enum_key, bool module_name = false);
 
     void get_rc_true();
-    void get_anonymous_class();
 
     void create_choices_args() {
         m_choices_args = py::make_tuple(m_xnone, py::str("__choices"));
@@ -148,12 +144,6 @@ public:
         if (!s_py_linkage->m_rc_true)
             s_py_linkage->get_rc_true();
         return s_py_linkage->m_rc_true;
-    }
-
-    static const py::object& anonymous_class() {
-        if (!s_py_linkage->m_anonymous_class)
-            s_py_linkage->get_anonymous_class();
-        return s_py_linkage->m_anonymous_class;
     }
 
     static bool issubclass(const py::object& cls, const py::object& base_class) {

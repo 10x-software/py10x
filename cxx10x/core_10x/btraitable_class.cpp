@@ -41,10 +41,6 @@ bool BTraitableClass::is_id_endogenous_get() const {
     return false;
 }
 
-bool BTraitableClass::is_anonymous_get() const {
-    return PyLinkage::issubclass(py_class(), PyLinkage::anonymous_class());
-}
-
 BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
     auto trait = PyLinkage::dict_get(trait_dir(), trait_name);
     if (trait.is(PyLinkage::XNone()))

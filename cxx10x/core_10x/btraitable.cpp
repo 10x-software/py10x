@@ -287,8 +287,8 @@ py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py:
 //-- Nucleus' serialize (not for top-level objects)
 py::object BTraitable::serialize_nx(const bool embed) {
     if (!embed) {   //-- external reference
-        if (my_class()->is_anonymous())
-            throw py::type_error(py::str("{} - anonymous' instance may not be serialized as external reference").format(class_name()));
+        if (my_class()->is_embeddable())
+            throw py::type_error(py::str("{} - 'embeddable' instance may not be serialized as external reference").format(class_name()));
 
         py::dict res;
         m_tid.serialize_id(res, embed);
@@ -308,8 +308,8 @@ py::object BTraitable::serialize_nx(const bool embed) {
         return res;
     }
 
-    if (!my_class()->is_anonymous())
-        throw py::type_error(py::str("{}/{} - embedded instance must be anonymous").format(class_name(), id_value()));
+    if (!my_class()->is_embeddable())
+        throw py::type_error(py::str("{}/{} - embedded instance must be 'embeddable'").format(class_name(), id_value()));
 
     return serialize_traits();
 }

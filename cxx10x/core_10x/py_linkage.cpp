@@ -44,19 +44,6 @@ py::module_ import_module(const char* module_name) {
     return module;
 }
 
-void PyLinkage::get_anonymous_class() {
-    const auto mname = name_from_dict(CORE_10X::ANONYMOUS_MODULE_NAME, true);
-    try {
-        const py::module_ mod = py::module_::import(mname.c_str());
-        m_anonymous_class = mod.attr(name_from_dict(CORE_10X::ANONYMOUS_CLASS_NAME).c_str());
-    }
-    catch (py::error_already_set& exc) {
-        const auto msg = py::str("Failed to import module: {}").format(py::str(mname));
-        py::raise_from(exc, PyExc_ValueError, msg.cast<std::string>().c_str());
-        throw py::error_already_set();
-    }
-}
-
 void PyLinkage::get_rc_true() {
     const auto mname = name_from_dict(CORE_10X::RC_MODULE_NAME, true);
     try {
@@ -81,21 +68,6 @@ std::string PyLinkage::name_from_dict(const CORE_10X& enum_key, bool module) {
     full_name.append(m_py_package_name).append(".").append(name);
     return full_name;
 }
-
-//py::object PyLinkage::same_exact_type(const py::object& list_like) {
-//
-//    auto seq = list_like.cast<py::sequence>();  // throws if not a sequence
-//    auto n = seq.size();
-//    if (!n)
-//        return py::none();
-//
-//    PyTypeObject* t0 = Py_TYPE(seq[0].ptr());
-//    for (auto i = 1; i < n; ++i) {
-//        if (Py_TYPE(seq[i].ptr()) != t0)
-//            return py::none();
-//    }
-//    return py::reinterpret_borrow<py::object>((PyObject*)t0);
-//}
 
 //-- Returns: python type object if all elements have the same *exact* type, else None.
 //-- Works with sequences and iterables (dict_keys, dict_values, generators, etc.)

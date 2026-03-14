@@ -20,20 +20,19 @@ protected:
     py::str         m_name;
     py::dict        m_trait_dir;
     bool            m_custom_collection;
+    bool            m_embeddable;
 
     BUiClass*       m_ui_class = nullptr;
 
     eval_once_const(BTraitableClass, bool, is_storable);
     eval_once_const(BTraitableClass, bool, is_id_endogenous);
-    eval_once_const(BTraitableClass, bool, is_anonymous);
 
     [[nodiscard]] bool may_exist_in_store() const {
-        return is_storable() && !is_anonymous() && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY);
+        return is_storable() && !m_embeddable && !BProcessContext::PC.flags_on(BProcessContext::CACHE_ONLY);
     }
 
     bool    is_storable_get() const;
     bool    is_id_endogenous_get() const;
-    bool    is_anonymous_get() const;
 
     BUiClass* bui_class();
 
@@ -44,6 +43,7 @@ public:
         m_name = py_cls.attr("__qualname__");
         m_trait_dir = m_py_class.attr("s_dir");
         m_custom_collection = m_py_class.attr("s_custom_collection").cast<bool>();
+        m_embeddable = m_py_class.attr("s_embeddable").cast<bool>();
     }
 
     //~BTraitableClass();
@@ -68,6 +68,10 @@ public:
 
     bool is_custom_collection() const {
         return m_custom_collection;
+    }
+
+    bool is_embeddable() const {
+        return m_embeddable;
     }
 
     const py::dict& trait_dir() const {
