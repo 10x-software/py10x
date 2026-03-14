@@ -1,13 +1,8 @@
-# from os import path
-#
-# pp = path.dirname(path.abspath(__file__))
-# path_to_core_10x = path.dirname(pp)
 import atexit
 
 from py10x_kernel import CORE_10X, PyLinkage, XCache
 
 
-# fmt: off
 def cleanup():
     XCache.clear()
     PyLinkage.clear()
@@ -25,9 +20,6 @@ PyLinkage.init({
 
     CORE_10X.NUCLEUS_MODULE_NAME:                       'nucleus',
     CORE_10X.NUCLEUS_CLASS_NAME:                        'Nucleus',
-
-    CORE_10X.ANONYMOUS_MODULE_NAME:                     'traitable',
-    CORE_10X.ANONYMOUS_CLASS_NAME:                      'AnonymousTraitable',
 
     CORE_10X.TRAITABLE_ID_MODULE_NAME:                  'traitable_id',
     CORE_10X.TRAITABLE_ID_CLASS_NAME:                   'ID',

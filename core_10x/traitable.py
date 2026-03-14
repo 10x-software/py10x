@@ -278,6 +278,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #     return traitable_class
 
     s_bclass: BTraitableClass = None
+    s_embeddable        = False
     s_custom_collection = False
     s_history_class = XNone  # -- will be set in __init__subclass__ for storable traitables unless keep_history = False. affects storage only.
     s_immutable = (
@@ -287,7 +288,17 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_storage_helper: AbstractStorableHelper = StorageHelperDescriptor()
     s_storage_helper_cached: AbstractStorableHelper | None = None
 
-    def __init_subclass__(cls, custom_collection: bool = None, keep_history: bool = None, immutable: bool = None, **kwargs):
+    def __init_subclass__(
+        cls,
+        embeddable: bool        = None,     #-- if instances of cls may be embedded in other traitables
+        custom_collection: bool = None,     #-- if instance(s) of cls may work with a specific collection
+        keep_history: bool      = None,     #-- if revisions are kept in store
+        immutable: bool         = None,     #-- if instances in store in are immutable
+        **kwargs
+    ):
+        if embeddable is not None:
+            cls.s_embeddable = embeddable
+
         if custom_collection is not None:
             cls.s_custom_collection = custom_collection
 
@@ -311,6 +322,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         else:
             cls.s_history_class = XNone
 
+        if cls.s_embeddable:
+            cls.collection = cls._embedded_collection
+
         rc = RC(True)
         for trait_name, trait in cls.s_dir.items():
             trait.set_trait_funcs(cls, rc)
@@ -320,7 +334,17 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         rc.throw()
 
     @classmethod
+    def _embedded_collection(cls, _coll_name):
+        raise AssertionError(f"{cls} - 'embeddable' traitable may not have a collection")
+
+    @classmethod
     def check_integrity(cls, rc: RC):
+        if cls.s_embeddable:
+            if cls.is_id_endogenous():
+                rc.add_error(f"{cls} is 'embeddable' and may NOT have ID traits")
+            elif not cls.is_storable():
+                rc.add_error(f"{cls} is 'embeddable', but all its traits declared RUNTIME")
+
         if cls.is_storable() and (rt_id_trait := next((trait for trait in cls.traits(flags_on=T.ID) if trait.flags_on((T.RUNTIME))), None)):
             rc.add_error(f'{cls}.{rt_id_trait.name} is a RUNTIME ID trait - traitable must not be storable (all traits must be RUNTIME)')
 
@@ -1014,16 +1038,15 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
     def post_ctor(self): ...
 
     def check_integrity(self, cls, rc: RC):
-        is_anonymous = issubclass(self.data_type, AnonymousTraitable)
         is_runtime = self.flags_on(T.RUNTIME)
         if self.flags_on(T.EMBEDDED):
             if is_runtime:
-                rc.add_error(f'{cls.__name__}.{self.name} - cannot be both RUNTIME adn EMBEDDED')
-            if not is_anonymous:
-                rc.add_error(f'{cls.__name__}.{self.name} - EMBEDDED traitable must be a subclass of AnonymousTraitable')
+                rc.add_error(f'{cls.__name__}.{self.name} - may NOT be both RUNTIME and EMBEDDED')
+            if not self.data_type.s_embeddable:
+                rc.add_error(f"{cls.__name__}.{self.name} - class {self.data_type} must be declared 'embeddable'")
         else:
-            if is_anonymous and not is_runtime:
-                rc.add_error(f'{cls.__name__}.{self.name} - may not have a reference to AnonymousTraitable (the trait must be T.EMBEDDED)')
+            if self.data_type.s_embeddable and not is_runtime:
+                rc.add_error(f"{cls.__name__}.{self.name} - is not declared EMBEDDED, but refers to 'embeddable' class {self.data_type}")
 
     def default_value(self):
         def_value = self.default
@@ -1047,26 +1070,16 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
         return self.data_type(**value)
 
-
-class AnonymousTraitable(Traitable):
+class AnonymousTraitable(Traitable, embeddable = True):
     _me = True
-
     @classmethod
     def check_integrity(cls, rc: RC):
         if cls._me:
             cls._me = False
             return
 
-        if cls is not AnonymousTraitable:
-            if not cls.is_storable():
-                rc.add_error(f'{cls} - anonymous traitable must be storable')
-
-            if cls.is_id_endogenous():
-                rc.add_error(f'{cls} - anonymous traitable may not have ID traits')
-
-    @classmethod
-    def collection(cls, _coll_name: str = None):
-        raise AssertionError('AnonymousTraitable may not have a collection')
+        if not cls is AnonymousTraitable:
+            super().check_integrity(rc)
 
 class Bundle(Traitable):
     s_bundle_base = None

@@ -61,7 +61,7 @@ def test_trait_method_error(cnt, key):
                 assert 'TypeError' in e_str
                 assert f'value = {x.t}' in e_str
                 assert (
-                    "original exception = TypeError: test_trait_method_error.<locals>.X - anonymous' instance may not be serialized as external reference"
+                    "original exception = TypeError: test_trait_method_error.<locals>.X - 'embeddable' instance may not be serialized as external reference"
                     in e_str
                 )
 

@@ -369,7 +369,7 @@ def test_anonymous_traitable(monkeypatch):
 
     y = Y(y=0, x=x, _replace=True)
     with pytest.raises(
-        TraitMethodError, match=r"test_anonymous_traitable.<locals>.X - anonymous' instance may not be serialized as external reference"
+        TraitMethodError, match=r"test_anonymous_traitable.<locals>.X - 'embeddable' instance may not be serialized as external reference"
     ):
         y.serialize_object()
 
@@ -378,7 +378,7 @@ def test_anonymous_traitable(monkeypatch):
     assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X'}
 
     z = Z(y=2, x=Y(y=3), _replace=True)
-    with pytest.raises(TraitMethodError, match=r'test_anonymous_traitable.<locals>.Y/3 - embedded instance must be anonymous'):
+    with pytest.raises(TraitMethodError, match=r"test_anonymous_traitable.<locals>.Y/3 - embedded instance must be 'embeddable'"):
         z.serialize_object()
 
 
