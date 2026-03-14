@@ -25,6 +25,7 @@ dependencies = [
     "polars>=1.38.1",
     "ibis-framework[postgres]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
+    "psutil>=5.9.7",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
