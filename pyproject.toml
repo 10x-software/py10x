@@ -77,6 +77,9 @@ Repository = "https://github.com/10x-software/py10x"
 Issues = "https://github.com/10x-software/py10x/issues"
 Documentation = "https://github.com/10x-software/py10x#readme"
 
+[project.entry-points.pytest11]
+py10x_core = "dev_10x.pytest_plugin"
+
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright"]
 build-backend = "hatchling.build"
