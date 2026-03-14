@@ -56,7 +56,8 @@ dev = [
     "setuptools_scm>=9.2.2",
     "tomlkit>=0.13.0",
     "uv>=0.9",
-    "ibis-framework[duckdb]",
+    "ibis-framework[duckdb]>=12.0.0",
+    "adbc-driver-manager>=1.10.0",
 ]
 rio = [
     "rio-ui==0.12",

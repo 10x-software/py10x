@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
+
+from ibis.common.exceptions import TableNotFound
 
 from core_10x.resource import REL_DB, Resource, ResourceSpec
 
@@ -38,18 +40,23 @@ class RelDb(Resource, resource_type=REL_DB):
             self._connection.disconnect()
             self._connection = None
 
-    def query(self, table_name: str) -> ir.Table:
+    def query(self, table_name: str) -> ir.Table|None:
         """Return an ibis Table for the given table, for further ibis manipulation."""
         assert self._connection is not None, 'RelDb must be used as a context manager.'
-        return self._connection.table(table_name)
+        try:
+            return self._connection.table(table_name)
+        except TableNotFound:
+            return None
 
-    def insert(self, table_name: str, df: pl.DataFrame,
-               if_exists: str = 'fail') -> None:
+    def insert(self, table_name: str, df: pl.DataFrame, if_exists: Literal['replace', 'append', 'fail'] = 'fail') -> None:
         """Insert a polars DataFrame into a table via Polars ADBC.
 
         if_exists: 'fail' (default) raises if the table exists;
                    'replace' drops and recreates; 'append' adds rows.
         """
         assert self._connection is not None, 'RelDb must be used as a context manager.'
-        df.write_database(table_name, self._uri, engine='adbc',
-                          if_table_exists=if_exists)
+        df.write_database(table_name, self._uri, engine='adbc', if_table_exists=if_exists)
+
+    def drop_table(self, table_name: str) -> None:
+        assert self._connection is not None, 'RelDb must be used as a context manager.'
+        self._connection.drop_table(table_name)
