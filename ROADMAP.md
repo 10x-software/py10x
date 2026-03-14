@@ -11,12 +11,14 @@
   - command line utilities
 
 - **Kernel**
-  - runtime - allow getting traitable IDs by class from the current Cache through Cache parents, if any
+  - runtime - allow getting traitable IDs by class from the current Cache through Cache parents, if any (done)
   
 - **Core**
   - Added Traitable.existing_instances_by_filter()
-  - Added BasketLike facility (use case: Portfolio -> Book -> Trade -> FinBasket -> FinInstrument ->...)
-    - will also be used in parallelization
+  - Added T.OFFGRAPH_SET - in GRAPG_OFF mode, on get_value() sets it as well, if not already
+  - Added embeddable flag for Traitable subclass to allow embeddable Traitables not to be derived from AnonynousTraitable
+  - Added Basketable facility (use case: Portfolio -> Book -> Trade -> FinBasket -> FinInstrument ->...)
+    - also planned to be used in parallelization
   
   
 - **Finish UI Table Integration**
