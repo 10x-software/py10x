@@ -20,8 +20,17 @@ class Dummy(Traitable):
         print(f'{self.__class__}.view called')
         return f'{self.name}: {self.payload}'
 
+from core_10x.named_constant import NamedConstant
+
+class F_KEY(NamedConstant):
+    CLASS       = lambda obj: obj.__class__
+    MKT_NAME    = lambda obj: obj.mkt_name
+
+class Bucket(Traitable):
+    f_key: NamedConstant = T()
+
 if __name__ == '__main__':
-    from core_10x.manual_tests.traitable_trivial_test import Dummy, Event
+    from core_10x.manual_tests.traitable_trivial_test import Dummy, Event, F_KEY, Bucket
 
     e = Event()
     print(e.id_value())
@@ -89,3 +98,7 @@ if __name__ == '__main__':
     v2 = d.view, d.view
     d.payload = -1000
     v2 = d.view
+
+
+    b = Bucket(f_key = F_KEY.CLASS)
+    d = b.serialize_object()

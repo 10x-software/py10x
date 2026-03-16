@@ -39,10 +39,6 @@ class XNoneType:
     def __iter__(self):                       return self
     def __next__(self):                       raise StopIteration
 
-    def keys(self):                           return self
-    def values(self):                         return self
-    def items(self):                          return self
-
     def __eq__(self, other):                  return other is self
     def __ne__(self, other):                  return other is not self
     def __lt__(self, other):                  return other is not self
