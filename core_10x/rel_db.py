@@ -22,6 +22,8 @@ class RelDb(Resource, resource_type=REL_DB):
     def instance(cls, *args, **kwargs) -> RelDb:
         if args:
             raise ValueError('RelDb.instance accepts keyword arguments only.')
+        if dbname := kwargs.get(cls.DBNAME_TAG):
+            kwargs[cls.DBNAME_TAG] = dbname.replace('\\', '/')  # normalize Windows paths; backslashes are illegal in URIs
         return cls(ResourceSpec(cls, kwargs).uri())
 
     def __enter__(self):
