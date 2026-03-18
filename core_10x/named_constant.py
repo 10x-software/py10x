@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Callable
 
 from core_10x.nucleus import Nucleus
 
@@ -203,6 +203,17 @@ class NamedConstant(Nucleus):
     @classmethod
     def item(cls, symbol_name: str) -> NamedConstant:
         return cls.s_dir.get(symbol_name)
+
+class NamedCallable(NamedConstant):
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        for cvar in cls.s_dir.values():
+            assert callable(cvar.value), f'{cls}.{cvar.name} - value must be Callable'
+            break   #-- the types of all the rest must have been checked in super()
+
+    @staticmethod
+    def just_func(f: Callable):
+        return NamedCallable(None, None, f)
 
 class Enum(NamedConstant):
     """

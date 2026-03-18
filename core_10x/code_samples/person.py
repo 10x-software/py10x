@@ -4,19 +4,20 @@ from core_10x.named_constant import NamedConstant
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
 
 
-class WEIGHT_QU( NamedConstant ):
-    LB =    ( 'lb',     1. )
-    KG =    ( 'kg',     2.205 )
-    G =     ( 'g',      0.002205 )
-    CT =    ( 'ct',     0.0004409 )
+class WEIGHT_QU(NamedConstant):
+    LB =    ('lb',  1.)
+    KG =    ('kg',  2.205)
+    G =     ('g',   0.002205)
+    CT =    ('ct',  0.0004409)
 
 def verify_alpha(t, value: str) -> RC:
     if value.isalpha():
         return RC_TRUE
     return RC(False, f'{t.name} is {value}, but may have letters only')
 
+from core_10x.basket import Basketable, BUCKET_SHAPE
 
-class Person(Traitable):
+class Person(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.DICT):
     first_name: str         = T(T.ID)
     last_name: str          = T(T.ID)
     dob: date               = T()

@@ -1,10 +1,11 @@
 import ast
 import inspect
 
-from core_10x.named_constant import EnumBits, NamedConstant
+from core_10x.named_constant import EnumBits, NamedConstant, NamedCallable
 from core_10x.nucleus import Nucleus
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
+from core_10x.rc import RC
 from core_10x.trait import T, Trait
 from core_10x.ui_hint import Ui
 from core_10x.xdate_time import XDateTime, date, datetime
@@ -357,6 +358,29 @@ class named_constant_trait(nucleus_trait, data_type=NamedConstant, base_class=Tr
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
+class named_callable_trait(nucleus_trait, data_type = NamedCallable, base_class = True):
+    s_ui_hint = Ui.choice(flags = Ui.SELECT_ONLY)
+
+    def is_acceptable_type(self, data_type: type) -> bool:
+        return data_type is self.data_type
+
+    def serialize(self, value: NamedCallable):
+        if value.name is None:
+            raise TypeError(f"Trait {self.name} = {value} - is just a callable, but supposed to be a NamedCallable")
+
+        return super().serialize(value)
+
+    def default_setter(obj, trait: Trait, value: NamedCallable) -> RC:
+        if not isinstance(value, NamedCallable):
+            if not callable(value):
+                raise TypeError(f'{obj.__class__}/{obj.id()}.{trait.name}: attempt to set a non-callable {value}')
+            value = NamedCallable.just_func(value)
+
+        return obj.raw_set_value(trait, value)
+
+    def post_ctor(self):
+        if not self.f_set:
+            self.set_f_set(self.__class__.default_setter, False)
 
 class flags_trait(nucleus_trait, data_type=EnumBits, base_class=True):
     s_ui_hint = Ui.line()

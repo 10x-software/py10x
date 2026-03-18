@@ -13,7 +13,8 @@ from typing import get_origin, get_type_hints
 
 from py10x_kernel import BTrait
 
-from core_10x.named_constant import NamedConstant
+from core_10x.named_constant import NamedConstant, NamedCallable
+from core_10x.package_refactoring import PackageRefactoring
 from core_10x.rc import RC
 from core_10x.trait_definition import T, TraitDefinition, Ui
 from core_10x.xnone import XNone
@@ -386,3 +387,27 @@ class BoundTrait:
 
     def __call__(self):
         return self.trait
+
+
+class ClassTrait(NamedCallable):
+    def __init__(self, traitable_class, trait: Trait):
+        value = lambda traitable: traitable.get_value(trait)
+        super().__init__(trait.name, trait.name, value)
+        self.cls = traitable_class
+        self.trait = trait
+
+    def to_str(self) -> str:
+        return f'{self.cls}.{self.trait.name}'
+
+    def serialize(self, embed: bool):
+        return [
+            PackageRefactoring.find_class_id(self.cls),
+            self.trait.name
+        ]
+
+    @classmethod
+    def deserialize(cls, serialized_data: list) -> ClassTrait:
+        class_id, trait_name = serialized_data
+        traitable_class = PackageRefactoring.find_class(class_id)
+        trait = traitable_class.trait(trait_name, throw = True)
+        return ClassTrait(traitable_class, trait)

@@ -22,7 +22,7 @@ from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.resource import Resource
-from core_10x.trait import TRAIT_METHOD, BoundTrait, T, Trait, trait_value
+from core_10x.trait import TRAIT_METHOD, BoundTrait, ClassTrait, T, Trait, trait_value
 from core_10x.trait_definition import (
     RT,
     M,
@@ -45,13 +45,19 @@ if TYPE_CHECKING:
 class TraitAccessor:
     __slots__ = ('cls', 'obj')
 
-    def __init__(self, obj: Traitable):
-        self.cls = obj.__class__
-        self.obj = obj
+    def __init__(self, obj: Traitable, cls = None):
+        if obj:
+            self.cls = obj.__class__
+            self.obj = obj
+        else:
+            self.cls = cls
+            self.obj = None
 
-    def __getattr__(self, trait_name: str) -> BoundTrait:
-        trait = self.cls.trait(trait_name, throw=True)
-        return BoundTrait(self.obj, trait)
+    def __getattr__(self, trait_name: str):
+        cls = self.cls
+        trait = cls.trait(trait_name, throw = True)
+        obj = self.obj
+        return BoundTrait(obj, trait) if obj else ClassTrait(cls, trait)
 
     def __call__(self, trait_name: str, throw=True) -> Trait:
         return self.cls.trait(trait_name, throw=True)
@@ -61,7 +67,7 @@ class UnboundTraitAccessor:
     __slots__ = ()
 
     def __get__(self, instance, owner):
-        return TraitAccessor(instance)
+        return TraitAccessor(instance) if instance else TraitAccessor(None, cls = owner)
 
 
 COLL_NAME_TAG = '_collection_name'
