@@ -217,6 +217,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return (base.s_dir for base in reversed(cls.__bases__) if issubclass(base, Traitable))
 
     @classmethod
+    def _post_build_trait_dir(cls, trait_dir: dict):
+        pass
+
+    @classmethod
     def build_trait_dir(cls):
         class_dict = dict(cls.__dict__)
         module_dict = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
@@ -240,6 +244,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         for trait_name, trait_def in cls.own_trait_definitions():
             trait_def.name = trait_name
             trait_dir[trait_name] = Trait.create(trait_name, trait_def)
+
+        cls._post_build_trait_dir(trait_dir)
 
         if not cls.is_storable():
             for trait_name in reserved_storable_traits:
@@ -296,6 +302,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         immutable: bool         = None,     #-- if instances in store in are immutable
         **kwargs
     ):
+        super().__init_subclass__(**kwargs)     #-- for cooperative (possible) multiple inheritance
+
         if embeddable is not None:
             cls.s_embeddable = embeddable
 
@@ -412,7 +420,18 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def new_or_replace(cls, **kwargs) -> Traitable:
         return cls(**kwargs, _replace=True)
 
-    def set_values(self, _ignore_unknown_traits=True, **trait_values) -> RC:
+    @classmethod
+    @cache
+    def runtime(cls) -> type[Traitable]:
+        class Runtime(cls):
+            @classmethod
+            def _post_build_trait_dir(cls, trait_dir: dict):
+                for trait in trait_dir.values():
+                    trait.set_flags(T.RUNTIME.value())
+        Runtime._post_build_trait_dir = cls._post_build_trait_dir
+        return Runtime
+
+    def set_values(self, _ignore_unknown_traits = True, **trait_values) -> RC:
         return self._set_values(trait_values, _ignore_unknown_traits)
 
     def __getitem__(self, item):
