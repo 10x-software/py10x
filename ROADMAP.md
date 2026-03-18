@@ -17,6 +17,9 @@
   - Added Traitable.existing_instances_by_filter()
   - Added T.OFFGRAPH_SET - in GRAPG_OFF mode, on get_value() sets it as well, if not already
   - Added embeddable flag for Traitable subclass to allow embeddable Traitables not to be derived from AnonynousTraitable
+  - We should get rid of T.EMBEDDED: traitables would be saved either within the containing object, if embeddable, or externally otherwise
+  - Added NamedCallable to facilitate saving traitables with settable functions
+  - Added ClassTrait as special-purpose NamedCallable: its value is lambda obj: obj.get_value(trait)
   - Added Basketable facility (use case: Portfolio -> Book -> Trade -> FinBasket -> FinInstrument ->...)
     - also planned to be used in parallelization
   
