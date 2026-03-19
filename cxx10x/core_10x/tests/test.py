@@ -204,6 +204,9 @@ def test_existing_instance():
 
     assert x1.v==10
 
+    x3 = X(k='3')
+    assert X.existing_instance(k='3') == x3
+
 
 def test_self_trait_lazy():
     class X(Traitable):
@@ -268,7 +271,7 @@ def test_anonymous_embedded():
     try:
         y.serialize_object()
     except TraitMethodError as e:
-        assert "test_anonymous_embedded.X - anonymous' instance may not be serialized as external reference" in str(e)
+        assert "test_anonymous_embedded.X - 'embeddable' instance may not be serialized as external reference" in str(e)
     else:
         assert False
 
@@ -281,7 +284,7 @@ def test_anonymous_embedded():
     try:
         z.serialize_object()
     except TraitMethodError as e:
-        assert "test_anonymous_embedded.<locals>.Y/3 - embedded instance must be anonymous" in str(e)
+        assert "test_anonymous_embedded.<locals>.Y/3 - embedded instance must be 'embeddable'" in str(e)
     else:
         assert False
 

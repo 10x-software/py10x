@@ -49,7 +49,7 @@ bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
     const auto id_value = obj->tid().is_valid() ? obj->id_value() : obj->endogenous_id();
     const auto tid = TID(obj->my_class(), PyLinkage::traitable_id(id_value, obj->tid().coll_name()));
     if (const auto origin_cache = m_cache->find_origin_cache(tid)) {
-        if ( origin_cache->lazy_load_flags(tid) & XCache::LOAD_REQUIRED_MUST_EXIST && !obj->my_class()->instance_in_store(tid)) {
+        if (origin_cache->lazy_load_flags(tid) & XCache::MUST_EXIST_IN_STORE && !obj->my_class()->instance_in_store(tid)) {
             // e.g. created with existing_object_by_id
             origin_cache->set_lazy_load_flags(tid, XCache::REPLACE_EXISTING);
             return false;
