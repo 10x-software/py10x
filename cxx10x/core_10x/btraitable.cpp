@@ -286,12 +286,10 @@ py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py:
 
 //-- Nucleus' serialize (not for top-level objects)
 py::object BTraitable::serialize_nx(const bool embed) {
-    if (!embed) {   //-- external reference
-        if (my_class()->is_embeddable())
-            throw py::type_error(py::str("{} - 'embeddable' instance may not be serialized as external reference").format(class_name()));
+    if (auto const serialize_embedded = embed && my_class()->is_embeddable(); !serialize_embedded) {   //-- external reference
 
         py::dict res;
-        m_tid.serialize_id(res, embed);
+        m_tid.serialize_id(res, serialize_embedded);
         if (!my_class()->is_storable()) {
             if (my_class()->is_id_endogenous()) {
                 res[BNucleus::ID_TAG()] = serialize_id_traits();
@@ -307,9 +305,6 @@ py::object BTraitable::serialize_nx(const bool embed) {
         }
         return res;
     }
-
-    if (!my_class()->is_embeddable())
-        throw py::type_error(py::str("{}/{} - embedded instance must be 'embeddable'").format(class_name(), id_value()));
 
     return serialize_traits();
 }
