@@ -382,6 +382,62 @@ def test_anonymous_traitable(monkeypatch):
         z.serialize_object()
 
 
+class TestSerializeEmbedded:
+    class Y(Traitable, embeddable=True):
+        y: int = T()
+        c: int = T()
+
+    class Z(Traitable):
+        z: int = T(T.ID)
+        d: int = T()
+
+    class X(Traitable):
+        x: int = T(T.ID)
+        a: AnonymousTraitable = T(T.EMBEDDED)
+        b: list[Traitable] = T(T.EMBEDDED)
+
+    def test_serialize_embedded(self):
+        X, Y, Z = self.X, self.Y, self.Z  # noqa: N806
+        with CACHE_ONLY():
+            x = X(
+                x=1,
+                a=Y(
+                    y=1,
+                    c=1,
+                    _replace=True,
+                ),
+                b=[
+                    Y(
+                        y=2,
+                        c=2,
+                        _replace=True,
+                    ),
+                    Z(
+                        z=3,
+                        d=4,
+                        _replace=True,
+                    ),
+                ],
+                _replace=True,
+            )
+            serialized = x.serialize_object()
+            assert serialized == {
+                '_id': '1',
+                '_rev': 0,
+                'x': 1,
+                'a': {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 1, 'c': 1}},
+                'b': [
+                    None,
+                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 2, 'c': 2}},
+                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Z', '_obj': {'_id': '3'}},
+                ],
+            }
+
+            z = X.deserialize(serialized).b[1]
+            assert isinstance(z, Z)
+            assert z.d == 4
+
+
 def test_own_trait_defs():
     cnt = Counter()
 
@@ -806,14 +862,14 @@ def test_id_like_with_replace_and_non_id_update():
 
 
 class TestExistingInstance:
-    class TestPerson(Person):
+    class TestablePerson(Person):
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
-            return id.value=='Ariella|Pevzner'
+            return id.value == 'Ariella|Pevzner'
 
         @classmethod
         def load_data(cls, id: ID) -> dict | None:
-            return {'_id': id.value,'_rev':1} if id.value == 'Ariella|Pevzner' else None
+            return {'_id': id.value, '_rev': 1} if id.value == 'Ariella|Pevzner' else None
 
     class RuntimePerson(Person):
         @classmethod
@@ -839,12 +895,12 @@ class TestExistingInstance:
                 dict(),
             ]
             classes = [
-                self.TestPerson,
-                self.TestPerson,
+                self.TestablePerson,
+                self.TestablePerson,
                 self.RuntimePerson,
                 self.RuntimePerson,
             ]
-            people = [cls(**id_traits,**kwargs) for cls, id_traits, kwargs in zip(classes, id_traits, kwargs, strict=True)]
+            people = [cls(**id_traits, **kwargs) for cls, id_traits, kwargs in zip(classes, id_traits, kwargs, strict=True)]
 
             ppl_found = [obj.__class__.existing_instance(**id_values) for obj, id_values in zip(people, id_traits, strict=True)]
             assert ppl_found == people
@@ -852,11 +908,11 @@ class TestExistingInstance:
             # Positive / negative lookups with _throw flag
             assert self.RuntimePerson.existing_instance(last_name='Smith', first_name='John')
 
-            assert not self.TestPerson.existing_instance(last_name='Pevzner', first_name='Arthur', _throw=False)
-            assert not self.TestPerson.existing_instance_by_id(ID('Arthur|Pevzner'), _throw=False)
+            assert not self.TestablePerson.existing_instance(last_name='Pevzner', first_name='Arthur', _throw=False)
+            assert not self.TestablePerson.existing_instance_by_id(ID('Arthur|Pevzner'), _throw=False)
 
-            assert self.TestPerson.existing_instance(last_name='Pevzner', first_name='Ariella', _throw=False)
-            assert self.TestPerson.existing_instance_by_id(ID('Ariella|Pevzner'))
+            assert self.TestablePerson.existing_instance(last_name='Pevzner', first_name='Ariella', _throw=False)
+            assert self.TestablePerson.existing_instance_by_id(ID('Ariella|Pevzner'))
 
             for i, cls in enumerate(people):
                 # existing_instance_by_id with ID and raw id value

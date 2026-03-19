@@ -1095,6 +1095,17 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
         return self.data_type(**value)
 
+    def serialize(self, value: Traitable):
+        embed, embeddable = self.flags_on(T.EMBEDDED), value.s_embeddable
+        if embeddable and not embed:
+            raise TypeError(f"{value.s_bclass.name()} - 'embeddable' instance may not be serialized as external reference")
+
+        if not embeddable and embed:
+            raise TypeError(f"{value.s_bclass.name()}/{value.id_value()} - embedded instance must be 'embeddable'")
+
+        return super().serialize(value)
+
+
 class AnonymousTraitable(Traitable, embeddable = True):
     _me = True
     @classmethod
