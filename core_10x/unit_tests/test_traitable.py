@@ -805,7 +805,16 @@ def test_id_like_with_replace_and_non_id_update():
         Cross(base_ccy='A', quote_ccy='B', value='234')
 
 
-def test_existing_instance_api_variants():
+class TestExistingInstance:
+    class TestPerson(Person):
+        @classmethod
+        def exists_in_store(cls, id: ID) -> bool:
+            return id.value=='Ariella|Pevzner'
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            return {'_id': id.value,'_rev':1} if id.value == 'Ariella|Pevzner' else None
+
     class RuntimePerson(Person):
         @classmethod
         def own_trait_definitions(cls) -> Generator[tuple[str, TraitDefinition]]:
@@ -813,40 +822,54 @@ def test_existing_instance_api_variants():
                 if not trait.flags_on(T.RUNTIME | T.RESERVED):
                     yield trait_name, TraitModification(flags=T.RUNTIME).apply(trait.t_def)
 
-    assert not RuntimePerson.is_storable()
+    def test_existing_instance_api_variants(self):
+        assert not self.RuntimePerson.is_storable()
 
-    with CACHE_ONLY():
-        ppl_stored = [
-            Person(last_name='Davidovich', first_name='Sasha', weight_lbs=170, _replace=True),
-            Person(last_name='Pevzner', first_name='Ilya', weight_lbs=200, _replace=True),
-            RuntimePerson(last_name='Lesin', first_name='Alex', weight_lbs=190, _replace=True),
-            RuntimePerson(last_name='Smith', first_name='John', weight_lbs=180, _replace=True),
-        ]
+        if 1:
+            id_traits = [
+                dict(last_name='Davidovich', first_name='Sasha'),
+                dict(last_name='Pevzner', first_name='Ilya'),
+                dict(last_name='Lesin', first_name='Alex'),
+                dict(last_name='Smith', first_name='John'),
+            ]
+            kwargs = [
+                dict(weight_lbs=170, _replace=True),
+                dict(),
+                dict(weight_lbs=190, _replace=True),
+                dict(),
+            ]
+            classes = [
+                self.TestPerson,
+                self.TestPerson,
+                self.RuntimePerson,
+                self.RuntimePerson,
+            ]
+            people = [cls(**id_traits,**kwargs) for cls, id_traits, kwargs in zip(classes, id_traits, kwargs, strict=True)]
 
-        existing_id_traits = [{trait.name: p.get_value(trait) for trait in p.traits(flags_on=T.ID.value())} for p in ppl_stored]
+            ppl_found = [obj.__class__.existing_instance(**id_values) for obj, id_values in zip(people, id_traits, strict=True)]
+            assert ppl_found == people
 
-        ppl_found = [obj.__class__.existing_instance(**id_values) for obj, id_values in zip(ppl_stored, existing_id_traits, strict=True)]
-        assert ppl_found == ppl_stored
+            # Positive / negative lookups with _throw flag
+            assert self.RuntimePerson.existing_instance(last_name='Smith', first_name='John')
 
-        # Positive / negative lookups with _throw flag
-        p1 = RuntimePerson.existing_instance(last_name='Smith', first_name='John')
-        assert p1
+            assert not self.TestPerson.existing_instance(last_name='Pevzner', first_name='Arthur', _throw=False)
+            assert not self.TestPerson.existing_instance_by_id(ID('Arthur|Pevzner'), _throw=False)
 
-        p2 = Person.existing_instance(last_name='Pevzner', first_name='Arthur', _throw=False)
-        assert p2 is None
+            assert self.TestPerson.existing_instance(last_name='Pevzner', first_name='Ariella', _throw=False)
+            assert self.TestPerson.existing_instance_by_id(ID('Ariella|Pevzner'))
 
-        for i, cls in enumerate(ppl_stored):
-            # existing_instance_by_id with ID and raw id value
-            id1 = ppl_found[i].id()
-            p3 = cls.existing_instance_by_id(_id=id1)
+            for i, cls in enumerate(people):
+                # existing_instance_by_id with ID and raw id value
+                id1 = ppl_found[i].id()
+                p3 = cls.existing_instance_by_id(_id=id1)
 
-            id1_val = id1.value
-            p4 = cls.existing_instance_by_id(_id_value=id1_val)
-            assert p3 == p4
+                id1_val = id1.value
+                p4 = cls.existing_instance_by_id(_id_value=id1_val)
+                assert p3 == p4
 
-            id2_val = 'Smith|Josh'
-            p5 = cls.existing_instance_by_id(_id_value=id2_val, _throw=False)
-            assert p5 is None
+                id2_val = 'Smith|Josh'
+                p5 = cls.existing_instance_by_id(_id_value=id2_val, _throw=False)
+                assert p5 is None
 
 
 @pytest.mark.parametrize('value', [{'x': 1}, {}, [], [1], np.float64(1.1)])
