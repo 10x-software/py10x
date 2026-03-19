@@ -5,33 +5,34 @@ import functools
 from typing import Callable, Any
 import inspect
 from types import GeneratorType
+import itertools
 
 from core_10x.traitable import Traitable, Trait, T, RT, RC, RC_TRUE, XNone
 from core_10x.named_constant import NamedConstant, NamedCallable
 from core_10x.xinf import XInf
 
 
-class ComboIter:
-    def __init__(self, *iterators):
-        assert iterators
-        self.iterators = iterators
-        self.i = 0
-        self.it = iterators[0]
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        try:
-            return self.it.__next__()
-        except StopIteration:
-            self.i += 1
-            if self.i == len(self.iterators):
-                raise StopIteration
-
-            self.it = self.iterators[self.i]
-            return self.it.__next__()
-
+# class ComboIter:
+#     def __init__(self, *iterators):
+#         assert iterators
+#         self.iterators = iterators
+#         self.i = 0
+#         self.it = iterators[0]
+#
+#     def __iter__(self):
+#         return self
+#
+#     def __next__(self):
+#         try:
+#             return self.it.__next__()
+#         except StopIteration:
+#             self.i += 1
+#             if self.i == len(self.iterators):
+#                 raise StopIteration
+#
+#             self.it = self.iterators[self.i]
+#             return self.it.__next__()
+#
 
 class Bucket(Traitable):
     def calc_trait_values(self, trait_name: str, aggregator_f: Callable):
@@ -194,7 +195,7 @@ class Basket(Traitable):
         raise NotImplementedError
 
     def members_qtys(self):
-        return ComboIter(*tuple(bucket.members_qtys() for _, bucket in self.all_buckets()))
+        return itertools.chain(*tuple(bucket.members_qtys() for _, bucket in self.all_buckets()))
 
     def __getattr__(self, method_name: str):
         base_class = self.base_class

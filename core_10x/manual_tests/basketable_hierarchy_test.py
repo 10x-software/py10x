@@ -1,6 +1,8 @@
 from datetime import datetime
+import itertools
+import random
 
-from core_10x.basket import Basket, Basketable, BUCKET_SHAPE, SimpleBasket, ComboIter, Bucket, BucketSet, BucketDict
+from core_10x.basket import Basket, Basketable, BUCKET_SHAPE, SimpleBasket, Bucket, BucketSet, BucketDict
 from core_10x.traitable import Traitable, T, RT
 from core_10x.trait_filter import f
 
@@ -9,11 +11,16 @@ class FinInstrument(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.DICT):
     name: str       = T(T.ID)
     leaves: dict    = T()
 
+    def price(self):
+        return sum(leaf.price() * qty for leaf, qty in self.leaves.items())
+
     def members_qtys(self):
         return self.leaves.items()
 
 class FinLeaf(FinInstrument):
-    ...
+    def price(self):
+        mu = random.randint(1,100)
+        return random.gauss(mu = mu, sigma = 10.)
 
 class FiBasket(SimpleBasket):
     def base_class_get(self):
@@ -23,10 +30,14 @@ class FiBasket(SimpleBasket):
     #    return p * sum(self.members.values())
 
 class Trade(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.DICT):
+    name: str           = T(T.ID)
     booked_at: datetime = T()
     book1_name: str     = T()
     book2_name: str     = T()
     basket: FiBasket    = T()
+
+    def members_qtys(self):
+        return self.basket.members_qtys()
 
 class Book(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
     name: str                       = T(T.ID)
@@ -42,7 +53,7 @@ class Book(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
         return BucketDict(data = { trade: -1. for trade in Trade.existing_instances_by_filter(f(book2_name = self.name)) })
 
     def members_qtys(self):
-        return ComboIter(self.primary_trades.members_qtys(), self.counterparty_trades.members_qtys())
+        return itertools.chain(self.primary_trades.members_qtys(), self.counterparty_trades.members_qtys())
 
 class Portfolio(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
     name: str               = T(T.ID)
@@ -69,7 +80,7 @@ class Portfolio(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
         return self.portfolios.is_member(obj) or self.books.is_member(obj)
 
     def members_qtys(self):
-        return ComboIter(self.portfolios.members_qtys(), self.books.members_qtys())
+        return itertools.chain(self.portfolios.members_qtys(), self.books.members_qtys())
 
 if __name__ == '__main__':
     from core_10x.manual_tests.basketable_hierarchy_test import Portfolio, Book, Trade, FinInstrument, FinLeaf
@@ -86,21 +97,15 @@ if __name__ == '__main__':
     f2 = FinInstrument(name = 'F2')
     f3 = FinInstrument(name = 'F3')
 
-    """
-    class Trade(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.DICT):
-        booked_at: datetime = T()
-        book1_name: str     = T()
-        book2_name: str     = T()
-        basket: FiBasket    = T()
-
-    """
-    t1 = Trade(
+    t1 = Trade(_replace = True,
+        name        = 'T1',
         book1_name  = 'Book1',
         book2_name  = 'Book2',
         basket      = FiBasket(bucket = BucketDict(data = {f1: 10., f2: -2.}))
     )
 
-    t2 = Trade(
+    t2 = Trade(_replace = True,
+        name        = 'T2',
         book1_name  = 'Book3',
         book2_name  = 'Book2',
         basket      = FiBasket(bucket = BucketDict(data = {f3: 4.}))
@@ -110,41 +115,25 @@ if __name__ == '__main__':
     b2 = Book(_replace = True, name = 'Book2', customer_book = True)
     b3 = Book(_replace = True, name = 'Book3', customer_book = False)
 
-    """
-    class Portfolio(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
-        name: str               = T(T.ID)
-    
-        portfolio_names: list   = T()
-        book_names: list        = T()
-    
-        portfolios: SimpleBasket = RT()
-        books: SimpleBasket      = RT()
-    """
-    p2 = Portfolio(
-        _replace = True,
-        name    = 'P2',
-        book_names = ['Book2']
-    )
-
-    p1 = Portfolio(
-        _replace = True,
-        name    = 'P1',
-        book_names = ['Book1']
-    )
+    p1 = Portfolio(_replace = True, name    = 'P1', book_names = ['Book1'])
+    p2 = Portfolio(_replace = True, name    = 'P2', book_names = ['Book2'])
 
     p = Portfolio(
         _replace = True,
         name    = 'Top',
-        portfolio_names = ['P1'],
+        portfolio_names = ['P1', 'P2'],
         book_names = ['Book3']
     )
 
     basket1 = Basket.simple(Book)
-
-    #f11 = FinInstrument.existing_instance(name = 'F1')
-
-    #b11 = Book.existing_instance(name = 'Book1')
     p.contents(basket1)
+
+    basket2 = Basket.simple(Trade)
+    p.contents(basket2)
+
+    basket3 = Basket.simple(FinInstrument)
+    p.contents(basket3)
+
 
     # books = p.contents(Book)
     #
