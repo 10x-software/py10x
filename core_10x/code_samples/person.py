@@ -15,9 +15,7 @@ def verify_alpha(t, value: str) -> RC:
         return RC_TRUE
     return RC(False, f'{t.name} is {value}, but may have letters only')
 
-from core_10x.basket import Basketable, BUCKET_SHAPE
-
-class Person(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.DICT):
+class Person(Traitable):
     first_name: str         = T(T.ID)
     last_name: str          = T(T.ID)
     dob: date               = T()

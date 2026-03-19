@@ -47,23 +47,23 @@ class Bucket(Traitable):
         return data_gen if not aggregator_f else aggregator_f(data_gen)
 
 
-    def _insert(self, obj: Basketable, qty: float):     raise NotImplementedError
+    def _insert(self, obj: Traitable, qty: float):      raise NotImplementedError
     def _insert_bucket(self, bucket: Bucket):           raise NotImplementedError
-    def is_member(self, obj: Basketable) -> bool:       raise NotImplementedError
+    def is_member(self, obj: Traitable) -> bool:        raise NotImplementedError
     def members(self):                                  raise NotImplementedError
     def members_qtys(self):                             raise NotImplementedError
 
 #class BucketSet(Bucket, embeddable = True):
 class BucketSet(Bucket):
-    data: set['Basketable'] = T(T.OFFGRAPH_SET)
+    data: set[Traitable] = T(T.OFFGRAPH_SET)
 
-    def _insert(self, obj: Basketable, qty: float):
+    def _insert(self, obj: Traitable, qty: float):
         self.data.add(obj)
 
     def _insert_bucket(self, bucket: BucketSet):
         self.data.update(bucket.data)
 
-    def is_member(self, obj: Basketable) -> bool:
+    def is_member(self, obj: Traitable) -> bool:
         return obj in self.data
 
     class Iter:
@@ -85,13 +85,13 @@ class BucketSet(Bucket):
 class BucketList(Bucket, embeddable = True):
     data: list = T(T.OFFGRAPH_SET)
 
-    def _insert(self, obj: Basketable, qty: float):
+    def _insert(self, obj: Traitable, qty: float):
         self.data.append(obj)
 
     def _insert_bucket(self, bucket: BucketList):
         self.data.extend(bucket.data)
 
-    def is_member(self, obj: Basketable) -> bool:
+    def is_member(self, obj: Traitable) -> bool:
         return obj in self.data
 
     class Iter:
@@ -112,9 +112,9 @@ class BucketList(Bucket, embeddable = True):
 
 #class BucketDict(Bucket, embeddable = True):
 class BucketDict(Bucket):
-    data: dict['Basketable', float] = T(T.OFFGRAPH_SET)
+    data: dict[Traitable, float] = T(T.OFFGRAPH_SET)
 
-    def _insert(self, obj: Basketable, qty: float = 1):
+    def _insert(self, obj: Traitable, qty: float = 1):
         data = self.data
         ex_qty = data.get(obj, 0.)
         data[obj] = ex_qty + qty
@@ -125,7 +125,7 @@ class BucketDict(Bucket):
             ex_qty = data.get(obj, 0.)
             data[obj] = ex_qty + qty
 
-    def is_member(self, obj: Basketable) -> bool:
+    def is_member(self, obj: Traitable) -> bool:
         return obj in self.data
 
     def members(self):
@@ -147,16 +147,16 @@ class Basketable:
 
         super().__init_subclass__(**kwargs)
 
-    def contents(self, target_class: type[Basketable], basket: Basket, qty: float = 1.):
+    def contents(self, basket: Basket, qty: float = 1.):
+        target_class = basket.base_class
         for member, mem_qty in self.members_qtys():
             if isinstance(member, target_class):
                 basket.add(member, qty * mem_qty)
             else:
-                member.contents(target_class, basket, qty = qty * mem_qty)
+                member.contents(basket, qty = qty * mem_qty)
 
 
     def is_member(self, obj: Basketable) -> bool:   raise NotImplementedError
-    #def baskets(self):                              raise NotImplementedError
     def members_qtys(self):                         raise NotImplementedError
 
 """
@@ -169,9 +169,23 @@ class FIN_AGGREGATOR(NamedCallable):
     LEAVES      = lambda basket:    raise NotSupportedError 
 """
 class Basket(Traitable):
-    base_class: type[Basketable]            = T(T.NOT_EMPTY)
+    s_bucket_shape: BUCKET_SHAPE = BUCKET_SHAPE.DICT
+    def __init_subclass__(cls, bucket_shape: BUCKET_SHAPE = None, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if bucket_shape is not None:
+            cls.s_bucket_shape = bucket_shape
+
+    bucket_shape: BUCKET_SHAPE              = RT()
+
+    base_class: type[Traitable]             = T(T.NOT_EMPTY)
     subclasses_allowed: bool                = T(True)
     aggregator_class: type[NamedCallable]   = T()
+
+    def bucket_shape_get(self) -> BUCKET_SHAPE:
+        base_class = self.base_class
+        if issubclass(base_class, Basketable):
+            return base_class.s_bucket_shape
+        return self.__class__.s_bucket_shape
 
     def is_simple(self) -> bool:
         return False
@@ -179,8 +193,8 @@ class Basket(Traitable):
     def all_buckets(self):
         raise NotImplementedError
 
-    def all_members(self):
-        return ComboIter(*tuple(bucket.members() for bucket in self.buckets.values()))
+    def members_qtys(self):
+        return ComboIter(*tuple(bucket.members_qtys() for _, bucket in self.all_buckets()))
 
     def __getattr__(self, method_name: str):
         base_class = self.base_class
@@ -248,18 +262,18 @@ class Basket(Traitable):
         return f
 
     def new_bucket(self) -> Bucket:
-        return self.base_class.s_bucket_shape.value()
+        return self.bucket_shape.value()
 
-    def is_acceptable(self, obj: Basketable) -> bool:
+    def is_acceptable(self, obj: Traitable) -> bool:
         return isinstance(obj, self.base_class) if self.subclasses_allowed else obj.__class__ is self.base_class
 
-    def add(self, obj: Basketable, qty: float = 1.) -> bool:
+    def add(self, obj: Traitable, qty: float = 1.) -> bool:
         raise NotImplementedError
 
     @classmethod
     def verify_base_class(cls, base_class):
-        if not base_class or not inspect.isclass(base_class) or not issubclass(base_class, Basketable):
-            raise AssertionError('base_class must be a subclass of Basketable')
+        if not base_class or not inspect.isclass(base_class) or not issubclass(base_class, Traitable):
+            raise AssertionError('base_class must be a subclass of Traitable')
 
     @classmethod
     def verify_custom_f(cls, custom_f, label: str, arg_data_type: type = None):
@@ -280,12 +294,12 @@ class Basket(Traitable):
                 raise AssertionError(f'{label}: {custom_f} must accept single {arg_data_type}')
 
     @classmethod
-    def simple(cls, base_class: type[Basketable], subclasses_allowed = True) -> Basket:
+    def simple(cls, base_class: type[Traitable], subclasses_allowed = True) -> Basket:
         cls.verify_base_class(base_class)
         return SimpleBasket(base_class = base_class, subclasses_allowed = subclasses_allowed)
 
     @classmethod
-    def by_class(cls, base_class: type[Basketable], *known_subclasses) -> Basket:
+    def by_class(cls, base_class: type[Traitable], *known_subclasses) -> Basket:
         cls.verify_base_class(base_class)
         if known_subclasses:
             if not all(inspect.isclass(ca) and issubclass(ca, base_class) for ca in known_subclasses):
@@ -294,7 +308,7 @@ class Basket(Traitable):
         return BasketByClass(base_class = base_class, buckets_spec = set(known_subclasses))
 
     @classmethod
-    def by_feature(cls, base_class: type[Basketable], feature_calc, *buckets_spec, bucket_tag_calc = None) -> Basket:
+    def by_feature(cls, base_class: type[Traitable], feature_calc, *buckets_spec, bucket_tag_calc = None) -> Basket:
         cls.verify_base_class(base_class)
         cls.verify_custom_f(feature_calc, 'feature_calc')
         if not bucket_tag_calc:
@@ -304,13 +318,13 @@ class Basket(Traitable):
         return BasketByFeature(base_class = base_class, f_bucketizing_value = feature_calc, f_bucket_tag = bucket_tag_calc, buckets_spec = buckets_spec)
 
     @classmethod
-    def by_range(cls, base_class: type[Basketable], value_for_range_calc, *intervals_spec) -> Basket:
+    def by_range(cls, base_class: type[Traitable], value_for_range_calc, *intervals_spec) -> Basket:
         cls.verify_base_class(base_class)
         cls.verify_custom_f(value_for_range_calc, 'value_for_range_calc')
         return BasketByRange(base_class = base_class, f_bucketizing_value = value_for_range_calc, buckets_spec = intervals_spec)
 
     @classmethod
-    def by_breakpoints(cls, base_class: type[Basketable], value_for_range_calc, *breakpoints) -> Basket:
+    def by_breakpoints(cls, base_class: type[Traitable], value_for_range_calc, *breakpoints) -> Basket:
         cls.verify_base_class(base_class)
         cls.verify_custom_f(value_for_range_calc, 'value_for_range_calc')
         return BasketByBreakPoints(base_class = base_class, f_bucketizing_value = value_for_range_calc, buckets_spec = breakpoints)
@@ -324,7 +338,10 @@ class SimpleBasket(Basket):
     def is_simple(self) -> bool:
         return True
 
-    def add(self, obj: Basketable, qty: float = 1.) -> bool:
+    def all_buckets(self):
+        return ((XNone, self.bucket), )
+
+    def add(self, obj: Traitable, qty: float = 1.) -> bool:
         if not self.is_acceptable(obj):
             return False
 
@@ -343,14 +360,14 @@ class ComboBasket(Basket):
     def num_buckets(self) -> int:
         return len(self.buckets)
 
-    def calc_bucketizing_value(self, obj: Basketable):
+    def calc_bucketizing_value(self, obj: Traitable):
         raise NotImplementedError
 
     def calc_bucket_tag(self, bucketizing_value):
         known_tags = self.bucket_tags
         return bucketizing_value if not known_tags or bucketizing_value in known_tags else None
 
-    def add(self, obj: Basketable, qty: float = 1.) -> bool:
+    def add(self, obj: Traitable, qty: float = 1.) -> bool:
         if not self.is_acceptable(obj):
             return False
 
@@ -376,17 +393,17 @@ class ComboBasket(Basket):
 
 
 class BasketByClass(ComboBasket):
-    def is_acceptable(self, obj: Basketable) -> bool:
+    def is_acceptable(self, obj: Traitable) -> bool:
         return isinstance(obj, self.base_class)
 
-    def calc_bucketizing_value(self, obj: Basketable):
+    def calc_bucketizing_value(self, obj: Traitable):
         return obj.__class__
 
 class BasketByFeature(ComboBasket):
     f_bucketizing_value: NamedCallable  = T(T.NOT_EMPTY)
     f_bucket_tag: NamedCallable         = T()
 
-    def calc_bucketizing_value(self, obj: Basketable):
+    def calc_bucketizing_value(self, obj: Traitable):
         return self.f_bucketizing_value.value(obj)
 
     def calc_bucket_tag(self, bucketizing_value):
