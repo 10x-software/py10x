@@ -286,8 +286,7 @@ py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py:
 
 //-- Nucleus' serialize (not for top-level objects)
 py::object BTraitable::serialize_nx(const bool embed) {
-    if (auto const serialize_embedded = embed && my_class()->is_embeddable(); !serialize_embedded) {   //-- external reference
-
+    if (auto const serialize_embedded = my_class()->is_embeddable(); !serialize_embedded) {   //-- external reference
         py::dict res;
         m_tid.serialize_id(res, serialize_embedded);
         if (!my_class()->is_storable()) {
