@@ -385,38 +385,31 @@ def test_anonymous_traitable(monkeypatch):
 class TestSerializeEmbedded:
     class Y(Traitable, embeddable=True):
         y: int = T()
-        c: int = T()
+        a: int = T()
 
     class Z(Traitable):
         z: int = T(T.ID)
-        d: int = T()
+        a: int = T()
 
     class X(Traitable):
         x: int = T(T.ID)
         a: AnonymousTraitable = T(T.EMBEDDED)
         b: list[Traitable] = T(T.EMBEDDED)
+        c: list[Traitable] = T()
 
     def test_serialize_embedded(self):
         X, Y, Z = self.X, self.Y, self.Z  # noqa: N806
         with CACHE_ONLY():
             x = X(
                 x=1,
-                a=Y(
-                    y=1,
-                    c=1,
-                    _replace=True,
-                ),
+                a=Y(y=1, a=1, _replace=True),
                 b=[
-                    Y(
-                        y=2,
-                        c=2,
-                        _replace=True,
-                    ),
-                    Z(
-                        z=3,
-                        d=4,
-                        _replace=True,
-                    ),
+                    Y(y=2, a=2, _replace=True),
+                    Z(z=3, a=4, _replace=True),
+                ],
+                c=[
+                    Y(y=3, a=3, _replace=True),
+                    Z(z=4, a=5, _replace=True),
                 ],
                 _replace=True,
             )
@@ -425,17 +418,22 @@ class TestSerializeEmbedded:
                 '_id': '1',
                 '_rev': 0,
                 'x': 1,
-                'a': {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 1, 'c': 1}},
+                'a': {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 1, 'a': 1}},
                 'b': [
                     None,
-                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 2, 'c': 2}},
+                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 2, 'a': 2}},
                     {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Z', '_obj': {'_id': '3'}},
+                ],
+                'c': [
+                    None,
+                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 3, 'a': 3}},
+                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Z', '_obj': {'_id': '4'}},
                 ],
             }
 
             z = X.deserialize(serialized).b[1]
             assert isinstance(z, Z)
-            assert z.d == 4
+            assert z.a == 4
 
 
 def test_own_trait_defs():
