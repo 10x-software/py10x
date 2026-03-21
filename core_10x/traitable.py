@@ -302,6 +302,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     def __init_subclass__(
         cls,
+        root_class              = False,    #-- the class is a 'root' with no intent to instantiate - skip irrelevant checks!
         embeddable: bool        = None,     #-- if instances of cls may be embedded in other traitables
         custom_collection: bool = None,     #-- if instance(s) of cls may work with a specific collection
         keep_history: bool      = None,     #-- if revisions are kept in store
@@ -344,7 +345,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             trait.set_trait_funcs(cls, rc)
             trait.check_integrity(cls, rc)
             setattr(cls, trait_name, trait)
-        cls.check_integrity(rc)
+        cls.check_integrity(root_class, rc)
         rc.throw()
 
     @classmethod
@@ -352,11 +353,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         raise AssertionError(f"{cls} - 'embeddable' traitable may not have a collection")
 
     @classmethod
-    def check_integrity(cls, rc: RC):
+    def check_integrity(cls, root_class: bool, rc: RC):
         if cls.s_embeddable:
             if cls.is_id_endogenous():
                 rc.add_error(f"{cls} is 'embeddable' and may NOT have ID traits")
-            elif not cls.is_storable():
+            elif not root_class and not cls.is_storable():
                 rc.add_error(f"{cls} is 'embeddable', but all its traits declared RUNTIME")
 
         if cls.is_storable() and (rt_id_trait := next((trait for trait in cls.traits(flags_on=T.ID) if trait.flags_on((T.RUNTIME))), None)):
@@ -1106,16 +1107,8 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
         return super().serialize(value)
 
 
-class AnonymousTraitable(Traitable, embeddable = True):
-    _me = True
-    @classmethod
-    def check_integrity(cls, rc: RC):
-        if cls._me:
-            cls._me = False
-            return
-
-        if not cls is AnonymousTraitable:
-            super().check_integrity(rc)
+class AnonymousTraitable(Traitable, root_class = True, embeddable = True):
+    pass
 
 class Bundle(Traitable):
     s_bundle_base = None

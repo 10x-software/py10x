@@ -2,38 +2,19 @@ from __future__ import annotations
 
 import bisect
 import functools
-from typing import Callable, Any
+from typing import Callable
 import inspect
 from types import GeneratorType
 import itertools
 
+from core_10x import trait
 from core_10x.traitable import Traitable, Trait, T, RT, RC, RC_TRUE, XNone
 from core_10x.named_constant import NamedConstant, NamedCallable
 from core_10x.xinf import XInf
 
 
-# class ComboIter:
-#     def __init__(self, *iterators):
-#         assert iterators
-#         self.iterators = iterators
-#         self.i = 0
-#         self.it = iterators[0]
-#
-#     def __iter__(self):
-#         return self
-#
-#     def __next__(self):
-#         try:
-#             return self.it.__next__()
-#         except StopIteration:
-#             self.i += 1
-#             if self.i == len(self.iterators):
-#                 raise StopIteration
-#
-#             self.it = self.iterators[self.i]
-#             return self.it.__next__()
-#
-
+#-- TODO: uncomment when T.EMBEDDED is not required to hold an embeddable
+#class Bucket(Traitable, root_class = True, embeddable = True):
 class Bucket(Traitable):
     def calc_trait_values(self, trait_name: str, aggregator_f: Callable):
         data_gen = ( (member.get_value(trait_name), qty) for member, qty in self.members_qtys() )
@@ -54,9 +35,8 @@ class Bucket(Traitable):
     def members(self):                                  raise NotImplementedError
     def members_qtys(self):                             raise NotImplementedError
 
-#class BucketSet(Bucket, embeddable = True):
 class BucketSet(Bucket):
-    data: set[Traitable] = T(T.OFFGRAPH_SET)
+    data: set[Traitable] = T(T.STICKY)
 
     def _insert(self, obj: Traitable, qty: float):
         self.data.add(obj)
@@ -83,8 +63,8 @@ class BucketSet(Bucket):
     def members_qtys(self):
         return self.Iter(self.data)
 
-class BucketList(Bucket, embeddable = True):
-    data: list = T(T.OFFGRAPH_SET)
+class BucketList(Bucket):
+    data: list = T(T.STICKY)
 
     def _insert(self, obj: Traitable, qty: float):
         self.data.append(obj)
@@ -111,9 +91,8 @@ class BucketList(Bucket, embeddable = True):
     def members_qtys(self):
         return self.Iter(self.data)
 
-#class BucketDict(Bucket, embeddable = True):
 class BucketDict(Bucket):
-    data: dict[Traitable, float] = T(T.OFFGRAPH_SET)
+    data: dict[Traitable, float] = T(T.STICKY)
 
     def _insert(self, obj: Traitable, qty: float = 1):
         data = self.data
@@ -160,116 +139,20 @@ class Basketable:
     def is_member(self, obj: Basketable) -> bool:   raise NotImplementedError
     def members_qtys(self):                         raise NotImplementedError
 
-"""
-Example of aggregator:
 
-class FIN_AGGREGATOR(NamedCallable):
-    PRICE       = FinInstrument.aggregate_price
-    PRICE_CCY   = Portfolio.aggregate_price
-    LIFE_CYCLE  = LifeCycler.aggregate_life_cycle
-    LEAVES      = lambda basket:    raise NotSupportedError 
-"""
-class Basket(Traitable):
-    s_bucket_shape: BUCKET_SHAPE = BUCKET_SHAPE.DICT
-    def __init_subclass__(cls, bucket_shape: BUCKET_SHAPE = None, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if bucket_shape is not None:
-            cls.s_bucket_shape = bucket_shape
+class Bucketizer(Traitable, embeddable = True):
+    buckets_spec: list  = T()
+    bucket_tags: set    = RT()
 
-    bucket_shape: BUCKET_SHAPE              = RT()
+    def bucket_tags_get(self) -> set:
+        return set(self.buckets_spec)
 
-    base_class: type[Traitable]             = T(T.NOT_EMPTY)
-    subclasses_allowed: bool                = T(True)
-    aggregator_class: type[NamedCallable]   = T()
-
-    def bucket_shape_get(self) -> BUCKET_SHAPE:
-        base_class = self.base_class
-        if issubclass(base_class, Basketable):
-            return base_class.s_bucket_shape
-        return self.__class__.s_bucket_shape
-
-    def is_simple(self) -> bool:
-        return False
-
-    def all_buckets(self):
+    def calc_bucketizing_value(self, obj: Traitable):
         raise NotImplementedError
 
-    def members_qtys(self):
-        return itertools.chain(*tuple(bucket.members_qtys() for _, bucket in self.all_buckets()))
-
-    def __getattr__(self, method_name: str):
-        base_class = self.base_class
-        trait = getattr(base_class, method_name, None)
-        if trait is None:
-            return None
-
-        aggregator_f = self.f_aggregator(method_name, throw = False)
-        if isinstance(trait, Trait):
-            if not trait.getter_params:
-                return self.calc_trait_values(method_name, aggregator_f)
-
-            return functools.partial(self._lift_by_trait_name, method_name, aggregator_f)
-
-        if callable(trait):
-            return functools.partial(self._lift_by_method_name, method_name, aggregator_f)
-
-        return None
-
-    def calc_trait_values(self, trait_name: str, aggregator_f: Callable):
-        if self.is_simple():
-            for _, bucket in self.all_buckets():
-                return bucket.calc_trait_values(trait_name, aggregator_f)
-
-        return {
-            tag: bucket.calc_trait_values(trait_name, aggregator_f)
-            for tag, bucket in self.all_buckets()
-        }
-
-    def _lift_by_trait_name(self, trait_name: str, aggregator_f: Callable, *args):
-        bucket: Bucket
-        if self.is_simple():
-            for _, bucket in self.all_buckets():
-                return bucket.calc_trait_values_with_args(trait_name, aggregator_f, *args)
-
-        return {
-            tag: bucket.calc_trait_values_with_args(trait_name, aggregator_f, *args)
-            for tag, bucket in self.all_buckets()
-        }
-
-    def _lift_by_method_name(self, method_name: str, aggregator_f: Callable, *args, **kwargs):
-        bucket: Bucket
-        if self.is_simple():
-            for _, bucket in self.all_buckets():
-                return bucket.calc_method(method_name, aggregator_f, *args, **kwargs)
-
-        return {
-            tag: bucket.calc_method(method_name, aggregator_f, *args, **kwargs)
-            for tag, bucket in self.all_buckets()
-        }
-
-    def finalize_results(self, results):
-        if isinstance(results, GeneratorType):
-            return list(results)
-
-        if isinstance(results, dict):
-            return { tag: list(r) if isinstance(r, GeneratorType) else r for tag, r in results.items() }
-
-        return results
-
-    def f_aggregator(self, method_name: str, throw = True) -> Callable:
-        f = self.aggregator_class.s_dir.get(method_name.upper())
-        if throw and f is None:
-            raise AssertionError(f"Basket: aggregator for method '{method_name}' is not defined")
-        return f
-
-    def new_bucket(self) -> Bucket:
-        return self.bucket_shape.value()
-
-    def is_acceptable(self, obj: Traitable) -> bool:
-        return isinstance(obj, self.base_class) if self.subclasses_allowed else obj.__class__ is self.base_class
-
-    def add(self, obj: Traitable, qty: float = 1.) -> bool:
-        raise NotImplementedError
+    def calc_bucket_tag(self, bucketizing_value):
+        known_tags = self.bucket_tags
+        return bucketizing_value if not known_tags or bucketizing_value in known_tags else None
 
     @classmethod
     def verify_base_class(cls, base_class):
@@ -295,112 +178,45 @@ class Basket(Traitable):
                 raise AssertionError(f'{label}: {custom_f} must accept single {arg_data_type}')
 
     @classmethod
-    def simple(cls, base_class: type[Traitable], subclasses_allowed = True) -> Basket:
-        cls.verify_base_class(base_class)
-        return SimpleBasket(base_class = base_class, subclasses_allowed = subclasses_allowed)
-
-    @classmethod
-    def by_class(cls, base_class: type[Traitable], *known_subclasses) -> Basket:
+    def by_class(cls, base_class: type[Traitable], *known_subclasses) -> Bucketizer:
         cls.verify_base_class(base_class)
         if known_subclasses:
             if not all(inspect.isclass(ca) and issubclass(ca, base_class) for ca in known_subclasses):
                 raise AssertionError(f'Each class in subclasses_allowed must be a subclass of {base_class}')
 
-        return BasketByClass(base_class = base_class, buckets_spec = set(known_subclasses))
+        return BucketizerByClass(base_class = base_class, buckets_spec = list(known_subclasses))
 
     @classmethod
-    def by_feature(cls, base_class: type[Traitable], feature_calc, *buckets_spec, bucket_tag_calc = None) -> Basket:
+    def by_feature(cls, base_class: type[Traitable], feature_calc, *buckets_spec, bucket_tag_calc = None) -> Bucketizer:
         cls.verify_base_class(base_class)
         cls.verify_custom_f(feature_calc, 'feature_calc')
         if not bucket_tag_calc:
-            return BasketByFeature(base_class = base_class, f_bucketizing_value = feature_calc, buckets_spec = buckets_spec)
+            return BucketizerByFeature(base_class = base_class, f_bucketizing_value = feature_calc, buckets_spec = buckets_spec)
 
         cls.verify_custom_f(bucket_tag_calc, 'bucket_tag_calc')
-        return BasketByFeature(base_class = base_class, f_bucketizing_value = feature_calc, f_bucket_tag = bucket_tag_calc, buckets_spec = buckets_spec)
+        return BucketizerByFeature(base_class = base_class, f_bucketizing_value = feature_calc, f_bucket_tag = bucket_tag_calc, buckets_spec = buckets_spec)
 
     @classmethod
-    def by_range(cls, base_class: type[Traitable], value_for_range_calc, *intervals_spec) -> Basket:
+    def by_range(cls, base_class: type[Traitable], value_for_range_calc, *intervals_spec) -> Bucketizer:
         cls.verify_base_class(base_class)
         cls.verify_custom_f(value_for_range_calc, 'value_for_range_calc')
-        return BasketByRange(base_class = base_class, f_bucketizing_value = value_for_range_calc, buckets_spec = intervals_spec)
+        return BucketizerByRange(base_class = base_class, f_bucketizing_value = value_for_range_calc, buckets_spec = intervals_spec)
 
     @classmethod
-    def by_breakpoints(cls, base_class: type[Traitable], value_for_range_calc, *breakpoints) -> Basket:
+    def by_breakpoints(cls, base_class: type[Traitable], value_for_range_calc, *breakpoints) -> Bucketizer:
         cls.verify_base_class(base_class)
         cls.verify_custom_f(value_for_range_calc, 'value_for_range_calc')
-        return BasketByBreakPoints(base_class = base_class, f_bucketizing_value = value_for_range_calc, buckets_spec = breakpoints)
-
-class SimpleBasket(Basket):
-    bucket: Bucket = T(T.OFFGRAPH_SET)
-
-    def bucket_get(self) -> Bucket:
-        return self.new_bucket()
-
-    def is_simple(self) -> bool:
-        return True
-
-    def all_buckets(self):
-        return ((XNone, self.bucket), )
-
-    def add(self, obj: Traitable, qty: float = 1.) -> bool:
-        if not self.is_acceptable(obj):
-            return False
-
-        self.bucket._insert(obj, qty)
-        return True
-
-class ComboBasket(Basket):
-    buckets_spec: list              = T()
-    buckets: dict[Any, Bucket]      = T(T.OFFGRAPH_SET)
-
-    bucket_tags: set                = RT()
-
-    def bucket_tags_get(self) -> set:
-        return set(self.buckets_spec)
-
-    def num_buckets(self) -> int:
-        return len(self.buckets)
-
-    def calc_bucketizing_value(self, obj: Traitable):
-        raise NotImplementedError
-
-    def calc_bucket_tag(self, bucketizing_value):
-        known_tags = self.bucket_tags
-        return bucketizing_value if not known_tags or bucketizing_value in known_tags else None
-
-    def add(self, obj: Traitable, qty: float = 1.) -> bool:
-        if not self.is_acceptable(obj):
-            return False
-
-        bucketizing_value = self.calc_bucketizing_value(obj)
-        tag = self.calc_bucket_tag(bucketizing_value)
-        if tag is None:
-            return False
-
-        all_buckets = self.buckets
-        bucket = all_buckets.get(tag)
-        if bucket is None:
-            bucket = self.new_bucket()
-            all_buckets[tag] = bucket
-        bucket._insert(obj, qty)
-        return True
-
-    def all_buckets(self):
-        return self.buckets.items()
-
-    def members_by_bucket(self, bucket_tag):
-        bucket = self.buckets.get(bucket_tag, XNone)
-        return bucket.members()
+        return BucketizerByBreakPoints(base_class = base_class, f_bucketizing_value = value_for_range_calc, buckets_spec = breakpoints)
 
 
-class BasketByClass(ComboBasket):
-    def is_acceptable(self, obj: Traitable) -> bool:
-        return isinstance(obj, self.base_class)
+class BucketizerByClass(Bucketizer):
+    #def is_acceptable(self, obj: Traitable) -> bool:
+    #    return isinstance(obj, self.base_class)
 
     def calc_bucketizing_value(self, obj: Traitable):
         return obj.__class__
 
-class BasketByFeature(ComboBasket):
+class BucketizerByFeature(Bucketizer):
     f_bucketizing_value: NamedCallable  = T(T.NOT_EMPTY)
     f_bucket_tag: NamedCallable         = T()
 
@@ -424,7 +240,7 @@ class Interval:
             label = f'{left_bracket} {a} : {b} {right_bracket}'
         self.label = label
 
-class BasketByRange(BasketByFeature):
+class BucketizerByRange(BucketizerByFeature):
     """
     interval    := [ label, low, high ]         #-- low <= x <= high: 'label'
                 |= [ low, high ]                #-- same as [ '[low - high]', low, high ]
@@ -466,7 +282,7 @@ class BasketByRange(BasketByFeature):
 
         return None
 
-class BasketByBreakPoints(BasketByFeature):
+class BucketizerByBreakPoints(BucketizerByFeature):
     include_last: bool          = T(False)
 
     intervals: list[Interval]   = RT()
@@ -518,4 +334,169 @@ class BasketByBreakPoints(BasketByFeature):
 
         return intervals[i].label
 
+"""
+Example of aggregator:
+
+class FIN_AGGREGATOR(NamedCallable):
+    PRICE       = FinInstrument.aggregate_price
+    PRICE_CCY   = Portfolio.aggregate_price
+    LIFE_CYCLE  = LifeCycler.aggregate_life_cycle
+    LEAVES      = lambda basket:    raise NotSupportedError 
+"""
+class Basket(Traitable, root_class = True, embeddable = True):
+    s_bucket_shape: BUCKET_SHAPE = BUCKET_SHAPE.DICT
+    def __init_subclass__(cls, bucket_shape: BUCKET_SHAPE = None, **kwargs):
+        super().__init_subclass__(**kwargs)
+        if bucket_shape is not None:
+            cls.s_bucket_shape = bucket_shape
+
+    bucket_shape: BUCKET_SHAPE              = RT()
+
+    base_class: type[Traitable]             = T(T.NOT_EMPTY)
+    subclasses_allowed: bool                = T(True)
+    aggregator_class: type[NamedCallable]   = T()
+    bucketizers: list[Bucketizer]           = T(T.EMBEDDED)
+
+    the_bucket: Bucket                      = T(T.STICKY)       #-- single bucket if there are no bucketizers
+    all_buckets: dict                       = T(T.STICKY)       #-- tagged buckets WRT bucketizers, i.e.: {(t1_i,t2_i,...): bucket_i}
+
+    def bucket_shape_get(self) -> BUCKET_SHAPE:
+        base_class = self.base_class
+        if issubclass(base_class, Basketable):
+            return base_class.s_bucket_shape
+        return self.__class__.s_bucket_shape
+
+    def the_bucket_get(self) -> Bucket:
+        return self.new_bucket()
+
+    def bucketizers_set(self, trait, bucketizers: list[Bucketizer]) -> RC:
+        if not isinstance(bucketizers, list) or not all(isinstance(b, Bucketizer) for b in bucketizers):
+            return RC(False, 'bucketizers must be a list of instances of Bucketizer')
+
+        self.invalidate_value('the_bucket')
+        self.invalidate_value('all_buckets')
+
+        return self.raw_set_value(trait, bucketizers)
+
+    def add_bucketizer(self, bucketizer: Bucketizer) -> bool:
+        new_buckets = {}
+        for tag, bucket in self.tags_buckets():
+            for member, qty in bucket.members_qtys():
+                b_value = bucketizer.calc_bucketizing_value(member)
+                b_tag = bucketizer.calc_bucket_tag(b_value)
+                if b_tag is None:
+                    continue
+
+                key = *tag, b_tag
+                new_bucket = new_buckets.get(key)
+                if new_bucket is None:
+                    new_bucket = self.new_bucket()
+                    new_buckets[key] = new_bucket
+                new_bucket._insert(member, qty)
+
+        self.invalidate_value('the_bucket')
+        self.raw_set_value('all_buckets', new_buckets)
+        return True
+
+    def new_bucket(self) -> Bucket:
+        return self.bucket_shape.value()
+
+    def is_acceptable(self, obj: Traitable) -> bool:
+        return isinstance(obj, self.base_class) if self.subclasses_allowed else obj.__class__ is self.base_class
+
+    def add(self, obj: Traitable, qty: float = 1.) -> bool:
+        if not self.is_acceptable(obj):
+            return False
+
+        bucketizers = self.bucketizers
+        if not bucketizers:
+            bucket = self.the_bucket
+        else:
+            tags = []
+            for bucketizer in bucketizers:
+                b_value = bucketizer.calc_bucketizing_value(obj)
+                b_tag = bucketizer.calc_bucket_tag(b_value)
+                if b_tag is None:
+                    return False
+
+                tags.append(b_tag)
+
+            key = tuple(tags)
+            data = self.all_buckets
+            bucket = data.get(key)
+            if bucket is None:
+                bucket = self.new_bucket()
+                data[key] = bucket
+
+        bucket._insert(obj, qty)
+        return True
+
+    def tags_buckets(self):
+        if not self.bucketizers:
+            return ( v for v in ((XNone, self.the_bucket),) )
+
+        return ( (key, bucket) for key, bucket in self.all_buckets.items() )
+
+    def members_qtys(self):
+        return itertools.chain.from_iterable(bucket.members_qtys() for _, bucket in self.all_buckets())
+
+    def __getattr__(self, method_name: str):
+        base_class = self.base_class
+        trait = getattr(base_class, method_name, None)
+        if trait is None:
+            return None
+
+        aggregator_f = self.f_aggregator(method_name, throw = False)
+        if isinstance(trait, Trait):
+            if not trait.getter_params:
+                return self.calc_trait_values(method_name, aggregator_f)
+
+            return functools.partial(self._lift_by_trait_name, method_name, aggregator_f)
+
+        if callable(trait):
+            return functools.partial(self._lift_by_method_name, method_name, aggregator_f)
+
+        return None
+
+    def calc_trait_values(self, trait_name: str, aggregator_f: Callable):
+        if not self.bucketizers:
+            return self.the_bucket.calc_trait_values(trait_name, aggregator_f)
+
+        return {
+            tag: bucket.calc_trait_values(trait_name, aggregator_f)
+            for tag, bucket in self.all_buckets()
+        }
+
+    def _lift_by_trait_name(self, trait_name: str, aggregator_f: Callable, *args):
+        if not self.bucketizers:
+            return self.the_bucket.calc_trait_values_with_args(trait_name, aggregator_f, *args)
+
+        return {
+            tag: bucket.calc_trait_values_with_args(trait_name, aggregator_f, *args)
+            for tag, bucket in self.all_buckets()
+        }
+
+    def _lift_by_method_name(self, method_name: str, aggregator_f: Callable, *args, **kwargs):
+        if not self.bucketizers:
+            return self.the_bucket.calc_method(method_name, aggregator_f, *args, **kwargs)
+
+        return {
+            tag: bucket.calc_method(method_name, aggregator_f, *args, **kwargs)
+            for tag, bucket in self.all_buckets()
+        }
+
+    def finalize_results(self, results):
+        if isinstance(results, GeneratorType):
+            return list(results)
+
+        if isinstance(results, dict):
+            return { tag: list(r) if isinstance(r, GeneratorType) else r for tag, r in results.items() }
+
+        return results
+
+    def f_aggregator(self, method_name: str, throw = True) -> Callable:
+        f = self.aggregator_class.s_dir.get(method_name.upper())
+        if throw and f is None:
+            raise AssertionError(f"Basket: aggregator for method '{method_name}' is not defined")
+        return f
 
