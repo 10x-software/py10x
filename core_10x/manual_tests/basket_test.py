@@ -33,5 +33,18 @@ if __name__ == '__main__':
         for member, qty in bucket.members_qtys():
             print(f'{member} = {qty}')
 
-    # r = b.weight
-    # print(f'weight = {r}')
+    r = b.weight
+    print(f'weight = {r}')
+
+    b.bucketizers = []
+    for i, p in enumerate(all_people[:-1]):
+        b.add(p, i)
+
+    r = b.weight
+    print(f'weight = {r}')
+
+    bz = Bucketizer.by_range(Person, Person.T.age, ('normal', 50, XInf ))
+    b.add_bucketizer(bz)
+
+    r = b.weight
+    print(f'weight = {r}')

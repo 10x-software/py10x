@@ -396,6 +396,7 @@ class Basket(Traitable, root_class = True, embeddable = True):
 
         self.invalidate_value('the_bucket')
         self.raw_set_value('all_buckets', new_buckets)
+        self.bucketizers.append(bucketizer)
         return True
 
     def new_bucket(self) -> Bucket:
@@ -464,7 +465,7 @@ class Basket(Traitable, root_class = True, embeddable = True):
 
         return {
             tag: bucket.calc_trait_values(trait_name, aggregator_f)
-            for tag, bucket in self.all_buckets()
+            for tag, bucket in self.tags_buckets()
         }
 
     def _lift_by_trait_name(self, trait_name: str, aggregator_f: Callable, *args):
@@ -473,7 +474,7 @@ class Basket(Traitable, root_class = True, embeddable = True):
 
         return {
             tag: bucket.calc_trait_values_with_args(trait_name, aggregator_f, *args)
-            for tag, bucket in self.all_buckets()
+            for tag, bucket in self.tags_buckets()
         }
 
     def _lift_by_method_name(self, method_name: str, aggregator_f: Callable, *args, **kwargs):
@@ -482,7 +483,7 @@ class Basket(Traitable, root_class = True, embeddable = True):
 
         return {
             tag: bucket.calc_method(method_name, aggregator_f, *args, **kwargs)
-            for tag, bucket in self.all_buckets()
+            for tag, bucket in self.tags_buckets()
         }
 
     def finalize_results(self, results):
@@ -498,5 +499,5 @@ class Basket(Traitable, root_class = True, embeddable = True):
         f = self.aggregator_class.s_dir.get(method_name.upper())
         if throw and f is None:
             raise AssertionError(f"Basket: aggregator for method '{method_name}' is not defined")
-        return f
+        return f.value
 
