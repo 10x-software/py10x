@@ -3,15 +3,18 @@ import traceback
 import pytest
 
 from core_10x.rc import RC
-from core_10x.trait_definition import T
+from core_10x.trait_definition import T, RT
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable, AnonymousTraitable
 
 
 OUTPUTS = ['exception', 'object', 'args', 'value']
 GROUPS = [
-    {'serialize_nx': lambda x: x.serialize_object(False)},
-    {'z_deserialize': lambda x: x.__class__.deserialize({'z': 2000}), 'y_get': lambda x: x.y},
+    {
+        'serialize_nx': lambda x: x.serialize_object(False),
+        's_deserialize': lambda x: x.__class__.deserialize_object(x.s_bclass,None,{'_id':'a','_rev':1,'s': 1000}),
+    },
+    {'y_get': lambda x: x.y},
     {'x_get': lambda x: x.x(0)},
     {'x_set': lambda x: x.set_value('x', 100, 10)},
 ]
@@ -21,11 +24,12 @@ bombing_methods = {'_'.join(OUTPUTS[: i + 1]): group for i, group in enumerate(G
 
 @pytest.mark.parametrize(argnames=['cnt', 'key'], argvalues=enumerate(bombing_methods.keys()))
 def test_trait_method_error(cnt, key):
-    class X(AnonymousTraitable):
+    class X(Traitable):
         x: int
         y: int
         z: int = T(1000)
-        t: Traitable = T()
+        s: int = T()
+        t: AnonymousTraitable = T(T.EMBEDDED)
 
         @classmethod
         def bombing_method(cls, x):
@@ -41,11 +45,11 @@ def test_trait_method_error(cnt, key):
             return self.bombing_method(value)
 
         @classmethod
-        def y_serialize(cls, value):
+        def s_serialize(cls, value):
             return cls.bombing_method(value)
 
         @classmethod
-        def y_deserialize(cls, trait, value):
+        def s_deserialize(cls, trait, value):
             return cls.bombing_method(value)
 
     x = X()
@@ -55,15 +59,13 @@ def test_trait_method_error(cnt, key):
             f(x)
         except TraitMethodError as e:
             e_str = str(e)
-            if cnt:
-                assert 'KeyError' in e_str
-            else:
-                assert 'TypeError' in e_str
-                assert f'value = {x.t}' in e_str
-                assert (
-                    "original exception = TypeError: test_trait_method_error.<locals>.X - 'embeddable' instance may not be serialized as external reference"
-                    in e_str
-                )
+            if not cnt:
+                if m == 's_deserialize':
+                    assert 'value = 1000' in e_str
+                    assert 'original exception = KeyError: 1001' in e_str
+                else:
+                    assert 'original exception = TypeError: test_trait_method_error.<locals>.X/' in e_str
+                    assert " - embedded instance must be 'embeddable'" in e_str
 
             for i, output in enumerate(key.split('_')):
                 expected = i < cnt + 1
@@ -78,3 +80,5 @@ def test_trait_method_error(cnt, key):
                 assert f"'{m}': lambda x: x." in tb_str
                 assert 'bombing_method(' in tb_str
                 assert 'raise KeyError(x + 1)' in tb_str
+        else:
+            assert False, "Expected Exception!" # noqa: B011

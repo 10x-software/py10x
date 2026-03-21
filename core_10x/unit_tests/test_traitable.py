@@ -368,10 +368,8 @@ def test_anonymous_traitable(monkeypatch):
     assert x.serialize(True) == {'a': 1}
 
     y = Y(y=0, x=x, _replace=True)
-    with pytest.raises(
-        TraitMethodError, match=r"test_anonymous_traitable.<locals>.X - 'embeddable' instance may not be serialized as external reference"
-    ):
-        y.serialize_object()
+    s = y.serialize_object()
+    assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X'}
 
     z = Z(y=1, x=x, _replace=True)
     s = z.serialize_object()
@@ -391,49 +389,50 @@ class TestSerializeEmbedded:
         z: int = T(T.ID)
         a: int = T()
 
-    class X(Traitable):
+    class X1(Traitable):
         x: int = T(T.ID)
         a: AnonymousTraitable = T(T.EMBEDDED)
-        b: list[Traitable] = T(T.EMBEDDED)
-        c: list[Traitable] = T()
+        b: list[Traitable] = T()
 
-    def test_serialize_embedded(self):
-        X, Y, Z = self.X, self.Y, self.Z  # noqa: N806
+    class X2(X1):
+        b: list[Traitable] = M(T.EMBEDDED)
+
+    @pytest.mark.parametrize('cls', [X1, X2])
+    def test_serialize_embedded(self,cls):
+        Y, Z = self.Y, self.Z  # noqa: N806
         with CACHE_ONLY():
-            x = X(
+            x = cls(
                 x=1,
                 a=Y(y=1, a=1, _replace=True),
                 b=[
                     Y(y=2, a=2, _replace=True),
                     Z(z=3, a=4, _replace=True),
                 ],
-                c=[
-                    Y(y=3, a=3, _replace=True),
-                    Z(z=4, a=5, _replace=True),
-                ],
                 _replace=True,
             )
-            serialized = x.serialize_object()
-            assert serialized == {
-                '_id': '1',
-                '_rev': 0,
-                'x': 1,
-                'a': {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 1, 'a': 1}},
-                'b': [
-                    None,
-                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 2, 'a': 2}},
-                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Z', '_obj': {'_id': '3'}},
-                ],
-                'c': [
-                    None,
-                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 3, 'a': 3}},
-                    {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Z', '_obj': {'_id': '4'}},
-                ],
-            }
+            try:
+                serialized = x.serialize_object()
+                assert serialized == {
+                    '_id': '1',
+                    '_rev': 0,
+                    'x': 1,
+                    'a': {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 1, 'a': 1}},
+                    'b': [
+                        None,
+                        {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Y', '_obj': {'y': 2, 'a': 2}},
+                        {'_type': '_nx', '_cls': 'test_traitable/TestSerializeEmbedded/Z', '_obj': {'_id': '3'}},
+                    ],
+                }
+                z = cls.deserialize(serialized).b[1]
+                assert isinstance(z, Z)
+                assert z.a == 4
+            except TraitMethodError as e:
+                if cls is self.X2:
+                    assert "embedded instance must be 'embeddable'" in str(e)
+                else:
+                    raise
 
-            z = X.deserialize(serialized).b[1]
-            assert isinstance(z, Z)
-            assert z.a == 4
+
 
 
 def test_own_trait_defs():
