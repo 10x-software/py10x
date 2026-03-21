@@ -34,7 +34,7 @@ public:
         return m_class == other.m_class && id_value().equal(other.id_value());
     }
 
-    void serialize_id(const py::dict& res, bool embed) const;
+    void serialize_id(const py::dict& res) const;
     static py::object deserialize_id(const py::dict& serialized_data, bool must_exist = true);
 
 };

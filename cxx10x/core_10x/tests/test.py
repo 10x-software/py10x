@@ -268,12 +268,9 @@ def test_anonymous_embedded():
 
 
     y = Y(y=0,x=x,_replace=True)
-    try:
-        y.serialize_object()
-    except TraitMethodError as e:
-        assert "test_anonymous_embedded.X - 'embeddable' instance may not be serialized as external reference" in str(e)
-    else:
-        assert False
+    s = y.serialize_object()
+    print(s)
+    assert s['x']['_obj']['a']==1
 
     z = Z(y=1,x=x,_replace=True)
     s = z.serialize_object()
