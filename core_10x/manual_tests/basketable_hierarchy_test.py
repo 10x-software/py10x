@@ -2,7 +2,7 @@ from datetime import datetime
 import itertools
 import random
 
-from core_10x.basket import Basket, Basketable, BUCKET_SHAPE, SimpleBasket, Bucket, BucketSet, BucketDict
+from core_10x.basket import Basket, Basketable, BUCKET_SHAPE, BucketDict
 from core_10x.traitable import Traitable, T, RT
 from core_10x.trait_filter import f
 
@@ -22,7 +22,7 @@ class FinLeaf(FinInstrument):
         mu = random.randint(1,100)
         return random.gauss(mu = mu, sigma = 10.)
 
-class FiBasket(SimpleBasket):
+class FiBasket(Basket):
     def base_class_get(self):
         return FinInstrument
 
@@ -61,17 +61,17 @@ class Portfolio(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
     portfolio_names: list   = T()
     book_names: list        = T()
 
-    portfolios: SimpleBasket = RT()
-    books: SimpleBasket      = RT()
+    portfolios: Basket      = RT()
+    books: Basket           = RT()
 
     def portfolios_get(self):
-        basket = Basket.simple(Portfolio, subclasses_allowed = False)
+        basket = Basket(base_class = Portfolio, subclasses_allowed = False)
         for pname in self.portfolio_names:
             basket.add(Portfolio.existing_instance(name = pname))
         return basket
 
     def books_get(self):
-        basket = Basket.simple(Book, subclasses_allowed = False)
+        basket = Basket(base_class = Book, subclasses_allowed = False)
         for bname in self.book_names:
             basket.add(Book.existing_instance(name = bname))
         return basket
@@ -125,13 +125,13 @@ if __name__ == '__main__':
         book_names = ['Book3']
     )
 
-    basket1 = Basket.simple(Book)
+    basket1 = Basket(base_class = Book)
     p.contents(basket1)
 
-    basket2 = Basket.simple(Trade)
+    basket2 = Basket(base_class = Trade)
     p.contents(basket2)
 
-    basket3 = Basket.simple(FinInstrument)
+    basket3 = Basket(base_class = FinInstrument)
     p.contents(basket3)
 
 

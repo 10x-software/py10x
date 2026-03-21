@@ -1,4 +1,4 @@
-from core_10x.basket import Basket
+from core_10x.basket import Basket, Bucketizer
 from core_10x.code_samples.person import Person
 from core_10x.xinf import XInf
 from core_10x.named_constant import NamedCallable
@@ -14,18 +14,37 @@ if __name__ == '__main__':
     class AGGREGATOR(NamedCallable):
         WEIGHT     = lambda gen: sum(v*q for v, q in gen)
 
-    #b = Basket.simple(Person)
-    #b = Basket.by_feature(Person, FEATURE.W200)
-    #b = Basket.by_breakpoints(Person, lambda p: p.weight, -XInf, 100, 170, 200, XInf)
-    b = Basket.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
-    b.aggregator_class = AGGREGATOR
+    b = Basket(base_class = Person, aggregator_class = AGGREGATOR)
 
-    #b = Basket.by_feature(Person, lambda p: p.weight, 190., 200.)
-    #b = Basket.by_feature(Person, Person.T.weight, 190., 200.)
+    #bz = Bucketizer.by_feature(Person, FEATURE.W200)
+    #bz = Bucketizer.by_breakpoints(Person, lambda p: p.weight, -XInf, 100, 170, 200, XInf)
+    #bz = Bucketizer.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
+    #bz = Bucketizer.by_feature(Person, lambda p: p.weight, 190., 200.)
 
+    bz = Bucketizer.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
+    bz2 = Bucketizer.by_feature(Person, Person.T.age)
+
+    b.bucketizers = [bz, bz2]
     for i, p in enumerate(all_people):
         b.add(p, i)
 
-    #ta = Person.T.weight
+    for tag, bucket in b.tags_buckets():
+        print(f'tag = {tag}:')
+        for member, qty in bucket.members_qtys():
+            print(f'{member} = {qty}')
 
     r = b.weight
+    print(f'weight = {r}')
+
+    b.bucketizers = []
+    for i, p in enumerate(all_people[:-1]):
+        b.add(p, i)
+
+    r = b.weight
+    print(f'weight = {r}')
+
+    bz = Bucketizer.by_range(Person, Person.T.age, ('normal', 50, XInf ))
+    b.add_bucketizer(bz)
+
+    r = b.weight
+    print(f'weight = {r}')

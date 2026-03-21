@@ -165,6 +165,7 @@ class T(BTraitFlags):
     def colors(bg_color: str, fg_color: str) -> str:
         return f'background-color: {bg_color}; color: {fg_color}' if bg_color and fg_color else ''
 
+    STICKY = BTraitFlags.OFFGRAPH_SET
 
 def RT(*args, **kwargs) -> TraitDefinition:  # noqa: N802
     trait_def = TraitDefinition(*args, **kwargs)
