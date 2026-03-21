@@ -140,7 +140,8 @@ class Basketable:
     def members_qtys(self):                         raise NotImplementedError
 
 
-class Bucketizer(Traitable, embeddable = True):
+#class Bucketizer(Traitable, embeddable = True):
+class Bucketizer(Traitable):
     buckets_spec: list  = T()
     bucket_tags: set    = RT()
 
@@ -343,7 +344,8 @@ class FIN_AGGREGATOR(NamedCallable):
     LIFE_CYCLE  = LifeCycler.aggregate_life_cycle
     LEAVES      = lambda basket:    raise NotSupportedError 
 """
-class Basket(Traitable, root_class = True, embeddable = True):
+#class Basket(Traitable, root_class = True, embeddable = True):
+class Basket(Traitable):
     s_bucket_shape: BUCKET_SHAPE = BUCKET_SHAPE.DICT
     def __init_subclass__(cls, bucket_shape: BUCKET_SHAPE = None, **kwargs):
         super().__init_subclass__(**kwargs)
