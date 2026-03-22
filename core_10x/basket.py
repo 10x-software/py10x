@@ -453,7 +453,7 @@ class Basket(Traitable, embeddable = True):
                 yield (tag, bucket)
 
     def members_qtys(self):
-        return itertools.chain.from_iterable(bucket.members_qtys() for _, bucket in self.all_buckets())
+        return itertools.chain.from_iterable(bucket.members_qtys() for _, bucket in self.tags_buckets())
 
     def __getattr__(self, method_name: str):
         base_class = self.base_class

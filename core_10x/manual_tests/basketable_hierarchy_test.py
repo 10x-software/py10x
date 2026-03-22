@@ -101,7 +101,7 @@ if __name__ == '__main__':
         name        = 'T1',
         book1_name  = 'Book1',
         book2_name  = 'Book2',
-        basket      = FiBasket(bucket = BucketDict(data = {f1: 10., f2: -2.}))
+        basket      = FiBasket(the_bucket = BucketDict(data = {f1: 10., f2: -2.}))
     )
 
     t2 = Trade(_replace = True,
