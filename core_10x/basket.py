@@ -7,15 +7,11 @@ import inspect
 from types import GeneratorType
 import itertools
 
-from core_10x import trait
 from core_10x.traitable import Traitable, Trait, T, RT, RC, RC_TRUE, XNone
 from core_10x.named_constant import NamedConstant, NamedCallable
 from core_10x.xinf import XInf
 
-
-#-- TODO: uncomment when T.EMBEDDED is not required to hold an embeddable
-#class Bucket(Traitable, root_class = True, embeddable = True):
-class Bucket(Traitable):
+class Bucket(Traitable, root_class = True, embeddable = True):
     def calc_trait_values(self, trait_name: str, aggregator_f: Callable):
         data_gen = ( (member.get_value(trait_name), qty) for member, qty in self.members_qtys() )
         return data_gen if not aggregator_f else aggregator_f(data_gen)
@@ -140,8 +136,7 @@ class Basketable:
     def members_qtys(self):                         raise NotImplementedError
 
 
-#class Bucketizer(Traitable, embeddable = True):
-class Bucketizer(Traitable):
+class Bucketizer(Traitable, embeddable = True):
     buckets_spec: list  = T()
     bucket_tags: set    = RT()
 
@@ -344,8 +339,7 @@ class FIN_AGGREGATOR(NamedCallable):
     LIFE_CYCLE  = LifeCycler.aggregate_life_cycle
     LEAVES      = lambda basket:    raise NotSupportedError 
 """
-#class Basket(Traitable, root_class = True, embeddable = True):
-class Basket(Traitable):
+class Basket(Traitable, embeddable = True):
     s_bucket_shape: BUCKET_SHAPE = BUCKET_SHAPE.DICT
     def __init_subclass__(cls, bucket_shape: BUCKET_SHAPE = None, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -361,6 +355,7 @@ class Basket(Traitable):
 
     the_bucket: Bucket                      = T(T.STICKY)       #-- single bucket if there are no bucketizers
     all_buckets: dict                       = T(T.STICKY)       #-- tagged buckets WRT bucketizers, i.e.: {(t1_i,t2_i,...): bucket_i}
+
 
     def bucket_shape_get(self) -> BUCKET_SHAPE:
         base_class = self.base_class
@@ -439,6 +434,23 @@ class Basket(Traitable):
             return ( v for v in ((XNone, self.the_bucket),) )
 
         return ( (key, bucket) for key, bucket in self.all_buckets.items() )
+
+    def buckets_by_subtags(self, *subtags):
+        n_bucks = len(self.bucketizers)
+        n_subtags = len(subtags)
+        if n_subtags > n_bucks:
+            raise AssertionError(f"Can't specify more than {n_bucks} subtags")
+
+        if n_bucks == 0:
+            return self.tags_buckets()
+
+        look_for = n_bucks * [None]
+        for i, s in enumerate(subtags):
+            look_for[i] = s
+
+        for tag, bucket in self.tags_buckets():
+            if all(tag[i] == sub for i, sub in enumerate(look_for) if sub is not None):
+                yield (tag, bucket)
 
     def members_qtys(self):
         return itertools.chain.from_iterable(bucket.members_qtys() for _, bucket in self.all_buckets())

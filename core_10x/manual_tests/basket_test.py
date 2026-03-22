@@ -48,3 +48,17 @@ if __name__ == '__main__':
 
     r = b.weight
     print(f'weight = {r}')
+
+
+    bz = Bucketizer.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
+    b.bucketizers = [bz]
+    for i, p in enumerate(all_people):
+        b.add(p, i)
+
+    print('*** by subtags ***')
+    # for tag, bucket in b.tags_buckets():
+    #     print(f'tag = {tag}: {bucket.data}')
+    gen = b.buckets_by_subtags('overweight')
+    for tag, bucket in gen:
+        print(f'tag = {tag}:')
+        print(bucket.data)
