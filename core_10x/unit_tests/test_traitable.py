@@ -364,6 +364,13 @@ def test_anonymous_traitable(monkeypatch):
     class Z(Y):
         x: AnonymousTraitable = M(T.EMBEDDED)
 
+    with pytest.raises(RuntimeError, match=r"T1.x - class <class 'core_10x.traitable.Traitable'> must be declared 'embeddable'"):
+        class _T1(Traitable):
+            x: Traitable = T(T.EMBEDDED)
+
+    class _T2(Traitable):
+        x: AnonymousTraitable = T()
+
     x = X(a=1)
     assert x.serialize(True) == {'a': 1}
 

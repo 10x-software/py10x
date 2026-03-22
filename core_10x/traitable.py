@@ -1070,9 +1070,6 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
                 rc.add_error(f'{cls.__name__}.{self.name} - may NOT be both RUNTIME and EMBEDDED')
             if not self.data_type.s_embeddable:
                 rc.add_error(f"{cls.__name__}.{self.name} - class {self.data_type} must be declared 'embeddable'")
-        else:
-            if self.data_type.s_embeddable and not is_runtime:
-                rc.add_error(f"{cls.__name__}.{self.name} - is not declared EMBEDDED, but refers to 'embeddable' class {self.data_type}")
 
     def default_value(self):
         def_value = self.default
