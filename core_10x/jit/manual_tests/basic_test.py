@@ -1,4 +1,4 @@
-import random
+from numpy import random
 from datetime import datetime
 
 from core_10x.traitable import Traitable, T, RT
@@ -6,7 +6,7 @@ from core_10x.exec_control import GRAPH_ON
 from core_10x.logger import PerfTimer
 
 class Calc(Traitable):
-    count: int      = RT(10**4)
+    count: int      = RT(10**4//2)
 
     seed: int       = RT()
     avg: float      = RT(1.)
@@ -15,9 +15,6 @@ class Calc(Traitable):
 
     price: float    = RT()
 
-    def seed_get(self):
-        return int(datetime.utcnow().timestamp())
-
     def std_get(self):
         return self.avg / 10.
 
@@ -25,7 +22,7 @@ class Calc(Traitable):
         random.seed(self.seed)
         r = 0.
         for i in range(self.count):
-            p = random.gauss(self.avg, self.std)
+            p = random.normal(self.avg, self.std)
             q = random.randint(1, self.max_qty)
             r += p * q
 
@@ -34,28 +31,33 @@ class Calc(Traitable):
 if __name__ == '__main__':
     from core_10x.jit.getter_compiler import GetterCompiler
 
-    graph = GRAPH_ON()
-    graph.begin_using()
+    # graph = GRAPH_ON()
+    # graph.begin_using()
 
-    calc = Calc()
-    seed = calc.seed
-    random.seed(seed)
+    seed = int(datetime.utcnow().timestamp())
+    calc = Calc(seed = seed)
 
-    with PerfTimer() as t1:
+    with PerfTimer() as t:
         p1 = calc.price
 
-    dt1 = t1.elapsed
+    dt1 = t.elapsed
+
+    with PerfTimer() as t:
+        p2 = calc.price
+
+    dt2 = t.elapsed
 
     trait_name = 'price'
     gc = GetterCompiler(traitable_class = Calc, trait_name = trait_name)
     trait = Calc.trait(trait_name)
     trait.set_f_get(gc.modified_getter, True)
 
-    calc.seed = seed
-    with PerfTimer() as t2:
-        p2 = calc.price
+    p = calc.price
 
-    dt2 = t2.elapsed
+    with PerfTimer() as t:
+        p3 = calc.price
 
-    print(f'prices: {p1:.4f}, {p2:.4f}')
-    print(f'acceleration: {dt1/dt2: .1f}')
+    dt3 = t.elapsed
+
+    print(f'prices: {p1:.4f}, {p3:.4f}')
+    print(f'acceleration: {dt1/dt3: .1f}')
