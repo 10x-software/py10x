@@ -4,13 +4,15 @@ import textwrap
 from typing import Any
 import numba
 
-from core_10x.trait import Trait
 from core_10x.traitable import Traitable, T, RT
+
+from core_10x.jit.traitable_compiler import TraitableCompiler
 
 class NodeTransforfmer(ast.NodeTransformer):
     def __init__(self, method_name: str):
         self.method_name = method_name
         self.self_traits = []
+        self.self_methods = []
         self.params = []
 
     def visit_FunctionDef(self, node):
@@ -43,11 +45,26 @@ class NodeTransforfmer(ast.NodeTransformer):
 
         return node
 
+    def visit_Call(self, node):
+        node = self.generic_visit(node)
+
+        if isinstance(node.func, ast.Attribute):
+            if isinstance(node.func.value, ast.Name) and node.func.value.id == 'self':
+                method_name = node.func.attr
+                if method_name not in self.self_methods:
+                    self.self_methods.append(method_name)
+
+                node.func = ast.Name(id = method_name, ctx = ast.Load())
+
+        return node
+
+
 class GetterCompiler(Traitable):
     s_target_getter_suffix = 'numba'
 
     traitable_class: type[Traitable]    = RT()
     trait_name: str                     = RT()
+    jit: Any                            = RT()
 
     original_getter: Any                = RT()
     target_getter_name: str             = RT()
@@ -59,6 +76,9 @@ class GetterCompiler(Traitable):
     compiled_target_getter: Any         = RT()
     modified_getter: Any                = RT()
 
+
+    def jit_get(self):
+        return numba.jit if self.ast_node_transformer.self_methods else numba.njit
 
     def original_getter_get(self):
         return self.traitable_class.trait(self.trait_name).f_get
@@ -86,12 +106,13 @@ class GetterCompiler(Traitable):
         ns = {}
         exec(code, g, ns)
         target_getter = ns[target_getter_name]
-        setattr(self.traitable_class, target_getter_name, target_getter)
+        #setattr(self.traitable_class, target_getter_name, target_getter)
 
         return target_getter
 
     def compiled_target_getter_get(self):
-        target_getter = numba.njit(self.target_getter)
+        jit = self.jit
+        target_getter = jit(self.target_getter)
         return target_getter
 
     def modified_getter_get(self):
@@ -102,5 +123,5 @@ class GetterCompiler(Traitable):
             return compiled_getter(*args)
         return _mod_getter
 
-    def print_target_getter(self):
-        print(ast.unparse(self.target_ast_tree))
+    def target_getter_src(self) -> str:
+        return ast.unparse(self.target_ast_tree)

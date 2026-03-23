@@ -1,8 +1,7 @@
 from numpy import random
 from datetime import datetime
 
-from core_10x.traitable import Traitable, T, RT
-from core_10x.exec_control import GRAPH_ON
+from core_10x.traitable import Traitable, RT
 from core_10x.logger import PerfTimer
 
 class Calc(Traitable):
@@ -28,11 +27,9 @@ class Calc(Traitable):
 
         return r
 
+
 if __name__ == '__main__':
     from core_10x.jit.getter_compiler import GetterCompiler
-
-    # graph = GRAPH_ON()
-    # graph.begin_using()
 
     seed = int(datetime.utcnow().timestamp())
     calc = Calc(seed = seed)
