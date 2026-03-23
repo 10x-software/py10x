@@ -10,6 +10,7 @@ from core_10x.traitable import Traitable, T, RT
 class NodeTransforfmer(ast.NodeTransformer):
     def __init__(self, method_name: str):
         self.method_name = method_name
+        self.self_traits = []
         self.params = []
 
     def visit_FunctionDef(self, node):
@@ -33,10 +34,12 @@ class NodeTransforfmer(ast.NodeTransformer):
 
         if isinstance(node, ast.Attribute):
             if isinstance(node.value, ast.Name) and node.value.id == 'self':
-                param = f'self_{node.attr}'
-                if not param in self.params:
+                trait_name = node.attr
+                if not trait_name in self.self_traits:
+                    self.self_traits.append(trait_name)
+                    param = f'self_{trait_name}'
                     self.params.append(param)
-                return ast.copy_location(ast.Name(id = param, ctx = ast.Load()), node)
+                    return ast.copy_location(ast.Name(id = param, ctx = ast.Load()), node)
 
         return node
 
@@ -51,6 +54,7 @@ class GetterCompiler(Traitable):
 
     ast_node_transformer: NodeTransforfmer  = RT(T.STICKY)
 
+    target_ast_tree: Any                = RT()
     target_getter: Any                  = RT()
     compiled_target_getter: Any         = RT()
     modified_getter: Any                = RT()
@@ -73,7 +77,7 @@ class GetterCompiler(Traitable):
         transformer = self.ast_node_transformer
         new_tree = transformer.visit(tree)
         ast.fix_missing_locations(new_tree)
-        #print(ast.unparse(new_tree))
+        self.target_ast_tree = new_tree
 
         code = compile(new_tree, '<jit>', 'exec')
 
@@ -91,10 +95,12 @@ class GetterCompiler(Traitable):
         return target_getter
 
     def modified_getter_get(self):
-        param_trait_names = self.ast_node_transformer.params
+        param_trait_names = self.ast_node_transformer.self_traits
         compiled_getter = self.compiled_target_getter
         def _mod_getter(obj):
             args = tuple(obj.get_value(name) for name in param_trait_names)
-            return compiled_getter(obj, *args)
+            return compiled_getter(*args)
         return _mod_getter
 
+    def print_target_getter(self):
+        print(ast.unparse(self.target_ast_tree))

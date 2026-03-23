@@ -22,6 +22,7 @@ class Calc(Traitable):
         return self.avg / 10.
 
     def price_get(self):
+        random.seed(self.seed)
         r = 0.
         for i in range(self.count):
             p = random.gauss(self.avg, self.std)
@@ -50,6 +51,7 @@ if __name__ == '__main__':
     trait = Calc.trait(trait_name)
     trait.set_f_get(gc.modified_getter, True)
 
+    calc.seed = seed
     with PerfTimer() as t2:
         p2 = calc.price
 
