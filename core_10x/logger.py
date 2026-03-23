@@ -13,6 +13,14 @@ from core_10x.environment_variables import EnvVars
 from core_10x.resource import NULL_RESOURCE
 from core_10x.ts_store import TsStore
 
+class PerfTimer:
+    def __enter__(self):
+        self.start = time.perf_counter_ns()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end = time.perf_counter_ns()
+        self.elapsed = self.end - self.start
 
 class LogMessage(Traitable, custom_collection = True, keep_history = False):
     ns: int             = T(T.ID)
