@@ -4,16 +4,17 @@ import textwrap
 from typing import Any
 import numba
 
-from core_10x.traitable import Traitable, T, RT
+from core_10x.traitable import Traitable, T, RT, Trait
 
 from core_10x.jit.traitable_compiler import TraitableCompiler
 
 class NodeTransforfmer(ast.NodeTransformer):
-    def __init__(self, method_name: str):
+    def __init__(self, traitable_class: type[Traitable], method_name: str):
+        self.traitable_class = traitable_class
         self.method_name = method_name
-        self.self_traits = []
-        self.self_methods = []
-        self.params = []
+        self.self_attrs = set()
+        self.self_params = []
+        self.njit = True
 
     def visit_FunctionDef(self, node):
         node.name = self.method_name
@@ -22,7 +23,7 @@ class NodeTransforfmer(ast.NodeTransformer):
 
         node.args = ast.arguments(
             posonlyargs = [],
-            args        = [ast.arg(arg = p) for p in self.params],
+            args        = [ast.arg(arg = f'self_{p}') for p in self.self_params],
             vararg      = None,
             kwonlyargs  = [],
             kw_defaults = [],
@@ -36,27 +37,35 @@ class NodeTransforfmer(ast.NodeTransformer):
 
         if isinstance(node, ast.Attribute):
             if isinstance(node.value, ast.Name) and node.value.id == 'self':
-                trait_name = node.attr
-                if not trait_name in self.self_traits:
-                    self.self_traits.append(trait_name)
-                    param = f'self_{trait_name}'
-                    self.params.append(param)
+                name = node.attr
+                if not name in self.self_attrs:
+                    self.self_attrs.add(name)
+                    param = f'self_{name}'
+
+                    trait = getattr(self.traitable_class, name, None)
+                    if trait is None:
+                       raise TypeError(f"{self.traitable_class.__name__} has no attribute '{name}'")
+
+                    if not isinstance(trait, Trait) or trait.getter_params:    #-- self.method() or self.trait_with_args()
+                        self.njit = False
+
+                    self.self_params.append(name)
                     return ast.copy_location(ast.Name(id = param, ctx = ast.Load()), node)
 
         return node
 
-    def visit_Call(self, node):
-        node = self.generic_visit(node)
-
-        if isinstance(node.func, ast.Attribute):
-            if isinstance(node.func.value, ast.Name) and node.func.value.id == 'self':
-                method_name = node.func.attr
-                if method_name not in self.self_methods:
-                    self.self_methods.append(method_name)
-
-                node.func = ast.Name(id = method_name, ctx = ast.Load())
-
-        return node
+    # def visit_Call(self, node):
+    #     node = self.generic_visit(node)
+    #
+    #     if isinstance(node.func, ast.Attribute):
+    #         if isinstance(node.func.value, ast.Name) and node.func.value.id == 'self':
+    #             method_name = node.func.attr
+    #             if method_name not in self.self_methods:
+    #                 self.self_methods.append(method_name)
+    #
+    #             node.func = ast.Name(id = method_name, ctx = ast.Load())
+    #
+    #     return node
 
 
 class GetterCompiler(Traitable):
@@ -78,7 +87,10 @@ class GetterCompiler(Traitable):
 
 
     def jit_get(self):
-        return numba.jit if self.ast_node_transformer.self_methods else numba.njit
+        tg = self.target_getter
+        jit = numba.jit(forceobj = True) if not self.ast_node_transformer.njit else numba.njit
+        #print(jit)
+        return jit
 
     def original_getter_get(self):
         return self.traitable_class.trait(self.trait_name).f_get
@@ -87,7 +99,7 @@ class GetterCompiler(Traitable):
         return f'{self.trait_name}_get_{self.__class__.s_target_getter_suffix}'
 
     def ast_node_transformer_get(self) -> NodeTransforfmer:
-        return NodeTransforfmer(self.target_getter_name)
+        return NodeTransforfmer(self.traitable_class, self.target_getter_name)
 
     def target_getter_get(self):
         src = inspect.getsource(self.original_getter)
@@ -111,17 +123,20 @@ class GetterCompiler(Traitable):
         return target_getter
 
     def compiled_target_getter_get(self):
+        getter = self.target_getter
         jit = self.jit
-        target_getter = jit(self.target_getter)
-        return target_getter
+        return jit(getter)
 
     def modified_getter_get(self):
-        param_trait_names = self.ast_node_transformer.self_traits
         compiled_getter = self.compiled_target_getter
+        # param_traits = list(self.ast_node_transformer.traits.values())
+        param_names = self.ast_node_transformer.self_params
         def _mod_getter(obj):
-            args = tuple(obj.get_value(name) for name in param_trait_names)
+            #args = tuple(obj.get_value(name) for name in param_trait_names)
+            args = tuple(getattr(obj, name) for name in param_names)
             return compiled_getter(*args)
         return _mod_getter
 
     def target_getter_src(self) -> str:
+        tg = self.target_getter
         return ast.unparse(self.target_ast_tree)

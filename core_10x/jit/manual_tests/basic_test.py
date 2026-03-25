@@ -1,3 +1,4 @@
+import math
 from numpy import random
 from datetime import datetime
 
@@ -5,7 +6,7 @@ from core_10x.traitable import Traitable, RT
 from core_10x.logger import PerfTimer
 
 class Calc(Traitable):
-    count: int      = RT(10**4//2)
+    count: int      = RT(10**4)
 
     seed: int       = RT()
     avg: float      = RT(1.)
@@ -13,6 +14,7 @@ class Calc(Traitable):
     max_qty: int    = RT(100)
 
     price: float    = RT()
+    abracadabra: float = RT()
 
     def std_get(self):
         return self.avg / 10.
@@ -22,11 +24,20 @@ class Calc(Traitable):
         r = 0.
         for i in range(self.count):
             p = random.normal(self.avg, self.std)
-            q = random.randint(1, self.max_qty)
-            r += p * q
+            # q = random.randint(1, self.max_qty)
+            # r += p * q
+            r += p
 
         return r
 
+    def abracadabra_get(self):
+        r = 0.
+        for i in range(self.count):
+            #p = math.sin(self.avg)
+            p = self.avg + i
+            r += p
+
+        return r
 
 if __name__ == '__main__':
     from core_10x.jit.getter_compiler import GetterCompiler
