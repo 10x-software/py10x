@@ -46,7 +46,7 @@ from core_10x.exec_control import GRAPH_ON, CACHE_ONLY
 class Developer(Traitable):
     handle: str      = T(T.ID)           # ← identity trait → global sharing
     coffee_cups: int = T(default=0)      # persistent
-    energy: int      = RT()              # lazy-computed
+    energy: int      = RT()              # runtime-only (not stored)
 
     def energy_get(self) -> int:
         return self.coffee_cups * 20

@@ -53,11 +53,11 @@ Traitables are the fundamental data models in `py10x-core`. They are Python clas
 
 Traits are typed attributes that can be:
 - **Regular traits**: Stored and searchable (use `T()`)
-- **Runtime traits**: Not stored, computed on-demand (use `RT()` or omit)
+- **Runtime traits**: Not stored or persisted; otherwise identical to `T()` (use `RT()` or omit)
 - **ID traits**: Define traitable identity for global sharing (use `T(T.ID)` or `RT(T.ID)`)
 - **ID_LIKE traits**: Helper traits that participate in ID construction indirectly (use `T(T.ID_LIKE)` or `RT(T.ID_LIKE)`)
 
-**Note**: Any trait (regular or runtime) can be computed on-demand if there is a getter method defined.
+**Note**: Any trait (`T()` or `RT()`) can be computed on-demand if a getter method is defined.
 
 ### Object Identification
 
@@ -360,7 +360,7 @@ Let's start with a simple runtime traitable that doesn't require storage context
 from core_10x.traitable import Traitable
 
 class Calculator(Traitable):
-    # Runtime traits - computed on-demand, not stored
+    # Runtime traits - not stored
     x: int
     y: int
     sum: int      # Computed via sum_get()
@@ -399,7 +399,7 @@ class Person(Traitable):
     first_name: str = RT(T.ID)
     last_name: str = RT(T.ID)
 
-    # Runtime traits, computed on-demand
+    # Runtime traits - not stored
     full_name: str
     initials: str
 
@@ -579,7 +579,7 @@ class Person(Traitable):
     dob: date = T()
     weight_lbs: float = T()
     
-    # Runtime traits - computed on-demand, not stored
+    # Runtime traits - not stored
     age: int
     full_name: str
 
@@ -1366,7 +1366,7 @@ with CACHE_ONLY():
 ### 1. Trait Design
 
 - Use `T()` for traits that need persistence and searching
-- Use `RT()` (or omit) for computed traits that shouldn't be stored
+- Use `RT()` (or omit) for traits that shouldn't be stored or persisted
 - Use `T(T.ID)` for traits that define traitable identity
 - Implement getter methods for computed values
 - Use setter methods for validation and transformation
