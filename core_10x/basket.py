@@ -374,7 +374,7 @@ class Basket(Traitable, embeddable = True):
         self.invalidate_value('the_bucket')
         self.invalidate_value('all_buckets')
 
-        return self.raw_set_value(trait, bucketizers)
+        return self.raw_set_trait_value(trait, bucketizers)
 
     def add_bucketizer(self, bucketizer: Bucketizer) -> bool:
         new_buckets = {}
