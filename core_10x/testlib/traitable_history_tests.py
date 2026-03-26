@@ -62,9 +62,9 @@ class PersonTraitableBase(Traitable):
     spouse: Self = T()
 
     def spouse_set(self, trait, spouse) -> RC:
-        self.raw_set_value(trait, spouse)
+        self.raw_set_trait_value(trait, spouse)
         if spouse:
-            spouse.raw_set_value(trait, self)
+            spouse.raw_set_trait_value(trait, self)
         return RC_TRUE
 
 
