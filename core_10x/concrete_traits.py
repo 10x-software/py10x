@@ -376,7 +376,7 @@ class named_callable_trait(nucleus_trait, data_type = NamedCallable, base_class 
                 raise TypeError(f'{obj.__class__}/{obj.id()}.{trait.name}: attempt to set a non-callable {value}')
             value = NamedCallable.just_func(value)
 
-        return obj.raw_set_value(trait, value)
+        return obj.raw_set_trait_value(trait, value)
 
     def post_ctor(self):
         if not self.f_set:
