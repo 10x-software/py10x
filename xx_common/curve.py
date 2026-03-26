@@ -200,8 +200,7 @@ class DateCurve(Curve):
 
     def beginning_of_time_set(self, trait, d) -> RC:
         t = self._to_number(d)
-        self.raw_set_value(trait, t)
-        return RC_TRUE
+        return self.raw_set_trait_value(trait, t)
 
     def beginning_of_time_as_date(self) -> date:
         return self._from_number(self.beginning_of_time)
