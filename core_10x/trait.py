@@ -89,19 +89,19 @@ class Trait(BTrait, metaclass=TraitMetaclass):
             return self
 
         if not self.getter_params:
-            return instance.get_value(self)
+            return instance.get_trait_value(self)
 
-        return functools.partial(instance.get_value, self)
+        return functools.partial(instance.get_trait_value_with_args, self)
 
     def __set__(self, instance, value):
         if not self.getter_params:
-            instance.set_value(self, value).throw()
+            instance.set_trait_value(self, value).throw()
 
         else:
             if not isinstance(value, trait_value):
                 raise TypeError(f'May not set a value to {instance.__class__.__name__}.{self.name} as it requires params')
 
-            instance.set_value(self, value.value, *value.args).throw()
+            instance.set_trait_value_with_args(self, value.value, *value.args).throw()
 
     # def __deepcopy__(self, memodict={}):
     #    return Trait(self.t_def.copy(), btrait = self)
@@ -391,7 +391,7 @@ class BoundTrait:
 
 class ClassTrait(NamedCallable):
     def __init__(self, traitable_class, trait: Trait):
-        value = lambda traitable: traitable.get_value(trait)
+        value = lambda traitable: traitable.get_trait_value(trait)
         super().__init__(trait.name, trait.name, value)
         self.cls = traitable_class
         self.trait = trait

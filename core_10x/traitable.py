@@ -450,10 +450,24 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     #===================================================================================================================
     #   The following methods are available from c++
     #
-    #   get_value(trait-or-name, *args) -> Any
-    #   set_value(trait-or_name, value: Any, *args) -> RC
-    #   raw_value(trait-or_name, value: Any, *args) -> RC
-    #   invalidate_value(trait-or-name)
+    #   get_value(name) -> Any
+    #   get_value_with_args(name, *args) -> Any
+    #   get_trait_value(trait) -> Any
+    #   get_trait_value_with_args(trait, *args) -> Any
+    #
+    #   set_value(name, value: Any) -> RC
+    #   set_value_with_args(name, value: Any, *args) -> RC
+    #   set_trait_value(trait, value: Any) -> RC
+    #   set_trait_value_with_args(trait, value: Any, *args) -> RC
+    #
+    #   raw_set_value(name, value: Any) -> RC
+    #   raw_set_value_with_args(name, value: Any, *args) -> RC
+    #   raw_set_trait_value(trait, value: Any) -> RC
+    #   raw_set_trait_value_with_args(trait, value: Any, *args) -> RC
+    #
+    #   invalidate_value(name)
+    #   invalidate_trait_value(trait)
+    #
     #   verify_trait(trait) -> RC               #-- semantically equiv to verify_trait_value(trait. get_value(trait))
     #   verify_trait_value(trait, value) -> RC
     #   verify()                                #-- verifies each trait and calls post_verify()

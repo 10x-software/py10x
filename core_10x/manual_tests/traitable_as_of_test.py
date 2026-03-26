@@ -16,13 +16,15 @@ class MarriedPerson(Person):
     spouse: Self = T()
 
     def spouse_set(self, trait, spouse) -> RC:
-        self.raw_set_value(trait, spouse)
+        self.raw_set_trait_value(trait, spouse)
         if spouse:
-            spouse.raw_set_value(trait, self)
+            spouse.raw_set_trait_value(trait, self)
         return RC_TRUE
 
 
 if __name__ == '__main__':
+    from core_10x.manual_tests.traitable_as_of_test import MarriedPerson
+
     with MongoStore.instance(hostname='localhost', dbname='traitable_history_test'):
         MarriedPerson.delete_collection()
         MarriedPerson.s_history_class.delete_collection()

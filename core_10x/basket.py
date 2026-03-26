@@ -17,7 +17,8 @@ class Bucket(Traitable, root_class = True, embeddable = True):
         return data_gen if not aggregator_f else aggregator_f(data_gen)
 
     def calc_trait_values_with_args(self, trait_name: str, aggregator_f: Callable, *args):
-        data_gen = ( (member.get_value(trait_name, *args), qty) for member, qty in self.members_qtys() )
+        member: Traitable
+        data_gen = ( (member.get_value_with_args(trait_name, *args), qty) for member, qty in self.members_qtys() )
         return data_gen if not aggregator_f else aggregator_f(data_gen)
 
     def calc_method(self, method_name: str, aggregator_f: Callable, *args, **kwargs):

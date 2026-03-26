@@ -174,7 +174,7 @@ class Person(Traitable):
             return RC(False, f'Invalid email format: "{value}"')
         
         # Use raw_set_value to bypass the setter
-        return self.raw_set_value(trait, value)
+        return self.raw_set_trait_value(trait, value)
     
     def age_set(self, trait, value: int) -> RC:
         """Setter method - validates age range."""
@@ -183,7 +183,7 @@ class Person(Traitable):
         if value > 150:
             return RC(False, "Age cannot exceed 150")
         
-        return self.raw_set_value(trait, value)
+        return self.raw_set_trait_value(trait, value)
 
 # Usage with automatic validation
 person = Person()

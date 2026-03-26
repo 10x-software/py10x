@@ -16,7 +16,7 @@ GROUPS = [
     },
     {'y_get': lambda x: x.y},
     {'x_get': lambda x: x.x(0)},
-    {'x_set': lambda x: x.set_value('x', 100, 10)},
+    {'x_set': lambda x: x.set_value_with_args('x', 100, 10)},
 ]
 
 bombing_methods = {'_'.join(OUTPUTS[: i + 1]): group for i, group in enumerate(GROUPS)}

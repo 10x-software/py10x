@@ -30,20 +30,20 @@ class TraitableWrapper:
 
     def set_value(self, trait: Trait, value) -> RC:
         with self.traitable_processor() or nullcontext():
-            return self.traitable.set_value(trait, value)
+            return self.traitable.set_trait_value(trait, value)
 
     def get_value(self, trait: Trait):
         with self.traitable_processor() or nullcontext():
-            value = self.traitable.get_value(trait)
+            value = self.traitable.get_trait_value(trait)
             return value
 
     def is_valid(self, trait: Trait) -> bool:
         with self.traitable_processor() or nullcontext():
-            return self.traitable.is_valid(trait)
+            return self.traitable.is_trait_valid(trait)
 
     def invalidate_value(self, trait: Trait) -> None:
         with self.traitable_processor() or nullcontext():
-            return self.traitable.invalidate_value(trait)
+            return self.traitable.invalidate_trait_value(trait)
 
     def get_style_sheet(self, trait: Trait):
         with self.traitable_processor() or nullcontext():

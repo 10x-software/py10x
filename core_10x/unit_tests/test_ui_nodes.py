@@ -16,7 +16,7 @@ class X(Traitable):
     z: int
 
     def x_set(self, trait, value) -> RC:
-        self.raw_set_value(trait, value)
+        self.raw_set_trait_value(trait, value)
         return self.set_values(y=value)
 
     def z_get(self):
@@ -25,7 +25,7 @@ class X(Traitable):
 
 def callback(btp, x, t, v):
     assert btp is BTP.current()
-    # assert x.get_value(t) == v
+    # assert x.get_trait_value(t) == v
     print(btp, BTP.current())
     x.bui_class().update_ui_node(x, t)
 
