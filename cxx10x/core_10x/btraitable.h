@@ -137,6 +137,14 @@ public:
         return proc->is_valid(this, trait);
     }
 
+    [[nodiscard]] bool is_valid_s(const py::str& trait_name) {
+        return is_valid(trait_name);
+    }
+
+    [[nodiscard]] bool is_valid_t(const BTrait* trait) {
+        return is_valid(trait);
+    }
+
     [[nodiscard]] bool is_set(const BTrait* trait) const {
         const auto proc = ThreadContext::current_traitable_proc();
         return proc->is_set(this, trait);
@@ -160,6 +168,22 @@ public:
         proc->invalidate_trait_value(this, trait, args);
     }
 
+    void invalidate_value_s(const py::str& trait_name) {
+        invalidate_value(trait_name);
+    }
+
+    void invalidate_value_s_args(const py::str& trait_name, const py::args& args) {
+        invalidate_value(trait_name, args);
+    }
+
+    void invalidate_value_t(BTrait* trait) {
+        invalidate_value(trait);
+    }
+
+    void invalidate_value_t_args(BTrait* trait, const py::args& args) {
+        invalidate_value(trait, args);
+    }
+
     py::object get_value(const py::str& trait_name) {
         return get_value(check_trait(trait_name));
     }
@@ -176,6 +200,22 @@ public:
     py::object get_value(const BTrait* trait, const py::args& args) {
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait, args);
+    }
+
+    py::object get_value_s(const py::str& trait_name) {
+        return get_value(trait_name);
+    }
+
+    py::object get_value_s_args(const py::str& trait_name, const py::args& args) {
+        return get_value(trait_name, args);
+    }
+
+    py::object get_value_t(const BTrait* trait) {
+        return get_value(trait);
+    }
+
+    py::object get_value_t_args(const BTrait* trait, const py::args& args) {
+        return get_value(trait, args);
     }
 
     py::object get_choices(BTrait* trait) {
@@ -209,6 +249,22 @@ public:
         return proc->set_trait_value(this, trait, value, args);
     }
 
+    py::object set_value_s(const py::str& trait_name, const py::object& value) {
+        return set_value(trait_name, value);
+    }
+
+    py::object set_value_s_args(const py::str& trait_name, const py::object& value, const py::args& args) {
+        return set_value(trait_name, value, args);
+    }
+
+    py::object set_value_t(BTrait* trait, const py::object& value) {
+        return set_value(trait, value);
+    }
+
+    py::object set_value_t_args(BTrait* trait, const py::object& value, const py::args& args) {
+        return set_value(trait, value, args);
+    }
+
     py::object set_values(const py::dict& trait_values, bool ignore_unknown_traits = true);
 
     py::object verify();
@@ -231,6 +287,22 @@ public:
     py::object raw_set_value(BTrait* trait, const py::object& value, const py::args& args) {
         auto proc = ThreadContext::current_traitable_proc();
         return proc->raw_set_trait_value(this, trait, value, args);
+    }
+
+    py::object raw_set_value_s(const py::str& trait_name, const py::object& value) {
+        return raw_set_value(trait_name, value);
+    }
+
+    py::object raw_set_value_s_args(const py::str& trait_name, const py::object& value, const py::args& args) {
+        return raw_set_value(trait_name, value, args);
+    }
+
+    py::object raw_set_value_t(BTrait* trait, const py::object& value) {
+        return raw_set_value(trait, value);
+    }
+
+    py::object raw_set_value_t_args(BTrait* trait, const py::object& value, const py::args& args) {
+        return raw_set_value(trait, value, args);
     }
 
     //py::object  raw_get_value(BTrait* trait);

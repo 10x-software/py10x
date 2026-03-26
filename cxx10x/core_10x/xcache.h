@@ -161,6 +161,8 @@ public:
 
     BasicNode*  find_node(const BTrait* trait) const                                            { return m_nodes.find_node(trait); }
     BasicNode*  find_node(const BTrait* trait, const py::args& args) const                      { return m_nodes_with_args.find_node(trait, args); }
+    BasicNode*  find_node_t(const BTrait* trait) const                                          { return m_nodes.find_node(trait); }
+    BasicNode*  find_node_t_args(const BTrait* trait, const py::args& args) const               { return m_nodes_with_args.find_node(trait, args); }
 
     void        insert_node(const BTrait* trait, BasicNode* node)                               { m_nodes.insert({trait, node}); }
     void        insert_node(const BTrait* trait, BasicNode* node, const py::args& args)         { m_nodes_with_args.insert_node(trait, node, args); }

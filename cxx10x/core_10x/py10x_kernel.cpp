@@ -204,8 +204,8 @@ PYBIND11_MODULE(py10x_kernel, m)
             ;
 
     py::class_<ObjectCache>(m, "ObjectCache")
-            .def("find_node",                   py::overload_cast<const BTrait*>(&ObjectCache::find_node, py::const_))
-            .def("find_node",                   py::overload_cast<const BTrait*, const py::args&>(&ObjectCache::find_node, py::const_))
+            .def("find_node",                   &ObjectCache::find_node_t)
+            .def("find_node_with_args",         &ObjectCache::find_node_t_args)
             ;
 
     py::class_<XCache>(m, "XCache")
@@ -263,42 +263,30 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("value_to_str",                &BTraitable::value_to_str)
             .def("get_revision",                &BTraitable::get_revision)
             .def("set_revision",                &BTraitable::set_revision)
-            .def("get_value",                   py::overload_cast<const py::str&>(&BTraitable::get_value))
-            .def("get_value",                   py::overload_cast<const py::str&, const py::args&>(&BTraitable::get_value))
-            .def("get_value",                   py::overload_cast<const BTrait*>(&BTraitable::get_value))
-            .def("get_value",                   py::overload_cast<const BTrait*, const py::args&>(&BTraitable::get_value))
+            .def("get_value",                   &BTraitable::get_value_s)
+            .def("get_value_with_args",         &BTraitable::get_value_s_args)
+            .def("get_trait_value",             &BTraitable::get_value_t)
+            .def("get_trait_value_with_args",   &BTraitable::get_value_t_args)
             .def("verify_trait",                &BTraitable::verify_trait)
             .def("verify_trait_value",          &BTraitable::verify_trait_value)
             .def("verify",                      &BTraitable::verify)
             .def("get_style_sheet",             &BTraitable::get_style_sheet)
             .def("get_choices",                 &BTraitable::get_choices)
-            .def("set_value",                   py::overload_cast<const py::str&, const py::object&>(&BTraitable::set_value),
-                        "Set trait value",
-                        "trait_name"_a, "value"_a
-                )
-            .def("set_value",                   py::overload_cast<const py::str&, const py::object&, const py::args&>(&BTraitable::set_value),
-                        "Set trait value with *args",
-                        "trait_name"_a, "value"_a
-                )
-            .def("set_value",                   py::overload_cast<BTrait*, const py::object&>(&BTraitable::set_value),
-                        "Set trait value",
-                        "trait"_a, "value"_a
-                )
-            .def("set_value",                   py::overload_cast<BTrait*, const py::object&, const py::args&>(&BTraitable::set_value),
-                        "Set trait value with *args",
-                        "trait"_a, "value"_a
-                )
-            .def("is_valid",                    py::overload_cast<const py::str&>(&BTraitable::is_valid))
-            .def("is_valid",                    py::overload_cast<const BTrait*>(&BTraitable::is_valid))
+            .def("set_value",                   &BTraitable::set_value_s)
+            .def("set_value_with_args",         &BTraitable::set_value_s_args)
+            .def("set_trait_value",             &BTraitable::set_value_t)
+            .def("set_trait_value_with_args",   &BTraitable::set_value_t_args)
+            .def("is_valid",                    &BTraitable::is_valid_s)
+            .def("is_trait_valid",              &BTraitable::is_valid_t)
             .def("is_set",                      &BTraitable::is_set)
-            .def("invalidate_value",            py::overload_cast<const py::str&>(&BTraitable::invalidate_value))
-            .def("invalidate_value",            py::overload_cast<const py::str&, const py::args&>(&BTraitable::invalidate_value))
-            .def("invalidate_value",            py::overload_cast<BTrait*>(&BTraitable::invalidate_value))
-            .def("invalidate_value",            py::overload_cast<BTrait*, const py::args&>(&BTraitable::invalidate_value))
-            .def("raw_set_value",               py::overload_cast<const py::str&, const py::object&>(&BTraitable::raw_set_value))
-            .def("raw_set_value",               py::overload_cast<const py::str&, const py::object&, const py::args&>(&BTraitable::raw_set_value))
-            .def("raw_set_value",               py::overload_cast<BTrait*, const py::object&>(&BTraitable::raw_set_value))
-            .def("raw_set_value",               py::overload_cast<BTrait*, const py::object&, const py::args&>(&BTraitable::raw_set_value))
+            .def("invalidate_value",            &BTraitable::invalidate_value_s)
+            .def("invalidate_value_with_args",  &BTraitable::invalidate_value_s_args)
+            .def("invalidate_trait_value",      &BTraitable::invalidate_value_t)
+            .def("invalidate_trait_value_with_args",    &BTraitable::invalidate_value_t_args)
+            .def("raw_set_value",               &BTraitable::raw_set_value_s)
+            .def("raw_set_value_with_args",     &BTraitable::raw_set_value_s_args)
+            .def("raw_set_trait_value",         &BTraitable::raw_set_value_t)
+            .def("raw_set_trait_value_with_args",   &BTraitable::raw_set_value_t_args)
             .def("_set_values",                 &BTraitable::set_values)
             .def("serialize_nx",                &BTraitable::serialize_nx)
             .def_static("deserialize_nx",       &BTraitable::deserialize_nx)

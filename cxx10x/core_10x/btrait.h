@@ -100,10 +100,14 @@ public:
 
     [[nodiscard]] const py::object& name() const                    { return m_name; }
     [[nodiscard]] const py::object& data_type() const               { return m_datatype; }
+
     [[nodiscard]] bool flags_on(const uint64_t flags) const         { return m_flags & flags; }
+    [[nodiscard]] bool flags_on(const BFlags& flags) const          { return m_flags & flags.value(); }
+    [[nodiscard]] bool flags_on_uint(const uint64_t flags) const    { return m_flags & flags; }
+    [[nodiscard]] bool flags_on_bflags(const BFlags& flags) const   { return m_flags & flags.value(); }
+
     [[nodiscard]] bool has_custom_getter() const                    { return m_flags & BTraitFlags::CUSTOM_F_GET; }
 
-    [[nodiscard]] bool flags_on(const BFlags& flags) const          { return m_flags & flags.value(); }
     void set_flags(uint64_t flags_to_set)                           { m_flags |= flags_to_set; }
     void reset_flags(uint64_t flags_to_reset)                       { m_flags &= ~flags_to_reset; }
     void modify_flags(uint64_t to_set, uint64_t to_reset)           { m_flags = (m_flags | to_set) & ~to_reset; }
