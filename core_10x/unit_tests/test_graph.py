@@ -66,14 +66,14 @@ def testable_person():
 def reset_person(p):
     for trait in p.s_dir.values():
         if not trait.getter_params:
-            p.invalidate_value(trait)
+            p.invalidate_trait_value(trait)
             if not trait.flags_on(T.ID):  # id traits may be set in base layer
                 if trait.f_get.__name__ == 'default_value':  # TODO: replace with flags
-                    assert p.get_value(trait) is trait.default, trait.name
+                    assert p.get_trait_value(trait) is trait.default, trait.name
                 elif trait.f_get.__name__.endswith('_get'):
-                    assert p.get_value(trait) == getattr(p, f'{trait.name}_get')()
+                    assert p.get_trait_value(trait) == getattr(p, f'{trait.name}_get')()
                 else:
-                    assert p.get_value(trait) == trait.f_get(p)
+                    assert p.get_trait_value(trait) == trait.f_get(p)
         else:
             # TODO: use nodes?
             ...
@@ -240,7 +240,7 @@ def test_debug(testable_person, on=False):
     p.weight_lbs = 200
     assert p.weight == 200.0
 
-    p.invalidate_value(p.T.weight_lbs)
+    p.invalidate_trait_value(p.T.weight_lbs)
     assert p.weight_lbs is XNone
 
 

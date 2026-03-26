@@ -48,7 +48,7 @@ class Model(QAbstractTableModel):
         trait: Trait = cls.trait(trait_name)
         if role == Qt.ItemDataRole.DisplayRole and index.isValid():
             if trait:
-                value = entity.get_value(trait)
+                value = entity.get_trait_value(trait)
                 text = trait.to_str(value)
             else:
                 text = ''

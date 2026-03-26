@@ -460,8 +460,7 @@ def test_own_trait_defs():
 
         def x_set(self, trait, value, arg) -> RC:
             assert_and_cont('set', self, arg, trait)
-            self.raw_set_value(trait, value + 1, arg)
-            return RC_TRUE
+            return self.raw_set_trait_value_with_args(trait, value + 1, arg)
 
         @classmethod
         def own_trait_definitions(cls) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
@@ -473,7 +472,7 @@ def test_own_trait_defs():
     assert x.x(1) == 1
     assert cnt == {'get': 1}
 
-    x.set_value(t, 2, 1)
+    x.set_trait_value_with_args(t, 2, 1)
     assert x.x(1) == 3
     assert cnt == {'get': 1, 'set': 1}
 

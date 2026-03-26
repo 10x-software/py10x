@@ -38,7 +38,7 @@ class Person(Traitable):
         today = date.today()
         if value and value > today:
             return RC(False, f'{value} may not be after {today}')
-        return self.raw_set_value(trait, value)
+        return self.raw_set_trait_value(trait, value)
 
     def full_name_get(self) -> str:
         return f'{self.first_name} {self.last_name}'

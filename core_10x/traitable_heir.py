@@ -22,7 +22,7 @@ class TraitableHeir(Traitable):
         if not grantor:
             return XNone
         trait = grantor.__class__.trait(trait_name)
-        return grantor.get_value(trait) if trait else XNone
+        return grantor.get_trait_value(trait) if trait else XNone
 
     def serialize_object(self, save_references = False) -> dict:
         serialized_data = super().serialize_object(save_references = save_references)

@@ -23,7 +23,7 @@ class Collection(Traitable):
 
     def cls_set(self, t, cls) -> RC:
         assert issubclass(cls, Traitable), f'{cls} is not a Traitable class'
-        return self.raw_set_value(t, cls)
+        return self.raw_set_trait_value(t, cls)
 
     def entity_ids_get(self) -> list[str]:
         return [entity_id.value for entity_id in self.cls.load_ids()]
