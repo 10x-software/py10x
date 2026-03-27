@@ -9,7 +9,6 @@ exclude = [
     "core_10x/code_samples/*",
     "core_10x/manual_tests/*",
     "core_10x/experimental/*",
-    "core_10x/vault/*",
     "ui_10x/qt6/*",
     "ui_10x/examples/*",
     "ui_10x/py_data_browser.py",
@@ -49,13 +48,19 @@ future-annotations = true # add "from __future__ import annotations" to enable m
 
 exclude = [
     "core_10x/attic/*.py",
+    "core_10x/jit/*",
     "ui_10x/table*.py"
 ]
 
 [lint.per-file-ignores]
 "ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]
-"core_10x/rdate.py" = [ 
+"ui_10x/examples/price_simulator.py" = ["E711"]
+"xx_common/rdate.py" = [ 
     "N802", # Function names should be lowercase
+]
+"core_10x/logger.py" = [ 
+    "N802", # Function names should be lowercase
+    "N805", # First argument of a method should be named `self`
 ]
 "core_10x/apps/runme_1st_app.py" = [
     "F841", # Local variable `available_stores` is assigned to but never used

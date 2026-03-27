@@ -111,9 +111,7 @@ class MongoCollection(TsCollection):
         """Create index. When inside a transaction, defers to run on commit (MongoDB disallows createIndex in txn)."""
         tx = self.store.current_transaction()
         if tx is not None:
-            tx.pending_create_index.append(
-                (self.collection_name(), name, trait_name, dict(index_args))
-            )
+            tx.pending_create_index.append((self.collection_name(), name, trait_name, dict(index_args)))
             return name
         sk = self._session_kw()
         index_info = self.coll.index_information(**sk)
@@ -149,8 +147,6 @@ class MongoCollection(TsCollection):
         return None
 
 
-
-
 class MongoStore(TsStore, resource_name='MONGO_DB'):
     ADMIN = 'admin'
 
@@ -166,7 +162,7 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
 
     class Transaction(TsStore.Transaction):
         def __init__(self, store: MongoStore):
-            if not (current_tx:=store.current_transaction()):
+            if not (current_tx := store.current_transaction()):
                 self.session = session = store.client.start_session()
                 session.start_transaction()
                 self.pending_create_index: list[tuple[str, str, str | list[tuple[str, int]], dict]] = []
@@ -193,7 +189,7 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
 
         def _do_abort(self) -> None:
             if self.store.current_transaction():
-                return  #-- no nested transactions supported
+                return  # -- no nested transactions supported
             try:
                 self.session.abort_transaction()
             finally:

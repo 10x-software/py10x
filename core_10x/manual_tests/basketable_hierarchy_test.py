@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime # noqa: TC003
 import itertools
 import random
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import bisect
 import functools
-from typing import Callable
 import inspect
 from types import GeneratorType
 import itertools
@@ -10,6 +9,10 @@ import itertools
 from core_10x.traitable import Traitable, Trait, T, RT, RC, RC_TRUE, XNone
 from core_10x.named_constant import NamedConstant, NamedCallable
 from core_10x.xinf import XInf
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 class Bucket(Traitable, root_class = True, embeddable = True):
     def calc_trait_values(self, trait_name: str, aggregator_f: Callable):
@@ -17,7 +20,6 @@ class Bucket(Traitable, root_class = True, embeddable = True):
         return data_gen if not aggregator_f else aggregator_f(data_gen)
 
     def calc_trait_values_with_args(self, trait_name: str, aggregator_f: Callable, *args):
-        member: Traitable
         data_gen = ( (member.get_value_with_args(trait_name, *args), qty) for member, qty in self.members_qtys() )
         return data_gen if not aggregator_f else aggregator_f(data_gen)
 
@@ -151,7 +153,7 @@ class Bucketizer(Traitable, embeddable = True):
                 raise AssertionError(f'{label}: {custom_f} must accept exactly one parameter')
             p = params[0]
             dtype = p.annotation
-            if not dtype is inspect.Signature.empty and not dtype is arg_data_type:
+            if dtype is not inspect.Signature.empty and dtype is not arg_data_type:
                 raise AssertionError(f'{label}: {custom_f} must accept single {arg_data_type}')
 
     @classmethod

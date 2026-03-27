@@ -971,6 +971,44 @@ with CACHE_ONLY():
     assert person.full_name == "Alice Smith"  # Computed and cached in memory
 ```
 
+### Scenario — Named Execution Contexts
+
+`Scenario` is a convenience wrapper that gives a `GRAPH_ON` execution context a stable name.  Scenarios with the same name are **singletons** — repeated calls return the same instance — so you can define a scenario once at module level and reuse it across your codebase without worrying about duplicate BTP objects.
+
+```python
+from core_10x.scenario import Scenario
+
+# Named scenarios are singletons — second call returns the same instance.
+s1 = Scenario('risk')
+s2 = Scenario('risk')
+assert s1 is s2
+
+# Use as a context manager to activate the underlying GRAPH_ON context.
+with Scenario('risk'):
+    pass  # GRAPH_ON is active here
+
+# Named scenarios keep their BTP after the with-block, so they can be re-entered.
+with Scenario('risk'):
+    pass  # same BTP, activated again
+```
+
+Anonymous scenarios (no name) create a fresh one-shot context each call and discard it on exit:
+
+```python
+from core_10x.scenario import Scenario
+
+with Scenario() as ctx:
+    pass  # GRAPH_ON active for this block only; ctx.btp is None after exit
+```
+
+**Named vs anonymous**
+
+| | `Scenario('name')` | `Scenario()` |
+|---|---|---|
+| Singleton? | Yes — same name returns the same object | No — fresh instance each call |
+| BTP after exit | Kept (can be re-entered) | Cleared (`btp = None`) |
+| Typical use | Long-lived application execution contexts | One-shot ad-hoc calculations |
+
 ## Traitable Store
 
 Traitable Store is essential for persistence and data management. 
@@ -1469,6 +1507,74 @@ with CACHE_ONLY():
     person2 = IdentifiedPerson(name='John', age=11, _replace=True)
     assert person.id()!=person2.id()
 ```
+
+### Logger and Performance Timing
+
+#### PerfTimer
+
+`PerfTimer` is a lightweight context manager that measures wall-clock elapsed time in nanoseconds using `time.perf_counter_ns`.
+
+```python
+from core_10x.logger import PerfTimer
+
+with PerfTimer() as t:
+    total = sum(range(1_000_000))
+
+assert t.elapsed == t.end - t.start  # nanoseconds
+assert t.elapsed > 0
+```
+
+After the block, three attributes are available on the timer object:
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `start` | `int` | `perf_counter_ns()` at entry |
+| `end` | `int` | `perf_counter_ns()` at exit |
+| `elapsed` | `int` | `end - start` (nanoseconds) |
+
+#### LOG — Structured Asynchronous Logging
+
+`LOG` provides a thin, level-filtered interface for structured application logging.  Messages are dispatched asynchronously to a background subprocess (`logger_process`) that persists each entry as a `LogMessage` Traitable to a `TsStore`.  The persistence target is configured via `EnvVars.log_ts_store_uri`; if not set, messages are only printed and not stored.
+
+**Lifecycle** — call once at application startup and shutdown:
+
+```py
+from core_10x.logger import LOG
+
+LOG.begin('my_app', LOG.DETAILED)   # start the logger subprocess
+# ... application runs ...
+LOG.end()                            # flush queue and join the subprocess
+```
+
+**Log levels** — `LOG.begin` accepts the level constant directly; only messages at or below this level are written:
+
+| Constant | `.value` | When to use |
+|----------|----------|-------------|
+| `LOG.BRIEF` | 0 | Essential messages only (errors, lifecycle events) |
+| `LOG.MEDIUM` | 1 | Standard operational messages |
+| `LOG.DETAILED` | 2 | Detailed trace of significant operations |
+| `LOG.VERBOSE` | 3 | Full debug output |
+
+**Emitting messages**:
+
+```py
+from core_10x.logger import LOG
+
+LOG.BRIEF('application started')      # always written when LOG.begin level >= 0
+LOG.MEDIUM({'action': 'login'})       # payload can be any Python object
+LOG.DETAILED('processing request')
+LOG.VERBOSE({'raw': True, 'data': 42})
+```
+
+Each persisted `LogMessage` record (a `Traitable` with `custom_collection=True`) stores:
+
+| Trait | Type | Content |
+|-------|------|---------|
+| `ns` | `int` | Nanosecond timestamp (`perf_counter_ns`) — also the ID trait |
+| `level` | `int` | Log level value |
+| `mem_pc` | `float` | Process memory usage (%) at log time |
+| `num_threads` | `int` | Thread count at log time |
+| `payload` | `Any` | The value passed to the log call |
 
 ## Basket and Bucket Facility
 

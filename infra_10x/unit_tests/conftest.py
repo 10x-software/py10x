@@ -13,7 +13,7 @@ TEST_DB = 'test_db'
 
 
 @pytest.fixture(params=[True, False], ids=['cxx-helper', 'py-helper'])
-def ts_instance(mocker,request):
+def ts_instance(mocker, request):
     instance = MongoStore.instance(hostname=MONGO_URL, dbname=TEST_DB)
     instance.username = 'test_user'
     if not instance.supports_transactions():

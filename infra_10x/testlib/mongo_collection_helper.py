@@ -1,5 +1,6 @@
 from core_10x.nucleus import Nucleus
 
+
 class MongoCollectionHelperStub:
     @classmethod
     def prepare_filter_and_pipeline(cls, serialized_traitable, filter, pipeline):

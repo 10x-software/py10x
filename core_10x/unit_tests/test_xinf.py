@@ -1,4 +1,5 @@
 """Unit tests for core_10x/xinf.py."""
+
 import math
 import sys
 
@@ -10,6 +11,7 @@ from core_10x.xinf import XInf
 # ---------------------------------------------------------------------------
 # Comparisons — positive infinity
 # ---------------------------------------------------------------------------
+
 
 class TestXInfComparisons:
     def test_greater_than_large_number(self):
@@ -46,6 +48,7 @@ class TestXInfComparisons:
 # ---------------------------------------------------------------------------
 # Comparisons — negative infinity  (-XInf)
 # ---------------------------------------------------------------------------
+
 
 class TestNegXInfComparisons:
     def test_less_than_large_negative(self):
@@ -89,6 +92,7 @@ class TestNegXInfComparisons:
 # Invert / identity
 # ---------------------------------------------------------------------------
 
+
 class TestXInfInvert:
     def test_invert_xinf_is_neg_xinf(self):
         assert ~XInf is -XInf
@@ -97,7 +101,8 @@ class TestXInfInvert:
         assert ~(-XInf) is XInf
 
     def test_neg_neg_xinf_is_xinf(self):
-        assert -(-XInf) is XInf
+        ninf = -XInf
+        assert -ninf is XInf
 
     def test_neg_xinf_is_same_object_each_time(self):
         """Negative infinity is a stable singleton."""
@@ -109,6 +114,7 @@ class TestXInfInvert:
 # ---------------------------------------------------------------------------
 # Arithmetic — positive infinity
 # ---------------------------------------------------------------------------
+
 
 class TestXInfArithmetic:
     def test_add_number_is_xinf(self):
@@ -130,7 +136,7 @@ class TestXInfArithmetic:
         assert XInf // 2 is XInf
 
     def test_pow_is_xinf(self):
-        assert XInf ** 2 is XInf
+        assert XInf**2 is XInf
 
     def test_abs_is_xinf(self):
         assert abs(XInf) is XInf
@@ -139,6 +145,7 @@ class TestXInfArithmetic:
 # ---------------------------------------------------------------------------
 # Arithmetic — negative infinity
 # ---------------------------------------------------------------------------
+
 
 class TestNegXInfArithmetic:
     def test_add_is_neg_xinf(self):
@@ -157,12 +164,14 @@ class TestNegXInfArithmetic:
         assert abs(-XInf) is XInf
 
     def test_neg_is_xinf(self):
-        assert -(-XInf) is XInf
+        ninf = -XInf
+        assert -(ninf) is XInf
 
 
 # ---------------------------------------------------------------------------
 # Type conversions
 # ---------------------------------------------------------------------------
+
 
 class TestXInfConversions:
     def test_float_is_inf(self):
@@ -191,15 +200,20 @@ class TestXInfConversions:
 # Subclassing is forbidden
 # ---------------------------------------------------------------------------
 
+
 class TestXInfSubclassing:
     def test_cannot_subclass_pinf_type(self):
         from core_10x.xinf import PInfType
+
         with pytest.raises(TypeError, match='May not derive from Inf'):
+
             class Bad(PInfType):
                 pass
 
     def test_cannot_subclass_minf_type(self):
         from core_10x.xinf import MInfType
+
         with pytest.raises(TypeError, match='May not derive from Inf'):
+
             class Bad(MInfType):
                 pass

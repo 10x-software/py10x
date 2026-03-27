@@ -377,7 +377,6 @@ class RDate(Nucleus):
         if start_date > end_date or not ordered_rdates:
             return []
 
-        rd: RDate
         subset = [ (rd, d, i) for i, rd in enumerate(ordered_rdates) if (d := rd.apply(start_date, cal, roll_rule)) <= end_date ]
 
         if len(subset) == len(ordered_rdates):  ## last d < end_date

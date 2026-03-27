@@ -366,6 +366,7 @@ def test_anonymous_traitable(monkeypatch):
         x: AnonymousTraitable = M(T.EMBEDDED)
 
     with pytest.raises(RuntimeError, match=r"T1.x - class <class 'core_10x.traitable.Traitable'> must be declared 'embeddable'"):
+
         class _T1(Traitable):
             x: Traitable = T(T.EMBEDDED)
 
@@ -406,7 +407,7 @@ class TestSerializeEmbedded:
         b: list[Traitable] = M(T.EMBEDDED)
 
     @pytest.mark.parametrize('cls', [X1, X2])
-    def test_serialize_embedded(self,cls):
+    def test_serialize_embedded(self, cls):
         Y, Z = self.Y, self.Z  # noqa: N806
         with CACHE_ONLY():
             x = cls(
@@ -439,8 +440,6 @@ class TestSerializeEmbedded:
                     assert "embedded instance must be 'embeddable'" in str(e)
                 else:
                     raise
-
-
 
 
 def test_own_trait_defs():
@@ -1138,9 +1137,9 @@ class TestClassTrait:
     """Tests for cls.T.trait_name returning a ClassTrait (NamedCallable getter)."""
 
     class Item(Traitable):
-        name:  str   = T(T.ID)
+        name: str = T(T.ID)
         price: float = T(0.0)
-        qty:   int   = T(1)
+        qty: int = T(1)
 
     def test_class_access_returns_class_trait(self):
         ct = self.Item.T.price
@@ -1149,17 +1148,17 @@ class TestClassTrait:
 
     def test_class_trait_name_and_cls(self):
         ct = self.Item.T.price
-        assert ct.name  == 'price'
+        assert ct.name == 'price'
         assert ct.label == 'price'
-        assert ct.cls   is self.Item
+        assert ct.cls is self.Item
 
     def test_class_trait_is_callable_returns_instance_value(self):
         with CACHE_ONLY():
             item = self.Item(name='ct_apple')
             item.price = 1.5
-            item.qty   = 3
+            item.qty = 3
             assert self.Item.T.price(item) == 1.5
-            assert self.Item.T.qty(item)   == 3
+            assert self.Item.T.qty(item) == 3
 
     def test_class_trait_reflects_updated_value(self):
         with CACHE_ONLY():
@@ -1171,10 +1170,10 @@ class TestClassTrait:
 
     def test_two_class_traits_are_independent(self):
         ct_price = self.Item.T.price
-        ct_qty   = self.Item.T.qty
+        ct_qty = self.Item.T.qty
         assert ct_price is not ct_qty
         assert ct_price.name == 'price'
-        assert ct_qty.name   == 'qty'
+        assert ct_qty.name == 'qty'
 
     def test_class_trait_serializes_as_class_id_and_trait_name(self):
         """serialize() emits [class_id, trait_name]; deserialization via ClassTrait.deserialize
@@ -1189,6 +1188,7 @@ class TestClassTrait:
 
     def test_class_trait_stored_as_named_callable_trait(self):
         """ClassTrait can be stored on a NamedCallable-typed trait and called later."""
+
         class Pipeline(Traitable):
             extractor: NamedCallable = T()
 

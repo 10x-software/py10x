@@ -34,10 +34,7 @@ MISSING_DOCUMENTATION_FILES = [doc_file for doc_file in DOCUMENTATION_FILES if n
 
 pytestmark = pytest.mark.skipif(
     bool(MISSING_DOCUMENTATION_FILES),
-    reason=(
-        'Documentation files are not available in this installation: '
-        f'{", ".join(MISSING_DOCUMENTATION_FILES)}'
-    ),
+    reason=(f'Documentation files are not available in this installation: {", ".join(MISSING_DOCUMENTATION_FILES)}'),
 )
 
 
@@ -93,14 +90,15 @@ def validate_python_syntax(code: str) -> bool:
         return False
 
 
-
 @pytest.fixture(autouse=True)
 def patch_person():
     import core_10x.code_samples.person
+
     old_history_class = core_10x.code_samples.person.Person.s_history_class
     core_10x.code_samples.person.Person.s_history_class = None
     yield
     core_10x.code_samples.person.Person.s_history_class = old_history_class
+
 
 @pytest.mark.parametrize(
     'test_name,code_block,future_annotations',
@@ -122,7 +120,7 @@ def test_documentation_code_block_execution(test_name: str, code_block: str, fut
 
     doc_file_name = test_name.split('_block_')[0]
     fake_module_name = f'__doc_test_{doc_file_name}__'
-    if not (fake_module:=sys.modules.get(fake_module_name)):
+    if not (fake_module := sys.modules.get(fake_module_name)):
         fake_module = type(sys)('module')
         fake_module.__dict__.update(
             {

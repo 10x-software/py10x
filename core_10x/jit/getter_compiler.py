@@ -38,7 +38,7 @@ class NodeTransforfmer(ast.NodeTransformer):
         if isinstance(node, ast.Attribute):
             if isinstance(node.value, ast.Name) and node.value.id == 'self':
                 name = node.attr
-                if not name in self.self_attrs:
+                if name not in self.self_attrs:
                     self.self_attrs.add(name)
                     param = f'self_{name}'
 

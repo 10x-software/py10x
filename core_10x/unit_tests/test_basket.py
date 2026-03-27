@@ -1,4 +1,5 @@
 """Unit tests for the Basket / Bucket / Bucketizer facility (core_10x/basket.py)."""
+
 from __future__ import annotations
 
 import itertools
@@ -31,6 +32,7 @@ from core_10x.xinf import XInf
 # Domain model shared across all tests
 # ---------------------------------------------------------------------------
 
+
 class Animal(Traitable):
     name: str = T(T.ID)
     weight: float = T()
@@ -52,6 +54,7 @@ class SUM_WEIGHT(NamedCallable):
 # ---------------------------------------------------------------------------
 # Bucket primitives
 # ---------------------------------------------------------------------------
+
 
 class TestBucketDict:
     def test_insert_and_members(self):
@@ -175,6 +178,7 @@ class TestBucketList:
 # BUCKET_SHAPE named constant
 # ---------------------------------------------------------------------------
 
+
 def test_bucket_shape_values():
     assert BUCKET_SHAPE.SET.value is BucketSet
     assert BUCKET_SHAPE.DICT.value is BucketDict
@@ -184,6 +188,7 @@ def test_bucket_shape_values():
 # ---------------------------------------------------------------------------
 # Basket - basics (no bucketizers)
 # ---------------------------------------------------------------------------
+
 
 class TestBasketBasics:
     def test_add_and_iterate(self):
@@ -311,6 +316,7 @@ class TestBasketRegressionGuards:
 
     def test_f_aggregator_throw_false_returns_none_without_attrerror(self):
         """Missing NamedCallable member must yield None, not ``None.value`` (AttributeError)."""
+
         class OtherAgg(NamedCallable):
             OTHER = lambda g: 0
 
@@ -342,6 +348,7 @@ class TestBasketRegressionGuards:
 # ---------------------------------------------------------------------------
 # Bucketizer.by_class
 # ---------------------------------------------------------------------------
+
 
 class TestBucketizerByClass:
     def test_assigns_exact_class_as_tag(self):
@@ -390,6 +397,7 @@ class TestBucketizerByClass:
 # ---------------------------------------------------------------------------
 # Bucketizer.by_feature
 # ---------------------------------------------------------------------------
+
 
 class TestBucketizerByFeature:
     def test_open_feature_no_known_tags(self):
@@ -445,6 +453,7 @@ class TestBucketizerByFeature:
 # ---------------------------------------------------------------------------
 # Bucketizer.by_range
 # ---------------------------------------------------------------------------
+
 
 class TestBucketizerByRange:
     def test_inclusive_interval_matches(self):
@@ -533,6 +542,7 @@ class TestBucketizerByRange:
 # Bucketizer.by_breakpoints
 # ---------------------------------------------------------------------------
 
+
 class TestBucketizerByBreakPoints:
     def test_basic_split(self):
         with CACHE_ONLY():
@@ -561,9 +571,7 @@ class TestBucketizerByBreakPoints:
 
     def test_include_last_includes_final_point(self):
         with CACHE_ONLY():
-            bz = Bucketizer.by_breakpoints(
-                Animal, Animal.T.weight, 0.0, 50.0, include_last=True
-            )
+            bz = Bucketizer.by_breakpoints(Animal, Animal.T.weight, 0.0, 50.0, include_last=True)
             fido = Animal(name='fido')
             fido.weight = 50.0
             bz_val = bz.calc_bucketizing_value(fido)
@@ -573,9 +581,7 @@ class TestBucketizerByBreakPoints:
         """include_last=True is rejected at construction time when the last breakpoint is XInf."""
         with CACHE_ONLY():
             with pytest.raises(TraitMethodError, match='meaningless'):
-                Bucketizer.by_breakpoints(
-                    Animal, Animal.T.weight, 0.0, 50.0, XInf, include_last=True
-                )
+                Bucketizer.by_breakpoints(Animal, Animal.T.weight, 0.0, 50.0, XInf, include_last=True)
 
     def test_unordered_breakpoints_raise(self):
         with CACHE_ONLY():
@@ -598,6 +604,7 @@ class TestBucketizerByBreakPoints:
 # ---------------------------------------------------------------------------
 # Compound bucketizers (multiple)
 # ---------------------------------------------------------------------------
+
 
 class TestCompoundBucketizers:
     def test_two_bucketizers_create_compound_keys(self):
@@ -646,6 +653,7 @@ class TestCompoundBucketizers:
 # ---------------------------------------------------------------------------
 # add_bucketizer - incremental bucketing
 # ---------------------------------------------------------------------------
+
 
 class TestAddBucketizer:
     def test_add_bucketizer_splits_existing_members(self):
@@ -768,6 +776,7 @@ class TestAddBucketizer:
 # bucketizers setter - setting bucketizers after members are already in basket
 # ---------------------------------------------------------------------------
 
+
 class TestBucketizersSetterAfterAdd:
     """Tests for the bucketizers setter.
 
@@ -847,7 +856,7 @@ class TestBucketizersSetterAfterAdd:
             b = Basket(base_class=Animal)
             b.bucketizers = [bz]
             b.add(fido)
-            assert fido in list(b.tags_buckets())[0][1].members()
+            assert fido in next(iter(b.tags_buckets()))[1].members()
 
             b.bucketizers = []  # reset=True → members lost
             assert b.bucketizers == []
@@ -950,7 +959,7 @@ class TestBucketizersSetterAfterAdd:
             b.bucketizers = []
             assert b.bucketizers == []
 
-            # fido must survive the reset – no re-add required.
+            # fido must survive the reset -> no re-add required.
             assert fido in list(b.the_bucket.members())
 
     def test_setter_invalid_input_is_rejected(self):
@@ -969,6 +978,7 @@ class TestBucketizersSetterAfterAdd:
 # ---------------------------------------------------------------------------
 # Interval helpers
 # ---------------------------------------------------------------------------
+
 
 class TestInterval:
     def test_inclusive_interval(self):
@@ -1008,6 +1018,7 @@ class TestInterval:
 # Serialization - embedded bucketizers
 # ---------------------------------------------------------------------------
 
+
 class TestBucketizersEmbeddedSerialization:
     """Verify that bucketizers carrying T.EMBEDDED are serialized inline.
 
@@ -1038,16 +1049,14 @@ class TestBucketizersEmbeddedSerialization:
 
             inner = self._inner(b)
             bz_list = inner.get('bucketizers', [])
-            assert len(bz_list) >= 2, f"Unexpected format: {bz_list!r}"
+            assert len(bz_list) >= 2, f'Unexpected format: {bz_list!r}'
             # Type entry is a class-path string, data entry is a dict.
             type_entry = bz_list[0]
             assert isinstance(type_entry, str) and 'BucketizerByClass' in type_entry, (
-                f"First element should be a class-path string, got: {type_entry!r}"
+                f'First element should be a class-path string, got: {type_entry!r}'
             )
             # No element is an _id reference dict.
-            assert all(
-                not (isinstance(x, dict) and '_id' in x) for x in bz_list
-            ), "Bucketizers must not be serialized as ID references"
+            assert all(not (isinstance(x, dict) and '_id' in x) for x in bz_list), 'Bucketizers must not be serialized as ID references'
 
     def test_two_bucketizers_both_embedded(self):
         """Two same-class bucketizers share one type entry: [type, data1, data2]."""
@@ -1061,13 +1070,9 @@ class TestBucketizersEmbeddedSerialization:
             inner = self._inner(b)
             bz_list = inner.get('bucketizers', [])
             # Same-class compact form: [type_str, data_dict, data_dict]
-            assert bz_list and isinstance(bz_list[0], str), (
-                f"Expected type-path string as first element, got: {bz_list!r}"
-            )
+            assert bz_list and isinstance(bz_list[0], str), f'Expected type-path string as first element, got: {bz_list!r}'
             # All data entries must be dicts without _id
-            assert all(
-                not (isinstance(x, dict) and '_id' in x) for x in bz_list
-            ), "Bucketizers must not be serialized as ID references"
+            assert all(not (isinstance(x, dict) and '_id' in x) for x in bz_list), 'Bucketizers must not be serialized as ID references'
 
     def test_empty_bucketizers_serializes_as_empty_list(self):
         with CACHE_ONLY():
@@ -1080,6 +1085,7 @@ class TestBucketizersEmbeddedSerialization:
 # Basketable mixin - recursive contents traversal
 # ---------------------------------------------------------------------------
 
+
 class TestBasketable:
     """
     Portfolio → Book → Trade → Instrument hierarchy mirroring the manual test.
@@ -1089,20 +1095,20 @@ class TestBasketable:
     """
 
     class Instrument(Traitable):
-        ticker: str   = T(T.ID)
-        price:  float = T()
+        ticker: str = T(T.ID)
+        price: float = T()
 
     class Trade(Traitable, Basketable, bucket_shape=BUCKET_SHAPE.DICT):
-        name:        str    = T(T.ID)
+        name: str = T(T.ID)
         instruments: Basket = T()
 
         def members_qtys(self):
             return self.instruments.members_qtys()
 
     class Book(Traitable, Basketable, bucket_shape=BUCKET_SHAPE.SET):
-        name:        str    = T(T.ID)
-        trade_names: list   = T()
-        trades:      Basket = RT()
+        name: str = T(T.ID)
+        trade_names: list = T()
+        trades: Basket = RT()
 
         def trades_get(self) -> Basket:
             basket = Basket(base_class=TestBasketable.Trade)
@@ -1114,11 +1120,11 @@ class TestBasketable:
             return self.trades.members_qtys()
 
     class Portfolio(Traitable, Basketable, bucket_shape=BUCKET_SHAPE.SET):
-        name:            str    = T(T.ID)
-        book_names:      list   = T()
-        portfolio_names: list   = T()
-        books:           Basket = RT()
-        portfolios:      Basket = RT()
+        name: str = T(T.ID)
+        book_names: list = T()
+        portfolio_names: list = T()
+        books: Basket = RT()
+        portfolios: Basket = RT()
 
         def books_get(self) -> Basket:
             basket = Basket(base_class=TestBasketable.Book)
@@ -1172,7 +1178,7 @@ class TestBasketable:
             book.trade_names = ['bsk2_T1']
 
             portfolio = self.Portfolio(name='bsk2_GlobalFund')
-            portfolio.book_names      = ['bsk2_Equities']
+            portfolio.book_names = ['bsk2_Equities']
             portfolio.portfolio_names = []
 
             instr_basket = Basket(base_class=self.Instrument)
@@ -1196,12 +1202,12 @@ class TestBasketable:
             book.trade_names = ['bsk3_T1']
 
             p1 = self.Portfolio(name='bsk3_P1')
-            p1.book_names      = ['bsk3_Equities']
+            p1.book_names = ['bsk3_Equities']
             p1.portfolio_names = []
 
             top = self.Portfolio(name='bsk3_Top')
             top.portfolio_names = ['bsk3_P1']
-            top.book_names      = []
+            top.book_names = []
 
             instr_basket = Basket(base_class=self.Instrument)
             top.contents(instr_basket)
@@ -1223,7 +1229,7 @@ class TestBasketable:
             book.trade_names = ['bsk4_T1']
 
             portfolio = self.Portfolio(name='bsk4_GlobalFund')
-            portfolio.book_names      = ['bsk4_Equities']
+            portfolio.book_names = ['bsk4_Equities']
             portfolio.portfolio_names = []
 
             trade_basket = Basket(base_class=self.Trade)
@@ -1237,6 +1243,7 @@ class TestBasketable:
 # ---------------------------------------------------------------------------
 # Bucketizer validation helpers
 # ---------------------------------------------------------------------------
+
 
 class TestBucketizerValidation:
     def test_verify_base_class_with_non_class_raises(self):

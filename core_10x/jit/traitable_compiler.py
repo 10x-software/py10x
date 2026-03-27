@@ -3,7 +3,7 @@ from __future__ import annotations
 import ast
 import inspect
 import textwrap
-from typing import Callable
+from collections.abc import Callable
 
 from core_10x.trait import TRAIT_METHOD
 from core_10x.traitable import Traitable, T, RT
@@ -93,7 +93,7 @@ class TraitableCompiler:
                 try:
                     gc.compiled_target_getter
                 except Exception as ex:
-                    raise ValueError(f'Compilation failed:\n{str(ex)}\n\nFunction source:\n{gc.target_getter_src()}')
+                    raise ValueError(f'Compilation failed:\n{ex!s}\n\nFunction source:\n{gc.target_getter_src()}')
 
                 entry = TraitEntry(
                     gc.original_getter,

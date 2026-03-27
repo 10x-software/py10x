@@ -1,4 +1,5 @@
 """Unit tests for core_10x/scenario.py."""
+
 import pytest
 
 from core_10x.scenario import Scenario

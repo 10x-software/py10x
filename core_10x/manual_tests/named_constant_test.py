@@ -2,6 +2,10 @@ from __future__ import annotations
 
 from math import exp, log
 
+from dateutil.relativedelta import relativedelta as delta
+
+from core_10x.traitable import Traitable, T
+
 from core_10x.named_constant import (
     Enum,
     EnumBits,
@@ -112,7 +116,6 @@ class PARAMS(NamedConstant):
     FUNC        = ()
     MIN_FREQ    = ()
 
-from dateutil.relativedelta import relativedelta as delta
 
 FREQ_TABLE = NamedConstantTable(FREQUENCY, PARAMS,
     #           CHAR    FUNC                                MIN_FREQ
@@ -130,7 +133,6 @@ XFREQ_TABLE = FREQ_TABLE.extend(XFREQUENCY,
     QUARTER =   ('Q',   lambda d, n: d + delta(months = n*3),   XFREQUENCY.MONTH),
 )
 
-from core_10x.traitable import Traitable, T
 
 class TestNamedConstant(Traitable):
     count: int      = T()

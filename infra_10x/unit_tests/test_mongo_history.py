@@ -6,6 +6,7 @@ import pytest
 from core_10x.testlib.fixtures import with_transactions
 from core_10x.testlib.traitable_history_tests import TestTraitableHistory, test_collection, test_store
 
+
 @pytest.fixture
 def clock_freezer():
     class Freezer:
@@ -13,4 +14,5 @@ def clock_freezer():
         def utcnow():
             time.sleep(0.001)
             return datetime.utcnow()
+
     return Freezer

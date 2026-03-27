@@ -12,10 +12,10 @@ class PInfType:
     def __invert__(self):                       return _MInf
 
     def __eq__(self, other):                    return other is self
-    def __ne__(self, other):                    return not other is self
+    def __ne__(self, other):                    return other is not self
     def __lt__(self, other):                    return False
     def __le__(self, other):                    return other is self
-    def __gt__(self, other):                    return not other is self
+    def __gt__(self, other):                    return other is not self
     def __ge__(self, other):                    return True
 
     def __abs__(self):                          return self
@@ -40,8 +40,8 @@ class MInfType:
     def __invert__(self):                       return _PInf
 
     def __eq__(self, other):                    return other is self
-    def __ne__(self, other):                    return not other is self
-    def __lt__(self, other):                    return not other is self
+    def __ne__(self, other):                    return other is not self
+    def __lt__(self, other):                    return other is not self
     def __le__(self, other):                    return True
     def __gt__(self, other):                    return False
     def __ge__(self, other):                    return other is self

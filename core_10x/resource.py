@@ -137,8 +137,10 @@ class ResourceSpec:
         netloc = userinfo + host_netloc
         path   = f'/{dbname}' if dbname else ''
         url    = f'{protocol}://{netloc}{path}'
-        if query:    url += f'?{query}'
-        if fragment: url += f'#{fragment}'
+        if query:
+            url += f'?{query}'
+        if fragment:
+            url += f'#{fragment}'
         return url
 
 class Resource(abc.ABC):

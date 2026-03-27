@@ -100,31 +100,31 @@ def test_error_code_formatting():
 
 def test_named_constant_item_lookup():
     class Color(NamedConstant):
-        RED   = ()
+        RED = ()
         GREEN = ()
-        BLUE  = ()
+        BLUE = ()
 
-    assert Color.item('RED')   is Color.RED
+    assert Color.item('RED') is Color.RED
     assert Color.item('GREEN') is Color.GREEN
-    assert Color.item('BLUE')  is Color.BLUE
+    assert Color.item('BLUE') is Color.BLUE
     assert Color.item('PURPLE') is None
 
 
 def test_named_constant_value_standalone():
     class Metric(NamedConstant):
-        RISK   = ()
+        RISK = ()
         RETURN = ()
 
     row = NamedConstantValue(Metric, RISK=0.1, RETURN=0.9)
 
     # Access by constant instance
-    assert row[Metric.RISK]   == 0.1
+    assert row[Metric.RISK] == 0.1
     assert row[Metric.RETURN] == 0.9
     # Access by string name
-    assert row['RISK']   == 0.1
+    assert row['RISK'] == 0.1
     assert row['RETURN'] == 0.9
     # Attribute-style access
-    assert row.RISK   == 0.1
+    assert row.RISK == 0.1
     assert row.RETURN == 0.9
     # Mutation is not allowed
     with pytest.raises(AssertionError):
@@ -133,7 +133,7 @@ def test_named_constant_value_standalone():
 
 def test_named_constant_table_extend():
     class BaseAsset(NamedConstant):
-        CASH   = ()
+        CASH = ()
         EQUITY = ()
 
     class Attr(NamedConstant):
@@ -147,8 +147,8 @@ def test_named_constant_table_extend():
     ext = base.extend(ExtAsset, COMMODITY=(0.8,))
 
     # Original rows are preserved
-    assert ext[ExtAsset.CASH][Attr.RISK_WEIGHT]      == 0.0
-    assert ext[ExtAsset.EQUITY][Attr.RISK_WEIGHT]    == 1.0
+    assert ext[ExtAsset.CASH][Attr.RISK_WEIGHT] == 0.0
+    assert ext[ExtAsset.EQUITY][Attr.RISK_WEIGHT] == 1.0
     # New row is accessible
     assert ext[ExtAsset.COMMODITY][Attr.RISK_WEIGHT] == 0.8
     # Original table is unchanged
@@ -157,15 +157,15 @@ def test_named_constant_table_extend():
 
 def test_named_callable_members_and_call():
     class Agg(NamedCallable):
-        SUM  = lambda items: sum(items)
+        SUM = lambda items: sum(items)
         MEAN = lambda items: sum(items) / len(items)
 
     # Members are NamedConstant instances with callable values
-    assert Agg.SUM.name  == 'SUM'
+    assert Agg.SUM.name == 'SUM'
     assert Agg.MEAN.name == 'MEAN'
 
     # Callable via the constant directly
-    assert Agg.SUM([1, 2, 3])  == 6
+    assert Agg.SUM([1, 2, 3]) == 6
     assert Agg.MEAN([2, 4, 6]) == 4.0
 
     # item() lookup works for NamedCallable too
@@ -176,6 +176,6 @@ def test_named_callable_members_and_call():
 def test_named_callable_just_func():
     double = NamedCallable.just_func(lambda x: x * 2)
 
-    assert double(5)  == 10
-    assert double(0)  == 0
+    assert double(5) == 10
+    assert double(0) == 0
     assert double(-3) == -6

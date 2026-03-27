@@ -8,7 +8,7 @@ class MacEditCommitFilter(QObject):
         super().__init__()
         self._in_commit = False
 
-    def eventFilter(self, obj, event):
+    def eventFilter(self, obj, event): # noqa: N802
         if self._in_commit:
             return False
 

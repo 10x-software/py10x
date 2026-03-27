@@ -11,9 +11,10 @@ import tempfile
 import textwrap
 from pathlib import Path
 from types import ModuleType
-from typing import Callable
+from collections.abc import Callable
 import ast
-import types, importlib.util
+import types
+import importlib.util
 
 from core_10x.trait import Trait, ClassTrait
 from core_10x.traitable import Traitable

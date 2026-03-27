@@ -5,6 +5,7 @@ and an optional TsStore — those are exercised by manual/integration tests.
 This suite covers the pure-Python parts that have no external dependencies:
 PerfTimer and the LOG level constants / guard assertion.
 """
+
 import time
 
 import pytest
@@ -16,6 +17,7 @@ from core_10x.logger import LOG, PerfTimer
 # ---------------------------------------------------------------------------
 # PerfTimer
 # ---------------------------------------------------------------------------
+
 
 class TestPerfTimer:
     def test_elapsed_is_positive(self):
@@ -49,6 +51,7 @@ class TestPerfTimer:
 # LOG level constants
 # ---------------------------------------------------------------------------
 
+
 class TestLOGLevels:
     def test_brief_value(self):
         assert LOG.BRIEF.value == 0
@@ -75,6 +78,7 @@ class TestLOGLevels:
 # LOG guard — raises when no Logger is active
 # ---------------------------------------------------------------------------
 
+
 class TestLOGGuard:
     def _with_no_logger(self, fn):
         """Temporarily clear LOGGER and call fn, then restore."""
@@ -86,23 +90,24 @@ class TestLOGGuard:
             log_module.LOGGER = original
 
     def test_brief_raises_without_logger(self):
-        with pytest.raises(AssertionError, match='LOG.begin'):
+        with pytest.raises(AssertionError, match=r'LOG.begin'):
             self._with_no_logger(lambda: LOG.BRIEF('hello'))
 
     def test_medium_raises_without_logger(self):
-        with pytest.raises(AssertionError, match='LOG.begin'):
+        with pytest.raises(AssertionError, match=r'LOG.begin'):
             self._with_no_logger(lambda: LOG.MEDIUM('hello'))
 
     def test_detailed_raises_without_logger(self):
-        with pytest.raises(AssertionError, match='LOG.begin'):
+        with pytest.raises(AssertionError, match=r'LOG.begin'):
             self._with_no_logger(lambda: LOG.DETAILED('hello'))
 
     def test_verbose_raises_without_logger(self):
-        with pytest.raises(AssertionError, match='LOG.begin'):
+        with pytest.raises(AssertionError, match=r'LOG.begin'):
             self._with_no_logger(lambda: LOG.VERBOSE('hello'))
 
     def test_none_payload_skips_data_construction(self):
         """_log with payload=None sends None to the queue; no crash when LOGGER is set."""
+
         # We can't instantiate a real Logger without OsUser, but we can
         # verify that _log short-circuits correctly for None payload by
         # providing a minimal stub.
@@ -110,7 +115,9 @@ class TestLOGGuard:
             log_level = 0
             ps = None
             received = None
-            def log(self, data): StubLogger.received = data
+
+            def log(self, data):
+                StubLogger.received = data
 
         original = log_module.LOGGER
         log_module.LOGGER = StubLogger()
