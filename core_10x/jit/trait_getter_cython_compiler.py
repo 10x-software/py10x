@@ -11,15 +11,15 @@ import tempfile
 import textwrap
 from pathlib import Path
 from types import ModuleType
-from typing import Callable
 import ast
 import types, importlib.util
+from typing import Callable
 
 from core_10x.trait import Trait, ClassTrait
 from core_10x.traitable import Traitable
 from core_10x.py_class import PyClass
-from core_10x.global_cache import cache
 
+from core_10x.jit.traitable_method_optimizer import TraitableMethodOptimizer
 from core_10x.jit.tcc_compiler import TCC
 
 
@@ -102,7 +102,7 @@ class FuncTreeWalker(ast.NodeTransformer):
             self.locals[node.target.id] = 'int'
         return node
 
-class CythonCompiler:
+class CythonCompiler(TraitableMethodOptimizer):
     #-- Python -> Cython type maps
     s_pytype_cy_map: dict[type, str] = {
         int:    'long',
@@ -111,29 +111,19 @@ class CythonCompiler:
     }
     s_pyname_cy_map: dict[str, str] = { pytype.__name__: cy for pytype, cy in s_pytype_cy_map.items() }
 
-    @classmethod
-    @cache
-    def instance(cls, traitable_class: type[Traitable], trait_name: str) -> CythonCompiler:
-        assert issubclass(traitable_class, Traitable), f'{traitable_class} is not a subclass of {Traitable}'
-        trait = traitable_class.trait(trait_name, throw = True)
-        getter = trait.custom_f_get()
-        if getter is None:  #-- no custom getter defined
-            return None
+    def __init__(self, traitable_class, attr_name, **kwargs):
+        super().__init__(traitable_class, attr_name, **kwargs)
 
-        return CythonCompiler(ClassTrait(traitable_class, trait), getter, _kaboom = False)
+        if self.trait is None:
+            raise NotImplementedError(f'** Curretly only traits are supported:\n{self.traitable_class.__name__}.{self.name} is not a trait')
 
-    def __init__(self, class_trait: ClassTrait, getter: Callable, _kaboom = True):
-        assert not _kaboom, f'You must use {self.__class__.__name__}.instance(traitable_class, trait_name)'
-
-        self.class_trait = class_trait
-        self.getter = getter
-        self.unique_name = f"{PyClass.name(class_trait.cls).replace('.', '_')}_{getter.__name__}"
-        self.compiled_getter = None
+        self.class_trait = class_trait = ClassTrait(self.traitable_class, self.trait)
+        self.unique_name = f"{PyClass.name(class_trait.cls).replace('.', '_')}_{self.original_method.__name__}"
         self.compiled_module = None
 
     #== TCC in-memory compilation → Python callable
 
-    def tcc_compile(self):
+    def generate_optimized_method(self) -> Callable:
         """
         Compile C source in-memory with TCC.
         Calls PyInit_<module_name>() to obtain the Python module.
@@ -151,8 +141,7 @@ class CythonCompiler:
         if isinstance(result, types.ModuleType):
             result.__tcc_binary__ = binary  # -- keep TCC memory alive as long as the module lives
             self.compiled_module = result
-            self.compiled_getter = getattr(self.compiled_module, self.unique_name)
-            return  #-- single-phase init, done
+            return  getattr(self.compiled_module, self.unique_name) #-- single-phase init, done
 
         #-- multi-phase init: result is a PyModuleDef* returned from PyModuleDef_Init,
         #-- wrapped as a Python object whose memory lives in TCC's allocation.
@@ -174,16 +163,17 @@ class CythonCompiler:
         rc = api.PyModule_ExecDef(module, def_ptr)
         if rc != 0:
             raise RuntimeError(f'PyModule_ExecDef failed for {module_name}')
+
         module.__tcc_binary__ = binary  #-- keep TCC memory alive as long as the module lives
         self.compiled_module = module
-        self.compiled_getter = getattr(module, self.unique_name)
+        return getattr(module, self.unique_name)
 
     def generate_c_source(self) -> str:
         cy_text = self.generate_cython_source()
         return self.cython_to_c('\n'.join(cy_text))
 
     def generate_cython_source(self) -> list:
-        src = textwrap.dedent(inspect.getsource(self.getter))
+        src = textwrap.dedent(inspect.getsource(self.original_method))
         tree = ast.parse(src)
 
         #-- Walk the AST tree and return a potentially modified copy
@@ -235,7 +225,7 @@ class CythonCompiler:
         look them up in getter.__globals__, construct import lines.
         """
         lines = []
-        g = self.getter.__globals__
+        g = self.original_method.__globals__
         for name in other_names:
             obj = g.get(name)
             if obj is None:     #-- local, param or a bug in the original getter :-)

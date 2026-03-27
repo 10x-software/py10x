@@ -59,8 +59,11 @@ class Trait(BTrait, metaclass=TraitMetaclass):
         tmap = Trait.s_baseclass_traitclass_map
         base_class: type
         for base_class in reversed(tmap):
-            if issubclass(data_type, base_class):
-                return tmap[base_class]
+            try:
+                if issubclass(data_type, base_class):
+                    return tmap[base_class]
+            except Exception:
+                break   #-- let's try generic trait
 
         return generic_trait
 
