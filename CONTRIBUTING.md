@@ -171,7 +171,7 @@ When developing with the Traitable framework:
 - Use `Traitable` as the base class for data models
 - Define ID traits for endogenous traitables (shared globally by ID)
 - Use `T()` for regular traits (required for persistence)
-- Use `RT()` for runtime traits that should not be stored (RT() is optional and can be omitted)
+- Use `RT()` for traits that should not be stored or persisted; otherwise identical to `T()` (can be omitted — bare annotations default to `RT()`)
 - Implement getter methods for traits with computed values
 - Use setters with validation for data integrity or to set other traits
 - Leverage the dependency graph for automatic computation
