@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Callable
+import typing
+from typing import Any
 
 from core_10x.nucleus import Nucleus
+
+if typing.TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 #-- TODO: should I re-incarnate deriving from a metaclass, so that I can do: NAMED_CONSTANT[name] ?

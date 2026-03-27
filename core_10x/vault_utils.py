@@ -14,13 +14,13 @@ class VaultUtils:
         if n < cls.MIN_CHARS:
             rc.add_error(f'password must be at least {cls.MIN_CHARS} characters long')
         if not any(c.isalpha() for c in pwd):
-            rc.add_error(f'password must have at least one letter')
+            rc.add_error('password must have at least one letter')
         if not any(c.isupper() for c in pwd):
-            rc.add_error(f'password must have at least one capital letter')
+            rc.add_error('password must have at least one capital letter')
         if not any(c.isdigit() for c in pwd):
-            rc.add_error(f'password must have at least one digit')
+            rc.add_error('password must have at least one digit')
         if pwd != pwd2:
-            rc.add_error(f'passwords do not match')
+            rc.add_error('passwords do not match')
 
         if not rc:
             rc.prepend_error_header('New password cannot be used:')
@@ -128,7 +128,7 @@ class VaultUtils:
                         try:
                             Resource.instance_from_uri(uri, username = login, password = password)
                         except Exception as ex:
-                            print(f'{str(ex)}')
+                            print(f'{ex!s}')
 
                         VaultResourceAccessor.save_ra(uri, password, login = login, username = user_id)
 

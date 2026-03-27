@@ -14,7 +14,8 @@ This guide covers the technical implementation and advanced usage of the py10x f
 8. [Traitable Store](#traitable-store)
 9. [UI Framework Integration](#ui-framework-integration)
 10. [Advanced Features](#advanced-features)
-11. [Next Steps](#next-steps)
+11. [Basket and Bucket Facility](#basket-and-bucket-facility)
+12. [Next Steps](#next-steps)
 
 ## What's in `py10x-core`?
 
@@ -970,6 +971,44 @@ with CACHE_ONLY():
     assert person.full_name == "Alice Smith"  # Computed and cached in memory
 ```
 
+### Scenario — Named Execution Contexts
+
+`Scenario` is a convenience wrapper that gives a `GRAPH_ON` execution context a stable name.  Scenarios with the same name are **singletons** — repeated calls return the same instance — so you can define a scenario once at module level and reuse it across your codebase without worrying about duplicate BTP objects.
+
+```python
+from core_10x.scenario import Scenario
+
+# Named scenarios are singletons — second call returns the same instance.
+s1 = Scenario('risk')
+s2 = Scenario('risk')
+assert s1 is s2
+
+# Use as a context manager to activate the underlying GRAPH_ON context.
+with Scenario('risk'):
+    pass  # GRAPH_ON is active here
+
+# Named scenarios keep their BTP after the with-block, so they can be re-entered.
+with Scenario('risk'):
+    pass  # same BTP, activated again
+```
+
+Anonymous scenarios (no name) create a fresh one-shot context each call and discard it on exit:
+
+```python
+from core_10x.scenario import Scenario
+
+with Scenario() as ctx:
+    pass  # GRAPH_ON active for this block only; ctx.btp is None after exit
+```
+
+**Named vs anonymous**
+
+| | `Scenario('name')` | `Scenario()` |
+|---|---|---|
+| Singleton? | Yes — same name returns the same object | No — fresh instance each call |
+| BTP after exit | Kept (can be re-entered) | Cleared (`btp = None`) |
+| Typical use | Long-lived application execution contexts | One-shot ad-hoc calculations |
+
 ## Traitable Store
 
 Traitable Store is essential for persistence and data management. 
@@ -1287,6 +1326,114 @@ assert user_perms.value == 3  # 3 (binary: 11)
 assert user_perms & Permissions.READ  # User has read access
 ```
 
+#### Lookup by name
+
+`NamedConstant.item(symbol_name)` returns the constant for a given string key, or `None` if not found — useful when deserializing values from external sources:
+
+```python
+from core_10x.named_constant import Enum
+
+class Priority(Enum, seed=1):
+    LOW = ()
+    MEDIUM = ()
+    HIGH = ()
+
+assert Priority.item('HIGH') is Priority.HIGH
+assert Priority.item('UNKNOWN') is None
+```
+
+#### Named Callables
+
+`NamedCallable` is a `NamedConstant` whose values are callables.  Each member wraps a function that can be stored, compared, and serialized by name.
+
+```python
+from core_10x.named_constant import NamedCallable
+
+class Aggregator(NamedCallable):
+    SUM  = lambda items: sum(items)
+    MEAN = lambda items: sum(items) / len(items)
+
+assert Aggregator.SUM([1, 2, 3]) == 6
+assert Aggregator.MEAN([1, 2, 3]) == 2.0
+```
+
+For one-off wrapping of an anonymous callable (e.g. inside a factory method that accepts a plain `lambda`) use `NamedCallable.just_func`:
+
+```python
+from core_10x.named_constant import NamedCallable
+
+double = NamedCallable.just_func(lambda x: x * 2)
+assert double(5) == 10
+```
+
+#### NamedConstantValue and NamedConstantTable
+
+`NamedConstantValue` maps every member of a `NamedConstant` class to an associated value, giving attribute-style access by constant name or by the constant itself.
+
+```python
+from core_10x.named_constant import NamedConstant, NamedConstantValue
+
+class Color(NamedConstant):
+    RED   = ()
+    GREEN = ()
+    BLUE  = ()
+
+palette = NamedConstantValue(Color, RED='#FF0000', GREEN='#00FF00', BLUE='#0000FF')
+
+assert palette[Color.RED]   == '#FF0000'
+assert palette['GREEN']     == '#00FF00'
+assert palette.BLUE         == '#0000FF'
+```
+
+`NamedConstantTable` extends `NamedConstantValue` to a two-dimensional structure: each *row* is keyed by one `NamedConstant` class and each *column* by another.  Rows are tuples whose elements are looked up by column constant.
+
+```python
+from core_10x.named_constant import NamedConstant, NamedConstantTable
+
+class Asset(NamedConstant):
+    CASH   = ()
+    EQUITY = ()
+    BOND   = ()
+
+class Attr(NamedConstant):
+    RISK_WEIGHT = ()
+    LIQUID      = ()
+
+table = NamedConstantTable(
+    Asset, Attr,
+    CASH   = (0.0,  True),
+    EQUITY = (1.0,  True),
+    BOND   = (0.5, False),
+)
+
+assert table[Asset.EQUITY][Attr.RISK_WEIGHT] == 1.0
+assert table['CASH']['LIQUID'] is True
+assert table.primary_key(Attr.LIQUID, False) is Asset.BOND
+```
+
+`NamedConstantTable.extend` creates a new table that adds rows from a *subclass* of the row constant, preserving all existing rows:
+
+```python
+from core_10x.named_constant import NamedConstant, NamedConstantTable
+
+class BaseAsset(NamedConstant):
+    CASH   = ()
+    EQUITY = ()
+
+class Attr(NamedConstant):
+    RISK_WEIGHT = ()
+
+base_table = NamedConstantTable(BaseAsset, Attr, CASH=(0.0,), EQUITY=(1.0,))
+
+class ExtAsset(BaseAsset):
+    COMMODITY = ()
+
+ext_table = base_table.extend(ExtAsset, COMMODITY=(0.8,))
+
+assert ext_table[ExtAsset.CASH][Attr.RISK_WEIGHT]      == 0.0
+assert ext_table[ExtAsset.COMMODITY][Attr.RISK_WEIGHT] == 0.8
+```
+
 ### Traitable Filters
 
 Traitable filters provide powerful querying capabilities:
@@ -1360,6 +1507,566 @@ with CACHE_ONLY():
     person2 = IdentifiedPerson(name='John', age=11, _replace=True)
     assert person.id()!=person2.id()
 ```
+
+### Logger and Performance Timing
+
+#### PerfTimer
+
+`PerfTimer` is a lightweight context manager that measures wall-clock elapsed time in nanoseconds using `time.perf_counter_ns`.
+
+```python
+from core_10x.logger import PerfTimer
+
+with PerfTimer() as t:
+    total = sum(range(1_000_000))
+
+assert t.elapsed == t.end - t.start  # nanoseconds
+assert t.elapsed > 0
+```
+
+After the block, three attributes are available on the timer object:
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `start` | `int` | `perf_counter_ns()` at entry |
+| `end` | `int` | `perf_counter_ns()` at exit |
+| `elapsed` | `int` | `end - start` (nanoseconds) |
+
+#### LOG — Structured Asynchronous Logging
+
+`LOG` provides a thin, level-filtered interface for structured application logging.  Messages are dispatched asynchronously to a background subprocess (`logger_process`) that persists each entry as a `LogMessage` Traitable to a `TsStore`.  The persistence target is configured via `EnvVars.log_ts_store_uri`; if not set, messages are only printed and not stored.
+
+**Lifecycle** — call once at application startup and shutdown:
+
+```py
+from core_10x.logger import LOG
+
+LOG.begin('my_app', LOG.DETAILED)   # start the logger subprocess
+# ... application runs ...
+LOG.end()                            # flush queue and join the subprocess
+```
+
+**Log levels** — `LOG.begin` accepts the level constant directly; only messages at or below this level are written:
+
+| Constant | `.value` | When to use |
+|----------|----------|-------------|
+| `LOG.BRIEF` | 0 | Essential messages only (errors, lifecycle events) |
+| `LOG.MEDIUM` | 1 | Standard operational messages |
+| `LOG.DETAILED` | 2 | Detailed trace of significant operations |
+| `LOG.VERBOSE` | 3 | Full debug output |
+
+**Emitting messages**:
+
+```py
+from core_10x.logger import LOG
+
+LOG.BRIEF('application started')      # always written when LOG.begin level >= 0
+LOG.MEDIUM({'action': 'login'})       # payload can be any Python object
+LOG.DETAILED('processing request')
+LOG.VERBOSE({'raw': True, 'data': 42})
+```
+
+Each persisted `LogMessage` record (a `Traitable` with `custom_collection=True`) stores:
+
+| Trait | Type | Content |
+|-------|------|---------|
+| `ns` | `int` | Nanosecond timestamp (`perf_counter_ns`) — also the ID trait |
+| `level` | `int` | Log level value |
+| `mem_pc` | `float` | Process memory usage (%) at log time |
+| `num_threads` | `int` | Thread count at log time |
+| `payload` | `Any` | The value passed to the log call |
+
+## Basket and Bucket Facility
+
+The **Basket / Bucket** facility provides a composable, aggregation-ready container
+for any collection of `Traitable` objects.  It separates *how objects are grouped*
+(via `Bucketizer` strategies) from *what is computed on the groups* (via aggregator
+callables), and works naturally with the trait dependency graph.
+
+### Core Concepts
+
+| Term | What it is |
+|------|-----------|
+| `Bucket` | An atomic container that holds `(member, qty)` pairs. Three shapes — see [Bucket shapes](#bucket-shapes) below. |
+| `Basket` | A higher-level container that owns one or more `Bucket` instances, routes incoming objects into the correct bucket via `Bucketizer` strategies, and exposes aggregation via trait lifting. |
+| `Bucketizer` | A strategy object that maps each object to a *bucket tag*.  Four factory methods: `by_class`, `by_feature`, `by_range`, `by_breakpoints`. |
+| `Basketable` | A mixin for `Traitable` types that contain other `Traitable` objects (e.g. a `Portfolio` that holds `Position`s): implement `members_qtys()` so that `contents(basket)` can recursively walk the hierarchy and deposit the leaf objects — with accumulated quantities — into a `Basket` — see [Basketable](#basketable--hierarchical-traversal). |
+
+### Quick Start
+
+Create a `Basket`, add objects, then split them into named groups with a `Bucketizer`:
+
+```python
+from core_10x.basket import Basket, Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+    weight: float = T()
+    species: str = T()
+
+with CACHE_ONLY():
+    fido = Animal(name='fido')
+    fido.weight = 20.0
+    fido.species = 'canine'
+
+    kitty = Animal(name='kitty')
+    kitty.weight = 4.0
+    kitty.species = 'feline'
+
+    # Step 1 — collect objects into a basket (no bucketing yet)
+    basket = Basket(base_class=Animal)
+    basket.add(fido)
+    basket.add(kitty, qty=2.0)  # qty lets you weight members
+
+    for member, qty in basket.the_bucket.members_qtys():
+        print(member.name, qty)
+    # fido 1.0 / kitty 2.0
+
+    # Step 2 — add a bucketizer to split members by weight range
+    # Animal.T.weight is a ClassTrait — equivalent to lambda a: a.weight but serializable
+    bz = Bucketizer.by_range(Animal, Animal.T.weight,
+                             ['light', 0.0, 10.0],
+                             ['heavy', 10.0, 1e9])
+    basket.bucketizers = [bz]
+    basket.add(fido)
+    basket.add(kitty, qty=2.0)
+
+    for tag, bucket in basket.tags_buckets():
+        names = [m.name for m in bucket.members()]
+        print(tag, '->', names)
+    # ('heavy',) -> ['fido'] / ('light',) -> ['kitty']
+```
+
+### Bucket shapes
+
+Each physical `Bucket` (`BucketDict`, `BucketSet`, or `BucketList`) stores **who** is in the bucket and **how much** of each member. The shape fixes **how members are keyed** and **how quantities combine** when you insert the same logical member again.
+
+| Shape | Implementation | Same `Traitable` added twice | Order preserved? | Typical use |
+|-------|----------------|------------------------------|------------------|-------------|
+| **`BUCKET_SHAPE.DICT`** (`BucketDict`, **default** for `Basket`) | `dict[Traitable, float]` | Quantities **add** (e.g. two adds of the same position → one row, larger qty) | Yes (insertion order) | **Risk / P/L** style: weighted holdings, lot sizes, net exposure per instrument |
+| **`BUCKET_SHAPE.SET`** (`BucketSet`) | `set` | Second insert is a no-op; each member appears **once** with reported qty **1.0** | No | **Membership** only: “which names appear under this book?” without caring about weight |
+| **`BUCKET_SHAPE.LIST`** (`BucketList`) | `list` | **Duplicate entries** allowed; each insert appends with qty **1.0** (qty parameter is ignored) | Yes (insertion order) | **Explicit duplicates**: two legs of a trade referencing the same instrument kept as separate rows; any workflow where the same object must occupy multiple positions in a sequence |
+
+> **`DICT` and `LIST` vs `SET`:** `DICT` and `LIST` both preserve insertion order and support meaningful quantity-based aggregation — `DICT` accumulates fractional quantities per unique member, `LIST` counts each insertion as a separate row with qty 1.0. The distinction between them is merge behavior: `DICT` folds repeated inserts into one entry (summing quantities), `LIST` keeps them as independent rows. `SET` is different from both: it is a pure membership tracker — quantities are always 1.0, repeated inserts are no-ops, and order is not preserved.
+
+**Choosing a shape:** use **DICT** whenever quantities must aggregate per identity (the common case); use **SET** when you only need unique membership; use **LIST** only when the same object must appear as multiple independent entries.
+
+**Where the shape is set**
+
+1. **`Basket` subclass** — `class MyBasket(Basket, bucket_shape=BUCKET_SHAPE.SET): ...`
+2. **Default** — plain `Basket(...)` uses **DICT**.
+3. **`Basketable` mixin on the content class** — if the content class itself mixes in `Basketable` and declares `bucket_shape=...`, any `Basket` whose `base_class` is that class automatically uses the same shape — see [Basket subclass vs Basketable mixin](#basket-subclass-vs-basketable-mixin) below.
+
+Example: behavior of the three bucket types on the same member:
+
+```python
+from core_10x.basket import BucketDict, BucketList, BucketSet
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+
+class Lot(Traitable):
+    name: str = T(T.ID)
+
+with CACHE_ONLY():
+    x = Lot(name='XYZ')
+
+    d = BucketDict()
+    d._insert(x, 2.0)
+    d._insert(x, 1.0)
+    assert dict(d.members_qtys())[x] == 3.0  # summed
+
+    s = BucketSet()
+    s._insert(x, 1.0)
+    s._insert(x, 999.0)  # still one member; set semantics
+    assert len(list(s.members_qtys())) == 1
+
+    lst = BucketList()
+    lst._insert(x, 1.0)
+    lst._insert(x, 1.0)
+    assert len(list(lst.members_qtys())) == 2  # two members
+```
+
+### Bucketizers
+
+Without a bucketizer every member lands in a single `the_bucket`.  A `Bucketizer` adds a
+grouping dimension: it maps each incoming object to a *tag*, and the basket maintains one
+`Bucket` per distinct tag.  You then iterate over `(tag, bucket)` pairs with `tags_buckets()`,
+or use trait lifting to get per-tag aggregated results.
+
+```python
+from core_10x.basket import Basket, Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+    weight: float = T()
+    species: str = T()
+
+with CACHE_ONLY():
+    fido = Animal(name='fido')
+    fido.species = 'canine'
+    kitty = Animal(name='kitty')
+    kitty.species = 'feline'
+
+    basket = Basket(base_class=Animal)
+    bz = Bucketizer.by_feature(Animal, Animal.T.species)
+    basket.bucketizers = [bz]
+
+    basket.add(fido)
+    basket.add(kitty)
+
+    for tag, bucket in basket.tags_buckets():
+        print(tag, [m.name for m in bucket.members()])
+    # ('canine',)  ['fido']
+    # ('feline',)  ['kitty']
+```
+
+Multiple bucketizers produce *compound tuple keys* — one element per bucketizer, in order:
+
+```python
+from core_10x.basket import Basket, Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+from core_10x.xinf import XInf
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+    weight: float = T()
+
+class Dog(Animal):
+    breed: str = T()
+
+with CACHE_ONLY():
+    basket = Basket(base_class=Animal)
+    bz1 = Bucketizer.by_class(Animal)
+    bz2 = Bucketizer.by_range(Animal, Animal.T.weight, ['light', 0, 50], ['heavy', 50, XInf])
+    basket.bucketizers = [bz1, bz2]
+    # Example tag shape: (Dog, 'heavy'), (Dog, 'light'), ...
+```
+
+#### Factory methods
+
+
+#### `by_class` — split on the Python class
+
+```python
+from core_10x.basket import Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+
+class Dog(Animal):
+    breed: str = T()
+
+class Cat(Animal):
+    indoor: bool = T()
+
+with CACHE_ONLY():
+    bz = Bucketizer.by_class(Animal)  # tag = exact class
+    bz = Bucketizer.by_class(Animal, Dog, Cat)  # only Dog/Cat pass; others excluded
+```
+
+#### `by_feature` — split on an arbitrary callable
+
+The second argument can be either a **`ClassTrait`** (`Animal.T.species`) or a **plain callable** (lambda / named function).  Prefer `ClassTrait` for direct trait reads — it carries the trait name and is fully serializable, so a `Basket` with such a `Bucketizer` can be stored and reloaded.  Use a lambda or `NamedCallable` only when the feature is a computed value that cannot be expressed as a single trait read.
+
+```python
+from core_10x.basket import Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+    weight: float = T()
+    species: str = T()
+
+with CACHE_ONLY():
+    # Preferred: ClassTrait — serializable, equivalent to lambda a: a.species
+    bz = Bucketizer.by_feature(Animal, Animal.T.species)
+    bz = Bucketizer.by_feature(Animal, Animal.T.species, 'canine', 'feline')
+
+    # Lambda still needed for computed / derived values
+    bz = Bucketizer.by_feature(
+        Animal,
+        Animal.T.weight,
+        bucket_tag_calc=lambda w: 'heavy' if w > 50 else 'light',
+    )
+```
+
+#### `by_range` — split on numeric ranges
+
+Each range spec is either a `list` (inclusive upper bound) or `tuple`
+(exclusive upper bound).  Use `XInf` for positive infinity and `-XInf` for negative infinity.
+
+```python
+from core_10x.basket import Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+from core_10x.xinf import XInf
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+    weight: float = T()
+
+with CACHE_ONLY():
+    bz = Bucketizer.by_range(
+        Animal,
+        Animal.T.weight,            # ClassTrait — serializable; lambda a: a.weight also works
+        ('underweight', 0.0, 18.5),  # 0 <= w < 18.5
+        ['normal', 18.5, 25.0],      # 18.5 <= w <= 25.0
+        ['overweight', 25.0, XInf],  # 25.0 <= w <= inf
+    )
+```
+
+#### `by_breakpoints` — split on sorted breakpoints
+
+A compact alternative to `by_range` when all intervals are contiguous.  Each pair of adjacent breakpoints defines a **half-open `[low, high)` interval**: the lower bound is included, the upper bound is excluded, and a value exactly on a boundary belongs to the interval where it is the *lower* bound.  The only exception is the last interval when `include_last=True`, which becomes `[low, high]`.
+
+```python
+from core_10x.basket import Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+from core_10x.xinf import XInf
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+    weight: float = T()
+
+with CACHE_ONLY():
+    # Two half-open intervals [0, 18.5) and [18.5, 25.0); values >= 25.0 → not bucketed
+    bz = Bucketizer.by_breakpoints(Animal, Animal.T.weight, 0.0, 18.5, 25.0)
+
+    # Add XInf to capture all values >= 25.0 in a third interval [25.0, ∞)
+    bz = Bucketizer.by_breakpoints(Animal, Animal.T.weight, 0.0, 18.5, 25.0, XInf)
+
+    # include_last=True closes the last finite interval: [18.5, 25.0]
+    # Raises an error when the last breakpoint is XInf (no real value equals ∞)
+    bz = Bucketizer.by_breakpoints(Animal, Animal.T.weight, 0.0, 18.5, 25.0, include_last=True)
+```
+
+### Adding a Bucketizer Incrementally
+
+`add_bucketizer` re-partitions already-added members without requiring a rebuild:
+
+```python
+from core_10x.basket import Basket, Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T
+from core_10x.xinf import XInf
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+    weight: float = T()
+
+with CACHE_ONLY():
+    fido = Animal(name='fido')
+    fido.weight = 10.0
+    kitty = Animal(name='kitty')
+    kitty.weight = 60.0
+
+    basket = Basket(base_class=Animal)
+    basket.add(fido)
+    basket.add(kitty)
+
+    bz = Bucketizer.by_range(Animal, Animal.T.weight, ['light', 0, 50], ['heavy', 50, XInf])
+    basket.add_bucketizer(bz)  # re-distributes members into the new buckets
+```
+
+Objects that do not match the new bucketizer's tags are silently dropped from
+the re-partitioned basket.
+
+### Trait Lifting and Aggregation
+
+Accessing a trait name directly on a `Basket` *lifts* it across all members.  The return value depends on whether an `aggregator_class` is set:
+
+| `aggregator_class` | No bucketizers | With bucketizers |
+|--------------------|---------------|-----------------|
+| **Provided** — member named after the trait (`AGG.WEIGHT` for `basket.weight`) | single aggregated value | `{tag: aggregated_value}` per bucket |
+| **Not provided** | generator of `(value, qty)` pairs | `{tag: generator of (value, qty) pairs}` per bucket |
+
+The aggregator callable receives a generator of `(value, qty)` tuples and returns a single value.
+
+```python
+from core_10x.basket import Basket, Bucketizer
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.named_constant import NamedCallable
+from core_10x.traitable import Traitable, T
+from core_10x.xinf import XInf
+
+class Animal(Traitable):
+    name: str = T(T.ID)
+    weight: float = T()
+
+class AGG(NamedCallable):
+    WEIGHT = lambda gen: sum(v * q for v, q in gen)
+
+with CACHE_ONLY():
+    fido = Animal(name='fido')
+    fido.weight = 10.0
+    kitty = Animal(name='kitty')
+    kitty.weight = 5.0
+
+    # With aggregator: returns a single aggregated value
+    basket = Basket(base_class=Animal, aggregator_class=AGG)
+    basket.add(fido, 1.0)
+    basket.add(kitty, 2.0)
+    total_weight = basket.weight  # AGG.WEIGHT((10.0,1.0),(5.0,2.0)) → 20.0
+
+    # Without aggregator: returns a generator of (value, qty) pairs
+    basket2 = Basket(base_class=Animal)
+    basket2.add(fido, 1.0)
+    basket2.add(kitty, 2.0)
+    pairs = list(basket2.weight)  # [(10.0, 1.0), (5.0, 2.0)]
+```
+
+If `bucketizers` are set, each return value above is wrapped in a `{tag: ...}` dict, one entry per bucket.
+
+### Basketable — Hierarchical Traversal
+
+`Basketable` is a mixin for `Traitable` classes that form a **containment hierarchy** — think a portfolio that holds sub-portfolios and books, each book holds trades, each trade holds instruments.  It lets you extract all instances of any node type from an arbitrary point in the tree with a single `contents(basket)` call, accumulating quantities as they propagate down.
+
+Only **intermediate nodes** need to mix in `Basketable`.  Leaf nodes — objects that are directly collected into the basket — are plain `Traitable` classes and require no special treatment.
+
+**Protocol** — two methods to implement on each intermediate node:
+
+| Method | Purpose |
+|--------|---------|
+| `members_qtys()` | Yield `(child, qty)` pairs for this node's direct children |
+| `is_member(obj)` | Return `True` if `obj` is a direct child of this node (optional — not called during `contents()` traversal) |
+
+**Traversal rule** — `contents(basket, qty=1.0)` iterates `members_qtys()`.  For each `(child, child_qty)`:
+- if `child` is an instance of `basket.base_class` → `basket.add(child, qty × child_qty)`
+- otherwise → recurse: `child.contents(basket, qty × child_qty)`
+
+Quantities **multiply down the path**, so a book with weight 0.5 in a portfolio scales all of its instrument positions by that factor.
+
+Every intermediate node must be `Basketable`; if traversal reaches an object that is neither the target type nor `Basketable`, an error is raised.
+
+```python
+import itertools
+
+from core_10x.basket import Basket, Basketable, BUCKET_SHAPE
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T, RT
+
+
+# Leaf node — plain Traitable, no Basketable needed.
+class Instrument(Traitable):
+    ticker: str   = T(T.ID)
+    price:  float = T()
+
+
+# Trade owns a basket of instruments and delegates traversal to it.
+class Trade(Traitable, Basketable, bucket_shape=BUCKET_SHAPE.DICT):
+    name:        str    = T(T.ID)
+    instruments: Basket = T()
+
+    def members_qtys(self):
+        return self.instruments.members_qtys()
+    
+    def is_member(self, obj: Basketable) -> bool:
+        if self.instruments.all_buckets:
+            return any(bucket.is_member(obj) for bucket in self.instruments.all_buckets.values())
+        return self.instruments.the_bucket.is_member(obj)
+
+# Book resolves its trades by name via a RT getter that returns a Basket of Trades.
+class Book(Traitable, Basketable, bucket_shape=BUCKET_SHAPE.SET):
+    name:        str    = T(T.ID)
+    trade_names: list   = T()
+    trades:      Basket = RT()
+
+    def trades_get(self) -> Basket:
+        basket = Basket(base_class=Trade)
+        for n in self.trade_names:
+            basket.add(Trade.existing_instance(name=n))
+        return basket
+
+    def members_qtys(self):
+        return self.trades.members_qtys()
+
+    def is_member(self, obj) -> bool:
+        return self.trades.is_member(obj)
+
+
+# Portfolio holds sub-portfolios and books in two separate Basket traits.
+# members_qtys chains both so contents() traverses all branches.
+class Portfolio(Traitable, Basketable, bucket_shape=BUCKET_SHAPE.SET):
+    name:            str    = T(T.ID)
+    book_names:      list   = T()
+    portfolio_names: list   = T()
+    books:           Basket = RT()
+    portfolios:      Basket = RT()
+
+    def books_get(self) -> Basket:
+        basket = Basket(base_class=Book)
+        for n in self.book_names:
+            basket.add(Book.existing_instance(name=n))
+        return basket
+
+    def portfolios_get(self) -> Basket:
+        basket = Basket(base_class=Portfolio, subclasses_allowed=False)
+        for n in self.portfolio_names:
+            basket.add(Portfolio.existing_instance(name=n))
+        return basket
+
+    def members_qtys(self):
+        return itertools.chain(self.portfolios.members_qtys(), self.books.members_qtys())
+    
+    def is_member(self, obj) -> bool:
+        return self.books.is_member(obj) or self.portfolios.is_member(obj)
+
+
+with CACHE_ONLY():
+    aapl = Instrument(ticker='AAPL')
+    aapl.price = 189.0
+    msft = Instrument(ticker='MSFT')
+    msft.price = 420.0
+
+    # Trade holds instruments in an embedded Basket (no specialized subclass needed).
+    t1 = Trade(name='T1')
+    t1.instruments = Basket(base_class=Instrument)
+    t1.instruments.add(aapl, 10.0)
+    t1.instruments.add(msft, 5.0)
+
+    # Book references trades by name; the getter resolves them on access.
+    book = Book(name='Equities')
+    book.trade_names = ['T1']
+
+    # Sub-portfolio P1 owns the equity book.
+    p1 = Portfolio(name='P1')
+    p1.book_names      = ['Equities']
+    p1.portfolio_names = []
+
+    # Top-level portfolio aggregates sub-portfolios (and could hold books directly too).
+    top = Portfolio(name='Top')
+    top.portfolio_names = ['P1']
+    top.book_names      = []
+
+    # Walk Top → P1 → Equities → T1 → Instrument, multiplying quantities at each level.
+    instr_basket = Basket(base_class=Instrument)
+    top.contents(instr_basket)
+
+    qtys = dict(instr_basket.the_bucket.members_qtys())
+    assert qtys[aapl] == 10.0
+    assert qtys[msft] == 5.0
+    
+    assert p1.is_member(book)
+    assert book.is_member(t1)
+    assert t1.is_member(aapl)
+    
+    # Stop at Trade level — traversal does not descend further into Instruments.
+    trade_basket = Basket(base_class=Trade)
+    top.contents(trade_basket)
+    assert trade_basket.is_member(t1)
+
+
+```
+
 
 ## Best Practices
 

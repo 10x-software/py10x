@@ -309,15 +309,14 @@ class _GuessWordData:
     @classmethod
     @cache
     def noun_pool(cls) -> dict:
-        import importlib
         import importlib.util
         from pathlib import Path
 
         package_name = cls.__module__.rsplit('.', 1)[0]
-        spec = importlib.util.find_spec(package_name)
-        assert spec.submodule_search_locations
-        package_dir = Path(spec.submodule_search_locations[0])
-        file_name = package_dir / f'{cls.MODULE_NAME}.py'
+        # spec = importlib.util.find_spec(package_name)
+        # assert spec.submodule_search_locations
+        # package_dir = Path(spec.submodule_search_locations[0])
+        # file_name = package_dir / f'{cls.MODULE_NAME}.py'
         #cls.download_nouns(file_name)
 
         module_name = f'{package_name}.{cls.MODULE_NAME}'

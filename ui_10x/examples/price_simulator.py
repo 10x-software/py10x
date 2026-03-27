@@ -43,7 +43,7 @@ class MarketSymbol(Traitable):
         return T.fg_color(c)
 
     def delta_get(self) -> float:
-        mm = self.price
+        mm = self.price # noqa: F841
         return random.gauss(self.delta_mean, self.std)
 
     def bid_get(self) -> float:

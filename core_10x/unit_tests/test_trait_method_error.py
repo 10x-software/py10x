@@ -12,7 +12,7 @@ OUTPUTS = ['exception', 'object', 'args', 'value']
 GROUPS = [
     {
         'serialize_nx': lambda x: x.serialize_object(False),
-        's_deserialize': lambda x: x.__class__.deserialize_object(x.s_bclass,None,{'_id':'a','_rev':1,'s': 1000}),
+        's_deserialize': lambda x: x.__class__.deserialize_object(x.s_bclass, None, {'_id': 'a', '_rev': 1, 's': 1000}),
     },
     {'y_get': lambda x: x.y},
     {'x_get': lambda x: x.x(0)},
@@ -22,35 +22,37 @@ GROUPS = [
 bombing_methods = {'_'.join(OUTPUTS[: i + 1]): group for i, group in enumerate(GROUPS)}
 
 
+class X(Traitable):
+    x: int
+    y: int
+    z: int = T(1000)
+    s: int = T()
+    t: AnonymousTraitable = T(T.EMBEDDED)
+
+    @classmethod
+    def bombing_method(cls, x):
+        raise KeyError(x + 1)
+
+    def x_get(self, x):
+        return self.bombing_method(x)
+
+    def y_get(self):
+        return self.bombing_method(0)
+
+    def x_set(self, trait, value, x) -> RC:
+        return self.bombing_method(value)
+
+    @classmethod
+    def s_serialize(cls, value):
+        return cls.bombing_method(value)
+
+    @classmethod
+    def s_deserialize(cls, trait, value):
+        return cls.bombing_method(value)
+
+
 @pytest.mark.parametrize(argnames=['cnt', 'key'], argvalues=enumerate(bombing_methods.keys()))
 def test_trait_method_error(cnt, key):
-    class X(Traitable):
-        x: int
-        y: int
-        z: int = T(1000)
-        s: int = T()
-        t: AnonymousTraitable = T(T.EMBEDDED)
-
-        @classmethod
-        def bombing_method(cls, x):
-            raise KeyError(x + 1)
-
-        def x_get(self, x):
-            return self.bombing_method(x)
-
-        def y_get(self):
-            return self.bombing_method(0)
-
-        def x_set(self, trait, value, x) -> RC:
-            return self.bombing_method(value)
-
-        @classmethod
-        def s_serialize(cls, value):
-            return cls.bombing_method(value)
-
-        @classmethod
-        def s_deserialize(cls, trait, value):
-            return cls.bombing_method(value)
 
     x = X()
     x.t = X()
@@ -64,7 +66,7 @@ def test_trait_method_error(cnt, key):
                     assert 'value = 1000' in e_str
                     assert 'original exception = KeyError: 1001' in e_str
                 else:
-                    assert 'original exception = TypeError: test_trait_method_error.<locals>.X/' in e_str
+                    assert 'original exception = TypeError: X/' in e_str
                     assert " - embedded instance must be 'embeddable'" in e_str
 
             for i, output in enumerate(key.split('_')):
@@ -72,7 +74,7 @@ def test_trait_method_error(cnt, key):
                 if cnt or (not expected and output != 'value'):
                     assert (f' {output} =' in e_str) is expected, f'did{" not" if expected else ""} find {output} for {key} in {e_str}'
                 if cnt:
-                    assert f"Failed in <class 'test_trait_method_error.test_trait_method_error.<locals>.X'>.{m.split('_')[0]}.{m}" in e_str
+                    assert f"Failed in <class 'test_trait_method_error.X'>.{m.split('_')[0]}.{m}" in e_str
 
             tb_str = traceback.format_exc()
             if cnt:
@@ -81,4 +83,4 @@ def test_trait_method_error(cnt, key):
                 assert 'bombing_method(' in tb_str
                 assert 'raise KeyError(x + 1)' in tb_str
         else:
-            assert False, "Expected Exception!" # noqa: B011
+            assert False, 'Expected Exception!'  # noqa: B011

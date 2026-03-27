@@ -5,4 +5,4 @@ except ImportError:
 
 from py10x_infra import MongoCollectionHelper
 
-__all__ = [ __version__, MongoCollectionHelper ]
+__all__ = [__version__, MongoCollectionHelper]

@@ -29,7 +29,7 @@ test_classes = {
         custom_collection=custom_collection
     )
     for custom_collection in (None,True)
-    for cls_name in (f'Person#{uuid4().hex}{custom_collection and "#Custom" or ""}' for _ in range(2))
+    for cls_name in (f'Person#{uuid4().hex}{(custom_collection and "#Custom") or ""}' for _ in range(2))
 }
 
 globals().update(test_classes)
@@ -37,7 +37,7 @@ globals().update(test_classes)
 
 @pytest.fixture(params=[True, False], ids=['custom_collection', 'default_collection'])
 def ts_setup(ts_instance,request):
-    Person, Person1 = list(test_classes.values())[request.param*2:][:2]
+    Person, Person1 = list(test_classes.values())[request.param*2:][:2] # noqa: N806
     c, c1 = [uuid4().hex if request.param else PackageRefactoring.find_class_id(cls) for cls in (Person,Person1)]
 
     with ts_instance:

@@ -17,7 +17,8 @@ from core_10x.code_samples.person import Person
 from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
-from core_10x.trait import Trait
+from core_10x.named_constant import NamedCallable
+from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitAccessor
@@ -365,6 +366,7 @@ def test_anonymous_traitable(monkeypatch):
         x: AnonymousTraitable = M(T.EMBEDDED)
 
     with pytest.raises(RuntimeError, match=r"T1.x - class <class 'core_10x.traitable.Traitable'> must be declared 'embeddable'"):
+
         class _T1(Traitable):
             x: Traitable = T(T.EMBEDDED)
 
@@ -405,7 +407,7 @@ class TestSerializeEmbedded:
         b: list[Traitable] = M(T.EMBEDDED)
 
     @pytest.mark.parametrize('cls', [X1, X2])
-    def test_serialize_embedded(self,cls):
+    def test_serialize_embedded(self, cls):
         Y, Z = self.Y, self.Z  # noqa: N806
         with CACHE_ONLY():
             x = cls(
@@ -438,8 +440,6 @@ class TestSerializeEmbedded:
                     assert "embedded instance must be 'embeddable'" in str(e)
                 else:
                     raise
-
-
 
 
 def test_own_trait_defs():
@@ -1131,3 +1131,77 @@ def test_verify_not_called_on_set():
     rc = e.verify()
     assert not rc
     assert '100' in rc.error()
+
+
+class TestClassTrait:
+    """Tests for cls.T.trait_name returning a ClassTrait (NamedCallable getter)."""
+
+    class Item(Traitable):
+        name: str = T(T.ID)
+        price: float = T(0.0)
+        qty: int = T(1)
+
+    def test_class_access_returns_class_trait(self):
+        ct = self.Item.T.price
+        assert isinstance(ct, ClassTrait)
+        assert isinstance(ct, NamedCallable)
+
+    def test_class_trait_name_and_cls(self):
+        ct = self.Item.T.price
+        assert ct.name == 'price'
+        assert ct.label == 'price'
+        assert ct.cls is self.Item
+
+    def test_class_trait_is_callable_returns_instance_value(self):
+        with CACHE_ONLY():
+            item = self.Item(name='ct_apple')
+            item.price = 1.5
+            item.qty = 3
+            assert self.Item.T.price(item) == 1.5
+            assert self.Item.T.qty(item) == 3
+
+    def test_class_trait_reflects_updated_value(self):
+        with CACHE_ONLY():
+            item = self.Item(name='ct_banana')
+            item.price = 0.5
+            ct = self.Item.T.price
+            item.price = 2.0
+            assert ct(item) == 2.0
+
+    def test_two_class_traits_are_independent(self):
+        ct_price = self.Item.T.price
+        ct_qty = self.Item.T.qty
+        assert ct_price is not ct_qty
+        assert ct_price.name == 'price'
+        assert ct_qty.name == 'qty'
+
+    def test_class_trait_serializes_as_class_id_and_trait_name(self):
+        """serialize() emits [class_id, trait_name]; deserialization via ClassTrait.deserialize
+        requires module-level classes and is tested through basket aggregator serialization."""
+        ct = self.Item.T.price
+        serialized = ct.serialize(embed=False)
+        assert isinstance(serialized, list)
+        assert len(serialized) == 2
+        assert serialized[1] == 'price'
+        # class_id uses '/' as delimiter and encodes the dotted class path
+        assert 'Item' in serialized[0]
+
+    def test_class_trait_stored_as_named_callable_trait(self):
+        """ClassTrait can be stored on a NamedCallable-typed trait and called later."""
+
+        class Pipeline(Traitable):
+            extractor: NamedCallable = T()
+
+        with CACHE_ONLY():
+            item = self.Item(name='ct_date')
+            item.price = 5.0
+            p = Pipeline(extractor=self.Item.T.price)
+            assert p.extractor(item) == 5.0
+
+    def test_instance_access_does_not_return_class_trait(self):
+        """Accessing a trait on an instance returns the value, not a ClassTrait."""
+        with CACHE_ONLY():
+            item = self.Item(name='ct_elderberry')
+            item.price = 7.0
+            assert item.price == 7.0
+            assert not isinstance(item.price, ClassTrait)

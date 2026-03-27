@@ -93,6 +93,7 @@ class Logger:
 
 LOGGER: Logger = None
 class LOG:
+    @staticmethod
     def _log(log_level: int, payload: Any):
         assert LOGGER, 'You must have called LOG.begin(app_name, log_level)'
         if log_level > LOGGER.log_level:

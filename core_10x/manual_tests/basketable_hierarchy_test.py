@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime # noqa: TC003
 import itertools
 import random
 
@@ -39,6 +39,9 @@ class Trade(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.DICT):
     def members_qtys(self):
         return self.basket.members_qtys()
 
+    def is_member(self, obj) -> bool:
+        return self.basket.is_member(obj)
+
 class Book(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
     name: str                       = T(T.ID)
     customer_book: bool             = T()
@@ -54,6 +57,9 @@ class Book(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
 
     def members_qtys(self):
         return itertools.chain(self.primary_trades.members_qtys(), self.counterparty_trades.members_qtys())
+
+    def is_member(self, obj) -> bool:
+        return self.primary_trades.is_member(obj)
 
 class Portfolio(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
     name: str               = T(T.ID)
@@ -133,6 +139,12 @@ if __name__ == '__main__':
 
     basket3 = Basket(base_class = FinInstrument)
     p.contents(basket3)
+
+
+    assert p.is_member(b1)
+    assert b1.is_member(t1)
+    assert t1.is_member(f1)
+
 
 
     # books = p.contents(Book)

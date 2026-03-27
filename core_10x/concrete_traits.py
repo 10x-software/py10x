@@ -370,6 +370,7 @@ class named_callable_trait(nucleus_trait, data_type = NamedCallable, base_class 
 
         return super().serialize(value)
 
+    @staticmethod
     def default_setter(obj, trait: Trait, value: NamedCallable) -> RC:
         if not isinstance(value, NamedCallable):
             if not callable(value):

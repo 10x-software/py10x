@@ -165,7 +165,7 @@ class TestTraitableHistory:
         assert obj.history() == []
         assert len(obj.load_many()) == (1 - with_transactions)
 
-    def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions):
+    def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions): # noqa: F811
         """When a nested or main save fails, the transaction rolls back (no docs committed)."""
         def _save_serialized_raise(self, coll, serialized_data, old_rev):
             if serialized_data['_id'] == '1':

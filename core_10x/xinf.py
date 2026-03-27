@@ -9,17 +9,17 @@ class PInfType:
     def __float__(self):                        return math.inf
     def __repr__(self):                          return chr(8734)
 
-    def __invert__(self):                       return MInf
+    def __invert__(self):                       return _MInf
 
     def __eq__(self, other):                    return other is self
-    def __ne__(self, other):                    return not other is self
+    def __ne__(self, other):                    return other is not self
     def __lt__(self, other):                    return False
     def __le__(self, other):                    return other is self
-    def __gt__(self, other):                    return not other is self
+    def __gt__(self, other):                    return other is not self
     def __ge__(self, other):                    return True
 
     def __abs__(self):                          return self
-    def __neg__(self):                          return MInf
+    def __neg__(self):                          return _MInf
     def __add__(self, other):                   return self
     def __sub__(self, other):                   return self     #-- XInf - XInf is XInf (not NaN)
     def __mul__(self, other):                   return self
@@ -35,19 +35,19 @@ class MInfType:
 
     def __int__(self):                          return ~sys.maxsize
     def __float__(self):                        return -math.inf
-    def __repr__(self):                         return f'-{PInf.__repr__()}'
+    def __repr__(self):                         return f'-{_PInf.__repr__()}'
 
-    def __invert__(self):                       return PInf
+    def __invert__(self):                       return _PInf
 
     def __eq__(self, other):                    return other is self
-    def __ne__(self, other):                    return not other is self
-    def __lt__(self, other):                    return not other is self
+    def __ne__(self, other):                    return other is not self
+    def __lt__(self, other):                    return other is not self
     def __le__(self, other):                    return True
     def __gt__(self, other):                    return False
     def __ge__(self, other):                    return other is self
 
-    def __abs__(self):                          return PInf
-    def __neg__(self):                          return PInf
+    def __abs__(self):                          return _PInf
+    def __neg__(self):                          return _PInf
     def __add__(self, other):                   return self
     def __sub__(self, other):                   return self
     def __mul__(self, other):                   return self
@@ -58,7 +58,6 @@ class MInfType:
     def __init_subclass__(cls, **kwargs):
         raise TypeError('May not derive from Inf')
 
-MInf = MInfType()
-PInf = PInfType()
-XInf = PInf
-
+_MInf = MInfType()
+_PInf = PInfType()
+XInf  = _PInf

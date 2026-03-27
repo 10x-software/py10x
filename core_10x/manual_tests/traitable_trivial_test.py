@@ -1,7 +1,8 @@
 from datetime import date, datetime
 
 from core_10x.code_samples.person import Person
-from core_10x.traitable import T, RT, Traitable, Trait, BTraitFlags
+from core_10x.named_constant import NamedConstant
+from core_10x.traitable import RT, BTraitFlags, T, Trait, Traitable
 
 
 class Event(Traitable):
@@ -20,7 +21,6 @@ class Dummy(Traitable):
         print(f'{self.__class__}.view called')
         return f'{self.name}: {self.payload}'
 
-from core_10x.named_constant import NamedConstant
 
 class F_KEY(NamedConstant):
     CLASS       = lambda obj: obj.__class__
@@ -30,7 +30,7 @@ class Bucket(Traitable):
     f_key: NamedConstant = T()
 
 if __name__ == '__main__':
-    from core_10x.manual_tests.traitable_trivial_test import Dummy, Event, F_KEY, Bucket
+    from core_10x.manual_tests.traitable_trivial_test import F_KEY, Bucket, Dummy, Event
 
     e = Event()
     print(e.id_value())
