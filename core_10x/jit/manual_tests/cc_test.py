@@ -17,10 +17,14 @@ if __name__ == '__main__':
     dt = t.elapsed
 
     #-- compile
-    rc, optimizer = TraitableOptimizer.optimize(Calc, trait_name, TraitableOptimizer.CYTHON_TCC)
+    #rc, optimizer = TraitableOptimizer.optimize(Calc, trait_name, TraitableOptimizer.NUMBA)
+    rc, optimizer = TraitableOptimizer.optimize(calc, trait_name)
     assert rc
 
     #-- benchmark
+    if optimizer.is_lazy():
+        calc.get_value(trait_name)
+
     with PerfTimer() as t:
         p2 = calc.get_value(trait_name)
     dt_jit = t.elapsed

@@ -52,5 +52,8 @@ class TraitableMethodOptimizer:
 
         return op_method
 
+    def is_lazy(self) -> bool:
+        return False
+
     def generate_optimized_method(self) -> typing.Callable:
         raise NotImplementedError
