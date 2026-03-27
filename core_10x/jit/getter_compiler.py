@@ -140,3 +140,6 @@ class GetterCompiler(Traitable):
     def target_getter_src(self) -> str:
         tg = self.target_getter
         return ast.unparse(self.target_ast_tree)
+
+    def compiled_target(self):
+        return self.compiled_target_getter

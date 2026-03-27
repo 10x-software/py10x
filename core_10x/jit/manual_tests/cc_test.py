@@ -3,7 +3,7 @@ if __name__ == '__main__':
 
     from core_10x.logger import PerfTimer
     from core_10x.jit.manual_tests.basic_test import Calc
-    from core_10x.jit.trait_getter_cython_compiler import CythonCompiler, FuncTreeWalker
+    from core_10x.jit.traitable_optimizer import TraitableOptimizer
 
     #seed = int(datetime.utcnow().timestamp())
     seed = 123
@@ -17,11 +17,8 @@ if __name__ == '__main__':
     dt = t.elapsed
 
     #-- compile
-    cc = CythonCompiler.instance(Calc, trait_name)
-    cc.tcc_compile()
-    compiled_getter = cc.compiled_getter
-    trait = Calc.trait(trait_name)
-    trait.set_f_get(compiled_getter, True)
+    rc, optimizer = TraitableOptimizer.optimize(Calc, trait_name, TraitableOptimizer.CYTHON_TCC)
+    assert rc
 
     #-- benchmark
     with PerfTimer() as t:
