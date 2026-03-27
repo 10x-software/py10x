@@ -92,8 +92,14 @@ class TraitableOptimizer:
         results = {}
         for op_class in self.s_opt_classes:
             self.reset(attr_name)
-            op_obj = self.apply(attr_name, op_class)
-            op_method = op_obj.optimized_method
+            try:
+                op_obj = self.apply(attr_name, op_class)
+                op_method = op_obj.optimized_method
+            except Exception as ex:
+                print(f'{op_class.__name__} failed to optimize:\n')
+                print(str(ex))
+                continue
+
             if op_method:
                 results[op_obj] = res = [0., 0.]
 

@@ -10,7 +10,8 @@ if __name__ == '__main__':
     calc = Calc(seed = seed)
     calc.count = 10_000
 
-    trait_name = 'abracadabra'
+    #trait_name = 'abracadabra'
+    trait_name = 'price'
 
     with PerfTimer() as t:
         p = calc.get_value(trait_name)
@@ -18,7 +19,7 @@ if __name__ == '__main__':
 
     #-- compile
     #rc, optimizer = TraitableOptimizer.optimize(Calc, trait_name, TraitableOptimizer.NUMBA)
-    rc, optimizer = TraitableOptimizer.optimize(calc, trait_name)
+    rc, optimizer = TraitableOptimizer.optimize(calc, trait_name)   #-- choose the best available optimizer/compiler
     assert rc
 
     #-- benchmark
