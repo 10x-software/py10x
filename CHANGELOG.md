@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Basket / Bucket facility** (`core_10x/basket.py`): composable containers for `Traitable` objects with optional multi-level bucketing (`Bucketizer`: `by_class`, `by_feature`, `by_range`, `by_breakpoints`), trait lifting via `aggregator_class`, incremental `add_bucketizer`, and the `Basketable` mixin for recursive `contents()` into a target `Basket`. `reset_mambers_on_set_bucketizers` trait (default `True`) controls whether assigning `basket.bucketizers` clears existing members (`True`, the safe default) or re-sorts them into the new bucket scheme (`False`).
+- **NamedCallable** (`core_10x/named_constant.py`): subclass of `NamedConstant` for named functions — each member wraps a callable, callable by name (`Aggregator.SUM(items)`); `NamedCallable.just_func(f)` wraps an anonymous callable. **ClassTrait** wiring so `get_value` on a class trait can expose a named callable; **TraitAccessor** returns `ClassTrait` when the receiver is a class (`core_10x/trait.py`, `core_10x/traitable.py`, `core_10x/concrete_traits.py`).
+- **`NamedConstantValue` / `NamedConstantTable`** (`core_10x/named_constant.py`): map named constants to associated values (`NamedConstantValue`) or to rows of values keyed by a second constant class (`NamedConstantTable`); `NamedConstantTable.extend(subclass, ...)` adds rows from a subclass without mutating the original table. `NamedConstant.item(symbol_name)` looks up a constant by string name.
+- **`core_10x/rel_db.py`**: relational-style DB helpers and tests.
+- **`core_10x/scenario.py`**: lightweight scenario support.
+- **`core_10x/logger.py`**: logging helpers including **PerfTimer**.
+- **`core_10x/xinf.py`**: extended infinity helpers for range/bucket specs; public API is **`XInf`** and **`-XInf`** (negative infinity).
+- **`xx_common` package**: calendar, business-day **rdate**, and **curve** moved out of `core_10x` (see *Changed* / migration).
+- **`infra_10x/testlib/`**: shared Mongo collection helpers for tests.
+- **GitHub Actions**: reusable **MongoDB replica set** setup action; CI workflow and dependabot updates.
+- **`ROADMAP.md`**, **`AGENTS.md`**: project/agent guidance updates.
+
+### Changed
+- **`T.EMBEDDED` is now optional**: traits that hold an embeddable `Traitable` type no longer need to be explicitly marked `T.EMBEDDED` — serialization detects and embeds them automatically. Traits that *are* marked `T.EMBEDDED` enforce that every stored value is a fully embedded object; traits *without* the flag accept both fully and partially embedded values.
+- **`T.STICKY`** (alias `BTraitFlags.OFFGRAPH_SET`): when a getter computes a value while the object is in off-graph mode the result is automatically written back to the trait slot, so subsequent reads return the cached value without re-running the getter. This is the right flag for mutable container traits (such as bucket lists) that need to hold state across calls without participating in the dependency graph.
+- **`Traitable` value-access methods** (py10x-kernel + py10x-core): overloaded `get_value` / `set_value` / `raw_set_value` / `invalidate_value` / `is_valid` replaced by statically dispatched pairs — name-based variants keep their original names; `Trait`-object variants are renamed with a `_trait_` infix (e.g. `get_trait_value`, `set_trait_value`). `*_with_args` suffixed variants replace the `*args` overloads. See *Breaking Changes* for the full mapping.
+- **`core_10x/ts_store.py`**, **`core_10x/ts_union.py`**, **`core_10x/resource.py`**, **`core_10x/nucleus.py`**: store/resource refactoring and transaction support.
+- **UI** (`ui_10x`): `traitable_editor`, `table_view` / `table_header_view`, `utils`, `concrete_trait_widgets`, Qt tables, macOS commit filter, Rio line-edit test tweak; new/updated examples (**`price_simulator`**, **`guess_word`** refresh).
+
+
 ## [0.1.14] - 2026-02-14
 
 ### Added
@@ -141,7 +164,7 @@ No separate changelog; see Version History below.
 - Storage integration with MongoDB store
 - Cross-platform UI components focused on traitable editing (Rio and Qt6 backends)
 - MongoDB integration via `infra_10x`
-- Built-in caching system for trait values and entity state
+- Built-in Caching system for trait values and entity state
 - Manual resource management using context managers
 - Comprehensive test suite
 
@@ -182,6 +205,7 @@ No separate changelog; see Version History below.
 
 ## Version History
 
+- **Unreleased**: Basket/Bucket; NamedCallable/ClassTrait; NamedConstantValue/Table; rel_db, scenario, logger; xx_common split; infra/mongo and UI updates; test run from installed package; CI Mongo action
 - **0.1.14**: Open source release; README overhaul (value prop, Hello World, when to use, full GitHub links)
 - **0.1.13**: Windows test fixes; history bug fix and more robust traitable history tests; pyproject fix; docs updated
 - **0.1.12**: This package rename to `py10x-universe` → `py10x-core`; docs updated
@@ -206,6 +230,22 @@ No migration from previous versions is necessary - package versions will automat
 
 ### Breaking Changes
 
+- **Unreleased**: Imports for **calendar / rdate / curve** moved from `core_10x` to the **`xx_common`** package (e.g. `xx_common.rdate`, `xx_common.curve`, `xx_common.xxcalendar`). Update any `from core_10x.…` references accordingly. **`core_10x.xinf`**: prefer **`-XInf`** for negative infinity in your code; **`MInf`** is internal to that module (`from core_10x.xinf import *` only exports **`XInf`**).
+- **Unreleased (py10x-kernel)**: The overloaded `get_value` / `set_value` / `raw_set_value` / `invalidate_value` / `is_valid` methods on `Traitable` — which previously accepted either a trait name (`str`) or a `Trait` object as their first argument — have been replaced by four statically-dispatched variants each:
+
+  | Old (overloaded) | New — name-based | New — Trait-based |
+  |---|---|---|
+  | `get_value(name)` | `get_value(name)` | `get_trait_value(trait)` |
+  | `get_value(name, *args)` | `get_value_with_args(name, *args)` | `get_trait_value_with_args(trait, *args)` |
+  | `set_value(name, v)` | `set_value(name, v)` | `set_trait_value(trait, v)` |
+  | `set_value(name, v, *args)` | `set_value_with_args(name, v, *args)` | `set_trait_value_with_args(trait, v, *args)` |
+  | `raw_set_value(name, v)` | `raw_set_value(name, v)` | `raw_set_trait_value(trait, v)` |
+  | `raw_set_value(name, v, *args)` | `raw_set_value_with_args(name, v, *args)` | `raw_set_trait_value_with_args(trait, v, *args)` |
+  | `invalidate_value(name)` | `invalidate_value(name)` | `invalidate_trait_value(trait)` |
+  | `invalidate_value(name, *args)` | `invalidate_value_with_args(name, *args)` | `invalidate_trait_value_with_args(trait, *args)` |
+  | `is_valid(name)` | `is_valid(name)` | `is_trait_valid(trait)` |
+
+  The name-based variants keep their original names; only the `Trait`-object variants are renamed. **`py10x-core` has been updated throughout** — this only affects code that called these methods directly (e.g. custom getters/setters, extensions) using a `Trait` object as the first argument.
 - **0.1.12**: This package renamed: use **py10x-core** instead of `py10x-universe` in dependencies, CI, or local installs.
 - **0.1.11**: C++ dependency renamed: use **py10x-kernel** instead of `py10x-core` in dependencies, CI, or local installs.
 - **0.1.4**: Subclasses of `Traitable` must not override `__init__`; use `__post_init__` for customization. Python 3.10 no longer supported (3.11+ required). C++ packages are now `py10x-core` and `py10x-infra` (rename from core_10x_i / infra_10x_i if you referenced them directly).

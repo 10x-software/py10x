@@ -81,7 +81,15 @@ When adding new functionality, agents should **add or update tests** in the appr
 
 ---
 
-## 5. Default agent behavior in this repo
+## 5. Language & style
+
+- **Use American English spelling** throughout all code, comments, docstrings, and documentation.
+  - ✓ `serializable`, `behavior`, `color`, `initialize`, `recognize`, `analyze`
+  - ✗ `serialisable`, `behaviour`, `colour`, `initialise`, `recognise`, `analyse`
+
+---
+
+## 6. Default agent behavior in this repo
 
 - **Prefer existing patterns over new abstractions**
   - When in doubt, copy the style and structure from nearby code and tests instead of inventing a new mini-framework.

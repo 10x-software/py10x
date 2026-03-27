@@ -132,7 +132,7 @@ class TestDateCurve:
         assert dc._from_number(num) == some_date
 
         # beginning_of_time_set stores numeric value but exposes date via helper
-        rc = dc.beginning_of_time_set('beginning_of_time', some_date)
+        rc = dc.set_values(beginning_of_time = some_date)
         assert rc
         assert isinstance(dc.beginning_of_time, int)
         assert dc.beginning_of_time_as_date() == some_date
