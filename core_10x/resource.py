@@ -135,7 +135,7 @@ class ResourceSpec:
         #-- always emit '//' so empty-netloc URIs like duckdb:// or duckdb:///path round-trip correctly;
         #-- urlunsplit drops '//' for unknown schemes when netloc is empty
         netloc = userinfo + host_netloc
-        path   = f'/{dbname}' if dbname else ''
+        path   = f'{"/" if dbname[0]!="/" else ""}{dbname}' if dbname else ''
         url    = f'{protocol}://{netloc}{path}'
         if query:
             url += f'?{query}'
@@ -177,8 +177,11 @@ class Resource(abc.ABC):
             if parts.port is not None:
                 kwargs[cls.PORT_TAG] = parts.port
 
-            db_name = parts.path.lstrip('/')
-            if db_name:
+            db_name = parts.path
+            if db_name and db_name!='/':
+                assert db_name[0] == '/'
+                if len(db_name) > 1 and db_name[1] != '/':
+                    db_name = db_name[1:]
                 kwargs[cls.DBNAME_TAG] = db_name
             if parts.query:
                 kwargs[cls.QUERY_TAG] = parts.query
