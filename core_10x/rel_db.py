@@ -22,8 +22,6 @@ class RelDb(Resource, resource_type=REL_DB):
     def instance(cls, *args, **kwargs) -> RelDb:
         if args:
             raise ValueError('RelDb.instance accepts keyword arguments only.')
-        if dbname := kwargs.get(cls.DBNAME_TAG):
-            kwargs[cls.DBNAME_TAG] = dbname.replace('\\', '/')  # normalize Windows paths; backslashes are illegal in URIs
         return cls(ResourceSpec(cls, kwargs).uri())
 
     def __enter__(self):
@@ -44,7 +42,7 @@ class RelDb(Resource, resource_type=REL_DB):
 
     def query(self, table_name: str) -> ir.Table|None:
         """Return an ibis Table for the given table, for further ibis manipulation."""
-        assert self._connection is not None, 'RelDb must be used as a context manager.'
+        assert self._connection is not None, 'RelDb must be used as a context manager for querying.'
         try:
             return self._connection.table(table_name)
         except TableNotFound:
@@ -56,7 +54,7 @@ class RelDb(Resource, resource_type=REL_DB):
         if_exists: 'fail' (default) raises if the table exists;
                    'replace' drops and recreates; 'append' adds rows.
         """
-        assert self._connection is not None, 'RelDb must be used as a context manager.'
+        assert self._connection is None, 'RelDb must not be used as a context manager for insert.'
         df.write_database(table_name, self._uri, engine='adbc', if_table_exists=if_exists)
 
     def drop_table(self, table_name: str) -> None:
