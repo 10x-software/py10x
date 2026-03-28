@@ -26,8 +26,8 @@ def _test1():
     #p.weight_lbs = 100
     #assert p.weight == 100
 
-    p.invalidate_value(p.T.weight)
-    p.invalidate_value(p.T.weight_lbs)
+    p.invalidate_trait_value(p.T.weight)
+    p.invalidate_trait_value(p.T.weight_lbs)
 
     assert p.weight == XNone
 
