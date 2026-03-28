@@ -71,14 +71,15 @@ class NodeTransforfmer(ast.NodeTransformer):
 class NumbaCompiler(TraitableMethodOptimizer):
     s_target_getter_suffix = 'numba'
 
-    def __init__(self, traitable_class: type[Traitable], attr_name: str, **kwargs):
-        super().__init__(traitable_class, attr_name, **kwargs)
+    def __init__(self, traitable_class: type[Traitable], attr_name: str):
+        super().__init__(traitable_class, attr_name)
 
-        self.target_getter_name = f'{self.original_method.__name__}_{self.__class__.s_target_getter_suffix}'
-        self.ast_node_transformer = NodeTransforfmer(self.traitable_class, self.target_getter_name)
+        self.target_getter_name = f'{self.data.original_method.__name__}_{self.__class__.s_target_getter_suffix}'
+        self.ast_node_transformer = NodeTransforfmer(self.data.traitable_class, self.target_getter_name)
         self.compiled_getter = None
 
-    def is_lazy(self) -> bool:
+    @classmethod
+    def is_lazy(cls) -> bool:
         return True
 
     def generate_optimized_method(self) -> typing.Callable:
@@ -88,7 +89,7 @@ class NumbaCompiler(TraitableMethodOptimizer):
         return self.modified_getter(op_method)
 
     def target_getter(self):
-        src = inspect.getsource(self.original_method)
+        src = inspect.getsource(self.data.original_method)
         src = textwrap.dedent(src)
         tree = ast.parse(src)
 
@@ -99,7 +100,7 @@ class NumbaCompiler(TraitableMethodOptimizer):
 
         code = compile(new_tree, '<jit>', 'exec')
 
-        g = self.original_method.__globals__
+        g = self.data.original_method.__globals__
         target_getter_name = self.target_getter_name
         ns = {}
         exec(code, g, ns)

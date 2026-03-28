@@ -2,10 +2,52 @@ from __future__ import annotations
 
 import inspect
 import typing
+from typing import Callable
 
+from core_10x.global_cache import cache
 from core_10x.traitable import Traitable, Trait
 
-class TraitableMethodOptimizer:
+class MethodOptimizationRecord:
+    def __init__(self, py_method: Callable, _kaboom = True):
+        if _kaboom:
+            raise AssertionError(f'Must call {self.__class__.__name__}.instance() instead')
+
+        self.original_method = py_method
+        self.optimized_methods: dict[type[TraitableMethodOptimizer], Callable] = {}
+        self.best: type[TraitableMethodOptimizer] = None
+
+    def add_optimization(self, op_obj: TraitableMethodOptimizer):
+        op_class = op_obj.__class__
+        self.optimized_methods[op_class] = op_obj.optimized_method
+
+    def set_best(self, op_class: type[TraitableMethodOptimizer]):
+        if not op_class in self.optimized_methods:
+            raise AssertionError(f'Cannot set {op_class} as the best optimization as the optimized method is missing')
+        self.best = op_class
+
+    def get_best_optimization(self) -> tuple[type[TraitableMethodOptimizer], Callable]:
+        best = self.best
+        return (best, self.optimized_methods.get(best)) if best else (None, None)
+
+    def get_optimization(self, op_class_or_obj) -> Callable:
+        if isinstance(op_class_or_obj, TraitableMethodOptimizer):
+            op_class_or_obj = op_class_or_obj.__class__
+        return self.optimized_methods.get(op_class_or_obj)
+
+    def get_original_method(self) -> Callable:
+        return self.original_method
+
+    @staticmethod
+    @cache
+    def instance(py_method: Callable) -> MethodOptimizationRecord:
+        return MethodOptimizationRecord(py_method, _kaboom = False)
+
+class TraitableMethodData:
+    @staticmethod
+    @cache
+    def record(traitable_class: type[Traitable], attr_name: str) -> TraitableMethodData:
+        return TraitableMethodData(traitable_class, attr_name, _kaboom = False)
+
     def __init__(self, traitable_class: type[Traitable], attr_name: str, _kaboom = True):
         if _kaboom:
             raise AssertionError(f'Must call {self.__class__.__name__}.instance() instead')
@@ -40,20 +82,33 @@ class TraitableMethodOptimizer:
         self.has_params = has_params
         self.return_type = return_type
 
-        self.optimized_method = None
+class TraitableMethodOptimizer:
+    @staticmethod
+    @cache
+    def optimization_record(traitable_class: type[Traitable], attr_name: str) -> MethodOptimizationRecord:
+        data = TraitableMethodData.record(traitable_class, attr_name)
+        return MethodOptimizationRecord.instance(data.original_method)
 
-    def optimize(self) -> typing.Callable:
+    @classmethod
+    def is_lazy(cls) -> bool:
+        return False
+
+    def __init__(self, traitable_class: type[Traitable], attr_name: str):
+        self.data = data = TraitableMethodData.record(traitable_class, attr_name)
+        op_rec = MethodOptimizationRecord.instance(data.original_method)
+        self.optimized_method = op_rec.get_optimization(self.__class__)
+
+    def optimize(self) -> Callable:
         op_method = self.optimized_method
         if op_method is None:
-            original_method = self.original_method
+            original_method = self.data.original_method
             if original_method is not None:
                 op_method = self.generate_optimized_method()
                 self.optimized_method = op_method
+                op_rec = MethodOptimizationRecord.instance(original_method)
+                op_rec.add_optimization(self)
 
         return op_method
 
-    def is_lazy(self) -> bool:
-        return False
-
-    def generate_optimized_method(self) -> typing.Callable:
+    def generate_optimized_method(self) -> Callable:
         raise NotImplementedError
