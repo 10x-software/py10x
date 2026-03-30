@@ -422,52 +422,63 @@ assert person1.id() == person2.id()  # Same ID
 # Note: person1 is person2 would be False - they're different objects
 ```
 
-#### Constructor Parameter: `_replace=True`
+#### Setting Non-ID Traits at Construction: `_replace` and `_update`
 
-The `_replace` parameter controls whether non-ID traits can be provided during traitable initialization and whether existing cached trait values for the same ID are overwritten. By default (`_replace=False`), only ID traits and ID_LIKE traits can be set during construction. When `_replace=True`, non-ID traits can also be provided, and any existing cached values for those traits (for the same ID) are intentionally replaced.
+By default, only ID and ID_LIKE traits may be provided during construction.  To also supply non-ID traits, use one of two constructor flags:
+
+| | `_replace=True`                    | `_update=True` |
+|---|------------------------------------|---|
+| Non-ID traits allowed in constructor | Yes                                | Yes |
+| Traits **not** provided | Cleared                            | Preserved |
+| Traits provided | Set to the given value             | Set to the given value |
+| Typical use | Full overwrite / initial population | Partial update of specific traits |
+
+**Convenience class methods** wrap the flags for readability:
+
+| Method | Equivalent |
+|---|---|
+| `Cls.new_or_replace(**kwargs)` | `Cls(**kwargs, _replace=True)` |
+| `Cls.new_or_update(**kwargs)` | `Cls(**kwargs, _update=True)` |
+
+**How the initialization works:**
+
+1. ID and ID_LIKE traits are set first to compute the object's identity.
+2. If an entity with that ID already exists: for `_replace`, its non-ID cached slots are cleared; for `_update`, they are left untouched.  If no entity exists, a new one is created in either case.
+3. The non-ID traits provided in the call are written into the cache.  Any trait not provided has its slot cleared (`_replace`) or retains its previous value (`_update`, existing entity only).  A cleared slot is not necessarily `XNone` on the next read — a getter or a trait default will still produce a value.
+
+**Example:**
 
 ```python
 from core_10x.traitable import Traitable, T
 from core_10x.exec_control import CACHE_ONLY
-from datetime import date
+from core_10x.xnone import XNone
 
-class Person(Traitable):
-    # ID traits
-    first_name: str = T(T.ID)
-    last_name: str = T(T.ID)
+class Config(Traitable):
+    name:    str = T(T.ID)
+    host:    str = T()
+    port:    int = T()
+    timeout: int = T(10)
 
-    # Non-ID traits (require _replace=True when provided in constructor)
-    dob: date = T()
-    age: int
-
-    def age_get(self) -> int:
-        if not self.dob:
-            return 0
-        today = date.today()
-        return today.year - self.dob.year
-
-# Use _replace=True when providing non-ID traits in constructor
 with CACHE_ONLY():
-    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _replace=True)
-    assert person.age > 30  # Computed from dob (age depends on current year)
+    # Full population with _replace — unspecified traits become XNone.
+    Config.new_or_replace(name='db', host='localhost', port=5432, timeout=30)
+    cfg = Config(name='db')
+    assert cfg.host    == 'localhost'
+    assert cfg.port    == 5432
+    assert cfg.timeout == 30
+
+    # Partial update with _update — only host changes; port and timeout are kept.
+    Config.new_or_update(name='db', host='prod-server')
+    assert cfg.host    == 'prod-server'
+    assert cfg.port    == 5432           # preserved
+    assert cfg.timeout == 30             # preserved
+
+    # _replace again — unspecified traits are cleared.
+    Config.new_or_replace(name='db', host='other-server')
+    assert cfg.host    == 'other-server'
+    assert cfg.port    is XNone          # cleared
+    assert cfg.timeout == 10             # cleared
 ```
-
-**Technical Details:**
-- **Construction always creates a new Python instance**: you should compare traitables by `==` (or by `id().value`), not by `is`.
-- **Without `_replace=True`**:
-  - Only ID traits (`T.ID`) and ID_LIKE traits (`T.ID_LIKE`) can be provided during construction.
-  - Attempting to provide non-ID traits raises a `ValueError`.
-  - ID is computed from the ID traits (which may themselves be computed from ID_LIKE traits via getters/setters).
-- **With `_replace=True`**:
-  - All traits can be provided during construction.
-  - The initialization process:
-    1. Sets ID and ID_LIKE traits first to compute the object ID (for example, an ID getter may derive the ID from ID_LIKE traits).
-    2. Clears any existing non-ID trait values cached for the computed ID in the global cache.
-    3. Then sets the non-ID traits provided in the constructor in the global cache (any non-ID traits not provided become `XNone`).
-
-**When to use `_replace=True`:**
-- When providing non-ID traits during construction.
-- When you intentionally want to overwrite existing non-ID trait values for an ID (for example, when recomputing an entity based on updated ID_LIKE inputs).
 
 #### ID_LIKE Traits
 
@@ -971,43 +982,48 @@ with CACHE_ONLY():
     assert person.full_name == "Alice Smith"  # Computed and cached in memory
 ```
 
-### Scenario — Named Execution Contexts
+### Scenario — Named Scopes
 
-`Scenario` is a convenience wrapper that gives a `GRAPH_ON` execution context a stable name.  Scenarios with the same name are **singletons** — repeated calls return the same instance — so you can define a scenario once at module level and reuse it across your codebase without worrying about duplicate BTP objects.
+A `Scenario` is a scope in which trait values (both set and computed) are cached and isolated from other scenarios.  Computed traits are dependency-tracked within the scope.  Scenarios can be named or anonymous:
 
-```python
-from core_10x.scenario import Scenario
-
-# Named scenarios are singletons — second call returns the same instance.
-s1 = Scenario('risk')
-s2 = Scenario('risk')
-assert s1 is s2
-
-# Use as a context manager to activate the underlying GRAPH_ON context.
-with Scenario('risk'):
-    pass  # GRAPH_ON is active here
-
-# Named scenarios keep their BTP after the with-block, so they can be re-entered.
-with Scenario('risk'):
-    pass  # same BTP, activated again
-```
-
-Anonymous scenarios (no name) create a fresh one-shot context each call and discard it on exit:
+- **Named** `Scenario('name')` is a singleton — re-entering the same name from anywhere in the codebase resumes the same scope with all previously cached values intact.
+- **Anonymous** `Scenario()` creates a fresh scope each time; the scope is discarded on exit and a new empty one is created on re-entry.
+- **Nested** scenarios inherit set values from their parent as a starting point and then diverge independently.
 
 ```python
 from core_10x.scenario import Scenario
+from core_10x.traitable import Traitable, RT, T
 
-with Scenario() as ctx:
-    pass  # GRAPH_ON active for this block only; ctx.btp is None after exit
+class Instrument(Traitable):
+    ticker:     str   = RT(T.ID)
+    price:      float = RT()
+    fair_value: float = RT()
+
+    def fair_value_get(self) -> float:
+        return self.price * 1.05
+
+msft = Instrument(ticker='MSFT')
+
+# Named scenario — scope is preserved across exits, re-enterable by name.
+with Scenario('base'):
+    msft.price = 100.0
+    msft.fair_value             # computed and cached → 105.0
+
+    # Nested scenario inherits price = 100 from 'base', then diverges.
+    with Scenario('stressed'):
+        msft.price = 80.0       # override in 'stressed' only
+        msft.fair_value         # recomputed → 84.0
+
+# Re-enter 'base' from anywhere — scope and cache are intact.
+with Scenario('base'):
+    msft.price                  # still 100.0
+    msft.fair_value             # still 105.0 (cached)
+
+# Anonymous scenario — fresh scope each time, discarded on exit.
+with Scenario():
+    msft.price = 50.0           # isolated; 'base' scope unaffected
+# scope gone; next Scenario() would start fresh again
 ```
-
-**Named vs anonymous**
-
-| | `Scenario('name')` | `Scenario()` |
-|---|---|---|
-| Singleton? | Yes — same name returns the same object | No — fresh instance each call |
-| BTP after exit | Kept (can be re-entered) | Cleared (`btp = None`) |
-| Typical use | Long-lived application execution contexts | One-shot ad-hoc calculations |
 
 ## Traitable Store
 
@@ -1534,19 +1550,23 @@ After the block, three attributes are available on the timer object:
 
 #### LOG — Structured Asynchronous Logging
 
-`LOG` provides a thin, level-filtered interface for structured application logging.  Messages are dispatched asynchronously to a background subprocess (`logger_process`) that persists each entry as a `LogMessage` Traitable to a `TsStore`.  The persistence target is configured via `EnvVars.log_ts_store_uri`; if not set, messages are only printed and not stored.
+`LOG` provides a thin, level-filtered interface for structured application logging.  Messages are dispatched asynchronously via an `mp.Queue` to a background `Logger` subprocess (`logger_process`) that persists each entry as a `LogMessage` Traitable to a `TsStore`.
+
+**Persistence target** — set `EnvVars.log_ts_store_uri` to a MongoDB URI to enable persistence; if the variable is not set, messages are printed to stdout only and not stored.
 
 **Lifecycle** — call once at application startup and shutdown:
 
-```py
+```python
 from core_10x.logger import LOG
 
-LOG.begin('my_app', LOG.DETAILED)   # start the logger subprocess
+LOG.begin('my_app', LOG.DETAILED)   # idempotent: no-op if a Logger is already active
 # ... application runs ...
-LOG.end()                            # flush queue and join the subprocess
+LOG.end()                            # sends shutdown signal; subprocess drains queue and exits
 ```
 
-**Log levels** — `LOG.begin` accepts the level constant directly; only messages at or below this level are written:
+`LOG.begin` is **idempotent** — calling it a second time does nothing (the existing `Logger` is kept).  `LOG.end` signals the background process to drain its queue and exit; it does not call `proc.join()`, so the subprocess finishes asynchronously.
+
+**Log levels** — only messages at or below the configured level are put on the queue:
 
 | Constant | `.value` | When to use |
 |----------|----------|-------------|
@@ -1557,24 +1577,47 @@ LOG.end()                            # flush queue and join the subprocess
 
 **Emitting messages**:
 
-```py
+```python
 from core_10x.logger import LOG
 
-LOG.BRIEF('application started')      # always written when LOG.begin level >= 0
+LOG.BRIEF('application started')      # always written at level BRIEF or above
 LOG.MEDIUM({'action': 'login'})       # payload can be any Python object
 LOG.DETAILED('processing request')
 LOG.VERBOSE({'raw': True, 'data': 42})
 ```
 
-Each persisted `LogMessage` record (a `Traitable` with `custom_collection=True`) stores:
+Each `LogMessage` record (a `Traitable` with `custom_collection=True, keep_history=False`) stores:
 
 | Trait | Type | Content |
 |-------|------|---------|
-| `ns` | `int` | Nanosecond timestamp (`perf_counter_ns`) — also the ID trait |
+| `ns` | `int` | `perf_counter_ns()` at call time — also the ID trait |
 | `level` | `int` | Log level value |
-| `mem_pc` | `float` | Process memory usage (%) at log time |
-| `num_threads` | `int` | Thread count at log time |
-| `payload` | `Any` | The value passed to the log call |
+| `mem_pc` | `float` | Process memory % at call time (`psutil`) |
+| `num_threads` | `int` | Thread count at call time (`psutil`) |
+| `payload` | `Any` | Value passed to the log call |
+
+**Testing with a stub Logger** — unit tests should not start real subprocesses.  Replace the global `LOGGER` with a stub that records messages:
+
+```python
+import core_10x.logger as log_module
+from core_10x.logger import LOG
+
+class StubPS:
+    def memory_percent(self): return 0.0
+    def num_threads(self):    return 1
+
+class StubLogger:
+    def __init__(self, log_level):
+        self.log_level = log_level
+        self.received = []
+        self.ps = StubPS()
+    def log(self, data): self.received.append(data)
+
+log_module.LOGGER = StubLogger(LOG.VERBOSE.value)
+LOG.BRIEF('hello')
+assert log_module.LOGGER.received[0]['payload'] == 'hello'
+log_module.LOGGER = None   # restore
+```
 
 ## Basket and Bucket Facility
 
