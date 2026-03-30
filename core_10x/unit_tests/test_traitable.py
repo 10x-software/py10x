@@ -864,6 +864,105 @@ def test_id_like_with_replace_and_non_id_update():
         Cross(base_ccy='A', quote_ccy='B', value='234')
 
 
+def test_update_param_updates_only_specified_traits():
+    """_update=True sets only the specified non-ID traits; unspecified traits retain their values."""
+
+    class Item(Traitable):
+        key: str = RT(T.ID)
+        alpha: str = RT()
+        beta: str = RT()
+        gamma: str = RT()
+
+    # Establish initial state via _replace
+    i1 = Item(key='x', alpha='a', beta='b', gamma='g', _replace=True)
+    assert i1.alpha == 'a'
+    assert i1.beta == 'b'
+    assert i1.gamma == 'g'
+
+    # _update touches only 'alpha'; 'beta' and 'gamma' must be preserved
+    i2 = Item(key='x', alpha='A', _update=True)
+    assert i2.alpha == 'A'
+    assert i2.beta == 'b'
+    assert i2.gamma == 'g'
+
+    # All instances with the same ID share values
+    assert i1 == i2
+    assert i1.alpha == 'A'
+
+
+def test_update_vs_replace_semantics():
+    """_replace resets all unspecified non-ID traits to XNone; _update preserves them."""
+
+    class Record(Traitable):
+        name: str = RT(T.ID)
+        field1: str = RT()
+        field2: str = RT()
+
+    # Set both non-ID traits
+    r = Record(name='rec', field1='f1', field2='f2', _replace=True)
+    assert r.field1 == 'f1'
+    assert r.field2 == 'f2'
+
+    # _update: only field1 changes; field2 is preserved
+    Record(name='rec', field1='f1-new', _update=True)
+    assert r.field1 == 'f1-new'
+    assert r.field2 == 'f2'
+
+    # _replace: field1 changes; field2 is reset to XNone
+    Record(name='rec', field1='f1-replaced', _replace=True)
+    assert r.field1 == 'f1-replaced'
+    assert r.field2 is XNone
+
+
+def test_new_or_update_classmethod():
+    """new_or_update is a convenience wrapper for _update=True."""
+
+    class Widget(Traitable):
+        widget_id: str = RT(T.ID)
+        color: str = RT()
+        size: int = RT()
+
+    # Create with both non-ID traits
+    w = Widget(widget_id='w1', color='red', size=10, _replace=True)
+    assert w.color == 'red'
+    assert w.size == 10
+
+    # new_or_update changes only 'color'
+    w2 = Widget.new_or_update(widget_id='w1', color='blue')
+    assert w2.color == 'blue'
+    assert w2.size == 10  # preserved
+
+    assert w == w2  # same ID, same shared state
+
+    # new_or_update on a fresh ID creates a new entity
+    w3 = Widget.new_or_update(widget_id='w2', color='green', size=5)
+    assert w3.color == 'green'
+    assert w3.size == 5
+
+
+def test_update_and_replace_together_raises():
+    """Providing both _replace=True and _update=True is a programmer error and must raise."""
+
+    class Thing(Traitable):
+        key: str = RT(T.ID)
+        val: str = RT()
+
+    with pytest.raises(AssertionError, match='_replace and _update cannot both be True'):
+        Thing(key='k', val='v', _replace=True, _update=True)
+
+
+def test_new_or_update_without_existing_creates_new():
+    """new_or_update on a brand-new ID behaves like a normal first-time creation."""
+
+    class Tag(Traitable):
+        label: str = RT(T.ID)
+        priority: int = RT()
+
+    t = Tag.new_or_update(label='urgent', priority=1)
+    assert t.label == 'urgent'
+    assert t.priority == 1
+
+
 class TestExistingInstance:
     class TestablePerson(Person):
         @classmethod

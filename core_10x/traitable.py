@@ -363,8 +363,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if cls.is_storable() and (rt_id_trait := next((trait for trait in cls.traits(flags_on=T.ID) if trait.flags_on((T.RUNTIME))), None)):
             rc.add_error(f'{cls}.{rt_id_trait.name} is a RUNTIME ID trait - traitable must not be storable (all traits must be RUNTIME)')
 
-    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _replace=False, **trait_values):
+    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _replace=False, _update=False, **trait_values):
         cls = self.__class__
+
+        assert not (_replace and _update), f'{self.__class__}: _replace and _update cannot both be True'
 
         if _id is not None:
             assert _collection_name is None, f'{self.__class__}(id_value) may not be invoked with _collection_name'
@@ -373,7 +375,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         else:
             super().__init__(cls.s_bclass, ID(collection_name=_collection_name))
             if not _skip_init:
-                self.initialize(trait_values, _replace=_replace)
+                self.initialize(trait_values, _replace=_replace, _update=_update)
 
         self.__post_init__()
 
@@ -419,13 +421,17 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return [ cls(_id = id) for id in ids_sought ]
 
     @classmethod
-    @deprecated('Use create_or_replace instead.')
+    @deprecated('Use either new_or_replace or new_or_update methods instead.')
     def update(cls, **kwargs) -> Traitable:
         return cls(**kwargs, _replace=True)
 
     @classmethod
     def new_or_replace(cls, **kwargs) -> Traitable:
         return cls(**kwargs, _replace=True)
+
+    @classmethod
+    def new_or_update(cls, **kwargs) -> Traitable:
+        return cls(**kwargs, _update=True)
 
     @classmethod
     @cache
