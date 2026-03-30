@@ -111,14 +111,14 @@ class CythonCompiler(TraitableMethodOptimizer):
     }
     s_pyname_cy_map: dict[str, str] = { pytype.__name__: cy for pytype, cy in s_pytype_cy_map.items() }
 
-    def __init__(self, traitable_class, attr_name, **kwargs):
-        super().__init__(traitable_class, attr_name, **kwargs)
+    def __init__(self, traitable_class, attr_name):
+        super().__init__(traitable_class, attr_name)
 
-        if self.trait is None:
-            raise NotImplementedError(f'** Curretly only traits are supported:\n{self.traitable_class.__name__}.{self.name} is not a trait')
+        if self.data.trait is None:
+            raise NotImplementedError(f'** Curretly only traits are supported:\n{self.data.traitable_class.__name__}.{self.data.name} is not a trait')
 
-        self.class_trait = class_trait = ClassTrait(self.traitable_class, self.trait)
-        self.unique_name = f"{PyClass.name(class_trait.cls).replace('.', '_')}_{self.original_method.__name__}"
+        self.class_trait = class_trait = ClassTrait(self.data.traitable_class, self.data.trait)
+        self.unique_name = f"{PyClass.name(class_trait.cls).replace('.', '_')}_{self.data.original_method.__name__}"
         self.compiled_module = None
 
     #== TCC in-memory compilation → Python callable
@@ -173,7 +173,7 @@ class CythonCompiler(TraitableMethodOptimizer):
         return self.cython_to_c('\n'.join(cy_text))
 
     def generate_cython_source(self) -> list:
-        src = textwrap.dedent(inspect.getsource(self.original_method))
+        src = textwrap.dedent(inspect.getsource(self.data.original_method))
         tree = ast.parse(src)
 
         #-- Walk the AST tree and return a potentially modified copy
@@ -225,7 +225,7 @@ class CythonCompiler(TraitableMethodOptimizer):
         look them up in getter.__globals__, construct import lines.
         """
         lines = []
-        g = self.original_method.__globals__
+        g = self.data.original_method.__globals__
         for name in other_names:
             obj = g.get(name)
             if obj is None:     #-- local, param or a bug in the original getter :-)
