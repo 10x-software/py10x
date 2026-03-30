@@ -93,7 +93,7 @@ py::object BTraitable::endogenous_id() {
 //  - trait-name value pairs will be processed in the order they are given
 //      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
 //======================================================================================================================
-void BTraitable::initialize(const py::dict& trait_values, const bool replace_existing=false) {
+void BTraitable::initialize(const py::dict& trait_values, const bool replace_existing=false, const bool update_existing=false) {
     if (const auto cls = my_class(); cls->is_id_endogenous()) {
         const auto proc = ThreadContext::current_traitable_proc();
 
@@ -114,7 +114,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
                     continue;
 
                 if (!trait->flags_on(BTraitFlags::ID)) {
-                    if (!replace_existing)
+                    if (!update_existing && !replace_existing)
                         throw py::value_error(py::str("{}.{} - non-ID trait value cannot be set during initialization").format(class_name(), trait_name));
                     non_id_traits_set[trait] = py_value;
                     continue;
@@ -128,7 +128,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
             // -- this never happens as either accept_existing==true or replace_existing==true
             throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
 
-        if (replace_existing) {
+        if (update_existing || replace_existing) {
             //-- now we have a potentially lazy reference which might be loaded as we set any non-id traits below
             for (auto &[trait, value] : non_id_traits_set) {
                 if (const BRC rc(proc->set_trait_value(this, trait, value)); !rc)

@@ -97,7 +97,7 @@ public:
 
     static py::object exogenous_id();
 
-    void initialize(const py::dict &trait_values, bool replace_existing);
+    void initialize(const py::dict &trait_values, bool replace_existing, bool update_existing);
     bool accept_existing(const py::dict& trait_values);
     bool id_exists();
 
