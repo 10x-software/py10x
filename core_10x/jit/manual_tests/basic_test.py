@@ -6,7 +6,7 @@ from core_10x.traitable import Traitable, RT
 from core_10x.logger import PerfTimer
 
 class Calc(Traitable):
-    count: int      = RT(10**4)
+    count: int      = RT(10_000)
 
     seed: int       = RT()
     avg: float      = RT(1.)
@@ -24,18 +24,18 @@ class Calc(Traitable):
         r = 0.
         for i in range(self.count):
             p = random.normal(self.avg, self.std)
-            # q = random.randint(1, self.max_qty)
-            # r += p * q
-            r += p
+            q = random.randint(1, self.max_qty)
+            r += p * q
+            #r += p
 
         return r
 
     def abracadabra_get(self):
         r = 0.
         for i in range(self.count):
-            #p = math.sin(self.avg)
-            p = self.avg + i
-            r += p
+            p = math.sin(self.avg)
+            #p = self.avg + i
+            r += p * self.std
 
         return r
 

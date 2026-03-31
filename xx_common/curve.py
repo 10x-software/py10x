@@ -28,12 +28,14 @@ class IP_KIND(NamedConstant, lowercase_values = True):
 class CurveParams(Traitable):
     DEFAULT_INTERPOLATOR = interpolate.interp1d
 
-    interpolator: Any   = RT(default = DEFAULT_INTERPOLATOR)
+    interpolator: Any   = RT()
     ip_kind: IP_KIND    = RT(IP_KIND.LINEAR)
     assume_sorted: bool = RT(True)
     copy: bool          = RT(False)
     fill_value: Any     = RT('extrapolate')     ## it's 'extrapolate' or a tuple (left_value, right_value) for extrapolation
     bounds_error: bool  = RT(False)
+
+    def interpolator_get(self):     return self.__class__.DEFAULT_INTERPOLATOR
 
 class Curve(AnonymousTraitable):
     times: list         = T([])       #-- only ints or floats are allowed
