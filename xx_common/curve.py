@@ -1,10 +1,12 @@
 from __future__ import annotations
+from __future__ import annotations
 
 import bisect
 import math
 from datetime import date, timedelta
 from typing import Any
 
+from numpy import float64
 from scipy import interpolate
 
 from core_10x.named_constant import NamedConstant
@@ -62,7 +64,7 @@ class Curve(AnonymousTraitable):
         return times[-1] if times else None
 
     def update(self, t, value, reset=True):
-        if type(value) is not float:  # -- TODO: we sometimes have np.floats
+        if type(value) is float64:
             value = float(value)
 
         times = self.times
@@ -140,7 +142,8 @@ class Curve(AnonymousTraitable):
                 return self.values[times.index(t)]
 
         bot = self.beginning_of_time
-        return float(self.interpolator(t)) if (bot is not None) or (t >= bot) else math.nan
+        v   = self.interpolator(t) if (bot is not None) or (t >= bot) else math.nan
+        return float(v) if type(v) is float64 else v
 
     def values_at(self, dates) -> tuple:
         return tuple(self.value(d) for d in dates)
