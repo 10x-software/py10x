@@ -442,3 +442,50 @@ py::object BTraitable::_reload(const bool rev_only) {
     return py::none();
 }
 
+py::list BTraitable::calc_values(const py::list& bucket, const py::str& trait_name) {
+    auto proc = ThreadContext::current_traitable_proc();
+    py::list res;
+    for (auto item : bucket) {
+        auto obj = item.cast<BTraitable*>();
+        const auto trait = obj->my_class()->find_trait(trait_name);
+        if (!trait)
+            throw py::type_error(py::str("{}.{} - unknown trait").format(obj->class_name(), trait_name));
+
+        auto value = proc->get_trait_value(obj, trait);
+        res.append(value);
+    }
+    return res;
+}
+
+py::list BTraitable::calc_values_with_args(const py::list& bucket, const py::str& attr_name, const py::args& args) {
+    auto proc = ThreadContext::current_traitable_proc();
+    py::list res;
+    py::object value;
+    for (auto item : bucket) {
+        auto obj = item.cast<BTraitable*>();
+        auto cls = obj->my_class();
+        const auto trait = cls->find_trait(attr_name);
+        if (!trait) {
+            auto method = py::getattr(item, attr_name, py::none());
+            if (method.is_none())
+                throw py::type_error(py::str("{}.{} - unknown attribute").format(obj->class_name(), attr_name));
+
+            value = method(*args);
+        }
+        else
+            value = proc->get_trait_value(obj, trait, args);
+
+        res.append(value);
+    }
+    return res;
+}
+
+py::object BTraitable::calc_and_aggregate(const py::list& bucket, const py::str& trait_name, const py::object& f_aggregator) {
+    auto res = calc_values(bucket, trait_name);
+    return f_aggregator(res);
+}
+
+py::object BTraitable::calc_and_aggregate_with_args(const py::list& bucket, const py::str& attr_name, const py::object& f_aggregator, const py::args& args) {
+    auto res = calc_values_with_args(bucket, attr_name, args);
+    return f_aggregator(res);
+}

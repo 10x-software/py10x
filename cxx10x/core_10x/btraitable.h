@@ -321,12 +321,16 @@ public:
     py::list            serialize_id_traits();
     static py::dict     deserialize_id_traits(const BTraitableClass* cls, const py::object& serialized_data);
 
-
     static py::object   deserialize_object(const BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data);
     virtual void        deserialize_traits(const py::dict& trait_values);
     static py::object   deserialize_nx(const BTraitableClass* cls, const py::dict& serialized_data);
     py::object          _reload(const bool rev_only = false);
     bool                reload() {return !_reload().is_none();}
+
+    static py::list     calc_values(const py::list& bucket, const py::str& trait_name);
+    static py::object   calc_and_aggregate(const py::list& bucket, const py::str& attr_name, const py::object& f_aggregator);
+    static py::list     calc_values_with_args(const py::list& bucket, const py::str& trait_name, const py::args& args);
+    static py::object   calc_and_aggregate_with_args(const py::list& bucket, const py::str& attr_name, const py::object& f_aggregator, const py::args& args);
 
 };
 

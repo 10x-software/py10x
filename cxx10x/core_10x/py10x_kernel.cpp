@@ -301,6 +301,11 @@ PYBIND11_MODULE(py10x_kernel, m)
                 )
             .def("reload",                      &BTraitable::reload)
             .def("bui_class",                   &BTraitable::bui_class, py::return_value_policy::reference)
+
+            .def_static("calc_values",                      &BTraitable::calc_values)
+            .def_static("calc_values_with_args",            &BTraitable::calc_values_with_args)
+            .def_static("calc_and_aggregate",               &BTraitable::calc_and_aggregate)
+            .def_static("calc_and_aggregate_with_args",     &BTraitable::calc_and_aggregate_with_args)
             ;
 
     py::class_<BTraitableProcessor>(m, "BTraitableProcessor")
