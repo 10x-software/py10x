@@ -216,6 +216,7 @@ PYBIND11_MODULE(py10x_kernel, m)
                 return oss.str();
                 })
             .def("object_ids_by_class",         &XCache::object_ids_by_class)
+            .def("leaf_data",                   &XCache::leaf_data)
 //            .def(py::init<>())
 //            .def("find_object_cache",           &XCache::find_object_cache)
 //            .def("find_node",                   py::overload_cast<const TID&, BTrait*>(XCache::find_node))

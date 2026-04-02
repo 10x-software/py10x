@@ -126,3 +126,59 @@ void XCache::export_nodes() const {
         }
     }
 }
+
+py::dict XCache::leaf_data(BTraitable* obj, const BTrait* trait, const py::object& parent_py_class, const py::args& trait_names) const {
+    //-- { child: [traits, ] }
+    py::dict results;
+    if (default_node_type() < NODE_TYPE::BASIC_GRAPH)
+        return results;
+
+    if (trait_names.empty())
+        return results;
+
+    auto parent_node = find_node(obj->tid(), trait);
+    if (!parent_node)
+        return results;
+
+    auto results_get = results.attr("get");
+    for (const auto& [cls, ids] : m_ids_by_class) {
+        auto py_cls = cls->py_class();
+        if (!PyLinkage::issubclass(py_cls, parent_py_class))
+            continue;
+
+        std::vector<BTrait*> traits;
+        for (auto name : trait_names) {
+            auto t = cls->find_trait(name.cast<py::object>());
+            if (!t)
+                continue;
+            traits.push_back(t);
+        }
+        if (traits.empty())
+            continue;
+
+        for (const auto& id : ids) {
+            auto child_id = id.cast<py::object>();
+            auto tid = TID(cls, child_id);
+            auto oc = find_object_cache(tid);
+            assert(oc);
+            for (auto t : traits) {
+                auto node = (BasicGraphNode*)oc->find_node(t);
+                if (node and node->is_successor_of(parent_node)) {
+                    auto objs_by_cls = results_get(py_cls);
+                    if (objs_by_cls.is_none()) {
+                        objs_by_cls = py::dict();
+                        results[py_cls] = objs_by_cls;
+                    }
+                    py::object t_list = objs_by_cls.attr("get")(child_id);
+                    if (t_list.is_none()) {
+                        t_list = py::list();
+                        objs_by_cls[child_id] = t_list;
+                    }
+                    t_list.attr("append")(t);
+                }
+            }
+        }
+    }
+
+    return results;
+}

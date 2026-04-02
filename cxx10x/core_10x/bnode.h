@@ -71,6 +71,9 @@ public:
     virtual void unlink_parents()               {}
 
     virtual void unlink()                       {}
+
+    virtual bool is_successor_of(const BasicNode* node) const   { return false; }
+
 };
 
 class TreeNode : public BasicNode {
@@ -123,6 +126,12 @@ public:
     void unlink() override {
         unlink_parents();
     }
+
+    bool is_successor_of(const BasicNode* node) const override {
+        return std::ranges::any_of(m_parents, [&](auto p) {
+            return p == node || p->is_successor_of(node);
+        });
+    }
 };
 
 class BasicGraphNode : public TreeNode {
@@ -150,6 +159,7 @@ public:
         unlink_children();
         unlink_parents();
     }
+
 };
 
 class BTrait;
