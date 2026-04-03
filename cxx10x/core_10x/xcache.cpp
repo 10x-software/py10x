@@ -178,7 +178,7 @@ py::dict XCache::find_dependencies(BTraitable* obj, const BTrait* trait, const p
                         t_list = py::list();
                         objs_by_cls[child_id] = t_list;
                     }
-                    t_list.attr("append")(t);
+                    t_list.attr("append")(py::make_tuple(t, node->value()));
                 }
             }
         }
