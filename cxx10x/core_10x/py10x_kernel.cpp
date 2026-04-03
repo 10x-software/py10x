@@ -216,7 +216,6 @@ PYBIND11_MODULE(py10x_kernel, m)
                 return oss.str();
                 })
             .def("object_ids_by_class",         &XCache::object_ids_by_class)
-            .def("leaf_data",                   &XCache::leaf_data)
 //            .def(py::init<>())
 //            .def("find_object_cache",           &XCache::find_object_cache)
 //            .def("find_node",                   py::overload_cast<const TID&, BTrait*>(XCache::find_node))
@@ -333,6 +332,7 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("flags",                       &BTraitableProcessor::flags)
             .def("share_object",                &BTraitableProcessor::share_object)
             .def("export_nodes",                &BTraitableProcessor::export_nodes)
+            .def("find_dependencies",           &BTraitableProcessor::find_dependencies)
             .def("__repr__", [](const BTraitableProcessor& obj) {
                 std::ostringstream oss;
                 oss << "<BTraitableProcessor object at 0x" << std::hex << reinterpret_cast<uintptr_t>(&obj) << ">";

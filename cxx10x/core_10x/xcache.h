@@ -429,6 +429,5 @@ public:
 
     void export_nodes() const;
 
-    py::dict leaf_data(BTraitable* obj, const BTrait* trait, const py::object& parent_py_class, const py::args& trait_names) const;      //-- { child: [traits, ] }
-
+    py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const;
 };

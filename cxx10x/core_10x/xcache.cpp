@@ -127,8 +127,12 @@ void XCache::export_nodes() const {
     }
 }
 
-py::dict XCache::leaf_data(BTraitable* obj, const BTrait* trait, const py::object& parent_py_class, const py::args& trait_names) const {
-    //-- { child: [traits, ] }
+//----
+//  For a given obj and trait (e.g., for portfolio.price node), find dependencies on all the instances of subclasses
+//  of target_class, specifically for trait_names provided (e.g., MktQuotable, 'quote').
+//  Returns: { cls: { id: [traits...], ... }, ... }
+//----
+py::dict XCache::find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const {
     py::dict results;
     if (default_node_type() < NODE_TYPE::BASIC_GRAPH)
         return results;
@@ -143,7 +147,7 @@ py::dict XCache::leaf_data(BTraitable* obj, const BTrait* trait, const py::objec
     auto results_get = results.attr("get");
     for (const auto& [cls, ids] : m_ids_by_class) {
         auto py_cls = cls->py_class();
-        if (!PyLinkage::issubclass(py_cls, parent_py_class))
+        if (!PyLinkage::issubclass(py_cls, target_class))
             continue;
 
         std::vector<BTrait*> traits;

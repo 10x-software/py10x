@@ -147,6 +147,13 @@ public:
     virtual py::object      raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const = 0;
     virtual py::object      raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const = 0;
 
+    //----
+    //  For a given obj and trait (e.g., for portfolio.price node), find dependencies on all the instances of subclasses
+    //  of target_class, specifically for trait_names provided (e.g., MktQuotable, 'quote').
+    //  Returns: { cls: { id: [traits...], ... }, ... }
+    //----
+    virtual py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const;
+
     class Use {
         bool    m_temp;
     public:

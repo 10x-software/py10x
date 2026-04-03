@@ -202,6 +202,10 @@ py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, 
     return raw_set_trait_value(obj, trait, converted_value, args);
 }
 
+py::dict BTraitableProcessor::find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const {
+    return {};
+}
+
 class OffGraphNoConvertNoDebug : public BTraitableProcessor {
 public:
     void invalidate_trait_value(BTraitable* obj, const BTrait* trait) const final {
@@ -239,6 +243,7 @@ public:
     py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const final {
         return trait->proc()->raw_set_value_off_graph(this, obj, trait, value, args);
     }
+
 };
 
 class OffGraphNoConvertDebug : public OffGraphNoConvertNoDebug {
@@ -311,6 +316,11 @@ public:
     py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const override {
         return trait->proc()->raw_set_value_on_graph(this, obj, trait, value, args);
     }
+
+    py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const final {
+        return cache()->find_dependencies(obj, trait, target_class, trait_names);
+    }
+
 };
 
 class OnGraphNoConvertDebug : public OnGraphNoConvertNoDebug {
