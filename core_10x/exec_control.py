@@ -1,8 +1,8 @@
 from py10x_kernel import BProcessContext
 from py10x_kernel import BTraitableProcessor as BTP  # noqa: N817
-from py10x_kernel import TID
 
-from core_10x.trait import BoundTrait
+from core_10x.trait import Trait, BoundTrait
+from core_10x.traitable_id import ID
 
 # TODO: consider splitting rename DEBUG into TYPE_CHECK and EAGER_LOAD.
 # TODO: consider making CONVERT/TYPE_CHECK mode default.
@@ -94,15 +94,20 @@ class GraphDeps:
         trait = bound_trait.trait
         self.deps_data = gp.find_dependencies(obj, trait, target_class, *target_trait_names)
 
-    def perturb_value(self, obj_cls, obj_id, trait, value):
+    def perturb(self, traitable_cls, obj_id: ID, trait: Trait, value):
         cache = self.gp.cache()
-        cache.perturb_existing_node(obj_cls.s_bclass, obj_id, trait, value)
+        cache.perturb_existing_node(traitable_cls.s_bclass, obj_id, trait, value)
+
+    def perturb_value(self, traitable, trait_name: str, value):
+        obj_cls = traitable.__class__
+        trait = obj_cls.trait(trait_name, throw = True)
+        self.perturb(obj_cls, traitable.id(), trait, value)
 
     def deps(self, objects = True, trait_names = False):
         for cls, traits_by_id in self.deps_data.items():
             for id, traits in traits_by_id.items():
                 obj = cls(_id = id) if objects else id
-                for t in traits:
+                for (t, value) in traits:
                     if trait_names:
                         t = t.name
-                    yield (cls, obj, t)
+                    yield (cls, obj, t, value)
