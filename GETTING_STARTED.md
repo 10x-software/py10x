@@ -833,6 +833,152 @@ with GRAPH_OFF():
     assert calc.sum == 9  # Getter called again (no caching)
 ```
 
+#### GraphDeps — Querying the Dependency Graph
+
+`GraphDeps` lets you **introspect the dependency graph** at runtime: given a particular computed trait on one object, it tells you which instances of a target class (and which of their traits) feed into that computation.  It is also the low-level entry point for **in-place perturbation** of cached node values, which is the building block of sensitivity / risk calculations.
+
+> **Requires `GRAPH_ON`.**  The graph must be active (and the relevant computed trait must have been evaluated at least once) for `find_dependencies` to return any results.
+
+##### Construction
+
+```python
+from core_10x.exec_control import GRAPH_ON, GraphDeps
+from core_10x.traitable import Traitable
+from core_10x.trait_definition import RT, T
+
+
+class Source(Traitable):
+    name:  str   = RT(T.ID)
+    price: float = RT()
+
+
+class Aggregator(Traitable):
+    name:  str   = RT(T.ID)
+    total: float = RT()
+
+    def total_get(self) -> float:
+        return Source(name='a').price + Source(name='b').price
+
+
+with GRAPH_ON() as gp:
+    Source(name='a').price = 10.0
+    Source(name='b').price = 20.0
+    aggregator = Aggregator(name='main')
+    _ = aggregator.total             # prime: build the dependency graph
+    gd = GraphDeps(
+        gp,                          # the active BTraitableProcessor
+        aggregator.T.total,          # BoundTrait – the "root" node (obj + trait)
+        Source,                      # target class whose instances to search
+        'price',                     # zero or more trait names on Source
+    )
+    assert sum(1 for _ in gd.deps()) == 2
+```
+
+`aggregator.T.total` uses the **instance-level** `.T` accessor, which returns a `BoundTrait`.  For the full breakdown of instance vs. class `.T` accessor forms see the [ClassTrait](#classtrait--trait-as-a-named-callable) section.
+
+**Trait names are zero-or-more**: passing no trait names is valid but always returns empty results (the C++ layer short-circuits immediately).  In practice, domain-specific subclasses of `GraphDeps` supply the defaults so callers never need to repeat them (see [Subclassing GraphDeps](#subclassing-graphdeps--domain-specific-wrappers) below).
+
+##### `deps()` — iterating discovered dependencies
+
+`gd.deps(objects=True, trait_names=False)` yields `(cls, obj_or_id, trait_or_name, cached_value)` for every discovered dependency:
+
+| Parameter | `True` (default) | `False` |
+|-----------|-----------------|---------|
+| `objects` | `obj` is a `Traitable` instance | `obj` is a raw `ID` |
+| `trait_names` | `trait` is the `Trait` object | `trait` is the trait name string |
+
+##### `perturb()` and `perturb_value()` — overwriting cached node values
+
+`perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple without invalidating or re-running any getter.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.  `perturb_value` is a convenience wrapper that takes a `Traitable` instance and a trait name string instead.
+
+```python
+from core_10x.exec_control import GRAPH_ON, GraphDeps
+from core_10x.traitable import Traitable
+from core_10x.trait_definition import RT, T
+
+
+class Stock(Traitable):
+    ticker: str   = RT(T.ID)
+    price:  float = RT()
+
+
+class Index(Traitable):
+    name:  str   = RT(T.ID)
+    value: float = RT()
+
+    def value_get(self) -> float:
+        return Stock(ticker='X').price + Stock(ticker='Y').price
+
+
+with GRAPH_ON() as gp:
+    Stock(ticker='X').price = 50.0
+    Stock(ticker='Y').price = 50.0
+    idx = Index(name='idx')
+    _ = idx.value
+    gd = GraphDeps(gp, idx.T.value, Stock, 'price')
+
+    factor = 2.0
+    for cls, obj_id, trait, val in gd.deps(objects=False):
+        gd.perturb(cls, obj_id, trait, val * factor)   # all three keys come from deps()
+
+    assert idx.value == 200.0
+```
+
+> `perturb` addresses graph cache nodes by `(class, id, trait)` rather than by object reference, so it can update nodes for objects that were never materialized as Python instances — useful when iterating over a large dependency graph where constructing every object would be wasteful.
+
+##### When `deps()` returns nothing
+
+- **Not in graph mode** (`GRAPH_OFF` / `CACHE_ONLY`): `find_dependencies` always returns an empty dict outside of graph mode.
+- **Trait not yet computed**: the dependency graph node for the root trait does not exist until the trait is evaluated at least once under `GRAPH_ON`.
+- **Zero trait names**: passing no trait name arguments is valid but the C++ layer short-circuits and returns nothing immediately.
+- **Wrong `target_class` or trait name**: the C++ layer silently skips classes that are not subclasses of `target_class` and trait names that don't exist on the target class.
+
+##### Subclassing `GraphDeps` — domain-specific wrappers
+
+`GraphDeps` is designed to be subclassed.  In domain code the `target_class` and the relevant trait names are fixed by the domain model, so a thin subclass can encode them as defaults and spare every call-site from repeating them.
+
+The idiomatic pattern is to declare a class-level `s_leaf_trait_names` on the quotable base class and read it back in the `GraphDeps` subclass constructor:
+
+```python
+from core_10x.exec_control import GRAPH_ON, GraphDeps
+from core_10x.traitable import Traitable
+from core_10x.trait_definition import RT, T
+
+
+class Quotable(Traitable):
+    name:  str   = RT(T.ID)
+    quote: float = RT()
+    s_leaf_trait_names = ('quote',)   # traits that carry market prices
+
+
+class Instrument(Traitable):
+    name:  str   = RT(T.ID)
+    price: float = RT()
+
+    def price_get(self) -> float:
+        return Quotable(name='q1').quote + Quotable(name='q2').quote
+
+
+class DomainDeps(GraphDeps):
+    def __init__(self, graph, bound_trait, *trait_names,
+                 target_class=Quotable):
+        if not trait_names:
+            trait_names = target_class.s_leaf_trait_names
+        super().__init__(graph, bound_trait, target_class, *trait_names)
+
+
+# Callers write just: target_class and trait names are inferred
+with GRAPH_ON() as graph:
+    Quotable(name='q1').quote = 10.0
+    Quotable(name='q2').quote = 20.0
+    instrument = Instrument(name='inst')
+    _ = instrument.price                          # prime the graph
+    deps = DomainDeps(graph, instrument.T.price)  # target_class and trait names inferred
+    for cls, obj_id, trait, val in deps.deps(objects=False):
+        deps.perturb(cls, obj_id, trait, val * 0.99)
+    assert round(instrument.price, 2) == 29.70
+```
+
 #### INTERACTIVE - Required for UI Usage
 
 **What it does**: Enables dependency tracking with caching and allows UI elements to attach to the dependency graph for automatic updates.
@@ -1381,6 +1527,53 @@ from core_10x.named_constant import NamedCallable
 double = NamedCallable.just_func(lambda x: x * 2)
 assert double(5) == 10
 ```
+
+#### ClassTrait — trait as a named callable
+
+`ClassTrait` is a special `NamedCallable` that wraps a single trait of a `Traitable` class.  Calling it on an instance returns the trait's value — equivalent to `lambda obj: obj.some_trait`, but with a name, a class reference, and full serialization support.
+
+You obtain a `ClassTrait` by accessing `.T.trait_name` on the **class** (not on an instance):
+
+```python
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.named_constant import NamedCallable
+from core_10x.trait import ClassTrait
+from core_10x.traitable import Traitable, T, RT
+
+
+class Item(Traitable):
+    name:  str   = RT(T.ID)
+    price: float = RT(0.0)
+    qty:   int   = RT(1)
+
+
+get_price = Item.T.price          # ClassTrait — bound to Item.price
+
+assert isinstance(get_price, ClassTrait)
+assert isinstance(get_price, NamedCallable)
+assert get_price.name == 'price'
+assert get_price.cls is Item
+assert get_price.trait is Item.trait('price')
+
+
+item = Item(name='apple')
+item.price = 1.5
+assert get_price(item) == 1.5   # callable: returns item.price
+
+item.price = 2.0
+assert get_price(item) == 2.0   # reflects live value
+```
+
+`ClassTrait` is serializable — `ct.serialize(embed=False)` emits `[class_id, trait_name]` and `ClassTrait.deserialize(data)` reconstructs it.  This means a `ClassTrait` stored on a `NamedCallable`-typed trait can be saved to the Traitable Store and loaded back without losing any information — unlike a plain `lambda`, which cannot be serialized at all.
+
+**`.T` accessor reference — all forms:**
+
+| Expression | Returns | Typical use |
+|---|---|---|
+| `instance.T.name` | `BoundTrait(instance, trait)` | `GraphDeps` root node |
+| `Cls.T.name` | `ClassTrait` (callable, serializable) | feature extraction, bucketizers, `NamedCallable` slots |
+| `Cls.T.name.trait` | raw `Trait` (a `BTrait`) | `GraphDeps.perturb()` when no trait from `deps()` at hand |
+| `Cls.T('name')` | raw `Trait` (a `BTrait`) — equivalent, shorter | same; `Cls.trait('name', throw=True)` also works |
 
 #### NamedConstantValue and NamedConstantTable
 

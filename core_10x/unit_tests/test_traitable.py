@@ -1244,6 +1244,7 @@ class TestClassTrait:
         ct = self.Item.T.price
         assert isinstance(ct, ClassTrait)
         assert isinstance(ct, NamedCallable)
+        assert ct.trait is self.Item.trait('price')
 
     def test_class_trait_name_and_cls(self):
         ct = self.Item.T.price
