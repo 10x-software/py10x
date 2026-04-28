@@ -11,7 +11,7 @@ requires-python = ">=3.11,<3.13"
 dependencies = [
     "py10x-kernel (>=0.1.16,<=0.1.17)",
     "py10x-infra (>=0.1.14,<=0.1.15)",
-    "importlib-resources (>=6.5.2,<6.6.0)",
+    "importlib-resources>=6.5.2,<7.2.0",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
     "cryptography>=45.0.7,<46.1.0",
