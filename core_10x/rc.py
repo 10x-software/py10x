@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import sys
 import traceback
 from typing import TYPE_CHECKING
@@ -78,6 +79,16 @@ class RC:
             data = self.error()
         return f'{self.rc}: {data}'
 
+    def __add__(self, other):
+        rc = self.new_rc()
+        rc+=other
+        return rc
+
+    def __radd__(self, other):
+        if other == 0:
+            return self
+        return self + other
+
     def __iadd__(self, err):
         return self.add_error(err)
 
@@ -149,6 +160,8 @@ class RC:
         if err:
             raise exc(err)
 
+    def new_rc(self) -> RC:
+        return copy.copy(self)
 
 class _RcTrue(RC):
     def __init__(self):
