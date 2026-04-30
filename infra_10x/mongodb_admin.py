@@ -2,11 +2,12 @@ from infra_10x.mongodb_store import MongoStore
 
 
 class MongodbAdmin:
-    def __init__(self, hostname: str, username: str, password: str):
-        self.client = MongoStore.connect(hostname=hostname, username=username, password=password, _cache=False)
+    def __init__(self, hostname: str, username: str, password: str, port=27017):
+        self.client = MongoStore.connect(hostname=hostname, username=username, password=password, port=port, _cache=False)
         self.db = self.client[MongoStore.ADMIN]
         self.hostname = hostname
         self.username = username
+        self.port = port
 
     def user_exists(self, username: str) -> bool:
         res = self.db.command('usersInfo', {'user': username, 'db': MongoStore.ADMIN})
@@ -34,7 +35,7 @@ class MongodbAdmin:
 
     def change_own_password(self, password: str):
         self.db.command(dict(updateUser=self.username, pwd=password))
-        self.client = MongoStore.connect(hostname=self.hostname, username=self.username, password=password, _cache=False)
+        self.client = MongoStore.connect(hostname=self.hostname, username=self.username, password=password, prot=self.port,_cache=False)
         self.db = self.client[MongoStore.ADMIN]
 
         # # Discover which user/db you're authenticated as (handy to avoid hardcoding)

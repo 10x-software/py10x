@@ -48,10 +48,11 @@ def create_xx_admin(admin: MongodbAdmin, xx_admin: str, new_password: str) -> No
 def get_xx_admin(user: str):
     return f'{user}-admin'
 
-
 @cache
-def git_user():
-    return requests.get('https://api.github.com/user', headers={'Authorization': f'token {git_token()}'}).json()['login'] or input('Username:')
+def git_user(uid=''):
+    uid = f'/{uid}' if uid else ''
+    user = requests.get(f'https://api.github.com/user{uid}', headers={'Authorization': f'token {git_token()}'}).json()
+    return user['name'].lower() if user['name'] else user['login'] or input(f'Username{uid}:')
 
 
 @cache
@@ -63,8 +64,9 @@ def git_token():
 def all_git_users():
     git_org = re.search(r'github\.com[/:]([\w\-\.]+)/', subprocess.check_output(['git', 'remote', 'get-url', 'origin'], text=True).strip()).group(1)
     return [
-        user['login']
+        uname.lower()
         for user in requests.get(f'https://api.github.com/orgs/{git_org}/members', headers={'Authorization': f'token {git_token()}'}).json()
+        if (uname:=git_user(user['id']))
     ]
 
 
@@ -72,8 +74,8 @@ def generate_password():
     return ''.join(secrets.choice(string.ascii_letters + string.digits + '!@#$%^&*') for _ in range(AUTO_PASSWORD_LENGTH))
 
 
-def create_users(hostname):
-    admin = MongodbAdmin(hostname=hostname, **get_credentials('xxadmin', hostname))
+def create_users(hostname,port=27017):
+    admin = MongodbAdmin(hostname=hostname, port=port, **get_credentials('xxadmin', hostname))
     create_xx_role(admin)
     for xx_user in all_git_users():
         xx_admin = get_xx_admin(xx_user)
@@ -114,16 +116,18 @@ def get_credentials(service, hostname):
     return dict(username=username, password=password)
 
 
-def copy_db(from_host: str, to_host: str, dbname: str, overwrite=False) -> RC:
+def copy_db(from_host: str, to_host: str, to_port: int, dbname: str, overwrite=False) -> RC:
     from_store = MongoStore.instance(hostname=from_host, dbname=dbname, **get_credentials('xxuser', from_host))
-    to_store = MongoStore.instance(hostname=to_host, dbname=dbname, **get_credentials('xxuser', to_host))
+    to_store = MongoStore.instance(hostname=to_host, port=to_port, dbname=dbname, **get_credentials('xxuser', to_host))
     return from_store.copy_to(to_store, overwrite=overwrite)
 
 
 if __name__ == '__main__':
-    host = 'mongo10x.eastus2.cloudapp.azure.com'
-    # drop_users(host)
+    #host = 'mongo10x.eastus2.cloudapp.azure.com'
+    host = 'xxfin.10xconcepts.com'
+    port = 27018
+    # drop_users(host, port)
     # clear_vault()
-    # create_users(host)
+    #create_users(host, port)
 
-    copy_db(from_host='localhost', to_host=host, dbname='mkt_data', overwrite=False).throw()
+    copy_db(from_host='localhost', to_host=host, to_port=port, dbname='mkt_data', overwrite=False).throw()
