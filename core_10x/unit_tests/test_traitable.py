@@ -160,6 +160,53 @@ def test_dynamic_traits():
     assert y.y == 20
 
 
+class TestStorageHelper:
+    class _ParentT(Traitable):
+        pid: str = T(T.ID)
+
+
+    class _ChildT(_ParentT):
+        extra: int = T()
+
+
+    def test_subclass_does_not_inherit_parent_storage_helper(self,ts_instance):
+        """Regression: each Traitable subclass must own its `s_storage_helper`.
+
+        Class-attribute lookup on `s_storage_helper_cached` walks the MRO, so if
+        a parent class has its helper cached and the child does not have its own
+        slot, the child silently inherits the parent's helper - and routes saves
+        and history to the parent's collection.  `Traitable.__init_subclass__`
+        is expected to give every subclass its own
+        `s_storage_helper_cached = None` slot to prevent that leak.
+        """
+        # Make sure neither class has been touched yet by other tests.
+        assert self._ParentT.s_storage_helper_cached is None
+        assert self._ChildT.s_storage_helper_cached is None
+
+        store = ts_instance
+        store.username = 'test_user'
+        store.begin_using()
+        try:
+            self._ParentT(pid='p1', _replace=True).save().throw()
+
+            assert self._ParentT.s_storage_helper_cached is not None
+            assert self._ChildT.s_storage_helper.traitable_class is self._ChildT
+            assert self._ChildT.s_storage_helper is not self._ParentT.s_storage_helper
+
+            c = self._ChildT(pid='c1', extra=42, _replace=True)
+            c.save().throw()
+
+            parent_coll = self._ParentT.collection()
+            child_coll = self._ChildT.collection()
+            assert parent_coll is not child_coll
+            assert {d['_id'] for d in parent_coll.find()} == {'p1'}
+            assert {d['_id'] for d in child_coll.find()} == {'c1'}
+        finally:
+            for cn in store.collection_names():
+                store.delete_collection(cn)
+            store.end_using()
+
+
 def test_collection_name_trait():
     class X(Traitable):
         x: int

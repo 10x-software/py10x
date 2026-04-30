@@ -238,3 +238,148 @@ class TestBundleInstancesRoundTrip:
             sid = type(d).serialize_class_id()
             recovered_cls = Animals.deserialize_class_id(sid)
             assert recovered_cls is Dog
+
+
+# ---------------------------------------------------------------------------
+# Bundle + TraitableHistory
+# ---------------------------------------------------------------------------
+#
+# Bundle members share the bundle base's `collection` (by design).  Each
+# member also gets its own automatically-created history class
+# (`<Member>#history`) created by `Traitable.__init_subclass__` BEFORE
+# `Bundle.__init_subclass__` rebinds `cls.collection`.
+#
+# Because `StorageHelperDescriptor.__get__` reads
+# `owner.s_storage_helper_cached` and class-attribute lookup walks the MRO,
+# any subclass that has not yet had its own helper cached would otherwise
+# inherit a parent's cached helper - misrouting reads, writes, and history.
+# The fix in `Traitable.__init_subclass__` is to give every subclass its
+# own `s_storage_helper_cached = None` slot, so MRO is never walked.
+# The tests below verify both the wiring and the runtime behavior.
+# ---------------------------------------------------------------------------
+
+
+class TestBundleHistoryStaticWiring:
+    """Static (no-store) checks of how Bundle interacts with TraitableHistory."""
+
+    def test_member_main_collection_is_shared_with_base(self):
+        # Bundle.__init_subclass__ rebinds cls.collection -> base.collection.
+        assert Dog.collection == Animals.collection
+        assert Cat.collection == Animals.collection
+
+    def test_each_member_has_its_own_history_class(self):
+        # Per-class history classes are created in Traitable.__init_subclass__
+        # before Bundle.__init_subclass__ runs - one per concrete subclass.
+        assert Dog.s_history_class is not Animals.s_history_class
+        assert Cat.s_history_class is not Animals.s_history_class
+        assert Dog.s_history_class is not Cat.s_history_class
+
+        assert Dog.s_history_class.__name__ == 'Dog#history'
+        assert Cat.s_history_class.__name__ == 'Cat#history'
+        assert Animals.s_history_class.__name__ == 'Animals#history'
+
+        assert Dog.s_history_class.s_traitable_class is Dog
+        assert Cat.s_history_class.s_traitable_class is Cat
+        assert Animals.s_history_class.s_traitable_class is Animals
+
+    def test_member_history_class_resolves_its_own_class_id(self):
+        """Statically, each member's history class resolves to its own
+        ``<Member>#history`` class id - the runtime save path is the only
+        place the routing actually goes wrong (covered separately)."""
+        from core_10x.package_refactoring import PackageRefactoring
+
+        assert PackageRefactoring.find_class_id(Dog.s_history_class).endswith('/Dog#history')
+        assert PackageRefactoring.find_class_id(Cat.s_history_class).endswith('/Cat#history')
+        assert PackageRefactoring.find_class_id(Animals.s_history_class).endswith('/Animals#history')
+
+
+# ---------------------------------------------------------------------------
+# Empirical save/history tests against the in-memory TestStore
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def bundle_history_store(ts_instance):
+    """Store fixture mirroring the one in core_10x.testlib.traitable_history_tests.
+
+    NOTE: ``ts_instance`` is module-scoped, so every test in this file shares
+    the same TestStore.  The fixture clears collections between tests, but
+    cannot reset class-level ``s_storage_helper_cached`` attributes, which is
+    where the runtime bug is sensitive to ordering.  We pick test scenarios
+    that do not depend on a virgin helper cache.
+    """
+    store = ts_instance
+    store.username = 'test_user'
+    store.begin_using()
+    yield store
+    for cn in store.collection_names():
+        store.delete_collection(cn)
+    store.end_using()
+
+
+class TestBundleHistoryBehavior:
+    """Live save/history checks against a TestStore."""
+
+    def test_main_record_routes_to_base_collection(self, bundle_history_store):
+        """Main records go to the bundle base's collection - this is the
+        whole point of Bundle and works correctly."""
+        d = Dog(name='dog_main', _replace=True)
+        d.breed = 'lab'
+        d.save().throw()
+
+        base_coll = Animals.collection()
+        assert base_coll.count() >= 1
+        loaded = next(doc for doc in base_coll.find() if doc['_id'] == d.id().value)
+        assert loaded['_cls'] == 'Dog'
+        assert loaded['breed'] == 'lab'
+
+    def test_first_member_saved_routes_history_correctly(self, bundle_history_store):
+        """The first member saved in a process gets its history routed
+        correctly to ``<Member>#history``."""
+        d = Dog(name='dog_first', _replace=True)
+        d.breed = 'beagle'
+        d.save().throw()
+
+        dog_id = d.id().value
+        history = Dog.history()
+        dog_entries = [h for h in history if h['_traitable_id'] == dog_id]
+        assert len(dog_entries) == 1
+        assert dog_entries[0]['breed'] == 'beagle'
+
+    def test_sibling_member_history_not_misrouted_to_base_history(self, bundle_history_store):
+        """Regression test for a previously-broken case: once the bundle
+        BASE's storage helper has been cached (which happens implicitly the
+        first time any member saves, because members share the base's
+        collection), a sibling member that has not yet been touched used to
+        inherit the base's cached helper through MRO.  That helper's
+        ``traitable_class`` is the BASE, and history records ended up in
+        ``<Base>#history`` instead of ``<Member>#history``.
+
+        The fix in ``Traitable.__init_subclass__`` gives every subclass its
+        own ``s_storage_helper_cached = None`` slot, so MRO is never walked
+        and each class always computes its OWN helper on first access.
+        """
+        # 1. Save a Dog first - this caches Animals' helper as a side effect
+        #    (because Dog.collection IS Animals.collection).
+        d = Dog(name='dog_pre', _replace=True)
+        d.breed = 'lab'
+        d.save().throw()
+        assert Animals.s_storage_helper_cached is not None
+
+        # 2. Now save a sibling member (Cat) that has not been touched yet.
+        c = Cat(name='cat_sib', _replace=True)
+        c.indoor = True
+        c.save().throw()
+
+        cat_id = c.id().value
+        cat_hist_coll = Cat.s_history_class.collection()
+        animals_hist_coll = Animals.s_history_class.collection()
+
+        cat_records = [d for d in cat_hist_coll.find() if d.get('_traitable_id') == cat_id]
+        misrouted = [d for d in animals_hist_coll.find() if d.get('_traitable_id') == cat_id]
+
+        assert len(cat_records) == 1, (
+            f'Cat history should be in Cat#history; got {len(cat_records)} records '
+            f'there and {len(misrouted)} misrouted to Animals#history.'
+        )
+        assert len(misrouted) == 0

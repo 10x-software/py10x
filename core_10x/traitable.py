@@ -322,6 +322,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             if issubclass(base, Traitable):
                 base.s_direct_subclasses.append(cls)
 
+        cls.s_storage_helper_cached = None  # -- each subclass needs its won storage helper!
+
         cls.s_dir = {}
         cls.s_bclass = BTraitableClass(cls)
 
