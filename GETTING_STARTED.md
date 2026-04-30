@@ -1,3 +1,5 @@
+from core_10x.xdate_time import XDateTime
+
 # Getting Started with `py10x-core`
 
 This guide covers the technical implementation and advanced usage of the py10x framework.
@@ -14,8 +16,9 @@ This guide covers the technical implementation and advanced usage of the py10x f
 8. [Traitable Store](#traitable-store)
 9. [UI Framework Integration](#ui-framework-integration)
 10. [Advanced Features](#advanced-features)
-11. [Basket and Bucket Facility](#basket-and-bucket-facility)
-12. [Next Steps](#next-steps)
+11. [Configuration](#configuration)
+12. [Basket and Bucket Facility](#basket-and-bucket-facility)
+13. [Next Steps](#next-steps)
 
 ## What's in `py10x-core`?
 
@@ -42,7 +45,7 @@ pip install py10x-core[rio]    # For Rio UI backend
 pip install py10x-core[qt]     # For Qt6 backend
 ```
 
-**For Development**: See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development setup instructions.
+**For Development**: See [INSTALLATION.md](https://github.com/10x-software/py10x/blob/main/INSTALLATION.md) for full prerequisites and platform-specific setup, and [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for the dev workflow.
 
 ## Core Concepts
 
@@ -664,7 +667,7 @@ You can connect to a store in three ways:
 
 1. **Direct instance:** `MongoStore.instance(hostname='localhost', dbname='myapp')`
 2. **URI:** `TsStore.instance_from_uri('mongodb://localhost/myapp')` (from `core_10x.ts_store`)
-3. **Environment variable:** Set `XX_MAIN_TS_STORE_URI` to define a default global store used by all storable traitables.
+3. **Environment variable:** Set `XX_MAIN_TS_STORE_URI` to define a default global store used by all storable traitables — see [Configuration](#configuration) for the full list of supported environment variables.
 
 ### Traitable Store Union (TsUnion)
 
@@ -1321,6 +1324,98 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
         assert False, "Person not found"
 ```
 
+### SaveIfChanged — Auto-save Modified Traitables
+
+`SaveIfChanged` is a context manager that tracks every `Traitable` whose trait values are set inside the block and calls `save()` on each one when the block exits. It removes the need to sprinkle explicit `.save()` calls through business code and keeps related saves grouped into a single atomic unit (when transactions are enabled).
+
+```python
+from core_10x.traitable import Traitable, T
+from core_10x.ts_store import SaveIfChanged
+from infra_10x.mongodb_store import MongoStore
+
+class Person(Traitable):
+    first_name: str = T(T.ID)
+    last_name:  str = T(T.ID)
+    age:        int = T()
+
+with MongoStore.instance(hostname='localhost', dbname='myapp'):
+    alice = Person(first_name='Alice', last_name='Smith')
+    bob   = Person(first_name='Bob',   last_name='Jones')
+
+    with SaveIfChanged() as tracker:
+        alice.age = 30           # tracked
+        bob.age   = 42           # tracked
+        # both Alice and Bob are saved on exit
+
+    assert set(tracker.tracked_objects()) == {alice, bob}
+```
+
+The `tracker` exposes `tracked_objects()` — the full list of `Traitable` instances that had a trait assigned inside the block (in insertion order). Non-storable traitables are still reported by `tracked_objects()` but not saved.
+
+#### Filtering by class
+
+Pass a sequence of `Traitable` classes to restrict **which** tracked objects are saved. The filter is an `isinstance` check, so **subclasses of any listed class are saved as well**. Tracked objects that are not an instance of any listed class are still reported by `tracker.tracked_objects()` but are not saved:
+
+```python
+from core_10x.ts_store import SaveIfChanged
+from core_10x.traitable import Traitable, T
+from infra_10x.mongodb_store import MongoStore
+
+class Person(Traitable):
+    first_name: str = T(T.ID)
+    last_name:  str = T(T.ID)
+    age:        int = T()
+
+class Employee(Person):           # subclass of Person
+    salary: float = T()
+
+class Other(Traitable):
+    key:   str = T(T.ID)
+    value: float = T()
+    
+with MongoStore.instance(hostname='localhost', dbname='myapp'):
+    alice = Person(first_name='Alice', last_name='Smith')
+    employee = Employee(first_name='Bob', last_name='Smith')
+    other = Other(key='x')
+    with SaveIfChanged([Person]) as tracker:
+       alice.age      = 31           # saved on exit (Person)
+       employee.age   = 40           # saved on exit (Employee is-a Person)
+       other.value    = 10          # tracked but NOT saved (not a Person)
+```
+
+If you need an exact-class match, pass every concrete class explicitly and avoid relying on the base class.
+
+Every class passed to `SaveIfChanged` must be storable; otherwise it raises `RuntimeError('Classes passed to SaveIfChanged must be storable.')`.
+
+#### Transactions
+
+When `EnvVars.use_ts_store_transactions` is enabled (set `XX_USE_TS_STORE_TRANSACTIONS=1` — see [Configuration](#configuration)), `SaveIfChanged` opens one transaction per distinct store touched by the saved objects. If any individual `save()` fails (the context manager calls `.throw()` on the returned `RC`), **all** saves in the block are rolled back as a single unit:
+
+```python
+# With XX_USE_TS_STORE_TRANSACTIONS=1
+from core_10x.ts_store import SaveIfChanged
+from core_10x.traitable import Traitable, T
+from infra_10x.mongodb_store import MongoStore
+
+class Person(Traitable):
+    first_name: str = T(T.ID)
+    last_name:  str = T(T.ID)
+    age:        int = T()
+    
+with MongoStore.instance(hostname='localhost', dbname='myapp'):
+    alice = Person(first_name='Alice', last_name='Smith')
+    bob = Person(first_name='Bob', last_name='Smith')
+
+    try:
+       with SaveIfChanged([Person]):
+          alice.age = 31
+          bob.age   = -5            # suppose Person.age_verify rejects negatives
+    except RuntimeError:            # → save() raises on bob; the transaction aborts and alice.age is NOT persisted
+        pass
+```
+
+Without transaction support, any successful saves preceding the failure remain persisted — pick the mode that matches your durability needs.
+
 ### Storage Context Modes
 
 #### CACHE_ONLY - In-Memory Operations
@@ -1717,6 +1812,102 @@ with CACHE_ONLY():
     assert person.id()!=person2.id()
 ```
 
+### Bundles — Subclasses Sharing a Collection
+
+A `Bundle` is a `Traitable` whose subclasses (its **members**) all live in the **same collection** as the bundle base, regardless of their concrete class.  The first concrete subclass of `Bundle` becomes the *bundle base*; every further subclass inherits the base's `collection` and is registered as a member of that base.
+
+To make polymorphic load/save work across one shared collection, members also need a class identifier in the serialized record.  `Bundle` provides this for free, with two flavors selected by the `members_known` keyword on the bundle base:
+
+| Mode | Serialized class id | Resolved on read via |
+|------|---------------------|----------------------|
+| `members_known=True` | `cls.__name__` (short name only) | dict lookup on `base.s_bundle_members` |
+| `members_known=False` *(default)* | full `PackageRefactoring` class id | `PackageRefactoring.find_class(...)` |
+
+Use `members_known=True` when the set of subclasses is closed (e.g. instrument types in a trading book) — the serialized form is compact and stable as long as the short class name does not change.  Use the default when the set is open or extended by external packages.
+
+#### Example — closed member set
+
+```python
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Bundle, T
+
+class Shape(Bundle, members_known=True):
+    name: str = T(T.ID)
+
+class Circle(Shape):
+    radius: float = T()
+
+class Square(Shape):
+    side: float = T()
+
+# The bundle base is the first concrete subclass of Bundle.
+assert Shape.s_bundle_base is Shape
+assert Circle.s_bundle_base is Shape
+assert Square.s_bundle_base is Shape
+
+# Members are registered under their short class name.
+assert set(Shape.s_bundle_members) == {'Circle', 'Square'}
+
+# serialize_class_id() returns the short name; deserialize_class_id()
+# round-trips through the bundle base.
+assert Circle.serialize_class_id() == 'Circle'
+assert Shape.deserialize_class_id('Circle') is Circle
+assert Shape.deserialize_class_id('Square') is Square
+
+# Members share the bundle base's collection.
+assert Circle.collection == Shape.collection
+assert Square.collection == Shape.collection
+
+# Members are constructed and persisted like any other Traitable.
+with CACHE_ONLY():
+    c = Circle(name='c1', _replace=True)
+    c.radius = 2.0
+    s = Square(name='s1', _replace=True)
+    s.side = 3.0
+```
+
+#### Example — open member set (default)
+
+```python
+from core_10x.traitable import Bundle, T
+from core_10x.package_refactoring import PackageRefactoring
+
+class Vehicle(Bundle):
+    plate: str = T(T.ID)
+
+class Car(Vehicle):
+    doors: int = T()
+
+# Without members_known=True there is no member registry...
+assert Vehicle.s_bundle_members is None
+
+# ...and serialization uses the full PackageRefactoring class id.
+class_id = Car.serialize_class_id()
+assert class_id == PackageRefactoring.find_class_id(Car)
+assert isinstance(class_id, str) and 'Car' in class_id
+```
+
+`Vehicle.deserialize_class_id(class_id)` then returns `Car` by routing through `PackageRefactoring.find_class(...)`.
+
+#### Storable members
+
+Every member subclass must be **storable** — i.e. it must contribute (or inherit) at least one stored ID trait.  A non-storable member is rejected at class creation:
+
+```python
+import pytest
+
+from core_10x.traitable import Bundle
+
+class _Abstract(Bundle, members_known=True):
+    pass  # no ID traits, hence not storable - allowed only for the base
+
+with pytest.raises(AssertionError, match='is not storable'):
+    class _NoIdMember(_Abstract):
+        pass  # still no ID trait -> rejected
+```
+
+The bundle *base* itself is exempt from this check, which lets you define an abstract base that contributes no traits and have storable members supply the concrete ID.
+
 ### Logger and Performance Timing
 
 #### PerfTimer
@@ -1745,7 +1936,7 @@ After the block, three attributes are available on the timer object:
 
 `LOG` provides a thin, level-filtered interface for structured application logging.  Messages are dispatched asynchronously via an `mp.Queue` to a background `Logger` subprocess (`logger_process`) that persists each entry as a `LogMessage` Traitable to a `TsStore`.
 
-**Persistence target** — set `EnvVars.log_ts_store_uri` to a MongoDB URI to enable persistence; if the variable is not set, messages are printed to stdout only and not stored.
+**Persistence target** — set `EnvVars.log_ts_store_uri` (env var `XX_LOG_TS_STORE_URI` — see [Configuration](#configuration)) to a MongoDB URI to enable persistence; if the variable is not set, messages are printed to stdout only and not stored.
 
 **Lifecycle** — call once at application startup and shutdown:
 
@@ -1811,6 +2002,107 @@ LOG.BRIEF('hello')
 assert log_module.LOGGER.received[0]['payload'] == 'hello'
 log_module.LOGGER = None   # restore
 ```
+
+## Configuration
+
+`py10x-core` centralises runtime configuration in the **`EnvVars`** facility (`core_10x.environment_variables.EnvVars`). Every configuration point is a typed class attribute backed by an environment variable with the prefix **`XX_`**. Values are read from the environment on first access, coerced to the declared type, cached, and optionally passed to a side-effect hook.
+
+### Accessing a configured value
+
+Each attribute is exposed in two forms:
+
+| Form | Returns | Typical use |
+|------|---------|-------------|
+| `EnvVars.foo` | the converted value (read from `$XX_FOO` or default) | routine reads |
+| `EnvVars.var.foo` | a `Var` wrapper with `.value`, `.attr_name`, boolean truthiness, and `.check(predicate=None, err='is not defined')` | required-variable checks with a readable diagnostic |
+
+```python
+from core_10x.environment_variables import EnvVars
+from core_10x.xdate_time import XDateTime
+
+# Plain read — returns the converted value (or the declared default).
+uri = EnvVars.main_ts_store_uri
+
+# Required-variable check — raises ValueError with the full env-var name if empty.
+try:
+    uri = EnvVars.var.main_ts_store_uri.check(err='must point at a running MongoDB')
+except ValueError:  # → ValueError('XX_MAIN_TS_STORE_URI must point at a running MongoDB') when unset
+    pass
+
+# Predicate form — .check() takes an optional (value) -> bool callable.
+port = EnvVars.var.date_format.check(lambda v: v in XDateTime.formats, err='must be a valid XDateTime format')
+
+# EnvVars.var_name() computes the env var name from a Var or attribute name.
+assert EnvVars.var_name(EnvVars.var.main_ts_store_uri) == 'XX_MAIN_TS_STORE_URI'
+assert EnvVars.var_name('main_ts_store_uri')           == 'XX_MAIN_TS_STORE_URI'
+```
+
+> Pre-0.1.5 code used `EnvVars.assert_var.<name>` (which raised `AssertionError`). That API has been removed — use `EnvVars.var.<name>.check()` instead.
+
+### Declaring your own `EnvVars` subclass
+
+The same machinery is reusable in any package. Subclass `_EnvVars` with a unique `env_name` and declare typed attributes:
+
+```python
+from core_10x.environment_variables import _EnvVars
+
+class MyAppVars(_EnvVars, env_name='MYAPP'):
+    host:   str  = 'localhost'      # default literal
+    port:   int  = 5432             # default literal; override with MYAPP_PORT=8080
+    debug:  bool = False             # default literal; override with MYAPP_DEBUG=1
+    secret: str                      # no default → must define secret_get()
+
+    def secret_get(self) -> str:
+        """Computed default when MYAPP_SECRET is unset."""
+        return 'changeme'
+
+    @classmethod
+    def port_apply(cls, value: int) -> None:
+        """Side-effect hook invoked once per first access after conversion."""
+        ...  # e.g. reconfigure a connection pool
+
+assert MyAppVars.port == 5432                          # or MYAPP_PORT if set
+MyAppVars.var.secret.check(err='required for auth')    # raises ValueError if empty
+```
+
+**Rules:**
+
+- `env_name='MYAPP'` is required; the env var for attribute `foo` is `MYAPP_FOO` (uppercased).
+- Each attribute must either have a default value **or** a `<name>_get(self)` method that computes one.
+- Supported declared types: `bool`, `int`, `float`, `str`, `date`, `datetime`. The string value of the env var is coerced by `ast.literal_eval` and wrapped in the declared type (so `'1'` → `True` for `bool`, `1` for `int`, `1.0` for `float`).
+- An optional `<name>_apply(cls, value)` classmethod runs on first access after conversion — use it to push the value into external state (e.g. `XDateTime.set_default_format`).
+- Values are cached by `global_cache`. Tests can clear a cached attribute with `object.__getattribute__(EnvVars, '<name>').fget.clear()` (see `core_10x/unit_tests/test_environment_variables.py`).
+
+### Value coercion
+
+`bool`, `int`, and `float` env-var strings are evaluated with `ast.literal_eval` and then wrapped in the declared type, giving strict typing:
+
+| Declared type | `'1'` | `'0'` | `'True'` | `'False'` | `"'x'"` | `''` / unparseable |
+|---------------|-------|-------|----------|-----------|---------|--------------------|
+| `bool` | `True` | `False` | `True` | `False` | `True`  | `TypeError` |
+| `int`  | `1`    | `0`    | `TypeError` | `TypeError` | `TypeError` | `TypeError` |
+| `float`| `1.0`  | `0.0`  | `TypeError` | `TypeError` | `TypeError` | `TypeError` |
+
+`str` values are passed through verbatim. `date` and `datetime` values are parsed via `XDateTime.str_to_date` / `XDateTime.str_to_datetime`.
+
+### Built-in `XX_*` environment variables
+
+The shipping `EnvVars` class declares the following configuration points (all optional; defaults apply when the env var is unset):
+
+| Environment variable | Attribute | Type | Default | Purpose |
+|----------------------|-----------|------|---------|---------|
+| `XX_BUILD_AREA` | `build_area` | `str` | current OS user name | Logical build area used by resource and vault lookup. |
+| `XX_PARENT_BUILD_AREA` | `parent_build_area` | `str` | `'dev'` | Parent of the build area; composed into `sdlc_area`. |
+| `XX_SDLC_AREA` | `sdlc_area` | `str` | `f'{build_area}/{parent_build_area}'` | Combined SDLC area identifier. |
+| `XX_MASTER_PASSWORD_KEY` | `master_password_key` | `str` | `'XX_MASTER_PASSWORD'` | Name of the env var that holds the vault master password. |
+| `XX_MAIN_TS_STORE_URI` | `main_ts_store_uri` | `str` | `''` | Default global Traitable Store URI used by storable traitables — see [Connecting to stores](#connecting-to-stores). |
+| `XX_VAULT_TS_STORE_URI` | `vault_ts_store_uri` | `str` | `main_ts_store_uri` | Store for security credentials; falls back to the main store when unset. |
+| `XX_LOG_TS_STORE_URI` | `log_ts_store_uri` | `str` | `''` | Mongo URI for `LOG` persistence (see [LOG — Structured Asynchronous Logging](#log--structured-asynchronous-logging)); when unset, log messages go to stdout only and are not persisted. |
+| `XX_USE_TS_STORE_PER_CLASS` | `use_ts_store_per_class` | `bool` | `True` | Resolve per-class `TsStore` via `TsClassAssociation` / `NamedTsStore`. |
+| `XX_FUNCTIONAL_ACCOUNT_PREFIX` | `functional_account_prefix` | `str` | `'xx'` | Prefix identifying functional accounts in usernames. |
+| `XX_GRAPH_ON` | `graph_on` | `bool` | `False` | When `True`, `core_10x` enters `GRAPH_ON()` at process start — see [GRAPH_ON](#graph_on---dependency-tracking-and-caching). |
+| `XX_USE_TS_STORE_TRANSACTIONS` | `use_ts_store_transactions` | `bool` | `False` | Wrap multi-save operations in TsStore transactions — applies to history-keeping saves, `save(save_references=True)`, and [`SaveIfChanged`](#saveifchanged--auto-save-modified-traitables). Requires a transaction-capable backend (e.g. MongoDB replica set). |
+| `XX_DATE_FORMAT` | `date_format` | `str` | `XDateTime.FORMAT_ISO` | Default date format; applied to `XDateTime.set_default_format` on first access via the `date_format_apply` hook. |
 
 ## Basket and Bucket Facility
 
@@ -2339,6 +2631,7 @@ pytest
 pytest core_10x/unit_tests/
 pytest ui_10x/unit_tests/
 pytest infra_10x/unit_tests/
+pytest xx_common/unit_tests/
 
 # Run manual tests (debugging scripts)
 python core_10x/manual_tests/trivial_graph_test.py
@@ -2365,6 +2658,8 @@ python core_10x/manual_tests/trivial_graph_test.py
 ## Resources
 
 - **Documentation**: [README.md](https://github.com/10x-software/py10x/blob/main/README.md)
+- **Companion packages**:
+  - [`xx_common/README.md`](https://github.com/10x-software/py10x/blob/main/xx_common/README.md) — finance-oriented helpers built on `core_10x`: `Calendar`, `RDate` (tenors / business-day rolls), and `Curve` / `DateCurve`.
 - **Contributing**: [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md)
 - **Changelog**: [CHANGELOG.md](https://github.com/10x-software/py10x/blob/main/CHANGELOG.md)
 - **Security**: [SECURITY.md](https://github.com/10x-software/py10x/blob/main/SECURITY.md)
