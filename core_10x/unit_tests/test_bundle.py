@@ -143,30 +143,24 @@ class TestBundleMembersUnknown:
 # ---------------------------------------------------------------------------
 
 
-class _PlainTraitable(Traitable):
-    pid: str = T(T.ID)
+
 
 
 class TestIsBundleDistinguishesPlainTraitable:
+    class _PlainTraitable(Traitable):
+        pid: str = T(T.ID)
+
     def test_plain_traitable_serialize_class_id_is_none(self):
-        assert _PlainTraitable.serialize_class_id() is None
+        assert self._PlainTraitable.serialize_class_id() is None
 
     def test_plain_traitable_serialize_class_id_func_matches_traitable(self):
         """The underlying function for `serialize_class_id` on a non-Bundle
         Traitable IS the Traitable default - this is the property
         ``is_bundle()`` is *meant* to test by-function-identity."""
-        assert _PlainTraitable.serialize_class_id.__func__ is Traitable.serialize_class_id.__func__
+        assert self._PlainTraitable.serialize_class_id.__func__ is Traitable.serialize_class_id.__func__
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            'BUG: is_bundle() compares bound classmethods with `is not`, which is '
-            'always True for any subclass.  Intended check is on `.__func__`.  '
-            'Currently returns True for plain Traitable subclasses too.'
-        ),
-    )
     def test_plain_traitable_is_not_a_bundle(self):
-        assert not _PlainTraitable.is_bundle()
+        assert not self._PlainTraitable.is_bundle()
 
 
 # ---------------------------------------------------------------------------

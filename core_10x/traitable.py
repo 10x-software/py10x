@@ -490,7 +490,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def is_bundle(cls) -> bool:
-        return cls.serialize_class_id is not Traitable.serialize_class_id
+        return cls.serialize_class_id.__func__ is not Traitable.serialize_class_id.__func__
 
     @classmethod
     def serialize_class_id(cls) -> str | None:
