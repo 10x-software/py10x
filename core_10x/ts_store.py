@@ -183,7 +183,7 @@ class TsStore(Resource, resource_type=TS_STORE):
         raise NotImplementedError
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str) -> tuple:   # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)
         raise NotImplementedError
 
     def on_enter(self):

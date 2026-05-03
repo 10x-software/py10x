@@ -28,6 +28,7 @@ dependencies = [
     "psutil>=5.9.7",
     "tccbox>=2025.10.27",
     "numba>=0.65.1",
+    "cython>=3.2.4",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",

@@ -95,6 +95,9 @@ class ResourceSpec:
     def hostname(self) -> str:
         return self.kwargs[Resource.HOSTNAME_TAG]
 
+    def port(self) -> int:
+        return self.kwargs[Resource.PORT_TAG]
+
     def set_credentials(self, username: str = None, password: str = None):
         if username is not None:
             self.kwargs[self.resource_class.USERNAME_TAG] = username
@@ -192,6 +195,12 @@ class Resource(abc.ABC):
         except Exception as e:
             raise ValueError(f'Invalid URI = {uri}') from e
 
+    @classmethod
+    def uri_no_dbname(cls, uri: str) -> str:
+        spec = cls.spec_from_uri(uri)
+        spec.kwargs.pop(Resource.DBNAME_TAG, None)
+        return spec.uri()
+
     def __init_subclass__(cls, resource_type: ResourceType = None, resource_name: str = None, **kwargs):
         if cls.s_resource_type is None:     #-- must be a top class of a particular resource type, e.g. TsStore
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
@@ -221,10 +230,12 @@ class Resource(abc.ABC):
         self.on_exit()
 
     @classmethod
-    def instance_from_uri(cls, uri: str, username: str = None, password: str = None) -> Resource:
+    def instance_from_uri(cls, uri: str, username: str = None, password: str = None, _cache = True) -> Resource:
+        assert cls is not Resource, 'This method must be called for a Resource subclass, e.g., TsStore'
+
         spec = cls.spec_from_uri(uri)
-        spec.set_credentials(username=username, password=password)
-        return spec.resource_class.instance(**spec.kwargs)
+        spec.set_credentials(username = username, password = password)
+        return spec.resource_class.instance(**spec.kwargs, _cache = _cache)
 
     @classmethod
     def spec_from_uri(cls, uri: str) -> ResourceSpec:

@@ -7,7 +7,7 @@ from core_10x.nucleus import Nucleus
 from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, errors
-from pymongo.errors import DuplicateKeyError
+from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
 from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
 if TYPE_CHECKING:
@@ -147,16 +147,15 @@ class MongoCollection(TsCollection):
         return None
 
 
-class MongoStore(TsStore, resource_name='MONGO_DB'):
-    ADMIN = 'admin'
+class MongoStore(TsStore, resource_name = 'MONGO_DB'):
+    ADMIN           = 'admin'
+    DEFAULT_DB_NAME = 'local'
 
-    # fmt: off
     s_instance_kwargs_map = dict(
         port    = ('port',                      27017),
         ssl     = ('ssl',                       False),
         sst     = ('serverSelectionTimeoutMS',  10000),
     )
-    # fmt: on
 
     s_cached_connections: dict[tuple, MongoClient] = {}
 
@@ -224,6 +223,8 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
     @classmethod
     def new_instance(cls, hostname: str, dbname: str, username: str, password: str, **kwargs) -> TsStore:
         client = cls.connect(hostname, username, password, **kwargs)
+        if not dbname:
+            dbname = cls.DEFAULT_DB_NAME
         return cls(client, client[dbname], username)
 
     @classmethod
@@ -273,22 +274,25 @@ class MongoStore(TsStore, resource_name='MONGO_DB'):
 
     @classmethod
     @cache
-    def is_running_with_auth(cls, host_name: str) -> tuple:  # -- (is_running, with_auth)
-        client = cls.connect(host_name, '', '', _cache=False, _throw=False)
-        if not client:
-            return False, False
-
-        admin_db = client[cls.ADMIN]
+    def is_running_with_auth(cls, host_name: str, port: int) -> tuple:  # -- (is_running, with_auth)
+        client = MongoClient(host = host_name, port = port, serverSelectionTimeoutMS = 10000, directConnection = True)
         try:
-            res = admin_db.command('getCmdLineOpts')
-            auth = any(r == '--auth' for r in res['argv'][1:])
-            return True, auth
+            #-- 'hello' works without credentials — confirms the server is reachable
+            client.admin.command('hello')
+        except (ConnectionFailure, ServerSelectionTimeoutError):
+            client.close()
+            return (False, False)
 
-        except errors.OperationFailure:  # -- auth is required
-            return True, True
+        try:
+            #-- 'listDatabases' requires auth; if it succeeds unauthenticated, auth is off
+            client.admin.command('listDatabases')
+            return (True, False)
+
+        except OperationFailure:
+            return (True, True)
 
         finally:
             client.close()
 
-    def auth_user(self) -> str | None:
+    def auth_user(self) -> str:
         return self.username

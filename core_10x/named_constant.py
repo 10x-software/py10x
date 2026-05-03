@@ -3,6 +3,7 @@ from __future__ import annotations
 import typing
 from typing import Any
 
+from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 
 if typing.TYPE_CHECKING:
@@ -207,6 +208,11 @@ class NamedConstant(Nucleus):
     @classmethod
     def item(cls, symbol_name: str) -> NamedConstant:
         return cls.s_dir.get(symbol_name)
+
+    @classmethod
+    @cache
+    def all_names(cls) -> tuple:
+        return tuple(cls.s_dir.keys())
 
 class NamedCallable(NamedConstant):
     def __init_subclass__(cls, **kwargs):

@@ -24,7 +24,6 @@ from core_10x.exec_control import GRAPH_ON, GRAPH_OFF
 #       ...
 #===================================================================================================================================
 
-
 class classproperty(property):
     def __get__(self, obj, objtype: type = None):
         return self.fget(objtype)
@@ -143,14 +142,12 @@ class _EnvVars:
 
             return _EnvVars.Var(cls, item, value)
 
-class EnvVars(_EnvVars, env_name='XX'):
-    build_area: str
-    parent_build_area: str          = 'dev'
-
+class EnvVars(_EnvVars, env_name = 'XX'):
     master_password_key: str        = 'XX_MASTER_PASSWORD'
 
-    # examples_ts_store_uri: str    = ''            #-- e.g., mongodb://localhost/examples
-    vault_ts_store_uri: str         = ''            #-- to store/auto retrieve security credentials for each user/resource; default is main_ts_store_uri
+    main_vault_uri: str             = ''            #-- to store/auto retrieve security credentials for each user/resource
+    vault_uri: str                                  #-- current vault; default is main_vault_uri
+
     main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27018/main'
     log_ts_store_uri: str           = ''            #-- to keep all app logs in a specific store, e.g., 'mongodb://localhost/app_logs'
     use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
@@ -159,12 +156,14 @@ class EnvVars(_EnvVars, env_name='XX'):
     graph_on: bool                  = False         #-- whether GRAPH is ON by default
     use_ts_store_transactions: bool = False         #-- TsStore transactions, e.g. when saving history
 
-    date_format: str = XDateTime.FORMAT_ISO
+    date_format: str                = XDateTime.FORMAT_ISO
 
+    build_area: str
+    parent_build_area: str          = 'dev'
     sdlc_area: str
 
-    def vault_ts_store_uri_get(self) -> str:
-        return self.main_ts_store_uri
+    def vault_uri_get(self) -> str:
+        return self.main_vault_uri
 
     def build_area_get(self) -> str:
         return OsUser.me.name()

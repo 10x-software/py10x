@@ -8,6 +8,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key, l
 
 from py10x_kernel import OsUser
 from core_10x.global_cache import cache
+from core_10x.rc import RC, RC_TRUE
 from core_10x.environment_variables import EnvVars
 
 PUBLIC_EXP = 65537
@@ -23,60 +24,71 @@ class SecKeys:
 
     @classmethod
     @cache
-    def retrieve_master_password(cls, throw = True) -> str:
+    def retrieve_master_password(cls) -> tuple[RC, str]:
         username = OsUser.me.name()
         v_mp_key = EnvVars.var.master_password_key
         if not v_mp_key:
-            raise AssertionError(f'MasterPassword key may not be empty ({EnvVars.var_name(v_mp_key)})')
+            return (RC(False, f'MasterPassword key may not be empty ({EnvVars.var_name(v_mp_key)})'), None)
 
         pwd = keyring.get_password(v_mp_key.value, username)
-        if pwd is None and throw:
-            raise OSError(f'MasterPassword for {username} is not found')
+        if pwd is None:
+            return (RC(False, f'MasterPassword for {username} is not found'), None)
 
-        return pwd
+        return (RC_TRUE, pwd)
 
     @classmethod
     def change_master_password(cls, password: str, override = False):
         username = OsUser.me.name()
-        if not override and cls.retrieve_master_password(throw = False):
-            raise AssertionError(f'MasterPassword for {username} is already set')
+        if not override:
+            rc, pwd = cls.retrieve_master_password()
+            if rc:
+                raise AssertionError(f'MasterPassword for {username} is already set')
 
         keyring.set_password(EnvVars.master_password_key, username, password)
 
     @classmethod
     @cache
-    def check_vault_uri(cls, throw = True) -> str:
-        v_vault_uri = EnvVars.var.vault_ts_store_uri
-        if not v_vault_uri and throw:
-            raise OSError(f"Vault URI is not specified in either '{EnvVars.var_name(v_vault_uri)}' or {EnvVars.var_name('main_ts_store_uri')})")
+    def check_vault_uri(cls, main = False) -> tuple[RC, str]:
+        v_vault_uri = EnvVars.var.vault_uri if not main else EnvVars.var.main_vault_uri
+        if not v_vault_uri:
+            return (RC(False, f"'{EnvVars.var_name(v_vault_uri)}' is not defined"), None)
 
-        return v_vault_uri.value
+        return (RC_TRUE, v_vault_uri.value)
 
+    s_user_pwd_delim = '\x1f'
     @classmethod
     @cache
-    def retrieve_vault_password(cls, vault_uri: str = None, throw = True) -> str:
+    def retrieve_vault_login_password(cls, vault_uri: str) -> tuple[RC, str, str]:
         username = OsUser.me.name()
         if vault_uri is None:
-            vault_uri = cls.check_vault_uri(throw = throw)
-            if vault_uri is None:
-                return None
+            rc, vault_uri = cls.check_vault_uri()
+            if not rc:
+                return (rc, None, None)
 
-        pwd = keyring.get_password(vault_uri, username)
-        if pwd is None and throw:
-            raise OSError(f'Vault password for {username} @ {vault_uri} is not found')
+        login_pwd = keyring.get_password(vault_uri, username)
+        if login_pwd is None:
+            return (RC(False, f'Vault password for {username} @ {vault_uri} is not found'), None, None)
 
-        return pwd
+        try:
+            login, pwd = login_pwd.split(cls.s_user_pwd_delim)
+        except Exception:
+            return (RC(False, f'Vault password for {username} @ {vault_uri} is corrupted'), None, None)
+
+        return (RC_TRUE, login, pwd)
 
     @classmethod
-    def change_vault_password(cls, password: str, vault_uri: str = None, override = False):
+    def change_vault_login_password(cls, login: str, password: str, vault_uri: str = None, override = False):
         username = OsUser.me.name()
         if vault_uri is None:
-            vault_uri = cls.check_vault_uri()
+            rc, vault_uri = cls.check_vault_uri()
+            rc.throw()
 
-        if not override and cls.retrieve_vault_password(throw = False):
-            raise AssertionError(f'Password for {username} @ {vault_uri} is already set')
+        if not override:
+            rc, name, pwd = cls.retrieve_vault_login_password(vault_uri)
+            if name or pwd:
+                raise AssertionError(f'Password for {username} @ {vault_uri} is already set')
 
-        keyring.set_password(vault_uri, username, password)
+        keyring.set_password(vault_uri, username, f'{login}{cls.s_user_pwd_delim}{password}')
 
     @classmethod
     def generate_keys(cls, pwd = None) -> tuple:

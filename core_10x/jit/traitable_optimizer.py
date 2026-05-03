@@ -10,15 +10,17 @@ from core_10x.exec_control import GRAPH_OFF
 from core_10x.jit.traitable_method_optimizer import TraitableMethodOptimizer, TraitableMethodData, MethodOptimizationRecord
 from core_10x.jit.trait_getter_cython_compiler import CythonCompiler
 from core_10x.jit.trait_getter_numba_compiler import NumbaCompiler
+from core_10x.jit.trait_getter_jax_compiler import JaxCompiler
 
 
 class TraitableOptimizer:
     GENERAL_PY  = None
     CYTHON_TCC  = CythonCompiler
     NUMBA       = NumbaCompiler
+    JAX         = JaxCompiler
     AADT        = None
     _BEST       = XNone
-    s_opt_classes = {CYTHON_TCC, NUMBA,}
+    s_opt_classes = {CYTHON_TCC, NUMBA, JAX}
 
     @classmethod
     def optimize(cls,
@@ -97,26 +99,27 @@ class TraitableOptimizer:
                 op_class, op_method = cls.optimize(traitable_class = traitable_class,  attr_name = attr_name, mt = mt)
                 if verbose:
                     print(f'  optimized by {mt_name}.')
+
+                if op_class and op_method:
+                    if verbose:
+                        print(f'  collecting performance data for {mt_name}')
+                    r = test_obj.get_value(attr_name)    # triggers lazy JIT — may raise here
+
+                    results[op_class] = res = [0., 0.]
+                    res[0] = r
+                    with GRAPH_OFF():
+                        with PerfTimer() as clock:
+                            for i in range(num_runs):
+                                test_obj.get_value(attr_name)
+
+                    res[1] = clock.elapsed
+
             except Exception as ex:
                 if verbose:
-                    print(f'{mt_name} failed to optimize:\n')
-                    print(str(ex))
+                    print(f'{mt_name} failed:\n{ex}')
+                results.pop(mt, None)
+                cls.reset(traitable_class, attr_name)
                 continue
-
-            if op_class and op_method:
-                results[op_class] = res = [0., 0.]
-
-                if verbose:
-                    print(f'  collecting performance data for {mt_name}')
-                r = test_obj.get_value(attr_name)
-                res[0] = r
-                with GRAPH_OFF():
-                    with PerfTimer() as clock:
-                        for i in range(num_runs):
-                            test_obj.get_value(attr_name)
-
-                dt = clock.elapsed
-                res[1] = dt
 
         if verbose:
             print('Determining the best optimizer...')

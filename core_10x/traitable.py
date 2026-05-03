@@ -7,7 +7,7 @@ import warnings
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Any, get_origin
 
 from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache
@@ -34,6 +34,7 @@ from core_10x.trait_filter import LE, f
 from core_10x.traitable_id import ID
 from core_10x.ts_store import TS_STORE, TsStore
 from core_10x.sec_keys import SecKeys
+from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
@@ -386,7 +387,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         pass
 
     @classmethod
-    def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Traitable | None:
+    def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Traitable:
         if not cls.is_storable() and cls.is_id_endogenous():  # runtime endogenous instances are created on the fly
             return cls(_collection_name=_collection_name, **trait_values)
 
@@ -544,24 +545,28 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @staticmethod
     @cache
     def vault_store() -> TsStore:
-        uri = SecKeys.check_vault_uri()
+        rc, uri = SecKeys.check_vault_uri()
+        rc.throw(exc = OSError)
+
         spec = TsStore.spec_from_uri(uri)
         store_class: type[TsStore] = spec.resource_class
-        is_running, with_auth = store_class.is_running_with_auth(spec.hostname())
+        is_running, with_auth = store_class.is_running_with_auth(spec.hostname(), spec.port())
         if not is_running:
             raise OSError(f"Vault Store '{uri}' is not running")
 
         if with_auth:
-            pwd = SecKeys.retrieve_vault_password(vault_uri = uri)
-            spec.set_credentials(pwd)
+            rc, login, pwd = SecKeys.retrieve_vault_login_password(uri)
+            rc.throw(exc = OSError)
+
+            spec.set_credentials(username = login, password = pwd)
 
         return store_class.instance(**spec.kwargs)
 
     @staticmethod
     def store_from_uri(uri: str) -> TsStore:
         spec = TsStore.spec_from_uri(uri)
-        store_class: type[ TsStore ] = spec.resource_class
-        is_running, with_auth = store_class.is_running_with_auth(spec.hostname())
+        store_class: type[TsStore] = spec.resource_class
+        is_running, with_auth = store_class.is_running_with_auth(spec.hostname(), spec.port())
         if not is_running:
             raise OSError(f"TsStore '{uri}' is not running")
 
@@ -1180,7 +1185,9 @@ class VaultUser(Traitable):
         return self.__class__.myname()
 
     def sec_keys_get(self) -> SecKeys:
-        return SecKeys(self.private_key_encrypted, self.public_key, SecKeys.retrieve_master_password())
+        rc, master_pwd = SecKeys.retrieve_master_password()
+        rc.throw()
+        return SecKeys(self.private_key_encrypted, self.public_key, master_pwd)
 
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:
@@ -1194,43 +1201,47 @@ class VaultUser(Traitable):
     @classmethod
     @cache
     def me(cls) -> VaultUser:
-        return cls.existing_instance(user_id=cls.myname())
-
+        return cls.existing_instance(user_id = cls.myname())
 
 class VaultResourceAccessor(Traitable):
-    username: str           = T(T.ID)
-    resource_uri: str       = T(T.ID)
+    username: str                   = T(T.ID)
+    resource_dt: CONCRETE_RESOURCE  = T(T.ID)
+    resource_uri: str               = T(T.ID)
 
-    login: str              = T()
-    password: bytes         = T()
+    login: str                      = T()
+    password: bytes                 = T()
 
-    last_updated: datetime  = T(T.EVAL_ONCE)
+    last_updated: datetime          = T(T.EVAL_ONCE)
 
-    user: VaultUser         = RT(T.EVAL_ONCE)
-    resource: Resource      = RT(T.EVAL_ONCE)
+    user: VaultUser                 = RT(T.EVAL_ONCE)
+    resource: Resource              = RT(T.EVAL_ONCE)
 
     def username_get(self) -> str:
         return VaultUser.myname()
 
+    def login_get(self) -> str:
+        return self.username
+
     def last_updated_get(self) -> datetime:
-        return datetime.utcnow()
+        return datetime.now(UTC)
 
     def user_get(self) -> VaultUser:
-        return VaultUser.existing_instance(user_id=self.username)
+        return VaultUser.existing_instance(user_id = self.username)
 
     def resource_get(self) -> Resource:
-        return Resource.instance_from_uri(
+        res_dt = self.resource_dt
+        return res_dt.value.instance_from_uri(
             self.resource_uri,
-            username=self.username,
-            password=self.user.sec_keys.decrypt_text(self.password),
+            username = self.login,
+            password = self.user.sec_keys.decrypt_text(self.password),
         )
 
     @classmethod
-    def save_ra(cls, resource_uri: str, password: str, login: str = None, username: str = XNone) -> RC:
+    def save_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, password: str, login: str = None, username: str = XNone) -> RC:
         if login is None:
             login = username
 
-        ra = cls(username = username, resource_uri = resource_uri)
+        ra = cls(username = username, resource_dt = resource_dt, resource_uri = resource_uri)
         user = ra.user
         rc = ra.set_values(
             login       = login,
@@ -1241,10 +1252,16 @@ class VaultResourceAccessor(Traitable):
 
         return rc
 
-    #-- strictly speaking this method isn't necessary as it just returning existing_instance()
     @classmethod
-    def retrieve_ra(cls, resource_uri: str, username: str = XNone) -> VaultResourceAccessor:
-        return cls.existing_instance(username=username, resource_uri=resource_uri)
+    def retrieve_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, username: str = XNone) -> VaultResourceAccessor:
+        ra = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = resource_uri, _throw = False)
+        if not ra:
+            uri = Resource.uri_no_dbname(resource_uri)
+            ra = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = uri, _throw = False)
+            if not ra:
+                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt}({uri}/*)' not found")
+
+        return ra
 
 class NamedTsStore(Traitable):
     logical_name: str   = T(T.ID)
