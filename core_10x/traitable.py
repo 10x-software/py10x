@@ -1245,7 +1245,8 @@ class VaultResourceAccessor(Traitable):
         user = ra.user
         rc = ra.set_values(
             login       = login,
-            password    = user.sec_keys.encrypt_text(password),
+            password    = SecKeys.encrypt(password, user.public_key),  #-- can't call user.sec_keys in admin workflow
+                                                                       #-- as it tries to decrypt the private key
         )
         if rc:
             rc = ra.save()

@@ -84,12 +84,16 @@ class VaultUtils:
             return rc
 
         #-- 2. At this point, connected to the vault, let's create the user object
+        #--    keyed by the OS user name (VaultUser.user_id), and then save a
+        #--    VaultResourceAccessor for the vault-DB *server* (uri stripped of
+        #--    dbname) so the same login/password is automatically picked up for
+        #--    any other DB on that server (resolved via the uri_no_dbname
+        #--    fallback in VaultResourceAccessor.retrieve_ra).
         username = VaultUser.myname()
         with vault:
             if VaultUser.existing_instance(user_id = username, _throw = False):
                 return RC(False, f'Vault User {username} already exists. Consult with admin')
 
-            #cls._create_user()
             rc, master_pwd = cls.create_master_password(ovveride = True)
             if not rc:
                 raise OSError(rc.error())
@@ -101,6 +105,17 @@ class VaultUtils:
                 private_key_encrypted   = SecKeys.encrypt_private_key(private_key_pem, master_pwd),
             ).throw()
             me.save().throw()
+
+            #-- Save a server-wide RA for the vault host. Subsequent connections
+            #-- to any DB on that same host (e.g., the main TsStore) will reuse
+            #-- these credentials without a per-DB admin step.
+            VaultResourceAccessor.save_ra(
+                resource_dt     = CONCRETE_RESOURCE.TS_STORE,
+                resource_uri    = Resource.uri_no_dbname(vault_uri),
+                password        = password,
+                login           = login,
+                username        = username,
+            ).throw()
 
         #-- 3. Store login/password for the main vault
         SecKeys.change_vault_login_password(login, password, vault_uri = vault_uri, override = True)
