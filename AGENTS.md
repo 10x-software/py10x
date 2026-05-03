@@ -13,6 +13,7 @@ It points to canonical docs and records only the minimal, project-specific rules
 - **Contribution workflow, code style, test layout**: see `CONTRIBUTING.md`.
 - **Security, changelog, community**: see `SECURITY.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`.
 - **Low-level traitable implementation details**: see `core_10x/traitable.py` and existing tests in `core_10x/unit_tests/`.
+- **C++ backend source (cxx10x)**: lives in the sibling package `../cxx10x/` (e.g. `../cxx10x/core_10x/btraitable.{h,cpp}`, `../cxx10x/core_10x/core_10x.cpp` for pybind11 bindings). When a Python method's body is just a thin wrapper or its docstring/comment says it is provided "from c++" (e.g. the comment block in `core_10x/traitable.py` around `get_value` / `set_value` / `set_values`), consult these files to confirm the actual signature and surface area exposed to Python.
 
 Agents should **link to and rely on those files**, not duplicate them here.
 
@@ -29,6 +30,7 @@ Agents should **link to and rely on those files**, not duplicate them here.
 - **Respect C++ / cxx10x backend**
   - Treat the C++ backends (from `cxx10x`) as **opaque** — do not reimplement or bypass them in Python; use the public Python APIs.
   - Do **not** try to reimplement or bypass them in Python; use the public Python APIs.
+  - The C++ source lives in the sibling package at `../cxx10x/` (sibling to this repo's checkout). Read it (don't modify it from this repo) when you need to verify what is actually exposed to Python — in particular `../cxx10x/core_10x/btraitable.h` for the `BTraitable` API surface and `../cxx10x/core_10x/core_10x.cpp` for the pybind11 bindings that determine which methods are visible from Python.
 
 - **Traitable Store & UI assumptions**
   - `core_10x` tests use the in-process Traitable Store. `infra_10x` tests use the MongoDB-backed store (where it is implemented) and require a local passwordless MongoDB on port 27017.
