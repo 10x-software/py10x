@@ -387,7 +387,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         pass
 
     @classmethod
-    def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Traitable:
+    def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Self | None:
         if not cls.is_storable() and cls.is_id_endogenous():  # runtime endogenous instances are created on the fly
             return cls(_collection_name=_collection_name, **trait_values)
 
@@ -400,7 +400,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return obj
 
     @classmethod
-    def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None, _throw: bool = True) -> Traitable | None:
+    def existing_instance_by_id(cls, _id: ID = None, _id_value: str = None, _collection_name: str = None, _throw: bool = True) -> Self | None:
         if _id is None:
             _id = ID(_id_value, _collection_name)
         obj = cls(_id=_id)
@@ -413,7 +413,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return None
 
     @classmethod
-    def existing_instances_by_filter(cls, query: f, _coll_name: str = None, _at_most = 0, _order: dict = None) -> list[Traitable]:
+    def existing_instances_by_filter(cls, query: f, _coll_name: str = None, _at_most = 0, _order: dict = None) -> list[Self]:
         # ids = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
         # return [ obj for id in ids if(obj := cls.existing_instance_by_id(_id = id, _collection_name = _coll_name, _throw = False)) ]
         ids_in_store = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
@@ -425,20 +425,20 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     @deprecated('Use either new_or_replace or new_or_update methods instead.')
-    def update(cls, **kwargs) -> Traitable:
+    def update(cls, **kwargs) -> Self:
         return cls(**kwargs, _replace=True)
 
     @classmethod
-    def new_or_replace(cls, **kwargs) -> Traitable:
+    def new_or_replace(cls, **kwargs) -> Self:
         return cls(**kwargs, _replace=True)
 
     @classmethod
-    def new_or_update(cls, **kwargs) -> Traitable:
+    def new_or_update(cls, **kwargs) -> Self:
         return cls(**kwargs, _update=True)
 
     @classmethod
     @cache
-    def runtime(cls) -> type[Traitable]:
+    def runtime(cls) -> type[Self]:
         class Runtime(cls):
             @classmethod
             def _post_build_trait_dir(cls, trait_dir: dict):
