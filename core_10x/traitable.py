@@ -572,7 +572,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         if with_auth:
             with Traitable.vault_store():
-                ra = VaultResourceAccessor.retrieve_ra(uri)
+                ra = VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, uri)
                 return ra.resource
 
         return store_class.instance(**spec.kwargs)
@@ -1253,7 +1253,10 @@ class VaultResourceAccessor(Traitable):
         return rc
 
     @classmethod
-    def retrieve_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, username: str = XNone) -> VaultResourceAccessor:
+    def retrieve_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, username: str = None) -> VaultResourceAccessor:
+        if not username:
+            username = VaultUser.myname()
+
         ra = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = resource_uri, _throw = False)
         if not ra:
             uri = Resource.uri_no_dbname(resource_uri)
