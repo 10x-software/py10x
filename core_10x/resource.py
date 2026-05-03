@@ -5,6 +5,11 @@ import inspect
 from collections import deque
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
+from typing_extensions import Self
+
+from core_10x.global_cache import standard_key
+
+
 #-- TODO: move to attic
 # class ResourceRequirements:
 #     def __init__(self, resource_type, *args, **kwargs):
@@ -157,6 +162,13 @@ class Resource(abc.ABC):
     QUERY_TAG       = 'query'
     FRAGMENT_TAG    = 'fragment'
     SSL_TAG         = 'ssl'
+    s_instances     = {}
+    s_instance_kwargs_map = {
+        HOSTNAME_TAG:  (HOSTNAME_TAG, None),
+        USERNAME_TAG:  (USERNAME_TAG, None),
+        DBNAME_TAG:    (DBNAME_TAG,   None),
+        PORT_TAG:      (PORT_TAG,     None),
+    }
 
     s_resource_type: ResourceType = None
     s_driver_name: str = None
@@ -206,6 +218,7 @@ class Resource(abc.ABC):
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
             assert resource_name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
             cls.s_resource_type = resource_type
+            cls.s_instances = {}
 
         else:   #-- a Resource of a particular resource type
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
@@ -241,15 +254,44 @@ class Resource(abc.ABC):
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
         return ResourceSpec(cls, cls.parse_uri(uri))
 
-    @classmethod
-    @abc.abstractmethod
-    def instance(cls, *args, **kwargs) -> Resource: ...
-
     @abc.abstractmethod
     def on_enter(self): ...
 
     @abc.abstractmethod
     def on_exit(self): ...
+
+    @classmethod
+    @abc.abstractmethod
+    def new_instance(cls, *args, password: str, **kwargs) -> Self: ...
+
+    @classmethod
+    def translate_kwargs(cls, kwargs: dict) -> dict:
+        kwargs_map = cls.s_instance_kwargs_map
+        def_kwargs = {name: def_value for name, (real_name, def_value) in kwargs_map.items()}
+        def_kwargs.update(kwargs)
+        return {kwargs_map[name][0]: value for name, value in def_kwargs.items()}
+
+    @classmethod
+    def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> Self:
+        translated_kwargs = cls.translate_kwargs(kwargs)
+        try:
+            if not _cache:
+                return cls.new_instance(*args, password=password, **translated_kwargs)
+
+            instance_key = cls.standard_key(*args, **kwargs)
+            resource = cls.s_instances.get(instance_key)
+            if not resource:
+                store = cls.new_instance(*args, password=password, **translated_kwargs)
+                cls.s_instances[instance_key] = store
+
+            return resource
+
+        except Exception as e:
+            raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{e!s}') from e
+
+    @classmethod
+    def standard_key(cls, *args, **kwargs) -> tuple:
+        return standard_key(args, kwargs)
 
 class NullResource:
     def __enter__(self):

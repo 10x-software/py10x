@@ -75,6 +75,10 @@ class TsCollection(abc.ABC):
 
 
 class TsStore(Resource, resource_type=TS_STORE):
+    s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
+        Resource.SSL_TAG: (Resource.SSL_TAG,    True),
+        'sst':            ('sst',               1000),
+    }
 
     class Transaction:
         ended: bool = False
@@ -130,57 +134,11 @@ class TsStore(Resource, resource_type=TS_STORE):
         return cls
 
     @classmethod
-    def standard_key(cls, *args, **kwargs) -> tuple:
-        return standard_key(args, kwargs)
-
-    s_instances = {}
-
-    @classmethod
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
         parts = uri.split(':', maxsplit=1)
         protocol = parts[0]
         ts_class = TS_STORE_TYPE.ts_store_class(protocol)
         return ResourceSpec(ts_class, ts_class.parse_uri(uri))
-
-    @classmethod
-    def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> TsStore:
-        translated_kwargs = cls.translate_kwargs(kwargs)
-        try:
-            if not _cache:
-                return cls.new_instance(*args, password=password, **translated_kwargs)
-
-            instance_key = cls.standard_key(*args, **kwargs)
-            store = cls.s_instances.get(instance_key)
-            if not store:
-                store = cls.new_instance(*args, password=password, **translated_kwargs)
-                cls.s_instances[instance_key] = store
-
-            return store
-
-        except Exception as e:
-            raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{e!s}') from e
-
-    # fmt: off
-    s_instance_kwargs_map = {
-        Resource.HOSTNAME_TAG:  (Resource.HOSTNAME_TAG, None),
-        Resource.USERNAME_TAG:  (Resource.USERNAME_TAG, None),
-        Resource.DBNAME_TAG:    (Resource.DBNAME_TAG,   None),
-        Resource.PORT_TAG:      (Resource.PORT_TAG,     None),
-        Resource.SSL_TAG:       (Resource.SSL_TAG,      True),
-        'sst':                  ('sst',                 1000),
-    }
-    # fmt: on
-
-    @classmethod
-    def translate_kwargs(cls, kwargs: dict) -> dict:
-        kwargs_map = cls.s_instance_kwargs_map
-        def_kwargs = {name: def_value for name, (real_name, def_value) in kwargs_map.items()}
-        def_kwargs.update(kwargs)
-        return {kwargs_map[name][0]: value for name, value in def_kwargs.items()}
-
-    @classmethod
-    def new_instance(cls, *args, password: str, **kwargs) -> TsStore:
-        raise NotImplementedError
 
     @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)

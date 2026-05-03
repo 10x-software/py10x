@@ -132,7 +132,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         return tuple(cls.s_resource_type.resource_driver(kw['driver_name']).standard_key(**kw) for kw in args)
 
     @classmethod
-    def new_instance(cls, *args, **kwargs) -> TsUnion:
+    def new_instance(cls, *args, password: str = "",  **kwargs) -> TsUnion:
         stores = [cls.s_resource_type.resource_driver(kw.pop('driver_name')).instance(**kw) for kw in args]
         return TsUnion(*stores)
 

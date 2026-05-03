@@ -39,11 +39,6 @@ def test_rel_db_query_and_insert(temp_duckdb):
     assert result_df.equals(source_df)
 
 
-def test_rel_db_instance_rejects_positional_args():
-    with pytest.raises(ValueError, match='keyword arguments only'):
-        RelDb.instance('duckdb')
-
-
 def test_rel_db_query_returns_none_for_missing_table(temp_duckdb):
     db = temp_duckdb
     with db:

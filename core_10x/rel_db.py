@@ -13,13 +13,16 @@ if TYPE_CHECKING:
 
 
 class RelDb(Resource, resource_type=REL_DB):
-
+    s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
+        Resource.PROTOCOL_TAG:     (Resource.PROTOCOL_TAG,   None),
+        'netloc':                  ('netloc',                None),
+    }
     def __init__(self, uri: str):
         self._uri = uri
         self._connection = None
 
     @classmethod
-    def instance(cls, *args, **kwargs) -> RelDb:
+    def new_instance(cls, *args, password: str ='', **kwargs) -> RelDb:
         if args:
             raise ValueError('RelDb.instance accepts keyword arguments only.')
         return cls(ResourceSpec(cls, kwargs).uri())
