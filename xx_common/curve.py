@@ -6,7 +6,7 @@ import math
 from datetime import date, timedelta
 from typing import Any
 
-from numpy import float64
+from numpy import float64, floating, ndarray
 from scipy import interpolate
 
 from core_10x.named_constant import NamedConstant
@@ -143,7 +143,7 @@ class Curve(AnonymousTraitable):
 
         bot = self.beginning_of_time
         v   = self.interpolator(t) if (bot is not None) or (t >= bot) else math.nan
-        return float(v) if type(v) is float64 else v
+        return float(v) if isinstance(v, (floating, ndarray)) else v
 
     def values_at(self, dates) -> tuple:
         return tuple(self.value(d) for d in dates)

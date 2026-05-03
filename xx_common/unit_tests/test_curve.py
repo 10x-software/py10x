@@ -36,6 +36,28 @@ class TestCurve:
         # Linear interpolation between nodes
         assert c.value(0.5) == pytest.approx(1.0)
 
+    def test_value_returns_python_float(self):
+        # scipy.interpolate.interp1d returns a 0-d numpy.ndarray; value() must
+        # unwrap to a built-in float so callers don't get an array back.
+        c = Curve()
+        c.update_many([0.0, 1.0], [0.0, 2.0], reset=True)
+        c.beginning_of_time = 0.0
+
+        # Interpolated point
+        v_mid = c.value(0.5)
+        assert type(v_mid) is float
+        assert v_mid == pytest.approx(1.0)
+
+        # Exact node
+        v_node = c.value(1.0)
+        assert type(v_node) is float
+        assert v_node == pytest.approx(2.0)
+
+        # Extrapolated point (default fill_value='extrapolate')
+        v_extrap = c.value(2.0)
+        assert type(v_extrap) is float
+        assert v_extrap == pytest.approx(4.0)
+
     def test_no_interp_mode(self):
         c = Curve()
         c.update_many([0.0, 1.0], [10.0, 20.0], reset=True)
