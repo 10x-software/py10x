@@ -2030,7 +2030,10 @@ except ValueError:  # → ValueError('XX_MAIN_TS_STORE_URI must point at a runni
     pass
 
 # Predicate form — .check() takes an optional (value) -> bool callable.
-port = EnvVars.var.date_format.check(lambda v: v in XDateTime.formats, err='must be a valid XDateTime format')
+try:
+    uri = EnvVars.var.main_ts_store_uri.check(lambda v: v.startswith('mongodb:'), err='must be a valid mongodb uri')
+except ValueError:
+    pass
 
 # EnvVars.var_name() computes the env var name from a Var or attribute name.
 assert EnvVars.var_name(EnvVars.var.main_ts_store_uri) == 'XX_MAIN_TS_STORE_URI'
