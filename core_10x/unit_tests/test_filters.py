@@ -237,3 +237,40 @@ def test_named_serializers():
             {'age': {'$eq': 'age:17'}},
         ]
     }
+
+
+def test_f_pinned_traitable_class_takes_precedence():
+    # Regression test for the precedence fix in `f.prefix_notation`:
+    # a traitable_class pinned on `self` (via `f(_f, _t)` or `f(..., _t=...)`)
+    # must take precedence over a `traitable_class` argument supplied by an
+    # outer caller. This matters for nested filters like
+    # `f(f(f(...), Inner.s_bclass), ...)` where the inner `f` is constructed
+    # for a specific class and must keep serializing against it even when
+    # evaluated through an outer `prefix_notation(...)` that forwards its
+    # own class context down.
+    class PA(Person):
+        @classmethod
+        def age_serialize(cls, t, v):
+            return f'a:{v}'
+
+    class PB(Person):
+        @classmethod
+        def age_serialize(cls, t, v):
+            return f'b:{v}'
+
+    pinned = f(_t=PA.s_bclass, age=EQ(5))
+
+    # Pinned class wins when the caller passes a different class.
+    assert pinned.prefix_notation(traitable_class=PB.s_bclass) == {'age': {'$eq': 'a:5'}}
+
+    # Pinned class is used when no class is supplied by the caller.
+    assert pinned.prefix_notation() == {'age': {'$eq': 'a:5'}}
+
+    # Without a pinned class, the caller-supplied class is honored.
+    bare = f(age=EQ(5))
+    assert bare.prefix_notation(traitable_class=PB.s_bclass) == {'age': {'$eq': 'b:5'}}
+
+    # The pinned class is also propagated down into a nested `.filter`.
+    inner = f(age=EQ(7))
+    wrapped = f(inner, PA.s_bclass)
+    assert wrapped.prefix_notation(traitable_class=PB.s_bclass) == {'age': {'$eq': 'a:7'}}

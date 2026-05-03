@@ -195,7 +195,7 @@ class f(_filter):
         return all(item.eval(traitable_or_dict[name]) for name, item in self.named_expressions.items())
 
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:
-        traitable_class = traitable_class or self.traitable_class
+        traitable_class = self.traitable_class or traitable_class
         trait_dir = traitable_class.trait_dir() if traitable_class else {}
         clause = {name: pn for name, item in self.named_expressions.items() if (pn := item.prefix_notation(trait_dir.get(name), traitable_class))}
         if self.filter:
