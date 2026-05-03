@@ -281,8 +281,8 @@ class Resource(abc.ABC):
             instance_key = cls.standard_key(*args, **kwargs)
             resource = cls.s_instances.get(instance_key)
             if not resource:
-                store = cls.new_instance(*args, password=password, **translated_kwargs)
-                cls.s_instances[instance_key] = store
+                resource = cls.new_instance(*args, password=password, **translated_kwargs)
+                cls.s_instances[instance_key] = resource
 
             return resource
 
