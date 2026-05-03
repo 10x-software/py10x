@@ -9,12 +9,10 @@ if __name__ == '__main__':
     EnvVars.main_ts_store_uri = main_uri
     EnvVars.main_vault_uri = vault_uri
 
-    with TsStore.instance_from_uri('mongodb://localhost/test'):
-        people = Person.load_many()
-
-        for p in people:
-            print(f'{p.full_name}: {p.age}, {p.weight}')
-
-
-    p = people[0]
+    p = Person(
+        _replace = True,
+        first_name = 'John',
+        last_name = 'Doe',
+        weight = 200.0,
+    )
     p.save()

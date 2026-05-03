@@ -1264,7 +1264,10 @@ class VaultResourceAccessor(Traitable):
             if not ra:
                 raise ValueError(f"{cls.__name__} for {username}@'{resource_dt}({uri}/*)' not found")
 
-        return ra
+        fake_ra = VaultResourceAccessor(resource_dt = resource_dt, username = username, resource_uri = resource_uri)
+        fake_ra.login = ra.login
+        fake_ra.password = ra.password
+        return fake_ra
 
 class NamedTsStore(Traitable):
     logical_name: str   = T(T.ID)
