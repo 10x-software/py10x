@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING, Literal
 
-from ibis.common.exceptions import TableNotFound
 
 from core_10x.resource import REL_DB, Resource, ResourceSpec
 
@@ -46,6 +45,7 @@ class RelDb(Resource, resource_type=REL_DB):
     def query(self, table_name: str) -> ir.Table|None:
         """Return an ibis Table for the given table, for further ibis manipulation."""
         assert self._connection is not None, 'RelDb must be used as a context manager for querying.'
+        from ibis.common.exceptions import TableNotFound
         try:
             return self._connection.table(table_name)
         except TableNotFound:
