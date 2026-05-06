@@ -47,7 +47,7 @@ class VaultUtils:
 
     @classmethod
     def change_master_password(cls) -> tuple[RC, str]:
-        rc, old_mp = SecKeys.retrieve_master_password()
+        rc, _old_mp = SecKeys.retrieve_master_password()
         if rc:
             proceed = input('Are you sure you want to override your existing MasterPassword? [y/n]')
             if proceed.lower() != 'y':
@@ -158,7 +158,7 @@ class VaultUtils:
         if not user:
             return RC(False, 'You must first run user_init utility')
 
-        rc, vault, login, password = cls._get_and_check_vault_credentials(vault_uri)
+        rc, _vault, login, password = cls._get_and_check_vault_credentials(vault_uri)
         if not rc:
             return rc
 
@@ -170,7 +170,7 @@ class VaultUtils:
         try:
             vault = Traitable.vault_store()
         except Exception as ex:
-            rc = RC(False, f'You have no access to the vault. Run vault_init and/or user_init utility')
+            rc = RC(False, 'You have no access to the vault. Run vault_init and/or user_init utility')
             rc.add_error(str(ex))
             return rc
 

@@ -1901,7 +1901,7 @@ from core_10x.traitable import Bundle
 class _Abstract(Bundle, members_known=True):
     pass  # no ID traits, hence not storable - allowed only for the base
 
-with pytest.raises(AssertionError, match='is not storable'):
+with pytest.raises(RuntimeError, match='is not storable'):
     class _NoIdMember(_Abstract):
         pass  # still no ID trait -> rejected
 ```
