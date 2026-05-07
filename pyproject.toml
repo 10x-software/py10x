@@ -104,6 +104,8 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "dev_10x/version.py"
 
-
 [project.scripts]
-uv-sync = "dev_10x.uv_sync:main"
+uv-sync                         = "dev_10x.uv_sync:main"
+xx-user-init                    = "core_10x.apps.user_init:main"
+xx-user-status                  = "core_10x.apps.user_status:main"
+xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
