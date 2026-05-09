@@ -307,7 +307,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         embeddable: bool        = None,     #-- if instances of cls may be embedded in other traitables
         custom_collection: bool = None,     #-- if instance(s) of cls may work with a specific collection
         keep_history: bool      = None,     #-- if revisions are kept in store
-        immutable: bool         = None,     #-- if instances in store in are immutable
+        immutable: bool         = None,     #-- if instances in store are immutable
         **kwargs
     ):
         super().__init_subclass__(**kwargs)     #-- for cooperative (possible) multiple inheritance

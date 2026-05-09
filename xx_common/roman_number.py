@@ -1,9 +1,6 @@
 from core_10x.named_constant import Enum, NamedConstantTable
 
-
-# ruff: noqa: E741
 class R:
-    # fmt: off
     class Symbol(Enum):
         I = () 
         V = ()
@@ -20,15 +17,14 @@ class R:
 
     SYMBOL_TABLE = NamedConstantTable(Symbol, Attr,
         #       VALUE       REPEAT      SUBTRACTABLE
-        I = (   1,          3,          True ),
-        V = (   5,          1,          False ),
-        X = (   10,         3,          True ),
-        L = (   50,         1,          False ),
-        C = (   100,        3,          True ),
-        D = (   500,        1,          False ),
-        M = (   1000,       3,          True ),
+        I = (   1,          3,          True),
+        V = (   5,          1,          False),
+        X = (   10,         3,          True),
+        L = (   50,         1,          False),
+        C = (   100,        3,          True),
+        D = (   500,        1,          False),
+        M = (   1000,       3,          True),
     )
-    # fmt: on
     def __init__(self, text: str):
         text = text.upper()
         x = 0
