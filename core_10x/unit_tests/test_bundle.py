@@ -23,7 +23,7 @@ from __future__ import annotations
 import pytest
 
 from core_10x.exec_control import CACHE_ONLY
-from core_10x.traitable import RT, T, Bundle, Traitable
+from core_10x.traitable import RT, T, Bundle, BundleHistory, Traitable
 
 
 # ---------------------------------------------------------------------------
@@ -187,7 +187,7 @@ class TestBundleStorableRequirement:
         assert _AbstractBundle.s_bundle_base is _AbstractBundle
         assert _AbstractBundle.s_bundle_members == {}
 
-        with pytest.raises(AssertionError, match='is not storable'):
+        with pytest.raises(RuntimeError, match='is not storable'):
 
             class _NonStorableMember(_AbstractBundle):
                 pass  # still no ID trait -> not storable
@@ -202,6 +202,148 @@ class TestBundleStorableRequirement:
             mid: str = T(T.ID)
 
         assert _AbstractBundle2.s_bundle_members['_StorableMember'] is _StorableMember
+
+
+# ---------------------------------------------------------------------------
+# Non-storable bundle base + storable members - history classes must STILL
+# share a single history collection (lazily created on the bundle base).
+# ---------------------------------------------------------------------------
+
+
+class AbstractAnimals(Bundle, members_known=True):
+    """Bundle base without ID traits - not storable on its own."""
+
+
+class Wolf(AbstractAnimals):
+    name: str = T(T.ID)
+    howl_pitch: int = T()
+
+
+class Bear(AbstractAnimals):
+    name: str = T(T.ID)
+    den: str = T()
+
+
+class TestBundleHistoryWithNonStorableBase:
+    """When the bundle base is non-storable but the members are storable, the
+    members' history classes must still share a common ``<Base>#history``
+    collection.  The fix is to lazily create the bundle base's history class
+    when the first storable member is encountered (so subsequent siblings can
+    register against it as Bundle members)."""
+
+    def test_lazy_base_history_class_created(self):
+        # The non-storable bundle base now has a history class lazily attached.
+        base_hist = AbstractAnimals.s_history_class
+        assert isinstance(base_hist, type)
+        assert issubclass(base_hist, BundleHistory)
+        assert base_hist.__name__ == 'AbstractAnimals#history'
+        assert base_hist.s_traitable_class is AbstractAnimals
+        assert base_hist.s_bundle_base is base_hist
+
+    def test_member_history_classes_are_bundle_members_of_lazy_base(self):
+        base_hist = AbstractAnimals.s_history_class
+        wolf_hist = Wolf.s_history_class
+        bear_hist = Bear.s_history_class
+
+        assert wolf_hist.s_bundle_base is base_hist
+        assert bear_hist.s_bundle_base is base_hist
+
+        # AbstractAnimals is members_known=True, so its lazy history class is too.
+        assert base_hist.s_bundle_members is not None
+        assert base_hist.s_bundle_members['Wolf#history'] is wolf_hist
+        assert base_hist.s_bundle_members['Bear#history'] is bear_hist
+
+    def test_member_history_classes_share_collection_method(self):
+        # Bundle.__init_subclass__ rebinds member's collection -> base's.
+        # Once the lazy base history class is in place, all member histories
+        # resolve to the same collection callable.
+        base_hist = AbstractAnimals.s_history_class
+        assert Wolf.s_history_class.collection == base_hist.collection
+        assert Bear.s_history_class.collection == base_hist.collection
+
+    def test_lazy_base_storage_helper_promotes_non_storable_base(self, bundle_history_store):
+        """The non-storable bundle base also gets a real (storable) storage
+        helper at the same time as its lazy history class - so that members
+        sharing `cls.collection = base.collection` actually route to a real
+        collection instead of `NotStorableHelper.collection() == None`."""
+        # Base is not storable on its own (no T.ID), but its cached helper was
+        # promoted - so member-side `collection()` returns a real collection
+        # (its base's), not `None`.
+        assert not AbstractAnimals.is_storable()
+        assert Wolf.collection() is not None
+        assert Bear.collection() is not None
+        assert Wolf.collection() is Bear.collection()
+
+    def test_member_main_record_routes_to_base_collection(self, bundle_history_store):
+        """Saving a storable member of a NON-storable bundle base actually
+        persists to a real collection (the base's) - the whole point of
+        promoting the base's storage helper.  Without the lazy promotion, the
+        base's helper would be ``NotStorableHelper`` and the save would
+        silently no-op."""
+        w = Wolf(name='wolf_main', _replace=True)
+        w.howl_pitch = 7
+        w.save().throw()
+
+        b = Bear(name='bear_main', _replace=True)
+        b.den = 'oak_hollow'
+        b.save().throw()
+
+        # Both members landed in the SAME (base's) collection.
+        base_coll = AbstractAnimals.collection()
+        assert base_coll is Wolf.collection()
+        assert base_coll is Bear.collection()
+
+        docs = {doc['_id']: doc for doc in base_coll.find()}
+        assert w.id().value in docs
+        assert b.id().value in docs
+        assert docs[w.id().value]['_cls'] == 'Wolf'
+        assert docs[w.id().value]['howl_pitch'] == 7
+        assert docs[b.id().value]['_cls'] == 'Bear'
+        assert docs[b.id().value]['den'] == 'oak_hollow'
+
+    def test_member_history_records_share_lazy_base_history_collection(self, bundle_history_store):
+        """History records for storable members of a non-storable bundle base
+        all land in the ONE lazily-created ``<Base>#history`` collection,
+        mirroring the storable-base case."""
+        w = Wolf(name='wolf_hist', _replace=True)
+        w.howl_pitch = 3
+        w.save().throw()
+
+        b = Bear(name='bear_hist', _replace=True)
+        b.den = 'cave'
+        b.save().throw()
+
+        base_hist_coll = AbstractAnimals.s_history_class.collection()
+        assert Wolf.s_history_class.collection() is base_hist_coll
+        assert Bear.s_history_class.collection() is base_hist_coll
+
+        cls_values = {doc['_cls'] for doc in base_hist_coll.find()}
+        assert {'Wolf#history', 'Bear#history'} <= cls_values
+
+    def test_member_history_query_filters_by_class_with_lazy_base(self, bundle_history_store):
+        """``Wolf.history()`` returns only Wolf history records even though
+        Wolves and Bears live in the same shared (lazily-created) history
+        collection on the non-storable base."""
+        w = Wolf(name='wolf_filter', _replace=True)
+        w.howl_pitch = 5
+        w.save().throw()
+
+        b = Bear(name='bear_filter', _replace=True)
+        b.den = 'pine'
+        b.save().throw()
+
+        wolf_history = list(Wolf.history())
+        bear_history = list(Bear.history())
+
+        assert all(h['_cls'] == 'Wolf#history' for h in wolf_history)
+        assert all(h['_cls'] == 'Bear#history' for h in bear_history)
+
+        wolf_ids = {h['_traitable_id'] for h in wolf_history}
+        bear_ids = {h['_traitable_id'] for h in bear_history}
+        assert w.id().value in wolf_ids
+        assert b.id().value in bear_ids
+        assert b.id().value not in wolf_ids
+        assert w.id().value not in bear_ids
 
 
 # ---------------------------------------------------------------------------
@@ -238,18 +380,13 @@ class TestBundleInstancesRoundTrip:
 # Bundle + TraitableHistory
 # ---------------------------------------------------------------------------
 #
-# Bundle members share the bundle base's `collection` (by design).  Each
-# member also gets its own automatically-created history class
-# (`<Member>#history`) created by `Traitable.__init_subclass__` BEFORE
-# `Bundle.__init_subclass__` rebinds `cls.collection`.
-#
-# Because `StorageHelperDescriptor.__get__` reads
-# `owner.s_storage_helper_cached` and class-attribute lookup walks the MRO,
-# any subclass that has not yet had its own helper cached would otherwise
-# inherit a parent's cached helper - misrouting reads, writes, and history.
-# The fix in `Traitable.__init_subclass__` is to give every subclass its
-# own `s_storage_helper_cached = None` slot, so MRO is never walked.
-# The tests below verify both the wiring and the runtime behavior.
+# Bundle members share the bundle base's `collection` (by design).  History
+# classes mirror the same structure: `<Base>#history` is itself a Bundle
+# base, and every `<Member>#history` is a Bundle member of `<Base>#history`,
+# so all member histories share one history collection (`<Base>#history`).
+# Class-based filtering on read time (in `StorableHelperWithHistory._find`)
+# ensures that querying via a member's history class returns only that
+# member's records, even though they all live in the shared collection.
 # ---------------------------------------------------------------------------
 
 
@@ -262,8 +399,8 @@ class TestBundleHistoryStaticWiring:
         assert Cat.collection == Animals.collection
 
     def test_each_member_has_its_own_history_class(self):
-        # Per-class history classes are created in Traitable.__init_subclass__
-        # before Bundle.__init_subclass__ runs - one per concrete subclass.
+        # Per-class history classes are still distinct objects: each carries
+        # its own `s_traitable_class` and serializes a distinct `_cls`.
         assert Dog.s_history_class is not Animals.s_history_class
         assert Cat.s_history_class is not Animals.s_history_class
         assert Dog.s_history_class is not Cat.s_history_class
@@ -277,14 +414,39 @@ class TestBundleHistoryStaticWiring:
         assert Animals.s_history_class.s_traitable_class is Animals
 
     def test_member_history_class_resolves_its_own_class_id(self):
-        """Statically, each member's history class resolves to its own
-        ``<Member>#history`` class id - the runtime save path is the only
-        place the routing actually goes wrong (covered separately)."""
+        """Each history class resolves to its own ``<Member>#history`` class
+        id, which is what the framework writes to ``_cls`` on history records
+        and uses for class-based filtering on reads."""
         from core_10x.package_refactoring import PackageRefactoring
 
         assert PackageRefactoring.find_class_id(Dog.s_history_class).endswith('/Dog#history')
         assert PackageRefactoring.find_class_id(Cat.s_history_class).endswith('/Cat#history')
         assert PackageRefactoring.find_class_id(Animals.s_history_class).endswith('/Animals#history')
+
+    def test_history_classes_form_a_bundle_mirroring_main_classes(self):
+        """The history-class hierarchy mirrors the main-class hierarchy:
+        ``<Base>#history`` is the bundle base for histories, and every
+        ``<Member>#history`` is a Bundle member of ``<Base>#history``."""
+        animals_hist = Animals.s_history_class
+        dog_hist = Dog.s_history_class
+        cat_hist = Cat.s_history_class
+
+        assert issubclass(animals_hist, Bundle)
+        assert issubclass(dog_hist, Bundle)
+        assert issubclass(cat_hist, Bundle)
+
+        assert animals_hist.s_bundle_base is animals_hist
+        assert dog_hist.s_bundle_base is animals_hist
+        assert cat_hist.s_bundle_base is animals_hist
+
+        # Animals is a `members_known=True` bundle, so its history is too.
+        assert animals_hist.s_bundle_members is not None
+        assert animals_hist.s_bundle_members['Dog#history'] is dog_hist
+        assert animals_hist.s_bundle_members['Cat#history'] is cat_hist
+
+        # Members share the base's collection (by Bundle's normal contract).
+        assert dog_hist.collection == animals_hist.collection
+        assert cat_hist.collection == animals_hist.collection
 
 
 # ---------------------------------------------------------------------------
@@ -316,7 +478,7 @@ class TestBundleHistoryBehavior:
 
     def test_main_record_routes_to_base_collection(self, bundle_history_store):
         """Main records go to the bundle base's collection - this is the
-        whole point of Bundle and works correctly."""
+        whole point of Bundle."""
         d = Dog(name='dog_main', _replace=True)
         d.breed = 'lab'
         d.save().throw()
@@ -327,53 +489,50 @@ class TestBundleHistoryBehavior:
         assert loaded['_cls'] == 'Dog'
         assert loaded['breed'] == 'lab'
 
-    def test_first_member_saved_routes_history_correctly(self, bundle_history_store):
-        """The first member saved in a process gets its history routed
-        correctly to ``<Member>#history``."""
-        d = Dog(name='dog_first', _replace=True)
+    def test_history_records_share_the_base_history_collection(self, bundle_history_store):
+        """All members' history records land in the ONE shared
+        ``<Base>#history`` collection - the history-class hierarchy mirrors
+        the bundle's main-class hierarchy."""
+        d = Dog(name='dog_share', _replace=True)
         d.breed = 'beagle'
         d.save().throw()
 
-        dog_id = d.id().value
-        history = Dog.history()
-        dog_entries = [h for h in history if h['_traitable_id'] == dog_id]
-        assert len(dog_entries) == 1
-        assert dog_entries[0]['breed'] == 'beagle'
-
-    def test_sibling_member_history_not_misrouted_to_base_history(self, bundle_history_store):
-        """Regression test for a previously-broken case: once the bundle
-        BASE's storage helper has been cached (which happens implicitly the
-        first time any member saves, because members share the base's
-        collection), a sibling member that has not yet been touched used to
-        inherit the base's cached helper through MRO.  That helper's
-        ``traitable_class`` is the BASE, and history records ended up in
-        ``<Base>#history`` instead of ``<Member>#history``.
-
-        The fix in ``Traitable.__init_subclass__`` gives every subclass its
-        own ``s_storage_helper_cached = None`` slot, so MRO is never walked
-        and each class always computes its OWN helper on first access.
-        """
-        # 1. Save a Dog first - this caches Animals' helper as a side effect
-        #    (because Dog.collection IS Animals.collection).
-        d = Dog(name='dog_pre', _replace=True)
-        d.breed = 'lab'
-        d.save().throw()
-        assert Animals.s_storage_helper_cached is not None
-
-        # 2. Now save a sibling member (Cat) that has not been touched yet.
-        c = Cat(name='cat_sib', _replace=True)
+        c = Cat(name='cat_share', _replace=True)
         c.indoor = True
         c.save().throw()
 
-        cat_id = c.id().value
-        cat_hist_coll = Cat.s_history_class.collection()
         animals_hist_coll = Animals.s_history_class.collection()
+        dog_hist_coll = Dog.s_history_class.collection()
+        cat_hist_coll = Cat.s_history_class.collection()
 
-        cat_records = [d for d in cat_hist_coll.find() if d.get('_traitable_id') == cat_id]
-        misrouted = [d for d in animals_hist_coll.find() if d.get('_traitable_id') == cat_id]
+        # All three resolve to the same shared collection.
+        assert dog_hist_coll is animals_hist_coll
+        assert cat_hist_coll is animals_hist_coll
 
-        assert len(cat_records) == 1, (
-            f'Cat history should be in Cat#history; got {len(cat_records)} records '
-            f'there and {len(misrouted)} misrouted to Animals#history.'
-        )
-        assert len(misrouted) == 0
+        cls_values = {doc['_cls'] for doc in animals_hist_coll.find()}
+        assert {'Dog#history', 'Cat#history'} <= cls_values
+
+    def test_member_history_query_filters_by_class(self, bundle_history_store):
+        """``Cat.history()`` returns only Cat records even though Cats and
+        Dogs live in the same shared history collection - the framework
+        filters by ``_cls`` in ``StorableHelperWithHistory._find``."""
+        d = Dog(name='dog_filter', _replace=True)
+        d.breed = 'lab'
+        d.save().throw()
+
+        c = Cat(name='cat_filter', _replace=True)
+        c.indoor = True
+        c.save().throw()
+
+        cat_history = list(Cat.history())
+        dog_history = list(Dog.history())
+
+        assert all(h['_cls'] == 'Cat#history' for h in cat_history)
+        assert all(h['_cls'] == 'Dog#history' for h in dog_history)
+
+        cat_ids = {h['_traitable_id'] for h in cat_history}
+        dog_ids = {h['_traitable_id'] for h in dog_history}
+        assert c.id().value in cat_ids
+        assert d.id().value in dog_ids
+        assert d.id().value not in cat_ids
+        assert c.id().value not in dog_ids

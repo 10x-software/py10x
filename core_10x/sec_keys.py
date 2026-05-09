@@ -40,7 +40,7 @@ class SecKeys:
     def change_master_password(cls, password: str, override = False):
         username = OsUser.me.name()
         if not override:
-            rc, pwd = cls.retrieve_master_password()
+            rc, _pwd = cls.retrieve_master_password()
             if rc:
                 raise AssertionError(f'MasterPassword for {username} is already set')
 

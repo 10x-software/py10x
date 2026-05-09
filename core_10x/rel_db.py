@@ -21,9 +21,7 @@ class RelDb(Resource, resource_type=REL_DB):
         self._connection = None
 
     @classmethod
-    def new_instance(cls, *args, password: str ='', **kwargs) -> RelDb:
-        if args:
-            raise ValueError('RelDb.instance accepts keyword arguments only.')
+    def new_instance(cls, **kwargs) -> RelDb:
         return cls(ResourceSpec(cls, kwargs).uri())
 
     def __enter__(self):

@@ -13,10 +13,14 @@ from datetime import datetime
 import re
 from typing import TYPE_CHECKING
 
+from urllib.parse import urlsplit
+
 from py10x_kernel import BTraitable, BTraitableProcessor
 
 from core_10x.nucleus import Nucleus
+from core_10x.resource import Resource
 from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
+from core_10x.ts_store_type import TS_STORE_TYPE
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -218,6 +222,8 @@ class TestCollection(TsCollection):
 class TestStore(TsStore, resource_name='TEST_DB'):
     """In-memory store implementation for testing."""
 
+    s_with_auth = False #-- flip to true in tests if necessary
+
     class Transaction(TsStore.Transaction):
         """In-memory transaction: commit() applies pending writes, abort() discards them."""
 
@@ -263,10 +269,19 @@ class TestStore(TsStore, resource_name='TEST_DB'):
 
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
-        """Parse a test store URI (e.g. testdb: or testdb://). Returns empty kwargs."""
+        """Parse a ``testdb://[host[:port]][/dbname]`` URI."""
         if not uri.startswith('testdb:'):
             raise ValueError(f'Invalid TestStore URI: {uri}')
-        return {}
+        parts = urlsplit(uri)
+        kwargs: dict = {}
+        if parts.hostname is not None:
+            kwargs[Resource.HOSTNAME_TAG] = parts.hostname
+        if parts.port is not None:
+            kwargs[Resource.PORT_TAG] = parts.port
+        db = parts.path
+        if db and db != '/':
+            kwargs[Resource.DBNAME_TAG] = db.lstrip('/')
+        return kwargs
 
     def collection_names(self, regexp: str = None) -> list:
         """Get collection names, optionally filtered by regexp."""
@@ -295,9 +310,9 @@ class TestStore(TsStore, resource_name='TEST_DB'):
         return False
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str) -> tuple:
-        """TestStore doesn't require authentication."""
-        return True, False
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:
+        """Always reachable; auth-required is governed by ``s_with_auth``."""
+        return True, cls.s_with_auth
 
     def clear(self):
         """Clear all collections (useful for test cleanup)."""
@@ -318,4 +333,3 @@ class TestStore(TsStore, resource_name='TEST_DB'):
 
     def auth_user(self) -> str | None:
         return self.username
-

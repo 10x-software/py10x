@@ -148,7 +148,7 @@ class EnvVars(_EnvVars, env_name = 'XX'):
     main_vault_uri: str             = ''            #-- to store/auto retrieve security credentials for each user/resource
     vault_uri: str                                  #-- current vault; default is main_vault_uri
 
-    main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27018/main'
+    main_ts_store_uri: str          = ''            #-- e.g., 'mongodb://localhost:27017/main'
     log_ts_store_uri: str           = ''            #-- to keep all app logs in a specific store, e.g., 'mongodb://localhost/app_logs'
     use_ts_store_per_class: bool    = True          #-- use TsStore per Traitable class associations
     functional_account_prefix: str  = 'xx'          #-- used in usernames to distinguish a regular username from a functional account

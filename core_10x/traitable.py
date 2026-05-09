@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 import operator
 import sys
+import types
 import warnings
 from abc import ABC, abstractmethod
 from contextlib import nullcontext
@@ -294,6 +295,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_embeddable        = False
     s_custom_collection = False
     s_history_class = XNone  # -- will be set in __init__subclass__ for storable traitables unless keep_history = False. affects storage only.
+    s_history_base = None  # -- the history-class-builder root for `cls`; subclasses (e.g. Bundle) may override (-> BundleHistory).
     s_immutable = (
         XNone  # -- will be turned on in __init__subclass__ for storable traitables without history unless immutable=False. affects storage only.
     )
@@ -334,7 +336,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             if keep_history is False:
                 cls.s_history_class = None
             if cls.s_history_class is not None:
-                cls.s_history_class = TraitableHistory.history_class(cls)
+                cls.s_history_class = (cls.s_history_base or TraitableHistory).history_class(cls)
 
             cls.s_immutable = cls.s_history_class is None if immutable is None else immutable
         else:
@@ -785,6 +787,12 @@ class StorableHelper(AbstractStorableHelper):
         return self.traitable_class.s_bclass.load(id)
 
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
+        cls = self.traitable_class
+        if issubclass(cls, Bundle) and not cls.is_bundle_base():
+            query = f(query, **{cls.CLASS_TAG(): cls.serialize_class_id()})
+        return self._find_(query, _coll_name, _at_most, _order)
+
+    def _find_(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
         # TODO FUTURE - current state as history query?
         cls = self.traitable_class
         coll = cls.collection(_coll_name=_coll_name)
@@ -1018,19 +1026,20 @@ class TraitableHistory(Traitable, keep_history=False):
         collection.create_index('idx_by_traitable_id_time', [('_traitable_id', 1), ('_at', -1)])
         return collection
 
-    @staticmethod
-    @cache
-    def history_class(traitable_class: type[Traitable]):
+    @classmethod
+    def history_class(cls, traitable_class: type[Traitable], base=None, **kwargs):
         module_dict = sys.modules[traitable_class.__module__].__dict__
         history_class_name = f'{traitable_class.__name__}#history'
-        history_class = type(
+        ns = dict(
+            s_traitable_class=traitable_class,
+            s_custom_collection=traitable_class.s_custom_collection,
+            __module__=traitable_class.__module__,
+        )
+        history_class = types.new_class(
             history_class_name,
-            (TraitableHistory,),
-            dict(
-                s_traitable_class=traitable_class,
-                s_custom_collection=traitable_class.s_custom_collection,
-                __module__=traitable_class.__module__,
-            ),
+            (cls,) if not base else (base,) if issubclass(base,cls) else (cls,base),
+            kwargs,
+            lambda d: d.update(ns),
         )
         if traitable_class is module_dict.get(traitable_class.__name__):
             assert history_class_name not in module_dict
@@ -1128,23 +1137,36 @@ class Bundle(Traitable):
     s_bundle_base = None
     s_bundle_members: dict = None
 
+    @classmethod
+    def is_bundle_base(cls) -> bool:
+        return cls.s_bundle_base is cls
+
     def __init_subclass__(cls, members_known=False, **kwargs):
-        super().__init_subclass__(**kwargs)
-        if not cls.s_bundle_base:
+        base = cls.s_bundle_base
+        if not base:
             cls.s_bundle_base = cls
             if members_known:
                 cls.s_bundle_members = {}
         else:
-            assert cls.is_storable(), f'{cls} is not storable'
-            base = cls.s_bundle_base
-            if base:
-                bundle_members = base.s_bundle_members
-                if bundle_members is not None:
-                    bundle_members[cls.__name__] = cls
+            bundle_members = base.s_bundle_members
+            if bundle_members is not None:
+                bundle_members[cls.__name__] = cls
 
-                # cls.collection_name = base.collection_name #TODO: fix
-                cls.collection = base.collection
-            assert cls.s_bundle_base, 'bundle base not defined'
+            # cls.collection_name = base.collection_name #TODO: fix
+            cls.collection = base.collection
+
+            if base.s_history_class is XNone:
+                base.s_history_class = base.s_history_base.history_class(base)
+                base.s_storage_helper_cached = StorableHelperWithHistory(base)
+
+        super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def check_integrity(cls, root_class: bool, rc: RC):
+        super().check_integrity(root_class, rc)
+        if cls.s_bundle_base and not cls.is_bundle_base() and not cls.is_storable():
+            rc.add_error(f'{cls} is not storable')
+
 
     @classmethod
     def serialize_class_id(cls) -> str:
@@ -1167,6 +1189,24 @@ class Bundle(Traitable):
             raise ValueError(f'{cls}: unknown bundle member {serialized_class_id}')
 
         return actual_class
+
+
+class BundleHistory(TraitableHistory):
+    @classmethod
+    def history_class(cls, traitable_class: type[Bundle]):
+        if not traitable_class.is_bundle_base():
+            return super().history_class(
+                traitable_class,
+                traitable_class.s_bundle_base.s_history_class,
+            )
+        return super().history_class(
+            traitable_class,
+            Bundle,
+            members_known = traitable_class.s_bundle_members is not None
+        )
+
+Bundle.s_history_base = BundleHistory
+
 
 #=======================================================================================================================
 #   Vault related stuff
@@ -1270,9 +1310,29 @@ class VaultResourceAccessor(Traitable):
         fake_ra.password = ra.password
         return fake_ra
 
-class NamedTsStore(Traitable):
+class NamedResource(Bundle):
+    s_resource_dt: CONCRETE_RESOURCE = None
     logical_name: str   = T(T.ID)
     uri: str            = T()
+
+    @classmethod
+    def check_integrity(cls, root_class: bool, rc: RC):
+        super().check_integrity(root_class = root_class, rc = rc)
+        if not cls.is_bundle_base() and cls.s_resource_dt is None:
+            rc.add_error('Must define s_resource_dt')
+
+    def resource_instance(self):
+        resource_uri = self.uri
+        with Traitable.vault_store():
+            try:
+                ra = VaultResourceAccessor.retrieve_ra(self.s_resource_dt, resource_uri)
+            except ValueError:
+                return self.s_resource_dt.value.instance_from_uri(self.uri)
+            else:
+                return ra.resource
+
+class NamedTsStore(NamedResource):
+    s_resource_dt: CONCRETE_RESOURCE = CONCRETE_RESOURCE.TS_STORE
 
 class TsClassAssociation(Traitable):
     py_canonical_name: str  = T(T.ID)

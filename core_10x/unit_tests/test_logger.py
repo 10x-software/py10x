@@ -2,12 +2,12 @@
 
 Structure
 ---------
-TestPerfTimer       – context-manager timing mechanics (no deps beyond stdlib)
-TestLOGLevels       – level constants and callability
-TestLOGGuard        – _log raises without an active Logger
-TestLoggerEndToEnd  – subprocess lifecycle using Logger directly;
+TestPerfTimer       - context-manager timing mechanics (no deps beyond stdlib)
+TestLOGLevels       - level constants and callability
+TestLOGGuard        - _log raises without an active Logger
+TestLoggerEndToEnd  - subprocess lifecycle using Logger directly;
                       full message-processing requires a TsStore (infra_10x tests)
-TestLOGStub         – functional tests of the LOG interface using a stub Logger
+TestLOGStub         - functional tests of the LOG interface using a stub Logger
 """
 
 import multiprocessing as mp
@@ -160,7 +160,6 @@ class TestLoggerEndToEnd:
     def test_queue_accepts_shutdown_signal(self):
         """The queue can carry the None sentinel without blocking."""
         logger = Logger('e2e_test_queue', LOG.BRIEF.value, do_print=False)
-        q: mp.Queue = logger.queue
         logger.shutdown()
         # After join the queue should be drained
         assert logger.proc.exitcode == 0
