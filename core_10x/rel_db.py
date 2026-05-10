@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 class RelDb(Resource, resource_type=REL_DB):
     s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
         Resource.PROTOCOL_TAG:     (Resource.PROTOCOL_TAG,   None),
-        'netloc':                  ('netloc',                None),
     }
     def __init__(self, uri: str):
         self._uri = uri

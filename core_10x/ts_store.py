@@ -138,7 +138,9 @@ class TsStore(Resource, resource_type=TS_STORE):
         parts = uri.split(':', maxsplit=1)
         protocol = parts[0]
         ts_class = TS_STORE_TYPE.ts_store_class(protocol)
-        return ResourceSpec(ts_class, ts_class.parse_uri(uri))
+        kwargs = ts_class.parse_uri(uri)
+        kwargs.setdefault(ts_class.PROTOCOL_TAG, protocol)
+        return ResourceSpec(ts_class, kwargs)
 
     @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)

@@ -301,11 +301,11 @@ def test_new_instance(ts_union):
     assert sum(1 for v in TsStore.s_instances.values() if isinstance(v, TraitableStore)) == 2
 
     assert list(TsUnion.s_instances.keys()) == [
-        (('dbname', 'dbname1'), ('hostname', 'localhost'), ('username', '')),
-        (('dbname', 'dbname2'), ('hostname', 'localhost'), ('username', '')),
+        (('dbname', 'dbname1'), ('hostname', 'localhost')),
+        (('dbname', 'dbname2'), ('hostname', 'localhost')),
         (
-            (('dbname', 'dbname1'), ('driver_name', 'TEST_DB'), ('hostname', 'localhost'), ('username', '')),
-            (('dbname', 'dbname2'), ('driver_name', 'TEST_DB'), ('hostname', 'localhost'), ('username', '')),
+            (('dbname', 'dbname1'), ('driver_name', 'TEST_DB'), ('hostname', 'localhost'),),
+            (('dbname', 'dbname2'), ('driver_name', 'TEST_DB'), ('hostname', 'localhost'),),
         ),
     ]
 

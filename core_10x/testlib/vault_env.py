@@ -35,6 +35,7 @@ import core_10x.sec_keys as sec_keys_mod
 import core_10x.traitable as traitable_mod
 import core_10x.vault_utils as vault_utils_mod
 from core_10x.environment_variables import EnvVars
+from core_10x.resource import Resource
 from core_10x.sec_keys import SecKeys
 from core_10x.testlib.test_store import TestStore as _TestStore
 from core_10x.traitable import Traitable, VaultUser
@@ -45,7 +46,7 @@ from core_10x.vault_utils import VaultUtils
 # Default vault URI used by ``vault_env``.  Tests may save resource accessors
 # for any other ``testdb://`` URI; this one is what ``EnvVars.main_vault_uri``
 # points to so ``Traitable.vault_store()`` resolves.
-VAULT_URI = 'testdb://vaulthost.example.com:27018/_vault_'
+VAULT_URI = 'testdb://vaulthost.example.com:27017/_vault_'
 
 
 def _clear_internal_state():
@@ -61,11 +62,6 @@ def _clear_internal_state():
     SecKeys.retrieve_vault_login_password.__func__.clear()
     SecKeys.check_vault_uri.__func__.clear()
     Traitable.__dict__['vault_store'].__func__.clear()
-    # ``Resource.instance(...)`` caches store instances per resource-type top
-    # class.  Tests that use ``vault_env`` go through ``_TestStore.instance``
-    # which lands in ``TsStore.s_instances``; without clearing that, later
-    # tests asserting an empty ``TsStore.s_instances`` (test_ts_store,
-    # test_ts_union) fail with stale entries.
     TsStore.s_instances.clear()
     XCache.clear()
     BTraitableProcessor.current().end_using()
@@ -108,6 +104,9 @@ def vault_env(monkeypatch):
     #    store; admin and alice's connections share the underlying
     #    "deployment" so they can read/write each other's state.
     monkeypatch.setattr(_TestStore, 's_with_auth', True)
+    monkeypatch.setattr(_TestStore, 's_instance_kwargs_map',  _TestStore.s_instance_kwargs_map|{
+        Resource.PORT_TAG: (Resource.PORT_TAG, 27017),
+    })
     monkeypatch.setattr(_TestStore, 'new_instance',
                         classmethod(lambda cls, *a, **kw: vault_db))
 

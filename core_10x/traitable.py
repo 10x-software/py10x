@@ -1276,11 +1276,16 @@ class VaultResourceAccessor(Traitable):
             password = self.user.sec_keys.decrypt_text(self.password),
         )
 
+    @staticmethod
+    def _canonical_uri(resource_dt: CONCRETE_RESOURCE, uri: str) -> str:
+        return resource_dt.value.spec_from_uri(uri).uri()
+
     @classmethod
     def save_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, password: str, login: str = None, username: str = XNone) -> RC:
         if login is None:
             login = username
 
+        resource_uri = cls._canonical_uri(resource_dt, resource_uri)
         ra = cls(username = username, resource_dt = resource_dt, resource_uri = resource_uri)
         user = ra.user
         rc = ra.set_values(
@@ -1298,12 +1303,13 @@ class VaultResourceAccessor(Traitable):
         if not username:
             username = VaultUser.myname()
 
+        resource_uri = cls._canonical_uri(resource_dt, resource_uri)
         ra = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = resource_uri, _throw = False)
         if not ra:
             uri = Resource.uri_no_dbname(resource_uri)
             ra = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = uri, _throw = False)
             if not ra:
-                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt}({uri}/*)' not found")
+                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt.name}({uri}/*)' not found")
 
         fake_ra = VaultResourceAccessor(resource_dt = resource_dt, username = username, resource_uri = resource_uri)
         fake_ra.login = ra.login

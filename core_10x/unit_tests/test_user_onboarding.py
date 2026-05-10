@@ -44,7 +44,10 @@ from __future__ import annotations
 import pytest
 
 from core_10x.concrete_resource import CONCRETE_RESOURCE
+from core_10x.resource import Resource
+from core_10x.testlib.test_store import TestStore as _TestStore  # noqa: F401 — r
 from core_10x.testlib.vault_env import vault_env  # noqa: F401  (pytest fixture)
+from core_10x.testlib.vault_env import VAULT_URI
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
 from core_10x.vault_utils import VaultUtils
@@ -54,8 +57,8 @@ from core_10x.vault_utils import VaultUtils
 # (The ``vault_env`` fixture itself lives in ``core_10x.testlib.vault_env``
 # and uses its own internal ``VAULT_URI`` matching the host below.)
 
-VAULT_HOST_URI  = 'testdb://vaulthost.example.com:27018'        # uri_no_dbname
-MAIN_ON_VAULT   = 'testdb://vaulthost.example.com:27018/main'   # different db, same host
+VAULT_HOST_URI  = 'testdb://vaulthost.example.com'              # no port number - should be added by round trip
+MAIN_ON_VAULT   = 'testdb://vaulthost.example.com:27017/main'   # different db, same host
 PG_URI          = 'postgresql://pghost.example.com:5432/analytics'
 
 ADMIN, ADMIN_VAULT_PWD, ADMIN_MASTER = 'admin', 'AdminVault7!', 'AdminMaster9!'
@@ -100,11 +103,9 @@ def test_admin_user_onboarding_information_flow(vault_env):
 
         # Server-wide RA created during self-registration: any other DB on
         # the same vault host is now reachable without a per-DB admin step.
-        host_ra = VaultResourceAccessor.existing_instance(
-            username=ALICE, resource_dt=CONCRETE_RESOURCE.TS_STORE,
-            resource_uri=VAULT_HOST_URI, _throw=False,
+        host_ra = VaultResourceAccessor.retrieve_ra(
+            CONCRETE_RESOURCE.TS_STORE, VAULT_HOST_URI,
         )
-        assert host_ra is not None
         assert host_ra.login == ALICE
         assert me.sec_keys.decrypt_text(host_ra.password) == ALICE_VAULT_PWD
 
@@ -193,3 +194,106 @@ def test_admin_cannot_decrypt_alice_credentials(vault_env):
             CONCRETE_RESOURCE.REL_DB, PG_URI, username=ALICE,
         )
         assert ra.user.sec_keys.decrypt_text(ra.password) == PG_PWD
+
+
+# ---------------------------------------------------------------------------
+# URI canonicalization tests — no vault required
+# ---------------------------------------------------------------------------
+
+class TestCanonicalUri:
+    """``VaultResourceAccessor._canonical_uri`` normalises URIs before they
+    are used as storage keys so that equivalent URIs (with / without default
+    port, different capitalisation of the scheme, etc.) resolve to the same
+    entry."""
+
+    def test_adds_default_port_when_missing(self,vault_env):
+        """Port-free URI gains the resource's default port (27017 for testdb /
+        MongoDB) so it hashes to the same key as the explicit-port form."""
+        no_port   = VaultResourceAccessor._canonical_uri(
+            CONCRETE_RESOURCE.TS_STORE, 'testdb://vaulthost.example.com/_vault_')
+        with_port = VaultResourceAccessor._canonical_uri(
+            CONCRETE_RESOURCE.TS_STORE, 'testdb://vaulthost.example.com:27017/_vault_')
+
+        assert no_port == with_port
+        assert ':27017' in no_port
+
+    def test_explicit_port_unchanged(self):
+        """An explicit non-default port is preserved as-is."""
+        uri = VaultResourceAccessor._canonical_uri(
+            CONCRETE_RESOURCE.TS_STORE, 'testdb://vaulthost.example.com:9999/_vault_')
+        assert ':9999' in uri
+        assert ':27017' not in uri
+
+    def test_netloc_preserved_through_uri_no_dbname(self):
+        """``Resource.uri_no_dbname`` round-trips through the parser; ensures the port is
+        carried through when the database name is stripped."""
+        full_uri = 'testdb://vaulthost.example.com:27017/_vault_'
+        host_uri = Resource.uri_no_dbname(full_uri)
+
+        assert host_uri == 'testdb://vaulthost.example.com:27017'
+        assert '/_vault_' not in host_uri
+
+    def test_vault_uri_no_dbname_matches_canonical_host_uri(self, vault_env):
+        """The host URI produced by ``uri_no_dbname(VAULT_URI)`` is the same
+        as what ``_canonical_uri`` produces for a port-free host URI, proving
+        that self-registration and later retrieval resolve to the same key
+        regardless of whether the caller includes the port."""
+        stored_as = Resource.uri_no_dbname(VAULT_URI)   # what user_init stores
+        looked_up = VaultResourceAccessor._canonical_uri(
+            CONCRETE_RESOURCE.TS_STORE,
+            'testdb://vaulthost.example.com',           # caller omits port
+        )
+        assert stored_as == looked_up
+
+
+class TestSaveAndRetrieveWithPortVariants:
+    """``save_ra`` and ``retrieve_ra`` canonicalise the URI so that the same
+    RA is found regardless of whether the caller includes the default port."""
+
+    def test_save_portless_retrieve_portful(self, vault_env):
+        env = vault_env
+        env.switch_os_user(ALICE)
+        env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD,
+                          master_pwd=ALICE_MASTER)
+
+        portless = 'testdb://otherhost.example.com/mydb'
+        portful  = 'testdb://otherhost.example.com:27017/mydb'
+
+        with Traitable.vault_store():
+            VaultResourceAccessor.save_ra(
+                resource_dt  = CONCRETE_RESOURCE.TS_STORE,
+                resource_uri = portless,       # stored after canonicalisation → adds :27017
+                password     = ALICE_VAULT_PWD,
+                login        = ALICE,
+                username     = ALICE,
+            ).throw()
+
+            # Retrieve with the explicit-port form — canonical match.
+            ra = VaultResourceAccessor.retrieve_ra(
+                CONCRETE_RESOURCE.TS_STORE, portful)
+            assert ra.resource_uri == portful
+            assert ra.login == ALICE
+
+    def test_save_portful_retrieve_portless(self, vault_env):
+        env = vault_env
+        env.switch_os_user(ALICE)
+        env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD,
+                          master_pwd=ALICE_MASTER)
+
+        portless = 'testdb://otherhost.example.com/mydb'
+        portful  = 'testdb://otherhost.example.com:27017/mydb'
+
+        with Traitable.vault_store():
+            VaultResourceAccessor.save_ra(
+                resource_dt  = CONCRETE_RESOURCE.TS_STORE,
+                resource_uri = portful,        # already canonical
+                password     = ALICE_VAULT_PWD,
+                login        = ALICE,
+                username     = ALICE,
+            ).throw()
+
+            # Retrieve with no port — canonicalised to :27017, same key.
+            ra = VaultResourceAccessor.retrieve_ra(
+                CONCRETE_RESOURCE.TS_STORE, portless)
+            assert ra.resource_uri == portful   # retrieve_ra returns canonical URI
+            assert ra.login == ALICE

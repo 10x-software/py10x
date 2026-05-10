@@ -259,12 +259,14 @@ class TestStore(TsStore, resource_name='TEST_DB'):
         super().__init__()
         self._collections = {}
         self._collection_names = set()
-        # Set a default username for testing
         self.username = kwargs.get('username', 'test_user')
 
     @classmethod
-    def new_instance(cls, *args, password: str = '', **kwargs) -> TestStore:
-        """Create a new TestStore instance."""
+    def standard_key(cls, *args, username=None, **kwargs) -> tuple:
+        return super().standard_key(*args, **kwargs)
+
+    @classmethod
+    def new_instance(cls, *args, **kwargs) -> TestStore:
         return cls(*args, **kwargs)
 
     @classmethod
@@ -273,7 +275,9 @@ class TestStore(TsStore, resource_name='TEST_DB'):
         if not uri.startswith('testdb:'):
             raise ValueError(f'Invalid TestStore URI: {uri}')
         parts = urlsplit(uri)
-        kwargs: dict = {}
+        kwargs: dict = {
+            Resource.PROTOCOL_TAG: parts.scheme,
+        }
         if parts.hostname is not None:
             kwargs[Resource.HOSTNAME_TAG] = parts.hostname
         if parts.port is not None:
