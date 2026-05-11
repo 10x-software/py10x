@@ -3,6 +3,7 @@ from __future__ import annotations
 import collections
 import contextlib
 import re
+import sys
 import uuid
 from collections import Counter
 from contextlib import nullcontext
@@ -14,14 +15,14 @@ import numpy as np
 import pytest
 from core_10x import trait_definition
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE
+from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE, DEBUG_OFF, CONVERT_VALUES_ON, CONVERT_VALUES_OFF, DEBUG_ON
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.named_constant import NamedCallable
 from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitAccessor
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
 from core_10x.ts_store import TsStore
 from core_10x.xnone import XNone
@@ -1352,3 +1353,174 @@ class TestClassTrait:
             item.price = 7.0
             assert item.price == 7.0
             assert not isinstance(item.price, ClassTrait)
+
+
+# =====================================================================================
+#   Forward references between Traitable classes (analogous to typing.Self)
+# =====================================================================================
+
+
+class _ResolveKeyModuleLevelStub(Traitable):
+    pass
+
+
+class _ResolveKeyOuterStub:
+    class Inner(Traitable):
+        pass
+
+
+class TestForwardRefTraitables:
+    """Forward-reference Traitable annotations are resolved when the referenced
+    class is later defined, similarly to how `Self` is replaced with `cls`."""
+
+    def test_resolve_key_module_level_class(self):
+        c = _ResolveKeyModuleLevelStub
+
+        assert c.__qualname__ == '_ResolveKeyModuleLevelStub'
+
+        full = PyClass.name(c)
+        dot = full.rfind('.')
+        assert dot >= 0
+        peer_key = f'{full[:dot]}.Peer'
+
+        assert TraitableFwdRef.resolve_key(c, 'Peer') == peer_key
+
+    def test_resolve_key_nested_class_replaces_trailing_segment_only(self):
+        inn = _ResolveKeyOuterStub.Inner
+
+        assert inn.__qualname__ == '_ResolveKeyOuterStub.Inner'
+
+        full = PyClass.name(inn)
+        dot = full.rfind('.')
+        peer_key = f'{full[:dot]}.Peer'
+
+        assert TraitableFwdRef.resolve_key(inn, 'Peer') == peer_key
+
+    @staticmethod
+    def _exec_module(source: str, module_name: str):
+        """Execute `source` in a fresh module-like namespace and return the module.
+
+        Simulates a real `.py` file so that annotations are resolved against the
+        module's globals (not a function's locals).
+        """
+        import types as _types
+        mod = _types.ModuleType(module_name)
+        mod.__dict__['__name__'] = module_name
+        # Make the module discoverable for `from __future__ import annotations` /
+        # forward-ref eval that consults `sys.modules[cls.__module__].__dict__`.
+        sys.modules[module_name] = mod
+        try:
+            exec(compile(source, f'<{module_name}>', 'exec'), mod.__dict__)
+        except BaseException:
+            sys.modules.pop(module_name, None)
+            raise
+        return mod
+
+    def test_module_level_mutual_forward_ref(self):
+        """A and B reference each other at module scope; both data_types resolve."""
+        source = (
+            'from __future__ import annotations\n'
+            'from core_10x.trait_definition import T\n'
+            'from core_10x.traitable import Traitable\n'
+            '\n'
+            'class A(Traitable):\n'
+            '    aid: int = T(T.ID)\n'
+            '    b: B = T()\n'
+            '\n'
+            'class B(Traitable):\n'
+            '    bid: int = T(T.ID)\n'
+            '    a: A = T()\n'
+        )
+        mod = self._exec_module(source, 'test_traitable_fwd_ref_mod_level')
+        try:
+            cls_a, cls_b = mod.A, mod.B
+            assert cls_a.trait('b').data_type is cls_b
+            assert cls_b.trait('a').data_type is cls_a
+            assert cls_a.trait('b').t_def.data_type is cls_b
+            assert cls_b.trait('a').t_def.data_type is cls_a
+
+            with (CACHE_ONLY(),DEBUG_ON(),CONVERT_VALUES_OFF()):
+                a = cls_a(aid=1)
+                b = cls_b(bid=2)
+                a.b = b
+                b.a = a
+                assert a.b is b
+                assert b.a is a
+        finally:
+            sys.modules.pop('test_traitable_fwd_ref_mod_level', None)
+
+    def test_function_local_forward_ref(self):
+        """Forward refs work even when both classes are defined inside a function.
+
+        With `from __future__ import annotations` (active in this file), the
+        annotation `b: B` becomes the string 'B' automatically, so explicit
+        quoting is unnecessary (and would produce the wrong stringified form).
+        """
+        class A(Traitable):
+            aid: int = T(T.ID)
+            b: B = T()  # forward ref to B defined just below
+
+        class B(Traitable):
+            bid: int = T(T.ID)
+            a: A = T()
+
+        assert A.trait('b').data_type is B
+        assert B.trait('a').data_type is A
+
+        with CACHE_ONLY():
+            a = A(aid=1)
+            b = B(bid=2)
+            a.b = b
+            b.a = a
+            assert a.b is b
+            assert b.a is a
+
+    def test_self_reference_via_forward_ref_string(self):
+        """A class forward-referencing itself by name (not Self) still resolves."""
+        class Node(Traitable):
+            nid: int = T(T.ID)
+            parent: Node = T()  # self-forward-ref by name (not via Self)
+
+        assert Node.trait('parent').data_type is Node
+
+        with CACHE_ONLY():
+            root = Node(nid=1)
+            child = Node(nid=2)
+            child.parent = root
+            assert child.parent is root
+
+    def test_unresolved_forward_ref_leaves_placeholder(self):
+        """If the referenced class is never defined, the trait data type stays
+        a disposable placeholder subclass that raises on instantiation."""
+
+        class HasUnresolved(Traitable):
+            hid: int = T(T.ID)
+            ghost: NeverDefinedTraitable = T()  # noqa: F821 - intentionally never defined
+
+        key = TraitableFwdRef.resolve_key(HasUnresolved, 'NeverDefinedTraitable')
+
+        ph = HasUnresolved.trait('ghost').data_type
+
+        assert ph.__name__.startswith('_TraitableFwdRefPlaceholder#')
+        assert ph.__name__.split('#', 1)[1] == key
+
+        assert key in Traitable.s_fwd_ref_pending
+
+        assert any(
+            entry[0] is HasUnresolved and entry[1] == 'ghost'
+            for entry in Traitable.s_fwd_ref_pending[key]
+        )
+
+        with pytest.raises(TypeError, match=r'is unresolved'):
+            ph()
+
+        # Other tests assume no orphaned pending registrations.
+        Traitable.s_fwd_ref_pending.pop(key, None)
+
+    def test_non_identifier_string_annotation_still_errors(self):
+        """A non-identifier string annotation (e.g. `list[B]`) with an unknown
+        name does NOT get registered as a forward ref — it must error as before."""
+        with pytest.raises(TypeError, match='undeclared name in string annotation'):
+            class _BadFwd(Traitable):
+                xid: int = T(T.ID)
+                items: list[NeverEverExistsTraitable] = T()  # noqa: F821
