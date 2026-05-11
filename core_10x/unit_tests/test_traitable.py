@@ -24,7 +24,7 @@ from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModificati
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
-from core_10x.ts_store import TsStore
+from core_10x.ts_store import TsStoreMongoLike
 from core_10x.xnone import XNone
 
 if TYPE_CHECKING:
@@ -638,15 +638,12 @@ def test_serialize(monkeypatch):
 
         @classmethod
         def store(cls):
-            class Store:
+            class Store(TsStoreMongoLike):
                 def auth_user(self):
                     return 'test_user'
 
                 def transaction(self):
                     return contextlib.nullcontext()
-
-                def populate(self, params, serialized_data):
-                    return TsStore.populate(self, params, serialized_data)
 
                 def collection(self, collection_name):
                     class Collection:

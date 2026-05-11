@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 In-memory TestStore for testing TraitableHistory and other storage functionality.
 
@@ -19,8 +18,7 @@ from py10x_kernel import BTraitable, BTraitableProcessor
 
 from core_10x.nucleus import Nucleus
 from core_10x.resource import Resource
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
-from core_10x.ts_store_type import TS_STORE_TYPE
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, TsStoreMongoLike
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -218,8 +216,7 @@ class TestCollection(TsCollection):
         return min_doc
 
 
-
-class TestStore(TsStore, resource_name='TEST_DB'):
+class TestStore(TsStoreMongoLike, TsStore, resource_name='TEST_DB'):
     """In-memory store implementation for testing."""
 
     s_with_auth = False #-- flip to true in tests if necessary

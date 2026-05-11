@@ -1066,8 +1066,28 @@ def __getattr__(name):
         return Self
     raise AttributeError(name)
 
+class EventBase(Traitable, keep_history=False):
+    _at: datetime               = T() // 'time saved'
+    _who: str                   = T() // 'authenticated user, if any'
 
-class TraitableHistory(Traitable, keep_history=False):
+    def _serialize_object(self,save_references: bool = False):
+        serialized_data = super().serialize_object(save_references)
+        #TODO: consider changing to RT, and fixing deserialize to handle
+        for trait in EventBase.traits(flags_off=T.RESERVED):
+            del serialized_data[trait.name]
+        return serialized_data
+
+    def serialize_object(self, save_references: bool = False):
+        store = self.store()
+        return store.add_who(
+            self.T._who.name,
+            store.add_when(
+                self.T._at.name,
+                self._serialize_object(save_references)
+            )
+        )
+
+class TraitableHistory(EventBase, keep_history=False):
     s_traitable_class = None
     s_trait_name_map = dict(_traitable_id='_id', _traitable_rev='_rev')
 
@@ -1075,8 +1095,7 @@ class TraitableHistory(Traitable, keep_history=False):
     traitable: Traitable        = RT() // 'original traitable'
     serialized_traitable: dict  = RT()
 
-    _at: datetime               = T() // 'time saved'
-    _who: str                   = T() // 'authenticated user, if any'
+
     _traitable_id: str          = T() // 'original traitable id'
     _traitable_rev: int         = T() // 'original traitable rev'
     # fmt: on
@@ -1084,9 +1103,8 @@ class TraitableHistory(Traitable, keep_history=False):
     def _traitable_id_get(self) -> str:
         return self.serialized_traitable['_id']
 
-    def serialize_object(self, save_references: bool = False):
-        serialized_data = {**self.serialized_traitable, **super().serialize_object(save_references)}
-        return self.store().populate(['_who', '_at'], serialized_data)
+    def _serialize_object(self, save_references: bool = False):
+        return {**self.serialized_traitable, **super()._serialize_object(save_references)}
 
     def traitable_get(self):
         return Traitable.deserialize_object(
