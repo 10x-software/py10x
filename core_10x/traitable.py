@@ -1087,7 +1087,7 @@ class EventBase(Traitable, keep_history=False):
             )
         )
 
-class TraitableHistory(EventBase, keep_history=False):
+class TraitableHistory(EventBase):
     s_traitable_class = None
     s_trait_name_map = dict(_traitable_id='_id', _traitable_rev='_rev')
 
