@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`EventBase`** (`core_10x/traitable.py`): new base class for event-like traitables with `_at` (timestamp) and `_who` (authenticated user) traits that are populated server-side on `save()`. `TraitableHistory` now inherits from `EventBase`; `keep_history` is no longer required on `TraitableHistory` subclasses (it is inherited). Custom event collections can extend `EventBase` directly to get the same server-populated field behavior.
+- **Forward references to sibling `Traitable` classes**: bare string annotations (e.g. `peer: "Peer" = T()`) are now resolved lazily — when the referenced class is defined later in the same module or in a sibling module, the placeholder is patched automatically. Composite forms (`list["Peer"]`, `Optional["Peer"]`, etc.) still require the name to be defined earlier; only bare identifiers can be deferred.
+- **`NamedResource` bundle** (`core_10x/traitable.py`): a `Bundle` that associates a logical name with a resource URI and retrieves the live resource instance (with vault credentials when available). `NamedTsStore` is a built-in subclass mapping a name to a `TsStore` URI; used by the per-class store resolution mechanism.
+- **User status utility** (`core_10x/apps/user_status.py`): CLI/programmatic helper that prints the current user's vault and resource-access status. The companion **User Onboarding Auth guide** (`docs/USER_ONBOARDING_AUTH.md`) provides step-by-step instructions for setting up authenticated access.
+- **URL support for test store** (`core_10x/testlib/test_store.py`): `TestStore` can now be initialized from a URI string, matching the interface of production stores.
+- **`RC` supports `sum()` builtin** (`core_10x/rc.py`): `__radd__` now handles `other == 0` so `sum([rc1, rc2, rc3])` aggregates a list of `RC` results without needing an explicit starting value.
 - **Environment variables** (`core_10x/environment_variables.py`):
   - **`AssertVar` removed, replaced by `EnvVars.var.<name>`** — the attribute returns a `Var` wrapper with `.value`, `.attr_name`, boolean truthiness, and `.check(predicate=None, err='is not defined')` that raises **`ValueError`** (previously `AssertionError` from `EnvVars.assert_var.<name>`) on missing or predicate-failing values. New helpers `EnvVars.create_var_name(env_name, attr_name)` and `EnvVars.var_name(var_or_name)` compute the `XX_`-prefixed env var name from a `Var` or attribute name.
   - **New env vars**: `XX_GRAPH_ON` (enter `GRAPH_ON()` at process start), `XX_LOG_TS_STORE_URI` (Mongo URI for `LOG` persistence — stdout-only when unset), `XX_USE_TS_STORE_TRANSACTIONS` (wrap multi-save operations in TsStore transactions; used by `Traitable._transaction_ctx`, `SaveIfChanged`, history saves, and `save(save_references=True)`).
@@ -31,12 +37,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ROADMAP.md`**, **`AGENTS.md`**: project/agent guidance updates.
 
 ### Changed
+- **`Self` return types on `Traitable` methods** (`core_10x/traitable.py`): constructor-like and fluent methods now declare `-> Self` where applicable, giving IDEs accurate type information without losing subclass specificity.
+- **Canonical resource URI with default port** (`core_10x/resource.py`): resource URIs are now normalized to include an explicit default port, giving a single canonical form across connection scenarios.
 - **`T.EMBEDDED` is now optional**: traits that hold an embeddable `Traitable` type no longer need to be explicitly marked `T.EMBEDDED` — serialization detects and embeds them automatically. Traits that *are* marked `T.EMBEDDED` enforce that every stored value is a fully embedded object; traits *without* the flag accept both fully and partially embedded values.
 - **`T.STICKY`** (alias `BTraitFlags.OFFGRAPH_SET`): when a getter computes a value while the object is in off-graph mode the result is automatically written back to the trait slot, so subsequent reads return the cached value without re-running the getter. This is the right flag for mutable container traits (such as bucket lists) that need to hold state across calls without participating in the dependency graph.
 - **`Traitable` value-access methods** (py10x-kernel + py10x-core): overloaded `get_value` / `set_value` / `raw_set_value` / `invalidate_value` / `is_valid` replaced by statically dispatched pairs — name-based variants keep their original names; `Trait`-object variants are renamed with a `_trait_` infix (e.g. `get_trait_value`, `set_trait_value`). `*_with_args` suffixed variants replace the `*args` overloads. See *Breaking Changes* for the full mapping.
 - **`core_10x/ts_store.py`**, **`core_10x/ts_union.py`**, **`core_10x/resource.py`**, **`core_10x/nucleus.py`**: store/resource refactoring and transaction support.
 - **UI** (`ui_10x`): `traitable_editor`, `table_view` / `table_header_view`, `utils`, `concrete_trait_widgets`, Qt tables, macOS commit filter, Rio line-edit test tweak; new/updated examples (**`price_simulator`**, **`guess_word`** refresh).
 
+
+### Fixed
+- **`IN` filter operator** (`core_10x/trait_filter.py`): `IN(values)` now also accepts a `set`, in addition to `list` and `tuple`, as the values argument.
+- **`trait_filter.py` inner-filter class leak**: `traitable_class` set on an outer filter was incorrectly overriding the `traitable_class` of any nested inner filter; each filter sub-expression now retains its own class context.
+- **Bundle / history interaction** (`core_10x/traitable.py`): history records for bundle members are now written to each member's class-specific collection rather than the shared bundle base collection; fixes a crash when a history-keeping member was saved through a bundle.
+- **`Traitable.is_bundle`** corrected to return `True` only for bundle base classes and bundle members, not for unrelated traitables that happened to share collection names.
+- **Storage helper sharing bug** (`core_10x/traitable.py`): subclasses were written to the wrong collection when a superclass's storage helper was read or written first; each class now keeps its own helper instance.
+- **MongoDB utils for non-standard ports** (`infra_10x/mongodb_utils.py`, `infra_10x/mongodb_admin.py`): connection strings with explicit non-default ports are now parsed and forwarded correctly.
+- **Admin vault workflow** (`core_10x/apps/admin_save_user_credentials.py`): the admin flow no longer attempts to decrypt a user's private key (it does not have access to it); a Resource Accessor for the vault host is now auto-saved so that other databases on the same host become accessible without additional setup steps.
+- **`curve.value` float coercion** (`xx_common/curve.py`): `curve.value` now always returns a `float`; previously it could return an `int` or `numpy` scalar in edge cases.
 
 ## [0.1.14] - 2026-02-14
 
@@ -215,7 +233,7 @@ No separate changelog; see Version History below.
 
 ## Version History
 
-- **Unreleased**: Basket/Bucket; NamedCallable/ClassTrait; NamedConstantValue/Table; rel_db, scenario, logger; xx_common split; infra/mongo and UI updates; test run from installed package; CI Mongo action
+- **Unreleased**: EventBase; forward refs for sibling Traitables; NamedResource bundle; user status util + onboarding guide; RC.sum(); Self return types; canonical resource URI; filter fixes (IN set, inner-class leak); bundle/history fix; is_bundle fix; storage sharing fix; MongoDB non-standard port fix; admin vault workflow fix; curve.value float fix; Basket/Bucket; NamedCallable/ClassTrait; NamedConstantValue/Table; rel_db, scenario, logger; xx_common split; infra/mongo and UI updates; test run from installed package; CI Mongo action
 - **0.1.14**: Open source release; README overhaul (value prop, Hello World, when to use, full GitHub links)
 - **0.1.13**: Windows test fixes; history bug fix and more robust traitable history tests; pyproject fix; docs updated
 - **0.1.12**: This package rename to `py10x-universe` → `py10x-core`; docs updated

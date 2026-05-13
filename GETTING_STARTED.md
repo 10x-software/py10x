@@ -792,6 +792,29 @@ with CACHE_ONLY():
     assert person.serialize_object()['address'] == {'street': '123 Main St', 'city': 'Anytown', 'zip_code': '12345'}
 ```
 
+### Forward References to Sibling Traitable Classes
+
+When two `Traitable` classes reference each other — or when a class is defined after the one that references it — you can use a **bare string annotation** to defer resolution until the referenced class has been registered:
+
+```python
+from core_10x.traitable import Traitable, T
+
+class Order(Traitable):
+    order_id: str       = T(T.ID)
+    customer: "Customer" = T()   # Customer is defined below
+
+class Customer(Traitable):
+    name: str           = T(T.ID)
+    primary_order: "Order" = T() # mutual reference is fine too
+```
+
+`py10x-core` resolves bare string annotations (simple identifiers only) lazily: as each `Traitable` class is registered, any pending forward references that match its name are patched automatically. No manual `update_forward_refs()` call is needed.
+
+**Limitations**:
+
+- Only **bare identifiers** (`"Peer"`) can be deferred. Composite forms such as `"list[Peer]"`, `"Optional[Peer]"`, and similar must resolve immediately — define the referenced class earlier, or use `typing.TYPE_CHECKING` to guard a non-string annotation.
+- Forward references across **different packages** work if the target class is imported and registered before the referencing module is fully evaluated; if uncertain, put the import at the top of the file rather than relying on deferred resolution.
+
 ## Execution Modes and Control
 
 `py10x-core` provides fine-grained control over computation and execution through execution modes. Each mode has specific overhead and benefits that should be considered based on your use case.
