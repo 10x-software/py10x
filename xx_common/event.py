@@ -7,23 +7,24 @@ from core_10x.traitable import Traitable, T, RT, RC
 from core_10x.trait_filter import BETWEEN, LT, LE, GT, GE, f
 
 
-class Event(Traitable, custom_collection = True, keep_history = False):
+#class Event(Traitable, custom_collection = True, keep_history = False):
+class Event(Traitable, keep_history = False):
     s_base_perf: int = None
     s_base_wall: int = 0
-    at: int = RT(T.ID_LIKE)
+    #at: int = RT(T.ID_LIKE)
 
-    at_dt: datetime     = T(T.ID)
-    at_ns: int          = T(T.ID)
+    at_dt: datetime     = T(1)
+    at_ns: int          = T(1)
 
-    def at_get(self) -> int:
-        ns = time.perf_counter_ns()
-        if self.s_base_perf is None:
-            self.s_base_wall = time.time_ns()
-            self.s_base_perf = ns
-        return ns
+    # def at_get(self) -> int:
+    #     ns = time.perf_counter_ns()
+    #     if self.s_base_perf is None:
+    #         self.s_base_wall = time.time_ns()
+    #         self.s_base_perf = ns
+    #     return ns
 
-    def at_dt_get(self) -> datetime:
-        ...
+    # def at_dt_get(self) -> datetime:
+    #     ...
 
     @classmethod
     def between(cls, start: datetime, end: datetime, including_start = True, including_end = True, _coll_name: str = None):
