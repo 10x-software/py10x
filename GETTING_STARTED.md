@@ -801,11 +801,11 @@ from core_10x.traitable import Traitable, T
 
 class Order(Traitable):
     order_id: str       = T(T.ID)
-    customer: "Customer" = T()   # Customer is defined below
+    customer: Customer = T()   # Customer is defined below
 
 class Customer(Traitable):
     name: str           = T(T.ID)
-    primary_order: "Order" = T() # mutual reference is fine too
+    primary_order: Order = T() # mutual reference is fine too
 ```
 
 `py10x-core` resolves bare string annotations (simple identifiers only) lazily: as each `Traitable` class is registered, any pending forward references that match its name are patched automatically. No manual `update_forward_refs()` call is needed.
