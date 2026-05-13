@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import functools
 import operator
+import re
 import sys
 import types
 import warnings
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
@@ -120,6 +122,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_own_trait_definitions = None
     T = UnboundTraitAccessor()
 
+    s_cls_by_canonical_name: dict[str, type] = {}                                  # -- used when non-module locals hide names from eval.
+    s_fwd_ref_pending: dict[str, list[tuple[type, str, str]]] = defaultdict(list)  # -- fwd ref placeholders by canonical name
+    s_fwd_ref_simple_name_rx = re.compile(r'^[A-Za-z_][A-Za-z0-9_]*$')             # -- simple names only supported for
+                                                                                   # forward refs and non-module-scoped types
     _collection_name: str = XNone
     _rev: int = XNone
 
@@ -196,10 +202,33 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             return old_trait.data_type
 
         if isinstance(dt, str):
+            ann_str = dt
             try:
                 dt = eval(dt, module_dict, class_dict)
+            except NameError as e:
+                # -- Bare sibling Traitable refs: registry when eval misses non-module locals; else defer.
+                if cls.s_fwd_ref_simple_name_rx.match(ann_str):
+                    resolve_key = TraitableFwdRef.resolve_key(cls, ann_str)
+
+                    if (dt := cls.s_cls_by_canonical_name.get(resolve_key)) is None:
+                        cls.s_fwd_ref_pending[resolve_key].append((cls, trait_name, ann_str))
+                        dt = TraitableFwdRef.placeholder(cls.__module__ or '__traitable_fwd__', resolve_key)
+                else:
+                    mod_nm = module_dict.get('__name__', '?')
+                    rc <<= (
+                        f'`{trait_name}`: undeclared name in string annotation `{ann_str}` in module `{mod_nm}` '
+                        f'({e}). Traitable sibling forward references rely on a bare identifier (e.g. `peer: Peer = T()`); '
+                        'composite forms such as `list[Peer]`, optional unions, etc. cannot be deferred and must '
+                        'resolve immediately (define the name earlier, avoid post-PEP563 string forms here, '
+                        'or use `typing.TYPE_CHECKING`).'
+                    )
+                    return None
             except Exception as e:
-                rc <<= f'Failed to evaluate type annotation string `{dt}` for `{trait_name}`: {e} in {module_dict["__name__"]}'
+                mod_nm = module_dict.get('__name__', '?')
+                rc <<= (
+                    f'`{trait_name}`: failed to evaluate type annotation string `{ann_str}` '
+                    f'in module `{mod_nm}`: {e}'
+                )
                 return None
         if dt is Self:
             dt = cls
@@ -219,6 +248,27 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
                 return None
 
         return dt
+
+    @classmethod
+    def resolve_pending_forward_refs(cls, rc) -> None:
+        """Patch sibling traits keyed by canonical ``class`` name (:meth:`~PyClass.name`)."""
+
+        resolution_key = PyClass.name(cls)
+        cls.s_cls_by_canonical_name[resolution_key] = cls
+
+        pending = cls.s_fwd_ref_pending.pop(resolution_key, None)
+        if not pending:
+            return
+
+        rc = RC(True)
+        for other_cls, trait_name, _ref_str in pending:
+            trait = other_cls.s_dir.get(trait_name)
+            if trait is None:
+                continue  # -- trait was redefined / removed since registration
+            trait.data_type = cls
+            trait.t_def.data_type = cls
+            trait.check_integrity(other_cls, rc)
+
 
     @classmethod
     def inherited_trait_dirs(cls) -> Generator[dict[str, Trait]]:
@@ -351,6 +401,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             trait.check_integrity(cls, rc)
             setattr(cls, trait_name, trait)
         cls.check_integrity(root_class, rc)
+        cls.resolve_pending_forward_refs(rc)
         rc.throw()
 
     @classmethod
@@ -662,7 +713,40 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         """Restore a traitable to a specific point in time."""
         return cls.s_storage_helper.restore(traitable_id,timestamp,save)
 
+
+class TraitableFwdRef(Traitable, root_class=True):
+    """Internal base for deferred sibling Traitable annotations; not for direct use."""
+
+    @staticmethod
+    def resolve_key(owner_cls: type, referenced_simple_name: str) -> str:
+        """Canonical name of the referenced sibling (trailing segment of :meth:`~PyClass.name` swapped)."""
+        full = PyClass.name(owner_cls)
+        dot = full.rfind('.')
+        if dot < 0:
+            return referenced_simple_name
+        return f'{full[:dot]}.{referenced_simple_name}'
+
+    def __new__(cls, *args, **kwargs):
+        if cls is TraitableFwdRef:
+            raise TypeError('TraitableFwdRef cannot be instantiated')
+        rk = cls.__name__.split('#')
+        if len(rk)<2:
+            raise TypeError('TraitableFwdRef may not be subclassed from application code')
+        raise TypeError(
+            f'Traitable forward reference {rk[1]!r} is unresolved; '
+            'define the referenced Traitable subclass or fix the annotation.'
+        )
+
+    @staticmethod
+    @cache
+    def placeholder(mod_nm: str, resolve_key: str) -> type:
+        placeholder = types.new_class(f'_TraitableFwdRefPlaceholder#{resolve_key}', (TraitableFwdRef,), dict(root_class=True))
+        placeholder.__module__ = mod_nm
+        return placeholder
+
+
 Traitable.s_bclass = BTraitableClass(Traitable)
+
 
 @dataclass
 class AbstractStorableHelper(ABC):
@@ -982,8 +1066,28 @@ def __getattr__(name):
         return Self
     raise AttributeError(name)
 
+class EventBase(Traitable, keep_history=False):
+    _at: datetime               = T() // 'time saved'
+    _who: str                   = T() // 'authenticated user, if any'
 
-class TraitableHistory(Traitable, keep_history=False):
+    def _serialize_object(self,save_references: bool = False):
+        serialized_data = super().serialize_object(save_references)
+        #TODO: consider changing to RT, and fixing deserialize to handle
+        for trait in EventBase.traits(flags_off=T.RESERVED):
+            del serialized_data[trait.name]
+        return serialized_data
+
+    def serialize_object(self, save_references: bool = False):
+        store = self.store()
+        return store.add_who(
+            self.T._who.name,
+            store.add_when(
+                self.T._at.name,
+                self._serialize_object(save_references)
+            )
+        )
+
+class TraitableHistory(EventBase):
     s_traitable_class = None
     s_trait_name_map = dict(_traitable_id='_id', _traitable_rev='_rev')
 
@@ -991,8 +1095,7 @@ class TraitableHistory(Traitable, keep_history=False):
     traitable: Traitable        = RT() // 'original traitable'
     serialized_traitable: dict  = RT()
 
-    _at: datetime               = T() // 'time saved'
-    _who: str                   = T() // 'authenticated user, if any'
+
     _traitable_id: str          = T() // 'original traitable id'
     _traitable_rev: int         = T() // 'original traitable rev'
     # fmt: on
@@ -1000,9 +1103,8 @@ class TraitableHistory(Traitable, keep_history=False):
     def _traitable_id_get(self) -> str:
         return self.serialized_traitable['_id']
 
-    def serialize_object(self, save_references: bool = False):
-        serialized_data = {**self.serialized_traitable, **super().serialize_object(save_references)}
-        return self.store().populate(['_who', '_at'], serialized_data)
+    def _serialize_object(self, save_references: bool = False):
+        return {**self.serialized_traitable, **super()._serialize_object(save_references)}
 
     def traitable_get(self):
         return Traitable.deserialize_object(
@@ -1276,11 +1378,16 @@ class VaultResourceAccessor(Traitable):
             password = self.user.sec_keys.decrypt_text(self.password),
         )
 
+    @staticmethod
+    def _canonical_uri(resource_dt: CONCRETE_RESOURCE, uri: str) -> str:
+        return resource_dt.value.spec_from_uri(uri).uri()
+
     @classmethod
     def save_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, password: str, login: str = None, username: str = XNone) -> RC:
         if login is None:
             login = username
 
+        resource_uri = cls._canonical_uri(resource_dt, resource_uri)
         ra = cls(username = username, resource_dt = resource_dt, resource_uri = resource_uri)
         user = ra.user
         rc = ra.set_values(
@@ -1298,12 +1405,13 @@ class VaultResourceAccessor(Traitable):
         if not username:
             username = VaultUser.myname()
 
+        resource_uri = cls._canonical_uri(resource_dt, resource_uri)
         ra = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = resource_uri, _throw = False)
         if not ra:
             uri = Resource.uri_no_dbname(resource_uri)
             ra = cls.existing_instance(resource_dt = resource_dt, username = username, resource_uri = uri, _throw = False)
             if not ra:
-                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt}({uri}/*)' not found")
+                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt.name}({uri}/*)' not found")
 
         fake_ra = VaultResourceAccessor(resource_dt = resource_dt, username = username, resource_uri = resource_uri)
         fake_ra.login = ra.login

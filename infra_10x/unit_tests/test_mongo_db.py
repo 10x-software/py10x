@@ -1,6 +1,8 @@
+from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.testlib.fixtures import with_transactions
 from core_10x.testlib.ts_tests import TestTSStore, ts_setup  # collected by pytest
 from core_10x.testlib.ts_store_transaction_tests import TestSaveIfChanged, TestTsStoreTransaction  # collected by pytest
+from core_10x.traitable import VaultResourceAccessor
 from infra_10x.mongodb_store import MongoCollection, MongoStore
 
 
@@ -16,6 +18,20 @@ def test_mongo_parse_uri_round_trip():
     # Options are driver-dependent; we only require that custom options are propagated.
     assert 'serverSelectionTimeoutMS' in args
 
+
+def test_spec_from_uri_includes_protocol_tag():
+    spec = MongoStore.spec_from_uri('mongodb://localhost:27017/testdb')
+    assert spec.kwargs.get(MongoStore.PROTOCOL_TAG) == 'mongodb'
+
+
+def test_mongo_canonical_uri_adds_default_port():
+    no_port   = VaultResourceAccessor._canonical_uri(
+        CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com/mydb')
+    with_port = VaultResourceAccessor._canonical_uri(
+        CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com:27017/mydb')
+
+    assert ':27017' in no_port
+    assert no_port == with_port
 
 def test_filter_and_pipeline_equivalence():
     from py10x_infra import MongoCollectionHelper

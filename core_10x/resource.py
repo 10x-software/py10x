@@ -124,14 +124,10 @@ class ResourceSpec:
                 userinfo += f':{quote(password, safe="")}'
             userinfo += '@'
 
-        host_netloc = kwargs.pop(Resource.NETLOC_TAG, None)
-        if host_netloc is None:     #-- kwargs were constructed manually, not via parse_uri
-            host = kwargs.pop(Resource.HOSTNAME_TAG, '')
-            port = kwargs.pop(Resource.PORT_TAG, None)
-            host_netloc = f'{host}:{port}' if port else host
-        else:
-            kwargs.pop(Resource.HOSTNAME_TAG, None)
-            kwargs.pop(Resource.PORT_TAG, None)
+        port = kwargs.pop(Resource.PORT_TAG, None)
+        host = kwargs.pop(Resource.HOSTNAME_TAG, None) or ''
+        if port is None: # add default port
+            port = self.resource_class.s_instance_kwargs_map.get(Resource.PORT_TAG, (None, None))[1]
 
         dbname   = kwargs.pop(Resource.DBNAME_TAG, None)
         query    = kwargs.pop(Resource.QUERY_TAG, '')
@@ -142,7 +138,7 @@ class ResourceSpec:
 
         #-- always emit '//' so empty-netloc URIs like duckdb:// or duckdb:///path round-trip correctly;
         #-- urlunsplit drops '//' for unknown schemes when netloc is empty
-        netloc = userinfo + host_netloc
+        netloc = userinfo + (f'{host}:{port}' if port is not None else host)
         path   = f'{"/" if dbname[0]!="/" else ""}{dbname}' if dbname else ''
         url    = f'{protocol}://{netloc}{path}'
         if query:
@@ -153,7 +149,6 @@ class ResourceSpec:
 
 class Resource(abc.ABC):
     PROTOCOL_TAG    = 'protocol'
-    NETLOC_TAG      = 'netloc'      #-- host+port portion of netloc, as formatted by urlsplit (IPv6 brackets preserved)
     HOSTNAME_TAG    = 'hostname'
     PORT_TAG        = 'port'
     USERNAME_TAG    = 'username'
@@ -166,6 +161,7 @@ class Resource(abc.ABC):
     s_instance_kwargs_map = {
         HOSTNAME_TAG:  (HOSTNAME_TAG, None),
         USERNAME_TAG:  (USERNAME_TAG, None),
+        PASSWORD_TAG:  (PASSWORD_TAG, None),
         DBNAME_TAG:    (DBNAME_TAG,   None),
         PORT_TAG:      (PORT_TAG,     None),
     }
@@ -182,7 +178,6 @@ class Resource(abc.ABC):
 
             kwargs = {
                 cls.PROTOCOL_TAG: parts.scheme,
-                cls.NETLOC_TAG:   parts.netloc.split('@', 1)[-1],   #-- strip userinfo; urlsplit already formatted host (IPv6 brackets etc.)
                 cls.USERNAME_TAG: parts.username,
                 cls.PASSWORD_TAG: parts.password,
             }
@@ -252,7 +247,9 @@ class Resource(abc.ABC):
 
     @classmethod
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
-        return ResourceSpec(cls, cls.parse_uri(uri))
+        kwargs = cls.parse_uri(uri)
+        kwargs.setdefault(cls.PROTOCOL_TAG, uri.split(':')[0])
+        return ResourceSpec(cls, kwargs)
 
     @abc.abstractmethod
     def on_enter(self): ...
@@ -262,26 +259,23 @@ class Resource(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def new_instance(cls, *args, password: str, **kwargs) -> Self: ...
+    def new_instance(cls, *args, **kwargs) -> Self: ...
 
     @classmethod
     def translate_kwargs(cls, kwargs: dict) -> dict:
-        kwargs_map = cls.s_instance_kwargs_map
-        def_kwargs = {name: def_value for name, (real_name, def_value) in kwargs_map.items()}
-        def_kwargs.update(kwargs)
-        return {kwargs_map[name][0]: value for name, value in def_kwargs.items()}
+        return {real_name: kwargs.get(name,def_value) for name, (real_name, def_value) in cls.s_instance_kwargs_map.items()}
 
     @classmethod
-    def instance(cls, *args, password: str = '', _cache: bool = True, **kwargs) -> Self:
+    def instance(cls, *args, _cache: bool = True, **kwargs) -> Self:
         translated_kwargs = cls.translate_kwargs(kwargs)
         try:
             if not _cache:
-                return cls.new_instance(*args, password=password, **translated_kwargs)
+                return cls.new_instance(*args, **translated_kwargs)
 
             instance_key = cls.standard_key(*args, **kwargs)
             resource = cls.s_instances.get(instance_key)
             if not resource:
-                resource = cls.new_instance(*args, password=password, **translated_kwargs)
+                resource = cls.new_instance(*args, **translated_kwargs)
                 cls.s_instances[instance_key] = resource
 
             return resource
@@ -290,7 +284,7 @@ class Resource(abc.ABC):
             raise OSError(f'Failed to connect to {cls.s_driver_name}({args}, {translated_kwargs})\nOriginal Exception:\n{e!s}') from e
 
     @classmethod
-    def standard_key(cls, *args, **kwargs) -> tuple:
+    def standard_key(cls, *args, password=None, **kwargs) -> tuple:
         return standard_key(args, kwargs)
 
 class NullResource:

@@ -124,7 +124,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         raise NotImplementedError('TsUnion does not support URI parsing')
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str) -> tuple:  # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)
         raise NotImplementedError
 
     @classmethod
@@ -132,7 +132,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
         return tuple(cls.s_resource_type.resource_driver(kw['driver_name']).standard_key(**kw) for kw in args)
 
     @classmethod
-    def new_instance(cls, *args, password: str = "",  **kwargs) -> TsUnion:
+    def new_instance(cls, *args, **kwargs) -> TsUnion:
         stores = [cls.s_resource_type.resource_driver(kw.pop('driver_name')).instance(**kw) for kw in args]
         return TsUnion(*stores)
 
@@ -151,6 +151,13 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
 
     def auth_user(self) -> str | None:
         return self.stores[0].auth_user() if self.stores else None
+
+    def add_who(self, field: str, serialized_data: dict) -> dict:
+        return self.stores[0].add_who(field, serialized_data) if self.stores else serialized_data
+
+    def add_when(self, field: str, serialized_data: dict) -> dict:
+        return self.stores[0].add_when(field, serialized_data) if self.stores else serialized_data
+
 
     def transaction(self):
         """Context manager for transactional operations. Delegates to base (no stores) or first store."""

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key, TsStoreMongoLike
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, errors
 from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
@@ -147,11 +147,11 @@ class MongoCollection(TsCollection):
         return None
 
 
-class MongoStore(TsStore, resource_name = 'MONGO_DB'):
+class MongoStore(TsStoreMongoLike, TsStore, resource_name = 'MONGO_DB'):
     ADMIN           = 'admin'
     DEFAULT_DB_NAME = 'local'
 
-    s_instance_kwargs_map = dict(
+    s_instance_kwargs_map = TsStore.s_instance_kwargs_map | dict(
         port    = ('port',                      27017),
         ssl     = ('ssl',                       False),
         sst     = ('serverSelectionTimeoutMS',  10000),

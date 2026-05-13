@@ -122,11 +122,6 @@ class TsStore(Resource, resource_type=TS_STORE):
             self._active_transactions.pop()
             transaction.ended = True
 
-    def __init_subclass__(cls, **kwargs):
-        super().__init_subclass__(**kwargs)
-        assert cls.__mro__[1] is TsStore, 'TsStore must be the first base class'
-        cls.s_instance_kwargs_map = {**TsStore.s_instance_kwargs_map, **cls.s_instance_kwargs_map}
-
     @staticmethod
     def store_class(store_class_name: str):
         cls = PyClass.find(store_class_name, TsStore)
@@ -138,7 +133,9 @@ class TsStore(Resource, resource_type=TS_STORE):
         parts = uri.split(':', maxsplit=1)
         protocol = parts[0]
         ts_class = TS_STORE_TYPE.ts_store_class(protocol)
-        return ResourceSpec(ts_class, ts_class.parse_uri(uri))
+        kwargs = ts_class.parse_uri(uri)
+        kwargs.setdefault(ts_class.PROTOCOL_TAG, protocol)
+        return ResourceSpec(ts_class, kwargs)
 
     @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)
@@ -162,25 +159,14 @@ class TsStore(Resource, resource_type=TS_STORE):
     @abc.abstractmethod
     def auth_user(self) -> str | None: ...
 
+    @abc.abstractmethod
+    def add_who(self, field: str, serialized_data: dict) -> dict: ...
+
+    @abc.abstractmethod
+    def add_when(self, field: str, serialized_data: dict) -> dict: ...
+
     def supports_transactions(self) -> bool:
         return True
-
-    def populate(self, params: list[str], serialized_data: dict):
-        """Populate specified params on the server, if possible.
-        This should be overridden in subclasses as needed"""
-        populated_data = {
-            '$set': serialized_data,
-        }
-        for param in sorted(params, reverse=True):
-            if param == '_who':
-                serialized_data['_who'] = self.auth_user()
-                continue
-            if param == '_at':
-                del serialized_data['_at']
-                populated_data['$currentDate'] = {'_at': True}
-                continue
-            raise KeyError(param)
-        return populated_data
 
     def copy_to(self, to_store: TsStore, overwrite: bool = False) -> RC:
         """Copy all collections from this store to another store."""
@@ -206,6 +192,25 @@ class TsStore(Resource, resource_type=TS_STORE):
                 tx.commit()
             else:
                 tx.abort()
+
+
+class TsStoreMongoLike:
+    SET = '$set'
+    def add_who(self, field: str, serialized_data: dict) -> dict:
+        sd = serialized_data.get(self.SET,serialized_data)
+        if field in sd:
+            raise RuntimeError(f'Field {field} is already in use.')
+        sd['_who'] = self.auth_user()
+        return serialized_data
+
+    def add_when(self, field: str, serialized_data: dict) -> dict:
+        sd = serialized_data.get(self.SET,serialized_data)
+        if field in sd:
+            raise RuntimeError(f'Field {field} is already in use.')
+        if sd is serialized_data:
+            serialized_data = {self.SET: sd}
+        serialized_data.setdefault('$currentDate',{})[field] = True
+        return serialized_data
 
 
 @contextmanager

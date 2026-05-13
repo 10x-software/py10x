@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 In-memory TestStore for testing TraitableHistory and other storage functionality.
 
@@ -19,8 +18,7 @@ from py10x_kernel import BTraitable, BTraitableProcessor
 
 from core_10x.nucleus import Nucleus
 from core_10x.resource import Resource
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
-from core_10x.ts_store_type import TS_STORE_TYPE
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, TsStoreMongoLike
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -218,8 +216,7 @@ class TestCollection(TsCollection):
         return min_doc
 
 
-
-class TestStore(TsStore, resource_name='TEST_DB'):
+class TestStore(TsStoreMongoLike, TsStore, resource_name='TEST_DB'):
     """In-memory store implementation for testing."""
 
     s_with_auth = False #-- flip to true in tests if necessary
@@ -259,12 +256,14 @@ class TestStore(TsStore, resource_name='TEST_DB'):
         super().__init__()
         self._collections = {}
         self._collection_names = set()
-        # Set a default username for testing
         self.username = kwargs.get('username', 'test_user')
 
     @classmethod
-    def new_instance(cls, *args, password: str = '', **kwargs) -> TestStore:
-        """Create a new TestStore instance."""
+    def standard_key(cls, *args, username=None, **kwargs) -> tuple:
+        return super().standard_key(*args, **kwargs)
+
+    @classmethod
+    def new_instance(cls, *args, **kwargs) -> TestStore:
         return cls(*args, **kwargs)
 
     @classmethod
@@ -273,7 +272,9 @@ class TestStore(TsStore, resource_name='TEST_DB'):
         if not uri.startswith('testdb:'):
             raise ValueError(f'Invalid TestStore URI: {uri}')
         parts = urlsplit(uri)
-        kwargs: dict = {}
+        kwargs: dict = {
+            Resource.PROTOCOL_TAG: parts.scheme,
+        }
         if parts.hostname is not None:
             kwargs[Resource.HOSTNAME_TAG] = parts.hostname
         if parts.port is not None:
