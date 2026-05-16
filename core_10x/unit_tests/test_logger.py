@@ -95,19 +95,19 @@ class TestLOGGuard:
             log_module.LOGGER = original
 
     def test_brief_raises_without_logger(self):
-        with pytest.raises(AssertionError, match=r'LOG.begin'):
+        with pytest.raises(RuntimeError, match=r'LOG.begin'):
             self._with_no_logger(lambda: LOG.BRIEF('hello'))
 
     def test_medium_raises_without_logger(self):
-        with pytest.raises(AssertionError, match=r'LOG.begin'):
+        with pytest.raises(RuntimeError, match=r'LOG.begin'):
             self._with_no_logger(lambda: LOG.MEDIUM('hello'))
 
     def test_detailed_raises_without_logger(self):
-        with pytest.raises(AssertionError, match=r'LOG.begin'):
+        with pytest.raises(RuntimeError, match=r'LOG.begin'):
             self._with_no_logger(lambda: LOG.DETAILED('hello'))
 
     def test_verbose_raises_without_logger(self):
-        with pytest.raises(AssertionError, match=r'LOG.begin'):
+        with pytest.raises(RuntimeError, match=r'LOG.begin'):
             self._with_no_logger(lambda: LOG.VERBOSE('hello'))
 
     def test_none_payload_skips_data_construction(self):

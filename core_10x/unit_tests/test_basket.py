@@ -780,14 +780,14 @@ class TestAddBucketizer:
 class TestBucketizersSetterAfterAdd:
     """Tests for the bucketizers setter.
 
-    ``reset_mambers_on_set_bucketizers`` (default ``True``) controls whether
+    ``reset_members_on_set_bucketizers`` (default ``True``) controls whether
     setting ``basket.bucketizers`` clears existing members or re-sorts them.
     Tests that verify re-sorting behavior opt in with
-    ``reset_mambers_on_set_bucketizers=False``.
+    ``reset_members_on_set_bucketizers=False``.
     """
 
     # ------------------------------------------------------------------
-    # Default behavior: reset_mambers_on_set_bucketizers=True (default)
+    # Default behavior: reset_members_on_set_bucketizers=True (default)
     # ------------------------------------------------------------------
 
     def test_setter_default_clears_members(self):
@@ -863,11 +863,11 @@ class TestBucketizersSetterAfterAdd:
             assert list(b.the_bucket.members()) == []
 
     # ------------------------------------------------------------------
-    # Rebucketing behavior: reset_mambers_on_set_bucketizers=False
+    # Rebucketing behavior: reset_members_on_set_bucketizers=False
     # ------------------------------------------------------------------
 
     def test_setter_rebuckets_members_added_before(self):
-        """With reset_mambers_on_set_bucketizers=False, setting bucketizers
+        """With reset_members_on_set_bucketizers=False, setting bucketizers
         after members are already in the basket re-sorts those members."""
         with CACHE_ONLY():
             fido = Animal(name='fido_s')
@@ -875,7 +875,7 @@ class TestBucketizersSetterAfterAdd:
             chonk = Animal(name='chonk_s')
             chonk.weight = 90.0
 
-            b = Basket(base_class=Animal, reset_mambers_on_set_bucketizers=False)
+            b = Basket(base_class=Animal, reset_members_on_set_bucketizers=False)
             b.add(fido)
             b.add(chonk)
             assert b.bucketizers == []
@@ -901,7 +901,7 @@ class TestBucketizersSetterAfterAdd:
             fido.weight = 10.0
             fido.species = 'canine'
 
-            b = Basket(base_class=Animal, reset_mambers_on_set_bucketizers=False)
+            b = Basket(base_class=Animal, reset_members_on_set_bucketizers=False)
             b.add(fido)
 
             bz_species = Bucketizer.by_feature(Animal, lambda a: a.species, 'canine')
@@ -927,7 +927,7 @@ class TestBucketizersSetterAfterAdd:
             kitty = Cat(name='kitty_t')
             kitty.weight = 5.0
 
-            b = Basket(base_class=Animal, reset_mambers_on_set_bucketizers=False)
+            b = Basket(base_class=Animal, reset_members_on_set_bucketizers=False)
             b.add(fido)
             b.add(kitty)
 
@@ -951,7 +951,7 @@ class TestBucketizersSetterAfterAdd:
             fido = Animal(name='fido_empty')
             fido.weight = 10.0
             bz = Bucketizer.by_range(Animal, lambda a: a.weight, ['any', 0.0, XInf])
-            b = Basket(base_class=Animal, reset_mambers_on_set_bucketizers=False)
+            b = Basket(base_class=Animal, reset_members_on_set_bucketizers=False)
             b.bucketizers = [bz]
             b.add(fido)
             assert len(b.bucketizers) == 1

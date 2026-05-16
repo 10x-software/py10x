@@ -12,8 +12,6 @@ from datetime import datetime
 import re
 from typing import TYPE_CHECKING
 
-from urllib.parse import urlsplit
-
 from py10x_kernel import BTraitable, BTraitableProcessor
 
 from core_10x.nucleus import Nucleus
@@ -256,7 +254,8 @@ class TestStore(TsStoreMongoLike, TsStore, resource_name='TEST_DB'):
         super().__init__()
         self._collections = {}
         self._collection_names = set()
-        self.username = kwargs.get('username', 'test_user')
+        self.username = kwargs.get(Resource.USERNAME_TAG, 'test_user')
+        self.dbname = kwargs.get(Resource.DBNAME_TAG)
 
     @classmethod
     def standard_key(cls, *args, username=None, **kwargs) -> tuple:
@@ -266,23 +265,6 @@ class TestStore(TsStoreMongoLike, TsStore, resource_name='TEST_DB'):
     def new_instance(cls, *args, **kwargs) -> TestStore:
         return cls(*args, **kwargs)
 
-    @classmethod
-    def parse_uri(cls, uri: str) -> dict:
-        """Parse a ``testdb://[host[:port]][/dbname]`` URI."""
-        if not uri.startswith('testdb:'):
-            raise ValueError(f'Invalid TestStore URI: {uri}')
-        parts = urlsplit(uri)
-        kwargs: dict = {
-            Resource.PROTOCOL_TAG: parts.scheme,
-        }
-        if parts.hostname is not None:
-            kwargs[Resource.HOSTNAME_TAG] = parts.hostname
-        if parts.port is not None:
-            kwargs[Resource.PORT_TAG] = parts.port
-        db = parts.path
-        if db and db != '/':
-            kwargs[Resource.DBNAME_TAG] = db.lstrip('/')
-        return kwargs
 
     def collection_names(self, regexp: str = None) -> list:
         """Get collection names, optionally filtered by regexp."""
@@ -334,3 +316,6 @@ class TestStore(TsStoreMongoLike, TsStore, resource_name='TEST_DB'):
 
     def auth_user(self) -> str | None:
         return self.username
+
+    def db_name(self) -> str | None:
+        return self.dbname

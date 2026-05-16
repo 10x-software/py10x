@@ -4,7 +4,7 @@ import pytest
 import polars as pl
 
 from core_10x.rel_db import RelDb
-from core_10x.resource import Resource
+from core_10x.testlib.fixtures import temp_duck_db_uri
 
 
 def test_rel_db_spec_from_uri_parses_uri_components():
@@ -19,22 +19,19 @@ def test_rel_db_spec_from_uri_parses_uri_components():
     assert spec.kwargs[RelDb.PORT_TAG] == 5432
 
 @pytest.fixture
-def temp_duckdb(tmp_path):
-    path = (tmp_path / "test.db").as_posix()
-    uri = f"duckdb://{path[0:2]}//{path[3:]}" if sys.platform == 'win32' else f"duckdb:///{path}"
-    assert uri == Resource.spec_from_uri(uri).uri()
-    return RelDb.instance_from_uri(uri)
+def temp_duckdb(temp_duck_db_uri):
+    return RelDb.instance_from_uri(temp_duck_db_uri)
 
 def test_rel_db_query_and_insert(temp_duckdb):
     source_df = pl.DataFrame({'a': [1, 2, 3], 'b': ['x', 'y', 'z']})
 
     db = temp_duckdb
 
-    db.insert('my_table', source_df)
+    db.insert('test_data', source_df)
 
     # Verify in a fresh connection that the ADBC write was persisted.
     with db:
-        result_df = db.query('my_table').to_polars()
+        result_df = db.query('test_data').to_polars()
 
     assert result_df.equals(source_df)
 
@@ -42,7 +39,7 @@ def test_rel_db_query_and_insert(temp_duckdb):
 def test_rel_db_query_returns_none_for_missing_table(temp_duckdb):
     db = temp_duckdb
     with db:
-        result = db.query('nonexistent_table')
+        result = db.query('nonexistent_table', _throw=False)
     assert result is None
 
 
@@ -51,13 +48,13 @@ def test_rel_db_insert_replace(temp_duckdb):
     original_df = pl.DataFrame({'a': [1, 2, 3], 'b': ['x', 'y', 'z']})
     replacement_df = pl.DataFrame({'a': [10, 20], 'b': ['p', 'q']})
 
-    db.insert('my_table', original_df)
+    db.insert('test_data', original_df)
     # DuckDB ADBC does not support if_exists='replace'; drop via ibis then re-insert.
     with db:
-        db.drop_table('my_table')
-    db.insert('my_table', replacement_df)
+        db.drop_table('test_data')
+    db.insert('test_data', replacement_df)
     with db:
-        result_df = db.query('my_table').to_polars()
+        result_df = db.query('test_data').to_polars()
 
     assert result_df.equals(replacement_df)
 
@@ -67,10 +64,10 @@ def test_rel_db_insert_append(temp_duckdb):
     first_df = pl.DataFrame({'a': [1, 2], 'b': ['x', 'y']})
     second_df = pl.DataFrame({'a': [3, 4], 'b': ['z', 'w']})
 
-    db.insert('my_table', first_df)
-    db.insert('my_table', second_df, if_exists='append')
+    db.insert('test_data', first_df)
+    db.insert('test_data', second_df, if_exists='append')
     with db:
-        result_df = db.query('my_table').to_polars()
+        result_df = db.query('test_data').to_polars()
 
     expected_df = pl.concat([first_df, second_df])
     assert result_df.equals(expected_df)
@@ -82,33 +79,33 @@ def test_rel_db_drop_table(temp_duckdb):
 
     # Insert via ADBC in one block, drop via ibis in the next; DuckDB requires
     # the ADBC connection to be closed before ibis can observe the committed table.
-    db.insert('my_table', df)
+    db.insert('test_data', df)
     with db:
-        db.drop_table('my_table')
+        db.drop_table('test_data')
     with db:
-        result = db.query('my_table')
+        result = db.query('test_data', _throw=False)
 
     assert result is None
 
 
 def test_rel_db_query_raises_without_context_manager(temp_duckdb):
     db = temp_duckdb
-    with pytest.raises(AssertionError, match='context manager'):
-        db.query('my_table')
+    with pytest.raises(RuntimeError, match='context manager'):
+        db.query('prices')
 
 
 def test_rel_db_insert_raises_with_context_manager(temp_duckdb):
     db = temp_duckdb
     df = pl.DataFrame({'a': [1]})
-    with pytest.raises(AssertionError, match='context manager'):
+    with pytest.raises(RuntimeError, match='context manager'):
         with db:
-            db.insert('my_table', df)
+            db.insert('test_data', df)
 
 
 def test_rel_db_drop_table_raises_without_context_manager(temp_duckdb):
     db = temp_duckdb
-    with pytest.raises(AssertionError, match='context manager'):
-        db.drop_table('my_table')
+    with pytest.raises(RuntimeError, match='context manager'):
+        db.drop_table('prices')
 
 
 def test_rel_db_instance_from_uri(temp_duckdb):
