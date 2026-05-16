@@ -30,8 +30,8 @@ class VaultUtils:
         return rc
 
     @classmethod
-    def create_master_password(cls, ovveride = False) -> tuple[RC, str]:
-        if not ovveride:
+    def create_master_password(cls, override = False) -> tuple[RC, str]:
+        if not override:
             rc, mp = SecKeys.retrieve_master_password()
             if rc:
                 return (RC(False, 'MasterPassword already exists'), None)
@@ -53,7 +53,7 @@ class VaultUtils:
             if proceed.lower() != 'y':
                 return (RC_TRUE, None)
 
-        return cls.create_master_password(ovveride = True)
+        return cls.create_master_password(override = True)
 
     @classmethod
     def get_vault(cls, vault_uri: str = None) -> TsStore:
@@ -94,7 +94,7 @@ class VaultUtils:
             if VaultUser.existing_instance(user_id = username, _throw = False):
                 return RC(False, f'Vault User {username} already exists. Consult with admin')
 
-            rc, master_pwd = cls.create_master_password(ovveride = True)
+            rc, master_pwd = cls.create_master_password(override = True)
             if not rc:
                 raise OSError(rc.error())
 
