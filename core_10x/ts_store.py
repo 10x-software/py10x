@@ -160,6 +160,9 @@ class TsStore(Resource, resource_type=TS_STORE):
     def auth_user(self) -> str | None: ...
 
     @abc.abstractmethod
+    def db_name(self) -> str: ...
+
+    @abc.abstractmethod
     def add_who(self, field: str, serialized_data: dict) -> dict: ...
 
     @abc.abstractmethod
