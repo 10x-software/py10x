@@ -167,3 +167,29 @@ class TestScenarioEndToEnd:
         for _ in range(5):
             with s:
                 pass
+
+    def test_nested_scenario_inherits_parent_values(self):
+        """A nested Scenario starts with the parent scope's data visible.
+
+        Values written in the outer Scenario must be readable in the inner one
+        before the inner Scenario overrides them. After the inner Scenario exits,
+        the outer scope is restored unchanged.
+        """
+        with CACHE_ONLY():
+            with Scenario('e2e_outer_G'):
+                p = self.Price(ticker='e2e_MSFT_G')
+                p.raw = 100.0
+                outer_adj = p.adjusted           # caches 110.0 in outer BTP
+
+                with Scenario('e2e_inner_G'):
+                    # Parent-scope value is visible before any override
+                    assert p.raw == 100.0
+
+                    # Override inside the inner scope
+                    p.raw = 200.0
+                    inner_adj = p.adjusted       # recomputes to 220.0
+                    assert inner_adj == pytest.approx(220.0)
+
+                # After inner exits, outer scope is restored
+                assert p.raw == 100.0
+                assert p.adjusted == pytest.approx(outer_adj)

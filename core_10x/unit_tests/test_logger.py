@@ -8,6 +8,7 @@ TestLOGGuard        - _log raises without an active Logger
 TestLoggerEndToEnd  - subprocess lifecycle using Logger directly;
                       full message-processing requires a TsStore (infra_10x tests)
 TestLOGStub         - functional tests of the LOG interface using a stub Logger
+                      (``stub_log_logger`` fixture — avoids subprocess / TsStore)
 """
 
 import multiprocessing as mp
@@ -17,6 +18,7 @@ import pytest
 
 import core_10x.logger as log_module
 from core_10x.logger import LOG, Logger, PerfTimer
+from core_10x.testlib.stub_logger import stub_log_module_logger
 
 
 # ---------------------------------------------------------------------------
@@ -112,25 +114,9 @@ class TestLOGGuard:
 
     def test_none_payload_skips_data_construction(self):
         """_log with payload=None sends None to the queue; no crash when LOGGER is set."""
-
-        # We can't instantiate a real Logger without OsUser, but we can
-        # verify that _log short-circuits correctly for None payload by
-        # providing a minimal stub.
-        class StubLogger:
-            log_level = 0
-            ps = None
-            received = None
-
-            def log(self, data):
-                StubLogger.received = data
-
-        original = log_module.LOGGER
-        log_module.LOGGER = StubLogger()
-        try:
+        with stub_log_module_logger(LOG.BRIEF.value) as stub:
             LOG._log(0, None)
-            assert StubLogger.received is None
-        finally:
-            log_module.LOGGER = original
+            assert stub.received == [None]
 
 
 # ---------------------------------------------------------------------------
@@ -179,118 +165,85 @@ class TestLoggerEndToEnd:
 
 
 # ---------------------------------------------------------------------------
-# Functional: LOG interface via a stub Logger
+# Functional: LOG interface via stub_log_logger fixture
 # ---------------------------------------------------------------------------
 
 
-class _StubPS:
-    """Minimal psutil.Process stub."""
-    def memory_percent(self): return 0.0
-    def num_threads(self):    return 1
-
-
-class _StubLogger:
-    """Records every dict put on the queue, without a real subprocess."""
-    def __init__(self, log_level: int):
-        self.log_level = log_level
-        self.received: list = []
-        self.ps = _StubPS()
-
-    def log(self, data):
-        self.received.append(data)
-
-
 class TestLOGStub:
-    """
-    Functional tests of the LOG interface against a _StubLogger.
-    No subprocess, no TsStore required.
-    """
+    """Exercise ``LOG.*`` against ``StubLogLogger`` (no subprocess)."""
 
-    def _activate(self, log_level: int) -> _StubLogger:
-        stub = _StubLogger(log_level)
-        log_module.LOGGER = stub
-        return stub
+    def test_brief_message_is_delivered(self, stub_log_logger):
+        LOG.BRIEF('hello')
+        assert len(stub_log_logger.received) == 1
+        assert stub_log_logger.received[0]['payload'] == 'hello'
+        assert stub_log_logger.received[0]['level'] == LOG.BRIEF.value
 
-    def _deactivate(self):
-        log_module.LOGGER = None
+    @pytest.mark.parametrize('stub_log_logger', [LOG.VERBOSE.value], indirect=True)
+    def test_all_levels_delivered_at_verbose(self, stub_log_logger):
+        LOG.BRIEF('a')
+        LOG.MEDIUM('b')
+        LOG.DETAILED('c')
+        LOG.VERBOSE('d')
+        assert len(stub_log_logger.received) == 4
 
-    def test_brief_message_is_delivered(self):
-        stub = self._activate(LOG.BRIEF.value)
-        try:
-            LOG.BRIEF('hello')
-            assert len(stub.received) == 1
-            assert stub.received[0]['payload'] == 'hello'
-            assert stub.received[0]['level'] == LOG.BRIEF.value
-        finally:
-            self._deactivate()
-
-    def test_all_levels_delivered_at_verbose(self):
-        stub = self._activate(LOG.VERBOSE.value)
-        try:
-            LOG.BRIEF('a')
-            LOG.MEDIUM('b')
-            LOG.DETAILED('c')
-            LOG.VERBOSE('d')
-            assert len(stub.received) == 4
-        finally:
-            self._deactivate()
-
-    def test_high_level_messages_filtered_at_brief(self):
+    def test_high_level_messages_filtered_at_brief(self, stub_log_logger):
         """Only BRIEF messages pass when log_level == BRIEF.value (0)."""
-        stub = self._activate(LOG.BRIEF.value)
-        try:
-            LOG.BRIEF('kept')
-            LOG.MEDIUM('dropped')
-            LOG.DETAILED('dropped')
-            LOG.VERBOSE('dropped')
-            assert len(stub.received) == 1
-            assert stub.received[0]['payload'] == 'kept'
-        finally:
-            self._deactivate()
+        LOG.BRIEF('kept')
+        LOG.MEDIUM('dropped')
+        LOG.DETAILED('dropped')
+        LOG.VERBOSE('dropped')
+        assert len(stub_log_logger.received) == 1
+        assert stub_log_logger.received[0]['payload'] == 'kept'
 
-    def test_message_contains_required_fields(self):
-        stub = self._activate(LOG.BRIEF.value)
-        try:
-            LOG.BRIEF({'key': 'value'})
-            msg = stub.received[0]
-            assert 'ns' in msg
-            assert 'level' in msg
-            assert 'mem_pc' in msg
-            assert 'num_threads' in msg
-            assert 'payload' in msg
-        finally:
-            self._deactivate()
+    def test_message_contains_required_fields(self, stub_log_logger):
+        LOG.BRIEF({'key': 'value'})
+        msg = stub_log_logger.received[0]
+        assert 'ns' in msg
+        assert 'level' in msg
+        assert 'mem_pc' in msg
+        assert 'num_threads' in msg
+        assert 'payload' in msg
 
-    def test_ns_is_monotonically_increasing(self):
-        stub = self._activate(LOG.BRIEF.value)
-        try:
-            for _ in range(10):
-                LOG.BRIEF('tick')
-            timestamps = [m['ns'] for m in stub.received]
-            assert timestamps == sorted(timestamps)
-        finally:
-            self._deactivate()
+    def test_ns_is_monotonically_increasing(self, stub_log_logger):
+        for _ in range(10):
+            LOG.BRIEF('tick')
+        timestamps = [m['ns'] for m in stub_log_logger.received]
+        assert timestamps == sorted(timestamps)
 
-    def test_payload_can_be_any_type(self):
-        stub = self._activate(LOG.VERBOSE.value)
-        try:
-            LOG.BRIEF(42)
-            LOG.BRIEF({'nested': True})
-            LOG.BRIEF([1, 2, 3])
-            payloads = [m['payload'] for m in stub.received]
-            assert payloads == [42, {'nested': True}, [1, 2, 3]]
-        finally:
-            self._deactivate()
+    @pytest.mark.parametrize('stub_log_logger', [LOG.VERBOSE.value], indirect=True)
+    def test_payload_can_be_any_type(self, stub_log_logger):
+        LOG.BRIEF(42)
+        LOG.BRIEF({'nested': True})
+        LOG.BRIEF([1, 2, 3])
+        payloads = [m['payload'] for m in stub_log_logger.received]
+        assert payloads == [42, {'nested': True}, [1, 2, 3]]
 
-    def test_perftimer_elapsed_can_be_logged(self):
+    def test_perftimer_elapsed_can_be_logged(self, stub_log_logger):
         """PerfTimer.elapsed can be passed directly as a log payload."""
-        stub = self._activate(LOG.BRIEF.value)
-        try:
-            with PerfTimer() as t:
-                _ = sum(range(100_000))
-            LOG.BRIEF({'elapsed_ns': t.elapsed})
-            msg = stub.received[0]
-            assert msg['payload']['elapsed_ns'] == t.elapsed
-            assert t.elapsed > 0
-        finally:
-            self._deactivate()
+        with PerfTimer() as t:
+            _ = sum(range(100_000))
+        LOG.BRIEF({'elapsed_ns': t.elapsed})
+        msg = stub_log_logger.received[0]
+        assert msg['payload']['elapsed_ns'] == t.elapsed
+        assert t.elapsed > 0
+
+    def test_end_calls_shutdown_and_resets_logger(self, stub_log_logger):
+        """LOG.end() must call shutdown() on the active logger and set LOGGER to None."""
+        LOG.end()
+        assert stub_log_logger.shut_down is True
+        assert log_module.LOGGER is None
+
+    def test_end_is_idempotent_when_no_logger(self):
+        """LOG.end() must not raise when LOGGER is already None."""
+        assert log_module.LOGGER is None
+        LOG.end()   # should be a no-op
+
+    def test_logger_can_be_restarted_after_end(self, stub_log_logger):
+        """After LOG.end() resets LOGGER, a new stub logger can be installed and used."""
+        LOG.end()
+        assert log_module.LOGGER is None
+
+        with stub_log_module_logger(LOG.BRIEF.value) as stub2:
+            LOG.BRIEF('after restart')
+            assert len(stub2.received) == 1
+            assert stub2.received[0]['payload'] == 'after restart'

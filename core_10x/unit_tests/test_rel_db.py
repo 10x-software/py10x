@@ -49,10 +49,7 @@ def test_rel_db_insert_replace(temp_duckdb):
     replacement_df = pl.DataFrame({'a': [10, 20], 'b': ['p', 'q']})
 
     db.insert('test_data', original_df)
-    # DuckDB ADBC does not support if_exists='replace'; drop via ibis then re-insert.
-    with db:
-        db.drop_table('test_data')
-    db.insert('test_data', replacement_df)
+    db.insert('test_data', replacement_df, if_exists='replace')
     with db:
         result_df = db.query('test_data').to_polars()
 
