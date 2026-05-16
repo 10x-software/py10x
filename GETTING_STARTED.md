@@ -1256,8 +1256,8 @@ with RelDb.instance_from_uri(analytics_db_uri) as db:
 ```python
 from core_10x.rel_db import RelDb
 
-with RelDb.instance_from_uri('postgresql://localhost:5432/postgres') as db:
-    tbl = db.query("pg_tables", database="pg_catalog")
+with RelDb.instance_from_uri(analytics_db_uri) as db:
+    tbl = db.query('prices')
 ```
 
 **Named resource** — store the URI once in the main store, then open it by logical name with no URI in application code:
@@ -1836,7 +1836,7 @@ with MongoStore.instance_from_uri('mongodb://localhost/authenticated') as store:
     ...
 
 # RelDb
-with RelDb.instance_from_uri('postgresql://localhost:5432/postgres') as db:
+with RelDb.instance_from_uri(analytics_db_uri) as db:
     ...
 ```
 
