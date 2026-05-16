@@ -101,7 +101,7 @@ class ResourceSpec:
         return self.kwargs[Resource.HOSTNAME_TAG]
 
     def port(self) -> int:
-        return self.kwargs[Resource.PORT_TAG]
+        return self.kwargs.get(Resource.PORT_TAG, self.resource_class.s_instance_kwargs_map.get(Resource.PORT_TAG, (None, None))[1])
 
     def set_credentials(self, username: str = None, password: str = None):
         if username is not None:
