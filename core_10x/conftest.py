@@ -1,5 +1,6 @@
 import pytest
 
+from core_10x.testlib.fixtures import stub_log_logger
 from core_10x.ts_store import TsStore
 
 

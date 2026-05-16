@@ -1774,7 +1774,7 @@ LOG.begin('my_app', LOG.DETAILED)   # idempotent: no-op if a Logger is already a
 LOG.end()                            # sends shutdown signal; subprocess drains queue and exits
 ```
 
-`LOG.begin` is **idempotent** — calling it a second time does nothing (the existing `Logger` is kept).  `LOG.end` signals the background process to drain its queue and exit; it does not call `proc.join()`, so the subprocess finishes asynchronously.
+`LOG.begin` is **idempotent** — calling it a second time does nothing (the existing `Logger` is kept).  `LOG.end` calls `shutdown()` on the active logger (drains the queue, joins the subprocess) and resets the global logger to `None`, so a subsequent `LOG.begin` starts a fresh logger.
 
 **Log levels** — only messages at or below the configured level are put on the queue:
 
@@ -1790,10 +1790,12 @@ LOG.end()                            # sends shutdown signal; subprocess drains 
 ```python
 from core_10x.logger import LOG
 
+LOG.begin('my_app', LOG.VERBOSE)
 LOG.BRIEF('application started')      # always written at level BRIEF or above
 LOG.MEDIUM({'action': 'login'})       # payload can be any Python object
 LOG.DETAILED('processing request')
 LOG.VERBOSE({'raw': True, 'data': 42})
+LOG.end()
 ```
 
 Each `LogMessage` record (a `Traitable` with `custom_collection=True, keep_history=False`) stores:
@@ -1806,27 +1808,15 @@ Each `LogMessage` record (a `Traitable` with `custom_collection=True, keep_histo
 | `num_threads` | `int` | Thread count at call time (`psutil`) |
 | `payload` | `Any` | Value passed to the log call |
 
-**Testing with a stub Logger** — unit tests should not start real subprocesses.  Replace the global `LOGGER` with a stub that records messages:
+**Testing with a stub logger** — unit tests should not start a real `Logger` subprocess unless you intend an end-to-end check. For synchronous tests of `LOG.*`, use **`stub_log_module_logger`** from **`core_10x.testlib.stub_logger`** (it installs a `StubLogLogger` that records payloads in `.received`, then restores the previous global `LOGGER`). With pytest under `core_10x/`, prefer the **`stub_log_logger`** fixture from **`core_10x.testlib.fixtures`** (re-exported in **`core_10x/conftest.py`**); see **`core_10x/unit_tests/test_logger.py`**.
 
 ```python
-import core_10x.logger as log_module
 from core_10x.logger import LOG
+from core_10x.testlib.stub_logger import stub_log_module_logger
 
-class StubPS:
-    def memory_percent(self): return 0.0
-    def num_threads(self):    return 1
-
-class StubLogger:
-    def __init__(self, log_level):
-        self.log_level = log_level
-        self.received = []
-        self.ps = StubPS()
-    def log(self, data): self.received.append(data)
-
-log_module.LOGGER = StubLogger(LOG.VERBOSE.value)
-LOG.BRIEF('hello')
-assert log_module.LOGGER.received[0]['payload'] == 'hello'
-log_module.LOGGER = None   # restore
+with stub_log_module_logger(LOG.VERBOSE.value) as stub:
+    LOG.BRIEF('hello')
+    assert stub.received[0]['payload'] == 'hello'
 ```
 
 ## Vault and Credential Management
@@ -2605,6 +2595,7 @@ with CACHE_ONLY():
 ### 6. Testing
 
 - Use the `main_test_store` pytest fixture (from `core_10x.testlib.fixtures`) to activate an in-memory `TestStore` as the main store for the entire test module — no external database required
+- Use the `stub_log_logger` fixture (same module, re-exported in `core_10x/conftest.py`) or the `stub_log_module_logger` context manager from `core_10x.testlib.stub_logger` to test `LOG.*` without a subprocess
 - Use `CACHE_ONLY()` for lightweight unit tests that exercise trait logic without needing persistence or global object sharing
 - Make each test (or test module) self-contained: set up and tear down its own data rather than relying on state left by other tests
 

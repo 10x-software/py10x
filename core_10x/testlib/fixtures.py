@@ -4,7 +4,9 @@ import polars as pl
 import pytest
 
 from core_10x.environment_variables import EnvVars
+from core_10x.logger import LOG
 from core_10x.rel_db import RelDb
+from core_10x.testlib.stub_logger import stub_log_module_logger
 from core_10x.traitable import Traitable
 from core_10x.ts_store import TsStore  # used in teardown
 
@@ -18,6 +20,21 @@ def with_transactions(request, ts_instance, monkeypatch):
     monkeypatch.setenv('XX_USE_TS_STORE_TRANSACTIONS', '1' if use_transactions else '0')
     object.__getattribute__(EnvVars, 'use_ts_store_transactions').fget.clear()
     yield use_transactions
+
+
+@pytest.fixture
+def stub_log_logger(request):
+    """Install :class:`StubLogLogger` as the global ``LOGGER`` for synchronous ``LOG.*`` tests.
+
+    Default log level is ``LOG.BRIEF``.  For other levels use indirect parametrization::
+
+        @pytest.mark.parametrize('stub_log_logger', [LOG.VERBOSE.value], indirect=True)
+        def test_all_levels(stub_log_logger):
+            ...
+    """
+    level = getattr(request, 'param', LOG.BRIEF.value)
+    with stub_log_module_logger(level) as stub:
+        yield stub
 
 
 @pytest.fixture
