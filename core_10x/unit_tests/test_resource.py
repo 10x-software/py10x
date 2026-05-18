@@ -15,7 +15,7 @@ import pytest
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.testlib.test_store import TestStore as _TestStore
-from core_10x.testlib.vault_env import vault_env  # noqa: F401  (pytest fixture)
+from core_10x.testlib.vault_env import vault_env
 from core_10x.traitable import (
     NamedResource,
     NamedTsStore,
@@ -98,7 +98,7 @@ class TestNamedResourceInstance:
     whether credentials were forwarded.
     """
 
-    def _spy_new_instance(self, vault_env, monkeypatch):
+    def _spy_new_instance(self, vault_env, monkeypatch): # noqa: F811  (pytest fixture)
         """Replace ``_TestStore.new_instance`` with a spy that records each
         call's kwargs and still returns ``vault_env.vault_db`` (matching the
         fixture-level mock)."""
@@ -129,7 +129,7 @@ class TestNamedResourceInstance:
         assert matches, f'no _TestStore.new_instance call for host {hostname}; got {calls!r}'
         return matches[-1]
 
-    def test_vault_hit_uses_credentials_from_vault(self, vault_env, monkeypatch):
+    def test_vault_hit_uses_credentials_from_vault(self, vault_env, monkeypatch): # noqa: F811  (pytest fixture)
         """When an RA exists for ``(s_resource_dt, uri)``, ``resource_instance``
         forwards the RA's credentials to ``instance_from_uri``."""
         env = vault_env
@@ -161,7 +161,7 @@ class TestNamedResourceInstance:
         assert kwargs.get('username') == ALICE
         assert kwargs.get('password') == RESOURCE_PWD
 
-    def test_vault_miss_falls_back_to_instance_from_uri(self, vault_env, monkeypatch):
+    def test_vault_miss_falls_back_to_instance_from_uri(self, vault_env, monkeypatch): # noqa: F811  (pytest fixture)
         """When no RA exists for ``(s_resource_dt, uri)``, ``retrieve_ra`` raises
         and ``resource_instance`` falls back to a credential-less
         ``instance_from_uri`` call."""

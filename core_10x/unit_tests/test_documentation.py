@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from core_10x.testlib.fixtures import main_test_store, temp_duck_db_uri
+from core_10x.ts_store import TsStore
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -110,7 +111,13 @@ def patch_person():
     ],
     ids=[f'{a[0]}-{a[2]}' for a in args]
 )
-def test_documentation_code_block_execution(test_name: str, code_block: str, future_annotations: bool, temp_duck_db_uri: str, main_test_store):
+def test_documentation_code_block_execution(
+        test_name: str,
+        code_block: str,
+        future_annotations: bool,
+        temp_duck_db_uri,  # noqa: F811
+        main_test_store,  # noqa: F811
+):
     """Test that documentation code blocks can execute successfully."""
     # Skip if code block is empty
     if not code_block.strip():

@@ -45,8 +45,7 @@ import pytest
 
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.resource import Resource
-from core_10x.testlib.test_store import TestStore as _TestStore  # noqa: F401 — r
-from core_10x.testlib.vault_env import vault_env  # noqa: F401  (pytest fixture)
+from core_10x.testlib.vault_env import vault_env
 from core_10x.testlib.vault_env import VAULT_URI
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
@@ -68,7 +67,7 @@ PG_PWD                               = 'PgWorker3!'
 
 # -- The scenario ---------------------------------------------------------
 
-def test_admin_user_onboarding_information_flow(vault_env):
+def test_admin_user_onboarding_information_flow(vault_env): # noqa: F811  (pytest fixture)
     env = vault_env
 
     # ----------------------------------------------------------------- 0
@@ -151,7 +150,7 @@ def test_admin_user_onboarding_information_flow(vault_env):
         assert ra_pg.user.sec_keys.decrypt_text(ra_pg.password) == PG_PWD
 
 
-def test_admin_cannot_decrypt_alice_credentials(vault_env):
+def test_admin_cannot_decrypt_alice_credentials(vault_env): # noqa: F811  (pytest fixture)
     """Regression guard: even though the admin holds the vault open and can
     save resource passwords for alice (using only her public key), nothing
     in the admin's environment lets them recover plaintext credentials for
@@ -206,7 +205,7 @@ class TestCanonicalUri:
     port, different capitalisation of the scheme, etc.) resolve to the same
     entry."""
 
-    def test_adds_default_port_when_missing(self,vault_env):
+    def test_adds_default_port_when_missing(self,vault_env): # noqa: F811  (pytest fixture)
         """Port-free URI gains the resource's default port (27017 for testdb /
         MongoDB) so it hashes to the same key as the explicit-port form."""
         no_port   = VaultResourceAccessor._canonical_uri(
@@ -233,7 +232,7 @@ class TestCanonicalUri:
         assert host_uri == 'testdb://vaulthost.example.com:27017'
         assert '/_vault_' not in host_uri
 
-    def test_vault_uri_no_dbname_matches_canonical_host_uri(self, vault_env):
+    def test_vault_uri_no_dbname_matches_canonical_host_uri(self, vault_env): # noqa: F811  (pytest fixture)
         """The host URI produced by ``uri_no_dbname(VAULT_URI)`` is the same
         as what ``_canonical_uri`` produces for a port-free host URI, proving
         that self-registration and later retrieval resolve to the same key
@@ -250,7 +249,7 @@ class TestSaveAndRetrieveWithPortVariants:
     """``save_ra`` and ``retrieve_ra`` canonicalise the URI so that the same
     RA is found regardless of whether the caller includes the default port."""
 
-    def test_save_portless_retrieve_portful(self, vault_env):
+    def test_save_portless_retrieve_portful(self, vault_env): # noqa: F811  (pytest fixture)
         env = vault_env
         env.switch_os_user(ALICE)
         env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD,
@@ -274,7 +273,7 @@ class TestSaveAndRetrieveWithPortVariants:
             assert ra.resource_uri == portful
             assert ra.login == ALICE
 
-    def test_save_portful_retrieve_portless(self, vault_env):
+    def test_save_portful_retrieve_portless(self, vault_env): # noqa: F811  (pytest fixture)
         env = vault_env
         env.switch_os_user(ALICE)
         env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD,

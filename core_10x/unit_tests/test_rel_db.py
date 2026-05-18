@@ -19,7 +19,7 @@ def test_rel_db_spec_from_uri_parses_uri_components():
     assert spec.kwargs[RelDb.PORT_TAG] == 5432
 
 @pytest.fixture
-def temp_duckdb(temp_duck_db_uri):
+def temp_duckdb(temp_duck_db_uri):  # noqa: F811
     return RelDb.instance_from_uri(temp_duck_db_uri)
 
 def test_rel_db_query_and_insert(temp_duckdb):

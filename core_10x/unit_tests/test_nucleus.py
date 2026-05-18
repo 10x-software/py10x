@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import pytest
 
 from core_10x.nucleus import Nucleus
@@ -18,15 +20,15 @@ class _SimpleNucleus(Nucleus):
         return self._v
 
     @classmethod
-    def deserialize(cls, serialized_data) -> '_SimpleNucleus':
+    def deserialize(cls, serialized_data) -> _SimpleNucleus:
         return cls(serialized_data)
 
     @classmethod
-    def from_str(cls, s: str) -> '_SimpleNucleus':
+    def from_str(cls, s: str) -> _SimpleNucleus:
         return cls(s)
 
     @classmethod
-    def from_any_xstr(cls, value) -> '_SimpleNucleus':
+    def from_any_xstr(cls, value) -> _SimpleNucleus:
         return cls(value)
 
     @classmethod

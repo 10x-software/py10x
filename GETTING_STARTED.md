@@ -7,19 +7,22 @@ This guide covers the technical implementation and advanced usage of the py10x f
 1. [What is `py10x-core`?](#whats-in-py10x-core)
 2. [Installation](#installation)
 3. [Core Concepts](#core-concepts)
-4. [Your First Traitable](#your-first-traitable)
-5. [Object Identification System](#object-identification-system)
-6. [Storage and Regular Traits](#storage-and-regular-traits)
-7. [Execution Modes and Control](#execution-modes-and-control)
-8. [Traitable Store](#traitable-store)
-9. [Relational Database (RelDb)](#relational-database-reldb)
-10. [UI Framework Integration](#ui-framework-integration)
-11. [Vault and Credential Management](#vault-and-credential-management)
-12. [Advanced Features](#advanced-features)
-13. [Configuration](#configuration)
-14. [Basket and Bucket Facility](#basket-and-bucket-facility)
-15. [Best Practices](#best-practices)
-16. [Next Steps](#next-steps)
+4. [How Traitables Are Created](#how-traitables-are-created)
+5. [Your First Traitable](#your-first-traitable)
+6. [Getters, Setters, and Validation](#getters-setters-and-validation)
+7. [Object Identification System](#object-identification-system)
+8. [Storage and Regular Traits](#storage-and-regular-traits)
+9. [Traitable Type Traits](#traitable-type-traits)
+10. [Execution Modes and Control](#execution-modes-and-control)
+11. [Traitable Store](#traitable-store)
+12. [Relational Database (RelDb)](#relational-database-reldb)
+13. [UI Framework Integration](#ui-framework-integration)
+14. [Vault and Credential Management](#vault-and-credential-management)
+15. [Advanced Features](#advanced-features)
+16. [Configuration](#configuration)
+17. [Basket and Bucket Facility](#basket-and-bucket-facility)
+18. [Best Practices](#best-practices)
+19. [Next Steps](#next-steps)
 
 ## What's in `py10x-core`?
 
@@ -110,17 +113,7 @@ with CACHE_ONLY():  # or MongoStore.instance()
 
 ### Runtime Traitables Exception
 
-```python
-from core_10x.traitable import Traitable
-
-class Calculator(Traitable):
-    x: int  # Runtime trait
-    y: int  # Runtime trait
-    sum: int  # Runtime trait
-
-# No storage context needed for runtime traitables
-calc = Calculator(x=5, y=3)
-```
+A traitable whose every trait is a runtime trait (`RT()` or a bare annotation with no stored ID traits) never needs a storage context — construction, assignment, and computation all work without one. The `Calculator` below is the canonical example.
 
 ## Your First Traitable
 
@@ -153,6 +146,243 @@ assert calc.product == 15   # 15
 calc.x = 10
 assert calc.sum == 13    # 13
 ```
+
+## Getters, Setters, and Validation
+
+`py10x-core` provides mechanisms for computed traits, validation, and data transformation:
+
+### Getters (Computed Traits)
+
+Any trait can be computed on-demand by defining a getter method:
+
+```python
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import Traitable, T, RT
+from datetime import date
+
+class Person(Traitable):
+    first_name: str = T(T.ID)  # ID trait
+    last_name: str = T(T.ID)   # ID trait
+    dob: date = T()
+    
+    # Computed traits using getters
+    full_name: str = RT()  # Runtime trait
+    age: int = T()         # Regular trait that can be computed
+    
+    def full_name_get(self) -> str:
+        """Getter method - computes full name on-demand."""
+        return f"{self.first_name} {self.last_name}"
+    
+    def age_get(self) -> int:
+        """Getter method - computes age from date of birth."""
+        if not self.dob:
+            return 0
+        today = date.today()
+        years = today.year - self.dob.year
+        if (today.month, today.day) < (self.dob.month, self.dob.day):
+            years -= 1
+        return years
+
+# Usage
+with CACHE_ONLY():
+    person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _replace=True)
+    assert person.full_name == "Alice Smith"  # Computed
+    assert person.age == date.today().year - 1990 - (1 if (date.today().month, date.today().day) < (5, 15) else 0)
+```
+
+### Setters (Validation and Transformation)
+
+Setters provide validation and data transformation. They are automatically called on assignment:
+
+```python
+from core_10x.traitable import Traitable, RC, RC_TRUE
+
+class Person(Traitable):
+    email: str
+    age: int
+    
+    def email_set(self, trait, value: str) -> RC:
+        """Setter method - validates email format."""
+        if '@' not in value or '.' not in value.split('@')[1]:
+            return RC(False, f'Invalid email format: "{value}"')
+        
+        # Use raw_set_trait_value to bypass the setter
+        return self.raw_set_trait_value(trait, value)
+    
+    def age_set(self, trait, value: int) -> RC:
+        """Setter method - validates age range."""
+        if value < 0:
+            return RC(False, "Age cannot be negative")
+        if value > 150:
+            return RC(False, "Age cannot exceed 150")
+        
+        return self.raw_set_trait_value(trait, value)
+
+# Usage with automatic validation
+person = Person()
+
+# Setters are called automatically on assignment
+try:
+    person.email = 'invalid-email'  # Throws exception with "Invalid email format"
+except RuntimeError as e:
+    assert "Invalid email format" in str(e)
+
+person.email = 'alice@example.com'  # Valid email - succeeds
+person.age = 25  # Valid age - succeeds
+
+# Programmatic setting with accumulated RC
+result = person.set_values(age=30, email='bob@example.com')
+if not result:
+    assert False, f"Set failed: {result.errors()}"
+```
+
+### Verifiers (Validation on verify() and save())
+
+Verifiers are validation methods that run only when `entity.verify()` is called or when the entity is saved (because `save()` calls `verify()` first). Unlike setters, they are **not** run on assignment. Use verifiers for checks that do not need to block assignment (e.g. cross-field or deferred validation).
+
+```python
+from core_10x.traitable import Traitable, RT, RC, RC_TRUE
+
+class Example(Traitable):
+    code: str = RT()
+    limit: int = RT(0)
+
+    def code_verify(self, t, value: str) -> RC:
+        """Run on verify() or save(); not on set."""
+        if value and not value.isalnum():
+            return RC(False, "code must be alphanumeric")
+        return RC_TRUE
+
+    def limit_verify(self, t, value: int) -> RC:
+        if value is not None and value > 100:
+            return RC(False, "limit must be <= 100")
+        return RC_TRUE
+
+# Invalid values can be set; verification fails when requested
+e = Example()
+e.code = "invalid-code"
+e.limit = 150
+assert e.code == "invalid-code"
+assert e.limit == 150
+
+rc = e.verify()
+assert not rc  # fails due to code_verify and limit_verify
+
+# Fix and verify
+e.code = "valid"
+e.limit = 50
+e.verify().throw()  # success
+```
+
+### Setters Can Propagate Values to Other Traits
+
+```python
+from core_10x.traitable import Traitable, RC, RC_TRUE
+
+class Person(Traitable):
+    first_name: str
+    last_name: str
+    full_name: str
+    
+    def full_name_set(self, trait, value: str) -> RC:
+        """Setter that propagates to other traits when full name is set."""
+        # Don't set full_name - let the getter compute it
+        # Instead, propagate to other traits by splitting the full name
+        name_parts = value.strip().split(' ', 1)  # Split on first space only
+        if len(name_parts) == 2:
+            self.first_name = name_parts[0]
+            self.last_name = name_parts[1]
+        elif len(name_parts) == 1:
+            self.first_name = name_parts[0]
+            self.last_name = ""
+        
+        return RC_TRUE
+    
+    def full_name_get(self) -> str:
+        """Getter that computes full name from first and last names."""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
+        else:
+            return ""
+
+# Usage - setting full name automatically splits into first and last
+person = Person()
+person.full_name = "Alice Smith"  # Automatically sets first_name="Alice" and last_name="Smith"
+
+assert person.first_name == "Alice"  # Propagated
+assert person.last_name == "Smith"   # Propagated
+assert person.full_name == "Alice Smith"  # Computed from first_name + last_name
+
+# Setting individual names and computing full name
+person.first_name = "Bob"
+person.last_name = "Johnson"
+assert person.full_name == "Bob Johnson"  # Computed by getter
+
+# Setting full name with single name
+person.full_name = "Madonna"  # Sets first_name="Madonna", last_name=""
+assert person.first_name == "Madonna"
+assert person.last_name == ""
+assert person.full_name == "Madonna"  # Computed by getter
+```
+
+**Key Difference from Converters:**
+- **Converters**: Transform the input value for the same trait
+- **Setters**: Can set multiple traits in response to one assignment
+- **Use Case**: Business logic that requires updating related data when one field changes
+
+
+### Convert Methods
+
+Converters are automatically called when there's a **type mismatch** between the assigned value and the trait type:
+
+```python
+from core_10x.traitable import Traitable, RC, RC_TRUE
+from core_10x.exec_control import CONVERT_VALUES_ON, CONVERT_VALUES_OFF, DEBUG_ON
+
+class Person(Traitable):
+    name: bytes  # Expects bytes (runtime trait)
+    status: str  # Expects string (runtime trait)
+    
+    def name_from_str(self, trait, value: str) -> bytes:
+        """Convert from string - title case the name."""
+        return value.title().encode()
+    
+    def name_from_any_xstr(self, trait, value) -> bytes:
+        """Convert from non-string - convert to string and title case."""
+        return str(value).title().encode()
+    
+    def status_from_any_xstr(self, trait, value) -> str:
+        """Convert any value to lowercase string."""
+        return str(value).lower()
+
+# With CONVERT_VALUES_ON - converters called for type mismatches
+with CONVERT_VALUES_ON():
+    person = Person()
+    person.name = "alice smith"  # str -> bytes (mismatch) - calls name_from_str
+    person.status = True         # bool -> str (mismatch) - calls status_from_any_xstr
+    
+    assert person.name == b"Alice Smith"  # Converted to bytes
+    assert person.status == "true"        # Converted to string
+
+# With CONVERT_VALUES_OFF - no automatic conversion
+with CONVERT_VALUES_OFF():
+    person = Person()
+    person.name = "alice smith"  # No conversion - stores as string
+    person.status = "active"     # No conversion - stores as string
+    
+    assert person.name == "alice smith"  # Stored as-is
+    assert person.status == "active"     # Stored as-is
+```
+
+### Convert vs Getter/Setter
+
+- **`_from_str` methods**: Automatic conversion when setting string values
+- **`_from_any_xstr` methods**: Automatic conversion when setting non-string values
+- **`_get` methods**: Computation when accessing values  
+- **`_set` methods**: Validation and transformation when setting values
+- **Setters can propagate to other traits**: Unlike converters, setters can set multiple traits in response to one assignment
 
 ## Object Identification System
 
@@ -1211,6 +1441,62 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
 
 Without transaction support, any successful saves preceding the failure remain persisted — pick the mode that matches your durability needs.
 
+### Revision history
+
+Storable traitables keep a revision history **by default**. Each successful `save()` that advances `_rev` also writes a snapshot to a companion `{collection}#history` store as a dynamically generated `TraitableHistory` class. History entries include server-populated `_at` (timestamp) and `_who` (authenticated store user) fields.
+
+Opt out with `keep_history=False` on the class definition, for example `class Person(Traitable, keep_history=False):`. Note, that by default traitable classes declared with `keep_history=False` are immutable (i.e. can only be persisted once). This behavior can be disabled by also specifying `immutable=False`
+
+**Querying history**
+
+| Method | Purpose                                                                                                                          |
+|--------|----------------------------------------------------------------------------------------------------------------------------------|
+| `Cls.history(...)` | Iterable of revision dicts (newest first). Pass `_deserialize=True` for `TraitableHistory` instances with a `.traitable` getter. |
+| `Cls.latest_revision(traitable_id, timestamp=None, deserialize=False)` | Latest revision at or before `timestamp` (or the newest revision when `timestamp` is omitted).                                   |
+| `Cls.as_of(traitable_id, as_of_time)` | Load a point-in-time view of a traitable into the shared cache.                                                                  |
+| `Cls.restore(traitable_id, timestamp=None, save=False)` | Restore cached trait values from history; pass `save=True` to persist the rollback.                                              |
+| `AsOfContext(as_of_time, traitable_classes=[...])` | Scope trait reads (and nested loads for listed classes or their subclasses) to a historical point in time.                       |
+
+```python
+from datetime import date
+from infra_10x.mongodb_store import MongoStore
+from core_10x.traitable import AsOfContext, Traitable, T
+
+class Config(Traitable):
+    name: str = T(T.ID)
+    value: int = T()
+
+with MongoStore.instance(hostname='localhost', dbname='myapp'):
+    Config.delete_collection()
+    if Config.s_history_class:
+        Config.s_history_class.delete_collection()
+
+    cfg = Config(name='main', value=1, _replace=True)
+    cfg.save()
+    first_rev = cfg._rev
+
+    cfg.value = 2
+    cfg.save()
+
+    by_rev = {entry['_traitable_rev']: entry for entry in Config.history()}
+    assert by_rev[first_rev]['value'] == 1
+    assert by_rev[cfg._rev]['value'] == 2
+    assert '_at' in by_rev[first_rev]
+    assert '_who' in by_rev[first_rev]
+
+    snapshot_time = by_rev[first_rev]['_at']
+    Config.restore(cfg.id(), timestamp=snapshot_time)
+    assert cfg.value == 1
+
+    cfg.reload()
+    assert cfg.value == 2
+
+    with AsOfContext(snapshot_time, [Config]):
+        assert Config.existing_instance(name='main').value == 1
+```
+
+`AsOfContext` requires the listed classes to keep history; for classes with `keep_history=False` the context is a no-op and current data is used.
+
 ## Relational Database (RelDb)
 
 `RelDb` is a `Resource`-conformant wrapper around an [ibis](https://ibis-project.org) connection, giving relational databases the same `with`-block lifecycle as `TsStore`.  
@@ -1620,6 +1906,8 @@ with MongoStore.instance(
 
 ### Trait Modifications
 
+`M(flag)` re-declares an inherited trait with a different flag without replacing the trait entirely. The most common use is promoting a non-ID trait to an ID trait in a subclass — making identity more specific — or the reverse. The subclass gets a distinct ID space from its parent while still inheriting its other traits.
+
 ```python
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import Traitable, T, M
@@ -1629,8 +1917,8 @@ class Person(Traitable,keep_history=False):
     age: int = T()
 
 class IdentifiedPerson(Person):
-    # Modify existing trait
-    name: str = M(T.ID)  # make it an id trait
+    # Promote name to an ID trait in this subclass
+    name: str = M(T.ID)
 
 with CACHE_ONLY():
     person = Person(name='John', age=10, _replace=True)
@@ -2636,10 +2924,6 @@ python core_10x/manual_tests/trivial_graph_test.py
 - Join our [Discord](https://discord.gg/m7AQSXfFwf) for discussion and support
 - Check GitHub Issues for known problems
 - Contribute to the project via pull requests
-
-### 5. Advanced Topics
-
-- Enterprise resource management (coming in future releases)
 
 ## Resources
 
