@@ -7,6 +7,13 @@ from core_10x.rel_db import RelDb
 from core_10x.testlib.fixtures import temp_duck_db_uri
 
 
+def test_rel_db_spec_from_uri_roundtrips_windows_path():
+    # duckdb://C://... (drive letter as netloc) must roundtrip on every platform
+    # so CI catches parse_uri / uri() regressions before they reach Windows runners.
+    uri = 'duckdb://C://Users/foo/test.db'
+    assert RelDb.spec_from_uri(uri).uri() == uri
+
+
 def test_rel_db_spec_from_uri_parses_uri_components():
     spec = RelDb.spec_from_uri('pgtest://user:pass@localhost:5432/test_db')
 

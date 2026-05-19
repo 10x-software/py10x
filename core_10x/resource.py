@@ -183,7 +183,14 @@ class Resource(abc.ABC):
             }
 
             if parts.hostname is not None:
-                kwargs[cls.HOSTNAME_TAG] = parts.hostname
+                raw_netloc = parts.netloc.split('@')[-1]
+                # urlsplit lowercases hostname; for Windows drive-letter netlocs (e.g. "C:") preserve
+                # the raw form so that uri() can reconstruct "duckdb://C://..." verbatim.
+                kwargs[cls.HOSTNAME_TAG] = (
+                    raw_netloc
+                    if len(raw_netloc) == 2 and raw_netloc[0].isalpha() and raw_netloc[1] == ':'
+                    else parts.hostname
+                )
             if parts.port is not None:
                 kwargs[cls.PORT_TAG] = parts.port
 
