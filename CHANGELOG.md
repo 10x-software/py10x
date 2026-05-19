@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-17
+
 ### Added
 - **`EventBase`** (`core_10x/traitable.py`): new base class for event-like traitables with `_at` (timestamp) and `_who` (authenticated user) traits that are populated server-side on `save()`. `TraitableHistory` now inherits from `EventBase`; `keep_history` is no longer required on `TraitableHistory` subclasses (it is inherited). Custom event collections can extend `EventBase` directly to get the same server-populated field behavior.
 - **Forward references to sibling `Traitable` classes**: bare string annotations (e.g. `peer: "Peer" = T()`) are now resolved lazily — when the referenced class is defined later in the same module or in a sibling module, the placeholder is patched automatically. Composite forms (`list["Peer"]`, `Optional["Peer"]`, etc.) still require the name to be defined earlier; only bare identifiers can be deferred.
@@ -234,7 +236,7 @@ No separate changelog; see Version History below.
 
 ## Version History
 
-- **Unreleased**: EventBase; forward refs for sibling Traitables; NamedResource bundle; user status util + onboarding guide; RC.sum(); Self return types; canonical resource URI; filter fixes (IN set, inner-class leak); bundle/history fix; is_bundle fix; storage sharing fix; MongoDB non-standard port fix; admin vault workflow fix; curve.value float fix; Basket/Bucket; NamedCallable/ClassTrait; NamedConstantValue/Table; rel_db, scenario, logger; xx_common split; infra/mongo and UI updates; test run from installed package; CI Mongo action
+- **0.2.0**: EventBase; forward refs for sibling Traitables; NamedResource bundle; user status util + onboarding guide; RC.sum(); Self return types; canonical resource URI; filter fixes (IN set, inner-class leak); bundle/history fix; is_bundle fix; storage sharing fix; MongoDB non-standard port fix; admin vault workflow fix; curve.value float fix; Basket/Bucket; NamedCallable/ClassTrait; NamedConstantValue/Table; rel_db, scenario, logger; xx_common split; infra/mongo and UI updates; test run from installed package; CI Mongo action
 - **0.1.14**: Open source release; README overhaul (value prop, Hello World, when to use, full GitHub links)
 - **0.1.13**: Windows test fixes; history bug fix and more robust traitable history tests; pyproject fix; docs updated
 - **0.1.12**: This package rename to `py10x-universe` → `py10x-core`; docs updated
@@ -259,8 +261,8 @@ No migration from previous versions is necessary - package versions will automat
 
 ### Breaking Changes
 
-- **Unreleased**: Imports for **calendar / rdate / curve** moved from `core_10x` to the **`xx_common`** package (e.g. `xx_common.rdate`, `xx_common.curve`, `xx_common.xxcalendar`). Update any `from core_10x.…` references accordingly. **`core_10x.xinf`**: prefer **`-XInf`** for negative infinity in your code; **`MInf`** is internal to that module (`from core_10x.xinf import *` only exports **`XInf`**).
-- **Unreleased (py10x-kernel)**: The overloaded `get_value` / `set_value` / `raw_set_value` / `invalidate_value` / `is_valid` methods on `Traitable` — which previously accepted either a trait name (`str`) or a `Trait` object as their first argument — have been replaced by four statically-dispatched variants each:
+- **0.2.0**: Imports for **calendar / rdate / curve** moved from `core_10x` to the **`xx_common`** package (e.g. `xx_common.rdate`, `xx_common.curve`, `xx_common.xxcalendar`). Update any `from core_10x.…` references accordingly. **`core_10x.xinf`**: prefer **`-XInf`** for negative infinity in your code; **`MInf`** is internal to that module (`from core_10x.xinf import *` only exports **`XInf`**).
+- **0.2.0 (py10x-kernel)**: The overloaded `get_value` / `set_value` / `raw_set_value` / `invalidate_value` / `is_valid` methods on `Traitable` — which previously accepted either a trait name (`str`) or a `Trait` object as their first argument — have been replaced by four statically-dispatched variants each:
 
   | Old (overloaded) | New — name-based | New — Trait-based |
   |---|---|---|
