@@ -49,7 +49,6 @@ pybind11_add_module(py10x_kernel
 
 target_include_directories(py10x_kernel PRIVATE ${backward_SOURCE_DIR})
 
-
 # Generate .pyi stubs after building the module
 if(WIN32)
     set(PATH_SEP ";")
@@ -67,13 +66,29 @@ endif()
 set(STUBGEN_PYTHONPATH "${pybind11_stubgen_SOURCE_DIR}${PATH_SEP}${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 #message("STUBGEN_PYTHONPATH: ${STUBGEN_PYTHONPATH}")
 
-add_custom_command(
-        TARGET py10x_kernel POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen py10x_kernel -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Generating type stubs for py10x_kernel"
-        VERBATIM
-)
+option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+if(ENABLE_SANITIZERS)
+    message(STATUS "Sanitizers enabled")
+
+    target_compile_options(py10x_kernel PRIVATE
+            -fsanitize=address,undefined
+            -fno-omit-frame-pointer
+            -g
+    )
+
+    target_link_options(py10x_kernel PRIVATE
+            -fsanitize=address,undefined
+    )
+else()
+    add_custom_command(
+            TARGET py10x_kernel POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen py10x_kernel -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Generating type stubs for py10x_kernel"
+            VERBATIM
+    )
+endif()
 
 target_compile_definitions(py10x_kernel PRIVATE
         VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"

@@ -68,17 +68,35 @@ endif()
 set(STUBGEN_PYTHONPATH "${pybind11_stubgen_SOURCE_DIR}${PATH_SEP}${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 #message("STUBGEN_PYTHONPATH: ${STUBGEN_PYTHONPATH}")
 
-add_custom_command(
-        TARGET py10x_infra POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen py10x_infra -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Generating type stubs for py10x_infra"
-        VERBATIM
-)
+
 
 target_compile_definitions(py10x_infra PRIVATE
         VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
 )
+
+option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+
+if(ENABLE_SANITIZERS)
+    message(STATUS "Sanitizers enabled")
+
+    target_compile_options(py10x_kernel PRIVATE
+            -fsanitize=address,undefined
+            -fno-omit-frame-pointer
+            -g
+    )
+
+    target_link_options(py10x_kernel PRIVATE
+            -fsanitize=address,undefined
+    )
+else()
+    add_custom_command(
+            TARGET py10x_infra POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen py10x_infra -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+            COMMENT "Generating type stubs for py10x_infra"
+            VERBATIM
+    )
+endif()
 
 install(TARGETS py10x_infra
         LIBRARY DESTINATION .
