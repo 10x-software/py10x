@@ -101,7 +101,7 @@ class ResourceSpec:
         return self.kwargs[Resource.HOSTNAME_TAG]
 
     def port(self) -> int:
-        return self.kwargs[Resource.PORT_TAG]
+        return self.kwargs.get(Resource.PORT_TAG, self.resource_class.s_instance_kwargs_map.get(Resource.PORT_TAG, (None, None))[1])
 
     def set_credentials(self, username: str = None, password: str = None):
         if username is not None:
@@ -183,7 +183,14 @@ class Resource(abc.ABC):
             }
 
             if parts.hostname is not None:
-                kwargs[cls.HOSTNAME_TAG] = parts.hostname
+                raw_netloc = parts.netloc.split('@')[-1]
+                # urlsplit lowercases hostname; for Windows drive-letter netlocs (e.g. "C:") preserve
+                # the raw form so that uri() can reconstruct "duckdb://C://..." verbatim.
+                kwargs[cls.HOSTNAME_TAG] = (
+                    raw_netloc
+                    if len(raw_netloc) == 2 and raw_netloc[0].isalpha() and raw_netloc[1] == ':'
+                    else parts.hostname
+                )
             if parts.port is not None:
                 kwargs[cls.PORT_TAG] = parts.port
 

@@ -152,6 +152,9 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
     def auth_user(self) -> str | None:
         return self.stores[0].auth_user() if self.stores else None
 
+    def db_name(self) -> str | None:
+        return self.stores[0].db_name() if self.stores else None
+
     def add_who(self, field: str, serialized_data: dict) -> dict:
         return self.stores[0].add_who(field, serialized_data) if self.stores else serialized_data
 

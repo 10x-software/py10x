@@ -1,5 +1,3 @@
-from core_10x.xdate_time import XDateTime
-
 # Getting Started with `py10x-core`
 
 This guide covers the technical implementation and advanced usage of the py10x framework.
@@ -9,16 +7,22 @@ This guide covers the technical implementation and advanced usage of the py10x f
 1. [What is `py10x-core`?](#whats-in-py10x-core)
 2. [Installation](#installation)
 3. [Core Concepts](#core-concepts)
-4. [Your First Traitable](#your-first-traitable)
-5. [Object Identification System](#object-identification-system)
-6. [Storage and Persistence](#storage-and-persistence)
-7. [Dependency Graph and Execution Control](#dependency-graph-and-execution-control)
-8. [Traitable Store](#traitable-store)
-9. [UI Framework Integration](#ui-framework-integration)
-10. [Advanced Features](#advanced-features)
-11. [Configuration](#configuration)
-12. [Basket and Bucket Facility](#basket-and-bucket-facility)
-13. [Next Steps](#next-steps)
+4. [How Traitables Are Created](#how-traitables-are-created)
+5. [Your First Traitable](#your-first-traitable)
+6. [Getters, Setters, and Validation](#getters-setters-and-validation)
+7. [Object Identification System](#object-identification-system)
+8. [Storage and Regular Traits](#storage-and-regular-traits)
+9. [Traitable Type Traits](#traitable-type-traits)
+10. [Execution Modes and Control](#execution-modes-and-control)
+11. [Traitable Store](#traitable-store)
+12. [Relational Database (RelDb)](#relational-database-reldb)
+13. [UI Framework Integration](#ui-framework-integration)
+14. [Vault and Credential Management](#vault-and-credential-management)
+15. [Advanced Features](#advanced-features)
+16. [Configuration](#configuration)
+17. [Basket and Bucket Facility](#basket-and-bucket-facility)
+18. [Best Practices](#best-practices)
+19. [Next Steps](#next-steps)
 
 ## What's in `py10x-core`?
 
@@ -109,21 +113,43 @@ with CACHE_ONLY():  # or MongoStore.instance()
 
 ### Runtime Traitables Exception
 
+A traitable whose every trait is a runtime trait (`RT()` or a bare annotation with no stored ID traits) never needs a storage context — construction, assignment, and computation all work without one. The `Calculator` below is the canonical example.
+
+## Your First Traitable
+
+Let's start with a simple runtime traitable that doesn't require storage context:
+
 ```python
 from core_10x.traitable import Traitable
 
 class Calculator(Traitable):
-    x: int  # Runtime trait
-    y: int  # Runtime trait
-    sum: int  # Runtime trait
+    # Runtime traits - not stored
+    x: int
+    y: int
+    sum: int      # Computed via sum_get()
+    product: int  # Computed via product_get()
 
-# No storage context needed for runtime traitables
+    def sum_get(self) -> int:
+        """Getter method - computes sum of x and y."""
+        return self.x + self.y
+
+    def product_get(self) -> int:
+        """Getter method - computes product of x and y."""
+        return self.x * self.y
+
+# Runtime traitables work without storage context
 calc = Calculator(x=5, y=3)
+assert calc.sum == 8        # 8
+assert calc.product == 15   # 15
+
+# Update values and see automatic recomputation
+calc.x = 10
+assert calc.sum == 13    # 13
 ```
 
 ## Getters, Setters, and Validation
 
-`py10x-core` provides powerful mechanisms for computed traits, validation, and data transformation:
+`py10x-core` provides mechanisms for computed traits, validation, and data transformation:
 
 ### Getters (Computed Traits)
 
@@ -152,13 +178,16 @@ class Person(Traitable):
         if not self.dob:
             return 0
         today = date.today()
-        return today.year - self.dob.year
+        years = today.year - self.dob.year
+        if (today.month, today.day) < (self.dob.month, self.dob.day):
+            years -= 1
+        return years
 
 # Usage
 with CACHE_ONLY():
     person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _replace=True)
     assert person.full_name == "Alice Smith"  # Computed
-    assert person.age == 36  # Computed from dob
+    assert person.age == date.today().year - 1990 - (1 if (date.today().month, date.today().day) < (5, 15) else 0)
 ```
 
 ### Setters (Validation and Transformation)
@@ -166,7 +195,7 @@ with CACHE_ONLY():
 Setters provide validation and data transformation. They are automatically called on assignment:
 
 ```python
-from core_10x.traitable import Traitable, T, RC, RC_TRUE
+from core_10x.traitable import Traitable, RC, RC_TRUE
 
 class Person(Traitable):
     email: str
@@ -177,7 +206,7 @@ class Person(Traitable):
         if '@' not in value or '.' not in value.split('@')[1]:
             return RC(False, f'Invalid email format: "{value}"')
         
-        # Use raw_set_value to bypass the setter
+        # Use raw_set_trait_value to bypass the setter
         return self.raw_set_trait_value(trait, value)
     
     def age_set(self, trait, value: int) -> RC:
@@ -248,7 +277,7 @@ e.verify().throw()  # success
 ### Setters Can Propagate Values to Other Traits
 
 ```python
-from core_10x.traitable import Traitable, T, RC, RC_TRUE
+from core_10x.traitable import Traitable, RC, RC_TRUE
 
 class Person(Traitable):
     first_name: str
@@ -309,7 +338,7 @@ assert person.full_name == "Madonna"  # Computed by getter
 Converters are automatically called when there's a **type mismatch** between the assigned value and the trait type:
 
 ```python
-from core_10x.traitable import Traitable, T, RC, RC_TRUE
+from core_10x.traitable import Traitable, RC, RC_TRUE
 from core_10x.exec_control import CONVERT_VALUES_ON, CONVERT_VALUES_OFF, DEBUG_ON
 
 class Person(Traitable):
@@ -354,39 +383,6 @@ with CONVERT_VALUES_OFF():
 - **`_get` methods**: Computation when accessing values  
 - **`_set` methods**: Validation and transformation when setting values
 - **Setters can propagate to other traits**: Unlike converters, setters can set multiple traits in response to one assignment
-
-
-## Your First Traitable
-
-Let's start with a simple runtime traitable that doesn't require storage context:
-
-```python
-from core_10x.traitable import Traitable
-
-class Calculator(Traitable):
-    # Runtime traits - not stored
-    x: int
-    y: int
-    sum: int      # Computed via sum_get()
-    product: int  # Computed via product_get()
-
-    def sum_get(self) -> int:
-        """Getter method - computes sum of x and y."""
-        return self.x + self.y
-
-    def product_get(self) -> int:
-        """Getter method - computes product of x and y."""
-        return self.x * self.y
-
-# Runtime traitables work without storage context
-calc = Calculator(x=5, y=3)
-assert calc.sum == 8        # 8
-assert calc.product == 15   # 15
-
-# Update values and see automatic recomputation
-calc.x = 10
-assert calc.sum == 13    # 13
-```
 
 ## Object Identification System
 
@@ -630,12 +626,12 @@ with CACHE_ONLY():  # No traitable store, in-memory caching only
     person.weight_lbs = 130.0
     
     # Access computed traits
-    assert person.age == 36         # Computed from dob
-    assert person.full_name == "Alice Smith" # Computed from first_name + last_name
-    
+    assert person.age == date.today().year - 1990  # Computed from dob
+    assert person.full_name == "Alice Smith"        # Computed from first_name + last_name
+
     # Use setter with validation
     person.age = 25  # Updates dob automatically
-    assert person.dob == date(2001, 5, 15)  # Updated DOB
+    assert person.dob == date(date.today().year - 25, 5, 15)  # Updated DOB
 ```
 
 ### Traitable Store and persistence
@@ -668,6 +664,9 @@ You can connect to a store in three ways:
 1. **Direct instance:** `MongoStore.instance(hostname='localhost', dbname='myapp')`
 2. **URI:** `TsStore.instance_from_uri('mongodb://localhost/myapp')` (from `core_10x.ts_store`)
 3. **Environment variable:** Set `XX_MAIN_TS_STORE_URI` to define a default global store used by all storable traitables — see [Configuration](#configuration) for the full list of supported environment variables.
+
+For per-class store routing, transactions, `TsUnion`, and the full persistence API see **[Traitable Store](#traitable-store)**.  
+For relational databases (ibis-backed queries and ADBC bulk inserts), see **[Relational Database (RelDb)](#relational-database-reldb)**.
 
 ### Traitable Store Union (TsUnion)
 
@@ -791,6 +790,29 @@ with CACHE_ONLY():
     # The address is stored embedded within the person
     assert person.serialize_object()['address'] == {'street': '123 Main St', 'city': 'Anytown', 'zip_code': '12345'}
 ```
+
+### Forward References to Sibling Traitable Classes
+
+When two `Traitable` classes reference each other — or when a class is defined after the one that references it — you can use a **bare string annotation** to defer resolution until the referenced class has been registered:
+
+```python
+from core_10x.traitable import Traitable, T
+
+class Order(Traitable):
+    order_id: str       = T(T.ID)
+    customer: Customer = T()   # Customer is defined below
+
+class Customer(Traitable):
+    name: str           = T(T.ID)
+    primary_order: Order = T() # mutual reference is fine too
+```
+
+`py10x-core` resolves bare string annotations (simple identifiers only) lazily: as each `Traitable` class is registered, any pending forward references that match its name are patched automatically. No manual `update_forward_refs()` call is needed.
+
+**Limitations**:
+
+- Only **bare identifiers** (`"Peer"`) can be deferred. Composite forms such as `"list[Peer]"`, `"Optional[Peer]"`, and similar must resolve immediately — define the referenced class earlier, or use `typing.TYPE_CHECKING` to guard a non-string annotation.
+- Forward references across **different packages** work if the target class is imported and registered before the referencing module is fully evaluated; if uncertain, put the import at the top of the file rather than relying on deferred resolution.
 
 ## Execution Modes and Control
 
@@ -931,7 +953,7 @@ with GRAPH_ON() as gp:
 
 ##### When `deps()` returns nothing
 
-- **Not in graph mode** (`GRAPH_OFF` / `CACHE_ONLY`): `find_dependencies` always returns an empty dict outside of graph mode.
+- **Not in graph mode** (`GRAPH_OFF`): `find_dependencies` always returns an empty dict outside of graph mode.
 - **Trait not yet computed**: the dependency graph node for the root trait does not exist until the trait is evaluated at least once under `GRAPH_ON`.
 - **Zero trait names**: passing no trait name arguments is valid but the C++ layer short-circuits and returns nothing immediately.
 - **Wrong `target_class` or trait name**: the C++ layer silently skips classes that are not subclasses of `target_class` and trait names that don't exist on the target class.
@@ -1107,7 +1129,7 @@ original exception = TypeError: can only concatenate str (not "int") to str"""
 
 ### Storage Context Modes
 
-#### CACHE_ONLY - In-Memory Operations
+#### `CACHE_ONLY` - In-Memory Operations
 
 **What it does**: Provides in-memory caching without persistent storage.
 
@@ -1181,7 +1203,9 @@ The storage context is used for finding and loading traitables.
 
 ### Per-class store association
 
-You can associate particular Traitable classes (or modules) with specific store instances. When `use_ts_store_per_class` is enabled, the framework resolves the store for a class via `TsClassAssociation` and `NamedTsStore` (create and persist those traitables in your main store so each class or module maps to a logical store name and URI). This allows different Traitable subclasses to use different stores (e.g. different MongoDB databases or backends).
+You can associate particular Traitable classes (or modules) with specific store instances. 
+The framework resolves the store for a class via `TsClassAssociation` and `NamedTsStore` — create and persist those traitables in your main store so each class or module maps to a logical store name and URI. 
+This allows different Traitable subclasses to use different stores (e.g. different MongoDB databases or backends).
 
 ### Storage Context and Traitable Creation
 
@@ -1274,32 +1298,33 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
 from core_10x.trait_filter import f, GT, AND
 from infra_10x.mongodb_store import MongoStore
 from core_10x.traitable import Traitable, T
-from core_10x.trait_filter import f, GT, AND
 from datetime import date
 
-class Person(Traitable):
+class Person(Traitable, keep_history=False):
     first_name: str = T(T.ID)
     last_name: str = T(T.ID)
     dob: date = T()
 
-# Find traitables using filters (requires storage context)
 with MongoStore.instance(hostname="localhost", dbname="myapp"):
-    # Find all people with last name "Smith"
+    Person.delete_collection()
+    Person(first_name="Alice", last_name="Smith",  dob=date(1991, 3, 1),  _replace=True).save()
+    Person(first_name="Bob",   last_name="Smith",  dob=date(1985, 6, 15), _replace=True).save()
+    Person(first_name="Carol", last_name="Jones",  dob=date(1993, 9, 10), _replace=True).save()
+
+    # Simple filter: all Smiths
     smith_people = Person.load_many(f(last_name="Smith"))
-    
-    # Find people born after 1990
+    assert len(smith_people) == 2
+
+    # Range filter: born after 1990
     young_people = Person.load_many(f(dob=GT(date(1990, 1, 1))))
-    
-    # Complex filter: Smiths born after 1990
+    assert len(young_people) == 2  # Alice and Carol
+
+    # Compound filter: Smiths born after 1990
     young_smiths = Person.load_many(
         AND(f(last_name="Smith"), f(dob=GT(date(1990, 1, 1))))
     )
-    
-    # Verify the filter results
-    assert len(young_smiths) > 0
-    for person in young_smiths:
-        assert person.last_name == "Smith"
-        assert person.dob > date(1990, 1, 1)
+    assert len(young_smiths) == 1
+    assert young_smiths[0].first_name == "Alice"
 ```
 
 #### Find Existing Instance
@@ -1416,45 +1441,132 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
 
 Without transaction support, any successful saves preceding the failure remain persisted — pick the mode that matches your durability needs.
 
-### Storage Context Modes
+### Revision history
 
-#### CACHE_ONLY - In-Memory Operations
+Storable traitables keep a revision history **by default**. Each successful `save()` that advances `_rev` also writes a snapshot to a companion `{collection}#history` store as a dynamically generated `TraitableHistory` class. History entries include server-populated `_at` (timestamp) and `_who` (authenticated store user) fields.
 
-```python
-from core_10x.exec_control import CACHE_ONLY
-from core_10x.traitable import Traitable, T
-from datetime import date
+Opt out with `keep_history=False` on the class definition, for example `class Person(Traitable, keep_history=False):`. Note, that by default traitable classes declared with `keep_history=False` are immutable (i.e. can only be persisted once). This behavior can be disabled by also specifying `immutable=False`
 
-class Person(Traitable):
-    first_name: str = T(T.ID)
-    last_name: str = T(T.ID)
-    dob: date = T()
+**Querying history**
 
-# Use in-memory caching without backing database
-with CACHE_ONLY():
-    person = Person(first_name="Alice", last_name="Smith")
-    person.dob = date(1990, 5, 15)
-    # No persistence, but full traitable functionality available
-```
-
-#### Traitable Store integration
+| Method | Purpose                                                                                                                          |
+|--------|----------------------------------------------------------------------------------------------------------------------------------|
+| `Cls.history(...)` | Iterable of revision dicts (newest first). Pass `_deserialize=True` for `TraitableHistory` instances with a `.traitable` getter. |
+| `Cls.latest_revision(traitable_id, timestamp=None, deserialize=False)` | Latest revision at or before `timestamp` (or the newest revision when `timestamp` is omitted).                                   |
+| `Cls.as_of(traitable_id, as_of_time)` | Load a point-in-time view of a traitable into the shared cache.                                                                  |
+| `Cls.restore(traitable_id, timestamp=None, save=False)` | Restore cached trait values from history; pass `save=True` to persist the rollback.                                              |
+| `AsOfContext(as_of_time, traitable_classes=[...])` | Scope trait reads (and nested loads for listed classes or their subclasses) to a historical point in time.                       |
 
 ```python
-from core_10x.traitable import Traitable, T
 from datetime import date
 from infra_10x.mongodb_store import MongoStore
+from core_10x.traitable import AsOfContext, Traitable, T
 
-class Person(Traitable,keep_history=False):
-    first_name: str = T(T.ID)
-    last_name: str = T(T.ID)
-    dob: date = T()
-    
-# Connect to a Traitable Store (MongoDB backend in this example)
-with MongoStore.instance(hostname="localhost", dbname="myapp"):
-    person = Person(first_name="Alice", last_name="Smith")
-    person.dob = date(1990, 5, 15)
-    person.save()  # Persists to the traitable store
+class Config(Traitable):
+    name: str = T(T.ID)
+    value: int = T()
+
+with MongoStore.instance(hostname='localhost', dbname='myapp'):
+    Config.delete_collection()
+    if Config.s_history_class:
+        Config.s_history_class.delete_collection()
+
+    cfg = Config(name='main', value=1, _replace=True)
+    cfg.save()
+    first_rev = cfg._rev
+
+    cfg.value = 2
+    cfg.save()
+
+    by_rev = {entry['_traitable_rev']: entry for entry in Config.history()}
+    assert by_rev[first_rev]['value'] == 1
+    assert by_rev[cfg._rev]['value'] == 2
+    assert '_at' in by_rev[first_rev]
+    assert '_who' in by_rev[first_rev]
+
+    snapshot_time = by_rev[first_rev]['_at']
+    Config.restore(cfg.id(), timestamp=snapshot_time)
+    assert cfg.value == 1
+
+    cfg.reload()
+    assert cfg.value == 2
+
+    with AsOfContext(snapshot_time, [Config]):
+        assert Config.existing_instance(name='main').value == 1
 ```
+
+`AsOfContext` requires the listed classes to keep history; for classes with `keep_history=False` the context is a no-op and current data is used.
+
+## Relational Database (RelDb)
+
+`RelDb` is a `Resource`-conformant wrapper around an [ibis](https://ibis-project.org) connection, giving relational databases the same `with`-block lifecycle as `TsStore`.  
+The `query()` method returns an ibis `Table` for lazy, composable SQL; `insert()` writes a Polars `DataFrame` directly via ADBC for efficient bulk loads.
+
+```python
+import os
+import polars as pl
+from core_10x.rel_db import RelDb
+
+with RelDb.instance_from_uri(analytics_db_uri) as db:
+   # query — returns an ibis Table; chain ibis operations before executing
+   tbl = db.query('prices')
+   df = tbl.filter(tbl.symbol == 'AAPL').to_polars()
+   df.write_parquet('prices.parquet')
+
+   # drop and recreate a table
+   db.drop_table('prices')
+
+# insert must be called outside the context manager (uses ADBC, not the ibis connection)
+df = pl.read_parquet('prices.parquet')
+RelDb.instance_from_uri(analytics_db_uri).insert('prices', df, if_exists='replace')
+os.remove('prices.parquet')
+```
+
+`query()` raises `ibis.common.exceptions.TableNotFound` if the table does not exist.  Pass `_throw=False` to get `None` instead:
+
+```python
+from core_10x.rel_db import RelDb
+
+with RelDb.instance_from_uri(analytics_db_uri) as db:
+   tbl = db.query('prices', _throw=False)
+   if tbl is not None:
+    ...
+```
+
+### RelDb with Vault credentials
+
+`RelDb` participates in the same vault credential system as `TsStore`.  There are two patterns:
+
+**Direct URI** — `instance_from_uri` resolves vault credentials automatically if they are registered:
+
+```python
+from core_10x.rel_db import RelDb
+
+with RelDb.instance_from_uri(analytics_db_uri) as db:
+    tbl = db.query('prices')
+```
+
+**Named resource** — store the URI once in the main store, then open it by logical name with no URI in application code:
+
+```python
+from core_10x.traitable import NamedResource
+from core_10x.concrete_resource import CONCRETE_RESOURCE
+
+
+# One-time setup — saved to the main store (XX_MAIN_TS_STORE_URI).
+class NamedRelDb(NamedResource):
+    s_resource_dt = CONCRETE_RESOURCE.REL_DB
+
+NamedRelDb.new_or_replace(logical_name='analytics-db', uri=analytics_db_uri)
+
+# At runtime — vault credentials are resolved transparently when configured.
+with NamedRelDb.existing_instance(logical_name='analytics-db').resource_instance() as db:
+    tbl = db.query('prices', _throw=False)
+```
+
+Register credentials once using `xx-admin-save-user-credentials`.  See the **Vault and Credential Management** section below for the full workflow.
+
+---
 
 ## UI Framework Integration
 
@@ -1794,6 +1906,8 @@ with MongoStore.instance(
 
 ### Trait Modifications
 
+`M(flag)` re-declares an inherited trait with a different flag without replacing the trait entirely. The most common use is promoting a non-ID trait to an ID trait in a subclass — making identity more specific — or the reverse. The subclass gets a distinct ID space from its parent while still inheriting its other traits.
+
 ```python
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import Traitable, T, M
@@ -1803,8 +1917,8 @@ class Person(Traitable,keep_history=False):
     age: int = T()
 
 class IdentifiedPerson(Person):
-    # Modify existing trait
-    name: str = M(T.ID)  # make it an id trait
+    # Promote name to an ID trait in this subclass
+    name: str = M(T.ID)
 
 with CACHE_ONLY():
     person = Person(name='John', age=10, _replace=True)
@@ -1948,7 +2062,7 @@ LOG.begin('my_app', LOG.DETAILED)   # idempotent: no-op if a Logger is already a
 LOG.end()                            # sends shutdown signal; subprocess drains queue and exits
 ```
 
-`LOG.begin` is **idempotent** — calling it a second time does nothing (the existing `Logger` is kept).  `LOG.end` signals the background process to drain its queue and exit; it does not call `proc.join()`, so the subprocess finishes asynchronously.
+`LOG.begin` is **idempotent** — calling it a second time does nothing (the existing `Logger` is kept).  `LOG.end` calls `shutdown()` on the active logger (drains the queue, joins the subprocess) and resets the global logger to `None`, so a subsequent `LOG.begin` starts a fresh logger.
 
 **Log levels** — only messages at or below the configured level are put on the queue:
 
@@ -1964,10 +2078,12 @@ LOG.end()                            # sends shutdown signal; subprocess drains 
 ```python
 from core_10x.logger import LOG
 
+LOG.begin('my_app', LOG.VERBOSE)
 LOG.BRIEF('application started')      # always written at level BRIEF or above
 LOG.MEDIUM({'action': 'login'})       # payload can be any Python object
 LOG.DETAILED('processing request')
 LOG.VERBOSE({'raw': True, 'data': 42})
+LOG.end()
 ```
 
 Each `LogMessage` record (a `Traitable` with `custom_collection=True, keep_history=False`) stores:
@@ -1980,32 +2096,164 @@ Each `LogMessage` record (a `Traitable` with `custom_collection=True, keep_histo
 | `num_threads` | `int` | Thread count at call time (`psutil`) |
 | `payload` | `Any` | Value passed to the log call |
 
-**Testing with a stub Logger** — unit tests should not start real subprocesses.  Replace the global `LOGGER` with a stub that records messages:
+**Testing with a stub logger** — unit tests should not start a real `Logger` subprocess unless you intend an end-to-end check. For synchronous tests of `LOG.*`, use **`stub_log_module_logger`** from **`core_10x.testlib.stub_logger`** (it installs a `StubLogLogger` that records payloads in `.received`, then restores the previous global `LOGGER`). With pytest under `core_10x/`, prefer the **`stub_log_logger`** fixture from **`core_10x.testlib.fixtures`** (re-exported in **`core_10x/conftest.py`**); see **`core_10x/unit_tests/test_logger.py`**.
 
 ```python
-import core_10x.logger as log_module
 from core_10x.logger import LOG
+from core_10x.testlib.stub_logger import stub_log_module_logger
 
-class StubPS:
-    def memory_percent(self): return 0.0
-    def num_threads(self):    return 1
-
-class StubLogger:
-    def __init__(self, log_level):
-        self.log_level = log_level
-        self.received = []
-        self.ps = StubPS()
-    def log(self, data): self.received.append(data)
-
-log_module.LOGGER = StubLogger(LOG.VERBOSE.value)
-LOG.BRIEF('hello')
-assert log_module.LOGGER.received[0]['payload'] == 'hello'
-log_module.LOGGER = None   # restore
+with stub_log_module_logger(LOG.VERBOSE.value) as stub:
+    LOG.BRIEF('hello')
+    assert stub.received[0]['payload'] == 'hello'
 ```
+
+## Vault and Credential Management
+
+`py10x-core` includes a built-in credential vault so that database passwords and other secrets never appear in source code or environment variables.  The vault works with **all `Resource` types** — `TsStore` (MongoDB), `RelDb` (any ibis-supported database), and any custom `Resource` subclass.
+
+There are two user-facing patterns for connecting to resources:
+
+**Pattern 1 — direct URI** (simplest; good for dev or when the URI is already an environment variable):
+
+```python
+from infra_10x.mongodb_store import MongoStore
+from core_10x.rel_db import RelDb
+
+# TsStore
+with MongoStore.instance_from_uri('mongodb://localhost/authenticated') as store:
+    ...
+
+# RelDb
+with RelDb.instance_from_uri(analytics_db_uri) as db:
+    ...
+```
+
+If vault credentials are registered for that URI, they are resolved automatically.
+
+**Pattern 2 — `NamedResource` + class associations** (recommended for production; no URI in application code):
+
+Name → URI mappings are persisted as `NamedTsStore` (or a custom `NamedResource` subclass) records in the main store.  `TsClassAssociation` records then map Traitable classes or modules to logical store names.
+At runtime, Traitable classes are transparently stored to or loaded from the traitable store as defined in `TsClassAssociation`.
+
+See **[NamedResource and class associations](#namedresource-and-class-associations)** below.
+
+### Concepts
+
+| Component | What it is |
+|-----------|-----------|
+| **Vault** | A dedicated `TsStore` database (e.g. a separate MongoDB database) that stores encrypted credentials. URI set via `XX_MAIN_VAULT_URI`. |
+| **`VaultUser`** | One record per user, keyed by OS user name (`user_id`). Holds an RSA-2048 key pair: the public key in plain text, the private key encrypted with the user's **master password**. |
+| **`VaultResourceAccessor`** | One record per *(user, resource type, resource URI)* triple. Holds the login name and the resource password encrypted with that user's public key. |
+| **`SecKeys`** | Low-level helper: RSA encryption/decryption (`cryptography` library) + OS keyring integration (`keyring` library) for the master password and vault login/password. |
+
+### Security model
+
+```
+OS keyring (user's machine)          Vault database (shared server)
+────────────────────────────         ──────────────────────────────────
+master_password                      VaultUser.public_key          (plain text)
+vault_login / vault_password         VaultUser.private_key_encrypted  (AES, master_password)
+                                     VaultResourceAccessor.password   (RSA, public_key)
+```
+
+- The master password **never leaves the user's machine** — it is stored in the OS keyring and used locally to unlock the private key.
+- Admins encrypt resource passwords using the user's *public* key.  They cannot decrypt passwords belonging to other users.
+- Vault login/password are also in the OS keyring; they are sent to the vault store for authentication.
+
+### `NamedResource` and class associations
+
+`NamedResource` is a `Bundle` that binds a logical name to a resource URI and resolves the live resource instance — with vault credentials when available.  
+`NamedTsStore` is the built-in subclass for `TsStore`; for other resource types subclass `NamedResource` directly:
+
+```python
+from core_10x.traitable import NamedResource
+from core_10x.concrete_resource import CONCRETE_RESOURCE
+
+class NamedRelDb(NamedResource):
+    s_resource_dt = CONCRETE_RESOURCE.REL_DB
+```
+
+#### One-time setup (persisted in main store)
+```python
+from core_10x.traitable import NamedTsStore, TsClassAssociation
+
+# Register named stores — URI is stored here, not in application code.
+# These records are persisted in the main store (XX_MAIN_TS_STORE_URI).
+NamedTsStore.new_or_replace(logical_name='trades-db',    uri='testdb://db.example.com/trades').save()
+NamedTsStore.new_or_replace(logical_name='analytics-db', uri='testdb://db.example.com/analytics').save()
+
+# Associate a module (or class) with a logical store name.
+# Resolution walks bottom-up: class name → module → parent packages.
+TsClassAssociation.new_or_replace(py_canonical_name='myapp.models',           ts_logical_name='trades-db').save()
+TsClassAssociation.new_or_replace(py_canonical_name='myapp.analytics.models', ts_logical_name='analytics-db').save()
+```
+#### At runtime
+
+With `XX_MAIN_TS_STORE_URI` set, every `Traitable` class automatically uses the store its module is associated with (defaults to `XX_MAIN_TS_STORE_URI` if no association found). 
+No URI or store handle anywhere in application code:
+
+```python
+from core_10x.traitable import Traitable, T, EventBase
+
+class Position(Traitable):
+    symbol: str = T(T.ID)
+    qty: int = T()
+
+Position.__module__ = 'myapp.models'  # for illustration only, matches TsClassAssociation
+
+class AnalyticsReport(Traitable):
+    name: str = T(T.ID)
+
+AnalyticsReport.__module__ = 'myapp.analytics.models'# for illustration only, matches TsClassAssociation
+
+assert Position.store().db_name() == 'trades' # from previously saved TsClassAssociation 
+assert AnalyticsReport.store().db_name() == 'analytics' # from previously saved TsClassAssociation 
+assert EventBase.store() is Traitable.main_store() # does not match any TsClassAssociation, goes to main store
+```
+
+#### Using `NamedResource` for non-TsStore resources
+
+```python
+from core_10x.traitable import NamedResource
+from core_10x.concrete_resource import CONCRETE_RESOURCE
+
+class NamedRelDb(NamedResource):
+    s_resource_dt = CONCRETE_RESOURCE.REL_DB
+
+# Save the mapping once to the main store.
+# duckdb_uri is a fixture variable; replace with your real URI in production.
+NamedRelDb.new_or_replace(logical_name='analytics-db', uri=analytics_db_uri).save()
+
+# At runtime — resolved from the main store; vault credentials applied if configured.
+named = NamedRelDb.existing_instance(logical_name='analytics-db')
+with named.resource_instance() as db:
+    tbl = db.query('prices', _throw=False)
+```
+
+
+### CLI onboarding tools
+
+Three entry points handle the admin/user setup workflow:
+
+| Command | Who runs it | What it does |
+|---------|-------------|--------------|
+| `xx-user-init` | New user | Prompts for vault login, temp password, and new master password; generates RSA key pair; stores credentials in vault and OS keyring |
+| `xx-user-status` | Any user | Prints a health check for every registered resource accessor |
+| `xx-admin-save-user-credentials` | Admin | Encrypts a resource password with a user's public key and stores it in the vault |
+
+See **[`docs/USER_ONBOARDING_AUTH.md`](docs/USER_ONBOARDING_AUTH.md)** for the full step-by-step procedure and an information-flow diagram.
+
+### Relevant environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `XX_MAIN_VAULT_URI` | URI of the vault TsStore (where `VaultUser` and `VaultResourceAccessor` records are kept) |
 
 ## Configuration
 
-`py10x-core` centralises runtime configuration in the **`EnvVars`** facility (`core_10x.environment_variables.EnvVars`). Every configuration point is a typed class attribute backed by an environment variable with the prefix **`XX_`**. Values are read from the environment on first access, coerced to the declared type, cached, and optionally passed to a side-effect hook.
+`py10x-core` centralises runtime configuration in the **`EnvVars`** facility (`core_10x.environment_variables.EnvVars`). 
+Every configuration point is a typed class attribute backed by an environment variable with the prefix **`XX_`**. 
+Values are read from the environment on first access, coerced to the declared type, cached, and optionally passed to a side-effect hook.
 
 ### Accessing a configured value
 
@@ -2099,9 +2347,8 @@ The shipping `EnvVars` class declares the following configuration points (all op
 | `XX_SDLC_AREA` | `sdlc_area` | `str` | `f'{build_area}/{parent_build_area}'` | Combined SDLC area identifier. |
 | `XX_MASTER_PASSWORD_KEY` | `master_password_key` | `str` | `'XX_MASTER_PASSWORD'` | Name of the env var that holds the vault master password. |
 | `XX_MAIN_TS_STORE_URI` | `main_ts_store_uri` | `str` | `''` | Default global Traitable Store URI used by storable traitables — see [Connecting to stores](#connecting-to-stores). |
-| `XX_VAULT_TS_STORE_URI` | `vault_ts_store_uri` | `str` | `main_ts_store_uri` | Store for security credentials; falls back to the main store when unset. |
+| `XX_MAIN_VAULT_URI` | `main_vault_uri` | `str` | `''` | URI of the vault TsStore (where `VaultUser` and `VaultResourceAccessor` records are kept). |
 | `XX_LOG_TS_STORE_URI` | `log_ts_store_uri` | `str` | `''` | Mongo URI for `LOG` persistence (see [LOG — Structured Asynchronous Logging](#log--structured-asynchronous-logging)); when unset, log messages go to stdout only and are not persisted. |
-| `XX_USE_TS_STORE_PER_CLASS` | `use_ts_store_per_class` | `bool` | `True` | Resolve per-class `TsStore` via `TsClassAssociation` / `NamedTsStore`. |
 | `XX_FUNCTIONAL_ACCOUNT_PREFIX` | `functional_account_prefix` | `str` | `'xx'` | Prefix identifying functional accounts in usernames. |
 | `XX_GRAPH_ON` | `graph_on` | `bool` | `False` | When `True`, `core_10x` enters `GRAPH_ON()` at process start — see [GRAPH_ON](#graph_on---dependency-tracking-and-caching). |
 | `XX_USE_TS_STORE_TRANSACTIONS` | `use_ts_store_transactions` | `bool` | `False` | Wrap multi-save operations in TsStore transactions — applies to history-keeping saves, `save(save_references=True)`, and [`SaveIfChanged`](#saveifchanged--auto-save-modified-traitables). Requires a transaction-capable backend (e.g. MongoDB replica set). |
@@ -2603,18 +2850,42 @@ with CACHE_ONLY():
 
 ### 1. Trait Design
 
-- Use `T()` for traits that need persistence and searching
-- Use `RT()` (or omit) for traits that shouldn't be stored or persisted
-- Use `T(T.ID)` for traits that define traitable identity
-- Implement getter methods for computed values
-- Use setter methods for validation and transformation
+- Use `T()` for traits that need persistence and searching; `RT()` (or a bare annotation) for in-memory-only traits
+- Use `T(T.ID)` for the minimum set of fields that uniquely identify an entity — ID traits determine global sharing
+- Implement `_get` methods for computed/derived values; avoid storing values that can be derived
+- Use `_set` methods to validate on assignment; use `_verify` methods for deferred or cross-field validation (runs at `verify()` / `save()` time)
+- Use converters (`_from_str`, `_from_any_xstr`) for transparent type coercion rather than manual casting at every call site
 
 ### 2. Object Identification
 
-- Design ID traits carefully - they determine global sharing
-- Use endogenous traitables for entities that should share state
-- Use exogenous traitables for events and records
-- Use anonymous traitables for embedded data
+- Endogenous (`T(T.ID)` traits, same object across contexts) for entities whose state should be shared globally
+- Exogenous (identity supplied from outside) for events and immutable records
+- Anonymous (no ID traits) for embedded, transient data that is not looked up independently
+- Keep ID traits stable — changing them changes the object's identity
+
+### 3. Store Configuration
+
+- Set `XX_MAIN_TS_STORE_URI` once (via the environment or an init script) instead of wrapping every call in `with MongoStore.instance(...):` — all storable traitables use it automatically
+- Use `NamedTsStore` + `TsClassAssociation` to route different Traitable classes to different stores; URIs stay in the main store, not in application code
+- Use `SaveIfChanged` when updating many objects in a batch — it saves only what actually changed, avoiding unnecessary writes
+
+### 4. Relational Database
+
+- Prefer `RelDb.instance_from_uri(uri)` for one-off queries and `NamedRelDb` (a `NamedResource` subclass) for production code where the URI should not appear in application code
+- Use `db.query(table)` for lazy ibis expressions; materialise with `.execute()` only when the result is needed
+- Use `db.insert(table, df)` with a Polars `DataFrame` for efficient bulk loads via ADBC
+
+### 5. Vault and Credential Management
+
+- Run `xx-user-init` once per developer and `xx-admin-save-user-credentials` once per resource — after that, `resource_instance()` resolves credentials automatically and no passwords appear in code or environment variables
+- The vault works with every `Resource` type: `TsStore`, `RelDb`, and any custom subclass; the same workflow applies to all of them
+
+### 6. Testing
+
+- Use the `main_test_store` pytest fixture (from `core_10x.testlib.fixtures`) to activate an in-memory `TestStore` as the main store for the entire test module — no external database required
+- Use the `stub_log_logger` fixture (same module, re-exported in `core_10x/conftest.py`) or the `stub_log_module_logger` context manager from `core_10x.testlib.stub_logger` to test `LOG.*` without a subprocess
+- Use `CACHE_ONLY()` for lightweight unit tests that exercise trait logic without needing persistence or global object sharing
+- Make each test (or test module) self-contained: set up and tear down its own data rather than relying on state left by other tests
 
 ## Next Steps
 
@@ -2653,10 +2924,6 @@ python core_10x/manual_tests/trivial_graph_test.py
 - Join our [Discord](https://discord.gg/m7AQSXfFwf) for discussion and support
 - Check GitHub Issues for known problems
 - Contribute to the project via pull requests
-
-### 5. Advanced Topics
-
-- Enterprise resource management (coming in future releases)
 
 ## Resources
 

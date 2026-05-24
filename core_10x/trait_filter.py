@@ -103,8 +103,8 @@ class LE(Op):
 
 
 class IN(Op):
-    def __new__(cls, values: list | tuple):
-        assert isinstance(values, list) or isinstance(values, tuple), f'{cls.__name__}() requires a list or tuple'
+    def __new__(cls, values: list | tuple | set):
+        assert isinstance(values, (list, tuple, set)), f'{cls.__name__}() requires a list, tuple, or set'
         return super().__new__(cls, values)
 
     def serialize_right_value(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict:

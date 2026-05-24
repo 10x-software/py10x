@@ -97,7 +97,7 @@ def main() -> int:
             for ra in ras:
                 label = f'{ra.resource_dt.name}  {ra.resource_uri}  (login: {ra.login})'
                 try:
-                    ra.resource.__class__   # force evaluation — ra.resource is a lazy RT trait
+                    ra.resource # noqa: B018 useless-expression
                     _ok(label)
                 except Exception as exc:
                     _fail(label,

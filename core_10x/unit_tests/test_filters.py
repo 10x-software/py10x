@@ -137,6 +137,17 @@ def test_in_nin():
     assert not NIN([1, 2, 3]).eval(2)
     assert NIN([1, 2]).prefix_notation() == {'$nin': [1, 2]}
 
+    # set is also accepted
+    assert IN({1, 2, 3}).eval(2)
+    assert not IN({1, 2, 3}).eval(4)
+    assert IN({1, 2, 3}).prefix_notation() == {'$in': {1, 2, 3}}
+
+    assert NIN({1, 2, 3}).eval(4)
+    assert not NIN({1, 2, 3}).eval(2)
+
+    with pytest.raises(AssertionError, match='requires a list, tuple, or set'):
+        IN(42)
+
 
 def test_between_bounds_and_prefix():
     b = BETWEEN(1, 5)

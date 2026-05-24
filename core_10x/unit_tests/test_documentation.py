@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from core_10x.testlib.fixtures import main_test_store, temp_duck_db_uri
 from core_10x.ts_store import TsStore
 
 if TYPE_CHECKING:
@@ -100,17 +101,23 @@ def patch_person():
     yield
     core_10x.code_samples.person.Person.s_history_class = old_history_class
 
-
 @pytest.mark.parametrize(
     'test_name,code_block,future_annotations',
-    [
+    args:=[
         (name, code, future_annotations)
         for name, code, src in extract_code_blocks_from_docs()
         for future_annotations in (True, False)
         if not is_ui_code_block(code)  # Skip UI code blocks - tested separately
     ],
+    ids=[f'{a[0]}-{a[2]}' for a in args]
 )
-def test_documentation_code_block_execution(test_name: str, code_block: str, future_annotations: bool):
+def test_documentation_code_block_execution(
+        test_name: str,
+        code_block: str,
+        future_annotations: bool,
+        temp_duck_db_uri,  # noqa: F811
+        main_test_store,  # noqa: F811
+):
     """Test that documentation code blocks can execute successfully."""
     # Skip if code block is empty
     if not code_block.strip():
@@ -128,6 +135,8 @@ def test_documentation_code_block_execution(test_name: str, code_block: str, fut
                 '__name__': fake_module_name,
                 '__file__': f'<{doc_file_name}>',
                 '__builtins__': __builtins__,
+                'analytics_db_uri': temp_duck_db_uri,
+                'main_store':       main_test_store,
             }
         )
         sys.modules[fake_module_name] = fake_module
@@ -138,11 +147,9 @@ def test_documentation_code_block_execution(test_name: str, code_block: str, fut
     try:
         exec(code_block, fake_module.__dict__)
     finally:
-        # Clean up the fake module
+        # Clean up the fake module; store cleanup is handled by main_test_store fixture
         if fake_module_name in sys.modules:
             del sys.modules[fake_module_name]
-
-        TsStore.s_instances.clear()
 
 
 @pytest.mark.parametrize(

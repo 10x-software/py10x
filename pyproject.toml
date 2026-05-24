@@ -9,12 +9,12 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "py10x-kernel (>=0.1.16,<=0.1.17)",
-    "py10x-infra (>=0.1.14,<=0.1.15)",
+    "py10x-kernel (>=0.2.0,<=0.2.1)",
+    "py10x-infra (>=0.2.0,<=0.2.1)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
-    "cryptography>=45.0.7,<46.1.0",
+    "cryptography>=45.0.7,<48.1.0",
     "pymongo (>=4.7.3)",
     "typing-extensions>=4.15.0",
     "scipy>=1.15.3",
@@ -26,9 +26,6 @@ dependencies = [
     "ibis-framework[postgres]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
     "psutil>=5.9.7",
-    "tccbox>=2025.10.27",
-    "numba>=0.65.1",
-    "cython>=3.2.4",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -74,6 +71,11 @@ qt = [
     "PyQt6-Qt6 (==6.8.2)",
     "PyQt6_sip (==13.10.0)",
 ]
+jit = [
+    "numba>=0.65.1",
+    "cython>=3.2.4",
+    "tccbox>=2025.10.27",
+]
 
 [project.urls]
 Homepage = "https://github.com/10x-software/py10x"
@@ -92,7 +94,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x"]
+packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xx_common"]
 #exclude = [ "**/*_tests/**" ]
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]

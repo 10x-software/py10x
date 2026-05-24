@@ -296,3 +296,6 @@ class MongoStore(TsStoreMongoLike, TsStore, resource_name = 'MONGO_DB'):
 
     def auth_user(self) -> str:
         return self.username
+
+    def db_name(self) -> str:
+        return self.db.name

@@ -350,7 +350,7 @@ class Basket(Traitable, embeddable = True):
 
     base_class: type[Traitable]             = T(T.NOT_EMPTY)
     subclasses_allowed: bool                = T(True)
-    reset_mambers_on_set_bucketizers: bool  = T(True)
+    reset_members_on_set_bucketizers: bool  = T(True)
     aggregator_class: type[NamedCallable]   = T()
     bucketizers: list[Bucketizer]           = T(T.EMBEDDED|T.STICKY)
 
@@ -371,7 +371,7 @@ class Basket(Traitable, embeddable = True):
         if not isinstance(bucketizers, list) or not all(isinstance(b, Bucketizer) for b in bucketizers):
             return RC(False, 'bucketizers must be a list of instances of Bucketizer')
 
-        if not self.reset_mambers_on_set_bucketizers:
+        if not self.reset_members_on_set_bucketizers:
             return RC(self.add_bucketizers(bucketizers,replace=True))
 
         self.invalidate_value('the_bucket')
@@ -484,7 +484,7 @@ class Basket(Traitable, embeddable = True):
         base_class = self.base_class
         trait = getattr(base_class, method_name, None)
         if trait is None:
-            return None
+            raise AttributeError(f"'{type(self).__name__}' basket (base_class={base_class.__name__ if base_class else None}) has no attribute '{method_name}'")
 
         aggregator_f = self.f_aggregator(method_name, throw = False)
         if isinstance(trait, Trait):
@@ -496,7 +496,7 @@ class Basket(Traitable, embeddable = True):
         if callable(trait):
             return functools.partial(self._lift_by_method_name, method_name, aggregator_f)
 
-        return None
+        raise AttributeError(f"'{type(self).__name__}' cannot lift '{method_name}' from {base_class.__name__ if base_class else None}: not a Trait or callable")
 
     def calc_trait_values(self, trait_name: str, aggregator_f: Callable):
         if not self.bucketizers:

@@ -123,7 +123,6 @@ def test_id_sortable():
 def test_id_lt_none_collection_raises_type_error_vs_named():
     # Python 3 does not order None against strings, so mixing None and non-None
     # collection_names raises TypeError — document that boundary here.
-    import pytest
     with pytest.raises(TypeError):
         _ = ID('z', None) < ID('a', 'c')
 

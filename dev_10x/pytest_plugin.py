@@ -21,10 +21,23 @@ def _owned_top_levels() -> set[str] | None:
         if not p.parts:
             continue
         top = p.parts[0]
-        if Path(top).is_relative_to(PY10X_ROOT):
+        if top and '.' not in top:
             tops.add(top)
 
-    return tops
+    return tops or None
+
+
+def pytest_configure(config):
+    try:
+        config.pluginmanager.import_plugin('alt_pytest_asyncio.enable')
+    except ImportError:
+        return
+
+    try:
+        if not config.getini('default_async_timeout'):
+            config._inicache['default_async_timeout'] = 30
+    except (ValueError, KeyError):
+        pass
 
 
 def pytest_ignore_collect(collection_path, config):
@@ -34,19 +47,18 @@ def pytest_ignore_collect(collection_path, config):
         # Returning None means "no opinion" so user package collection is unaffected.
         return None
 
-    if any('.venv' in part for part in p.parts):
-        return True
-
-    tops = _owned_top_levels()
-    rel = p.relative_to(PY10X_ROOT)
-    parts = rel.parts
+    parts = p.relative_to(PY10X_ROOT).parts
     if not parts:
         return False
 
+    if any('.venv' in part for part in parts):
+        return True
+
+    tops = _owned_top_levels()
     if tops and parts[0] not in tops:
         return True
 
-    if rel.is_dir():
+    if p.is_dir():
         return False
 
     # Do not ignore tests located in a unit_tests parent directory.

@@ -1,6 +1,6 @@
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import psutil
 from typing import Any
 import multiprocessing as mp
@@ -73,7 +73,7 @@ class Logger:
         self.app_name = app_name
         self.log_level = log_level
         if started_at is None:
-            started_at = datetime.utcnow()
+            started_at = datetime.now(tz=timezone.utc)
         self.started_at = started_at
         pid = os.getpid()
         full_name = f'{app_name}/{OsUser.me.name()}/{socket.gethostname()}/{XDateTime.datetime_to_str(started_at, False)}/{pid}'
@@ -95,7 +95,8 @@ LOGGER: Logger = None
 class LOG:
     @staticmethod
     def _log(log_level: int, payload: Any):
-        assert LOGGER, 'You must have called LOG.begin(app_name, log_level)'
+        if not LOGGER:
+            raise RuntimeError('You must call LOG.begin(app_name, log_level) before logging.')
         if log_level > LOGGER.log_level:
             return
 
@@ -117,11 +118,14 @@ class LOG:
         global LOGGER
         if LOGGER is None:
             LOGGER = Logger(app_name, log_level.value)
-            LOG.BRIEF(datetime.utcnow())
+            LOG.BRIEF(datetime.now(tz=timezone.utc))
 
     @staticmethod
     def end():
-        LOG._log(0, None)
+        global LOGGER
+        if LOGGER is not None:
+            LOGGER.shutdown()
+            LOGGER = None
 
     def __new__(cls, payload: Any): cls._log(0, payload)
 
@@ -135,5 +139,6 @@ class LOG:
     VERBOSE.value = 3
 
 class LogReader:
+    # TODO: not yet implemented — will provide query/replay access to persisted LogMessage records
     ...
 

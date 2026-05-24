@@ -8,7 +8,7 @@ from core_10x.traitable import Traitable, T, RT, Trait
 
 from core_10x.jit.traitable_compiler import TraitableCompiler
 
-class NodeTransforfmer(ast.NodeTransformer):
+class NodeTransformer(ast.NodeTransformer):
     def __init__(self, traitable_class: type[Traitable], method_name: str):
         self.traitable_class = traitable_class
         self.method_name = method_name
@@ -78,7 +78,7 @@ class GetterCompiler(Traitable):
     original_getter: Any                = RT()
     target_getter_name: str             = RT()
 
-    ast_node_transformer: NodeTransforfmer  = RT(T.STICKY)
+    ast_node_transformer: NodeTransformer  = RT(T.STICKY)
 
     target_ast_tree: Any                = RT()
     target_getter: Any                  = RT()
@@ -87,9 +87,7 @@ class GetterCompiler(Traitable):
 
 
     def jit_get(self):
-        tg = self.target_getter
         jit = numba.jit(forceobj = True) if not self.ast_node_transformer.njit else numba.njit
-        #print(jit)
         return jit
 
     def original_getter_get(self):
@@ -98,8 +96,8 @@ class GetterCompiler(Traitable):
     def target_getter_name_get(self) -> str:
         return f'{self.trait_name}_get_{self.__class__.s_target_getter_suffix}'
 
-    def ast_node_transformer_get(self) -> NodeTransforfmer:
-        return NodeTransforfmer(self.traitable_class, self.target_getter_name)
+    def ast_node_transformer_get(self) -> NodeTransformer:
+        return NodeTransformer(self.traitable_class, self.target_getter_name)
 
     def target_getter_get(self):
         src = inspect.getsource(self.original_getter)
@@ -138,7 +136,6 @@ class GetterCompiler(Traitable):
         return _mod_getter
 
     def target_getter_src(self) -> str:
-        tg = self.target_getter
         return ast.unparse(self.target_ast_tree)
 
     def compiled_target(self):

@@ -39,13 +39,20 @@ class RelDb(Resource, resource_type=REL_DB):
             self._connection.disconnect()
             self._connection = None
 
-    def query(self, table_name: str) -> ir.Table|None:
-        """Return an ibis Table for the given table, for further ibis manipulation."""
-        assert self._connection is not None, 'RelDb must be used as a context manager for querying.'
+    def query(self, table_name: str, _throw: bool = True, **kwargs) -> ir.Table | None:
+        """Return an ibis Table for the given table, for further ibis manipulation.
+
+        If the table does not exist, raises TableNotFound when _throw=True (default),
+        or returns None when _throw=False.
+        """
+        if self._connection is None:
+            raise RuntimeError('RelDb must be used as a context manager for querying.')
         from ibis.common.exceptions import TableNotFound
         try:
-            return self._connection.table(table_name)
+            return self._connection.table(table_name, **kwargs)
         except TableNotFound:
+            if _throw:
+                raise
             return None
 
     def insert(self, table_name: str, df: pl.DataFrame, if_exists: Literal['replace', 'append', 'fail'] = 'fail') -> None:
@@ -54,9 +61,11 @@ class RelDb(Resource, resource_type=REL_DB):
         if_exists: 'fail' (default) raises if the table exists;
                    'replace' drops and recreates; 'append' adds rows.
         """
-        assert self._connection is None, 'RelDb must not be used as a context manager for insert.'
+        if self._connection is not None:
+            raise RuntimeError('RelDb must not be used as a context manager for insert; call insert() outside the with block.')
         df.write_database(table_name, self._uri, engine='adbc', if_table_exists=if_exists)
 
     def drop_table(self, table_name: str) -> None:
-        assert self._connection is not None, 'RelDb must be used as a context manager.'
+        if self._connection is None:
+            raise RuntimeError('RelDb must be used as a context manager.')
         self._connection.drop_table(table_name)
