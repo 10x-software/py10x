@@ -35,8 +35,8 @@ if __name__ == '__main__':
     calc = Calc(seed = seed)
     calc.count = 100_000
 
-    #trait_name = 'abracadabra'
-    trait_name = 'price'
+    trait_name = 'abracadabra'
+    #trait_name = 'price'
 
     #same_values, dt, dt_jit = eval_optimizer(calc, trait_name, TraitableOptimizer.CYTHON_TCC)
     #same_values, dt, dt_jit = eval_optimizer(calc, trait_name, TraitableOptimizer.NUMBA)
