@@ -82,6 +82,7 @@ class PyLinkage {
     py::object          m_trait_method_error_class;
     py::object          f_find_class;
     py::object          f_find_class_id;
+    py::object          f_uuid7;
 
     py::args            m_choices_args;
     py::args            m_style_sheet_args;
@@ -178,6 +179,11 @@ public:
 
     static std::size_t python_id(const py::object& obj) {
         return py::module_::import("builtins").attr("id")(obj).cast<std::size_t>();
+    }
+
+    static py::object uuid7() {
+        auto id7 = s_py_linkage->f_uuid7();
+        return id7.attr("hex");
     }
 
     static py::object pickle(const py::object& data) {
