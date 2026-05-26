@@ -319,3 +319,6 @@ class TestStore(TsStoreMongoLike, TsStore, resource_name='TEST_DB'):
 
     def db_name(self) -> str | None:
         return self.dbname
+
+    def server_time(self) -> datetime:
+        return datetime.now(datetime.utc)
