@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
@@ -271,6 +272,9 @@ class MongoStore(TsStoreMongoLike, TsStore, resource_name = 'MONGO_DB'):
     def delete_collection(self, collection_name: str) -> bool:
         self.db.drop_collection(collection_name)
         return True
+
+    def server_time(self) -> datetime:
+        return self.db.command('hello')['localTime']
 
     @classmethod
     @cache

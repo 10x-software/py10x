@@ -3,7 +3,10 @@ from __future__ import annotations
 import abc
 from collections import deque
 from contextlib import ExitStack, contextmanager
+from datetime import datetime
 from typing import TYPE_CHECKING
+
+#from polars.testing.parametric.strategies import data
 
 from core_10x.environment_variables import EnvVars
 from core_10x.exec_control import ProcessContext
@@ -167,6 +170,9 @@ class TsStore(Resource, resource_type=TS_STORE):
 
     @abc.abstractmethod
     def add_when(self, field: str, serialized_data: dict) -> dict: ...
+
+    @abc.abstractmethod
+    def server_time(self) -> datetime: ...
 
     def supports_transactions(self) -> bool:
         return True

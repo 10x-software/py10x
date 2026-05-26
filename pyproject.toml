@@ -27,6 +27,7 @@ dependencies = [
     "adbc-driver-manager>=1.10.0",
     "psutil>=5.9.7",
     "jax>=0.10.1",
+    "uuid6>=2025.0.1",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
