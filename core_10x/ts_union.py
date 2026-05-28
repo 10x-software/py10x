@@ -3,6 +3,7 @@ from __future__ import annotations
 import heapq
 import itertools
 import operator
+from datetime import datetime
 from itertools import zip_longest
 from typing import TYPE_CHECKING
 
@@ -161,6 +162,8 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
     def add_when(self, field: str, serialized_data: dict) -> dict:
         return self.stores[0].add_when(field, serialized_data) if self.stores else serialized_data
 
+    def server_time(self) -> datetime:
+        return self.stores[0].server_time() if self.stores else None
 
     def transaction(self):
         """Context manager for transactional operations. Delegates to base (no stores) or first store."""
