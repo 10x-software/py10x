@@ -1,6 +1,7 @@
 import inspect
 from datetime import timedelta
 
+from core_10x.py_class import PyClass
 from core_10x.trait_filter import f, BETWEEN, LT
 from core_10x.traitable import Traitable, T
 from xx_common.event import Event
@@ -39,20 +40,25 @@ class EventProcessor(Traitable):
         super().__init_subclass__(**kwargs)
 
     def pending_events(self) -> tuple[dict, list[Event]]:
-        watermarks = {}
+        watermarks_per_class = {}
+        watermarks_per_server = {}
         events = []
         event_class: type[Event]
         last_watermarks = self.last_watermarks
         for event_class in self.__class__.s_input_event_classes:
-            server_time = event_class.store().server_time()
-            watermark = server_time - timedelta(milliseconds = 1)
-            event_class_name = event_class.__name__
+            store = event_class.store()
+            watermark = watermarks_per_server.get(store)
+            if watermark is None:
+                watermark = store.server_time() - timedelta(milliseconds = 1)
+                watermarks_per_server[store] = watermark
+
+            event_class_name = PyClass.name(event_class)
             last = last_watermarks.get(event_class_name)
             query = f(_at = BETWEEN(last, watermark, bounds = (False, False))) if last else f(_at = LT(watermark))
             events.extend(event_class.load_many(query = query))
-            watermarks[event_class_name] = watermark
+            watermarks_per_class[event_class_name] = watermark
         events.sort(key = lambda e: e._at)
-        return watermarks, events
+        return watermarks_per_class, events
 
     def advance(self, watermarks: dict):
         self.last_watermarks = self.last_watermarks | watermarks
