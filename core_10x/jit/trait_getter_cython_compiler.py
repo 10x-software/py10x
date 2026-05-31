@@ -62,7 +62,8 @@ class FuncTreeWalker(ast.NodeTransformer):
                 trait = self.traitable_class.trait(name)
                 if trait and not trait.getter_params:
                     self.attrs[name] = trait.data_type
-            return ast.copy_location(ast.Name(id = _self_attr(name), ctx=node.ctx), node)
+            if name in self.attrs:
+                return ast.copy_location(ast.Name(id = _self_attr(name), ctx=node.ctx), node)
 
         return node
 
@@ -202,8 +203,8 @@ class CythonCompiler(TraitableMethodOptimizer):
         cdef_lines = []
         for attr, py_type in walker.attrs.items():
             self_attr = _self_attr(attr)
-            if py_type:
-                cdef_lines.append(f'    cdef {self.s_pytype_cy_map[py_type]} {self_attr} = self.{attr}')
+            if py_type and (cy_typename := self.s_pytype_cy_map.get(py_type) is not None):
+                cdef_lines.append(f'    cdef {cy_typename} {self_attr} = self.{attr}')
             else:
                 cdef_lines.append(f'    {self_attr} = self.{attr}')
 

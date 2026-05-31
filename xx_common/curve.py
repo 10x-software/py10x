@@ -151,6 +151,12 @@ class Curve(AnonymousTraitable):
     def reset(self):
         self.invalidate_value('interpolator')
 
+    @classmethod
+    def same_values(cls, v1, v2) -> bool:
+        if v1.id() == v2.id():
+            return True
+
+        return v1.times == v2.times and v1.values == v2.values
 
 class TwoFuncInterpolator:
     def __init__(self, in_func, out_func, in_func_on_arrays=None, _interpolator=interpolate.interp1d):
