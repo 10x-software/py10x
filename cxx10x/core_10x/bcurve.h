@@ -248,6 +248,10 @@ using BCurve = CurveTemplate<double>;
 
 class BDateCurve : public CurveTemplate<int> {
 public:
+    BDateCurve() = default;
+    BDateCurve(std::vector<int> times, std::vector<double> values)
+        : CurveTemplate<int>(std::move(times), std::move(values)) {}
+
     void update(const py::object& d, double v);
     void update_many(const py::list& dates, const VALUES& values);
     bool remove(const py::object& d);

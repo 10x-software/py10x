@@ -417,6 +417,8 @@ PYBIND11_MODULE(py10x_kernel, m)
 
     py::class_<BDateCurve>(m, "BDateCurve")
             .def(py::init<>())
+            .def(py::init<std::vector<int>, std::vector<double>>())
+            .def("set_beginning_of_time",   py::overload_cast<int>(&CurveTemplate<int>::set_beginning_of_time))
             .def("update",                  py::overload_cast<const py::object&, double>(&BDateCurve::update))
             .def("update_many",             &BDateCurve::update_many)
             .def("remove",                  py::overload_cast<const py::object&>(&BDateCurve::remove))
