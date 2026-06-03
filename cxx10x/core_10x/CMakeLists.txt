@@ -45,6 +45,7 @@ pybind11_add_module(py10x_kernel
         btraitable_ui_extension.cpp
         xcache.cpp
         os_user.cpp
+        bcurve.cpp
 )
 
 target_include_directories(py10x_kernel PRIVATE ${backward_SOURCE_DIR})

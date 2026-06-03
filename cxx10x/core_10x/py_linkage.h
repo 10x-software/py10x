@@ -72,6 +72,8 @@ class PyLinkage {
     py::object          m_datetime_cls;
     py::object          m_date_cls;
     py::object          f_fromisoformat;
+    py::object          f_fromordinal;
+    py::object          f_toordinal;
 
     //-- 10x related stuff
     std::string         m_py_package_name;
@@ -127,6 +129,8 @@ public:
     static py::object datetime_class()          { return s_py_linkage->m_datetime_cls; }
     static py::object date_class()              { return s_py_linkage->m_date_cls; }
     static py::object fromisoformat(const py::object& text) { return s_py_linkage->f_fromisoformat(text); }
+    static py::object fromordinal(int d)        { return s_py_linkage->f_fromordinal(d); }
+    static int toordinal(const py::object& a_date) { return s_py_linkage->f_toordinal(a_date).cast<int>(); }
 
     static py::object list_class()              { return s_py_linkage->m_list_cls; }
     static py::object tuple_class()             { return s_py_linkage->m_tuple_cls; }
