@@ -1,0 +1,2 @@
+set(PYBIND11_VERSION        "v2.13.6")
+set(PYBIND11_STUBGEN_VERSION "v2.5.5")
