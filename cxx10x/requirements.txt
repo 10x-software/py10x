@@ -5,6 +5,7 @@ typing-extensions>=4.15.0
 python-dateutil>=2.9.0
 keyring>=25.7
 cryptography>=46.0
+uuid6>=2025.0.1
 
 # for infra
 pymongo>=4.7.3
