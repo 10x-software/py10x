@@ -146,6 +146,9 @@ PyLinkage::PyLinkage(const py::dict& package_names) {
         mname = name_from_dict(CORE_10X::PACKAGE_REFACTORING_MODULE_NAME, true);
         mod = py::module_::import(mname.c_str());
         pf_class = mod.attr(name_from_dict(CORE_10X::PACKAGE_REFACTORING_CLASS_NAME).c_str());
+
+        mod = py::module_::import("uuid6");
+        f_uuid7 = mod.attr("uuid7");
     }
     catch (py::error_already_set& exc) {
         const auto msg = py::str("Failed to import module: {}").format(py::str(mname));

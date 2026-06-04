@@ -10,10 +10,6 @@
 
 #include "brc.h"
 
-//BTraitable::BTraitable(const py::object& cls) {
-//    m_tid.set_class(cls.cast<BTraitableClass*>());
-//
-
 BTraitable::~BTraitable() {
     // TODO: what if it gets collected while a different cache is active? or on different thread?
     // Perhaps,
@@ -51,7 +47,8 @@ py::object BTraitable::lazy_load_if_needed() {
 }
 
 py::object BTraitable::exogenous_id() {
-    return PyHasher::uuid();
+    //return PyHasher::uuid();
+    return PyLinkage::uuid7();
 }
 
 py::object BTraitable::endogenous_id() {
