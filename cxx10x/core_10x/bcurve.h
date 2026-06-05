@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <pybind11/pybind11.h>
 
+#include "py_linkage.h"
+
 namespace py = pybind11;
 
 inline constexpr double kNaN = std::numeric_limits<double>::quiet_NaN();
@@ -45,6 +47,14 @@ public:
     {
         if (m_times.size() != m_values.size())
             throw py::value_error("CurveTemplate: times and values must have the same length");
+    }
+
+    void set_times(TIMES times) {
+        m_times = std::move(times);
+    }
+
+    void set_values(VALUES values) {
+        m_values = std::move(values);
     }
 
     void update(time_type t, double v) {
@@ -215,7 +225,7 @@ public:
     [[nodiscard]] bool  has_beginning_of_time() const   { return m_has_bot; }
     [[nodiscard]] time_type beginning_of_time() const   { return m_bot; }
 
-private:
+protected:
     static int min_points(IPKind kind) {
         switch (kind) {
             case IPKind::NO_INTERP:  return 0;
@@ -256,6 +266,15 @@ public:
     void update_many(const py::list& dates, const VALUES& values);
     bool remove(const py::object& d);
     void set_beginning_of_time(const py::object& d);
+
+    [[nodiscard]] py::object start_time() const {
+        return size() > 0 ? PyLinkage::fromordinal(m_times[0]) : py::none();
+    }
+
+    [[nodiscard]] py::object end_time() const {
+        auto n = size();
+        return n > 0 ? PyLinkage::fromordinal(m_times[n-1]) : py::none();
+    }
 
     [[nodiscard]] double value(const py::object& d) const;
     [[nodiscard]] py::object beginning_of_time_as_date() const;
