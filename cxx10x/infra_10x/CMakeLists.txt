@@ -4,32 +4,28 @@ project(py10x_infra)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXXFLAGS_DEBUG "-g -O0")
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/versions.cmake)
+
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 
 include(FetchContent)
 FetchContent_Declare(
         pybind11
         GIT_REPOSITORY https://github.com/pybind/pybind11
-        GIT_TAG        v2.13.6
+        GIT_TAG        ${PYBIND11_VERSION}
+        GIT_SHALLOW    TRUE
         OVERRIDE_FIND_PACKAGE
 )
 FetchContent_Declare(
         pybind11_stubgen
         GIT_REPOSITORY https://github.com/sizmailov/pybind11-stubgen.git
-        GIT_TAG v2.5.5
+        GIT_TAG        ${PYBIND11_STUBGEN_VERSION}
+        GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(pybind11 pybind11_stubgen)
-#FetchContent_Declare(
-#        mongo-cxx-driver
-#        GIT_REPOSITORY https://github.com/mongodb/mongo-cxx-driver
-#        GIT_TAG        r4.0.0
-#        OVERRIDE_FIND_PACKAGE
-#)
-#set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build mongo-cxx-driver as a static library" FORCE)
-#FetchContent_MakeAvailable(pybind11 mongo-cxx-driver)
-
 find_package(pybind11 REQUIRED)
-#find_package(mongo-cxx-driver REQUIRED)
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/PybindStubs.cmake)
 
 set(PY_LINKAGE_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../core_10x/py_linkage.h")
 if(EXISTS "${PY_LINKAGE_SRC}")
@@ -41,34 +37,9 @@ if(EXISTS "${PY_LINKAGE_SRC}")
 endif()
 
 pybind11_add_module(py10x_infra
-        #mongo_db_driver.cpp
         mongo_collection_helper.cpp
         py10x_infra.cpp
 )
-
-#target_include_directories(py10x_infra PRIVATE
-#        ${mongo-cxx-driver_SOURCE_DIR}/mongocxx/include/mongocxx/v_noabi
-#        ${mongo-cxx-driver_BINARY_DIR}/mongocxx/lib/mongocxx/v_noabi
-#)
-
-# Generate .pyi stubs after building the module
-if(WIN32)
-    set(PATH_SEP ";")
-    set(BINDIR_SUFFIX "/Release")
-else()
-    set(PATH_SEP ":")
-    set(BINDIR_SUFFIX "")
-endif()
-
-if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-    #message("CMAKE_CURRENT_BINARY_DIR: ${CMAKE_CURRENT_BINARY_DIR}")
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}${BINDIR_SUFFIX})
-endif()
-
-set(STUBGEN_PYTHONPATH "${pybind11_stubgen_SOURCE_DIR}${PATH_SEP}${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-#message("STUBGEN_PYTHONPATH: ${STUBGEN_PYTHONPATH}")
-
-
 
 target_compile_definitions(py10x_infra PRIVATE
         VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
@@ -78,33 +49,19 @@ option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer
 
 if(ENABLE_SANITIZERS)
     message(STATUS "Sanitizers enabled")
-
-    target_compile_options(py10x_kernel PRIVATE
+    target_compile_options(py10x_infra PRIVATE
             -fsanitize=address,undefined
             -fno-omit-frame-pointer
             -g
     )
-
-    target_link_options(py10x_kernel PRIVATE
+    target_link_options(py10x_infra PRIVATE
             -fsanitize=address,undefined
     )
 else()
-    add_custom_command(
-            TARGET py10x_infra POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${STUBGEN_PYTHONPATH}" ${Python3_EXECUTABLE} -m pybind11_stubgen py10x_infra -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-            COMMENT "Generating type stubs for py10x_infra"
-            VERBATIM
-    )
+    add_pybind_stubs(py10x_infra)
 endif()
 
 install(TARGETS py10x_infra
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
 )
-
-# Install the generated .pyi alongside the module
-install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/py10x_infra.pyi DESTINATION .)
-
-#target_link_libraries(py10x_infra PRIVATE mongocxx_static)
-
