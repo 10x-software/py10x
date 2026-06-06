@@ -98,6 +98,8 @@ def uv_sources_block(user_profile: str) -> TOMLDocument | None:
 
 
 def uv_sync(user_profile: str, *args):
+    import tomlkit
+
     project_root = Path('.').resolve()
     pyproject = project_root / 'pyproject.toml'
 
@@ -109,18 +111,44 @@ def uv_sync(user_profile: str, *args):
     if py_bak.exists():
         raise RuntimeError(f'Backup already exists: {py_bak}')
 
+    keep_changes = bool(os.environ.get('XX_UV_SYNC_KEEP'))
     src_block = uv_sources_block(user_profile)
     try:
         if src_block is not None:
             shutil.copy2(pyproject, py_bak)
-            with pyproject.open('a', encoding='utf-8', newline='\n') as f:
-                f.write('\n' + src_block.as_string())
+            doc = tomlkit.parse(pyproject.read_text(encoding='utf-8'))
+
+            new_sources = src_block['tool']['uv']['sources']
+            try:
+                existing_sources = doc['tool']['uv']['sources']
+            except KeyError:
+                existing_sources = {}
+
+            # Merge: existing entries are kept, new entries overwrite on conflict
+            merged = {**existing_sources, **new_sources}
+
+            if 'tool' not in doc:
+                doc.add('tool', tomlkit.table())
+            if 'uv' not in doc['tool']:
+                doc['tool'].add('uv', tomlkit.table())
+            if 'sources' not in doc['tool']['uv']:
+                doc['tool']['uv'].add('sources', tomlkit.table())
+
+            sources_tbl = doc['tool']['uv']['sources']
+            for k, v in merged.items():
+                sources_tbl[k] = v
+
+            pyproject.write_text(tomlkit.dumps(doc), encoding='utf-8', newline='\n')
+
         subprocess.run(['uv', 'sync', *args], cwd=project_root, check=True)
 
     finally:
         if src_block is not None and py_bak.exists():
-            shutil.copy2(py_bak, pyproject)
-            py_bak.unlink(missing_ok=True)
+            if keep_changes:
+                py_bak.unlink(missing_ok=True)
+            else:
+                shutil.copy2(py_bak, pyproject)
+                py_bak.unlink(missing_ok=True)
 
 
 def ensure_chromium_installed() -> None:
