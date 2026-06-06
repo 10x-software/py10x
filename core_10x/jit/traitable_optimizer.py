@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Callable
 
-from core_10x.traitable import Traitable, Trait, T, RT, XNone
+from core_10x.traitable import Traitable, Trait, T, RT, XNone, Nucleus
 from core_10x.logger import PerfTimer
 from core_10x.xinf import XInf
 from core_10x.exec_control import GRAPH_OFF
@@ -21,6 +21,7 @@ class TraitableOptimizer:
     AADT        = None
     _BEST       = XNone
     s_opt_classes = {CYTHON_TCC, NUMBA, JAX}
+    # s_opt_classes = {CYTHON_TCC, NUMBA}
 
     @classmethod
     def optimize(cls,
@@ -81,81 +82,89 @@ class TraitableOptimizer:
         force           = False,        #-- ignore if already found earlier
         verbose         = True          #-- print some info while going
     ) -> tuple[type[TraitableMethodOptimizer], Callable]:   #-- (op_class, optimized_method)
-        traitable_class = test_obj.__class__
-        data = TraitableMethodData.record(traitable_class, attr_name)
-        op_rec: MethodOptimizationRecord = MethodOptimizationRecord.instance(data.original_method)
-        if not force:
-            best = op_rec.get_best_optimization()
-            if best[0]:
-                return best
-
-        results = {}
-        op_obj: TraitableMethodOptimizer
-        for mt in cls.s_opt_classes:
-            mt_name = mt.__name__
-            if verbose:
-                print(f'Trying to optimize using {mt_name}')
-            try:
-                op_class, op_method = cls.optimize(traitable_class = traitable_class,  attr_name = attr_name, mt = mt)
-                if verbose:
-                    print(f'  optimized by {mt_name}.')
-
-                if op_class and op_method:
-                    if verbose:
-                        print(f'  collecting performance data for {mt_name}')
-                    r = test_obj.get_value(attr_name)    # triggers lazy JIT — may raise here
-
-                    results[op_class] = res = [0., 0.]
-                    res[0] = r
-                    with GRAPH_OFF():
-                        with PerfTimer() as clock:
-                            for i in range(num_runs):
-                                test_obj.get_value(attr_name)
-
-                    res[1] = clock.elapsed
-
-            except Exception as ex:
-                if verbose:
-                    print(f'{mt_name} failed:\n{ex}')
-                results.pop(mt, None)
-                cls.reset(traitable_class, attr_name)
-                continue
-
-        if verbose:
-            print('Determining the best optimizer...')
-
-        cls.reset(traitable_class, attr_name)
         with GRAPH_OFF():
+            if num_runs < 1:
+                num_runs = 1
+            traitable_class = test_obj.__class__
+            data = TraitableMethodData.record(traitable_class, attr_name)
+            op_rec: MethodOptimizationRecord = MethodOptimizationRecord.instance(data.original_method)
+            if not force:
+                best = op_rec.get_best_optimization()
+                if best[0]:
+                    return best
+
+            results = {}
+            op_obj: TraitableMethodOptimizer
             with PerfTimer() as clock:
                 value = test_obj.get_value(attr_name)
-        dt = clock.elapsed * num_runs
+            print(f'pure python dt = {clock.elapsed/1e3:.2f} us')
 
-        min_dt = XInf
-        chosen_class = None
-        for op_class, (val, elapsed) in results.items():
-            if val != value:
-                raise ValueError(f'{op_class}: {val} != {value}')
+            for mt in cls.s_opt_classes:
+                mt_name = mt.__name__
+                if verbose:
+                    print(f'Trying to optimize using {mt_name}')
+                try:
+                    op_class, op_method = cls.optimize(traitable_class = traitable_class,  attr_name = attr_name, mt = mt)
+                    if verbose:
+                        print(f'  optimized by {mt_name}.')
+
+                    if op_class and op_method:
+                        if verbose:
+                            print(f'  collecting performance data for {mt_name}')
+                        r = test_obj.get_value(attr_name)    # triggers lazy JIT — may raise here
+
+                        results[op_class] = res = [None, 0.]
+                        res[0] = r
+                        with PerfTimer() as clock:
+                            for i in range(num_runs):
+                                ri = test_obj.get_value(attr_name)
+                                if ri != r:
+                                    raise ValueError(f'{mt_name} produced a different result on iteration {i}')
+
+                        res[1] = clock.elapsed
+
+                except Exception as ex:
+                    if verbose:
+                        print(f'{mt_name} failed:\n{ex}')
+                    results.pop(mt, None)
+                    cls.reset(traitable_class, attr_name)
+                    continue
 
             if verbose:
-                print(f'  {op_class.__name__}: {elapsed/1e6} ms  (acc = {dt/elapsed: .1f})')
+                print('Determining the best optimizer...')
 
-            if elapsed < min_dt:
-                min_dt = elapsed
-                chosen_class = op_class
+            cls.reset(traitable_class, attr_name)
+            with PerfTimer() as clock:
+                value = test_obj.get_value(attr_name)
+            dt = clock.elapsed * num_runs
+            print(f'pure python dt = {clock.elapsed/1e3:.2f} us')
 
-        if not chosen_class:
-            return (None, None)
+            min_dt = XInf
+            chosen_class = None
+            for op_class, (val, elapsed) in results.items():
+                if val != value:
+                    raise ValueError(f'{op_class}: {val} != {value}')
 
-        op_rec.set_best(chosen_class)
-        op_method = op_rec.get_optimization(chosen_class)
+                if verbose:
+                    print(f'  {op_class.__name__}: {elapsed/1e6} ms  (acc = {dt/elapsed: .1f})')
 
-        if verbose:
-            print(f'The best optimizer is {chosen_class.__name__}')
+                if elapsed < min_dt:
+                    min_dt = elapsed
+                    chosen_class = op_class
 
-        if use_it:
-            return cls.use_optimizer(traitable_class, attr_name, chosen_class)
+            if not chosen_class:
+                return (None, None)
 
-        return (chosen_class, op_method)
+            op_rec.set_best(chosen_class)
+            op_method = op_rec.get_optimization(chosen_class)
+
+            if verbose:
+                print(f'The best optimizer is {chosen_class.__name__}')
+
+            if use_it:
+                return cls.use_optimizer(traitable_class, attr_name, chosen_class)
+
+            return (chosen_class, op_method)
 
     @classmethod
     def reset(cls, traitable_class: type[Traitable], attr_name: str):

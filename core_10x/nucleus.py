@@ -40,6 +40,9 @@ class Nucleus:
     def __eq__(self, other):
         return self.__class__.same_values(self, other)
 
+    def __ne__(self, other):
+        return not self.__class__.same_values(self, other)
+
     def to_str(self) -> str:
         return str(self)
 
