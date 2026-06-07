@@ -964,10 +964,20 @@ def test_tracked_objects():
     # object that never had set_value is not in the tracked list
     assert p3 not in objs
 
+def test_custom_collection():
+    class X(Traitable):
+        s_custom_collection = True
+        x: int = T(T.ID)
+
+    with CACHE_ONLY(),GRAPH_OFF():
+        X(x=1, _collection_name='my_collection')
+        x = X(ID('1', collection_name='my_collection'))
+        assert x._collection_name == 'my_collection'
 
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
+    test_custom_collection()
     test_person_xnone()
     test_person_set_values_dob()
     test_trait_date_convert_debug()
