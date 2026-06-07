@@ -27,8 +27,8 @@ BTrait::BTrait() {
 void BTrait::create_proc() {
     if (flags_on(BTraitFlags::EVAL_ONCE))
         m_proc = new EvalOnceProc();
-
-    m_proc = new BTraitProcessor();
+    else
+        m_proc = new BTraitProcessor();
 }
 
 py::error_already_set BTrait::trait_error(const py::error_already_set &exc, BTraitable *obj, const BTraitableClass *cls, const py::object& f, const py::object* value, const py::args* args) const {

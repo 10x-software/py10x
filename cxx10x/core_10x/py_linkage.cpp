@@ -117,6 +117,8 @@ PyLinkage::PyLinkage(const py::dict& package_names) {
     m_datetime_cls  = dt.attr("datetime");
     m_date_cls      = dt.attr("date");
     f_fromisoformat = m_date_cls.attr("fromisoformat");
+    f_fromordinal   = m_date_cls.attr("fromordinal");
+    f_toordinal     = m_date_cls.attr("toordinal");
 
     //add_to_py_path(path_to_package);
 

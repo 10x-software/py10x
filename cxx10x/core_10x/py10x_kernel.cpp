@@ -4,6 +4,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "bcurve.h"
+
 namespace py = pybind11;
 using pybind11::literals::operator""_a;
 
@@ -377,4 +379,66 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def_readonly_static("me",          &OsUser::me)
             .def("name",                        &OsUser::name)
             ;
+
+    py::enum_<IPKind>(m, "IPKind")
+            .value("NO_INTERP",  IPKind::NO_INTERP)
+            .value("ZERO",       IPKind::ZERO)
+            .value("LINEAR",     IPKind::LINEAR)
+            .value("NEAREST",    IPKind::NEAREST)
+            .value("NEAREST_UP", IPKind::NEAREST_UP)
+            .value("PREVIOUS",   IPKind::PREVIOUS)
+            .value("NEXT",       IPKind::NEXT)
+            .value("SLINEAR",    IPKind::SLINEAR)
+            .value("QUADRATIC",  IPKind::QUADRATIC)
+            .value("CUBIC",      IPKind::CUBIC)
+            ;
+
+    py::enum_<Extrap>(m, "Extrap")
+            .value("LINEAR",     Extrap::LINEAR)
+            .value("FLAT",       Extrap::FLAT)
+            ;
+
+    py::class_<BCurve>(m, "BCurve")
+            .def(py::init<>())
+            .def(py::init<std::vector<double>, std::vector<double>>())
+            .def("update",                  &BCurve::update)
+            .def("update_many",             &BCurve::update_many)
+            .def("remove",                  &BCurve::remove)
+            .def("value",                   &BCurve::value)
+            .def("set_ip_kind",             &BCurve::set_ip_kind)
+            .def("set_beginning_of_time",   &BCurve::set_beginning_of_time)
+            .def("clear_beginning_of_time", &BCurve::clear_beginning_of_time)
+            .def("set_linear",              &BCurve::set_linear)
+            .def("set_flat",                &BCurve::set_flat)
+            .def_property_readonly("times",  &BCurve::times)
+            .def_property_readonly("values", &BCurve::values)
+            .def_property_readonly("size",   &BCurve::size)
+            ;
+
+    py::class_<BDateCurve>(m, "BDateCurve")
+            .def(py::init<>())
+            .def(py::init<std::vector<int>, std::vector<double>>())
+            .def("set_times",               &BDateCurve::set_times)
+            .def("set_values",               &BDateCurve::set_values)
+            .def("start_time",              &BDateCurve::start_time)
+            .def("end_time",                &BDateCurve::end_time)
+            .def("set_beginning_of_time",   py::overload_cast<int>(&CurveTemplate<int>::set_beginning_of_time))
+            .def("update",                  &BDateCurve::update)
+            .def("update_many",             &BDateCurve::update_many)
+            .def("remove",                  &BDateCurve::remove)
+            .def("value",                   &BDateCurve::value)
+            .def("set_ip_kind",             &BDateCurve::set_ip_kind)
+            .def("set_beginning_of_time",   &BDateCurve::set_beginning_of_time)
+            .def("clear_beginning_of_time", &BDateCurve::clear_beginning_of_time)
+            .def("set_linear",              &BDateCurve::set_linear)
+            .def("set_flat",                &BDateCurve::set_flat)
+            .def("beginning_of_time_as_date", &BDateCurve::beginning_of_time_as_date)
+            .def_property_readonly("times",  &BDateCurve::times)
+            .def_property_readonly("values", &BDateCurve::values)
+            .def_property_readonly("dates",  &BDateCurve::dates)
+            .def_property_readonly("size",   &BDateCurve::size)
+            .def("dates_values",            &BDateCurve::dates_values,
+                    py::arg("min_date") = py::none(), py::arg("max_date") = py::none())
+            ;
+
 }
