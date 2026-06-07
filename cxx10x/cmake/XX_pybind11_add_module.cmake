@@ -27,5 +27,5 @@ macro(xx_pybind11_add_module target)
             VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
     )
 
-    finalize_pybind_module_rtld(${target} ${cxx10x_core_headers_SOURCE_DIR}/../cmake)
+    finalize_pybind_module_rtld(${target} ${cxx10x_core_headers_SOURCE_DIR}/cmake)
 endmacro()
