@@ -120,6 +120,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_dir = {}
     s_default_trait_factory = RT
     s_own_trait_definitions = None
+    s_cxx_mixins = (BTraitable,)
     T = UnboundTraitAccessor()
 
     s_cls_by_canonical_name: dict[str, type] = {}                                  # -- used when non-module locals hide names from eval.
@@ -146,8 +147,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             T(T.RESERVED | T.RUNTIME, data_type=str),
         )
 
-    def _collection_name_get(self) -> str:
-        return self.id().collection_name or XNone
 
     def _collection_name_set(self, trait, value) -> RC:
         self.id().collection_name = value
@@ -360,6 +359,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         custom_collection: bool = None,     #-- if instance(s) of cls may work with a specific collection
         keep_history: bool      = None,     #-- if revisions are kept in store
         immutable: bool         = None,     #-- if instances in store are immutable
+        cxx_mixins: tuple       = (),       #-- pybind exposed c++ classes to check for getter implementations
         **kwargs
     ):
         super().__init_subclass__(**kwargs)     #-- for cooperative (possible) multiple inheritance
@@ -369,6 +369,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         if custom_collection is not None:
             cls.s_custom_collection = custom_collection
+
+        if cxx_mixins:
+            cls.s_cxx_mixins = (*cls.s_cxx_mixins,*cxx_mixins)
 
         cls.s_direct_subclasses = []
         for base in cls.__bases__:
@@ -1109,7 +1112,7 @@ class TraitableHistory(EventBase):
     def traitable_get(self):
         return Traitable.deserialize_object(
             self.s_traitable_class.s_bclass,
-            self._collection_name.rsplit('#', 1)[0] or None,  # -- strip #history suffix
+            self._collection_name.rsplit('#', 1)[0] if self._collection_name else None,  # -- strip the #history suffix
             self.serialized_traitable,
         )
 
@@ -1353,7 +1356,7 @@ class VaultResourceAccessor(Traitable):
     login: str                      = T()
     password: bytes                 = T()
 
-    last_updated: datetime          = T(T.EVAL_ONCE)
+    last_updated: datetime          = T()
 
     user: VaultUser                 = RT(T.EVAL_ONCE)
     resource: Resource              = RT(T.EVAL_ONCE)
