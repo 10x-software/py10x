@@ -14,6 +14,21 @@ function(_resolve_lib_output_dir)
     endif()
 endfunction()
 
+# Install the MSVC import library (.lib) generated for an exporting module
+# (ENABLE_EXPORTS ON). Mirrors how the .pyi is installed: uses the resolved
+# library output dir and a standard install() command so scikit-build-core
+# tracks and packages it. Modules that export nothing (e.g. cxxfin) simply have
+# no matching .lib and nothing is installed.
+function(_install_import_lib target)
+    if(NOT MSVC)
+        return()
+    endif()
+    _resolve_lib_output_dir()
+    install(DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/"
+            DESTINATION .
+            FILES_MATCHING PATTERN "${target}*.lib")
+endfunction()
+
 function(_add_rtld_link_options target)
     if(APPLE)
         target_link_options(${target} PRIVATE -undefined dynamic_lookup)
@@ -92,6 +107,7 @@ function(finalize_pybind_module target)
     else()
         add_pybind_stubs(${target})
     endif()
+    _install_import_lib(${target})
 endfunction()
 
 # ---------------------------------------------------------------------------

@@ -63,9 +63,3 @@ install(TARGETS py10x_kernel
         LIBRARY DESTINATION .
         RUNTIME DESTINATION .
 )
-
-# On Windows the linker needs an import library (.lib) to link against this DLL.
-# Install it alongside the .pyd so downstream modules (e.g. cxxfin) can find it.
-if(WIN32)
-    install(FILES $<TARGET_LINKER_FILE:py10x_kernel> DESTINATION .)
-endif()

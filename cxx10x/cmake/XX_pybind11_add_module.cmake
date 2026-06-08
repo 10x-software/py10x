@@ -40,8 +40,14 @@ macro(xx_pybind11_add_module target)
         if(NOT _pyd_rc EQUAL 0)
             message(FATAL_ERROR "Could not locate py10x_kernel.__file__. Is py10x-kernel installed?")
         endif()
-        # py10x_kernel.cpXXX-win_amd64.pyd  ->  py10x_kernel.lib
-        string(REGEX REPLACE "\\.[^\\.]+\\.pyd$" ".lib" _PY10X_KERNEL_LIB "${_PY10X_KERNEL_PYD}")
+        # MSVC names the import library after the CMake target name (py10x_kernel),
+        # NOT the module's full output name. So the file is py10x_kernel.lib, sitting
+        # next to py10x_kernel.cp312-win_amd64.pyd. Strip the full extension chain
+        # (.cp312-win_amd64.pyd) down to the base module name, then append .lib.
+        get_filename_component(_pyd_dir "${_PY10X_KERNEL_PYD}" DIRECTORY)
+        get_filename_component(_pyd_name "${_PY10X_KERNEL_PYD}" NAME)
+        string(REGEX REPLACE "\\..*$" "" _kernel_base "${_pyd_name}")  # py10x_kernel
+        set(_PY10X_KERNEL_LIB "${_pyd_dir}/${_kernel_base}.lib")
         if(NOT EXISTS "${_PY10X_KERNEL_LIB}")
             message(FATAL_ERROR
                 "py10x_kernel import library not found at ${_PY10X_KERNEL_LIB}.\n"
