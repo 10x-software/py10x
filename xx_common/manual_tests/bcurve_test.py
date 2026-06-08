@@ -53,3 +53,4 @@ if __name__ == '__main__':
 
     cxx_res, cxx_dt = test1()
 
+    print(py_dt/cxx_dt)
