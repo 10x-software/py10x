@@ -83,10 +83,8 @@ def cxx_package_dirs(profile: str, project_root: Path) -> dict[str, Path]:
     return dirs
 
 def ensure_env_and_runtime_deps(project_root) -> ModuleType:
-    """Ensure the project venv exists (later `uv pip install`/`uv sync` steps rely on it)
-    and that the wrapper's own runtime deps are importable, installing them into the
-    current interpreter via uv if missing (no-op under uvx --from '.[dev]')."""
-    subprocess.run(['uv', 'venv', '--allow-existing'], cwd=project_root, check=True)
+    if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
+        subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
     try:
         import tomlkit
         import setuptools_scm  # noqa: F401
