@@ -9,6 +9,21 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
+// PY10X_API: controls symbol visibility for cross-module C++ inheritance.
+// On Windows: dllexport when building py10x_kernel, dllimport when consuming.
+// On GCC/Clang: visibility("default") overrides -fvisibility=hidden for these classes.
+#if defined(_WIN32)
+#  if defined(PY10X_KERNEL_EXPORTS)
+#    define PY10X_API __declspec(dllexport)
+#  else
+#    define PY10X_API __declspec(dllimport)
+#  endif
+#elif defined(__GNUC__) || defined(__clang__)
+#  define PY10X_API __attribute__((visibility("default")))
+#else
+#  define PY10X_API
+#endif
+
 namespace py = pybind11;
 
 using dict_iter = py::detail::dict_iterator;

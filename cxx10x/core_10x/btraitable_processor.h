@@ -46,7 +46,7 @@ public:
 
 class XCache;
 
-class BTraitableProcessor {
+class PY10X_API BTraitableProcessor {
 protected:
 
     static unsigned s_default_type;

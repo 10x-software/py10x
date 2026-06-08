@@ -27,5 +27,32 @@ macro(xx_pybind11_add_module target)
             VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
     )
 
+    # On Windows, link against py10x_kernel's import library (.lib) so the
+    # MSVC linker can resolve symbols like BTraitable that are dllimport-annotated.
+    # The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
+    if(WIN32)
+        execute_process(
+                COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel; print(py10x_kernel.__file__)"
+                OUTPUT_VARIABLE _PY10X_KERNEL_PYD
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                RESULT_VARIABLE _pyd_rc
+        )
+        if(NOT _pyd_rc EQUAL 0)
+            message(FATAL_ERROR "Could not locate py10x_kernel.__file__. Is py10x-kernel installed?")
+        endif()
+        # py10x_kernel.cpXXX-win_amd64.pyd  ->  py10x_kernel.lib
+        string(REGEX REPLACE "\\.[^\\.]+\\.pyd$" ".lib" _PY10X_KERNEL_LIB "${_PY10X_KERNEL_PYD}")
+        if(NOT EXISTS "${_PY10X_KERNEL_LIB}")
+            message(FATAL_ERROR
+                "py10x_kernel import library not found at ${_PY10X_KERNEL_LIB}.\n"
+                "Rebuild and reinstall py10x-kernel to generate the .lib.")
+        endif()
+        add_library(py10x_kernel_import SHARED IMPORTED)
+        set_target_properties(py10x_kernel_import PROPERTIES
+                IMPORTED_IMPLIB "${_PY10X_KERNEL_LIB}"
+        )
+        target_link_libraries(${target} PRIVATE py10x_kernel_import)
+    endif()
+
     finalize_pybind_module_rtld(${target} ${cxx10x_core_headers_SOURCE_DIR}/cmake)
 endmacro()

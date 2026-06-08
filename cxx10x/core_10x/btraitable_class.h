@@ -14,7 +14,7 @@ class TID;
 
 class BUiClass;
 
-class BTraitableClass {
+class PY10X_API BTraitableClass {
 protected:
     py::object      m_py_class;
     py::str         m_name;

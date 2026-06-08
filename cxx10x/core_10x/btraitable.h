@@ -62,7 +62,7 @@
       - Load in current cache (same as creation cache)
       - If not found, it's an error
  */
-class BTraitable {
+class PY10X_API BTraitable {
 protected:
     TID     m_tid;
     XCache* m_origin_cache;
