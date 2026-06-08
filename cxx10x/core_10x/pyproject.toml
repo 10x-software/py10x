@@ -31,6 +31,7 @@ Homepage = "https://10x-software.org"
 [build-system]
 requires = [
     "scikit-build-core>=0.10.7",
+    "setuptools-scm>=9.2.2",
 ]
 build-backend = "scikit_build_core.build"
 
