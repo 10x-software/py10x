@@ -31,15 +31,21 @@ macro(xx_pybind11_add_module target)
     # MSVC linker can resolve symbols like BTraitable that are dllimport-annotated.
     # The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
     if(WIN32)
+        # Importing py10x_kernel triggers scikit-build-core's editable rebuild hook,
+        # which prints "Running cmake --build & --install ..." to stdout. Wrap the
+        # path in sentinels so we can extract just the path, ignoring that chatter.
         execute_process(
-                COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel; print(py10x_kernel.__file__)"
-                OUTPUT_VARIABLE _PY10X_KERNEL_PYD
-                OUTPUT_STRIP_TRAILING_WHITESPACE
+                COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel,sys; sys.stdout.write('<<<PYD:'+py10x_kernel.__file__+':PYD>>>')"
+                OUTPUT_VARIABLE _PY10X_KERNEL_OUT
                 RESULT_VARIABLE _pyd_rc
         )
         if(NOT _pyd_rc EQUAL 0)
             message(FATAL_ERROR "Could not locate py10x_kernel.__file__. Is py10x-kernel installed?")
         endif()
+        if(NOT _PY10X_KERNEL_OUT MATCHES "<<<PYD:(.+):PYD>>>")
+            message(FATAL_ERROR "Could not parse py10x_kernel.__file__ from output:\n${_PY10X_KERNEL_OUT}")
+        endif()
+        set(_PY10X_KERNEL_PYD "${CMAKE_MATCH_1}")
         # MSVC names the import library after the CMake target name (py10x_kernel),
         # NOT the module's full output name. So the file is py10x_kernel.lib, sitting
         # next to py10x_kernel.cp312-win_amd64.pyd. Strip the full extension chain
