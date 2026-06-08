@@ -26,7 +26,6 @@ dependencies = [
     "ibis-framework[postgres]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
     "psutil>=5.9.7",
-    "jax>=0.10.1",
     "uuid6>=2025.0.1",
 ]
 classifiers = [
@@ -61,6 +60,8 @@ dev = [
     "uv>=0.9",
     "ibis-framework[duckdb]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
+    "scikit-build-core>=0.12.2", # for  build without isolation
+    "editables>=0.6", # for build without isolation
 ]
 rio = [
     "rio-ui==0.12",
@@ -74,6 +75,7 @@ qt = [
     "PyQt6_sip (==13.10.0)",
 ]
 jit = [
+    "jax>=0.10.1",
     "numba>=0.65.1",
     "cython>=3.2.4",
     "tccbox>=2025.10.27",
@@ -87,6 +89,12 @@ Documentation = "https://github.com/10x-software/py10x#readme"
 
 [project.entry-points.pytest11]
 py10x_core = "dev_10x.pytest_plugin"
+
+[project.scripts]
+uv-sync                         = "dev_10x.uv_sync:main"
+xx-user-init                    = "core_10x.apps.user_init:main"
+xx-user-status                  = "core_10x.apps.user_status:main"
+xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright"]
@@ -108,8 +116,9 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "dev_10x/version.py"
 
-[project.scripts]
-uv-sync                         = "dev_10x.uv_sync:main"
-xx-user-init                    = "core_10x.apps.user_init:main"
-xx-user-status                  = "core_10x.apps.user_status:main"
-xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
+[tool.uv]
+no-build-isolation-package = ["py10x-kernel", "py10x-infra"]
+
+[tool.uv.extra-build-dependencies]
+py10x-kernel = ["scikit-build-core"]
+py10x-infra = ["scikit-build-core","py10x-kernel"]

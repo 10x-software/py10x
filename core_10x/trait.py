@@ -137,10 +137,20 @@ class Trait(BTrait, metaclass=TraitMetaclass):
             f'{trait_name}_{(method_suffix := method_key.lower())}': (method_suffix, method_def)
             for method_key, method_def in TRAIT_METHOD.s_dir.items()
         }
+    @staticmethod
+    def pybind_signature(method):
+        doc = method.__doc__
+        name = method.__name__
+        mod = method.__module__
+        doc_signature, loc = doc.split('\n',1)[0].replace(f'{mod}.',''), {}
+        exec(f'def {doc_signature}: ...', sys.modules[mod].__dict__, loc)
+        return inspect.signature(loc[name])
 
     def set_trait_funcs(self, traitable_cls, rc):
         for method_name, (method_suffix, method_def) in Trait.method_defs(self.name).items():
-            method = getattr(traitable_cls, method_name, None)
+
+            cxx_method = next((getattr(cxx_mixin, method_name, None) for cxx_mixin in traitable_cls.s_cxx_mixins), None) if method_suffix == 'get' else None
+            method = getattr(traitable_cls, method_name, cxx_method)
             if method and method_suffix == 'get' and self.t_def.default is not XNone:  # -- getter and default are defined - figure out which to use
                 for cls in traitable_cls.__mro__:
                     cls_vars = vars(cls)
@@ -155,15 +165,19 @@ class Trait(BTrait, metaclass=TraitMetaclass):
                         continue
                     break
 
-            f = method_def.value(self, method, method_suffix, rc)
+            f_type = '_cxx' if method and method is cxx_method else ''
+            args = [self, method, method_suffix, rc]
+            if f_type:
+                args.append(True)
+            f = method_def.value(*args)
             if f:
-                set_f = getattr(self, f'set_f_{method_suffix}')
+                set_f = getattr(self, f'set{f_type}_f_{method_suffix}')
                 set_f(f, bool(method))
 
         if self.getter_params:
             self.set_getter_has_args()
 
-    def create_f_get(self, f, attr_name: str, rc: RC):
+    def create_f_get(self, f, attr_name: str, rc: RC, pybind=False):
         if not f:  # -- no custom getter, just the default value
             f = lambda traitable: self.default_value()
             f.__name__ = 'default_value'
@@ -172,7 +186,7 @@ class Trait(BTrait, metaclass=TraitMetaclass):
         else:
             # TODO: if default is defined in a subclass relative to where the getter is defined, override the getter?
 
-            sig = inspect.signature(f)
+            sig = inspect.signature(f) if not pybind else self.pybind_signature(f)
             params = []
             param: Parameter
             for pname, param in sig.parameters.items():
