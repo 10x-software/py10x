@@ -118,7 +118,3 @@ source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "dev_10x/version.py"
-
-[tool.uv.sources]
-py10x-kernel = { git = "https://github.com/10x-software/cxx10x.git", branch = "main", subdirectory = "core_10x" }
-py10x-infra  = { git = "https://github.com/10x-software/cxx10x.git", branch = "main", subdirectory = "infra_10x" }
