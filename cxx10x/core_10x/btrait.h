@@ -113,6 +113,7 @@ public:
     void modify_flags(uint64_t to_set, uint64_t to_reset)           { m_flags = (m_flags | to_set) & ~to_reset; }
 
     void set_f_get(const py::object &f, bool custom)               { f_get = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_GET; }
+    void set_cxx_f_get(const py::object &f, bool custom)           { set_f_get(f,custom); } // TODO: optional optimization
     void set_f_set(const py::object &f, bool custom)               { f_set = f; }
     void set_f_verify(const py::object &f, bool custom)            { f_verify = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_VERIFY; }
     void set_f_from_str(const py::object &f, bool custom)          { f_from_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_STR; }

@@ -111,7 +111,7 @@ public:
     [[nodiscard]] const TID&        tid() const                 { return m_tid; }
     [[nodiscard]] py::object        id() const                  { return m_tid.id(); }
     [[nodiscard]] py::str           id_value() const            { return m_tid.id_value(); }
-    [[nodiscard]] py::str           custom_coll_name() const    { return m_tid.coll_name(); }
+    [[nodiscard]] py::object        custom_coll_name() const    { return m_tid.coll_name(); }
 
     py::object from_any(const BTrait *trait, const py::object &value);
     py::object value_to_str(BTrait* trait);

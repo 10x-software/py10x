@@ -1,9 +1,13 @@
 _deps
+build/
 cmake-build*/
 CMakeFiles
 *install_manifest.txt
 .DS_Store
 /infra_10x/py_linkage.h
+Makefile
+.cmake/
+cmake_install.cmake
 
 # Python
 __pycache__/
@@ -17,3 +21,4 @@ venv/
 .env
 .env.*
 !.env.example
+uv.lock

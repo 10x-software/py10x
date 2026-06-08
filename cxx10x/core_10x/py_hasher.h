@@ -12,9 +12,9 @@ class PyHasher {
 
 public:
 
-    static py::object uuid(const char* func_name = "uuid1") {
-        return py::module_::import("uuid").attr(func_name)().attr("hex");
-    }
+    // static py::object uuid(const char* func_name = "uuid1") {
+    //     return py::module_::import("uuid").attr(func_name)().attr("hex");
+    // }
 
     PyHasher() : m_updated(false) {
         m_md5 = py::module_::import("hashlib").attr("md5")();
