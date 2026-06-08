@@ -116,9 +116,3 @@ source = "vcs"
 [tool.hatch.build.hooks.vcs]
 version-file = "dev_10x/version.py"
 
-[tool.uv]
-no-build-isolation-package = ["py10x-kernel", "py10x-infra"]
-
-[tool.uv.extra-build-dependencies]
-py10x-kernel = ["scikit-build-core"]
-py10x-infra = ["scikit-build-core","py10x-kernel"]
