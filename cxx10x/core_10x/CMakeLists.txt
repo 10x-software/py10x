@@ -43,6 +43,10 @@ pybind11_add_module(py10x_kernel
 set_target_properties(py10x_kernel PROPERTIES
         CXX_VISIBILITY_PRESET default
         VISIBILITY_INLINES_HIDDEN OFF
+        # Generate an import library (.lib) on Windows so other extension modules
+        # can link against our exported symbols at build time.
+        # Only effective for MODULE targets on MSVC; ignored on other platforms.
+        ENABLE_EXPORTS ON
 )
 
 target_include_directories(py10x_kernel PRIVATE ${backward_SOURCE_DIR})
