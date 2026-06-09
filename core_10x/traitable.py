@@ -1358,7 +1358,7 @@ class VaultResourceAccessor(Traitable):
     login: str                      = T()
     password: bytes                 = T()
 
-    last_updated: datetime          = T()
+    last_updated: datetime          = T(T.EVAL_ONCE)
 
     user: VaultUser                 = RT(T.EVAL_ONCE)
     resource: Resource              = RT(T.EVAL_ONCE)
