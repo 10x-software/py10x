@@ -147,9 +147,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             T(T.RESERVED | T.RUNTIME, data_type=str),
         )
 
-    def _collection_name_get(self) -> str:
-        return self.id().collection_name or XNone
-
     def _collection_name_set(self, trait, value) -> RC:
         self.id().collection_name = value
         return RC_TRUE
