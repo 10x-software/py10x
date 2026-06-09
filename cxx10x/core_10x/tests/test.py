@@ -3,6 +3,8 @@ import traceback
 from collections import Counter
 from datetime import date, datetime
 from typing import Any
+
+from numpy.ma.core import true_divide
 from typing_extensions import Self
 
 import numpy as np
@@ -974,9 +976,49 @@ def test_custom_collection():
         x = X(ID('1', collection_name='my_collection'))
         assert x._collection_name == 'my_collection'
 
+def test_set_eval_once():
+    class X(Traitable):
+        x: int = T(T.ID)
+        v: int = T(T.EVAL_ONCE)
+        v2: int = T(50)
+
+        def v_get(self):
+            return self.x*10
+
+        @staticmethod
+        def load_data(id):
+            data = {'_id':id.value,'x':int(id.value),'v':int(id.value)*20,'_rev':1}
+            print('load_data', id.value, data)
+            return data
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+    with CACHE_ONLY():
+        x = X(x=1)
+        assert x.v == 10
+
+        try:
+            x.v = 10
+        except TypeError as e:
+            assert 'Trying to modify EVAL_ONCE trait test_set_eval_once.<locals>.X.v' in str(e)
+        else:
+            assert False, "Expected TypeError when reloading object with EVAL_ONCE trait"
+    x = X(x=2)
+    assert x.v2 == 50 # force lazy load of v2
+    assert x.v == 40
+
+    try:
+        x.reload()
+    except TypeError as e:
+        assert 'Trying to modify EVAL_ONCE trait test_set_eval_once.<locals>.X.v' in str(e)
+    else:
+        assert False, "Expected TypeError when reloading object with EVAL_ONCE trait"
+
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
+    test_set_eval_once()
     test_custom_collection()
     test_person_xnone()
     test_person_set_values_dob()

@@ -73,20 +73,16 @@ public:
         dont_touch_me(obj, trait);
     }
 
-    py::object raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value) const final {
-        return dont_touch_me(obj, trait);
-    }
+    py::object raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value) const final;
 
-    py::object raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value, const py::args &args) const final {
-        return dont_touch_me(obj, trait);
-    }
+    py::object raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value, const py::args &args) const final;
 
     py::object raw_set_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value) const final {
-        return dont_touch_me(obj, trait);
+        return raw_set_value_off_graph(proc, obj, trait, value);
     }
 
     py::object raw_set_value_on_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value, const py::args &args) const final {
-        return dont_touch_me(obj, trait);
+        return raw_set_value_off_graph(proc, obj, trait, value, args);
     }
 
 };
