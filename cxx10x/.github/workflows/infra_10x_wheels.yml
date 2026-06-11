@@ -4,10 +4,62 @@ on:
   push:
     tags:
       - "py10x-infra-v*"
+      - "!*_yanked"   # `xx-promote yank` renames a tag to <tag>_yanked; never (re)publish those
   workflow_dispatch:
 
 jobs:
+  # Pre-publish gate: run py10x-core's suite against THIS checkout's kernel/infra (the rc/final
+  # commit under test), with py10x-core pinned to the exact version in the reverse `test` group.
+  test:
+    name: Pre-publish tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      # The reverse [dependency-groups] test pin names the exact py10x-core to test against.
+      - name: Resolve pinned py10x-core version
+        id: core
+        run: |
+          CORE_VER=$(python3 -c "import re; print(re.search(r'py10x-core==([\w.]+)', open('infra_10x/pyproject.toml').read()).group(1))")
+          echo "version=$CORE_VER" >> "$GITHUB_OUTPUT"
+
+      # py10x as a sibling of this checkout, so `../cxx10x` from py10x points back here.
+      - name: Checkout py10x at the pinned version
+        run: |
+          git clone https://github.com/10x-software/py10x.git "${{ github.workspace }}/../py10x"
+          git -C "${{ github.workspace }}/../py10x" checkout "v${{ steps.core.outputs.version }}"
+
+      # uv-sync py10x-core-dev points py10x-core + kernel + infra at local checkouts: py10x-core at
+      # the pinned tag, kernel/infra at this rc/final commit (built from source here).
+      - name: Install py10x-core against local kernel/infra
+        working-directory: ${{ github.workspace }}/../py10x
+        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
+
+      - name: Verify py10x-core version + run its suite (replica-set tests auto-skip)
+        working-directory: ${{ github.workspace }}/../py10x
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          source .venv/bin/activate
+          python3 -c "
+          from importlib.metadata import version
+          from packaging.version import Version
+          want, got = Version('${{ steps.core.outputs.version }}'), Version(version('py10x-core'))
+          assert got == want, f'py10x-core {got} != pinned {want}'
+          print(f'py10x-core {got} OK')"
+          pytest
+
   build_wheels:
+    needs: test
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
