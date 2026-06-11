@@ -52,7 +52,7 @@ jobs:
         # Additive install: the siblings from the step above already satisfy py10x-core's specs, so
         # they are kept as-is (a `uv sync` would instead reconcile them back to the index and fail
         # on an unpublished rc). --all-extras already includes the dev extra.
-        run: uv pip install -e . --all-extras
+        run: uv pip install -e . --all-extras --requirements pyproject.toml
 
       # Now the kernel is installed in .venv: assert the installed version matches the tag we
       # resolved and that the compiled extension actually imports on this runner.
