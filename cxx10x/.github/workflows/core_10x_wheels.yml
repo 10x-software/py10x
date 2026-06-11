@@ -49,7 +49,7 @@ jobs:
           uv venv
           echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
           uv pip install -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
-          uv pip install -e . --all-extras
+          uv pip install -e . --all-extras --requirements pyproject.toml
 
       - name: Verify versions + run py10x-core suite (replica-set tests auto-skip)
         working-directory: ${{ github.workspace }}/../py10x
