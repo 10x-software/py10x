@@ -39,13 +39,11 @@ jobs:
       # rc commit; final-only pin -> latest final on a release branch), then install that tagged
       # source from the local clone.
       - name: Resolve and install siblings at their pinned tags
-        env:
-          CXX: ${{ github.workspace }}/../cxx10x
         run: |
           KERNEL_TAG=$(python -m dev_10x.xx_ci latest_tag py10x-kernel)
           INFRA_TAG=$(python -m dev_10x.xx_ci latest_tag py10x-infra)
           echo "kernel -> $KERNEL_TAG ; infra -> $INFRA_TAG"
-          CXX_ABS=$(cd "$CXX" && pwd)
+          CXX_ABS=$(cd "../cxx10x" && pwd)
           uv pip install \
             "py10x-kernel @ git+file://${CXX_ABS}@${KERNEL_TAG}#subdirectory=core_10x" \
             "py10x-infra  @ git+file://${CXX_ABS}@${INFRA_TAG}#subdirectory=infra_10x"

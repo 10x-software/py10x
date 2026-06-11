@@ -95,6 +95,13 @@ class VersionHelpers:
         ]
         return (max(rcs) + 1) if rcs else 1
 
+    @classmethod
+    def latest_rc_tag(cls, parsed: list[tuple[str, Version]], target: str) -> str | None:
+        """The highest-numbered rc tag for `target`, or None - used to skip minting a duplicate."""
+        rcs = [(t, v) for t, v in parsed
+               if cls.base_version(v) == target and v.pre is not None and v.pre[0] == "rc"]
+        return max(rcs, key=lambda tv: tv[1])[0] if rcs else None
+
 
     @classmethod
     def dev_pin(cls,floor: str, target: str) -> str:

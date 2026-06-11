@@ -12,7 +12,7 @@ import importlib.metadata as md
 if TYPE_CHECKING:
     from tomlkit import TOMLDocument
 
-_BASE = Path(__file__).parent.parent  # py10x repo root
+PROJECT_ROOT = Path('.').resolve()  # py10x repo root
 
 def ensure_env_and_runtime_deps(project_root) -> ModuleType:
     if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
@@ -27,8 +27,8 @@ def ensure_env_and_runtime_deps(project_root) -> ModuleType:
     return tomlkit
 
 def _siblings_roots() -> dict:
-    tomlkit = ensure_env_and_runtime_deps(_BASE)
-    doc = tomlkit.parse((_BASE / "pyproject.toml").read_text(encoding="utf-8"))
+    tomlkit = ensure_env_and_runtime_deps(PROJECT_ROOT)
+    doc = tomlkit.parse((PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     sibs = doc.get("tool", {}).get("dev_10x", {}).get("siblings", {})
     return {name: {"path": spec["path"], "editable": True} for name, spec in sibs.items()}
 
@@ -241,12 +241,11 @@ def run_profile(project_root: Path, profile: str, command: str, uv_args,
 
 
 def uv_sync(profile: str, *uv_args):
-    project_root = Path('.').resolve()
-    persist_profile(project_root, profile)   # let `uv-run` re-apply the same override
+    persist_profile(PROJECT_ROOT, profile)   # let `uv-run` re-apply the same override
     opts = get_extra_options(profile)
     if opts:
         print(f'Using the following extra options for `{profile}` profile: {opts}')
-    run_profile(project_root, profile, 'sync', uv_args, extra_options=opts)
+    run_profile(PROJECT_ROOT, profile, 'sync', uv_args, extra_options=opts)
 
 
 def ensure_chromium_installed() -> None:

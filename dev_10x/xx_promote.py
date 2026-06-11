@@ -145,9 +145,22 @@ class Pre(XxPromote, _command="pre"):
         for pkg in pkgs.values():
             parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix)
             target = VersionHelpers.target_version(parsed)
+            head = GitHelpers.git(pkg.repo, "rev-parse", "HEAD")
+
+            # Idempotent: if the latest rc for this target already points at HEAD, a new rc would be
+            # identical - don't mint one. Still offer to push it (e.g. a local-only `pre` followed by
+            # `pre push=true` publishes the existing tag instead of bumping rc).
+            latest_rc = VersionHelpers.latest_rc_tag(parsed, target)
+            if latest_rc is not None and GitHelpers.tag_commit(pkg.repo, latest_rc) == head:
+                steps.append(Step(
+                    summary=f"{pkg.name}: {latest_rc} already at HEAD ({head[:10]}) - no new rc",
+                    apply=lambda: None,
+                    push_refs=(pkg.repo, [latest_rc]),
+                ))
+                continue
+
             n = VersionHelpers.next_rc(parsed, target)
             tag = f"{pkg.tag_prefix}{target}rc{n}"
-            head = GitHelpers.git(pkg.repo, "rev-parse", "HEAD")
             steps.append(Step(
                 summary=f"{pkg.name}: tag {tag} at {head[:10]} (HEAD)",
                 apply=lambda repo=pkg.repo, tag=tag: GitHelpers.git(repo, "tag", tag),
@@ -174,11 +187,10 @@ class Prod(XxPromote, _command="prod"):
         for name, pkg in pkgs.items():
             parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix)
             target = VersionHelpers.target_version(parsed)
-            rc_tags = [t for t, v in parsed if VersionHelpers.base_version(v) == target and v.pre and v.pre[0] == "rc"]
-            if not rc_tags:
+            latest_rc = VersionHelpers.latest_rc_tag(parsed, target)
+            if latest_rc is None:
                 print(f"  skip {name}: no rc tag for target {target}")
                 continue
-            latest_rc = max(rc_tags, key=lambda t, p=pkg: Version(t[len(p.tag_prefix):]))
             targets[name] = target
             rc_commit[name] = GitHelpers.tag_commit(pkg.repo, latest_rc)
             print(f"  {name}: promoting rc {latest_rc} ({rc_commit[name][:10]}) -> final v{target}")

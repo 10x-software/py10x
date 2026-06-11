@@ -54,6 +54,11 @@ def test_next_rc_numbering():
     assert VersionHelpers.next_rc(parsed(), "0.3.0") == 1     # none yet -> 1
 
 
+def test_latest_rc_tag():
+    assert VersionHelpers.latest_rc_tag(parsed(), "0.2.1") == f"{KERNEL}0.2.1rc2"   # rc2 > rc1
+    assert VersionHelpers.latest_rc_tag(parsed(), "0.3.0") is None                  # none yet
+
+
 def test_latest_matching_tag_dev_pin_picks_latest_rc():
     """Form A dev pin (prereleases on) -> the latest rc tag for the target."""
     spec = VersionHelpers.dev_pin("0.2.0", "0.2.1")
