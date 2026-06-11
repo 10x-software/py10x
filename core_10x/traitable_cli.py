@@ -52,9 +52,9 @@ class TraitableCli(Traitable):
                     if not trait:
                         return RC(False, f'unknown attribute {name}\nValid attributes: {", ".join(cls.s_dir)}'), None
 
-                    rc = res.set_value(trait, value)
+                    rc = res.set_trait_value(trait, value)
                     if not rc:
-                        return RC(False, f'{name}: {rc.err()}'), None
+                        return RC(False, f'{name}: {rc.error()}'), None
 
                 return RC_TRUE, res
 

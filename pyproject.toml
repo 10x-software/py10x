@@ -9,8 +9,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "py10x-kernel (>=0.2.0,<=0.2.1)",
-    "py10x-infra (>=0.2.0,<=0.2.1)",
+    "py10x-kernel (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)", #auto-include dev/rc releases
+    "py10x-infra (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)",  #auto-include dev/rc releases
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -57,6 +57,7 @@ dev = [
     "ruff>=0.13,<0.16",
     "setuptools-scm>=9.2.2",
     "tomlkit>=0.13.0",
+    "packaging>=24.0", # version/specifier logic for xx-promote
     "uv>=0.9",
     "ibis-framework[duckdb]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
@@ -95,6 +96,7 @@ py10x_core = "dev_10x.pytest_plugin"
 [project.scripts]
 uv-sync                         = "dev_10x.uv_sync:main"
 uv-run                          = "dev_10x.uv_run:main"
+xx-promote                      = "dev_10x.xx_promote:main"
 xx-user-init                    = "core_10x.apps.user_init:main"
 xx-user-status                  = "core_10x.apps.user_status:main"
 xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
@@ -102,6 +104,10 @@ xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:mai
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright"]
 build-backend = "hatchling.build"
+
+[tool.dev_10x.siblings]
+py10x-kernel = { path = "../cxx10x/core_10x" }
+py10x-infra  = { path = "../cxx10x/infra_10x" }
 
 [tool.hatch.metadata]
 allow-direct-references = true

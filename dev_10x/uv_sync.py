@@ -12,11 +12,27 @@ import importlib.metadata as md
 if TYPE_CHECKING:
     from tomlkit import TOMLDocument
 
-ROOTS = {
-    'py10x-core': {'path': '../py10x', 'editable': True},
-    'py10x-kernel': {'path': '../cxx10x/core_10x', 'editable': True},
-    'py10x-infra': {'path': '../cxx10x/infra_10x', 'editable': True},
-}
+_BASE = Path(__file__).parent.parent  # py10x repo root
+
+def ensure_env_and_runtime_deps(project_root) -> ModuleType:
+    if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
+        subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
+    try:
+        import tomlkit
+        import setuptools_scm  # noqa: F401
+    except ImportError:
+        subprocess.run(['uv', 'pip', 'install', '--python', sys.executable, '--quiet',
+                        'tomlkit', 'setuptools-scm'], cwd=project_root, check=True)
+        import tomlkit
+    return tomlkit
+
+def _siblings_roots() -> dict:
+    tomlkit = ensure_env_and_runtime_deps(_BASE)
+    doc = tomlkit.parse((_BASE / "pyproject.toml").read_text(encoding="utf-8"))
+    sibs = doc.get("tool", {}).get("dev_10x", {}).get("siblings", {})
+    return {name: {"path": spec["path"], "editable": True} for name, spec in sibs.items()}
+
+ROOTS = {"py10x-core": {"path": ".", "editable": True}, **_siblings_roots()}
 
 REPOS = {
     'py10x-core': {
@@ -81,18 +97,6 @@ def cxx_package_dirs(profile: str, project_root: Path) -> dict[str, Path]:
             if (member_dir / 'pyproject.toml').is_file():
                 dirs[member_dir.name] = member_dir.resolve()
     return dirs
-
-def ensure_env_and_runtime_deps(project_root) -> ModuleType:
-    if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
-        subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
-    try:
-        import tomlkit
-        import setuptools_scm  # noqa: F401
-    except ImportError:
-        subprocess.run(['uv', 'pip', 'install', '--python', sys.executable, '--quiet',
-                        'tomlkit', 'setuptools-scm'], cwd=project_root, check=True)
-        import tomlkit
-    return tomlkit
 
 def source_version(src: str) -> str:
     out = subprocess.check_output(
@@ -175,13 +179,16 @@ def _merge_sources(pyproject: Path, src_block, tomlkit) -> None:
 
 def _incremental_flags(cxx_dirs: dict[str, Path], venv: Path) -> list[str]:
     """Per-package uv flags: disable isolation, give each its own venv-scoped build dir
-    (no collision), and enable import-time rebuild — all without editing any pyproject."""
+    (no collision), and enable a quiet import-time rebuild — all without editing any
+    pyproject. The rebuild stays silent unless it fails; set SKBUILD_EDITABLE_VERBOSE=1
+    at run time to see the cmake/ninja output (e.g. to debug a failing rebuild)."""
     extra: list[str] = []
     for pkg in cxx_dirs:
         build_dir = f"{(venv / 'cxx-build' / pkg).as_posix()}/{{wheel_tag}}"
         extra += ['--no-build-isolation-package', pkg,
                   '--config-settings-package', f'{pkg}:build-dir={build_dir}',
-                  '--config-settings-package', f'{pkg}:editable.rebuild=true']
+                  '--config-settings-package', f'{pkg}:editable.rebuild=true',
+                  '--config-settings-package', f'{pkg}:editable.verbose=false']
     return extra
 
 
@@ -199,7 +206,7 @@ def run_profile(project_root: Path, profile: str, command: str, uv_args,
     if py_bak.exists():
         raise RuntimeError(f'Backup already exists: {py_bak}')
 
-    tomlkit = ensure_env_and_runtime_deps(project_root)
+    import tomlkit
     incremental = int(os.environ.get('XX_UV_INCREMENTAL', 0))
     if incremental:
         print('XX_UV_INCREMENTAL set: no-build-isolation + incremental rebuilds (local packages only).')

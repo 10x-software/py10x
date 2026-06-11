@@ -3,7 +3,7 @@ from __future__ import annotations
 import copy
 import sys
 import traceback
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 
 from core_10x.named_constant import Enum, ErrorCode
 
@@ -178,3 +178,12 @@ class _RcTrue(RC):
 
 
 RC_TRUE = _RcTrue()
+
+def exc_to_rc(func: Callable[[...], None], exc_class: type[Exception] = Exception, message: str = None) -> Callable[[...], RC]:
+    def wrapper(*args, **kwargs) -> RC:
+        try:
+            func(*args, **kwargs)
+        except exc_class: # noqa: not too broad
+            return RC(False,message)
+        return RC_TRUE
+    return wrapper

@@ -3,11 +3,77 @@ on:
   push:
     tags:
       - "v*"
+      - "!*_yanked"   # `xx-promote yank` renames a tag to <tag>_yanked; never (re)publish those
   workflow_dispatch:
 
 jobs:
+  # Pre-publish gate: the exact tagged commit must pass the suite (incl. the xx-promote PEP 440
+  # assumption guards) before anything is published.
+  test:
+    name: Pre-publish tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Checkout kernel/infra
+        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
+
+      # One venv on PATH for every later step; xx_ci needs only packaging + tomlkit (it is
+      # kernel-free, so it can resolve tags before any sibling is installed).
+      - name: Create venv + CI helper deps
+        run: |
+          uv venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          uv pip install packaging tomlkit
+
+      # Resolve each sibling to the tag its *pinned spec* admits (Form A dev pin -> latest rc on an
+      # rc commit; final-only pin -> latest final on a release branch), then install that tagged
+      # source from the local clone.
+      - name: Resolve and install siblings at their pinned tags
+        env:
+          CXX: ${{ github.workspace }}/../cxx10x
+        run: |
+          KERNEL_TAG=$(python -m dev_10x.xx_ci latest_tag py10x-kernel)
+          INFRA_TAG=$(python -m dev_10x.xx_ci latest_tag py10x-infra)
+          echo "kernel -> $KERNEL_TAG ; infra -> $INFRA_TAG"
+          CXX_ABS=$(cd "$CXX" && pwd)
+          uv pip install \
+            "py10x-kernel @ git+file://${CXX_ABS}@${KERNEL_TAG}#subdirectory=core_10x" \
+            "py10x-infra  @ git+file://${CXX_ABS}@${INFRA_TAG}#subdirectory=infra_10x"
+
+      - name: Install py10x-core + dev/test deps
+        # Additive install: the siblings from the step above already satisfy py10x-core's specs, so
+        # they are kept as-is (a `uv sync` would instead reconcile them back to the index and fail
+        # on an unpublished rc). --all-extras already includes the dev extra.
+        run: uv pip install -e . --all-extras
+
+      # Now the kernel is installed in .venv: assert the installed version matches the tag we
+      # resolved and that the compiled extension actually imports on this runner.
+      - name: Verify installed siblings match their pinned tags
+        run: |
+          python -m dev_10x.xx_ci verify_sibling py10x-kernel
+          python -m dev_10x.xx_ci verify_sibling py10x-infra
+
+      - name: Setup Mongo replica set
+        uses: ./.github/actions/setup-mongo-replica-set
+
+      - name: Run test suite
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: pytest
+
   publish:
     name: Build and publish
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       id-token: write

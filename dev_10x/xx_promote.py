@@ -1,0 +1,338 @@
+"""`xx-promote` - release promotion for the three 10x packages.
+
+The three packages version *independently* and live in two git repos:
+
+    py10x-core   -> repo `py10x`   (this repo),     tags  `vX.Y.Z[rcN]`
+    py10x-kernel -> repo `cxx10x`/core_10x,         tags  `py10x-kernel-vX.Y.Z[rcN]`
+    py10x-infra  -> repo `cxx10x`/infra_10x,        tags  `py10x-infra-vX.Y.Z[rcN]`
+
+`main` carries *dev* pins (Form A) that admit a sibling's next pre-release without
+`--prerelease=allow`; releases are cut by tagging and (for prod) committing strict pins on a
+per-version release branch. See `dev_10x/README.md` for the full model.
+
+It is a `core_10x.traitable_cli.TraitableCli` tree: positional words pick the command, and
+options are `name=value` traits.
+
+Subcommands:
+    xx-promote pre                              cut the next rc for every package (tagging only)
+    xx-promote prod                             promote each rc'd package to final (branch + pins)
+    xx-promote yank pkg=<name> version=<ver>    rename a tag to `<tag>_yanked`; roll back main pins
+
+Safety levels (every subcommand), as `name=value` flags:
+    (default)        perform local changes only (git log/status to inspect, reset to undo)
+    dry_run=true     print the full plan, change nothing (local or remote)
+    push=true        perform local changes, then push to remotes last
+
+`dry_run` always wins over `push`. Example: `xx-promote prod dry_run=true`.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Callable
+
+import tomlkit
+
+from core_10x.exec_control import CONVERT_VALUES_ON
+from core_10x.rc import exc_to_rc
+from core_10x.trait_definition import RT
+from core_10x.traitable import RC, T, Traitable
+from core_10x.traitable_cli import TraitableCli
+from dev_10x.xx_helpers import GitHelpers, PyProjectHelpers, VersionHelpers
+
+
+class Package(Traitable):
+    name: str          # distribution name, e.g. "py10x-kernel"
+    src_dir: Path
+
+    repo: Path         # git repo root
+    tag_prefix: str    # tag namespace, e.g. "py10x-kernel-v" (core is just "v")
+    pyproject: Path    # path to the package's pyproject.toml
+
+    def repo_get(self) -> Path: return GitHelpers.git_root(self.src_dir)
+    def tag_prefix_get(self) -> str: return f'{self.name}-v'
+    def pyproject_get(self) -> Path: return self.src_dir / 'pyproject.toml'
+
+
+# --------------------------------------------------------------------------------------------
+# Planning
+# --------------------------------------------------------------------------------------------
+class Step(Traitable):
+    """A single side-effecting action, rendered in dry-run and executed otherwise."""
+    summary: str
+    apply: Callable
+    push_refs: tuple[Path, list[str]]
+
+    def push(self):
+        if self.push_refs:
+            repo, refspecs = self.push_refs
+            print(f"  push {refspecs} -> {repo}")
+            GitHelpers.git(repo, "push", "origin", *refspecs)
+
+
+# --------------------------------------------------------------------------------------------
+# CLI surface - a core_10x.traitable_cli tree. Commands are positional; options are name=value.
+# --------------------------------------------------------------------------------------------
+class XxPromote(TraitableCli):
+    """Release promotion for the 10x packages.
+
+    Usage:
+        xx-promote pre                            cut the next rc for every package
+        xx-promote prod                           promote each rc'd package to final
+        xx-promote yank pkg=<name> version=<ver>  yank a tag (rc or final)
+    Flags (name=value): dry_run=true (preview), push=true (push to remotes). base=<path> overrides
+    the py10x repo root (default: cwd).
+    """
+    dry_run: bool = T(False)   # converted from the CLI string by CONVERT_VALUES_ON (see below)
+    push: bool = T(False)
+    base: str = T(".")
+    packages: dict[str, Package] = RT()
+    steps: list[Step] = RT()
+
+    @classmethod
+    def instance_from_args(cls, input_args: tuple) -> tuple:
+        # traitable_cli stores values verbatim unless conversion is enabled; this turns
+        # `dry_run=true` into a real bool (and would coerce numeric/enum traits too).
+        with CONVERT_VALUES_ON():
+            return super().instance_from_args(input_args)
+
+    def packages_get(self) -> dict[str, Package]:
+        """Build the package registry from `[tool.dev_10x.siblings]` in `base/pyproject.toml`.
+
+        Sibling repo roots are discovered via `git rev-parse --show-toplevel`; tag prefixes follow
+        the naming convention `{name}-v` unless overridden by a `tag_prefix` key in the inline table.
+        """
+        base = Path(self.base).resolve()
+        doc = tomlkit.parse((base / "pyproject.toml").read_text(encoding="utf-8"))
+        core_name = str(doc["project"]["name"])
+        siblings = doc.get("tool", {}).get("dev_10x", {}).get("siblings", {})
+        result = {core_name: Package(name=core_name, src_dir=base, tag_prefix="v")}
+        result.update(
+            (name,Package(name=name,src_dir=(base / spec["path"]).resolve())) for name, spec in siblings.items()
+        )
+        return result
+
+    @exc_to_rc
+    def run_steps(self) -> None:
+        for s in self.steps:
+            print(('  [dry-run] ' if self.dry_run else '  ') + s.summary)
+            if self.dry_run:
+                continue
+            s.apply()
+            if not self.push:
+                print('\nLocal changes applied. Review with `git log`/`git status`; re-run with push=true to publish.')
+                continue
+            s.push()
+
+    def run(self) -> RC:
+        rc = self.verify()
+        if not rc:
+            return rc
+        if not self.steps:
+            # bare `xx-promote` with no command -> usage
+            return RC(False, self.__doc__)
+        print(self.__doc__)
+        return self.run_steps()
+
+
+class Pre(XxPromote, _command="pre"):
+    """xx-promote pre  (cut release candidates - tagging only)"""
+    def steps_get(self) -> list[Step]:
+        steps: list[Step] = []
+        pkgs = self.packages
+        if not self.dry_run:
+            for repo in {p.repo for p in pkgs.values()}:
+                GitHelpers.require_clean(repo)
+        for pkg in pkgs.values():
+            parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix)
+            target = VersionHelpers.target_version(parsed)
+            n = VersionHelpers.next_rc(parsed, target)
+            tag = f"{pkg.tag_prefix}{target}rc{n}"
+            head = GitHelpers.git(pkg.repo, "rev-parse", "HEAD")
+            steps.append(Step(
+                summary=f"{pkg.name}: tag {tag} at {head[:10]} (HEAD)",
+                apply=lambda repo=pkg.repo, tag=tag: GitHelpers.git(repo, "tag", tag),
+                push_refs=(pkg.repo, [tag]),
+            ))
+        return steps
+
+
+class Prod(XxPromote, _command="prod"):
+    """xx-promote prod  (promote rc'd packages to final)"""
+
+    def steps_get(self) -> list[Step]:
+        pkgs = self.packages
+        if not self.dry_run:
+            for repo in {p.repo for p in pkgs.values()}:
+                GitHelpers.require_clean(repo)
+
+        core_name = next(n for n in pkgs if pkgs[n].tag_prefix == "v")
+        sibling_names = [n for n in pkgs if n != core_name]
+
+        # 1. Resolve each package's rc + target up front (cross-references need all targets).
+        targets: dict[str, str] = {}
+        rc_commit: dict[str, str] = {}
+        for name, pkg in pkgs.items():
+            parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix)
+            target = VersionHelpers.target_version(parsed)
+            rc_tags = [t for t, v in parsed if VersionHelpers.base_version(v) == target and v.pre and v.pre[0] == "rc"]
+            if not rc_tags:
+                print(f"  skip {name}: no rc tag for target {target}")
+                continue
+            latest_rc = max(rc_tags, key=lambda t, p=pkg: Version(t[len(p.tag_prefix):]))
+            targets[name] = target
+            rc_commit[name] = GitHelpers.tag_commit(pkg.repo, latest_rc)
+            print(f"  {name}: promoting rc {latest_rc} ({rc_commit[name][:10]}) -> final v{target}")
+        if not targets:
+            print("  nothing to promote.")
+            return []
+        print()
+
+        core_t = targets.get(core_name)
+        sib_final = {n: VersionHelpers.final_pin(targets[n]) for n in sibling_names if n in targets}
+        sib_dev = {n: VersionHelpers.dev_pin(targets[n], VersionHelpers.next_micro(targets[n])) for n in sibling_names if n in targets}
+
+        steps: list[Step] = []
+        for name in targets:
+            pkg = pkgs[name]
+            t = targets[name]
+            branch = f"release/{pkg.tag_prefix}{t}"
+            final_tag = f"{pkg.tag_prefix}{t}"
+
+            # 2. Release branch off the rc commit + final-only pins committed there + final tag.
+            steps.append(Step(
+                summary=f"{name}: branch {branch} off {rc_commit[name][:10]}",
+                apply=lambda repo=pkg.repo, branch=branch, commit=rc_commit[name]: GitHelpers.git(repo, "branch", "-f", branch, commit),
+            ))
+
+            if name == core_name and sib_final:
+                def edit_core(pkg=pkg, branch=branch, t=t):
+                    GitHelpers.git(pkg.repo, "checkout", branch)
+                    ch = PyProjectHelpers.write_forward_pins(pkg.pyproject, sib_final)
+                    GitHelpers.git(pkg.repo, "commit", "-am", f"release v{t}: pin siblings to prod")
+                    return ch
+                steps.append(Step(
+                    summary=f"{name}: on {branch}, set forward pins {sib_final} + commit",
+                    apply=edit_core,
+                ))
+            elif name in sibling_names and core_t:
+                def edit_sib(pkg=pkg, branch=branch, t=t):
+                    GitHelpers.git(pkg.repo, "checkout", branch)
+                    ch = PyProjectHelpers.write_test_group(pkg.pyproject, VersionHelpers.test_group_pin(core_t))
+                    GitHelpers.git(pkg.repo, "commit", "-am", f"release v{t}: pin py10x-core test dep")
+                    return ch
+                steps.append(Step(
+                    summary=f"{name}: on {branch}, set test group {core_name}=={core_t} + commit",
+                    apply=edit_sib,
+                ))
+
+            steps.append(Step(
+                summary=f"{name}: tag {final_tag} on {branch}",
+                apply=lambda repo=pkg.repo, tag=final_tag, branch=branch: GitHelpers.git(repo, "tag", tag, branch),
+                push_refs=(pkg.repo, [branch, final_tag]),
+            ))
+
+        # 3. main bump: advance Form A floor / reverse group to the just-released versions.
+        repos_to_main = {p.repo for n, p in pkgs.items() if n in targets}
+        for repo in repos_to_main:
+            steps.append(Step(
+                summary=f"checkout main in {repo}",
+                apply=lambda repo=repo: GitHelpers.git(repo, "checkout", "main"),
+            ))
+
+        if sib_dev and core_name in pkgs:
+            core = pkgs[core_name]
+            steps.append(Step(
+                summary=f"main: {core_name} forward dev pins -> {sib_dev} + commit",
+                apply=lambda: (PyProjectHelpers.write_forward_pins(core.pyproject, sib_dev),
+                               GitHelpers.git(core.repo, "commit", "-am", "bump sibling dev pins after prod promotion")),
+                push_refs=(core.repo, ["main"]),
+            ))
+        if core_t:
+            for name in (n for n in sibling_names if n in targets):
+                pkg = pkgs[name]
+                steps.append(Step(
+                    summary=f"main: {name} test group -> {core_name}=={core_t} + commit",
+                    apply=lambda pkg=pkg: (
+                        PyProjectHelpers.write_test_group(pkg.pyproject, VersionHelpers.test_group_pin(core_t)),
+                        GitHelpers.git(pkg.repo, "commit", "-am", "track released py10x-core in test group"),
+                    ),
+                    push_refs=(pkg.repo, ["main"]),
+                ))
+        return steps
+
+
+class Yank(XxPromote, _command="yank"):
+    pkg: str = T(T.NOT_EMPTY)
+    version: str = T(T.NOT_EMPTY)
+
+    def steps_get(self) -> list[Step]:
+        pkgs = self.packages
+        pkg_name = self.pkg
+        version = self.version
+        if pkg_name not in pkgs:
+            raise SystemExit(f'unknown package {pkg_name!r}; choose from {", ".join(pkgs)}')
+        pkg = pkgs[pkg_name]
+        tag = f'{pkg.tag_prefix}{version}'
+        if not GitHelpers.list_tags(pkg.repo, tag):
+            raise SystemExit(f'tag {tag!r} not found in {pkg.repo}')
+        if not self.dry_run:
+            GitHelpers.require_clean(pkg.repo)
+
+        is_prod = VersionHelpers.is_final_version_string(version)
+        print(f'xx-promote yank {pkg_name} {version}  ({"prod" if is_prod else "pre"})\n')
+
+        core_name = next(n for n in pkgs if pkgs[n].tag_prefix == "v")
+        sibling_names = {n for n in pkgs if n != core_name}
+
+        steps: list[Step] = [
+            Step(
+                summary=f'{pkg_name}: rename tag {tag} -> {(yanked := f"{tag}_yanked")}',
+                apply=lambda: (GitHelpers.git(pkg.repo, 'tag', yanked, tag), GitHelpers.git(pkg.repo, 'tag', '-d', tag)),
+                push_refs=(pkg.repo, [yanked, f':refs/tags/{tag}']),
+            )
+        ]
+
+        if is_prod and pkg_name in sibling_names:
+            # The yanked final disappears from version selection (its tag no longer parses), so the
+            # new floor is whatever final remains; rewrite core's main dev pin to match.
+            core = pkgs[core_name]
+
+            def rollback():
+                parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f'{pkg.tag_prefix}*'), pkg.tag_prefix)
+                lf = VersionHelpers.latest_final(parsed)
+                floor = VersionHelpers.base_version(lf) if lf is not None else '0.0.0'
+                t = VersionHelpers.next_micro(floor)
+                PyProjectHelpers.write_forward_pins(core.pyproject, {pkg_name: VersionHelpers.dev_pin(floor, t)})
+                GitHelpers.git(core.repo, 'commit', '-am', f'roll back {pkg_name} dev pin after yanking v{version}')
+
+            steps.append(Step(
+                summary=f'main: roll back {core_name} {pkg_name} dev pin to latest non-yanked release',
+                apply=rollback,
+                push_refs=(core.repo, ['main']),
+            ))
+
+        # The index yank itself is manual: PyPI has no public yank API (it is a session-authenticated
+        # web action), so there is no CI workflow for it - we just print what to do.
+        manage_url = f'https://pypi.org/manage/project/{pkg_name}/release/{version}/'
+        steps.append(Step(
+            summary=(f'MANUAL: PyPI has no yank API - yank {pkg_name} {version} on the index yourself:\n'
+                     f'      {manage_url}  (Options -> Yank)'),
+            apply=lambda: None,
+        ))
+        return steps
+
+
+def main() -> int:
+    rc, inst = XxPromote.from_command_line()
+    if not rc:
+        print(rc.error())
+        return 2
+    rc = inst.run()
+    if not rc:
+        print(rc.error())
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
