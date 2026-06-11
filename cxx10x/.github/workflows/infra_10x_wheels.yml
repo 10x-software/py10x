@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history + all tags so setuptools-scm versions BOTH siblings
+                           # (kernel's tag is on an ancestor; a shallow clone yields 0.1.dev1)
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
