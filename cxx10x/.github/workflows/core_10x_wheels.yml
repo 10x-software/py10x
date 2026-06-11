@@ -38,24 +38,38 @@ jobs:
           git clone https://github.com/10x-software/py10x.git "${{ github.workspace }}/../py10x"
           git -C "${{ github.workspace }}/../py10x" checkout "v${{ steps.core.outputs.version }}"
 
-      # uv-sync py10x-core-dev points py10x-core + kernel + infra at local checkouts: py10x-core at
-      # the pinned tag, kernel/infra at this rc/final commit (kernel is built from source here).
-      - name: Install py10x-core against local kernel/infra
+      # Plain venv, no source override - so py10x-core's tree stays clean and setuptools-scm reports
+      # the real tag version (no dirty guess-next-dev). Build this checkout's kernel/infra editable
+      # FIRST, then install py10x-core - whose pinned version admits them, so they are kept as-is
+      # (no rebuild, no index pull). kernel/infra are tagged together at this commit, so each
+      # editable install picks up its own correct tagged version.
+      - name: Install local kernel/infra, then py10x-core
         working-directory: ${{ github.workspace }}/../py10x
-        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
+        run: |
+          uv venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          uv pip install -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
+          uv pip install -e . --all-extras
 
-      - name: Verify py10x-core version + run its suite (replica-set tests auto-skip)
+      - name: Verify versions + run py10x-core suite (replica-set tests auto-skip)
         working-directory: ${{ github.workspace }}/../py10x
         env:
           PYTHONUNBUFFERED: "1"
+          CORE_VER: ${{ steps.core.outputs.version }}
         run: |
-          source .venv/bin/activate
-          python3 -c "
-          from importlib.metadata import version
+          python - <<'PY'
+          import json, os
+          from importlib.metadata import version, distribution
           from packaging.version import Version
-          want, got = Version('${{ steps.core.outputs.version }}'), Version(version('py10x-core'))
-          assert got == want, f'py10x-core {got} != pinned {want}'
-          print(f'py10x-core {got} OK')"
+          core = Version(version("py10x-core"))
+          assert core == Version(os.environ["CORE_VER"]), f"py10x-core {core} != pinned {os.environ['CORE_VER']}"
+          def editable(name):  # PEP 610: editable installs record dir_info.editable
+              raw = distribution(name).read_text("direct_url.json") or "{}"
+              return json.loads(raw).get("dir_info", {}).get("editable", False)
+          for s in ("py10x-kernel", "py10x-infra"):
+              assert editable(s), f"{s} not editable from local checkout - py10x-core's pin pulled an index build"
+          print(f"py10x-core {core}; kernel {version('py10x-kernel')}; infra {version('py10x-infra')} OK")
+          PY
           pytest
 
   build_wheels:
