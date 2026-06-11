@@ -5,3 +5,4 @@ htmlcov
 .venv
 uv.lock
 .dev_10x_profile
+.env
