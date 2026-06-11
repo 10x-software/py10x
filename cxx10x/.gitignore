@@ -22,3 +22,4 @@ venv/
 .env.*
 !.env.example
 uv.lock
+local_docs
