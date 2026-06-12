@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -33,13 +33,14 @@ def event_store(monkeypatch, mocker):
     # Monotonic store clock so event _at values sit strictly below each watermark query.
     clock = [datetime(2026, 6, 1, 12, 0, 0)]
 
-    def utcnow():
+    def now(tz):
+        assert tz == timezone.utc
         clock[0] += timedelta(milliseconds=10)
         return clock[0]
 
     mock_dt = mocker.patch('core_10x.testlib.test_store.datetime', autospec=True)
-    mock_dt.utcnow.side_effect = utcnow
-    mock_dt.now.side_effect = utcnow
+    mock_dt.utcnow.side_effect = lambda : now(timezone.utc)
+    mock_dt.now.side_effect = now
     mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
     store = Traitable.main_store()
