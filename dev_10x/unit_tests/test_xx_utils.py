@@ -85,6 +85,8 @@ def test_tree_changed_since_tag(tmp_path):
     (pkg / "a.txt").write_text("v1\n", encoding="utf-8")
     (other / "b.txt").write_text("other\n", encoding="utf-8")
     GitHelpers.git(repo, "init")
+    GitHelpers.git(repo, "config", "user.email", "test@example.com")
+    GitHelpers.git(repo, "config", "user.name", "Test")
     GitHelpers.git(repo, "add", ".")
     GitHelpers.git(repo, "commit", "-m", "init")
     GitHelpers.git(repo, "tag", "v0.1.0rc1")
