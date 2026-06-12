@@ -1,6 +1,8 @@
 """Unit tests for pure helpers in `dev_10x.uv_sync`."""
 from __future__ import annotations
 
+from pathlib import Path
+
 import tomlkit
 
 from dev_10x import uv_sync as us
@@ -129,3 +131,23 @@ class TestCoreDependencyFiltering:
         assert 'rio-ui' in names
         assert 'pytest' not in names
         assert passthrough == ['--prerelease=allow']
+
+
+class TestInstalledSource:
+    def test_editable_direct_url_is_local(self, monkeypatch):
+        monkeypatch.setattr(us, '_installed_dist_info', lambda _name: {
+            'found': True,
+            'version': '1.0',
+            'direct_url': '{"url":"file:///tmp/pkg","dir_info":{"editable":true}}',
+        })
+
+        assert us.installed_source('pkg') == ('local', Path('/tmp/pkg'))
+
+    def test_missing_direct_url_is_index(self, monkeypatch):
+        monkeypatch.setattr(us, '_installed_dist_info', lambda _name: {
+            'found': True,
+            'version': '1.0',
+            'direct_url': None,
+        })
+
+        assert us.installed_source('pkg') == ('index', None)

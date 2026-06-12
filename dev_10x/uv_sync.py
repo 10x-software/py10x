@@ -23,7 +23,6 @@ otherwise -> git/other.
 """
 from __future__ import annotations
 
-import importlib.metadata as md
 import json
 import os
 import re
@@ -141,13 +140,45 @@ def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
 # --------------------------------------------------------------------------------------------
 # installed-source detection (PEP 610) + reinstall decision
 # --------------------------------------------------------------------------------------------
+def _venv_python(project_root: Path = PROJECT_ROOT) -> Path:
+    exe = 'python.exe' if os.name == 'nt' else 'python'
+    subdir = 'Scripts' if os.name == 'nt' else 'bin'
+    return project_root / '.venv' / subdir / exe
+
+
+def _metadata_python() -> Path:
+    venv_python = _venv_python()
+    return venv_python if venv_python.is_file() else Path(sys.executable)
+
+
+def _installed_dist_info(name: str) -> dict:
+    script = """
+import importlib.metadata as md
+import json
+import sys
+
+try:
+    dist = md.distribution(sys.argv[1])
+except md.PackageNotFoundError:
+    print(json.dumps({"found": False}))
+else:
+    print(json.dumps({
+        "found": True,
+        "version": dist.version,
+        "direct_url": dist.read_text("direct_url.json"),
+    }))
+"""
+    out = subprocess.check_output([str(_metadata_python()), '-c', script, name],
+                                  cwd=PROJECT_ROOT, text=True)
+    return json.loads(out)
+
+
 def installed_source(name: str) -> tuple[str | None, Path | None]:
     """(kind, path) of the current install: None=not installed, 'index', 'local'(editable), 'other'."""
-    try:
-        dist = md.distribution(name)
-    except md.PackageNotFoundError:
+    info = _installed_dist_info(name)
+    if not info['found']:
         return None, None
-    raw = dist.read_text('direct_url.json')
+    raw = info.get('direct_url')
     if not raw:
         return 'index', None
     info = json.loads(raw)
@@ -156,6 +187,13 @@ def installed_source(name: str) -> tuple[str | None, Path | None]:
         path = Path(unquote(urlparse(url).path)) if url.startswith('file:') else None
         return 'local', path
     return 'other', None
+
+
+def installed_version(name: str) -> str:
+    info = _installed_dist_info(name)
+    if not info['found']:
+        raise RuntimeError(f'{name} is not installed')
+    return info['version']
 
 
 def source_version(src: Path) -> str:
@@ -183,7 +221,7 @@ def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True) -> bo
             reason = f'editable path changed -> {pkg["local"]}'
         else:
             try:
-                installed, src = md.version(name), source_version(pkg['local'])
+                installed, src = installed_version(name), source_version(pkg['local'])
                 if installed != src:
                     reason = f'version drift {installed} -> {src}'
             except Exception as e:  # be safe: any failure -> reinstall
