@@ -283,7 +283,8 @@ def install_git(name: str, pkg: dict, branch: str, *, no_deps: bool = False) -> 
 
 
 def _requirement_name(requirement: str) -> str:
-    name = re.split(r'\s*(?:\[|===|==|~=|!=|<=|>=|<|>|;|\s|\()', requirement.strip(), 1)[0]
+    name = re.split(r'\s*(?:\[|===|==|~=|!=|<=|>=|<|>|;|\s|\()',
+                    requirement.strip(), maxsplit=1)[0]
     return name.lower().replace('_', '-')
 
 
