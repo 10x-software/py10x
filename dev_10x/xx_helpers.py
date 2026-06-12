@@ -209,7 +209,7 @@ class PyProjectHelpers:
         return changes
 
     @classmethod
-    def write_test_group(cls,path: Path, core_pin: str) -> str:
+    def write_test_group(cls, path: Path, core_pin: str) -> str:
         """Set/refresh `[dependency-groups] test = [<core_pin>]`. Returns a description of the change."""
 
         doc = cls._load(path)
@@ -223,3 +223,77 @@ class PyProjectHelpers:
         groups["test"] = arr
         cls._dump(path, doc)
         return f"{old} -> [{core_pin!r}]"
+
+
+class InstalledSourceHelpers:
+    """Query install source metadata for packages in a project `.venv` via `uv pip show`."""
+
+    def __init__(self, project_root: Path) -> None:
+        self.project_root = project_root
+
+    @staticmethod
+    def parse_uv_pip_show(stdout: str) -> dict[str, str]:
+        """Key/value fields from `uv pip show` stdout (one package block)."""
+        info: dict[str, str] = {}
+        for line in stdout.splitlines():
+            if ': ' in line:
+                key, value = line.split(': ', 1)
+                info[key.strip()] = value.strip()
+        return info
+
+    @staticmethod
+    def dist_info_direct_url(show: dict[str, str]) -> str:
+        """PEP 610 `direct_url.json` body from `{Location}/{Name}-{Version}.dist-info`, or ''."""
+        location, name, version = show.get('Location'), show.get('Name'), show.get('Version')
+        if not location or not name or not version:
+            return ''
+        dist_info = Path(location) / f'{name.replace("-", "_")}-{version}.dist-info'
+        direct_url = dist_info / 'direct_url.json'
+        return direct_url.read_text(encoding='utf-8') if direct_url.is_file() else ''
+
+    @staticmethod
+    def classify_install(
+        editable_path: Path | None, direct_url_raw: str,
+    ) -> tuple[str, Path | None]:
+        """Map `uv pip show` + PEP 610 metadata to (kind, path)."""
+        if editable_path is not None:
+            return 'local', editable_path
+        if not direct_url_raw:
+            return 'index', None
+        return 'other', None
+
+    def venv_python(self) -> Path | None:
+        py = self.project_root / '.venv' / 'bin' / 'python'
+        return py if py.is_file() else None
+
+    def pip_show(self, name: str) -> dict[str, str] | None:
+        """`uv pip show` for `name` in the project `.venv`; None when not installed."""
+        py = self.venv_python()
+        if py is None:
+            return None
+        proc = subprocess.run(
+            ['uv', 'pip', 'show', '--python', str(py), name],
+            cwd=self.project_root, capture_output=True, text=True,
+        )
+        if proc.returncode != 0 or 'Package(s) not found' in proc.stdout + proc.stderr:
+            return None
+        return self.parse_uv_pip_show(proc.stdout)
+
+    def installed_source(self, name: str) -> tuple[str | None, Path | None]:
+        """(kind, path) of the install in the project `.venv`.
+
+        None=not installed, 'index', 'local'(editable), 'other'(git/direct URL wheel).
+        """
+        info = self.pip_show(name)
+        if info is None:
+            return None, None
+        editable = info.get('Editable project location')
+        editable_path = Path(editable) if editable else None
+        return self.classify_install(editable_path, self.dist_info_direct_url(info))
+
+    def installed_version(self, name: str) -> str:
+        """Installed version of `name` in the project `.venv` (from `uv pip show`)."""
+        info = self.pip_show(name)
+        if info is None or 'Version' not in info:
+            raise RuntimeError(f'{name} is not installed in {self.project_root / ".venv"}')
+        return info['Version']
