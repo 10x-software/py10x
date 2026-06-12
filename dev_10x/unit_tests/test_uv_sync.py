@@ -45,32 +45,28 @@ class TestSwapRepo:
 
 
 class TestInstalledSource:
-    def test_installed_dist_info_uses_uv_run_no_sync(self, monkeypatch):
+    def test_installed_direct_url_uses_uv_run_no_sync(self, monkeypatch):
         calls = []
 
         def fake_check_output(args, **kwargs):
             calls.append(args)
-            return '{}'
+            return ''
 
         monkeypatch.setattr(us.subprocess, 'check_output', fake_check_output)
 
-        assert us._installed_dist_info('pkg') == {}
+        assert us._installed_direct_url('pkg') == ''
         assert calls[0][:4] == ['uv', 'run', '--no-sync', 'python']
         assert len(calls[0]) == 6
         assert "n='pkg'" in calls[0][-1]
 
     def test_editable_direct_url_is_local(self, monkeypatch):
-        monkeypatch.setattr(us, '_installed_dist_info', lambda _name: {
-            'version': '1.0',
-            'direct_url': '{"url":"file:///tmp/pkg","dir_info":{"editable":true}}',
-        })
+        monkeypatch.setattr(
+            us, '_installed_direct_url',
+            lambda _name: '{"url":"file:///tmp/pkg","dir_info":{"editable":true}}')
 
         assert us.installed_source('pkg') == ('local', Path('/tmp/pkg'))
 
     def test_missing_direct_url_is_index(self, monkeypatch):
-        monkeypatch.setattr(us, '_installed_dist_info', lambda _name: {
-            'version': '1.0',
-            'direct_url': None,
-        })
+        monkeypatch.setattr(us, '_installed_direct_url', lambda _name: '')
 
         assert us.installed_source('pkg') == ('index', None)

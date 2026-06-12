@@ -132,25 +132,17 @@ def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
     raise ValueError(f'unknown profile {profile!r}')
 
 
-def _installed_dist_info(name: str) -> dict:
+def _installed_direct_url(name: str) -> str:
     normalized = name.lower().replace('_', '-')
-    script = ("import importlib.metadata as md,json;"
-              f"n={normalized!r};"
-              "d=next((d for d in md.distributions() if d.name and "
-              "d.name.lower().replace('_','-')==n),None);"
-              "print(json.dumps({} if d is None else "
-              "{'version':d.version,'direct_url':d.read_text('direct_url.json')}))")
+    script = f"import importlib.metadata as md;n={normalized!r};print(next(((d.read_text('direct_url.json') or '') for d in md.distributions() if d.name and d.name.lower().replace('_','-')==n),''),end='')"
     out = subprocess.check_output(['uv', 'run', '--no-sync', 'python', '-c', script],
                                   cwd=PROJECT_ROOT, text=True)
-    return json.loads(out)
+    return out
 
 
 def installed_source(name: str) -> tuple[str | None, Path | None]:
     """(kind, path) of the current install: None=not installed, 'index', 'local'(editable), 'other'."""
-    info = _installed_dist_info(name)
-    if not info:
-        return None, None
-    raw = info.get('direct_url')
+    raw = _installed_direct_url(name)
     if not raw:
         return 'index', None
     info = json.loads(raw)
@@ -162,10 +154,9 @@ def installed_source(name: str) -> tuple[str | None, Path | None]:
 
 
 def installed_version(name: str) -> str:
-    info = _installed_dist_info(name)
-    if not info:
-        raise RuntimeError(f'{name} is not installed')
-    return info['version']
+    script = f"import importlib.metadata as md;print(md.version({name!r}),end='')"
+    return subprocess.check_output(['uv', 'run', '--no-sync', 'python', '-c', script],
+                                   cwd=PROJECT_ROOT, text=True)
 
 
 def source_version(src: Path) -> str:
