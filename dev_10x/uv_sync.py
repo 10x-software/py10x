@@ -45,15 +45,6 @@ CXX_BUILD_TOOLCHAIN = ['scikit-build-core', 'setuptools-scm', 'cmake', 'ninja', 
 CONSTRAINTS = ('-c', 'constraints.txt')
 
 
-# --------------------------------------------------------------------------------------------
-# venv + runtime deps
-# --------------------------------------------------------------------------------------------
-def _venv_python(project_root: Path = PROJECT_ROOT) -> Path:
-    exe = 'python.exe' if os.name == 'nt' else 'python'
-    subdir = 'Scripts' if os.name == 'nt' else 'bin'
-    return project_root / '.venv' / subdir / exe
-
-
 def ensure_env_and_runtime_deps(project_root: Path) -> ModuleType:
     if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
         subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
@@ -141,34 +132,14 @@ def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
     raise ValueError(f'unknown profile {profile!r}')
 
 
-# --------------------------------------------------------------------------------------------
-# installed-source detection (PEP 610) + reinstall decision
-# --------------------------------------------------------------------------------------------
-def _target_python() -> Path:
-    venv_python = _venv_python()
-    if not venv_python.is_file():
-        raise RuntimeError(f'uv-sync target venv not found: {venv_python}')
-    return venv_python
-
-
 def _installed_dist_info(name: str) -> dict:
-    script = """
-import importlib.metadata as md
-import json
-import sys
-
-try:
-    dist = md.distribution(sys.argv[1])
-except md.PackageNotFoundError:
-    print(json.dumps({"found": False}))
-else:
-    print(json.dumps({
-        "found": True,
-        "version": dist.version,
-        "direct_url": dist.read_text("direct_url.json"),
-    }))
-"""
-    out = subprocess.check_output([str(_target_python()), '-c', script, name],
+    script = ("import importlib.metadata as md,json,sys;"
+              "n=sys.argv[1].lower().replace('_','-');"
+              "d=next((d for d in md.distributions() if d.name and "
+              "d.name.lower().replace('_','-')==n),None);"
+              "print(json.dumps({'found':False} if d is None else "
+              "{'found':True,'version':d.version,'direct_url':d.read_text('direct_url.json')}))")
+    out = subprocess.check_output(['uv', 'run', '--no-sync', 'python', '-c', script, name],
                                   cwd=PROJECT_ROOT, text=True)
     return json.loads(out)
 

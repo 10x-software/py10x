@@ -45,15 +45,18 @@ class TestSwapRepo:
 
 
 class TestInstalledSource:
-    def test_target_python_requires_venv(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(us, '_venv_python', lambda: tmp_path / 'missing-python')
+    def test_installed_dist_info_uses_uv_run_no_sync(self, monkeypatch):
+        calls = []
 
-        try:
-            us._target_python()
-        except RuntimeError as e:
-            assert 'target venv not found' in str(e)
-        else:
-            raise AssertionError('expected missing target venv to fail')
+        def fake_check_output(args, **kwargs):
+            calls.append(args)
+            return '{"found": false}'
+
+        monkeypatch.setattr(us.subprocess, 'check_output', fake_check_output)
+
+        assert us._installed_dist_info('pkg') == {'found': False}
+        assert calls[0][:4] == ['uv', 'run', '--no-sync', 'python']
+        assert calls[0][-1] == 'pkg'
 
     def test_editable_direct_url_is_local(self, monkeypatch):
         monkeypatch.setattr(us, '_installed_dist_info', lambda _name: {
