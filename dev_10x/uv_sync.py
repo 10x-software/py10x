@@ -27,12 +27,9 @@ import json
 import os
 import subprocess
 import sys
+import tomllib
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING
 from urllib.parse import unquote, urlparse
-
-if TYPE_CHECKING:
-    from types import ModuleType
 
 PROJECT_ROOT = Path('.').resolve()  # the py10x repo root (cwd)
 PROFILE_FILE = '.dev_10x_profile'
@@ -48,25 +45,30 @@ CONSTRAINTS = ('-c', 'constraints.txt')
 # --------------------------------------------------------------------------------------------
 # venv + runtime deps
 # --------------------------------------------------------------------------------------------
-def ensure_env_and_runtime_deps(project_root: Path) -> ModuleType:
+def _venv_python(project_root: Path = PROJECT_ROOT) -> Path:
+    exe = 'python.exe' if os.name == 'nt' else 'python'
+    subdir = 'Scripts' if os.name == 'nt' else 'bin'
+    return project_root / '.venv' / subdir / exe
+
+
+def ensure_env_and_runtime_deps(project_root: Path) -> None:
     if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
         subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
     try:
-        import tomlkit
-        import setuptools_scm  # imported only to check availability
-    except ImportError:
-        subprocess.run(['uv', 'pip', 'install', '--python', sys.executable, '--quiet',
-                        '-c', 'constraints.txt', 'tomlkit', 'setuptools-scm'],
+        subprocess.run([str(_venv_python(project_root)), '-c', 'import setuptools_scm'],
+                       cwd=project_root, check=True, stdout=subprocess.DEVNULL,
+                       stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        subprocess.run(['uv', 'pip', 'install', '--python', str(_venv_python(project_root)),
+                        '--quiet', '-c', 'constraints.txt', 'setuptools-scm'],
                        cwd=project_root, check=True)
-        import tomlkit
-    return tomlkit
 
 
 # --------------------------------------------------------------------------------------------
 # config: [tool.dev_10x] siblings + branch, with git URLs derived from `origin`
 # --------------------------------------------------------------------------------------------
-def _dev10x_cfg(tomlkit) -> dict:
-    doc = tomlkit.parse((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+def _dev10x_cfg() -> dict:
+    doc = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
     return doc.get('tool', {}).get('dev_10x', {})
 
 
@@ -96,7 +98,7 @@ def _normalize_git_url(url: str) -> str:
     return url
 
 
-def packages(tomlkit) -> dict[str, dict]:
+def packages() -> dict[str, dict]:
     """Per-package source descriptor: {'local': Path, 'git': url, 'subdir': str|None, 'cxx': bool}.
 
     py10x-core is the current repo (`.`); siblings come from `[tool.dev_10x.siblings]`, where a
@@ -107,7 +109,7 @@ def packages(tomlkit) -> dict[str, dict]:
     pkgs: dict[str, dict] = {
         CORE: {'local': PROJECT_ROOT, 'git': remote, 'subdir': None, 'cxx': False},
     }
-    for name, spec in _dev10x_cfg(tomlkit).get('siblings', {}).items():
+    for name, spec in _dev10x_cfg().get('siblings', {}).items():
         rel = PurePosixPath(spec['path'])
         non_dotdot = [p for p in rel.parts if p != '..']
         repo_dir = non_dotdot[0]
@@ -138,15 +140,11 @@ def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
 # --------------------------------------------------------------------------------------------
 # installed-source detection (PEP 610) + reinstall decision
 # --------------------------------------------------------------------------------------------
-def _venv_python(project_root: Path = PROJECT_ROOT) -> Path:
-    exe = 'python.exe' if os.name == 'nt' else 'python'
-    subdir = 'Scripts' if os.name == 'nt' else 'bin'
-    return project_root / '.venv' / subdir / exe
-
-
-def _metadata_python() -> Path:
+def _target_python() -> Path:
     venv_python = _venv_python()
-    return venv_python if venv_python.is_file() else Path(sys.executable)
+    if not venv_python.is_file():
+        raise RuntimeError(f'uv-sync target venv not found: {venv_python}')
+    return venv_python
 
 
 def _installed_dist_info(name: str) -> dict:
@@ -166,7 +164,7 @@ else:
         "direct_url": dist.read_text("direct_url.json"),
     }))
 """
-    out = subprocess.check_output([str(_metadata_python()), '-c', script, name],
+    out = subprocess.check_output([str(_target_python()), '-c', script, name],
                                   cwd=PROJECT_ROOT, text=True)
     return json.loads(out)
 
@@ -198,7 +196,7 @@ def source_version(src: Path) -> str:
     # stderr suppressed: hatch-vcs projects have no [tool.setuptools_scm] section, so the scm CLI
     # logs a harmless "toml section missing" warning while still computing the git version.
     return subprocess.check_output(
-        [sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True,
+        [str(_target_python()), '-m', 'setuptools_scm'], cwd=src, text=True,
         stderr=subprocess.DEVNULL).strip()
 
 
@@ -279,9 +277,9 @@ def install_git(name: str, pkg: dict, branch: str) -> None:
 # the sync
 # --------------------------------------------------------------------------------------------
 def uv_sync(profile: str, *uv_args: str) -> None:
-    tomlkit = ensure_env_and_runtime_deps(PROJECT_ROOT)
-    pkgs = packages(tomlkit)
-    branch = _dev10x_cfg(tomlkit).get('branch', 'main')
+    ensure_env_and_runtime_deps(PROJECT_ROOT)
+    pkgs = packages()
+    branch = _dev10x_cfg().get('branch', 'main')
     kinds = profile_kinds(profile, list(pkgs))
     siblings = [p for p in pkgs if p != CORE]
     incremental = int(os.environ.get('XX_UV_INCREMENTAL', 0))
