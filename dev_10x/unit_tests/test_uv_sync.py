@@ -50,17 +50,17 @@ class TestInstalledSource:
 
         def fake_check_output(args, **kwargs):
             calls.append(args)
-            return '{"found": false}'
+            return '{}'
 
         monkeypatch.setattr(us.subprocess, 'check_output', fake_check_output)
 
-        assert us._installed_dist_info('pkg') == {'found': False}
+        assert us._installed_dist_info('pkg') == {}
         assert calls[0][:4] == ['uv', 'run', '--no-sync', 'python']
-        assert calls[0][-1] == 'pkg'
+        assert len(calls[0]) == 6
+        assert "n='pkg'" in calls[0][-1]
 
     def test_editable_direct_url_is_local(self, monkeypatch):
         monkeypatch.setattr(us, '_installed_dist_info', lambda _name: {
-            'found': True,
             'version': '1.0',
             'direct_url': '{"url":"file:///tmp/pkg","dir_info":{"editable":true}}',
         })
@@ -69,7 +69,6 @@ class TestInstalledSource:
 
     def test_missing_direct_url_is_index(self, monkeypatch):
         monkeypatch.setattr(us, '_installed_dist_info', lambda _name: {
-            'found': True,
             'version': '1.0',
             'direct_url': None,
         })
