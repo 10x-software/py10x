@@ -22,9 +22,14 @@ class TraitableCli(Traitable):
     @classmethod
     def from_command_line(cls) -> tuple:  # -- (RC, Traitable)
         """
-        Creates an instance of target traitable parsing positional args to obtain the right target class and then taking trait values
-        in the name = value pairs form.
-        One can use any spacing around symbol '=', i.e.: name=value name= value name =value or name = value
+        Creates an instance of the target traitable: positional words select the target class and the
+        remaining `--option value` pairs supply trait values.
+
+        Option syntax (see :meth:`parse`):
+            --option value      set trait `option` to `value`
+            --some-option v     dashes in the name become underscores -> trait `some_option`
+            --flag              boolean shortcut, equivalent to `--flag true`
+            --no-flag           boolean shortcut, equivalent to `--flag false`
 
         :return:    (rc, traitable) - RC and a traitable according to args and trait values parsed from sys.argv.
                     rc holds error message(s) if instantiation fails for any reason (traitable is set to None)
@@ -69,85 +74,50 @@ class TraitableCli(Traitable):
         return parser.instantiate(args, trait_values)
 
     @classmethod
-    def parse(cls, input_args: tuple, args: list, trait_values: dict) -> RC:  # noqa: C901
-        if not input_args:
-            return RC_TRUE
+    def parse(cls, input_args: tuple, args: list, trait_values: dict) -> RC:
+        """
+        Splits CLI tokens into positional command words (appended to `args`) and option values
+        (collected into `trait_values`).
 
-        trait_name = None
-        deal_with_args = True
-        new_vp = True
-        eq_expected = False
-        for i, arg in enumerate(input_args):
-            if deal_with_args:
-                parts = arg.split('=', 1)
-                n = len(parts)
-                if n == 1:
-                    args.append(arg)
-                else:
-                    deal_with_args = False
-                    eq_expected = False
-                    first, second = parts
-                    if not first and not second:  # -- just '='
-                        if i:
-                            trait_name = args.pop(-1)
-                            new_vp = False
-                        else:
-                            return RC(False, 'May not start with "="')
+        Options are introduced by a `--` prefix; dashes in an option name are converted to
+        underscores so that `--some-option` maps to the trait `some_option`. Three forms are
+        accepted:
 
-                    elif first:
-                        if not second:  # -- xxx=
-                            trait_name = first
-                            new_vp = False
-                        else:  # -- xxx=yyy
-                            trait_values[first] = second
-                            new_vp = True
-                    else:  # -- =yyy
-                        if i:
-                            trait_name = args.pop(-1)
-                            trait_values[trait_name] = second
-                            new_vp = True
-                        else:
-                            return RC(False, 'May not start with "="')
+            --option value      set trait `option` to `value` (the following non-option token)
+            --option            boolean shortcut, equivalent to `--option true`
+            --no-option         boolean shortcut, equivalent to `--option false`
 
+        A token that does not start with `--` is a positional word (a sub-command). Positional
+        words must precede any option, since a value-taking option consumes the token that
+        follows it.
+
+        :return:    RC; holds an error message when an option name is malformed.
+        """
+        i, n = 0, len(input_args)
+        while i < n:
+            arg = input_args[i]
+            if not arg.startswith('--'):  # -- positional command word
+                args.append(arg)
+                i += 1
+                continue
+
+            name = arg[2:]
+            if not name:
+                return RC(False, 'Option name is missing after "--"')
+
+            # -- --no-option / --no_option: boolean negation shortcut (== --option false)
+            if (name.startswith('no-') or name.startswith('no_')) and len(name) > 3:
+                trait_values[name[3:].replace('-', '_')] = 'false'
+                i += 1
+                continue
+
+            name = name.replace('-', '_')
+            # -- a following non-option token is the value; otherwise this is a boolean --option (== true)
+            if i + 1 < n and not input_args[i + 1].startswith('--'):
+                trait_values[name] = input_args[i + 1]
+                i += 2
             else:
-                parts = arg.split('=', 1)
-                n = len(parts)
-                if new_vp:
-                    trait_name = parts[0]
-                    if n == 1:
-                        eq_expected = True
-                        new_vp = False
-                    else:
-                        value = parts[1]
-                        if value:
-                            trait_values[trait_name] = value
-                            new_vp = True
-                        else:
-                            eq_expected = False
-                            new_vp = False
-                else:
-                    if not eq_expected:
-                        if n == 2:
-                            return RC(False, f'Invalid "=": {input_args[i - 1]} {arg}')
-
-                        trait_values[trait_name] = parts[0]
-                        new_vp = True
-
-                    else:
-                        if n == 1:
-                            return RC(False, f'"=" is expected before {arg}')
-
-                        if parts[0]:
-                            return RC(False, f'{input_args[i - 1]} {arg}')
-
-                        if parts[1]:
-                            trait_values[trait_name] = parts[1]
-                            new_vp = True
-
-                        else:
-                            eq_expected = False
-
-        if not new_vp:
-            return RC(False, f'Value is missing for {trait_name} = ')
+                trait_values[name] = 'true'
+                i += 1
 
         return RC_TRUE

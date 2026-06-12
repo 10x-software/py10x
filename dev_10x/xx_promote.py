@@ -11,19 +11,20 @@ The three packages version *independently* and live in two git repos:
 per-version release branch. See `dev_10x/README.md` for the full model.
 
 It is a `core_10x.traitable_cli.TraitableCli` tree: positional words pick the command, and
-options are `name=value` traits.
+options use the `--option value` form (dashes in names map to underscores; boolean options also
+accept the `--option` / `--no-option` shortcuts).
 
 Subcommands:
-    xx-promote pre                              cut the next rc when the package tree changed
-    xx-promote prod                             promote packages whose latest tag is a pre-release
-    xx-promote yank pkg=<name> version=<ver>    rename a tag to `<tag>_yanked`; roll back main pins
+    xx-promote pre                                  cut the next rc when the package tree changed
+    xx-promote prod                                 promote packages whose latest tag is a pre-release
+    xx-promote yank --pkg <name> --version <ver>    rename a tag to `<tag>_yanked`; roll back main pins
 
-Safety levels (every subcommand), as `name=value` flags:
+Safety levels (every subcommand), as `--option` flags:
     (default)        perform local changes only (git log/status to inspect, reset to undo)
-    dry_run=true     print the full plan, change nothing (local or remote)
-    push=true        perform local changes, then push to remotes last
+    --dry-run        print the full plan, change nothing (local or remote)
+    --push           perform local changes, then push to remotes last
 
-`dry_run` always wins over `push`. Example: `xx-promote prod dry_run=true`.
+`dry_run` always wins over `push`. Example: `xx-promote prod --dry-run`.
 """
 from __future__ import annotations
 
@@ -70,17 +71,17 @@ class Step(Traitable):
 
 
 # --------------------------------------------------------------------------------------------
-# CLI surface - a core_10x.traitable_cli tree. Commands are positional; options are name=value.
+# CLI surface - a core_10x.traitable_cli tree. Commands are positional; options are --option value.
 # --------------------------------------------------------------------------------------------
 class XxPromote(TraitableCli):
     """Release promotion for the 10x packages.
 
     Usage:
-        xx-promote pre                            cut the next rc when the package tree changed
-        xx-promote prod                           promote packages whose latest tag is pre
-        xx-promote yank pkg=<name> version=<ver>  yank a tag (rc or final)
-    Flags (name=value): dry_run=true (preview), push=true (push to remotes). base=<path> overrides
-    the py10x repo root (default: cwd).
+        xx-promote pre                                cut the next rc when the package tree changed
+        xx-promote prod                               promote packages whose latest tag is pre
+        xx-promote yank --pkg <name> --version <ver>  yank a tag (rc or final)
+    Flags: --dry-run (preview), --push (push to remotes). --base <path> overrides the py10x repo
+    root (default: cwd). Boolean flags also accept the explicit `--flag true|false` form.
     """
     dry_run: bool = T(False)   # converted from the CLI string by CONVERT_VALUES_ON (see below)
     push: bool = T(False)
@@ -90,8 +91,9 @@ class XxPromote(TraitableCli):
 
     @classmethod
     def instance_from_args(cls, input_args: tuple) -> tuple:
-        # traitable_cli stores values verbatim unless conversion is enabled; this turns
-        # `dry_run=true` into a real bool (and would coerce numeric/enum traits too).
+        # traitable_cli stores values verbatim unless conversion is enabled; this turns the
+        # `--dry-run` shortcut (stored as the string "true") into a real bool, and would coerce
+        # numeric/enum traits too.
         with CONVERT_VALUES_ON():
             return super().instance_from_args(input_args)
 

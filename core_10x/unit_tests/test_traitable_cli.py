@@ -24,7 +24,7 @@ class Greet(Cli, _command = 'greet'):
 
 
 # ----------------------------------------------------------------------------
-#   parse() - splitting argv into positional args and name = value pairs
+#   parse() - splitting argv into positional args and --option value pairs
 # ----------------------------------------------------------------------------
 
 def _parse(input_args):
@@ -47,63 +47,64 @@ def test_parse_positional_only():
     assert tv == {}
 
 
-def test_parse_joined_pair():
-    rc, args, tv = _parse(['a=2', 'b=3'])
+def test_parse_option_value_pairs():
+    rc, args, tv = _parse(['--a', '2', '--b', '3'])
     assert rc
     assert args == []
     assert tv == {'a': '2', 'b': '3'}
 
 
-def test_parse_spaced_equals():
-    # name = value  (three separate argv tokens)
-    rc, args, tv = _parse(['a', '=', '10', 'b', '=', '40'])
+def test_parse_dashes_become_underscores():
+    # --some-option -> trait some_option
+    rc, args, tv = _parse(['--dry-run', 'true', '--max-retries', '5'])
     assert rc
     assert args == []
-    assert tv == {'a': '10', 'b': '40'}
+    assert tv == {'dry_run': 'true', 'max_retries': '5'}
 
 
-def test_parse_name_eq_then_value():
-    # 'name='  'value'
-    rc, args, tv = _parse(['name=', 'value'])
-    assert rc
-    assert tv == {'name': 'value'}
-
-
-def test_parse_name_then_eq_value():
-    # 'name'  '=value'
-    rc, args, tv = _parse(['name', '=value'])
+def test_parse_boolean_shortcut_true():
+    # --flag (followed by another option) is equivalent to --flag true
+    rc, args, tv = _parse(['--verbose', '--name', 'x'])
     assert rc
     assert args == []
-    assert tv == {'name': 'value'}
+    assert tv == {'verbose': 'true', 'name': 'x'}
 
 
-def test_parse_positional_then_pairs():
-    rc, args, tv = _parse(['add', 'a=2', 'b=3'])
+def test_parse_boolean_shortcut_true_at_end():
+    rc, args, tv = _parse(['--verbose'])
+    assert rc
+    assert tv == {'verbose': 'true'}
+
+
+def test_parse_boolean_shortcut_no_option():
+    # --no-option is equivalent to --option false
+    rc, args, tv = _parse(['--no-verbose', '--no-dry-run'])
+    assert rc
+    assert tv == {'verbose': 'false', 'dry_run': 'false'}
+
+
+def test_parse_positional_then_options():
+    rc, args, tv = _parse(['add', '--a', '2', '--b', '3'])
     assert rc
     assert args == ['add']
     assert tv == {'a': '2', 'b': '3'}
+
+
+def test_parse_negative_number_value():
+    # a single-dash token is a value, not an option
+    rc, args, tv = _parse(['--a', '-3'])
+    assert rc
+    assert tv == {'a': '-3'}
 
 
 # ----------------------------------------------------------------------------
 #   parse() - error conditions
 # ----------------------------------------------------------------------------
 
-def test_parse_may_not_start_with_equals():
-    rc, _, _ = _parse(['=oops'])
+def test_parse_bare_double_dash():
+    rc, _, _ = _parse(['--', 'value'])
     assert not rc
-    assert 'May not start with "="' in rc.error()
-
-
-def test_parse_may_not_start_with_bare_equals():
-    rc, _, _ = _parse(['=', 'value'])
-    assert not rc
-    assert 'May not start with "="' in rc.error()
-
-
-def test_parse_missing_value():
-    rc, _, _ = _parse(['name='])
-    assert not rc
-    assert 'Value is missing' in rc.error()
+    assert 'Option name is missing' in rc.error()
 
 
 # ----------------------------------------------------------------------------
@@ -112,15 +113,33 @@ def test_parse_missing_value():
 
 def test_instantiate_master_no_subcommand():
     with CONVERT_VALUES_ON():
-        rc, obj = Cli.instance_from_args(['verbose=true'])
+        rc, obj = Cli.instance_from_args(['--verbose', 'true'])
     assert rc
     assert type(obj) is Cli
     assert obj.verbose is True
 
 
+def test_instantiate_master_boolean_shortcut():
+    # --verbose (no value) is equivalent to --verbose true
+    with CONVERT_VALUES_ON():
+        rc, obj = Cli.instance_from_args(['--verbose'])
+    assert rc
+    assert type(obj) is Cli
+    assert obj.verbose is True
+
+
+def test_instantiate_master_no_boolean_shortcut():
+    # --no-verbose is equivalent to --verbose false
+    with CONVERT_VALUES_ON():
+        rc, obj = Cli.instance_from_args(['--no-verbose'])
+    assert rc
+    assert type(obj) is Cli
+    assert obj.verbose is False
+
+
 def test_instantiate_subcommand_add():
     with CONVERT_VALUES_ON():
-        rc, obj = Cli.instance_from_args(['add', 'a=2', 'b=3'])
+        rc, obj = Cli.instance_from_args(['add', '--a', '2', '--b', '3'])
     assert rc
     assert type(obj) is Add
     assert obj.a == 2.0
@@ -135,14 +154,6 @@ def test_instantiate_subcommand_uses_defaults():
     assert obj.name == 'world'
 
 
-def test_instantiate_subcommand_spaced_equals():
-    with CONVERT_VALUES_ON():
-        rc, obj = Cli.instance_from_args(['add', 'a', '=', '10', 'b', '=', '40'])
-    assert rc
-    assert obj.a == 10.0
-    assert obj.b == 40.0
-
-
 # ----------------------------------------------------------------------------
 #   instance_from_args() - error conditions
 # ----------------------------------------------------------------------------
@@ -155,17 +166,17 @@ def test_instantiate_unknown_command():
 
 
 def test_instantiate_unknown_attribute():
-    rc, obj = Cli.instance_from_args(['unknown=1'])
+    rc, obj = Cli.instance_from_args(['--unknown', '1'])
     assert not rc
     assert obj is None
     assert 'unknown attribute unknown' in rc.error()
 
 
 def test_instantiate_propagates_parse_error():
-    rc, obj = Cli.instance_from_args(['=oops'])
+    rc, obj = Cli.instance_from_args(['--', 'oops'])
     assert not rc
     assert obj is None
-    assert 'May not start with "="' in rc.error()
+    assert 'Option name is missing' in rc.error()
 
 
 # ----------------------------------------------------------------------------

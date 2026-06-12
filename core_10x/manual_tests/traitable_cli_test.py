@@ -39,18 +39,20 @@ def show(args: list) -> None:
 
 if __name__ == '__main__':
     (ctx:=CONVERT_VALUES_ON()).begin_using()
-    # master command, no sub-command
-    show(['verbose=true'])
+    # master command, no sub-command (boolean shortcuts + explicit value)
+    show(['--verbose'])
+    show(['--no-verbose'])
+    show(['--verbose', 'true'])
 
-    # 'add' sub-command with various '=' spacings
-    show(['add', 'a=2', 'b=3'])
-    show(['add', 'a', '=', '10', 'b', '=', '40'])
+    # 'add' sub-command with --option value pairs
+    show(['add', '--a', '2', '--b', '3'])
+    show(['add', '--a', '10', '--b', '40'])
 
     # 'greet' sub-command
-    show(['greet', 'name=Sasha'])
+    show(['greet', '--name', 'Sasha'])
     show(['greet'])
 
     # error cases
     show(['bogus'])
-    show(['add', 'unknown=1'])
-    show(['=oops'])
+    show(['add', '--unknown', '1'])
+    show(['--', 'oops'])

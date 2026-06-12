@@ -56,10 +56,10 @@ derived from `origin` (not hardcoded). Tag prefix defaults to `{name}-v`; repo r
 Releases are not cut by hand-editing pins. `main` always carries **dev pins**; `xx-promote` tags
 the repos and, for a final release, commits strict pins on a per-version release branch.
 
-`xx-promote` is a `core_10x.traitable_cli` tree: the command is a positional word and options are
-`name=value` traits. `CONVERT_VALUES_ON()` must be active so `dry_run=true` coerces to a real bool.
-Pure helpers live in `dev_10x/xx_helpers.py`; tests in `dev_10x/unit_tests/test_xx_utils.py` and
-`test_xx_promote.py`.
+`xx-promote` is a `core_10x.traitable_cli` tree: the command is a positional word and options use
+the `--option value` form (dashes in names map to underscores, e.g. `--dry-run` → `dry_run`).
+Boolean options also accept the `--option` / `--no-option` shortcuts (== `--option true` /
+`--option false`). 
 
 ### Pin model (three places)
 
@@ -82,16 +82,16 @@ For a sibling whose next version is `T` (`N` = the next micro, `FLOOR` = its las
 ### Subcommands
 
 ```
-xx-promote pre                            # cut the next rc for every package (tagging only)
-xx-promote prod                           # promote each rc'd package to final
-xx-promote yank pkg=<name> version=<ver>  # yank a tag (rc or final)
+xx-promote pre                                # cut the next rc for every package (tagging only)
+xx-promote prod                               # promote each rc'd package to final
+xx-promote yank --pkg <name> --version <ver>  # yank a tag (rc or final)
 ```
 
 - **`pre`** computes each package's own target `T` and next rc number, then tags the repo's
   current `main` HEAD (`v{T}rc{n}`, `py10x-kernel-v{T}rc{n}`, `py10x-infra-v{T}rc{n}`). A package
   is skipped when `git diff` shows no changes in its source subtree since its latest pre *or* prod
   tag (siblings diff only `core_10x` / `infra_10x`, not the whole `cxx10x` repo). When the latest
-  tag is an rc, `push=true` can still publish it without minting a new rc. No pin changes — Form A
+  tag is an rc, `--push` can still publish it without minting a new rc. No pin changes — Form A
   dev pins already admit the new rc.
 - **`prod`** (per package whose **latest** tag is a pre-release and that has an rc for its target):
   1. find the latest rc tag + commit;
@@ -109,20 +109,20 @@ xx-promote yank pkg=<name> version=<ver>  # yank a tag (rc or final)
   `main`'s pins back to the latest non-yanked release; an rc yank is tag-rename only. There are
   intentionally **no** yank CI workflows.
 
-### Safety levels (every subcommand, as `name=value` flags)
+### Safety levels (every subcommand, as `--option` flags)
 
-| flag           | effect                                                                       |
-|----------------|------------------------------------------------------------------------------|
-| `dry_run=true` | print the full plan; change **nothing** (local or remote)                    |
-| *(default)*    | apply **local** changes only — inspect with `git log`/`status`, reset to undo |
-| `push=true`    | apply locally, then push to remotes **last**, only after all local steps pass |
+| flag         | effect                                                                       |
+|--------------|------------------------------------------------------------------------------|
+| `--dry-run`  | print the full plan; change **nothing** (local or remote)                    |
+| *(default)*  | apply **local** changes only — inspect with `git log`/`status`, reset to undo |
+| `--push`     | apply locally, then push to remotes **last**, only after all local steps pass |
 
-`dry_run` always wins. Clean working trees are required before any real change. `base=<path>`
+`dry_run` always wins. Clean working trees are required before any real change. `--base <path>`
 overrides the py10x repo root (default: cwd). Always preview first:
 
 ```
-xx-promote prod dry_run=true
-xx-promote prod push=true
+xx-promote prod --dry-run
+xx-promote prod --push
 ```
 
 ---
