@@ -220,7 +220,7 @@ def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
     ]
 
 
-def install_local(name: str, pkg: dict, incremental: bool, verbose: bool) -> None:
+def install_local(name: str, pkg: dict, incremental: int, verbose: bool) -> None:
     args = ['-e', str(pkg['local']), f'--reinstall-package={name}']
     if incremental and pkg['cxx']:
         args += _incremental_flags(name, pkg['local'], PROJECT_ROOT / '.venv')
@@ -259,7 +259,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
         print('XX_UV_INCREMENTAL set: no-build-isolation incremental rebuilds for local C++ packages.')
         # Seed the toolchain so the cold metadata hook + import-time `cmake --build` have it.
         _pip_install('--quiet', *CXX_BUILD_TOOLCHAIN)
-
+    verbose = '--verbose' in uv_args
     # 1. siblings (local/git). Index siblings are handled by step 2; force a swap there only if the
     #    sibling is currently installed from a non-index source.
     print('1. siblings:')
@@ -278,7 +278,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
             do = True
         if do:
             if kind == 'local':
-                install_local(s, pkgs[s], incremental, '--verbose' in uv_args)
+                install_local(s, pkgs[s], incremental=incremental, verbose=verbose)
             else:  # git
                 install_git(s, pkgs[s], branch)
 
@@ -295,7 +295,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     if ck == 'git':
         install_git(CORE, pkgs[CORE], branch)
     elif need_install(CORE, 'local', pkgs[CORE]):
-        install_local(CORE, pkgs[CORE], incremental=False)  # pure Python; no C++ rebuild
+        install_local(CORE, pkgs[CORE], incremental=False, verbose=verbose)  # pure Python; no C++ rebuild
 
     # Guard: a local sibling that came back non-editable means a pin pulled an index/other build.
     for s in siblings:
