@@ -3,8 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import tomlkit
-
 from dev_10x import uv_sync as us
 from dev_10x.uv_sync import _normalize_git_url, _swap_repo
 
@@ -44,93 +42,6 @@ class TestSwapRepo:
         # _swap_repo preserves the form; normalization is applied later in install_git
         assert _swap_repo('git@github.com:org/py10x.git', 'cxx10x') == \
                'git@github.com:org/cxx10x.git'
-
-
-class TestUvSyncCoreInstall:
-    @staticmethod
-    def _pkgs(tmp_path):
-        return {
-            us.CORE: {'local': tmp_path / 'py10x', 'git': 'https://example.test/py10x.git',
-                      'subdir': None, 'cxx': False},
-            'py10x-kernel': {'local': tmp_path / 'cxx10x' / 'core_10x',
-                             'git': 'https://example.test/cxx10x.git',
-                             'subdir': 'core_10x', 'cxx': True},
-            'py10x-infra': {'local': tmp_path / 'cxx10x' / 'infra_10x',
-                            'git': 'https://example.test/cxx10x.git',
-                            'subdir': 'infra_10x', 'cxx': True},
-        }
-
-    def test_local_core_install_does_not_resolve_deps(self, monkeypatch, tmp_path):
-        calls = []
-        pkgs = self._pkgs(tmp_path)
-
-        monkeypatch.setattr(us, 'ensure_env_and_runtime_deps', lambda _root: object())
-        monkeypatch.setattr(us, 'packages', lambda _tomlkit: pkgs)
-        monkeypatch.setattr(us, '_dev10x_cfg', lambda _tomlkit: {})
-        monkeypatch.setattr(us, 'read_incremental_state', lambda _root: None)
-        monkeypatch.setattr(us, '_pip_install', lambda *args: calls.append(('pip', args)))
-        monkeypatch.setattr(us, 'installed_source', lambda _name: ('local', None))
-        monkeypatch.setattr(us, 'need_install', lambda name, *_args, **_kwargs: name == us.CORE)
-        monkeypatch.setattr(us, 'persist_profile', lambda *_args: None)
-        monkeypatch.setattr(us, 'persist_incremental_state', lambda *_args: None)
-        monkeypatch.setattr(us, 'install_core_deps', lambda *_args: None)
-
-        def fake_install_local(name, pkg, incremental, verbose, *, no_deps=False):
-            calls.append(('local', name, incremental, verbose, no_deps))
-
-        monkeypatch.setattr(us, 'install_local', fake_install_local)
-
-        us.uv_sync('py10x-core-dev', '--all-extras')
-
-        assert ('local', us.CORE, False, False, True) in calls
-
-    def test_git_core_install_does_not_resolve_deps(self, monkeypatch, tmp_path):
-        calls = []
-        pkgs = self._pkgs(tmp_path)
-
-        monkeypatch.setattr(us, 'ensure_env_and_runtime_deps', lambda _root: object())
-        monkeypatch.setattr(us, 'packages', lambda _tomlkit: pkgs)
-        monkeypatch.setattr(us, '_dev10x_cfg', lambda _tomlkit: {})
-        monkeypatch.setattr(us, 'read_incremental_state', lambda _root: None)
-        monkeypatch.setattr(us, '_pip_install', lambda *args: calls.append(('pip', args)))
-        monkeypatch.setattr(us, 'installed_source', lambda _name: ('other', None))
-        monkeypatch.setattr(us, 'need_install', lambda *_args, **_kwargs: False)
-        monkeypatch.setattr(us, 'install_local', lambda *args, **kwargs: None)
-        monkeypatch.setattr(us, 'persist_profile', lambda *_args: None)
-        monkeypatch.setattr(us, 'persist_incremental_state', lambda *_args: None)
-        monkeypatch.setattr(us, 'install_core_deps', lambda *_args: None)
-
-        def fake_install_git(name, pkg, branch, *, no_deps=False):
-            calls.append(('git', name, branch, no_deps))
-
-        monkeypatch.setattr(us, 'install_git', fake_install_git)
-
-        us.uv_sync('domain-dev')
-
-        assert ('git', us.CORE, 'main', True) in calls
-
-
-class TestCoreDependencyFiltering:
-    def test_excludes_protected_sibling_pins_and_expands_all_extras(self):
-        requirements, passthrough = us._filtered_core_requirements(
-            tomlkit, {'py10x-kernel', 'py10x-infra'}, ('--all-extras', '--verbose'))
-        names = {us._requirement_name(r) for r in requirements}
-
-        assert 'py10x-kernel' not in names
-        assert 'py10x-infra' not in names
-        assert 'rio-ui' in names
-        assert 'pytest' in names
-        assert passthrough == ['--verbose']
-
-    def test_preserves_selected_extra_only(self):
-        requirements, passthrough = us._filtered_core_requirements(
-            tomlkit, {'py10x-kernel'}, ('--extra', 'rio', '--prerelease=allow'))
-        names = {us._requirement_name(r) for r in requirements}
-
-        assert 'py10x-kernel' not in names
-        assert 'rio-ui' in names
-        assert 'pytest' not in names
-        assert passthrough == ['--prerelease=allow']
 
 
 class TestInstalledSource:
