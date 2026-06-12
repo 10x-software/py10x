@@ -1,6 +1,6 @@
 import pytest
 from core_10x.named_constant import Enum, ErrorCode
-from core_10x.rc import RC, RC_TRUE
+from core_10x.rc import RC, RC_TRUE, exc_to_rc
 
 
 class CONDITION(Enum):
@@ -364,3 +364,37 @@ def test_show_exception_info_from_active_exception():
 def test_show_exception_info_invalid_input():
     with pytest.raises(AssertionError):
         RC.show_exception_info(ex_info=('not', 'a', 'valid', 'tuple'))
+
+
+# ----------------------------------------------------------------------------
+#   exc_to_rc
+# ----------------------------------------------------------------------------
+
+def test_exc_to_rc_returns_rc_true_on_success():
+    @exc_to_rc
+    def ok():
+        return None
+
+    rc = ok()
+    assert rc is RC_TRUE
+
+
+def test_exc_to_rc_with_message_returns_literal_error():
+    def boom():
+        raise ValueError('ignored detail')
+
+    rc = exc_to_rc(boom, message='planned failure')()
+    assert not rc
+    assert rc.error() == 'planned failure'
+
+
+def test_exc_to_rc_without_message_captures_exception_info():
+    @exc_to_rc
+    def boom():
+        raise ValueError('kaboom')
+
+    rc = boom()
+    assert not rc
+    err = rc.error()
+    assert 'ValueError' in err
+    assert 'kaboom' in err

@@ -96,6 +96,7 @@ py10x_core = "dev_10x.pytest_plugin"
 [project.scripts]
 uv-sync                         = "dev_10x.uv_sync:main"
 uv-run                          = "dev_10x.uv_run:main"
+xx-constraints                  = "dev_10x.constraints:main"
 xx-promote                      = "dev_10x.xx_promote:main"
 xx-user-init                    = "core_10x.apps.user_init:main"
 xx-user-status                  = "core_10x.apps.user_status:main"

@@ -8,6 +8,9 @@ Exercises the pure-Python surface of Trait:
 - Trait.use_format_str / _format — string formatting helpers
 - Trait.register_by_datatype / register_by_baseclass — error on duplicate
 """
+import sys
+import types
+
 import pytest
 from unittest.mock import MagicMock
 
@@ -152,6 +155,20 @@ def test_use_format_str_int_no_fmt():
 def test_use_format_str_with_fmt():
     t = _make_int_trait()
     assert t.use_format_str('04d', 7) == '0007'
+
+
+def test_pybind_signature_parses_docstring_first_line():
+    mod = types.ModuleType('fake_pybind_mod')
+    sys.modules['fake_pybind_mod'] = mod
+
+    def fake_get(self, x: int, y: float = 1.0) -> str:
+        """fake_get(self, x: int, y: float = 1.0) -> str\n\nC++ getter."""
+        raise AssertionError('must not call')
+
+    fake_get.__module__ = 'fake_pybind_mod'
+    sig = Trait.pybind_signature(fake_get)
+    assert list(sig.parameters) == ['self', 'x', 'y']
+    assert sig.parameters['y'].default == 1.0
 
 
 # ----------------------------------------------------------------------------

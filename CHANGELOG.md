@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present in the codebase but not part of the supported public API yet.
+
+### Added
+- **Release promotion (`xx-promote`)** (`dev_10x/xx_promote.py`, `dev_10x/xx_helpers.py`, `dev_10x/README.md`): TraitableCli tool to cut rc/final tags across the three independently versioned packages, roll main dev pins (Form A), create release-branch final pins, and yank tags. Subcommands: `pre`, `prod`, `yank pkg=… version=…`. Safety flags: default local-only, `dry_run=true`, `push=true`. Pure helpers and CLI routing covered by `dev_10x/unit_tests/`.
+- **CI tag resolution (`dev_10x/xx_ci.py`)**: kernel-free shim (`packaging` + `tomlkit` only) to resolve the latest sibling tag admitted by a pin spec and verify an installed sibling matches that tag — used by publish CI before any wheel upload.
+- **`uv-run`** (`dev_10x/uv_run.py`): run a command under the last `uv-sync` profile without re-syncing.
+- **Pre-publish test gate** (`.github/workflows/build.yml`): full test job on tag push (resolve/install siblings at pinned tags, verify imports, pytest) before the publish job; yanked tags (`*_yanked`) excluded from triggers.
+- **Third-party dependency freeze** (`dev_10x/constraints.py`, `constraints.txt`, `xx-constraints` CLI): committed pin file for the full transitive graph of py10x-core and both C++ siblings; applied via `uv pip install -c constraints.txt` on every dev/CI install; `xx-constraints check` asserts the active env is fully frozen.
+- **`uv-sync` redesign** (`dev_10x/uv_sync.py`): drives `uv pip install` directly instead of transiently rewriting `[tool.uv.sources]` — keeps the tree clean for setuptools-scm, reinstalls siblings only when source/version rules say so (PEP 610 `direct_url.json`), supports incremental C++ rebuilds via `XX_UV_INCREMENTAL`.
+- **`TraitableCli` unit tests** (`core_10x/unit_tests/test_traitable_cli.py`): parse edge cases, command hierarchy routing, and bool coercion under `CONVERT_VALUES_ON`.
+- **C++ mixin getters (`cxx_mixins`)** (`core_10x/traitable.py`, `core_10x/trait.py`): subclasses may declare extra pybind mixin classes; trait getters are resolved from mixins before Python methods. `Trait.pybind_signature` parses pybind11 docstring signatures when `inspect.signature` cannot.
+- **`exc_to_rc` decorator** (`core_10x/rc.py`): wraps void callables for CLI commands — returns `RC_TRUE` on success or `RC(False, message)` on failure; when `message` is omitted, `RC.__init__` captures the active exception inside the `except` block.
+- **`Event` / `EventProcessor`** *(experimental)* (`xx_common/event.py`, `xx_common/event_processor.py`): timestamped event traitables with `_at` indexing, query helpers (`between`, `penultimate`), and a processor base class that dispatches `ClassName_process` handlers, loads pending events by watermark (one watermark query per store server), and advances watermarks on `process_pending_events()`.
+- **Curve C++ backend** *(experimental)* (`xx_common/cxx_curve.py`, `USE_BCURVE` flag in `xx_common/curve.py`): optional `BCurve`/`BDateCurve` implementation alongside the pure-Python `py_curve.py`; selected at import time via `USE_BCURVE`.
+- **Incremental C++ sibling builds**: `XX_UV_INCREMENTAL=1` with a local-editable cxx profile skips build isolation for faster rebuilds; build mode tracked in `.venv/.xx_uv_incremental`.
+- **`roman_number`** moved from `core_10x` to `xx_common`.
+
+### Changed
+- **Curve module split** (`xx_common/py_curve.py`, `xx_common/curve.py`): Python implementation extracted; facade re-exports `Curve`, `DateCurve`, `IP_KIND`, `CurveParams` and keeps `TwoFuncInterpolator`.
+- **`_collection_name`**: read path served by C++ (`BTraitable.collection_name`); write path remains the Python `_collection_name_set` setter (setters are not moved to C++).
+- **`pyproject.toml`**: removed default `[tool.uv.sources]` entries that conflicted with downstream packages; sibling layout declared under `[tool.dev_10x.siblings]`; optional **`[project.optional-dependencies] jit`** group for JIT tooling (not part of the default install).
+- **Dependabot**: `rio-ui` 0.12.2, `playwright` range widened, `cryptography` range widened.
+- **`VaultResourceAccessor.last_updated`**: `EVAL_ONCE` reinstated.
+
+### Fixed
+- **`Curve.value` with `beginning_of_time`**: times strictly before `beginning_of_time` now return `NaN`; previously the guard condition was inverted so the cutoff never applied.
+- **`TraitableHistory.traitable_get`**: handles a missing `_collection_name` when stripping the `#history` suffix.
+- **`TestStore.server_time`**: use `datetime.utcnow()` (the previous `datetime.now(datetime.utc)` call raised at runtime).
+
+### Experimental / internal-only
+- **JIT compilers** (`core_10x/jit/`): Numba/Cython getter optimization and related manual tests remain **internal R&D only** — installed via the optional `jit` extra, not documented in user-facing guides, and not covered by the default CI extra set.
+- **`Event` / `EventProcessor`**: scaffold for event-stream processing; API and store semantics may change.
+- **`USE_BCURVE` / `cxx_curve`**: experimental performance path; defaults to pure Python (`USE_BCURVE = False`).
+
 ## [0.2.0] - 2026-05-17
 
 ### Added

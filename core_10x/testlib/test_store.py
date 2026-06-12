@@ -8,7 +8,7 @@ that can be used for unit tests without external dependencies like MongoDB.
 from __future__ import annotations
 
 import copy
-from datetime import datetime
+from datetime import datetime, timezone
 import re
 from typing import TYPE_CHECKING
 
@@ -321,4 +321,4 @@ class TestStore(TsStoreMongoLike, TsStore, resource_name='TEST_DB'):
         return self.dbname
 
     def server_time(self) -> datetime:
-        return datetime.now(datetime.utc)
+        return datetime.now(timezone.utc)

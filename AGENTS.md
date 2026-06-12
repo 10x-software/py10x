@@ -12,6 +12,7 @@ It points to canonical docs and records only the minimal, project-specific rules
 - **Concepts, traitables, getters/setters, storage, execution modes**: see `GETTING_STARTED.md`.
 - **Contribution workflow, code style, test layout**: see `CONTRIBUTING.md`.
 - **Security, changelog, community**: see `SECURITY.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`.
+- **Release engineering & dev tooling** (`uv-sync`, `xx-promote`, `constraints.txt`, CI gates): see `dev_10x/README.md`.
 - **Low-level traitable implementation details**: see `core_10x/traitable.py` and existing tests in `core_10x/unit_tests/`.
 - **C++ backend source (cxx10x)**: lives in the sibling package `../cxx10x/` (e.g. `../cxx10x/core_10x/btraitable.{h,cpp}`, `../cxx10x/core_10x/core_10x.cpp` for pybind11 bindings). When a Python method's body is just a thin wrapper or its docstring/comment says it is provided "from c++" (e.g. the comment block in `core_10x/traitable.py` around `get_value` / `set_value` / `set_values`), consult these files to confirm the actual signature and surface area exposed to Python.
 
@@ -24,8 +25,8 @@ Agents should **link to and rely on those files**, not duplicate them here.
 - **Use UV and the project venv**
   - Assume development happens via `uv` and a local `.venv`.
   - When suggesting or running commands, prefer:
-    - `uv sync --all-extras` for dependency setup.
-    - `uv run ...` for Python tooling (`pytest`, `ruff`, etc.).
+    - `uv-sync py10x-core-dev --all-extras` for dependency setup (see `dev_10x/README.md`).
+    - `uv-run pytest …` / `uv run …` for Python tooling after the venv is prepared.
 
 - **Respect C++ / cxx10x backend**
   - Treat the C++ backends (from `cxx10x`) as **opaque** — do not reimplement or bypass them in Python; use the public Python APIs.
@@ -107,6 +108,22 @@ When adding new functionality, agents should **add or update tests** in the appr
     - Keep public semantics consistent with existing docs unless the change is explicitly a breaking redesign.
 
 ---
+
+## 7. Release engineering — agent guardrails
+
+**Canonical documentation:** `dev_10x/README.md` (pin model, `xx-promote`, `uv-sync`, `constraints.txt`, CI). Read it before changing anything under `dev_10x/` or release workflows. Do not duplicate that content here.
+
+Rules agents must **not** violate when touching this area:
+
+- **Never `==`-pin `[project.dependencies]`** in published metadata — use ranges; reproducibility is `constraints.txt` + `-c`, not exact pins on direct deps.
+- **Keep `dev_10x/xx_ci.py` kernel-free** — no `core_10x` imports; tag resolution runs before siblings install.
+- **Keep `uv-sync` pip-install based** — do not reintroduce transient `[tool.uv.sources]` edits to `pyproject.toml` (dirty tree breaks setuptools-scm).
+- **Apply `-c constraints.txt` on every pip install** path (`uv_sync.py`, CI workflows). After adding/changing deps, run `xx-constraints compile` in `py10x-core-dev` mode and commit `constraints.txt`.
+- **Sibling paths** live in `[tool.dev_10x.siblings]` only — `uv_sync.py`, `xx_promote.py`, and `constraints.py` read from there; keep them in sync.
+- **Version ordering:** always `packaging.version.Version` (`max`), never `git --sort=-v:refname` / `sort -V`.
+- **setuptools-scm traps:** dirty `pyproject.toml` → wrong dev version; shallow checkout → `0.1.dev1+g…`; CI needs `fetch-depth: 0` for sibling tag resolution.
+- **CI:** tag triggers exclude `*_yanked`; `uv pip install --all-extras` needs `-e . --all-extras --requirements pyproject.toml`.
+- **Tests** for promotion helpers: `dev_10x/unit_tests/test_xx_utils.py`, `test_xx_promote.py`.
 
 ## Cursor Cloud specific instructions
 

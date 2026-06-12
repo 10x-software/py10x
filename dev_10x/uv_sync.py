@@ -1,265 +1,351 @@
+"""`uv-sync <profile>` - prepare the venv for a chosen dependency-source profile.
+
+Redesign (see `dev_10x/README.md`): instead of transiently rewriting `pyproject.toml`
+`[tool.uv.sources]` and running `uv sync`, we drive `uv pip install` directly. Nothing edits
+pyproject, so the tree stays clean and setuptools-scm never stamps a dirty guess-next-dev version -
+which means py10x-core (and the slow `playwright install` build hook) is only rebuilt when its
+source version actually changes.
+
+Per package the desired *source* comes from the profile:
+  - local : editable install from the sibling's local dir (`[tool.dev_10x.siblings]` path, or `.`)
+  - git   : `pkg @ git+<remote>@<branch>[#subdirectory=...]`, URL derived from `origin`
+  - index : released wheel from the package index
+
+Install order (so already-correct local/git siblings are kept, not re-pulled):
+  1. siblings (local/git) - install only if the reinstall rules say so;
+  2. `uv pip install --all-extras --requirements pyproject.toml` - core's deps+extras, additive;
+  3. py10x-core itself (local/git) - install only if needed.
+
+Reinstall rules (per package): (a) not installed; (b) installed from a different source;
+(c) local source and installed version != setuptools-scm of the source; (d) git -> always.
+Source is classified from PEP 610 `direct_url.json`: absent -> index; `dir_info.editable` -> local;
+otherwise -> git/other.
+"""
 from __future__ import annotations
 
+import importlib.metadata as md
+import json
 import os
-import shutil
 import subprocess
 import sys
-from pathlib import Path
-from types import ModuleType
+from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
-import importlib.metadata as md
+from urllib.parse import unquote, urlparse
 
 if TYPE_CHECKING:
-    from tomlkit import TOMLDocument
+    from types import ModuleType
 
-PROJECT_ROOT = Path('.').resolve()  # py10x repo root
+PROJECT_ROOT = Path('.').resolve()  # the py10x repo root (cwd)
+PROFILE_FILE = '.dev_10x_profile'
+CORE = 'py10x-core'
+PROFILES = ('user', 'domain-dev', 'py10x-dev', 'py10x-core-dev')
+CXX_BUILD_TOOLCHAIN = ['scikit-build-core', 'setuptools-scm', 'cmake', 'ninja', 'editables']
+# Mandatory third-party freeze, applied to every `uv pip install` (see dev_10x/constraints.py).
+# constraints.txt excludes the three first-party packages, so it never fights the sibling/core
+# editable/git installs - only their third-party transitives are pinned.
+CONSTRAINTS = ('-c', 'constraints.txt')
 
-def ensure_env_and_runtime_deps(project_root) -> ModuleType:
+
+# --------------------------------------------------------------------------------------------
+# venv + runtime deps
+# --------------------------------------------------------------------------------------------
+def ensure_env_and_runtime_deps(project_root: Path) -> ModuleType:
     if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
         subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
     try:
         import tomlkit
-        import setuptools_scm  # noqa: F401
+        import setuptools_scm  # imported only to check availability
     except ImportError:
         subprocess.run(['uv', 'pip', 'install', '--python', sys.executable, '--quiet',
-                        'tomlkit', 'setuptools-scm'], cwd=project_root, check=True)
+                        '-c', 'constraints.txt', 'tomlkit', 'setuptools-scm'],
+                       cwd=project_root, check=True)
         import tomlkit
     return tomlkit
 
-def _siblings_roots() -> dict:
+
+# --------------------------------------------------------------------------------------------
+# config: [tool.dev_10x] siblings + branch, with git URLs derived from `origin`
+# --------------------------------------------------------------------------------------------
+def _dev10x_cfg(tomlkit) -> dict:
+    doc = tomlkit.parse((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    return doc.get('tool', {}).get('dev_10x', {})
+
+
+def _git_remote() -> str:
+    return subprocess.check_output(
+        ['git', 'remote', 'get-url', 'origin'], cwd=PROJECT_ROOT, text=True).strip()
+
+
+def _swap_repo(remote: str, repo_dir: str) -> str:
+    """`…/py10x.git` -> `…/{repo_dir}.git`, preserving the SSH-vs-HTTPS form of `remote`."""
+    base, _self = remote.rsplit('/', 1)
+    return f'{base}/{repo_dir}.git'
+
+
+def _normalize_git_url(url: str) -> str:
+    """Convert SCP-style SSH remote to ssh:// form required by `uv pip`.
+
+    `git@host:org/repo.git`  ->  `ssh://git@host/org/repo.git`
+
+    `uv pip install 'pkg @ git+<url>@branch'` only accepts RFC-3986 URLs; bare
+    SCP remotes (no scheme) are not valid there even though git itself accepts them.
+    HTTPS remotes are returned unchanged.
+    """
+    if '://' not in url and ':' in url:
+        userhost, path = url.split(':', 1)
+        return f'ssh://{userhost}/{path}'
+    return url
+
+
+def packages(tomlkit) -> dict[str, dict]:
+    """Per-package source descriptor: {'local': Path, 'git': url, 'subdir': str|None, 'cxx': bool}.
+
+    py10x-core is the current repo (`.`); siblings come from `[tool.dev_10x.siblings]`, where a
+    path like `../cxx10x/core_10x` yields repo dir `cxx10x` (the sibling's git repo, same remote
+    host/org) and subdirectory `core_10x`.
+    """
+    remote = _git_remote()
+    pkgs: dict[str, dict] = {
+        CORE: {'local': PROJECT_ROOT, 'git': remote, 'subdir': None, 'cxx': False},
+    }
+    for name, spec in _dev10x_cfg(tomlkit).get('siblings', {}).items():
+        rel = PurePosixPath(spec['path'])
+        non_dotdot = [p for p in rel.parts if p != '..']
+        repo_dir = non_dotdot[0]
+        subdir = '/'.join(non_dotdot[1:]) or None
+        pkgs[name] = {
+            'local': (PROJECT_ROOT / spec['path']).resolve(),
+            'git': spec.get('git') or _swap_repo(remote, repo_dir),
+            'subdir': spec.get('subdirectory', subdir),
+            'cxx': True,  # siblings are the compiled C++ packages
+        }
+    return pkgs
+
+
+def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
+    """Desired source kind ('local'|'git'|'index') per package for `profile`."""
+    siblings = [p for p in pkg_names if p != CORE]
+    if profile == 'user':
+        return {CORE: 'local', **{s: 'index' for s in siblings}}
+    if profile == 'domain-dev':
+        return {p: 'git' for p in pkg_names}
+    if profile == 'py10x-dev':
+        return {CORE: 'local', **{s: 'git' for s in siblings}}
+    if profile == 'py10x-core-dev':
+        return {p: 'local' for p in pkg_names}
+    raise ValueError(f'unknown profile {profile!r}')
+
+
+# --------------------------------------------------------------------------------------------
+# installed-source detection (PEP 610) + reinstall decision
+# --------------------------------------------------------------------------------------------
+def installed_source(name: str) -> tuple[str | None, Path | None]:
+    """(kind, path) of the current install: None=not installed, 'index', 'local'(editable), 'other'."""
+    try:
+        dist = md.distribution(name)
+    except md.PackageNotFoundError:
+        return None, None
+    raw = dist.read_text('direct_url.json')
+    if not raw:
+        return 'index', None
+    info = json.loads(raw)
+    url = info.get('url', '')
+    if info.get('dir_info', {}).get('editable'):
+        path = Path(unquote(urlparse(url).path)) if url.startswith('file:') else None
+        return 'local', path
+    return 'other', None
+
+
+def source_version(src: Path) -> str:
+    # stderr suppressed: hatch-vcs projects have no [tool.setuptools_scm] section, so the scm CLI
+    # logs a harmless "toml section missing" warning while still computing the git version.
+    return subprocess.check_output(
+        [sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True,
+        stderr=subprocess.DEVNULL).strip()
+
+
+def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True) -> bool:
+    cur_kind, cur_path = installed_source(name)
+    reason = None
+    if cur_kind is None:
+        reason = 'not installed'
+    elif kind == 'git':
+        reason = 'git source (always reinstall)'
+    elif kind == 'index':
+        if cur_kind != 'index':
+            reason = f'switching {cur_kind} -> index'
+    elif kind == 'local':
+        if cur_kind != 'local':
+            reason = f'switching {cur_kind} -> local editable'
+        elif cur_path is not None and cur_path.resolve() != pkg['local'].resolve():
+            reason = f'editable path changed -> {pkg["local"]}'
+        else:
+            try:
+                installed, src = md.version(name), source_version(pkg['local'])
+                if installed != src:
+                    reason = f'version drift {installed} -> {src}'
+            except Exception as e:  # be safe: any failure -> reinstall
+                reason = f'version check failed ({e})'
+    if verbose:
+        print(f'  {name}: {"reinstall - " + reason if reason else "up to date, skipping"}')
+    return reason is not None
+
+
+# --------------------------------------------------------------------------------------------
+# install actions
+# --------------------------------------------------------------------------------------------
+def _run(args: list[str]) -> None:
+    print('  $', ' '.join(args))
+    subprocess.run(args, cwd=PROJECT_ROOT, check=True)
+
+
+def _pip_install(*args: str) -> None:
+    """`uv pip install` with the mandatory constraints freeze applied."""
+    _run(['uv', 'pip', 'install', *args, *CONSTRAINTS])
+
+
+def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
+    """No-isolation incremental rebuild flags for a local C++ package (XX_UV_INCREMENTAL)."""
+    build_dir = f"{(venv / 'py10x-build' / name).as_posix()}/{{wheel_tag}}"
+    verbose = int(os.getenv('XX_UV_INCREMENTAL',0))==1
+    return [
+        '--no-build-isolation-package',
+        name,
+        '--config-settings-package',
+        f'{name}:build-dir={build_dir}',
+        '--config-settings-package',
+        f'{name}:editable.rebuild=true',
+        '--config-settings-package',
+        f'{name}:editable.verbose={str(bool(verbose)).lower()}',
+    ]
+
+
+def install_local(name: str, pkg: dict, incremental: bool, verbose: bool) -> None:
+    args = ['-e', str(pkg['local']), f'--reinstall-package={name}']
+    if incremental and pkg['cxx']:
+        args += _incremental_flags(name, pkg['local'], PROJECT_ROOT / '.venv')
+    if verbose:
+        args.append('--verbose')
+    _pip_install(*args)
+
+
+def install_git(name: str, pkg: dict, branch: str) -> None:
+    git_url = _normalize_git_url(pkg['git'])
+    spec = f'{name} @ git+{git_url}@{branch}'
+    if pkg['subdir']:
+        spec += f'#subdirectory={pkg["subdir"]}'
+    _pip_install(spec, f'--reinstall-package={name}')
+
+
+# --------------------------------------------------------------------------------------------
+# the sync
+# --------------------------------------------------------------------------------------------
+def uv_sync(profile: str, *uv_args: str) -> None:
     tomlkit = ensure_env_and_runtime_deps(PROJECT_ROOT)
-    doc = tomlkit.parse((PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-    sibs = doc.get("tool", {}).get("dev_10x", {}).get("siblings", {})
-    return {name: {"path": spec["path"], "editable": True} for name, spec in sibs.items()}
+    pkgs = packages(tomlkit)
+    branch = _dev10x_cfg(tomlkit).get('branch', 'main')
+    kinds = profile_kinds(profile, list(pkgs))
+    siblings = [p for p in pkgs if p != CORE]
+    incremental = int(os.environ.get('XX_UV_INCREMENTAL', 0))
+    prev_incremental = read_incremental_state(PROJECT_ROOT)
+    toggled = prev_incremental is not None and prev_incremental != incremental
 
-ROOTS = {"py10x-core": {"path": ".", "editable": True}, **_siblings_roots()}
+    print(f'uv-sync `{profile}`: ' + ', '.join(f'{p}={kinds[p]}' for p in pkgs))
+    if toggled:
+        print(f'XX_UV_INCREMENTAL toggled ({prev_incremental} -> {incremental}): '
+              f'forcing rebuild of local C++ packages.')
 
-REPOS = {
-    'py10x-core': {
-        'git': 'https://github.com/10x-software/py10x.git',
-        'branch': 'main',
-    },
-    'py10x-kernel': {
-        'git': 'https://github.com/10x-software/cxx10x.git',
-        'branch': 'main',
-        'subdirectory': 'core_10x',
-    },
-    'py10x-infra': {
-        'git': 'https://github.com/10x-software/cxx10x.git',
-        'branch': 'main',
-        'subdirectory': 'infra_10x',
-    },
-}
+    if incremental and any(kinds[s] == 'local' and pkgs[s]['cxx'] for s in siblings):
+        print('XX_UV_INCREMENTAL set: no-build-isolation incremental rebuilds for local C++ packages.')
+        # Seed the toolchain so the cold metadata hook + import-time `cmake --build` have it.
+        _pip_install('--quiet', *CXX_BUILD_TOOLCHAIN)
 
-PROFILES = {
-    'user': {},
-    'domain-dev': REPOS,
-    'py10x-dev': REPOS | {'py10x-core': ROOTS['py10x-core']},
-    'py10x-core-dev': ROOTS,
-}
+    # 1. siblings (local/git). Index siblings are handled by step 2; force a swap there only if the
+    #    sibling is currently installed from a non-index source.
+    print('1. siblings:')
+    index_swaps: list[str] = []
+    for s in siblings:
+        kind = kinds[s]
+        if kind == 'index':
+            if installed_source(s)[0] not in (None, 'index'):
+                index_swaps.append(s)
+            print(f'  {s}: index (resolved with core deps in step 2'
+                  f'{" - forcing swap" if s in index_swaps else ""})')
+            continue
+        do = need_install(s, kind, pkgs[s])
+        if not do and toggled and kind == 'local' and pkgs[s]['cxx']:
+            print(f'  {s}: reinstall - build mode changed (XX_UV_INCREMENTAL)')
+            do = True
+        if do:
+            if kind == 'local':
+                install_local(s, pkgs[s], incremental, '--verbose' in uv_args)
+            else:  # git
+                install_git(s, pkgs[s], branch)
 
-CXX_BUILD_TOOLCHAIN = ['scikit-build-core', 'setuptools-scm', 'cmake', 'ninja', 'editables']
+    # 2. core's deps (additive: keeps the local/git siblings from step 1; pulls/refreshes index
+    #    siblings). Extras are NOT forced - pass `--all-extras` / `--extra X` as uv-sync args; the
+    #    `uv pip` interface binds them to this `--requirements` source.
+    print('2. core deps:')
+    reinstall = [f'--reinstall-package={s}' for s in index_swaps]
+    _pip_install('--requirements', 'pyproject.toml', *reinstall, *uv_args)
 
-PROFILE_FILE = '.dev_10x_profile'
+    # 3. py10x-core itself.
+    print('3. py10x-core:')
+    ck = kinds[CORE]
+    if ck == 'git':
+        install_git(CORE, pkgs[CORE], branch)
+    elif need_install(CORE, 'local', pkgs[CORE]):
+        install_local(CORE, pkgs[CORE], incremental=False)  # pure Python; no C++ rebuild
+
+    # Guard: a local sibling that came back non-editable means a pin pulled an index/other build.
+    for s in siblings:
+        if kinds[s] == 'local' and installed_source(s)[0] != 'local':
+            raise RuntimeError(
+                f'{s}: expected an editable local install but it is '
+                f'{installed_source(s)[0]!r} - py10x-core\'s pin likely pulled a non-editable build')
+
+    persist_profile(PROJECT_ROOT, profile)
+    persist_incremental_state(PROJECT_ROOT, incremental)
+    print(f'uv-sync `{profile}` done.')
 
 
+# --------------------------------------------------------------------------------------------
+# profile persistence (informational; uv-run no longer needs it)
+# --------------------------------------------------------------------------------------------
 def persist_profile(project_root: Path, profile: str) -> None:
     (project_root / PROFILE_FILE).write_text(profile + '\n', encoding='utf-8')
 
 
 def read_persisted_profile(project_root: Path) -> str:
     f = project_root / PROFILE_FILE
-    if not f.is_file():
-        raise RuntimeError(
-            f'{PROFILE_FILE} not found - run `uv-sync <profile>` first so `uv-run` knows '
-            f'which source override to apply.')
-    return f.read_text(encoding='utf-8').strip()
+    return f.read_text().strip() if f.is_file() else ''
 
 
-def _load_pyproject(path: Path):
-    import tomlkit
-    return tomlkit.parse(path.read_text(encoding='utf-8'))
+def _incremental_marker(project_root: Path) -> Path:
+    # In .venv so it tracks the build mode of the *currently installed* editable C++ packages and
+    # resets whenever the venv is recreated.
+    return project_root / '.venv' / '.xx_uv_incremental'
 
 
-def cxx_package_dirs(profile: str, project_root: Path) -> dict[str, Path]:
-    dirs: dict[str, Path] = {}
-    for pkg, src in PROFILES[profile].items():
-        if src is ROOTS.get(pkg) and 'cxx10x' in str(src.get('path', '')):
-            dirs[pkg] = (project_root / src['path']).resolve()
-    # (b) in-repo workspace members (e.g. cxxfin); member dir name == package name
-    try:
-        data = _load_pyproject(project_root / 'pyproject.toml')
-    except Exception:
-        return dirs
-    members = (data.get('tool', {}).get('uv', {}).get('workspace', {}) or {}).get('members', [])
-    for pattern in members:
-        for member_dir in sorted(project_root.glob(str(pattern))):
-            if (member_dir / 'pyproject.toml').is_file():
-                dirs[member_dir.name] = member_dir.resolve()
-    return dirs
-
-def source_version(src: str) -> str:
-    out = subprocess.check_output(
-        [sys.executable, '-m', 'setuptools_scm'],
-        cwd=src,
-        text=True,
-    )
-    return out.strip()
+def read_incremental_state(project_root: Path) -> int | None:
+    f = _incremental_marker(project_root)
+    return int(f.read_text().strip()) if f.is_file() else None
 
 
-def should_reinstall(dist_name: str, src: str, verbose=False, quiet=False) -> bool:
-    if 'cxx10x' not in src:
-        if verbose:
-            print(f'No need to reinstall {dist_name} - editable installs work for python packages')
-        return False
-
-    try:
-        installed = md.version(dist_name)
-        new_version = source_version(src)
-    except md.PackageNotFoundError as e:
-        if not quiet:
-            print(f'Will reinstall {dist_name} just in case: got error {e}')
-        return True
-
-    will_reinstall = installed != new_version
-    if (will_reinstall or verbose) and not quiet:
-        print(f'{"Will reinstall" if will_reinstall else "No need to reinstall"} {dist_name}: old_version={installed} new_version={new_version}')
-    return will_reinstall
-
-
-def get_extra_options(profile: str):
-    return [
-        f'--reinstall-package={package}'
-        for package, source in PROFILES[profile].items()
-        if source is ROOTS.get(package) and should_reinstall(package, source['path'])
-    ]
-
-
-def uv_sources_block(user_profile: str) -> TOMLDocument | None:
-    import tomlkit
-    uv_sources = PROFILES[user_profile]
-    if not uv_sources:
-        return None
-
-    doc = tomlkit.document()
-    doc['tool'] = tool_tbl = tomlkit.table()
-    tool_tbl['uv'] = uv_tbl = tomlkit.table()
-    uv_tbl['sources'] = sources_tbl = tomlkit.table()
-
-    for package, source in uv_sources.items():
-        it = tomlkit.inline_table()
-        # Stable key order for readability
-        for k in sorted(source.keys()):
-            it[k] = source[k]
-        sources_tbl[package] = it
-
-    return doc
-
-
-def _merge_sources(pyproject: Path, src_block, tomlkit) -> None:
-    """Merge the profile's source override into the consuming pyproject (in place)."""
-    doc = tomlkit.parse(pyproject.read_text(encoding='utf-8'))
-    new_sources = src_block['tool']['uv']['sources']
-    try:
-        existing_sources = doc['tool']['uv']['sources']
-    except KeyError:
-        existing_sources = {}
-    merged = {**existing_sources, **new_sources}  # override wins on conflict
-    if 'tool' not in doc:
-        doc.add('tool', tomlkit.table())
-    if 'uv' not in doc['tool']:
-        doc['tool'].add('uv', tomlkit.table())
-    if 'sources' not in doc['tool']['uv']:
-        doc['tool']['uv'].add('sources', tomlkit.table())
-    sources_tbl = doc['tool']['uv']['sources']
-    for k, v in merged.items():
-        sources_tbl[k] = v
-    pyproject.write_text(tomlkit.dumps(doc), encoding='utf-8', newline='\n')
-
-
-def _incremental_flags(cxx_dirs: dict[str, Path], venv: Path) -> list[str]:
-    """Per-package uv flags: disable isolation, give each its own venv-scoped build dir
-    (no collision), and enable a quiet import-time rebuild — all without editing any
-    pyproject. The rebuild stays silent unless it fails; set SKBUILD_EDITABLE_VERBOSE=1
-    at run time to see the cmake/ninja output (e.g. to debug a failing rebuild)."""
-    extra: list[str] = []
-    for pkg in cxx_dirs:
-        build_dir = f"{(venv / 'cxx-build' / pkg).as_posix()}/{{wheel_tag}}"
-        extra += ['--no-build-isolation-package', pkg,
-                  '--config-settings-package', f'{pkg}:build-dir={build_dir}',
-                  '--config-settings-package', f'{pkg}:editable.rebuild=true',
-                  '--config-settings-package', f'{pkg}:editable.verbose=false']
-    return extra
-
-
-def run_profile(project_root: Path, profile: str, command: str, uv_args,
-                extra_options=(), seed: bool = True) -> None:
-    """Transiently apply `profile`'s source override to the consuming pyproject (ALWAYS
-    reverted — never a dirty pyproject), add incremental build flags for LOCAL C++
-    packages when XX_UV_INCREMENTAL is set, then run `uv <command> <uv_args>`.
-    Shared by `uv-sync` (command='sync') and `uv-run` (command='run')."""
-    pyproject = project_root / 'pyproject.toml'
-    if not pyproject.exists():
-        raise RuntimeError('pyproject.toml not found')
-
-    py_bak = pyproject.with_suffix('.toml.bak')
-    if py_bak.exists():
-        raise RuntimeError(f'Backup already exists: {py_bak}')
-
-    import tomlkit
-    incremental = int(os.environ.get('XX_UV_INCREMENTAL', 0))
-    if incremental:
-        print('XX_UV_INCREMENTAL set: no-build-isolation + incremental rebuilds (local packages only).')
-
-    src_block = uv_sources_block(profile)
-    if src_block is not None:
-        print(f'Overriding sources for `{profile}` profile:\n'
-              f'{tomlkit.dumps(src_block["tool"]["uv"]["sources"])}')
-
-    extra: list[str] = []
-    try:
-        if src_block is not None:
-            shutil.copy2(pyproject, py_bak)
-            _merge_sources(pyproject, src_block, tomlkit)
-
-        if incremental and (cxx_dirs := cxx_package_dirs(profile, project_root)):
-            if seed:
-                # Ensure the no-isolation toolchain is in the venv for the cold metadata
-                # hook and the import-time rebuild's `cmake --build` (also a dev dep, so
-                # it is not pruned). Skipped for `uv-run`, which reuses the synced venv.
-                subprocess.run(['uv', 'pip', 'install', '--quiet', *CXX_BUILD_TOOLCHAIN],
-                               cwd=project_root, check=True)
-            extra = _incremental_flags(cxx_dirs, project_root / '.venv')
-
-        subprocess.run(['uv', command, *uv_args, *extra_options, *extra],
-                       cwd=project_root, check=True)
-    finally:
-        if py_bak.exists():
-            # ALWAYS revert: pyproject is only ever transiently modified.
-            shutil.copy2(py_bak, pyproject)
-            py_bak.unlink(missing_ok=True)
-
-
-def uv_sync(profile: str, *uv_args):
-    persist_profile(PROJECT_ROOT, profile)   # let `uv-run` re-apply the same override
-    opts = get_extra_options(profile)
-    if opts:
-        print(f'Using the following extra options for `{profile}` profile: {opts}')
-    run_profile(PROJECT_ROOT, profile, 'sync', uv_args, extra_options=opts)
+def persist_incremental_state(project_root: Path, incremental: int) -> None:
+    _incremental_marker(project_root).write_text(str(incremental))
 
 
 def ensure_chromium_installed() -> None:
     try:
-        import playwright  # check package exists
+        import playwright  # imported only to check the package exists
     except ImportError:
-        return  # playwright not installed → skip
-
-    from playwright.sync_api import sync_playwright, Error as PlaywrightError
-
+        return
+    from playwright.sync_api import Error as PlaywrightError, sync_playwright
     try:
         with sync_playwright() as p:
-            p.chromium.launch(headless=True)  # probe
-        return  # already good
+            p.chromium.launch(headless=True)
+        return
     except PlaywrightError:
         print('Installing Playwright Chromium...')
         subprocess.run(['playwright', 'install', 'chromium'], check=True)
@@ -268,7 +354,7 @@ def ensure_chromium_installed() -> None:
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in PROFILES:
-        print(f'Usage: uv-sync {"|".join(PROFILES)} [uv sync options (see uv sync --help for details)]')
+        print(f'Usage: uv-sync {"|".join(PROFILES)} [extra `uv pip install` options]')
         return
     profile = sys.argv[1]
     uv_sync(profile, *sys.argv[2:])

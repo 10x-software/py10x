@@ -36,6 +36,8 @@ pip install -e ".[dev,rio]"  # Development + Rio UI
 pip install -e ".[dev,qt]"   # Development + Qt6 UI
 ```
 
+For dependency-source profiles (`uv-sync`), the constraints freeze, and release promotion (`xx-promote`), see [`dev_10x/README.md`](dev_10x/README.md).
+
 ## Development Workflow
 
 ### Code Style

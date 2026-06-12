@@ -57,6 +57,8 @@ class RC:
 
     def __init__(self, rc, data=None):
         self.rc = rc
+        if data is None and rc is False:
+            data = self.show_exception_info()
         self.payload = [data] if data is not None else []
 
     def __bool__(self):
@@ -183,7 +185,7 @@ def exc_to_rc(func: Callable[[...], None], exc_class: type[Exception] = Exceptio
     def wrapper(*args, **kwargs) -> RC:
         try:
             func(*args, **kwargs)
-        except exc_class: # noqa: not too broad
-            return RC(False,message)
+        except exc_class:
+            return RC(False, message)
         return RC_TRUE
     return wrapper

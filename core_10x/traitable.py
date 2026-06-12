@@ -148,6 +148,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         )
 
     def _collection_name_set(self, trait, value) -> RC:
+        # Getter in C++ (BTraitable.collection_name); setter stays in Python — setters are not performance-critical.
         self.id().collection_name = value
         return RC_TRUE
 

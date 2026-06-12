@@ -1,14 +1,26 @@
 from __future__ import annotations
 
+import importlib
 import math
 from datetime import date
 
 import pytest
-from xx_common.curve import IP_KIND, Curve, CurveParams, DateCurve, TwoFuncInterpolator
 
 
+@pytest.fixture(params=[False, True], ids=['py_curve', 'bcurve'])
+def curve_mod(request, monkeypatch):
+    """Run curve tests against both Python and experimental C++ (BCurve) backends."""
+    import xx_common.curve as curve_mod
+
+    monkeypatch.setattr(curve_mod, 'USE_BCURVE', request.param)
+    importlib.reload(curve_mod)
+    return curve_mod
+
+
+@pytest.mark.usefixtures('curve_mod')
 class TestCurve:
-    def test_update_inserts_sorted_and_overwrites(self):
+    def test_update_inserts_sorted_and_overwrites(self, curve_mod):
+        Curve = curve_mod.Curve
         c = Curve()
 
         # Insert out of order to check internal sorting
@@ -22,7 +34,8 @@ class TestCurve:
         assert c.times == [1, 3, 5]
         assert c.values == [10.0, 35.0, 50.0]
 
-    def test_value_linear_interpolation(self):
+    def test_value_linear_interpolation(self, curve_mod):
+        Curve = curve_mod.Curve
         c = Curve()
         c.update_many([0.0, 1.0], [0.0, 2.0], reset=True)
 
@@ -36,9 +49,19 @@ class TestCurve:
         # Linear interpolation between nodes
         assert c.value(0.5) == pytest.approx(1.0)
 
-    def test_value_returns_python_float(self):
+    def test_value_before_beginning_of_time_is_nan(self, curve_mod):
+        Curve = curve_mod.Curve
+        c = Curve()
+        c.update_many([0.0, 10.0], [0.0, 100.0], reset=True)
+        c.beginning_of_time = 5.0
+
+        assert math.isnan(c.value(3.0))
+        assert c.value(7.0) == pytest.approx(70.0)
+
+    def test_value_returns_python_float(self, curve_mod):
         # scipy.interpolate.interp1d returns a 0-d numpy.ndarray; value() must
         # unwrap to a built-in float so callers don't get an array back.
+        Curve = curve_mod.Curve
         c = Curve()
         c.update_many([0.0, 1.0], [0.0, 2.0], reset=True)
         c.beginning_of_time = 0.0
@@ -58,7 +81,8 @@ class TestCurve:
         assert type(v_extrap) is float
         assert v_extrap == pytest.approx(4.0)
 
-    def test_no_interp_mode(self):
+    def test_no_interp_mode(self, curve_mod):
+        Curve, CurveParams, IP_KIND = curve_mod.Curve, curve_mod.CurveParams, curve_mod.IP_KIND
         c = Curve()
         c.update_many([0.0, 1.0], [10.0, 20.0], reset=True)
 
@@ -74,7 +98,8 @@ class TestCurve:
         v = c.value(0.5)
         assert math.isnan(v)
 
-    def test_remove_and_perturb(self):
+    def test_remove_and_perturb(self, curve_mod):
+        Curve = curve_mod.Curve
         c = Curve()
         c.update_many([0, 1, 2], [10.0, 20.0, 30.0], reset=True)
 
@@ -89,10 +114,14 @@ class TestCurve:
 
 class TestTwoFuncInterpolator:
     def test_requires_in_func_or_in_func_on_arrays(self):
+        from xx_common.curve import TwoFuncInterpolator
+
         with pytest.raises(AssertionError):
             TwoFuncInterpolator(None, lambda t, v: v)
 
     def test_composed_interpolation(self):
+        from xx_common.curve import TwoFuncInterpolator
+
         # in_func multiplies values by 2, out_func divides by 2 -- net effect is identity
         def in_func_on_arrays(xs, ys):
             return [2.0 * y for y in ys]
@@ -115,8 +144,10 @@ class TestTwoFuncInterpolator:
         assert ip(0.5) == pytest.approx(5.0)
 
 
+@pytest.mark.usefixtures('curve_mod')
 class TestDateCurve:
-    def test_dates_set_and_get(self):
+    def test_dates_set_and_get(self, curve_mod):
+        DateCurve = curve_mod.DateCurve
         dc = DateCurve()
 
         d1 = date(2023, 1, 1)
@@ -127,7 +158,8 @@ class TestDateCurve:
         assert isinstance(dc.times[0], int)
         assert dc.dates == [d1, d2]
 
-    def test_update_and_value(self):
+    def test_update_and_value(self, curve_mod):
+        DateCurve = curve_mod.DateCurve
         dc = DateCurve()
 
         d1 = date(2023, 1, 1)
@@ -145,7 +177,8 @@ class TestDateCurve:
         mid_date = d1 + (d2 - d1) / 2
         assert dc.value(mid_date) == pytest.approx(5.0)
 
-    def test_beginning_of_time_helpers(self):
+    def test_beginning_of_time_helpers(self, curve_mod):
+        DateCurve = curve_mod.DateCurve
         dc = DateCurve()
 
         some_date = date(2020, 6, 15)

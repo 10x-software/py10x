@@ -139,6 +139,7 @@ class Trait(BTrait, metaclass=TraitMetaclass):
         }
     @staticmethod
     def pybind_signature(method):
+        # pybind11 puts the callable signature on the docstring's first line; exec parses it when inspect cannot.
         doc = method.__doc__
         name = method.__name__
         mod = method.__module__
