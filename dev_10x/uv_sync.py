@@ -26,8 +26,10 @@ from __future__ import annotations
 import importlib.metadata as md
 import json
 import os
+import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 from urllib.parse import unquote, urlparse
@@ -242,6 +244,66 @@ def install_git(name: str, pkg: dict, branch: str, *, no_deps: bool = False) -> 
     _pip_install(*args)
 
 
+def _requirement_name(requirement: str) -> str:
+    name = re.split(r'\s*(?:\[|===|==|~=|!=|<=|>=|<|>|;|\s|\()', requirement.strip(), 1)[0]
+    return name.lower().replace('_', '-')
+
+
+def _split_extra_args(uv_args: tuple[str, ...]) -> tuple[bool, list[str], list[str]]:
+    all_extras = False
+    extras: list[str] = []
+    passthrough: list[str] = []
+    i = 0
+    while i < len(uv_args):
+        arg = uv_args[i]
+        if arg == '--all-extras':
+            all_extras = True
+        elif arg == '--extra':
+            i += 1
+            if i >= len(uv_args):
+                raise ValueError('--extra requires an extra name')
+            extras.append(uv_args[i])
+        elif arg.startswith('--extra='):
+            extras.append(arg.split('=', 1)[1])
+        else:
+            passthrough.append(arg)
+        i += 1
+    return all_extras, extras, passthrough
+
+
+def _filtered_core_requirements(tomlkit, protected: set[str], uv_args: tuple[str, ...]) -> tuple[list[str], list[str]]:
+    doc = tomlkit.parse((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    project = doc.get('project', {})
+    all_extras, extras, passthrough = _split_extra_args(uv_args)
+    optional = project.get('optional-dependencies', {})
+    requirements = list(project.get('dependencies', []))
+    if all_extras:
+        for group in optional.values():
+            requirements.extend(group)
+    else:
+        for extra in extras:
+            if extra not in optional:
+                raise ValueError(f'unknown extra {extra!r}')
+            requirements.extend(optional[extra])
+    protected_names = {p.lower().replace('_', '-') for p in protected}
+    return [r for r in requirements if _requirement_name(r) not in protected_names], passthrough
+
+
+def install_core_deps(tomlkit, protected: set[str], reinstall: list[str], uv_args: tuple[str, ...]) -> None:
+    if not protected:
+        _pip_install('--requirements', 'pyproject.toml', *reinstall, *uv_args)
+        return
+    requirements, passthrough = _filtered_core_requirements(tomlkit, protected, uv_args)
+    with tempfile.NamedTemporaryFile('w', encoding='utf-8', delete=False) as f:
+        f.write('\n'.join(requirements))
+        f.write('\n')
+        req_file = f.name
+    try:
+        _pip_install('--requirements', req_file, *reinstall, *passthrough)
+    finally:
+        Path(req_file).unlink(missing_ok=True)
+
+
 # --------------------------------------------------------------------------------------------
 # the sync
 # --------------------------------------------------------------------------------------------
@@ -287,12 +349,12 @@ def uv_sync(profile: str, *uv_args: str) -> None:
             else:  # git
                 install_git(s, pkgs[s], branch)
 
-    # 2. core's deps (additive: keeps the local/git siblings from step 1; pulls/refreshes index
-    #    siblings). Extras are NOT forced - pass `--all-extras` / `--extra X` as uv-sync args; the
-    #    `uv pip` interface binds them to this `--requirements` source.
+    # 2. core's deps. When siblings are local/git, exclude their published pins from this install so
+    #    uv cannot replace the desired sources with equally valid index builds.
     print('2. core deps:')
     reinstall = [f'--reinstall-package={s}' for s in index_swaps]
-    _pip_install('--requirements', 'pyproject.toml', *reinstall, *uv_args)
+    protected = {s for s in siblings if kinds[s] != 'index'}
+    install_core_deps(tomlkit, protected, reinstall, uv_args)
 
     # 3. py10x-core itself. Dependencies were resolved in step 2; resolving them again can replace
     #    local/git siblings with index builds that also satisfy py10x-core's published pins.

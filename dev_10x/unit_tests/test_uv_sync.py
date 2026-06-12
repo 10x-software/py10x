@@ -1,6 +1,8 @@
 """Unit tests for pure helpers in `dev_10x.uv_sync`."""
 from __future__ import annotations
 
+import tomlkit
+
 from dev_10x import uv_sync as us
 from dev_10x.uv_sync import _normalize_git_url, _swap_repo
 
@@ -69,6 +71,7 @@ class TestUvSyncCoreInstall:
         monkeypatch.setattr(us, 'need_install', lambda name, *_args, **_kwargs: name == us.CORE)
         monkeypatch.setattr(us, 'persist_profile', lambda *_args: None)
         monkeypatch.setattr(us, 'persist_incremental_state', lambda *_args: None)
+        monkeypatch.setattr(us, 'install_core_deps', lambda *_args: None)
 
         def fake_install_local(name, pkg, incremental, verbose, *, no_deps=False):
             calls.append(('local', name, incremental, verbose, no_deps))
@@ -93,6 +96,7 @@ class TestUvSyncCoreInstall:
         monkeypatch.setattr(us, 'install_local', lambda *args, **kwargs: None)
         monkeypatch.setattr(us, 'persist_profile', lambda *_args: None)
         monkeypatch.setattr(us, 'persist_incremental_state', lambda *_args: None)
+        monkeypatch.setattr(us, 'install_core_deps', lambda *_args: None)
 
         def fake_install_git(name, pkg, branch, *, no_deps=False):
             calls.append(('git', name, branch, no_deps))
@@ -102,3 +106,26 @@ class TestUvSyncCoreInstall:
         us.uv_sync('domain-dev')
 
         assert ('git', us.CORE, 'main', True) in calls
+
+
+class TestCoreDependencyFiltering:
+    def test_excludes_protected_sibling_pins_and_expands_all_extras(self):
+        requirements, passthrough = us._filtered_core_requirements(
+            tomlkit, {'py10x-kernel', 'py10x-infra'}, ('--all-extras', '--verbose'))
+        names = {us._requirement_name(r) for r in requirements}
+
+        assert 'py10x-kernel' not in names
+        assert 'py10x-infra' not in names
+        assert 'rio-ui' in names
+        assert 'pytest' in names
+        assert passthrough == ['--verbose']
+
+    def test_preserves_selected_extra_only(self):
+        requirements, passthrough = us._filtered_core_requirements(
+            tomlkit, {'py10x-kernel'}, ('--extra', 'rio', '--prerelease=allow'))
+        names = {us._requirement_name(r) for r in requirements}
+
+        assert 'py10x-kernel' not in names
+        assert 'rio-ui' in names
+        assert 'pytest' not in names
+        assert passthrough == ['--prerelease=allow']
