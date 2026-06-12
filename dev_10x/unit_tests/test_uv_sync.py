@@ -1,7 +1,6 @@
 """Unit tests for pure helpers in `dev_10x.uv_sync`."""
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
 from dev_10x import uv_sync as us
@@ -55,27 +54,6 @@ class TestInstalledSource:
             assert 'target venv not found' in str(e)
         else:
             raise AssertionError('expected missing target venv to fail')
-
-    def test_ensure_runtime_deps_installs_into_venv_python(self, monkeypatch, tmp_path):
-        calls = []
-        venv_python = tmp_path / '.venv' / 'bin' / 'python'
-        venv_python.parent.mkdir(parents=True)
-        venv_python.write_text('', encoding='utf-8')
-        (tmp_path / '.venv' / 'pyvenv.cfg').write_text('', encoding='utf-8')
-
-        def fake_run(args, **kwargs):
-            calls.append(args)
-            if args == [str(venv_python), '-c', 'import setuptools_scm']:
-                raise subprocess.CalledProcessError(1, args)
-            return subprocess.CompletedProcess(args, 0)
-
-        monkeypatch.setattr(us, '_venv_python', lambda project_root=us.PROJECT_ROOT: venv_python)
-        monkeypatch.setattr(us.subprocess, 'run', fake_run)
-
-        us.ensure_env_and_runtime_deps(tmp_path)
-
-        assert ['uv', 'pip', 'install', '--python', str(venv_python),
-                '--quiet', '-c', 'constraints.txt', 'setuptools-scm'] in calls
 
     def test_editable_direct_url_is_local(self, monkeypatch):
         monkeypatch.setattr(us, '_installed_dist_info', lambda _name: {

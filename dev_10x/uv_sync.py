@@ -27,9 +27,12 @@ import json
 import os
 import subprocess
 import sys
-import tomllib
 from pathlib import Path, PurePosixPath
+from typing import TYPE_CHECKING
 from urllib.parse import unquote, urlparse
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 PROJECT_ROOT = Path('.').resolve()  # the py10x repo root (cwd)
 PROFILE_FILE = '.dev_10x_profile'
@@ -51,24 +54,25 @@ def _venv_python(project_root: Path = PROJECT_ROOT) -> Path:
     return project_root / '.venv' / subdir / exe
 
 
-def ensure_env_and_runtime_deps(project_root: Path) -> None:
+def ensure_env_and_runtime_deps(project_root: Path) -> ModuleType:
     if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
         subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
     try:
-        subprocess.run([str(_venv_python(project_root)), '-c', 'import setuptools_scm'],
-                       cwd=project_root, check=True, stdout=subprocess.DEVNULL,
-                       stderr=subprocess.DEVNULL)
-    except subprocess.CalledProcessError:
-        subprocess.run(['uv', 'pip', 'install', '--python', str(_venv_python(project_root)),
-                        '--quiet', '-c', 'constraints.txt', 'setuptools-scm'],
+        import tomlkit
+        import setuptools_scm  # imported only to check availability
+    except ImportError:
+        subprocess.run(['uv', 'pip', 'install', '--python', sys.executable, '--quiet',
+                        '-c', 'constraints.txt', 'tomlkit', 'setuptools-scm'],
                        cwd=project_root, check=True)
+        import tomlkit
+    return tomlkit
 
 
 # --------------------------------------------------------------------------------------------
 # config: [tool.dev_10x] siblings + branch, with git URLs derived from `origin`
 # --------------------------------------------------------------------------------------------
-def _dev10x_cfg() -> dict:
-    doc = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+def _dev10x_cfg(tomlkit) -> dict:
+    doc = tomlkit.parse((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
     return doc.get('tool', {}).get('dev_10x', {})
 
 
@@ -98,7 +102,7 @@ def _normalize_git_url(url: str) -> str:
     return url
 
 
-def packages() -> dict[str, dict]:
+def packages(tomlkit) -> dict[str, dict]:
     """Per-package source descriptor: {'local': Path, 'git': url, 'subdir': str|None, 'cxx': bool}.
 
     py10x-core is the current repo (`.`); siblings come from `[tool.dev_10x.siblings]`, where a
@@ -109,7 +113,7 @@ def packages() -> dict[str, dict]:
     pkgs: dict[str, dict] = {
         CORE: {'local': PROJECT_ROOT, 'git': remote, 'subdir': None, 'cxx': False},
     }
-    for name, spec in _dev10x_cfg().get('siblings', {}).items():
+    for name, spec in _dev10x_cfg(tomlkit).get('siblings', {}).items():
         rel = PurePosixPath(spec['path'])
         non_dotdot = [p for p in rel.parts if p != '..']
         repo_dir = non_dotdot[0]
@@ -196,7 +200,7 @@ def source_version(src: Path) -> str:
     # stderr suppressed: hatch-vcs projects have no [tool.setuptools_scm] section, so the scm CLI
     # logs a harmless "toml section missing" warning while still computing the git version.
     return subprocess.check_output(
-        [str(_target_python()), '-m', 'setuptools_scm'], cwd=src, text=True,
+        [sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True,
         stderr=subprocess.DEVNULL).strip()
 
 
@@ -277,9 +281,9 @@ def install_git(name: str, pkg: dict, branch: str) -> None:
 # the sync
 # --------------------------------------------------------------------------------------------
 def uv_sync(profile: str, *uv_args: str) -> None:
-    ensure_env_and_runtime_deps(PROJECT_ROOT)
-    pkgs = packages()
-    branch = _dev10x_cfg().get('branch', 'main')
+    tomlkit = ensure_env_and_runtime_deps(PROJECT_ROOT)
+    pkgs = packages(tomlkit)
+    branch = _dev10x_cfg(tomlkit).get('branch', 'main')
     kinds = profile_kinds(profile, list(pkgs))
     siblings = [p for p in pkgs if p != CORE]
     incremental = int(os.environ.get('XX_UV_INCREMENTAL', 0))

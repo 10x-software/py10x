@@ -15,12 +15,11 @@ Subcommands:
   check    assert every *installed* third-party distribution is pinned in constraints.txt - i.e. the
            env is fully frozen. Catches a py10x OR a sibling dependency that escaped the freeze.
 
-Kernel-free (subprocess + stdlib only) so it runs before any sibling is built.
+Kernel-free (subprocess + importlib.metadata only) so it runs before any sibling is built.
 """
 from __future__ import annotations
 
-import json
-import os
+import importlib.metadata as md
 import re
 import subprocess
 import sys
@@ -36,16 +35,6 @@ FIRST_PARTY = ('py10x-core', 'py10x-kernel', 'py10x-infra')
 def _normalize(name: str) -> str:
     """PEP 503 normalized distribution name."""
     return re.sub(r'[-_.]+', '-', name).lower()
-
-
-def _venv_python() -> Path:
-    exe = 'python.exe' if os.name == 'nt' else 'python'
-    subdir = 'Scripts' if os.name == 'nt' else 'bin'
-    path = PROJECT_ROOT / '.venv' / subdir / exe
-    if not path.is_file():
-        sys.exit(f'xx-constraints: target venv not found: {path}\n'
-                 '  run `uv-sync py10x-core-dev --all-extras` first.')
-    return path
 
 
 def _siblings() -> dict[str, Path]:
@@ -87,10 +76,7 @@ def check() -> int:
     """Fail if any installed third-party distribution is not pinned in constraints.txt."""
     pinned = _pinned_names()
     exclude = {_normalize(n) for n in FIRST_PARTY}
-    out = subprocess.check_output(
-        ['uv', 'pip', 'list', '--python', str(_venv_python()), '--format', 'json'],
-        cwd=PROJECT_ROOT, text=True)
-    installed = {_normalize(d['name']): d['version'] for d in json.loads(out) if d.get('name')}
+    installed = {_normalize(d.name): d.version for d in md.distributions() if d.name}
     uncovered = sorted(n for n in installed if n not in pinned and n not in exclude)
     if uncovered:
         print('xx-constraints check FAILED - installed but not pinned in constraints.txt:')
