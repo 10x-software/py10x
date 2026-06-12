@@ -23,14 +23,13 @@ otherwise -> git/other.
 """
 from __future__ import annotations
 
-import importlib.metadata as md
-import json
 import os
 import subprocess
 import sys
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
-from urllib.parse import unquote, urlparse
+
+from dev_10x.xx_helpers import InstalledSourceHelpers
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -139,23 +138,6 @@ def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
 # --------------------------------------------------------------------------------------------
 # installed-source detection (PEP 610) + reinstall decision
 # --------------------------------------------------------------------------------------------
-def installed_source(name: str) -> tuple[str | None, Path | None]:
-    """(kind, path) of the current install: None=not installed, 'index', 'local'(editable), 'other'."""
-    try:
-        dist = md.distribution(name)
-    except md.PackageNotFoundError:
-        return None, None
-    raw = dist.read_text('direct_url.json')
-    if not raw:
-        return 'index', None
-    info = json.loads(raw)
-    url = info.get('url', '')
-    if info.get('dir_info', {}).get('editable'):
-        path = Path(unquote(urlparse(url).path)) if url.startswith('file:') else None
-        return 'local', path
-    return 'other', None
-
-
 def source_version(src: Path) -> str:
     # stderr suppressed: hatch-vcs projects have no [tool.setuptools_scm] section, so the scm CLI
     # logs a harmless "toml section missing" warning while still computing the git version.
@@ -164,8 +146,10 @@ def source_version(src: Path) -> str:
         stderr=subprocess.DEVNULL).strip()
 
 
-def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True) -> bool:
-    cur_kind, cur_path = installed_source(name)
+def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True,
+                 installs: InstalledSourceHelpers | None = None) -> bool:
+    installs = installs or InstalledSourceHelpers(PROJECT_ROOT)
+    cur_kind, cur_path = installs.installed_source(name)
     reason = None
     if cur_kind is None:
         reason = 'not installed'
@@ -181,7 +165,7 @@ def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True) -> bo
             reason = f'editable path changed -> {pkg["local"]}'
         else:
             try:
-                installed, src = md.version(name), source_version(pkg['local'])
+                installed, src = installs.installed_version(name), source_version(pkg['local'])
                 if installed != src:
                     reason = f'version drift {installed} -> {src}'
             except Exception as e:  # be safe: any failure -> reinstall
@@ -250,6 +234,8 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     prev_incremental = read_incremental_state(PROJECT_ROOT)
     toggled = prev_incremental is not None and prev_incremental != incremental
 
+    installs = InstalledSourceHelpers(PROJECT_ROOT)
+
     print(f'uv-sync `{profile}`: ' + ', '.join(f'{p}={kinds[p]}' for p in pkgs))
     if toggled:
         print(f'XX_UV_INCREMENTAL toggled ({prev_incremental} -> {incremental}): '
@@ -267,12 +253,12 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     for s in siblings:
         kind = kinds[s]
         if kind == 'index':
-            if installed_source(s)[0] not in (None, 'index'):
+            if installs.installed_source(s)[0] not in (None, 'index'):
                 index_swaps.append(s)
             print(f'  {s}: index (resolved with core deps in step 2'
                   f'{" - forcing swap" if s in index_swaps else ""})')
             continue
-        do = need_install(s, kind, pkgs[s])
+        do = need_install(s, kind, pkgs[s], installs=installs)
         if not do and toggled and kind == 'local' and pkgs[s]['cxx']:
             print(f'  {s}: reinstall - build mode changed (XX_UV_INCREMENTAL)')
             do = True
@@ -294,15 +280,15 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     ck = kinds[CORE]
     if ck == 'git':
         install_git(CORE, pkgs[CORE], branch)
-    elif need_install(CORE, 'local', pkgs[CORE]):
+    elif need_install(CORE, 'local', pkgs[CORE], installs=installs):
         install_local(CORE, pkgs[CORE], incremental=False, verbose=verbose)  # pure Python; no C++ rebuild
 
     # Guard: a local sibling that came back non-editable means a pin pulled an index/other build.
     for s in siblings:
-        if kinds[s] == 'local' and installed_source(s)[0] != 'local':
+        if kinds[s] == 'local' and installs.installed_source(s)[0] != 'local':
             raise RuntimeError(
                 f'{s}: expected an editable local install but it is '
-                f'{installed_source(s)[0]!r} - py10x-core\'s pin likely pulled a non-editable build')
+                f'{installs.installed_source(s)[0]!r} - py10x-core\'s pin likely pulled a non-editable build')
 
     persist_profile(PROJECT_ROOT, profile)
     persist_incremental_state(PROJECT_ROOT, incremental)

@@ -7,11 +7,14 @@ from __future__ import annotations
 
 import textwrap
 import tomlkit
-import pytest
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from dev_10x.xx_helpers import PyProjectHelpers, VersionHelpers
+from pathlib import Path
+
+import pytest
+
+from dev_10x.xx_helpers import InstalledSourceHelpers, PyProjectHelpers, VersionHelpers
 
 KERNEL = "py10x-kernel-v"
 
@@ -189,3 +192,60 @@ def test_version_ordering_not_sort_v():
 def test_yank_rollback_floor(yanked_floor, expected_pin):
     """After a prod yank the remaining latest final becomes the floor and target advances by one."""
     assert VersionHelpers.dev_pin(yanked_floor, VersionHelpers.next_micro(yanked_floor)) == expected_pin
+
+
+# --------------------------------------------------------------------------- installed-source helpers
+class TestParseUvPipShow:
+    def test_editable(self):
+        out = """\
+Name: py10x-core
+Version: 1.0.0
+Location: /proj/.venv/lib/python3.11/site-packages
+Editable project location: /proj/py10x
+Requires: numpy
+Required-by:
+"""
+        info = InstalledSourceHelpers.parse_uv_pip_show(out)
+        assert info['Name'] == 'py10x-core'
+        assert info['Editable project location'] == '/proj/py10x'
+
+
+class TestClassifyInstall:
+    def test_editable(self):
+        assert InstalledSourceHelpers.classify_install(Path('/proj/py10x'), '') == (
+            'local', Path('/proj/py10x'))
+
+    def test_index(self):
+        assert InstalledSourceHelpers.classify_install(None, '') == ('index', None)
+
+    def test_git_or_direct_url(self):
+        raw = '{"url":"https://github.com/org/repo.git","vcs_info":{"vcs":"git"}}'
+        assert InstalledSourceHelpers.classify_install(None, raw) == ('other', None)
+
+
+class TestDistInfoDirectUrl:
+    def test_reads_direct_url_json(self, tmp_path):
+        site = tmp_path / 'site-packages'
+        dist = site / 'py10x_kernel-1.0.dist-info'
+        dist.mkdir(parents=True)
+        (dist / 'direct_url.json').write_text(
+            '{"url":"https://github.com/org/cxx10x.git","vcs_info":{"vcs":"git"}}')
+        show = {'Name': 'py10x-kernel', 'Version': '1.0', 'Location': str(site)}
+        assert InstalledSourceHelpers.dist_info_direct_url(show) != ''
+
+    def test_missing_direct_url_is_index(self, tmp_path):
+        site = tmp_path / 'site-packages'
+        dist = site / 'numpy-2.4.6.dist-info'
+        dist.mkdir(parents=True)
+        show = {'Name': 'numpy', 'Version': '2.4.6', 'Location': str(site)}
+        assert InstalledSourceHelpers.dist_info_direct_url(show) == ''
+
+
+class TestInstalledSourceIntegration:
+    def test_against_project_venv(self):
+        kind, path = InstalledSourceHelpers(Path('.')).installed_source('py10x-core')
+        if kind is None:
+            pytest.skip('py10x-core not installed in project .venv')
+        assert kind in ('local', 'index', 'other')
+        if kind == 'local':
+            assert path is not None and path.is_dir()

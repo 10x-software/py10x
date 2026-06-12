@@ -1,8 +1,6 @@
 """Unit tests for pure helpers in `dev_10x.uv_sync`."""
 from __future__ import annotations
 
-import pytest
-
 from dev_10x.uv_sync import _normalize_git_url, _swap_repo
 
 
