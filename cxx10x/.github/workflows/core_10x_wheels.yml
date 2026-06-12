@@ -50,7 +50,6 @@ jobs:
         working-directory: ${{ github.workspace }}/../py10x
         run: |
           uv venv
-          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
           uv pip install -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
           uv pip install -e . --all-extras --requirements pyproject.toml
 
@@ -60,7 +59,7 @@ jobs:
           PYTHONUNBUFFERED: "1"
           CORE_VER: ${{ steps.core.outputs.version }}
         run: |
-          python - <<'PY'
+          uv run --no-sync python - <<'PY'
           import json, os
           from importlib.metadata import version, distribution
           from packaging.version import Version
@@ -73,7 +72,7 @@ jobs:
               assert editable(s), f"{s} not editable from local checkout - py10x-core's pin pulled an index build"
           print(f"py10x-core {core}; kernel {version('py10x-kernel')}; infra {version('py10x-infra')} OK")
           PY
-          pytest
+          uv run --no-sync pytest
 
   build_wheels:
     needs: test
