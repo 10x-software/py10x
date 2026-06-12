@@ -162,7 +162,8 @@ uv-run pytest -q                       # run in the prepared venv
    Index siblings are resolved in step 2; `--reinstall-package` forces a swap if currently editable/git.
 2. **`uv pip install --requirements pyproject.toml`** (+ caller args such as `--all-extras`) —
    core's deps and extras, additive (keeps step-1 siblings). Form A dev pins admit in-dev siblings.
-3. **py10x-core itself** (local editable, or git for `domain-dev`) — install only if needed.
+3. **py10x-core itself** (local editable, or git for `domain-dev`) — install only if needed, with
+   `--no-deps` because step 2 already resolved dependencies and must preserve sibling sources.
 
 ### Reinstall rules
 

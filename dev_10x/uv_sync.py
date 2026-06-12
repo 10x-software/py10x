@@ -220,8 +220,10 @@ def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
     ]
 
 
-def install_local(name: str, pkg: dict, incremental: int, verbose: bool) -> None:
+def install_local(name: str, pkg: dict, incremental: int, verbose: bool, *, no_deps: bool = False) -> None:
     args = ['-e', str(pkg['local']), f'--reinstall-package={name}']
+    if no_deps:
+        args.append('--no-deps')
     if incremental and pkg['cxx']:
         args += _incremental_flags(name, pkg['local'], PROJECT_ROOT / '.venv')
     if verbose:
@@ -229,12 +231,15 @@ def install_local(name: str, pkg: dict, incremental: int, verbose: bool) -> None
     _pip_install(*args)
 
 
-def install_git(name: str, pkg: dict, branch: str) -> None:
+def install_git(name: str, pkg: dict, branch: str, *, no_deps: bool = False) -> None:
     git_url = _normalize_git_url(pkg['git'])
     spec = f'{name} @ git+{git_url}@{branch}'
     if pkg['subdir']:
         spec += f'#subdirectory={pkg["subdir"]}'
-    _pip_install(spec, f'--reinstall-package={name}')
+    args = [spec, f'--reinstall-package={name}']
+    if no_deps:
+        args.append('--no-deps')
+    _pip_install(*args)
 
 
 # --------------------------------------------------------------------------------------------
@@ -289,13 +294,14 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     reinstall = [f'--reinstall-package={s}' for s in index_swaps]
     _pip_install('--requirements', 'pyproject.toml', *reinstall, *uv_args)
 
-    # 3. py10x-core itself.
+    # 3. py10x-core itself. Dependencies were resolved in step 2; resolving them again can replace
+    #    local/git siblings with index builds that also satisfy py10x-core's published pins.
     print('3. py10x-core:')
     ck = kinds[CORE]
     if ck == 'git':
-        install_git(CORE, pkgs[CORE], branch)
+        install_git(CORE, pkgs[CORE], branch, no_deps=True)
     elif need_install(CORE, 'local', pkgs[CORE]):
-        install_local(CORE, pkgs[CORE], incremental=False, verbose=verbose)  # pure Python; no C++ rebuild
+        install_local(CORE, pkgs[CORE], incremental=False, verbose=verbose, no_deps=True)
 
     # Guard: a local sibling that came back non-editable means a pin pulled an index/other build.
     for s in siblings:
