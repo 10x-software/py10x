@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from dev_10x.xx_helpers import InstalledSourceHelpers, PyProjectHelpers, VersionHelpers
+from dev_10x.xx_helpers import GitHelpers, InstalledSourceHelpers, PyProjectHelpers, VersionHelpers
 
 KERNEL = "py10x-kernel-v"
 
@@ -60,6 +60,50 @@ def test_next_rc_numbering():
 def test_latest_rc_tag():
     assert VersionHelpers.latest_rc_tag(parsed(), "0.2.1") == f"{KERNEL}0.2.1rc2"   # rc2 > rc1
     assert VersionHelpers.latest_rc_tag(parsed(), "0.3.0") is None                  # none yet
+
+
+def test_latest_tag_picks_highest_rc_or_final():
+    tag, ver = VersionHelpers.latest_tag(parsed())
+    assert tag == f"{KERNEL}0.2.1rc2" and ver == Version("0.2.1rc2")
+    p = VersionHelpers.parse_pkg_tags([f"{KERNEL}0.2.1"], KERNEL)
+    assert VersionHelpers.latest_tag(p) == (f"{KERNEL}0.2.1", Version("0.2.1"))
+    assert VersionHelpers.latest_tag([]) is None
+
+
+def test_repo_relative_subtree():
+    repo = Path("/proj/cxx10x")
+    assert GitHelpers.repo_relative_subtree(repo, repo) == "."
+    assert GitHelpers.repo_relative_subtree(repo, Path("/proj/cxx10x/core_10x")) == "core_10x"
+
+
+def test_tree_changed_since_tag(tmp_path):
+    repo = tmp_path / "repo"
+    pkg = repo / "pkg"
+    other = repo / "other"
+    pkg.mkdir(parents=True)
+    other.mkdir()
+    (pkg / "a.txt").write_text("v1\n", encoding="utf-8")
+    (other / "b.txt").write_text("other\n", encoding="utf-8")
+    GitHelpers.git(repo, "init")
+    GitHelpers.git(repo, "add", ".")
+    GitHelpers.git(repo, "commit", "-m", "init")
+    GitHelpers.git(repo, "tag", "v0.1.0rc1")
+
+    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg")
+    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", ".")
+
+    (other / "b.txt").write_text("other v2\n", encoding="utf-8")
+    GitHelpers.git(repo, "add", "other/b.txt")
+    GitHelpers.git(repo, "commit", "-m", "other only")
+
+    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg")
+    assert GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", ".")
+
+    (pkg / "a.txt").write_text("v2\n", encoding="utf-8")
+    GitHelpers.git(repo, "add", "pkg/a.txt")
+    GitHelpers.git(repo, "commit", "-m", "pkg change")
+
+    assert GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg")
 
 
 def test_latest_matching_tag_dev_pin_picks_latest_rc():

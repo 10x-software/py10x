@@ -102,6 +102,11 @@ class VersionHelpers:
                if cls.base_version(v) == target and v.pre is not None and v.pre[0] == "rc"]
         return max(rcs, key=lambda tv: tv[1])[0] if rcs else None
 
+    @classmethod
+    def latest_tag(cls, parsed: list[tuple[str, Version]]) -> tuple[str, Version] | None:
+        """Highest-version tag (rc or final), or None when the package has never been tagged."""
+        return max(parsed, key=lambda tv: tv[1]) if parsed else None
+
 
     @classmethod
     def dev_pin(cls,floor: str, target: str) -> str:
@@ -150,6 +155,27 @@ class GitHelpers:
     @classmethod
     def tag_commit(cls, repo: Path, tag: str) -> str:
         return cls.git(repo, "rev-list", "-n", "1", tag)
+
+    @staticmethod
+    def repo_relative_subtree(repo: Path, path: Path) -> str:
+        """Repo-relative path for `path` (`.` when `path` is the repo root)."""
+        rel = path.resolve().relative_to(repo.resolve())
+        return rel.as_posix() if rel.parts else "."
+
+    @classmethod
+    def tree_changed_since_tag(cls, repo: Path, tag: str, subtree: str) -> bool:
+        """True when `subtree` (repo-relative, `.` = whole repo) differs between `tag` and HEAD."""
+        res = subprocess.run(
+            ["git", "diff", "--quiet", tag, "HEAD", "--", subtree],
+            cwd=repo, capture_output=True, text=True, check=False,
+        )
+        if res.returncode == 0:
+            return False
+        if res.returncode == 1:
+            return True
+        raise RuntimeError(
+            f"git diff --quiet {tag} HEAD -- {subtree} (in {repo}) failed:\n{res.stderr.strip()}"
+        )
 
     @classmethod
     def git_root(cls, path: Path) -> Path:

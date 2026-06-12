@@ -88,10 +88,12 @@ xx-promote yank pkg=<name> version=<ver>  # yank a tag (rc or final)
 ```
 
 - **`pre`** computes each package's own target `T` and next rc number, then tags the repo's
-  current `main` HEAD (`v{T}rc{n}`, `py10x-kernel-v{T}rc{n}`, `py10x-infra-v{T}rc{n}`). **Idempotent:**
-  no new rc if the latest rc already points at HEAD. No pin changes — Form A dev pins already admit
-  the new rc.
-- **`prod`** (per package that has an rc for its target):
+  current `main` HEAD (`v{T}rc{n}`, `py10x-kernel-v{T}rc{n}`, `py10x-infra-v{T}rc{n}`). A package
+  is skipped when `git diff` shows no changes in its source subtree since its latest pre *or* prod
+  tag (siblings diff only `core_10x` / `infra_10x`, not the whole `cxx10x` repo). When the latest
+  tag is an rc, `push=true` can still publish it without minting a new rc. No pin changes — Form A
+  dev pins already admit the new rc.
+- **`prod`** (per package whose **latest** tag is a pre-release and that has an rc for its target):
   1. find the latest rc tag + commit;
   2. create the per-version release branch (`release/v{T}` / `release/py10x-{pkg}-v{T}`) off that
      commit;

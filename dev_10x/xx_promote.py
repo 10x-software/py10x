@@ -14,8 +14,8 @@ It is a `core_10x.traitable_cli.TraitableCli` tree: positional words pick the co
 options are `name=value` traits.
 
 Subcommands:
-    xx-promote pre                              cut the next rc for every package (tagging only)
-    xx-promote prod                             promote each rc'd package to final (branch + pins)
+    xx-promote pre                              cut the next rc when the package tree changed
+    xx-promote prod                             promote packages whose latest tag is a pre-release
     xx-promote yank pkg=<name> version=<ver>    rename a tag to `<tag>_yanked`; roll back main pins
 
 Safety levels (every subcommand), as `name=value` flags:
@@ -76,8 +76,8 @@ class XxPromote(TraitableCli):
     """Release promotion for the 10x packages.
 
     Usage:
-        xx-promote pre                            cut the next rc for every package
-        xx-promote prod                           promote each rc'd package to final
+        xx-promote pre                            cut the next rc when the package tree changed
+        xx-promote prod                           promote packages whose latest tag is pre
         xx-promote yank pkg=<name> version=<ver>  yank a tag (rc or final)
     Flags (name=value): dry_run=true (preview), push=true (push to remotes). base=<path> overrides
     the py10x repo root (default: cwd).
@@ -135,7 +135,7 @@ class XxPromote(TraitableCli):
 
 
 class Pre(XxPromote, _command="pre"):
-    """xx-promote pre  (cut release candidates - tagging only)"""
+    """xx-promote pre  (cut release candidates - tagging only; skip when package tree unchanged)"""
     def steps_get(self) -> list[Step]:
         steps: list[Step] = []
         pkgs = self.packages
@@ -146,18 +146,20 @@ class Pre(XxPromote, _command="pre"):
             parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix)
             target = VersionHelpers.target_version(parsed)
             head = GitHelpers.git(pkg.repo, "rev-parse", "HEAD")
+            subtree = GitHelpers.repo_relative_subtree(pkg.repo, pkg.src_dir)
 
-            # Idempotent: if the latest rc for this target already points at HEAD, a new rc would be
-            # identical - don't mint one. Still offer to push it (e.g. a local-only `pre` followed by
-            # `pre push=true` publishes the existing tag instead of bumping rc).
-            latest_rc = VersionHelpers.latest_rc_tag(parsed, target)
-            if latest_rc is not None and GitHelpers.tag_commit(pkg.repo, latest_rc) == head:
-                steps.append(Step(
-                    summary=f"{pkg.name}: {latest_rc} already at HEAD ({head[:10]}) - no new rc",
-                    apply=lambda: None,
-                    push_refs=(pkg.repo, [latest_rc]),
-                ))
-                continue
+            # Skip when the package subtree is unchanged since its latest pre or prod tag. When that
+            # tag is an rc, still offer to push it (local-only `pre` then `pre push=true`).
+            if (latest_pair := VersionHelpers.latest_tag(parsed)) is not None:
+                ref_tag, ref_ver = latest_pair
+                if not GitHelpers.tree_changed_since_tag(pkg.repo, ref_tag, subtree):
+                    push_refs = () if VersionHelpers.is_final(ref_ver) else (pkg.repo, [ref_tag])
+                    steps.append(Step(
+                        summary=f"{pkg.name}: no diff in {subtree} since {ref_tag} ({head[:10]}) - skip",
+                        apply=lambda: None,
+                        push_refs=push_refs,
+                    ))
+                    continue
 
             n = VersionHelpers.next_rc(parsed, target)
             tag = f"{pkg.tag_prefix}{target}rc{n}"
@@ -170,7 +172,7 @@ class Pre(XxPromote, _command="pre"):
 
 
 class Prod(XxPromote, _command="prod"):
-    """xx-promote prod  (promote rc'd packages to final)"""
+    """xx-promote prod  (promote when latest tag is pre and an rc exists for the target)"""
 
     def steps_get(self) -> list[Step]:
         pkgs = self.packages
@@ -187,6 +189,10 @@ class Prod(XxPromote, _command="prod"):
         for name, pkg in pkgs.items():
             parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix)
             target = VersionHelpers.target_version(parsed)
+            if (latest_pair := VersionHelpers.latest_tag(parsed)) is None or VersionHelpers.is_final(latest_pair[1]):
+                label = latest_pair[0] if latest_pair else "none"
+                print(f"  skip {name}: latest tag {label} is not a pre-release")
+                continue
             latest_rc = VersionHelpers.latest_rc_tag(parsed, target)
             if latest_rc is None:
                 print(f"  skip {name}: no rc tag for target {target}")
