@@ -60,6 +60,10 @@ jobs:
           uv pip install -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
           uv pip install -e . --all-extras --requirements pyproject.toml
 
+      - name: Install Playwright chromium
+        working-directory: ${{ github.workspace }}/../py10x
+        run: uv run --no-sync playwright install --with-deps chromium
+
       - name: Verify versions + run py10x-core suite
         working-directory: ${{ github.workspace }}/../py10x
         env:
