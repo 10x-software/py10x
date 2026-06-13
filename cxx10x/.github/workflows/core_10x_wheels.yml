@@ -28,6 +28,13 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      - name: Start MongoDB (single-node replica set)
+        uses: supercharge/mongodb-github-action@1.12.1
+        with:
+          mongodb-version: "7.0"
+          mongodb-replica-set: rs0
+          mongodb-port: 27017
+
       # The reverse [dependency-groups] test pin names the exact py10x-core to test against.
       - name: Resolve pinned py10x-core version
         id: core
@@ -53,7 +60,7 @@ jobs:
           uv pip install -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
           uv pip install -e . --all-extras --requirements pyproject.toml
 
-      - name: Verify versions + run py10x-core suite (replica-set tests auto-skip)
+      - name: Verify versions + run py10x-core suite
         working-directory: ${{ github.workspace }}/../py10x
         env:
           PYTHONUNBUFFERED: "1"
