@@ -1,0 +1,7 @@
+# Code owners for py10x-core.
+# See https://docs.github.com/en/repositories/managing-your-repos-settings-and-features/customizing-your-repository/about-code-owners
+#
+# These users own the entire repository: PRs that require code-owner review must
+# be reviewed by one of them, and (with branch protection's bypass list) they may
+# merge without a separate approval.
+* @ilya-pevzner @sasha-davidovich
