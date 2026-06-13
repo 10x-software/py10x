@@ -1,0 +1,126 @@
+name: Refresh constraints
+
+# Weekly "xx-upgrade": recompile the third-party freeze against the latest
+# compatible PyPI graph (py10x + cxx10x siblings). If constraints.txt changed,
+# run the full test suite against the fresh pins and open a PR only when it
+# passes. This job never commits to main itself, so the freeze stays
+# review-gated and reproducible; a red run means an upstream release broke us.
+on:
+  schedule:
+    # Weekly, Monday 04:00 UTC
+    - cron: "0 4 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: refresh-constraints-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh:
+    name: Recompile and test constraints.txt
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      # compile freezes the third-party graph of all three pyprojects, so the
+      # C++ siblings must be checked out (py10x-core-dev precondition).
+      - name: Checkout kernel/infra
+        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
+
+      - name: Install dependencies
+        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
+
+      - name: Recompile constraints.txt
+        run: |
+          source .venv/bin/activate
+          xx-constraints compile
+
+      - name: Detect constraints change
+        id: diff
+        run: |
+          if git diff --quiet -- constraints.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "constraints.txt is unchanged - nothing to test or propose."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff -- constraints.txt
+          fi
+
+      # The remaining steps only run when the freeze actually moved; otherwise
+      # the env is identical to what is already committed and tested.
+
+      # Re-sync so the venv matches the freshly compiled constraints.txt before
+      # testing (uv-sync applies -c constraints.txt on every install).
+      - name: Re-sync against fresh constraints.txt
+        if: steps.diff.outputs.changed == 'true'
+        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
+
+      - name: Verify env is fully frozen against constraints.txt
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          source .venv/bin/activate
+          xx-constraints check
+
+      - name: Start MongoDB (single-node replica set)
+        if: steps.diff.outputs.changed == 'true'
+        uses: supercharge/mongodb-github-action@1.12.1
+        with:
+          mongodb-version: "7.0"
+          mongodb-replica-set: rs0
+          mongodb-port: 27017
+
+      - name: Install Playwright chromium
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          source .venv/bin/activate
+          playwright install --with-deps chromium
+
+      - name: Run full test suite
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          source .venv/bin/activate
+          pytest
+
+      # Reaching here means the suite passed against the fresh pins. Default
+      # GITHUB_TOKEN-created PRs do NOT trigger ci.yml (GitHub blocks recursive
+      # workflow runs); provide CONSTRAINTS_PR_TOKEN (PAT/App token) to also get
+      # the PR's own CI run. Falls back to GITHUB_TOKEN otherwise.
+      - name: Open PR with the tested freeze
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.CONSTRAINTS_PR_TOKEN || github.token }}
+          add-paths: constraints.txt
+          branch: chore/refresh-constraints
+          delete-branch: true
+          commit-message: "chore: refresh constraints.txt"
+          title: "chore: refresh constraints.txt"
+          body: |
+            Automated weekly refresh of the third-party dependency freeze.
+
+            `xx-constraints compile` recompiled `constraints.txt` against the latest
+            compatible PyPI graph of py10x-core and its cxx10x siblings (kernel/infra
+            from `main`), and the **full test suite passed** against the fresh pins in
+            this workflow run. Only `constraints.txt` changed — first-party packages
+            are never pinned here.
+          labels: |
+            dependencies
+            automated

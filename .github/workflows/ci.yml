@@ -46,8 +46,17 @@ jobs:
           source .venv/bin/activate
           xx-constraints check
 
-      - name: Setup Mongo replica set
-        uses: ./.github/actions/setup-mongo-replica-set
+      - name: Start MongoDB (single-node replica set)
+        uses: supercharge/mongodb-github-action@1.12.1
+        with:
+          mongodb-version: "7.0"
+          mongodb-replica-set: rs0
+          mongodb-port: 27017
+
+      - name: Install Playwright chromium
+        run: |
+          source .venv/bin/activate
+          playwright install --with-deps chromium
 
       - name: Run full test suite
         env:

@@ -56,7 +56,7 @@ def compile_() -> int:
     cmd = ['uv', 'pip', 'compile',
            'pyproject.toml', *[str(p) for p in siblings.values()],
            '--universal', '--all-extras', *no_emit,
-           '-o', str(CONSTRAINTS.name)]
+           '--quiet', '-o', str(CONSTRAINTS.name)]
     print('$', ' '.join(cmd))
     return subprocess.run(cmd, cwd=PROJECT_ROOT).returncode
 

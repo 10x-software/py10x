@@ -66,8 +66,18 @@ jobs:
           python -m dev_10x.xx_ci verify_sibling py10x-kernel
           python -m dev_10x.xx_ci verify_sibling py10x-infra
 
-      - name: Setup Mongo replica set
-        uses: ./.github/actions/setup-mongo-replica-set
+      - name: Start MongoDB (single-node replica set)
+        uses: supercharge/mongodb-github-action@1.12.1
+        with:
+          mongodb-version: "7.0"
+          mongodb-replica-set: rs0
+          mongodb-port: 27017
+
+      # Install the browser with the runtime venv's pinned Playwright, so the browser revision always
+      # matches the installed Playwright regardless of build caching (the pyproject build hook is a
+      # no-op once the browser is cached).
+      - name: Install Playwright chromium
+        run: playwright install --with-deps chromium
 
       - name: Run test suite
         env:

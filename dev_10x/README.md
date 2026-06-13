@@ -247,7 +247,31 @@ xx-constraints check      # assert the active env is fully frozen
 needing a version outside the pin hits a hard conflict → regenerate `constraints.txt` in
 `py10x-core-dev` mode and commit.
 
-dependabot / a future `xx-upgrade` keep pins fresh — orthogonal to reproducibility (update vs freeze).
+dependabot keeps pins fresh — orthogonal to reproducibility (update vs freeze).
+
+### `refresh-constraints.yml` — scheduled `xx-upgrade`
+
+`.github/workflows/refresh-constraints.yml` automates the *update* side on a **weekly** cron
+(Mon 04:00 UTC, plus `workflow_dispatch`) **without** eroding the freeze:
+
+1. Sync `py10x-core-dev` (clones cxx10x `main` so all three pyprojects are present), then
+   `xx-constraints compile` against the latest compatible PyPI graph.
+2. If `constraints.txt` is unchanged → stop (no tests, no PR).
+3. If it changed → re-sync against the fresh pins (compile rewrites the file but does not
+   reinstall), `xx-constraints check`, then the **full test suite** (MongoDB replica set +
+   Playwright), mirroring `ci.yml`.
+4. Only on green → open/update PR `chore: refresh constraints.txt` (only `constraints.txt`
+   is committed). The PR is review-gated and merged by a human.
+
+So `main` never auto-changes, the proposed freeze is green-by-construction, and a **red run is the
+alert** that an upstream release broke us (do not merge — investigate the pin). Notes:
+
+- A PR opened with the default `GITHUB_TOKEN` does **not** trigger `ci.yml` (GitHub blocks
+  recursive workflow runs). Set repo secret **`CONSTRAINTS_PR_TOKEN`** (PAT/App token with
+  Contents + PRs write) to also get the PR's own CI run; the workflow falls back to `GITHUB_TOKEN`
+  when absent (the in-run suite is still the gate).
+- Failure notifications follow GitHub's default scheduled-workflow rules (the cron's last editor);
+  add an explicit Slack/issue step for team-wide alerting.
 
 ---
 

@@ -70,7 +70,7 @@ Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present 
 - **`core_10x/xinf.py`**: extended infinity helpers for range/bucket specs; public API is **`XInf`** and **`-XInf`** (negative infinity).
 - **`xx_common` package**: calendar, business-day **rdate**, and **curve** moved out of `core_10x` (see *Changed* / migration).
 - **`infra_10x/testlib/`**: shared Mongo collection helpers for tests.
-- **GitHub Actions**: reusable **MongoDB replica set** setup action; CI workflow and dependabot updates.
+- **GitHub Actions**: CI workflows start a single-node **MongoDB replica set** via `supercharge/mongodb-github-action` and install the **Playwright Chromium** browser as an explicit step with the runtime venv's pinned Playwright (both matching the `cxx10x` workflows, so the browser revision no longer depends on the `pyproject` build hook or build caching); CI workflow and dependabot updates.
 - **`ROADMAP.md`**, **`AGENTS.md`**: project/agent guidance updates.
 
 ### Changed
