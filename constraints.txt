@@ -27,8 +27,6 @@ attrs==23.2.0
     #   cattrs
     #   fhconfparser
     #   requests-cache
-backports-tarfile==1.2.0 ; python_full_version < '3.12'
-    # via jaraco-context
 blessed==1.44.0
     # via revel
 boolean-py==5.0
@@ -114,8 +112,6 @@ idna==3.18
     #   requests
     #   url-normalize
     #   yarl
-importlib-metadata==9.0.0 ; python_full_version < '3.12'
-    # via keyring
 importlib-resources==6.5.2
     # via py10x-core (pyproject.toml)
 imy==0.7.1
@@ -390,7 +386,6 @@ timer-dict==1.0.0
     # via rio-ui
 tomli==2.4.1
     # via
-    #   coverage
     #   fhconfparser
     #   licensecheck
 tomlkit==0.15.0
@@ -471,8 +466,6 @@ win32-setctime==1.2.0 ; sys_platform == 'win32'
     # via loguru
 yarl==1.24.2
     # via rio-ui
-zipp==4.1.0 ; python_full_version < '3.12'
-    # via importlib-metadata
 
 # The following packages were excluded from the output:
 # py10x-kernel
