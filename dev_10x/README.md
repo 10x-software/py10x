@@ -89,10 +89,13 @@ xx-promote yank --pkg <name> --version <ver>  # yank a tag (rc or final)
 
 - **`pre`** computes each package's own target `T` and next rc number, then tags the repo's
   current `main` HEAD (`v{T}rc{n}`, `py10x-kernel-v{T}rc{n}`, `py10x-infra-v{T}rc{n}`). A package
-  is skipped when `git diff` shows no changes in its source subtree since its latest pre *or* prod
-  tag (siblings diff only `core_10x` / `infra_10x`, not the whole `cxx10x` repo). When the latest
-  tag is an rc, `--push` can still publish it without minting a new rc. No pin changes — Form A
-  dev pins already admit the new rc.
+  is skipped when `git diff` shows no changes since its latest pre *or* prod tag across its
+  release-relevant footprint (`GitHelpers.diff_pathspecs`): its source subtree **plus its publish
+  workflow**, matched by the convention `.github/workflows/{subdir}*` (so `core_10x` →
+  `core_10x_wheels.yml`). Siblings diff `core_10x`/`infra_10x` + that workflow glob, not the whole
+  `cxx10x` repo; core's `.` already covers everything. A workflow edit changes how the package is
+  built, so it must force a new rc. When the latest tag is an rc, `--push` can still publish it
+  without minting a new rc. No pin changes — Form A dev pins already admit the new rc.
 - **`prod`** (per package whose **latest** tag is a pre-release and that has an rc for its target):
   1. find the latest rc tag + commit;
   2. create the per-version release branch (`release/v{T}` / `release/py10x-{pkg}-v{T}`) off that

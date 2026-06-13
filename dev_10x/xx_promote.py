@@ -109,7 +109,7 @@ class XxPromote(TraitableCli):
         siblings = doc.get("tool", {}).get("dev_10x", {}).get("siblings", {})
         result = {core_name: Package(name=core_name, src_dir=base, tag_prefix="v")}
         result.update(
-            (name,Package(name=name,src_dir=(base / spec["path"]).resolve())) for name, spec in siblings.items()
+            (name, Package(name=name, src_dir=(base / spec["path"]).resolve())) for name, spec in siblings.items()
         )
         return result
 
@@ -137,7 +137,7 @@ class XxPromote(TraitableCli):
 
 
 class Pre(XxPromote, _command="pre"):
-    """xx-promote pre  (cut release candidates - tagging only; skip when package tree unchanged)"""
+    """xx-promote pre  (cut release candidates - tagging only when changes detected)"""
     def steps_get(self) -> list[Step]:
         steps: list[Step] = []
         pkgs = self.packages
@@ -148,16 +148,16 @@ class Pre(XxPromote, _command="pre"):
             parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix)
             target = VersionHelpers.target_version(parsed)
             head = GitHelpers.git(pkg.repo, "rev-parse", "HEAD")
-            subtree = GitHelpers.repo_relative_subtree(pkg.repo, pkg.src_dir)
+            pathspecs = GitHelpers.diff_pathspecs(pkg.repo, pkg.src_dir)
 
-            # Skip when the package subtree is unchanged since its latest pre or prod tag. When that
-            # tag is an rc, still offer to push it (local-only `pre` then `pre push=true`).
+            # Skip when those paths are unchanged since the latest pre or prod tag. When that tag is
+            # an rc, still offer to push it (local-only `pre` then `pre push=true`).
             if (latest_pair := VersionHelpers.latest_tag(parsed)) is not None:
                 ref_tag, ref_ver = latest_pair
-                if not GitHelpers.tree_changed_since_tag(pkg.repo, ref_tag, subtree):
+                if not GitHelpers.tree_changed_since_tag(pkg.repo, ref_tag, *pathspecs):
                     push_refs = () if VersionHelpers.is_final(ref_ver) else (pkg.repo, [ref_tag])
                     steps.append(Step(
-                        summary=f"{pkg.name}: no diff in {subtree} since {ref_tag} ({head[:10]}) - skip",
+                        summary=f"{pkg.name}: no diff in {', '.join(pathspecs)} since {ref_tag} ({head[:10]}) - skip",
                         apply=lambda: None,
                         push_refs=push_refs,
                     ))
@@ -174,7 +174,7 @@ class Pre(XxPromote, _command="pre"):
 
 
 class Prod(XxPromote, _command="prod"):
-    """xx-promote prod  (promote when latest tag is pre and an rc exists for the target)"""
+    """xx-promote prod  (promote when latest tag is pre)"""
 
     def steps_get(self) -> list[Step]:
         pkgs = self.packages

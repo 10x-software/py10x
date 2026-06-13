@@ -163,10 +163,22 @@ class GitHelpers:
         return rel.as_posix() if rel.parts else "."
 
     @classmethod
-    def tree_changed_since_tag(cls, repo: Path, tag: str, subtree: str) -> bool:
-        """True when `subtree` (repo-relative, `.` = whole repo) differs between `tag` and HEAD."""
+    def diff_pathspecs(cls, repo: Path, src_dir: Path) -> tuple[str, ...]:
+        """`git diff` pathspecs that define a package's release-relevant footprint.
+
+        A whole-repo package (`src_dir` == repo root) is just `.`. A package living in a subdir
+        is its subtree plus a glob for the publish workflow named after that subdir
+        (convention `.github/workflows/{subdir}*`, e.g. `core_10x` -> `core_10x_wheels.yml`),
+        so a workflow edit forces a new rc even though it sits outside the subtree.
+        """
+        subtree = cls.repo_relative_subtree(repo, src_dir)
+        return (subtree,) if subtree == "." else (subtree, f".github/workflows/{Path(src_dir).name}*")
+
+    @classmethod
+    def tree_changed_since_tag(cls, repo: Path, tag: str, *pathspecs: str) -> bool:
+        """True when any of `pathspecs` (repo-relative, `.` = whole repo) differs `tag`..HEAD."""
         res = subprocess.run(
-            ["git", "diff", "--quiet", tag, "HEAD", "--", subtree],
+            ["git", "diff", "--quiet", tag, "HEAD", "--", *pathspecs],
             cwd=repo, capture_output=True, text=True, check=False,
         )
         if res.returncode == 0:
@@ -174,7 +186,7 @@ class GitHelpers:
         if res.returncode == 1:
             return True
         raise RuntimeError(
-            f"git diff --quiet {tag} HEAD -- {subtree} (in {repo}) failed:\n{res.stderr.strip()}"
+            f"git diff --quiet {tag} HEAD -- {' '.join(pathspecs)} (in {repo}) failed:\n{res.stderr.strip()}"
         )
 
     @classmethod
