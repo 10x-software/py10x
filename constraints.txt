@@ -276,7 +276,7 @@ pycparser==3.0 ; (implementation_name != 'PyPy' and platform_python_implementati
     # via cffi
 pydantic==2.13.4
     # via fastapi
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pyee==13.0.1
     # via playwright
