@@ -1,6 +1,7 @@
 import asyncio
 
 import rio.testing.browser_client
+from ui_10x.rio.browser_helpers import wait_for_js_truthy
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import PushButton
 
@@ -94,8 +95,7 @@ async def test_button_basic_functionality() -> None:
         await test_client.wait_for_refresh()
         assert widget['is_sensitive']
 
-        # Test flat style changes with timeout protection
-        assert not await test_client.execute_js('document.querySelector(".rio-buttonstyle-plain-text")')
+        await wait_for_js_truthy(test_client, '!document.querySelector(".rio-buttonstyle-plain-text")')
         widget.set_flat(True)
         await test_client.wait_for_refresh()
-        assert await test_client.execute_js('document.querySelector(".rio-buttonstyle-plain-text")')
+        await wait_for_js_truthy(test_client, 'document.querySelector(".rio-buttonstyle-plain-text")')

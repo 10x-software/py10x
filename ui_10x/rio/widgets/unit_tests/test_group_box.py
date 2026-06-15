@@ -1,6 +1,7 @@
 import asyncio
 
 import rio.testing
+from ui_10x.rio.browser_helpers import wait_for_group_box_column_text, wait_for_group_box_counts
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import CheckBox, GroupBox, Label, PushButton
 
@@ -150,9 +151,9 @@ async def test_group_box_client_interaction() -> None:
 
 
 async def check_label(label, test_client):
-    assert 2 == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text").length')
-    assert label['text'] == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text")[1].innerText')
+    await wait_for_group_box_counts(test_client, text_count=2, button_count=0)
+    await wait_for_group_box_column_text(test_client, 1, label['text'])
 
 
 async def check_title(widget, test_client):
-    assert widget['title'] == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text")[0].innerText')
+    await wait_for_group_box_column_text(test_client, 0, widget['title'])

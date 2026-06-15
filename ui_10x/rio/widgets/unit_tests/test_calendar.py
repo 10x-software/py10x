@@ -1,20 +1,14 @@
 import asyncio
 from datetime import date
 
-import dateutil.parser
 import rio.testing
+from ui_10x.rio.browser_helpers import wait_for_calendar_client_date
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import CalendarWidget
 
-find_selected_date = (
-    'document.querySelector(".rio-calendar-selected-day").textContent + " " + document.querySelector(".rio-calendar-year-month-display").textContent'
-)
-
 
 async def verify_content(widget, test_client):
-    selected_date = await test_client.execute_js(find_selected_date)
-
-    assert dateutil.parser.parse(selected_date).date() == widget.selected_date()
+    await wait_for_calendar_client_date(test_client, widget.selected_date())
 
 
 async def test_calendar_comprehensive() -> None:

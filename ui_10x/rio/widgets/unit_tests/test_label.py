@@ -1,16 +1,14 @@
 import asyncio
 
 import rio.testing.browser_client
+from ui_10x.rio.browser_helpers import wait_for_js_truthy, wait_for_label_client_text
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import Label
 
 
 async def check_text(widget, test_client, text):
     assert widget['text'] == text
-    await asyncio.sleep(0.5)
-
-    client_text = await test_client.execute_js('document.querySelector(".rio-text")?.children[0]?.innerText || ""')
-    assert client_text == text
+    await wait_for_label_client_text(test_client, text)
 
 
 async def test_label() -> None:
