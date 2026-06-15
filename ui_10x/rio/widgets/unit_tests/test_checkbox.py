@@ -1,6 +1,7 @@
 import asyncio
 
 import rio.testing
+from ui_10x.rio.browser_helpers import wait_for_checkbox_state
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import CheckBox
 
@@ -15,8 +16,7 @@ async def test_checkbox_comprehensive() -> None:
 
         # 1) Verify client shows widget value (unchecked initially)
         assert not widget.is_checked()
-        client_checked = await test_client.execute_js(find_checkbox + '.checked')
-        assert client_checked is False
+        await wait_for_checkbox_state(test_client, checked=False)
 
         # 2) Modify client value (user clicking checkbox)
         await test_client.execute_js(find_checkbox + '.click();')
@@ -30,8 +30,7 @@ async def test_checkbox_comprehensive() -> None:
         # Test widget changes propagate to client
         widget.set_checked(False)
         await test_client.wait_for_refresh()
-        client_checked = await test_client.execute_js(find_checkbox + '.checked')
-        assert client_checked is False
+        await wait_for_checkbox_state(test_client, checked=False)
         assert not widget.is_checked()
 
         # Test another client interaction
@@ -58,8 +57,7 @@ async def test_checkbox_disabled_interaction() -> None:
         await test_client.wait_for_refresh()
 
         # Verify client shows disabled state
-        client_disabled = await test_client.execute_js(find_checkbox + '.disabled')
-        assert client_disabled is True
+        await wait_for_checkbox_state(test_client, disabled=True)
 
         # Test that clicks are blocked when disabled
         initial_checked = widget.is_checked()
@@ -72,8 +70,7 @@ async def test_checkbox_disabled_interaction() -> None:
         await test_client.wait_for_refresh()
 
         # Verify client shows enabled state
-        client_disabled = await test_client.execute_js(find_checkbox + '.disabled')
-        assert client_disabled is False
+        await wait_for_checkbox_state(test_client, disabled=False)
 
         # Test that clicks work again
         await test_client.execute_js(find_checkbox + '.click();')

@@ -42,8 +42,7 @@ async def test_group_box_with_children() -> None:
         assert label in children
         assert checkbox in children
         assert button in children
-        assert 4 == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text").length')
-        assert 1 == await test_client.execute_js('document.querySelectorAll(".rio-button").length')
+        await wait_for_group_box_counts(test_client, text_count=4, button_count=1)
 
 
 async def test_group_box_add_remove_children() -> None:
@@ -57,23 +56,20 @@ async def test_group_box_add_remove_children() -> None:
 
         # Test initial empty state
         assert len(widget.get_children()) == 0
-        assert 1 == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text").length')
-        assert 0 == await test_client.execute_js('document.querySelectorAll(".rio-button").length')
+        await wait_for_group_box_counts(test_client, text_count=1, button_count=0)
 
         # Test adding children
         widget.add_children(label)
         await test_client.wait_for_refresh()
         assert len(widget.get_children()) == 1
         assert label in widget.get_children()
-        assert 2 == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text").length')
-        assert 0 == await test_client.execute_js('document.querySelectorAll(".rio-button").length')
+        await wait_for_group_box_counts(test_client, text_count=2, button_count=0)
 
         widget.add_children(button)
         await test_client.wait_for_refresh()
         assert len(widget.get_children()) == 2
         assert button in widget.get_children()
-        assert 3 == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text").length')
-        assert 1 == await test_client.execute_js('document.querySelectorAll(".rio-button").length')
+        await wait_for_group_box_counts(test_client, text_count=3, button_count=1)
 
         # Test removing children
         widget._kwargs['children'] = [child for child in widget._kwargs['children'] if child is not label]
@@ -82,15 +78,13 @@ async def test_group_box_add_remove_children() -> None:
         assert len(widget.get_children()) == 1
         assert label not in widget.get_children()
         assert button in widget.get_children()
-        assert 2 == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text").length')
-        assert 1 == await test_client.execute_js('document.querySelectorAll(".rio-button").length')
+        await wait_for_group_box_counts(test_client, text_count=2, button_count=1)
 
         widget._kwargs['children'] = [child for child in widget._kwargs['children'] if child is not button]
         widget.force_update()
         await test_client.wait_for_refresh()
         assert len(widget.get_children()) == 0
-        assert 1 == await test_client.execute_js('document.querySelectorAll(".rio-column .rio-text").length')
-        assert 0 == await test_client.execute_js('document.querySelectorAll(".rio-button").length')
+        await wait_for_group_box_counts(test_client, text_count=1, button_count=0)
 
 
 # async def test_group_box_enabled_disabled() -> None:

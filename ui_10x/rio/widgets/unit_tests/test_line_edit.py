@@ -3,6 +3,12 @@ import asyncio
 import pytest
 import rio.testing
 from ui_10x import platform_interface as i
+from ui_10x.rio.browser_helpers import (
+    wait_for_line_edit_disabled,
+    wait_for_line_edit_tooltip,
+    wait_for_line_edit_type,
+    wait_for_line_edit_value,
+)
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import LineEdit
 
@@ -11,7 +17,6 @@ async def test_line_edit_comprehensive() -> None:
     """Test LineEdit with comprehensive client-widget interaction verification."""
     widget = LineEdit('Initial Text')
     find_input = 'document.querySelector(".rio-input-box").querySelector("input")'
-    find_tool_tip = 'document.querySelector(".rio-tooltip-popup").querySelector(".rio-text").children[0].innerText'
 
     edited_calls = []
     finished_calls = []
@@ -30,7 +35,7 @@ async def test_line_edit_comprehensive() -> None:
 
         # 1) Verify client shows widget value
         assert widget.text() == 'Initial Text'
-        assert widget.text() == await test_client.execute_js(find_input + '.value')
+        await wait_for_line_edit_value(test_client, 'Initial Text')
 
         # 2) Modify client value (user typing)
         await test_client.execute_js(find_input + '.focus();')
@@ -52,22 +57,20 @@ async def test_line_edit_comprehensive() -> None:
         # Test widget changes propagate to client with timeout protection
         widget.set_text('Widget Updated')
         await test_client.wait_for_refresh()
-        client_value = await test_client.execute_js(find_input + '.value')
-        assert client_value == 'Widget Updated'
+        await wait_for_line_edit_value(test_client, 'Widget Updated')
         assert widget.text() == 'Widget Updated'
 
         # Test tooltip functionality
         widget.set_tool_tip('Helpful tip')
         await test_client.wait_for_refresh()
         await test_client._page.mouse.move(1, 1)
-        tooltip_text = await test_client.execute_js(find_tool_tip)
-        assert tooltip_text == 'Helpful tip'
+        await wait_for_line_edit_tooltip(test_client, 'Helpful tip')
 
         # Test password mode with timeout protection
-        assert 'password' != await test_client.execute_js(find_input + '.type')
+        await wait_for_line_edit_type(test_client, 'text')
         widget.set_password_mode()
         await test_client.wait_for_refresh()
-        assert 'password' == await test_client.execute_js(find_input + '.type')
+        await wait_for_line_edit_type(test_client, 'password')
 
 
 async def test_line_edit_disabled_interaction() -> None:
@@ -84,7 +87,6 @@ async def test_line_edit_disabled_interaction() -> None:
                 left_button_presses.append(event)
 
     widget = MyLineEdit('Initial Text')
-    find_input = 'document.querySelector(".rio-input-box input")'
 
     edited_calls = []
 
@@ -121,8 +123,7 @@ async def test_line_edit_disabled_interaction() -> None:
         await test_client.wait_for_refresh()
 
         # Verify client shows disabled state
-        client_disabled = await test_client.execute_js(find_input + '.disabled')
-        assert client_disabled is True
+        await wait_for_line_edit_disabled(test_client, True)
 
         # Test that typing is blocked when disabled
         await test_interaction(widget.text(), 'B', enabled=False)
@@ -132,8 +133,7 @@ async def test_line_edit_disabled_interaction() -> None:
         await test_client.wait_for_refresh()
 
         # Verify client shows enabled state
-        client_disabled = await test_client.execute_js(find_input + '.disabled')
-        assert client_disabled is False
+        await wait_for_line_edit_disabled(test_client, False)
 
         # Test that typing works again
         await test_interaction(widget.text(), 'C')

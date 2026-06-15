@@ -1,7 +1,7 @@
 import asyncio
 
 import rio.testing.browser_client
-from ui_10x.rio.browser_helpers import wait_for_js_truthy
+from ui_10x.rio.browser_helpers import wait_for_button_client_text, wait_for_js_truthy
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import PushButton
 
@@ -9,7 +9,6 @@ from ui_10x.rio.widgets import PushButton
 async def test_button_comprehensive() -> None:
     """Test PushButton with comprehensive client-widget interaction verification."""
     widget = PushButton('Click Me')
-    find_button_text = 'document.querySelector(".rio-button .rio-text").children[0].innerText'
 
     clicked_calls = []
 
@@ -23,8 +22,7 @@ async def test_button_comprehensive() -> None:
 
         # 1) Verify client shows widget value
         assert widget['content'] == 'Click Me'
-        client_text = await test_client.execute_js(find_button_text)
-        assert client_text == 'Click Me'
+        await wait_for_button_client_text(test_client, 'Click Me')
 
         # 2) Modify client value (user clicking button)
         await test_client.click(10, 10)  # Click on the button

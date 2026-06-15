@@ -1,6 +1,7 @@
 import asyncio
 
 import rio.testing.browser_client
+from ui_10x.rio.browser_helpers import wait_for_list_item_count, wait_for_list_selection
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import ListWidget
 
@@ -9,9 +10,6 @@ async def test_list_comprehensive() -> None:
     """Test ListWidget with comprehensive client-widget interaction verification."""
     widget = ListWidget()
     widget.add_items(['Item 1', 'Item 2', 'Item 3'])
-
-    find_list_items = 'document.querySelectorAll(".rio-selectable-item")'
-    find_selected_text = 'document.querySelector(".selected").querySelector(".rio-text").children[0].innerText'
 
     clicked_calls = []
 
@@ -25,8 +23,7 @@ async def test_list_comprehensive() -> None:
 
         # 1) Verify client shows widget value (list items)
         assert widget.child_count() == 3
-        client_items = await test_client.execute_js(f'{find_list_items}.length')
-        assert client_items == 3
+        await wait_for_list_item_count(test_client, 3)
 
         # 2) Modify client value (user clicking first item)
         await test_client.click(10, 1)
@@ -38,8 +35,7 @@ async def test_list_comprehensive() -> None:
         assert widget['selected_items'] == [clicked_calls[0]['key']]
 
         # Verify client shows selection
-        selected_text = await test_client.execute_js(find_selected_text)
-        assert selected_text == 'Item 1'
+        await wait_for_list_selection(test_client, 'Item 1')
 
         # Test clicking second item
         await test_client.click(10, test_client.window_height_in_pixels - 1)
@@ -47,21 +43,20 @@ async def test_list_comprehensive() -> None:
         assert len(clicked_calls) == 2
         assert clicked_calls[1]['text'] == 'Item 3'  # Last item
         assert widget['selected_items'] == [clicked_calls[1]['key']]
+        await wait_for_list_selection(test_client, 'Item 3')
 
         # Test widget changes propagate to client (clearing list)
         widget.clear()
         assert not widget.get_children()
         await test_client.wait_for_refresh()
         assert not widget.subcomponent.selected_items
-        client_items = await test_client.execute_js(f'{find_list_items}.length')
-        assert client_items == 0
+        await wait_for_list_item_count(test_client, 0)
 
         # Test adding item
         widget.add_item('New Item')
         await test_client.wait_for_refresh()
         assert widget.child_count() == 1
-        client_items = await test_client.execute_js(f'{find_list_items}.length')
-        assert client_items == 1
+        await wait_for_list_item_count(test_client, 1)
 
         # Test clicking new item
         await test_client.click(10, 1)
@@ -75,30 +70,25 @@ async def test_list_item_management() -> None:
     widget = ListWidget()
     widget.add_items(['A', 'B', 'C'])
 
-    find_list_items = 'document.querySelectorAll(".rio-selectable-item")'
-
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
         await asyncio.sleep(0.5)
 
         # Test initial state
         assert widget.child_count() == 3
-        client_items = await test_client.execute_js(f'{find_list_items}.length')
-        assert client_items == 3
+        await wait_for_list_item_count(test_client, 3)
 
         # Test removing item
         removed_item = widget.take_item(1)  # Remove 'B'
         await test_client.wait_for_refresh()
         assert widget.child_count() == 2
-        client_items = await test_client.execute_js(f'{find_list_items}.length')
-        assert client_items == 2
+        await wait_for_list_item_count(test_client, 2)
         assert removed_item['text'] == 'B'
 
         # Test adding another item with timeout protection
         widget.add_item('Inserted')
         await test_client.wait_for_refresh()
         assert widget.child_count() == 3
-        client_items = await test_client.execute_js(f'{find_list_items}.length')
-        assert client_items == 3
+        await wait_for_list_item_count(test_client, 3)
 
 
 async def test_list_disabled_interaction() -> None:
