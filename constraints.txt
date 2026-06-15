@@ -74,7 +74,7 @@ coverage==7.14.1
     # via pytest-cov
 crawlerdetect==0.3.2
     # via rio-ui
-cryptography==48.0.1
+cryptography==49.0.0
     # via
     #   py10x-core (pyproject.toml)
     #   secretstorage
@@ -176,7 +176,7 @@ markdown==3.10.2
     # via licensecheck
 markdown-it-py==4.2.0
     # via rich
-matplotlib==3.10.9
+matplotlib==3.11.0
     # via py10x-core (pyproject.toml)
 mdurl==0.1.2
     # via markdown-it-py
