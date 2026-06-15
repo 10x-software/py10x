@@ -6,6 +6,7 @@ import rio.testing.browser_client
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import CACHE_ONLY, INTERACTIVE
 from ui_10x.collection_editor import Collection, CollectionEditor
+from ui_10x.rio.browser_helpers import UI_SETTLE_S, wait_for_input_values
 from ui_10x.rio.component_builder import DynamicComponent
 
 
@@ -33,36 +34,33 @@ async def test_collection_editor() -> None:
     widget = ce.main_widget()
 
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(UI_SETTLE_S)
 
         assert await test_client.execute_js('document.querySelector(".rio-selectable-item").innerText') == 'Ilya|Pevzner'
         await test_client.execute_js('document.querySelector(".rio-selectable-item").click()')
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(UI_SETTLE_S)
 
         assert await test_client.execute_js('document.querySelectorAll("input")[8].value') == 'LB'
         assert await test_client.execute_js('document.querySelectorAll("input")[7].value') == '200.00'
 
         button_id = next(b._id_ for b in test_client.get_components(rio.Button) if b.content == 'edit')
         await test_client.execute_js(f'''document.querySelector('[dbg-id="{button_id}"]').querySelector('rio-pressable-element').click()''')
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(UI_SETTLE_S)
 
-        assert await test_client.execute_js('document.querySelectorAll("input")[16].value') == 'LB'
-        assert await test_client.execute_js('document.querySelectorAll("input")[15].value') == '200.00'
+        await wait_for_input_values(test_client, weight_index=15, weight='200.00', unit_index=16, unit='LB')
 
         button_id = next(b._id_ for b in reversed(tuple(test_client.get_components(rio.Button))) if b.icon == 'material/arrow_downward')
         await test_client.execute_js(f'''document.querySelector('[dbg-id="{button_id}"]').querySelector('rio-pressable-element').click()''')
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(UI_SETTLE_S)
 
-        print([li.text for li in test_client.get_components(rio.SimpleListItem)])
         list_item_id = next(li._id_ for li in test_client.get_components(rio.SimpleListItem) if li.text == 'G')
         await test_client.execute_js(f'''document.querySelector('[dbg-id="{list_item_id}"]').querySelector('.rio-selectable-item').click()''')
+        await asyncio.sleep(UI_SETTLE_S)
 
-        assert await test_client.execute_js('document.querySelectorAll("input")[16].value') == 'G'
-        assert await test_client.execute_js('document.querySelectorAll("input")[15].value') == '90,702.95'
+        await wait_for_input_values(test_client, weight_index=15, weight='90,702.95', unit_index=16, unit='G')
 
         button_id = next(b._id_ for b in test_client.get_components(rio.Button) if b.content == 'Ok')
         await test_client.execute_js(f'''document.querySelector('[dbg-id="{button_id}"]').querySelector('rio-pressable-element').click()''')
-        await asyncio.sleep(0.5)
+        await asyncio.sleep(UI_SETTLE_S)
 
-        assert await test_client.execute_js('document.querySelectorAll("input")[8].value') == 'G'
-        assert await test_client.execute_js('document.querySelectorAll("input")[7].value') == '90,702.95'
+        await wait_for_input_values(test_client, weight_index=7, weight='90,702.95', unit_index=8, unit='G')
