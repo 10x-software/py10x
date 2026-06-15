@@ -187,6 +187,15 @@ async def wait_for_line_edit_type(
     await wait_for_js_value(test_client, f'{LINE_EDIT_INPUT_JS}.type', input_type, timeout_ms=timeout_ms)
 
 
+async def wait_for_line_edit_tooltip(
+    test_client,
+    text: str,
+    *,
+    timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
+) -> None:
+    await wait_for_js_value(test_client, LINE_EDIT_TOOLTIP_TEXT_JS, text, timeout_ms=timeout_ms)
+
+
 async def wait_for_calendar_client_date(
     test_client,
     expected: date,
