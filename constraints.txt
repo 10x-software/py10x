@@ -84,7 +84,7 @@ cycler==0.12.1
     # via matplotlib
 cython==3.2.5
     # via py10x-core (pyproject.toml)
-depgather==0.3.0 ; python_full_version >= '3.12'
+depgather==0.4.0 ; python_full_version >= '3.12'
     # via licensecheck
 dnspython==2.8.0
     # via pymongo
@@ -171,7 +171,9 @@ licensecheck==2026.0.1 ; python_full_version >= '3.12'
 llvmlite==0.47.0
     # via numba
 loguru==0.7.3
-    # via licensecheck
+    # via
+    #   depgather
+    #   licensecheck
 markdown==3.10.2
     # via licensecheck
 markdown-it-py==4.2.0
@@ -491,5 +493,5 @@ zipp==4.1.0 ; python_full_version < '3.12'
     # via importlib-metadata
 
 # The following packages were excluded from the output:
-# py10x-kernel
 # py10x-infra
+# py10x-kernel

@@ -14,7 +14,14 @@ from pathlib import Path
 
 import pytest
 
-from dev_10x.xx_helpers import GitHelpers, InstalledSourceHelpers, PyProjectHelpers, VersionHelpers
+from dev_10x.xx_helpers import (
+    GitHelpers,
+    GitHubHelpers,
+    InstalledSourceHelpers,
+    PyProjectHelpers,
+    PyPIHelpers,
+    VersionHelpers,
+)
 
 KERNEL = "py10x-kernel-v"
 
@@ -68,6 +75,25 @@ def test_latest_tag_picks_highest_rc_or_final():
     p = VersionHelpers.parse_pkg_tags([f"{KERNEL}0.2.1"], KERNEL)
     assert VersionHelpers.latest_tag(p) == (f"{KERNEL}0.2.1", Version("0.2.1"))
     assert VersionHelpers.latest_tag([]) is None
+
+
+def test_pending_promotions_only_since_latest_pypi_release():
+    """Tags strictly after the latest PyPI release are pending; older unpublished ones are dropped."""
+    # parsed() has finals 0.1.16, 0.2.0 and rc's 0.2.1rc1/rc2. With 0.2.0 published, only the
+    # 0.2.1 rc's remain pending; the old 0.1.16 final stays below the floor and is ignored.
+    pending = VersionHelpers.pending_promotions(parsed(), {Version("0.2.0")})
+    assert [t for t, _ in pending] == [f"{KERNEL}0.2.1rc1", f"{KERNEL}0.2.1rc2"]
+
+
+def test_pending_promotions_empty_when_frontier_published():
+    assert VersionHelpers.pending_promotions(parsed(), {Version("0.2.1rc2")}) == []
+
+
+def test_pending_promotions_unpublished_project_reports_latest_only():
+    """No PyPI releases yet -> just the single latest tag (the in-flight first release)."""
+    pending = VersionHelpers.pending_promotions(parsed(), set())
+    assert [t for t, _ in pending] == [f"{KERNEL}0.2.1rc2"]
+    assert VersionHelpers.pending_promotions([], set()) == []
 
 
 def test_repo_relative_subtree():
@@ -318,3 +344,60 @@ class TestInstalledSourceIntegration:
         assert kind in ('local', 'index', 'other')
         if kind == 'local':
             assert path is not None and path.is_dir()
+
+
+# ------------------------------------------------------------------ PyPI / GitHub status helpers
+class TestPyPIHelpers:
+    def test_parse_released_versions_drops_unparseable(self):
+        body = (
+            '{"releases": {"0.2.0": [], "0.2.1rc1": [], "0.2.1": [], "garbage": []}}'
+        )
+        got = PyPIHelpers.parse_released_versions(body)
+        assert got == {Version('0.2.0'), Version('0.2.1rc1'), Version('0.2.1')}
+
+    def test_parse_released_versions_empty(self):
+        assert PyPIHelpers.parse_released_versions('{}') == set()
+
+
+class TestParseRemoteSlug:
+    @pytest.mark.parametrize('url,slug', [
+        ('git@github.com:10x-software/py10x.git', '10x-software/py10x'),
+        ('git@github.com:10x-software/py10x', '10x-software/py10x'),
+        ('https://github.com/10x-software/py10x.git', '10x-software/py10x'),
+        ('https://github.com/10x-software/py10x', '10x-software/py10x'),
+        ('ssh://git@github.com/10x-software/cxx10x.git', '10x-software/cxx10x'),
+        ('  https://github.com/10x-software/py10x/  \n', '10x-software/py10x'),
+    ])
+    def test_forms(self, url, slug):
+        assert GitHubHelpers.parse_remote_slug(url) == slug
+
+
+class TestSelectRunForTag:
+    RUNS = [
+        {'head_branch': 'v0.2.1', 'created_at': '2026-01-02T00:00:00Z', 'status': 'completed',
+         'conclusion': 'success', 'html_url': 'u-new'},
+        {'head_branch': 'v0.2.1', 'created_at': '2026-01-01T00:00:00Z', 'status': 'completed',
+         'conclusion': 'failure', 'html_url': 'u-old'},
+        {'head_branch': 'v0.3.0', 'created_at': '2026-01-03T00:00:00Z', 'status': 'in_progress',
+         'conclusion': None, 'html_url': 'u-other'},
+    ]
+
+    def test_picks_latest_matching(self):
+        run = GitHubHelpers.select_run_for_tag(self.RUNS, 'v0.2.1')
+        assert run is not None and run['html_url'] == 'u-new'
+
+    def test_none_when_no_match(self):
+        assert GitHubHelpers.select_run_for_tag(self.RUNS, 'v9.9.9') is None
+
+
+class TestRunState:
+    def test_completed_reports_conclusion(self):
+        assert GitHubHelpers.run_state(
+            {'status': 'completed', 'conclusion': 'failure'}) == 'failure'
+
+    def test_in_flight_reports_status(self):
+        assert GitHubHelpers.run_state(
+            {'status': 'in_progress', 'conclusion': None}) == 'in_progress'
+
+    def test_none_run(self):
+        assert GitHubHelpers.run_state(None) == 'no workflow run found'

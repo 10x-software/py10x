@@ -11,11 +11,12 @@ from dev_10x import xx_promote as xp
 
 # ---------------------------------------------------------------- CLI routing (core_10x.traitable_cli)
 @pytest.mark.parametrize("argv,cls,dry_run,push", [
-    (["pre"],                       "Pre",  False, False),
-    (["pre", "--dry-run"],          "Pre",  True,  False),  # boolean --flag shortcut
-    (["pre", "--dry-run", "true"],  "Pre",  True,  False),  # explicit value
-    (["prod", "--push", "1"],       "Prod", False, True),
-    (["prod", "--no-dry-run"],      "Prod", False, False),  # --no-flag shortcut
+    (["pre"],                       "Pre",    False, False),
+    (["pre", "--dry-run"],          "Pre",    True,  False),  # boolean --flag shortcut
+    (["pre", "--dry-run", "true"],  "Pre",    True,  False),  # explicit value
+    (["prod", "--push", "1"],       "Prod",   False, True),
+    (["prod", "--no-dry-run"],      "Prod",   False, False),  # --no-flag shortcut
+    (["status"],                    "Status", False, False),
 ])
 def test_cli_routes_commands_and_flags(argv, cls, dry_run, push):
     """Flags are real bools: CONVERT_VALUES_ON in XxPromote.instance_from_args coerces the strings."""

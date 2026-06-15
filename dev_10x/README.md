@@ -85,6 +85,7 @@ For a sibling whose next version is `T` (`N` = the next micro, `FLOOR` = its las
 xx-promote pre                                # cut the next rc for every package (tagging only)
 xx-promote prod                               # promote each rc'd package to final
 xx-promote yank --pkg <name> --version <ver>  # yank a tag (rc or final)
+xx-promote status                             # pending promotions: tagged but not yet on PyPI
 ```
 
 - **`pre`** computes each package's own target `T` and next rc number, then tags the repo's
@@ -111,6 +112,13 @@ xx-promote yank --pkg <name> --version <ver>  # yank a tag (rc or final)
   manual PyPI yank instructions** — PyPI has no public yank API. Yanking a **final** also rolls
   `main`'s pins back to the latest non-yanked release; an rc yank is tag-rename only. There are
   intentionally **no** yank CI workflows.
+- **`status` - compares local tags (rc + final, `*_yanked` excluded) against PyPI and reports tags
+  pushed **since the latest PyPI release** that are not on the index yet. Publish is atomic in CI
+  (the workflow uploads to PyPI), so a version on the index is treated as successfully published;
+  the floor is simply `max(published)`. Superseded rc attempts before that floor and abandoned
+  pre-PyPI history are intentionally ignored. For each pending tag it prints the publish workflow
+  state (`in_progress` / `queued` / `failure` / `success` …) and a link to the run — that is how
+  you tell whether a tagged-but-unpublished rc is still running or failed.
 
 ### Safety levels (every subcommand, as `--option` flags)
 

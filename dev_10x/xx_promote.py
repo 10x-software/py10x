@@ -18,6 +18,7 @@ Subcommands:
     xx-promote pre                                  cut the next rc when the package tree changed
     xx-promote prod                                 promote packages whose latest tag is a pre-release
     xx-promote yank --pkg <name> --version <ver>    rename a tag to `<tag>_yanked`; roll back main pins
+    xx-promote status                               show pending promotions (tagged but not on PyPI)
 
 Safety levels (every subcommand), as `--option` flags:
     (default)        perform local changes only (git log/status to inspect, reset to undo)
@@ -32,13 +33,21 @@ from pathlib import Path
 from typing import Callable
 
 import tomlkit
+from packaging.version import Version
 
 from core_10x.exec_control import CONVERT_VALUES_ON
 from core_10x.rc import exc_to_rc
 from core_10x.trait_definition import RT
-from core_10x.traitable import RC, T, Traitable
+from core_10x.traitable import RC, RC_TRUE, T, Traitable
 from core_10x.traitable_cli import TraitableCli
-from dev_10x.xx_helpers import GitHelpers, PyProjectHelpers, VersionHelpers
+from dev_10x.xx_helpers import (
+    GhUnavailableError,
+    GitHelpers,
+    GitHubHelpers,
+    PyProjectHelpers,
+    PyPIHelpers,
+    VersionHelpers,
+)
 
 
 class Package(Traitable):
@@ -80,12 +89,14 @@ class XxPromote(TraitableCli):
         xx-promote pre                                cut the next rc when the package tree changed
         xx-promote prod                               promote packages whose latest tag is pre
         xx-promote yank --pkg <name> --version <ver>  yank a tag (rc or final)
+        xx-promote status                             list tagged-but-unpublished versions + CI state
     Flags: --dry-run (preview), --push (push to remotes). --base <path> overrides the py10x repo
     root (default: cwd). Boolean flags also accept the explicit `--flag true|false` form.
     """
-    dry_run: bool = T(False)   # converted from the CLI string by CONVERT_VALUES_ON (see below)
-    push: bool = T(False)
-    base: str = T(".")
+    dry_run: bool = RT(False)   # converted from the CLI string by CONVERT_VALUES_ON (see below)
+    push: bool = RT(False)
+    base: str = RT(".")
+
     packages: dict[str, Package] = RT()
     steps: list[Step] = RT()
 
@@ -340,6 +351,63 @@ class Yank(XxPromote, _command="yank"):
             apply=lambda: None,
         ))
         return steps
+
+
+class Status(XxPromote, _command="status"):
+    """xx-promote status  (pending promotions: tags pushed but the version isn't on PyPI yet)
+
+    For each package it compares local tags (rc + final, yanked tags excluded) against PyPI and
+    reports tags pushed since the latest PyPI release that are not on the index yet. For each
+    pending tag it resolves the publish workflow run and reports its state and a link. Read-only:
+    no git or remote mutation, ignores --dry-run / --push.
+    """
+
+    def _pending(self, name: str, pkg: Package) -> list[tuple[str, Version]]:
+        """Tags for `pkg` pushed since the latest PyPI release and not yet on the index."""
+        parsed = VersionHelpers.parse_pkg_tags(
+            GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix)
+        published = PyPIHelpers.published_versions(name)
+        return VersionHelpers.pending_promotions(parsed, published)
+
+    @staticmethod
+    def _runs(slug: str, cache: dict[str, list[dict]], errors: dict[str, str]) -> list[dict]:
+        """`gh` push runs for `slug`, fetched once per repo; gh errors degrade to an empty list."""
+        if slug not in cache:
+            try:
+                cache[slug] = GitHubHelpers.push_runs(slug)
+            except GhUnavailableError as e:
+                errors[slug] = str(e)
+                cache[slug] = []
+        return cache[slug]
+
+    def run(self) -> RC:
+        rc = self.verify()
+        if not rc:
+            return rc
+        print("xx-promote status  (tagged but not yet published on PyPI)\n")
+        runs_cache: dict[str, list[dict]] = {}
+        gh_errors: dict[str, str] = {}
+        any_pending = False
+        for name, pkg in self.packages.items():
+            slug = GitHubHelpers.remote_slug(pkg.repo)
+            runs = self._runs(slug, runs_cache, gh_errors)
+            pending = self._pending(name, pkg)
+            if not pending:
+                print(f"  {name}: up to date - nothing pending since the latest PyPI release.")
+                continue
+            any_pending = True
+            print(f"  {name}:")
+            for tag, _ver in pending:
+                run = GitHubHelpers.select_run_for_tag(runs, tag)
+                state = "unknown (gh unavailable)" if run is None and slug in gh_errors \
+                    else GitHubHelpers.run_state(run)
+                url = run.get("html_url", "") if run else ""
+                print(f"      {tag}  workflow: {state}{('  ' + url) if url else ''}")
+        if not any_pending:
+            print("\nNothing pending since the latest PyPI release.")
+        for slug, err in gh_errors.items():
+            print(f"\nnote: workflow state for {slug} is unavailable: {err}")
+        return RC_TRUE
 
 
 def main() -> int:

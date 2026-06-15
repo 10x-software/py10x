@@ -108,6 +108,31 @@ class VersionHelpers:
         """Highest-version tag (rc or final), or None when the package has never been tagged."""
         return max(parsed, key=lambda tv: tv[1]) if parsed else None
 
+    @classmethod
+    def pending_promotions(
+        cls,
+        parsed: list[tuple[str, Version]],
+        published: set[Version],
+    ) -> list[tuple[str, Version]]:
+        """Tags pushed since the latest PyPI release that are not on PyPI yet, oldest first.
+
+        The floor is `max(published)` — in this project's CI, publish is atomic (the workflow uploads
+        to PyPI), so a version on the index is a successful publish. Only tags strictly newer than
+        that floor and still absent from PyPI are reported; abandoned pre-PyPI history and superseded
+        rc attempts before the last publish stay hidden. When nothing is published yet, just the
+        single latest tag is returned (the in-flight first release).
+        """
+        if not parsed:
+            return []
+        if not published:
+            latest = cls.latest_tag(parsed)
+            return [latest] if latest else []
+        floor = max(published)
+        return sorted(
+            [(t, v) for t, v in parsed if v > floor and v not in published],
+            key=lambda tv: tv[1],
+        )
+
 
     @classmethod
     def dev_pin(cls,floor: str, target: str) -> str:
@@ -339,3 +364,103 @@ class InstalledSourceHelpers:
         if info is None or 'Version' not in info:
             raise RuntimeError(f'{name} is not installed in {self.project_root / ".venv"}')
         return info['Version']
+
+
+class PyPIHelpers:
+    """Query which versions of a distribution are published on PyPI (the JSON simple API)."""
+
+    @staticmethod
+    def parse_released_versions(json_text: str) -> set[Version]:
+        """Parsed (PEP 440) versions from a PyPI `/pypi/{name}/json` body's `releases` map.
+
+        Unparseable release keys are dropped so a malformed upload never breaks the comparison.
+        """
+        import json
+        data = json.loads(json_text)
+        out: set[Version] = set()
+        for raw in data.get('releases', {}):
+            try:
+                out.add(Version(raw))
+            except InvalidVersion:
+                continue
+        return out
+
+    @classmethod
+    def published_versions(cls, name: str, timeout: float = 10.0) -> set[Version]:
+        """Every version of `name` published on PyPI; empty set when the project has none yet.
+
+        A 404 means the project itself is not on the index (nothing published), which is a normal
+        first-release state - not an error.
+        """
+        from urllib import request, error
+        url = f'https://pypi.org/pypi/{name}/json'
+        try:
+            with request.urlopen(url, timeout=timeout) as resp:
+                return cls.parse_released_versions(resp.read().decode('utf-8'))
+        except error.HTTPError as e:
+            if e.code == 404:
+                return set()
+            raise
+
+
+class GhUnavailableError(RuntimeError):
+    """`gh` (GitHub CLI) is missing or its API call failed - workflow state can't be resolved."""
+
+
+class GitHubHelpers:
+    """Resolve the GitHub Actions run that a pushed tag triggered, via the `gh` CLI.
+
+    `gh` is used (rather than raw HTTP) so the caller's existing auth covers private repos; its
+    absence degrades to `GhUnavailable` rather than failing the whole status report.
+    """
+
+    @staticmethod
+    def parse_remote_slug(url: str) -> str:
+        """`owner/repo` from a git remote URL (scp-like `git@host:o/r.git`, https, or ssh://)."""
+        url = url.strip().removesuffix('.git')
+        if url.startswith('git@') or (':' in url and '://' not in url):
+            # scp-like syntax: git@github.com:owner/repo
+            url = url.split(':', 1)[1]
+        else:
+            # https://github.com/owner/repo or ssh://git@github.com/owner/repo
+            url = url.split('://', 1)[-1]
+            url = url.split('/', 1)[1] if '/' in url else url
+        return '/'.join(url.strip('/').split('/')[-2:])
+
+    @classmethod
+    def remote_slug(cls, repo: Path) -> str:
+        return cls.parse_remote_slug(GitHelpers.git(repo, 'remote', 'get-url', 'origin'))
+
+    @staticmethod
+    def select_run_for_tag(runs: list[dict], tag: str) -> dict | None:
+        """The most recent push-triggered run whose ref is `tag` (tags surface as `head_branch`)."""
+        matching = [r for r in runs if r.get('head_branch') == tag]
+        return max(matching, key=lambda r: r.get('created_at', '')) if matching else None
+
+    @staticmethod
+    def run_state(run: dict | None) -> str:
+        """Human-readable state: a completed run's conclusion, else its in-flight status."""
+        if run is None:
+            return 'no workflow run found'
+        if run.get('status') == 'completed':
+            return run.get('conclusion') or 'completed'
+        return run.get('status') or 'unknown'
+
+    @classmethod
+    def push_runs(cls, slug: str) -> list[dict]:
+        """The 100 most recent push-event workflow runs for `slug` (newest first).
+
+        Raises `GhUnavailableError` when `gh` is not installed or the API call fails.
+        """
+        import json
+        try:
+            proc = subprocess.run(
+                ['gh', 'api', f'repos/{slug}/actions/runs?event=push&per_page=100',
+                 '--jq', '.workflow_runs'],
+                capture_output=True, text=True, check=False,
+            )
+        except FileNotFoundError as e:
+            raise GhUnavailableError('gh (GitHub CLI) is not installed') from e
+        if proc.returncode != 0:
+            raise GhUnavailableError(proc.stderr.strip() or f'gh api failed for {slug}')
+        return json.loads(proc.stdout or '[]')
