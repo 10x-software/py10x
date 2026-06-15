@@ -29,10 +29,10 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import TYPE_CHECKING
 
-from dev_10x.xx_helpers import InstalledSourceHelpers
-
 if TYPE_CHECKING:
     from types import ModuleType
+
+    from dev_10x.xx_helpers import InstalledSourceHelpers
 
 PROJECT_ROOT = Path('.').resolve()  # the py10x repo root (cwd)
 PROFILE_FILE = '.dev_10x_profile'
@@ -52,14 +52,22 @@ def ensure_env_and_runtime_deps(project_root: Path) -> ModuleType:
     if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
         subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
     try:
+        import packaging  # noqa: F401 - xx_helpers import gate
         import tomlkit
         import setuptools_scm  # imported only to check availability
     except ImportError:
         subprocess.run(['uv', 'pip', 'install', '--python', sys.executable, '--quiet',
-                        '-c', 'constraints.txt', 'tomlkit', 'setuptools-scm'],
+                        '-c', 'constraints.txt', 'packaging', 'tomlkit', 'setuptools-scm'],
                        cwd=project_root, check=True)
         import tomlkit
     return tomlkit
+
+
+def _installed_source_helpers(project_root: Path) -> InstalledSourceHelpers:
+    """Lazy import: `xx_helpers` needs bootstrap deps installed first."""
+    from dev_10x.xx_helpers import InstalledSourceHelpers
+
+    return InstalledSourceHelpers(project_root)
 
 
 # --------------------------------------------------------------------------------------------
@@ -148,7 +156,7 @@ def source_version(src: Path) -> str:
 
 def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True,
                  installs: InstalledSourceHelpers | None = None) -> bool:
-    installs = installs or InstalledSourceHelpers(PROJECT_ROOT)
+    installs = installs or _installed_source_helpers(PROJECT_ROOT)
     cur_kind, cur_path = installs.installed_source(name)
     reason = None
     if cur_kind is None:
@@ -234,7 +242,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     prev_incremental = read_incremental_state(PROJECT_ROOT)
     toggled = prev_incremental is not None and prev_incremental != incremental
 
-    installs = InstalledSourceHelpers(PROJECT_ROOT)
+    installs = _installed_source_helpers(PROJECT_ROOT)
 
     print(f'uv-sync `{profile}`: ' + ', '.join(f'{p}={kinds[p]}' for p in pkgs))
     if toggled:
