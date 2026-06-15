@@ -92,7 +92,10 @@ def compile_() -> int:
         sys.exit(f'xx-constraints: sibling pyproject(s) not found: {", ".join(missing)}\n'
                  f'  the C++ siblings must be checked out (e.g. run `uv-sync py10x-core-dev`) so '
                  f'their third-party deps are frozen too.')
-    no_emit = [arg for name in siblings for arg in ('--no-emit-package', name)]
+    # Exclude every first-party package (siblings + any workspace members) from the emitted freeze,
+    # mirroring check()'s _first_party() set. The root project is never self-emitted by uv.
+    no_emit_names = sorted({*siblings, *_workspace_members()})
+    no_emit = [arg for name in no_emit_names for arg in ('--no-emit-package', name)]
     cmd = ['uv', 'pip', 'compile',
            'pyproject.toml', *[str(p) for p in siblings.values()],
            '--universal', '--all-extras', *no_emit,
