@@ -15,9 +15,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # PR / push: Linux + Windows on the recommended Python (3.12).
   full-tests:
-    name: Full tests
-    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: Full tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout
@@ -30,37 +40,38 @@ jobs:
           cache-dependency-glob: |
             **/pyproject.toml
 
-      - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Checkout kernel/infra
-        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
-
-      - name: Install dependencies
-        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
-
-      # uv-sync applies -c constraints.txt on every install, so the test env is frozen. Assert every
-      # installed third-party dist is pinned (catches a py10x or sibling dep that escaped the freeze).
-      - name: Verify env is fully frozen against constraints.txt
-        run: |
-          source .venv/bin/activate
-          xx-constraints check
-
-      - name: Start MongoDB (single-node replica set)
-        uses: supercharge/mongodb-github-action@1.12.1
+      - name: Run test suite
+        uses: ./.github/actions/ci-test-suite
         with:
-          mongodb-version: "7.0"
-          mongodb-replica-set: rs0
-          mongodb-port: 27017
+          python-version: "3.12"
 
-      - name: Install Playwright chromium
-        run: |
-          source .venv/bin/activate
-          playwright install --with-deps chromium
+  # Nightly / manual: full OS × Python matrix (requires-python floor through recommended).
+  full-matrix-tests:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    name: Full matrix (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.11", "3.12"]
 
-      - name: Run full test suite
-        env:
-          PYTHONUNBUFFERED: "1"
-        run: |
-          source .venv/bin/activate
-          pytest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: |
+            **/pyproject.toml
+
+      - name: Run test suite
+        uses: ./.github/actions/ci-test-suite
+        with:
+          python-version: ${{ matrix.python }}
