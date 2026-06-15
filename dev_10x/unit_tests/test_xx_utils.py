@@ -315,8 +315,6 @@ class TestDistInfoDirectUrl:
 class TestInstalledSourceIntegration:
     def test_against_project_venv(self):
         kind, path = InstalledSourceHelpers(Path('.')).installed_source('py10x-core')
-        if kind is None:
-            pytest.skip('py10x-core not installed in project .venv')
         assert kind in ('local', 'index', 'other')
         if kind == 'local':
             assert path is not None and path.is_dir()

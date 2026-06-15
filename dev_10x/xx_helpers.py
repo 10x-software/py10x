@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 from packaging.requirements import Requirement
@@ -301,8 +302,11 @@ class InstalledSourceHelpers:
         return 'other', None
 
     def venv_python(self) -> Path | None:
-        py = self.project_root / '.venv' / 'bin' / 'python'
-        return py if py.is_file() else None
+        ex = Path(sys.executable)
+        py = self.project_root / '.venv' / ('Scripts' if ex.suffix else 'bin') / ex.name
+        if not py.is_file():
+            raise RuntimeError(f"Cannot find python in .venv: {py}")
+        return py
 
     def pip_show(self, name: str) -> dict[str, str] | None:
         """`uv pip show` for `name` in the project `.venv`; None when not installed."""
