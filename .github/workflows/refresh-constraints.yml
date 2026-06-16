@@ -26,10 +26,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v8
         with:
           enable-cache: true
           cache-dependency-glob: |
@@ -105,7 +105,7 @@ jobs:
       # the PR's own CI run. Falls back to GITHUB_TOKEN otherwise.
       - name: Open PR with the tested freeze
         if: steps.diff.outputs.changed == 'true'
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.CONSTRAINTS_PR_TOKEN || github.token }}
           add-paths: constraints.txt
