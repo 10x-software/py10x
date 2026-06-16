@@ -1,0 +1,14 @@
+[project]
+name = "py10x-kernel-test"
+requires-python = ">=3.11,<3.13"
+dynamic = ["version"]
+dependencies = [
+    "py10x-core",
+    "py10x-kernel",
+    "py10x-infra",
+]
+
+[tool.uv.sources]
+py10x-kernel = {path="../../core_10x", editable=true}
+py10x-infra = {path="../../infra_10x", editable=true}
+py10x-core = {path="../../../py10x", editable=true}
