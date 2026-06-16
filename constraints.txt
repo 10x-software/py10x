@@ -280,7 +280,7 @@ pydantic==2.13.4
     # via
     #   fastapi
     #   licensecheck
-pydantic-core==2.46.4
+pydantic-core==2.47.0
     # via pydantic
 pyee==13.0.1
     # via playwright
