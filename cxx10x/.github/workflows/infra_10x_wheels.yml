@@ -91,9 +91,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest, windows-2025]
     steps:
       - uses: actions/checkout@v5
+
+      # windows-2025 keeps VS 2022 (MSVC 14.44). windows-latest is migrating to VS 2026
+      # (MSVC 14.50). Pin the toolset so scikit-build/cibuildwheel always use 14.44.
+      - name: Set up MSVC 14.44
+        if: runner.os == 'Windows'
+        uses: TheMrMilchmann/setup-msvc-dev@v4
+        with:
+          arch: x64
+          vsversion: "2022"
+          toolset: "14.44"
 
       - uses: actions/setup-python@v6
         with:
