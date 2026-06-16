@@ -49,7 +49,7 @@ jobs:
       - name: Recompile constraints.txt
         run: |
           source .venv/bin/activate
-          xx-constraints compile
+          xx-constraints compile --upgrade
 
       - name: Detect constraints change
         id: diff
@@ -116,7 +116,7 @@ jobs:
           body: |
             Automated weekly refresh of the third-party dependency freeze.
 
-            `xx-constraints compile` recompiled `constraints.txt` against the latest
+            `xx-constraints compile --upgrade` recompiled `constraints.txt` against the latest
             compatible PyPI graph of py10x-core and its cxx10x siblings (kernel/infra
             from `main`), and the **full test suite passed** against the fresh pins in
             this workflow run. Only `constraints.txt` changed — first-party packages
