@@ -25,6 +25,7 @@ async def ui_settle() -> None:
     await asyncio.sleep(UI_SETTLE_S)
 
 DEFAULT_DOM_TIMEOUT_MS = 10_000
+COLLECTION_EDITOR_TIMEOUT_MS = 30_000
 DEFAULT_POLL_TIMEOUT_S = 10.0
 
 LABEL_CLIENT_TEXT_JS = 'document.querySelector(".rio-text")?.children[0]?.innerText || ""'
@@ -255,6 +256,44 @@ async def wait_for_group_box_column_text(
     )
 
 
+async def wait_for_dialog_button(
+    test_client,
+    content: str,
+    *,
+    timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
+) -> None:
+    """Wait until a Rio button with the given label text is in the DOM."""
+    await test_client.playwright_page.wait_for_function(
+        f'''() => {{
+            for (const el of document.querySelectorAll(".rio-button")) {{
+                const textEl = el.querySelector(".rio-text");
+                const text = textEl?.children[0]?.innerText || textEl?.innerText || "";
+                if (text === {content!r}) return true;
+            }}
+            return false;
+        }}''',
+        timeout=timeout_ms,
+    )
+
+
+async def wait_for_selectable_item_text(
+    test_client,
+    text: str,
+    *,
+    timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
+) -> None:
+    """Wait until a selectable list item with the given text is in the DOM."""
+    await test_client.playwright_page.wait_for_function(
+        f'''() => {{
+            for (const el of document.querySelectorAll(".rio-selectable-item")) {{
+                if (el.innerText === {text!r}) return true;
+            }}
+            return false;
+        }}''',
+        timeout=timeout_ms,
+    )
+
+
 async def wait_for_weight_unit_pairs(
     test_client,
     weight: str,
@@ -287,6 +326,11 @@ async def wait_for_input_values(
     unit: str,
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
+    """Wait until indexed weight/unit inputs exist and hold the expected values."""
+    await test_client.playwright_page.wait_for_function(
+        f'() => document.querySelectorAll("input").length > {unit_index}',
+        timeout=timeout_ms,
+    )
     await test_client.playwright_page.wait_for_function(
         f'''() => {{
             const inputs = document.querySelectorAll("input");
