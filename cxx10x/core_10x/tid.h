@@ -10,7 +10,7 @@
 
 class BTraitableClass;
 
-class TID {
+class PY10X_API TID {
     BTraitableClass*    m_class;
     py::object          m_id;       //-- python's Traitable.ID instance
 

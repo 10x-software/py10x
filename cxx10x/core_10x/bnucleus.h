@@ -6,7 +6,7 @@
 
 #include "py_linkage.h"
 
-class BNucleus {
+class PY10X_API BNucleus {
 public:
     using DeserializationRecordMethod = std::function<py::object(py::object data_type, py::object serialized_data)>;
     using DeserializationRecordMap = std::unordered_map<py::object, DeserializationRecordMethod>;

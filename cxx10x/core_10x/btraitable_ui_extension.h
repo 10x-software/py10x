@@ -12,7 +12,7 @@ class BTraitableClass;
 class BTraitable;
 class BTrait;
 
-class BUiClass {
+class PY10X_API BUiClass {
     using Dir = std::unordered_map<const BTrait*, BTrait*>;
 
     BTraitableClass*    m_class;

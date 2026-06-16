@@ -3,7 +3,9 @@
 //
 #pragma once
 
-class BProcessContext {
+#include "py_linkage.h"
+
+class PY10X_API BProcessContext {
 public:
     //-- Unsigned properties by topic
     static constexpr unsigned  TP_TYPE       = 0;    //-- Trait Processor Type

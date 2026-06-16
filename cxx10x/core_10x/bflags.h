@@ -6,7 +6,9 @@
 #include <sstream>
 #include <stdint.h>
 
-class BFlags {
+#include "py_linkage.h"
+
+class PY10X_API BFlags {
     uint64_t        m_flags;
     //std::string     m_name;
 

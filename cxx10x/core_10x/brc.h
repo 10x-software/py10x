@@ -5,7 +5,7 @@
 
 #include "py_linkage.h"
 
-class BRC {
+class PY10X_API BRC {
 //public:
 //    int         m_rc;
 //    py::list    m_payload;

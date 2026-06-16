@@ -8,7 +8,7 @@
 
 #include "py_linkage.h"
 
-class OsUser {
+class PY10X_API OsUser {
     std::string     m_name;
 
     static bool get_user_name(std::string& user_name);

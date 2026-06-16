@@ -256,7 +256,7 @@ using BCurve = CurveTemplate<double>;
 //   BDateCurve
 //==
 
-class BDateCurve : public CurveTemplate<int> {
+class PY10X_API BDateCurve : public CurveTemplate<int> {
 public:
     BDateCurve() = default;
     BDateCurve(std::vector<int> times, std::vector<double> values)

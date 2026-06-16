@@ -41,7 +41,7 @@ public:
     static const BFlags* flag(const unsigned v)     { return new BFlags(v); }
 };
 
-class BTrait {
+class PY10X_API BTrait {
     bool            m_getter_has_args;
 public:
     BTraitProcessor*    m_proc = nullptr;

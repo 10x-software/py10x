@@ -21,7 +21,7 @@ public:
     inline static const int GRAPH           = 4;
 };
 
-class BasicNode {
+class PY10X_API BasicNode {
 protected:
     using NodeSet = std::set<BasicNode*>;
 
@@ -76,7 +76,7 @@ public:
 
 };
 
-class TreeNode : public BasicNode {
+class PY10X_API TreeNode : public BasicNode {
 protected:
     NodeSet     m_parents;
 
@@ -134,7 +134,7 @@ public:
     }
 };
 
-class BasicGraphNode : public TreeNode {
+class PY10X_API BasicGraphNode : public TreeNode {
 protected:
     NodeSet     m_children;
 
@@ -164,7 +164,7 @@ public:
 
 class BTrait;
 
-class GraphNode : public BasicGraphNode {
+class PY10X_API GraphNode : public BasicGraphNode {
 protected:
     py::object m_class;
     //TID*        m_tid;
@@ -180,7 +180,7 @@ public:
 
 };
 
-class BUiNode : public BasicGraphNode {
+class PY10X_API BUiNode : public BasicGraphNode {
     py::object  f_refresh_emit;
 
 public:

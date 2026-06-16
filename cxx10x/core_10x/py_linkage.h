@@ -9,7 +9,9 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
-// PY10X_API: controls symbol visibility for cross-module C++ inheritance.
+// PY10X_API: controls symbol visibility for cross-module C++ inheritance and
+// use of types (vtables, typeinfo, pointers, subclassing) from other extensions
+// such as cxxfin.
 // On Windows: dllexport when building py10x_kernel, dllimport when consuming.
 // On GCC/Clang: visibility("default") overrides -fvisibility=hidden for these classes.
 #if defined(_WIN32)
@@ -70,7 +72,7 @@ enum class CORE_10X {
     PACKAGE_REFACTORING_FIND_CLASS_ID
 };
 
-class PyLinkage {
+class PY10X_API PyLinkage {
     //-- builtins
     py::object          m_type_cls;
     py::object          m_bool_cls;

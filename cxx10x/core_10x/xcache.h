@@ -176,7 +176,7 @@ public:
     void        clear_lazy_load_flags(const unsigned lazy_load_flags)                           { m_lazy_load_flags &= ~lazy_load_flags; }
 };
 
-class XCache {
+class PY10X_API XCache {
 protected:
     using IDs           = py::set;
     using IDsByClass    = std::unordered_map<BTraitableClass*, IDs>;    // extra map to facilitate obj search
