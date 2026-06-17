@@ -1,0 +1,80 @@
+name: Pre-publish tests
+description: Run py10x-core's suite against this checkout's kernel/infra with the pinned py10x-core version
+inputs:
+  pyproject-path:
+    description: Path to the sibling pyproject.toml whose test group pins py10x-core
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0   # full history + all tags so setuptools-scm versions BOTH siblings
+                         # (the other sibling's tag is on an ancestor; shallow clone yields 0.1.dev1)
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-dependency-glob: "**/pyproject.toml"
+
+    - name: Set up Python
+      shell: bash
+      run: uv python install 3.12
+
+    - name: Start MongoDB (single-node replica set)
+      uses: supercharge/mongodb-github-action@1.12.1
+      with:
+        mongodb-version: "7.0"
+        mongodb-replica-set: rs0
+        mongodb-port: 27017
+
+    # The reverse [dependency-groups] test pin names the exact py10x-core to test against.
+    - name: Resolve pinned py10x-core version
+      id: core
+      shell: bash
+      run: |
+        CORE_VER=$(python3 -c "import re; print(re.search(r'py10x-core==([\w.]+)', open('${{ inputs.pyproject-path }}').read()).group(1))")
+        echo "version=$CORE_VER" >> "$GITHUB_OUTPUT"
+
+    # py10x as a sibling of this checkout, so `../cxx10x` from py10x points back here.
+    - name: Checkout py10x at the pinned version
+      shell: bash
+      run: |
+        git clone https://github.com/10x-software/py10x.git "${{ github.workspace }}/../py10x"
+        git -C "${{ github.workspace }}/../py10x" checkout "v${{ steps.core.outputs.version }}"
+
+    - name: Install local kernel/infra, then py10x-core
+      shell: bash
+      working-directory: ${{ github.workspace }}/../py10x
+      run: |
+        uv venv
+        uv pip install -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
+        uv pip install -e . --all-extras --requirements pyproject.toml
+
+    - name: Install Playwright chromium
+      shell: bash
+      working-directory: ${{ github.workspace }}/../py10x
+      run: uv run --no-sync playwright install --with-deps chromium
+
+    - name: Verify versions + run py10x-core suite
+      shell: bash
+      working-directory: ${{ github.workspace }}/../py10x
+      env:
+        PYTHONUNBUFFERED: "1"
+        CORE_VER: ${{ steps.core.outputs.version }}
+      run: |
+        uv run --no-sync python - <<'PY'
+        import json, os
+        from importlib.metadata import version, distribution
+        from packaging.version import Version
+        core = Version(version("py10x-core"))
+        assert core == Version(os.environ["CORE_VER"]), f"py10x-core {core} != pinned {os.environ['CORE_VER']}"
+        def editable(name):  # PEP 610: editable installs record dir_info.editable
+            raw = distribution(name).read_text("direct_url.json") or "{}"
+            return json.loads(raw).get("dir_info", {}).get("editable", False)
+        for s in ("py10x-kernel", "py10x-infra"):
+            assert editable(s), f"{s} not editable from local checkout - py10x-core's pin pulled an index build"
+        print(f"py10x-core {core}; kernel {version('py10x-kernel')}; infra {version('py10x-infra')} OK")
+        PY
+        uv run --no-sync pytest

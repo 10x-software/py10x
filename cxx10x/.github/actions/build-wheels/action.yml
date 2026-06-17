@@ -1,0 +1,36 @@
+name: Build wheels
+description: Build platform wheels with cibuildwheel and upload them as a workflow artifact
+inputs:
+  package-dir:
+    description: Package directory passed to cibuildwheel
+    required: true
+  artifact-name:
+    description: Name for the uploaded wheel artifact
+    required: true
+  manylinux-image:
+    description: CIBW_MANYLINUX_X86_64_IMAGE value
+    required: false
+    default: manylinux_2_34
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v5
+
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v3.3.1
+      with:
+        package-dir: ${{ inputs.package-dir }}
+        output-dir: ${{ inputs.package-dir }}/wheelhouse
+      env:
+        CIBW_BUILD: "cp311-* cp312-*"
+        CIBW_SKIP: "*-musllinux_*"
+        CIBW_ARCHS_LINUX: "x86_64"
+        CIBW_ARCHS_MACOS: "universal2"
+        CIBW_ARCHS_WINDOWS: "AMD64"
+        CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=13.3'
+        CIBW_MANYLINUX_X86_64_IMAGE: ${{ inputs.manylinux-image }}
+
+    - uses: actions/upload-artifact@v7
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.package-dir }}/wheelhouse/*.whl
