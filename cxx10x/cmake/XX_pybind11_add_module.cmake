@@ -27,10 +27,24 @@ macro(xx_pybind11_add_module target)
             VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
     )
 
-    # On Windows, link against py10x_kernel's import library (.lib) so the
-    # MSVC linker can resolve symbols like BTraitable that are dllimport-annotated.
-    # The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
+    # On Windows, we do two things:
+    # 1. Check that the client is built with the same 4-digit MSVC_VERSION
+    #    as the py10x-kernel for this release (for PYBIND11_INTERNALS_ID /
+    #    cross-module type registration of BTraitable etc.).
+    # 2. Link against py10x_kernel's import library (.lib) so the MSVC linker
+    #    can resolve symbols like BTraitable that are dllimport-annotated.
+    #    The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
     if(WIN32)
+        if(NOT MSVC)
+            message(FATAL_ERROR "py10x-kernel requires MSVC on Windows")
+        endif()
+
+        set(PY10X_REQUIRED_MSVC_VERSION 1944)
+        if(NOT MSVC_VERSION EQUAL PY10X_REQUIRED_MSVC_VERSION)
+            message(FATAL_ERROR "py10x-kernel requires MSVC_VERSION=${PY10X_REQUIRED_MSVC_VERSION}")
+        endif()
+
+        # --- Import library handling for symbol visibility (original) ---
         # Importing py10x_kernel triggers scikit-build-core's editable rebuild hook,
         # which prints "Running cmake --build & --install ..." to stdout. Wrap the
         # path in sentinels so we can extract just the path, ignoring that chatter.
