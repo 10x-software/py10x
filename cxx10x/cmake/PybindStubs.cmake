@@ -6,10 +6,7 @@ option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer
 
 function(_resolve_lib_output_dir)
     if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
-        # Multi-config generators (Visual Studio) put Release artifacts under Release/;
-        # single-config generators (Ninja) put them in the build root. CI uses Ninja
-        # on Windows so py10x_kernel.lib must be resolved from the same directory as the .pyd.
-        if(WIN32 AND CMAKE_CONFIGURATION_TYPES)
+        if(WIN32)
             set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Release PARENT_SCOPE)
         else()
             set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} PARENT_SCOPE)
@@ -26,9 +23,10 @@ function(_install_import_lib target)
     if(NOT MSVC)
         return()
     endif()
-    # TARGET_LINKER_FILE resolves to the import .lib for MODULE/shared targets on
-    # Windows regardless of generator (VS Release/ vs Ninja flat layout).
-    install(FILES $<TARGET_LINKER_FILE:${target}> DESTINATION .)
+    _resolve_lib_output_dir()
+    install(DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/"
+            DESTINATION .
+            FILES_MATCHING PATTERN "${target}*.lib")
 endfunction()
 
 function(_add_rtld_link_options target)

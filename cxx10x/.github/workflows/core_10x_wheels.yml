@@ -95,9 +95,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # windows-2025 may already ship VS 2026; setup-msvc-dev selects toolset 14.44 in
-      # PATH. scikit-build-core otherwise auto-picks the newest VS generator (18 2026 /
-      # cl 19.51), ignoring that. Force Ninja so CMake uses cl from the vcvars env.
+      # Pin MSVC 14.44 on the VS generator (default for scikit-build on Windows).
+      # Do not force Ninja: it changes the build tree layout and broke .lib install.
       - name: Set up MSVC 14.44
         if: runner.os == 'Windows'
         uses: TheMrMilchmann/setup-msvc-dev@v4
@@ -117,7 +116,7 @@ jobs:
           CIBW_ARCHS_MACOS: "universal2"
           CIBW_ARCHS_WINDOWS: "AMD64"
           CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=13.3'
-          CIBW_ENVIRONMENT_WINDOWS: 'CMAKE_GENERATOR=Ninja'
+          CIBW_ENVIRONMENT_WINDOWS: 'CMAKE_ARGS=-DCMAKE_GENERATOR_TOOLSET=version=14.44'
           CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_34"
 
       - uses: actions/upload-artifact@v7
