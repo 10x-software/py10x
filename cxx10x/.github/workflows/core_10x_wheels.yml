@@ -12,6 +12,10 @@ jobs:
     name: Pre-publish tests
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0   # full history + all tags so setuptools-scm versions BOTH siblings
+
       - uses: ./.github/actions/pre-publish-tests
         with:
           pyproject-path: core_10x/pyproject.toml
@@ -24,6 +28,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2025]
     steps:
+      - uses: actions/checkout@v5
+
       - uses: ./.github/actions/build-wheels
         with:
           package-dir: core_10x
@@ -36,4 +42,6 @@ jobs:
     permissions:
       id-token: write
     steps:
+      - uses: actions/checkout@v5
+
       - uses: ./.github/actions/upload-wheels
