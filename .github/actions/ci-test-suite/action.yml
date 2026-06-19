@@ -32,42 +32,10 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check
 
-    - name: Start MongoDB (single-node replica set)
-      if: runner.os != 'Windows'
-      uses: supercharge/mongodb-github-action@1.12.1
+    - name: Setup Mongo replica set
+      uses: ./.github/actions/setup-mongo-replica-set
       with:
         mongodb-version: ${{ inputs.mongodb-version }}
-        mongodb-replica-set: rs0
-        mongodb-port: 27017
-
-    # Standalone MongoDB is enough on Windows; transaction tests skip when replica set is absent.
-    - name: Start MongoDB (standalone)
-      if: runner.os == 'Windows'
-      shell: bash
-      env:
-        MONGODB_DATA_DIR: ${{ runner.temp }}/mongodb-data
-        MONGOD: /c/Program Files/MongoDB/Server/${{ inputs.mongodb-version }}/bin/mongod.exe
-      run: |
-        if [ ! -x "$MONGOD" ]; then
-          echo "mongod.exe not found at $MONGOD (expected MongoDB ${{ inputs.mongodb-version }} on runner)" >&2
-          exit 1
-        fi
-        mkdir -p "$MONGODB_DATA_DIR"
-        "$MONGOD" --dbpath "$MONGODB_DATA_DIR" --port 27017 --bind_ip 127.0.0.1 \
-          > "$MONGODB_DATA_DIR/mongod.log" 2>&1 &
-
-        deadline=$(( $(date +%s) + 30 ))
-        while true; do
-          if mongosh "mongodb://127.0.0.1:27017" --quiet --eval "db.adminCommand('ping')"; then
-            break
-          fi
-          if [ "$(date +%s)" -ge "$deadline" ]; then
-            echo "MongoDB did not start within 30 seconds" >&2
-            cat "$MONGODB_DATA_DIR/mongod.log" >&2 || true
-            exit 1
-          fi
-          sleep 1
-        done
 
     - name: Install Playwright chromium
       shell: bash
