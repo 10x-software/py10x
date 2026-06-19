@@ -133,9 +133,11 @@ class NamedConstant(Nucleus):
 
     def __init_subclass__(
         cls,
-        default_labels: bool    = None,    #-- if True and a label is not defined, creates it by calling default_label(name)
-        lowercase_values: bool  = None,    #-- if a value is not defined, sets it to name, or name.lower() if True
-        data_type: type         = None,    #-- if value is not defined it is taken from superclass or the first value
+        default_labels: bool    = None,     #-- if True and a label is not defined, creates it by calling default_label(name)
+        lowercase_values: bool  = None,     #-- if a value is not defined, sets it to name, or name.lower() if True
+        data_type: type         = None,     #-- if value is not defined it is taken from superclass or the first value
+        symbols_from            = None,     #-- a class or tuple of classes whose UPPERCASE attributes populate s_dir
+                                                # if provided, the cls' UPPERCASE attrs do NOT populate s_dir
     ):
         sdir = cls.s_dir = {name: cls(cdef.name, cdef.label, cdef.value) for name, cdef in cls.s_dir.items()}
 
@@ -154,28 +156,45 @@ class NamedConstant(Nucleus):
         else:
             data_type = cls.s_data_type
 
-        for name, constant_definition in cls.__dict__.items():
-            if not name.isupper():
-                continue
+        if symbols_from is not None:
+            sources = symbols_from if isinstance(symbols_from, tuple) else (symbols_from,)
+            for source in sources:
+                for name, value in source.__dict__.items():
+                    if not name.isupper() or name.startswith('_'):
+                        continue
+                    cdef = cls()
+                    cdef.name  = name
+                    cdef.label = cls.default_label(name) if default_labels else name
+                    cdef.value = value
+                    dt = type(value)
+                    if data_type is None:
+                        data_type = dt
+                    else:
+                        assert issubclass(dt, data_type), f'{cls}.{name} (from {source.__name__}) must be a subclass of {data_type}'
+                    sdir[name] = cdef
+        else:
+            for name, constant_definition in cls.__dict__.items():
+                if not name.isupper():
+                    continue
 
-            cdef = cls._create(constant_definition)
-            cdef.name = name
-            if not cdef.label:
-                cdef.label = cls.default_label(name) if default_labels else name
+                cdef = cls._create(constant_definition)
+                cdef.name = name
+                if not cdef.label:
+                    cdef.label = cls.default_label(name) if default_labels else name
 
-            if cdef.value is None:
-                value = cls.next_auto_value()
-                if value is None:
-                    value = name if not lowercase_values else name.lower()
-                cdef.value = value
+                if cdef.value is None:
+                    value = cls.next_auto_value()
+                    if value is None:
+                        value = name if not lowercase_values else name.lower()
+                    cdef.value = value
 
-            dt = type(cdef.value)
-            if data_type is None:
-                data_type = dt
-            else:
-                assert issubclass(dt, data_type), f'{cls}.{name} must be a subclass of {data_type}'
+                dt = type(cdef.value)
+                if data_type is None:
+                    data_type = dt
+                else:
+                    assert issubclass(dt, data_type), f'{cls}.{name} must be a subclass of {data_type}'
 
-            sdir[name] = cdef
+                sdir[name] = cdef
 
         cls.s_data_type = data_type
         if getattr(data_type, '__hash__', None):    #-- check if data_type is hashable and build the reverse dir if so
