@@ -953,11 +953,21 @@ with GRAPH_ON() as gp2:
 | `objects` | `obj` is a `Traitable` instance | `obj` is a raw `ID` |
 | `trait_names` | `trait` is the `Trait` object | `trait` is the trait name string |
 
-##### `perturb()` and `perturb_value()` — overwriting cached node values
+##### `perturb()` — writing back into the graph cache
 
-`perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple and invalidates the root computed trait so it recomputes on next access — the same observable effect as assigning via `set_value`, but bypassing any custom setter.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.
+`deps()` has two modes controlled by the `objects` flag:
 
-`perturb_value` is a convenience wrapper for when you already hold a Traitable instance: it accepts the instance and a trait name string (matching what `deps(trait_names=True)` returns) instead of the raw `(class, id, trait)` triple.  If you already hold the instance and know the trait name, a plain assignment (`instance.trait = value`) is equivalent and simpler.
+| mode | call | yields | what to do with it |
+|------|------|--------|--------------------|
+| optimized | `deps(objects=False)` | raw `ID` + `Trait` object | `gd.perturb(cls, obj_id, trait, new_value)` |
+| simplified | `deps(objects=True)` | `Traitable` instance + `Trait` object | `obj.set_trait_value(trait, new_value)` |
+| simplified (string keys) | `deps(objects=True, trait_names=True)` | `Traitable` instance + name `str` | `obj.set_value(name, new_value)` |
+
+The default is `objects=True, trait_names=False`.
+
+`perturb` is designed for the optimized path: it writes directly into the graph cache using the raw `(cls, id, trait)` triple that `deps(objects=False)` returns — no Python instance is ever constructed.  It bypasses any custom `*_set` method, equivalent to `raw_set_value`.  The root computed trait is then invalidated so it recomputes on next access.
+
+When you use `deps(objects=True)` and already hold a Traitable instance, call `set_value` / `set_trait_value` / `raw_set_value` directly on the instance — or simply assign `obj.trait = value`.
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
@@ -978,7 +988,7 @@ class Index(Traitable):
         return Equity(ticker='X').price + Equity(ticker='Y').price
 
 
-# perturb(): keys come directly from deps(objects=False) — no instance needed
+# optimized: no Python instances constructed for the leaf nodes
 with GRAPH_ON() as gp:
     Equity(ticker='X').price = 50.0
     Equity(ticker='Y').price = 50.0
@@ -987,11 +997,11 @@ with GRAPH_ON() as gp:
     gd = GraphDeps(gp, idx.T.value, Equity, 'price')
 
     for cls, obj_id, trait, val in gd.deps(objects=False):
-        gd.perturb(cls, obj_id, trait, val * 2.0)
+        gd.perturb(cls, obj_id, trait, val * 2.0)   # cls/obj_id/trait straight from deps()
 
     assert idx.value == 200.0
 
-# perturb_value(): string-keyed variant using deps(trait_names=True)
+# simplified: instances already available; set_value/assignment works directly
 with GRAPH_ON() as gp:
     Equity(ticker='X').price = 50.0
     Equity(ticker='Y').price = 50.0
@@ -1000,22 +1010,10 @@ with GRAPH_ON() as gp:
     gd = GraphDeps(gp, idx.T.value, Equity, 'price')
 
     for cls, obj, trait_name, val in gd.deps(trait_names=True):
-        gd.perturb_value(obj, trait_name, val * 2.0)
+        obj.set_value(trait_name, val * 2.0)
 
     assert idx.value == 200.0
-
-# plain assignment: equivalent when you hold the instance and know the trait
-with GRAPH_ON() as gp:
-    Equity(ticker='X').price = 50.0
-    Equity(ticker='Y').price = 50.0
-    idx = Index(name='idx3')
-    _ = idx.value
-
-    Equity(ticker='X').price = 100.0
-    assert idx.value == 150.0   # 100 + 50
 ```
-
-> `perturb` addresses graph cache nodes by `(class, id, trait)` rather than by object reference, so it can update nodes for objects that were never materialized as Python instances — useful when iterating over a large dependency graph where constructing every object would be wasteful.
 
 ##### When `deps()` returns nothing
 
@@ -1026,9 +1024,11 @@ with GRAPH_ON() as gp:
 
 ##### Subclassing `GraphDeps` — domain-specific wrappers
 
-`GraphDeps` is designed to be subclassed.  In domain code the `target_class` and the relevant trait names are fixed by the domain model, so a thin subclass can encode them as defaults and spare every call-site from repeating them.
+In a larger system, define a **common base class** for all Traitable classes (current and future) that are leaf inputs for a given use case.  Passing that base class as `target_class` means new subclasses are automatically included without changing any call site — and `Traitable` itself is the extreme case that matches everything.
 
-The idiomatic pattern is to declare a class-level `s_leaf_trait_names` on the quotable base class and read it back in the `GraphDeps` subclass constructor:
+Then create a **`GraphDeps` subclass** that encodes the base class and the relevant trait names once.  Call sites need to supply neither:
+
+
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
