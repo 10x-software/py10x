@@ -1,5 +1,6 @@
 import sys
 
+from core_10x.exec_control import CONVERT_VALUES_ON
 from core_10x.traitable import RC, RC_TRUE, Traitable
 
 
@@ -45,7 +46,9 @@ class TraitableCli(Traitable):
         if not rc:
             return rc, None
 
-        return cls.instantiate(args, trait_values)
+        # -- CLI tokens are always strings, so convert them to the target trait types.
+        with CONVERT_VALUES_ON():
+            return cls.instantiate(args, trait_values)
 
     @classmethod
     def instantiate(cls, args, trait_values: dict) -> tuple:  # -- (RC, target_traitable)

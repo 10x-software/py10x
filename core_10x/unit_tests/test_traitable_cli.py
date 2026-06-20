@@ -1,6 +1,6 @@
 import pytest
 
-from core_10x.exec_control import CONVERT_VALUES_ON
+from core_10x.exec_control import CONVERT_VALUES_OFF
 from core_10x.traitable import T
 from core_10x.traitable_cli import TraitableCli
 
@@ -112,8 +112,8 @@ def test_parse_bare_double_dash():
 # ----------------------------------------------------------------------------
 
 def test_instantiate_master_no_subcommand():
-    with CONVERT_VALUES_ON():
-        rc, obj = Cli.instance_from_args(['--verbose', 'true'])
+    # instance_from_args() converts string tokens to trait types on its own.
+    rc, obj = Cli.instance_from_args(['--verbose', 'true'])
     assert rc
     assert type(obj) is Cli
     assert obj.verbose is True
@@ -121,8 +121,7 @@ def test_instantiate_master_no_subcommand():
 
 def test_instantiate_master_boolean_shortcut():
     # --verbose (no value) is equivalent to --verbose true
-    with CONVERT_VALUES_ON():
-        rc, obj = Cli.instance_from_args(['--verbose'])
+    rc, obj = Cli.instance_from_args(['--verbose'])
     assert rc
     assert type(obj) is Cli
     assert obj.verbose is True
@@ -130,16 +129,14 @@ def test_instantiate_master_boolean_shortcut():
 
 def test_instantiate_master_no_boolean_shortcut():
     # --no-verbose is equivalent to --verbose false
-    with CONVERT_VALUES_ON():
-        rc, obj = Cli.instance_from_args(['--no-verbose'])
+    rc, obj = Cli.instance_from_args(['--no-verbose'])
     assert rc
     assert type(obj) is Cli
     assert obj.verbose is False
 
 
 def test_instantiate_subcommand_add():
-    with CONVERT_VALUES_ON():
-        rc, obj = Cli.instance_from_args(['add', '--a', '2', '--b', '3'])
+    rc, obj = Cli.instance_from_args(['add', '--a', '2', '--b', '3'])
     assert rc
     assert type(obj) is Add
     assert obj.a == 2.0
@@ -147,11 +144,19 @@ def test_instantiate_subcommand_add():
 
 
 def test_instantiate_subcommand_uses_defaults():
-    with CONVERT_VALUES_ON():
-        rc, obj = Cli.instance_from_args(['greet'])
+    rc, obj = Cli.instance_from_args(['greet'])
     assert rc
     assert type(obj) is Greet
     assert obj.name == 'world'
+
+
+def test_instantiate_forces_conversion_inside_convert_off():
+    # instance_from_args() turns value conversion on itself, overriding the surrounding context.
+    with CONVERT_VALUES_OFF():
+        rc, obj = Cli.instance_from_args(['add', '--a', '2', '--b', '3'])
+    assert rc
+    assert obj.a == 2.0
+    assert obj.b == 3.0
 
 
 # ----------------------------------------------------------------------------
