@@ -135,7 +135,7 @@ class TestGraphDeps:
         assert list(gd.deps()) == []
 
     def test_perturb(self, gp, portfolio):
-        """perturb() overwrites a cached node; trait and id come from deps() itself."""
+        """perturb() overwrites a cached node and invalidates the dependent root."""
         pf = portfolio
         assert pf.value == 300.0
 
@@ -149,9 +149,10 @@ class TestGraphDeps:
                 gd.perturb(cls, obj.id(), trait, 150.0)
 
         assert self.Quote(symbol='AAPL').price == 150.0
+        assert pf.value == 350.0  # 150 + 200
 
     def test_perturb_value(self, gp, portfolio):
-        """perturb_value() convenience wrapper; obj comes from deps()."""
+        """perturb_value() convenience wrapper invalidates the dependent root."""
         pf = portfolio
         assert pf.value == 300.0
 
@@ -165,6 +166,7 @@ class TestGraphDeps:
                 gd.perturb_value(obj, 'price', 250.0)
 
         assert self.Quote(symbol='MSFT').price == 250.0
+        assert pf.value == 350.0  # 100 + 250
 
     def test_reflects_price_update(self, gp, portfolio):
         """After a normal price change, GraphDeps reports the updated cached value."""

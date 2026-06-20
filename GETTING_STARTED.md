@@ -914,7 +914,7 @@ with GRAPH_ON() as gp:
 
 ##### `perturb()` and `perturb_value()` — overwriting cached node values
 
-`perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple without invalidating or re-running any getter.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.  `perturb_value` is a convenience wrapper that takes a `Traitable` instance and a trait name string instead.
+`perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple and then invalidates the root computed trait so it will be recomputed on next access — identical to the effect of assigning the value through `set_value`.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.  `perturb_value` is a convenience wrapper that takes a `Traitable` instance and a trait name string instead.
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
