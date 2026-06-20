@@ -957,7 +957,7 @@ with GRAPH_ON() as gp2:
 
 `perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple and invalidates the root computed trait so it recomputes on next access — the same observable effect as assigning via `set_value`, but bypassing any custom setter.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.
 
-`perturb_value` is a convenience wrapper for when you already hold a Traitable instance: it accepts the instance and a trait name string (matching what `deps(trait_names=True)` returns) instead of the raw `(class, id, trait)` triple.
+`perturb_value` is a convenience wrapper for when you already hold a Traitable instance: it accepts the instance and a trait name string (matching what `deps(trait_names=True)` returns) instead of the raw `(class, id, trait)` triple.  If you already hold the instance and know the trait name, a plain assignment (`instance.trait = value`) is equivalent and simpler.
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
@@ -978,6 +978,7 @@ class Index(Traitable):
         return Equity(ticker='X').price + Equity(ticker='Y').price
 
 
+# perturb(): keys come directly from deps(objects=False) — no instance needed
 with GRAPH_ON() as gp:
     Equity(ticker='X').price = 50.0
     Equity(ticker='Y').price = 50.0
@@ -985,47 +986,36 @@ with GRAPH_ON() as gp:
     _ = idx.value
     gd = GraphDeps(gp, idx.T.value, Equity, 'price')
 
-    factor = 2.0
     for cls, obj_id, trait, val in gd.deps(objects=False):
-        gd.perturb(cls, obj_id, trait, val * factor)   # all three keys come from deps()
+        gd.perturb(cls, obj_id, trait, val * 2.0)
 
     assert idx.value == 200.0
-```
 
-> `perturb` addresses graph cache nodes by `(class, id, trait)` rather than by object reference, so it can update nodes for objects that were never materialized as Python instances — useful when iterating over a large dependency graph where constructing every object would be wasteful.
-
-`perturb_value` is the string-keyed variant — use it when `deps(objects=True, trait_names=True)` is more convenient than the raw triple:
-
-```python
-from core_10x.exec_control import GRAPH_ON, GraphDeps
-
+# perturb_value(): string-keyed variant using deps(trait_names=True)
 with GRAPH_ON() as gp:
     Equity(ticker='X').price = 50.0
     Equity(ticker='Y').price = 50.0
-    idx = Index(name='idx')
+    idx = Index(name='idx2')
     _ = idx.value
     gd = GraphDeps(gp, idx.T.value, Equity, 'price')
 
     for cls, obj, trait_name, val in gd.deps(trait_names=True):
-        gd.perturb_value(obj, trait_name, val * 2.0)   # obj + string name from deps()
+        gd.perturb_value(obj, trait_name, val * 2.0)
 
     assert idx.value == 200.0
-```
 
-If you already hold the instance and just want to update one known trait, a plain assignment is equivalent and simpler:
-
-```python
-from core_10x.exec_control import GRAPH_ON
-
+# plain assignment: equivalent when you hold the instance and know the trait
 with GRAPH_ON() as gp:
     Equity(ticker='X').price = 50.0
     Equity(ticker='Y').price = 50.0
-    idx2 = Index(name='idx2')
-    _ = idx2.value                # prime the graph
+    idx = Index(name='idx3')
+    _ = idx.value
 
-    Equity(ticker='X').price = 100.0   # same observable effect as perturb_value
-    assert idx2.value == 150.0         # 100 + 50
+    Equity(ticker='X').price = 100.0
+    assert idx.value == 150.0   # 100 + 50
 ```
+
+> `perturb` addresses graph cache nodes by `(class, id, trait)` rather than by object reference, so it can update nodes for objects that were never materialized as Python instances — useful when iterating over a large dependency graph where constructing every object would be wasteful.
 
 ##### When `deps()` returns nothing
 
