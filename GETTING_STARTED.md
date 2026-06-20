@@ -903,6 +903,47 @@ with GRAPH_ON() as gp:
 
 **Trait names are zero-or-more**: passing no trait names is valid but always returns empty results (the C++ layer short-circuits immediately).  In practice, domain-specific subclasses of `GraphDeps` supply the defaults so callers never need to repeat them (see [Subclassing GraphDeps](#subclassing-graphdeps--domain-specific-wrappers) below).
 
+**`target_class` accepts any ancestor**: the filter is an `issubclass` check, so you can pass a shared base class to match all its subtypes at once — without listing each concrete class explicitly.  If your domain has a common base (e.g. `Quotable`) pass that; `Traitable` itself is the extreme case that matches everything.
+
+```python
+from core_10x.exec_control import GRAPH_ON, GraphDeps
+from core_10x.traitable import Traitable
+from core_10x.trait_definition import RT, T
+
+
+class Quotable(Traitable):
+    name:  str   = RT(T.ID)
+    quote: float = RT()
+
+
+class Stock(Quotable):
+    pass
+
+
+class Bond(Quotable):
+    pass
+
+
+class Portfolio(Traitable):
+    name:  str   = RT(T.ID)
+    value: float = RT()
+
+    def value_get(self) -> float:
+        return Stock(name='AAPL').quote + Bond(name='US10Y').quote
+
+
+with GRAPH_ON() as gp2:
+    Stock(name='AAPL').quote = 100.0
+    Bond(name='US10Y').quote = 50.0
+    portfolio = Portfolio(name='p')
+    _ = portfolio.value
+
+    # Instead of one GraphDeps per concrete class, one call covers all subclasses:
+    gd = GraphDeps(gp2, portfolio.T.value, Quotable, 'quote')
+    results = [(cls.__name__, obj.name, val) for cls, obj, trait, val in gd.deps()]
+    assert len(results) == 2
+```
+
 ##### `deps()` — iterating discovered dependencies
 
 `gd.deps(objects=True, trait_names=False)` yields `(cls, obj_or_id, trait_or_name, cached_value)` for every discovered dependency:
@@ -912,9 +953,21 @@ with GRAPH_ON() as gp:
 | `objects` | `obj` is a `Traitable` instance | `obj` is a raw `ID` |
 | `trait_names` | `trait` is the `Trait` object | `trait` is the trait name string |
 
-##### `perturb()` and `perturb_value()` — overwriting cached node values
+##### `perturb()` — writing back into the graph cache
 
-`perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple without invalidating or re-running any getter.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.  `perturb_value` is a convenience wrapper that takes a `Traitable` instance and a trait name string instead.
+`deps()` has two modes controlled by the `objects` flag:
+
+| mode | call | yields | what to do with it |
+|------|------|--------|--------------------|
+| optimized | `deps(objects=False)` | raw `ID` + `Trait` object | `gd.perturb(cls, obj_id, trait, new_value)` |
+| simplified | `deps(objects=True)` | `Traitable` instance + `Trait` object | `obj.set_trait_value(trait, new_value)` |
+| simplified (string keys) | `deps(objects=True, trait_names=True)` | `Traitable` instance + name `str` | `obj.set_value(name, new_value)` |
+
+The default is `objects=True, trait_names=False`.
+
+`perturb` is designed for the optimized path: it writes directly into the graph cache using the raw `(cls, id, trait)` triple that `deps(objects=False)` returns — no Python instance is ever constructed.  It bypasses any custom `*_set` method, equivalent to `raw_set_value`.  The root computed trait is then invalidated so it recomputes on next access.
+
+When you use `deps(objects=True)` and already hold a Traitable instance, call `set_value` / `set_trait_value` / `raw_set_value` directly on the instance — or simply assign `obj.trait = value`.
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
@@ -922,7 +975,7 @@ from core_10x.traitable import Traitable
 from core_10x.trait_definition import RT, T
 
 
-class Stock(Traitable):
+class Equity(Traitable):
     ticker: str   = RT(T.ID)
     price:  float = RT()
 
@@ -932,24 +985,35 @@ class Index(Traitable):
     value: float = RT()
 
     def value_get(self) -> float:
-        return Stock(ticker='X').price + Stock(ticker='Y').price
+        return Equity(ticker='X').price + Equity(ticker='Y').price
 
 
+# optimized: no Python instances constructed for the leaf nodes
 with GRAPH_ON() as gp:
-    Stock(ticker='X').price = 50.0
-    Stock(ticker='Y').price = 50.0
+    Equity(ticker='X').price = 50.0
+    Equity(ticker='Y').price = 50.0
     idx = Index(name='idx')
     _ = idx.value
-    gd = GraphDeps(gp, idx.T.value, Stock, 'price')
+    gd = GraphDeps(gp, idx.T.value, Equity, 'price')
 
-    factor = 2.0
     for cls, obj_id, trait, val in gd.deps(objects=False):
-        gd.perturb(cls, obj_id, trait, val * factor)   # all three keys come from deps()
+        gd.perturb(cls, obj_id, trait, val * 2.0)   # cls/obj_id/trait straight from deps()
+
+    assert idx.value == 200.0
+
+# simplified: instances already available; set_value/assignment works directly
+with GRAPH_ON() as gp:
+    Equity(ticker='X').price = 50.0
+    Equity(ticker='Y').price = 50.0
+    idx = Index(name='idx2')
+    _ = idx.value
+    gd = GraphDeps(gp, idx.T.value, Equity, 'price')
+
+    for cls, obj, trait_name, val in gd.deps(trait_names=True):
+        obj.set_value(trait_name, val * 2.0)
 
     assert idx.value == 200.0
 ```
-
-> `perturb` addresses graph cache nodes by `(class, id, trait)` rather than by object reference, so it can update nodes for objects that were never materialized as Python instances — useful when iterating over a large dependency graph where constructing every object would be wasteful.
 
 ##### When `deps()` returns nothing
 
@@ -960,9 +1024,11 @@ with GRAPH_ON() as gp:
 
 ##### Subclassing `GraphDeps` — domain-specific wrappers
 
-`GraphDeps` is designed to be subclassed.  In domain code the `target_class` and the relevant trait names are fixed by the domain model, so a thin subclass can encode them as defaults and spare every call-site from repeating them.
+In a larger system, define a **common base class** for all Traitable classes (current and future) that are leaf inputs for a given use case.  Passing that base class as `target_class` means new subclasses are automatically included without changing any call site — and `Traitable` itself is the extreme case that matches everything.  The idiomatic place to record which traits matter is a class-level `s_leaf_trait_names` tuple on that base class itself — right next to the trait definitions, where it stays in sync naturally.
 
-The idiomatic pattern is to declare a class-level `s_leaf_trait_names` on the quotable base class and read it back in the `GraphDeps` subclass constructor:
+Then create a **`GraphDeps` subclass** to encapsulate that specific use case — it reads `s_leaf_trait_names` from the base class in its constructor, so call sites supply neither the target class nor the trait list:
+
+
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps

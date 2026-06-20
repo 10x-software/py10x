@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import pytest
 from core_10x.exec_control import GRAPH_OFF, GRAPH_ON, GraphDeps
+from core_10x.rc import RC
 from core_10x.trait_definition import RT, T
 from core_10x.traitable import Traitable
 
 
 class TestGraphDeps:
-    class Quote(Traitable):
+    class QuoteBase(Traitable):
+        """Shared base class — target_class accepts this to cover all subclasses."""
         symbol: str   = RT(T.ID)
         price:  float = RT()
+
+    class Quote(QuoteBase):
+        pass
 
     class Portfolio(Traitable):
         name:      str   = RT(T.ID)
@@ -149,6 +154,7 @@ class TestGraphDeps:
                 gd.perturb(cls, obj.id(), trait, 150.0)
 
         assert self.Quote(symbol='AAPL').price == 150.0
+        assert pf.value == 350.0  # 150 + 200
 
     def test_perturb_value(self, gp, portfolio):
         """perturb_value() convenience wrapper; obj comes from deps()."""
@@ -165,6 +171,71 @@ class TestGraphDeps:
                 gd.perturb_value(obj, 'price', 250.0)
 
         assert self.Quote(symbol='MSFT').price == 250.0
+        assert pf.value == 350.0  # 100 + 250
+
+    def test_base_class_as_target(self, gp, portfolio):
+        """target_class accepts a base class and matches all subclasses."""
+        pf = portfolio
+        assert pf.value == 300.0
+
+        gd = GraphDeps(gp, pf.T.value, self.QuoteBase, 'price')
+        results = list(gd.deps())
+
+        assert len(results) == 2
+        by_symbol = {obj.symbol: value for _, obj, _, value in results}
+        assert by_symbol == {'AAPL': 100.0, 'MSFT': 200.0}
+
+    def test_perturb_optimized_path(self, gp, portfolio):
+        """deps(objects=False) yields raw IDs; perturb() accepts them directly without constructing instances."""
+        pf = portfolio
+        assert pf.value == 300.0
+
+        gd = GraphDeps(gp, pf.T.value, self.Quote, 'price')
+        for cls, obj_id, trait, val in gd.deps(objects=False):
+            assert not isinstance(obj_id, self.Quote)  # no instance constructed
+            gd.perturb(cls, obj_id, trait, val * 2.0)
+
+        assert pf.value == 600.0  # 200 + 400
+
+    def test_perturb_bypasses_setter(self, gp, portfolio):
+        """perturb() writes directly into the cache; a custom price_set is never called."""
+        setter_called = []
+
+        class QuoteWithSetter(Traitable):
+            symbol: str   = RT(T.ID)
+            price:  float = RT()
+            computed: float = RT()
+
+            def computed_get(self) -> float:
+                return QuoteWithSetter(symbol=self.symbol).price
+
+            def price_set(self, trait, value: float) -> RC:
+                setter_called.append(value)
+                return self.raw_set_trait_value(trait, value)
+
+        with GRAPH_ON() as gp2:
+            q = QuoteWithSetter(symbol='X')
+            q.price = 10.0               # triggers setter — expected
+            _ = q.computed               # prime graph
+            setter_called.clear()
+
+            gd = GraphDeps(gp2, q.T.computed, QuoteWithSetter, 'price')
+            for cls, obj_id, trait, val in gd.deps(objects=False):
+                gd.perturb(cls, obj_id, trait, 20.0)
+
+            assert setter_called == []   # setter was NOT called by perturb
+            assert q.computed == 20.0   # but value is updated
+
+    def test_deps_objects_true_with_set_value(self, gp, portfolio):
+        """deps(objects=True, trait_names=True) + set_value() is the simplified update path."""
+        pf = portfolio
+        assert pf.value == 300.0
+
+        gd = GraphDeps(gp, pf.T.value, self.Quote, 'price')
+        for cls, obj, trait_name, val in gd.deps(trait_names=True):
+            obj.set_value(trait_name, val * 2.0)
+
+        assert pf.value == 600.0  # 200 + 400
 
     def test_reflects_price_update(self, gp, portfolio):
         """After a normal price change, GraphDeps reports the updated cached value."""

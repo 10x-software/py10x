@@ -49,7 +49,7 @@ dev = [
     "hatchling>=1.27.0",
     "hatch-build-scripts>=1.0.0",
     "licensecheck>=2025.1.0",
-    "playwright>=1.55,<1.61",
+    "playwright>=1.55,<1.57",
     #"pre-commit>=3.1,<5.0",
     "pytest>=8.3.4,<10.0",
     "pytest-cov>=6.0,<8.0",
@@ -103,7 +103,7 @@ xx-user-status                  = "core_10x.apps.user_status:main"
 xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
 
 [build-system]
-requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright"]
+requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright>=1.55,<1.57"]
 build-backend = "hatchling.build"
 
 [tool.dev_10x.siblings]
@@ -118,7 +118,7 @@ packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xx_common"]
 #exclude = [ "**/*_tests/**" ]
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]
-commands = [ "playwright install --with-deps chromium" ]
+commands = [ "playwright install chromium" ]
 
 [tool.hatch.version]
 source = "vcs"
