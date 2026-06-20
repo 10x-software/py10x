@@ -197,14 +197,19 @@ def _pip_install(*args: str) -> None:
 
 
 def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
-    """No-isolation incremental rebuild flags for a local C++ package (XX_UV_INCREMENTAL)."""
-    build_dir = f"{(venv / 'py10x-build' / name).as_posix()}/{{wheel_tag}}"
+    """No-isolation incremental rebuild flags for a local C++ package (XX_UV_INCREMENTAL).
+    Build type comes from XX_UV_BUILD_TYPE (default Release); each type gets its own build
+    dir so switching Debug<->Release does not force a full reconfigure/rebuild."""
+    build_type = os.getenv('XX_UV_BUILD_TYPE', 'Release')
+    build_dir = f"{(venv / 'py10x-build' / name / build_type).as_posix()}/{{wheel_tag}}"
     verbose = int(os.getenv('XX_UV_INCREMENTAL',0))==1
     return [
         '--no-build-isolation-package',
         name,
         '--config-settings-package',
         f'{name}:build-dir={build_dir}',
+        '--config-settings-package',
+        f'{name}:cmake.build-type={build_type}',
         '--config-settings-package',
         f'{name}:editable.rebuild=true',
         '--config-settings-package',
