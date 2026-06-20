@@ -903,6 +903,15 @@ with GRAPH_ON() as gp:
 
 **Trait names are zero-or-more**: passing no trait names is valid but always returns empty results (the C++ layer short-circuits immediately).  In practice, domain-specific subclasses of `GraphDeps` supply the defaults so callers never need to repeat them (see [Subclassing GraphDeps](#subclassing-graphdeps--domain-specific-wrappers) below).
 
+**`target_class` accepts any ancestor**: the filter is an `issubclass` check, so you can pass a shared base class to match all its subtypes at once — without listing each concrete class explicitly.  If your domain has a common base (e.g. `Quotable`) pass that; `Traitable` itself is the extreme case that matches everything.  You still need to supply the relevant trait names (as positional arguments), but the class-enumeration problem disappears:
+
+```python
+# Instead of one GraphDeps per concrete class, one call covers all subclasses:
+gd = GraphDeps(gp, portfolio.T.value, Quotable, 'quote')
+for cls, obj, trait, val in gd.deps():
+    print(f"{cls.__name__}({obj.name!r}).quote = {val}")
+```
+
 ##### `deps()` — iterating discovered dependencies
 
 `gd.deps(objects=True, trait_names=False)` yields `(cls, obj_or_id, trait_or_name, cached_value)` for every discovered dependency:
@@ -914,7 +923,9 @@ with GRAPH_ON() as gp:
 
 ##### `perturb()` and `perturb_value()` — overwriting cached node values
 
-`perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple without invalidating or re-running any getter.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.  `perturb_value` is a convenience wrapper that takes a `Traitable` instance and a trait name string instead.
+`perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple and invalidates the root computed trait so it recomputes on next access — the same observable effect as assigning via `set_value`, but bypassing any custom setter.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.
+
+`perturb_value` is a convenience wrapper for when you already hold a live `Traitable` instance: it accepts the instance and a trait name string (matching what `deps(trait_names=True)` returns) instead of the raw `(class, id, trait)` triple.
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
@@ -950,6 +961,29 @@ with GRAPH_ON() as gp:
 ```
 
 > `perturb` addresses graph cache nodes by `(class, id, trait)` rather than by object reference, so it can update nodes for objects that were never materialized as Python instances — useful when iterating over a large dependency graph where constructing every object would be wasteful.
+
+`perturb_value` is the string-keyed variant — use it when `deps(objects=True, trait_names=True)` is more convenient than the raw triple:
+
+```python
+with GRAPH_ON() as gp:
+    Stock(ticker='X').price = 50.0
+    Stock(ticker='Y').price = 50.0
+    idx = Index(name='idx')
+    _ = idx.value
+    gd = GraphDeps(gp, idx.T.value, Stock, 'price')
+
+    for cls, obj, trait_name, val in gd.deps(trait_names=True):
+        gd.perturb_value(obj, trait_name, val * 2.0)   # obj + string name from deps()
+
+    assert idx.value == 200.0
+```
+
+If you already hold the instance and just want to update one known trait, a plain assignment is equivalent and simpler:
+
+```python
+Stock(ticker='X').price = 100.0   # same observable effect as perturb_value
+assert idx.value == 150.0
+```
 
 ##### When `deps()` returns nothing
 
