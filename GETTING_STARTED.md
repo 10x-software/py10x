@@ -916,7 +916,7 @@ class Quotable(Traitable):
     quote: float = RT()
 
 
-class Stock2(Quotable):
+class Stock(Quotable):
     pass
 
 
@@ -929,11 +929,11 @@ class Portfolio(Traitable):
     value: float = RT()
 
     def value_get(self) -> float:
-        return Stock2(name='AAPL').quote + Bond(name='US10Y').quote
+        return Stock(name='AAPL').quote + Bond(name='US10Y').quote
 
 
 with GRAPH_ON() as gp2:
-    Stock2(name='AAPL').quote = 100.0
+    Stock(name='AAPL').quote = 100.0
     Bond(name='US10Y').quote = 50.0
     portfolio = Portfolio(name='p')
     _ = portfolio.value
@@ -957,7 +957,7 @@ with GRAPH_ON() as gp2:
 
 `perturb` writes a new value directly into the graph cache for a given `(class, id, trait)` triple and invalidates the root computed trait so it recomputes on next access — the same observable effect as assigning via `set_value`, but bypassing any custom setter.  It is designed to be driven by the output of `deps()`: the `cls`, `id`, and `trait` values come straight from the iteration, so no additional lookup is needed.
 
-`perturb_value` is a convenience wrapper for when you already hold a live `Traitable` instance: it accepts the instance and a trait name string (matching what `deps(trait_names=True)` returns) instead of the raw `(class, id, trait)` triple.
+`perturb_value` is a convenience wrapper for when you already hold a Traitable instance: it accepts the instance and a trait name string (matching what `deps(trait_names=True)` returns) instead of the raw `(class, id, trait)` triple.
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
@@ -965,7 +965,7 @@ from core_10x.traitable import Traitable
 from core_10x.trait_definition import RT, T
 
 
-class Stock(Traitable):
+class Equity(Traitable):
     ticker: str   = RT(T.ID)
     price:  float = RT()
 
@@ -975,15 +975,15 @@ class Index(Traitable):
     value: float = RT()
 
     def value_get(self) -> float:
-        return Stock(ticker='X').price + Stock(ticker='Y').price
+        return Equity(ticker='X').price + Equity(ticker='Y').price
 
 
 with GRAPH_ON() as gp:
-    Stock(ticker='X').price = 50.0
-    Stock(ticker='Y').price = 50.0
+    Equity(ticker='X').price = 50.0
+    Equity(ticker='Y').price = 50.0
     idx = Index(name='idx')
     _ = idx.value
-    gd = GraphDeps(gp, idx.T.value, Stock, 'price')
+    gd = GraphDeps(gp, idx.T.value, Equity, 'price')
 
     factor = 2.0
     for cls, obj_id, trait, val in gd.deps(objects=False):
@@ -998,11 +998,11 @@ with GRAPH_ON() as gp:
 
 ```python
 with GRAPH_ON() as gp:
-    Stock(ticker='X').price = 50.0
-    Stock(ticker='Y').price = 50.0
+    Equity(ticker='X').price = 50.0
+    Equity(ticker='Y').price = 50.0
     idx = Index(name='idx')
     _ = idx.value
-    gd = GraphDeps(gp, idx.T.value, Stock, 'price')
+    gd = GraphDeps(gp, idx.T.value, Equity, 'price')
 
     for cls, obj, trait_name, val in gd.deps(trait_names=True):
         gd.perturb_value(obj, trait_name, val * 2.0)   # obj + string name from deps()
@@ -1014,13 +1014,13 @@ If you already hold the instance and just want to update one known trait, a plai
 
 ```python
 with GRAPH_ON() as gp:
-    Stock(ticker='X').price = 50.0
-    Stock(ticker='Y').price = 50.0
+    Equity(ticker='X').price = 50.0
+    Equity(ticker='Y').price = 50.0
     idx2 = Index(name='idx2')
     _ = idx2.value                # prime the graph
 
-    Stock(ticker='X').price = 100.0   # same observable effect as perturb_value
-    assert idx2.value == 150.0        # 100 + 50
+    Equity(ticker='X').price = 100.0   # same observable effect as perturb_value
+    assert idx2.value == 150.0         # 100 + 50
 ```
 
 ##### When `deps()` returns nothing
