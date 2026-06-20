@@ -325,7 +325,7 @@ pyqt6-sip==13.10.0
     # via
     #   py10x-core (pyproject.toml)
     #   pyqt6
-pytest==9.1.0
+pytest==9.1.1
     # via
     #   py10x-core (pyproject.toml)
     #   alt-pytest-asyncio
