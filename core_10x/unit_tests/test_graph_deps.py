@@ -149,6 +149,7 @@ class TestGraphDeps:
                 gd.perturb(cls, obj.id(), trait, 150.0)
 
         assert self.Quote(symbol='AAPL').price == 150.0
+        assert pf.value == 350.0  # 150 + 200
 
     def test_perturb_value(self, gp, portfolio):
         """perturb_value() convenience wrapper; obj comes from deps()."""
@@ -165,6 +166,7 @@ class TestGraphDeps:
                 gd.perturb_value(obj, 'price', 250.0)
 
         assert self.Quote(symbol='MSFT').price == 250.0
+        assert pf.value == 350.0  # 100 + 250
 
     def test_reflects_price_update(self, gp, portfolio):
         """After a normal price change, GraphDeps reports the updated cached value."""
