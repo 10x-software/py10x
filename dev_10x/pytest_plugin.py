@@ -28,6 +28,14 @@ def _owned_top_levels() -> set[str] | None:
 
 
 def pytest_configure(config):
+    import os
+    if 'USER' not in os.environ:
+        import getpass
+        try:
+            os.environ['USER'] = getpass.getuser()
+        except Exception:
+            pass
+
     try:
         config.pluginmanager.import_plugin('alt_pytest_asyncio.enable')
     except ImportError:
