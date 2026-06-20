@@ -906,10 +906,42 @@ with GRAPH_ON() as gp:
 **`target_class` accepts any ancestor**: the filter is an `issubclass` check, so you can pass a shared base class to match all its subtypes at once — without listing each concrete class explicitly.  If your domain has a common base (e.g. `Quotable`) pass that; `Traitable` itself is the extreme case that matches everything.  You still need to supply the relevant trait names (as positional arguments), but the class-enumeration problem disappears:
 
 ```python
-# Instead of one GraphDeps per concrete class, one call covers all subclasses:
-gd = GraphDeps(gp, portfolio.T.value, Quotable, 'quote')
-for cls, obj, trait, val in gd.deps():
-    print(f"{cls.__name__}({obj.name!r}).quote = {val}")
+from core_10x.exec_control import GRAPH_ON, GraphDeps
+from core_10x.traitable import Traitable
+from core_10x.trait_definition import RT, T
+
+
+class Quotable(Traitable):
+    name:  str   = RT(T.ID)
+    quote: float = RT()
+
+
+class Stock2(Quotable):
+    pass
+
+
+class Bond(Quotable):
+    pass
+
+
+class Portfolio(Traitable):
+    name:  str   = RT(T.ID)
+    value: float = RT()
+
+    def value_get(self) -> float:
+        return Stock2(name='AAPL').quote + Bond(name='US10Y').quote
+
+
+with GRAPH_ON() as gp2:
+    Stock2(name='AAPL').quote = 100.0
+    Bond(name='US10Y').quote = 50.0
+    portfolio = Portfolio(name='p')
+    _ = portfolio.value
+
+    # Instead of one GraphDeps per concrete class, one call covers all subclasses:
+    gd = GraphDeps(gp2, portfolio.T.value, Quotable, 'quote')
+    results = [(cls.__name__, obj.name, val) for cls, obj, trait, val in gd.deps()]
+    assert len(results) == 2
 ```
 
 ##### `deps()` — iterating discovered dependencies
@@ -981,8 +1013,14 @@ with GRAPH_ON() as gp:
 If you already hold the instance and just want to update one known trait, a plain assignment is equivalent and simpler:
 
 ```python
-Stock(ticker='X').price = 100.0   # same observable effect as perturb_value
-assert idx.value == 150.0
+with GRAPH_ON() as gp:
+    Stock(ticker='X').price = 50.0
+    Stock(ticker='Y').price = 50.0
+    idx2 = Index(name='idx2')
+    _ = idx2.value                # prime the graph
+
+    Stock(ticker='X').price = 100.0   # same observable effect as perturb_value
+    assert idx2.value == 150.0        # 100 + 50
 ```
 
 ##### When `deps()` returns nothing
