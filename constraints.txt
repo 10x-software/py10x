@@ -94,7 +94,7 @@ editables==0.6
     # via py10x-core (pyproject.toml)
 encutils==1.0.0
     # via cssutils
-fastapi==0.136.3
+fastapi==0.138.0
     # via rio-ui
 fhconfparser==2024.1 ; python_full_version < '3.12'
     # via licensecheck
