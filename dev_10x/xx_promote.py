@@ -6,7 +6,7 @@ The three packages version *independently* and live in two git repos:
     py10x-kernel -> repo `cxx10x`/core_10x,         tags  `py10x-kernel-vX.Y.Z[rcN]`
     py10x-infra  -> repo `cxx10x`/infra_10x,        tags  `py10x-infra-vX.Y.Z[rcN]`
 
-`main` carries *dev* pins (Form A) that admit a sibling's next pre-release without
+`main` carries *dev* pins (prerelease-admitting) that admit a sibling's next pre-release without
 `--prerelease=allow`; releases are cut by tagging and (for prod) committing strict pins on a
 per-version release branch. See `dev_10x/README.md` for the full model.
 
@@ -262,7 +262,7 @@ class Prod(XxPromote, _command="prod"):
                 push_refs=(pkg.repo, [branch, final_tag]),
             ))
 
-        # 3. main bump: advance Form A floor / reverse group to the just-released versions.
+        # 3. main bump: advance the prerelease-admitting dev-pin floor / reverse group to the just-released versions.
         repos_to_main = {p.repo for n, p in pkgs.items() if n in targets}
         for repo in repos_to_main:
             steps.append(Step(

@@ -65,7 +65,7 @@ Boolean options also accept the `--option` / `--no-option` shortcuts (== `--opti
 
 For a sibling whose next version is `T` (`N` = the next micro, `FLOOR` = its last released version):
 
-- **`main` — dev pins ("Form A"):** `>=FLOOR,<=T,!=T,>=0.0.0.dev0`
+- **`main` — prerelease-admitting dev pins:** `>=FLOOR,<=T,!=T,>=0.0.0.dev0`
   `<=T,!=T` admits every pre-release of `T` (`T.devN`, `TaN/bN`, `TrcN`) while dropping the `T` final
   (a plain `<T` would strip the pre-releases); `>=0.0.0.dev0` is a no-op bound that names a
   pre-release so uv **auto-enables** them for this package (no `--prerelease=allow`). The pin still
@@ -96,14 +96,14 @@ xx-promote status                             # pending promotions: tagged but n
   `core_10x_wheels.yml`). Siblings diff `core_10x`/`infra_10x` + that workflow glob, not the whole
   `cxx10x` repo; core's `.` already covers everything. A workflow edit changes how the package is
   built, so it must force a new rc. When the latest tag is an rc, `--push` can still publish it
-  without minting a new rc. No pin changes — Form A dev pins already admit the new rc.
+  without minting a new rc. No pin changes — the prerelease-admitting dev pins already admit the new rc.
 - **`prod`** (per package whose **latest** tag is a pre-release and that has an rc for its target):
   1. find the latest rc tag + commit;
   2. create the per-version release branch (`release/v{T}` / `release/py10x-{pkg}-v{T}`) off that
      commit;
   3. commit **final-only** pins there (py10x-core → siblings `>=T_sib,<N_sib`; kernel/infra →
      `test = ["py10x-core==T_core"]`) and tag the final on the branch;
-  4. on `main`, re-floor py10x-core's Form A dev pins to the just-released sibling versions and
+  4. on `main`, re-floor py10x-core's prerelease-admitting dev pins to the just-released sibling versions and
      point the reverse groups at the released core.
 
   Released code == rc code (the release commit only changes metadata), and the wheel built from the
@@ -174,7 +174,7 @@ uv-run pytest -q                       # run in the prepared venv
 1. **Siblings** (local or git) — install only when [reinstall rules](#reinstall-rules) say so.
    Index siblings are resolved in step 2; `--reinstall-package` forces a swap if currently editable/git.
 2. **`uv pip install --requirements pyproject.toml`** (+ caller args such as `--all-extras`) —
-   core's deps and extras, additive (keeps step-1 siblings). Form A dev pins admit in-dev siblings.
+   core's deps and extras, additive (keeps step-1 siblings). Prerelease-admitting dev pins admit in-dev siblings.
 3. **py10x-core itself** (local editable, or git for `domain-dev`) — install only if needed.
 
 ### Reinstall rules

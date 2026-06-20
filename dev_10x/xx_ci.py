@@ -41,7 +41,7 @@ def _sibling(base: Path, name: str) -> tuple[Path, str]:
 def latest_tag(base: Path, name: str) -> str:
     """The sibling tag whose version satisfies the spec currently pinned for it in pyproject.toml.
 
-    On an rc-tagged commit the Form A dev pin selects the latest rc; on a release branch the
+    On an rc-tagged commit the prerelease-admitting dev pin selects the latest rc; on a release branch the
     final-only pin selects the latest final - i.e. exactly what the wheel being built will require.
     """
     repo, prefix = _sibling(base, name)

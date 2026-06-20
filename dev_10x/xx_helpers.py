@@ -59,7 +59,7 @@ class VersionHelpers:
     def latest_matching_tag(parsed: list[tuple[str, Version]], spec: str) -> str | None:
         """The highest tag whose version satisfies `spec` (a PEP 440 specifier string), or None.
 
-        `SpecifierSet.filter` honours the set's own pre-release flag, so a Form A dev pin selects
+        `SpecifierSet.filter` honours the set's own pre-release flag, so a prerelease-admitting dev pin selects
         the latest rc while a final-only pin selects the latest final - i.e. exactly what a consumer
         of the about-to-be-published pin would resolve to.
         """
@@ -136,7 +136,7 @@ class VersionHelpers:
 
     @classmethod
     def dev_pin(cls,floor: str, target: str) -> str:
-        """Form A: admits sibling dev/alpha/beta/rc of `target`, excludes its final and beyond.
+        """Prerelease-admitting dev pin: admits sibling dev/alpha/beta/rc of `target`, excludes its final and beyond.
 
         `<=target,!=target` includes every pre-release of `target` (unlike `<target`, which the PEP 440
         rules strip pre-releases from) while dropping the final; `PRERELEASE_ENABLE` makes uv consider
