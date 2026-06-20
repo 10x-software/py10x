@@ -1024,9 +1024,9 @@ with GRAPH_ON() as gp:
 
 ##### Subclassing `GraphDeps` — domain-specific wrappers
 
-In a larger system, define a **common base class** for all Traitable classes (current and future) that are leaf inputs for a given use case.  Passing that base class as `target_class` means new subclasses are automatically included without changing any call site — and `Traitable` itself is the extreme case that matches everything.
+In a larger system, define a **common base class** for all Traitable classes (current and future) that are leaf inputs for a given use case.  Passing that base class as `target_class` means new subclasses are automatically included without changing any call site — and `Traitable` itself is the extreme case that matches everything.  The idiomatic place to record which traits matter is a class-level `s_leaf_trait_names` tuple on that base class itself — right next to the trait definitions, where it stays in sync naturally.
 
-Then create a **`GraphDeps` subclass** that encodes the base class and the relevant trait names once.  Call sites need to supply neither:
+Then create a **`GraphDeps` subclass** to encapsulate that specific use case — it reads `s_leaf_trait_names` from the base class in its constructor, so call sites supply neither the target class nor the trait list:
 
 
 
