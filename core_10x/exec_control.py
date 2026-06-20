@@ -92,14 +92,11 @@ class GraphDeps:
         self.gp = gp
         obj = bound_trait.obj
         trait = bound_trait.trait
-        self._root_obj = obj
-        self._root_trait = trait
         self.deps_data = gp.find_dependencies(obj, trait, target_class, *target_trait_names)
 
     def perturb(self, traitable_cls, obj_id: ID, trait: Trait, value):
         cache = self.gp.cache()
         cache.perturb_existing_node(traitable_cls.s_bclass, obj_id, trait, value)
-        self._root_obj.invalidate_trait_value(self._root_trait)
 
     def perturb_value(self, traitable, trait_name: str, value):
         obj_cls = traitable.__class__
