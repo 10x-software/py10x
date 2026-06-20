@@ -997,6 +997,8 @@ with GRAPH_ON() as gp:
 `perturb_value` is the string-keyed variant — use it when `deps(objects=True, trait_names=True)` is more convenient than the raw triple:
 
 ```python
+from core_10x.exec_control import GRAPH_ON, GraphDeps
+
 with GRAPH_ON() as gp:
     Equity(ticker='X').price = 50.0
     Equity(ticker='Y').price = 50.0
@@ -1013,6 +1015,8 @@ with GRAPH_ON() as gp:
 If you already hold the instance and just want to update one known trait, a plain assignment is equivalent and simpler:
 
 ```python
+from core_10x.exec_control import GRAPH_ON
+
 with GRAPH_ON() as gp:
     Equity(ticker='X').price = 50.0
     Equity(ticker='Y').price = 50.0
