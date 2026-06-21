@@ -14,7 +14,7 @@ end-to-end inside a single test process:
   (so admin and alice see the same vault deployment).
 
 URI parsing, ``is_running_with_auth``, and the ``testdb://`` protocol
-registration all live in ``core_10x/testlib/test_store.py`` itself; the
+registration all live in ``core_10x/testlib/duckdb_store.py`` itself; the
 fixture only flips the auth flag and the ``new_instance`` factory.
 
 The fixture is **not** auto-collected: tests that need it should write::
@@ -37,7 +37,7 @@ import core_10x.vault_utils as vault_utils_mod
 from core_10x.environment_variables import EnvVars
 from core_10x.resource import Resource
 from core_10x.sec_keys import SecKeys
-from core_10x.testlib.test_store import TestStore as _TestStore
+from core_10x.testlib.duckdb_store import DuckDbStore as _TestStore
 from core_10x.traitable import Traitable, VaultUser
 from core_10x.ts_store import TsStore
 from core_10x.vault_utils import VaultUtils

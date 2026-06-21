@@ -24,7 +24,25 @@ from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModificati
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
-from core_10x.ts_store import TsStoreMongoLike
+class TsStoreMongoLike:
+    """Minimal MongoDB-style add_who/add_when for test_serialize."""
+    SET = '$set'
+
+    def add_who(self, field: str, serialized_data: dict) -> dict:
+        sd = serialized_data.get(self.SET, serialized_data)
+        if field in sd:
+            raise RuntimeError(f'Field {field} is already in use.')
+        sd['_who'] = self.auth_user()
+        return serialized_data
+
+    def add_when(self, field: str, serialized_data: dict) -> dict:
+        sd = serialized_data.get(self.SET, serialized_data)
+        if field in sd:
+            raise RuntimeError(f'Field {field} is already in use.')
+        if sd is serialized_data:
+            serialized_data = {self.SET: sd}
+        serialized_data.setdefault('$currentDate', {})[field] = True
+        return serialized_data
 from core_10x.xnone import XNone
 
 if TYPE_CHECKING:

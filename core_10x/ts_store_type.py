@@ -8,7 +8,7 @@ class TS_STORE_TYPE(NamedConstant):
     """
 
     MONGODB = 'infra_10x.mongodb_store.MongoStore'
-    TESTDB = 'core_10x.testlib.test_store.TestStore'
+    TESTDB = 'core_10x.testlib.duckdb_store.DuckDbStore'
     ...
 
     @classmethod

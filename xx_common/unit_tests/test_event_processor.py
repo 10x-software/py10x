@@ -38,8 +38,8 @@ def event_store(monkeypatch, mocker):
         clock[0] += timedelta(milliseconds=10)
         return clock[0]
 
-    mock_dt = mocker.patch('core_10x.testlib.test_store.datetime', autospec=True)
-    mock_dt.utcnow.side_effect = lambda : now(timezone.utc)
+    mock_dt = mocker.patch('core_10x.testlib.ibis_store.datetime', autospec=True)
+    mock_dt.utcnow.side_effect = lambda: now(timezone.utc)
     mock_dt.now.side_effect = now
     mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
 
