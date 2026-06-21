@@ -219,11 +219,7 @@ class DuckDbCollection(TsCollection):
         return self._execute(sql).fetchone()[0]
 
     def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
-        # Handle MongoDB-style $set wrapper (used by restore())
-        if '$set' in serialized_traitable:
-            doc = dict(serialized_traitable['$set'])
-        else:
-            doc = dict(serialized_traitable)
+        doc = dict(serialized_traitable)
         doc[_REV] = 1
         id_val, rev, data_json = self._encode_doc(doc)
         if not id_val:

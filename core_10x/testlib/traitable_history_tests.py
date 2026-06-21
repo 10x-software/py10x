@@ -727,15 +727,14 @@ class TestTraitableHistory:
 
     def test_save_new_with_overwrite_parameter(self, test_store, test_collection):
         """Test TestCollection.save_new with overwrite parameter."""
-        # Test save_new with MongoDB-style $set operation
-        result = test_collection.save_new({'$set': {'_id': 'new-id', 'name': 'New Person', 'age': 25}})
+        result = test_collection.save_new({'_id': 'new-id', 'name': 'New Person', 'age': 25})
         assert result == 1  # Should succeed for new document
 
         # Fails because the document already exists
         with pytest.raises(TsDuplicateKeyError):
-            test_collection.save_new({'$set': {'_id': 'new-id'}})
+            test_collection.save_new({'_id': 'new-id'})
 
-        test_collection.save_new({'$set': {'_id': 'new-id'}}, overwrite=True)
+        test_collection.save_new({'_id': 'new-id'}, overwrite=True)
 
     def test_find_without_filter_parameter(self, test_store, test_collection):
         """Test TestCollection.find without _filter parameter."""
