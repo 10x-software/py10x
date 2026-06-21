@@ -222,11 +222,12 @@ class Resource(abc.ABC):
             cls.s_resource_type = resource_type
             cls.s_instances = {}
 
-        else:   #-- a Resource of a particular resource type
+        else:   #-- a Resource of a particular resource type, or an abstract intermediate
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
-            assert resource_name and isinstance(resource_name, str), 'a unique Resource name is expected'
-            cls.s_resource_type.register_driver(resource_name, cls)
-            cls.s_driver_name = resource_name
+            if resource_name:
+                assert isinstance(resource_name, str), 'a unique Resource name is expected'
+                cls.s_resource_type.register_driver(resource_name, cls)
+                cls.s_driver_name = resource_name
 
     def __enter__(self):
         return self.begin_using()

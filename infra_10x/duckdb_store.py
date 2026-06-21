@@ -9,8 +9,8 @@ import ibis
 
 from core_10x.nucleus import Nucleus
 from core_10x.resource import Resource
-from core_10x.testlib.ibis_store import IbisStore
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError
+from infra_10x.ibis_store import IbisStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -21,11 +21,10 @@ if TYPE_CHECKING:
 _ID  = Nucleus.ID_TAG()
 _REV = Nucleus.REVISION_TAG()
 
-_DT_PREFIX = '__dt__:'
-_DATE_PREFIX = '__date__:'
-
-
+_DT_PREFIX    = '__dt__:'
+_DATE_PREFIX  = '__date__:'
 _BYTES_PREFIX = '__bytes__:'
+_DT_STORED_FMT = '%Y-%m-%dT%H:%M:%S.%f'
 
 
 def _json_encode(v):
@@ -74,9 +73,6 @@ def _json_path_sql(field: str) -> str:
     if field in (_ID, _REV):
         return field
     return f"json_extract_string(_data, '$.{field}')"
-
-
-_DT_STORED_FMT = '%Y-%m-%dT%H:%M:%S.%f'
 
 
 def _col_for_val(field: str, rv) -> str:
@@ -134,7 +130,7 @@ def _op_to_sql(field: str, op) -> str:
 
 
 def _filter_to_sql(query: FilterExpr) -> str:
-    from core_10x.trait_filter import AND, OR, BoolOp, f as F  # noqa: N812
+    from core_10x.trait_filter import AND, OR, f as F  # noqa: N812
 
     if isinstance(query, F):
         parts = []
@@ -316,12 +312,12 @@ class DuckDbCollection(TsCollection):
 # DuckDbStore
 # ---------------------------------------------------------------------------
 
-class DuckDbStore(IbisStore, TsStore, resource_name='DUCKDB_TEST_DB'):
+class DuckDbStore(IbisStore, resource_name='DUCKDB_TEST_DB'):
     """In-memory DuckDB-backed store for testing."""
 
     s_with_auth = False
 
-    class Transaction(TsStore.Transaction):
+    class Transaction(IbisStore.Transaction):
         def __init__(self, store: DuckDbStore):
             self._nested = store.current_transaction() is not None
             if not self._nested:

@@ -3,14 +3,20 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
+from core_10x.ts_store import TsStore
+
 if TYPE_CHECKING:
     from core_10x.trait import Trait
 
 
-class IbisStore:
-    """Mixin for ibis-backed stores — provides dtype mapping and who/when helpers."""
+class IbisStore(TsStore):
+    """Abstract base for ibis-backed stores.
 
-    _TRAIT_DTYPE_MAP: dict = {}  # populated after concrete_traits are importable
+    Provides dtype mapping and plain add_who/add_when helpers (no $set/$currentDate wrappers).
+    Concrete subclasses must supply resource_name and implement all TsStore abstract methods.
+    """
+
+    _TRAIT_DTYPE_MAP: dict = {}  # populated lazily after concrete_traits are importable
 
     @classmethod
     def _build_dtype_map(cls) -> dict:

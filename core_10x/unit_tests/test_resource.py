@@ -14,7 +14,7 @@ import pytest
 
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.exec_control import CACHE_ONLY
-from core_10x.testlib.duckdb_store import DuckDbStore as _TestStore
+from infra_10x.duckdb_store import DuckDbStore as _TestStore
 from core_10x.testlib.vault_env import vault_env
 from core_10x.traitable import (
     NamedResource,

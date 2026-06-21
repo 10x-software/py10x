@@ -6,7 +6,7 @@ from core_10x.ts_store import TsStore
 
 @pytest.fixture(scope='module')
 def ts_instance():
-    from core_10x.testlib.duckdb_store import DuckDbStore
+    from infra_10x.duckdb_store import DuckDbStore
 
     assert not TsStore.s_instances
     yield DuckDbStore.instance()

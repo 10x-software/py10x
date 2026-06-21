@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from core_10x.nucleus import Nucleus
-from core_10x.testlib.duckdb_store import DuckDbStore as TraitableStore
+from infra_10x.duckdb_store import DuckDbStore as TraitableStore
 from core_10x.trait_filter import GT, f
 from core_10x.ts_store import TsStore
 from core_10x.ts_union import TsUnion, TsUnionCollection, _OrderKey
