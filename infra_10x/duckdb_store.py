@@ -5,7 +5,7 @@ import re
 from datetime import datetime, timezone, date
 from typing import TYPE_CHECKING
 
-import ibis
+import duckdb
 
 from core_10x.nucleus import Nucleus
 from core_10x.resource import Resource
@@ -337,8 +337,7 @@ class DuckDbStore(IbisStore, resource_name='DUCKDB_TEST_DB'):
 
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self._ibis_con = ibis.duckdb.connect()
-        self._con = self._ibis_con.con
+        self._con = duckdb.connect()
         self._collections: dict[str, DuckDbCollection] = {}
         self.username = kwargs.get(Resource.USERNAME_TAG, 'test_user')
         self.dbname = kwargs.get(Resource.DBNAME_TAG)
@@ -388,3 +387,30 @@ class DuckDbStore(IbisStore, resource_name='DUCKDB_TEST_DB'):
 
     def server_time(self) -> datetime:
         return datetime.now(timezone.utc)
+
+    def add_who(self, field: str, serialized_data: dict) -> dict:
+        if field in serialized_data:
+            raise RuntimeError(f'Field {field} is already in use.')
+        serialized_data['_who'] = self.auth_user()
+        return serialized_data
+
+    def add_when(self, field: str, serialized_data: dict) -> dict:
+        if field in serialized_data:
+            raise RuntimeError(f'Field {field} is already in use.')
+        serialized_data[field] = self.server_time()
+        return serialized_data
+
+    @classmethod
+    def parse_uri(cls, uri: str) -> dict:
+        # testdb://hostname:port/dbname  or  testdb://hostname/dbname
+        from urllib.parse import urlsplit
+        p = urlsplit(uri)
+        result = {
+            cls.HOSTNAME_TAG: p.hostname or '',
+            cls.DBNAME_TAG:   p.path.lstrip('/') or None,
+        }
+        if p.port:
+            result[cls.PORT_TAG] = p.port
+        if p.username:
+            result[cls.USERNAME_TAG] = p.username
+        return result

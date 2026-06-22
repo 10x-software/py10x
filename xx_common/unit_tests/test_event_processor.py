@@ -38,10 +38,8 @@ def event_store(monkeypatch, mocker):
         clock[0] += timedelta(milliseconds=10)
         return clock[0]
 
-    mock_dt = mocker.patch('core_10x.ibis_store.datetime', autospec=True)
-    mock_dt.utcnow.side_effect = lambda: now(timezone.utc)
-    mock_dt.now.side_effect = now
-    mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
+    from infra_10x.duckdb_store import DuckDbStore
+    mocker.patch.object(DuckDbStore, 'server_time', lambda self: now(timezone.utc))
 
     store = Traitable.main_store()
     yield store

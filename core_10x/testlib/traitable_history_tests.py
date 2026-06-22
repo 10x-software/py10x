@@ -36,10 +36,9 @@ def clock_freezer(mocker, ts_instance, request):
     frozen_now = ClockFreezer()
     if request.param:
         frozen_now.append(datetime.utcnow())
-        mock_dt = mocker.patch('core_10x.ibis_store.datetime', autospec=True)
-        mock_dt.now.side_effect = lambda tz=None: frozen_now[0].replace(tzinfo=tz)
-        mock_dt.utcnow.side_effect = lambda: frozen_now[0]
-        mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
+        from infra_10x.duckdb_store import DuckDbStore
+        mocker.patch.object(DuckDbStore, 'server_time',
+                            lambda self: frozen_now[0].replace(tzinfo=timezone.utc))
     yield frozen_now
 
 class NameValueTraitableBase(Traitable):
