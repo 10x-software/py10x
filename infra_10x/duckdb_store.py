@@ -1,21 +1,19 @@
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING
 
 import duckdb
+import ibis
 
 from core_10x.ibis_store import IbisCollection, IbisStore, _ID, _REV, _json_encode
 from core_10x.resource import Resource
 from core_10x.ts_store import TsDuplicateKeyError
 
-if TYPE_CHECKING:
-    pass
-
 
 # ---------------------------------------------------------------------------
-# DuckIbisCollection — DuckDB-specific DML and DDL
+# DuckIbisCollection — DuckDB-specific DML, DDL, and ibis table access
 # ---------------------------------------------------------------------------
 
 
@@ -24,6 +22,7 @@ class DuckIbisCollection(IbisCollection):
         self._store = store
         self._name = name
         self._con = store._con
+        self._ibis_con = store._ibis_con
 
     def collection_name(self) -> str:
         return self._name
@@ -31,14 +30,10 @@ class DuckIbisCollection(IbisCollection):
     def _qname(self) -> str:
         return f'"{self._name}"'
 
-    def _execute(self, sql: str, params=None):
-        if params:
-            return self._con.execute(sql, params)
-        return self._con.execute(sql)
+    def _ibis_table(self):
+        return self._ibis_con.table(self._name)
 
     def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
-        import json
-
         doc = dict(serialized_traitable)
         doc[_REV] = 1
         id_val, rev, data_json = self._encode_doc(doc)
@@ -46,12 +41,12 @@ class DuckIbisCollection(IbisCollection):
             return 0
         try:
             if overwrite:
-                self._execute(
+                self._con.execute(
                     f'INSERT OR REPLACE INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?)',
                     [id_val, rev, data_json],
                 )
             else:
-                self._execute(
+                self._con.execute(
                     f'INSERT INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?)',
                     [id_val, rev, data_json],
                 )
@@ -62,8 +57,6 @@ class DuckIbisCollection(IbisCollection):
         return 1
 
     def save(self, serialized_traitable: dict) -> int:
-        import json
-
         rev = serialized_traitable[_REV]
         if rev == 0:
             return self.save_new(serialized_traitable)
@@ -79,7 +72,7 @@ class DuckIbisCollection(IbisCollection):
         new_data = {k: v for k, v in doc.items() if k not in (_ID, _REV)}
         new_data_json = json.dumps(new_data, default=_json_encode)
 
-        row = self._execute(
+        row = self._con.execute(
             f'SELECT {_REV}, _data FROM {self._qname()} WHERE {_ID} = ?', [id_val]
         ).fetchone()
         if row:
@@ -89,14 +82,14 @@ class DuckIbisCollection(IbisCollection):
                 return rev
 
         new_rev = rev + 1
-        self._execute(
+        self._con.execute(
             f'UPDATE {self._qname()} SET {_REV} = ?, _data = ? WHERE {_ID} = ? AND {_REV} = ?',
             [new_rev, new_data_json, id_val, rev],
         )
         return new_rev
 
     def delete(self, id_value: str) -> bool:
-        rows = self._execute(
+        rows = self._con.execute(
             f'DELETE FROM {self._qname()} WHERE {_ID} = ? RETURNING {_ID}', [id_value]
         ).fetchall()
         return len(rows) > 0
@@ -113,7 +106,7 @@ class DuckIbisCollection(IbisCollection):
         else:
             cols = f"json_extract_string(_data, '$.{trait_name}')"
         try:
-            self._execute(f'CREATE INDEX IF NOT EXISTS {safe_name} ON {self._qname()} ({cols})')
+            self._con.execute(f'CREATE INDEX IF NOT EXISTS {safe_name} ON {self._qname()} ({cols})')
         except Exception:
             pass  # some expressions cannot be indexed; silently skip
         return name
@@ -150,6 +143,7 @@ class DuckIbisStore(IbisStore, resource_name='DUCK_DB'):
     def __init__(self, *args, **kwargs):
         super().__init__()
         self._con = duckdb.connect()
+        self._ibis_con = ibis.duckdb.from_connection(self._con)
         self._collections: dict[str, DuckIbisCollection] = {}
         self.username = kwargs.get(Resource.USERNAME_TAG, 'test_user')
         self.dbname = kwargs.get(Resource.DBNAME_TAG)

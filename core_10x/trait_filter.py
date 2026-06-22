@@ -41,6 +41,15 @@ class _filter(ABC):
     def eval(self, left_value) -> bool: ...
     @abstractmethod
     def prefix_notation(self, trait: Trait = None, traitable_class: BTraitableClass = None) -> dict: ...
+    @abstractmethod
+    def ibis(self, col_or_table, get_col=None):
+        """Return an ibis boolean expression.
+
+        For ``Op`` subclasses ``col_or_table`` is an ibis column expression.
+        For ``BoolOp`` / ``f`` it is an ibis table; ``get_col(table, name, rv)``
+        returns the appropriately cast column expression for a named field.
+        """
+        ...
 
 
 class Op(_filter, ABC):
@@ -71,35 +80,56 @@ class NOT_EMPTY(Op, label=''):
     def eval(self, left_value) -> bool:
         return bool(left_value)
 
+    def ibis(self, col, get_col=None):
+        raise NotImplementedError
+
 
 class EQ(Op):
     def eval(self, left_value) -> bool:
         return left_value == self.right_value
+
+    def ibis(self, col, get_col=None):
+        return col == self.right_value
 
 
 class NE(Op):
     def eval(self, left_value) -> bool:
         return left_value != self.right_value
 
+    def ibis(self, col, get_col=None):
+        return col != self.right_value
+
 
 class GT(Op):
     def eval(self, left_value) -> bool:
         return left_value > self.right_value
+
+    def ibis(self, col, get_col=None):
+        return col > self.right_value
 
 
 class GE(Op):
     def eval(self, left_value) -> bool:
         return left_value >= self.right_value
 
+    def ibis(self, col, get_col=None):
+        return col >= self.right_value
+
 
 class LT(Op):
     def eval(self, left_value) -> bool:
         return left_value < self.right_value
 
+    def ibis(self, col, get_col=None):
+        return col < self.right_value
+
 
 class LE(Op):
     def eval(self, left_value) -> bool:
         return left_value <= self.right_value
+
+    def ibis(self, col, get_col=None):
+        return col <= self.right_value
 
 
 class IN(Op):
@@ -113,10 +143,16 @@ class IN(Op):
     def eval(self, left_value) -> bool:
         return left_value in self.right_value
 
+    def ibis(self, col, get_col=None):
+        return col.isin(list(self.right_value))
+
 
 class NIN(IN):
     def eval(self, left_value) -> bool:
         return left_value not in self.right_value
+
+    def ibis(self, col, get_col=None):
+        return ~col.isin(list(self.right_value))
 
 
 # class REGEX(Op):
@@ -130,6 +166,7 @@ class BETWEEN(Op, label=''):
         bound_a, bound_b = bounds
         obj.left = GE(a) if bound_a else GT(a)
         obj.right = LE(b) if bound_b else LT(b)
+        obj.right_value = a  # representative value used by _ibis_col for type detection
         return obj
 
     def eval(self, left_value) -> bool:
@@ -139,6 +176,9 @@ class BETWEEN(Op, label=''):
         res = self.left.prefix_notation(trait, traitable_class)
         res.update(self.right.prefix_notation(trait, traitable_class))
         return res
+
+    def ibis(self, col, get_col=None):
+        return self.left.ibis(col) & self.right.ibis(col)
 
 
 class BoolOp(Op, ABC, label=''):
@@ -159,6 +199,15 @@ class BoolOp(Op, ABC, label=''):
         rvalues = [pn for e in self.right_value if (pn := e.prefix_notation(trait, traitable_class))]
         return {self.label: rvalues} if rvalues else {}
 
+    def ibis(self, table, get_col=None):
+        from functools import reduce
+        parts = [e.ibis(table, get_col) for e in self.right_value]
+        op = self._ibis_combine
+        return reduce(op, parts)
+
+    @staticmethod
+    def _ibis_combine(a, b): ...
+
 
 class AND(BoolOp):
     @classmethod
@@ -167,6 +216,10 @@ class AND(BoolOp):
 
     def eval(self, left_value) -> bool:
         return all(e.eval(left_value) for e in self.right_value)
+
+    @staticmethod
+    def _ibis_combine(a, b):
+        return a & b
 
 
 class OR(BoolOp):
@@ -177,6 +230,10 @@ class OR(BoolOp):
 
     def eval(self, left_value) -> bool:
         return any(e.eval(left_value) for e in self.right_value)
+
+    @staticmethod
+    def _ibis_combine(a, b):
+        return a | b
 
 
 class f(_filter):
@@ -203,3 +260,15 @@ class f(_filter):
             clause = {AND.label: [filter_clause, clause]} if clause else filter_clause
 
         return clause
+
+    def ibis(self, table, get_col=None):
+        from functools import reduce
+        parts = []
+        if self.filter:
+            parts.append(self.filter.ibis(table, get_col))
+        for name, op in self.named_expressions.items():
+            col = get_col(table, name, op.right_value)
+            parts.append(op.ibis(col))
+        if not parts:
+            return None
+        return reduce(lambda a, b: a & b, parts)
