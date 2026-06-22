@@ -325,7 +325,7 @@ pyqt6-sip==13.10.0
     # via
     #   py10x-core (pyproject.toml)
     #   pyqt6
-pytest==9.1.0
+pytest==9.1.1
     # via
     #   py10x-core (pyproject.toml)
     #   alt-pytest-asyncio
@@ -467,7 +467,7 @@ uuid6==2025.0.1
     #   py10x-kernel (../cxx10x/core_10x/pyproject.toml)
     #   py10x-core (pyproject.toml)
     #   py10x-kernel
-uv==0.11.21
+uv==0.11.23
     # via
     #   py10x-core (pyproject.toml)
     #   licensecheck
