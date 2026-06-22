@@ -30,9 +30,9 @@ from core_10x.traitable import (
 ALICE, ALICE_VAULT_PWD, ALICE_MASTER = 'alice_res', 'AliceRes7!', 'AliceMaster9!'
 
 # A vault-host URI (matches the ``VAULT_URI`` host in conftest).
-VAULT_HOST_URI    = 'testdb://vaulthost.example.com:27017'
-ANOTHER_DB_URI    = 'testdb://vaulthost.example.com/another'   # has matching RA in vault-hit test
-NO_RA_URI         = 'testdb://otherhost.example.com/lonely'    # has no RA in vault-miss test
+VAULT_HOST_URI    = 'duckdb://vaulthost.example.com:27017'
+ANOTHER_DB_URI    = 'duckdb://vaulthost.example.com/another'   # has matching RA in vault-hit test
+NO_RA_URI         = 'duckdb://otherhost.example.com/lonely'    # has no RA in vault-miss test
 RESOURCE_PWD      = 'ResourcePwd9!'
 
 

@@ -56,8 +56,8 @@ from core_10x.vault_utils import VaultUtils
 # (The ``vault_env`` fixture itself lives in ``core_10x.testlib.vault_env``
 # and uses its own internal ``VAULT_URI`` matching the host below.)
 
-VAULT_HOST_URI  = 'testdb://vaulthost.example.com'              # no port number - should be added by round trip
-MAIN_ON_VAULT   = 'testdb://vaulthost.example.com:27017/main'   # different db, same host
+VAULT_HOST_URI  = 'duckdb://vaulthost.example.com'              # no port number - should be added by round trip
+MAIN_ON_VAULT   = 'duckdb://vaulthost.example.com:27017/main'   # different db, same host
 PG_URI          = 'postgresql://pghost.example.com:5432/analytics'
 
 ADMIN, ADMIN_VAULT_PWD, ADMIN_MASTER = 'admin', 'AdminVault7!', 'AdminMaster9!'
@@ -209,9 +209,9 @@ class TestCanonicalUri:
         """Port-free URI gains the resource's default port (27017 for testdb /
         MongoDB) so it hashes to the same key as the explicit-port form."""
         no_port   = VaultResourceAccessor._canonical_uri(
-            CONCRETE_RESOURCE.TS_STORE, 'testdb://vaulthost.example.com/_vault_')
+            CONCRETE_RESOURCE.TS_STORE, 'duckdb://vaulthost.example.com/_vault_')
         with_port = VaultResourceAccessor._canonical_uri(
-            CONCRETE_RESOURCE.TS_STORE, 'testdb://vaulthost.example.com:27017/_vault_')
+            CONCRETE_RESOURCE.TS_STORE, 'duckdb://vaulthost.example.com:27017/_vault_')
 
         assert no_port == with_port
         assert ':27017' in no_port
@@ -219,17 +219,17 @@ class TestCanonicalUri:
     def test_explicit_port_unchanged(self):
         """An explicit non-default port is preserved as-is."""
         uri = VaultResourceAccessor._canonical_uri(
-            CONCRETE_RESOURCE.TS_STORE, 'testdb://vaulthost.example.com:9999/_vault_')
+            CONCRETE_RESOURCE.TS_STORE, 'duckdb://vaulthost.example.com:9999/_vault_')
         assert ':9999' in uri
         assert ':27017' not in uri
 
     def test_netloc_preserved_through_uri_no_dbname(self):
         """``Resource.uri_no_dbname`` round-trips through the parser; ensures the port is
         carried through when the database name is stripped."""
-        full_uri = 'testdb://vaulthost.example.com:27017/_vault_'
+        full_uri = 'duckdb://vaulthost.example.com:27017/_vault_'
         host_uri = Resource.uri_no_dbname(full_uri)
 
-        assert host_uri == 'testdb://vaulthost.example.com:27017'
+        assert host_uri == 'duckdb://vaulthost.example.com:27017'
         assert '/_vault_' not in host_uri
 
     def test_vault_uri_no_dbname_matches_canonical_host_uri(self, vault_env): # noqa: F811  (pytest fixture)
@@ -240,7 +240,7 @@ class TestCanonicalUri:
         stored_as = Resource.uri_no_dbname(VAULT_URI)   # what user_init stores
         looked_up = VaultResourceAccessor._canonical_uri(
             CONCRETE_RESOURCE.TS_STORE,
-            'testdb://vaulthost.example.com',           # caller omits port
+            'duckdb://vaulthost.example.com',           # caller omits port
         )
         assert stored_as == looked_up
 
@@ -255,8 +255,8 @@ class TestSaveAndRetrieveWithPortVariants:
         env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD,
                           master_pwd=ALICE_MASTER)
 
-        portless = 'testdb://otherhost.example.com/mydb'
-        portful  = 'testdb://otherhost.example.com:27017/mydb'
+        portless = 'duckdb://otherhost.example.com/mydb'
+        portful  = 'duckdb://otherhost.example.com:27017/mydb'
 
         with Traitable.vault_store():
             VaultResourceAccessor.save_ra(
@@ -279,8 +279,8 @@ class TestSaveAndRetrieveWithPortVariants:
         env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD,
                           master_pwd=ALICE_MASTER)
 
-        portless = 'testdb://otherhost.example.com/mydb'
-        portful  = 'testdb://otherhost.example.com:27017/mydb'
+        portless = 'duckdb://otherhost.example.com/mydb'
+        portful  = 'duckdb://otherhost.example.com:27017/mydb'
 
         with Traitable.vault_store():
             VaultResourceAccessor.save_ra(

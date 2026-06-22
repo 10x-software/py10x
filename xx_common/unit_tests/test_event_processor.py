@@ -27,8 +27,8 @@ class Counter(EventProcessor, inputs=(Tick,), outputs=()):
 @pytest.fixture
 def event_store(monkeypatch, mocker):
     _clear_main_store_caches()
-    monkeypatch.setenv('XX_MAIN_TS_STORE_URI', 'testdb://localhost/event_processor')
-    monkeypatch.setenv('XX_VAULT_URI', 'testdb://localhost/vault')
+    monkeypatch.setenv('XX_MAIN_TS_STORE_URI', 'duckdb://localhost/event_processor')
+    monkeypatch.setenv('XX_VAULT_URI', 'duckdb://localhost/vault')
 
     # Monotonic store clock so event _at values sit strictly below each watermark query.
     clock = [datetime(2026, 6, 1, 12, 0, 0)]

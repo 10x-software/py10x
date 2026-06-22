@@ -13,7 +13,7 @@ end-to-end inside a single test process:
 - ``TestStore.new_instance`` short-circuited to a single shared instance
   (so admin and alice see the same vault deployment).
 
-URI parsing, ``is_running_with_auth``, and the ``testdb://`` protocol
+URI parsing, ``is_running_with_auth``, and the ``duckdb://`` protocol
 registration all live in ``infra_10x/duckdb_store.py`` itself; the
 fixture only flips the auth flag and the ``new_instance`` factory.
 
@@ -46,7 +46,7 @@ from core_10x.vault_utils import VaultUtils
 # Default vault URI used by ``vault_env``.  Tests may save resource accessors
 # for any other ``testdb://`` URI; this one is what ``EnvVars.main_vault_uri``
 # points to so ``Traitable.vault_store()`` resolves.
-VAULT_URI = 'testdb://vaulthost.example.com:27017/_vault_'
+VAULT_URI = 'duckdb://vaulthost.example.com:27017/_vault_'
 
 
 def _clear_internal_state():

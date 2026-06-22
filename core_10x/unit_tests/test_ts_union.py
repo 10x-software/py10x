@@ -287,7 +287,7 @@ def test_delete_collection(union_store):
 @pytest.fixture
 def ts_union():
     assert not TsUnion.s_instances
-    store_spec = dict(driver_name='DUCKDB_TEST_DB', hostname='localhost', dbname='dbname1', username='')
+    store_spec = dict(driver_name='DUCK_DB', hostname='localhost', dbname='dbname1', username='')
     union_store = TsUnion.instance(store_spec, store_spec | dict(dbname='dbname2'))
     yield union_store
     TsUnion.s_instances.clear()
@@ -304,8 +304,8 @@ def test_new_instance(ts_union):
         (('dbname', 'dbname1'), ('hostname', 'localhost')),
         (('dbname', 'dbname2'), ('hostname', 'localhost')),
         (
-            (('dbname', 'dbname1'), ('driver_name', 'DUCKDB_TEST_DB'), ('hostname', 'localhost'),),
-            (('dbname', 'dbname2'), ('driver_name', 'DUCKDB_TEST_DB'), ('hostname', 'localhost'),),
+            (('dbname', 'dbname1'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost'),),
+            (('dbname', 'dbname2'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost'),),
         ),
     ]
 
