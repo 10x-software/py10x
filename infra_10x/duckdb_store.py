@@ -10,7 +10,7 @@ import ibis
 from core_10x.nucleus import Nucleus
 from core_10x.resource import Resource
 from core_10x.ts_store import TsCollection, TsDuplicateKeyError
-from infra_10x.ibis_store import IbisStore
+from core_10x.ibis_store import IbisStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

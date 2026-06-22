@@ -147,6 +147,22 @@ class ResourceSpec:
             url += f'#{fragment}'
         return url
 
+def _has_abstract_methods(cls) -> bool:
+    """Check whether cls has any unimplemented abstract methods.
+
+    ABCMeta sets __abstractmethods__ *after* __init_subclass__ runs, so we
+    compute it ourselves by walking the MRO.
+    """
+    abstract: set[str] = set()
+    for klass in reversed(cls.__mro__):
+        for name, val in vars(klass).items():
+            if getattr(val, '__isabstractmethod__', False):
+                abstract.add(name)
+            elif name in abstract:
+                abstract.discard(name)
+    return bool(abstract)
+
+
 class Resource(abc.ABC):
     PROTOCOL_TAG    = 'protocol'
     HOSTNAME_TAG    = 'hostname'
@@ -224,6 +240,8 @@ class Resource(abc.ABC):
 
         else:   #-- a Resource of a particular resource type, or an abstract intermediate
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
+            assert resource_name or _has_abstract_methods(cls), \
+                f'{cls.__name__} is a concrete Resource subclass and must declare a resource_name'
             if resource_name:
                 assert isinstance(resource_name, str), 'a unique Resource name is expected'
                 cls.s_resource_type.register_driver(resource_name, cls)
