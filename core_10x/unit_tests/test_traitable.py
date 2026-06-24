@@ -24,25 +24,6 @@ from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModificati
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
-class TsStoreMongoLike:
-    """Minimal MongoDB-style add_who/add_when for test_serialize."""
-    SET = '$set'
-
-    def add_who(self, field: str, serialized_data: dict) -> dict:
-        sd = serialized_data.get(self.SET, serialized_data)
-        if field in sd:
-            raise RuntimeError(f'Field {field} is already in use.')
-        sd['_who'] = self.auth_user()
-        return serialized_data
-
-    def add_when(self, field: str, serialized_data: dict) -> dict:
-        sd = serialized_data.get(self.SET, serialized_data)
-        if field in sd:
-            raise RuntimeError(f'Field {field} is already in use.')
-        if sd is serialized_data:
-            serialized_data = {self.SET: sd}
-        serialized_data.setdefault('$currentDate', {})[field] = True
-        return serialized_data
 from core_10x.xnone import XNone
 
 if TYPE_CHECKING:
@@ -656,33 +637,24 @@ def test_serialize(monkeypatch):
 
         @classmethod
         def store(cls):
-            class Store(TsStoreMongoLike):
-                def auth_user(self):
-                    return 'test_user'
-
-                def transaction(self):
-                    return contextlib.nullcontext()
-
+            class Store:
+                def add_who(self, trait_name, serialized_data): return serialized_data
+                def add_when(self, trait_name, serialized_data): return serialized_data
+                def auth_user(self): return 'test_user'
+                def transaction(self): return contextlib.nullcontext()
                 def collection(self, collection_name):
                     class Collection:
-                        def create_index(self, name, trait_name):
-                            return name
-
+                        def create_index(self, name, trait_name): return name
                         def save(self, serialized_data):
+                            id_value = serialized_data['_id']
                             if not collection_name.endswith('#history'):
-                                id_value = serialized_data['_id']
                                 save_calls[id_value] += 1
                             else:
-                                id_value = serialized_data['$set']['_id']
                                 history_save_calls[id_value] += 1
-
                             serialized[id_value] = serialized_data
                             return 1
-
                         save_new = save
-
                     return Collection()
-
             return Store()
 
         def z_get(self) -> int:

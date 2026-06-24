@@ -8,6 +8,7 @@ from ui_10x.rio.browser_helpers import (
     wait_for_line_edit_tooltip,
     wait_for_line_edit_type,
     wait_for_line_edit_value,
+    wait_until,
 )
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import LineEdit
@@ -51,7 +52,7 @@ async def test_line_edit_comprehensive() -> None:
 
         # Test editing finished
         await test_client.execute_js(find_input + '.blur();')
-        assert len(finished_calls) == 1
+        await wait_until(lambda: len(finished_calls) == 1, message='editing_finished handler to run')
         assert widget.text() == await test_client.execute_js(find_input + '.value')
 
         # Test widget changes propagate to client with timeout protection

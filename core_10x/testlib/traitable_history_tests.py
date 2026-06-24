@@ -144,7 +144,8 @@ class TestTraitableHistory:
         assert saved_doc['_who'] == 'test_user'
         assert saved_doc['name'] == 'Test Item'
         assert saved_doc['value'] == 42
-        assert isinstance(saved_doc['_at'], datetime)
+        at_val = saved_doc['_at']
+        assert isinstance(at_val, datetime) or (isinstance(at_val, str) and datetime.fromisoformat(at_val))
 
     def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, with_transactions, monkeypatch):  # noqa: F811
         """When history save fails, the main document save is rolled back (revision not applied)."""

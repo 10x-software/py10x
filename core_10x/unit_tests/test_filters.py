@@ -225,9 +225,9 @@ def test_named_serializers():
 
     assert trait.serialize_value(5) == 'age:5'
 
-    assert EQ(5).prefix_notation(trait=trait, traitable_class=P.s_bclass) == {'$eq': 'age:5'}
+    assert EQ(5).prefix_notation(field_name=trait.name, traitable_class=P.s_bclass) == {'$eq': 'age:5'}
 
-    assert BETWEEN(1, 5).prefix_notation(trait=trait, traitable_class=P.s_bclass) == {
+    assert BETWEEN(1, 5).prefix_notation(field_name=trait.name, traitable_class=P.s_bclass) == {
         '$gte': 'age:1',
         '$lte': 'age:5',
     }

@@ -305,19 +305,17 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         return self.db.name
 
     def add_who(self, field: str, serialized_data: dict) -> dict:
-        _set = '$set'
-        sd = serialized_data.get(_set, serialized_data)
+        sd = serialized_data.get('$set', serialized_data)
         if field in sd:
             raise RuntimeError(f'Field {field} is already in use.')
         sd['_who'] = self.auth_user()
         return serialized_data
 
     def add_when(self, field: str, serialized_data: dict) -> dict:
-        _set = '$set'
-        sd = serialized_data.get(_set, serialized_data)
+        sd = serialized_data.get('$set', serialized_data)
         if field in sd:
             raise RuntimeError(f'Field {field} is already in use.')
         if sd is serialized_data:
-            serialized_data = {_set: sd}
+            serialized_data = {'$set': sd}
         serialized_data.setdefault('$currentDate', {})[field] = True
         return serialized_data

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present in the codebase but not part of the supported public API yet.
 
 ### Added
-- **Release promotion (`xx-promote`)** (`dev_10x/xx_promote.py`, `dev_10x/xx_helpers.py`, `dev_10x/README.md`): TraitableCli tool to cut rc/final tags across the three independently versioned packages, roll main dev pins (Form A), create release-branch final pins, and yank tags. Subcommands: `pre`, `prod`, `yank --pkg … --version …`. Safety flags: default local-only, `--dry-run`, `--push`. Pure helpers and CLI routing covered by `dev_10x/unit_tests/`.
+- **Release promotion (`xx-promote`)** (`dev_10x/xx_promote.py`, `dev_10x/xx_helpers.py`, `dev_10x/README.md`): TraitableCli tool to cut rc/final tags across the three independently versioned packages, roll main dev pins (prerelease-admitting), create release-branch final pins, and yank tags. Subcommands: `pre`, `prod`, `yank --pkg … --version …`. Safety flags: default local-only, `--dry-run`, `--push`. Pure helpers and CLI routing covered by `dev_10x/unit_tests/`.
 - **CI tag resolution (`dev_10x/xx_ci.py`)**: kernel-free shim (`packaging` + `tomlkit` only) to resolve the latest sibling tag admitted by a pin spec and verify an installed sibling matches that tag — used by publish CI before any wheel upload.
 - **`uv-run`** (`dev_10x/uv_run.py`): run a command under the last `uv-sync` profile without re-syncing.
 - **Pre-publish test gate** (`.github/workflows/build.yml`): full test job on tag push (resolve/install siblings at pinned tags, verify imports, pytest) before the publish job; yanked tags (`*_yanked`) excluded from triggers.
