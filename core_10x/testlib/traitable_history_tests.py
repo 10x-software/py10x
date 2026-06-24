@@ -1,11 +1,11 @@
-"""Tests for TraitableHistory functionality using pytest and real TestStore."""
+"""Tests for TraitableHistory functionality using pytest and real DuckDbStore."""
 
 from __future__ import annotations
 
 import time
 import uuid
 from contextlib import nullcontext
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 import pytest
 from py10x_kernel import BTraitableProcessor
@@ -36,9 +36,9 @@ def clock_freezer(mocker, ts_instance, request):
     frozen_now = ClockFreezer()
     if request.param:
         frozen_now.append(datetime.utcnow())
-        mock_dt = mocker.patch('core_10x.testlib.test_store.datetime', autospec=True)
-        mock_dt.utcnow.side_effect = lambda: frozen_now[0]
-        mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
+        from infra_10x.duckdb_store import DuckDbStore
+        mocker.patch.object(DuckDbStore, 'server_time',
+                            lambda self: frozen_now[0].replace(tzinfo=timezone.utc))
     yield frozen_now
 
 class NameValueTraitableBase(Traitable):
@@ -144,7 +144,8 @@ class TestTraitableHistory:
         assert saved_doc['_who'] == 'test_user'
         assert saved_doc['name'] == 'Test Item'
         assert saved_doc['value'] == 42
-        assert isinstance(saved_doc['_at'], datetime)
+        at_val = saved_doc['_at']
+        assert isinstance(at_val, datetime) or (isinstance(at_val, str) and datetime.fromisoformat(at_val))
 
     def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, with_transactions, monkeypatch):  # noqa: F811
         """When history save fails, the main document save is rolled back (revision not applied)."""
@@ -725,19 +726,18 @@ class TestTraitableHistory:
         assert '_at' not in prepared_data
 
     def test_save_new_with_overwrite_parameter(self, test_store, test_collection):
-        """Test TestCollection.save_new with overwrite parameter."""
-        # Test save_new with MongoDB-style $set operation
-        result = test_collection.save_new({'$set': {'_id': 'new-id', 'name': 'New Person', 'age': 25}})
+        """Test DuckDbCollection.save_new with overwrite parameter."""
+        result = test_collection.save_new({'_id': 'new-id', 'name': 'New Person', 'age': 25})
         assert result == 1  # Should succeed for new document
 
         # Fails because the document already exists
         with pytest.raises(TsDuplicateKeyError):
-            test_collection.save_new({'$set': {'_id': 'new-id'}})
+            test_collection.save_new({'_id': 'new-id'})
 
-        test_collection.save_new({'$set': {'_id': 'new-id'}}, overwrite=True)
+        test_collection.save_new({'_id': 'new-id'}, overwrite=True)
 
     def test_find_without_filter_parameter(self, test_store, test_collection):
-        """Test TestCollection.find without _filter parameter."""
+        """Test DuckDbCollection.find without _filter parameter."""
 
         # Add documents using the interface method
         test_collection.save_new({'_id': 'doc1', 'name': 'Person 1', 'age': 25})

@@ -61,10 +61,10 @@ def _clear_main_store_caches():
 
 @pytest.fixture(scope='module')
 def main_test_store():
-    """Activate an in-memory TestStore as the main Traitable store and vault.
+    """Activate an in-memory DuckDbStore as the main Traitable store and vault.
 
     Sets ``XX_MAIN_TS_STORE_URI`` and ``XX_VAULT_URI`` to in-process
-    ``testdb://`` URIs so vault lookups resolve against an empty vault store
+    ``duckdb://`` URIs so vault lookups resolve against an empty vault store
     rather than raising ``OSError`` — resources open without credentials,
     matching a dev environment with no secrets configured.
     Stores and caches are torn down automatically at module end.
@@ -72,9 +72,9 @@ def main_test_store():
     _clear_main_store_caches()
 
     with pytest.MonkeyPatch.context() as mp:
-        mp.setenv('XX_MAIN_TS_STORE_URI', 'testdb://localhost/main')
-        mp.setenv('XX_MAIN_VAULT_URI',    'testdb://localhost/vault')
-        mp.setenv('XX_VAULT_URI',         'testdb://localhost/vault')
+        mp.setenv('XX_MAIN_TS_STORE_URI', 'duckdb://localhost/main')
+        mp.setenv('XX_MAIN_VAULT_URI',    'duckdb://localhost/vault')
+        mp.setenv('XX_VAULT_URI',         'duckdb://localhost/vault')
         yield Traitable.main_store()
 
     _clear_main_store_caches()

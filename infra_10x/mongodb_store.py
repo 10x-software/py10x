@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key, TsStoreMongoLike
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, errors
 from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
@@ -148,7 +148,7 @@ class MongoCollection(TsCollection):
         return None
 
 
-class MongoStore(TsStoreMongoLike, TsStore, resource_name = 'MONGO_DB'):
+class MongoStore(TsStore, resource_name = 'MONGO_DB'):
     ADMIN           = 'admin'
     DEFAULT_DB_NAME = 'local'
 
@@ -303,3 +303,19 @@ class MongoStore(TsStoreMongoLike, TsStore, resource_name = 'MONGO_DB'):
 
     def db_name(self) -> str:
         return self.db.name
+
+    def add_who(self, field: str, serialized_data: dict) -> dict:
+        sd = serialized_data.get('$set', serialized_data)
+        if field in sd:
+            raise RuntimeError(f'Field {field} is already in use.')
+        sd['_who'] = self.auth_user()
+        return serialized_data
+
+    def add_when(self, field: str, serialized_data: dict) -> dict:
+        sd = serialized_data.get('$set', serialized_data)
+        if field in sd:
+            raise RuntimeError(f'Field {field} is already in use.')
+        if sd is serialized_data:
+            serialized_data = {'$set': sd}
+        serialized_data.setdefault('$currentDate', {})[field] = True
+        return serialized_data

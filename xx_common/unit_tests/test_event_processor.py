@@ -27,8 +27,8 @@ class Counter(EventProcessor, inputs=(Tick,), outputs=()):
 @pytest.fixture
 def event_store(monkeypatch, mocker):
     _clear_main_store_caches()
-    monkeypatch.setenv('XX_MAIN_TS_STORE_URI', 'testdb://localhost/event_processor')
-    monkeypatch.setenv('XX_VAULT_URI', 'testdb://localhost/vault')
+    monkeypatch.setenv('XX_MAIN_TS_STORE_URI', 'duckdb://localhost/event_processor')
+    monkeypatch.setenv('XX_VAULT_URI', 'duckdb://localhost/vault')
 
     # Monotonic store clock so event _at values sit strictly below each watermark query.
     clock = [datetime(2026, 6, 1, 12, 0, 0)]
@@ -38,10 +38,8 @@ def event_store(monkeypatch, mocker):
         clock[0] += timedelta(milliseconds=10)
         return clock[0]
 
-    mock_dt = mocker.patch('core_10x.testlib.test_store.datetime', autospec=True)
-    mock_dt.utcnow.side_effect = lambda : now(timezone.utc)
-    mock_dt.now.side_effect = now
-    mock_dt.side_effect = lambda *args, **kw: datetime(*args, **kw)
+    from infra_10x.duckdb_store import DuckDbStore
+    mocker.patch.object(DuckDbStore, 'server_time', lambda self: now(timezone.utc))
 
     store = Traitable.main_store()
     yield store

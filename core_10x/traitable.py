@@ -1030,7 +1030,7 @@ class StorableHelperWithHistory(StorableHelper):
                 self.traitable_class.collection(
                     traitable_id.collection_name,
                 ).save_new(
-                    {'$set': history_entry.serialized_traitable},
+                    history_entry.serialized_traitable,
                     overwrite=True,
                 )
             )

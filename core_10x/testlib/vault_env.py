@@ -9,12 +9,12 @@ end-to-end inside a single test process:
 - queues for ``input`` / ``getpass.getpass`` (interactive prompts);
 - a switchable OS user name (``OsUser.me`` is a C++ singleton, so we swap
   the binding seen by ``sec_keys`` and ``traitable``);
-- ``TestStore.s_with_auth`` flipped to True so vault-aware codepaths run;
-- ``TestStore.new_instance`` short-circuited to a single shared instance
+- ``DuckDbStore.s_with_auth`` flipped to True so vault-aware codepaths run;
+- ``DuckDbStore.new_instance`` short-circuited to a single shared instance
   (so admin and alice see the same vault deployment).
 
-URI parsing, ``is_running_with_auth``, and the ``testdb://`` protocol
-registration all live in ``core_10x/testlib/test_store.py`` itself; the
+URI parsing, ``is_running_with_auth``, and the ``duckdb://`` protocol
+registration all live in ``infra_10x/duckdb_store.py`` itself; the
 fixture only flips the auth flag and the ``new_instance`` factory.
 
 The fixture is **not** auto-collected: tests that need it should write::
@@ -37,16 +37,16 @@ import core_10x.vault_utils as vault_utils_mod
 from core_10x.environment_variables import EnvVars
 from core_10x.resource import Resource
 from core_10x.sec_keys import SecKeys
-from core_10x.testlib.test_store import TestStore as _TestStore
+from infra_10x.duckdb_store import DuckDbStore
 from core_10x.traitable import Traitable, VaultUser
 from core_10x.ts_store import TsStore
 from core_10x.vault_utils import VaultUtils
 
 
 # Default vault URI used by ``vault_env``.  Tests may save resource accessors
-# for any other ``testdb://`` URI; this one is what ``EnvVars.main_vault_uri``
+# for any other ``duckdb://`` URI; this one is what ``EnvVars.main_vault_uri``
 # points to so ``Traitable.vault_store()`` resolves.
-VAULT_URI = 'testdb://vaulthost.example.com:27017/_vault_'
+VAULT_URI = 'duckdb://vaulthost.example.com:27017/_vault_'
 
 
 def _clear_internal_state():
@@ -73,7 +73,7 @@ def vault_env(monkeypatch):
     current_os  = ['']
     text_q      = []
     secret_q    = []
-    vault_db    = _TestStore()
+    vault_db    = DuckDbStore()
 
     # 1. Keyring (in-memory).
     monkeypatch.setattr(sec_keys_mod.keyring, 'get_password',
@@ -100,14 +100,14 @@ def vault_env(monkeypatch):
     monkeypatch.setattr(vault_utils_mod.getpass, 'getpass',
                                            lambda *_a, **_k: secret_q.pop(0))
 
-    # 4. Auth-required + every ``_TestStore.instance(...)`` returns the same
+    # 4. Auth-required + every ``DuckDbStore.instance(...)`` returns the same
     #    store; admin and alice's connections share the underlying
     #    "deployment" so they can read/write each other's state.
-    monkeypatch.setattr(_TestStore, 's_with_auth', True)
-    monkeypatch.setattr(_TestStore, 's_instance_kwargs_map',  _TestStore.s_instance_kwargs_map|{
+    monkeypatch.setattr(DuckDbStore, 's_with_auth', True)
+    monkeypatch.setattr(DuckDbStore, 's_instance_kwargs_map',  DuckDbStore.s_instance_kwargs_map|{
         Resource.PORT_TAG: (Resource.PORT_TAG, 27017),
     })
-    monkeypatch.setattr(_TestStore, 'new_instance',
+    monkeypatch.setattr(DuckDbStore, 'new_instance',
                         classmethod(lambda cls, *a, **kw: vault_db))
 
     # 5. Vault URI (direct env-var assignment, the same idiom as

@@ -24,7 +24,6 @@ from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModificati
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
-from core_10x.ts_store import TsStoreMongoLike
 from core_10x.xnone import XNone
 
 if TYPE_CHECKING:
@@ -638,33 +637,24 @@ def test_serialize(monkeypatch):
 
         @classmethod
         def store(cls):
-            class Store(TsStoreMongoLike):
-                def auth_user(self):
-                    return 'test_user'
-
-                def transaction(self):
-                    return contextlib.nullcontext()
-
+            class Store:
+                def add_who(self, trait_name, serialized_data): return serialized_data
+                def add_when(self, trait_name, serialized_data): return serialized_data
+                def auth_user(self): return 'test_user'
+                def transaction(self): return contextlib.nullcontext()
                 def collection(self, collection_name):
                     class Collection:
-                        def create_index(self, name, trait_name):
-                            return name
-
+                        def create_index(self, name, trait_name): return name
                         def save(self, serialized_data):
+                            id_value = serialized_data['_id']
                             if not collection_name.endswith('#history'):
-                                id_value = serialized_data['_id']
                                 save_calls[id_value] += 1
                             else:
-                                id_value = serialized_data['$set']['_id']
                                 history_save_calls[id_value] += 1
-
                             serialized[id_value] = serialized_data
                             return 1
-
                         save_new = save
-
                     return Collection()
-
             return Store()
 
         def z_get(self) -> int:

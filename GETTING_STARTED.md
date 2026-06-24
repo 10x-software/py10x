@@ -2245,8 +2245,8 @@ from core_10x.traitable import NamedTsStore, TsClassAssociation
 
 # Register named stores — URI is stored here, not in application code.
 # These records are persisted in the main store (XX_MAIN_TS_STORE_URI).
-NamedTsStore.new_or_replace(logical_name='trades-db',    uri='testdb://db.example.com/trades').save()
-NamedTsStore.new_or_replace(logical_name='analytics-db', uri='testdb://db.example.com/analytics').save()
+NamedTsStore.new_or_replace(logical_name='trades-db',    uri='duckdb://db.example.com/trades').save()
+NamedTsStore.new_or_replace(logical_name='analytics-db', uri='duckdb://db.example.com/analytics').save()
 
 # Associate a module (or class) with a logical store name.
 # Resolution walks bottom-up: class name → module → parent packages.
@@ -2948,7 +2948,7 @@ with CACHE_ONLY():
 
 ### 6. Testing
 
-- Use the `main_test_store` pytest fixture (from `core_10x.testlib.fixtures`) to activate an in-memory `TestStore` as the main store for the entire test module — no external database required
+- Use the `main_test_store` pytest fixture (from `core_10x.testlib.fixtures`) to activate an in-memory `DuckDbStore` as the main store for the entire test module — no external database required
 - Use the `stub_log_logger` fixture (same module, re-exported in `core_10x/conftest.py`) or the `stub_log_module_logger` context manager from `core_10x.testlib.stub_logger` to test `LOG.*` without a subprocess
 - Use `CACHE_ONLY()` for lightweight unit tests that exercise trait logic without needing persistence or global object sharing
 - Make each test (or test module) self-contained: set up and tear down its own data rather than relying on state left by other tests

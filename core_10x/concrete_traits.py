@@ -1,5 +1,6 @@
 import ast
 import inspect
+from base64 import b64decode
 
 from core_10x.named_constant import EnumBits, NamedConstant, NamedCallable
 from core_10x.nucleus import Nucleus
@@ -142,7 +143,9 @@ class datetime_trait(Trait, data_type=datetime):
     def serialize(self, value: datetime):
         return value
 
-    def deserialize(self, value: datetime):
+    def deserialize(self, value):
+        if isinstance(value, str): # -- traitable store does not support datetime, stores as isoformat by convention
+            return datetime.fromisoformat(value)
         return value
 
     def to_id(self, value) -> str:
@@ -206,6 +209,8 @@ class bytes_trait(Trait, data_type=bytes):
         return value
 
     def deserialize(self, value):
+        if isinstance(value, str): # -- traitable store does not support bytest type, stores as base64 by convention
+            return b64decode(value)
         return value
 
 
