@@ -160,7 +160,7 @@ def test_tree_changed_since_tag(tmp_path):
 
 
 def test_latest_matching_tag_dev_pin_picks_latest_rc():
-    """Form A dev pin (prereleases on) -> the latest rc tag for the target."""
+    """Prerelease-admitting dev pin (prereleases on) -> the latest rc tag for the target."""
     spec = VersionHelpers.dev_pin("0.2.0", "0.2.1")
     assert VersionHelpers.latest_matching_tag(parsed(), spec) == f"{KERNEL}0.2.1rc2"
 
@@ -235,6 +235,39 @@ def test_dependency_spec_reads_pinned_specifier(tmp_path):
         PyProjectHelpers.dependency_spec(p, "py10x-infra")
 
 
+def test_write_forward_pins_idempotent(tmp_path):
+    """Re-applying the same pins is a byte-identical no-op (reports no changes).
+
+    Assumption guard for the canonical/deterministic pin rewrite the design depends on: a clean
+    setuptools-scm tree needs the rewrite to be stable, and Stage 2's reverse-derivation pin-only
+    check relies on the rewrite not introducing cosmetic churn.
+    """
+    p = tmp_path / "pyproject.toml"
+    p.write_text(textwrap.dedent("""
+        [project]
+        name = "py10x-core"
+        dependencies = [
+            "py10x-kernel (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)",
+            "numpy>=2.2.2,<2.5.0",
+        ]
+    """), encoding="utf-8")
+    pins = {"py10x-kernel": ">=0.2.1,<0.2.2"}
+    assert set(PyProjectHelpers.write_forward_pins(p, pins)) == {"py10x-kernel"}
+    once = p.read_text()
+    assert PyProjectHelpers.write_forward_pins(p, pins) == {}   # second pass: nothing to change
+    assert p.read_text() == once                                # and the bytes are unchanged
+
+
+def test_write_test_group_idempotent(tmp_path):
+    p = tmp_path / "pyproject.toml"
+    p.write_text('[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n',
+                 encoding="utf-8")
+    PyProjectHelpers.write_test_group(p, "py10x-core==0.2.3")
+    once = p.read_text()
+    PyProjectHelpers.write_test_group(p, "py10x-core==0.2.3")
+    assert p.read_text() == once
+
+
 def test_write_test_group_creates_and_refreshes(tmp_path):
     p = tmp_path / "pyproject.toml"
     p.write_text('[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n',
@@ -253,7 +286,7 @@ ADMIT_MATRIX = ["0.2.0", "0.2.1.dev1", "0.2.1a1", "0.2.1b1", "0.2.1rc1", "0.2.1r
 
 
 def test_dev_pin_admits_pre_excludes_final_and_autoenables():
-    """Form A must admit a sibling's dev/a/b/rc, exclude its final + next line, and auto-enable."""
+    """The prerelease-admitting dev pin must admit a sibling's dev/a/b/rc, exclude its final + next line, and auto-enable."""
     ss = SpecifierSet(VersionHelpers.dev_pin("0.2.0", "0.2.1"))
     assert ss.prereleases is True
     eligible = set(ss.filter(ADMIT_MATRIX))
@@ -289,6 +322,80 @@ def test_version_ordering_not_sort_v():
 def test_yank_rollback_floor(yanked_floor, expected_pin):
     """After a prod yank the remaining latest final becomes the floor and target advances by one."""
     assert VersionHelpers.dev_pin(yanked_floor, VersionHelpers.next_micro(yanked_floor)) == expected_pin
+
+
+# ---------------------------------------- rc-branch-promotion coordination pin forms (design note)
+#
+# Assumption guards for the cross-repo coordination pins proposed in
+# `dev_10x/docs/rc-branch-promotion.md` (Pin matrix):
+#   - forward (core -> siblings) on `pre`/`prod`: exact `==` coordinated version.
+#   - reverse (sibling `test` group -> core) on `pre`/`prod`: `>=` coordinated version.
+# These lock the PEP 440 / resolver behavior the design *depends on* before any builder is wired up.
+# Live multi-package resolution (backtracking) is an execution concern covered by the e2e tier; here
+# we guard only the specifier semantics that make that argument hold.
+#
+# A sibling's candidate tags around target 1.4.0, plus its `.post` and a newer line (1.4.1, 1.5.0rc1)
+# that the forward `==` must exclude and the reverse `>=` must (or must not) admit.
+COORD_MATRIX = ["1.3.9", "1.4.0rc1", "1.4.0rc2", "1.4.0", "1.4.0.post1",
+                "1.4.1rc1", "1.4.1", "1.5.0rc1"]
+
+
+def test_forward_exact_rc_pin_selects_only_that_rc_and_autoenables():
+    """Published rc wheel pins exactly one sibling rc; `==<pre>` auto-enables prereleases for free.
+
+    The external coordination guarantee: `pip install core==X.Yrc2` must drag in exactly the
+    coordinated sibling rc, and an exact pin onto a pre-release flips prerelease admission on its
+    own (no `--prerelease=allow`), the analogue of `dev_pin`'s PRERELEASE_ENABLE token.
+    """
+    ss = SpecifierSet("==1.4.0rc2")
+    assert ss.prereleases is True
+    assert set(ss.filter(COORD_MATRIX)) == {"1.4.0rc2"}
+
+
+def test_forward_exact_final_pin_selects_only_that_final():
+    """Released wheel pins exactly the coordinated final - not its own rc, not its `.post`, not the next line."""
+    ss = SpecifierSet("==1.4.0")
+    assert not ss.prereleases
+    assert set(ss.filter(COORD_MATRIX)) == {"1.4.0"}
+    for excluded in ("1.4.0rc2", "1.4.0.post1", "1.4.1", "1.5.0rc1"):
+        assert excluded not in set(ss.filter(COORD_MATRIX))
+
+
+def test_reverse_floor_rc_admits_prereleases():
+    """Reverse `>=Tc_rcN` admits core prereleases - the rc sibling tests the prerelease core line.
+
+    The prerelease token "falls out for free": naming a pre-release in the floor flips admission on.
+    There is deliberately no upper cap, so a newer line's prereleases are admitted too - the design's
+    acknowledged tradeoff, self-corrected by the forward `==` (see next test).
+    """
+    ss = SpecifierSet(">=1.4.0rc2")
+    assert ss.prereleases is True
+    assert set(ss.filter(COORD_MATRIX)) == {
+        "1.4.0rc2", "1.4.0", "1.4.0.post1", "1.4.1rc1", "1.4.1", "1.5.0rc1"}
+    assert "1.4.0rc1" not in set(ss.filter(COORD_MATRIX))  # strictly below the floor
+
+
+def test_reverse_floor_final_excludes_prereleases():
+    """Reverse `>=Tc` (final floor, no prerelease token) admits only finals - tests the released line."""
+    ss = SpecifierSet(">=1.4.0")
+    assert not ss.prereleases
+    assert set(ss.filter(COORD_MATRIX)) == {"1.4.0", "1.4.0.post1", "1.4.1"}
+    for excluded in ("1.4.0rc2", "1.4.1rc1", "1.5.0rc1"):
+        assert excluded not in set(ss.filter(COORD_MATRIX))
+
+
+def test_reverse_floor_self_corrects_via_forward_exact_pin():
+    """The uncapped reverse `>=` is pinned down by the forward `==` consistency check.
+
+    `>=1.4.0` alone admits a too-new core (1.4.1), but the sibling under test also carries the
+    forward exact pin (core `kernel==1.4.0`); only the coordinated version satisfies both, so the
+    resolver is driven back to it. Here we guard the set-intersection that makes that hold; the live
+    backtracking behavior is exercised in the e2e tier.
+    """
+    floor = set(SpecifierSet(">=1.4.0").filter(COORD_MATRIX))
+    assert "1.4.1" in floor  # floor alone is insufficient - it admits a newer final
+    coordinated = floor & set(SpecifierSet("==1.4.0").filter(COORD_MATRIX))
+    assert coordinated == {"1.4.0"}
 
 
 # --------------------------------------------------------------------------- installed-source helpers
