@@ -1133,7 +1133,6 @@ class TraitableHistory(EventBase):
 
     @classmethod
     def history_class(cls, traitable_class: type[Traitable], base=None, **kwargs):
-        module_dict = sys.modules[traitable_class.__module__].__dict__
         history_class_name = f'{traitable_class.__name__}#history'
         ns = dict(
             s_traitable_class=traitable_class,
@@ -1146,9 +1145,6 @@ class TraitableHistory(EventBase):
             kwargs,
             lambda d: d.update(ns),
         )
-        if traitable_class is module_dict.get(traitable_class.__name__):
-            assert history_class_name not in module_dict
-            module_dict[history_class_name] = history_class
         return history_class
 
 
