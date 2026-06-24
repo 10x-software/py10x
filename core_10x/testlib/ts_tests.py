@@ -234,6 +234,7 @@ class TestTSStore:
         loaded = collection.load(doc_id2)
         assert loaded['name'] == 'Original'
         at = loaded['_at']
+        time.sleep(0.001)
 
         # Try to insert the same document again without overwrite (with $set)
         with pytest.raises(TsDuplicateKeyError, match=f'Duplicate key error collection.*dup key.*{doc_id2}'):
@@ -242,8 +243,10 @@ class TestTSStore:
         loaded = collection.load(doc_id2)
         assert loaded['name'] == 'Original'
         if ts_store.s_driver_name == 'MONGO_DB':
-            assert loaded['_at'] > at # TODO: fix
-            pytest.skip("fix _at updates on mongo")
+            # Documents current Mongo behavior: save_new applies $set/$currentDate
+            # via update_one before raising TsDuplicateKeyError.
+            assert loaded['_at'] > at
+            pytest.skip('Mongo should not advance _at on a rejected duplicate insert')
         else:
             assert loaded['_at'] == at
 
@@ -260,7 +263,8 @@ class TestTSStore:
         assert loaded['name'] == 'Original'
         at = loaded['_at']
 
-        # Update with $set and overwrite=True
+        # Update with overwrite=True; allow server clock to advance (Windows timer resolution).
+        time.sleep(0.001)
         result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id, 'name': 'Updated'}), overwrite=True)
         assert result == 1
 
