@@ -2948,7 +2948,7 @@ with CACHE_ONLY():
 
 ### 6. Testing
 
-- Use the `main_test_store` pytest fixture (from `core_10x.testlib.fixtures`) to activate an in-memory `TestStore` as the main store for the entire test module — no external database required
+- Use the `main_test_store` pytest fixture (from `core_10x.testlib.fixtures`) to activate an in-memory `DuckDbStore` as the main store for the entire test module — no external database required
 - Use the `stub_log_logger` fixture (same module, re-exported in `core_10x/conftest.py`) or the `stub_log_module_logger` context manager from `core_10x.testlib.stub_logger` to test `LOG.*` without a subprocess
 - Use `CACHE_ONLY()` for lightweight unit tests that exercise trait logic without needing persistence or global object sharing
 - Make each test (or test module) self-contained: set up and tear down its own data rather than relying on state left by other tests

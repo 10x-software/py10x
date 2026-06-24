@@ -61,7 +61,7 @@ def _clear_main_store_caches():
 
 @pytest.fixture(scope='module')
 def main_test_store():
-    """Activate an in-memory TestStore as the main Traitable store and vault.
+    """Activate an in-memory DuckDbStore as the main Traitable store and vault.
 
     Sets ``XX_MAIN_TS_STORE_URI`` and ``XX_VAULT_URI`` to in-process
     ``duckdb://`` URIs so vault lookups resolve against an empty vault store

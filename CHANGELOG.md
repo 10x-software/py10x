@@ -23,6 +23,7 @@ Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present 
 - **Curve C++ backend** *(experimental)* (`xx_common/cxx_curve.py`, `USE_BCURVE` flag in `xx_common/curve.py`): optional `BCurve`/`BDateCurve` implementation alongside the pure-Python `py_curve.py`; selected at import time via `USE_BCURVE`.
 - **Incremental C++ sibling builds**: `XX_UV_INCREMENTAL=1` with a local-editable cxx profile skips build isolation for faster rebuilds; build mode tracked in `.venv/.xx_uv_incremental`.
 - **`roman_number`** moved from `core_10x` to `xx_common`.
+- **`DuckDbStore` and Ibis query layer** (`infra_10x/duckdb_store.py`, `infra_10x/ibis_store.py`): in-memory DuckDB test store replacing `TestStore`, with shared `IbisStore` / `IbisCollection` read-path logic and trait-aware filter pushdown via `trait_filter.ibis()`.
 
 ### Changed
 - **Curve module split** (`xx_common/py_curve.py`, `xx_common/curve.py`): Python implementation extracted; facade re-exports `Curve`, `DateCurve`, `IP_KIND`, `CurveParams` and keeps `TwoFuncInterpolator`.
@@ -30,6 +31,7 @@ Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present 
 - **`pyproject.toml`**: removed default `[tool.uv.sources]` entries that conflicted with downstream packages; sibling layout declared under `[tool.dev_10x.siblings]`; optional **`[project.optional-dependencies] jit`** group for JIT tooling (not part of the default install).
 - **Dependabot**: `rio-ui` 0.12.2, `playwright` range widened, `cryptography` range widened.
 - **`VaultResourceAccessor.last_updated`**: `EVAL_ONCE` reinstated.
+- **Test store**: removed `core_10x/testlib/test_store.py`; `testdb://` / `TS_STORE_TYPE.TESTDB` replaced by `duckdb://` / `TS_STORE_TYPE.DUCKDB`. Mongo `$set` / `$currentDate` semantics removed from core (`TsStoreMongoLike`) and live only on `MongoStore.add_who` / `add_when`; `datetime_trait` and `bytes_trait` deserialize ISO/base64 strings from JSON blob storage.
 
 ### Fixed
 - **`Curve.value` with `beginning_of_time`**: times strictly before `beginning_of_time` now return `NaN`; previously the guard condition was inverted so the cutoff never applied.

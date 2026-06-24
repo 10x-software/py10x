@@ -255,7 +255,6 @@ class f(_filter):
             reduce_fn = lambda parts: reduce(operator.and_, map(operator.itemgetter(1),parts)) if parts else True,
             combine_fn=operator.and_
         )
-        return
 
     def prefix_notation(self, field_name: str=None, traitable_class: BTraitableClass=None) -> dict:
         return self._apply(

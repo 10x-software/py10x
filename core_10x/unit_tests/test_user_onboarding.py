@@ -35,7 +35,7 @@ boundaries are:
 - ``input`` / ``getpass.getpass`` (interactive prompts),
 - the OS user name (the C++ singleton ``OsUser.me`` is not mutable from
   Python), and
-- a couple of one-line shims to plug ``_TestStore`` into the URI/protocol
+- a couple of one-line shims to plug ``DuckDbStore`` into the URI/protocol
   resolution that ``TsStore.spec_from_uri`` performs.
 """
 
@@ -206,7 +206,7 @@ class TestCanonicalUri:
     entry."""
 
     def test_adds_default_port_when_missing(self,vault_env): # noqa: F811  (pytest fixture)
-        """Port-free URI gains the resource's default port (27017 for testdb /
+        """Port-free URI gains the resource's default port (27017 for duckdb /
         MongoDB) so it hashes to the same key as the explicit-port form."""
         no_port   = VaultResourceAccessor._canonical_uri(
             CONCRETE_RESOURCE.TS_STORE, 'duckdb://vaulthost.example.com/_vault_')

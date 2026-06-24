@@ -450,7 +450,7 @@ class TestBundleHistoryStaticWiring:
 
 
 # ---------------------------------------------------------------------------
-# Empirical save/history tests against the in-memory TestStore
+# Empirical save/history tests against the in-memory DuckDbStore
 # ---------------------------------------------------------------------------
 
 
@@ -459,7 +459,7 @@ def bundle_history_store(ts_instance):
     """Store fixture mirroring the one in core_10x.testlib.traitable_history_tests.
 
     NOTE: ``ts_instance`` is module-scoped, so every test in this file shares
-    the same TestStore.  The fixture clears collections between tests, but
+    the same DuckDbStore.  The fixture clears collections between tests, but
     cannot reset class-level ``s_storage_helper_cached`` attributes, which is
     where the runtime bug is sensitive to ordering.  We pick test scenarios
     that do not depend on a virgin helper cache.
@@ -474,7 +474,7 @@ def bundle_history_store(ts_instance):
 
 
 class TestBundleHistoryBehavior:
-    """Live save/history checks against a TestStore."""
+    """Live save/history checks against a DuckDbStore."""
 
     def test_main_record_routes_to_base_collection(self, bundle_history_store):
         """Main records go to the bundle base's collection - this is the

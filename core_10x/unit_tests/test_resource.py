@@ -14,7 +14,7 @@ import pytest
 
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.exec_control import CACHE_ONLY
-from infra_10x.duckdb_store import DuckDbStore as _TestStore
+from infra_10x.duckdb_store import DuckDbStore
 from core_10x.testlib.vault_env import vault_env
 from core_10x.traitable import (
     NamedResource,
@@ -93,13 +93,13 @@ class TestNamedResourceInstance:
     * vault-miss: ``retrieve_ra`` raises ``ValueError`` and the resource
       is built directly from the URI (``s_resource_dt.value.instance_from_uri(uri)``).
 
-    Both branches must return a working ``_TestStore`` here.  We spy on
-    ``_TestStore.new_instance`` to confirm which branch ran by inspecting
+    Both branches must return a working ``DuckDbStore`` here.  We spy on
+    ``DuckDbStore.new_instance`` to confirm which branch ran by inspecting
     whether credentials were forwarded.
     """
 
     def _spy_new_instance(self, vault_env, monkeypatch): # noqa: F811  (pytest fixture)
-        """Replace ``_TestStore.new_instance`` with a spy that records each
+        """Replace ``DuckDbStore.new_instance`` with a spy that records each
         call's kwargs and still returns ``vault_env.vault_db`` (matching the
         fixture-level mock)."""
         calls = []
@@ -109,7 +109,7 @@ class TestNamedResourceInstance:
             calls.append({'args': args, 'kwargs': dict(kwargs)})
             return vault_db
 
-        monkeypatch.setattr(_TestStore, 'new_instance', classmethod(_spy))
+        monkeypatch.setattr(DuckDbStore, 'new_instance', classmethod(_spy))
         return calls
 
     def _bootstrap_alice(self, env):
@@ -126,7 +126,7 @@ class TestNamedResourceInstance:
         given hostname (multiple unrelated calls happen during
         ``vault_store()`` setup)."""
         matches = [c for c in calls if c['kwargs'].get('hostname') == hostname]
-        assert matches, f'no _TestStore.new_instance call for host {hostname}; got {calls!r}'
+        assert matches, f'no DuckDbStore.new_instance call for host {hostname}; got {calls!r}'
         return matches[-1]
 
     def test_vault_hit_uses_credentials_from_vault(self, vault_env, monkeypatch): # noqa: F811  (pytest fixture)

@@ -1,4 +1,4 @@
-"""Tests for TraitableHistory functionality using pytest and real TestStore."""
+"""Tests for TraitableHistory functionality using pytest and real DuckDbStore."""
 
 from __future__ import annotations
 
@@ -726,7 +726,7 @@ class TestTraitableHistory:
         assert '_at' not in prepared_data
 
     def test_save_new_with_overwrite_parameter(self, test_store, test_collection):
-        """Test TestCollection.save_new with overwrite parameter."""
+        """Test DuckDbCollection.save_new with overwrite parameter."""
         result = test_collection.save_new({'_id': 'new-id', 'name': 'New Person', 'age': 25})
         assert result == 1  # Should succeed for new document
 
@@ -737,7 +737,7 @@ class TestTraitableHistory:
         test_collection.save_new({'_id': 'new-id'}, overwrite=True)
 
     def test_find_without_filter_parameter(self, test_store, test_collection):
-        """Test TestCollection.find without _filter parameter."""
+        """Test DuckDbCollection.find without _filter parameter."""
 
         # Add documents using the interface method
         test_collection.save_new({'_id': 'doc1', 'name': 'Person 1', 'age': 25})
