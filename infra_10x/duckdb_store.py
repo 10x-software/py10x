@@ -38,27 +38,25 @@ class DuckDbCollection(IbisCollection):
                     f'INSERT INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?)',
                     [id_val, rev, data_json],
                 )
-        except Exception as e:
-            if 'PRIMARY KEY' in str(e) or 'UNIQUE' in str(e) or 'duplicate' in str(e).lower():
-                raise TsDuplicateKeyError(self._name, {_ID: id_val}) from e
-            raise
+        except duckdb.ConstraintException as e:
+            raise TsDuplicateKeyError(self._name, {_ID: id_val}) from e
         return 1
 
     def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
-        safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
+        # DuckDB does not support expression indexes on JSON functions; only _id/_rev are indexable.
         if isinstance(trait_name, list):
+            if any(tn not in (_ID, _REV) for tn, _ in trait_name):
+                return name
             cols = ', '.join(
-                f"json_extract_string(_data, '$.{tn}')" if tn not in (_ID, _REV) else tn
-                for tn, _ in trait_name
+                f"{tn} {'DESC' if direction < 0 else 'ASC'}"
+                for tn, direction in trait_name
             )
         elif trait_name in (_ID, _REV):
             cols = trait_name
         else:
-            cols = f"json_extract_string(_data, '$.{trait_name}')"
-        try:
-            self._con.execute(f'CREATE INDEX IF NOT EXISTS {safe_name} ON {self._qname()} ({cols})')
-        except Exception:
-            pass  # some expressions cannot be indexed; silently skip
+            return name
+        safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
+        self._con.execute(f'CREATE INDEX IF NOT EXISTS {safe_name} ON {self._qname()} ({cols})')
         return name
 
 
