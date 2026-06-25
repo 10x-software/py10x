@@ -456,20 +456,15 @@ class TestBundleHistoryStaticWiring:
 
 @pytest.fixture
 def bundle_history_store(ts_instance):
-    """Store fixture mirroring the one in core_10x.testlib.traitable_history_tests.
-
-    NOTE: ``ts_instance`` is module-scoped, so every test in this file shares
-    the same DuckDbStore.  The fixture clears collections between tests, but
-    cannot reset class-level ``s_storage_helper_cached`` attributes, which is
-    where the runtime bug is sensitive to ordering.  We pick test scenarios
-    that do not depend on a virgin helper cache.
-    """
+    """Store fixture mirroring the one in core_10x.testlib.traitable_history_tests."""
     store = ts_instance
     store.username = 'test_user'
     store.begin_using()
     yield store
     for cn in store.collection_names():
         store.delete_collection(cn)
+    for cls in (Animals, Dog, Cat, Animals.s_history_class, Dog.s_history_class, Cat.s_history_class):
+        cls.s_storage_helper_cached = None
     store.end_using()
 
 
