@@ -110,8 +110,17 @@ class StorageHelperDescriptor:
 
 
 class TraitableMetaclass(type(BTraitable)):
+    @staticmethod
+    def reserved_storable_traits(traitable_cls):
+        return {
+            Nucleus.REVISION_TAG(): traitable_cls.rev_trait(),
+            COLL_NAME_TAG: traitable_cls.collection_name_trait(),
+        }
     def __new__(cls, name, bases, class_dict, **kwargs):
-        if '__init__' in class_dict and name != 'Traitable':
+        if name == 'Traitable':
+            for attr_name in cls.reserved_storable_traits(XNone):
+                del class_dict[attr_name]
+        elif '__init__' in class_dict:
             raise TypeError(f'Overriding __init__ is not allowed in {name}. Use __post_init__ instead.')
         return super().__new__(cls, name, bases, class_dict | {'__slots__': ()}, **kwargs)
 
@@ -283,10 +292,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         module_dict = sys.modules[cls.__module__].__dict__ if cls.__module__ else {}
         type_annotations = class_dict.get('__annotations__',{})
         trait_dir = cls.s_dir
-        reserved_storable_traits = {
-            Nucleus.REVISION_TAG(): cls.rev_trait(),
-            COLL_NAME_TAG: cls.collection_name_trait(),
-        }
+        reserved_storable_traits = TraitableMetaclass.reserved_storable_traits(cls)
         trait_dir |= reserved_storable_traits
         trait_dir |= functools.reduce(operator.or_, cls.inherited_trait_dirs(), {})
 
