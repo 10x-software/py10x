@@ -38,8 +38,7 @@ from core_10x.rc import exc_to_rc
 from core_10x.trait_definition import RT
 from core_10x.traitable import RC, RC_TRUE, T, Traitable
 from core_10x.traitable_cli import TraitableCli
-from dev_10x import xx_plan
-from dev_10x.xx_plan import PkgPlan, ProdPlan
+from dev_10x.xx_plan import Plan, PrePlan, ProdPlan, PkgInput
 from dev_10x.xx_helpers import (
     GhUnavailableError,
     GitHelpers,
@@ -92,91 +91,50 @@ class PkgStep(Step):
         return self.pkg.tag_prefix == "v"
 
 
-class PreStep(PkgStep):
-    """One package's `pre` action: cut the coordinated rc when `plan.recut`, else skip.
-
-    A skip is a no-op `apply` that still offers to push a latest tag that is an as-yet-unpushed rc.
-    The cut writes the coordinated pins on a commit forked from `main` HEAD (the sticky `base`
-    getter), force-resets `pre`, and tags the rc.
+class PromoteStep(PkgStep):
+    """One package's promote action - the **same execution** for `pre` (cut rc) and `prod` (stack
+    final), so every rc dress-rehearses the prod path. Writes the plan's coordinated pins on `base`
+    (`main` HEAD for pre, the latest rc commit for prod), force-updates the release branch, tags.
     """
-    plan: PkgPlan = RT()
-    base: str = RT(T.STICKY)            # `main` HEAD the rc forks from (computed only when cutting)
+    plan: Plan = RT()
+    base: str = RT(T.STICKY)            # commit the release branch forks from (only when acting)
 
     def base_get(self) -> str:
-        return GitHelpers.git(self.repo, "rev-parse", "main")
+        if self.plan.base_kind == "rc":          # prod stacks the final on the latest rc commit
+            parsed = VersionHelpers.parse_pkg_tags(
+                GitHelpers.list_tags(self.repo, f"{self.pkg.tag_prefix}*"), self.pkg.tag_prefix)
+            return GitHelpers.tag_commit(self.repo, VersionHelpers.latest_rc_tag(parsed, self.plan.version))
+        return GitHelpers.git(self.repo, "rev-parse", "main")   # pre forks from main HEAD
 
     def summary_get(self) -> str:
-        if not self.plan.recut:
-            return f"{self.pkg.name}: {self.plan.skip_reason} - skip"
-        pins = {**self.plan.forward_pins}
-        if self.plan.reverse_test_pin:
-            pins["test"] = self.plan.reverse_test_pin
-        return (f"{self.pkg.name}: cut {self.plan.tag} on {self.plan.branch} off "
-                f"{self.base[:10]} (main) with pins {pins}")
+        plan = self.plan
+        if not plan.act:
+            return f"{self.pkg.name}: {plan.skip_reason} - skip"
+        pins = {**plan.forward_pins}
+        if plan.reverse_pin:
+            pins["test"] = plan.reverse_pin
+        verb = "promote" if plan.base_kind == "rc" else "cut"
+        return f"{self.pkg.name}: {verb} {plan.tag} on {plan.branch} off {self.base[:10]} with pins {pins}"
 
     def push_refs_get(self) -> tuple:
-        if not self.plan.recut:
-            return ()                                                 # skip: tag already on remote
-        return (self.repo, [f"+{self.plan.branch}", self.plan.tag])   # pre is force-updated
+        return (self.repo, [f"+{self.plan.branch}", self.plan.tag]) if self.plan.act else ()
 
     def apply(self) -> None:
-        if not self.plan.recut:
-            return
         plan = self.plan
+        if not plan.act:
+            return
         GitHelpers.git(self.repo, "checkout", "-q", "-B", plan.branch, self.base)
-        if plan.forward_pins:
-            PyProjectHelpers.write_forward_pins(self.pkg.pyproject, plan.forward_pins)
-        if plan.reverse_test_pin:
-            PyProjectHelpers.write_test_group(self.pkg.pyproject, plan.reverse_test_pin)
-        # --allow-empty: a re-cut with no pin delta still puts the rc commit on the `pre` branch.
-        GitHelpers.git(self.repo, "commit", "-aqm", f"promote: cut {plan.tag} (pre)", "--allow-empty")
-        GitHelpers.git(self.repo, "tag", plan.tag)
-        GitHelpers.git(self.repo, "checkout", "-q", "main")
-
-
-class ProdStep(PkgStep):
-    """One package's `prod` action: stack the final on its latest rc when `plan.promote`, else skip.
-
-    The final stacks on the rc commit (the sticky `rc_commit` getter), so released source == rc
-    source; `prod` is force-updated to it and the final is tagged.
-    """
-    plan: ProdPlan = RT()
-    rc_commit: str = RT(T.STICKY)       # commit of the latest rc tag (computed only when promoting)
-
-    def rc_commit_get(self) -> str:
-        parsed = VersionHelpers.parse_pkg_tags(
-            GitHelpers.list_tags(self.repo, f"{self.pkg.tag_prefix}*"), self.pkg.tag_prefix)
-        return GitHelpers.tag_commit(self.repo, VersionHelpers.latest_rc_tag(parsed, self.plan.target))
-
-    def summary_get(self) -> str:
-        if not self.plan.promote:
-            return f"{self.pkg.name}: {self.plan.skip_reason} - skip"
-        what = (f"forward pins {self.plan.forward_pins}" if self.plan.forward_pins
-                else f"test group {self.plan.test_pin}" if self.plan.test_pin else "no pin change")
-        return (f"{self.pkg.name}: promote {self.plan.tag} on {self.plan.branch} "
-                f"(stack on rc {self.rc_commit[:10]}, {what})")
-
-    def push_refs_get(self) -> tuple:
-        if not self.plan.promote:
-            return ()
-        return (self.repo, [f"+{self.plan.branch}", self.plan.tag])
-
-    def apply(self) -> None:
-        if not self.plan.promote:
-            return
-        plan = self.plan
-        GitHelpers.git(self.repo, "branch", "-f", plan.branch, self.rc_commit)
-        if plan.forward_pins or plan.test_pin:
-            GitHelpers.git(self.repo, "checkout", plan.branch)
+        if plan.forward_pins or plan.reverse_pin:
             if plan.forward_pins:
                 PyProjectHelpers.write_forward_pins(self.pkg.pyproject, plan.forward_pins)
-            if plan.test_pin:
-                PyProjectHelpers.write_test_group(self.pkg.pyproject, plan.test_pin)
-            GitHelpers.git(self.repo, "commit", "-am", f"release v{plan.target}: pin coordinated family")
-            GitHelpers.git(self.repo, "tag", plan.tag, plan.branch)
-            GitHelpers.git(self.repo, "checkout", "main")
+            if plan.reverse_pin:
+                PyProjectHelpers.write_test_group(self.pkg.pyproject, plan.reverse_pin)
+            # --allow-empty: a re-cut whose pins didn't change still puts a commit on the branch.
+            GitHelpers.git(self.repo, "commit", "-aqm", f"promote: {plan.tag}", "--allow-empty")
+            GitHelpers.git(self.repo, "tag", plan.tag)
         else:
-            GitHelpers.git(self.repo, "tag", plan.tag, plan.branch)   # released == rc verbatim
+            GitHelpers.git(self.repo, "tag", plan.tag)   # no pin delta: released == base verbatim
+        GitHelpers.git(self.repo, "checkout", "-q", "main")
 
 
 class MainEditStep(PkgStep):
@@ -309,9 +267,9 @@ class XxPromote(TraitableCli):
     push: bool = RT(False)
     base: str = RT(".")
 
-    packages: dict[str, Package] = RT()
-    steps: list[Step] = RT(T.STICKY)   # compute the plan once: applying steps mutates the git state
-    #                                    steps_get reads, so a re-access must not re-plan (off-graph too)
+    packages: dict[str, Package] = RT(T.STICKY)
+    steps: list[Step] = RT(T.STICKY)
+    inputs: list[PkgInput] = RT(T.STICKY)
 
     def packages_get(self) -> dict[str, Package]:
         """Build the package registry from `[tool.dev_10x.siblings]` in `base/pyproject.toml`.
@@ -323,23 +281,26 @@ class XxPromote(TraitableCli):
         doc = tomlkit.parse((base / "pyproject.toml").read_text(encoding="utf-8"))
         core_name = str(doc["project"]["name"])
         siblings = doc.get("tool", {}).get("dev_10x", {}).get("siblings", {})
-        result = {core_name: Package(name=core_name, src_dir=base, tag_prefix="v")}
-        result.update(
-            (name, Package(name=name, src_dir=(base / spec["path"]).resolve())) for name, spec in siblings.items()
-        )
+        result = {
+            name: Package(name=name, src_dir=(base / spec["path"]).resolve()) for name, spec in siblings.items()
+        }
+        result[core_name] = Package(name=core_name, src_dir=base, tag_prefix='v')
         return result
 
-    def _require_synced(self) -> None:
-        """Enforce the start invariant (local==remote) per repo, scoped to that repo's tag globs."""
-        repo_globs: dict[Path, list[str]] = {}
-        for p in self.packages.values():
-            repo_globs.setdefault(p.repo, []).append(f"{p.tag_prefix}*")
-        for repo, globs in repo_globs.items():
-            GitHelpers.require_synced(repo, globs)
-
-    def _inputs(self) -> list[xx_plan.PkgInput]:
+    def inputs_get(self) -> list[PkgInput]:
         """The planners' PkgInputs - each gets the registry and derives the rest via its getters."""
-        return [xx_plan.PkgInput(name=name, packages=self.packages) for name in self.packages]
+        return [PkgInput(name=name, packages=self.packages) for name in self.packages]
+
+    def _promote_steps(self, plan_cls: type[Plan]) -> list[Step]:
+        """The one shared pre/prod routine: a PromoteStep per package (cut or stack, per `plan_cls`)
+        plus each plan's `main` epilogue. Flavors differ only in `plan_cls` - same execution path."""
+        pkgs = self.packages
+        plans = plan_cls.create_batch(self.inputs)
+        steps: list[Step] = [PromoteStep(pkg=pkg, plan=plans[name]) for name, pkg in pkgs.items()]
+        steps += [MainEditStep(pkg=pkgs[name], forward_pins=e.forward_pins, test_pin=e.test_pin,
+                               description=e.description)
+                  for name, plan in plans.items() for e in plan.epilogue]
+        return steps
 
     @exc_to_rc
     def run_steps(self) -> None:
@@ -365,79 +326,59 @@ class XxPromote(TraitableCli):
             print(f"  push --atomic {refspecs} -> {repo}")
             GitHelpers.git(repo, "push", "--atomic", "origin", *refspecs)
 
+    @exc_to_rc
+    def post_verify(self) -> None:
+        repo_globs: dict[Path, list[str]] = {}
+        for p in self.packages.values():
+            repo_globs.setdefault(p.repo, []).append(f'{p.tag_prefix}*')
+        for repo, globs in repo_globs.items():
+            GitHelpers.require_synced(repo, globs)
+
+        assert next(reversed(self.packages.values())).tag_prefix == 'v'  # -- siblings before core
+
     def run(self) -> RC:
         rc = self.verify()
         if not rc:
             return rc
         if not self.steps:
-            # bare `xx-promote` with no command -> usage
+            # bare `xx-promote` with no command -> usage (full docstring)
             return RC(False, self.__doc__)
-        print(self.__doc__)
+        if title := (self.__doc__ or "").strip().splitlines():
+            print(title[0])                            # just the one-line title, not the whole docstring
         return self.run_steps()
 
 
 class Pre(XxPromote, _command="pre"):
     """xx-promote pre  (cut the next coordinated rc onto the tool-owned `pre` branch).
 
-    Stage 1 (`--from=main`): for every package the planner re-cuts (xx_plan.plan_pre_batch), write
-    the coordinated pins - core's exact forward `==` on its siblings, each sibling's reverse
-    `py10x-core>=` test group - on a commit forked from `main` HEAD, force-reset the package's `pre`
-    branch to it, and tag `v{T}rcN`. Unchanged packages are skipped.
-    See `dev_10x/docs/rc-branch-promotion.md`.
+    For every package the planner re-cuts (`PrePlan.create_batch`), write the coordinated pins -
+    core's exact forward `==` on its siblings, each sibling's reverse `py10x-core>=` test group - on a
+    commit forked from `main` HEAD, force-reset the package's `pre` branch to it, and tag `v{T}rcN`.
+    Unchanged packages are skipped. See `dev_10x/docs/rc-branch-promotion.md`.
     """
 
-    @exc_to_rc
-    def post_verify(self) -> None:
-        """Preconditions (verify() calls this before run(); exc_to_rc -> RC): synced + `--from=main` gate."""
-        if self.dry_run:
-            return
-        self._require_synced()
-        for repo in {p.repo for p in self.packages.values()}:
-            if not GitHelpers.is_ancestor(repo, "main", "HEAD"):
-                raise RuntimeError(f"--from=main: `main` is not an ancestor of HEAD in {repo}; "
-                                   "check out / rebase onto main before cutting")
+    def post_verify(self) -> RC:
+        return RC_TRUE if self.dry_run else super().post_verify()
 
     def steps_get(self) -> list[Step]:
-        plans = xx_plan.plan_pre_batch(self._inputs())
-        order = sorted(self.packages.items(), key=lambda item: item[1].tag_prefix == "v") #-- promote siblings before core
-        return [PreStep(pkg=pkg, plan=plans[name]) for name, pkg in order]
+        return self._promote_steps(PrePlan)
 
 
 class Prod(XxPromote, _command="prod"):
     """xx-promote prod  (stack the final on the latest rc; force-update the `prod` branch).
 
-    Promotes each package whose latest tag is a pre-release: stacks a final-pin commit on the rc
-    commit (so released source == rc source), force-updates the package's `prod` branch to it, and
-    tags `v{T}`. Forward pins become exact `==T`; the reverse `test` group becomes `py10x-core>=T`.
-    The `main` epilogue then re-floors the prerelease-admitting dev pins to the released versions.
-    See `dev_10x/docs/rc-branch-promotion.md`.
+    Promotes each package whose latest tag is a pre-release (`ProdPlan.create_batch`): stacks a
+    final-pin commit on the rc commit (so released source == rc source), force-updates `prod`, tags
+    `v{T}` (forward pins become exact `==T`; reverse `test` group `py10x-core>=T`), and the plan's
+    `main` epilogue re-floors the dev pins to the released versions. See `…/rc-branch-promotion.md`.
     """
 
-    @exc_to_rc
-    def post_verify(self) -> None:
-        """Precondition (run by verify() before run(); exc_to_rc -> RC): repos synced with origin."""
-        if not self.dry_run:
-            self._require_synced()
-
     def steps_get(self) -> list[Step]:
-        pkgs = self.packages
-        plans = xx_plan.plan_prod_batch(self._inputs())
-        # Tag sibling finals before core so core only ever `==`-pins a sibling tag that already exists.
-        order = sorted(pkgs.items(), key=lambda item: item[1].tag_prefix == "v")
-        steps: list[Step] = [ProdStep(pkg=pkg, plan=plans[name]) for name, pkg in order]
-        # main epilogue: re-floor core's dev pins + point reverse groups at the released core.
-        for name, pkg in pkgs.items():
-            plan = plans[name]
-            if plan.dev_pins:
-                steps.append(MainEditStep(pkg=pkg, forward_pins=plan.dev_pins,
-                                          description="bump sibling dev pins after prod promotion"))
-            if plan.promote and plan.test_pin:
-                steps.append(MainEditStep(pkg=pkg, test_pin=plan.test_pin,
-                                          description="track released py10x-core in test group"))
-        return steps
+        return self._promote_steps(ProdPlan)
 
 
 class Yank(XxPromote, _command="yank"):
+    """xx-promote yank  (yank the latest tag - rc or final - and roll the pre/prod pointer back)."""
     pkg: str = T(T.NOT_EMPTY)           # distribution name (the --pkg arg)
     version: str = T(T.NOT_EMPTY)
 
@@ -467,6 +408,7 @@ class Yank(XxPromote, _command="yank"):
     @exc_to_rc
     def post_verify(self) -> None:
         """Preconditions (run by verify() before run(); exc_to_rc -> RC): known package + tag, synced, latest-only."""
+        super().post_verify().throw()
         if self.pkg not in self.packages:
             raise RuntimeError(f'unknown package {self.pkg!r}; choose from {", ".join(self.packages)}')
         if not GitHelpers.list_tags(self.package.repo, self.tag):
@@ -525,6 +467,9 @@ class Status(XxPromote, _command="status"):
     no git or remote mutation, ignores --dry-run / --push.
     """
 
+    def post_verify(self) -> RC:
+        return RC_TRUE   # read-only report - never require_synced
+
     def _pending(self, name: str, pkg: Package) -> list[tuple[str, Version]]:
         """Tags for `pkg` pushed since the latest PyPI release and not yet on the index."""
         parsed = VersionHelpers.parse_pkg_tags(
@@ -582,6 +527,9 @@ class Resync(XxPromote, _command="resync"):
     local-only ones - so you can re-run cleanly. Destructive; preview with --dry-run. No-op without an
     `origin`. (CLI command words must be identifiers, so this is `resync`, not `reset-local`.)
     """
+
+    def post_verify(self) -> RC:
+        return RC_TRUE   # recovery runs *because* local != remote - never require_synced here
 
     def steps_get(self) -> list[Step]:
         repo_branches: dict[Path, set[str]] = {}

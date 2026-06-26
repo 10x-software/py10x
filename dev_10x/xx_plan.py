@@ -4,7 +4,7 @@ The design (`dev_10x/docs/rc-branch-promotion.md`, *Testing strategy*) calls for
 compute a **plan** purely - which packages re-cut, at what version, with what coordinated pins, on
 which branch, under what tag - separate from execution, so the combinatorial space can be asserted
 exhaustively in-memory. This module is that planner; `xx_promote.py` gathers the git/pyproject
-state into `PkgInput`s, calls `plan_pre_batch`, then executes the returned `PkgPlan`s.
+state into `PkgInput`s, calls `PrePlan`/`ProdPlan.create_batch`, then executes the returned `Plan`s.
 
 Stage 1 covers `pre --from=main` (cut the next coordinated rc). Batch formation is **declarative**
 (decisions compare persistent state - tags + current pins - never an in-process diff):
@@ -19,7 +19,7 @@ An **unchanged** package is not re-cut; its coordinated version floors to its la
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from core_10x.trait_definition import RT
 from core_10x.traitable import T, Traitable
@@ -102,21 +102,8 @@ class PkgInput(Traitable):
         return PyProjectHelpers.exact_pins_from_text(text, self.siblings) if text else {}
 
 
-@dataclass(frozen=True)
-class PkgPlan:
-    """The planned action for one package in a `pre` batch."""
-    name: str
-    recut: bool
-    version: str | None = None                        # coordinated version, e.g. "0.2.1rc3"
-    tag: str | None = None                            # f"{tag_prefix}{version}"
-    branch: str | None = None                         # tool-owned `pre` branch (release_branch)
-    forward_pins: dict[str, str] = field(default_factory=dict)   # core: {sibling: "==ver"}
-    reverse_test_pin: str | None = None               # sibling: "py10x-core>=corever"
-    skip_reason: str | None = None
-
-
 def _coordinated_version(inp: PkgInput) -> tuple[str | None, bool]:
-    """(version, recut) by a package's own footprint: a new rc if changed, else its latest tag.
+    """`pre`: (version, acts) by a package's own footprint - a new rc if changed, else its latest tag.
 
     Unchanged -> the latest existing tag's version (rc or final), not a re-cut: that tag provably
     exists, so core's `==` pin onto it can never dangle, and during an rc cycle core stays
@@ -131,90 +118,8 @@ def _coordinated_version(inp: PkgInput) -> tuple[str | None, bool]:
     return (str(latest[1]) if latest is not None else None), False
 
 
-def _skip_plan(inp: PkgInput) -> PkgPlan:
-    """No re-cut. (The latest tag is already on the remote - the `local==remote` start invariant -
-    so there is nothing to push; a stale local-only tag would have failed `require_synced`.)"""
-    latest = VersionHelpers.latest_tag(inp.parsed_tags)
-    reason = "no changes; never tagged" if latest is None else f"no changes since {latest[0]}"
-    return PkgPlan(name=inp.name, recut=False, skip_reason=reason)
-
-
-def plan_pre_batch(inputs: list[PkgInput]) -> dict[str, PkgPlan]:
-    """Plan a `pre --from=main` batch. Returns {package name: PkgPlan}.
-
-    Coordination is two-pass (siblings first, so core can `==`-pin a version that already exists):
-    each sibling's coordinated version is decided by its own footprint; core then re-cuts if its
-    footprint changed or any sibling's coordinated version differs from its current `==` pin, and
-    pins each sibling `==` that version; every re-cut sibling pins `py10x-core>=` core's version.
-    """
-    core = next(i for i in inputs if i.is_core)
-    siblings = [i for i in inputs if not i.is_core]
-
-    coord: dict[str, str | None] = {}
-    recut: dict[str, bool] = {}
-
-    # Pass 1 - siblings, by their own footprint.
-    for s in siblings:
-        coord[s.name], recut[s.name] = _coordinated_version(s)
-
-    # Pass 2 - core re-cuts on its own footprint OR a pin that lags any sibling's coordinated version.
-    pin_lag = any(coord[s.name] is not None and core.current_forward.get(s.name) != coord[s.name]
-                  for s in siblings)
-    if core.footprint_changed or pin_lag:
-        gen = core.generation_tags
-        target = VersionHelpers.target_version(gen)
-        coord[core.name] = f"{target}rc{VersionHelpers.next_rc(gen, target)}"
-        recut[core.name] = True
-    else:
-        coord[core.name], recut[core.name] = _coordinated_version(core)
-
-    plans: dict[str, PkgPlan] = {}
-
-    # core: forward `==` pins to each sibling's coordinated version.
-    if recut[core.name]:
-        forward = {s.name: VersionHelpers.exact_pin(coord[s.name])
-                   for s in siblings if coord[s.name] is not None}
-        plans[core.name] = PkgPlan(
-            name=core.name, recut=True, version=coord[core.name],
-            tag=f"{core.tag_prefix}{coord[core.name]}",
-            branch=GitHelpers.release_branch("pre", core.name, core.is_core),
-            forward_pins=forward,
-        )
-    else:
-        plans[core.name] = _skip_plan(core)
-
-    # siblings: each re-cut sibling pins `py10x-core>=` core's coordinated version.
-    core_v = coord[core.name]
-    for s in siblings:
-        if recut[s.name]:
-            plans[s.name] = PkgPlan(
-                name=s.name, recut=True, version=coord[s.name],
-                tag=f"{s.tag_prefix}{coord[s.name]}",
-                branch=GitHelpers.release_branch("pre", s.name, s.is_core),
-                reverse_test_pin=(VersionHelpers.test_group_pin(core_v) if core_v is not None else None),
-            )
-        else:
-            plans[s.name] = _skip_plan(s)
-
-    return plans
-
-
-@dataclass(frozen=True)
-class ProdPlan:
-    """The planned action for one package in a `prod` batch."""
-    name: str
-    promote: bool
-    target: str | None = None                         # the finalized version, e.g. "0.2.1"
-    tag: str | None = None                            # f"{tag_prefix}{target}"
-    branch: str | None = None                         # tool-owned `prod` branch
-    forward_pins: dict[str, str] = field(default_factory=dict)   # core: {sibling: "==target"}
-    test_pin: str | None = None                       # sibling: "py10x-core>=core_target"
-    dev_pins: dict[str, str] = field(default_factory=dict)       # core main-epilogue: {sibling: dev_pin}
-    skip_reason: str | None = None
-
-
 def _prod_target(inp: PkgInput) -> str | None:
-    """The version `inp` would finalize, or None when its latest tag is not a promotable rc."""
+    """`prod`: the version `inp` would finalize, or None when its latest tag is not a promotable rc."""
     latest = VersionHelpers.latest_tag(inp.parsed_tags)
     if latest is None or VersionHelpers.is_final(latest[1]):
         return None
@@ -222,32 +127,121 @@ def _prod_target(inp: PkgInput) -> str | None:
     return target if VersionHelpers.latest_rc_tag(inp.parsed_tags, target) is not None else None
 
 
-def plan_prod_batch(inputs: list[PkgInput]) -> dict[str, ProdPlan]:
-    """Plan a `prod` batch: promote each package whose latest tag is an rc to its final.
+@dataclass(frozen=True)
+class MainEdit:
+    """A `main`-epilogue pyproject edit (rendered as a MainEditStep on the plan's own package)."""
+    description: str
+    forward_pins: dict[str, str] = field(default_factory=dict)
+    test_pin: str | None = None
 
-    Mirrors `plan_pre_batch` (pure, coordinated): core `==`-pins the released sibling versions and
-    re-floors its `main` dev pins to them; each released sibling pins `py10x-core>=` the released core.
+
+@dataclass(frozen=True)
+class Plan:
+    """One package's promote action - the **same shape** for `pre` (cut rc) and `prod` (stack final).
+
+    `create_batch` is shared: it asks the subclass to **decide** each package's coordinated version
+    (the only real pre/prod difference), then builds the coordinated cross-pins (core `==` siblings,
+    each sibling `py10x-core>=` core) + the per-package plan + its `main` epilogue. Subclasses set
+    `FLAVOR`/`BASE_KIND` and supply `_decide` (+ `_epilogue`/`_skip_reason`). One planner, two decisions.
     """
-    core = next(i for i in inputs if i.is_core)
-    targets = {i.name: t for i in inputs if (t := _prod_target(i)) is not None}
-    core_t = targets.get(core.name)
-    sib_final = {n: VersionHelpers.exact_pin(t) for n, t in targets.items() if n != core.name}
-    sib_dev = {n: VersionHelpers.dev_pin(t, VersionHelpers.next_micro(t))
-               for n, t in targets.items() if n != core.name}
+    name: str
+    act: bool                                         # cut (pre) / promote (prod), vs skip
+    version: str | None = None                        # coordinated version (rc for pre, final for prod)
+    tag: str | None = None                            # f"{tag_prefix}{version}"
+    branch: str | None = None                         # tool-owned release branch
+    base_kind: str = "main"                           # PromoteStep forks from "main" HEAD or latest "rc"
+    forward_pins: dict[str, str] = field(default_factory=dict)   # core: {sibling: "==ver"}
+    reverse_pin: str | None = None                    # sibling: "py10x-core>=corever"
+    epilogue: tuple = ()                              # MainEdit[] (main re-floor); empty for pre
+    skip_reason: str | None = None
 
-    plans: dict[str, ProdPlan] = {}
-    for inp in inputs:
-        if inp.name not in targets:
-            plans[inp.name] = ProdPlan(name=inp.name, promote=False,
-                                       skip_reason="latest tag is not a pre-release with an rc")
-            continue
-        t = targets[inp.name]
-        plans[inp.name] = ProdPlan(
-            name=inp.name, promote=True, target=t,
-            tag=f"{inp.tag_prefix}{t}",
-            branch=GitHelpers.release_branch("prod", inp.name, inp.is_core),
-            forward_pins=(sib_final if inp.is_core else {}),
-            test_pin=(VersionHelpers.test_group_pin(core_t) if not inp.is_core and core_t else None),
-            dev_pins=(sib_dev if inp.is_core else {}),
-        )
-    return plans
+    FLAVOR: ClassVar[str]                             # "pre" | "prod"
+    BASE_KIND: ClassVar[str]                          # "main" | "rc"
+
+    @classmethod
+    def create_batch(cls, inputs: list[PkgInput]) -> dict[str, Plan]:
+        decided = cls._decide(inputs)                # {name: (coordinated version | None, acts)}
+        core = next(i for i in inputs if i.is_core)
+        siblings = [i for i in inputs if not i.is_core]
+        plans: dict[str, Plan] = {}
+        for inp in inputs:
+            version, acts = decided[inp.name]
+            if not acts:
+                plans[inp.name] = cls(name=inp.name, act=False, skip_reason=cls._skip_reason(inp))
+                continue
+            if inp.is_core:
+                forward = {s.name: VersionHelpers.exact_pin(decided[s.name][0])
+                           for s in siblings if decided[s.name][0] is not None}
+                reverse = None
+            else:
+                core_v = decided[core.name][0]
+                forward = {}
+                reverse = VersionHelpers.test_group_pin(core_v) if core_v is not None else None
+            plans[inp.name] = cls(
+                name=inp.name, act=True, version=version, tag=f"{inp.tag_prefix}{version}",
+                branch=GitHelpers.release_branch(cls.FLAVOR, inp.name, inp.is_core),
+                base_kind=cls.BASE_KIND, forward_pins=forward, reverse_pin=reverse,
+                epilogue=cls._epilogue(inp, decided, inputs))
+        return plans
+
+    @classmethod
+    def _decide(cls, inputs: list[PkgInput]) -> dict[str, tuple[str | None, bool]]:
+        """{name: (coordinated version | None, acts)} - the per-flavor decision (abstract)."""
+        raise NotImplementedError
+
+    @classmethod
+    def _epilogue(cls, inp: PkgInput, decided: dict, inputs: list[PkgInput]) -> tuple:
+        return ()
+
+    @classmethod
+    def _skip_reason(cls, inp: PkgInput) -> str:
+        raise NotImplementedError
+
+
+class PrePlan(Plan):
+    """`pre`: cut the next coordinated rc onto `pre`, forked from `main` HEAD (no `main` epilogue)."""
+    FLAVOR = "pre"
+    BASE_KIND = "main"
+
+    @classmethod
+    def _decide(cls, inputs):
+        core = next(i for i in inputs if i.is_core)
+        decided = {i.name: _coordinated_version(i) for i in inputs if not i.is_core}
+        # core re-cuts on its own footprint OR a pin that lags any sibling's coordinated version.
+        pin_lag = any(v is not None and core.current_forward.get(n) != v for n, (v, _) in decided.items())
+        if core.footprint_changed or pin_lag:
+            gen = core.generation_tags
+            target = VersionHelpers.target_version(gen)
+            decided[core.name] = (f"{target}rc{VersionHelpers.next_rc(gen, target)}", True)
+        else:
+            decided[core.name] = _coordinated_version(core)
+        return decided
+
+    @classmethod
+    def _skip_reason(cls, inp):
+        latest = VersionHelpers.latest_tag(inp.parsed_tags)
+        return "no changes; never tagged" if latest is None else f"no changes since {latest[0]}"
+
+
+class ProdPlan(Plan):
+    """`prod`: stack the final on the latest rc onto `prod`, then re-floor `main` (the epilogue)."""
+    FLAVOR = "prod"
+    BASE_KIND = "rc"
+
+    @classmethod
+    def _decide(cls, inputs):
+        return {i.name: ((t, True) if (t := _prod_target(i)) is not None else (None, False)) for i in inputs}
+
+    @classmethod
+    def _epilogue(cls, inp, decided, inputs):
+        core_v = decided[next(i.name for i in inputs if i.is_core)][0]
+        if inp.is_core:
+            dev = {i.name: VersionHelpers.dev_pin(decided[i.name][0], VersionHelpers.next_micro(decided[i.name][0]))
+                   for i in inputs if not i.is_core and decided[i.name][1]}
+            return (MainEdit("bump sibling dev pins after prod promotion", forward_pins=dev),) if dev else ()
+        return (MainEdit("track released py10x-core in test group",
+                         test_pin=VersionHelpers.test_group_pin(core_v)),) if core_v is not None else ()
+
+    @classmethod
+    def _skip_reason(cls, inp):
+        return "latest tag is not a pre-release with an rc"
