@@ -296,6 +296,10 @@ def test_f_pinned_traitable_class_takes_precedence():
     assert wrapped.prefix_notation(traitable_class=PB.s_bclass) == {'age': {'$eq': 'a:7'}}
 
 
+class RefTarget(Traitable):
+    key: str = T(T.ID)
+
+
 class FilterTestNC(NamedConstant):
     FOO = ()
     BAR = ()
@@ -330,6 +334,7 @@ class Sample(Traitable, custom_collection=True):
     nc: FilterTestNC = T()
     nc2: FilterTestNC = T()
     fl: FilterTestFlags = T()
+    ref: RefTarget = T()   # nullable Traitable reference; XNone serializes as JSON null
 
 
 class TestCompoundFilters:
@@ -407,7 +412,7 @@ class TestCompoundFilters:
                 _replace=True,
             )
             if not i:
-                kw.update(opt='set')
+                kw.update(opt='set', ref=RefTarget(key='r1'))
             if i % 2:
                 kw.update(overrides)
             Sample(**kw).save().throw()
@@ -451,6 +456,16 @@ class TestCompoundFilters:
         nullres = list(coll.find(f(qnull, bclass)))
         nullids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in nullres)
         assert nullids == ['s2', 's3']
+
+    def test_xnone_traitable_ref(self, prepared):
+        _store, coll, _data, _overrides, _coll_name, bclass = prepared
+        q = f(ref=XNone, _t=bclass)
+        nullids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(q, bclass)))
+        assert nullids == ['s2', 's3']
+
+        qset = f(ref=NE(XNone), _t=bclass)
+        setids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(qset, bclass)))
+        assert setids == ['s1']
 
     def test_in_and_nin(self, prepared):
         _store, coll, _data, _overrides, _coll_name, bclass = prepared

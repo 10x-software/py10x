@@ -78,7 +78,8 @@ class IbisCollection(TsCollection):
                 return ibis_ops.UnwrapJSONString(col).to_expr()
 
         unwrapped = ibis_ops.UnwrapJSONString(col).to_expr()
-        return unwrapped.coalesce(col.cast("string"))
+        raw_str = col.cast("string")
+        return ibis.ifelse(raw_str == "null", ibis.null(), unwrapped.coalesce(raw_str))
 
     def ibis_right_value(self, value):
         if fn := self._store.serializer_map.get(type(value)):
