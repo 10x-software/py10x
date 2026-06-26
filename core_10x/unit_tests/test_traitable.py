@@ -207,29 +207,38 @@ class TestStorageHelper:
             store.end_using()
 
 
-def test_collection_name_trait():
+def test_collection_name_rt():
     class X(Traitable):
         x: int
 
     assert not X.is_storable()
-    assert not X.trait('_collection_name')
+    assert X.trait('_collection_name') is None
 
-    class Y(Traitable):
-        s_default_trait_factory = T
-        s_custom_collection = True
-        y: int
+    with pytest.raises(AttributeError, match= "'X' object has no attribute '_collection_name'"):
+        X(x=1)._collection_name
+
+def test_custom_collection():
+    class X(Traitable, custom_collection=True):
+        x: int = T(T.ID)
+        v: int = T()
 
         @classmethod
         def load_data(cls, id: ID) -> dict | None:
             return None
 
-    assert Y.is_storable()
-    assert Y.trait('_collection_name')
+    assert X.is_storable()
+    assert X.trait('_collection_name')
 
-    y = Y(_collection_name='test')
+    X(x=1, v=10, _collection_name='collA', _replace=True)
+    x = X(ID('1', collection_name='collA'))
+    assert x._collection_name == 'collA'
+    assert x.x == 1 and x.v == 10
 
-    assert y.id().collection_name == 'test'
-    assert y._collection_name == 'test'
+    y = X(x=1, v=20, _collection_name='collB', _replace=True)
+    assert y._collection_name == 'collB'
+    assert y.x == 1 and y.v == 20
+
+    assert x.v == 10
 
 
 @pytest.mark.parametrize('on_graph', [0, 1])
