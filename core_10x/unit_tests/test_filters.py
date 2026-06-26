@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from datetime import date  # noqa: TC003
+from datetime import date, datetime, timezone
+import uuid
 
 import pytest
+
+from core_10x.exec_control import GRAPH_OFF
+from core_10x.named_constant import EnumBits, NamedConstant
+from core_10x.nucleus import Nucleus
+from core_10x.trait_definition import T
 from core_10x.trait_filter import (
     AND,
     BETWEEN,
@@ -19,6 +25,9 @@ from core_10x.trait_filter import (
     f,
 )
 from core_10x.traitable import Traitable, XNone
+from core_10x.ts_store import TsStore
+from infra_10x.duckdb_store import DuckDbStore
+from infra_10x.mongodb_store import MongoStore
 
 
 class Person(Traitable):
@@ -285,3 +294,185 @@ def test_f_pinned_traitable_class_takes_precedence():
     inner = f(age=EQ(7))
     wrapped = f(inner, PA.s_bclass)
     assert wrapped.prefix_notation(traitable_class=PB.s_bclass) == {'age': {'$eq': 'a:7'}}
+
+
+class FilterTestNC(NamedConstant):
+    FOO = ()
+    BAR = ()
+
+
+class FilterTestSubNC(FilterTestNC):
+    BAZ = ()
+
+
+class FilterTestFlags(EnumBits):
+    READ = ()
+    WRITE = ()
+    EXEC = ()
+
+
+# Module-level Sample so that it is properly registered as storable when used
+# with real stores (DuckDbStore / MongoStore) and high-level .save().
+# The Test*Filters classes still own the per-backend test methods and fixture config.
+class Sample(Traitable, custom_collection=True):
+    test_id: str = T(T.ID)
+    i: int = T()
+    f: float = T()
+    b: bool = T()
+    s: str = T()
+    dt: datetime = T()
+    d: date = T()
+    opt: str = T()
+    by: bytes = T()
+    cl: type = T()
+    lst: list = T()
+    dct: dict = T()
+    nc: FilterTestNC = T()
+    nc2: FilterTestNC = T()
+    fl: FilterTestFlags = T()
+
+
+class TestCompoundFilters:
+    s_mongo_running = True
+    @pytest.fixture(scope='class', autouse=True)
+    def clear_store_cache(self):
+        assert not TsStore.s_instances
+        yield
+        TsStore.s_instances.clear()
+
+    @pytest.fixture(
+        params=[
+            lambda: DuckDbStore.instance(),
+            lambda: MongoStore.instance(hostname='mongodb://localhost:27017/', dbname='test_filters_mongo', sst=100),
+        ],
+        ids=['duckdb', 'mongodb'],
+    )
+    def prepared(self, request):
+        is_mongo_store = request.param_index == 1
+        store = None
+        try:
+            if not is_mongo_store or self.s_mongo_running:
+                store = request.param()
+        except Exception:
+            if is_mongo_store:
+                self.s_mongo_running = False
+            else:
+                raise
+        if is_mongo_store and not self.s_mongo_running:
+            pytest.skip('MongoDB not running')
+
+        store.begin_using()
+        go = GRAPH_OFF()
+        go.begin_using()
+
+        coll_name = 'tf_' + uuid.uuid4().hex[:12]
+
+        data = dict(
+            i=10,
+            f=1.5,
+            b=True,
+            s='hello',
+            dt=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            d=date(2024, 6, 1),
+            by=b'hello\x00',
+            cl=Person,
+            lst=[10, 20],
+            dct={'k': 99},
+            nc=FilterTestNC.FOO,
+            nc2=FilterTestSubNC.BAZ,
+            fl=FilterTestFlags.READ | FilterTestFlags.WRITE,
+        )
+
+        overrides = dict(
+            i=20,
+            f=2,
+            b=False,
+            s='world',
+            dt=datetime(2025, 1, 1, tzinfo=timezone.utc),
+            d=date(2025, 6, 1),
+            by=b'other',
+            cl=int,
+            lst=[99],
+            dct={},
+            nc=FilterTestNC.BAR,
+            nc2=FilterTestSubNC.BAR,
+            fl=FilterTestFlags.EXEC,
+        )
+
+        for i in range(3):
+            kw = dict(
+                test_id=f's{i + 1}',
+                **data,
+                _collection_name=coll_name,
+                _replace=True,
+            )
+            if not i:
+                kw.update(opt='set')
+            if i % 2:
+                kw.update(overrides)
+            Sample(**kw).save().throw()
+
+        coll = Sample.collection(_coll_name=coll_name)
+
+        try:
+            yield store, coll, data, overrides, coll_name, Sample.s_bclass
+        finally:
+            store.delete_collection(coll_name)
+            store.end_using()
+            go.end_using()
+
+    @pytest.mark.parametrize('trait_name', ['cl', 'lst', 'dct', 'nc', 'nc2', 'fl', 'by'])
+    def test_trait_prefix_and_find(self, trait_name, prepared):
+        _store, coll, data, _overrides, _coll_name, bclass = prepared
+        q = f(**{trait_name: data[trait_name]}, _t=bclass)
+        ser = Sample.trait(trait_name).serialize_value(data[trait_name])
+        assert q.prefix_notation(traitable_class=bclass) == {trait_name: {'$eq': ser}}
+        assert len(list(coll.find(f(q, bclass)))) == 2
+
+    def test_primitives(self, prepared):
+        _store, coll, _data, _overrides, _coll_name, bclass = prepared
+        assert len(list(coll.find(f(i=10, _t=bclass)))) == 2
+        assert len(list(coll.find(f(f=1.5, _t=bclass)))) == 2
+        assert len(list(coll.find(f(b=True, _t=bclass)))) == 2
+        assert len(list(coll.find(f(s='world', _t=bclass)))) == 1
+
+    def test_datetime(self, prepared):
+        _store, coll, data, overrides, _coll_name, bclass = prepared
+        assert len(list(coll.find(f(dt=overrides['dt'], _t=bclass)))) == 1
+        assert len(list(coll.find(f(dt=GT(data['dt']), _t=bclass)))) == 1
+
+    def test_date(self, prepared):
+        _store, coll, _data, overrides, _coll_name, bclass = prepared
+        assert len(list(coll.find(f(d=overrides['d'], _t=bclass)))) == 1
+
+    def test_xnone(self, prepared):
+        _store, coll, _data, _overrides, _coll_name, bclass = prepared
+        qnull = f(opt=XNone, _t=bclass)
+        nullres = list(coll.find(f(qnull, bclass)))
+        nullids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in nullres)
+        assert nullids == ['s2', 's3']
+
+    def test_in_and_nin(self, prepared):
+        _store, coll, _data, _overrides, _coll_name, bclass = prepared
+        assert len(list(coll.find(f(i=IN([10, 99]), _t=bclass)))) == 2
+        qmix = f(AND(f(b=True), f(i=NIN([99]))), bclass)
+        assert len(list(coll.find(qmix))) == 2
+
+    # compounds
+
+    def test_compound_and(self, prepared):
+        _store, coll, _data, _overrides, _coll_name, bclass = prepared
+        inner = AND(f(i=10), f(s='hello'))
+        q_and = f(inner, bclass)
+        res = list(coll.find(q_and))
+        ids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
+        assert ids == ['s1', 's3']
+        pn_and = q_and.prefix_notation(traitable_class=bclass)
+        assert '$and' in pn_and or len(pn_and) > 0
+
+    def test_compound_or(self, prepared):
+        _store, coll, _data, _overrides, _coll_name, bclass = prepared
+        q_or = f(OR(f(i=10), f(i=20)), bclass)
+        res = list(coll.find(q_or))
+        ids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
+        assert ids == ['s1', 's2', 's3']

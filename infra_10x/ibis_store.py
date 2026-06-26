@@ -69,15 +69,24 @@ class IbisCollection(TsCollection):
         if name in (_ID, _REV):
             return col
         if trait:
-            fn = self._store.caster_map.get(trait.data_type)
-            if fn:
+            dt = getattr(trait, 'data_type', None)
+            if not dt and hasattr(trait, 'serialize_to_type'):
+                dt = trait.serialize_to_type()
+            if dt and (fn := self._store.caster_map.get(dt)):
                 return fn(col)
-        return ibis_ops.UnwrapJSONString(col).to_expr()
+            if dt and dt in self._store.serializer_map:
+                return ibis_ops.UnwrapJSONString(col).to_expr()
 
-    def ibis_right_value(self, value, trait=None):
-        key = trait.data_type if trait is not None else type(value)
-        fn = self._store.serializer_map.get(key)
-        return fn(value) if fn else value
+        unwrapped = ibis_ops.UnwrapJSONString(col).to_expr()
+        return unwrapped.coalesce(col.cast("string"))
+
+    def ibis_right_value(self, value):
+        if fn := self._store.serializer_map.get(type(value)):
+            return fn(value)
+        if isinstance(value, (dict, list)): # -- non-primitieve types are compared as strings
+            # -- dict and list are the only non-primitive types since value is already passed trait serialization
+            return json.dumps(value, separators=(",", ":"))
+        return value
 
     # ------------------------------------------------------------------
     # Filter → ibis expression
@@ -224,6 +233,7 @@ class IbisStore(TsStore):
         bytes:    lambda v: b64encode(v).decode(),
     }
     caster_map = {
+        str:   lambda col: ibis_ops.UnwrapJSONString(col).to_expr(),
         int:   lambda col: ibis_ops.UnwrapJSONInt64(col).to_expr(),
         float: lambda col: ibis_ops.UnwrapJSONFloat64(col).to_expr(),
         bool:  lambda col: ibis_ops.UnwrapJSONBoolean(col).to_expr(),

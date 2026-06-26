@@ -41,9 +41,9 @@ class _filter(ABC):
     @abstractmethod
     def eval(self, left_value) -> bool: ...
     @abstractmethod
-    def prefix_notation(self, field_name: str=None, traitable_class: BTraitableClass=None) -> dict: ...
+    def prefix_notation(self, field_name: str = None, traitable_class: BTraitableClass = None) -> dict: ...
     @abstractmethod
-    def ibis(self, ibis_collection, field_name: str, traitable_class: BTraitableClass): ...
+    def ibis(self, ibis_collection, field_name: str = None, traitable_class: BTraitableClass = None): ...
 
 
 class Op(_filter, ABC):
@@ -73,10 +73,10 @@ class Op(_filter, ABC):
     def eval(self, left_value) -> bool:
         return self._eval(left_value, self.right_value)
 
-    def ibis(self, ibis_collection, field_name: str, traitable_class: BTraitableClass):
+    def ibis(self, ibis_collection, field_name: str = None, traitable_class: BTraitableClass = None):
         trait = traitable_class.find_trait(field_name) if traitable_class and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = ibis_collection.ibis_right_value(self.right_value, trait)
+        right = ibis_collection.ibis_right_value(self.serialize_right_value(field_name, traitable_class))
         return self._eval(col, right)
 
 
@@ -88,7 +88,7 @@ class NOT_EMPTY(Op, label=''):
     def _eval(left, right) -> bool:
         return bool(left)
 
-    def ibis(self, ibis_collection, field_name: str, traitable_class: BTraitableClass):
+    def ibis(self, ibis_collection, field_name: str = None, traitable_class: BTraitableClass = None):
         raise NotImplementedError
 
 
@@ -140,10 +140,10 @@ class IN(Op):
     def _eval(left, right) -> bool:
         return left in right
 
-    def ibis(self, ibis_collection, field_name: str, traitable_class: BTraitableClass):
+    def ibis(self, ibis_collection, field_name: str = None, traitable_class: BTraitableClass = None):
         trait = traitable_class.find_trait(field_name) if traitable_class and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = [ibis_collection.ibis_right_value(v, trait) for v in self.right_value]
+        right = [ibis_collection.ibis_right_value(v) for v in self.serialize_right_value(field_name, traitable_class)]
         return col.isin(right)
 
 
@@ -152,10 +152,10 @@ class NIN(IN):
     def _eval(left, right) -> bool:
         return left not in right
 
-    def ibis(self, ibis_collection, field_name: str, traitable_class: BTraitableClass):
+    def ibis(self, ibis_collection, field_name: str = None, traitable_class: BTraitableClass = None):
         trait = traitable_class.find_trait(field_name) if traitable_class and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = [ibis_collection.ibis_right_value(v, trait) for v in self.right_value]
+        right = [ibis_collection.ibis_right_value(v) for v in self.serialize_right_value(field_name, traitable_class)]
         return ~col.isin(right)
 
 
@@ -175,7 +175,7 @@ class BETWEEN(Op, label=''):
     def eval(self, x) -> bool:
         return self.left.eval(x) & self.right.eval(x)
 
-    def ibis(self, ibis_collection, field_name: str, traitable_class: BTraitableClass):
+    def ibis(self, ibis_collection, field_name: str = None, traitable_class: BTraitableClass = None):
         return (self.left.ibis(ibis_collection, field_name, traitable_class) &
                 self.right.ibis(ibis_collection, field_name, traitable_class))
 
@@ -208,7 +208,7 @@ class BoolOp(Op, ABC, label=''):
     def eval(self, ctx):
         return reduce(self._op, (e.eval(ctx) for e in self.right_value), self._identity)
 
-    def ibis(self, ibis_collection, field_name: str, traitable_class: BTraitableClass):
+    def ibis(self, ibis_collection, field_name: str = None, traitable_class: BTraitableClass = None):
         return reduce(self._op, (e.ibis(ibis_collection, field_name, traitable_class) for e in self.right_value), self._identity)
 
 
