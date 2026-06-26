@@ -154,6 +154,7 @@ class datetime_trait(Trait, data_type=datetime):
 
 class date_trait(Trait, data_type=date):
     s_ui_hint = Ui.line(min_width=10, align_h=0)
+    s_serialize_to_type =  str
 
     def from_str(self, s: str):
         dt = XDateTime.str_to_date(s)
@@ -182,7 +183,6 @@ class date_trait(Trait, data_type=date):
 
     def to_id(self, value) -> str:
         return XDateTime.date_to_str(value)
-
 
 class bytes_trait(Trait, data_type=bytes):
     s_ui_hint = Ui.NONE
@@ -216,6 +216,7 @@ class bytes_trait(Trait, data_type=bytes):
 
 class class_trait(Trait, data_type=type):
     s_ui_hint = Ui.line(align_h=-1)
+    s_serialize_to_type =  str
 
     def to_str(self, value):
         return PyClass.name(value)
@@ -261,6 +262,8 @@ class list_trait(Trait, data_type=list):
         return Nucleus.deserialize_list(value)
 
 class set_trait(list_trait, data_type = set):
+    s_serialize_to_type =  list
+
     def default_value(self) -> set:
         return set(self.default)
 
@@ -294,6 +297,7 @@ class dict_trait(Trait, data_type=dict):
 
 class any_trait(Trait, data_type=XNoneType):  # -- any
     s_ui_hint = Ui.NONE
+    s_serialize_to_type =  dict
 
     def to_str(self, v) -> str:
         return str(v)
@@ -322,6 +326,7 @@ class any_trait(Trait, data_type=XNoneType):  # -- any
 
 class nucleus_trait(Trait, data_type=Nucleus, base_class=True):
     s_ui_hint = Ui.NONE
+    s_serialize_to_type = (dict, str)
 
     def to_str(self, v) -> str:
         return self.data_type.to_str(v)

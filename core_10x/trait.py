@@ -32,6 +32,7 @@ class Trait(BTrait, metaclass=TraitMetaclass):
     s_datatype_traitclass_map = {}
     s_ui_hint = None
     s_fmt = None
+    s_serialize_to_type = ()
 
     @staticmethod
     def register_by_datatype(trait_class, data_type):
@@ -345,6 +346,9 @@ class Trait(BTrait, metaclass=TraitMetaclass):
 
     def deserialize_value(self, value, replace_none=False):
         return XNone if replace_none and value is None else self.f_deserialize(self, value)
+
+    def serialize_to_types(self) -> type|tuple(type):
+        return self.s_serialize_to_type or self.data_type
 
     # ===================================================================================================================
 
