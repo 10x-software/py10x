@@ -981,7 +981,7 @@ def test_custom_collection():
         assert y._collection_name == 'collB'
         assert y.x == 1 and y.v == 20
 
-        assert x.v == 20 # TODO: fix
+        assert x.v == 10
 
 def test_set_eval_once():
     class X(Traitable):
