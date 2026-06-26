@@ -89,6 +89,7 @@ def test_scm_dirty_tree_falls_back_to_dev_not_bare_tag(tmp_path):
 
 
 @requires_git
+@pytest.mark.filterwarnings("ignore:.*is shallow")   # the shallow clone is the point; the warning is expected
 def test_scm_shallow_checkout_falls_back_absolutely(tmp_path):
     """A shallow checkout that prunes the tag commit degrades to the `0.1.dev…` no-tag fallback.
 

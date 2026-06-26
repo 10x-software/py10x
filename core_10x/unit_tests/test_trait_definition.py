@@ -112,6 +112,22 @@ def test_rt_with_default_value():
 
 
 # ----------------------------------------------------------------------------
+#   Flag constant isolation — RT() must not mutate BFlags constants
+# ----------------------------------------------------------------------------
+
+def test_rt_with_flag_positional_does_not_mutate_flag():
+    before = T.STICKY.value()
+    RT(T.STICKY)
+    assert T.STICKY.value() == before
+
+
+def test_rt_with_flag_kwarg_does_not_mutate_flag():
+    before = T.STICKY.value()
+    RT(flags=T.STICKY)
+    assert T.STICKY.value() == before
+
+
+# ----------------------------------------------------------------------------
 #   __floordiv__ — UI tip comment
 # ----------------------------------------------------------------------------
 
