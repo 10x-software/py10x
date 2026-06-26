@@ -9,3 +9,6 @@ uuid6>=2025.0.1
 
 # for infra
 pymongo>=4.7.3
+
+# for tests
+ibis-framework[duckdb]
