@@ -19,18 +19,28 @@ class VersionHelpers:
     # --------------------------------------------------------------------------------------------
     # Pure helpers (no I/O) - exercised directly by the unit tests.
     # --------------------------------------------------------------------------------------------
-    @staticmethod
-    def parse_pkg_tags(raw_tags: list[str], prefix: str) -> list[tuple[str, Version]]:
+    YANKED_SUFFIX = "_yanked"
+
+    @classmethod
+    def parse_pkg_tags(
+        cls, raw_tags: list[str], prefix: str, include_yanked: bool = False,
+    ) -> list[tuple[str, Version]]:
         """Strip `prefix` from each tag and parse the remainder as a PEP 440 version.
 
-        Tags that don't start with `prefix` or don't parse (e.g. yanked `..._yanked` tags) are
-        dropped, so they never influence version selection.
+        Tags that don't start with `prefix` or don't parse are dropped. Yanked `..._yanked` tags are
+        dropped for *selection* (the default), but included - with their `_yanked` stripped before
+        parsing - when `include_yanked` is set, for *generation*: a yanked version number is consumed
+        (PyPI forbids re-upload), so the next-version floor must count it even though selection won't.
         """
         out: list[tuple[str, Version]] = []
         for tag in raw_tags:
             if not tag.startswith(prefix):
                 continue
             rest = tag[len(prefix):]
+            if rest.endswith(cls.YANKED_SUFFIX):
+                if not include_yanked:
+                    continue
+                rest = rest[: -len(cls.YANKED_SUFFIX)]
             try:
                 out.append((tag, Version(rest)))
             except InvalidVersion:
@@ -108,6 +118,18 @@ class VersionHelpers:
         """Highest-version tag (rc or final), or None when the package has never been tagged."""
         return max(parsed, key=lambda tv: tv[1]) if parsed else None
 
+    @staticmethod
+    def latest_rc_tag_overall(parsed: list[tuple[str, Version]]) -> str | None:
+        """Highest-version rc tag across all targets, or None - the commit `pre` derives to."""
+        rcs = [(t, v) for t, v in parsed if v.pre is not None and v.pre[0] == "rc"]
+        return max(rcs, key=lambda tv: tv[1])[0] if rcs else None
+
+    @classmethod
+    def latest_final_tag(cls, parsed: list[tuple[str, Version]]) -> str | None:
+        """Highest-version final tag, or None - the commit `prod` derives to."""
+        finals = [(t, v) for t, v in parsed if cls.is_final(v)]
+        return max(finals, key=lambda tv: tv[1])[0] if finals else None
+
     @classmethod
     def pending_promotions(
         cls,
@@ -146,13 +168,32 @@ class VersionHelpers:
 
     @classmethod
     def final_pin(cls,target: str) -> str:
-        """Final-only pin for a release branch: admits `target` + its post releases, no pre/dev."""
+        """Final-only pin for a release branch: admits `target` + its post releases, no pre/dev.
+
+        Legacy `main`-floor / pre-rc-coordination form. The published-wheel forward pin on
+        `pre`/`prod` is now `exact_pin` (exact `==`); see `dev_10x/docs/rc-branch-promotion.md`.
+        """
         return f">={target},<{cls.next_micro(target)}"
 
     @staticmethod
+    def exact_pin(version: str) -> str:
+        """Exact coordinated forward pin for a published wheel (rc or final): `==X.YrcN` / `==X.Y`.
+
+        The external coordination guarantee (core -> siblings on `pre`/`prod`): `==<pre>` auto-enables
+        prereleases on its own (no token needed) and `==<final>` admits only that final - not its rc,
+        not its `.postN`. Guarded in `test_xx_utils.py` (coordination pin forms).
+        """
+        return f"=={version}"
+
+    @staticmethod
     def test_group_pin(core_version: str) -> str:
-        """Reverse py10x-core test dependency, pinned exactly to the released core version."""
-        return f"py10x-core=={core_version}"
+        """Reverse py10x-core test dependency: `>=` the coordinated core version (dev-only, unpublished).
+
+        `>=` not `==`: the prerelease token falls out for free - `>=Trc` admits core prereleases (an
+        rc sibling tests the prerelease line), `>=T` admits only finals (a final tests the released
+        line). Uncapped but self-correcting via the forward `==` (rc-branch-promotion.md, Pin matrix).
+        """
+        return f"py10x-core>={core_version}"
 
 
 class GitHelpers:
@@ -179,6 +220,48 @@ class GitHelpers:
             raise RuntimeError(f"working tree not clean: {repo} - commit or stash first")
 
     @classmethod
+    def has_origin(cls, repo: Path) -> bool:
+        return "origin" in cls.git(repo, "remote").split()
+
+    @classmethod
+    def ls_remote_ref(cls, repo: Path, ref: str) -> str | None:
+        """The commit `origin` has for `ref` (e.g. 'refs/heads/main'), live; None when absent."""
+        out = cls.git(repo, "ls-remote", "origin", ref)
+        return out.split("\t", 1)[0] if out else None
+
+    @classmethod
+    def ls_remote_tags(cls, repo: Path, pattern: str) -> set[str]:
+        """Tag names on `origin` matching `pattern` (peeled `^{}` refs collapsed)."""
+        out = cls.git(repo, "ls-remote", "--tags", "origin", pattern)
+        tags: set[str] = set()
+        for line in out.splitlines():
+            if "\t" in line:
+                tags.add(line.split("\t", 1)[1].removeprefix("refs/tags/").removesuffix("^{}"))
+        return tags
+
+    @classmethod
+    def require_synced(cls, repo: Path, tag_globs: list[str]) -> None:
+        """Precondition: working tree clean AND local == origin (fetch-first) for `main` and the
+        managed tag globs. Skips the remote half when there is no `origin` (pure-local dev).
+
+        Enforces the "start local==remote (incl. tags)" invariant so a subsequent `--push` finishes
+        with local==remote; refuses on a stale/un-pushed `main` or divergent managed tags.
+        """
+        cls.require_clean(repo)
+        if not cls.has_origin(repo):
+            return
+        cls.git(repo, "fetch", "--quiet", "--prune", "origin")
+        remote_main = cls.ls_remote_ref(repo, "refs/heads/main")
+        if remote_main is not None and cls.git(repo, "rev-parse", "main") != remote_main:
+            raise RuntimeError(f"{repo}: local main != origin/main - push/pull main before promoting")
+        for glob in tag_globs:
+            local, remote = set(cls.list_tags(repo, glob)), cls.ls_remote_tags(repo, glob)
+            if local != remote:
+                raise RuntimeError(
+                    f"{repo}: local tags != origin for {glob} - sync first "
+                    f"(only-local={sorted(local - remote)}, only-remote={sorted(remote - local)})")
+
+    @classmethod
     def tag_commit(cls, repo: Path, tag: str) -> str:
         return cls.git(repo, "rev-list", "-n", "1", tag)
 
@@ -201,10 +284,13 @@ class GitHelpers:
         return (subtree,) if subtree == "." else (subtree, f".github/workflows/{Path(src_dir).name}*")
 
     @classmethod
-    def tree_changed_since_tag(cls, repo: Path, tag: str, *pathspecs: str) -> bool:
-        """True when any of `pathspecs` (repo-relative, `.` = whole repo) differs `tag`..HEAD."""
+    def tree_changed_since_tag(cls, repo: Path, tag: str, *pathspecs: str, rev: str = "HEAD") -> bool:
+        """True when any of `pathspecs` (repo-relative, `.` = whole repo) differs `tag`..`rev`.
+
+        `rev` is the cut base (`main` HEAD for `pre --from=main`); defaults to `HEAD`.
+        """
         res = subprocess.run(
-            ["git", "diff", "--quiet", tag, "HEAD", "--", *pathspecs],
+            ["git", "diff", "--quiet", tag, rev, "--", *pathspecs],
             cwd=repo, capture_output=True, text=True, check=False,
         )
         if res.returncode == 0:
@@ -212,12 +298,47 @@ class GitHelpers:
         if res.returncode == 1:
             return True
         raise RuntimeError(
-            f"git diff --quiet {tag} HEAD -- {' '.join(pathspecs)} (in {repo}) failed:\n{res.stderr.strip()}"
+            f"git diff --quiet {tag} {rev} -- {' '.join(pathspecs)} (in {repo}) failed:\n{res.stderr.strip()}"
         )
+
+    @classmethod
+    def is_ancestor(cls, repo: Path, ancestor: str, descendant: str) -> bool:
+        """True iff `ancestor` is an ancestor of `descendant` (`git merge-base --is-ancestor`).
+
+        The `--from=main` reachability gate: `is_ancestor(repo, "main", "HEAD")` must hold so a cut
+        is never taken from a stale `main`.
+        """
+        res = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", ancestor, descendant],
+            cwd=repo, capture_output=True, text=True, check=False,
+        )
+        if res.returncode in (0, 1):
+            return res.returncode == 0
+        raise RuntimeError(
+            f"git merge-base --is-ancestor {ancestor} {descendant} (in {repo}) failed:\n{res.stderr.strip()}"
+        )
+
+    @classmethod
+    def file_at_ref(cls, repo: Path, ref: str, rel_path: str) -> str | None:
+        """Contents of `rel_path` at `ref` (`git show ref:path`), or None when absent at that ref."""
+        res = subprocess.run(
+            ["git", "show", f"{ref}:{rel_path}"], cwd=repo, capture_output=True, text=True, check=False,
+        )
+        return res.stdout if res.returncode == 0 else None
 
     @classmethod
     def git_root(cls, path: Path) -> Path:
         return Path(cls.git(path, "rev-parse", "--show-toplevel"))
+
+    @staticmethod
+    def release_branch(flavor: str, name: str, is_core: bool) -> str:
+        """Tool-owned release-line branch name for a package (`flavor` in {"pre", "prod"}).
+
+        core (one package per repo) uses the bare `pre`/`prod`; siblings sharing a repo (cxx10x's
+        kernel + infra) are namespaced per package, e.g. `pre/py10x-kernel`. See
+        `dev_10x/docs/rc-branch-promotion.md` (Branches).
+        """
+        return flavor if is_core else f"{flavor}/{name}"
 
 
 class PyProjectHelpers:
@@ -243,6 +364,24 @@ class PyProjectHelpers:
             if req.name == name:
                 return str(req.specifier)
         raise KeyError(f"{name} not in {path} [project.dependencies]")
+
+    @staticmethod
+    def exact_pins_from_text(text: str, names: set[str]) -> dict[str, str]:
+        """{name: pinned version} for each `name` carrying an exact `==` in a pyproject's deps `text`.
+
+        Reads the forward `==` pins already published on a `pre`/`prod` tag (via `git show`), so the
+        planner can decide whether core's current pin lags a sibling's latest tag. Names without an
+        `==` specifier (e.g. a `main` dev pin) are omitted.
+        """
+        doc = tomlkit.parse(text)
+        out: dict[str, str] = {}
+        for entry in doc.get("project", {}).get("dependencies", []):
+            req = Requirement(str(entry))
+            if req.name in names:
+                exact = [s.version for s in req.specifier if s.operator == "=="]
+                if exact:
+                    out[req.name] = exact[0]
+        return out
 
     def forward_pin_edits(deps: list[str], pins: dict[str, str]) -> list[str]:
         """Return a new dependency list with `pins` ({name: specifier}) applied, format `name (spec)`."""

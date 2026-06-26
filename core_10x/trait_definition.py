@@ -52,6 +52,8 @@ class TraitDefinition:
         for tag, def_value_fn in self.s_known_attributes.items():
             def_value = def_value_fn()
             value = kwargs.pop(tag, def_value)
+            if tag == FLAGS_TAG and isinstance(value, BFlags):
+                value = BFlags(value.value())  # copy: avoid mutating a caller's BFlags constant
             setattr(self, tag, value)
 
         self.params = kwargs
@@ -109,7 +111,7 @@ class TraitDefinition:
             elif issubclass(dt, BFlags):  # -- no default value => n <=2
                 assert not already_processed[FLAGS_TAG], f'Duplicated T.flags: {args}'
                 assert n <= 2, f'Too many positional args after T.flags: {args}'
-                kwargs[FLAGS_TAG] = arg
+                kwargs[FLAGS_TAG] = BFlags(arg.value())  # copy: RT(T.STICKY) must not mutate T.STICKY
                 already_processed[FLAGS_TAG] = True
 
             else:  # -- must be a default value

@@ -19,15 +19,17 @@ all fall in stage 2. Sections below marked *(stage 2)* belong there.
 **Stage 1 — reproducible, coordinated RC installs.** Same feature *surface* as today (cut rc,
 promote, yank, status); the one change is that rc wheels carry exact `==` sibling pins (and reverse
 `>=`) like finals, so an external `pip install …rc1` resolves the coordinated set. Internals do
-change: rc moves onto the tool-owned `pre` branch, **declarative reconcile-from-tags**, and
-**reconcile-first** for crash recovery. `--from=main` only; **yank latest only**; **serialize by
-discipline** — reconcile-first heals a crashed run and "one release at a time" handles simultaneity,
-so no CAS and no lock. No pin-only detection or `mark-merged` is needed (`pre` holds only
-tool-generated pin commits).
+change: rc moves onto the tool-owned `pre` branch, a **declarative pure planner** (decisions from
+current tags + pins), and **atomic-push crash recovery** — each command pushes once per repo with
+`git push --atomic`, so the remote is never half-updated; recovery is `resync` (force local refs to
+origin) + idempotent re-run, *not* in-place reconcile. `--from=main` only; **yank latest only**;
+**serialize by discipline** ("one release at a time"), so no lock. No pin-only detection or
+`mark-merged` is needed (`pre` holds only tool-generated pin commits).
 
 **Stage 2 — release patching + concurrency.** `--from=release` maintenance and the marker /
-`mark-merged` / pin-only apparatus it requires; yank `--cascade` + scope inference; and **CAS**
-upgrading `reconcile()` for true concurrency.
+`mark-merged` / pin-only apparatus it requires; yank `--cascade` + scope inference; and true
+multi-writer concurrency if ever needed (tag-as-mutex — see *Risks*; **not** the earlier CAS /
+`reconcile()` design, which atomic-push recovery supersedes).
 
 ## Branches
 
@@ -109,29 +111,29 @@ trigger is just "pin ≠ latest tag," needing no separate footprint rule. (This 
 re-cut forces a *dependent-package* re-cut — earlier drafts mis-wrote "dependent core".) The
 footprint diff is **scoped via `diff_pathspecs`** and is the *same* code path used by `--diff-only`.
 
-### Derived refs reconcile from tags (CAS, lock-free)
+### Crash recovery: atomic pushes + `resync` (supersedes reconcile-from-tags / CAS)
 
-Tags are the only authoritative state; every **derived ref** is a pure function of them:
+Tags are the only authoritative state; `pre`/`prod` are derived (`pre` = commit of the latest rc tag,
+`prod` = commit of the latest non-yanked final tag; `main` floor = epilogue pins from the latest
+non-yanked released versions). But rather than *repairing* derived refs in place after a crash, the
+tool keeps the **remote consistent** so recovery is trivial:
 
-- `prod` = commit of the latest non-yanked **final** tag
-- `pre` = commit of the latest **rc** tag
-- `main` floor = epilogue pins computed from the latest non-yanked released versions
+- **Atomic push.** Each command applies all local mutations, then pushes **once per repo with
+  `git push --atomic`** (branch force-updates + new tags + the yanked-tag delete, all-or-nothing). So
+  a crash never leaves a repo's remote half-updated — the remote is a consistent source of truth.
+- **Refuse-until-synced.** `require_synced` refuses the next run while local ≠ remote (clean tree +
+  `main`/managed-tags == origin, fetch-first), so you never build on an un-synced state.
+- **`resync` + idempotent re-run.** Recovery is `xx-promote resync` — force each repo's
+  `main`/`pre`/`prod` branches and managed tags back to `origin`, discarding local-only work — then
+  re-run, which the **declarative planner** resumes from current tags. Cross-repo partial push
+  (siblings pushed, core not) surfaces as **one** un-synced repo; `resync` it and the re-run re-cuts
+  core to coordinate.
 
-**Invariant:** never write a *precomputed* value — re-derive from **current** tags at write time and
-write **conditionally (CAS, `--force-with-lease`)**, retrying on contention. Because every actor
-applies the *same* derive function and CAS prevents lost updates, the last writer computes the same
-correct value, so concurrent `prod`/`yank` cannot tear the shared `prod`/`main` state (a yank's
-"rollback" *re-derives* to the newer release instead of a stale older one). Every command
-**reconciles-first** — drives all derived refs to `derive(tags)` before its own tag op — so a crashed
-prior run is repaired automatically. This is **lock-free, hence deadlock-free**; the only residual is
-*bounded* livelock under sustained contention (a non-issue for releases, and it fails loudly /
-retryable, never silently).
-
-> **Implementation:** one `reconcile(ref, derive)` (the CAS loop) is **shared by all actors** —
-> `pre`, `prod`, `yank` differ only in their tag op and their `derive`, never in *how* a derived ref
-> is written. `main`'s floor uses the same loop as a CAS-*append* (push with expected-tip). `yank`
-> additionally re-checks its latest-only precondition *inside* the loop (abort + restore the
-> `_yanked` tag if a newer release appeared).
+This **retires the earlier reconcile-first + CAS / `--force-with-lease` design**: with atomic
+per-repo pushes the inconsistent-remote states it repaired are unreachable, and cross-repo atomicity
+(impossible with two remotes) is unnecessary because the run is idempotent. Concurrency stays
+"one release at a time" (Stage 1); a true multi-writer story, if ever needed, is the tag-as-mutex
+note in *Risks*, not a shared `reconcile()` loop.
 
 ## Guard (reachability)
 
@@ -304,31 +306,17 @@ Resolved by decisions above (recorded so the hardening is implemented + tested):
 - **Pre-only commit loss** → enforced cherry-pick discipline (`diff` / `mark-merged`, pin-only
   auto-discard, patch-id auto-clear).
 
-- **Concurrency** → **tag-as-mutex + reconcile-from-tags (CAS, lock-free)**: tags are claimed
-  atomically (create-before-pointer); derived refs are never written from a snapshot but re-derived
-  from current tags under a `--force-with-lease` CAS via the **shared `reconcile()`**; every command
-  reconciles-first. Self-healing and **deadlock-free**. Interleaved-step scenarios go in the
-  integration tests (driven manually against the bare remotes).
-- **`mark-merged` storage** → movable `*-merged` marker tags (above).
-
-- **`yank` vs `yank`** → same model as promote: the **core tag rename is the atomic mutex/commit
-  point** (create `v…_yanked` first — that's the mutex — then delete the old tag; resume completes
-  it), and the rest (sibling yanks, pointer rollback, epilogue revert) is declaratively derivable
-  from "core vX is yanked," so it's resumable.
-- **`yank` vs concurrent `prod`** → **CAS + re-derive** (above). Both write the same `prod`/`main`
-  derived refs, so neither uses a precomputed value: each re-derives `latest-non-yanked-final` from
-  current tags under CAS via the shared `reconcile()`, so a yank's rollback that races a newer
-  release re-derives to that release instead of a stale older one — no torn write, any interleaving.
-  `yank` also re-evaluates its latest-only precondition inside the loop (abort + restore `v…_yanked`,
-  "use `--cascade`" if a newer release appeared). A *naive* re-check before the write is **not**
-  enough (TOCTOU) — the check must be atomic with the write, which the CAS provides. A release-level
-  lock shared by `prod`/`yank` is the simpler-but-deadlock-prone fallback. `pre` is unaffected
-  (disjoint refs).
-
-Still open (minor):
-
-- **Retry policy** for the CAS loop — cap + backoff, and the error surfaced on retry-exhaustion
-  (livelock under sustained contention; benign for rare releases).
+- **Crash / partial failure (single + cross-repo)** → **atomic per-repo push** keeps the remote
+  consistent (never half-updated); `require_synced` refuses an un-synced start; recovery is `resync`
+  (local refs := origin) + idempotent re-run. Cross-repo (siblings pushed, core not) is one un-synced
+  repo + a resuming re-run — no joint atomicity needed. **This supersedes the earlier reconcile-first
+  + CAS / `--force-with-lease` design** (see *Crash recovery* above); e2e injects a mid-push failure
+  and asserts resync + resume.
+- **Concurrency (Stage 1)** → **serialize by discipline** ("one release at a time"). No lock, no CAS.
+  If true multi-writer ever matters, the lever is **tag-as-mutex** (create the version's tag — or
+  `v…_yanked` for yank — *first*; it's the atomic claim, the rest derives from it and is resumable);
+  a release-level lock is the simpler-but-deadlock-prone fallback. Not built; not needed for rare
+  releases.
 
 ## Future
 
