@@ -53,8 +53,10 @@ derived from `origin` (not hardcoded). Tag prefix defaults to `{name}-v`; repo r
 
 ## `xx-promote` — release promotion
 
-Releases are not cut by hand-editing pins. `main` always carries **dev pins**; `xx-promote` tags
-the repos and, for a final release, commits strict pins on a per-version release branch.
+Releases are not cut by hand-editing pins. `main` always carries **dev pins**. `xx-promote` cuts
+each release onto a tool-owned branch — `pre` (current rc) / `prod` (current final), per package —
+writing **coordinated exact pins** there and tagging it, so an external `pip install …rc1` resolves
+the coordinated sibling set. See `docs/rc-branch-promotion.md` for the full branch/coordination model.
 
 `xx-promote` is a `core_10x.traitable_cli` tree: the command is a positional word and options use
 the `--option value` form (dashes in names map to underscores, e.g. `--dry-run` → `dry_run`).
@@ -70,48 +72,75 @@ For a sibling whose next version is `T` (`N` = the next micro, `FLOOR` = its las
   (a plain `<T` would strip the pre-releases); `>=0.0.0.dev0` is a no-op bound that names a
   pre-release so uv **auto-enables** them for this package (no `--prerelease=allow`). The pin still
   **excludes** the `T` final and anything `>= N`.
-- **release branch — final-only pins:** `>=T,<N`
-  No pre-release token, no auto-enable; admits only the `T` final and its post-releases.
-- **reverse `test` group:** `py10x-core==<released core version>`.
+- **`pre` / `prod` — exact forward `==` (core → siblings, published):** core pins each sibling
+  `==<coordinated version>` (`==X.YrcN` on `pre`, `==X.Y` on `prod`). This is the external
+  coordination guarantee — an rc/final wheel drags in exactly the coordinated siblings. `==<pre>`
+  auto-enables prereleases on its own; `==<final>` admits only that final, **not** its rc and **not**
+  its `.postN` (stricter than the old `>=T,<N`, by design — see *Conscious tradeoffs* in the design note).
+- **reverse `test` group (sibling → core, dev-only / unpublished):** `py10x-core>=<coordinated core>`.
+  `>=` not `==`: the prerelease token falls out for free — `>=Trc` admits core prereleases (an rc
+  sibling tests the prerelease line), `>=T` admits only finals. Uncapped but self-correcting via the
+  forward `==`.
 
 > Why not one pin for everything? Whether uv auto-enables pre-releases is decided by the literal
 > tokens in the specifier, so "dev-by-default but rc-when-released" cannot be a single static
 > string — hence the explicit promotion step. Note also `>=Trc1,<T` is an **empty** set (`<T`
-> excludes pre-releases of `T`); the tooling never emits it.
+> excludes pre-releases of `T`); the tooling never emits it. All these pin forms are locked by
+> assumption guards in `unit_tests/test_xx_utils.py` (coordination pin forms).
 
 ### Subcommands
 
 ```
-xx-promote pre                                # cut the next rc for every package (tagging only)
-xx-promote prod                               # promote each rc'd package to final
-xx-promote yank --pkg <name> --version <ver>  # yank a tag (rc or final)
+xx-promote pre                                # cut the next coordinated rc onto the `pre` branch
+xx-promote prod                               # stack each final on its rc, onto the `prod` branch
+xx-promote yank --pkg <name> --version <ver>  # yank the latest tag (rc or final)
 xx-promote status                             # pending promotions: tagged but not yet on PyPI
+xx-promote resync                             # recovery: force local managed refs to match origin
 ```
 
-- **`pre`** computes each package's own target `T` and next rc number, then tags the repo's
-  current `main` HEAD (`v{T}rc{n}`, `py10x-kernel-v{T}rc{n}`, `py10x-infra-v{T}rc{n}`). A package
-  is skipped when `git diff` shows no changes since its latest pre *or* prod tag across its
-  release-relevant footprint (`GitHelpers.diff_pathspecs`): its source subtree **plus its publish
-  workflow**, matched by the convention `.github/workflows/{subdir}*` (so `core_10x` →
-  `core_10x_wheels.yml`). Siblings diff `core_10x`/`infra_10x` + that workflow glob, not the whole
-  `cxx10x` repo; core's `.` already covers everything. A workflow edit changes how the package is
-  built, so it must force a new rc. When the latest tag is an rc, `--push` can still publish it
-  without minting a new rc. No pin changes — the prerelease-admitting dev pins already admit the new rc.
-- **`prod`** (per package whose **latest** tag is a pre-release and that has an rc for its target):
-  1. find the latest rc tag + commit;
-  2. create the per-version release branch (`release/v{T}` / `release/py10x-{pkg}-v{T}`) off that
-     commit;
-  3. commit **final-only** pins there (py10x-core → siblings `>=T_sib,<N_sib`; kernel/infra →
-     `test = ["py10x-core==T_core"]`) and tag the final on the branch;
-  4. on `main`, re-floor py10x-core's prerelease-admitting dev pins to the just-released sibling versions and
-     point the reverse groups at the released core.
+Re-cut decisions are **declarative** (a pure planner, `xx_plan.plan_pre_batch` / `plan_prod_batch`):
+they compare persistent state (tags + current pins), so a run is **idempotent** — re-running after a
+crash re-derives the plan from current tags and resumes.
 
-  Released code == rc code (the release commit only changes metadata), and the wheel built from the
-  final tag carries the prod pins.
-- **`yank`** renames the tag to `<tag>_yanked` (build workflows ignore `*_yanked`) and **prints
-  manual PyPI yank instructions** — PyPI has no public yank API. Yanking a **final** also rolls
-  `main`'s pins back to the latest non-yanked release; an rc yank is tag-rename only. There are
-  intentionally **no** yank CI workflows.
+**`local == remote` invariant + atomic recovery.** A real run **starts** synced and (with `--push`)
+**finishes** synced; crash recovery is "discard local, resync, re-run", not in-place repair:
+
+- *Start (precondition):* `GitHelpers.require_synced` requires a clean tree and — when an `origin`
+  exists — fetches and asserts `main == origin/main` and that the package's managed tags
+  (`v*` / `py10x-kernel-v*` / …) match `origin`. It **refuses** on a stale/un-pushed `main` or
+  divergent tags, so a release is never cut from un-synced state. (No `origin` → local-only dev,
+  the remote half is skipped.)
+- *Finish:* with `--push`, every ref the run changed is pushed **once per repo, atomically**
+  (`git push --atomic` — branch force-updates, new tags, the yanked-tag delete, all-or-nothing), so a
+  crash never leaves a repo's remote half-updated. The remote is the consistent source of truth.
+- *Recovery:* after a crash, `require_synced` refuses until local == remote. Run **`xx-promote
+  resync`** — it forces each repo's `main`/`pre`/`prod` branches and managed tags back to `origin`
+  (discarding local-only work) — then re-run. Cross-repo (siblings pushed, core not) surfaces as one
+  un-synced repo; resync it and the idempotent re-run resumes (core re-cuts to coordinate). There is
+  **no in-place reconcile** — atomic pushes make the states it used to repair unreachable.
+- *Without `--push`:* local diverges from `origin` by design — **push manually** (`git push`) to
+  re-sync, or re-run with `push=true`.
+
+- **`pre`** (`--from=main`) cuts the next coordinated rc. A package is re-cut when its footprint
+  changed since its last tag (`GitHelpers.diff_pathspecs`: source subtree **plus** the
+  `.github/workflows/{subdir}*` publish workflow), **or**, for core, when its forward `==` pin lags a
+  sibling's latest tag (so a fresh sibling rc forces a core re-cut). For each re-cut package it writes
+  the coordinated pins (core → siblings `==X.YrcN`; sibling → `py10x-core>=X.YrcN`) on a commit forked
+  from `main` HEAD, **force-resets** the package's `pre` branch to it, and tags `v{T}rc{n}`. Footprint
+  is diffed from the tag's fork-point on `main` (so the pin commit itself never counts as a change).
+  Unchanged packages are skipped; a latest tag that is still an rc is offered for `--push`.
+- **`prod`** (per package whose **latest** tag is a pre-release with an rc for its target): force-updates
+  the `prod` branch onto the latest rc commit, **stacks** a final-pin commit there (core → siblings
+  exact `==X.Y`; sibling → `test = ["py10x-core>=X.Y"]`), and tags `v{T}`. Then on `main` it re-floors
+  py10x-core's dev pins to the released sibling versions and points the reverse groups at the released
+  core. Released **source** == rc source — the final commit only rewrites pins on top of the rc.
+- **`yank`** renames the **latest** tag to `<tag>_yanked` (build workflows ignore `*_yanked`),
+  force-rolls the affected `pre`/`prod` pointer back to the previous tag of the same kind (rc→`pre`,
+  final→`prod`), and **prints manual PyPI yank instructions** — PyPI has no public yank API. Yanking
+  an older release is refused (needs `--cascade`, a Stage-2 feature). A yanked version number is
+  **consumed** — generation floors on `max(all tags incl. yanked)` so it is never reused — while
+  selection still ignores `*_yanked`. Yanking a **final** also rolls `main`'s dev pin back to the
+  latest non-yanked release. No yank CI workflows.
 - **`status` - compares local tags (rc + final, `*_yanked` excluded) against PyPI and reports tags
   pushed **since the latest PyPI release** that are not on the index yet. Publish is atomic in CI
   (the workflow uploads to PyPI), so a version on the index is treated as successfully published;
@@ -128,8 +157,10 @@ xx-promote status                             # pending promotions: tagged but n
 | *(default)*  | apply **local** changes only — inspect with `git log`/`status`, reset to undo |
 | `--push`     | apply locally, then push to remotes **last**, only after all local steps pass |
 
-`dry_run` always wins. Clean working trees are required before any real change. `--base <path>`
-overrides the py10x repo root (default: cwd). Always preview first:
+`dry_run` always wins. Before any real change the repos must be **synced with `origin`** (clean tree,
+`main` and managed tags == remote — see the `local == remote` invariant above); `--push` re-syncs the
+remote at the end, otherwise push manually. `--base <path>` overrides the py10x repo root (default:
+cwd). Always preview first:
 
 ```
 xx-promote prod --dry-run

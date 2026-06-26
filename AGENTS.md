@@ -115,15 +115,16 @@ When adding new functionality, agents should **add or update tests** in the appr
 
 Rules agents must **not** violate when touching this area:
 
-- **Never `==`-pin `[project.dependencies]`** in published metadata — use ranges; reproducibility is `constraints.txt` + `-c`, not exact pins on direct deps.
+- **Never `==`-pin *third-party* `[project.dependencies]`** in published metadata — use ranges; reproducibility is `constraints.txt` + `-c`, not exact pins on third-party deps. **Carve-out:** the co-released first-party family *is* `==`-pinned on `pre`/`prod` (core → siblings, exact coordinated version) — this is the external rc coordination guarantee; see `dev_10x/README.md` "Pin model" and `dev_10x/docs/rc-branch-promotion.md`. `main` still carries dev ranges, never `==`.
 - **Keep `dev_10x/xx_ci.py` kernel-free** — no `core_10x` imports; tag resolution runs before siblings install.
 - **Keep `uv-sync` pip-install based** — do not reintroduce transient `[tool.uv.sources]` edits to `pyproject.toml` (dirty tree breaks setuptools-scm).
 - **Apply `-c constraints.txt` on every pip install** path (`uv_sync.py`, CI workflows). After adding/changing deps, run `xx-constraints compile` in `py10x-core-dev` mode and commit `constraints.txt`.
 - **Sibling paths** live in `[tool.dev_10x.siblings]` only — `uv_sync.py`, `xx_promote.py`, and `constraints.py` read from there; keep them in sync.
 - **Version ordering:** always `packaging.version.Version` (`max`), never `git --sort=-v:refname` / `sort -V`.
+- **`local == remote` invariant + atomic recovery for `xx-promote`:** a real run starts synced (`GitHelpers.require_synced`: clean tree + `main`/managed-tags == `origin`, fetch-first) and, with `--push`, finishes synced by pushing **once per repo, atomically** (`git push --atomic`, all-or-nothing). Crash recovery is **`xx-promote resync`** (force local managed refs back to `origin`) + idempotent re-run — **not** in-place reconcile (retired; atomic pushes make its repair states unreachable). Don't bypass the precondition, split a repo's push into non-atomic pushes, or push refs outside the declared `Step.push_refs`. See `dev_10x/README.md` "local == remote invariant + atomic recovery".
 - **setuptools-scm traps:** dirty `pyproject.toml` → wrong dev version; shallow checkout → `0.1.dev1+g…`; CI needs `fetch-depth: 0` for sibling tag resolution.
 - **CI:** tag triggers exclude `*_yanked`; `uv pip install --all-extras` needs `-e . --all-extras --requirements pyproject.toml`.
-- **Tests** for promotion helpers: `dev_10x/unit_tests/test_xx_utils.py`, `test_xx_promote.py`.
+- **Tests** for promotion: pure helpers/pin-form guards `dev_10x/unit_tests/test_xx_utils.py`; pure batch planner `test_xx_plan.py`; CLI routing `test_xx_promote.py`; real-git execution (cut/promote/yank, resync recovery, atomic bare-remote push) `test_xx_promote_e2e.py`; external-tool assumption guards `test_xx_tooling_guards.py`.
 
 ## Cursor Cloud specific instructions
 

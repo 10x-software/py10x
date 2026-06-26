@@ -180,7 +180,17 @@ def test_latest_matching_tag_none_when_no_match():
 def test_pin_strings():
     assert VersionHelpers.dev_pin("0.2.0", "0.2.1") == ">=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0"
     assert VersionHelpers.final_pin("0.2.1") == ">=0.2.1,<0.2.2"
-    assert VersionHelpers.test_group_pin("0.2.3") == "py10x-core==0.2.3"
+    assert VersionHelpers.exact_pin("0.2.1rc2") == "==0.2.1rc2"   # forward, rc
+    assert VersionHelpers.exact_pin("0.2.1") == "==0.2.1"         # forward, final
+    assert VersionHelpers.test_group_pin("0.2.3") == "py10x-core>=0.2.3"      # reverse floor, final
+    assert VersionHelpers.test_group_pin("0.2.3rc1") == "py10x-core>=0.2.3rc1"  # reverse floor, rc
+
+
+def test_release_branch_names():
+    assert GitHelpers.release_branch("pre", "py10x-core", is_core=True) == "pre"
+    assert GitHelpers.release_branch("prod", "py10x-core", is_core=True) == "prod"
+    assert GitHelpers.release_branch("pre", "py10x-kernel", is_core=False) == "pre/py10x-kernel"
+    assert GitHelpers.release_branch("prod", "py10x-infra", is_core=False) == "prod/py10x-infra"
 
 
 def test_forward_pin_edits_targets_only_named_and_preserves_format():
@@ -262,9 +272,9 @@ def test_write_test_group_idempotent(tmp_path):
     p = tmp_path / "pyproject.toml"
     p.write_text('[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n',
                  encoding="utf-8")
-    PyProjectHelpers.write_test_group(p, "py10x-core==0.2.3")
+    PyProjectHelpers.write_test_group(p, "py10x-core>=0.2.3")
     once = p.read_text()
-    PyProjectHelpers.write_test_group(p, "py10x-core==0.2.3")
+    PyProjectHelpers.write_test_group(p, "py10x-core>=0.2.3")
     assert p.read_text() == once
 
 
