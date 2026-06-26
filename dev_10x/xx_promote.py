@@ -337,12 +337,12 @@ class XxPromote(TraitableCli):
         assert next(reversed(self.packages.values())).tag_prefix == 'v'  # -- siblings before core
 
     def run(self) -> RC:
-        rc = self.verify()
-        if not rc:
-            return rc
         if not self.steps:
             # bare `xx-promote` with no command -> usage (full docstring)
             return RC(False, self.__doc__)
+        rc = self.verify()
+        if not rc:
+            return rc
         if title := (self.__doc__ or "").strip().splitlines():
             print(title[0])                            # just the one-line title, not the whole docstring
         return self.run_steps()
