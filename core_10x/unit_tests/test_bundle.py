@@ -463,8 +463,6 @@ def bundle_history_store(ts_instance):
     yield store
     for cn in store.collection_names():
         store.delete_collection(cn)
-    for cls in (Animals, Dog, Cat, Animals.s_history_class, Dog.s_history_class, Cat.s_history_class):
-        cls.s_storage_helper_cached = None
     store.end_using()
 
 
