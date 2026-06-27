@@ -65,8 +65,8 @@ source .venv/bin/activate
 
 echo "workflow-package $WORKFLOW_PKG (test group -> py10x-core)" >&2
 
-# 1) Coordinated core from PyPI; test group read from workflow-package pyproject.
-retry_uv uv pip install --no-deps --group "$GROUP" -e "$CXX_ROOT/$WORKFLOW_DIR" py10x-core
+# 1) Coordinated core from PyPI; --refresh busts cached index between poll retries.
+retry_uv uv pip install --refresh --no-deps --group "$GROUP" -e "$CXX_ROOT/$WORKFLOW_DIR" py10x-core
 CORE_VER=$(python3 -c "import importlib.metadata as m; print(m.version('py10x-core'))")
 echo "py10x-core==${CORE_VER} (from test group)" >&2
 
@@ -79,8 +79,7 @@ uv pip install "${SIBLING_PKG} @ git+file://${CXX_ROOT}@${SIBLING_TAG}#subdirect
 
 # 3) Workflow-package editable + dev extras under the core release freeze (-c only; check ran at core publish).
 curl -fsSL "https://raw.githubusercontent.com/10x-software/py10x/v${CORE_VER}/constraints.txt" -o constraints.txt
-uv pip install --group "$GROUP" -e "$CXX_ROOT/$WORKFLOW_DIR" \
-  "py10x-core[dev,rio,qt,jit]" -c constraints.txt
+uv pip install --group "$GROUP" -e "$CXX_ROOT/$WORKFLOW_DIR" "py10x-core[dev,rio,qt,jit]" -c constraints.txt
 
 # For callers that need post-install metadata (e.g. CI assertions).
 cat > pre-publish.env <<EOF
