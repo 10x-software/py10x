@@ -29,7 +29,7 @@ class EventProcessor(Traitable):
             method_name = f'{event_class_name}_{PROCESS_METHOD_SUFFIX}'
             proc_method = getattr(cls, method_name, None)
             assert callable(proc_method), f'{cls}.{method_name} - method is missing'
-            sig = inspect.signature(proc_method)
+            sig = inspect.signature(proc_method, eval_str=True)
             params = list(sig.parameters.values())
             assert len(params) == 2, f'{cls}.{method_name} - expected two params (self, event: Event)'
             assert params[0].name == 'self', f'{cls}.{method_name} - self parameter is missing'
