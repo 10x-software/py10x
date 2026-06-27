@@ -275,13 +275,15 @@ class GitHelpers:
     def diff_pathspecs(cls, repo: Path, src_dir: Path) -> tuple[str, ...]:
         """`git diff` pathspecs that define a package's release-relevant footprint.
 
-        A whole-repo package (`src_dir` == repo root) is just `.`. A package living in a subdir
-        is its subtree plus a glob for the publish workflow named after that subdir
-        (convention `.github/workflows/{subdir}*`, e.g. `core_10x` -> `core_10x_wheels.yml`),
-        so a workflow edit forces a new rc even though it sits outside the subtree.
+        A whole-repo package (`src_dir` == repo root) is just `.` (which already covers `.github`).
+        A package living in a subdir is its subtree **plus the whole `.github/`** - the shared CI
+        (`ci.yml`, `actions/`, `scripts/`, the publish workflows) builds and publishes the wheel, so
+        a CI change forces a new rc even though it sits outside the subtree. This deliberately couples
+        sibling re-cuts on a shared-CI change (cheap, coordinated anyway) rather than trying to
+        hand-pick "shared vs per-package" CI files, which `diff_pathspecs` lacks the context to do.
         """
         subtree = cls.repo_relative_subtree(repo, src_dir)
-        return (subtree,) if subtree == "." else (subtree, f".github/workflows/{Path(src_dir).name}*")
+        return (subtree,) if subtree == "." else (subtree, ".github")
 
     @classmethod
     def tree_changed_since_tag(cls, repo: Path, tag: str, *pathspecs: str, rev: str = "HEAD") -> bool:

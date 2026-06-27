@@ -104,13 +104,11 @@ def test_repo_relative_subtree():
 
 def test_diff_pathspecs():
     repo = Path("/proj/cxx10x")
-    # whole-repo package (py10x-core): `.` already covers .github/workflows
+    # whole-repo package (py10x-core): `.` already covers .github
     assert GitHelpers.diff_pathspecs(Path("/proj/py10x"), Path("/proj/py10x")) == (".",)
-    # subdir sibling: subtree + workflow glob keyed off the subdir name
-    assert GitHelpers.diff_pathspecs(repo, repo / "core_10x") == (
-        "core_10x", ".github/workflows/core_10x*")
-    assert GitHelpers.diff_pathspecs(repo, repo / "infra_10x") == (
-        "infra_10x", ".github/workflows/infra_10x*")
+    # subdir sibling: subtree + the whole shared .github (the CI builds/publishes the wheel)
+    assert GitHelpers.diff_pathspecs(repo, repo / "core_10x") == ("core_10x", ".github")
+    assert GitHelpers.diff_pathspecs(repo, repo / "infra_10x") == ("infra_10x", ".github")
 
 
 def test_tree_changed_since_tag(tmp_path):
@@ -131,26 +129,26 @@ def test_tree_changed_since_tag(tmp_path):
     GitHelpers.git(repo, "commit", "-m", "init")
     GitHelpers.git(repo, "tag", "v0.1.0rc1")
 
-    # Mirror diff_pathspecs for a subdir sibling: subtree + a workflow glob keyed off the subdir.
-    wf_glob = ".github/workflows/pkg*"
+    # Mirror diff_pathspecs for a subdir sibling: subtree + the whole shared .github.
     assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg")
-    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", wf_glob)
+    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", ".github")
     assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", ".")
 
     (other / "b.txt").write_text("other v2\n", encoding="utf-8")
     GitHelpers.git(repo, "add", "other/b.txt")
     GitHelpers.git(repo, "commit", "-m", "other only")
 
-    # A change outside both the subtree and the workflow glob must not trip the diff.
-    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", wf_glob)
+    # A change outside both the subtree and `.github` must not trip the diff.
+    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", ".github")
     assert GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", ".")
 
-    # A workflow-only change (outside the source subtree) must trip the glob pathspec.
-    (wf / "pkg_wheels.yml").write_text("on: [push, workflow_dispatch]\n", encoding="utf-8")
-    GitHelpers.git(repo, "add", ".github/workflows/pkg_wheels.yml")
-    GitHelpers.git(repo, "commit", "-m", "workflow change")
+    # Any `.github` change (shared CI here - a composite action) trips the footprint.
+    (repo / ".github" / "actions").mkdir()
+    (repo / ".github" / "actions" / "build.yml").write_text("name: build\n", encoding="utf-8")
+    GitHelpers.git(repo, "add", ".github/actions/build.yml")
+    GitHelpers.git(repo, "commit", "-m", "shared CI change")
     assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg")
-    assert GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", wf_glob)
+    assert GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", ".github")
 
     (pkg / "a.txt").write_text("v2\n", encoding="utf-8")
     GitHelpers.git(repo, "add", "pkg/a.txt")
