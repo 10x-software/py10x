@@ -1,8 +1,8 @@
 name: Pre-publish tests
-description: Run py10x-core's suite against this checkout's kernel/infra with the pinned py10x-core version
+description: Run py10x-core's suite against the workflow-package with coordinated core from PyPI
 inputs:
   pyproject-path:
-    description: Path to the sibling pyproject.toml whose test group pins py10x-core
+    description: Path to the workflow-package pyproject.toml whose test group pins py10x-core
     required: true
 runs:
   using: composite
@@ -24,59 +24,36 @@ runs:
         mongodb-replica-set: rs0
         mongodb-port: 27017
 
-    # The reverse [dependency-groups] test pin names the coordinated py10x-core floor (`>=T` or legacy `==T`).
-    - name: Resolve pinned py10x-core version
-      id: core
+    - name: Install from PyPI + local workflow checkout, then test
       shell: bash
-      run: |
-        CORE_VER=$(python3 -c "import re; text=open('${{ inputs.pyproject-path }}').read(); m=re.search(r'py10x-core\s*(?:==|>=)\s*([\w.]+)', text); print(m.group(1) if m else (_ for _ in ()).throw(SystemExit('no py10x-core test pin found')))")
-        echo "version=$CORE_VER" >> "$GITHUB_OUTPUT"
-
-    # py10x as a sibling of this checkout, so `../cxx10x` from py10x points back here.
-    - name: Checkout py10x at the pinned version
-      shell: bash
-      run: |
-        git clone https://github.com/10x-software/py10x.git "${{ github.workspace }}/../py10x"
-        git -C "${{ github.workspace }}/../py10x" checkout "v${{ steps.core.outputs.version }}"
-
-    - name: Install local kernel/infra, then py10x-core
-      shell: bash
-      working-directory: ${{ github.workspace }}/../py10x
-      run: |
-        uv venv
-        uv pip install -c constraints.txt -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
-        uv pip install -c constraints.txt -e . --all-extras --requirements pyproject.toml
-
-    - name: Verify env is fully frozen against constraints.txt
-      shell: bash
-      working-directory: ${{ github.workspace }}/../py10x
-      run: |
-        source .venv/bin/activate
-        xx-constraints check
-
-    - name: Install Playwright chromium
-      shell: bash
-      working-directory: ${{ github.workspace }}/../py10x
-      run: uv run --no-sync playwright install --with-deps chromium
-
-    - name: Verify versions + run py10x-core suite
-      shell: bash
-      working-directory: ${{ github.workspace }}/../py10x
       env:
-        PYTHONUNBUFFERED: "1"
-        CORE_VER: ${{ steps.core.outputs.version }}
+        WORKFLOW_PYPROJECT: ${{ inputs.pyproject-path }}
+        CXX_ROOT: ${{ github.workspace }}
+        RUN_DIR: ${{ runner.temp }}/pre-publish
+        PYPI_TIMEOUT_SEC: "900"
+        PYPI_POLL_SEC: "90"
       run: |
-        uv run --no-sync python - <<'PY'
-        import json, os
-        from importlib.metadata import version, distribution
-        from packaging.version import Version
-        core = Version(version("py10x-core"))
-        assert core == Version(os.environ["CORE_VER"]), f"py10x-core {core} != pinned {os.environ['CORE_VER']}"
-        def editable(name):  # PEP 610: editable installs record dir_info.editable
-            raw = distribution(name).read_text("direct_url.json") or "{}"
-            return json.loads(raw).get("dir_info", {}).get("editable", False)
-        for s in ("py10x-kernel", "py10x-infra"):
-            assert editable(s), f"{s} not editable from local checkout - py10x-core's pin pulled an index build"
-        print(f"py10x-core {core}; kernel {version('py10x-kernel')}; infra {version('py10x-infra')} OK")
-        PY
-        uv run --no-sync pytest
+        set -euo pipefail
+        bash "${{ github.workspace }}/.github/scripts/pre-publish-install.sh"
+        cd "$RUN_DIR"
+        source .venv/bin/activate
+        source pre-publish.env
+
+        playwright install --with-deps chromium
+
+        python3 -c "
+        import json
+        from importlib.metadata import distribution, version
+        assert version('py10x-core') == '${CORE_VER}'
+        raw = distribution('${WORKFLOW_PKG}').read_text('direct_url.json') or '{}'
+        assert json.loads(raw).get('dir_info', {}).get('editable'), '${WORKFLOW_PKG} not editable'
+        print('py10x-core==', version('py10x-core'), 'workflow-package editable OK')
+        "
+
+        TEST_ROOTS=$(python3 -c "
+        import core_10x, dev_10x, infra_10x, ui_10x, xx_common
+        from pathlib import Path
+        print(' '.join(str(Path(m.__file__).resolve().parent) for m in (
+            core_10x, infra_10x, ui_10x, xx_common, dev_10x)))
+        ")
+        PYTHONUNBUFFERED=1 pytest $TEST_ROOTS

@@ -23,22 +23,29 @@ jobs:
       - name: Resolve corresponding py10x branch
         id: resolve
         shell: bash
+        env:
+          REPO: https://github.com/10x-software/py10x.git
         run: |
+          set -euo pipefail
           candidates=()
-          if [ -n "${{ github.head_ref }}" ]; then
-            candidates+=("${{ github.head_ref }}")
-          fi
+          [ -n "${{ github.head_ref }}" ] && candidates+=("${{ github.head_ref }}")
           if [ -n "${{ github.base_ref }}" ]; then
             candidates+=("${{ github.base_ref }}")
           else
             candidates+=("${{ github.ref_name }}")
           fi
           candidates+=("main")
-          branch=$("${{ github.workspace }}/.github/scripts/resolve-sibling-branch.sh" \
-            "https://github.com/10x-software/py10x.git" \
-            "${candidates[@]}")
+          branch=main
+          for b in "${candidates[@]}"; do
+            [ -z "$b" ] && continue
+            if git ls-remote --heads "$REPO" "$b" | grep -q .; then
+              branch=$b
+              break
+            fi
+            echo "py10x branch $b not found on remote" >&2
+          done
+          echo "Using py10x branch: $branch" >&2
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
-          echo "Using py10x branch: $branch"
 
   cxx10x-tests:
     name: cxx10x tests
