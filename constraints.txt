@@ -102,7 +102,7 @@ fonttools==4.63.0
     # via matplotlib
 gitignore-parser==0.1.13
     # via rio-ui
-greenlet==3.5.2
+greenlet==3.5.3
     # via playwright
 h11==0.16.0
     # via uvicorn
