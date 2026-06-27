@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-py10x-branch:
+    name: Resolve py10x branch
+    runs-on: ubuntu-latest
+    outputs:
+      branch: ${{ steps.resolve.outputs.branch }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Resolve corresponding py10x branch
+        id: resolve
+        shell: bash
+        run: |
+          candidates=()
+          if [ -n "${{ github.head_ref }}" ]; then
+            candidates+=("${{ github.head_ref }}")
+          fi
+          if [ -n "${{ github.base_ref }}" ]; then
+            candidates+=("${{ github.base_ref }}")
+          else
+            candidates+=("${{ github.ref_name }}")
+          fi
+          candidates+=("main")
+          branch=$("${{ github.workspace }}/.github/scripts/resolve-sibling-branch.sh" \
+            "https://github.com/10x-software/py10x.git" \
+            "${candidates[@]}")
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          echo "Using py10x branch: $branch"
+
+  cxx10x-tests:
+    name: cxx10x tests
+    needs: resolve-py10x-branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - uses: ./.github/actions/checkout-sibling-py10x
+        with:
+          branch: ${{ needs.resolve-py10x-branch.outputs.branch }}
+
+      - uses: ./.github/actions/cxx10x-tests
+
+  full-tests:
+    name: Full tests (${{ matrix.os }})
+    needs: [resolve-py10x-branch, cxx10x-tests]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - uses: ./.github/actions/checkout-sibling-py10x
+        with:
+          branch: ${{ needs.resolve-py10x-branch.outputs.branch }}
+
+      - uses: ./.github/actions/full-py10x-test-suite
+        with:
+          python-version: "3.12"
+          mongodb-version: "7.0"

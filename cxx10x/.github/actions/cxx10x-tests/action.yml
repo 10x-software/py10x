@@ -1,0 +1,23 @@
+name: cxx10x tests
+description: Run cxx10x harness suites under tests/ against editable local kernel/infra and sibling py10x
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      shell: bash
+      run: uv python install 3.12
+
+    - name: Run kernel test harness
+      shell: bash
+      working-directory: tests/py10x_kernel_test
+      run: uv run python ../../core_10x/tests/test.py
+
+    - name: Run infra test harness
+      shell: bash
+      working-directory: tests/py10x_infra_test
+      run: uv run python ../../core_10x/tests/test.py
+
+    - name: Run cross-module tests
+      shell: bash
+      working-directory: tests/cross_module_test
+      run: uv run python test.py
