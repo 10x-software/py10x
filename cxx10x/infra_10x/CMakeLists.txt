@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 project(py10x_infra)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXXFLAGS_DEBUG "-g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 

@@ -12,6 +12,10 @@ jobs:
     name: Pre-publish tests
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history + all tags so setuptools-scm versions BOTH siblings
+
       - uses: ./.github/actions/pre-publish-tests
         with:
           pyproject-path: infra_10x/pyproject.toml
@@ -24,6 +28,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-2025]
     steps:
+      - uses: actions/checkout@v6
+
       - uses: ./.github/actions/build-wheels
         with:
           package-dir: infra_10x
@@ -36,4 +42,16 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: ./.github/actions/upload-wheels
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+
+      - name: Flatten wheels
+        run: |
+          mkdir -p upload
+          find dist -name "*.whl" -exec cp {} upload/ \;
+
+      - name: Upload wheels to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload

@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "btraitable_class.h"
 #include "py_linkage.h"
 
 class BTraitableClass;
@@ -31,21 +32,30 @@ public:
     [[nodiscard]] py::object            traitable_id() const        { return PyLinkage::traitable_id(id_value(), coll_name()); }
 
     bool operator == (const TID& other) const {
-        return m_class == other.m_class && id_value().equal(other.id_value());
+        return m_class == other.m_class && id_value().equal(other.id_value()) && coll_name().equal(other.coll_name());
     }
-
     void serialize_id(const py::dict& res) const;
     static py::object deserialize_id(const py::dict& serialized_data, bool must_exist = true);
 
+private:
+    std::size_t hash() const { // TODO: consider caching it!
+        std::size_t seed = 0;
+        hash_combine(seed, m_class);
+        hash_combine(seed, py::hash(id_value()));
+        hash_combine(seed, py::hash(coll_name()));
+        return seed;
+    }
+    template <typename T>
+    static void hash_combine(std::size_t& seed, T v) {
+        seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    }
+    friend struct std::hash<TID>;
 };
 
 template<>
 struct std::hash<TID> {
-    std::size_t operator() (TID const& key) const noexcept {
-        std::size_t seed = 0;
-        seed ^= (size_t) key.cls() + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= py::hash(key.id_value())+ 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        return seed;
+    std::size_t operator()(TID const& key) const noexcept(false) {
+        return key.hash();
     }
 };
 

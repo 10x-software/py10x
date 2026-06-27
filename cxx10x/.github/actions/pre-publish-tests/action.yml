@@ -7,11 +7,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - uses: actions/checkout@v5
-      with:
-        fetch-depth: 0   # full history + all tags so setuptools-scm versions BOTH siblings
-                         # (the other sibling's tag is on an ancestor; shallow clone yields 0.1.dev1)
-
     - name: Set up uv
       uses: astral-sh/setup-uv@v7
       with:
@@ -29,12 +24,12 @@ runs:
         mongodb-replica-set: rs0
         mongodb-port: 27017
 
-    # The reverse [dependency-groups] test pin names the exact py10x-core to test against.
+    # The reverse [dependency-groups] test pin names the coordinated py10x-core floor (`>=T` or legacy `==T`).
     - name: Resolve pinned py10x-core version
       id: core
       shell: bash
       run: |
-        CORE_VER=$(python3 -c "import re; print(re.search(r'py10x-core==([\w.]+)', open('${{ inputs.pyproject-path }}').read()).group(1))")
+        CORE_VER=$(python3 -c "import re; text=open('${{ inputs.pyproject-path }}').read(); m=re.search(r'py10x-core\s*(?:==|>=)\s*([\w.]+)', text); print(m.group(1) if m else (_ for _ in ()).throw(SystemExit('no py10x-core test pin found')))")
         echo "version=$CORE_VER" >> "$GITHUB_OUTPUT"
 
     # py10x as a sibling of this checkout, so `../cxx10x` from py10x points back here.
@@ -49,8 +44,15 @@ runs:
       working-directory: ${{ github.workspace }}/../py10x
       run: |
         uv venv
-        uv pip install -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
-        uv pip install -e . --all-extras --requirements pyproject.toml
+        uv pip install -c constraints.txt -e ../cxx10x/core_10x -e ../cxx10x/infra_10x
+        uv pip install -c constraints.txt -e . --all-extras --requirements pyproject.toml
+
+    - name: Verify env is fully frozen against constraints.txt
+      shell: bash
+      working-directory: ${{ github.workspace }}/../py10x
+      run: |
+        source .venv/bin/activate
+        xx-constraints check
 
     - name: Install Playwright chromium
       shell: bash

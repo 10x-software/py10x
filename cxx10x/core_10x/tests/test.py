@@ -811,7 +811,7 @@ def test_lazy_ref_replace():
     assert x.y == 10
 
 def test_new_or_replace_store():
-    from core_10x.testlib.test_store import TestStore
+    from infra_10x.duckdb_store import DuckDbStore
     cnt=0
     class X(Traitable,keep_history=False,immutable=False):
         x: int = T(T.ID)
@@ -830,7 +830,7 @@ def test_new_or_replace_store():
             print('load_data', res)
             return res
 
-    with TestStore():
+    with DuckDbStore():
         x = X.new_or_replace(x=1,y=10,z=100)
         assert cnt == 1 # lazy load when setting non-id traits
         assert x._rev == 0
@@ -862,10 +862,10 @@ def test_new_or_replace_store():
         assert cnt == 3
 
 def test_create_root():
-    from core_10x.testlib.test_store import TestStore
+    from infra_10x.duckdb_store import DuckDbStore
     from core_10x.code_samples.person import Person
 
-    with TestStore():
+    with DuckDbStore():
         with BTP.create_root():
             Person.new_or_replace(first_name='ilya', last_name = 'pevzner', weight_lbs=200).save()
 
@@ -967,14 +967,21 @@ def test_tracked_objects():
     assert p3 not in objs
 
 def test_custom_collection():
-    class X(Traitable):
-        s_custom_collection = True
+    class X(Traitable,custom_collection=True):
         x: int = T(T.ID)
+        v: int = T()
 
     with CACHE_ONLY(),GRAPH_OFF():
-        X(x=1, _collection_name='my_collection')
-        x = X(ID('1', collection_name='my_collection'))
-        assert x._collection_name == 'my_collection'
+        X(x=1, v=10, _collection_name='collA', _replace=True)
+        x = X(ID('1', collection_name='collA'))
+        assert x._collection_name == 'collA'
+        assert x.x == 1 and x.v == 10
+
+        y = X(x=1, v=20, _collection_name='collB', _replace=True)
+        assert y._collection_name == 'collB'
+        assert y.x == 1 and y.v == 20
+
+        assert x.v == 10
 
 def test_set_eval_once():
     class X(Traitable):
