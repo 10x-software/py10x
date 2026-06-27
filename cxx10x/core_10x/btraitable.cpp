@@ -428,7 +428,7 @@ py::object BTraitable::_reload(const bool rev_only) {
             serialized_data.clear();
             serialized_data[BNucleus::REVISION_TAG()] = revision;
         }
-        if (needs_lazy_load && ThreadContext::current_cache() == m_origin_cache)
+        if (needs_lazy_load && origin_cache_is(ThreadContext::current_cache()))
             return serialized_data; // -- already loaded in current cache
 
         const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());

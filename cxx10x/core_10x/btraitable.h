@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <format>
 #include "py_linkage.h"
 
@@ -66,12 +67,13 @@ class PY10X_API BTraitable {
 protected:
     TID     m_tid;
     XCache* m_origin_cache;
+    uint64_t m_origin_cache_generation = 0;
 
 
 public:
     explicit BTraitable(BTraitableClass* cls, const py::object& id) : m_tid(cls, id) {
         const auto proc = ThreadContext::current_traitable_proc();
-        m_origin_cache = proc->cache();
+        set_origin_cache(proc->cache());
         if (m_tid.is_valid()) {
             //-- lazy reference, must exist in store unless exists in memory
             if (const auto existing_cache = m_origin_cache->find_origin_cache(m_tid))
@@ -102,7 +104,14 @@ public:
     bool id_exists();
 
     void set_id_value(const py::object& id_value) const         { m_tid.set_id_value(id_value); }
-    void set_origin_cache(XCache *oc)                           { m_origin_cache = oc; }
+    void set_origin_cache(XCache *oc) {
+        m_origin_cache = oc;
+        m_origin_cache_generation = oc ? oc->generation() : 0;
+    }
+
+    [[nodiscard]] bool origin_cache_is(const XCache* cache) const {
+        return cache && m_origin_cache == cache && m_origin_cache_generation == cache->generation();
+    }
 
     [[nodiscard]] XCache*           origin_cache() const        { return m_origin_cache; }
     [[nodiscard]] BTraitableClass*  my_class() const            { return m_tid.cls(); }

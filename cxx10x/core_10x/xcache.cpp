@@ -7,6 +7,12 @@
 #include "btraitable.h"
 
 XCache* XCache::s_default = new XCache();
+std::uint64_t XCache::s_next_generation = 0;
+
+XCache::XCache(XCache* parent)
+    : m_parent(parent)
+    , m_generation(++s_next_generation)
+{}
 
 XCache *XCache::find_origin_cache(const TID &tid) {
     auto parent = this;
@@ -37,11 +43,10 @@ ObjectCache * XCache::find_or_create_object_cache(BTraitable *obj) {
     // find or create object cache in *this*
 
     const auto &tid = obj->tid();
-    const auto origin_cache = obj->origin_cache();
     auto parent = this;
 
     while(parent) {
-        if (parent == origin_cache)
+        if (obj->origin_cache_is(parent))
             break;
         parent = parent->m_parent;
     }

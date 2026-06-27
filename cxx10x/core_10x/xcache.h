@@ -4,6 +4,7 @@
 //
 #pragma once
 
+#include <cstdint>
 #include <ranges>
 
 #include "py_linkage.h"
@@ -184,9 +185,11 @@ protected:
     using Data      = std::unordered_map<TID, ObjectCache*>;
     using TmpData   = std::unordered_map<const TID*, ObjectCache*>;
 
-    static XCache*  s_default;
+    static XCache*          s_default;
+    static std::uint64_t    s_next_generation;
 
     XCache*         m_parent = nullptr;
+    const std::uint64_t m_generation;
     IDsByClass      m_ids_by_class;
     Data            m_data;
     TmpData         m_tmp_data;
@@ -266,8 +269,9 @@ public:
 
     static XCache* default_cache()      { return s_default; }
 
-    explicit XCache(XCache* parent = nullptr) : m_parent(parent)     {}
+    explicit XCache(XCache* parent = nullptr);
 
+    [[nodiscard]] uint64_t generation() const          { return m_generation; }
     [[nodiscard]] int default_node_type() const             { return m_default_node_type; }
     void set_default_node_type(int node_type)               { m_default_node_type = node_type; }
 
