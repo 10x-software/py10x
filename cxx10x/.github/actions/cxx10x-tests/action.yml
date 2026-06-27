@@ -20,4 +20,7 @@ runs:
     - name: Run cross-module tests
       shell: bash
       working-directory: tests/cross_module_test
-      run: uv run python test.py
+      run: |
+        uv venv
+        uv pip install -r pyproject.toml
+        uv run python test.py
