@@ -1,6 +1,11 @@
 import atexit
+import ctypes
 
+import py10x_kernel
 from py10x_kernel import CORE_10X, PyLinkage, XCache
+
+# Promote kernel symbols to the global namespace so extension modules can resolve them on Linux.
+ctypes.CDLL(py10x_kernel.__file__, ctypes.RTLD_GLOBAL)
 
 
 def cleanup():
