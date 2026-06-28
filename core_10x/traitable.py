@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import itertools
 import operator
 import re
 import sys
@@ -391,15 +392,14 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         cls.build_trait_dir()  # -- build cls.s_dir from trait definitions in cls.__dict__
 
-        if cls.is_storable():
-            if keep_history is False:
-                cls.s_history_class = None
-            if cls.s_history_class is not None:
+        if keep_history is False:
+            cls.s_history_class = None
+
+        if cls.s_history_class is not None:
+            if cls.is_storable():
                 cls.s_history_class = (cls.s_history_base or TraitableHistory).history_class(cls)
 
-            cls.s_immutable = cls.s_history_class is None if immutable is None else immutable
-        else:
-            cls.s_history_class = XNone
+        cls.s_immutable = cls.s_history_class is None if immutable is None else immutable
 
         if cls.s_embeddable:
             cls.collection = cls._embedded_collection
@@ -722,6 +722,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         """Restore a traitable to a specific point in time."""
         return cls.s_storage_helper.restore(traitable_id,timestamp,save)
 
+    def post_serialize(self,serialized_data: dict) -> dict:
+        return serialized_data
+
 
 class TraitableFwdRef(Traitable, root_class=True):
     """Internal base for deferred sibling Traitable annotations; not for direct use."""
@@ -936,7 +939,7 @@ class StorableHelper(AbstractStorableHelper):
                 return RC(False, f'{self.__class__} - no store available')
 
             with self._transaction_ctx():
-                rev = self._save_serialized(coll, serialized_data, traitable.get_revision())
+                rev = self._save_serialized(coll, traitable.post_serialize(serialized_data), traitable.get_revision())
         except Exception as e:
             return RC(False, f'Error saving traitable: {e}')
 
@@ -1076,25 +1079,15 @@ def __getattr__(name):
     raise AttributeError(name)
 
 class EventBase(Traitable, keep_history=False):
-    _at: datetime               = T() // 'time saved'
-    _who: str                   = T() // 'authenticated user, if any'
+    _at: datetime               = RT() // 'time saved'
+    _who: str                   = RT() // 'authenticated user, if any'
 
-    def _serialize_object(self,save_references: bool = False):
-        serialized_data = super().serialize_object(save_references)
-        #TODO: consider changing to RT, and fixing deserialize to handle
-        for trait in EventBase.traits(flags_off=T.RESERVED):
-            del serialized_data[trait.name]
-        return serialized_data
-
-    def serialize_object(self, save_references: bool = False):
+    def post_serialize(self, serialized_data: dict) -> dict:
         store = self.store()
-        return store.add_who(
-            self.T._who.name,
-            store.add_when(
-                self.T._at.name,
-                self._serialize_object(save_references)
-            )
-        )
+        post_serialized = dict(serialized_data)
+        store.add_who(self.T._who.name, post_serialized)
+        store.add_when(self.T._at.name, post_serialized)
+        return post_serialized
 
 class TraitableHistory(EventBase):
     s_traitable_class = None
@@ -1112,8 +1105,8 @@ class TraitableHistory(EventBase):
     def _traitable_id_get(self) -> str:
         return self.serialized_traitable['_id']
 
-    def _serialize_object(self, save_references: bool = False):
-        return {**self.serialized_traitable, **super()._serialize_object(save_references)}
+    def serialize_object(self, save_references: bool = False):
+        return {**self.serialized_traitable, **super().serialize_object(save_references)}
 
     def traitable_get(self):
         return Traitable.deserialize_object(
@@ -1123,7 +1116,7 @@ class TraitableHistory(EventBase):
         )
 
     def deserialize_traits(self, serialized_data):
-        hist_data = {trait.name: serialized_data.pop(trait.name, None) for trait in self.traits(flags_off=T.RUNTIME)}
+        hist_data = {trait.name: serialized_data.pop(trait.name, None) for trait in itertools.chain(EventBase.traits(),self.traits(flags_off=T.RUNTIME))}
         self.serialized_traitable = serialized_data | {v: hist_data[k] for k, v in self.s_trait_name_map.items()}
         return super().deserialize_traits(hist_data)
 

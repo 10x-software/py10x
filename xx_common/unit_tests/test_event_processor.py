@@ -34,6 +34,13 @@ class  PongCounter(EventProcessor, inputs=(Pong,), outputs=()):
         self.total = self.total + event.n
 
 
+def test_event_immutable():
+    assert Event.s_immutable
+    assert Event.s_history_class is None
+
+    assert Pong.s_immutable
+    assert Pong.s_history_class is None
+
 @pytest.fixture
 def event_store(monkeypatch, mocker):
     _clear_main_store_caches()

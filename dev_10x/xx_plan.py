@@ -80,12 +80,16 @@ class PkgInput(Traitable):
     def footprint_changed_get(self) -> bool:
         # Diff from the main commit the latest tag was cut off (merge-base with main), not the tag
         # itself: the tag sits on the pre/prod line and carries pin commit(s), which aren't source.
+        # Footprint = the whole repo minus the *other* packages' subtrees (shared files count, a
+        # sibling's subtree does not).
         latest = VersionHelpers.latest_tag(self.parsed_tags)
         if latest is None:
             return True
         fork = GitHelpers.git(self.repo, "merge-base", latest[0], "main")
+        sibling_subdirs = [GitHelpers.repo_relative_subtree(self.repo, p.src_dir)
+                           for n, p in self.packages.items() if n != self.name and p.repo == self.repo]
         return GitHelpers.tree_changed_since_tag(
-            self.repo, fork, *GitHelpers.diff_pathspecs(self.repo, self.src_dir), rev="main")
+            self.repo, fork, *GitHelpers.diff_pathspecs(*sibling_subdirs), rev="main")
 
     def current_forward_get(self) -> dict:
         # core's published forward `==` pins, read from its latest tag's pyproject and filtered to

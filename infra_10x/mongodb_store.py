@@ -316,6 +316,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         if field in sd:
             raise RuntimeError(f'Field {field} is already in use.')
         if sd is serialized_data:
-            serialized_data = {'$set': sd}
+            sd = dict(sd)
+            serialized_data.clear()
+            serialized_data['$set'] = sd
         serialized_data.setdefault('$currentDate', {})[field] = True
         return serialized_data

@@ -103,58 +103,44 @@ def test_repo_relative_subtree():
 
 
 def test_diff_pathspecs():
-    repo = Path("/proj/cxx10x")
-    # whole-repo package (py10x-core): `.` already covers .github
-    assert GitHelpers.diff_pathspecs(Path("/proj/py10x"), Path("/proj/py10x")) == (".",)
-    # subdir sibling: subtree + the whole shared .github (the CI builds/publishes the wheel)
-    assert GitHelpers.diff_pathspecs(repo, repo / "core_10x") == ("core_10x", ".github")
-    assert GitHelpers.diff_pathspecs(repo, repo / "infra_10x") == ("infra_10x", ".github")
+    # a package alone in its repo (no siblings) -> the whole repo
+    assert GitHelpers.diff_pathspecs() == (".",)
+    # a sibling: the whole repo with the *other* package subtrees excluded (shared files still count)
+    assert GitHelpers.diff_pathspecs("infra_10x") == (".", ":(exclude)infra_10x")
+    assert GitHelpers.diff_pathspecs("core_10x", "infra_10x") == (
+        ".", ":(exclude)core_10x", ":(exclude)infra_10x")
 
 
 def test_tree_changed_since_tag(tmp_path):
     repo = tmp_path / "repo"
-    pkg = repo / "pkg"
-    wf = repo / ".github" / "workflows"
-    other = repo / "other"
-    pkg.mkdir(parents=True)
-    wf.mkdir(parents=True)
-    other.mkdir()
-    (pkg / "a.txt").write_text("v1\n", encoding="utf-8")
-    (wf / "pkg_wheels.yml").write_text("on: [push]\n", encoding="utf-8")
-    (other / "b.txt").write_text("other\n", encoding="utf-8")
+    for d in ("pkg", "sib", ".github/actions"):
+        (repo / d).mkdir(parents=True)
+    (repo / "pkg" / "a.txt").write_text("v1\n", encoding="utf-8")          # this package's subtree
+    (repo / "sib" / "b.txt").write_text("v1\n", encoding="utf-8")          # a sibling package's subtree
+    (repo / ".github" / "actions" / "build.yml").write_text("v1\n", encoding="utf-8")  # shared CI
+    (repo / "CMakeLists.txt").write_text("v1\n", encoding="utf-8")         # shared root build config
     GitHelpers.git(repo, "init")
     GitHelpers.git(repo, "config", "user.email", "test@example.com")
     GitHelpers.git(repo, "config", "user.name", "Test")
     GitHelpers.git(repo, "add", ".")
     GitHelpers.git(repo, "commit", "-m", "init")
-    GitHelpers.git(repo, "tag", "v0.1.0rc1")
+    GitHelpers.git(repo, "tag", "base")
 
-    # Mirror diff_pathspecs for a subdir sibling: subtree + the whole shared .github.
-    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg")
-    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", ".github")
-    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", ".")
+    fp = GitHelpers.diff_pathspecs("sib")          # footprint of `pkg`: whole repo minus sibling `sib`
+    assert not GitHelpers.tree_changed_since_tag(repo, "base", *fp)        # no change yet
 
-    (other / "b.txt").write_text("other v2\n", encoding="utf-8")
-    GitHelpers.git(repo, "add", "other/b.txt")
-    GitHelpers.git(repo, "commit", "-m", "other only")
+    def footprint_trips(path: str) -> bool:
+        (repo / path).write_text("v2\n", encoding="utf-8")
+        GitHelpers.git(repo, "add", ".")
+        GitHelpers.git(repo, "commit", "-qm", f"touch {path}")
+        tripped = GitHelpers.tree_changed_since_tag(repo, "base", *fp)
+        GitHelpers.git(repo, "tag", "-f", "base")  # re-baseline so the next case is isolated
+        return tripped
 
-    # A change outside both the subtree and `.github` must not trip the diff.
-    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", ".github")
-    assert GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", ".")
-
-    # Any `.github` change (shared CI here - a composite action) trips the footprint.
-    (repo / ".github" / "actions").mkdir()
-    (repo / ".github" / "actions" / "build.yml").write_text("name: build\n", encoding="utf-8")
-    GitHelpers.git(repo, "add", ".github/actions/build.yml")
-    GitHelpers.git(repo, "commit", "-m", "shared CI change")
-    assert not GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg")
-    assert GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg", ".github")
-
-    (pkg / "a.txt").write_text("v2\n", encoding="utf-8")
-    GitHelpers.git(repo, "add", "pkg/a.txt")
-    GitHelpers.git(repo, "commit", "-m", "pkg change")
-
-    assert GitHelpers.tree_changed_since_tag(repo, "v0.1.0rc1", "pkg")
+    assert footprint_trips("sib/b.txt") is False                  # a sibling's subtree -> excluded
+    assert footprint_trips("pkg/a.txt") is True                   # own subtree -> trips
+    assert footprint_trips(".github/actions/build.yml") is True   # shared CI -> trips
+    assert footprint_trips("CMakeLists.txt") is True              # shared root build config -> trips
 
 
 def test_latest_matching_tag_dev_pin_picks_latest_rc():

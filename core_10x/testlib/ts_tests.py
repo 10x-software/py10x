@@ -47,16 +47,16 @@ def ts_setup(ts_instance,request):
         p = Person(first_name='John', last_name='Doe', _collection_name=c if request.param else None)
         p.set_values(age=30, weight_lbs=100)
         assert p._rev == 0
-        assert p.save() == RC_TRUE
+        p.save().throw()
         assert p._rev == 1
-        assert p.save() == RC_TRUE
+        p.save().throw()
         assert p._rev == 1
         assert p.id().collection_name == (c if request.param else None)
 
 
         p1 = Person1(first_name='Joe', last_name='Doe', _collection_name=c1 if request.param else None)
         p1.set_values(age=32, weight_lbs=200)
-        assert p1.save()
+        p1.save().throw()
         assert p1.age == 32
         assert p1._rev == 1
         assert p1.id().collection_name == (c1 if request.param else None)
@@ -197,7 +197,7 @@ class TestTSStore:
 
         dt1 = datetime.utcnow()
         time.sleep(0.001)
-        result = collection.save_new(ts_store.add_when('_at', serialized_entity))
+        result = collection.save_new(ts_store.add_when('_at', dict(serialized_entity)))
         time.sleep(0.001)
         dt2 = datetime.utcnow()
         assert result == 1

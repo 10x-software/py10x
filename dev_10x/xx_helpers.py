@@ -271,19 +271,17 @@ class GitHelpers:
         rel = path.resolve().relative_to(repo.resolve())
         return rel.as_posix() if rel.parts else "."
 
-    @classmethod
-    def diff_pathspecs(cls, repo: Path, src_dir: Path) -> tuple[str, ...]:
-        """`git diff` pathspecs that define a package's release-relevant footprint.
+    @staticmethod
+    def diff_pathspecs(*sibling_subdirs: str) -> tuple[str, ...]:
+        """`git diff` pathspecs for a package's release footprint: the **whole repo minus the other
+        packages' subtrees**.
 
-        A whole-repo package (`src_dir` == repo root) is just `.` (which already covers `.github`).
-        A package living in a subdir is its subtree **plus the whole `.github/`** - the shared CI
-        (`ci.yml`, `actions/`, `scripts/`, the publish workflows) builds and publishes the wheel, so
-        a CI change forces a new rc even though it sits outside the subtree. This deliberately couples
-        sibling re-cuts on a shared-CI change (cheap, coordinated anyway) rather than trying to
-        hand-pick "shared vs per-package" CI files, which `diff_pathspecs` lacks the context to do.
+        Rule: a change inside a package's own dir affects that package only; anything *outside* every
+        package dir (shared CI, root build config, …) affects all of them. So a package's footprint is
+        `.` with each *sibling* subtree excluded - its own files and all shared files count, a
+        sibling's subtree does not. A package alone in its repo -> the whole repo (`.`).
         """
-        subtree = cls.repo_relative_subtree(repo, src_dir)
-        return (subtree,) if subtree == "." else (subtree, ".github")
+        return (".", *(f":(exclude){s}" for s in sibling_subdirs))
 
     @classmethod
     def tree_changed_since_tag(cls, repo: Path, tag: str, *pathspecs: str, rev: str = "HEAD") -> bool:
