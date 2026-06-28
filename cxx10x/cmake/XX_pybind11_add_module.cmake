@@ -27,11 +27,12 @@ macro(xx_pybind11_add_module target)
             VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
     )
 
-    # Link against the installed py10x_kernel module so exported symbols (e.g.
-    # BTraitable typeinfo) resolve at load time. Windows uses the import library;
-    # Linux needs an explicit shared-library link because RTLD_LOCAL import of
-    # py10x_kernel does not expose those symbols to other extension modules.
-    if(WIN32 OR (UNIX AND NOT APPLE))
+    # On Windows, link against py10x_kernel's import library (.lib) so the MSVC
+    # linker can resolve symbols like BTraitable that are dllimport-annotated.
+    # The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
+    # On Linux/macOS, consumer extensions rely on py10x_kernel being promoted to
+    # RTLD_GLOBAL before load (see core_10x/__init__.py and generate_stubs.py).
+    if(WIN32)
         execute_process(
                 COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel,sys; sys.stdout.write('<<<MOD:'+py10x_kernel.__file__+':MOD>>>')"
                 OUTPUT_VARIABLE _PY10X_KERNEL_OUT
@@ -44,9 +45,7 @@ macro(xx_pybind11_add_module target)
             message(FATAL_ERROR "Could not parse py10x_kernel.__file__ from output:\n${_PY10X_KERNEL_OUT}")
         endif()
         set(_PY10X_KERNEL_MODULE "${CMAKE_MATCH_1}")
-    endif()
 
-    if(WIN32)
         if(NOT MSVC)
             message(FATAL_ERROR "py10x-kernel requires MSVC on Windows")
         endif()
@@ -75,11 +74,6 @@ macro(xx_pybind11_add_module target)
                 IMPORTED_IMPLIB "${_PY10X_KERNEL_LIB}"
         )
         target_link_libraries(${target} PRIVATE py10x_kernel_import)
-    elseif(UNIX AND NOT APPLE)
-        if(NOT EXISTS "${_PY10X_KERNEL_MODULE}")
-            message(FATAL_ERROR "py10x_kernel shared library not found at ${_PY10X_KERNEL_MODULE}")
-        endif()
-        target_link_libraries(${target} PRIVATE "${_PY10X_KERNEL_MODULE}")
     endif()
 
     finalize_pybind_module_rtld(${target} ${cxx10x_core_headers_SOURCE_DIR}/cmake)
