@@ -65,13 +65,9 @@ public:
         return get_value_off_graph(proc, obj, trait, args);
     }
 
-    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const final {
-        dont_touch_me(obj, trait);
-    }
+    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const final;
 
-    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args) const final {
-        dont_touch_me(obj, trait);
-    }
+    void invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args) const final;
 
     py::object raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value) const final;
 

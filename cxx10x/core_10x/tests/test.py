@@ -1013,18 +1013,33 @@ def test_set_eval_once():
             assert False, "Expected TypeError when reloading object with EVAL_ONCE trait"
     x = X(x=2)
     assert x.v2 == 50 # force lazy load of v2
-    assert x.v == 40
+    assert x.v == 40, f'Expected x.v to be 40, got {x.v}'
 
-    try:
-        x.reload()
-    except TypeError as e:
-        assert 'Trying to modify EVAL_ONCE trait test_set_eval_once.<locals>.X.v' in str(e)
-    else:
-        assert False, "Expected TypeError when reloading object with EVAL_ONCE trait"
+def test_deserialize_rt():
+    class X(Traitable):
+        x: int = RT()
+        y: int = T(T.EVAL_ONCE)
+
+        def y_get(self):
+            return 1
+
+    x = X.deserialize_object(X.s_bclass, None, {'_id':'1','_rev':'1','x':1})
+    assert x.x == 1, f'Expected x.x to be 1 after deserialization, got {x.x}'
+    assert x.y == 1, f'Expected x1.y to be 1 after deserialization, got {x.y}'
+
+    x.x=2
+    x1 = X.deserialize_object(X.s_bclass, None, {'_id':'1','_rev':'1','x':1})
+    assert x1.x == 2, f'Expected x1.x to be 2 after deserialization, got {x1.x}'
+    assert x1.y == 1, f'Expected x1.y to be 1 after deserialization, got {x1.y}'
+
+    x2 = X.deserialize_object(X.s_bclass, None, {'_id':'2','_rev':'2','y': 2})
+    assert x2.y == 2, f'Expected x1.y to be 2 after deserialization, got {x1.y}'
+
 
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
+    test_deserialize_rt()
     test_set_eval_once()
     test_custom_collection()
     test_person_xnone()

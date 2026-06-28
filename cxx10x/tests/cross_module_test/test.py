@@ -1,4 +1,7 @@
-import py10x_kernel as k
+import ctypes
+
+import py10x_kernel
+
 import cross_module_test as t
 
 from core_10x.traitable import Traitable

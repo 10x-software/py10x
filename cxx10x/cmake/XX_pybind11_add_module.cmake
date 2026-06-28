@@ -27,14 +27,25 @@ macro(xx_pybind11_add_module target)
             VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
     )
 
-    # On Windows, we do two things:
-    # 1. Check that the client is built with the same 4-digit MSVC_VERSION
-    #    as the py10x-kernel for this release (for PYBIND11_INTERNALS_ID /
-    #    cross-module type registration of BTraitable etc.).
-    # 2. Link against py10x_kernel's import library (.lib) so the MSVC linker
-    #    can resolve symbols like BTraitable that are dllimport-annotated.
-    #    The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
+    # On Windows, link against py10x_kernel's import library (.lib) so the MSVC
+    # linker can resolve symbols like BTraitable that are dllimport-annotated.
+    # The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
+    # On Linux/macOS, consumer extensions rely on py10x_kernel being promoted to
+    # RTLD_GLOBAL before load (see core_10x/__init__.py and generate_stubs.py).
     if(WIN32)
+        execute_process(
+                COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel,sys; sys.stdout.write('<<<MOD:'+py10x_kernel.__file__+':MOD>>>')"
+                OUTPUT_VARIABLE _PY10X_KERNEL_OUT
+                RESULT_VARIABLE _mod_rc
+        )
+        if(NOT _mod_rc EQUAL 0)
+            message(FATAL_ERROR "Could not locate py10x_kernel.__file__. Is py10x-kernel installed?")
+        endif()
+        if(NOT _PY10X_KERNEL_OUT MATCHES "<<<MOD:(.+):MOD>>>")
+            message(FATAL_ERROR "Could not parse py10x_kernel.__file__ from output:\n${_PY10X_KERNEL_OUT}")
+        endif()
+        set(_PY10X_KERNEL_MODULE "${CMAKE_MATCH_1}")
+
         if(NOT MSVC)
             message(FATAL_ERROR "py10x-kernel requires MSVC on Windows")
         endif()
@@ -44,22 +55,7 @@ macro(xx_pybind11_add_module target)
             message(FATAL_ERROR "py10x-kernel requires MSVC_VERSION=${PY10X_REQUIRED_MSVC_VERSION}")
         endif()
 
-        # --- Import library handling for symbol visibility (original) ---
-        # Importing py10x_kernel triggers scikit-build-core's editable rebuild hook,
-        # which prints "Running cmake --build & --install ..." to stdout. Wrap the
-        # path in sentinels so we can extract just the path, ignoring that chatter.
-        execute_process(
-                COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel,sys; sys.stdout.write('<<<PYD:'+py10x_kernel.__file__+':PYD>>>')"
-                OUTPUT_VARIABLE _PY10X_KERNEL_OUT
-                RESULT_VARIABLE _pyd_rc
-        )
-        if(NOT _pyd_rc EQUAL 0)
-            message(FATAL_ERROR "Could not locate py10x_kernel.__file__. Is py10x-kernel installed?")
-        endif()
-        if(NOT _PY10X_KERNEL_OUT MATCHES "<<<PYD:(.+):PYD>>>")
-            message(FATAL_ERROR "Could not parse py10x_kernel.__file__ from output:\n${_PY10X_KERNEL_OUT}")
-        endif()
-        set(_PY10X_KERNEL_PYD "${CMAKE_MATCH_1}")
+        set(_PY10X_KERNEL_PYD "${_PY10X_KERNEL_MODULE}")
         # MSVC names the import library after the CMake target name (py10x_kernel),
         # NOT the module's full output name. So the file is py10x_kernel.lib, sitting
         # next to py10x_kernel.cp312-win_amd64.pyd. Strip the full extension chain
