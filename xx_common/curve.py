@@ -1,7 +1,6 @@
-USE_BCURVE = False
-#USE_BCURVE = True
+from xx_common.xxcommon_env_vars import XXCommonEnvVars
 
-if not USE_BCURVE:
+if not XXCommonEnvVars.use_cxx_curve:
     from xx_common.py_curve import Curve, DateCurve, IP_KIND, CurveParams
 else:
     from xx_common.cxx_curve import Curve, DateCurve, IP_KIND, CurveParams
