@@ -1,4 +1,11 @@
-import py10x_kernel as k
+import ctypes
+
+import py10x_kernel
+
+# Promote kernel symbols (e.g. BTraitable typeinfo) to the global namespace on
+# Linux before loading another extension that references them. See generate_stubs.py.
+ctypes.CDLL(py10x_kernel.__file__, ctypes.RTLD_GLOBAL)
+
 import cross_module_test as t
 
 from core_10x.traitable import Traitable

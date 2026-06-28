@@ -400,7 +400,7 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
     const auto XNone = PyLinkage::XNone();
     for (const auto &[trait_name_handle, trait_handle] : my_class()->trait_dir()) {
         const auto trait = trait_handle.cast<BTrait*>();
-        if (trait->flags_on(BTraitFlags::RESERVED) || trait->flags_on(BTraitFlags::RUNTIME) || trait->flags_on(BTraitFlags::ID) && is_set(trait))
+        if (trait->flags_on(BTraitFlags::RESERVED) || trait->flags_on(BTraitFlags::EVAL_ONCE) && is_valid(trait) || (trait->flags_on(BTraitFlags::RUNTIME) || trait->flags_on(BTraitFlags::ID)) && is_set(trait))
             continue;
 
         const auto trait_name = trait_name_handle.cast<py::object>();

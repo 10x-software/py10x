@@ -216,6 +216,20 @@ py::object EvalOnceProc::raw_set_value_off_graph(const BTraitableProcessor *proc
     return PyLinkage::RC_TRUE();
 }
 
+void EvalOnceProc::invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const {
+    const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
+    const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, true);
+    if(node->is_valid())
+        dont_touch_me(obj, trait);
+}
+
+void EvalOnceProc::invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args) const {
+    const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
+    const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, args, true);
+    if(node->is_valid())
+        dont_touch_me(obj, trait);
+}
+
 py::object EvalOnceProc::dont_touch_me(const BTraitable *obj, const BTrait* trait) {
     throw py::type_error(py::str("Trying to modify EVAL_ONCE trait {}.{}").format(obj->class_name(), trait->name()));
 }
