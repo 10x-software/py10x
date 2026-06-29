@@ -50,6 +50,12 @@ class DateCurve(AnonymousTraitable):
     def params_get(self) -> CurveParams:
         return CurveParams()
 
+    def dates_get(self) -> list:
+        return self.bcurve.dates
+
+    def beginning_of_time_as_date(self) -> date:
+        return self.beginning_of_time
+
     def start_time(self) -> date:
         return self.bcurve.start_time()
 
