@@ -401,7 +401,7 @@ sentinel==1.0.0
     # via introspection
 setuptools==82.0.1
     # via setuptools-scm
-setuptools-scm==10.0.5
+setuptools-scm==10.2.0
     # via py10x-core (pyproject.toml)
 six==1.17.0
     # via python-dateutil
