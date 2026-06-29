@@ -430,9 +430,8 @@ class PyProjectHelpers:
         changes = {
             Requirement(o).name: f"{o!r} -> {n!r}" for o, n in zip(before, after) if o != n
         }
-        deps.clear()
-        for entry in after:
-            deps.append(entry)
+        for i, entry in enumerate(after):
+            deps[i] = entry
         cls._dump(path, doc)
         return changes
 

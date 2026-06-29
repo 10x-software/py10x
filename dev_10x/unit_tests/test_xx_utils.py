@@ -202,6 +202,29 @@ def test_forward_pin_edits_targets_only_named_and_preserves_format():
 
 
 # --------------------------------------------------------------------------- pyproject rewrites I/O
+def test_write_forward_pins_preserves_multiline_and_comments(tmp_path):
+    """Pin edits touch only the changed dependency lines; layout and trailing comments stay put."""
+    p = tmp_path / "pyproject.toml"
+    p.write_text(textwrap.dedent("""
+        [project]
+        name = "py10x-core"
+        dependencies = [
+            "py10x-kernel (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)", # sibling kernel
+            "py10x-infra (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)",  # sibling infra
+            "numpy>=2.2.2,<2.5.0",
+        ]
+    """), encoding="utf-8")
+    before = p.read_text()
+    PyProjectHelpers.write_forward_pins(p, {"py10x-kernel": "==0.2.1rc17"})
+    after = p.read_text()
+    assert after != before
+    assert 'py10x-kernel (==0.2.1rc17)", # sibling kernel' in after
+    assert 'py10x-infra (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)",  # sibling infra' in after
+    assert "numpy>=2.2.2,<2.5.0" in after
+    assert "dependencies = [\n" in after
+    assert after.count("\n") >= before.count("\n") - 1  # no collapse to one line
+
+
 def test_write_forward_pins_roundtrip(tmp_path):
     p = tmp_path / "pyproject.toml"
     p.write_text(textwrap.dedent("""
