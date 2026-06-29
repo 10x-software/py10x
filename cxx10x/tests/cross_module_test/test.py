@@ -1,11 +1,7 @@
-import ctypes
-
-import py10x_kernel
-
-import cross_module_test as t
-
 from core_10x.traitable import Traitable
 from core_10x.trait_definition import RT
+
+import cross_module_test as t
 
 
 def test_with_s_cxx_mixins():
