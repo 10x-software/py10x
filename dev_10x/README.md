@@ -25,9 +25,9 @@ They version **independently** and live in two git repos:
 
 | package        | repo / path                | tag prefix         | tags                         |
 |----------------|----------------------------|--------------------|------------------------------|
-| `py10x-core`   | `py10x` (this repo)        | `v`                | `vX.Y.Z` / `vX.Y.ZrcN`       |
-| `py10x-kernel` | `cxx10x` / `core_10x`      | `py10x-kernel-v`   | `py10x-kernel-vX.Y.Z[rcN]`   |
-| `py10x-infra`  | `cxx10x` / `infra_10x`     | `py10x-infra-v`    | `py10x-infra-vX.Y.Z[rcN]`    |
+| `py10x-core`   | `py10x` (this repo)        | `v`                | `vX.Y.Z` / `vX.Y.ZrcN` on `pre`/`prod`; `vX.Y.Zrc(N+1).dev` on `main` when cutting rcN |
+| `py10x-kernel` | `cxx10x` / `core_10x`      | `py10x-kernel-v`   | `…-vX.Y.Z[rcN]` on `pre`/`prod`; `…-vX.Y.Zrc(N+1).dev` on `main` when cutting rcN |
+| `py10x-infra`  | `cxx10x` / `infra_10x`     | `py10x-infra-v`    | `…-vX.Y.Z[rcN]` on `pre`/`prod`; `…-vX.Y.Zrc(N+1).dev` on `main` when cutting rcN |
 
 py10x-core depends on the other two (forward). For testing, kernel/infra carry a *dev-only*
 reverse dependency on py10x-core via a PEP 735 **`[dependency-groups]` `test`** group — which is
@@ -46,6 +46,10 @@ derived from `origin` (not hardcoded). Tag prefix defaults to `{name}-v`; repo r
 - **`0.1.dev1+g…` = NO tag found** (absolute fallback) — almost always a *shallow* checkout. CI that
   versions a co-dependency sibling needs `actions/checkout` `fetch-depth: 0`; the triggering tag is
   present even when shallow, other tags are not.
+- **pre/prod rc tags are not on `main`.** Publishable rc/final tags live on tool-owned `pre`/`prod`
+  branches. `xx-promote pre` tags `main` HEAD with `{T}rc(N+1).dev` when cutting rcN (a
+  setuptools-scm marker, not a release) so plain `git describe` / hatch-vcs on `main` stamps
+  `0.2.1rc18.devM+g…` while rc17 lives on `pre`. Publish workflows ignore `*.dev` tags.
 - **Ordering:** always compare with `packaging.version.Version` (`max`), never
   `git --sort=-v:refname` / `sort -V` (they rank `0.2.3` *below* `0.2.3rc1`).
 
@@ -124,7 +128,8 @@ crash re-derives the plan from current tags and resumes.
 - **`pre`** (`--from=main`) cuts the next coordinated rc. A package is re-cut when its footprint
   changed since its last tag (`GitHelpers.diff_pathspecs`: source subtree **plus** the
   `.github/workflows/{subdir}*` publish workflow), **or**, for core, when its forward `==` pin lags a
-  sibling's latest tag (so a fresh sibling rc forces a core re-cut). For each re-cut package it writes
+  sibling's latest tag (so a fresh sibling rc forces a core re-cut). For each re-cut package it tags
+  `main` HEAD with `{T}rc(N+1).dev` (setuptools-scm marker for the next rc line), writes
   the coordinated pins (core → siblings `==X.YrcN`; sibling → `py10x-core>=X.YrcN`) on a commit forked
   from `main` HEAD, **force-resets** the package's `pre` branch to it, and tags `v{T}rc{n}`. Footprint
   is diffed from the tag's fork-point on `main` (so the pin commit itself never counts as a change).
@@ -136,7 +141,8 @@ crash re-derives the plan from current tags and resumes.
   core. Released **source** == rc source — the final commit only rewrites pins on top of the rc.
 - **`yank`** renames the **latest** tag to `<tag>_yanked` (build workflows ignore `*_yanked`),
   force-rolls the affected `pre`/`prod` pointer back to the previous tag of the same kind (rc→`pre`,
-  final→`prod`), and **prints manual PyPI yank instructions** — PyPI has no public yank API. Yanking
+  final→`prod`), and **prints manual PyPI yank instructions** — PyPI has no public yank API.
+  `{T}rc(N+1).dev` markers on `main` are **left in place** (the next rc is still N+1). Yanking
   an older release is refused (needs `--cascade`, a Stage-2 feature). A yanked version number is
   **consumed** — generation floors on `max(all tags incl. yanked)` so it is never reused — while
   selection still ignores `*_yanked`. Yanking a **final** also rolls `main`'s dev pin back to the

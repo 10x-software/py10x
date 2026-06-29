@@ -111,8 +111,9 @@ def test_pre_from_main_cuts_coordinated_first_rc(repos):
     _run_pre(py)
 
     # --- core: pre branch + tag, with exact forward == pins on both siblings ---
-    assert GitHelpers.list_tags(py, "*") == ["v0.0.1rc1"]
+    assert set(GitHelpers.list_tags(py, "v*")) == {"v0.0.1rc1", "v0.0.1rc2.dev"}
     assert GitHelpers.git(py, "rev-parse", "pre") == GitHelpers.tag_commit(py, "v0.0.1rc1")
+    assert GitHelpers.tag_commit(py, "v0.0.1rc2.dev") == GitHelpers.git(py, "merge-base", "v0.0.1rc1", "main")
     core_deps = _dep_specs_at(py, "v0.0.1rc1", "pyproject.toml")
     assert core_deps["py10x-kernel"] == "==0.0.1rc1"
     assert core_deps["py10x-infra"] == "==0.0.1rc1"
@@ -121,8 +122,11 @@ def test_pre_from_main_cuts_coordinated_first_rc(repos):
     # --- siblings: per-package pre branch + tag, with reverse >= test group on core ---
     for name, sub in (("py10x-kernel", "core_10x"), ("py10x-infra", "infra_10x")):
         tag = f"{name}-v0.0.1rc1"
+        dev = f"{name}-v0.0.1rc2.dev"
         assert tag in GitHelpers.list_tags(cxx, f"{name}-v*")
+        assert dev in GitHelpers.list_tags(cxx, f"{name}-v*")
         assert GitHelpers.git(cxx, "rev-parse", f"pre/{name}") == GitHelpers.tag_commit(cxx, tag)
+        assert GitHelpers.tag_commit(cxx, dev) == GitHelpers.git(cxx, "merge-base", tag, "main")
         assert _test_group_at(cxx, tag, f"{sub}/pyproject.toml") == ["py10x-core>=0.0.1rc1"]
 
     # --- the cut forks from main and leaves main + the working tree untouched ---
@@ -212,7 +216,7 @@ def test_resync_then_resume_after_cross_repo_partial_push(remotes):
     _run_pre(py, "--push")                               # resumes: siblings skip, core re-cut + coordinated
     assert "v0.0.1rc1" in GitHelpers.git(py_remote, "tag", "--list").split()
     assert _dep_specs_at(py, "v0.0.1rc1", "pyproject.toml")["py10x-kernel"] == "==0.0.1rc1"
-    assert GitHelpers.list_tags(py, "v*") == ["v0.0.1rc1"]   # no spurious new rc
+    assert GitHelpers.list_tags(py, "v*") == ["v0.0.1rc1", "v0.0.1rc2.dev"]   # no spurious new rc
 
 
 def test_pre_iterate_after_sibling_source_change_recoordinates(repos):
@@ -251,6 +255,7 @@ def test_yank_latest_rc_rolls_pre_back_and_consumes_the_number(repos):
 
     live = GitHelpers.list_tags(cxx, "py10x-kernel-v0.0.1rc2")          # plain tag gone
     assert "py10x-kernel-v0.0.1rc2" not in [t for t in live if not t.endswith("_yanked")]
+    assert "py10x-kernel-v0.0.1rc3.dev" in GitHelpers.list_tags(cxx, "py10x-kernel-v*")  # dev marker kept
     assert "py10x-kernel-v0.0.1rc2_yanked" in GitHelpers.list_tags(cxx, "*")
     # pointer rollback: pre/py10x-kernel reconciled to the previous (live) rc
     assert GitHelpers.git(cxx, "rev-parse", "pre/py10x-kernel") == rc1_commit
@@ -290,7 +295,7 @@ def test_pre_push_lands_tags_and_force_resets_branches_on_remotes(remotes):
     _run_pre(py, "--push")
 
     # tags + branches landed on the bare remotes; no stray branches beyond main + the pre lines
-    assert GitHelpers.git(py_remote, "tag", "--list") == "v0.0.1rc1"
+    assert set(GitHelpers.git(py_remote, "tag", "--list").split()) == {"v0.0.1rc1", "v0.0.1rc2.dev"}
     assert sorted(GitHelpers.git(py_remote, "branch", "--list", "--format=%(refname:short)").split()) == ["main", "pre"]
     assert set(GitHelpers.git(cxx_remote, "branch", "--list", "--format=%(refname:short)").split()) == {
         "main", "pre/py10x-kernel", "pre/py10x-infra"}

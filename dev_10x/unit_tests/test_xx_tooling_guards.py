@@ -77,6 +77,22 @@ def test_scm_sibling_match_glob_is_load_bearing(tmp_path):
 
 
 @requires_git
+def test_scm_main_dev_marker_anchors_version_on_main(tmp_path):
+    """A `{T}rc(N+1).dev` tag on `main` lets plain git describe stamp the next rc dev line."""
+    repo = _init_repo(tmp_path / "main-dev")
+    c1 = _commit(repo, msg="c1")
+    GitHelpers.git(repo, "tag", "py10x-kernel-v0.2.1rc18.dev", c1)
+    _commit(repo, content="x\ny\n", msg="c2")
+    _commit(repo, content="x\ny\nz\n", msg="c3")
+    GitHelpers.git(repo, "checkout", "-q", "-b", "pre", c1)
+    _commit(repo, name="pin.txt", content="pin\n", msg="pin")
+    GitHelpers.git(repo, "tag", "py10x-kernel-v0.2.1rc17")
+    GitHelpers.git(repo, "checkout", "-q", "main")
+    v = setuptools_scm.get_version(root=str(repo), git_describe_command=SIBLING_DESCRIBE)
+    assert v.startswith("0.2.1rc18.dev2")
+
+
+@requires_git
 def test_scm_dirty_tree_falls_back_to_dev_not_bare_tag(tmp_path):
     """An uncommitted edit must yield a guess-next-dev version, never the bare tag (the "dirty -> wrong version" trap)."""
     repo = _init_repo(tmp_path / "dirty")

@@ -22,8 +22,29 @@ class VersionHelpers:
     YANKED_SUFFIX = "_yanked"
 
     @classmethod
+    def is_main_dev_marker(cls, v: Version) -> bool:
+        """A `{T}rc{N}.dev` tag on `main` for setuptools-scm — not a publishable release."""
+        return v.is_devrelease and v.pre is not None and v.pre[0] == "rc"
+
+    @classmethod
+    def main_dev_marker_tag(cls, release_tag: str, prefix: str) -> str:
+        """Companion marker on `main` when cutting rcN: `{prefix}{T}rc(N+1).dev`.
+
+        Placed on `main` HEAD at the fork so setuptools-scm on `main` reads as the *next* rc line
+        while the publishable rcN tag lives on `pre`.
+        """
+        if not release_tag.startswith(prefix):
+            raise ValueError(f"{release_tag!r} does not start with {prefix!r}")
+        ver = Version(release_tag[len(prefix):])
+        if ver.pre is None or ver.pre[0] != "rc":
+            raise ValueError(f"{release_tag!r} is not an rc release tag")
+        target = cls.base_version(ver)
+        return f"{prefix}{target}rc{ver.pre[1] + 1}.dev"
+
+    @classmethod
     def parse_pkg_tags(
         cls, raw_tags: list[str], prefix: str, include_yanked: bool = False,
+        include_dev_markers: bool = False,
     ) -> list[tuple[str, Version]]:
         """Strip `prefix` from each tag and parse the remainder as a PEP 440 version.
 
@@ -31,6 +52,7 @@ class VersionHelpers:
         dropped for *selection* (the default), but included - with their `_yanked` stripped before
         parsing - when `include_yanked` is set, for *generation*: a yanked version number is consumed
         (PyPI forbids re-upload), so the next-version floor must count it even though selection won't.
+        `{T}rc{N}.dev` main markers are excluded unless `include_dev_markers` (they are not releases).
         """
         out: list[tuple[str, Version]] = []
         for tag in raw_tags:
@@ -42,9 +64,12 @@ class VersionHelpers:
                     continue
                 rest = rest[: -len(cls.YANKED_SUFFIX)]
             try:
-                out.append((tag, Version(rest)))
+                ver = Version(rest)
             except InvalidVersion:
                 continue
+            if not include_dev_markers and cls.is_main_dev_marker(ver):
+                continue
+            out.append((tag, ver))
         return out
 
     @staticmethod

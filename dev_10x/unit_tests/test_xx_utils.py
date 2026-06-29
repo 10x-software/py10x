@@ -64,6 +64,16 @@ def test_next_rc_numbering():
     assert VersionHelpers.next_rc(parsed(), "0.3.0") == 1     # none yet -> 1
 
 
+def test_main_dev_markers_excluded_from_release_selection():
+    """`{T}rc{N}.dev` tags on `main` are for setuptools-scm only — not releases or rc numbering."""
+    tags = [f"{KERNEL}0.2.1rc17", f"{KERNEL}0.2.1rc18.dev", f"{KERNEL}0.2.1"]
+    parsed = VersionHelpers.parse_pkg_tags(tags, KERNEL)
+    assert parsed == [(f"{KERNEL}0.2.1rc17", Version("0.2.1rc17")), (f"{KERNEL}0.2.1", Version("0.2.1"))]
+    assert VersionHelpers.latest_tag(parsed) == (f"{KERNEL}0.2.1", Version("0.2.1"))
+    assert VersionHelpers.next_rc(parsed, "0.2.1") == 18
+    assert VersionHelpers.main_dev_marker_tag(f"{KERNEL}0.2.1rc17", KERNEL) == f"{KERNEL}0.2.1rc18.dev"
+
+
 def test_latest_rc_tag():
     assert VersionHelpers.latest_rc_tag(parsed(), "0.2.1") == f"{KERNEL}0.2.1rc2"   # rc2 > rc1
     assert VersionHelpers.latest_rc_tag(parsed(), "0.3.0") is None                  # none yet

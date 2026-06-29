@@ -80,6 +80,7 @@ _promote(flavor, from):
               pre HEAD              (pre --from=release  — iterate the candidate)
               latest rc (pre HEAD)  (prod               — stack the final on the rc)
     commit  : write the coordinated pins on `base` -> C
+    dev_tag : tag `main` HEAD with `{T}rc(N+1).dev` when cutting rcN (setuptools-scm marker on `main`)
     update  : force-reset (--from=main, prod) or fast-forward (--from=release) the target branch -> C
     tag     : C   (v{T}rcN for pre, v{T} for prod)
     push    : tags + updated branch, remotes last

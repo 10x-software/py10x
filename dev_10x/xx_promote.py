@@ -98,6 +98,7 @@ class PromoteStep(PkgStep):
     """
     plan: Plan = RT()
     base: str = RT(T.STICKY)            # commit the release branch forks from (only when acting)
+    dev_marker_tag: str | None = RT(T.STICKY)
 
     def base_get(self) -> str:
         if self.plan.base_kind == "rc":          # prod stacks the final on the latest rc commit
@@ -105,6 +106,12 @@ class PromoteStep(PkgStep):
                 GitHelpers.list_tags(self.repo, f"{self.pkg.tag_prefix}*"), self.pkg.tag_prefix)
             return GitHelpers.tag_commit(self.repo, VersionHelpers.latest_rc_tag(parsed, self.plan.version))
         return GitHelpers.git(self.repo, "rev-parse", "main")   # pre forks from main HEAD
+
+    def dev_marker_tag_get(self) -> str | None:
+        plan = self.plan
+        if plan.act and plan.base_kind == "main" and plan.tag:
+            return VersionHelpers.main_dev_marker_tag(plan.tag, self.pkg.tag_prefix)
+        return None
 
     def summary_get(self) -> str:
         plan = self.plan
@@ -114,15 +121,25 @@ class PromoteStep(PkgStep):
         if plan.reverse_pin:
             pins["test"] = plan.reverse_pin
         verb = "promote" if plan.base_kind == "rc" else "cut"
-        return f"{self.pkg.name}: {verb} {plan.tag} on {plan.branch} off {self.base[:10]} with pins {pins}"
+        marker = f", marker {self.dev_marker_tag}" if self.dev_marker_tag else ""
+        return (f"{self.pkg.name}: {verb} {plan.tag} on {plan.branch} off {self.base[:10]} with pins {pins}{marker}")
 
     def push_refs_get(self) -> tuple:
-        return (self.repo, [f"+{self.plan.branch}", self.plan.tag]) if self.plan.act else ()
+        if not self.plan.act:
+            return ()
+        refs = [f"+{self.plan.branch}", self.plan.tag]
+        if self.dev_marker_tag:
+            refs.append(self.dev_marker_tag)
+        return (self.repo, refs)
 
     def apply(self) -> None:
         plan = self.plan
         if not plan.act:
             return
+        if self.dev_marker_tag:
+            GitHelpers.git(self.repo, "checkout", "-q", "main")
+            main_head = GitHelpers.git(self.repo, "rev-parse", "HEAD")
+            GitHelpers.git(self.repo, "tag", "-f", self.dev_marker_tag, main_head)
         GitHelpers.git(self.repo, "checkout", "-q", "-B", plan.branch, self.base)
         if plan.forward_pins or plan.reverse_pin:
             if plan.forward_pins:
@@ -351,10 +368,10 @@ class XxPromote(TraitableCli):
 class Pre(XxPromote, _command="pre"):
     """xx-promote pre  (cut the next coordinated rc onto the tool-owned `pre` branch).
 
-    For every package the planner re-cuts (`PrePlan.create_batch`), write the coordinated pins -
-    core's exact forward `==` on its siblings, each sibling's reverse `py10x-core>=` test group - on a
-    commit forked from `main` HEAD, force-reset the package's `pre` branch to it, and tag `v{T}rcN`.
-    Unchanged packages are skipped. See `dev_10x/docs/rc-branch-promotion.md`.
+    For every package the planner re-cuts (`PrePlan.create_batch`), tag `main` HEAD with
+    `{T}rc(N+1).dev`, write the coordinated pins - core's exact forward `==` on its siblings, each
+    sibling's reverse `py10x-core>=` test group - on a commit forked from that same `main` HEAD,
+    force-reset the package's `pre` branch to it, and tag `v{T}rcN`. Unchanged packages are skipped.
     """
 
     def post_verify(self) -> RC:

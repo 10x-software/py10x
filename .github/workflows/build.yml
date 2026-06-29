@@ -4,6 +4,7 @@ on:
     tags:
       - "v*"
       - "!*_yanked"   # `xx-promote yank` renames a tag to <tag>_yanked; never (re)publish those
+      - "!*.dev"      # `{T}rc{N}.dev` markers on `main` for setuptools-scm — not releases
   workflow_dispatch:
 
 jobs:
