@@ -14,8 +14,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+
 from core_10x.testlib.fixtures import main_test_store, temp_duck_db_uri
-from core_10x.ts_store import TsStore
+from core_10x.testlib.strict import need
+from infra_10x.mongodb_store import MongoStore
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -101,6 +103,15 @@ def patch_person():
     yield
     core_10x.code_samples.person.Person.s_history_class = old_history_class
 
+@pytest.fixture(autouse=True)
+def patch_mongo_sst():
+    kw_map = MongoStore.s_instance_kwargs_map
+    orig = kw_map['sst']
+    kw_map['sst'] = ('serverSelectionTimeoutMS', 100)
+    yield
+    kw_map['sst'] = orig
+
+
 @pytest.mark.parametrize(
     'test_name,code_block,future_annotations',
     args:=[
@@ -143,9 +154,10 @@ def test_documentation_code_block_execution(
 
     if future_annotations:
         exec('from __future__ import annotations', fake_module.__dict__)
-
     try:
         exec(code_block, fake_module.__dict__)
+    except OSError as e:
+        need(False, f'MongoDB reachable for doc block {test_name} ({type(e).__name__})')
     finally:
         # Clean up the fake module; store cleanup is handled by main_test_store fixture
         if fake_module_name in sys.modules:
