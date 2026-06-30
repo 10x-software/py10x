@@ -16,9 +16,10 @@ accept the `--option` / `--no-option` shortcuts).
 
 Subcommands:
     xx-promote pre                                  cut the next rc when the package tree changed
-    xx-promote pre --publish                        push publish triggers for the latest rc tags
+    xx-promote pre --no-publish                     cut without creating publish triggers
+    xx-promote pre --publish-only                   push publish triggers for the latest rc tags
     xx-promote prod                                 promote packages whose latest tag is a pre-release
-    xx-promote prod --publish                       push publish triggers for the latest finals
+    xx-promote prod --publish-only                  push publish triggers for the latest finals
     xx-promote yank --pkg <name> --version <ver>    rename a tag to `<tag>_yanked`; roll back main pins
     xx-promote status                               show pending promotions (tagged but not on PyPI)
 
@@ -221,11 +222,11 @@ class PublishTriggerStep(TagReplaceStep):
     """Tag the release commit with `pre/{release}` or `prod/{release}` to trigger publish CI.
 
     Publish-trigger refspecs go in `isolated_tags_to_push` (one `git push` each) so CI always
-    gets tag-create webhooks. With `create_only=True` (--publish), stale triggers are not deleted
+    gets tag-create webhooks. With `create_only=True` (`--publish-only`), stale triggers are not deleted
     and `git tag` is non-force (fails if the trigger already exists).
     """
     plan: Plan | None = RT(None)
-    target_release: str | None = RT(None)   # --publish: latest existing rc/final tag
+    target_release: str | None = RT(None)   # --publish-only: latest existing rc/final tag
     create_only: bool = RT(False)
     flavor: str = RT()                  # "pre" | "prod"
     release_tag: str | None = RT(T.STICKY)
@@ -391,23 +392,28 @@ class XxPromote(TraitableCli):
 
     Usage:
     xx-promote pre                                cut the next rc when the package tree changed
-    xx-promote pre --publish                      push publish triggers for the latest rc tags
+    xx-promote pre --no-publish                   cut without creating publish triggers
+    xx-promote pre --publish-only                 push publish triggers for the latest rc tags
     xx-promote prod                               promote packages whose latest tag is pre
-    xx-promote prod --publish                     push publish triggers for the latest finals
+    xx-promote prod --publish-only                push publish triggers for the latest finals
         xx-promote yank --pkg <name> --version <ver>  yank a tag (rc or final)
         xx-promote status                             list tagged-but-unpublished versions + CI state
         xx-promote resync                             recovery: force local managed refs to origin
-    Flags: --dry-run (preview), --push (push to remotes). --base <path> overrides the py10x repo
-    root (default: cwd). Boolean flags also accept the explicit `--flag true|false` form.
+    Flags: --dry-run (preview), --push (push to remotes), --publish / --no-publish (create publish
+    triggers during pre/prod; default on), --publish-only (triggers only, no cut/promote). --base
+    <path> overrides the py10x repo root (default: cwd). Boolean flags also accept the explicit
+    `--flag true|false` form.
     """
     dry_run: bool = RT(False)   # traitable_cli coerces the CLI string ("true"/"1") to a real bool
     push: bool = RT(False)
-    base: str = RT(".")
+    publish: bool = RT(True)
+    publish_only: bool = RT(False)
 
+    base: str = RT(".")
     packages: dict[str, Package] = RT(T.STICKY)
     steps: list[Step] = RT(T.STICKY)
     inputs: list[PkgInput] = RT(T.STICKY)
-    publish: bool = RT(False)
+
 
     s_command: str = None
     s_plan: Plan = None
@@ -445,12 +451,13 @@ class XxPromote(TraitableCli):
                                description=e.description)
                   for name, plan in plans.items() for e in plan.epilogue]
         steps += [MainDevMarkerStep(pkg=pkgs[name], plan=plans[name]) for name in pkgs if plans[name].act]
-        steps += [PublishTriggerStep(pkg=pkgs[name], plan=plans[name], flavor=plan_cls.FLAVOR)
-                  for name in pkgs if plans[name].act]
+        if self.publish:
+            steps += [PublishTriggerStep(pkg=pkgs[name], plan=plans[name], flavor=plan_cls.FLAVOR)
+                      for name in pkgs if plans[name].act]
         return steps
 
     def _publish_trigger_steps(self, flavor: str) -> list[Step]:
-        """`--publish`: one create-only PublishTriggerStep per package with an existing release tag."""
+        """`--publish-only`: one create-only PublishTriggerStep per package with an existing release tag."""
         steps: list[Step] = []
         for inp in self.inputs:
             release = VersionHelpers.publish_release_tag(inp.parsed_tags, flavor)
@@ -475,14 +482,9 @@ class XxPromote(TraitableCli):
                 existing.append(trigger)
         if existing:
             raise RuntimeError(
-                f"publish trigger(s) already exist (refusing --publish): {', '.join(sorted(existing))}")
+                f"publish trigger(s) already exist (refusing --publish-only): {', '.join(sorted(existing))}")
         if n_targets == 0:
             raise RuntimeError(f"no {flavor} release tags found for any package")
-
-    def _publish_post_verify(self) -> None:
-        if not self.dry_run:
-            self._require_synced_repos()
-        self._check_publish_triggers_absent()
 
     @staticmethod
     def _atomic_push(repo: Path, refspecs: list[str], label: str = "") -> None:
@@ -530,13 +532,15 @@ class XxPromote(TraitableCli):
 
     @exc_to_rc
     def post_verify(self) -> None:
-        if self.publish:
-            self._publish_post_verify()
-        elif not self.dry_run:
+        if not self.dry_run:
             self._require_synced_repos()
+        if self.publish_only:
+            if not self.publish:
+                raise RuntimeError("Cannot specify both --publish-only and --no-publish")
+            self._check_publish_triggers_absent()
 
     def steps_get(self) -> list[Step]:
-        if self.publish:
+        if self.publish_only:
             return self._publish_trigger_steps(self.s_command)
         if self.s_plan:
             return self._promote_steps(self.s_plan)
@@ -562,9 +566,9 @@ class Pre(XxPromote, _command="pre"):
     sibling's reverse `py10x-core>=` test group - on a commit forked from that same `main` HEAD,
     force-reset the package's `pre` branch to it, and tag `v{T}rcN`. Unchanged packages are skipped.
 
-    With `--publish`, skip cutting: for each package tag the latest rc with `pre/{tag}` and push
-    (non-force; fails if the trigger already exists). Recovery after a crash: `resync`, then
-    `pre --publish --push`.
+    With `--publish-only`, skip cutting: for each package tag the latest rc with `pre/{tag}` and push
+    (non-force; fails if the trigger already exists). Use `--no-publish` to cut without triggers, then
+    `pre --publish-only --push` later. Recovery after a crash: `resync`, then `pre --publish-only --push`.
     """
     s_plan = PrePlan
 
@@ -576,7 +580,7 @@ class Prod(XxPromote, _command="prod"):
     `v{T}` (forward pins become exact `==T`; reverse `test` group `py10x-core>=T`), and the plan's
     `main` epilogue re-floors the dev pins to the released versions. See `…/rc-branch-promotion.md`.
 
-    With `--publish`, skip promoting: for each package tag the latest final with `prod/{tag}` and
+    With `--publish-only`, skip promoting: for each package tag the latest final with `prod/{tag}` and
     push (non-force; fails if the trigger already exists).
     """
     s_plan = ProdPlan

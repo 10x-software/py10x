@@ -10,17 +10,18 @@ from dev_10x import xx_promote as xp
 
 
 # ---------------------------------------------------------------- CLI routing (core_10x.traitable_cli)
-@pytest.mark.parametrize("argv,cls,dry_run,push,publish", [
-    (["pre"],                       "Pre",    False, False, False),
-    (["pre", "--dry-run"],          "Pre",    True,  False, False),  # boolean --flag shortcut
-    (["pre", "--dry-run", "true"],  "Pre",    True,  False, False),  # explicit value
-    (["pre", "--publish"],          "Pre",    False, False, True),
-    (["prod", "--push", "1"],       "Prod",   False, True,  False),
-    (["prod", "--publish", "--push"], "Prod", False, True,  True),
-    (["prod", "--no-dry-run"],      "Prod",   False, False, False),  # --no-flag shortcut
-    (["status"],                    "Status", False, False, False),
+@pytest.mark.parametrize("argv,cls,dry_run,push,publish,publish_only", [
+    (["pre"],                              "Pre",    False, False, True,  False),
+    (["pre", "--dry-run"],                 "Pre",    True,  False, True,  False),
+    (["pre", "--dry-run", "true"],         "Pre",    True,  False, True,  False),
+    (["pre", "--no-publish"],              "Pre",    False, False, False, False),
+    (["pre", "--publish-only"],            "Pre",    False, False, True,  True),
+    (["prod", "--push", "1"],              "Prod",   False, True,  True,  False),
+    (["prod", "--publish-only", "--push"], "Prod",   False, True,  True,  True),
+    (["prod", "--no-dry-run"],             "Prod",   False, False, True,  False),
+    (["status"],                           "Status", False, False, True,  False),
 ])
-def test_cli_routes_commands_and_flags(argv, cls, dry_run, push, publish):
+def test_cli_routes_commands_and_flags(argv, cls, dry_run, push, publish, publish_only):
     """Flags are real bools: CONVERT_VALUES_ON in XxPromote.instance_from_args coerces the strings."""
     rc, inst = xp.XxPromote.instance_from_args(argv)
     assert rc, "" if rc else rc.error()
@@ -29,6 +30,8 @@ def test_cli_routes_commands_and_flags(argv, cls, dry_run, push, publish):
     assert inst.push == push
     if hasattr(inst, "publish"):
         assert inst.publish == publish
+    if hasattr(inst, "publish_only"):
+        assert inst.publish_only == publish_only
 
 
 def test_cli_yank_traits_and_unknown_command():

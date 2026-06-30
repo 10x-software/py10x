@@ -129,7 +129,7 @@ crash re-derives the plan from current tags and resumes.
 - *Recovery:* after a crash, `require_synced` refuses until local == remote. Run **`xx-promote
   resync`** — it forces each repo's `main`/`pre`/`prod` branches and managed tags back to `origin`
   (discarding local-only work) — then re-run. If release tags landed but publish triggers did not,
-  use **`xx-promote pre --publish --push`** (or `prod --publish`) to create triggers only — non-force,
+  use **`xx-promote pre --publish-only --push`** (or `prod --publish-only`) to create triggers only — non-force,
   so it fails if they already exist. Cross-repo (siblings pushed, core not) surfaces as one
   un-synced repo; resync it and the idempotent re-run resumes (core re-cuts to coordinate). There is
   **no in-place reconcile** — atomic pushes make the states it used to repair unreachable.
@@ -143,7 +143,8 @@ crash re-derives the plan from current tags and resumes.
   `main` HEAD with `{T}rc(N+1).dev` (setuptools-scm marker for the next rc line), writes
   the coordinated pins (core → siblings `==X.YrcN`; sibling → `py10x-core>=X.YrcN`) on a commit forked
   from `main` HEAD, **force-resets** the package's `pre` branch to it, and tags `v{T}rc{n}`. A
-  **`pre/{tag}` publish trigger** on that commit starts the publish workflow. Footprint
+  **`pre/{tag}` publish trigger** on that commit starts the publish workflow (omit with `--no-publish`,
+  attach later with `--publish-only`). Footprint
   is diffed from the tag's fork-point on `main` (so the pin commit itself never counts as a change).
   Unchanged packages are skipped; a latest tag that is still an rc is offered for `--push`.
   On `main`, the epilogue writes **rc-window** pins (`>=rcN,<rc(N+1)`) for each sibling from the

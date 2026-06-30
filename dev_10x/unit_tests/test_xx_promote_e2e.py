@@ -386,13 +386,13 @@ def _delete_remote_triggers(repo, flavor: str):
 
 
 def test_pre_publish_recreates_triggers_after_resync(remotes):
-    """Crash recovery: resync drops local-only triggers, then `pre --publish --push` recreates them."""
+    """Crash recovery: resync drops local-only triggers, then `pre --publish-only --push` recreates them."""
     py, cxx, py_remote, cxx_remote = remotes
     _run_pre(py, "--push")
     for repo in (py, cxx):
         _delete_remote_triggers(repo, "pre")
     _run("resync", py)
-    out = _run_argv(["pre", "--publish", "--base", str(py), "--push"])
+    out = _run_argv(["pre", "--publish-only", "--base", str(py), "--push"])
     assert out, out.error() if not out else ""
     for remote in (py_remote, cxx_remote):
         triggers = [t for t in GitHelpers.git(remote, "tag", "--list").split() if t.startswith("pre/")]
@@ -402,8 +402,18 @@ def test_pre_publish_recreates_triggers_after_resync(remotes):
 def test_pre_publish_refuses_existing_triggers(remotes):
     py, _cxx, _py_remote, _cxx_remote = remotes
     _run_pre(py, "--push")
-    rc = _run_argv(["pre", "--publish", "--base", str(py), "--push"])
+    rc = _run_argv(["pre", "--publish-only", "--base", str(py), "--push"])
     assert not rc and "already exist" in (rc.error() or "")
+
+
+def test_pre_no_publish_then_publish_only(remotes):
+    """Cut and push without triggers, then attach triggers in a second step."""
+    py, _cxx, py_remote, _cxx_remote = remotes
+    _run_pre(py, "--push", "--no-publish")
+    assert not any(t.startswith("pre/") for t in GitHelpers.git(py_remote, "tag", "--list").split())
+    assert "v0.0.1rc1" in GitHelpers.git(py_remote, "tag", "--list").split()
+    _run_argv(["pre", "--publish-only", "--base", str(py), "--push"])
+    assert "pre/v0.0.1rc1" in GitHelpers.git(py_remote, "tag", "--list").split()
 
 
 def test_promote_refuses_unsynced_main(remotes):
