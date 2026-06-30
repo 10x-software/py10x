@@ -37,10 +37,23 @@ SIBLING_DESCRIBE = "git describe --dirty --tags --long --match 'py10x-kernel-*' 
 CORE_DESCRIBE = "git describe --dirty --tags --long --match 'v*'"
 
 
+def _repo_root() -> Path | None:
+    """The py10x repo root when running from a source checkout (`pyproject.toml` present), else None.
+
+    These two guards read the real `pyproject.toml` configs, so they only apply in py10x's own
+    dev/CI. When py10x-core is installed as a wheel (e.g. the sibling wheel CI runs the suite from
+    `site-packages`), there is no source pyproject and the tests skip.
+    """
+    root = Path(__file__).resolve().parents[2]            # dev_10x/unit_tests/ -> py10x repo root
+    return root if (root / "pyproject.toml").exists() else None
+
+
 def _sibling_describe_commands() -> dict[str, str]:
     """{sibling name: its real `[tool.setuptools_scm].git_describe_command`} for each checked-out
     sibling, resolved via this repo's own `[tool.dev_10x.siblings]` paths (e.g. `../cxx10x/core_10x`)."""
-    root = Path(__file__).resolve().parents[2]            # dev_10x/unit_tests/ -> py10x repo root
+    root = _repo_root()
+    if root is None:
+        return {}
     siblings = (tomlkit.parse((root / "pyproject.toml").read_text(encoding="utf-8"))
                 .get("tool", {}).get("dev_10x", {}).get("siblings", {}))
     commands: dict[str, str] = {}
@@ -54,9 +67,8 @@ def _sibling_describe_commands() -> dict[str, str]:
     return commands
 
 
-def _core_describe_command() -> str | None:
+def _core_describe_command(root: Path) -> str | None:
     """core's real `[tool.hatch.version].raw-options.git_describe_command` from this repo's pyproject."""
-    root = Path(__file__).resolve().parents[2]
     hatch_version = (tomlkit.parse((root / "pyproject.toml").read_text(encoding="utf-8"))
                      .get("tool", {}).get("hatch", {}).get("version", {}))
     cmd = hatch_version.get("raw-options", {}).get("git_describe_command")
@@ -67,7 +79,10 @@ def test_core_describe_command_matches_real_config():
     """`CORE_DESCRIBE` must equal core's real hatch-vcs describe command, else the trigger-collision
     guard above tests a command core doesn't run (and a regression to the default `--match` re-breaks
     the build silently)."""
-    real = _core_describe_command()
+    root = _repo_root()
+    if root is None:
+        pytest.skip("py10x-core installed as a wheel (no source pyproject); source-config guard N/A")
+    real = _core_describe_command(root)
     assert real == CORE_DESCRIBE, (
         f"core git_describe_command drifted from CORE_DESCRIBE:\n  real:     {real}\n  expected: {CORE_DESCRIBE}")
 
