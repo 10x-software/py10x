@@ -2,6 +2,7 @@ from contextlib import nullcontext
 
 import pytest
 
+from core_10x.environment_variables import EnvVars
 from infra_10x import MongoCollectionHelper
 from infra_10x.mongodb_store import MongoStore
 from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
@@ -17,7 +18,12 @@ def ts_instance(mocker, request):
     instance = MongoStore.instance(hostname=MONGO_URL, dbname=TEST_DB)
     instance.username = 'test_user'
     if not instance.supports_transactions():
-        instance.transaction = lambda *args: nullcontext()
+        # Mongo standalone: no real transactions. Under XX_TEST_STRICT that's a CI provisioning
+        # failure (the replica set didn't come up); otherwise degrade to a no-op so local dev runs.
+        if EnvVars.test_strict:
+            instance.transaction = lambda *args: pytest.fail('XX_TEST_STRICT set but Mongo lacks transactions (replica set not provisioned?)')
+        else:
+            instance.transaction = lambda *args: nullcontext()
     if not request.param:
         # Intentionally materialize metaclass __annotations__ to simulate prior
         # access on pybind11_type and keep this path covered.

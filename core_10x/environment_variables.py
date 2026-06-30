@@ -155,6 +155,8 @@ class EnvVars(_EnvVars, env_name = 'XX'):
 
     graph_on: bool                  = False         #-- whether GRAPH is ON by default
     use_ts_store_transactions: bool = False         #-- TsStore transactions, e.g. when saving history
+    test_strict: bool               = False         #-- CI: an unmet test precondition (no git/uv/source/
+                                                    #   siblings/replica-set Mongo) is a failure, not a skip
 
     date_format: str                = XDateTime.FORMAT_ISO
 

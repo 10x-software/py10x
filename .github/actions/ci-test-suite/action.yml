@@ -70,6 +70,11 @@ runs:
       shell: bash
       env:
         PYTHONUNBUFFERED: "1"
+        # Strict only where fully provisioned: the Linux runner gets a replica set (transactions),
+        # but Windows is standalone by design, so leave strict OFF there - the transaction gate must
+        # skip, not fail, on Windows. (git/uv/source/siblings are present on both, so those guards
+        # run regardless; strict only flips an *unmet* precondition from skip to fail.)
+        XX_TEST_STRICT: ${{ runner.os == 'Windows' && '0' || '1' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         pytest

@@ -95,6 +95,7 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         env:
           PYTHONUNBUFFERED: "1"
+          XX_TEST_STRICT: "1"   # fully-provisioned job: a guard that can't run is a defect, not a skip
         run: |
           source .venv/bin/activate
           pytest

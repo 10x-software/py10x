@@ -7,6 +7,7 @@ import pytest
 
 from core_10x.exec_control import GRAPH_OFF
 from core_10x.named_constant import EnumBits, NamedConstant
+from core_10x.testlib.strict import need
 from core_10x.nucleus import Nucleus
 from core_10x.trait_definition import T
 from core_10x.trait_filter import (
@@ -363,8 +364,8 @@ class TestCompoundFilters:
                 self.s_mongo_running = False
             else:
                 raise
-        if is_mongo_store and not self.s_mongo_running:
-            pytest.skip('MongoDB not running')
+        if is_mongo_store:
+            need(self.s_mongo_running, 'MongoDB running (mongo-store filter tests)')
 
         store.begin_using()
         go = GRAPH_OFF()

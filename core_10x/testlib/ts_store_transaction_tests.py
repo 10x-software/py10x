@@ -5,6 +5,7 @@ import pytest
 
 from core_10x.rc import RC
 from core_10x.testlib.fixtures import with_transactions
+from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 from core_10x.ts_store import SaveIfChanged
@@ -15,12 +16,9 @@ class TestTsStoreTransaction:
 
     @pytest.fixture(autouse=True)
     def _skip_if_store_does_not_support_transactions(self, ts_instance):
-        """Skip this test class when the store does not support transactions (e.g. MongoDB standalone)."""
-        if not getattr(ts_instance, 'supports_transactions', lambda: True)():
-            pytest.skip(
-                "Store does not support transactions "
-                "(e.g. MongoDB standalone; needs replica set or mongos)"
-            )
+        """Skip this class when the store lacks transactions (Mongo standalone) - fail under strict."""
+        need(ts_instance.supports_transactions(),
+             'store supports transactions (replica-set Mongo, not standalone)')
 
     @pytest.fixture
     def store(self, ts_instance):

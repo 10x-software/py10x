@@ -7,6 +7,7 @@ from core_10x.environment_variables import EnvVars
 from core_10x.logger import LOG
 from core_10x.rel_db import RelDb
 from core_10x.testlib.stub_logger import stub_log_module_logger
+from core_10x.testlib.strict import need
 from core_10x.traitable import Traitable
 from core_10x.ts_store import TsStore  # used in teardown
 
@@ -14,8 +15,11 @@ from core_10x.ts_store import TsStore  # used in teardown
 @pytest.fixture(params=[True, False], ids=['with_transactions', 'without_transactions'])
 def with_transactions(request, ts_instance, monkeypatch):
     use_transactions = request.param
-    if use_transactions and not ts_instance.supports_transactions():
-        pytest.skip('Store does not support transactions')
+    if use_transactions:
+        # Only Mongo-standalone lacks transaction support (DuckDB/Ibis report True); under
+        # XX_TEST_STRICT a non-replica-set Mongo in CI is a provisioning failure, not a skip.
+        need(ts_instance.supports_transactions(),
+             'store supports transactions (replica-set Mongo, not standalone)')
 
     monkeypatch.setenv('XX_USE_TS_STORE_TRANSACTIONS', '1' if use_transactions else '0')
     object.__getattribute__(EnvVars, 'use_ts_store_transactions').fget.clear()
