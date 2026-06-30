@@ -14,6 +14,7 @@ TID::TID(BTraitableClass* cls, const py::object& id) : m_class(cls) {
     }
     else if (py::bool_(coll_name()))
         throw py::type_error(py::str("{}() _collection_name may not be provided").format(cls->name()));
+    m_hash = compute_hash(m_class, m_id);
 }
 
 void TID::serialize_id(const py::dict& res) const {
