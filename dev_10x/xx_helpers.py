@@ -303,6 +303,14 @@ class VersionHelpers:
         return cls.rc_window_pin(coordinated_version)
 
     @classmethod
+    def main_forward_pin_from_selection(cls, parsed: list[tuple[str, Version]]) -> str:
+        """`main` forward pin implied by a package's remaining (non-yanked) release tags."""
+        latest = cls.latest_tag(parsed)
+        if latest is None:
+            return cls.post_final_window_pin("0.0.0")
+        return cls.main_forward_window_pin(str(latest[1]))
+
+    @classmethod
     def dev_pin(cls,floor: str, target: str) -> str:
         """Legacy prerelease-admitting dev pin (retired on `main`; kept for tests).
 

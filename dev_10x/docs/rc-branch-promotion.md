@@ -130,6 +130,9 @@ tool keeps the **remote consistent** so recovery is trivial:
   re-run, which the **declarative planner** resumes from current tags. Cross-repo partial push
   (siblings pushed, core not) surfaces as **one** un-synced repo; `resync` it and the re-run re-cuts
   core to coordinate.
+- **`--publish-only`.** Creates publish triggers for the latest releases that lack one (non-force
+  `git tag`). Idempotent — a re-run when triggers already exist exits successfully with no git
+  mutations.
 
 This **retires the earlier reconcile-first + CAS / `--force-with-lease` design**: with atomic
 per-repo pushes the inconsistent-remote states it repaired are unreachable, and cross-repo atomicity
@@ -256,8 +259,10 @@ second `pre` with no source changes does not re-cut.
 ## Yank / revert
 
 `yank` reverts a release: it rolls the `pre`/`prod` pointers back (a destructive force-update — same
-`--force` guard), renames the tags to `*_yanked`, deletes the matching **`pre/`/`prod/` publish trigger**, reverts the `prod` `main`-epilogue pins, and
-prints **manual PyPI yank instructions** (PyPI has no public yank API). Decisions:
+`--force` guard), renames the tags to `*_yanked`, deletes the matching **`pre/`/`prod/` publish
+trigger**, rolls back py10x-core **`main` forward pins** to match the latest non-yanked release tags
+(rc-window or post-final window as appropriate), and prints **manual PyPI yank instructions** only
+when the version is already on the index (PyPI has no public yank API). Decisions:
 
 - **Only a *core* release is yankable**; doing so yanks the **batch's members** — core plus the
   siblings whose pin **changed since the previous core release** (inferred from the pyproject diff;

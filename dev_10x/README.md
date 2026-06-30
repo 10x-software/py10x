@@ -104,6 +104,8 @@ For a sibling at coordinated rc `rcN` or released final `T`:
 
 ```
 xx-promote pre                                # cut the next coordinated rc onto the `pre` branch
+xx-promote pre --no-publish                   # cut without publish triggers (attach later)
+xx-promote pre --publish-only                 # create missing publish triggers only (idempotent)
 xx-promote prod                               # stack each final on its rc, onto the `prod` branch
 xx-promote yank --pkg <name> --version <ver>  # yank the latest tag (rc or final)
 xx-promote status                             # pending promotions: tagged but not yet on PyPI
@@ -129,8 +131,9 @@ crash re-derives the plan from current tags and resumes.
 - *Recovery:* after a crash, `require_synced` refuses until local == remote. Run **`xx-promote
   resync`** — it forces each repo's `main`/`pre`/`prod` branches and managed tags back to `origin`
   (discarding local-only work) — then re-run. If release tags landed but publish triggers did not,
-  use **`xx-promote pre --publish-only --push`** (or `prod --publish-only`) to create triggers only — non-force,
-  so it fails if they already exist. Cross-repo (siblings pushed, core not) surfaces as one
+  use **`xx-promote pre --publish-only --push`** (or `prod --publish-only`) to create any missing
+  publish triggers (non-force `git tag`; **idempotent** — exits successfully with
+  "All publish triggers already present" when nothing is missing). Cross-repo (siblings pushed, core not) surfaces as one
   un-synced repo; resync it and the idempotent re-run resumes (core re-cuts to coordinate). There is
   **no in-place reconcile** — atomic pushes make the states it used to repair unreachable.
 - *Without `--push`:* local diverges from `origin` by design — **push manually** (`git push`) to
@@ -158,12 +161,15 @@ crash re-derives the plan from current tags and resumes.
   **source** == rc source — the final commit only rewrites pins on top of the rc.
 - **`yank`** renames the **latest** tag to `<tag>_yanked` (deletes its publish trigger too;
   workflows listen on `pre/`/`prod/` only), force-rolls the affected `pre`/`prod` pointer back to the previous tag of
-  the same kind (rc→`pre`, final→`prod`), and **prints manual PyPI yank instructions** — PyPI has
-  no public yank API. `{T}rc(N+1).dev` markers on `main` are **left in place** (the next rc is still
-  N+1). Yanking an older release is refused (needs `--cascade`, a Stage-2 feature). A yanked version
-  number is **consumed** — generation floors on `max(all tags incl. yanked)` so it is never reused
-  — while selection still ignores `*_yanked` and `*.dev` main markers. Yanking a **final** also
-  rolls `main`'s window pin back to the latest non-yanked release. No yank CI workflows.
+  the same kind (rc→`pre`, final→`prod`), and rolls back py10x-core **`main` forward pins** to
+  match the latest non-yanked release tag (rc-window or post-final window as appropriate). When
+  yanking **core**, all sibling forward pins are refreshed; when yanking a sibling, only that
+  sibling's pin is updated. Prints **manual PyPI yank instructions** only when the version is
+  already on the index (PyPI has no public yank API). `{T}rc(N+1).dev` markers on `main` are
+  **left in place** (the next rc is still N+1). Yanking an older release is refused (needs
+  `--cascade`, a Stage-2 feature). A yanked version number is **consumed** — generation floors on
+  `max(all tags incl. yanked)` so it is never reused — while selection still ignores `*_yanked`
+  and `*.dev` main markers. No yank CI workflows.
 - **`status` - compares local tags (rc + final; `*_yanked` and `*.dev` main markers excluded)
   against PyPI and reports tags
   pushed **since the latest PyPI release** that are not on the index yet. Publish is atomic in CI

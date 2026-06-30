@@ -22,8 +22,8 @@ from dev_10x import xx_promote as xp
     (["status"],                           "Status", False, False, True,  False),
 ])
 def test_cli_routes_commands_and_flags(argv, cls, dry_run, push, publish, publish_only):
-    """Flags are real bools: CONVERT_VALUES_ON in XxPromote.instance_from_args coerces the strings."""
-    rc, inst = xp.XxPromote.instance_from_args(argv)
+    """Flags are real bools: CONVERT_VALUES_ON in XxPromoteCli.instance_from_args coerces the strings."""
+    rc, inst = xp.XxPromoteCli.instance_from_args(argv)
     assert rc, "" if rc else rc.error()
     assert type(inst).__name__ == cls
     assert inst.dry_run == dry_run
@@ -35,8 +35,8 @@ def test_cli_routes_commands_and_flags(argv, cls, dry_run, push, publish, publis
 
 
 def test_cli_yank_traits_and_unknown_command():
-    rc, inst = xp.XxPromote.instance_from_args(["yank", "--pkg", "py10x-kernel", "--version", "0.2.0"])
+    rc, inst = xp.XxPromoteCli.instance_from_args(["yank", "--pkg", "py10x-kernel", "--version", "0.2.0"])
     assert rc and type(inst).__name__ == "Yank"
     assert inst.get_value("pkg") == "py10x-kernel" and inst.get_value("version") == "0.2.0"
-    rc, inst = xp.XxPromote.instance_from_args(["bogus"])
+    rc, inst = xp.XxPromoteCli.instance_from_args(["bogus"])
     assert not rc and inst is None
