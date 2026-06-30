@@ -16,7 +16,9 @@ accept the `--option` / `--no-option` shortcuts).
 
 Subcommands:
     xx-promote pre                                  cut the next rc when the package tree changed
+    xx-promote pre --publish                        push publish triggers for the latest rc tags
     xx-promote prod                                 promote packages whose latest tag is a pre-release
+    xx-promote prod --publish                       push publish triggers for the latest finals
     xx-promote yank --pkg <name> --version <ver>    rename a tag to `<tag>_yanked`; roll back main pins
     xx-promote status                               show pending promotions (tagged but not on PyPI)
 
@@ -53,7 +55,7 @@ class Package(Traitable):
     name: str          # distribution name, e.g. "py10x-kernel"
     src_dir: Path
 
-    repo: Path         # git repo root
+    repo: Path = RT(T.STICKY)   # git repo root - STICKY: `git_root` is immutable, don't re-shell per access
     tag_prefix: str    # tag namespace, e.g. "py10x-kernel-v" (core is just "v")
     pyproject: Path    # path to the package's pyproject.toml
 
@@ -64,15 +66,19 @@ class Package(Traitable):
 
 # --------------------------------------------------------------------------------------------
 # Steps - one side-effecting action each. Subclasses hold the declarative inputs as traits and put
-# the value logic in *sticky* getters (`summary`, `push_refs`, computed once); `apply()` performs
-# the mutation. `run_steps` applies every step, then pushes (remotes last).
+# the value logic in *sticky* getters (`summary`, `tags_to_push`, …); `apply()` performs the
+# mutation. `run_steps` applies every step, then pushes (remotes last).
 # --------------------------------------------------------------------------------------------
 class Step(Traitable):
     summary: str = RT(T.STICKY)
-    push_refs: tuple = RT(T.STICKY)
+    tags_to_push: tuple = RT(T.STICKY)
+    isolated_tags_to_push: tuple = RT(T.STICKY)
 
-    def push_refs_get(self) -> tuple:
-        return ()                       # default: a local-only step touches no remote
+    def tags_to_push_get(self) -> tuple:
+        return ()                       # (repo, [refspecs]) bundled atomically per repo
+
+    def isolated_tags_to_push_get(self) -> tuple:
+        return ()                       # (repo, [refspecs]) each refspec pushed alone (CI triggers)
 
     def apply(self) -> None:
         """Perform the side effect. Default no-op (e.g. a skip or a printed notice)."""
@@ -97,8 +103,7 @@ class PromoteStep(PkgStep):
     (`main` HEAD for pre, the latest rc commit for prod), force-updates the release branch, tags.
     """
     plan: Plan = RT()
-    base: str = RT(T.STICKY)            # commit the release branch forks from (only when acting)
-    dev_marker_tag: str | None = RT(T.STICKY)
+    base: str = RT(T.STICKY)
 
     def base_get(self) -> str:
         if self.plan.base_kind == "rc":          # prod stacks the final on the latest rc commit
@@ -106,12 +111,6 @@ class PromoteStep(PkgStep):
                 GitHelpers.list_tags(self.repo, f"{self.pkg.tag_prefix}*"), self.pkg.tag_prefix)
             return GitHelpers.tag_commit(self.repo, VersionHelpers.latest_rc_tag(parsed, self.plan.version))
         return GitHelpers.git(self.repo, "rev-parse", "main")   # pre forks from main HEAD
-
-    def dev_marker_tag_get(self) -> str | None:
-        plan = self.plan
-        if plan.act and plan.base_kind == "main" and plan.tag:
-            return VersionHelpers.main_dev_marker_tag(plan.tag, self.pkg.tag_prefix)
-        return None
 
     def summary_get(self) -> str:
         plan = self.plan
@@ -121,25 +120,17 @@ class PromoteStep(PkgStep):
         if plan.reverse_pin:
             pins["test"] = plan.reverse_pin
         verb = "promote" if plan.base_kind == "rc" else "cut"
-        marker = f", marker {self.dev_marker_tag}" if self.dev_marker_tag else ""
-        return (f"{self.pkg.name}: {verb} {plan.tag} on {plan.branch} off {self.base[:10]} with pins {pins}{marker}")
+        return f"{self.pkg.name}: {verb} {plan.tag} on {plan.branch} off {self.base[:10]} with pins {pins}"
 
-    def push_refs_get(self) -> tuple:
+    def tags_to_push_get(self) -> tuple:
         if not self.plan.act:
             return ()
-        refs = [f"+{self.plan.branch}", self.plan.tag]
-        if self.dev_marker_tag:
-            refs.append(self.dev_marker_tag)
-        return (self.repo, refs)
+        return (self.repo, [f"+{self.plan.branch}", self.plan.tag])
 
     def apply(self) -> None:
         plan = self.plan
         if not plan.act:
             return
-        if self.dev_marker_tag:
-            GitHelpers.git(self.repo, "checkout", "-q", "main")
-            main_head = GitHelpers.git(self.repo, "rev-parse", "HEAD")
-            GitHelpers.git(self.repo, "tag", "-f", self.dev_marker_tag, main_head)
         GitHelpers.git(self.repo, "checkout", "-q", "-B", plan.branch, self.base)
         if plan.forward_pins or plan.reverse_pin:
             if plan.forward_pins:
@@ -152,6 +143,128 @@ class PromoteStep(PkgStep):
         else:
             GitHelpers.git(self.repo, "tag", plan.tag)   # no pin delta: released == base verbatim
         GitHelpers.git(self.repo, "checkout", "-q", "main")
+
+
+class TagReplaceStep(PkgStep):
+    """Delete stale auxiliary tags and create one new tag on a chosen commit."""
+    tag: str | None = RT(T.STICKY)
+    stale_tags: list = RT(T.STICKY)
+    tag_force: bool = RT(T.STICKY)
+    tag_commit: str = RT(T.STICKY|T.NOT_EMPTY)
+    summary_prefix: str = RT(T.NOT_EMPTY)
+
+    def tag_force_get(self) -> bool:
+        return False
+
+    def summary_get(self) -> str:
+        drop = f", drop {self.stale_tags}" if self.stale_tags else ""
+        return f"{self.pkg.name}: {self.summary_prefix} {self.tag}{drop}"
+
+    def apply(self) -> None:
+        if not self.tag:
+            return
+        commit = self.tag_commit_get()
+        if not commit:
+            return
+        for t in self.stale_tags:
+            if t != self.tag:
+                GitHelpers.git(self.repo, "tag", "-d", t, check=False)
+        args = ["tag"]
+        if self.tag_force:
+            args.append("-f")
+        GitHelpers.git(self.repo, *args, self.tag, commit)
+
+
+class MainDevMarkerStep(TagReplaceStep):
+    """Retag `main` HEAD with the setuptools-scm dev marker (after promote steps + main epilogue).
+
+    `pre` sets `{T}rc(N+1).dev`; `prod` replaces rc-line markers with `{next_micro(T)}rc0.dev` so
+    `main` stays strictly above the published final.
+    """
+    plan: Plan = RT()
+
+    def tag_get(self) -> str | None:
+        plan = self.plan
+        if not plan.act or not plan.tag:
+            return None
+        prefix = self.pkg.tag_prefix
+        if plan.base_kind == "main":
+            return VersionHelpers.main_dev_marker_tag(plan.tag, prefix)
+        return VersionHelpers.main_post_final_dev_marker_tag(plan.tag, prefix)
+
+    def stale_tags_get(self) -> list[str]:
+        if not self.tag:
+            return []
+        return VersionHelpers.existing_main_dev_marker_tags(
+            GitHelpers.list_tags(self.repo, f"{self.pkg.tag_prefix}*"), self.pkg.tag_prefix)
+
+    def tag_commit_get(self) -> str:
+        # Read-only: getters must never mutate (this one is evaluated on the dry-run/verify path).
+        # `apply()` tags this commit explicitly, so no checkout is needed.
+        return GitHelpers.git(self.repo, "rev-parse", "main")
+
+    def tag_force_get(self) -> bool:
+        return True
+
+    def tags_to_push_get(self) -> tuple:
+        if not self.tag:
+            return ()
+        refs = [f":refs/tags/{t}" for t in self.stale_tags if t != self.tag]
+        refs.append(self.tag)
+        return (self.repo, refs)
+
+    def summary_prefix_get(self) -> str:
+        return "tag main"
+
+
+class PublishTriggerStep(TagReplaceStep):
+    """Tag the release commit with `pre/{release}` or `prod/{release}` to trigger publish CI.
+
+    Publish-trigger refspecs go in `isolated_tags_to_push` (one `git push` each) so CI always
+    gets tag-create webhooks. With `create_only=True` (--publish), stale triggers are not deleted
+    and `git tag` is non-force (fails if the trigger already exists).
+    """
+    plan: Plan | None = RT(None)
+    target_release: str | None = RT(None)   # --publish: latest existing rc/final tag
+    create_only: bool = RT(False)
+    flavor: str = RT()                  # "pre" | "prod"
+    release_tag: str | None = RT(T.STICKY)
+
+    def release_tag_get(self) -> str | None:
+        if self.target_release:
+            return self.target_release
+        if self.plan and self.plan.act:
+            return self.plan.tag
+        return None
+
+    def tag_get(self) -> str | None:
+        if not self.release_tag:
+            return None
+        return VersionHelpers.publish_trigger_tag(self.release_tag, self.flavor)
+
+    def stale_tags_get(self) -> list[str]:
+        if self.create_only or not self.tag:
+            return []
+        return VersionHelpers.existing_publish_trigger_tags(
+            GitHelpers.list_tags(self.repo, f"{self.flavor}/*"),
+            self.pkg.tag_prefix)
+
+    def tag_commit_get(self) -> str | None:
+        if not self.release_tag:
+            return None
+        return GitHelpers.tag_commit(self.repo, self.release_tag)
+
+    def isolated_tags_to_push_get(self) -> tuple:
+        if not self.tag:
+            return ()
+        refs: list[str] = []
+        if not self.create_only:
+            refs.extend(f":refs/tags/{t}" for t in self.stale_tags if t != self.tag)
+        refs.append(self.tag)
+        return (self.repo, refs)
+
+    def summary_prefix_get(self) -> str:
+        return "publish trigger"
 
 
 class MainEditStep(PkgStep):
@@ -172,7 +285,7 @@ class MainEditStep(PkgStep):
     def summary_get(self) -> str:
         return f"main: {self.pkg.name} {self.description}"
 
-    def push_refs_get(self) -> tuple:
+    def tags_to_push_get(self) -> tuple:
         return (self.repo, ["main"])
 
     def apply(self) -> None:
@@ -188,20 +301,27 @@ class YankTagStep(Step):
     """yank: rename a tag to `<tag>_yanked` (and delete the original), pushing both refs."""
     repo: Path = RT()
     tag: str = RT()
+    is_prod: bool = RT(False)
     yanked: str = RT(T.STICKY)
+    publish_trigger: str = RT(T.STICKY)
 
     def yanked_get(self) -> str:
         return f"{self.tag}_yanked"
 
+    def publish_trigger_get(self) -> str:
+        flavor = "prod" if self.is_prod else "pre"
+        return VersionHelpers.publish_trigger_tag(self.tag, flavor)
+
     def summary_get(self) -> str:
         return f"rename tag {self.tag} -> {self.yanked}"
 
-    def push_refs_get(self) -> tuple:
-        return (self.repo, [self.yanked, f":refs/tags/{self.tag}"])
+    def tags_to_push_get(self) -> tuple:
+        return (self.repo, [self.yanked, f":refs/tags/{self.tag}", f":refs/tags/{self.publish_trigger}"])
 
     def apply(self) -> None:
         GitHelpers.git(self.repo, "tag", self.yanked, self.tag)
         GitHelpers.git(self.repo, "tag", "-d", self.tag)
+        GitHelpers.git(self.repo, "tag", "-d", self.publish_trigger, check=False)
 
 
 class RollbackStep(Step):
@@ -214,7 +334,7 @@ class RollbackStep(Step):
     def summary_get(self) -> str:
         return f"roll {self.branch} back to {self.to_tag}"
 
-    def push_refs_get(self) -> tuple:
+    def tags_to_push_get(self) -> tuple:
         return (self.repo, [f"+{self.branch}"])
 
     def apply(self) -> None:
@@ -272,8 +392,10 @@ class XxPromote(TraitableCli):
     """Release promotion for the 10x packages.
 
     Usage:
-        xx-promote pre                                cut the next rc when the package tree changed
-        xx-promote prod                               promote packages whose latest tag is pre
+    xx-promote pre                                cut the next rc when the package tree changed
+    xx-promote pre --publish                      push publish triggers for the latest rc tags
+    xx-promote prod                               promote packages whose latest tag is pre
+    xx-promote prod --publish                     push publish triggers for the latest finals
         xx-promote yank --pkg <name> --version <ver>  yank a tag (rc or final)
         xx-promote status                             list tagged-but-unpublished versions + CI state
         xx-promote resync                             recovery: force local managed refs to origin
@@ -287,6 +409,13 @@ class XxPromote(TraitableCli):
     packages: dict[str, Package] = RT(T.STICKY)
     steps: list[Step] = RT(T.STICKY)
     inputs: list[PkgInput] = RT(T.STICKY)
+    publish: bool = RT(False)
+
+    s_command: str = None
+    s_plan: Plan = None
+    def __init_subclass__(cls, _command: str = None, **kwargs):
+        super().__init_subclass__(_command,**kwargs)
+        cls.s_command = _command
 
     def packages_get(self) -> dict[str, Package]:
         """Build the package registry from `[tool.dev_10x.siblings]` in `base/pyproject.toml`.
@@ -317,16 +446,62 @@ class XxPromote(TraitableCli):
         steps += [MainEditStep(pkg=pkgs[name], forward_pins=e.forward_pins, test_pin=e.test_pin,
                                description=e.description)
                   for name, plan in plans.items() for e in plan.epilogue]
+        steps += [MainDevMarkerStep(pkg=pkgs[name], plan=plans[name]) for name in pkgs if plans[name].act]
+        steps += [PublishTriggerStep(pkg=pkgs[name], plan=plans[name], flavor=plan_cls.FLAVOR)
+                  for name in pkgs if plans[name].act]
         return steps
+
+    def _publish_trigger_steps(self, flavor: str) -> list[Step]:
+        """`--publish`: one create-only PublishTriggerStep per package with an existing release tag."""
+        steps: list[Step] = []
+        for inp in self.inputs:
+            release = VersionHelpers.publish_release_tag(inp.parsed_tags, flavor)
+            if not release:
+                continue
+            steps.append(PublishTriggerStep(
+                pkg=self.packages[inp.name], flavor=flavor, target_release=release, create_only=True))
+        return steps
+
+    def _check_publish_triggers_absent(self) -> None:
+        """Fail fast before apply when any target trigger already exists locally."""
+        flavor = self.s_command
+        existing: list[str] = []
+        n_targets = 0
+        for inp in self.inputs:
+            release = VersionHelpers.publish_release_tag(inp.parsed_tags, flavor)
+            if not release:
+                continue
+            n_targets += 1
+            trigger = VersionHelpers.publish_trigger_tag(release, flavor)
+            if GitHelpers.list_tags(inp.repo, trigger):
+                existing.append(trigger)
+        if existing:
+            raise RuntimeError(
+                f"publish trigger(s) already exist (refusing --publish): {', '.join(sorted(existing))}")
+        if n_targets == 0:
+            raise RuntimeError(f"no {flavor} release tags found for any package")
+
+    def _publish_post_verify(self) -> None:
+        if not self.dry_run:
+            self._require_synced_repos()
+        self._check_publish_triggers_absent()
+
+    @staticmethod
+    def _atomic_push(repo: Path, refspecs: list[str], label: str = "") -> None:
+        refspecs = list(dict.fromkeys(refspecs))
+        if not refspecs:
+            return
+        print(f"  push --atomic {label}{refspecs} -> {repo}")
+        GitHelpers.git(repo, "push", "--atomic", "origin", *refspecs)
 
     @exc_to_rc
     def run_steps(self) -> None:
         # `steps` is T.STICKY, computed once (applying mutates the git state steps_get reads). Apply
-        # every local step first; then push each repo ONCE, **atomically** (all-or-nothing) and last,
-        # so a crash never leaves a repo's remote half-updated - recovery is `reset-local` + re-run.
+        # every local step first; then push bundled refspecs per repo, then each isolated ref alone.
         for s in self.steps:
             print(('  [dry-run] ' if self.dry_run else '  ') + s.summary)
             if not self.dry_run:
+                s.verify()
                 s.apply()
         if self.dry_run:
             return
@@ -335,23 +510,37 @@ class XxPromote(TraitableCli):
             return
         by_repo: dict[Path, list[str]] = {}
         for s in self.steps:
-            if s.push_refs:
-                repo, refspecs = s.push_refs
+            if s.tags_to_push:
+                repo, refspecs = s.tags_to_push
                 by_repo.setdefault(repo, []).extend(refspecs)
         for repo, refspecs in by_repo.items():
-            refspecs = list(dict.fromkeys(refspecs))   # dedup, preserve order (e.g. two `main` edits)
-            print(f"  push --atomic {refspecs} -> {repo}")
-            GitHelpers.git(repo, "push", "--atomic", "origin", *refspecs)
+            self._atomic_push(repo, refspecs)
+        for s in self.steps:
+            if s.isolated_tags_to_push:
+                repo, refspecs = s.isolated_tags_to_push
+                for refspec in refspecs:
+                    self._atomic_push(repo, [refspec], label="isolated ")
 
-    @exc_to_rc
-    def post_verify(self) -> None:
+    def _require_synced_repos(self) -> None:
         repo_globs: dict[Path, list[str]] = {}
         for p in self.packages.values():
             repo_globs.setdefault(p.repo, []).append(f'{p.tag_prefix}*')
+            repo_globs[p.repo].extend(VersionHelpers.publish_trigger_globs(p.tag_prefix))
         for repo, globs in repo_globs.items():
             GitHelpers.require_synced(repo, globs)
-
         assert next(reversed(self.packages.values())).tag_prefix == 'v'  # -- siblings before core
+
+    @exc_to_rc
+    def post_verify(self) -> None:
+        if self.publish:
+            self._publish_post_verify()
+        elif not self.dry_run:
+            self._require_synced_repos()
+
+    def steps_get(self) -> list[Step]:
+        if self.publish:
+            return self._publish_trigger_steps(self.s_command)
+        return self._promote_steps(self.s_plan)
 
     def run(self) -> RC:
         if not self.steps:
@@ -372,14 +561,12 @@ class Pre(XxPromote, _command="pre"):
     `{T}rc(N+1).dev`, write the coordinated pins - core's exact forward `==` on its siblings, each
     sibling's reverse `py10x-core>=` test group - on a commit forked from that same `main` HEAD,
     force-reset the package's `pre` branch to it, and tag `v{T}rcN`. Unchanged packages are skipped.
+
+    With `--publish`, skip cutting: for each package tag the latest rc with `pre/{tag}` and push
+    (non-force; fails if the trigger already exists). Recovery after a crash: `resync`, then
+    `pre --publish --push`.
     """
-
-    def post_verify(self) -> RC:
-        return RC_TRUE if self.dry_run else super().post_verify()
-
-    def steps_get(self) -> list[Step]:
-        return self._promote_steps(PrePlan)
-
+    s_plan = PrePlan
 
 class Prod(XxPromote, _command="prod"):
     """xx-promote prod  (stack the final on the latest rc; force-update the `prod` branch).
@@ -388,11 +575,11 @@ class Prod(XxPromote, _command="prod"):
     final-pin commit on the rc commit (so released source == rc source), force-updates `prod`, tags
     `v{T}` (forward pins become exact `==T`; reverse `test` group `py10x-core>=T`), and the plan's
     `main` epilogue re-floors the dev pins to the released versions. See `…/rc-branch-promotion.md`.
+
+    With `--publish`, skip promoting: for each package tag the latest final with `prod/{tag}` and
+    push (non-force; fails if the trigger already exists).
     """
-
-    def steps_get(self) -> list[Step]:
-        return self._promote_steps(ProdPlan)
-
+    s_plan = ProdPlan
 
 class Yank(XxPromote, _command="yank"):
     """xx-promote yank  (yank the latest tag - rc or final - and roll the pre/prod pointer back)."""
@@ -431,7 +618,8 @@ class Yank(XxPromote, _command="yank"):
         if not GitHelpers.list_tags(self.package.repo, self.tag):
             raise RuntimeError(f'tag {self.tag!r} not found in {self.package.repo}')
         if not self.dry_run:
-            GitHelpers.require_synced(self.package.repo, [f'{self.package.tag_prefix}*'])
+            GitHelpers.require_synced(self.package.repo, [
+                f'{self.package.tag_prefix}*', *VersionHelpers.publish_trigger_globs(self.package.tag_prefix)])
         # Stage 1 yanks the latest release only (an older one would orphan everything after it and
         # needs `--cascade`, Stage 2). The tag-found check above guarantees `latest` is not None.
         latest = VersionHelpers.latest_tag(self.parsed)
@@ -442,7 +630,7 @@ class Yank(XxPromote, _command="yank"):
     def steps_get(self) -> list[Step]:
         repo = self.package.repo
         print(f'xx-promote yank {self.pkg} {self.version}  ({"prod" if self.is_prod else "pre"})\n')
-        steps: list[Step] = [YankTagStep(repo=repo, tag=self.tag)]
+        steps: list[Step] = [YankTagStep(repo=repo, tag=self.tag, is_prod=self.is_prod)]
 
         # Roll the affected pointer back to the previous tag of the same kind (rc -> pre, final ->
         # prod), pushed so a --push yank finishes local==remote. Computed at plan time (the previous
@@ -478,10 +666,10 @@ class Yank(XxPromote, _command="yank"):
 class Status(XxPromote, _command="status"):
     """xx-promote status  (pending promotions: tags pushed but the version isn't on PyPI yet)
 
-    For each package it compares local tags (rc + final, yanked tags excluded) against PyPI and
-    reports tags pushed since the latest PyPI release that are not on the index yet. For each
-    pending tag it resolves the publish workflow run and reports its state and a link. Read-only:
-    no git or remote mutation, ignores --dry-run / --push.
+    For each package it compares local tags (rc + final; `*_yanked` and `*.dev` main markers
+    excluded) against PyPI and reports tags pushed since the latest PyPI release that are not on the
+    index yet. For each pending tag it resolves the publish workflow run and reports its state and a
+    link. Read-only: no git or remote mutation, ignores --dry-run / --push.
     """
 
     def post_verify(self) -> RC:
@@ -522,12 +710,14 @@ class Status(XxPromote, _command="status"):
                 continue
             any_pending = True
             print(f"  {name}:")
-            for tag, _ver in pending:
-                run = GitHubHelpers.select_run_for_tag(runs, tag)
+            for tag, ver in pending:
+                flavor = VersionHelpers.publish_trigger_flavor(ver)
+                trigger = VersionHelpers.publish_trigger_tag(tag, flavor)
+                run = GitHubHelpers.select_run_for_tag(runs, trigger)
                 state = "unknown (gh unavailable)" if run is None and slug in gh_errors \
                     else GitHubHelpers.run_state(run)
                 url = run.get("html_url", "") if run else ""
-                print(f"      {tag}  workflow: {state}{('  ' + url) if url else ''}")
+                print(f"      {tag}  workflow ({trigger}): {state}{('  ' + url) if url else ''}")
         if not any_pending:
             print("\nNothing pending since the latest PyPI release.")
         for slug, err in gh_errors.items():
@@ -557,6 +747,7 @@ class Resync(XxPromote, _command="resync"):
                 (GitHelpers.release_branch("pre", name, is_core),
                  GitHelpers.release_branch("prod", name, is_core)))
             repo_globs.setdefault(pkg.repo, []).append(f"{pkg.tag_prefix}*")
+            repo_globs[pkg.repo].extend(VersionHelpers.publish_trigger_globs(pkg.tag_prefix))
         return [ResetRepoStep(repo=repo, branches=sorted(repo_branches[repo]), tag_globs=repo_globs[repo])
                 for repo in repo_branches]
 

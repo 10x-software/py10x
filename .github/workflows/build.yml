@@ -2,9 +2,8 @@ name: Publish py10x-core to PyPI (uv)
 on:
   push:
     tags:
-      - "v*"
-      - "!*_yanked"   # `xx-promote yank` renames a tag to <tag>_yanked; never (re)publish those
-      - "!*.dev"      # `{T}rc{N}.dev` markers on `main` for setuptools-scm — not releases
+      - "pre/v*"
+      - "prod/v*"
   workflow_dispatch:
 
 jobs:
@@ -15,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-tags: true
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -95,6 +96,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
+      with:
+        fetch-tags: true
 
     - name: Set up uv
       uses: astral-sh/setup-uv@v7

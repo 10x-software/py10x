@@ -120,8 +120,9 @@ non-yanked released versions). But rather than *repairing* derived refs in place
 tool keeps the **remote consistent** so recovery is trivial:
 
 - **Atomic push.** Each command applies all local mutations, then pushes **once per repo with
-  `git push --atomic`** (branch force-updates + new tags + the yanked-tag delete, all-or-nothing). So
-  a crash never leaves a repo's remote half-updated — the remote is a consistent source of truth.
+  `git push --atomic`** (branch force-updates, release tags, dev-marker drop+create, `main` —
+  all-or-nothing), then **isolated publish-trigger pushes** (one refspec per `git push`). CI listens
+  on the triggers, not release tags.
 - **Refuse-until-synced.** `require_synced` refuses the next run while local ≠ remote (clean tree +
   `main`/managed-tags == origin, fetch-first), so you never build on an un-synced state.
 - **`resync` + idempotent re-run.** Recovery is `xx-promote resync` — force each repo's
@@ -242,7 +243,7 @@ asymmetry between `pre` and `prod`.)
 ## Yank / revert
 
 `yank` reverts a release: it rolls the `pre`/`prod` pointers back (a destructive force-update — same
-`--force` guard), renames the tags to `*_yanked`, reverts the `prod` `main`-epilogue pins, and
+`--force` guard), renames the tags to `*_yanked`, deletes the matching **`pre/`/`prod/` publish trigger**, reverts the `prod` `main`-epilogue pins, and
 prints **manual PyPI yank instructions** (PyPI has no public yank API). Decisions:
 
 - **Only a *core* release is yankable**; doing so yanks the **batch's members** — core plus the
@@ -252,8 +253,9 @@ prints **manual PyPI yank instructions** (PyPI has no public yank API). Decision
   `--cascade`; an older one requires `--cascade` (which also sweeps orphaned intermediate sibling
   rcs).
 - **Version numbers are consumed, not freed.** PyPI forbids re-uploading a yanked version, so
-  generation must floor on `max(all tags incl. yanked)`; *selection* still excludes `*_yanked`. Two
-  different maxes — distinct from today's single yanked-excluded ordering.
+  generation must floor on `max(all tags incl. yanked)`; *selection* still excludes `*_yanked`
+  and `*.dev` main markers. Two different maxes — distinct from today's single yanked-excluded
+  ordering.
 
 (Command name kept as `yank` — the PEP 592 / distribution term — even though it's implemented as a
 repo-state revert.)

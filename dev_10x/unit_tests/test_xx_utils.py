@@ -65,13 +65,16 @@ def test_next_rc_numbering():
 
 
 def test_main_dev_markers_excluded_from_release_selection():
-    """`{T}rc{N}.dev` tags on `main` are for setuptools-scm only — not releases or rc numbering."""
-    tags = [f"{KERNEL}0.2.1rc17", f"{KERNEL}0.2.1rc18.dev", f"{KERNEL}0.2.1"]
+    """`*.dev` tags on `main` are for setuptools-scm only — not releases or rc numbering."""
+    tags = [f"{KERNEL}0.2.1rc17", f"{KERNEL}0.2.1rc18.dev", f"{KERNEL}0.2.2rc0.dev", f"{KERNEL}0.2.1"]
     parsed = VersionHelpers.parse_pkg_tags(tags, KERNEL)
     assert parsed == [(f"{KERNEL}0.2.1rc17", Version("0.2.1rc17")), (f"{KERNEL}0.2.1", Version("0.2.1"))]
     assert VersionHelpers.latest_tag(parsed) == (f"{KERNEL}0.2.1", Version("0.2.1"))
     assert VersionHelpers.next_rc(parsed, "0.2.1") == 18
     assert VersionHelpers.main_dev_marker_tag(f"{KERNEL}0.2.1rc17", KERNEL) == f"{KERNEL}0.2.1rc18.dev"
+    assert VersionHelpers.main_post_final_dev_marker_tag(f"{KERNEL}0.2.1", KERNEL) == f"{KERNEL}0.2.2rc0.dev"
+    assert Version("0.2.2rc0.dev0") > Version("0.2.1")
+    assert Version("0.2.2rc0.dev0") < Version("0.2.2rc1")
 
 
 def test_latest_rc_tag():
@@ -104,6 +107,26 @@ def test_pending_promotions_unpublished_project_reports_latest_only():
     pending = VersionHelpers.pending_promotions(parsed(), set())
     assert [t for t, _ in pending] == [f"{KERNEL}0.2.1rc2"]
     assert VersionHelpers.pending_promotions([], set()) == []
+
+
+def test_publish_trigger_tag_naming():
+    assert VersionHelpers.publish_trigger_tag(f"{KERNEL}0.2.1rc5", "pre") == f"pre/{KERNEL}0.2.1rc5"
+    assert VersionHelpers.publish_trigger_tag(f"{KERNEL}0.2.1", "prod") == f"prod/{KERNEL}0.2.1"
+    assert VersionHelpers.existing_publish_trigger_tags(
+        [f"pre/{KERNEL}0.2.1rc4", f"pre/{KERNEL}0.2.1rc5", f"prod/{KERNEL}0.2.1"],
+        KERNEL) == [f"pre/{KERNEL}0.2.1rc4", f"pre/{KERNEL}0.2.1rc5", f"prod/{KERNEL}0.2.1"]
+    # promote lists only `{flavor}/*` so pre never deletes a prod trigger (and vice versa)
+    pre_only = [t for t in [f"pre/{KERNEL}0.2.1rc4", f"prod/{KERNEL}0.2.1"] if t.startswith("pre/")]
+    assert VersionHelpers.existing_publish_trigger_tags(pre_only, KERNEL) == [f"pre/{KERNEL}0.2.1rc4"]
+    assert VersionHelpers.publish_trigger_flavor(Version("0.2.1rc1")) == "pre"
+    assert VersionHelpers.publish_trigger_flavor(Version("0.2.1")) == "prod"
+
+
+def test_publish_release_tag_selects_latest_rc_or_final():
+    parsed = VersionHelpers.parse_pkg_tags(
+        [f"{KERNEL}0.2.1rc4", f"{KERNEL}0.2.1rc5", f"{KERNEL}0.2.1"], KERNEL)
+    assert VersionHelpers.publish_release_tag(parsed, "pre") == f"{KERNEL}0.2.1rc5"
+    assert VersionHelpers.publish_release_tag(parsed, "prod") == f"{KERNEL}0.2.1"
 
 
 def test_repo_relative_subtree():
@@ -508,20 +531,28 @@ class TestParseRemoteSlug:
 
 class TestSelectRunForTag:
     RUNS = [
-        {'head_branch': 'v0.2.1', 'created_at': '2026-01-02T00:00:00Z', 'status': 'completed',
+        {'head_branch': 'pre/v0.2.1', 'created_at': '2026-01-02T00:00:00Z', 'status': 'completed',
          'conclusion': 'success', 'html_url': 'u-new'},
-        {'head_branch': 'v0.2.1', 'created_at': '2026-01-01T00:00:00Z', 'status': 'completed',
+        {'head_branch': 'pre/v0.2.1', 'created_at': '2026-01-01T00:00:00Z', 'status': 'completed',
          'conclusion': 'failure', 'html_url': 'u-old'},
-        {'head_branch': 'v0.3.0', 'created_at': '2026-01-03T00:00:00Z', 'status': 'in_progress',
+        {'head_branch': 'prod/v0.3.0', 'created_at': '2026-01-03T00:00:00Z', 'status': 'in_progress',
          'conclusion': None, 'html_url': 'u-other'},
     ]
 
     def test_picks_latest_matching(self):
-        run = GitHubHelpers.select_run_for_tag(self.RUNS, 'v0.2.1')
+        runs = [
+            {'head_branch': 'pre/v0.2.1', 'created_at': '2026-01-02T00:00:00Z', 'status': 'completed',
+             'conclusion': 'success', 'html_url': 'u-new'},
+            {'head_branch': 'pre/v0.2.1', 'created_at': '2026-01-01T00:00:00Z', 'status': 'completed',
+             'conclusion': 'failure', 'html_url': 'u-old'},
+            {'head_branch': 'prod/v0.3.0', 'created_at': '2026-01-03T00:00:00Z', 'status': 'in_progress',
+             'conclusion': None, 'html_url': 'u-other'},
+        ]
+        run = GitHubHelpers.select_run_for_tag(runs, 'pre/v0.2.1')
         assert run is not None and run['html_url'] == 'u-new'
 
     def test_none_when_no_match(self):
-        assert GitHubHelpers.select_run_for_tag(self.RUNS, 'v9.9.9') is None
+        assert GitHubHelpers.select_run_for_tag(self.RUNS, 'pre/v9.9.9') is None
 
 
 class TestRunState:

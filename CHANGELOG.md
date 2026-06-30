@@ -10,38 +10,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present in the codebase but not part of the supported public API yet.
 
 ### Added
-- **Release promotion (`xx-promote`)** (`dev_10x/xx_promote.py`, `dev_10x/xx_helpers.py`, `dev_10x/README.md`): TraitableCli tool to cut rc/final tags across the three independently versioned packages, roll main dev pins (prerelease-admitting), create release-branch final pins, and yank tags. Subcommands: `pre`, `prod`, `yank --pkg … --version …`. Safety flags: default local-only, `--dry-run`, `--push`. Pure helpers and CLI routing covered by `dev_10x/unit_tests/`.
+- **Release promotion (`xx-promote`)** (`dev_10x/xx_promote.py`, `dev_10x/xx_plan.py`, `dev_10x/xx_helpers.py`, `dev_10x/README.md`, `dev_10x/docs/rc-branch-promotion.md`): TraitableCli tool to cut coordinated rc/final releases across the three independently versioned packages onto tool-owned `pre`/`prod` branches with exact `==` sibling pins, roll `main` dev pins (prerelease-admitting), yank tags, and inspect publish state. Subcommands: `pre`, `prod`, `yank --pkg … --version …`, `status`, `resync`. Safety flags: default local-only (`--dry-run`, `--push`). Declarative pure planner (`xx_plan`) makes runs idempotent; atomic `git push --atomic` per repo enforces local==remote; crash recovery via `resync` + re-run. Tests: pure helpers in `test_xx_utils.py`, planner in `test_xx_plan.py`, CLI routing in `test_xx_promote.py`, real-git e2e in `test_xx_promote_e2e.py`, tooling guards in `test_xx_tooling_guards.py`.
 - **CI tag resolution (`dev_10x/xx_ci.py`)**: kernel-free shim (`packaging` + `tomlkit` only) to resolve the latest sibling tag admitted by a pin spec and verify an installed sibling matches that tag — used by publish CI before any wheel upload.
 - **`uv-run`** (`dev_10x/uv_run.py`): run a command under the last `uv-sync` profile without re-syncing.
-- **Pre-publish test gate** (`.github/workflows/build.yml`): full test job on tag push (resolve/install siblings at pinned tags, verify imports, pytest) before the publish job; yanked tags (`*_yanked`) excluded from triggers.
-- **Third-party dependency freeze** (`dev_10x/constraints.py`, `constraints.txt`, `xx-constraints` CLI): committed pin file for the full transitive graph of py10x-core and both C++ siblings; applied via `uv pip install -c constraints.txt` on every dev/CI install; `xx-constraints check` asserts the active env is fully frozen.
+- **Pre-publish test gate** (`.github/workflows/build.yml`): full test job on `pre/v*` / `prod/v*` publish-trigger tag push (resolve/install siblings at pinned tags, verify imports, `xx-constraints check`, pytest) before the publish job.
+- **Third-party dependency freeze** (`dev_10x/constraints.py`, `constraints.txt`, `xx-constraints` CLI): committed pin file for the full transitive graph of py10x-core and both C++ siblings; applied via `uv pip install -c constraints.txt` on every dev/CI install; `xx-constraints check` asserts the active env is fully frozen; `xx-constraints compile --upgrade` refreshes pins from the index.
+- **Weekly constraints refresh** (`.github/workflows/refresh-constraints.yml`): scheduled workflow to recompile `constraints.txt` and open a PR when transitive pins drift.
 - **`uv-sync` redesign** (`dev_10x/uv_sync.py`): drives `uv pip install` directly instead of transiently rewriting `[tool.uv.sources]` — keeps the tree clean for setuptools-scm, reinstalls siblings only when source/version rules say so (PEP 610 `direct_url.json`), supports incremental C++ rebuilds via `XX_UV_INCREMENTAL`.
-- **`TraitableCli` CLI syntax** (`core_10x/traitable_cli.py`): options use the `--option value` form (dashes → underscores), with `--option` / `--no-option` boolean shortcuts (== `--option true` / `--option false`); positional words still select sub-commands. Unit tests in `core_10x/unit_tests/test_traitable_cli.py` cover parse edge cases, command hierarchy routing, and bool coercion under `CONVERT_VALUES_ON`.
+- **`TraitableCli` CLI syntax** (`core_10x/traitable_cli.py`): options use the `--option value` form (dashes → underscores), with `--option` / `--no-option` boolean shortcuts (== `--option true` / `--option false`); positional words still select sub-commands. `CONVERT_VALUES_ON` is enabled automatically while parsing command-line arguments. Unit tests in `core_10x/unit_tests/test_traitable_cli.py` cover parse edge cases, command hierarchy routing, and bool coercion under `CONVERT_VALUES_ON`.
 - **C++ mixin getters (`cxx_mixins`)** (`core_10x/traitable.py`, `core_10x/trait.py`): subclasses may declare extra pybind mixin classes; trait getters are resolved from mixins before Python methods. `Trait.pybind_signature` parses pybind11 docstring signatures when `inspect.signature` cannot.
 - **`exc_to_rc` decorator** (`core_10x/rc.py`): wraps void callables for CLI commands — returns `RC_TRUE` on success or `RC(False, message)` on failure; when `message` is omitted, `RC.__init__` captures the active exception inside the `except` block.
 - **`Event` / `EventProcessor`** *(experimental)* (`xx_common/event.py`, `xx_common/event_processor.py`): timestamped event traitables with `_at` indexing, query helpers (`between`, `penultimate`), and a processor base class that dispatches `ClassName_process` handlers, loads pending events by watermark (one watermark query per store server), and advances watermarks on `process_pending_events()`.
-- **Curve C++ backend** *(experimental)* (`xx_common/cxx_curve.py`, `USE_BCURVE` flag in `xx_common/curve.py`): optional `BCurve`/`BDateCurve` implementation alongside the pure-Python `py_curve.py`; selected at import time via `USE_BCURVE`.
+- **Curve C++ backend** *(experimental)* (`xx_common/cxx_curve.py`, `xx_common/xxcommon_env_vars.py`): optional `BCurve`/`BDateCurve` implementation alongside the pure-Python `py_curve.py`; selected at import time via `XX_USE_CXX_CURVE` (`XXCommonEnvVars.use_cxx_curve`, default `False`).
+- **`XX_UV_BUILD_TYPE`** (`dev_10x/uv_sync.py`): choose `Release` or `Debug` when building C++ siblings (each build type is tracked separately under `.venv`).
 - **Incremental C++ sibling builds**: `XX_UV_INCREMENTAL=1` with a local-editable cxx profile skips build isolation for faster rebuilds; build mode tracked in `.venv/.xx_uv_incremental`.
 - **`roman_number`** moved from `core_10x` to `xx_common`.
 - **`DuckDbStore` and Ibis query layer** (`infra_10x/duckdb_store.py`, `infra_10x/ibis_store.py`): in-memory DuckDB test store replacing `TestStore`, with shared `IbisStore` / `IbisCollection` read-path logic and trait-aware filter pushdown via `trait_filter.ibis()`.
+- **`Trait.serialize_to_types` / `s_serialize_to_type`** (`core_10x/trait.py`, `core_10x/concrete_traits.py`): traits declare their wire serialization types (e.g. `datetime_trait` → `str`) for Ibis filter pushdown and deserialization.
+- **`Traitable.post_serialize` hook** (`core_10x/traitable.py`): subclasses may adjust serialized dicts after trait serialization; `EventBase` uses it so `add_who` / `add_when` run without mutating the pre-serialize payload.
+- **`NamedConstant symbols_from`** (`core_10x/named_constant.py`): `__init_subclass__(symbols_from=…)` populates `s_dir` from another class's UPPERCASE attributes instead of the subclass's own.
+- **Rio browser test helpers** (`ui_10x/rio/browser_helpers.py`): condition-based `wait_for_*` helpers and `ui_settle()` for stable Playwright/Rio widget tests on slow CI runners.
+- **Reusable CI actions** (`.github/actions/ci-test-suite/`, `.github/actions/setup-mongo-replica-set/`): shared test-suite and MongoDB replica-set setup steps.
+- **CI Windows matrix** (`.github/workflows/ci.yml`): PR/push and nightly jobs run on `ubuntu-latest` and `windows-latest`.
+- **Cloud dev setup** (`scripts/cloud_setup.sh`, `scripts/cloud_mongo.sh`): bootstrap Docker/MongoDB for Cursor Cloud and similar restricted environments.
+- **`CODEOWNERS`**: default review routing for the repo.
 
 ### Changed
 - **Curve module split** (`xx_common/py_curve.py`, `xx_common/curve.py`): Python implementation extracted; facade re-exports `Curve`, `DateCurve`, `IP_KIND`, `CurveParams` and keeps `TwoFuncInterpolator`.
 - **`_collection_name`**: read path served by C++ (`BTraitable.collection_name`); write path remains the Python `_collection_name_set` setter (setters are not moved to C++).
+- **`ID.__hash__`**: includes `collection_name` so IDs with the same value in different collections are distinct in sets/dicts.
+- **RT-only traitables**: `_collection_name` is not a trait and instance access raises `AttributeError` (previously returned `XNone`).
+- **History / immutability on runtime bases**: `keep_history` and `immutable` specified on a runtime `Traitable` base propagate to concrete subclasses; history class is resolved via `traitable.s_history_class` (no module-dict registration required).
 - **`pyproject.toml`**: removed default `[tool.uv.sources]` entries that conflicted with downstream packages; sibling layout declared under `[tool.dev_10x.siblings]`; optional **`[project.optional-dependencies] jit`** group for JIT tooling (not part of the default install).
 - **Dependabot**: `rio-ui` 0.12.2, `playwright` range widened, `cryptography` range widened.
 - **`VaultResourceAccessor.last_updated`**: `EVAL_ONCE` reinstated.
 - **Test store**: removed `core_10x/testlib/test_store.py`; `testdb://` / `TS_STORE_TYPE.TESTDB` replaced by `duckdb://` / `TS_STORE_TYPE.DUCKDB`. Mongo `$set` / `$currentDate` semantics removed from core (`TsStoreMongoLike`) and live only on `MongoStore.add_who` / `add_when`; `datetime_trait` and `bytes_trait` deserialize ISO/base64 strings from JSON blob storage.
+- **`GETTING_STARTED.md`**: clarified `GraphDeps` `target_class`, `perturb`, and `perturb_value` usage.
 
 ### Fixed
 - **`Curve.value` with `beginning_of_time`**: times strictly before `beginning_of_time` now return `NaN`; previously the guard condition was inverted so the cutoff never applied.
 - **`TraitableHistory.traitable_get`**: handles a missing `_collection_name` when stripping the `#history` suffix.
-- **`TestStore.server_time`**: use `datetime.utcnow()` (the previous `datetime.now(datetime.utc)` call raised at runtime).
+- **`DuckDbStore.server_time`**: use `datetime.utcnow()` (the previous `datetime.now(datetime.utc)` call raised at runtime).
+- **Ibis filter pushdown** (`infra_10x/ibis_store.py`): composite and null-valued trait filters now translate correctly for DuckDB-backed queries.
+- **Linux C++ extension modules**: kernel symbols promoted to the global namespace so pybind extension modules load reliably.
+- **Restricted-network / cloud builds**: build no longer requires network access once dependencies are cached.
+- **`uv-sync` on Windows**: locate the venv interpreter correctly when the active Python is not the venv's.
+- **`TraitableCli` default help**: subcommand help text renders correctly.
+- **Rio UI tests**: reduced flakiness on slow CI via `browser_helpers` condition waits and longer collection-editor timeouts.
 
 ### Experimental / internal-only
 - **JIT compilers** (`core_10x/jit/`): Numba/Cython getter optimization and related manual tests remain **internal R&D only** — installed via the optional `jit` extra, not documented in user-facing guides, and not covered by the default CI extra set.
 - **`Event` / `EventProcessor`**: scaffold for event-stream processing; API and store semantics may change.
-- **`USE_BCURVE` / `cxx_curve`**: experimental performance path; defaults to pure Python (`USE_BCURVE = False`).
+- **`XX_USE_CXX_CURVE` / `cxx_curve`**: experimental performance path; defaults to pure Python (`XX_USE_CXX_CURVE` unset / `False`).
+
+## [0.2.2] - 2026-05-18
+
+No code changes; release tag aligned with updated changelog formatting.
+
+## [0.2.1] - 2026-05-18
+
+### Fixed
+- **Windows CI and post-install tests**: fixes for failures on Windows runners and after a fresh `uv-sync` install.
 
 ## [0.2.0] - 2026-05-17
 
@@ -272,6 +301,8 @@ No separate changelog; see Version History below.
 
 ## Version History
 
+- **0.2.2**: Changelog-only release tag (no code delta from 0.2.1)
+- **0.2.1**: Windows CI and post-install test fixes
 - **0.2.0**: EventBase; forward refs for sibling Traitables; NamedResource bundle; user status util + onboarding guide; RC.sum(); Self return types; canonical resource URI; filter fixes (IN set, inner-class leak); bundle/history fix; is_bundle fix; storage sharing fix; MongoDB non-standard port fix; admin vault workflow fix; curve.value float fix; Basket/Bucket; NamedCallable/ClassTrait; NamedConstantValue/Table; rel_db, scenario, logger; xx_common split; infra/mongo and UI updates; test run from installed package; CI Mongo action
 - **0.1.14**: Open source release; README overhaul (value prop, Hello World, when to use, full GitHub links)
 - **0.1.13**: Windows test fixes; history bug fix and more robust traitable history tests; pyproject fix; docs updated

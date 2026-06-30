@@ -20,11 +20,52 @@ class VersionHelpers:
     # Pure helpers (no I/O) - exercised directly by the unit tests.
     # --------------------------------------------------------------------------------------------
     YANKED_SUFFIX = "_yanked"
+    PUBLISH_PRE_PREFIX = "pre/"
+    PUBLISH_PROD_PREFIX = "prod/"
+
+    @classmethod
+    def publish_trigger_prefix(cls, flavor: str) -> str:
+        if flavor not in ("pre", "prod"):
+            raise ValueError(f"unknown publish flavor {flavor!r}")
+        return cls.PUBLISH_PRE_PREFIX if flavor == "pre" else cls.PUBLISH_PROD_PREFIX
+
+    @classmethod
+    def publish_trigger_tag(cls, release_tag: str, flavor: str) -> str:
+        """CI-only tag on the release commit — workflows listen here, not on the release tag."""
+        return f"{cls.publish_trigger_prefix(flavor)}{release_tag}"
+
+    @classmethod
+    def publish_trigger_globs(cls, tag_prefix: str) -> tuple[str, str]:
+        return (f"{cls.PUBLISH_PRE_PREFIX}{tag_prefix}*", f"{cls.PUBLISH_PROD_PREFIX}{tag_prefix}*")
+
+    @classmethod
+    def existing_publish_trigger_tags(cls, raw_tags: list[str], release_prefix: str) -> list[str]:
+        """Prior publish triggers for one package (one canonical trigger; pre or prod)."""
+        return [
+            t for t in raw_tags
+            if cls.is_publish_trigger_tag(t) and t.split("/", 1)[1].startswith(release_prefix)
+        ]
+
+    @classmethod
+    def publish_trigger_flavor(cls, version: Version) -> str:
+        return "prod" if cls.is_final(version) else "pre"
+
+    @classmethod
+    def is_publish_trigger_tag(cls, tag: str) -> bool:
+        return tag.startswith((cls.PUBLISH_PRE_PREFIX, cls.PUBLISH_PROD_PREFIX))
 
     @classmethod
     def is_main_dev_marker(cls, v: Version) -> bool:
-        """A `{T}rc{N}.dev` tag on `main` for setuptools-scm — not a publishable release."""
-        return v.is_devrelease and v.pre is not None and v.pre[0] == "rc"
+        """A `.dev` tag on `main` for setuptools-scm — not a publishable release.
+
+        Two shapes: `{T}rc{N}.dev` (next-rc-line marker set by `pre`) and `{T}rc0.dev` (post-final
+        marker set by `prod`, where `T` is `next_micro` of the released final).
+        """
+        if not v.is_devrelease:
+            return False
+        if v.pre is not None and v.pre[0] == "rc":
+            return True
+        return not v.is_postrelease
 
     @classmethod
     def main_dev_marker_tag(cls, release_tag: str, prefix: str) -> str:
@@ -42,17 +83,40 @@ class VersionHelpers:
         return f"{prefix}{target}rc{ver.pre[1] + 1}.dev"
 
     @classmethod
+    def main_post_final_dev_marker_tag(cls, final_tag: str, prefix: str) -> str:
+        """Companion marker on `main` after `prod`: `{prefix}{next_micro(T)}rc0.dev`.
+
+        Keeps setuptools-scm on `main` strictly above the just-published final `{T}` while anchoring
+        the *next* micro's rc line (a stale `{T}rc(N+1).dev` rc-line marker would rank below `{T}`).
+        """
+        if not final_tag.startswith(prefix):
+            raise ValueError(f"{final_tag!r} does not start with {prefix!r}")
+        ver = Version(final_tag[len(prefix):])
+        if not cls.is_final(ver):
+            raise ValueError(f"{final_tag!r} is not a final release tag")
+        return f"{prefix}{cls.next_micro(cls.base_version(ver))}rc0.dev"
+
+    @classmethod
+    def existing_main_dev_marker_tags(cls, raw_tags: list[str], prefix: str) -> list[str]:
+        """All `{prefix}*.dev` main markers currently present (rc-line or post-final)."""
+        return [
+            t for t, v in cls.parse_pkg_tags(raw_tags, prefix, include_dev_markers=True)
+            if cls.is_main_dev_marker(v)
+        ]
+
+    @classmethod
     def parse_pkg_tags(
         cls, raw_tags: list[str], prefix: str, include_yanked: bool = False,
         include_dev_markers: bool = False,
     ) -> list[tuple[str, Version]]:
         """Strip `prefix` from each tag and parse the remainder as a PEP 440 version.
 
-        Tags that don't start with `prefix` or don't parse are dropped. Yanked `..._yanked` tags are
-        dropped for *selection* (the default), but included - with their `_yanked` stripped before
-        parsing - when `include_yanked` is set, for *generation*: a yanked version number is consumed
-        (PyPI forbids re-upload), so the next-version floor must count it even though selection won't.
-        `{T}rc{N}.dev` main markers are excluded unless `include_dev_markers` (they are not releases).
+        Tags that don't start with `prefix` or don't parse are dropped. For *selection* (the default),
+        yanked `..._yanked` tags and `{T}*.dev` main scm markers are dropped; yanked tags are included
+        — with their `_yanked` stripped before parsing — when `include_yanked` is set, for
+        *generation*: a yanked version number is consumed (PyPI forbids re-upload), so the next-version
+        floor must count it even though selection won't. Main markers are included only when
+        `include_dev_markers` is set.
         """
         out: list[tuple[str, Version]] = []
         for tag in raw_tags:
@@ -156,6 +220,15 @@ class VersionHelpers:
         return max(finals, key=lambda tv: tv[1])[0] if finals else None
 
     @classmethod
+    def publish_release_tag(cls, parsed: list[tuple[str, Version]], flavor: str) -> str | None:
+        """Latest existing release tag to attach a publish trigger to (`pre` -> rc, `prod` -> final)."""
+        if flavor == "pre":
+            return cls.latest_rc_tag_overall(parsed)
+        if flavor == "prod":
+            return cls.latest_final_tag(parsed)
+        raise ValueError(f"unknown publish flavor {flavor!r}")
+
+    @classmethod
     def pending_promotions(
         cls,
         parsed: list[tuple[str, Version]],
@@ -255,6 +328,14 @@ class GitHelpers:
         return out.split("\t", 1)[0] if out else None
 
     @classmethod
+    def _tags_matching_glob(cls, tags: set[str], pattern: str) -> set[str]:
+        """`git tag -l` / `ls-remote` pattern matching differs; compare by prefix instead."""
+        if pattern.endswith("*"):
+            prefix = pattern[:-1]
+            return {t for t in tags if t.startswith(prefix)}
+        return tags & {pattern}
+
+    @classmethod
     def ls_remote_tags(cls, repo: Path, pattern: str) -> set[str]:
         """Tag names on `origin` matching `pattern` (peeled `^{}` refs collapsed)."""
         out = cls.git(repo, "ls-remote", "--tags", "origin", pattern)
@@ -262,7 +343,7 @@ class GitHelpers:
         for line in out.splitlines():
             if "\t" in line:
                 tags.add(line.split("\t", 1)[1].removeprefix("refs/tags/").removesuffix("^{}"))
-        return tags
+        return cls._tags_matching_glob(tags, pattern)
 
     @classmethod
     def require_synced(cls, repo: Path, tag_globs: list[str]) -> None:
@@ -280,7 +361,8 @@ class GitHelpers:
         if remote_main is not None and cls.git(repo, "rev-parse", "main") != remote_main:
             raise RuntimeError(f"{repo}: local main != origin/main - push/pull main before promoting")
         for glob in tag_globs:
-            local, remote = set(cls.list_tags(repo, glob)), cls.ls_remote_tags(repo, glob)
+            local = cls._tags_matching_glob(set(cls.list_tags(repo, glob)), glob)
+            remote = cls.ls_remote_tags(repo, glob)
             if local != remote:
                 raise RuntimeError(
                     f"{repo}: local tags != origin for {glob} - sync first "

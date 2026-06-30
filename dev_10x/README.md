@@ -25,9 +25,9 @@ They version **independently** and live in two git repos:
 
 | package        | repo / path                | tag prefix         | tags                         |
 |----------------|----------------------------|--------------------|------------------------------|
-| `py10x-core`   | `py10x` (this repo)        | `v`                | `vX.Y.Z` / `vX.Y.ZrcN` on `pre`/`prod`; `vX.Y.Zrc(N+1).dev` on `main` when cutting rcN |
-| `py10x-kernel` | `cxx10x` / `core_10x`      | `py10x-kernel-v`   | `…-vX.Y.Z[rcN]` on `pre`/`prod`; `…-vX.Y.Zrc(N+1).dev` on `main` when cutting rcN |
-| `py10x-infra`  | `cxx10x` / `infra_10x`     | `py10x-infra-v`    | `…-vX.Y.Z[rcN]` on `pre`/`prod`; `…-vX.Y.Zrc(N+1).dev` on `main` when cutting rcN |
+| `py10x-core`   | `py10x` (this repo)        | `v`                | finals/rc on `pre`/`prod`; `{T}rc(N+1).dev` on `main` after `pre`; `{next_micro(T)}rc0.dev` after `prod` |
+| `py10x-kernel` | `cxx10x` / `core_10x`      | `py10x-kernel-v`   | same pattern |
+| `py10x-infra`  | `cxx10x` / `infra_10x`     | `py10x-infra-v`    | same pattern |
 
 py10x-core depends on the other two (forward). For testing, kernel/infra carry a *dev-only*
 reverse dependency on py10x-core via a PEP 735 **`[dependency-groups]` `test`** group — which is
@@ -49,7 +49,11 @@ derived from `origin` (not hardcoded). Tag prefix defaults to `{name}-v`; repo r
 - **pre/prod rc tags are not on `main`.** Publishable rc/final tags live on tool-owned `pre`/`prod`
   branches. `xx-promote pre` tags `main` HEAD with `{T}rc(N+1).dev` when cutting rcN (a
   setuptools-scm marker, not a release) so plain `git describe` / hatch-vcs on `main` stamps
-  `0.2.1rc18.devM+g…` while rc17 lives on `pre`. Publish workflows ignore `*.dev` tags.
+  `0.2.1rc18.devM+g…` while rc17 lives on `pre`. `xx-promote prod` replaces that with
+  `{next_micro(T)}rc0.dev` (e.g. `0.2.2rc0.dev` after final `0.2.1`) so `main` stays above the
+  release and below the first rc of the next micro.
+  Publish workflows trigger on **`pre/{release}`** / **`prod/{release}`** tags (same commit as the
+  release tag); they listen on `pre/`/`prod/` publish triggers only.
 - **Ordering:** always compare with `packaging.version.Version` (`max`), never
   `git --sort=-v:refname` / `sort -V` (they rank `0.2.3` *below* `0.2.3rc1`).
 
@@ -114,12 +118,15 @@ crash re-derives the plan from current tags and resumes.
   (`v*` / `py10x-kernel-v*` / …) match `origin`. It **refuses** on a stale/un-pushed `main` or
   divergent tags, so a release is never cut from un-synced state. (No `origin` → local-only dev,
   the remote half is skipped.)
-- *Finish:* with `--push`, every ref the run changed is pushed **once per repo, atomically**
-  (`git push --atomic` — branch force-updates, new tags, the yanked-tag delete, all-or-nothing), so a
-  crash never leaves a repo's remote half-updated. The remote is the consistent source of truth.
+- *Finish:* with `--push`, promote refs (branches, release tags, dev-marker drop+create, `main`) are
+  pushed **once per repo, atomically**. **Publish triggers** use `isolated_tags_to_push` — one
+  refspec per `git push` — so CI tag-create webhooks always fire. Release tags are never deleted
+  for CI.
 - *Recovery:* after a crash, `require_synced` refuses until local == remote. Run **`xx-promote
   resync`** — it forces each repo's `main`/`pre`/`prod` branches and managed tags back to `origin`
-  (discarding local-only work) — then re-run. Cross-repo (siblings pushed, core not) surfaces as one
+  (discarding local-only work) — then re-run. If release tags landed but publish triggers did not,
+  use **`xx-promote pre --publish --push`** (or `prod --publish`) to create triggers only — non-force,
+  so it fails if they already exist. Cross-repo (siblings pushed, core not) surfaces as one
   un-synced repo; resync it and the idempotent re-run resumes (core re-cuts to coordinate). There is
   **no in-place reconcile** — atomic pushes make the states it used to repair unreachable.
 - *Without `--push`:* local diverges from `origin` by design — **push manually** (`git push`) to
@@ -131,23 +138,27 @@ crash re-derives the plan from current tags and resumes.
   sibling's latest tag (so a fresh sibling rc forces a core re-cut). For each re-cut package it tags
   `main` HEAD with `{T}rc(N+1).dev` (setuptools-scm marker for the next rc line), writes
   the coordinated pins (core → siblings `==X.YrcN`; sibling → `py10x-core>=X.YrcN`) on a commit forked
-  from `main` HEAD, **force-resets** the package's `pre` branch to it, and tags `v{T}rc{n}`. Footprint
+  from `main` HEAD, **force-resets** the package's `pre` branch to it, and tags `v{T}rc{n}`. A
+  **`pre/{tag}` publish trigger** on that commit starts the publish workflow. Footprint
   is diffed from the tag's fork-point on `main` (so the pin commit itself never counts as a change).
   Unchanged packages are skipped; a latest tag that is still an rc is offered for `--push`.
 - **`prod`** (per package whose **latest** tag is a pre-release with an rc for its target): force-updates
   the `prod` branch onto the latest rc commit, **stacks** a final-pin commit there (core → siblings
-  exact `==X.Y`; sibling → `test = ["py10x-core>=X.Y"]`), and tags `v{T}`. Then on `main` it re-floors
-  py10x-core's dev pins to the released sibling versions and points the reverse groups at the released
-  core. Released **source** == rc source — the final commit only rewrites pins on top of the rc.
-- **`yank`** renames the **latest** tag to `<tag>_yanked` (build workflows ignore `*_yanked`),
-  force-rolls the affected `pre`/`prod` pointer back to the previous tag of the same kind (rc→`pre`,
-  final→`prod`), and **prints manual PyPI yank instructions** — PyPI has no public yank API.
-  `{T}rc(N+1).dev` markers on `main` are **left in place** (the next rc is still N+1). Yanking
-  an older release is refused (needs `--cascade`, a Stage-2 feature). A yanked version number is
-  **consumed** — generation floors on `max(all tags incl. yanked)` so it is never reused — while
-  selection still ignores `*_yanked`. Yanking a **final** also rolls `main`'s dev pin back to the
-  latest non-yanked release. No yank CI workflows.
-- **`status` - compares local tags (rc + final, `*_yanked` excluded) against PyPI and reports tags
+  exact `==X.Y`; sibling → `test = ["py10x-core>=X.Y"]`), and tags `v{T}`. Then on `main` it
+  retags `{next_micro(T)}rc0.dev` (dropping the stale rc-line marker), re-floors py10x-core's dev pins
+  to the released sibling versions, and points the reverse groups at the released core. Tags
+  **`prod/{tag}` publish triggers** on each final commit. Released
+  **source** == rc source — the final commit only rewrites pins on top of the rc.
+- **`yank`** renames the **latest** tag to `<tag>_yanked` (deletes its publish trigger too;
+  workflows listen on `pre/`/`prod/` only), force-rolls the affected `pre`/`prod` pointer back to the previous tag of
+  the same kind (rc→`pre`, final→`prod`), and **prints manual PyPI yank instructions** — PyPI has
+  no public yank API. `{T}rc(N+1).dev` markers on `main` are **left in place** (the next rc is still
+  N+1). Yanking an older release is refused (needs `--cascade`, a Stage-2 feature). A yanked version
+  number is **consumed** — generation floors on `max(all tags incl. yanked)` so it is never reused
+  — while selection still ignores `*_yanked` and `*.dev` main markers. Yanking a **final** also
+  rolls `main`'s dev pin back to the latest non-yanked release. No yank CI workflows.
+- **`status` - compares local tags (rc + final; `*_yanked` and `*.dev` main markers excluded)
+  against PyPI and reports tags
   pushed **since the latest PyPI release** that are not on the index yet. Publish is atomic in CI
   (the workflow uploads to PyPI), so a version on the index is treated as successfully published;
   the floor is simply `max(published)`. Superseded rc attempts before that floor and abandoned
@@ -339,7 +350,7 @@ alert** that an upstream release broke us (do not merge — investigate the pin)
 
 ### py10x `build.yml` (`test` → `publish`)
 
-On tag push (`v*`, excluding `*_yanked`):
+On **`pre/v*`** / **`prod/v*`** publish-trigger tag push:
 
 1. Clone cxx10x.
 2. Resolve each sibling tag via `python -m dev_10x.xx_ci latest_tag` (kernel-free — only
@@ -361,7 +372,7 @@ On tag push (`v*`, excluding `*_yanked`):
 
 - `uv pip install --all-extras` needs an explicit source:
   `-e . --all-extras --requirements pyproject.toml` (unlike `uv sync`).
-- Tag triggers exclude `*_yanked`.
+- Tag triggers: **`pre/py10x-kernel-v*`** / **`prod/…`** (and core **`pre/v*`** / **`prod/v*`**).
 - Never `==`-pin published `[project.dependencies]`.
 
 ---

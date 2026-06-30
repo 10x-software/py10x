@@ -14,22 +14,54 @@ from __future__ import annotations
 
 import shutil
 import subprocess
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import pytest
 import setuptools_scm
+import tomlkit
+from packaging.version import Version
 
 from dev_10x.xx_helpers import GitHelpers
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 requires_git = pytest.mark.skipif(shutil.which("git") is None, reason="git not available")
 requires_uv = pytest.mark.skipif(shutil.which("uv") is None, reason="uv not available")
 
 # The exact git_describe_command the cxx10x siblings configure in `[tool.setuptools_scm]`
 # (`../cxx10x/core_10x/pyproject.toml`); the `--match` glob is what scopes describe to this package.
+# `test_sibling_describe_command_matches_real_config` keeps this copy honest against the real files.
 SIBLING_DESCRIBE = "git describe --dirty --tags --long --match 'py10x-kernel-*' --abbrev=40"
+
+
+def _sibling_describe_commands() -> dict[str, str]:
+    """{sibling name: its real `[tool.setuptools_scm].git_describe_command`} for each checked-out
+    sibling, resolved via this repo's own `[tool.dev_10x.siblings]` paths (e.g. `../cxx10x/core_10x`)."""
+    root = Path(__file__).resolve().parents[2]            # dev_10x/unit_tests/ -> py10x repo root
+    siblings = (tomlkit.parse((root / "pyproject.toml").read_text(encoding="utf-8"))
+                .get("tool", {}).get("dev_10x", {}).get("siblings", {}))
+    commands: dict[str, str] = {}
+    for name, spec in siblings.items():
+        pyproject = (root / spec["path"]).resolve() / "pyproject.toml"
+        if not pyproject.exists():                        # cxx10x not checked out in this env
+            continue
+        scm = tomlkit.parse(pyproject.read_text(encoding="utf-8")).get("tool", {}).get("setuptools_scm", {})
+        if (cmd := scm.get("git_describe_command")) is not None:
+            commands[name] = str(cmd)
+    return commands
+
+
+def test_sibling_describe_command_matches_real_config():
+    """`SIBLING_DESCRIBE` is a hand-copy of cxx10x's real `git_describe_command`; if the real config
+    drifts, every setuptools-scm guard below silently tests a command nobody runs. Assert the copy
+    still equals each sibling's actual command (parameterised by the `--match` glob). Skips when the
+    cxx10x siblings are not checked out (py10x-only CI)."""
+    commands = _sibling_describe_commands()
+    if not commands:
+        pytest.skip("cxx10x siblings not checked out; nothing to compare")
+    for name, real in commands.items():
+        expected = SIBLING_DESCRIBE.replace("py10x-kernel", name)   # only the --match glob carries it
+        assert real == expected, (
+            f"{name} git_describe_command drifted from SIBLING_DESCRIBE:\n"
+            f"  real:     {real}\n  expected: {expected}")
 
 
 def _init_repo(path: Path, branch: str = "main") -> Path:
@@ -74,6 +106,21 @@ def test_scm_sibling_match_glob_is_load_bearing(tmp_path):
     GitHelpers.git(repo, "tag", "py10x-kernel-v0.2.1")
     GitHelpers.git(repo, "tag", "py10x-infra-v9.9.9")  # higher, but excluded by the kernel match glob
     assert setuptools_scm.get_version(root=str(repo), git_describe_command=SIBLING_DESCRIBE) == "0.2.1"
+
+
+@requires_git
+def test_scm_post_final_dev_marker_anchors_version_above_final(tmp_path):
+    """After `prod`, `{next_micro(T)}rc0.dev` on `main` must rank above final `{T}` (PEP 440)."""
+    repo = _init_repo(tmp_path / "post-final")
+    c1 = _commit(repo, msg="c1")
+    GitHelpers.git(repo, "tag", "py10x-kernel-v0.2.1rc18.dev", c1)
+    _commit(repo, content="x\ny\n", msg="c2")
+    GitHelpers.git(repo, "tag", "-d", "py10x-kernel-v0.2.1rc18.dev")
+    GitHelpers.git(repo, "tag", "py10x-kernel-v0.2.2rc0.dev", "HEAD")
+    v = setuptools_scm.get_version(root=str(repo), git_describe_command=SIBLING_DESCRIBE)
+    assert v.startswith("0.2.2rc0.dev")
+    assert Version(v.split("+")[0]) > Version("0.2.1")
+    assert Version(v.split("+")[0]) < Version("0.2.2rc1")
 
 
 @requires_git

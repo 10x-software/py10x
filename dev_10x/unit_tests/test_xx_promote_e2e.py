@@ -10,6 +10,7 @@ See `dev_10x/docs/rc-branch-promotion.md` (Testing strategy -> Execution, repres
 from __future__ import annotations
 
 import shutil
+from pathlib import Path
 
 import pytest
 import tomlkit
@@ -138,6 +139,20 @@ def test_pre_from_main_cuts_coordinated_first_rc(repos):
     assert _dep_specs_at(py, "main", "pyproject.toml")["py10x-kernel"] != "==0.0.1rc1"
 
 
+def test_pre_dry_run_is_side_effect_free(repos):
+    """`--dry-run` must mutate nothing - in particular no getter (evaluated on the verify path)
+    may switch branches. Run from a non-`main` branch and assert HEAD and tags are untouched."""
+    py, cxx = repos
+    for repo in (py, cxx):
+        GitHelpers.git(repo, "checkout", "-q", "-b", "feature")   # start off main
+    _run_pre(py, "--dry-run")
+    for repo in (py, cxx):
+        assert GitHelpers.git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "feature"
+        assert GitHelpers.list_tags(repo, "*") == []             # nothing cut
+        assert GitHelpers.git(repo, "branch", "--list", "pre/*") == ""
+        assert GitHelpers.git(repo, "status", "--porcelain") == ""
+
+
 def test_pre_unchanged_packages_are_skipped(repos):
     """A second `pre` with no source changes re-cuts nothing and mints no new tags."""
     py, cxx = repos
@@ -177,6 +192,20 @@ def test_prod_stacks_final_on_rc_and_floors_main(repos):
     for repo in (py, cxx):
         assert GitHelpers.git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "main"
         assert GitHelpers.git(repo, "status", "--porcelain") == ""
+
+    # --- main dev markers: rc-line replaced with post-final `{next_micro}rc0.dev` above the release ---
+    assert GitHelpers.list_tags(py, "v*") == ["v0.0.1", "v0.0.1rc1", "v0.0.2rc0.dev"]
+    assert GitHelpers.list_tags(py, "pre/*") == ["pre/v0.0.1rc1"]
+    assert GitHelpers.list_tags(py, "prod/*") == ["prod/v0.0.1"]
+    for name in ("py10x-kernel", "py10x-infra"):
+        tags = GitHelpers.list_tags(cxx, f"{name}-v*")
+        assert f"{name}-v0.0.1" in tags and f"{name}-v0.0.1rc1" in tags
+        assert f"{name}-v0.0.2rc0.dev" in tags
+        assert f"{name}-v0.0.1rc2.dev" not in tags
+    assert set(GitHelpers.list_tags(cxx, "pre/*")) == {
+        "pre/py10x-kernel-v0.0.1rc1", "pre/py10x-infra-v0.0.1rc1"}
+    assert set(GitHelpers.list_tags(cxx, "prod/*")) == {
+        "prod/py10x-kernel-v0.0.1", "prod/py10x-infra-v0.0.1"}
 
 
 def test_resync_recovers_an_un_pushed_local_cut(remotes):
@@ -294,8 +323,9 @@ def test_pre_push_lands_tags_and_force_resets_branches_on_remotes(remotes):
 
     _run_pre(py, "--push")
 
-    # tags + branches landed on the bare remotes; no stray branches beyond main + the pre lines
-    assert set(GitHelpers.git(py_remote, "tag", "--list").split()) == {"v0.0.1rc1", "v0.0.1rc2.dev"}
+    # tags + branches landed on the bare remotes; publish triggers in separate pushes per package
+    assert set(GitHelpers.git(py_remote, "tag", "--list").split()) == {
+        "v0.0.1rc1", "v0.0.1rc2.dev", "pre/v0.0.1rc1"}
     assert sorted(GitHelpers.git(py_remote, "branch", "--list", "--format=%(refname:short)").split()) == ["main", "pre"]
     assert set(GitHelpers.git(cxx_remote, "branch", "--list", "--format=%(refname:short)").split()) == {
         "main", "pre/py10x-kernel", "pre/py10x-infra"}
@@ -309,10 +339,65 @@ def test_pre_push_lands_tags_and_force_resets_branches_on_remotes(remotes):
     GitHelpers.git(py, "push", "-q", "origin", "main")
     _run_pre(py, "--push")
     assert "v0.0.1rc2" in GitHelpers.git(py_remote, "tag", "--list").split()
+    assert "pre/v0.0.1rc2" in GitHelpers.git(py_remote, "tag", "--list").split()
+    assert "pre/v0.0.1rc1" not in GitHelpers.git(py_remote, "tag", "--list").split()
     assert GitHelpers.git(py_remote, "rev-parse", "pre") == GitHelpers.tag_commit(py, "v0.0.1rc2")
     # finish invariant: local == remote (tags + pre branch)
     assert set(GitHelpers.git(py, "tag", "--list").split()) == set(GitHelpers.git(py_remote, "tag", "--list").split())
     assert GitHelpers.git(py, "rev-parse", "pre") == GitHelpers.git(py_remote, "rev-parse", "pre")
+
+
+def test_pre_pushes_each_publish_trigger_in_own_atomic_push(remotes, monkeypatch):
+    """Publish-trigger creates are one push each; deletes never share a push with creates."""
+    py, cxx, _py_remote, _cxx_remote = remotes
+    trigger_create_pushes: list[tuple[Path, list[str]]] = []
+    trigger_delete_pushes: list[tuple[Path, list[str]]] = []
+    orig_git = GitHelpers.git
+
+    def tracking_git(repo, *args, check=True):
+        if args and args[0] == "push" and "--atomic" in args:
+            refspecs = [a for a in args if a not in ("push", "--atomic", "origin", "-q")]
+            if any(r.startswith("pre/") or r.startswith("prod/") for r in refspecs):
+                trigger_create_pushes.append((repo, refspecs))
+            elif any("refs/tags/pre/" in r or "refs/tags/prod/" in r for r in refspecs):
+                trigger_delete_pushes.append((repo, refspecs))
+        return orig_git(repo, *args, check=check)
+
+    monkeypatch.setattr(GitHelpers, "git", staticmethod(tracking_git))
+    _run_pre(py, "--push")
+
+    assert not trigger_delete_pushes  # first cut: no prior publish triggers
+    assert len(trigger_create_pushes) == 3  # core + kernel + infra
+    assert len([specs for repo, specs in trigger_create_pushes if repo == cxx]) == 2
+    for _repo, refspecs in trigger_create_pushes:
+        assert sum(r.startswith("pre/") or r.startswith("prod/") for r in refspecs) == 1
+        assert not any(r.startswith(":refs/") for r in refspecs)
+
+
+def _delete_remote_triggers(repo, flavor: str):
+    for tag in GitHelpers.ls_remote_tags(repo, f"{flavor}/*"):
+        GitHelpers.git(repo, "push", "--atomic", "origin", f":refs/tags/{tag}")
+
+
+def test_pre_publish_recreates_triggers_after_resync(remotes):
+    """Crash recovery: resync drops local-only triggers, then `pre --publish --push` recreates them."""
+    py, cxx, py_remote, cxx_remote = remotes
+    _run_pre(py, "--push")
+    for repo in (py, cxx):
+        _delete_remote_triggers(repo, "pre")
+    _run("resync", py)
+    out = _run_argv(["pre", "--publish", "--base", str(py), "--push"])
+    assert out, out.error() if not out else ""
+    for remote in (py_remote, cxx_remote):
+        triggers = [t for t in GitHelpers.git(remote, "tag", "--list").split() if t.startswith("pre/")]
+        assert triggers
+
+
+def test_pre_publish_refuses_existing_triggers(remotes):
+    py, _cxx, _py_remote, _cxx_remote = remotes
+    _run_pre(py, "--push")
+    rc = _run_argv(["pre", "--publish", "--base", str(py), "--push"])
+    assert not rc and "already exist" in (rc.error() or "")
 
 
 def test_promote_refuses_unsynced_main(remotes):
