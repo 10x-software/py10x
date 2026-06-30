@@ -12,7 +12,7 @@ annotated-types==0.7.0
     # via pydantic
 ansicon==1.89.0 ; sys_platform == 'win32'
     # via jinxed
-anyio==4.14.0
+anyio==4.14.1
     # via
     #   starlette
     #   watchfiles
@@ -53,7 +53,7 @@ chardet==7.4.3
     # via encutils
 charset-normalizer==3.4.7
     # via requests
-click==8.4.1
+click==8.4.2
     # via uvicorn
 clr-loader==0.3.1 ; sys_platform == 'win32'
     # via pythonnet
@@ -82,7 +82,7 @@ cssutils==2.15.0
     # via rio-ui
 cycler==0.12.1
     # via matplotlib
-cython==3.2.5
+cython==3.2.6
     # via py10x-core (pyproject.toml)
 depgather==0.5.0 ; python_full_version >= '3.12'
     # via licensecheck
@@ -232,7 +232,7 @@ packaging==26.2
     #   scikit-build-core
     #   setuptools-scm
     #   vcs-versioning
-pandas==3.0.3
+pandas==3.0.4
     # via ibis-framework
 parsy==2.2
     # via ibis-framework
@@ -259,9 +259,9 @@ pluggy==1.6.0
     #   hatchling
     #   pytest
     #   pytest-cov
-polars==1.41.2
+polars==1.42.0
     # via py10x-core (pyproject.toml)
-polars-runtime-32==1.41.2
+polars-runtime-32==1.42.0
     # via polars
 propcache==0.5.2
     # via yarl
@@ -381,7 +381,7 @@ rich==15.0.0
     #   licensecheck
 rio-ui==0.12.2
     # via py10x-core (pyproject.toml)
-ruff==0.15.18
+ruff==0.15.20
     # via py10x-core (pyproject.toml)
 scikit-build-core==0.12.2
     # via py10x-core (pyproject.toml)
@@ -401,7 +401,7 @@ sentinel==1.0.0
     # via introspection
 setuptools==82.0.1
     # via setuptools-scm
-setuptools-scm==10.0.5
+setuptools-scm==10.2.0
     # via py10x-core (pyproject.toml)
 six==1.17.0
     # via python-dateutil
@@ -482,7 +482,7 @@ uvicorn==0.48.0
     # via rio-ui
 uvloop==0.22.1 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
     # via uvicorn
-vcs-versioning==1.1.1
+vcs-versioning==2.2.1
     # via setuptools-scm
 watchfiles==1.2.0
     # via
