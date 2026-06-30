@@ -21,10 +21,14 @@ import setuptools_scm
 import tomlkit
 from packaging.version import Version
 
+from core_10x.environment_variables import EnvVars
+from core_10x.testlib.strict import need
 from dev_10x.xx_helpers import GitHelpers
 
-requires_git = pytest.mark.skipif(shutil.which("git") is None, reason="git not available")
-requires_uv = pytest.mark.skipif(shutil.which("uv") is None, reason="uv not available")
+requires_git = pytest.mark.skipif(
+    shutil.which("git") is None and not EnvVars.test_strict, reason="git not available")
+requires_uv = pytest.mark.skipif(
+    shutil.which("uv") is None and not EnvVars.test_strict, reason="uv not available")
 
 # The exact git_describe_command the cxx10x siblings configure in `[tool.setuptools_scm]`
 # (`../cxx10x/core_10x/pyproject.toml`); the `--match` glob is what scopes describe to this package.
@@ -80,8 +84,7 @@ def test_core_describe_command_matches_real_config():
     guard above tests a command core doesn't run (and a regression to the default `--match` re-breaks
     the build silently)."""
     root = _repo_root()
-    if root is None:
-        pytest.skip("py10x-core installed as a wheel (no source pyproject); source-config guard N/A")
+    need(root is not None, "py10x source checkout (no source pyproject when core is installed as a wheel)")
     real = _core_describe_command(root)
     assert real == CORE_DESCRIBE, (
         f"core git_describe_command drifted from CORE_DESCRIBE:\n  real:     {real}\n  expected: {CORE_DESCRIBE}")
@@ -93,8 +96,7 @@ def test_sibling_describe_command_matches_real_config():
     still equals each sibling's actual command (parameterised by the `--match` glob). Skips when the
     cxx10x siblings are not checked out (py10x-only CI)."""
     commands = _sibling_describe_commands()
-    if not commands:
-        pytest.skip("cxx10x siblings not checked out; nothing to compare")
+    need(bool(commands), "cxx10x siblings checked out (their pyproject.toml present)")
     for name, real in commands.items():
         expected = SIBLING_DESCRIBE.replace("py10x-kernel", name)   # only the --match glob carries it
         assert real == expected, (

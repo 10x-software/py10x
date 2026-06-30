@@ -346,6 +346,13 @@ class GitHelpers:
         return cls._tags_matching_glob(tags, pattern)
 
     @classmethod
+    def tag_on_origin(cls, repo: Path, tag: str) -> bool:
+        """True when `tag` exists on `origin` (always True when there is no `origin`)."""
+        if not cls.has_origin(repo):
+            return True
+        return tag in cls.ls_remote_tags(repo, tag)
+
+    @classmethod
     def require_synced(cls, repo: Path, tag_globs: list[str]) -> None:
         """Precondition: working tree clean AND local == origin (fetch-first) for `main` and the
         managed tag globs. Skips the remote half when there is no `origin` (pure-local dev).
@@ -690,6 +697,27 @@ class GitHubHelpers:
         if run.get('status') == 'completed':
             return run.get('conclusion') or 'completed'
         return run.get('status') or 'unknown'
+
+    @classmethod
+    def publish_workflow_state(
+        cls,
+        runs: list[dict],
+        trigger: str,
+        *,
+        release_on_origin: bool,
+        trigger_on_origin: bool,
+    ) -> tuple[str, str]:
+        """Workflow state for a pending release, or why CI was never triggered.
+
+        Publish CI listens on `origin` for the `pre/` / `prod/` trigger tag — a local-only promote
+        (default, no `--push`) never fires it.
+        """
+        if not release_on_origin:
+            return 'not pushed to origin', ''
+        if not trigger_on_origin:
+            return 'publish trigger not on origin (re-run with --push)', ''
+        run = cls.select_run_for_tag(runs, trigger)
+        return cls.run_state(run), run.get('html_url', '') if run else ''
 
     @classmethod
     def push_runs(cls, slug: str) -> list[dict]:

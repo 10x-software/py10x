@@ -566,3 +566,25 @@ class TestRunState:
 
     def test_none_run(self):
         assert GitHubHelpers.run_state(None) == 'no workflow run found'
+
+
+class TestPublishWorkflowState:
+    RUNS = TestSelectRunForTag.RUNS
+
+    def test_local_only_release(self):
+        state, url = GitHubHelpers.publish_workflow_state(
+            self.RUNS, 'pre/v0.2.1', release_on_origin=False, trigger_on_origin=False)
+        assert state == 'not pushed to origin'
+        assert url == ''
+
+    def test_release_on_origin_but_trigger_local(self):
+        state, url = GitHubHelpers.publish_workflow_state(
+            self.RUNS, 'pre/v0.2.1', release_on_origin=True, trigger_on_origin=False)
+        assert state == 'publish trigger not on origin (re-run with --push)'
+        assert url == ''
+
+    def test_both_on_origin_reports_workflow(self):
+        state, url = GitHubHelpers.publish_workflow_state(
+            self.RUNS, 'pre/v0.2.1', release_on_origin=True, trigger_on_origin=True)
+        assert state == 'success'
+        assert url == 'u-new'

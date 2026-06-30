@@ -713,10 +713,14 @@ class Status(XxPromote, _command="status"):
             for tag, ver in pending:
                 flavor = VersionHelpers.publish_trigger_flavor(ver)
                 trigger = VersionHelpers.publish_trigger_tag(tag, flavor)
-                run = GitHubHelpers.select_run_for_tag(runs, trigger)
-                state = "unknown (gh unavailable)" if run is None and slug in gh_errors \
-                    else GitHubHelpers.run_state(run)
-                url = run.get("html_url", "") if run else ""
+                if slug in gh_errors:
+                    state, url = "unknown (gh unavailable)", ""
+                else:
+                    state, url = GitHubHelpers.publish_workflow_state(
+                        runs, trigger,
+                        release_on_origin=GitHelpers.tag_on_origin(pkg.repo, tag),
+                        trigger_on_origin=GitHelpers.tag_on_origin(pkg.repo, trigger),
+                    )
                 print(f"      {tag}  workflow ({trigger}): {state}{('  ' + url) if url else ''}")
         if not any_pending:
             print("\nNothing pending since the latest PyPI release.")
