@@ -538,7 +538,9 @@ class XxPromote(TraitableCli):
     def steps_get(self) -> list[Step]:
         if self.publish:
             return self._publish_trigger_steps(self.s_command)
-        return self._promote_steps(self.s_plan)
+        if self.s_plan:
+            return self._promote_steps(self.s_plan)
+        return []
 
     def run(self) -> RC:
         if not self.steps:
