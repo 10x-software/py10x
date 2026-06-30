@@ -806,6 +806,8 @@ class Resync(XxPromoteCli, _command="resync"):
     local-only ones - so you can re-run cleanly. Destructive; preview with --dry-run. No-op without an
     `origin`. (CLI command words must be identifiers, so this is `resync`, not `reset-local`.)
     """
+    push = M(True)
+    followup_commands = M([])
 
     def post_verify(self) -> RC:
         return RC_TRUE   # recovery runs *because* local != remote - never require_synced here

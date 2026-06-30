@@ -216,6 +216,18 @@ def test_prod_stacks_final_on_rc_and_floors_main(repos):
         "prod/py10x-kernel-v0.0.1", "prod/py10x-infra-v0.0.1"}
 
 
+def test_resync_does_not_print_promote_completion_hints(remotes, capsys):
+    """resync resets local refs to origin — not an unpushed promote; no promote-style footer."""
+    py, _cxx, _py_remote, _cxx_remote = remotes
+    _run_pre(py)                                          # local-only cut gives resync something to reset
+    capsys.readouterr()                                   # discard pre's promote footer
+    _run_argv(["resync", "--base", str(py)])
+    out = capsys.readouterr().out
+    assert "reset-local" in out
+    assert "Local changes applied" not in out
+    assert "Refs pushed" not in out
+
+
 def test_resync_recovers_an_un_pushed_local_cut(remotes):
     """A local cut never pushed leaves local != remote; require_synced refuses, resync discards it, re-run works."""
     py, cxx, py_remote, _cxx_remote = remotes
