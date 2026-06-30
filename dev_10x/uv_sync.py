@@ -154,6 +154,16 @@ def source_version(src: Path) -> str:
         stderr=subprocess.DEVNULL).strip()
 
 
+def _sibling_pin(name: str) -> str | None:
+    """Forward pin specifier for sibling `name` from core's pyproject, or None when absent."""
+    from dev_10x.xx_helpers import PyProjectHelpers
+
+    try:
+        return PyProjectHelpers.dependency_spec(PROJECT_ROOT / 'pyproject.toml', name)
+    except KeyError:
+        return None
+
+
 def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True,
                  installs: InstalledSourceHelpers | None = None) -> bool:
     installs = installs or _installed_source_helpers(PROJECT_ROOT)
@@ -217,8 +227,11 @@ def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
     ]
 
 
-def install_local(name: str, pkg: dict, incremental: int, verbose: bool) -> None:
-    args = ['-e', str(pkg['local']), f'--reinstall-package={name}']
+def install_local(name: str, pkg: dict, pin: str | None, incremental: int, verbose: bool) -> None:
+    args = ['-e', str(pkg['local'])]
+    if pin:
+        args.append(f'{name} ({pin})')
+    args.append(f'--reinstall-package={name}')
     if incremental and pkg['cxx']:
         args += _incremental_flags(name, pkg['local'], PROJECT_ROOT / '.venv')
     if verbose:
@@ -277,7 +290,8 @@ def uv_sync(profile: str, *uv_args: str) -> None:
             do = True
         if do:
             if kind == 'local':
-                install_local(s, pkgs[s], incremental=incremental, verbose=verbose)
+                install_local(s, pkgs[s], pin=_sibling_pin(s),
+                              incremental=incremental, verbose=verbose)
             else:  # git
                 install_git(s, pkgs[s], branch)
 
@@ -294,7 +308,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     if ck == 'git':
         install_git(CORE, pkgs[CORE], branch)
     elif need_install(CORE, 'local', pkgs[CORE], installs=installs):
-        install_local(CORE, pkgs[CORE], incremental=False, verbose=verbose)  # pure Python; no C++ rebuild
+        install_local(CORE, pkgs[CORE], pin=None, incremental=False, verbose=verbose)  # pure Python
 
     # Guard: a local sibling that came back non-editable means a pin pulled an index/other build.
     for s in siblings:

@@ -290,11 +290,9 @@ class MainEditStep(PkgStep):
 
     def apply(self) -> None:
         GitHelpers.git(self.repo, "checkout", "main")
-        if self.forward_pins:
-            PyProjectHelpers.write_forward_pins(self.pkg.pyproject, self.forward_pins)
-        if self.test_pin:
-            PyProjectHelpers.write_test_group(self.pkg.pyproject, self.test_pin)
-        GitHelpers.git(self.repo, "commit", "-am", self.description)
+        if self.forward_pins and PyProjectHelpers.write_forward_pins(self.pkg.pyproject, self.forward_pins) or \
+           self.test_pin and PyProjectHelpers.write_test_group(self.pkg.pyproject, self.test_pin):
+            GitHelpers.git(self.repo, "commit", "-am", self.description)
 
 
 class YankTagStep(Step):
@@ -591,6 +589,7 @@ class Yank(XxPromote, _command="yank"):
     tag: str = RT(T.STICKY)             # the tag being yanked, f"{tag_prefix}{version}"
     parsed: list = RT(T.STICKY)         # the package's parsed tags (yanked excluded)
     is_prod: bool = RT(T.STICKY)        # final (prod) vs rc (pre) yank
+    branch_name: str = RT(T.STICKY)     # branch name - pre or prod
     core: Package = RT(T.STICKY)        # the core package (for the sibling-final dev-pin rollback)
 
     def package_get(self) -> Package:
@@ -605,6 +604,9 @@ class Yank(XxPromote, _command="yank"):
 
     def is_prod_get(self) -> bool:
         return VersionHelpers.is_final_version_string(self.version)
+
+    def branch_name_get(self) -> bool:
+        return 'prod' if self.is_prod else 'pre'
 
     def core_get(self) -> Package:
         return next(p for p in self.packages.values() if p.tag_prefix == "v")
@@ -629,7 +631,7 @@ class Yank(XxPromote, _command="yank"):
 
     def steps_get(self) -> list[Step]:
         repo = self.package.repo
-        print(f'xx-promote yank {self.pkg} {self.version}  ({"prod" if self.is_prod else "pre"})\n')
+        print(f'xx-promote yank {self.pkg} {self.version}  ({self.branch_name})\n')
         steps: list[Step] = [YankTagStep(repo=repo, tag=self.tag, is_prod=self.is_prod)]
 
         # Roll the affected pointer back to the previous tag of the same kind (rc -> pre, final ->
@@ -640,7 +642,7 @@ class Yank(XxPromote, _command="yank"):
                     else VersionHelpers.latest_rc_tag_overall(remaining))
         if prev_tag is not None:
             branch = GitHelpers.release_branch(
-                "prod" if self.is_prod else "pre", self.pkg, self.package.tag_prefix == "v")
+                self.branch_name, self.pkg, self.package.tag_prefix == "v")
             steps.append(RollbackStep(repo=repo, branch=branch, to_tag=prev_tag,
                                       to_commit=GitHelpers.tag_commit(repo, prev_tag)))
 
@@ -651,8 +653,8 @@ class Yank(XxPromote, _command="yank"):
             floor = VersionHelpers.base_version(lf) if lf is not None else "0.0.0"
             steps.append(MainEditStep(
                 pkg=self.core,
-                forward_pins={self.pkg: VersionHelpers.dev_pin(floor, VersionHelpers.next_micro(floor))},
-                description=f"roll back {self.pkg} dev pin after yanking v{self.version}"))
+                forward_pins={self.pkg: VersionHelpers.post_final_window_pin(floor)},
+                description=f"roll back {self.pkg} main pin after yanking v{self.version}"))
 
         # The index yank itself is manual: PyPI has no public yank API (a session-authenticated web
         # action), so there is no CI workflow for it - we just print what to do.

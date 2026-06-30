@@ -195,6 +195,8 @@ def test_latest_matching_tag_none_when_no_match():
 
 # ------------------------------------------------------------------------------------ pin builders
 def test_pin_strings():
+    assert VersionHelpers.rc_window_pin("0.2.1rc19") == ">=0.2.1rc19,<0.2.1rc20"
+    assert VersionHelpers.post_final_window_pin("0.2.1") == ">=0.2.1,<0.2.2rc1"
     assert VersionHelpers.dev_pin("0.2.0", "0.2.1") == ">=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0"
     assert VersionHelpers.final_pin("0.2.1") == ">=0.2.1,<0.2.2"
     assert VersionHelpers.exact_pin("0.2.1rc2") == "==0.2.1rc2"   # forward, rc
@@ -367,11 +369,51 @@ def test_version_ordering_not_sort_v():
 
 
 @pytest.mark.parametrize("yanked_floor,expected_pin", [
-    ("0.2.0", ">=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0"),
+    ("0.2.0", ">=0.2.0,<0.2.1rc1"),
 ])
 def test_yank_rollback_floor(yanked_floor, expected_pin):
-    """After a prod yank the remaining latest final becomes the floor and target advances by one."""
-    assert VersionHelpers.dev_pin(yanked_floor, VersionHelpers.next_micro(yanked_floor)) == expected_pin
+    """After a prod yank the remaining latest final becomes the post-final window floor."""
+    assert VersionHelpers.post_final_window_pin(yanked_floor) == expected_pin
+
+
+RC_WINDOW_MATRIX = ["0.2.1rc18", "0.2.1rc19.dev0", "0.2.1rc19", "0.2.1rc20.dev0", "0.2.1rc20", "0.2.1", "0.2.2rc0.dev0"]
+
+
+def test_rc_window_pin_admits_marker_line_blocks_next_rc_and_autoenables():
+    """Pre-cut rc-window: rc floor auto-enables prereleases; blocks lag, PyPI rc(N+1), and finals."""
+    ss = SpecifierSet(VersionHelpers.rc_window_pin("0.2.1rc19"))
+    assert ss.prereleases is True
+    eligible = set(ss.filter(RC_WINDOW_MATRIX))
+    assert eligible == {"0.2.1rc19", "0.2.1rc20.dev0"}
+    for excluded in ("0.2.1rc18", "0.2.1rc19.dev0", "0.2.1rc20", "0.2.1", "0.2.2rc0.dev0"):
+        assert excluded not in eligible
+
+
+POST_FINAL_MATRIX = ["0.2.0", "0.2.1", "0.2.1.post1", "0.2.2rc0.dev0", "0.2.2rc1", "0.2.2"]
+
+
+def test_post_final_window_pin_admits_marker_line_blocks_next_rc():
+    ss = SpecifierSet(VersionHelpers.post_final_window_pin("0.2.1"))
+    eligible = set(ss.filter(POST_FINAL_MATRIX))
+    assert eligible == {"0.2.1", "0.2.1.post1", "0.2.2rc0.dev0"}
+    for excluded in ("0.2.0", "0.2.2rc1", "0.2.2"):
+        assert excluded not in eligible
+
+
+def test_rc_window_upper_matches_main_dev_marker():
+    """Window exclusive upper and the `.dev` marker must stay in lockstep (same rc line)."""
+    tag = f"{KERNEL}0.2.1rc19"
+    marker = VersionHelpers.main_dev_marker_tag(tag, KERNEL)
+    assert marker == f"{KERNEL}0.2.1rc20.dev"
+    assert VersionHelpers.rc_window_exclusive_upper("0.2.1rc19") == "0.2.1rc20"
+    assert marker[len(KERNEL):-len(".dev")] == VersionHelpers.rc_window_exclusive_upper("0.2.1rc19")
+
+
+def test_post_final_window_upper_matches_main_post_final_marker():
+    tag = f"{KERNEL}0.2.1"
+    marker = VersionHelpers.main_post_final_dev_marker_tag(tag, KERNEL)
+    assert marker == f"{KERNEL}0.2.2rc0.dev"
+    assert VersionHelpers.post_final_window_exclusive_upper("0.2.1") == "0.2.2rc1"
 
 
 # ---------------------------------------- rc-branch-promotion coordination pin forms (design note)

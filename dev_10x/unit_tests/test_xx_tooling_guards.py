@@ -320,3 +320,37 @@ def test_reverse_floor_backtracks_to_coordinated_core(tmp_path):
     out = resolve("tenx-core\ntenx-kernel>=1.4.0\n")
     assert "tenx-kernel==1.4.0" in out
     assert "tenx-kernel==1.4.1" not in out
+
+
+@requires_uv
+def test_editable_below_rc_window_floor_does_not_fallback_to_index(tmp_path):
+    """`-e` + rc-window pin must not silently satisfy a lagged editable from an index wheel.
+
+    Issue B in `rc-branch-promotion.md`: a checkout still stamping `rc19.dev0` is below the
+    `>=rc19` floor; uv must error rather than pull published `rc19` from the index.
+    """
+    fl = tmp_path / "fl"
+    fl.mkdir()
+    work = tmp_path / "src"
+    work.mkdir()
+    _build_wheel(work, fl, "tenx-kernel", "0.2.1rc19")
+
+    editable = tmp_path / "editable"
+    (editable / "src" / "pkg").mkdir(parents=True)
+    (editable / "src" / "pkg" / "__init__.py").write_text("", encoding="utf-8")
+    (editable / "pyproject.toml").write_text(
+        _HATCH_PYPROJECT.format(name="tenx-kernel", version="0.2.1rc19.dev0", deps_line=""),
+        encoding="utf-8")
+
+    venv = tmp_path / "venv"
+    subprocess.run(["uv", "venv", str(venv)], check=True, capture_output=True)
+    py = str(venv / "bin" / "python")
+
+    proc = subprocess.run(
+        ["uv", "pip", "install", "-e", str(editable),
+         "tenx-kernel (>=0.2.1rc19,<0.2.1rc20)",
+         "--find-links", str(fl), "--python", py],
+        cwd=tmp_path, capture_output=True, text=True)
+
+    assert proc.returncode != 0, (
+        "lagged editable below the rc-window floor must not silently fall back to an index wheel")

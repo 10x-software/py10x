@@ -114,7 +114,7 @@ def test_pre_from_main_cuts_coordinated_first_rc(repos):
     # --- core: pre branch + tag, with exact forward == pins on both siblings ---
     assert set(GitHelpers.list_tags(py, "v*")) == {"v0.0.1rc1", "v0.0.1rc2.dev"}
     assert GitHelpers.git(py, "rev-parse", "pre") == GitHelpers.tag_commit(py, "v0.0.1rc1")
-    assert GitHelpers.tag_commit(py, "v0.0.1rc2.dev") == GitHelpers.git(py, "merge-base", "v0.0.1rc1", "main")
+    assert GitHelpers.tag_commit(py, "v0.0.1rc2.dev") == GitHelpers.git(py, "rev-parse", "main")
     core_deps = _dep_specs_at(py, "v0.0.1rc1", "pyproject.toml")
     assert core_deps["py10x-kernel"] == "==0.0.1rc1"
     assert core_deps["py10x-infra"] == "==0.0.1rc1"
@@ -134,9 +134,15 @@ def test_pre_from_main_cuts_coordinated_first_rc(repos):
     for repo in (py, cxx):
         assert GitHelpers.git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "main"
         assert GitHelpers.git(repo, "status", "--porcelain") == ""
-    assert GitHelpers.is_ancestor(py, "main", "pre")        # pre forked off main HEAD
-    # main still carries the prerelease-admitting dev pins, not the rc's exact ==
-    assert _dep_specs_at(py, "main", "pyproject.toml")["py10x-kernel"] != "==0.0.1rc1"
+    # pre forked from an earlier main commit; main then advanced with the rc-window epilogue
+    fork = GitHelpers.git(py, "merge-base", "main", "pre")
+    assert GitHelpers.is_ancestor(py, fork, "pre")
+    # main epilogue: rc-window pins for the coordinated rc
+    main_core = _dep_specs_at(py, "main", "pyproject.toml")
+    assert SpecifierSet(main_core["py10x-kernel"]) == SpecifierSet(
+        VersionHelpers.rc_window_pin("0.0.1rc1"))
+    assert SpecifierSet(main_core["py10x-infra"]) == SpecifierSet(
+        VersionHelpers.rc_window_pin("0.0.1rc1"))
 
 
 def test_pre_dry_run_is_side_effect_free(repos):
@@ -184,10 +190,10 @@ def test_prod_stacks_final_on_rc_and_floors_main(repos):
         assert GitHelpers.git(cxx, "rev-parse", f"prod/{name}") == GitHelpers.tag_commit(cxx, f"{name}-v0.0.1")
         assert _test_group_at(cxx, f"{name}-v0.0.1", f"{sub}/pyproject.toml") == ["py10x-core>=0.0.1"]
 
-    # --- main epilogue: dev pins re-floored to the released versions; reverse groups -> released core ---
+    # --- main epilogue: post-final window pins; reverse groups -> released core ---
     main_core = _dep_specs_at(py, "main", "pyproject.toml")
-    # Requirement canonicalises specifier order, so compare as a set (cf. test_xx_utils).
-    assert SpecifierSet(main_core["py10x-kernel"]) == SpecifierSet(VersionHelpers.dev_pin("0.0.1", "0.0.2"))
+    assert SpecifierSet(main_core["py10x-kernel"]) == SpecifierSet(
+        VersionHelpers.post_final_window_pin("0.0.1"))
     assert _test_group_at(cxx, "main", "core_10x/pyproject.toml") == ["py10x-core>=0.0.1"]
     for repo in (py, cxx):
         assert GitHelpers.git(repo, "rev-parse", "--abbrev-ref", "HEAD") == "main"

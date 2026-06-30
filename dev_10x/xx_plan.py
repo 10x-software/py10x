@@ -88,8 +88,17 @@ class PkgInput(Traitable):
         fork = GitHelpers.git(self.repo, "merge-base", latest[0], "main")
         sibling_subdirs = [GitHelpers.repo_relative_subtree(self.repo, p.src_dir)
                            for n, p in self.packages.items() if n != self.name and p.repo == self.repo]
-        return GitHelpers.tree_changed_since_tag(
-            self.repo, fork, *GitHelpers.diff_pathspecs(*sibling_subdirs), rev="main")
+        if not GitHelpers.tree_changed_since_tag(
+                self.repo, fork, *GitHelpers.diff_pathspecs(*sibling_subdirs), rev="main"):
+            return False
+        if not self.is_core or not self.siblings:
+            return True
+        rel = (self.src_dir / "pyproject.toml").resolve().relative_to(self.repo.resolve()).as_posix()
+        if GitHelpers.changed_files(self.repo, fork, rev="main") != [rel]:
+            return True
+        old = GitHelpers.file_at_ref(self.repo, fork, rel) or ""
+        new = GitHelpers.file_at_ref(self.repo, "main", rel) or ""
+        return not PyProjectHelpers.diff_is_only_forward_pin_edits(old, new, self.siblings)
 
     def current_forward_get(self) -> dict:
         # core's published forward `==` pins, read from its latest tag's pyproject and filtered to
@@ -156,7 +165,7 @@ class Plan:
     base_kind: str = "main"                           # PromoteStep forks from "main" HEAD or latest "rc"
     forward_pins: dict[str, str] = field(default_factory=dict)   # core: {sibling: "==ver"}
     reverse_pin: str | None = None                    # sibling: "py10x-core>=corever"
-    epilogue: tuple = ()                              # MainEdit[] (main re-floor); empty for pre
+    epilogue: tuple = ()                              # MainEdit[] (main pin refresh on core / siblings)
     skip_reason: str | None = None
 
     FLAVOR: ClassVar[str]                             # "pre" | "prod"
@@ -203,9 +212,17 @@ class Plan:
 
 
 class PrePlan(Plan):
-    """`pre`: cut the next coordinated rc onto `pre`, forked from `main` HEAD (no `main` epilogue)."""
+    """`pre`: cut the next coordinated rc onto `pre`, forked from `main` HEAD; core `main` epilogue."""
     FLAVOR = "pre"
     BASE_KIND = "main"
+
+    @classmethod
+    def _epilogue(cls, inp, decided, inputs):
+        if not inp.is_core:
+            return ()
+        pins = {s.name: VersionHelpers.main_forward_window_pin(decided[s.name][0])
+                for s in inputs if not s.is_core and decided[s.name][0] is not None}
+        return (MainEdit("rc-window sibling pins on main", forward_pins=pins),) if pins else ()
 
     @classmethod
     def _decide(cls, inputs):
@@ -240,9 +257,9 @@ class ProdPlan(Plan):
     def _epilogue(cls, inp, decided, inputs):
         core_v = decided[next(i.name for i in inputs if i.is_core)][0]
         if inp.is_core:
-            dev = {i.name: VersionHelpers.dev_pin(decided[i.name][0], VersionHelpers.next_micro(decided[i.name][0]))
+            dev = {i.name: VersionHelpers.post_final_window_pin(decided[i.name][0])
                    for i in inputs if not i.is_core and decided[i.name][1]}
-            return (MainEdit("bump sibling dev pins after prod promotion", forward_pins=dev),) if dev else ()
+            return (MainEdit("post-final window sibling pins on main", forward_pins=dev),) if dev else ()
         return (MainEdit("track released py10x-core in test group",
                          test_pin=VersionHelpers.test_group_pin(core_v)),) if core_v is not None else ()
 

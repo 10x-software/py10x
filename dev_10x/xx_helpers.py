@@ -255,8 +255,56 @@ class VersionHelpers:
 
 
     @classmethod
+    def rc_window_exclusive_upper(cls, rc_version: str) -> str:
+        """Exclusive upper bound for an rc-window pin: `rc(N+1)` after coordinated `rcN`.
+
+        Must stay in lockstep with `main_dev_marker_tag` (marker `{T}rc(N+1).dev` ↔ upper `<rc(N+1)`).
+        """
+        ver = Version(rc_version)
+        if ver.pre is None or ver.pre[0] != "rc":
+            raise ValueError(f"{rc_version!r} is not an rc version")
+        return f"{cls.base_version(ver)}rc{ver.pre[1] + 1}"
+
+    @classmethod
+    def rc_window_pin(cls, rc_version: str) -> str:
+        """`main` forward pin after coordinated rcN: `>=rcN,<rc(N+1)`.
+
+        The inclusive rc floor auto-enables prereleases (no `>=0.0.0.dev0` sentinel). The exclusive
+        upper blocks the next publishable rc on the index while a fresh cxx10x `main` (marker
+        `rc(N+1).dev`) stays inside the window.
+        """
+        upper = cls.rc_window_exclusive_upper(rc_version)
+        return f">={rc_version},<{upper}"
+
+    @classmethod
+    def post_final_window_exclusive_upper(cls, final_version: str) -> str:
+        """Exclusive upper bound for a post-prod window: `{next_micro(T)}rc1`.
+
+        Must stay in lockstep with `main_post_final_dev_marker_tag` (`{next_micro}rc0.dev` ↔ upper
+        `<{next_micro}rc1`).
+        """
+        return f"{cls.next_micro(final_version)}rc1"
+
+    @classmethod
+    def post_final_window_pin(cls, final_version: str) -> str:
+        """`main` forward pin after prod final T: `>=T,<{next_micro(T)}rc1`.
+
+        Admits the post-final marker editable (`{next_micro}rc0.dev`) and blocks the next publishable
+        rc (`{next_micro}rc1`) and the `{next_micro}` final — unlike `>=T,<next_micro>`.
+        """
+        upper = cls.post_final_window_exclusive_upper(final_version)
+        return f">={final_version},<{upper}"
+
+    @classmethod
+    def main_forward_window_pin(cls, coordinated_version: str) -> str:
+        """`main` epilogue forward pin from a batch coordinated version (rc or final)."""
+        if cls.is_final_version_string(coordinated_version):
+            return cls.post_final_window_pin(coordinated_version)
+        return cls.rc_window_pin(coordinated_version)
+
+    @classmethod
     def dev_pin(cls,floor: str, target: str) -> str:
-        """Prerelease-admitting dev pin: admits sibling dev/alpha/beta/rc of `target`, excludes its final and beyond.
+        """Legacy prerelease-admitting dev pin (retired on `main`; kept for tests).
 
         `<=target,!=target` includes every pre-release of `target` (unlike `<target`, which the PEP 440
         rules strip pre-releases from) while dropping the final; `PRERELEASE_ENABLE` makes uv consider
@@ -398,6 +446,11 @@ class GitHelpers:
         return (".", *(f":(exclude){s}" for s in sibling_subdirs))
 
     @classmethod
+    def changed_files(cls, repo: Path, base: str, rev: str = "HEAD") -> list[str]:
+        out = cls.git(repo, "diff", "--name-only", base, rev)
+        return [line for line in out.splitlines() if line]
+
+    @classmethod
     def tree_changed_since_tag(cls, repo: Path, tag: str, *pathspecs: str, rev: str = "HEAD") -> bool:
         """True when any of `pathspecs` (repo-relative, `.` = whole repo) differs `tag`..`rev`.
 
@@ -497,6 +550,7 @@ class PyProjectHelpers:
                     out[req.name] = exact[0]
         return out
 
+    @staticmethod
     def forward_pin_edits(deps: list[str], pins: dict[str, str]) -> list[str]:
         """Return a new dependency list with `pins` ({name: specifier}) applied, format `name (spec)`."""
         out: list[str] = []
@@ -508,6 +562,30 @@ class PyProjectHelpers:
                 continue
             out.append(f"{name} ({pins[name]})" if name in pins else entry)
         return out
+
+    @staticmethod
+    def diff_is_only_forward_pin_edits(old_text: str, new_text: str, siblings: set[str]) -> bool:
+        """True when `new_text` differs from `old_text` only in forward sibling pin specifiers."""
+        if old_text == new_text:
+            return True
+
+        def _dep_specs(text: str) -> dict[str, str]:
+            doc = tomlkit.parse(text)
+            return {Requirement(str(e)).name: str(Requirement(str(e)).specifier)
+                    for e in doc.get("project", {}).get("dependencies", [])}
+
+        def _without_deps(text: str):
+            doc = tomlkit.parse(text)
+            proj = doc.get("project")
+            if proj is not None and "dependencies" in proj:
+                del proj["dependencies"]
+            return doc
+
+        old_specs, new_specs = _dep_specs(old_text), _dep_specs(new_text)
+        if any(old_specs.get(n) != new_specs.get(n) for n in old_specs.keys() | new_specs.keys()
+               if n not in siblings):
+            return False
+        return _without_deps(old_text) == _without_deps(new_text)
 
     @classmethod
     def write_forward_pins(cls,path: Path, pins: dict[str, str]) -> dict[str, str]:

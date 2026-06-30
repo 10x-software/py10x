@@ -40,7 +40,12 @@ def test_first_rc_for_all_packages_coordinates():
     assert plans["py10x-kernel"].branch == "pre/py10x-kernel"
     assert plans["py10x-kernel"].reverse_pin == "py10x-core>=0.0.1rc1"
     assert plans["py10x-infra"].reverse_pin == "py10x-core>=0.0.1rc1"
-    assert all(p.epilogue == () for p in plans.values())   # pre never touches main
+    assert core.epilogue[0].forward_pins == {
+        "py10x-kernel": VersionHelpers.rc_window_pin("0.0.1rc1"),
+        "py10x-infra": VersionHelpers.rc_window_pin("0.0.1rc1"),
+    }
+    for s in ("py10x-kernel", "py10x-infra"):
+        assert plans[s].epilogue == ()
 
 
 def test_rc_iterate_bumps_next_rc_number():
@@ -70,6 +75,10 @@ def test_changed_core_only_pins_unchanged_siblings_to_their_finals():
     assert plans["py10x-core"].act
     assert plans["py10x-core"].forward_pins == {
         "py10x-kernel": "==1.4.0", "py10x-infra": "==0.9.0"}
+    assert plans["py10x-core"].epilogue[0].forward_pins == {
+        "py10x-kernel": VersionHelpers.post_final_window_pin("1.4.0"),
+        "py10x-infra": VersionHelpers.post_final_window_pin("0.9.0"),
+    }
     for s in ("py10x-kernel", "py10x-infra"):
         assert not plans[s].act
         assert plans[s].reverse_pin is None
@@ -88,6 +97,10 @@ def test_sibling_rc_forces_core_recut_even_if_core_unchanged():
     assert plans["py10x-core"].version == "0.2.1rc2"
     assert plans["py10x-core"].forward_pins == {
         "py10x-kernel": "==1.4.1rc1", "py10x-infra": "==0.9.0"}
+    assert plans["py10x-core"].epilogue[0].forward_pins == {
+        "py10x-kernel": VersionHelpers.rc_window_pin("1.4.1rc1"),
+        "py10x-infra": VersionHelpers.post_final_window_pin("0.9.0"),
+    }
     assert plans["py10x-kernel"].reverse_pin == "py10x-core>=0.2.1rc2"
     assert not plans["py10x-infra"].act                                  # unchanged sibling stays put
 
@@ -101,6 +114,9 @@ def test_stale_forward_pin_alone_forces_core_recut():
     ])
     assert plans["py10x-core"].act
     assert plans["py10x-core"].forward_pins == {"py10x-kernel": "==1.4.0"}
+    assert plans["py10x-core"].epilogue[0].forward_pins == {
+        "py10x-kernel": VersionHelpers.post_final_window_pin("1.4.0"),
+    }
     assert not plans["py10x-kernel"].act
 
 
@@ -151,8 +167,8 @@ def test_prod_promotes_rcs_to_finals_and_coordinates():
     assert core.act and core.version == "0.2.1" and core.tag == "v0.2.1" and core.base_kind == "rc"
     assert core.branch == "prod"
     assert core.forward_pins == {"py10x-kernel": "==1.4.1", "py10x-infra": "==0.9.1"}
-    # epilogue: core re-floors `main` dev pins to the released sibling versions
-    assert core.epilogue[0].forward_pins["py10x-kernel"] == VersionHelpers.dev_pin("1.4.1", "1.4.2")
+    # epilogue: core re-floors `main` to post-final window pins for the released sibling versions
+    assert core.epilogue[0].forward_pins["py10x-kernel"] == VersionHelpers.post_final_window_pin("1.4.1")
     assert plans["py10x-kernel"].tag == "py10x-kernel-v1.4.1"
     assert plans["py10x-kernel"].branch == "prod/py10x-kernel"
     assert plans["py10x-kernel"].reverse_pin == "py10x-core>=0.2.1"

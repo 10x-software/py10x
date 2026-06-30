@@ -189,7 +189,7 @@ deps. `==X / ==Y` are core's forward pins on `kernel` / `infra`.
 ```
 snapshot after cutting v1.3.0rc2 and promoting v1.3.0
 
-main  ●──●──●──●──●──●──●──●      prerelease-admitting dev pins (re-floored after prod)
+main  ●──●──●──●──●──●──●──●      rc-window pins (pre epilogue + post-prod re-floor)
                        │
                        └──●  ← pre     forked from main HEAD; rc pin commit
                           │     tag v1.3.0rc2 · core deps ==1.4.0rc2 / ==0.9.0rc2
@@ -209,7 +209,8 @@ Candidate fix without `main`'s drift: PR the fix into `pre` (off its current rc 
 | where                         | forward (core → siblings)                 | reverse (sibling `test` group → core, **dev-only, unpublished**) |
 |-------------------------------|-------------------------------------------|-------------------------------------------------------------------|
 | **`pre` / `prod`** (rc/final) | exact `==` coordinated version            | `>=` coordinated version of the core promoted in the same batch   |
-| **`main`**                    | prerelease-admitting dev pins (unchanged) | `>=` latest released core                                         |
+| **`main` (after `pre`)**       | rc-window `>=rcN,<rc(N+1)` per sibling    | `>=` latest released core                                         |
+| **`main` (after `prod`)**      | post-final window `>=T,<{next_micro}rc1` | `>=` latest released core                                         |
 
 - **Published pins exact; unpublished CI pins floored.** Forward `==` is the external coordination
   guarantee. Reverse `>=` only selects which core cxx10x CI tests a sibling against.
@@ -217,15 +218,27 @@ Candidate fix without `main`'s drift: PR the fix into `pre` (off its current rc 
   (rc tests the prerelease line); `>=Tc` admits only finals (final tests the released line).
 - If a package is unchanged in a batch, it is **not re-cut**; its forward/reverse pins floor to
   core's **latest final** (the "unchanged sibling" rule).
-- *Prerelease-admitting dev pins* (current `main` model, see README "Pin model"):
-  `>=FLOOR,<=T,!=T,>=0.0.0.dev0` — admits every prerelease of the next target `T`, excludes `T`'s
-  final; the `>=0.0.0.dev0` token makes uv auto-enable prereleases. Unchanged by this design.
+- *Rc-window pins on `main`* complement the setuptools-scm **`.dev` markers** on cxx10x `main`
+  (`{T}rc(N+1).dev` after `pre`, `{next_micro}rc0.dev` after `prod`). The window exclusive upper
+  (`<rc(N+1)` / `<{next_micro}rc1`) and the marker rc line **must stay in lockstep** — both are
+  derived from the same helpers (`rc_window_exclusive_upper`, `main_dev_marker_tag`, etc.) and
+  guarded in `test_xx_utils.py`.
+- The rc-window **inclusive rc floor** auto-enables prereleases. It
+  **blocks** a published `rc(N+1)` on the index while py10x `main` still pins the `rcN` line (issue
+  **A**), and with `uv-sync` step 1 (`-e` + pin on the same command) surfaces a **lagged** cxx10x
+  checkout (`rcN.dev0` below the floor) as a resolve failure rather than a silent index pull
+  (issue **B** — guarded by a real-uv test in `test_xx_tooling_guards.py`).
+- **Post-prod window** `>=T,<{next_micro}rc1` — **not** `>=T,<next_micro>` — admits the post-final
+  marker editable and blocks the next publishable rc and the `{next_micro}` final.
 
-## `prod`-only epilogue
+## `pre` + `prod` epilogues on `main`
 
-After the final tag: on `main`, re-floor the prerelease-admitting dev pins to the released sibling
-versions and repoint the reverse `test` groups at the released core. (Unchanged from today; the only
-asymmetry between `pre` and `prod`.)
+After each coordinated **`pre` cut**, py10x-core's `main` epilogue writes **rc-window** pins
+(`>=rcN,<rc(N+1)`) for every sibling from the batch's coordinated versions (including unchanged
+siblings at a final, which get the **post-final window** shape). After **`prod`**, the epilogue
+writes **post-final window** pins (`>=T,<{next_micro}rc1`) and repoints sibling reverse `test` groups
+at the released core. Main epilogue pin-only commits are **excluded from core footprint** so a
+second `pre` with no source changes does not re-cut.
 
 ## Tooling / flags
 

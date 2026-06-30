@@ -61,7 +61,8 @@ derived from `origin` (not hardcoded). Tag prefix defaults to `{name}-v`; repo r
 
 ## `xx-promote` — release promotion
 
-Releases are not cut by hand-editing pins. `main` always carries **dev pins**. `xx-promote` cuts
+Releases are not cut by hand-editing pins. `main` always carries **rc-window pins** (updated by
+`xx-promote` epilogues). `xx-promote` cuts
 each release onto a tool-owned branch — `pre` (current rc) / `prod` (current final), per package —
 writing **coordinated exact pins** there and tagging it, so an external `pip install …rc1` resolves
 the coordinated sibling set. See `docs/rc-branch-promotion.md` for the full branch/coordination model.
@@ -73,13 +74,16 @@ Boolean options also accept the `--option` / `--no-option` shortcuts (== `--opti
 
 ### Pin model (three places)
 
-For a sibling whose next version is `T` (`N` = the next micro, `FLOOR` = its last released version):
+For a sibling at coordinated rc `rcN` or released final `T`:
 
-- **`main` — prerelease-admitting dev pins:** `>=FLOOR,<=T,!=T,>=0.0.0.dev0`
-  `<=T,!=T` admits every pre-release of `T` (`T.devN`, `TaN/bN`, `TrcN`) while dropping the `T` final
-  (a plain `<T` would strip the pre-releases); `>=0.0.0.dev0` is a no-op bound that names a
-  pre-release so uv **auto-enables** them for this package (no `--prerelease=allow`). The pin still
-  **excludes** the `T` final and anything `>= N`.
+- **`main` — rc-window forward pins (core → siblings):**
+  - **After `pre`:** `>=rcN,<rc(N+1)` per sibling (upper bound is the **next rc**, exclusive — not
+    `next_micro`). The inclusive rc floor auto-enables prereleases.
+    Blocks a published `rc(N+1)` on the index while py10x `main` still pins the `rcN` line; pairs
+    with the setuptools-scm marker `{T}rc(N+1).dev` on cxx10x `main` (must stay in lockstep — see
+    `docs/rc-branch-promotion.md`).
+  - **After `prod`:** `>=T,<{next_micro(T)}rc1` — **not** `>=T,<next_micro>`. Admits the post-final
+    marker editable (`{next_micro}rc0.dev`) and blocks the next publishable rc.
 - **`pre` / `prod` — exact forward `==` (core → siblings, published):** core pins each sibling
   `==<coordinated version>` (`==X.YrcN` on `pre`, `==X.Y` on `prod`). This is the external
   coordination guarantee — an rc/final wheel drags in exactly the coordinated siblings. `==<pre>`
@@ -142,11 +146,13 @@ crash re-derives the plan from current tags and resumes.
   **`pre/{tag}` publish trigger** on that commit starts the publish workflow. Footprint
   is diffed from the tag's fork-point on `main` (so the pin commit itself never counts as a change).
   Unchanged packages are skipped; a latest tag that is still an rc is offered for `--push`.
+  On `main`, the epilogue writes **rc-window** pins (`>=rcN,<rc(N+1)`) for each sibling from the
+  batch's coordinated versions.
 - **`prod`** (per package whose **latest** tag is a pre-release with an rc for its target): force-updates
   the `prod` branch onto the latest rc commit, **stacks** a final-pin commit there (core → siblings
   exact `==X.Y`; sibling → `test = ["py10x-core>=X.Y"]`), and tags `v{T}`. Then on `main` it
-  retags `{next_micro(T)}rc0.dev` (dropping the stale rc-line marker), re-floors py10x-core's dev pins
-  to the released sibling versions, and points the reverse groups at the released core. Tags
+  retags `{next_micro(T)}rc0.dev` (dropping the stale rc-line marker), writes py10x-core's **post-final
+  window** pins (`>=T,<{next_micro}rc1`), and points the reverse groups at the released core.
   **`prod/{tag}` publish triggers** on each final commit. Released
   **source** == rc source — the final commit only rewrites pins on top of the rc.
 - **`yank`** renames the **latest** tag to `<tag>_yanked` (deletes its publish trigger too;
@@ -156,7 +162,7 @@ crash re-derives the plan from current tags and resumes.
   N+1). Yanking an older release is refused (needs `--cascade`, a Stage-2 feature). A yanked version
   number is **consumed** — generation floors on `max(all tags incl. yanked)` so it is never reused
   — while selection still ignores `*_yanked` and `*.dev` main markers. Yanking a **final** also
-  rolls `main`'s dev pin back to the latest non-yanked release. No yank CI workflows.
+  rolls `main`'s window pin back to the latest non-yanked release. No yank CI workflows.
 - **`status` - compares local tags (rc + final; `*_yanked` and `*.dev` main markers excluded)
   against PyPI and reports tags
   pushed **since the latest PyPI release** that are not on the index yet. Publish is atomic in CI
@@ -220,9 +226,11 @@ uv-run pytest -q                       # run in the prepared venv
 ### Install order
 
 1. **Siblings** (local or git) — install only when [reinstall rules](#reinstall-rules) say so.
+   For **local** siblings, `uv pip install -e <path> "<name> (<pin from pyproject>)"` on one command
+   so a lagged editable below the rc-window floor fails resolve instead of silently pulling the index.
    Index siblings are resolved in step 2; `--reinstall-package` forces a swap if currently editable/git.
 2. **`uv pip install --requirements pyproject.toml`** (+ caller args such as `--all-extras`) —
-   core's deps and extras, additive (keeps step-1 siblings). Prerelease-admitting dev pins admit in-dev siblings.
+   core's deps and extras, additive (keeps step-1 siblings). Rc-window pins block index rc upgrades.
 3. **py10x-core itself** (local editable, or git for `domain-dev`) — install only if needed.
 
 ### Reinstall rules
