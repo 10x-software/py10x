@@ -31,6 +31,11 @@ requires_uv = pytest.mark.skipif(shutil.which("uv") is None, reason="uv not avai
 # `test_sibling_describe_command_matches_real_config` keeps this copy honest against the real files.
 SIBLING_DESCRIBE = "git describe --dirty --tags --long --match 'py10x-kernel-*' --abbrev=40"
 
+# core's hatch-vcs `[tool.hatch.version].raw-options.git_describe_command`. The `v*` glob excludes the
+# co-located `pre/`/`prod/` publish-trigger tags (which don't parse as versions); kept honest against
+# pyproject.toml by `test_core_describe_command_matches_real_config`.
+CORE_DESCRIBE = "git describe --dirty --tags --long --match 'v*'"
+
 
 def _sibling_describe_commands() -> dict[str, str]:
     """{sibling name: its real `[tool.setuptools_scm].git_describe_command`} for each checked-out
@@ -47,6 +52,24 @@ def _sibling_describe_commands() -> dict[str, str]:
         if (cmd := scm.get("git_describe_command")) is not None:
             commands[name] = str(cmd)
     return commands
+
+
+def _core_describe_command() -> str | None:
+    """core's real `[tool.hatch.version].raw-options.git_describe_command` from this repo's pyproject."""
+    root = Path(__file__).resolve().parents[2]
+    hatch_version = (tomlkit.parse((root / "pyproject.toml").read_text(encoding="utf-8"))
+                     .get("tool", {}).get("hatch", {}).get("version", {}))
+    cmd = hatch_version.get("raw-options", {}).get("git_describe_command")
+    return str(cmd) if cmd is not None else None
+
+
+def test_core_describe_command_matches_real_config():
+    """`CORE_DESCRIBE` must equal core's real hatch-vcs describe command, else the trigger-collision
+    guard above tests a command core doesn't run (and a regression to the default `--match` re-breaks
+    the build silently)."""
+    real = _core_describe_command()
+    assert real == CORE_DESCRIBE, (
+        f"core git_describe_command drifted from CORE_DESCRIBE:\n  real:     {real}\n  expected: {CORE_DESCRIBE}")
 
 
 def test_sibling_describe_command_matches_real_config():
@@ -90,12 +113,15 @@ def _exit_code(repo: Path, *args: str) -> int:
 # shallow fall back to a dev version" - the assumption the whole release model rests on, and the
 # traps README "setuptools-scm / hatch-vcs gotchas" enumerates.
 @requires_git
-def test_scm_core_default_config_stamps_tag_version(tmp_path):
-    """core uses hatch-vcs (setuptools-scm default tag matching, prefix `v`): `v0.2.1` -> `0.2.1`."""
+def test_scm_core_config_excludes_publish_trigger_tag(tmp_path):
+    """core's release commit carries BOTH `v0.2.1` and the co-located `pre/v0.2.1` publish trigger
+    (build.yml checks out the trigger commit). core's `--match 'v*'` stamps the version tag; the
+    default `--match *[0-9]*` would instead admit the unparseable `pre/v0.2.1` and fail the build."""
     repo = _init_repo(tmp_path / "core")
     _commit(repo)
     GitHelpers.git(repo, "tag", "v0.2.1")
-    assert setuptools_scm.get_version(root=str(repo)) == "0.2.1"
+    GitHelpers.git(repo, "tag", "pre/v0.2.1")          # co-located publish trigger (the CI breaker)
+    assert setuptools_scm.get_version(root=str(repo), git_describe_command=CORE_DESCRIBE) == "0.2.1"
 
 
 @requires_git

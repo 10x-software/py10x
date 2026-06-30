@@ -122,6 +122,7 @@ commands = [ "playwright install chromium" ]
 
 [tool.hatch.version]
 source = "vcs"
+raw-options = { git_describe_command = "git describe --dirty --tags --long --match 'v*'" }
 
 [tool.hatch.build.hooks.vcs]
 version-file = "dev_10x/version.py"
