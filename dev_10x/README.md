@@ -119,11 +119,11 @@ crash re-derives the plan from current tags and resumes.
 **`local == remote` invariant + atomic recovery.** A real run **starts** synced and (with `--push`)
 **finishes** synced; crash recovery is "discard local, resync, re-run", not in-place repair:
 
-- *Start (precondition):* `GitHelpers.require_synced` requires a clean tree and — when an `origin`
-  exists — fetches and asserts `main == origin/main` and that the package's managed tags
-  (`v*` / `py10x-kernel-v*` / …) match `origin`. It **refuses** on a stale/un-pushed `main` or
-  divergent tags, so a release is never cut from un-synced state. (No `origin` → local-only dev,
-  the remote half is skipped.)
+- *Start (precondition):* `GitHelpers.require_synced` requires **local == origin** before a real
+  run: committed work pushed (`main == origin/main`, managed tags match `origin`; untracked files are OK). 
+  It **refuses** on un-pushed `main`,
+  divergent tags, or dirty tracked files — a release is never cut from un-synced state. (No
+  `origin` → local-only dev; the remote half is skipped.)
 - *Finish:* with `--push`, promote refs (branches, release tags, dev-marker drop+create, `main`) are
   pushed **once per repo, atomically**. **Publish triggers** use `isolated_tags_to_push` — one
   refspec per `git push` — so CI tag-create webhooks always fire. Release tags are never deleted
@@ -187,8 +187,9 @@ crash re-derives the plan from current tags and resumes.
 | *(default)*  | apply **local** changes only — inspect with `git log`/`status`, reset to undo |
 | `--push`     | apply locally, then push to remotes **last**, only after all local steps pass |
 
-`dry_run` always wins. Before any real change the repos must be **synced with `origin`** (clean tree,
-`main` and managed tags == remote — see the `local == remote` invariant above); `--push` re-syncs the
+`dry_run` always wins. Before any real change the repos must be **synced with `origin`**
+(committed and pushed: `main` and managed tags match remote, untracked files are OK — see
+the `local == remote` invariant above); `--push` re-syncs the
 remote at the end, otherwise push manually. `--base <path>` overrides the py10x repo root (default:
 cwd). Always preview first:
 

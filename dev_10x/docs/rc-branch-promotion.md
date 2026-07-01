@@ -123,8 +123,8 @@ tool keeps the **remote consistent** so recovery is trivial:
   `git push --atomic`** (branch force-updates, release tags, dev-marker drop+create, `main` —
   all-or-nothing), then **isolated publish-trigger pushes** (one refspec per `git push`). CI listens
   on the triggers, not release tags.
-- **Refuse-until-synced.** `require_synced` refuses the next run while local ≠ remote (clean tree +
-  `main`/managed-tags == origin, fetch-first), so you never build on an un-synced state.
+- **Refuse-until-synced.** `require_synced` refuses the next run while local ≠ remote (committed
+  and pushed: `main`/managed-tags match `origin`), so you never build on an un-synced state.
 - **`resync` + idempotent re-run.** Recovery is `xx-promote resync` — force each repo's
   `main`/`pre`/`prod` branches and managed tags back to `origin`, discarding local-only work — then
   re-run, which the **declarative planner** resumes from current tags. Cross-repo partial push
@@ -322,8 +322,7 @@ Resolved by decisions above (recorded so the hardening is implemented + tested):
   consumed-version-number generation, epilogue revert.
 - **Reverse `>=` drift** → self-correcting via forward `==` + editable sibling (assumption-guard
   test).
-- **Stale / un-pushed base** → clean-tree precondition extended to require `local main == origin/main`
-  (fetch-first).
+- **Stale / un-pushed base** → `local == origin` precondition: `local main` must match `origin/main`.
 - **Pre-only commit loss** → enforced cherry-pick discipline (`diff` / `mark-merged`, pin-only
   auto-discard, patch-id auto-clear).
 

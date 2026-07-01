@@ -369,9 +369,9 @@ class GitHelpers:
         return [t for t in out.splitlines() if t]
 
     @classmethod
-    def require_clean(cls,repo: Path) -> None:
-        if cls.git(repo, "status", "--porcelain"):
-            raise RuntimeError(f"working tree not clean: {repo} - commit or stash first")
+    def require_clean(cls, repo: Path) -> None:
+        if cls.git(repo, "status", "--porcelain", "--untracked-files=no"):
+            raise RuntimeError(f"uncommitted tracked changes in {repo} - commit or stash first")
 
     @classmethod
     def has_origin(cls, repo: Path) -> bool:
@@ -410,8 +410,9 @@ class GitHelpers:
 
     @classmethod
     def require_synced(cls, repo: Path, tag_globs: list[str]) -> None:
-        """Precondition: working tree clean AND local == origin (fetch-first) for `main` and the
-        managed tag globs. Skips the remote half when there is no `origin` (pure-local dev).
+        """Precondition: local == origin — committed and pushed (`main` and managed tag globs match
+        `origin`; runs `git fetch origin` before comparing; untracked files are OK). Skips the
+        remote half when there is no `origin` (pure-local dev).
 
         Enforces the "start local==remote (incl. tags)" invariant so a subsequent `--push` finishes
         with local==remote; refuses on a stale/un-pushed `main` or divergent managed tags.
