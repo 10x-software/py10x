@@ -31,8 +31,9 @@ void BDateCurve::set_beginning_of_time(const py::object& d) {
 }
 
 py::object BDateCurve::beginning_of_time_as_date() const {
-    auto bot = CurveTemplate<int>::beginning_of_time();
-    return PyLinkage::fromordinal(bot);
+    if (!CurveTemplate<int>::has_beginning_of_time())
+        return py::none();
+    return PyLinkage::fromordinal(CurveTemplate<int>::beginning_of_time());
 }
 
 py::list BDateCurve::dates() const {
