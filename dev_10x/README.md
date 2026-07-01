@@ -388,8 +388,9 @@ On **`pre/v*`** / **`prod/v*`** publish-trigger tag push:
 
 - After a coordinated `pre` or `prod` `--push`, `main` CI on **either** repo may start before the
   other finishes pushing its branch epilogues. Set `WAIT_FOR_SIBLING_BRANCH` (and
-  `WAIT_FOR_SIBLING_BRANCH_SYNC_BASE=1` on cxx10x) on `python -m dev_10x.uv_sync` — it bootstraps
-  the venv, polls `xx_ci.wait_sibling_branch_ready`, then syncs.
+  `WAIT_FOR_SIBLING_BRANCH_SYNC_BASE=1` on cxx10x) when running `uv-sync` — activate `.venv`
+  first (`uv venv` + `source .venv/bin/activate`), then `python -m dev_10x.uv_sync` polls
+  `xx_ci.wait_sibling_branch_ready` and syncs.
 - Use `python -m dev_10x.uv_sync` in CI (not `uvx --from ".[dev]" uv-sync`): `uvx` resolves
   `pyproject.toml` sibling deps from PyPI when installing the tool, which fails while `main` pins
   are ahead of the index; `uv-sync` installs local siblings first, then applies pins.
@@ -413,7 +414,8 @@ python -m dev_10x.xx_ci latest_tag py10x-kernel
 python -m dev_10x.xx_ci verify_sibling py10x-kernel
 python -m dev_10x.xx_ci sibling_branch_ready main
 
-# CI main-push race: env on uv_sync (see CI gotchas above)
+# CI main-push race: activate .venv first, then uv_sync (see CI gotchas above)
+uv venv && source .venv/bin/activate
 WAIT_FOR_SIBLING_BRANCH=main python -m dev_10x.uv_sync py10x-core-dev --all-extras
 WAIT_FOR_SIBLING_BRANCH=main WAIT_FOR_SIBLING_BRANCH_SYNC_BASE=1 python -m dev_10x.uv_sync …
 ```
