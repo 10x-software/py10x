@@ -30,7 +30,6 @@ class DateCurve(AnonymousTraitable):
     beginning_of_time: int  = T(None)
 
     def bcurve_get(self) -> BDateCurve:
-        print('bcurve_get')
         return BDateCurve()
 
     def times_get(self) -> list:
