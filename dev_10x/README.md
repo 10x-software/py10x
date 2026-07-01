@@ -385,6 +385,10 @@ On **`pre/v*`** / **`prod/v*`** publish-trigger tag push:
 
 ### CI gotchas
 
+- After a coordinated `pre` or `prod` `--push`, `main` CI on **either** repo may start before the
+  other finishes pushing its branch epilogues. Both workflows poll
+  `xx_ci wait_sibling_branch_ready` before `uv-sync`: py10x waits on sibling repos; cxx10x passes
+  `sync_base` so each attempt refreshes the py10x clone first.
 - `uv pip install --all-extras` needs an explicit source:
   `-e . --all-extras --requirements pyproject.toml` (unlike `uv sync`).
 - Tag triggers: **`pre/py10x-kernel-v*`** / **`prod/…`** (and core **`pre/v*`** / **`prod/v*`**).
@@ -399,6 +403,13 @@ compiled kernel.** Tag resolution and sibling verification in publish CI must ru
 are installed — hence `dev_10x/xx_ci.py` uses only `packaging` and `tomlkit`.
 
 ```
+uv venv
+uv pip install -c constraints.txt packaging tomlkit setuptools-scm
+source .venv/bin/activate  # or .venv/Scripts/activate on Windows
+
 python -m dev_10x.xx_ci latest_tag py10x-kernel
 python -m dev_10x.xx_ci verify_sibling py10x-kernel
+python -m dev_10x.xx_ci sibling_branch_ready main
+python -m dev_10x.xx_ci wait_sibling_branch_ready main          # py10x CI
+python -m dev_10x.xx_ci wait_sibling_branch_ready main sync_base  # cxx10x CI
 ```
