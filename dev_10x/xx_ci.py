@@ -4,13 +4,8 @@ Deliberately imports only `dev_10x.xx_helpers` (which needs just `packaging` + `
 *not* `core_10x` - because `core_10x/__init__.py` imports the compiled `py10x_kernel`, and the
 whole point of the gate is to run *before* a sibling is installed, to decide which sibling tag to
 install. So `xx-promote` (built on `core_10x.traitable_cli`) cannot bootstrap py10x-core's own CI;
-this module can. Bootstrap a venv first (same as publish CI / `build.yml`):
-
-    uv venv
-    uv pip install -c constraints.txt packaging tomlkit setuptools-scm
-    python -m dev_10x.xx_ci <command> ...
-
-Or for ad-hoc local use: `uv run --no-project --with packaging --with tomlkit --with setuptools-scm python -m dev_10x.xx_ci …`
+this module can. Bootstrap via `uv run --no-project --with packaging --with tomlkit --with setuptools-scm`,
+or run `python -m dev_10x.uv_sync` first (it creates the venv via `ensure_env_and_runtime_deps`).
 
 Commands (run from the py10x repo root):
     latest_tag <sibling>              sibling git tag matching its pinned spec in pyproject.toml

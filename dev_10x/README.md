@@ -387,9 +387,12 @@ On **`pre/v*`** / **`prod/v*`** publish-trigger tag push:
 ### CI gotchas
 
 - After a coordinated `pre` or `prod` `--push`, `main` CI on **either** repo may start before the
-  other finishes pushing its branch epilogues. Both workflows poll
-  `xx_ci wait_sibling_branch_ready` before `uv-sync`: py10x waits on sibling repos; cxx10x passes
-  `sync_base` so each attempt refreshes the py10x clone first.
+  other finishes pushing its branch epilogues. Set `WAIT_FOR_SIBLING_BRANCH` (and
+  `WAIT_FOR_SIBLING_BRANCH_SYNC_BASE=1` on cxx10x) on `python -m dev_10x.uv_sync` — it bootstraps
+  the venv, polls `xx_ci.wait_sibling_branch_ready`, then syncs.
+- Use `python -m dev_10x.uv_sync` in CI (not `uvx --from ".[dev]" uv-sync`): `uvx` resolves
+  `pyproject.toml` sibling deps from PyPI when installing the tool, which fails while `main` pins
+  are ahead of the index; `uv-sync` installs local siblings first, then applies pins.
 - `uv pip install --all-extras` needs an explicit source:
   `-e . --all-extras --requirements pyproject.toml` (unlike `uv sync`).
 - Tag triggers: **`pre/py10x-kernel-v*`** / **`prod/…`** (and core **`pre/v*`** / **`prod/v*`**).
@@ -401,16 +404,16 @@ On **`pre/v*`** / **`prod/v*`** publish-trigger tag push:
 
 `core_10x/__init__.py` imports `py10x_kernel`, so **anything that imports `core_10x` needs the
 compiled kernel.** Tag resolution and sibling verification in publish CI must run *before* siblings
-are installed — hence `dev_10x/xx_ci.py` uses only `packaging` and `tomlkit`.
+are installed — hence `dev_10x/xx_ci.py` uses only `packaging` and `tomlkit`. For local/ad-hoc use,
+bootstrap via `uv run --no-project --with packaging --with tomlkit --with setuptools-scm`, or let
+`python -m dev_10x.uv_sync` create the venv first (`ensure_env_and_runtime_deps`).
 
 ```
-uv venv
-uv pip install -c constraints.txt packaging tomlkit setuptools-scm
-source .venv/bin/activate  # or .venv/Scripts/activate on Windows
-
 python -m dev_10x.xx_ci latest_tag py10x-kernel
 python -m dev_10x.xx_ci verify_sibling py10x-kernel
 python -m dev_10x.xx_ci sibling_branch_ready main
-python -m dev_10x.xx_ci wait_sibling_branch_ready main          # py10x CI
-python -m dev_10x.xx_ci wait_sibling_branch_ready main sync_base  # cxx10x CI
+
+# CI main-push race: env on uv_sync (see CI gotchas above)
+WAIT_FOR_SIBLING_BRANCH=main python -m dev_10x.uv_sync py10x-core-dev --all-extras
+WAIT_FOR_SIBLING_BRANCH=main WAIT_FOR_SIBLING_BRANCH_SYNC_BASE=1 python -m dev_10x.uv_sync …
 ```
