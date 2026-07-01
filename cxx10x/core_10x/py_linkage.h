@@ -26,6 +26,13 @@
 #  define PY10X_API
 #endif
 
+// MSVC C4251: exported classes expose py::object/STL members whose types are
+// not dll-exported. Safe here — pybind11 objects are opaque handles to the
+// Python runtime, not independently allocated across the DLL boundary.
+#if defined(_MSC_VER)
+#  pragma warning(disable: 4251)
+#endif
+
 namespace py = pybind11;
 
 using dict_iter = py::detail::dict_iterator;
