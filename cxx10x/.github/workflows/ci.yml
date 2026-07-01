@@ -100,3 +100,5 @@ jobs:
         with:
           python-version: "3.12"
           mongodb-version: "7.0"
+          py10x-branch: ${{ needs.resolve-py10x-branch.outputs.branch }}
+          wait-for-coordinated-main: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
