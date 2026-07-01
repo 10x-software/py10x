@@ -14,6 +14,7 @@ class BTraitableClass;
 class PY10X_API TID {
     BTraitableClass*    m_class;
     py::object          m_id;       //-- python's Traitable.ID instance
+    mutable std::size_t m_hash;
 
 public:
     TID(BTraitableClass* cls, const py::object& id);
@@ -21,7 +22,10 @@ public:
 
     static bool is_valid(const py::object& id)                      { return !id.attr("value").is_none(); }
 
-    void set_id_value(const py::object& id_value) const             { m_id.attr("value") = id_value; }
+    void set_id_value(const py::object& id_value) const {
+        m_id.attr("value") = id_value;
+        m_hash = compute_hash(m_class, m_id);
+    }
 
     [[nodiscard]] bool                  is_valid() const            { return !id_value().is_none(); }
     [[nodiscard]] const TID*            ptr() const                 { return const_cast<TID *>(this); }
@@ -38,11 +42,12 @@ public:
     static py::object deserialize_id(const py::dict& serialized_data, bool must_exist = true);
 
 private:
-    std::size_t hash() const { // TODO: consider caching it!
+    [[nodiscard]] std::size_t hash() const              { return m_hash; }
+    static std::size_t compute_hash(BTraitableClass* cls, const py::object& id) {
         std::size_t seed = 0;
-        hash_combine(seed, m_class);
-        hash_combine(seed, py::hash(id_value()));
-        hash_combine(seed, py::hash(coll_name()));
+        hash_combine(seed, cls);
+        hash_combine(seed, py::hash(id.attr("value")));
+        hash_combine(seed, py::hash(id.attr("collection_name")));
         return seed;
     }
     template <typename T>
