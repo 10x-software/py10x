@@ -4,7 +4,14 @@
 
 #ifndef INC_10X_I_DEBUG_H
 #define INC_10X_I_DEBUG_H
+#if defined(_MSC_VER)
+#  pragma warning(push)
+#  pragma warning(disable: 4996) // backward.hpp uses getenv()
+#endif
 #include <backward.hpp>
+#if defined(_MSC_VER)
+#  pragma warning(pop)
+#endif
 #include <sstream>
 
 inline std::string current_stacktrace()
