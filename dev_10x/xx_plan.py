@@ -1,6 +1,6 @@
 """Pure release-batch planning for `xx-promote` (no git / filesystem I/O).
 
-The design (`dev_10x/docs/rc-branch-promotion.md`, *Testing strategy*) calls for `_promote` to
+The design (`dev_10x/README.md`, *xx-promote*) calls for `_promote` to
 compute a **plan** purely - which packages re-cut, at what version, with what coordinated pins, on
 which branch, under what tag - separate from execution, so the combinatorial space can be asserted
 exhaustively in-memory. This module is that planner; `xx_promote.py` gathers the git/pyproject

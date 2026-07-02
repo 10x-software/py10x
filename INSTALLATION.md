@@ -2,6 +2,8 @@
 
 This guide provides comprehensive installation instructions for `py10x-core`, including all prerequisites and setup steps for different use cases.
 
+See also the [documentation map in README.md](README.md#documentation-map).
+
 ## Prerequisites
 
 ### Core Requirements
@@ -33,9 +35,14 @@ If either applies, install one of:
 
 ### Optional Database Dependencies
 
-- **Traitable Store backend** (for running `infra_10x` tests and persistence examples)
-  - `core_10x` tests use the in-process store. 
-  - `infra_10x` tests use the MongoDB-backed store (where it is implemented); for those, a local passwordless MongoDB instance on port 27017 is required.
+**Traitable Store backends** (for `infra_10x` tests and persistence examples):
+
+- `core_10x` tests use the **in-process** Traitable Store — no external database.
+- `infra_10x` tests use the **MongoDB-backed** store (`MongoStore`, implemented in `infra_10x`).
+  Those tests require a local **passwordless MongoDB** instance on **port 27017** (replica set for
+  transactions). See platform setup below for install commands.
+
+Other docs link here for store requirements; do not duplicate the full blurb elsewhere.
 
 ## Installation Methods
 
@@ -82,24 +89,25 @@ python --version  # Should show 3.12.x
 
 ### Development Installation (Recommended)
 
-For developers who want to contribute to `py10x-core` or need all features:
+For developers who want to contribute to `py10x-core` or need all features (including local C++
+siblings from `../cxx10x`):
 
 ```bash
-# Clone the repository
+# Clone the repository (and cxx10x sibling if building kernel/infra from source)
 git clone https://github.com/10x-software/py10x.git
 cd py10x
 
-# Install everything for development (recommended)
-uv sync --all-extras
-
-# Or install specific combinations
-uv sync --extra dev --extra rio  # Development + Rio UI
-uv sync --extra dev --extra qt   # Development + Qt6 UI
-
-# Alternative with pip
-pip install -e ".[dev,rio]"  # Development + Rio UI
-pip install -e ".[dev,qt]"   # Development + Qt6 UI
+# Full dev setup — installs py10x-core editable + local cxx10x siblings
+uv-sync py10x-core-dev --all-extras
+uv-run pytest -q   # run in the prepared venv
 ```
+
+`uv-sync` drives `uv pip install` with dependency-source **profiles** (see
+[`dev_10x/README.md`](dev_10x/README.md)); it does not mutate `pyproject.toml`. Plain `uv sync` is
+not the canonical multi-repo dev path.
+
+For lighter profiles (released wheels, git `main` siblings only), other `uv-sync` profiles, and
+release promotion (`xx-promote`), see [`dev_10x/README.md`](dev_10x/README.md).
 
 ### User Installation
 
@@ -346,6 +354,7 @@ If you encounter permission errors during installation:
 ## Getting Help
 
 - Check the [README.md](https://github.com/10x-software/py10x/blob/main/README.md) for overview and examples
-- See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development setup
+- See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development workflow
+- See [dev_10x/README.md](dev_10x/README.md) for release engineering and dev dependency profiles
 - Join our [Discord community](https://discord.gg/m7AQSXfFwf) for support
 - Report issues on [GitHub](https://github.com/10x-software/py10x/issues)

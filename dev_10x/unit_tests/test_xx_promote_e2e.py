@@ -5,7 +5,7 @@ holding `core_10x` (py10x-kernel) and `infra_10x` (py10x-infra) with the right t
 plan-level combinatorics live in test_xx_plan.py; here we assert *real git state* after execution -
 branch HEADs, tags, commit parentage, and the pyproject pins recorded at the tag.
 
-See `dev_10x/docs/rc-branch-promotion.md` (Testing strategy -> Execution, representative).
+See `dev_10x/README.md` (xx-promote).
 """
 from __future__ import annotations
 

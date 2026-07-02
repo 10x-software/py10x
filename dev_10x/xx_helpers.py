@@ -325,7 +325,7 @@ class VersionHelpers:
         """Final-only pin for a release branch: admits `target` + its post releases, no pre/dev.
 
         Legacy `main`-floor / pre-rc-coordination form. The published-wheel forward pin on
-        `pre`/`prod` is now `exact_pin` (exact `==`); see `dev_10x/docs/rc-branch-promotion.md`.
+        `pre`/`prod` is now `exact_pin` (exact `==`); see `dev_10x/README.md` (Pin model).
         """
         return f">={target},<{cls.next_micro(target)}"
 
@@ -345,7 +345,7 @@ class VersionHelpers:
 
         `>=` not `==`: the prerelease token falls out for free - `>=Trc` admits core prereleases (an
         rc sibling tests the prerelease line), `>=T` admits only finals (a final tests the released
-        line). Uncapped but self-correcting via the forward `==` (rc-branch-promotion.md, Pin matrix).
+        line). Uncapped but self-correcting via the forward `==` (`dev_10x/README.md`, Pin model).
         """
         return f"py10x-core>={core_version}"
 
@@ -512,7 +512,7 @@ class GitHelpers:
 
         core (one package per repo) uses the bare `pre`/`prod`; siblings sharing a repo (cxx10x's
         kernel + infra) are namespaced per package, e.g. `pre/py10x-kernel`. See
-        `dev_10x/docs/rc-branch-promotion.md` (Branches).
+        `dev_10x/README.md` (Branches).
         """
         return flavor if is_core else f"{flavor}/{name}"
 

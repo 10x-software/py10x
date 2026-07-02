@@ -2,41 +2,37 @@
 
 Thank you for your interest in contributing to `py10x-core`! This document provides guidelines for development, testing, and submitting contributions.
 
+See also the [documentation map in README.md](README.md#documentation-map).
+
 ## Development Setup
 
-For detailed installation instructions including all prerequisites and platform-specific setup, see [INSTALLATION.md](https://github.com/10x-software/py10x/blob/main/INSTALLATION.md).
+**Prerequisites and platform-specific install commands:** [INSTALLATION.md](INSTALLATION.md).  
+**Dev dependency profiles (`uv-sync`), constraints freeze, and releases:** [dev_10x/README.md](dev_10x/README.md).
 
-### Prerequisites
+`uv-sync` uses **dependency profiles** to decide where `py10x-core` and the C++ siblings (`py10x-kernel` / `py10x-infra`) come from. Choose the right one for your setup:
 
-- Python 3.12 (recommended), 3.11+ supported
-- Git
-- [UV](https://docs.astral.sh/uv/) - Python installer and package manager
-- C++ compiler with C++20 support (GCC 10+, Clang 10+, MSVC 2022+, or equivalent)
-  - Required for building cxx10x dependencies
-- **Traitable Store:** `core_10x` tests use the in-process store; `infra_10x` tests use the MongoDB-backed store (implemented in `infra_10x`)
-  - Local passwordless MongoDB on port 27017 required for `infra_10x` unit tests
-- Node.js and npm (for Rio UI backend)
-  - Required if using Rio UI components
+| Profile          | py10x-core     | C++ siblings (kernel/infra)         | When to use |
+|------------------|----------------|-------------------------------------|-------------|
+| `user`           | local editable | released wheels from PyPI           | No C++ compiler (or you don't want to build); you get published pre-releases only |
+| `py10x-dev`      | local editable | git `main` (compiled locally)       | Most common dev case: pick up latest sibling changes from git without a local `../cxx10x` checkout |
+| `py10x-core-dev` | local editable | local editable from `../cxx10x`     | You are making changes to the C++ packages in the sibling checkout (requires C++ toolchain) |
 
-### Clone and Install
+After cloning, a typical setup (middle-ground `py10x-dev` profile) looks like:
 
 ```bash
-git clone https://github.com/10x-software/py10x.git
-cd py10x
-
-# Install everything for development (recommended)
-uv sync --all-extras
-
-# Or install specific combinations
-uv sync --extra dev --extra rio  # Development + Rio UI
-uv sync --extra dev --extra qt   # Development + Qt6 UI
-
-# Or with pip
-pip install -e ".[dev,rio]"  # Development + Rio UI
-pip install -e ".[dev,qt]"   # Development + Qt6 UI
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
+uv run --no-sync pytest
 ```
 
-For dependency-source profiles (`uv-sync`), the constraints freeze, and release promotion (`xx-promote`), see [`dev_10x/README.md`](dev_10x/README.md).
+To **pick up the latest changes** from git-based siblings after pulling or when you want a refresh, e.g. after `git pull`
+
+```bash
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --upgrade
+```
+
+**Important:** After the initial sync, always use `uv run --no-sync` (or the `uv-run` wrapper) for commands. Plain `uv run` can re-sync against `pyproject.toml` and accidentally fall back to PyPI-published siblings.
+
+See [INSTALLATION.md](INSTALLATION.md#development-installation-recommended) for clone steps (including when and how to obtain the `../cxx10x` sibling) and [`dev_10x/README.md`](dev_10x/README.md) for the full profile table, reinstall rules, `XX_UV_INCREMENTAL`, and other options.
 
 ## Development Workflow
 
@@ -46,29 +42,29 @@ The project uses `ruff` for linting and formatting:
 
 ```bash
 # Check for issues
-ruff check .
+uv run --no-sync ruff check .
 
 # Auto-fix issues where possible
-ruff check --fix .
+uv run --no-sync ruff check --fix .
 
 # Format code
-ruff format .
+uv run --no-sync ruff format .
 ```
 
 ### Testing
 
 #### Running Tests
 
-**Note**: The `infra_10x/unit_tests/` suite uses the MongoDB-backed Traitable Store (implemented in `infra_10x`) and requires a local MongoDB instance on port 27017. `core_10x` tests use the in-process store and do not require MongoDB.
+`infra_10x/unit_tests/` requires MongoDB — see [INSTALLATION.md § Optional Database Dependencies](INSTALLATION.md#optional-database-dependencies). `core_10x` and `ui_10x` tests do not.
 
 ```bash
 # Run all unit tests (with coverage by default)
-pytest
+uv run --no-sync pytest
 
 # Run specific test suites
-pytest core_10x/unit_tests/
-pytest ui_10x/unit_tests/
-pytest infra_10x/unit_tests/  # Requires MongoDB (Mongo Traitable Store is in infra_10x)
+uv run --no-sync pytest core_10x/unit_tests/
+uv run --no-sync pytest ui_10x/unit_tests/
+uv run --no-sync pytest infra_10x/unit_tests/  # Requires MongoDB
 
 # Manual tests are debugging scripts (run directly)
 python core_10x/manual_tests/trivial_graph_test.py
@@ -85,9 +81,10 @@ python ui_10x/rio/manual_tests/basic_test.py
 #### Writing Tests
 
 ```python
+from core_10x.traitable import Traitable, T
+
 # Example unit test
 def test_traitable_creation():
-    from core_10x.traitable import Traitable, T
     
     class TestEntity(Traitable):
         name: str
@@ -99,31 +96,56 @@ def test_traitable_creation():
 ```
 
 ### Building
-
+Normally builds are done by CI workflows. If you need to test a build manually, build with uv.
 ```bash
-# Build with UV (recommended)
 uv build
-
-# Or with standard tools
-python -m build
 ```
 
 ## Project Structure
 
+High-level layout (build artifacts, `__pycache__`, and `dist/` omitted):
+
 ```
 py10x/
-├── core_10x/           # Core data modeling
-│   ├── backbone/       # Backbone integration
-│   ├── unit_tests/     # Core unit tests
-│   └── manual_tests/   # Manual test scripts
-├── ui_10x/             # UI components
-│   ├── rio/           # Rio UI backend
-│   ├── qt6/           # Qt6 UI backend
-│   └── unit_tests/    # UI unit tests
-├── infra_10x/          # Infrastructure
-│   └── unit_tests/    # Infrastructure tests
-└── docs/              # Documentation
+├── core_10x/               # Core Traitable model, traits, dependency graph, stores
+│   ├── unit_tests/         # Core unit tests (pytest + coverage)
+│   ├── manual_tests/       # Direct-run debugging and exploration scripts
+│   ├── testlib/            # Shared test fixtures, strict guards, history helpers
+│   ├── code_samples/       # Standalone usage examples
+│   ├── attic/              # Legacy/deprecated code (includes old backbone/)
+│   ├── jit/                # JIT / accelerator experiments (numba, jax, cython)
+│   ├── experimental/       # Early-stage work
+│   └── *.py                # Core modules (traitable.py, resource.py, ...)
+├── ui_10x/                 # UI components, trait editors, and backends
+│   ├── rio/                # Rio web UI backend, widgets, components
+│   │   ├── unit_tests/, manual_tests/, components/, widgets/
+│   ├── qt6/                # Qt6 desktop backend
+│   ├── unit_tests/
+│   ├── examples/           # Interactive UI demos
+│   └── ...
+├── infra_10x/              # Storage and infrastructure
+│   ├── mongodb_store.py, ibis_store.py, duckdb_store.py, ...
+│   ├── unit_tests/         # Requires MongoDB (replica set)
+│   └── testlib/
+├── dev_10x/                # Developer tooling and release engineering
+│   ├── uv_sync.py, uv_run.py   # Dependency profile management
+│   ├── xx_promote.py           # Coordinated rc/prod releases + yanks
+│   ├── constraints.py, xx_ci.py, xx_plan.py, ...
+│   ├── pytest_plugin.py
+│   └── unit_tests/
+├── xx_common/              # Shared utilities (xxcalendar, curves, events, rdate, ...)
+│   └── unit_tests/, manual_tests/
+├── scripts/                # Helper scripts (e.g. cloud Mongo setup)
+├── docs/                   # Supplementary docs (IP checklist, onboarding)
+├── pyproject.toml          # Metadata, extras, scripts (uv-sync etc.), dev_10x config
+├── constraints.txt         # Committed third-party dependency freeze
+├── ruff.toml, pytest.ini,
+└── ...
 ```
+
+See also:
+- [`dev_10x/README.md`](dev_10x/README.md) — dev profiles, `uv-sync`, `xx-promote`, CI gates
+- Individual `*/unit_tests/` and package READMEs
 
 ## Submitting Changes
 
@@ -133,8 +155,8 @@ py10x/
 2. **Create** a feature branch: `git checkout -b feature/your-feature-name`
 3. **Make** your changes following the coding standards
 4. **Add** tests for new functionality
-5. **Run** the test suite: `pytest`
-6. **Check** code style: `ruff check .`
+5. **Run** the test suite: `uv run --no-sync pytest`
+6. **Check** code style: `uv run --no-sync ruff check .`
 7. **Commit** with descriptive messages
 8. **Push** to your fork
 9. **Create** a Pull Request
@@ -168,15 +190,11 @@ test: add unit tests for LineEdit widget
 
 ### Traitable Framework Development
 
-When developing with the Traitable framework:
+See [GETTING_STARTED.md § Core Concepts](GETTING_STARTED.md#core-concepts) and
+[§ Best Practices](GETTING_STARTED.md#best-practices) for the full framework guide. In brief:
 
-- Use `Traitable` as the base class for data models
-- Define ID traits for endogenous traitables (shared globally by ID)
-- Use `T()` for regular traits (required for persistence)
-- Use `RT()` for traits that should not be stored or persisted; otherwise identical to `T()` (can be omitted — bare annotations default to `RT()`)
-- Implement getter methods for traits with computed values
-- Use setters with validation for data integrity or to set other traits
-- Leverage the dependency graph for automatic computation
+- Use `Traitable` as the base class; never override `__init__` — use `__post_init__`
+- Use `T()` / `RT()` / `T(T.ID)` per trait kind; implement `*_get` / `*_set` / converters as needed
 
 ### UI Component Development
 
@@ -223,22 +241,11 @@ The UI framework focuses on traitable editing and management:
 - Add examples for new functionality
 - Keep installation instructions current
 
-## Release Process
+## Release Process (maintainers)
 
-### Versioning
-
-- Follow semantic versioning (MAJOR.MINOR.PATCH)
-- Update version in `pyproject.toml`
-- Create release notes in CHANGELOG.md
-
-### Release Checklist
-
-- [ ] All tests pass
-- [ ] Code style checks pass
-- [ ] Documentation updated
-- [ ] Version bumped
-- [ ] CHANGELOG updated
-- [ ] Release notes prepared
+Versions come from git tags via setuptools-scm; releases are cut with `xx-promote`, not by hand-editing
+`pyproject.toml`. See [dev_10x/README.md](dev_10x/README.md) (`xx-promote`, CI release gates) and
+update [CHANGELOG.md](CHANGELOG.md) as part of the release.
 
 ## Getting Help
 

@@ -6,7 +6,7 @@ Shared, finance-oriented building blocks layered on top of `core_10x`:
 - **`rdate`** — `RDate` tenors (e.g. `'3M'`, `'1Y'`) with business-day roll rules and date schedules.
 - **`curve`** — `Curve` / `DateCurve` with pluggable interpolation (`scipy.interpolate`).
 
-For the broader project (concepts, install, tests, style), see [`README.md`](../README.md), [`INSTALLATION.md`](../INSTALLATION.md), and [`GETTING_STARTED.md`](../GETTING_STARTED.md) at the repository root.
+For the broader project (concepts, install, tests, style), see [`README.md`](../README.md), [`INSTALLATION.md`](../INSTALLATION.md), [`GETTING_STARTED.md`](../GETTING_STARTED.md), and [`CONTRIBUTING.md`](../CONTRIBUTING.md) at the repository root.
 
 > Code blocks below are executable as documentation tests — `Calendar` has stored traits, so calendar examples are wrapped in `with CACHE_ONLY():` per the *Why Storage Context is Required* section in `GETTING_STARTED.md`.
 
