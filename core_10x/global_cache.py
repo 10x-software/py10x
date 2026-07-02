@@ -11,32 +11,38 @@ from core_10x.xnone import XNone
 #   - args MUST follow the declaration order for performance reasons (otherwise, the same result may be cached multiple times
 #       e.g. f(a=1, b=2) and f(b=2, a=1)
 #   - the most common 'users' are class methods
+#   - keep_value=True (default): normal caching - value is retained and returned on hits
+#   - keep_value=False: side-effect only - function runs at most once; first call returns its value,
+#     subsequent calls return None without re-executing (avoids retaining heavy return values)
 # ===================================================================================================================================
 ARGS_KWARGS = (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
 
 
-def cache(f):
-    sig = inspect.signature(f)
-    params = sig.parameters
-    num_args = len(params)
-    if num_args == 0:
-        return _cache_no_args(f)
+def cache(f=None, *, keep_value=True):
+    def _cache(f):
+        sig = inspect.signature(f)
+        params = sig.parameters
+        num_args = len(params)
+        if num_args == 0:
+            return _cache_no_args(f,keep_value)
 
-    if num_args == 1:
-        for param in params.values():
-            if param.kind not in ARGS_KWARGS and param.default is inspect.Parameter.empty:
-                return _cache_single_arg(f)
+        if num_args == 1:
+            for param in params.values():
+                if param.kind not in ARGS_KWARGS and param.default is inspect.Parameter.empty:
+                    return _cache_single_arg(f, keep_value)
 
-    return _cache_with_args(f)
+        return _cache_with_args(f, keep_value)
+    return _cache if f is None else _cache(f)
 
 
-def _cache_no_args(f):
+def _cache_no_args(f, keep_value=True):
     the_value = [XNone]
 
     def getter():
         v = the_value[0]
         if v is XNone:
-            the_value[0] = v = f()
+            v = f()
+            the_value[0] = v if keep_value else None
         return v
 
     def clear():
@@ -48,14 +54,14 @@ def _cache_no_args(f):
     return getter
 
 
-def _cache_single_arg(f):
+def _cache_single_arg(f, keep_value=True):
     the_cache = {}
 
     def getter(arg):
         value = the_cache.get(arg, the_cache)  # -- will throw if arg is not hashable!
         if value is the_cache:  # -- i.e., arg is seen for the first time
             value = f(arg)
-            the_cache[arg] = value
+            the_cache[arg] = value if keep_value else None
 
         return value
 
@@ -65,7 +71,7 @@ def _cache_single_arg(f):
     return getter
 
 
-def _cache_with_args(f):
+def _cache_with_args(f, keep_value=True):
     the_cache = {}
 
     def getter(*args, **kwargs):
@@ -73,7 +79,7 @@ def _cache_with_args(f):
         value = the_cache.get(key, the_cache)  # -- will throw if key is not hashable!
         if value is the_cache:  # -- i.e., key is seen for the first time
             value = f(*args, **kwargs)
-            the_cache[key] = value
+            the_cache[key] = value if keep_value else None
 
         return value
 
