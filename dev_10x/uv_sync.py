@@ -250,8 +250,31 @@ def install_git(name: str, pkg: dict, branch: str) -> None:
 # --------------------------------------------------------------------------------------------
 # the sync
 # --------------------------------------------------------------------------------------------
+def _maybe_wait_for_sibling_branch() -> None:
+    """Optional pre-sync poll (CI main-push race). See `dev_10x/README.md` CI gotchas."""
+    branch = os.environ.get('WAIT_FOR_SIBLING_BRANCH', '').strip()
+    if not branch:
+        return
+    from dev_10x import xx_ci
+
+    sync_base = os.environ.get('WAIT_FOR_SIBLING_BRANCH_SYNC_BASE', '').strip() == '1'
+    timeout = os.environ.get('WAIT_FOR_SIBLING_BRANCH_TIMEOUT', '120')
+    interval = os.environ.get('WAIT_FOR_SIBLING_BRANCH_INTERVAL', '5')
+    refresh = ' (refreshing py10x each attempt)' if sync_base else ''
+    print(
+        f'uv-sync: waiting for coordinated sibling pins on branch {branch!r}{refresh} '
+        f'(timeout={timeout}s, interval={interval}s)...'
+    )
+    code = xx_ci.wait_sibling_branch_ready(
+        PROJECT_ROOT, branch, sync_base=sync_base, verbose=True)
+    if code:
+        raise SystemExit(code)
+    print(f'uv-sync: sibling pins ready on branch {branch!r}')
+
+
 def uv_sync(profile: str, *uv_args: str) -> None:
     tomlkit = ensure_env_and_runtime_deps(PROJECT_ROOT)
+    _maybe_wait_for_sibling_branch()
     pkgs = packages(tomlkit)
     branch = _dev10x_cfg(tomlkit).get('branch', 'main')
     kinds = profile_kinds(profile, list(pkgs))

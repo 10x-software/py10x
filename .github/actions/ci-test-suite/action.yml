@@ -45,7 +45,12 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
+      env:
+        WAIT_FOR_SIBLING_BRANCH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cxx10x_branch.outputs.branch || '' }}
+      run: |
+        uv venv
+        source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+        python -m dev_10x.uv_sync py10x-core-dev --all-extras
 
     # uv-sync applies -c constraints.txt on every install, so the test env is frozen. Assert every
     # installed third-party dist is pinned (catches a py10x or sibling dep that escaped the freeze).

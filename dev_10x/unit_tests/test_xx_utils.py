@@ -197,6 +197,10 @@ def test_latest_matching_tag_none_when_no_match():
 def test_pin_strings():
     assert VersionHelpers.rc_window_pin("0.2.1rc19") == ">=0.2.1rc19,<0.2.1rc20"
     assert VersionHelpers.post_final_window_pin("0.2.1") == ">=0.2.1,<0.2.2rc1"
+    assert VersionHelpers.main_forward_pin_from_selection(
+        VersionHelpers.parse_pkg_tags([f"{KERNEL}0.2.1rc19"], KERNEL)) == ">=0.2.1rc19,<0.2.1rc20"
+    assert VersionHelpers.main_forward_pin_from_selection(
+        VersionHelpers.parse_pkg_tags([f"{KERNEL}0.2.1"], KERNEL)) == ">=0.2.1,<0.2.2rc1"
     assert VersionHelpers.dev_pin("0.2.0", "0.2.1") == ">=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0"
     assert VersionHelpers.final_pin("0.2.1") == ">=0.2.1,<0.2.2"
     assert VersionHelpers.exact_pin("0.2.1rc2") == "==0.2.1rc2"   # forward, rc

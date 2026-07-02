@@ -38,7 +38,7 @@ import tomlkit
 from packaging.version import Version
 
 from core_10x.rc import exc_to_rc
-from core_10x.trait_definition import RT
+from core_10x.trait_definition import RT, M
 from core_10x.traitable import RC, RC_TRUE, T, Traitable
 from core_10x.traitable_cli import TraitableCli
 from dev_10x.xx_plan import Plan, PrePlan, ProdPlan, PkgInput
@@ -55,13 +55,14 @@ from dev_10x.xx_helpers import (
 class Package(Traitable):
     name: str          # distribution name, e.g. "py10x-kernel"
     src_dir: Path
+    is_core: bool = RT(T.STICKY)
 
     repo: Path = RT(T.STICKY)   # git repo root - STICKY: `git_root` is immutable, don't re-shell per access
-    tag_prefix: str    # tag namespace, e.g. "py10x-kernel-v" (core is just "v")
-    pyproject: Path    # path to the package's pyproject.toml
+    tag_prefix: str = RT(T.STICKY)    # tag namespace, e.g. "py10x-kernel-v" (core is just "v")
+    pyproject: Path = RT(T.STICKY)   # path to the package's pyproject.toml
 
     def repo_get(self) -> Path: return GitHelpers.git_root(self.src_dir)
-    def tag_prefix_get(self) -> str: return f'{self.name}-v'
+    def tag_prefix_get(self) -> str: return 'v' if self.is_core else f'{self.name}-v'
     def pyproject_get(self) -> Path: return self.src_dir / 'pyproject.toml'
 
 
@@ -74,28 +75,18 @@ class Step(Traitable):
     summary: str = RT(T.STICKY)
     tags_to_push: tuple = RT(T.STICKY)
     isolated_tags_to_push: tuple = RT(T.STICKY)
-
-    def tags_to_push_get(self) -> tuple:
-        return ()                       # (repo, [refspecs]) bundled atomically per repo
-
-    def isolated_tags_to_push_get(self) -> tuple:
-        return ()                       # (repo, [refspecs]) each refspec pushed alone (CI triggers)
+    is_mutator: bool = RT(True)
 
     def apply(self) -> None:
         """Perform the side effect. Default no-op (e.g. a skip or a printed notice)."""
-
 
 class PkgStep(Step):
     """A step acting on one package; exposes its repo + core-ness as sticky getters."""
     pkg: Package = RT()
     repo: Path = RT(T.STICKY)
-    is_core: bool = RT(T.STICKY)
 
     def repo_get(self) -> Path:
         return self.pkg.repo
-
-    def is_core_get(self) -> bool:
-        return self.pkg.tag_prefix == "v"
 
 
 class PromoteStep(PkgStep):
@@ -127,6 +118,9 @@ class PromoteStep(PkgStep):
         if not self.plan.act:
             return ()
         return (self.repo, [f"+{self.plan.branch}", self.plan.tag])
+
+    def is_mutator_get(self) -> bool:
+        return self.plan.act
 
     def apply(self) -> None:
         plan = self.plan
@@ -160,6 +154,9 @@ class TagReplaceStep(PkgStep):
     def summary_get(self) -> str:
         drop = f", drop {self.stale_tags}" if self.stale_tags else ""
         return f"{self.pkg.name}: {self.summary_prefix} {self.tag}{drop}"
+
+    def is_mutator_get(self) -> bool:
+        return bool(self.tag)
 
     def apply(self) -> None:
         if not self.tag:
@@ -343,6 +340,7 @@ class RollbackStep(Step):
 class NoticeStep(Step):
     """A printed-only step (no git mutation, no push) - e.g. the manual PyPI yank instructions."""
     message: str = RT()
+    is_mutator = M(False)
 
     def summary_get(self) -> str:
         return self.message
@@ -387,7 +385,7 @@ class ResetRepoStep(Step):
 # --------------------------------------------------------------------------------------------
 # CLI surface - a core_10x.traitable_cli tree. Commands are positional; options are --option value.
 # --------------------------------------------------------------------------------------------
-class XxPromote(TraitableCli):
+class XxPromoteCli(TraitableCli):
     """Release promotion for the 10x packages.
 
     Usage:
@@ -404,21 +402,24 @@ class XxPromote(TraitableCli):
     <path> overrides the py10x repo root (default: cwd). Boolean flags also accept the explicit
     `--flag true|false` form.
     """
-    dry_run: bool = RT(False)   # traitable_cli coerces the CLI string ("true"/"1") to a real bool
+    dry_run: bool = RT(False)
     push: bool = RT(False)
-    publish: bool = RT(True)
-    publish_only: bool = RT(False)
 
     base: str = RT(".")
     packages: dict[str, Package] = RT(T.STICKY)
     steps: list[Step] = RT(T.STICKY)
     inputs: list[PkgInput] = RT(T.STICKY)
-
+    completion_command: str = RT(T.STICKY)
+    followup_commands: list[str] = RT(T.STICKY)
+    idle_message: str | None = RT(T.STICKY)
 
     s_command: str = None
-    s_plan: Plan = None
-    def __init_subclass__(cls, _command: str = None, **kwargs):
-        super().__init_subclass__(_command,**kwargs)
+
+    def __init_subclass__(cls, _command: str = None, _abstract: bool = False, **kwargs):
+        if _abstract:
+            super(TraitableCli, cls).__init_subclass__(**kwargs)
+        else:
+            super().__init_subclass__(_command, **kwargs)
         cls.s_command = _command
 
     def packages_get(self) -> dict[str, Package]:
@@ -434,57 +435,63 @@ class XxPromote(TraitableCli):
         result = {
             name: Package(name=name, src_dir=(base / spec["path"]).resolve()) for name, spec in siblings.items()
         }
-        result[core_name] = Package(name=core_name, src_dir=base, tag_prefix='v')
+        result[core_name] = Package(name=core_name, src_dir=base, is_core=True)
         return result
 
     def inputs_get(self) -> list[PkgInput]:
         """The planners' PkgInputs - each gets the registry and derives the rest via its getters."""
         return [PkgInput(name=name, packages=self.packages) for name in self.packages]
 
-    def _promote_steps(self, plan_cls: type[Plan]) -> list[Step]:
-        """The one shared pre/prod routine: a PromoteStep per package (cut or stack, per `plan_cls`)
-        plus each plan's `main` epilogue. Flavors differ only in `plan_cls` - same execution path."""
-        pkgs = self.packages
-        plans = plan_cls.create_batch(self.inputs)
-        steps: list[Step] = [PromoteStep(pkg=pkg, plan=plans[name]) for name, pkg in pkgs.items()]
-        steps += [MainEditStep(pkg=pkgs[name], forward_pins=e.forward_pins, test_pin=e.test_pin,
-                               description=e.description)
-                  for name, plan in plans.items() for e in plan.epilogue]
-        steps += [MainDevMarkerStep(pkg=pkgs[name], plan=plans[name]) for name in pkgs if plans[name].act]
-        if self.publish:
-            steps += [PublishTriggerStep(pkg=pkgs[name], plan=plans[name], flavor=plan_cls.FLAVOR)
-                      for name in pkgs if plans[name].act]
-        return steps
+    def followup_commands_get(self) -> list[str]:
+        if not self.push and self.completion_command:
+            return ['xx-promote resync', f'{self.completion_command} --push']
+        return []
 
-    def _publish_trigger_steps(self, flavor: str) -> list[Step]:
-        """`--publish-only`: one create-only PublishTriggerStep per package with an existing release tag."""
-        steps: list[Step] = []
-        for inp in self.inputs:
-            release = VersionHelpers.publish_release_tag(inp.parsed_tags, flavor)
-            if not release:
-                continue
-            steps.append(PublishTriggerStep(
-                pkg=self.packages[inp.name], flavor=flavor, target_release=release, create_only=True))
-        return steps
+    def _push_review_hints(self) -> list[str]:
+        """`git` commands to inspect local commits/tags not yet on `origin`."""
+        hints: list[str] = []
+        seen: set[tuple[Path, str]] = set()
+        for s in self.steps:
+            for pushed in (s.tags_to_push, s.isolated_tags_to_push):
+                repo, refs = pushed if pushed else (None,())
+                for ref in refs:
+                    if ref.startswith(':refs/tags/') or (repo, ref) in seen:
+                        continue
+                    seen.add((repo, ref))
+                    if ref.startswith('+'):
+                        branch = ref[1:]
+                        hints += [
+                            f'git -C {repo} log --oneline origin/{branch}..{branch}',
+                            f'git -C {repo} diff origin/{branch}..{branch}',
+                        ]
+                    else:
+                        label = 'publish trigger' if ref.startswith(('pre/', 'prod/')) else 'tag'
+                        hints.append(f'git -C {repo} show {ref}  # {label}')
+        return hints
 
-    def _check_publish_triggers_absent(self) -> None:
-        """Fail fast before apply when any target trigger already exists locally."""
-        flavor = self.s_command
-        existing: list[str] = []
-        n_targets = 0
-        for inp in self.inputs:
-            release = VersionHelpers.publish_release_tag(inp.parsed_tags, flavor)
-            if not release:
-                continue
-            n_targets += 1
-            trigger = VersionHelpers.publish_trigger_tag(release, flavor)
-            if GitHelpers.list_tags(inp.repo, trigger):
-                existing.append(trigger)
-        if existing:
-            raise RuntimeError(
-                f"publish trigger(s) already exist (refusing --publish-only): {', '.join(sorted(existing))}")
-        if n_targets == 0:
-            raise RuntimeError(f"no {flavor} release tags found for any package")
+    def _completion_hints(self) -> list[str]:
+        """Post-run instructions, or ``None`` when there is nothing to say."""
+        if not self.push:
+            return ['Local changes applied (not pushed). Review:',
+                     *(f'  {h}' for h in self._push_review_hints()),
+                     *(f'  {cmd}' for cmd in self.followup_commands)]
+        if self.followup_commands:
+            return ['Refs pushed. Publish triggers were skipped:',
+                    *(f'  {cmd}' for cmd in self.followup_commands)]
+        return []
+
+    def _print_completion_hints(self) -> None:
+        if self.dry_run:
+            return
+        if not any(s.is_mutator for s in self.steps):
+            if msg := self.idle_message:
+                print(f'\n{msg}')
+            return
+        if lines := self._completion_hints():
+            print('\n' + '\n'.join(lines))
+
+    def steps_get(self) -> list[Step]:
+        return []
 
     @staticmethod
     def _atomic_push(repo: Path, refspecs: list[str], label: str = "") -> None:
@@ -506,7 +513,7 @@ class XxPromote(TraitableCli):
         if self.dry_run:
             return
         if not self.push:
-            print('\nLocal changes applied. Review with `git log`/`git status`; re-run with push=true to publish.')
+            self._print_completion_hints()
             return
         by_repo: dict[Path, list[str]] = {}
         for s in self.steps:
@@ -520,75 +527,117 @@ class XxPromote(TraitableCli):
                 repo, refspecs = s.isolated_tags_to_push
                 for refspec in refspecs:
                     self._atomic_push(repo, [refspec], label="isolated ")
-
-    def _require_synced_repos(self) -> None:
-        repo_globs: dict[Path, list[str]] = {}
-        for p in self.packages.values():
-            repo_globs.setdefault(p.repo, []).append(f'{p.tag_prefix}*')
-            repo_globs[p.repo].extend(VersionHelpers.publish_trigger_globs(p.tag_prefix))
-        for repo, globs in repo_globs.items():
-            GitHelpers.require_synced(repo, globs)
-        assert next(reversed(self.packages.values())).tag_prefix == 'v'  # -- siblings before core
+        self._print_completion_hints()
 
     @exc_to_rc
     def post_verify(self) -> None:
         if not self.dry_run:
-            self._require_synced_repos()
-        if self.publish_only:
-            if not self.publish:
-                raise RuntimeError("Cannot specify both --publish-only and --no-publish")
-            self._check_publish_triggers_absent()
+            repo_globs: dict[Path, list[str]] = {}
+            for p in self.packages.values():
+                repo_globs.setdefault(p.repo, []).append(f'{p.tag_prefix}*')
+                repo_globs[p.repo].extend(VersionHelpers.publish_trigger_globs(p.tag_prefix))
+            for repo, globs in repo_globs.items():
+                GitHelpers.require_synced(repo, globs)
 
-    def steps_get(self) -> list[Step]:
-        if self.publish_only:
-            return self._publish_trigger_steps(self.s_command)
-        if self.s_plan:
-            return self._promote_steps(self.s_plan)
-        return []
+        if not next(reversed(self.packages.values())).is_core:
+            return RuntimeError('The core package must be last.')
+
 
     def run(self) -> RC:
-        if not self.steps:
-            # bare `xx-promote` with no command -> usage (full docstring)
+        if not self.s_command:
             return RC(False, self.__doc__)
-        rc = self.verify()
-        if not rc:
+        if not (rc := self.verify()):
             return rc
         if title := (self.__doc__ or "").strip().splitlines():
             print(title[0])                            # just the one-line title, not the whole docstring
         return self.run_steps()
 
 
+class XxPromote(XxPromoteCli, _abstract=True):
+    """Shared `pre` / `prod` promote path (planner batch + optional publish triggers)."""
+    publish: bool = RT(True)
+    publish_only: bool = RT(False)
+
+    def _create_batch(self):
+        raise NotImplementedError()
+
+    def _promote_steps(self) -> list[Step]:
+        """The one shared pre/prod routine: a PromoteStep per package (cut or stack, per `plan_cls`)
+        plus each plan's `main` epilogue. Flavors differ only in `plan_cls` - same execution path."""
+        pkgs = self.packages
+        plans = self._create_batch()
+        steps: list[Step] = [PromoteStep(pkg=pkg, plan=plans[name]) for name, pkg in pkgs.items()]
+        steps += [MainEditStep(pkg=pkgs[name], forward_pins=e.forward_pins, test_pin=e.test_pin,
+                               description=e.description)
+                  for name, plan in plans.items() for e in plan.epilogue]
+        steps += [MainDevMarkerStep(pkg=pkgs[name], plan=plans[name]) for name in pkgs if plans[name].act]
+        if self.publish:
+            steps += [PublishTriggerStep(pkg=pkgs[name], plan=plans[name], flavor=self.s_command)
+                      for name in pkgs if plans[name].act]
+        return steps
+
+    def _publish_trigger_steps(self) -> list[Step]:
+        """`--publish-only`: create-only triggers for latest releases that lack one."""
+        flavor = self.s_command
+        missing: list[tuple[str, str]] = []
+        for inp in self.inputs:
+            release = VersionHelpers.publish_release_tag(inp.parsed_tags, flavor)
+            if not release:
+                continue
+            trigger = VersionHelpers.publish_trigger_tag(release, flavor)
+            if not GitHelpers.list_tags(inp.repo, trigger):
+                missing.append((inp.name, release))
+        return [
+            PublishTriggerStep(
+                pkg=self.packages[name], flavor=flavor, target_release=release, create_only=True)
+            for name, release in missing
+        ]
+
+    def steps_get(self) -> list[Step]:
+        return self._publish_trigger_steps() if self.publish_only else self._promote_steps()
+
+    def idle_message_get(self) -> str:
+        return 'All publish triggers already present; nothing to do.' if self.publish_only else ''
+
+    def completion_command_get(self) -> str:
+        parts = [f'xx-promote {self.s_command}']
+        if self.publish_only:
+            parts.append('--publish-only')
+        elif not self.publish:
+            parts.append('--no-publish')
+        return ' '.join(parts)
+
+    def followup_commands_get(self) -> list[str]:
+        if not self.push:
+            return super().followup_commands_get()
+        if self.publish_only or self.publish:
+            return []
+        if not any(isinstance(s, PromoteStep) and s.plan.act for s in self.steps):
+            return []
+        return [f'xx-promote {self.s_command} --publish-only --push']
+
+    def post_verify(self) -> RC:
+        rc = super().post_verify()
+        if self.publish_only and not self.publish:
+            rc.add_error("Cannot specify both --publish-only and --no-publish")
+        return rc
+
 class Pre(XxPromote, _command="pre"):
-    """xx-promote pre  (cut the next coordinated rc onto the tool-owned `pre` branch).
+    """xx-promote pre  (cut the next coordinated rc onto the tool-owned `pre` branch)."""
+    def _create_batch(self): return PrePlan.create_batch(self.inputs)
 
-    For every package the planner re-cuts (`PrePlan.create_batch`), tag `main` HEAD with
-    `{T}rc(N+1).dev`, write the coordinated pins - core's exact forward `==` on its siblings, each
-    sibling's reverse `py10x-core>=` test group - on a commit forked from that same `main` HEAD,
-    force-reset the package's `pre` branch to it, and tag `v{T}rcN`. Unchanged packages are skipped.
 
-    With `--publish-only`, skip cutting: for each package tag the latest rc with `pre/{tag}` and push
-    (non-force; fails if the trigger already exists). Use `--no-publish` to cut without triggers, then
-    `pre --publish-only --push` later. Recovery after a crash: `resync`, then `pre --publish-only --push`.
-    """
-    s_plan = PrePlan
+class Prod(XxPromote, _command='prod'):
+    """xx-promote prod  (stack the final on the latest rc; force-update the `prod` branch)."""
+    def _create_batch(self): return ProdPlan.create_batch(self.inputs)
 
-class Prod(XxPromote, _command="prod"):
-    """xx-promote prod  (stack the final on the latest rc; force-update the `prod` branch).
-
-    Promotes each package whose latest tag is a pre-release (`ProdPlan.create_batch`): stacks a
-    final-pin commit on the rc commit (so released source == rc source), force-updates `prod`, tags
-    `v{T}` (forward pins become exact `==T`; reverse `test` group `py10x-core>=T`), and the plan's
-    `main` epilogue re-floors the dev pins to the released versions. See `…/rc-branch-promotion.md`.
-
-    With `--publish-only`, skip promoting: for each package tag the latest final with `prod/{tag}` and
-    push (non-force; fails if the trigger already exists).
-    """
-    s_plan = ProdPlan
-
-class Yank(XxPromote, _command="yank"):
+class Yank(XxPromoteCli, _command="yank"):
     """xx-promote yank  (yank the latest tag - rc or final - and roll the pre/prod pointer back)."""
     pkg: str = T(T.NOT_EMPTY)           # distribution name (the --pkg arg)
     version: str = T(T.NOT_EMPTY)
+
+    def completion_command_get(self) -> str:
+        return f'xx-promote yank --pkg {self.pkg} --version {self.version}'
 
     # Shared, sticky-cached derivations used by both post_verify and steps_get.
     package: Package = RT(T.STICKY)     # the resolved Package for `pkg`
@@ -611,11 +660,11 @@ class Yank(XxPromote, _command="yank"):
     def is_prod_get(self) -> bool:
         return VersionHelpers.is_final_version_string(self.version)
 
-    def branch_name_get(self) -> bool:
+    def branch_name_get(self) -> str:
         return 'prod' if self.is_prod else 'pre'
 
     def core_get(self) -> Package:
-        return next(p for p in self.packages.values() if p.tag_prefix == "v")
+        return next(p for p in self.packages.values() if p.is_core)
 
     @exc_to_rc
     def post_verify(self) -> None:
@@ -648,30 +697,41 @@ class Yank(XxPromote, _command="yank"):
                     else VersionHelpers.latest_rc_tag_overall(remaining))
         if prev_tag is not None:
             branch = GitHelpers.release_branch(
-                self.branch_name, self.pkg, self.package.tag_prefix == "v")
+                self.branch_name, self.pkg, self.package.is_core)
             steps.append(RollbackStep(repo=repo, branch=branch, to_tag=prev_tag,
                                       to_commit=GitHelpers.tag_commit(repo, prev_tag)))
 
-        if self.is_prod and self.package.tag_prefix != "v":
-            # Yanking a sibling final: it disappears from selection, so core's main dev pin must
-            # re-floor to the latest non-yanked release (`remaining` already excludes the yanked one).
-            lf = VersionHelpers.latest_final(remaining)
-            floor = VersionHelpers.base_version(lf) if lf is not None else "0.0.0"
+        # Roll back py10x-core `main` forward pin(s) for the yanked release line.
+        if self.package.is_core:
+            forward_pins = {
+                name: VersionHelpers.main_forward_pin_from_selection(
+                    VersionHelpers.parse_pkg_tags(
+                        GitHelpers.list_tags(pkg.repo, f"{pkg.tag_prefix}*"), pkg.tag_prefix))
+                for name, pkg in self.packages.items() if not pkg.is_core
+            }
+        else:
+            forward_pins = {
+                self.pkg: VersionHelpers.main_forward_pin_from_selection(remaining),
+            }
+        if forward_pins:
             steps.append(MainEditStep(
                 pkg=self.core,
-                forward_pins={self.pkg: VersionHelpers.post_final_window_pin(floor)},
-                description=f"roll back {self.pkg} main pin after yanking v{self.version}"))
+                forward_pins=forward_pins,
+                description=f"roll back main pin(s) after yanking {self.pkg} v{self.version}"))
 
-        # The index yank itself is manual: PyPI has no public yank API (a session-authenticated web
-        # action), so there is no CI workflow for it - we just print what to do.
+        on_pypi = Version(self.version) in PyPIHelpers.published_versions(self.pkg)
         manage_url = f'https://pypi.org/manage/project/{self.pkg}/release/{self.version}/'
-        steps.append(NoticeStep(message=(
-            f'MANUAL: PyPI has no yank API - yank {self.pkg} {self.version} on the index yourself:\n'
-            f'      {manage_url}  (Options -> Yank)')))
+        if on_pypi:
+            pypi_line = (f'MANUAL: {self.pkg} {self.version} is on PyPI — open the release page and click Yank:\n'
+                         f'      {manage_url}')
+        else:
+            pypi_line = (f'NOTE: {self.pkg} {self.version} is not on PyPI yet — no index action needed.\n'
+                         f'      {manage_url}')
+        steps.append(NoticeStep(message=pypi_line))
         return steps
 
 
-class Status(XxPromote, _command="status"):
+class Status(XxPromoteCli, _command="status"):
     """xx-promote status  (pending promotions: tags pushed but the version isn't on PyPI yet)
 
     For each package it compares local tags (rc + final; `*_yanked` and `*.dev` main markers
@@ -737,7 +797,7 @@ class Status(XxPromote, _command="status"):
         return RC_TRUE
 
 
-class Resync(XxPromote, _command="resync"):
+class Resync(XxPromoteCli, _command="resync"):
     """xx-promote resync  (recovery: discard local work, force managed refs to match origin).
 
     After a crash, `require_synced` refuses the next promote until local == remote (atomic pushes keep
@@ -746,6 +806,8 @@ class Resync(XxPromote, _command="resync"):
     local-only ones - so you can re-run cleanly. Destructive; preview with --dry-run. No-op without an
     `origin`. (CLI command words must be identifiers, so this is `resync`, not `reset-local`.)
     """
+    push = M(True)
+    followup_commands = M([])
 
     def post_verify(self) -> RC:
         return RC_TRUE   # recovery runs *because* local != remote - never require_synced here
@@ -754,10 +816,9 @@ class Resync(XxPromote, _command="resync"):
         repo_branches: dict[Path, set[str]] = {}
         repo_globs: dict[Path, list[str]] = {}
         for name, pkg in self.packages.items():
-            is_core = pkg.tag_prefix == "v"
             repo_branches.setdefault(pkg.repo, {"main"}).update(
-                (GitHelpers.release_branch("pre", name, is_core),
-                 GitHelpers.release_branch("prod", name, is_core)))
+                (GitHelpers.release_branch("pre", name, pkg.is_core),
+                 GitHelpers.release_branch("prod", name, pkg.is_core)))
             repo_globs.setdefault(pkg.repo, []).append(f"{pkg.tag_prefix}*")
             repo_globs[pkg.repo].extend(VersionHelpers.publish_trigger_globs(pkg.tag_prefix))
         return [ResetRepoStep(repo=repo, branches=sorted(repo_branches[repo]), tag_globs=repo_globs[repo])
@@ -765,7 +826,7 @@ class Resync(XxPromote, _command="resync"):
 
 
 def main() -> int:
-    rc, inst = XxPromote.from_command_line()
+    rc, inst = XxPromoteCli.from_command_line()
     if not rc:
         print(rc.error())
         return 2

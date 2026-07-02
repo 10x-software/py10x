@@ -70,7 +70,7 @@ def repos(tmp_path):
 
 def _run_argv(argv):
     """Construct + run() the CLI (verify()/post_verify() preconditions, then apply, then push)."""
-    rc, inst = xp.XxPromote.instance_from_args(argv)
+    rc, inst = xp.XxPromoteCli.instance_from_args(argv)
     assert rc, rc.error() if not rc else ""
     return inst.run()
 
@@ -159,14 +159,16 @@ def test_pre_dry_run_is_side_effect_free(repos):
         assert GitHelpers.git(repo, "status", "--porcelain") == ""
 
 
-def test_pre_unchanged_packages_are_skipped(repos):
+def test_pre_unchanged_packages_are_skipped(repos, capsys):
     """A second `pre` with no source changes re-cuts nothing and mints no new tags."""
     py, cxx = repos
     _run_pre(py)
+    capsys.readouterr()  # discard first-run completion hints
     tags_py, tags_cxx = GitHelpers.list_tags(py, "*"), GitHelpers.list_tags(cxx, "*")
     _run_pre(py)                                            # nothing changed since the rc
     assert GitHelpers.list_tags(py, "*") == tags_py
     assert GitHelpers.list_tags(cxx, "*") == tags_cxx
+    assert "Local changes applied" not in capsys.readouterr().out
 
 
 def test_prod_stacks_final_on_rc_and_floors_main(repos):
@@ -212,6 +214,18 @@ def test_prod_stacks_final_on_rc_and_floors_main(repos):
         "pre/py10x-kernel-v0.0.1rc1", "pre/py10x-infra-v0.0.1rc1"}
     assert set(GitHelpers.list_tags(cxx, "prod/*")) == {
         "prod/py10x-kernel-v0.0.1", "prod/py10x-infra-v0.0.1"}
+
+
+def test_resync_does_not_print_promote_completion_hints(remotes, capsys):
+    """resync resets local refs to origin — not an unpushed promote; no promote-style footer."""
+    py, _cxx, _py_remote, _cxx_remote = remotes
+    _run_pre(py)                                          # local-only cut gives resync something to reset
+    capsys.readouterr()                                   # discard pre's promote footer
+    _run_argv(["resync", "--base", str(py)])
+    out = capsys.readouterr().out
+    assert "reset-local" in out
+    assert "Local changes applied" not in out
+    assert "Refs pushed" not in out
 
 
 def test_resync_recovers_an_un_pushed_local_cut(remotes):
@@ -294,6 +308,9 @@ def test_yank_latest_rc_rolls_pre_back_and_consumes_the_number(repos):
     assert "py10x-kernel-v0.0.1rc2_yanked" in GitHelpers.list_tags(cxx, "*")
     # pointer rollback: pre/py10x-kernel reconciled to the previous (live) rc
     assert GitHelpers.git(cxx, "rev-parse", "pre/py10x-kernel") == rc1_commit
+    main_pins = _dep_specs_at(py, "main", "pyproject.toml")
+    assert SpecifierSet(main_pins["py10x-kernel"]) == SpecifierSet(
+        VersionHelpers.rc_window_pin("0.0.1rc1"))
 
     _change_kernel_source(cxx, "feature2.py")
     _run_pre(py)
@@ -399,11 +416,12 @@ def test_pre_publish_recreates_triggers_after_resync(remotes):
         assert triggers
 
 
-def test_pre_publish_refuses_existing_triggers(remotes):
+def test_pre_publish_refuses_existing_triggers(remotes, capsys):
     py, _cxx, _py_remote, _cxx_remote = remotes
     _run_pre(py, "--push")
-    rc = _run_argv(["pre", "--publish-only", "--base", str(py), "--push"])
-    assert not rc and "already exist" in (rc.error() or "")
+    out = _run_argv(["pre", "--publish-only", "--base", str(py), "--push"])
+    assert out, out.error() if not out else ""
+    assert "already present" in capsys.readouterr().out
 
 
 def test_pre_no_publish_then_publish_only(remotes):
