@@ -71,6 +71,18 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         playwright install --with-deps chromium
 
+    - name: Enable Windows crash dumps
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $dumpFolder = Join-Path $env:RUNNER_TEMP 'crashdumps'
+        New-Item -ItemType Directory -Force -Path $dumpFolder | Out-Null
+        $werKey = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\python.exe'
+        New-Item -Path $werKey -Force | Out-Null
+        Set-ItemProperty -Path $werKey -Name DumpFolder -Value $dumpFolder
+        Set-ItemProperty -Path $werKey -Name DumpType -Value 2
+        Set-ItemProperty -Path $werKey -Name DumpCount -Value 3
+
     - name: Run full test suite
       shell: bash
       env:
@@ -83,3 +95,11 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         pytest
+
+    - name: Upload Windows minidump
+      if: failure() && runner.os == 'Windows'
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-minidump-${{ github.run_id }}
+        path: ${{ runner.temp }}/crashdumps/
+        if-no-files-found: ignore
