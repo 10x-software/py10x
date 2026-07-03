@@ -1492,11 +1492,37 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
 
 Without transaction support, any successful saves preceding the failure remain persisted — pick the mode that matches your durability needs.
 
+### Declarative collection indexes
+
+Storable `Traitable` classes can declare indexes for their backing collections using the `s_indices` class attribute:
+
+```python
+from core_10x.traitable import Traitable, T, Index
+from datetime import datetime
+
+class LogEntry(Traitable):
+    ts: datetime = T()
+    level: str = T()
+    message: str = T()
+
+    s_indices = [
+        Index('idx_ts', 'ts'),
+        Index('idx_level_ts', [('level', 1), ('ts', -1)]),
+        Index('idx_unique_msg', 'message', unique=True),
+    ]
+```
+
+- `Index(name, spec, **kwargs)` — `spec` is either a single trait name or a list of `(name, direction)` tuples.
+- Extra kwargs are passed through to the store's index API.
+- Indexes declared on base classes are inherited.
+
+Manual creation via `collection().create_index(...)` is still supported when needed. Indexes are created on first write.
+
 ### Revision history
 
 Storable traitables keep a revision history **by default**. Each successful `save()` that advances `_rev` also writes a snapshot to a companion `{collection}#history` store as a dynamically generated `TraitableHistory` class. History entries include server-populated `_at` (timestamp) and `_who` (authenticated store user) fields.
 
-Opt out with `keep_history=False` on the class definition, for example `class Person(Traitable, keep_history=False):`. Note, that by default traitable classes declared with `keep_history=False` are immutable (i.e. can only be persisted once). This behavior can be disabled by also specifying `immutable=False`
+Opt out with `keep_history=False` on the class definition, for example `class Person(Traitable, keep_history=False):`. Note, that by default traitable classes declared with `keep_history=False` are immutable (i.e. can only be persisted once). This behavior can be disabled by also specifying `immutable=False`.
 
 **Querying history**
 
@@ -1547,6 +1573,7 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
 ```
 
 `AsOfContext` requires the listed classes to keep history; for classes with `keep_history=False` the context is a no-op and current data is used.
+
 
 ## Relational Database (RelDb)
 
