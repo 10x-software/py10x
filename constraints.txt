@@ -82,7 +82,7 @@ cssutils==2.15.0
     # via rio-ui
 cycler==0.12.1
     # via matplotlib
-cython==3.2.5
+cython==3.2.8
     # via py10x-core (pyproject.toml)
 depgather==0.5.0 ; python_full_version >= '3.12'
     # via licensecheck
