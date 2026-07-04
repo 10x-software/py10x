@@ -259,7 +259,7 @@ pluggy==1.6.0
     #   hatchling
     #   pytest
     #   pytest-cov
-polars==1.41.2
+polars==1.42.1
     # via py10x-core (pyproject.toml)
 polars-runtime-32==1.41.2
     # via polars
