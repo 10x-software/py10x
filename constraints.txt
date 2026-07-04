@@ -261,7 +261,7 @@ pluggy==1.6.0
     #   pytest-cov
 polars==1.41.2
     # via py10x-core (pyproject.toml)
-polars-runtime-32==1.41.2
+polars-runtime-32==1.42.1
     # via polars
 propcache==0.5.2
     # via yarl
