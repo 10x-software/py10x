@@ -77,11 +77,13 @@ runs:
       run: |
         $dumpFolder = Join-Path $env:RUNNER_TEMP 'crashdumps'
         New-Item -ItemType Directory -Force -Path $dumpFolder | Out-Null
+        # LocalDumps subkey is the crashing image file name (python.exe), not a full path.
+        # After venv activation, .venv\Scripts\python.exe matches this key.
         $werKey = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\python.exe'
         New-Item -Path $werKey -Force | Out-Null
         Set-ItemProperty -Path $werKey -Name DumpFolder -Value $dumpFolder
-        Set-ItemProperty -Path $werKey -Name DumpType -Value 2
-        Set-ItemProperty -Path $werKey -Name DumpCount -Value 3
+        Set-ItemProperty -Path $werKey -Name DumpType -Value 1
+        Set-ItemProperty -Path $werKey -Name DumpCount -Value 5
 
     - name: Run full test suite
       shell: bash
@@ -94,12 +96,30 @@ runs:
         XX_TEST_STRICT: ${{ runner.os == 'Windows' && '0' || '1' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        pytest
+        python -m pytest
+
+    - name: Collect Windows crash dumps
+      if: failure() && runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $dest = Join-Path $env:RUNNER_TEMP 'crashdumps'
+        New-Item -ItemType Directory -Force -Path $dest | Out-Null
+        foreach ($src in @($dest, (Join-Path $env:LOCALAPPDATA 'CrashDumps'))) {
+          if (Test-Path $src) {
+            Write-Host "=== dump search: $src ==="
+            Get-ChildItem $src -ErrorAction SilentlyContinue | Format-Table Name, Length, LastWriteTime
+            Get-ChildItem $src -Filter '*.dmp' -ErrorAction SilentlyContinue |
+              Copy-Item -Destination $dest -Force
+          }
+        }
+        $dumps = Get-ChildItem $dest -Filter '*.dmp' -ErrorAction SilentlyContinue
+        if (-not $dumps) { Write-Warning 'No .dmp files found after crash'; exit 0 }
+        Write-Host "Collected $($dumps.Count) dump(s) for upload"
 
     - name: Upload Windows minidump
       if: failure() && runner.os == 'Windows'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: windows-minidump-${{ github.run_id }}
-        path: ${{ runner.temp }}/crashdumps/
-        if-no-files-found: ignore
+        path: ${{ runner.temp }}/crashdumps/*.dmp
+        if-no-files-found: warn
