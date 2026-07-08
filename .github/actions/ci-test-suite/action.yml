@@ -77,13 +77,13 @@ runs:
       run: |
         $dumpFolder = Join-Path $env:RUNNER_TEMP 'crashdumps'
         New-Item -ItemType Directory -Force -Path $dumpFolder | Out-Null
-        # LocalDumps subkey is the crashing image file name (python.exe), not a full path.
-        # After venv activation, .venv\Scripts\python.exe matches this key.
-        $werKey = 'HKLM:\SOFTWARE\Microsoft\Windows\Windows Error Reporting\LocalDumps\python.exe'
-        New-Item -Path $werKey -Force | Out-Null
-        Set-ItemProperty -Path $werKey -Name DumpFolder -Value $dumpFolder
-        Set-ItemProperty -Path $werKey -Name DumpType -Value 1
-        Set-ItemProperty -Path $werKey -Name DumpCount -Value 5
+        $procdumpZip = Join-Path $env:RUNNER_TEMP 'procdump.zip'
+        $procdumpDir = Join-Path $env:RUNNER_TEMP 'procdump'
+        Invoke-WebRequest -Uri 'https://download.sysinternals.com/files/Procdump.zip' -OutFile $procdumpZip
+        Expand-Archive -Path $procdumpZip -DestinationPath $procdumpDir -Force
+        $procdump = Join-Path $procdumpDir 'procdump64.exe'
+        & $procdump -accepteula -ma -i $dumpFolder
+        Write-Host "ProcDump registered as post-mortem debugger; dumps -> $dumpFolder"
 
     - name: Run full test suite
       shell: bash
@@ -97,24 +97,6 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         python -m pytest
-
-    - name: Collect Windows crash dumps
-      if: failure() && runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        $dest = Join-Path $env:RUNNER_TEMP 'crashdumps'
-        New-Item -ItemType Directory -Force -Path $dest | Out-Null
-        foreach ($src in @($dest, (Join-Path $env:LOCALAPPDATA 'CrashDumps'))) {
-          if (Test-Path $src) {
-            Write-Host "=== dump search: $src ==="
-            Get-ChildItem $src -ErrorAction SilentlyContinue | Format-Table Name, Length, LastWriteTime
-            Get-ChildItem $src -Filter '*.dmp' -ErrorAction SilentlyContinue |
-              Copy-Item -Destination $dest -Force
-          }
-        }
-        $dumps = Get-ChildItem $dest -Filter '*.dmp' -ErrorAction SilentlyContinue
-        if (-not $dumps) { Write-Warning 'No .dmp files found after crash'; exit 0 }
-        Write-Host "Collected $($dumps.Count) dump(s) for upload"
 
     - name: Upload Windows minidump
       if: failure() && runner.os == 'Windows'
