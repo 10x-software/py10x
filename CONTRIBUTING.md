@@ -30,7 +30,10 @@ To **pick up the latest changes** from git-based siblings after pulling or when 
 uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --upgrade
 ```
 
-**Important:** After the initial sync, always use `uv run --no-sync` (or the `uv-run` wrapper) for commands. Plain `uv run` can re-sync against `pyproject.toml` and accidentally fall back to PyPI-published siblings.
+**Important:** After the initial sync, always use `uv run --no-sync …` for commands (e.g.
+`uv run --no-sync pytest`). Plain `uv run` can re-sync against `pyproject.toml` and accidentally
+fall back to PyPI-published siblings. The installed `uv-run` / `uv-sync` scripts are equivalent
+shortcuts when the venv is activated.
 
 See [INSTALLATION.md](INSTALLATION.md#development-installation-recommended) for clone steps (including when and how to obtain the `../cxx10x` sibling) and [`dev_10x/README.md`](dev_10x/README.md) for the full profile table, reinstall rules, `XX_UV_INCREMENTAL`, and other options.
 
@@ -55,7 +58,11 @@ uv run --no-sync ruff format .
 
 #### Running Tests
 
-`infra_10x/unit_tests/` requires MongoDB — see [INSTALLATION.md § Optional Database Dependencies](INSTALLATION.md#optional-database-dependencies). `core_10x` and `ui_10x` tests do not.
+`uv run --no-sync pytest` does **not** require a local MongoDB. Tests that need a live mongo store
+skip automatically when Mongo is unreachable (see `core_10x/testlib/strict.py` — `need()` skips
+locally; under `XX_TEST_STRICT=1`, as in Linux CI, an unmet precondition fails instead). Install
+Mongo only if you want those tests to run locally — see
+[INSTALLATION.md § Optional Database Dependencies](INSTALLATION.md#optional-database-dependencies).
 
 ```bash
 # Run all unit tests (with coverage by default)
@@ -64,7 +71,7 @@ uv run --no-sync pytest
 # Run specific test suites
 uv run --no-sync pytest core_10x/unit_tests/
 uv run --no-sync pytest ui_10x/unit_tests/
-uv run --no-sync pytest infra_10x/unit_tests/  # Requires MongoDB
+uv run --no-sync pytest infra_10x/unit_tests/  # mongo-backed; skips if Mongo unreachable
 
 # Manual tests are debugging scripts (run directly)
 python core_10x/manual_tests/trivial_graph_test.py
@@ -125,7 +132,7 @@ py10x/
 │   └── ...
 ├── infra_10x/              # Storage and infrastructure
 │   ├── mongodb_store.py, ibis_store.py, duckdb_store.py, ...
-│   ├── unit_tests/         # Requires MongoDB (replica set)
+│   ├── unit_tests/         # mongo-backed; skips if Mongo unreachable locally
 │   └── testlib/
 ├── dev_10x/                # Developer tooling and release engineering
 │   ├── uv_sync.py, uv_run.py   # Dependency profile management

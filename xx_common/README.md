@@ -235,7 +235,7 @@ Available `IP_KIND` values: `LINEAR`, `NEAREST`, `NEAREST_UP`, `PREVIOUS`, `NEXT
 
 ## Tests
 
-`xx_common` tests do **not** require MongoDB. Run them with:
+`xx_common` tests do not use MongoDB. Run them with:
 
 ```bash
 uv run pytest xx_common/unit_tests/

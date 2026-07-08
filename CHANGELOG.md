@@ -23,6 +23,8 @@ Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present 
 - **Dependencies and packaging**: Dependabot bumps (`rio-ui` 0.12.2, widened `playwright` and `cryptography` ranges); optional `[project.optional-dependencies] jit` group for JIT tooling (not part of the default install).
 - **`VaultResourceAccessor.last_updated`**: `EVAL_ONCE` reinstated.
 - **`GETTING_STARTED.md`**: clarified `GraphDeps` `target_class`, `perturb`, and `perturb_value` usage.
+- **Documentation**: consolidated release-engineering design into `dev_10x/README.md` appendices; deduplicated install/test guidance across README, INSTALLATION, CONTRIBUTING, GETTING_STARTED, and AGENTS; README documentation map.
+- **Testing docs**: mongo-backed tests skip when Mongo is unreachable locally (`need()`); CI with `XX_TEST_STRICT=1` still provisions a replica set for full coverage.
 
 ### Fixed
 - **Curves**: `Curve.value` with `beginning_of_time` — times strictly before the cutoff now return `NaN` (guard condition was previously inverted).

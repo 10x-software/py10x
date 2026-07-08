@@ -215,8 +215,10 @@ stays clean → setuptools-scm never stamps a dirty guess-next-dev version → p
 Every `uv pip install` passes **`-c constraints.txt`** (see [constraints](#constraintstxt--reproducibility)
 below).
 
-`uv-run <command> [args…]` is `uv run --no-sync …` — the venv is already prepared by `uv-sync`;
-`uv run` must not re-sync and reconcile sources back to bare `pyproject.toml`.
+`uv-run <command> [args…]` is a thin wrapper around `uv run --no-sync …`. The venv is prepared by
+`uv-sync` (`uv run --no-sync python -m dev_10x.uv_sync <profile>`). From repo root you do **not**
+need `source .venv/bin/activate` — `uv run --no-sync` uses the project venv automatically. The
+installed `uv-sync` / `uv-run` scripts are equivalent shortcuts when the venv is on `PATH`.
 
 The active profile is recorded in `.dev_10x_profile` (informational).
 
@@ -230,8 +232,13 @@ The active profile is recorded in `.dev_10x_profile` (informational).
 | `py10x-core-dev` | local editable  | local editable (`../cxx10x`)|
 
 ```
-uv-sync py10x-core-dev --all-extras    # typical full dev setup
-uv-run pytest -q                       # run in the prepared venv
+# typical — editable core + git main siblings (no ../cxx10x checkout)
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
+uv run --no-sync pytest -q
+
+# local C++ sibling checkout at ../cxx10x
+uv run --no-sync python -m dev_10x.uv_sync py10x-core-dev --all-extras
+uv run --no-sync pytest -q
 ```
 
 ### Install order
@@ -348,8 +355,8 @@ dependabot keeps pins fresh — orthogonal to reproducibility (update vs freeze)
    `xx-constraints compile --upgrade` against the latest compatible PyPI graph.
 2. If `constraints.txt` is unchanged → stop (no tests, no PR).
 3. If it changed → re-sync against the fresh pins (compile rewrites the file but does not
-   reinstall), `xx-constraints check`, then the **full test suite** (MongoDB replica set +
-   Playwright), mirroring `ci.yml`.
+   reinstall), `xx-constraints check`, then the **full test suite** (CI-provisioned MongoDB replica
+   set + Playwright), mirroring `ci.yml`.
 4. Only on green → open/update PR `chore: refresh constraints.txt` (only `constraints.txt`
    is committed). The PR is review-gated and merged by a human.
 

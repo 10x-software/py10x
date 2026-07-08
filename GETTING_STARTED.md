@@ -33,8 +33,8 @@ The Traitable framework, dependency graph, storage integration, and Rio/Qt UI ba
 
 **Users:** `pip install py10x-core[rio]` or `pip install py10x-core[qt]` (see [INSTALLATION.md](INSTALLATION.md)).
 
-**Contributors:** `uv-sync py10x-core-dev --all-extras` — see [INSTALLATION.md](INSTALLATION.md) and
-[CONTRIBUTING.md](CONTRIBUTING.md).
+**Contributors:** see [CONTRIBUTING.md](CONTRIBUTING.md#development-setup) for `uv-sync` profiles
+(`py10x-dev` is typical; `py10x-core-dev` when editing `../cxx10x`).
 
 ## Core Concepts
 
@@ -2965,7 +2965,7 @@ with CACHE_ONLY():
 - Use `CACHE_ONLY()` for lightweight unit tests that exercise trait logic without needing persistence or global object sharing
 - Make each test (or test module) self-contained: set up and tear down its own data rather than relying on state left by other tests
 
-For running the full test suite and MongoDB requirements for `infra_10x`, see [CONTRIBUTING.md](CONTRIBUTING.md#testing).
+For running the full test suite (mongo tests skip when unreachable), see [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing).
 
 ## Next Steps
 
@@ -2977,7 +2977,7 @@ For running the full test suite and MongoDB requirements for `infra_10x`, see [C
 
 ### 2. Run Tests
 
-See [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) for commands (`uv run pytest`, suite paths, MongoDB note).
+See [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) for commands (`uv run --no-sync pytest`, suite paths).
 
 ### 3. Build Your Application
 
