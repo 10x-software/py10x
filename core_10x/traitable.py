@@ -158,7 +158,10 @@ class TraitableMetaclass(type(BTraitable)):
             for attr_name in cls.reserved_storable_traits(XNone):
                 del class_dict[attr_name]
         elif '__init__' in class_dict:
-            raise TypeError(f'Overriding __init__ is not allowed in {name}. Use __post_init__ instead.')
+            ctor_allowed = class_dict.get('s_ctor_allowed')
+            if not ctor_allowed:
+                raise TypeError(f'Overriding __init__ is not allowed in {name}. Use __post_init__ instead.')
+
         return super().__new__(cls, name, bases, class_dict | {'__slots__': ()}, **kwargs)
 
 
@@ -778,7 +781,6 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def post_serialize(self, serialized_data: dict) -> dict:
         return serialized_data
 
-
 class TraitableFwdRef(Traitable, root_class=True):
     """Internal base for deferred sibling Traitable annotations; not for direct use."""
 
@@ -1243,6 +1245,19 @@ class AsOfContext:
             self._btp = None
 
         self._reset_storage_helpers()
+
+class NamedTraitable(Traitable):
+    s_ctor_allowed = True
+
+    name: str   = T(T.ID)
+
+    def __init__(self, _name: str = None, **kwargs):
+        if _name:
+            super().__init__(name = _name, **kwargs)
+            if not self.id_exists():
+                raise ValueError(f'{self.__class__}.{self.name} does not exist')
+        else:
+            super().__init__(**kwargs)
 
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):
