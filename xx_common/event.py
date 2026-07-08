@@ -18,9 +18,6 @@ class Event(EventBase):
         lo = 0x8000000000000000
         return str(uuid6.UUID(int=(hi << 64) | lo))
 
-    def save(self, save_references=False) -> RC:
-        return super().save(save_references=False) # -- must not have references to other objects TODO: assert/trhow?
-
     @classmethod
     def between(cls, start: datetime, end: datetime, including_start=True, including_end=True, _coll_name: str = None):
         if start is None:
