@@ -13,6 +13,7 @@ Usage (from CMake):
   so_dir         : directory containing <module_name>.so
   stub_out_dir   : directory to write the generated .pyi file
 """
+import os
 import sys
 import ctypes
 
@@ -22,6 +23,8 @@ sys.path.insert(0, stubgen_src_dir)
 sys.path.insert(0, so_dir)
 
 import py10x_kernel
+if sys.platform == "win32":
+    os.add_dll_directory(os.path.dirname(py10x_kernel.__file__))
 ctypes.CDLL(py10x_kernel.__file__, ctypes.RTLD_GLOBAL)
 
 from pybind11_stubgen.__main__ import main  # noqa
