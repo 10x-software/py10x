@@ -24,16 +24,16 @@ Agents should **link to and rely on those files**, not duplicate them here.
 
 - **Use UV and the project venv**
   - Assume development happens via `uv` and a local `.venv`.
-  - When suggesting or running commands, prefer:
-    - `uv-sync py10x-core-dev --all-extras` for dependency setup (see `dev_10x/README.md`).
-    - `uv-run --no-sync pytest …` / `uv --no-sync run …` for Python tooling after the venv is prepared.
+  - When suggesting or running commands, prefer (from repo root — no `source .venv` needed):
+    - `uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras` for typical setup (`py10x-core-dev` when editing `../cxx10x`) — see [`CONTRIBUTING.md`](CONTRIBUTING.md#development-setup).
+    - `uv run --no-sync pytest …` / `uv run --no-sync ruff …` after the venv is prepared.
 
 - **Respect C++ / cxx10x backend**
   - Treat the C++ backends (from `cxx10x`) as **opaque** — do not reimplement or bypass them in Python; use the public Python APIs.
   - The C++ source lives in the sibling package at `../cxx10x/` (sibling to this repo's checkout). Read it (don't modify it from this repo) when you need to verify what is actually exposed to Python — in particular `../cxx10x/core_10x/btraitable.h` for the `BTraitable` API surface and `../cxx10x/core_10x/core_10x.cpp` for the pybind11 bindings that determine which methods are visible from Python.
 
 - **Traitable Store & UI assumptions**
-  - `infra_10x` tests need MongoDB — see `INSTALLATION.md` § Optional Database Dependencies.
+  - Mongo-backed tests skip when Mongo is unreachable locally; see [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) and `INSTALLATION.md` § Optional Database Dependencies.
   - UI work should assume Rio/Qt backends as configured in `INSTALLATION.md` / `pyproject.toml`.
 
 For any environment ambiguity, favor the patterns and instructions in `INSTALLATION.md` and `CONTRIBUTING.md`.
@@ -132,13 +132,15 @@ Rules agents must **not** violate:
 
 | Service | Purpose | How to start |
 |---------|---------|-------------|
-| MongoDB 8 (replica set) | Required for `infra_10x` tests | `docker start mongo-rs` (container pre-exists in snapshot) |
+| MongoDB 8 (replica set) | Optional — runs mongo-backed tests that skip when absent | `docker start mongo-rs` (container pre-exists in snapshot) |
 | Docker daemon | Hosts MongoDB container | `sudo dockerd &>/tmp/dockerd.log &` |
 | Playwright/Chromium | Required for `ui_10x/rio` browser-based tests | Pre-installed; no startup needed |
 
 ### Starting services before running tests
 
-The Docker daemon and MongoDB container are already configured but **not auto-started**. Before running tests that touch `infra_10x`:
+MongoDB is **optional** for local runs — `pytest` skips mongo-dependent tests when the server is
+unreachable. Start Mongo only when you want full `infra_10x` coverage locally. The Docker daemon and
+MongoDB container are pre-configured but **not auto-started** in this environment:
 
 ```bash
 sudo dockerd &>/tmp/dockerd.log &
@@ -153,15 +155,13 @@ docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary"
 # Should print: true
 ```
 
-`core_10x`, `xx_common`, and `ui_10x` tests do **not** require MongoDB.
-
 ### Running tests, lint, and build
 
 See [CONTRIBUTING.md](CONTRIBUTING.md#development-workflow) (`uv run --no-sync pytest`, `uv run --no-sync ruff`, `uv --no-sync build`).
 
 ### Non-obvious caveats
 
-- MongoDB must run as a **replica set** (`--replSet rs0`), not standalone — see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies).
+- MongoDB must run as a **replica set** (`--replSet rs0`), not standalone, for transaction tests — see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies).
 - The Docker socket permissions may need fixing after daemon restart: `sudo chmod 666 /var/run/docker.sock`.
 - The Docker storage driver is set to `fuse-overlayfs` and iptables uses `iptables-legacy` — these are required for nested container environments.
 - `uv` is installed at `~/.local/bin/uv`; ensure `$HOME/.local/bin` is on `PATH`.

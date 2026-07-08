@@ -35,14 +35,16 @@ If either applies, install one of:
 
 ### Optional Database Dependencies
 
-**Traitable Store backends** (for `infra_10x` tests and persistence examples):
+**Traitable Store backends** (for persistence examples and optional full test coverage):
 
 - `core_10x` tests use the **in-process** Traitable Store — no external database.
-- `infra_10x` tests use the **MongoDB-backed** store (`MongoStore`, implemented in `infra_10x`).
-  Those tests require a local **passwordless MongoDB** instance on **port 27017** (replica set for
-  transactions). See platform setup below for install commands.
+- `infra_10x` tests exercise the **MongoDB-backed** store (`MongoStore`, implemented in `infra_10x`).
+  A local MongoDB is **not required** to run `pytest` — mongo-dependent tests skip when the server
+  is unreachable. To run them locally, install a **passwordless MongoDB** instance on **port 27017**
+  (replica set recommended for transaction tests). CI sets `XX_TEST_STRICT=1` and provisions a
+  replica set so those tests must run there.
 
-Other docs link here for store requirements; do not duplicate the full blurb elsewhere.
+See platform setup below for install commands. Other docs link here; do not duplicate the full blurb.
 
 ## Installation Methods
 
@@ -89,25 +91,28 @@ python --version  # Should show 3.12.x
 
 ### Development Installation (Recommended)
 
-For developers who want to contribute to `py10x-core` or need all features (including local C++
-siblings from `../cxx10x`):
+For developers contributing to `py10x-core`:
 
 ```bash
-# Clone the repository (and cxx10x sibling if building kernel/infra from source)
 git clone https://github.com/10x-software/py10x.git
 cd py10x
 
-# Full dev setup — installs py10x-core editable + local cxx10x siblings
-uv-sync py10x-core-dev --all-extras
-uv-run pytest -q   # run in the prepared venv
+# Typical setup — editable core + C++ siblings from git main (no ../cxx10x checkout)
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
+uv run --no-sync pytest
 ```
+
+Use the **`py10x-core-dev`** profile when you have a local `../cxx10x` checkout and are editing the
+C++ packages. Profile table and refresh commands: [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
 
 `uv-sync` drives `uv pip install` with dependency-source **profiles** (see
 [`dev_10x/README.md`](dev_10x/README.md)); it does not mutate `pyproject.toml`. Plain `uv sync` is
-not the canonical multi-repo dev path.
+not the canonical multi-repo dev path. Run it as
+`uv run --no-sync python -m dev_10x.uv_sync <profile>` from repo root (no venv activation
+required). After sync, use `uv run --no-sync …` for pytest, ruff, etc.
 
-For lighter profiles (released wheels, git `main` siblings only), other `uv-sync` profiles, and
-release promotion (`xx-promote`), see [`dev_10x/README.md`](dev_10x/README.md).
+For user installs, lighter profiles, and release promotion (`xx-promote`), see
+[`dev_10x/README.md`](dev_10x/README.md).
 
 ### User Installation
 
@@ -256,7 +261,11 @@ If you need the C++ workload and already have the full Visual Studio 2022 IDE in
 
 ### UI Backend Selection
 
-You can override the automatic UI backend selection using environment variables:
+For **contributors** using `uv-sync` profiles, pass UI extras to the sync command (e.g.
+`py10x-dev --all-extras` already includes Rio/Qt). After sync, use `uv run --no-sync …` — see
+[CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
+
+For **user** installs without `uv-sync`, you can override backend selection with:
 
 ```bash
 # Force Rio UI backend
@@ -325,12 +334,14 @@ If you encounter C++ compilation errors:
 
 If UI components fail to import:
 
-1. **Rio UI**: Install Node.js and npm, then reinstall with Rio extras
+1. **Contributors:** re-sync with the right extras, e.g.
+   `uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras` (see
+   [CONTRIBUTING.md](CONTRIBUTING.md#development-setup)).
+2. **Rio UI (user install):** Install Node.js and npm, then reinstall with Rio extras
    ```bash
    uv sync --extra rio
    ```
-
-2. **Qt6 UI**: Install PyQt6 packages
+3. **Qt6 UI (user install):** Install PyQt6 packages
    ```bash
    uv sync --extra qt
    ```
