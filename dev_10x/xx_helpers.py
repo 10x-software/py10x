@@ -410,27 +410,52 @@ class GitHelpers:
 
     @classmethod
     def require_synced(cls, repo: Path, tag_globs: list[str]) -> None:
-        """Precondition: local == origin — committed and pushed (`main` and managed tag globs match
-        `origin`; runs `git fetch origin` before comparing; untracked files are OK). Skips the
-        remote half when there is no `origin` (pure-local dev).
+        """Ensure we can safely start a promote from a state consistent with origin.
 
-        Enforces the "start local==remote (incl. tags)" invariant so a subsequent `--push` finishes
-        with local==remote; refuses on a stale/un-pushed `main` or divergent managed tags.
+        - Tree must be clean (no uncommitted tracked changes).
+        - local main must match origin/main (hard error — user must push/pull first).
+        - Managed tags (release tags, dev markers, publish triggers) are *reconciled* to origin:
+            * anything remote has but we don't is fetched,
+            * anything we have locally that remote no longer has is deleted
+              (this cleans up stale dev markers that were retired by a previous promote/yank
+              on another machine, deleted triggers, etc.).
+
+        This means pure tag-only differences (including "stale dev tags" that were deleted
+        on the remote) are handled automatically. Local-only tags created by an unpushed
+        `xx-promote` run are discarded to reach the remote view — consistent with the
+        documented recovery model of "resync and start again".
+
+        After this call, managed tags match origin (when origin exists). Untracked files are OK.
+        The remote half is skipped for pure-local dev (no origin).
         """
         cls.require_clean(repo)
         if not cls.has_origin(repo):
             return
-        cls.git(repo, "fetch", "--quiet", "--prune", "origin")
+        cls.git(repo, "fetch", "--quiet", "--prune", "--prune-tags", "origin")
         remote_main = cls.ls_remote_ref(repo, "refs/heads/main")
         if remote_main is not None and cls.git(repo, "rev-parse", "main") != remote_main:
             raise RuntimeError(f"{repo}: local main != origin/main - push/pull main before promoting")
+
+        # Reconcile managed tags to exactly what origin currently has.
+        # We deliberately delete only-local managed tags here (they are coordination state
+        # owned by xx-promote). This is safe and desirable for dev markers and matches the
+        # "remote is authoritative for these tags" model.
         for glob in tag_globs:
             local = cls._tags_matching_glob(set(cls.list_tags(repo, glob)), glob)
             remote = cls.ls_remote_tags(repo, glob)
-            if local != remote:
-                raise RuntimeError(
-                    f"{repo}: local tags != origin for {glob} - sync first "
-                    f"(only-local={sorted(local - remote)}, only-remote={sorted(remote - local)})")
+
+            only_local = sorted(local - remote)
+            only_remote = sorted(remote - local)
+
+            for t in only_local:
+                cls.git(repo, "tag", "-d", t, check=False)
+            for t in only_remote:
+                cls.git(repo, "fetch", "-q", "origin", "tag", t)
+
+            if only_local:
+                # We only notify on deletions (stale dev markers etc. that were removed on remote).
+                # Fetches of new remote tags are silent.
+                print(f"  cleaned stale managed tags not present on origin: {only_local}")
 
     @classmethod
     def tag_commit(cls, repo: Path, tag: str) -> str:

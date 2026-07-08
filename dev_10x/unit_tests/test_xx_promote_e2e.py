@@ -228,26 +228,32 @@ def test_resync_does_not_print_promote_completion_hints(remotes, capsys):
     assert "Refs pushed" not in out
 
 
-def test_resync_recovers_an_un_pushed_local_cut(remotes):
-    """A local cut never pushed leaves local != remote; require_synced refuses, resync discards it, re-run works."""
+def test_local_promote_work_requires_resync(remotes):
+    """A promote run (even without --push) mutates main via the epilogue (pins + dev marker).
+    A follow-up promote therefore fails require_synced on main (not just tags).
+    Explicit resync is still the way to discard local work and get back to origin.
+    (Pure tag-behind cases with matching main are now auto-reconciled by require_synced.)"""
     py, cxx, py_remote, _cxx_remote = remotes
     _run_pre(py)                                          # cut rc1 LOCALLY (no --push)
-    assert "v0.0.1rc1" in GitHelpers.list_tags(py, "v*")  # local has it
-    assert GitHelpers.git(py_remote, "tag", "--list") == ""   # remote does not
+    assert "v0.0.1rc1" in GitHelpers.list_tags(py, "v*")
+    assert GitHelpers.git(py_remote, "tag", "--list") == ""
 
-    out = _run_argv(["pre", "--base", str(py), "--push"])     # next run refused (local tags != origin)
-    assert not out and "tags != origin" in (out.error() or "")
+    out = _run_argv(["pre", "--base", str(py), "--push"])
+    assert not out and "origin/main" in (out.error() or "")   # main was advanced locally by the first promote
 
-    _run("resync", py)                                   # discard local-only work, restore local == remote
+    _run("resync", py)                                   # discard local work (main + tags + branches)
     assert GitHelpers.list_tags(py, "v*") == [] and GitHelpers.list_tags(cxx, "py10x-kernel-v*") == []
-    assert GitHelpers.git(py, "rev-parse", "--verify", "--quiet", "pre", check=False) == ""  # local pre dropped
+    assert GitHelpers.git(py, "rev-parse", "--verify", "--quiet", "pre", check=False) == ""
 
-    _run_pre(py, "--push")                               # clean re-run now succeeds and pushes
+    _run_pre(py, "--push")                               # now clean; succeeds and pushes
     assert "v0.0.1rc1" in GitHelpers.git(py_remote, "tag", "--list").split()
 
 
-def test_resync_then_resume_after_cross_repo_partial_push(remotes):
-    """Crash with siblings pushed but core not: resync the un-synced repo, re-run resumes (core re-cut)."""
+def test_partial_push_recovery_still_uses_resync(remotes):
+    """Crash with siblings pushed but core not: the lagging repo has local main changes from the
+    promote epilogue, so require_synced refuses on main. resync + re-run still works to resume
+    (core re-cut to coordinate). Pure tag-only lag (main revs match) is handled by auto-reconcile
+    inside require_synced."""
     py, cxx, py_remote, _cxx_remote = remotes
     _run_pre(py)                                          # cut rc1 everywhere, locally
     # simulate a crash mid-push: the siblings repo (cxx) got its atomic push, core (py) did not.
@@ -255,17 +261,17 @@ def test_resync_then_resume_after_cross_repo_partial_push(remotes):
                    "+pre/py10x-kernel", "py10x-kernel-v0.0.1rc1",
                    "+pre/py10x-infra", "py10x-infra-v0.0.1rc1")
 
-    out = _run_argv(["pre", "--base", str(py), "--push"])     # refused: py local-ahead
-    assert not out and "tags != origin" in (out.error() or "")
+    out = _run_argv(["pre", "--base", str(py), "--push"])
+    assert not out and "origin/main" in (out.error() or "")
 
-    _run("resync", py)                                   # py back to origin (core cut discarded); cxx already synced
+    _run("resync", py)                                   # py back to origin (local promote work discarded)
     assert GitHelpers.list_tags(py, "v*") == []
     assert "py10x-kernel-v0.0.1rc1" in GitHelpers.list_tags(cxx, "py10x-kernel-v*")   # siblings intact
 
     _run_pre(py, "--push")                               # resumes: siblings skip, core re-cut + coordinated
     assert "v0.0.1rc1" in GitHelpers.git(py_remote, "tag", "--list").split()
     assert _dep_specs_at(py, "v0.0.1rc1", "pyproject.toml")["py10x-kernel"] == "==0.0.1rc1"
-    assert GitHelpers.list_tags(py, "v*") == ["v0.0.1rc1", "v0.0.1rc2.dev"]   # no spurious new rc
+    assert GitHelpers.list_tags(py, "v*") == ["v0.0.1rc1", "v0.0.1rc2.dev"]
 
 
 def test_pre_iterate_after_sibling_source_change_recoordinates(repos):
@@ -461,3 +467,71 @@ def test_yank_push_rolls_remote_pre_back(remotes):
     # remote pre rolled back to the previous rc; local == remote
     assert GitHelpers.ls_remote_ref(cxx, "refs/heads/pre/py10x-kernel") == rc1_commit
     assert GitHelpers.git(cxx, "rev-parse", "pre/py10x-kernel") == rc1_commit
+
+
+def test_someone_else_promoted_stale_dev_new_tags_pyproject_change(remotes, capsys):
+    """When someone else promotes (new release tags, stale dev markers deleted on remote + pyproject
+    epilogue commit on main), a local clone that hasn't pulled will fail require_synced on the main
+    rev check (require_clean does *not* fail on tag mismatch; it only checks working tree).
+
+    After `git pull`, main matches; the tag reconciliation in require_synced cleans stale local
+    dev tags and fetches missing new release tags, allowing the promote command to succeed.
+
+    This is the realistic "someone else promoted while you were behind" scenario.
+    """
+    py, _cxx, py_remote, _cxx_remote = remotes
+
+    # Pre-create a dev marker tag that the promote will treat as stale (will be deleted during promote)
+    stale_dev = "v0.0.1rc0.dev"
+    GitHelpers.git(py, "tag", stale_dev, "main")
+    GitHelpers.git(py, "push", "-q", "origin", f"refs/tags/{stale_dev}")
+
+    # Local change so the promote has a footprint change and will write epilogue (pyproject update on main)
+    _write(py / "src.py", "x = 1\n")
+    GitHelpers.git(py, "add", ".")
+    GitHelpers.git(py, "commit", "-qm", "change before promote")
+
+    # Push the change commit so the upcoming promote's require_synced sees local main == origin/main
+    GitHelpers.git(py, "push", "-q", "origin", "main")
+    old_main = GitHelpers.git(py, "rev-parse", "main")
+
+    # "Someone else" promotes: this does the epilogue commit on main (pyproject pin changes),
+    # creates new release tag + new dev marker, deletes stale_dev locally+pushes delete ref.
+    _run_pre(py, "--push")
+
+    # Simulate your local not having pulled the advance:
+    GitHelpers.git(py, "reset", "--hard", old_main)
+
+    # Re-create the now-stale dev tag locally (remote no longer has it)
+    GitHelpers.git(py, "tag", stale_dev, old_main)
+
+    # First attempt: fails because local main (old) != origin/main (the epilogue commit)
+    # Tag reconciliation code is not reached (main check is before it).
+    # require_clean did not crash (tag mismatch alone does not make tree dirty).
+    # (Note: the fetch inside this call will prune-tags the stale and bring new tags.)
+    out = _run_argv(["pre", "--base", str(py), "--push"])
+    assert not out
+    assert "local main != origin/main" in (out.error() or "")
+
+    # Re-create stale *after* the fetch that happened in the failing call (so reconcile on next will see it)
+    GitHelpers.git(py, "tag", stale_dev, old_main)
+
+    # Remove the new release tag locally (it was brought by the previous fetch) so the *next* reconcile fetches it
+    new_release = "v0.0.1rc1"
+    if new_release in GitHelpers.list_tags(py, "v*"):
+        GitHelpers.git(py, "tag", "-d", new_release)
+
+    # Now pull (catch up on the main commit with pyproject changes)
+    GitHelpers.git(py, "pull", "-q", "origin", "main")
+
+    # Second attempt: main now matches. require_synced runs tag reconciliation:
+    # - deletes the stale_dev (only_local)
+    # - fetches the missing new_release (only_remote)
+    # Succeeds (no error from require_synced).
+    out = _run_argv(["pre", "--base", str(py), "--push"])
+    assert out, out.error() if not out else ""
+
+    # Reconciliation (and/or prune-tags + tag fetch in require_synced) effects visible after pull + successful require
+    assert stale_dev not in GitHelpers.list_tags(py, "v*")
+    assert new_release in GitHelpers.list_tags(py, "v*")
+    # (The 'cleaned stale...' print may or may not appear depending on timing with --prune-tags fetch.)
