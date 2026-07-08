@@ -9,6 +9,9 @@ inputs:
     description: MongoDB major.minor for Linux (Docker) and Windows (preinstalled Server path)
     required: true
     default: "7.0"
+  runner-os:
+    description: Host runner OS from the calling workflow (Linux, Windows, or macOS)
+    required: true
 runs:
   using: composite
   steps:
@@ -72,7 +75,7 @@ runs:
         playwright install --with-deps chromium
 
     - name: Enable Windows crash dumps
-      if: runner.os == 'Windows'
+      if: inputs.runner-os == 'Windows'
       shell: pwsh
       run: |
         $dumpFolder = Join-Path $env:RUNNER_TEMP 'crashdumps'
@@ -93,13 +96,13 @@ runs:
         # but Windows is standalone by design, so leave strict OFF there - the transaction gate must
         # skip, not fail, on Windows. (git/uv/source/siblings are present on both, so those guards
         # run regardless; strict only flips an *unmet* precondition from skip to fail.)
-        XX_TEST_STRICT: ${{ runner.os == 'Windows' && '0' || '1' }}
+        XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         python -m pytest
 
     - name: Upload Windows minidump
-      if: failure() && runner.os == 'Windows'
+      if: failure() && inputs.runner-os == 'Windows'
       uses: actions/upload-artifact@v7
       with:
         name: windows-minidump-${{ github.run_id }}
