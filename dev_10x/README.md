@@ -1,7 +1,9 @@
 # `dev_10x` — developer tooling for the 10x packages
 
-Canonical documentation for release engineering and local dependency profiles.  
-See also `AGENTS.md` §7 for agent-specific guardrails when editing this code.
+Canonical documentation for release engineering and local dependency profiles.
+
+- **Contributor workflow:** [`CONTRIBUTING.md`](../CONTRIBUTING.md)
+- **Design rationale / Stage 2 roadmap:** [appendices](#design-rationale) below
 
 ## CLI tools
 
@@ -65,7 +67,8 @@ Releases are not cut by hand-editing pins. `main` always carries **rc-window pin
 `xx-promote` epilogues). `xx-promote` cuts
 each release onto a tool-owned branch — `pre` (current rc) / `prod` (current final), per package —
 writing **coordinated exact pins** there and tagging it, so an external `pip install …rc1` resolves
-the coordinated sibling set. See `docs/rc-branch-promotion.md` for the full branch/coordination model.
+the coordinated sibling set. Branch/coordination model: tool-owned `pre`/`prod` branches per package
+(see [Pin model](#pin-model-three-places) and [Design rationale](#design-rationale)).
 
 `xx-promote` is a `core_10x.traitable_cli` tree: the command is a positional word and options use
 the `--option value` form (dashes in names map to underscores, e.g. `--dry-run` → `dry_run`).
@@ -81,7 +84,7 @@ For a sibling at coordinated rc `rcN` or released final `T`:
     `next_micro`). The inclusive rc floor auto-enables prereleases.
     Blocks a published `rc(N+1)` on the index while py10x `main` still pins the `rcN` line; pairs
     with the setuptools-scm marker `{T}rc(N+1).dev` on cxx10x `main` (must stay in lockstep — see
-    `docs/rc-branch-promotion.md`).
+    [Pin model](#pin-model-three-places)).
   - **After `prod`:** `>=T,<{next_micro(T)}rc1` — **not** `>=T,<next_micro>`. Admits the post-final
     marker editable (`{next_micro}rc0.dev`) and blocks the next publishable rc.
 - **`pre` / `prod` — exact forward `==` (core → siblings, published):** core pins each sibling
@@ -419,3 +422,73 @@ uv venv && source .venv/bin/activate
 WAIT_FOR_SIBLING_BRANCH=main python -m dev_10x.uv_sync py10x-core-dev --all-extras
 WAIT_FOR_SIBLING_BRANCH=main WAIT_FOR_SIBLING_BRANCH_SYNC_BASE=1 python -m dev_10x.uv_sync …
 ```
+
+---
+
+## Design rationale
+
+The release model is conventional GitFlow-style tooling (`pre`/`prod` branches, setuptools-scm
+tagging) plus **coordinated batch releases** across two repos. Packages keep independent version
+numbers (core `v1.3.0` while kernel `v1.4.0`) and unchanged packages are skipped — but a release is a
+**coordinated batch**, cut together and cross-pinned, not each package shipping on its own schedule.
+It sits between Lerna's *fixed* mode (one shared version) and *independent* mode (no coordination).
+The unusual parts trace to one constraint: coordinating a **tightly-coupled family across two repos
+with exact reproducibility for external rc consumers**.
+
+### Alternatives considered
+
+- **Ranges + lockfile/constraints (mainstream default).** What we already do with `constraints.txt`.
+  Rejected as *insufficient*: `constraints.txt` only protects consumers who use it (our CI); it does
+  **not** give an external `pip install core==X.Yrc1` the coordinated siblings. This design extends
+  that guarantee to the published rc wheel. **If the only consumer of rc wheels is ever our own
+  constraints-pinned CI, this design is not worth its cost** — ranges + constraints give ~90% of the
+  benefit for far less machinery.
+- **Monorepo (changesets / Nx).** Would make coordination nearly free, but the C++/Python split keeps
+  us in two repos for unrelated reasons.
+- **semantic-release / release-please.** Orthogonal — single-package version/changelog automation;
+  doesn't address coordination, would layer on top rather than replace this.
+- **Per-version `release/v{T}` branches (superseded).** Replaced by the two tool-owned `pre`/`prod`
+  pointers: bounded (no proliferation, nothing to prune) and conventional.
+- **Transient / tag-only commits (rejected).** Puts the release commit on *no* branch — breaking
+  `git log <branch>`, branch protection, and discoverability. `pre`/`prod` recover all of that for the
+  current release while keeping tags as history.
+
+### Conscious tradeoffs
+
+- **Exact `==` on first-party deps in published metadata** — carved out *only* for the co-released
+  family. The guardrail is rescoped to **third-party** deps (see [constraints](#constraintstxt--reproducibility)).
+- **`==T` excludes `.postN`** (`SpecifierSet("==1.4.0").contains("1.4.0.post1")` is `False`), so the
+  forward pin is **stricter than `>=T,<next_micro`** (which admits posts). A metadata-only sibling
+  `.postN` is *not* picked up by an already-published core wheel — it propagates only via a core
+  **re-cut** (declaratively triggered once the `.post` is tagged). Do **not** widen the pin to admit
+  posts — that reopens an untested-artifact hole.
+- Released **source** == rc source, but the final commit is `rc-commit + pin rewrite`, not the rc
+  commit itself.
+- A new sibling rc **forces a core re-cut** to refresh its exact pin — the price of exact coordination.
+- Reverse `>=` has **no upper cap**, but is **self-correcting** via the forward `==` and editable
+  sibling installs (cxx10x CI verifies PEP 610 editable).
+- **`pre`/`prod` are tool-force-updated protected branches** — humans contribute via PR into them;
+  the promote commit itself is tool-written.
+- **`pre`/`prod` are current-state pointers, not history** — past releases are tag-only. Because
+  branches force-reset on each `--from=main` re-cut, `git log pre` shows the current candidate's
+  lineage plus `main` beneath it, not a ledger of past releases.
+
+---
+
+## Stage 2 (not implemented)
+
+Stage 1 (shipped) covers coordinated rc/final cuts with `--from=main` only, yank-latest-only, and
+serialize-by-discipline ("one release at a time"). Stage 2 would add release-line maintenance and
+heavier concurrency controls:
+
+- **`pre --from=release`** — iterate a live candidate (fast-forward `pre` from `pre` HEAD) instead of
+  re-forking from `main`.
+- **`mark-merged` / `*-merged` marker refs** — gate destructive `--from=main` re-forks when `pre`
+  carries human commits: reset allowed only when `<marker>..<branch>` is pin-only; `mark-merged`
+  acknowledges forward-ports to `main`.
+- **`xx-promote diff` / `--diff-only`** — show un-forward-ported work on `pre`/`prod` vs `main`.
+- **Yank `--cascade`** — yank older releases and sweep orphaned intermediate sibling rcs (Stage 1
+  refuses yanking anything but the latest without `--cascade`, which is not implemented).
+- **Multi-writer concurrency** — tag-as-mutex if ever needed; Stage 1 relies on discipline only.
+- **SemVer-aware bumping (defer to `1.0.0`)** — `--from=main` bumps *minor*, `--from=release` bumps
+  *micro*, so the two paths produce structurally distinct versions.

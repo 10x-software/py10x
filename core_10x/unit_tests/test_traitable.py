@@ -22,8 +22,9 @@ from core_10x.named_constant import NamedCallable
 from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitableFwdRef, TraitAccessor
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitableFwdRef, TraitAccessor, Index
 from core_10x.traitable_id import ID
+
 from core_10x.xnone import XNone
 
 if TYPE_CHECKING:
@@ -164,12 +165,10 @@ class TestStorageHelper:
     class _ParentT(Traitable):
         pid: str = T(T.ID)
 
-
     class _ChildT(_ParentT):
         extra: int = T()
 
-
-    def test_subclass_does_not_inherit_parent_storage_helper(self,ts_instance):
+    def test_subclass_does_not_inherit_parent_storage_helper(self, ts_instance):
         """Regression: each Traitable subclass must own its `s_storage_helper`.
 
         Class-attribute lookup on `s_storage_helper_cached` walks the MRO, so if
@@ -214,8 +213,9 @@ def test_collection_name_rt():
     assert not X.is_storable()
     assert X.trait('_collection_name') is None
 
-    with pytest.raises(AttributeError, match= "'X' object has no attribute '_collection_name'"):
+    with pytest.raises(AttributeError, match="'X' object has no attribute '_collection_name'"):
         X(x=1)._collection_name
+
 
 def test_custom_collection():
     class X(Traitable, custom_collection=True):
@@ -239,6 +239,112 @@ def test_custom_collection():
     assert y.x == 1 and y.v == 20
 
     assert x.v == 10
+
+
+def test_declarative_indices():
+    """Test the new s_indices declarative syntax, inheritance, and caching behavior."""
+
+    # A plain class with no history and explicit indices (including kwargs)
+    class WithIdx(Traitable, keep_history=False):
+        code: str = T(T.ID)
+        val: int = T()  # simple annotation to avoid forward-ref lint noise in test
+
+        s_indices = [
+            Index('idx_code', 'code'),
+            Index('idx_val_desc', 'val', some_kw=True),  # exercises **kwargs passthrough
+        ]
+
+    assert len(WithIdx.s_indices) == 2
+    names = [i.name for i in WithIdx.s_indices]
+    assert names == ['idx_code', 'idx_val_desc']
+    assert WithIdx.s_indices[1].kwargs == {'some_kw': True}
+
+    # Inheritance: subclass should see base indices + own (merged, own wins on collision)
+    class SubIdx(WithIdx):
+        other: int = T()
+
+        s_indices = [
+            Index('idx_other', 'other'),
+            Index('idx_code', 'code', unique=True),  # override by name
+        ]
+
+    sub_names = {i.name: i for i in SubIdx.s_indices}
+    assert set(sub_names) == {'idx_code', 'idx_val_desc', 'idx_other'}
+    assert sub_names['idx_code'].kwargs == {'unique': True}  # own wins
+    assert sub_names['idx_val_desc'].spec == 'val'  # inherited
+
+    # EventBase should have its _at index (via declarative)
+    from core_10x.traitable import EventBase
+
+    assert any(ix.name == '_at_idx' for ix in EventBase.s_indices)
+
+    # TraitableHistory (and a concrete history class) should have the compound index
+    class KeepsHistory(Traitable):
+        k: int = T(T.ID)
+
+    hist_cls = KeepsHistory.s_history_class
+    assert hist_cls is not None
+    hist_names = [ix.name for ix in hist_cls.s_indices]
+    assert 'idx_by_traitable_id_time' in hist_names
+    # Because EventBase is in the MRO for history (via TraitableHistory -> EventBase), the _at_idx is also present
+    assert '_at_idx' in hist_names
+
+    # Also check a concrete Event subclass (from xx_common) inherits it
+    from xx_common.event import Event as XXEvent
+
+    assert any(ix.name == '_at_idx' for ix in XXEvent.s_indices)
+
+    # --- Exercise _ensure_indices + caching (triggered from save path, but we invoke directly here
+    #     to keep the test isolated from full storage helper requirements for inline classes).
+    create_calls = []
+
+    class IdxTraitable(Traitable, keep_history=False):
+        val: str = T(T.ID)
+        s_indices = [Index('idx_val', 'val')]
+
+    # Provide a fake helper whose collection() returns something with create_index
+    class FakeColl:
+        def create_index(self, name, spec, **kw):
+            create_calls.append((name, spec, kw))
+            return name
+
+    class FakeStorableHelper:
+        def collection(self, _coll_name=None):
+            return FakeColl()
+
+    # Temporarily install so that _ensure_indices hits our capture
+    orig = IdxTraitable.s_storage_helper
+    try:
+        IdxTraitable.s_storage_helper = FakeStorableHelper()
+        # Direct (first) ensure should create
+        IdxTraitable._ensure_indices()
+        assert len(create_calls) == 1
+        assert create_calls[0][0] == 'idx_val'
+
+        # Cached: second ensure does nothing
+        IdxTraitable._ensure_indices()
+        assert len(create_calls) == 1
+    finally:
+        IdxTraitable.s_storage_helper = orig
+
+    # Also confirm that calling collection() / load paths do not auto-ensure (no side effect)
+    # (we already rely on _ensure only being called from save path)
+    # Clear to be sure for a fresh class
+    create_calls.clear()
+
+    class Another(Traitable, keep_history=False):
+        v: int = T(T.ID)
+        s_indices = [Index('i1', 'v')]
+
+    orig2 = Another.s_storage_helper
+    try:
+        Another.s_storage_helper = FakeStorableHelper()
+        _ = Another.collection()  # read path -- should not call ensure
+        assert create_calls == []
+        Another._ensure_indices()  # explicit does
+        assert len(create_calls) == 1
+    finally:
+        Another.s_storage_helper = orig2
 
 
 @pytest.mark.parametrize('on_graph', [0, 1])
@@ -647,13 +753,23 @@ def test_serialize(monkeypatch):
         @classmethod
         def store(cls):
             class Store:
-                def add_who(self, trait_name, serialized_data): return serialized_data
-                def add_when(self, trait_name, serialized_data): return serialized_data
-                def auth_user(self): return 'test_user'
-                def transaction(self): return contextlib.nullcontext()
+                def add_who(self, trait_name, serialized_data):
+                    return serialized_data
+
+                def add_when(self, trait_name, serialized_data):
+                    return serialized_data
+
+                def auth_user(self):
+                    return 'test_user'
+
+                def transaction(self):
+                    return contextlib.nullcontext()
+
                 def collection(self, collection_name):
                     class Collection:
-                        def create_index(self, name, trait_name): return name
+                        def create_index(self, name, trait_name):
+                            return name
+
                         def save(self, serialized_data):
                             id_value = serialized_data['_id']
                             if not collection_name.endswith('#history'):
@@ -662,8 +778,11 @@ def test_serialize(monkeypatch):
                                 history_save_calls[id_value] += 1
                             serialized[id_value] = serialized_data
                             return 1
+
                         save_new = save
+
                     return Collection()
+
             return Store()
 
         def z_get(self) -> int:
@@ -1400,6 +1519,7 @@ class TestForwardRefTraitables:
         module's globals (not a function's locals).
         """
         import types as _types
+
         mod = _types.ModuleType(module_name)
         mod.__dict__['__name__'] = module_name
         # Make the module discoverable for `from __future__ import annotations` /
@@ -1435,7 +1555,7 @@ class TestForwardRefTraitables:
             assert cls_a.trait('b').t_def.data_type is cls_b
             assert cls_b.trait('a').t_def.data_type is cls_a
 
-            with (CACHE_ONLY(),DEBUG_ON(),CONVERT_VALUES_OFF()):
+            with CACHE_ONLY(), DEBUG_ON(), CONVERT_VALUES_OFF():
                 a = cls_a(aid=1)
                 b = cls_b(bid=2)
                 a.b = b
@@ -1452,6 +1572,7 @@ class TestForwardRefTraitables:
         annotation `b: B` becomes the string 'B' automatically, so explicit
         quoting is unnecessary (and would produce the wrong stringified form).
         """
+
         class A(Traitable):
             aid: int = T(T.ID)
             b: B = T()  # forward ref to B defined just below
@@ -1473,6 +1594,7 @@ class TestForwardRefTraitables:
 
     def test_self_reference_via_forward_ref_string(self):
         """A class forward-referencing itself by name (not Self) still resolves."""
+
         class Node(Traitable):
             nid: int = T(T.ID)
             parent: Node = T()  # self-forward-ref by name (not via Self)
@@ -1502,10 +1624,7 @@ class TestForwardRefTraitables:
 
         assert key in Traitable.s_fwd_ref_pending
 
-        assert any(
-            entry[0] is HasUnresolved and entry[1] == 'ghost'
-            for entry in Traitable.s_fwd_ref_pending[key]
-        )
+        assert any(entry[0] is HasUnresolved and entry[1] == 'ghost' for entry in Traitable.s_fwd_ref_pending[key])
 
         with pytest.raises(TypeError, match=r'is unresolved'):
             ph()
@@ -1517,6 +1636,7 @@ class TestForwardRefTraitables:
         """A non-identifier string annotation (e.g. `list[B]`) with an unknown
         name does NOT get registered as a forward ref — it must error as before."""
         with pytest.raises(TypeError, match='undeclared name in string annotation'):
+
             class _BadFwd(Traitable):
                 xid: int = T(T.ID)
                 items: list[NeverEverExistsTraitable] = T()  # noqa: F821

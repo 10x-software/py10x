@@ -7,7 +7,7 @@ relies on, and uv's resolver. If a future setuptools-scm / git / uv release chan
 these fail loudly before any release is mis-stamped or mis-resolved.
 
 They invoke the real tools against throwaway repos / package indexes under `tmp_path`, so each is
-skipped when its tool is unavailable. See `dev_10x/docs/rc-branch-promotion.md`
+skipped when its tool is unavailable. See `dev_10x/README.md`
 (Risks -> setuptools-scm correctness; Conscious tradeoffs -> reverse `>=` self-correcting).
 """
 from __future__ import annotations
@@ -326,7 +326,7 @@ def test_reverse_floor_backtracks_to_coordinated_core(tmp_path):
 def test_editable_below_rc_window_floor_does_not_fallback_to_index(tmp_path):
     """`-e` + rc-window pin must not silently satisfy a lagged editable from an index wheel.
 
-    Issue B in `rc-branch-promotion.md`: a checkout still stamping `rc19.dev0` is below the
+    Issue B in `dev_10x/README.md` (Pin model): a checkout still stamping `rc19.dev0` is below the
     `>=rc19` floor; uv must error rather than pull published `rc19` from the index.
     """
     fl = tmp_path / "fl"

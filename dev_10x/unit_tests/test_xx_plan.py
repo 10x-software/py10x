@@ -3,7 +3,7 @@
 Asserts the declarative batch-formation rules across the combinatorial space: first-rc vs iterate,
 changed vs unchanged package sets, the pin-lag trigger (a sibling re-cut, or a stale forward pin,
 forces a core re-cut), and the prod promote/epilogue. `PrePlan`/`ProdPlan` share `Plan.create_batch`
-and differ only in `_decide`/`_epilogue`. See `dev_10x/docs/rc-branch-promotion.md` (Batch formation).
+and differ only in `_decide`/`_epilogue`. See `dev_10x/README.md` (xx-promote).
 """
 from __future__ import annotations
 

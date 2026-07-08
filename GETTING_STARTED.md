@@ -26,30 +26,15 @@ This guide covers the technical implementation and advanced usage of the py10x f
 
 ## What's in `py10x-core`?
 
-- **Traitable Framework**: Core data modeling with traits, traitables, and serialization
-- **Object Identification**: Endogenous, exogenous, and anonymous traitables with global sharing
-- **Dependency Graph**: Automatic computation and dependency tracking
-- **Seamless UI Integration**: Rio and Qt6 backends with unified API
-- **Storage Integration**: Traitable Store (MongoDB backend or in-process store, e.g. for tests)
-- **Built-in Caching**: Automatic trait value and traitable state management
+The Traitable framework, dependency graph, storage integration, and Rio/Qt UI backends — see
+[README.md](README.md) for the product overview.
 
 ## Installation
 
-### Prerequisites
+**Users:** `pip install py10x-core[rio]` or `pip install py10x-core[qt]` (see [INSTALLATION.md](INSTALLATION.md)).
 
-- Python 3.12 (recommended), 3.11+ supported
-- **Traitable Store backend:** `core_10x` tests use the in-process store; `infra_10x` tests use the MongoDB-backed store (where `MongoStore` is implemented). For `infra_10x` tests or persistence examples: local passwordless MongoDB on port 27017.
-
-### Install
-
-```bash
-# Install `py10x-core` with UI backend
-pip install py10x-core[rio]    # For Rio UI backend
-# or
-pip install py10x-core[qt]     # For Qt6 backend
-```
-
-**For Development**: See [INSTALLATION.md](https://github.com/10x-software/py10x/blob/main/INSTALLATION.md) for full prerequisites and platform-specific setup, and [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for the dev workflow.
+**Contributors:** `uv-sync py10x-core-dev --all-extras` — see [INSTALLATION.md](INSTALLATION.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Core Concepts
 
@@ -636,7 +621,7 @@ with CACHE_ONLY():  # No traitable store, in-memory caching only
 
 ### Traitable Store and persistence
 
-The framework uses a **Traitable Store** for persistence. Implementations include the MongoDB-backed store (`MongoStore`, in `infra_10x`) and an in-process store (used by `core_10x` tests). Example with the MongoDB backend:
+The framework uses a **Traitable Store** for persistence. Implementations include the MongoDB-backed store (`MongoStore`, in `infra_10x`) and an in-process store (used by `core_10x` tests). For local MongoDB setup, see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies). Example with the MongoDB backend:
 
 ```python
 from datetime import date
@@ -1507,11 +1492,37 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
 
 Without transaction support, any successful saves preceding the failure remain persisted — pick the mode that matches your durability needs.
 
+### Declarative collection indexes
+
+Storable `Traitable` classes can declare indexes for their backing collections using the `s_indices` class attribute:
+
+```python
+from core_10x.traitable import Traitable, T, Index
+from datetime import datetime
+
+class LogEntry(Traitable):
+    ts: datetime = T()
+    level: str = T()
+    message: str = T()
+
+    s_indices = [
+        Index('idx_ts', 'ts'),
+        Index('idx_level_ts', [('level', 1), ('ts', -1)]),
+        Index('idx_unique_msg', 'message', unique=True),
+    ]
+```
+
+- `Index(name, spec, **kwargs)` — `spec` is either a single trait name or a list of `(name, direction)` tuples.
+- Extra kwargs are passed through to the store's index API.
+- Indexes declared on base classes are inherited.
+
+Manual creation via `collection().create_index(...)` is still supported when needed. Indexes are created on first write.
+
 ### Revision history
 
 Storable traitables keep a revision history **by default**. Each successful `save()` that advances `_rev` also writes a snapshot to a companion `{collection}#history` store as a dynamically generated `TraitableHistory` class. History entries include server-populated `_at` (timestamp) and `_who` (authenticated store user) fields.
 
-Opt out with `keep_history=False` on the class definition, for example `class Person(Traitable, keep_history=False):`. Note, that by default traitable classes declared with `keep_history=False` are immutable (i.e. can only be persisted once). This behavior can be disabled by also specifying `immutable=False`
+Opt out with `keep_history=False` on the class definition, for example `class Person(Traitable, keep_history=False):`. Note, that by default traitable classes declared with `keep_history=False` are immutable (i.e. can only be persisted once). This behavior can be disabled by also specifying `immutable=False`.
 
 **Querying history**
 
@@ -1562,6 +1573,7 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
 ```
 
 `AsOfContext` requires the listed classes to keep history; for classes with `keep_history=False` the context is a no-op and current data is used.
+
 
 ## Relational Database (RelDb)
 
@@ -2953,6 +2965,8 @@ with CACHE_ONLY():
 - Use `CACHE_ONLY()` for lightweight unit tests that exercise trait logic without needing persistence or global object sharing
 - Make each test (or test module) self-contained: set up and tear down its own data rather than relying on state left by other tests
 
+For running the full test suite and MongoDB requirements for `infra_10x`, see [CONTRIBUTING.md](CONTRIBUTING.md#testing).
+
 ## Next Steps
 
 ### 1. Explore Examples
@@ -2963,19 +2977,7 @@ with CACHE_ONLY():
 
 ### 2. Run Tests
 
-```bash
-# Run unit tests
-pytest
-
-# Run specific test suites
-pytest core_10x/unit_tests/
-pytest ui_10x/unit_tests/
-pytest infra_10x/unit_tests/
-pytest xx_common/unit_tests/
-
-# Run manual tests (debugging scripts)
-python core_10x/manual_tests/trivial_graph_test.py
-```
+See [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) for commands (`uv run pytest`, suite paths, MongoDB note).
 
 ### 3. Build Your Application
 
@@ -2997,6 +2999,7 @@ python core_10x/manual_tests/trivial_graph_test.py
 - **Companion packages**:
   - [`xx_common/README.md`](https://github.com/10x-software/py10x/blob/main/xx_common/README.md) — finance-oriented helpers built on `core_10x`: `Calendar`, `RDate` (tenors / business-day rolls), and `Curve` / `DateCurve`.
 - **Contributing**: [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md)
+- **Release engineering**: [dev_10x/README.md](dev_10x/README.md) (`uv-sync`, `xx-promote`)
 - **Changelog**: [CHANGELOG.md](https://github.com/10x-software/py10x/blob/main/CHANGELOG.md)
 - **Security**: [SECURITY.md](https://github.com/10x-software/py10x/blob/main/SECURITY.md)
 - **Code of Conduct**: [CODE_OF_CONDUCT.md](https://github.com/10x-software/py10x/blob/main/CODE_OF_CONDUCT.md)

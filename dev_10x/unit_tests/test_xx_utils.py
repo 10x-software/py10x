@@ -423,7 +423,7 @@ def test_post_final_window_upper_matches_main_post_final_marker():
 # ---------------------------------------- rc-branch-promotion coordination pin forms (design note)
 #
 # Assumption guards for the cross-repo coordination pins proposed in
-# `dev_10x/docs/rc-branch-promotion.md` (Pin matrix):
+# `dev_10x/README.md` (Pin model):
 #   - forward (core -> siblings) on `pre`/`prod`: exact `==` coordinated version.
 #   - reverse (sibling `test` group -> core) on `pre`/`prod`: `>=` coordinated version.
 # These lock the PEP 440 / resolver behavior the design *depends on* before any builder is wired up.

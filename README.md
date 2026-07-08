@@ -106,12 +106,21 @@ Unlike reactive frameworks:
 
 ---
 
+## Documentation map
+
+| I want to… | Read |
+|------------|------|
+| Install py10x | [INSTALLATION.md](INSTALLATION.md) |
+| Learn the Traitable framework | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| Contribute code | [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Cut a release / sync dev deps | [dev_10x/README.md](dev_10x/README.md) |
+
 ## 🤝 Contact & Support
 
-- **Getting Started:** [GETTING_STARTED.md](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md) — Full technical manual.
-- **Installation:** [INSTALLATION.md](https://github.com/10x-software/py10x/blob/main/INSTALLATION.md) — Environment setup.
-- **Contributing:** [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) — How to contribute.
-- **Discord:** [Join the 10x Community](https://discord.gg/m7AQSXfFwf)
-- **Security:** Report vulnerabilities to [security@10x-software.org](mailto:security@10x-software.org)
 - **Project e-mail:** [py10x@10x-software.org](mailto:py10x@10x-software.org)
+- **Security:** Report vulnerabilities to [security@10x-software.org](mailto:security@10x-software.org)
+- **Discord:** [Join the 10x Community](https://discord.gg/m7AQSXfFwf)
+
+
+
 
