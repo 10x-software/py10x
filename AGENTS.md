@@ -26,7 +26,7 @@ Agents should **link to and rely on those files**, not duplicate them here.
   - Assume development happens via `uv` and a local `.venv`.
   - When suggesting or running commands, prefer:
     - `uv-sync py10x-core-dev --all-extras` for dependency setup (see `dev_10x/README.md`).
-    - `uv-run --no-sync pytest …` / `uv --no-sync run …` for Python tooling after the venv is prepared.
+    - `uv run --no-sync pytest …` / `uv run --no-sync …` for Python tooling after the venv is prepared.
 
 - **Respect C++ / cxx10x backend**
   - Treat the C++ backends (from `cxx10x`) as **opaque** — do not reimplement or bypass them in Python; use the public Python APIs.
