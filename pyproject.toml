@@ -65,6 +65,7 @@ dev = [
     "cmake>=3.27", # persistent toolchain for import-time incremental rebuilds
     "ninja>=1.11", # persistent toolchain for import-time incremental rebuilds (Linux/macOS)
     "editables>=0.6", # editable install support
+    "gh>=0.0.4"
 ]
 rio = [
     "rio-ui==0.12.2",
