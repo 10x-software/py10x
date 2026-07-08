@@ -45,6 +45,7 @@ jobs:
         with:
           python-version: "3.12"
           mongodb-version: "7.0"
+          runner-os: ${{ runner.os }}
 
   # Nightly / manual: full OS × Python matrix (requires-python floor through recommended).
   full-matrix-tests:
@@ -77,3 +78,4 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           mongodb-version: "7.0"
+          runner-os: ${{ runner.os }}
