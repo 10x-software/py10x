@@ -45,13 +45,13 @@ cattrs==26.1.0 ; python_full_version >= '3.12'
     # via requests-cache
 certifi==2026.6.17
     # via requests
-cffi==2.0.0 ; platform_python_implementation != 'PyPy' or sys_platform == 'win32'
+cffi==2.1.0 ; platform_python_implementation != 'PyPy' or sys_platform == 'win32'
     # via
     #   clr-loader
     #   cryptography
 chardet==7.4.3
     # via encutils
-charset-normalizer==3.4.7
+charset-normalizer==3.4.9
     # via requests
 click==8.4.2
     # via uvicorn
@@ -100,15 +100,21 @@ fhconfparser==2024.1 ; python_full_version < '3.12'
     # via licensecheck
 fonttools==4.63.0
     # via matplotlib
+gh==0.0.4
+    # via py10x-core (pyproject.toml)
+gitdb==4.0.12
+    # via gitpython
 gitignore-parser==0.1.13
     # via rio-ui
+gitpython==3.1.50
+    # via gh
 greenlet==3.5.3
     # via playwright
 h11==0.16.0
     # via uvicorn
 hatch-build-scripts==1.0.0
     # via py10x-core (pyproject.toml)
-hatchling==1.30.1
+hatchling==1.31.0
     # via
     #   py10x-core (pyproject.toml)
     #   hatch-build-scripts
@@ -383,7 +389,7 @@ rio-ui==0.12.2
     # via py10x-core (pyproject.toml)
 ruff==0.15.20
     # via py10x-core (pyproject.toml)
-scikit-build-core==0.12.2
+scikit-build-core==1.0.1
     # via py10x-core (pyproject.toml)
 scipy==1.17.1 ; python_full_version < '3.12'
     # via
@@ -405,6 +411,8 @@ setuptools-scm==10.2.0
     # via py10x-core (pyproject.toml)
 six==1.17.0
     # via python-dateutil
+smmap==5.0.3
+    # via gitdb
 sqlglot==30.12.0
     # via ibis-framework
 starlette==1.3.1
@@ -474,7 +482,7 @@ uuid6==2025.0.1
     #   py10x-kernel (../cxx10x/core_10x/pyproject.toml)
     #   py10x-core (pyproject.toml)
     #   py10x-kernel
-uv==0.11.26
+uv==0.11.28
     # via
     #   py10x-core (pyproject.toml)
     #   licensecheck
