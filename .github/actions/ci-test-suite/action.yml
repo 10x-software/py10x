@@ -19,6 +19,10 @@ runs:
       shell: bash
       run: uv python install ${{ inputs.python-version }}
 
+    - name: Setup Windows build
+      if: runner.os == 'Windows'
+      uses: ./.github/actions/setup-windows-build
+
     - name: Resolve corresponding cxx10x branch
       id: cxx10x_branch
       shell: bash

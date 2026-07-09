@@ -1,0 +1,15 @@
+name: Setup Windows build
+description: >-
+  MSVC dev environment and scikit-build cmake args matching cibuildwheel wheel
+  builds (windows-2025, toolset v143 version 14.44 / MSVC_VERSION 1944).
+runs:
+  using: composite
+  steps:
+    - uses: ilammy/msvc-dev-cmd@v1
+      with:
+        arch: x64
+
+    # Same pin as [tool.cibuildwheel.windows.config-settings] in cxx10x core_10x/infra_10x pyproject.toml.
+    - name: Export scikit-build Windows cmake args
+      shell: bash
+      run: echo "SKBUILD_CMAKE_ARGS=-T;v143,version=14.44" >> "$GITHUB_ENV"

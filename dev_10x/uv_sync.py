@@ -206,6 +206,16 @@ def _pip_install(*args: str) -> None:
     _run(['uv', 'pip', 'install', *args, *CONSTRAINTS])
 
 
+def _windows_cxx_cmake_flags(name: str) -> list[str]:
+    """MSVC toolset pin for py10x-kernel/infra (matches cxx10x cibuildwheel wheel builds)."""
+    if sys.platform != 'win32':
+        return []
+    return [
+        '--config-settings-package', f'{name}:cmake.args=-T',
+        '--config-settings-package', f'{name}:cmake.args=v143,version=14.44',
+    ]
+
+
 def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
     """No-isolation incremental rebuild flags for a local C++ package (XX_UV_INCREMENTAL).
     Build type comes from XX_UV_BUILD_TYPE (default Release); each type gets its own build
@@ -232,6 +242,8 @@ def install_local(name: str, pkg: dict, pin: str | None, incremental: int, verbo
     if pin:
         args.append(f'{name} ({pin})')
     args.append(f'--reinstall-package={name}')
+    if pkg['cxx']:
+        args += _windows_cxx_cmake_flags(name)
     if incremental and pkg['cxx']:
         args += _incremental_flags(name, pkg['local'], PROJECT_ROOT / '.venv')
     if verbose:
@@ -244,7 +256,10 @@ def install_git(name: str, pkg: dict, branch: str) -> None:
     spec = f'{name} @ git+{git_url}@{branch}'
     if pkg['subdir']:
         spec += f'#subdirectory={pkg["subdir"]}'
-    _pip_install(spec, f'--reinstall-package={name}')
+    args = [spec, f'--reinstall-package={name}']
+    if pkg['cxx']:
+        args += _windows_cxx_cmake_flags(name)
+    _pip_install(*args)
 
 
 # --------------------------------------------------------------------------------------------
