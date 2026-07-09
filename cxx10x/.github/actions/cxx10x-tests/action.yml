@@ -1,11 +1,21 @@
 name: cxx10x tests
 description: Run cxx10x harness suites under tests/ against editable local kernel/infra and sibling py10x
+inputs:
+  mongodb-version:
+    description: MongoDB major.minor for Linux (Docker) and Windows (preinstalled Server path)
+    required: false
+    default: "7.0"
 runs:
   using: composite
   steps:
     - name: Set up Python
       shell: bash
       run: uv python install 3.12
+
+    - name: Setup Mongo standalone
+      uses: ./.github/actions/setup-mongo-standalone
+      with:
+        mongodb-version: ${{ inputs.mongodb-version }}
 
     - name: Run kernel test harness
       shell: bash
@@ -23,4 +33,9 @@ runs:
       run: |
         uv venv
         uv pip install -r pyproject.toml
+        uv run python test.py
+        touch pyproject.toml
+        uv sync --upgrade
+        uv run python test.py
+        touch cross_module_test.cpp
         uv run python test.py

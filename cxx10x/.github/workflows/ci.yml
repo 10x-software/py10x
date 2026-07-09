@@ -48,9 +48,18 @@ jobs:
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
   cxx10x-tests:
-    name: cxx10x tests
+    name: cxx10x tests (${{ matrix.os }})
     needs: resolve-py10x-branch
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v6
         with:
@@ -67,6 +76,8 @@ jobs:
           branch: ${{ needs.resolve-py10x-branch.outputs.branch }}
 
       - uses: ./.github/actions/cxx10x-tests
+        with:
+          mongodb-version: "7.0"
 
   full-tests:
     name: Full tests (${{ matrix.os }})
