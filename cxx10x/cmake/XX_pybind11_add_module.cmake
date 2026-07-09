@@ -46,15 +46,6 @@ macro(xx_pybind11_add_module target)
         endif()
         set(_PY10X_KERNEL_MODULE "${CMAKE_MATCH_1}")
 
-        if(NOT MSVC)
-            message(FATAL_ERROR "py10x-kernel requires MSVC on Windows")
-        endif()
-
-        set(PY10X_REQUIRED_MSVC_VERSION 1944)
-        if(NOT MSVC_VERSION EQUAL PY10X_REQUIRED_MSVC_VERSION)
-            message(FATAL_ERROR "py10x-kernel requires MSVC_VERSION=${PY10X_REQUIRED_MSVC_VERSION}")
-        endif()
-
         set(_PY10X_KERNEL_PYD "${_PY10X_KERNEL_MODULE}")
         # MSVC names the import library after the CMake target name (py10x_kernel),
         # NOT the module's full output name. So the file is py10x_kernel.lib, sitting
