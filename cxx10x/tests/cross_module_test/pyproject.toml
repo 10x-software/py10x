@@ -7,6 +7,7 @@ dependencies = [
     "py10x-core[dev]",
     "py10x-kernel",
     "py10x-infra",
+    "hatch-vcs", # for non-isolated meta-data of py10x-core
 ]
 
 [build-system]
