@@ -12,6 +12,10 @@ runs:
       shell: bash
       run: uv python install 3.12
 
+    - name: Setup Windows build
+      if: runner.os == 'Windows'
+      uses: ./.github/actions/setup-windows-build
+
     - name: Setup Mongo standalone
       uses: ./.github/actions/setup-mongo-standalone
       with:

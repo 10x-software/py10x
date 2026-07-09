@@ -1016,23 +1016,37 @@ def test_set_eval_once():
 
 def test_deserialize_rt():
     class X(Traitable):
+        a: int = T(T.ID)
         x: int = RT()
         y: int = T(T.EVAL_ONCE)
 
         def y_get(self):
             return 1
 
-    x = X.deserialize_object(X.s_bclass, None, {'_id':'1','_rev':'1','x':1})
-    assert x.x == 1, f'Expected x.x to be 1 after deserialization, got {x.x}'
-    assert x.y == 1, f'Expected x1.y to be 1 after deserialization, got {x.y}'
+        @staticmethod
+        def load_data(id):
+            data = {'_id':id.value,'x':int(id.value)*10,'_rev':1,'a':int(id.value)}
+            print('load_data', id.value, data)
+            return data
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
 
-    x.x=2
-    x1 = X.deserialize_object(X.s_bclass, None, {'_id':'1','_rev':'1','x':1})
-    assert x1.x == 2, f'Expected x1.x to be 2 after deserialization, got {x1.x}'
-    assert x1.y == 1, f'Expected x1.y to be 1 after deserialization, got {x1.y}'
 
-    x2 = X.deserialize_object(X.s_bclass, None, {'_id':'2','_rev':'2','y': 2})
-    assert x2.y == 2, f'Expected x1.y to be 2 after deserialization, got {x1.y}'
+    with CACHE_ONLY():
+        x = X.deserialize_object(X.s_bclass, None, {'_id':'1','_rev':'1','x':1,'a':1})
+        assert x.x == 1, f'Expected x.x to be 1 after deserialization, got {x.x}'
+        assert x.y == 1, f'Expected x1.y to be 1 after deserialization, got {x.y}'
+
+        x.x=2
+        x1 = X.deserialize_object(X.s_bclass, None, {'_id':'1','_rev':'1','x':1,'a':1})
+        assert x1.x == 2, f'Expected x1.x to be 2 after deserialization, got {x1.x}'
+        assert x1.y == 1, f'Expected x1.y to be 1 after deserialization, got {x1.y}'
+
+        x2 = X.deserialize_object(X.s_bclass, None, {'_id':'2','_rev':'2','y': 2,'a':2})
+        assert x2.y == 2, f'Expected x1.y to be 2 after deserialization, got {x1.y}'
+
+    assert X(ID('3')).x == 30 # lazy load picks up RT trait too
 
 
 if __name__ == '__main__':
