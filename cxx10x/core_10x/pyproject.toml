@@ -33,7 +33,7 @@ test = ["py10x-core==0.2.2"]
 
 [build-system]
 requires = [
-    "scikit-build-core>=0.10.7",
+    "scikit-build-core>=0.10.7,<1.0.0",
     "setuptools-scm>=9.2.2",
 ]
 build-backend = "scikit_build_core.build"

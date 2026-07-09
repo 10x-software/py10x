@@ -4,7 +4,6 @@ from collections import Counter
 from datetime import date, datetime
 from typing import Any
 
-from numpy.ma.core import true_divide
 from typing_extensions import Self
 
 import numpy as np
@@ -739,7 +738,7 @@ def test_store_save():
             return Store()
 
         @classmethod
-        def collection(cls, _coll_name: str = None):
+        def collection(cls, _coll_name: str = None,_ensure_indices=False):
             return cls.store().collection(_coll_name)
 
         def y_get(self) -> 'X':
@@ -752,7 +751,7 @@ def test_store_save():
     x = X(x=100)
     assert X.serialize_object(x)
     assert not X.exists_in_store(ID('100'))
-    assert x.save()
+    x.save().throw()
     assert save_calls == {'100': 1}
     serialized.clear()
     save_calls.clear()
@@ -819,7 +818,7 @@ def test_new_or_replace_store():
         z: int = T(10)
 
         @classmethod
-        def collection(cls, _coll_name: str = None):
+        def collection(cls, _coll_name: str = None, _ensure_indices=False):
             return cls.store().collection('__main__/test_new_or_replace_store/<locals>/X')
 
         @classmethod

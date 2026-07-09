@@ -15,7 +15,7 @@ runs:
     - name: Run infra test harness
       shell: bash
       working-directory: tests/py10x_infra_test
-      run: uv run python ../../core_10x/tests/test.py
+      run: uv run python ../../infra_10x/tests/test.py
 
     - name: Run cross-module tests
       shell: bash
