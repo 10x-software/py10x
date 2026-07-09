@@ -24,9 +24,9 @@ def test_prepare_filter_and_pipeline():
 
 def test_load():
     with MongoStore.instance(hostname = 'localhost', dbname = 'test', username = '', password = ''):
+        Person(last_name='Pevzner', first_name='Ilya', weight_lbs=200, _replace=True).save()
         p = Person.load_many(f(first_name='Ilya'),_at_most=1)[0]
-        print(p)
-        print( Person.load(ID(p.id().value[:-1])) )
+        assert p == Person.load(ID(p.id().value))
 
 
 if __name__=='__main__':
