@@ -1,4 +1,5 @@
 include(${CMAKE_CURRENT_LIST_DIR}/versions.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/Py10xMsvcVersion.cmake)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -23,3 +24,5 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(pybind11 pybind11_stubgen backward)
 find_package(pybind11 REQUIRED)
+
+py10x_check_msvc_version()
