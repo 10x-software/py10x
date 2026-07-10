@@ -8,7 +8,7 @@ import ibis
 
 from infra_10x.ibis_store import IbisCollection, IbisStore, _ID, _REV
 from core_10x.resource import Resource
-from core_10x.ts_store import TsDuplicateKeyError
+from core_10x.ts_store import TsDuplicateKeyError, note_server_trait, pop_server_trait_fields
 
 
 # ---------------------------------------------------------------------------
@@ -21,26 +21,30 @@ class DuckDbCollection(IbisCollection):
         super().__init__(store, name)
         self._con = store._con
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
+        server_trait_fields = pop_server_trait_fields(serialized_traitable)
         doc = dict(serialized_traitable)
         doc[_REV] = 1
         id_val, rev, data_json = self._encode_doc(doc)
+        new_data = self._data_payload(doc)
         if not id_val:
-            return 0
+            return self._build_save_result(0, new_data, server_trait_fields)
+        returning = f' RETURNING _data'
         try:
             if overwrite:
-                self._con.execute(
-                    f'INSERT OR REPLACE INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?)',
+                rows = self._con.execute(
+                    f'INSERT OR REPLACE INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?){returning}',
                     [id_val, rev, data_json],
-                )
+                ).fetchall()
             else:
-                self._con.execute(
-                    f'INSERT INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?)',
+                rows = self._con.execute(
+                    f'INSERT INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?){returning}',
                     [id_val, rev, data_json],
-                )
+                ).fetchall()
         except duckdb.ConstraintException as e:
             raise TsDuplicateKeyError(self._name, {_ID: id_val}) from e
-        return 1
+        persisted_data = self._decode_persisted_data(rows[0][0]) if rows else new_data
+        return self._build_save_result(1, persisted_data, server_trait_fields)
 
     def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
         # DuckDB does not support expression indexes on JSON functions; only _id/_rev are indexable.
@@ -131,11 +135,13 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
     def add_who(self, field: str, serialized_data: dict) -> dict:
         if field in serialized_data:
             raise RuntimeError(f'Field {field} is already in use.')
-        serialized_data['_who'] = self.auth_user()
+        serialized_data[field] = self.auth_user()
+        note_server_trait(serialized_data, field)
         return serialized_data
 
     def add_when(self, field: str, serialized_data: dict) -> dict:
         if field in serialized_data:
             raise RuntimeError(f'Field {field} is already in use.')
         serialized_data[field] = self.server_time()
+        note_server_trait(serialized_data, field)
         return serialized_data

@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from core_10x.environment_variables import EnvVars
 from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
+from core_10x.nucleus import Nucleus
 from core_10x.py_class import PyClass
 from core_10x.rc import RC
 from core_10x.resource import TS_STORE, Resource, ResourceSpec
@@ -21,6 +22,46 @@ from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
     from core_10x.traitable import Traitable
+
+
+_REV = Nucleus.REVISION_TAG()
+
+
+SERVER_TRAITS_TAG = '__ts_server_traits__'
+
+
+def note_server_trait(serialized_data: dict, field: str) -> None:
+    serialized_data.setdefault(SERVER_TRAITS_TAG, []).append(field)
+
+
+def pop_server_trait_fields(serialized_data: dict) -> list[str]:
+    return list(serialized_data.pop(SERVER_TRAITS_TAG, None) or ())
+
+
+def build_save_result(
+    rev: int,
+    write_doc: dict,
+    returned_doc: dict | None,
+    server_trait_fields: list[str],
+) -> dict:
+    """Build save return value: revision plus server-populated trait values."""
+    result = {_REV: rev}
+    if not server_trait_fields:
+        return result
+
+    current_date_fields = set((write_doc.get('$currentDate') or {}).keys())
+    set_doc = write_doc.get('$set', write_doc)
+    for field in server_trait_fields:
+        if field in current_date_fields:
+            if returned_doc is not None and field in returned_doc:
+                result[field] = returned_doc[field]
+        elif field in set_doc:
+            result[field] = set_doc[field]
+        elif field in write_doc and field not in ('$set', '$currentDate', SERVER_TRAITS_TAG):
+            result[field] = write_doc[field]
+        elif returned_doc is not None and field in returned_doc:
+            result[field] = returned_doc[field]
+    return result
 
 
 class TsDuplicateKeyError(Exception):
@@ -42,9 +83,9 @@ class TsCollection(abc.ABC):
     @abc.abstractmethod
     def count(self, query: f = None) -> int: ...
     @abc.abstractmethod
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int: ...
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict: ...
     @abc.abstractmethod
-    def save(self, serialized_traitable: dict) -> int: ...
+    def save(self, serialized_traitable: dict) -> dict: ...
     @abc.abstractmethod
     def delete(self, id_value: str) -> bool: ...
     @abc.abstractmethod
@@ -67,7 +108,7 @@ class TsCollection(abc.ABC):
 
         for doc in self.find():
             try:
-                if not to_coll.save_new(doc, overwrite=overwrite):
+                if not to_coll.save_new(doc, overwrite=overwrite).get(_REV):
                     rc.add_error(f'Failed to save {doc.get(to_coll.s_id_tag)} to {to_coll.collection_name()}')
             except TsDuplicateKeyError:
                 if overwrite:

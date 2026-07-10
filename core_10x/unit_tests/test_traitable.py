@@ -290,7 +290,8 @@ def test_declarative_indices():
     assert '_at_idx' in hist_names
 
     # Also check a concrete Event subclass (from xx_common) inherits it
-    from xx_common.event import Event as XXEvent
+    class XXEvent(EventBase):
+        n: int = T(0)
 
     assert any(ix.name == '_at_idx' for ix in XXEvent.s_indices)
 
@@ -777,7 +778,7 @@ def test_serialize(monkeypatch):
                             else:
                                 history_save_calls[id_value] += 1
                             serialized[id_value] = serialized_data
-                            return 1
+                            return {'_rev': 1}
 
                         save_new = save
 
@@ -859,7 +860,7 @@ def test_reference_serialization_roundtrip(monkeypatch):
                         def save(self, serialized_data):
                             id_value = serialized_data['_id']
                             serialized[id_value] = serialized_data
-                            return 1
+                            return {'_rev': 1}
 
                         save_new = save
 

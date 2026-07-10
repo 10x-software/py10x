@@ -891,7 +891,7 @@ class NotStorableHelper(AbstractStorableHelper):
         return RC(False, f'{self.traitable_class} is not storable')
 
     def _save_serialized(self, coll, serialized_data, old_rev):
-        return old_rev
+        return {Nucleus.REVISION_TAG(): old_rev}
 
     def delete(self, traitable: Traitable) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
@@ -989,17 +989,25 @@ class StorableHelper(AbstractStorableHelper):
                 return RC(False, f'{self.__class__} - no store available')
 
             with self._transaction_ctx():
-                rev = self._save_serialized(coll, traitable.post_serialize(serialized_data), traitable.get_revision())
+                save_result = self._save_serialized(
+                    coll, traitable.post_serialize(serialized_data), traitable.get_revision()
+                )
         except Exception as e:
             return RC(False, f'Error saving traitable: {e}')
 
-        traitable.set_revision(rev)
+        rev_tag = Nucleus.REVISION_TAG()
+        traitable.set_revision(save_result[rev_tag])
+        dir = self.traitable_class.s_dir
+        for name, value in save_result.items():
+            if name != rev_tag:
+                trait = dir[name]
+                traitable.set_trait_value(trait, trait.f_deserialize(trait,value))
         return RC_TRUE
 
     def _transaction_ctx(self):
         return nullcontext()
 
-    def _save_serialized(self, coll, serialized_data, old_rev) -> int:
+    def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
         return coll.save_new(serialized_data) if self.traitable_class.s_immutable else coll.save(serialized_data)
 
     def delete(self, traitable: Traitable) -> RC:
@@ -1025,15 +1033,16 @@ class StorableHelperWithHistory(StorableHelper):
     def _transaction_ctx(self):
         return self.traitable_class.store().transaction() if EnvVars.use_ts_store_transactions else nullcontext()
 
-    def _save_serialized(self, coll, serialized_data, old_rev) -> int:
-        rev = super()._save_serialized(coll, serialized_data, old_rev)
+    def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
+        save_result = super()._save_serialized(coll, serialized_data, old_rev)
+        rev = save_result[Nucleus.REVISION_TAG()]
         if rev > old_rev:
             self.traitable_class.s_history_class(
                 serialized_traitable=serialized_data,
                 _traitable_rev=rev,
                 _collection_name=(coll.collection_name() + '#history') if self.traitable_class.s_custom_collection else XNone,
             ).save().throw()
-        return rev
+        return save_result
 
     def as_of(self, traitable_id: ID, as_of_time: datetime) -> Self:
         history_entry = self.traitable_class.latest_revision(traitable_id, as_of_time, deserialize=True)
@@ -1091,7 +1100,7 @@ class StorableHelperWithHistory(StorableHelper):
                 ).save_new(
                     history_entry.serialized_traitable,
                     overwrite=True,
-                )
+                ).get(Nucleus.REVISION_TAG())
             )
         return True
 

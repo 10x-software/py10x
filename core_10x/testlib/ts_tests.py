@@ -84,18 +84,18 @@ class TestTSStore:
 
         collection = ts_store.collection(c)
         serialized_entity = p.serialize_object()
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         assert p._rev == _rev
 
         serialized_entity |= {'attr': {'nested': 'value'}}
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 1 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
         # test that nested dictionary replaces rather than updates
         serialized_entity |= {'attr': {'nested1': 'value1'}}
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 2 == _rev
         # assert collection.load(_id) == serialized_entity|{'attr': {'nested': 'value', 'nested1': 'value1'}} #incorrect behavior
@@ -103,7 +103,7 @@ class TestTSStore:
 
         # test that dots are not interpreted as nested fields at the top level
         serialized_entity |= {'attr.nested2': 'value2'}
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 3 == _rev
         assert collection.load(p.id().value) == serialized_entity
@@ -111,7 +111,7 @@ class TestTSStore:
         # check that we can have dictionary keys starting with $
         serialized_entity |= {'foo': {'$foo': 1}}
         # with pytest.raises(pyts_store.errors.WriteError, match="Unrecognized expression '\\$foo',"): #incorrect behavior
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 4 == _rev
         assert collection.load(p.id().value) == serialized_entity
@@ -119,7 +119,7 @@ class TestTSStore:
         # check that we can *not* have top level keys starting with $ (current behavior, not ideal, but prob. ok)
         serialized_entity |= {'$foo': 1}
         with pytest.raises(Exception, match='Use of undefined variable: foo'):
-            _rev = collection.save(serialized_entity.copy())
+            collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 4 == _rev
         del serialized_entity['$foo']
@@ -127,14 +127,14 @@ class TestTSStore:
 
         # test that dots are not interpreted as nested fields at the nested level
         serialized_entity |= {'attr': {'nested.value': 1}}
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 5 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
         # check that we can unset fields
         del serialized_entity['attr']
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 6 == _rev
         assert collection.load(p.id().value) == serialized_entity
@@ -183,7 +183,7 @@ class TestTSStore:
 
         # Try to save_new with overwrite=True on existing document
         result = collection.save_new(serialized_entity.copy(), overwrite=True)
-        assert result == 1
+        assert result['_rev'] == 1
         assert collection.load(id_value) == serialized_entity
 
     def test_save_new_with_set_operation(self, ts_setup):
@@ -200,7 +200,8 @@ class TestTSStore:
         result = collection.save_new(ts_store.add_when('_at', dict(serialized_entity)))
         time.sleep(0.001)
         dt2 = datetime.utcnow()
-        assert result == 1
+        assert result['_rev'] == 1
+        assert '_at' in result
 
         t = datetime_trait(T())
         loaded = collection.load(doc_id)
@@ -217,7 +218,7 @@ class TestTSStore:
         # Test 1: Duplicate without $set
         doc_id = 'duplicate_test_123'
         result = collection.save_new({'_id': doc_id, 'name': 'Original'})
-        assert result == 1
+        assert result['_rev'] == 1
         loaded = collection.load(doc_id)
         assert loaded['name'] == 'Original'
 
@@ -230,7 +231,7 @@ class TestTSStore:
         # Test 2: Duplicate with $set
         doc_id2 = 'duplicate_test_456'
         result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id2, 'name': 'Original'}))
-        assert result == 1
+        assert result['_rev'] == 1
         loaded = collection.load(doc_id2)
         assert loaded['name'] == 'Original'
         at = loaded['_at']
@@ -243,8 +244,7 @@ class TestTSStore:
         loaded = collection.load(doc_id2)
         assert loaded['name'] == 'Original'
         if ts_store.s_driver_name == 'MONGO_DB':
-            # Documents current Mongo behavior: save_new applies $set/$currentDate
-            # via update_one before raising TsDuplicateKeyError.
+            # findAndModify applies $currentDate before we can raise on duplicate (single round trip).
             assert loaded['_at'] > at
             pytest.xfail('Mongo should not advance _at on a rejected duplicate insert')
         else:
@@ -258,7 +258,7 @@ class TestTSStore:
         doc_id = 'set_overwrite_test_123'
         # First insert
         result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id, 'name': 'Original'}))
-        assert result == 1
+        assert result['_rev'] == 1
         loaded = collection.load(doc_id)
         assert loaded['name'] == 'Original'
         at = loaded['_at']
@@ -266,7 +266,7 @@ class TestTSStore:
         # Update with overwrite=True; allow server clock to advance (Windows timer resolution).
         time.sleep(0.001)
         result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id, 'name': 'Updated'}), overwrite=True)
-        assert result == 1
+        assert result['_rev'] == 1
 
         loaded = collection.load(doc_id)
         assert loaded['name'] == 'Updated'

@@ -125,11 +125,18 @@ class TestTraitableHistory:
         class CustomCollectionHistory(TraitableHistory, custom_collection=True):
             s_traitable_class = Traitable
 
-        CustomCollectionHistory(
+        hist = CustomCollectionHistory(
             serialized_traitable=serialized_data,
             _traitable_rev=2,
             _collection_name=test_collection.collection_name(),
-        ).save().throw()
+        )
+        hist.save().throw()
+        #assert hist._who == 'test_user', f"got {type(hist._who)}: `{hist._who}`"
+        assert hist._at is not None
+        assert isinstance(hist._at,datetime)
+
+        hist.reload()
+        assert isinstance(hist._at,datetime)
 
         # Verify that the history entry was saved
         assert test_collection.count() == 1
@@ -151,11 +158,11 @@ class TestTraitableHistory:
         """When history save fails, the main document save is rolled back (revision not applied)."""
 
         def _save_serialized_raise(self, coll, serialized_data, old_rev):
-            rev = StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
+            save_result = StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
             assert obj.collection().count() == 1
-            if rev > old_rev:
+            if save_result['_rev'] > old_rev:
                 raise RuntimeError('history save fails')
-            return rev
+            return save_result
 
         monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
 
@@ -728,7 +735,7 @@ class TestTraitableHistory:
     def test_save_new_with_overwrite_parameter(self, test_store, test_collection):
         """Test DuckDbCollection.save_new with overwrite parameter."""
         result = test_collection.save_new({'_id': 'new-id', 'name': 'New Person', 'age': 25})
-        assert result == 1  # Should succeed for new document
+        assert result['_rev'] == 1  # Should succeed for new document
 
         # Fails because the document already exists
         with pytest.raises(TsDuplicateKeyError):

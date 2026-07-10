@@ -5,7 +5,15 @@ from typing import TYPE_CHECKING
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore, standard_key
+from core_10x.ts_store import (
+    TsCollection,
+    TsDuplicateKeyError,
+    TsStore,
+    build_save_result,
+    note_server_trait,
+    pop_server_trait_fields,
+    standard_key,
+)
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, errors
 from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
@@ -32,6 +40,21 @@ class MongoCollection(TsCollection):
         tx = self.store.current_transaction()
         return {'session': tx.session} if tx is not None else {}
 
+    def _find_and_modify(self, filter: dict, update: dict, upsert: bool, sk: dict) -> tuple[dict | None, bool | None]:
+        """Run findAndModify — one round trip returning the post-update doc and whether a doc already existed."""
+        result = self.coll.database.command(
+            {
+                'findAndModify': self.coll.name,
+                'query': filter,
+                'update': update,
+                'upsert': upsert,
+                'new': True,
+            },
+            **sk,
+        )
+        last_error = result.get('lastErrorObject') or {}
+        return result.get('value'), last_error.get('updatedExisting')
+
     def collection_name(self) -> str:
         return self.coll.name
 
@@ -49,33 +72,47 @@ class MongoCollection(TsCollection):
     def count(self, query: f = None) -> int:
         return self.coll.count_documents(query.prefix_notation() if query else {}, **self._session_kw())
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
+        server_trait_fields = pop_server_trait_fields(serialized_traitable)
         needs_upsert = (set_values := serialized_traitable.get('$set')) or overwrite
         id_tag = self.s_id_tag
         id_value = (set_values or serialized_traitable)[id_tag]
+        rev_tag = Nucleus.REVISION_TAG()
         e = None
 
         # TODO: overwrite via save(), not save_new() so that revision is incremented rather than reset
-        (set_values or serialized_traitable)[Nucleus.REVISION_TAG()] = 1
+        (set_values or serialized_traitable)[rev_tag] = 1
+        rev = 1
 
         sk = self._session_kw()
+        current_date = serialized_traitable.get('$currentDate')
+        returned_doc = None
         if not needs_upsert:
             try:
                 res = self.coll.insert_one(serialized_traitable, **sk)
             except DuplicateKeyError:
-                ack, cnt = False, 1
-            else:
-                ack, cnt = res.acknowledged, 0
+                raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value}) from e
+            if not res.acknowledged:
+                rev = 0
         else:
-            res = self.coll.update_one({id_tag: id_value}, serialized_traitable if set_values else {'$set': serialized_traitable}, upsert=True, **sk)
-            ack, cnt = res.acknowledged, res.matched_count
+            filter = {id_tag: id_value}
+            update = serialized_traitable if set_values else {'$set': serialized_traitable}
+            if current_date:
+                returned_doc, updated_existing = self._find_and_modify(filter, update, True, sk)
+                if updated_existing and not overwrite:
+                    raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value}) from e
+                if returned_doc is None:
+                    rev = 0
+            else:
+                res = self.coll.update_one(filter, update, upsert=True, **sk)
+                if res.matched_count and not overwrite:
+                    raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value}) from e
+                if not res.acknowledged:
+                    rev = 0
 
-        if cnt and not overwrite:  # -- e.g. this id/revision already existed
-            raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value}) from e
+        return build_save_result(rev, serialized_traitable, returned_doc, server_trait_fields)
 
-        return int(ack)
-
-    def save(self, serialized_traitable: dict) -> int:
+    def save(self, serialized_traitable: dict) -> dict:
         rev_tag = Nucleus.REVISION_TAG()
         id_tag = self.s_id_tag
 
@@ -85,24 +122,27 @@ class MongoCollection(TsCollection):
         if revision == 0:
             return self.save_new(serialized_traitable)
 
+        server_trait_fields = pop_server_trait_fields(serialized_traitable)
+
         id_value = serialized_traitable.get(id_tag)
 
         filter = {}
         pipeline = []
-        serialized_traitable = dict(serialized_traitable)  # -- copy to avoid modifying the input
-        MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
+        write_doc = dict(serialized_traitable)  # -- copy to avoid modifying the input
+        MongoCollectionHelper.prepare_filter_and_pipeline(write_doc, filter, pipeline)
 
         res = self.coll.update_one(filter, pipeline, **self._session_kw())
         if not res.acknowledged:
-            return revision
+            return build_save_result(revision, write_doc, None, server_trait_fields)
 
         if not res.matched_count:  # -- e.g. restore from deleted
             raise AssertionError(f'{self.coll} {id_value} has been most probably inappropriately restored from deleted')
 
         if res.matched_count != 1:
-            return revision
+            return build_save_result(revision, write_doc, None, server_trait_fields)
 
-        return revision if res.modified_count != 1 else revision + 1
+        new_rev = revision if res.modified_count != 1 else revision + 1
+        return build_save_result(new_rev, write_doc, None, server_trait_fields)
 
     def delete(self, id_value: str) -> bool:
         q = {self.s_id_tag: id_value}
@@ -308,7 +348,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         sd = serialized_data.get('$set', serialized_data)
         if field in sd:
             raise RuntimeError(f'Field {field} is already in use.')
-        sd['_who'] = self.auth_user()
+        sd[field] = self.auth_user()
+        note_server_trait(serialized_data, field)
         return serialized_data
 
     def add_when(self, field: str, serialized_data: dict) -> dict:
@@ -320,4 +361,5 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
             serialized_data.clear()
             serialized_data['$set'] = sd
         serialized_data.setdefault('$currentDate', {})[field] = True
+        note_server_trait(serialized_data, field)
         return serialized_data

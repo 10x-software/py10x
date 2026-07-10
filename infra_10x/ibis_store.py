@@ -10,7 +10,7 @@ import ibis
 import ibis.expr.operations as ibis_ops
 
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsStore
+from core_10x.ts_store import TsCollection, TsStore, pop_server_trait_fields
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -122,10 +122,25 @@ class IbisCollection(TsCollection):
     # DML operations
     # ------------------------------------------------------------------
 
-    def save(self, serialized_traitable: dict) -> int:
+    def _data_payload(self, doc: dict) -> dict:
+        return {k: v for k, v in doc.items() if k not in (_ID, _REV)}
+
+    def _build_save_result(self, rev: int, data: dict, server_trait_fields: list[str]) -> dict:
+        result = {_REV: rev}
+        for field in server_trait_fields:
+            if field in data:
+                result[field] = data[field]
+        return result
+
+    def _decode_persisted_data(self, data_json: str) -> dict:
+        return json.loads(data_json)
+
+    def save(self, serialized_traitable: dict) -> dict:
         rev = serialized_traitable[_REV]
         if rev == 0:
             return self.save_new(serialized_traitable)
+
+        server_trait_fields = pop_server_trait_fields(serialized_traitable)
 
         undef = next((k[1:] for k in serialized_traitable if k.startswith('$')), None)
         if undef:
@@ -135,7 +150,7 @@ class IbisCollection(TsCollection):
         id_val = doc[_ID]
         assert id_val
 
-        new_data = {k: v for k, v in doc.items() if k not in (_ID, _REV)}
+        new_data = self._data_payload(doc)
         new_data_json = json.dumps(new_data, default=self._json_encode_value)
 
         rows = self._execute(
@@ -145,16 +160,17 @@ class IbisCollection(TsCollection):
             existing_rev, existing_data_json = rows[0]
             assert existing_rev == rev, f'Revision mismatch for {id_val}: expected {rev}, got {existing_rev}'
             if existing_data_json == new_data_json:
-                return rev
+                return self._build_save_result(rev, new_data, server_trait_fields)
 
         new_rev = rev + 1
         rows = self._execute(
-            f'UPDATE {self._qname()} SET {_REV} = ?, _data = ? WHERE {_ID} = ? AND {_REV} = ? RETURNING {_ID}',
+            f'UPDATE {self._qname()} SET {_REV} = ?, _data = ? WHERE {_ID} = ? AND {_REV} = ? RETURNING _data',
             [new_rev, new_data_json, id_val, rev],
         )
         if not rows:
             raise RuntimeError(f'Revision conflict saving {id_val}: rev {rev} no longer current')
-        return new_rev
+        persisted_data = self._decode_persisted_data(rows[0][0])
+        return self._build_save_result(new_rev, persisted_data, server_trait_fields)
 
     def delete(self, id_value: str) -> bool:
         rows = self._execute(
