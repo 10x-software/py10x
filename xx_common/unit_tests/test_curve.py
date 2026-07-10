@@ -62,7 +62,7 @@ class TestCurve:
     @pytest.fixture(autouse=True)
     def _py_curve_only(self, curve_backend):
         if curve_backend:
-            pytest.skip('cxx_curve.Curve is owned separately; numeric Curve tests are py-only for now')
+            pytest.xfail('Numeric Curve tests are py-only for now')
 
     def test_update_inserts_sorted_and_overwrites(self, curve_mod):
         Curve = curve_mod.Curve
@@ -238,7 +238,7 @@ class TestDateCurve:
 
     def test_epoch_number_helpers(self, curve_mod, curve_backend):
         if curve_backend:
-            pytest.skip('cxx DateCurve has no _to_number/_from_number helpers')
+            pytest.xfail('cxx DateCurve has no _to_number/_from_number helpers')
 
         DateCurve = curve_mod.DateCurve
         dc = DateCurve()

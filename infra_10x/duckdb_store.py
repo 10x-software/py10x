@@ -126,7 +126,7 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         return self.dbname
 
     def server_time(self) -> datetime:
-        return datetime.now(timezone.utc)
+        return datetime.now(timezone.utc).replace(tzinfo=None)
 
     def add_who(self, field: str, serialized_data: dict) -> dict:
         if field in serialized_data:

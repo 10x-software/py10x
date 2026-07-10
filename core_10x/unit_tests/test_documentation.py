@@ -131,8 +131,7 @@ def test_documentation_code_block_execution(
 ):
     """Test that documentation code blocks can execute successfully."""
     # Skip if code block is empty
-    if not code_block.strip():
-        pytest.skip('Empty code block')
+    assert code_block.strip()
 
     # Validate syntax
     assert validate_python_syntax(code_block), f'Syntax error in {test_name}'
@@ -175,8 +174,7 @@ def test_documentation_code_block_execution(
 def test_documentation_ui_code_block_syntax(test_name: str, code_block: str, source_file: str):
     """Test that UI documentation code blocks have valid syntax (execution tested separately in UI tests)."""
     # Skip if code block is empty
-    if not code_block.strip():
-        pytest.skip('Empty code block')
+    assert code_block.strip()
 
     # Validate syntax only for UI blocks (execution requires async UI environment)
     assert validate_python_syntax(code_block), f'Syntax error in UI code block {source_file} {test_name}'

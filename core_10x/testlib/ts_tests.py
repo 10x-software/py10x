@@ -246,7 +246,7 @@ class TestTSStore:
             # Documents current Mongo behavior: save_new applies $set/$currentDate
             # via update_one before raising TsDuplicateKeyError.
             assert loaded['_at'] > at
-            pytest.skip('Mongo should not advance _at on a rejected duplicate insert')
+            pytest.xfail('Mongo should not advance _at on a rejected duplicate insert')
         else:
             assert loaded['_at'] == at
 
