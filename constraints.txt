@@ -33,7 +33,7 @@ attrs==26.1.0 ; python_full_version >= '3.12'
     #   requests-cache
 backports-tarfile==1.2.0 ; python_full_version < '3.12'
     # via jaraco-context
-blessed==1.46.0
+blessed==1.47.0
     # via revel
 boolean-py==5.0
     # via license-expression
@@ -387,10 +387,12 @@ rich==15.0.0
     #   licensecheck
 rio-ui==0.12.2
     # via py10x-core (pyproject.toml)
-ruff==0.15.20
+ruff==0.15.21
     # via py10x-core (pyproject.toml)
-scikit-build-core==1.0.1
-    # via py10x-core (pyproject.toml)
+scikit-build-core==0.12.2
+    # via
+    #   py10x-kernel (../cxx10x/core_10x/pyproject.toml)
+    #   py10x-core (pyproject.toml)
 scipy==1.17.1 ; python_full_version < '3.12'
     # via
     #   py10x-core (pyproject.toml)
