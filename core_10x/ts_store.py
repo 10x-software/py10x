@@ -27,43 +27,6 @@ if TYPE_CHECKING:
 _REV = Nucleus.REVISION_TAG()
 
 
-SERVER_TRAITS_TAG = '__ts_server_traits__'
-
-
-def note_server_trait(serialized_data: dict, field: str) -> None:
-    serialized_data.setdefault(SERVER_TRAITS_TAG, []).append(field)
-
-
-def pop_server_trait_fields(serialized_data: dict) -> list[str]:
-    return list(serialized_data.pop(SERVER_TRAITS_TAG, None) or ())
-
-
-def build_save_result(
-    rev: int,
-    write_doc: dict,
-    returned_doc: dict | None,
-    server_trait_fields: list[str],
-) -> dict:
-    """Build save return value: revision plus server-populated trait values."""
-    result = {_REV: rev}
-    if not server_trait_fields:
-        return result
-
-    current_date_fields = set((write_doc.get('$currentDate') or {}).keys())
-    set_doc = write_doc.get('$set', write_doc)
-    for field in server_trait_fields:
-        if field in current_date_fields:
-            if returned_doc is not None and field in returned_doc:
-                result[field] = returned_doc[field]
-        elif field in set_doc:
-            result[field] = set_doc[field]
-        elif field in write_doc and field not in ('$set', '$currentDate', SERVER_TRAITS_TAG):
-            result[field] = write_doc[field]
-        elif returned_doc is not None and field in returned_doc:
-            result[field] = returned_doc[field]
-    return result
-
-
 class TsDuplicateKeyError(Exception):
     """Raised when attempting to insert a document with a duplicate key."""
 
@@ -83,9 +46,9 @@ class TsCollection(abc.ABC):
     @abc.abstractmethod
     def count(self, query: f = None) -> int: ...
     @abc.abstractmethod
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict: ...
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names: Sequence[str] = ()) -> dict: ...
     @abc.abstractmethod
-    def save(self, serialized_traitable: dict) -> dict: ...
+    def save(self, serialized_traitable: dict, ts_trait_names: Sequence[str] = ()) -> dict: ...
     @abc.abstractmethod
     def delete(self, id_value: str) -> bool: ...
     @abc.abstractmethod
@@ -115,7 +78,6 @@ class TsCollection(abc.ABC):
                     raise  # -- we do not expect an exception in case of overwrite, so raise
 
         return rc
-
 
 
 class TsStore(Resource, resource_type=TS_STORE):

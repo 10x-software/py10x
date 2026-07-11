@@ -1532,7 +1532,8 @@ Some fields must be authoritative in the Traitable Store (timestamp of the write
 
 - **Not sent by the client** — `serialize_traits` omits any trait with `T.TS`.
 - **Filled on save** — default `Traitable.post_serialize` walks `TS_*` traits and calls the store helpers above.
-- **Loaded like normal stored fields** — present in the document after save; set on the instance when the object is loaded or reloaded.
+- **Hydrated on the client after `save()`** — the store returns those field values with the new revision; no `reload()` required for the writer.
+- **Loaded like normal stored fields** — also present when other clients load or reload the document.
 - **Must be storable** — not `RT()` / `RUNTIME`; integrity checks enforce type and storability.
 
 ```python

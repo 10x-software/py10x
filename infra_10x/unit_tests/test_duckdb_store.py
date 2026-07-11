@@ -54,3 +54,27 @@ class TestCreateIndex:
         collection.create_index('idx_rev', _REV)
         collection.create_index('idx_rev', _REV)  # IF NOT EXISTS — no error
         assert 'idx_rev' in _index_names(collection)
+
+    def test_unique_true(self, collection):
+        """Mongo Index(..., unique=True) parity on real columns."""
+        collection.create_index('idx_rev_uq', _REV, unique=True)
+        assert 'idx_rev_uq' in _index_names(collection)
+
+    def test_index_expr_none_skips_even_id(self, collection, monkeypatch):
+        monkeypatch.setattr(type(collection), '_index_expr', lambda self, field: None)
+        collection.create_index('idx_id', _ID)
+        assert 'idx_id' not in _index_names(collection)
+
+    def test_index_expr_override_used_for_payload_field(self, collection, monkeypatch):
+        """Dialect hook maps a payload field to a real column expression."""
+
+        def _expr(self, field: str) -> str | None:
+            if field == 'name':
+                return _REV  # stand-in for e.g. Postgres (_data->>'name')
+            if field in (_ID, _REV):
+                return field
+            return None
+
+        monkeypatch.setattr(type(collection), '_index_expr', _expr)
+        collection.create_index('idx_via_hook', 'name')
+        assert 'idx_via_hook' in _index_names(collection)

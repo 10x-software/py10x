@@ -8,11 +8,11 @@ import ibis
 
 from infra_10x.ibis_store import IbisCollection, IbisStore, _ID, _REV
 from core_10x.resource import Resource
-from core_10x.ts_store import TsDuplicateKeyError, note_server_trait, pop_server_trait_fields
+from core_10x.ts_store import TsDuplicateKeyError
 
 
 # ---------------------------------------------------------------------------
-# DuckDbCollection — DuckDB-specific save_new and create_index
+# DuckDbCollection — DuckDB dialect hooks
 # ---------------------------------------------------------------------------
 
 
@@ -21,47 +21,23 @@ class DuckDbCollection(IbisCollection):
         super().__init__(store, name)
         self._con = store._con
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
-        server_trait_fields = pop_server_trait_fields(serialized_traitable)
-        doc = dict(serialized_traitable)
-        doc[_REV] = 1
-        id_val, rev, data_json = self._encode_doc(doc)
-        new_data = self._data_payload(doc)
-        if not id_val:
-            return self._build_save_result(0, new_data, server_trait_fields)
-        returning = f' RETURNING _data'
-        try:
-            if overwrite:
-                rows = self._con.execute(
-                    f'INSERT OR REPLACE INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?){returning}',
-                    [id_val, rev, data_json],
-                ).fetchall()
-            else:
-                rows = self._con.execute(
-                    f'INSERT INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?){returning}',
-                    [id_val, rev, data_json],
-                ).fetchall()
-        except duckdb.ConstraintException as e:
-            raise TsDuplicateKeyError(self._name, {_ID: id_val}) from e
-        persisted_data = self._decode_persisted_data(rows[0][0]) if rows else new_data
-        return self._build_save_result(1, persisted_data, server_trait_fields)
+    def _insert_sql(self, *, overwrite: bool) -> str:
+        # INSERT … RETURNING _data — single round trip (shared save_new on IbisCollection).
+        verb = 'INSERT OR REPLACE' if overwrite else 'INSERT'
+        return (
+            f'{verb} INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?) RETURNING _data'
+        )
 
-    def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
-        # DuckDB does not support expression indexes on JSON functions; only _id/_rev are indexable.
-        if isinstance(trait_name, list):
-            if any(tn not in (_ID, _REV) for tn, _ in trait_name):
-                return name
-            cols = ', '.join(
-                f"{tn} {'DESC' if direction < 0 else 'ASC'}"
-                for tn, direction in trait_name
-            )
-        elif trait_name in (_ID, _REV):
-            cols = trait_name
-        else:
-            return name
-        safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
-        self._con.execute(f'CREATE INDEX IF NOT EXISTS {safe_name} ON {self._qname()} ({cols})')
-        return name
+    def _handle_insert_error(self, exc: BaseException, id_val: str) -> None:
+        if isinstance(exc, duckdb.ConstraintException):
+            raise TsDuplicateKeyError(self._name, {_ID: id_val}) from exc
+        raise exc
+
+    def _index_expr(self, field: str) -> str | None:
+        # Document schema: only real columns are indexable (no JSON expression indexes).
+        if field in (_ID, _REV):
+            return field
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -136,12 +112,10 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         if field in serialized_data:
             raise RuntimeError(f'Field {field} is already in use.')
         serialized_data[field] = self.auth_user()
-        note_server_trait(serialized_data, field)
         return serialized_data
 
     def add_when(self, field: str, serialized_data: dict) -> dict:
         if field in serialized_data:
             raise RuntimeError(f'Field {field} is already in use.')
         serialized_data[field] = self.server_time()
-        note_server_trait(serialized_data, field)
         return serialized_data

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import json
+import re
 from base64 import b64encode
 from datetime import datetime
 from typing import TYPE_CHECKING
@@ -10,10 +11,10 @@ import ibis
 import ibis.expr.operations as ibis_ops
 
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsStore, pop_server_trait_fields
+from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
     from core_10x.trait_filter import f as FilterExpr  # noqa: N812
 
@@ -30,8 +31,8 @@ _REV = Nucleus.REVISION_TAG()
 class IbisCollection(TsCollection):
     """Abstract base for ibis-backed collections.
 
-    Subclasses supply backend-specific DML/DDL (save_new, create_index).
-    save(), delete(), and all read-path logic live here.
+    Shared DML (save / save_new / delete) and all read-path logic live here.
+    Subclasses supply dialect hooks (insert SQL, unique-violation mapping) and DDL.
     """
 
     s_id_tag = _ID
@@ -52,6 +53,14 @@ class IbisCollection(TsCollection):
 
     def _execute(self, sql: str, params: list = ()) -> list[tuple]:
         return self._store._execute(sql, params)
+
+    def _insert_sql(self, *, overwrite: bool) -> str:
+        """Single-statement INSERT that returns the written ``_data`` JSON (one round trip)."""
+        raise NotImplementedError(f'{type(self).__name__} must implement _insert_sql')
+
+    def _handle_insert_error(self, exc: BaseException, id_val: str) -> None:
+        """Map backend integrity errors to :class:`TsDuplicateKeyError`, else re-raise."""
+        raise exc
 
     # ------------------------------------------------------------------
     # Column resolution
@@ -122,25 +131,38 @@ class IbisCollection(TsCollection):
     # DML operations
     # ------------------------------------------------------------------
 
-    def _data_payload(self, doc: dict) -> dict:
-        return {k: v for k, v in doc.items() if k not in (_ID, _REV)}
+    def save_new(
+        self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names: Sequence[str] = ()
+    ) -> dict:
+        """Insert (or replace) in **one** round trip via dialect ``INSERT … RETURNING _data``."""
+        doc = dict(serialized_traitable)
+        doc[_REV] = 1
+        id_val, rev, data_json = self._encode_doc(doc)
+        assert id_val, f'{type(self).__name__}.save_new requires a non-empty {_ID}'
+        try:
+            rows = self._execute(
+                self._insert_sql(overwrite=overwrite),
+                [id_val, rev, data_json],
+            )
+        except Exception as e:
+            self._handle_insert_error(e, id_val)
+            raise
+        # Hydrate only from RETURNING — never from the client payload.
+        assert rows, f'{type(self).__name__}.save_new: INSERT returned no row for {_ID}={id_val!r}'
+        doc = json.loads(rows[0][0]) if ts_trait_names else None
+        return {_REV: rev, **{field: doc[field] for field in ts_trait_names}}
 
-    def _build_save_result(self, rev: int, data: dict, server_trait_fields: list[str]) -> dict:
-        result = {_REV: rev}
-        for field in server_trait_fields:
-            if field in data:
-                result[field] = data[field]
-        return result
+    def save(self, serialized_traitable: dict, ts_trait_names: Sequence[str] = ()) -> dict:
+        """Optimistic save in **one** round trip (like Mongo ``find_one_and_update`` AFTER).
 
-    def _decode_persisted_data(self, data_json: str) -> dict:
-        return json.loads(data_json)
-
-    def save(self, serialized_traitable: dict) -> dict:
+        Conditional ``UPDATE … RETURNING``:
+        - matches on ``_id`` + expected ``_rev``
+        - bumps ``_rev`` only when ``_data`` actually changes (``IS DISTINCT FROM``)
+        - returns post-write ``_rev`` and ``_data`` for store-field hydration
+        """
         rev = serialized_traitable[_REV]
         if rev == 0:
-            return self.save_new(serialized_traitable)
-
-        server_trait_fields = pop_server_trait_fields(serialized_traitable)
+            return self.save_new(serialized_traitable, ts_trait_names=ts_trait_names)
 
         undef = next((k[1:] for k in serialized_traitable if k.startswith('$')), None)
         if undef:
@@ -150,33 +172,68 @@ class IbisCollection(TsCollection):
         id_val = doc[_ID]
         assert id_val
 
-        new_data = self._data_payload(doc)
+        new_data = {k: v for k, v in doc.items() if k not in (_ID, _REV)}
         new_data_json = json.dumps(new_data, default=self._json_encode_value)
 
+        # Single statement: no prior SELECT. Zero rows ⇒ missing id or rev conflict.
         rows = self._execute(
-            f'SELECT {_REV}, _data FROM {self._qname()} WHERE {_ID} = ?', [id_val]
-        )
-        if rows:
-            existing_rev, existing_data_json = rows[0]
-            assert existing_rev == rev, f'Revision mismatch for {id_val}: expected {rev}, got {existing_rev}'
-            if existing_data_json == new_data_json:
-                return self._build_save_result(rev, new_data, server_trait_fields)
-
-        new_rev = rev + 1
-        rows = self._execute(
-            f'UPDATE {self._qname()} SET {_REV} = ?, _data = ? WHERE {_ID} = ? AND {_REV} = ? RETURNING _data',
-            [new_rev, new_data_json, id_val, rev],
+            f'UPDATE {self._qname()} SET '
+            f'{_REV} = CASE WHEN _data IS DISTINCT FROM ? THEN {_REV} + 1 ELSE {_REV} END, '
+            f'_data = CASE WHEN _data IS DISTINCT FROM ? THEN ? ELSE _data END '
+            f'WHERE {_ID} = ? AND {_REV} = ? '
+            f'RETURNING {_REV}, _data',
+            [new_data_json, new_data_json, new_data_json, id_val, rev],
         )
         if not rows:
             raise RuntimeError(f'Revision conflict saving {id_val}: rev {rev} no longer current')
-        persisted_data = self._decode_persisted_data(rows[0][0])
-        return self._build_save_result(new_rev, persisted_data, server_trait_fields)
+        new_rev, data_json = rows[0]
+        assert new_rev in (rev, rev + 1)
+        doc = json.loads(data_json) if ts_trait_names else None
+        return {_REV: new_rev, **{field: doc[field] for field in ts_trait_names}}
 
     def delete(self, id_value: str) -> bool:
         rows = self._execute(
             f'DELETE FROM {self._qname()} WHERE {_ID} = ? RETURNING {_ID}', [id_value]
         )
         return len(rows) > 0
+
+    def _index_expr(self, field: str) -> str | None:
+        """SQL expression for one index key, or ``None`` if this dialect cannot index ``field``.
+
+        Default returns ``field`` as a bare column name so new dialects fail loudly in tests
+        until they override (e.g. DuckDB only real columns; Postgres JSON path expressions).
+        """
+        return field
+
+    def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
+        """Create an index using dialect ``_index_expr`` for each key field.
+
+        If any field is unsupported (``_index_expr`` returns ``None``), the call is a no-op
+        and still returns ``name``.
+
+        Honors ``unique=True`` (Mongo parity for :class:`~core_10x.traitable.Index` kwargs).
+        Other Mongo-only ``index_args`` are ignored.
+        """
+        if isinstance(trait_name, list):
+            parts: list[str] = []
+            for field, direction in trait_name:
+                expr = self._index_expr(field)
+                if expr is None:
+                    return name
+                parts.append(f"{expr} {'DESC' if direction < 0 else 'ASC'}")
+            cols = ', '.join(parts)
+        else:
+            expr = self._index_expr(trait_name)
+            if expr is None:
+                return name
+            cols = expr
+
+        unique = 'UNIQUE ' if index_args.get('unique') else ''
+        safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
+        self._execute(
+            f'CREATE {unique}INDEX IF NOT EXISTS {safe_name} ON {self._qname()} ({cols})'
+        )
+        return name
 
     # ------------------------------------------------------------------
     # Query operations

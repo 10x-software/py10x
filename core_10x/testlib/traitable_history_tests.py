@@ -131,12 +131,14 @@ class TestTraitableHistory:
             _collection_name=test_collection.collection_name(),
         )
         hist.save().throw()
-        #assert hist._who == 'test_user', f"got {type(hist._who)}: `{hist._who}`"
+        # Store-side TS fields hydrated on the client without reload
+        assert hist._who == 'test_user'
         assert hist._at is not None
-        assert isinstance(hist._at,datetime)
+        assert isinstance(hist._at, datetime)
 
         hist.reload()
-        assert isinstance(hist._at,datetime)
+        assert hist._who == 'test_user'
+        assert isinstance(hist._at, datetime)
 
         # Verify that the history entry was saved
         assert test_collection.count() == 1
@@ -157,8 +159,8 @@ class TestTraitableHistory:
     def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, with_transactions, monkeypatch):  # noqa: F811
         """When history save fails, the main document save is rolled back (revision not applied)."""
 
-        def _save_serialized_raise(self, coll, serialized_data, old_rev):
-            save_result = StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
+        def _save_serialized_raise(self, coll, serialized_data, old_rev, ts_trait_names=()):
+            save_result = StorableHelper._save_serialized(self, coll, serialized_data, old_rev, ts_trait_names)
             assert obj.collection().count() == 1
             if save_result['_rev'] > old_rev:
                 raise RuntimeError('history save fails')
@@ -175,10 +177,10 @@ class TestTraitableHistory:
 
     def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions): # noqa: F811
         """When a nested or main save fails, the transaction rolls back (no docs committed)."""
-        def _save_serialized_raise(self, coll, serialized_data, old_rev):
+        def _save_serialized_raise(self, coll, serialized_data, old_rev, ts_trait_names=()):
             if serialized_data['_id'] == '1':
                 raise RuntimeError('save error')
-            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
+            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev, ts_trait_names)
 
         monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
         monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *a, **kw: PyClass.name(cls))

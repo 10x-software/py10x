@@ -3,6 +3,7 @@ from contextlib import nullcontext
 import pytest
 
 from core_10x.environment_variables import EnvVars
+from core_10x.ts_store import TsStore
 from infra_10x import MongoCollectionHelper
 from infra_10x.mongodb_store import MongoStore
 from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
@@ -31,3 +32,10 @@ def ts_instance(mocker, request):
         mock = mocker.patch('infra_10x.MongoCollectionHelper')
         mock.value = MongoCollectionHelperStub
     return instance
+
+@pytest.fixture(scope='module', autouse=True)
+def clear_ts_store_instances():
+    assert not TsStore.s_instances
+    yield
+    TsStore.s_instances.clear()
+

@@ -771,15 +771,14 @@ def test_serialize(monkeypatch):
                         def create_index(self, name, trait_name):
                             return name
 
-                        def save(self, serialized_data):
+                        def save(self, serialized_data, ts_trait_names=()):
                             id_value = serialized_data['_id']
                             if not collection_name.endswith('#history'):
                                 save_calls[id_value] += 1
                             else:
                                 history_save_calls[id_value] += 1
                             serialized[id_value] = serialized_data
-                            return {'_rev': 1}
-
+                            return {'_rev': 1, **{name: 'test_user' if name == '_who' else datetime.utcnow() for name in ts_trait_names}}
                         save_new = save
 
                     return Collection()
@@ -857,7 +856,7 @@ def test_reference_serialization_roundtrip(monkeypatch):
                         def create_index(self, name, trait_name):
                             return name
 
-                        def save(self, serialized_data):
+                        def save(self, serialized_data, ts_trait_names=()):
                             id_value = serialized_data['_id']
                             serialized[id_value] = serialized_data
                             return {'_rev': 1}
