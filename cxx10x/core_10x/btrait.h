@@ -25,8 +25,11 @@ public:
     static constexpr unsigned FAUX          = 0x400;
     static constexpr unsigned ID_LIKE       = ID|FAUX;
     static constexpr unsigned OFFGRAPH_SET  = 0x800;
+    static constexpr unsigned TS_TIME       = 0x1000;
+    static constexpr unsigned TS_USER       = 0x2000;
+    static constexpr unsigned TS            = TS_TIME | TS_USER;
 
-    static constexpr unsigned LAST_FLAG = OFFGRAPH_SET; //TODO: remove?
+    static constexpr unsigned LAST_FLAG = TS_USER; //TODO: remove?
 
     // TODO: review the below CUSTOM_F_*- they do not seem to be used anywhere..
     static constexpr uint64_t CUSTOM_F_GET           = static_cast<uint64_t>(0x1)       << 32;

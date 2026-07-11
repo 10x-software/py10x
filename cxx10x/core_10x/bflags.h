@@ -49,7 +49,11 @@ public:
     void next()                                                         { m_flags <<= 1; }
 
     [[nodiscard]] BFlags add(const BFlags& other) const                 { return BFlags(m_flags | other.m_flags); }
+    [[nodiscard]] BFlags bit_and(const BFlags& other) const             { return BFlags(m_flags & other.m_flags); }
     [[nodiscard]] BFlags sub(const BFlags& other) const                 { return BFlags(m_flags & ~other.m_flags); }
+
+    [[nodiscard]] bool operator==(const BFlags& other) const            { return m_flags == other.m_flags; }
+    [[nodiscard]] bool operator!=(const BFlags& other) const            { return m_flags != other.m_flags; }
 
     [[nodiscard]] std::string repr() const {
         std::stringstream ss;

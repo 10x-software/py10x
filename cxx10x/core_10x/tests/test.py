@@ -1014,7 +1014,8 @@ def test_set_eval_once():
     assert x.v2 == 50 # force lazy load of v2
     assert x.v == 40, f'Expected x.v to be 40, got {x.v}'
 
-def test_deserialize_rt():
+def test_deserialize_skips_runtime_keeps_eval_once():
+    """RUNTIME is never store-backed; EVAL_ONCE still deserializes when not yet valid."""
     class X(Traitable):
         a: int = T(T.ID)
         x: int = RT()
@@ -1025,34 +1026,134 @@ def test_deserialize_rt():
 
         @staticmethod
         def load_data(id):
-            data = {'_id':id.value,'x':int(id.value)*10,'_rev':1,'a':int(id.value)}
+            data = {'_id': id.value, 'x': int(id.value) * 10, '_rev': 1, 'a': int(id.value)}
             print('load_data', id.value, data)
             return data
+
         @classmethod
         def exists_in_store(cls, id):
             return True
 
+    with CACHE_ONLY():
+        x = X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': '1', 'x': 1, 'a': 1})
+        assert x.x is XNone, f'RUNTIME trait must not be hydrated from blob, got {x.x}'
+        assert x.y == 1, f'Expected EVAL_ONCE getter default, got {x.y}'
+
+        x.x = 2
+        x1 = X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': '1', 'x': 99, 'a': 1})
+        assert x1.x == 2, f'RUNTIME must not be overwritten from blob, got {x1.x}'
+        assert x1.y == 1, f'valid EVAL_ONCE must not be re-deserialized, got {x1.y}'
+        assert x.x == 2
+
+
+        x2 = X.deserialize_object(X.s_bclass, None, {'_id': '2', '_rev': '2', 'y': 2, 'a': 2})
+        assert x2.y == 2, f'unset EVAL_ONCE should load from blob, got {x2.y}'
+        assert x2.x is XNone
+
+    # lazy load must not fill RUNTIME traits either
+    lazy = X(ID('3'))
+    assert lazy.x is XNone, f'lazy load must not hydrate RUNTIME, got {lazy.x}'
+
+
+def test_ts_flags_values():
+    """TS is the any-store-side mask; TS_TIME and TS_USER are exclusive kinds."""
+    assert T.TS_TIME.value() == 0x1000
+    assert T.TS_USER.value() == 0x2000
+    assert T.TS.value() == T.TS_TIME.value() | T.TS_USER.value()
+    assert not (T.TS_TIME.value() & T.TS_USER.value())
+
+
+def test_serialize_traits_skips_ts_fields():
+    """Client serialize_traits must omit TS_TIME/TS_USER (store-side only)."""
+    class X(Traitable, keep_history=False):
+        name: str = T(T.ID)
+        payload: int = T()
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
 
     with CACHE_ONLY():
-        x = X.deserialize_object(X.s_bclass, None, {'_id':'1','_rev':'1','x':1,'a':1})
-        assert x.x == 1, f'Expected x.x to be 1 after deserialization, got {x.x}'
-        assert x.y == 1, f'Expected x1.y to be 1 after deserialization, got {x.y}'
+        x = X(name='n1')
+        x.payload = 7
+        s = x.serialize_object()
+        assert s['name'] == 'n1'
+        assert s['payload'] == 7
+        assert 'saved_at' not in s
+        assert 'saved_by' not in s
+        assert x.trait('saved_at').flags_on(T.TS)
+        assert x.trait('saved_by').flags_on(T.TS)
 
-        x.x=2
-        x1 = X.deserialize_object(X.s_bclass, None, {'_id':'1','_rev':'1','x':1,'a':1})
-        assert x1.x == 2, f'Expected x1.x to be 2 after deserialization, got {x1.x}'
-        assert x1.y == 1, f'Expected x1.y to be 1 after deserialization, got {x1.y}'
 
-        x2 = X.deserialize_object(X.s_bclass, None, {'_id':'2','_rev':'2','y': 2,'a':2})
-        assert x2.y == 2, f'Expected x1.y to be 2 after deserialization, got {x1.y}'
+def test_serialize_traits_ts_only_allows_empty_blob():
+    """A class with only TS storable traits may serialize without client fields."""
+    class X(Traitable, keep_history=False):
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
 
-    assert X(ID('3')).x == 30 # lazy load picks up RT trait too
+    with CACHE_ONLY():
+        x = X()
+        s = x.serialize_object()
+        assert 'saved_at' not in s
+        assert 'saved_by' not in s
+        assert '_id' in s
+        assert '_rev' in s
+
+
+def test_deserialize_traits_loads_ts_fields():
+    """TS fields are storable: deserialize_traits fills them from the store blob."""
+    class X(Traitable, keep_history=False):
+        name: str = T(T.ID)
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
+
+    with CACHE_ONLY():
+        x = X.deserialize_object(
+            X.s_bclass,
+            None,
+            {
+                '_id': 'n1',
+                '_rev': 1,
+                'name': 'n1',
+                'saved_at': datetime(2020, 1, 2, 3, 4, 5),
+                'saved_by': 'alice',
+            },
+        )
+        assert x.name == 'n1'
+        assert x.saved_at == datetime(2020, 1, 2, 3, 4, 5)
+        assert x.saved_by == 'alice'
+
+
+def test_reload_loads_ts_fields():
+    """reload() re-applies TS fields from load_data (outside CACHE_ONLY so store is visible)."""
+    class X(Traitable, keep_history=False):
+        name: str = T(T.ID)
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            return {
+                '_id': id.value,
+                '_rev': 1,
+                'name': id.value,
+                'saved_at': datetime(2021, 2, 3, 4, 5, 6),
+                'saved_by': 'bob',
+            }
+
+    x = X(ID('n1'))
+    assert x.reload()
+    assert x.name == 'n1'
+    assert x.saved_at == datetime(2021, 2, 3, 4, 5, 6)
+    assert x.saved_by == 'bob'
 
 
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
-    test_deserialize_rt()
+    test_deserialize_skips_runtime_keeps_eval_once()
     test_set_eval_once()
     test_custom_collection()
     test_person_xnone()
@@ -1091,4 +1192,9 @@ if __name__ == '__main__':
     test_deserialize_wrong_class()
     test_save_fails_error()
     test_tracked_objects()
+    test_ts_flags_values()
+    test_serialize_traits_skips_ts_fields()
+    test_serialize_traits_ts_only_allows_empty_blob()
+    test_deserialize_traits_loads_ts_fields()
+    test_reload_loads_ts_fields()
 
