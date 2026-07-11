@@ -93,6 +93,11 @@ class str_trait(primitive_trait, data_type=str):
 
     # pattern = ''
     # placeholder = ''
+    def check_ts(self, cls, rc: RC) -> bool:
+        # Exact kind within the TS mask (rejects both bits, bare TS, or wrong kind).
+        if (self.flags & T.TS.value()) != T.TS_USER.value():
+            rc.add_error(f'{cls.__name__}.{self.name} - {self.data_type.__name__} TS traits must be TS_USER')
+        return True
 
     def from_str(self, s: str):
         return s
@@ -116,6 +121,12 @@ class str_trait(primitive_trait, data_type=str):
 
 class datetime_trait(Trait, data_type=datetime):
     s_ui_hint = Ui.line(align_h=0)
+
+    def check_ts(self, cls, rc: RC) -> bool:
+        # Exact kind within the TS mask (rejects both bits, bare TS, or wrong kind).
+        if (self.flags & T.TS.value()) != T.TS_TIME.value():
+            rc.add_error(f'{cls.__name__}.{self.name} - {self.data_type.__name__} TS traits must be TS_TIME')
+        return True
 
     def from_str(self, s: str):
         dt = XDateTime.str_to_datetime(s)

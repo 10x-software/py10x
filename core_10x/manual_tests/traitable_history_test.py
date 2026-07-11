@@ -22,7 +22,7 @@ if __name__ == '__main__':
         # Check history
         history = Person.history()
 
-        # Verify server-side fields
+        # Verify store-side fields
         for entry in history:
             print(f'  - Revision {entry["_traitable_rev"]}: {entry["first_name"]} (dob: {entry["dob"]})')
             print(f'    _who: {entry["_who"]}, _at: {entry["_at"]}')

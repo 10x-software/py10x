@@ -7,6 +7,7 @@ import inspect
 import locale
 import platform
 import sys
+from datetime import datetime
 from inspect import Parameter
 from types import GenericAlias
 from typing import get_origin, get_type_hints
@@ -296,8 +297,13 @@ class Trait(BTrait, metaclass=TraitMetaclass):
 
     def post_ctor(self): ...
 
+    def check_ts(self, cls, rc: RC) -> bool:
+        rc.add_error(f'{cls.__name__}.{self.name} - {self.data_type.__name__} trait cannot be a TS trait')
+        return False
+
     def check_integrity(self, cls, rc: RC):
-        pass
+        if self.flags_on(T.TS) and self.check_ts(cls, rc) and self.flags_on(T.RUNTIME|T.RESERVED|T.EMBEDDED):
+            rc.add_error(f'{cls.__name__}.{self.name} - TS traits must be storable (not RUNTIME or RESERVED), and not EMBEDDED')
 
     def default_value(self):
         return self.default

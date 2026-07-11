@@ -7,7 +7,7 @@ import sys
 import uuid
 from collections import Counter
 from contextlib import nullcontext
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
 from typing_extensions import Self
 
@@ -22,7 +22,7 @@ from core_10x.named_constant import NamedCallable
 from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import THIS_CLASS, AnonymousTraitable, Traitable, TraitableFwdRef, TraitAccessor, Index
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Traitable, TraitableFwdRef, TraitAccessor, Index
 from core_10x.traitable_id import ID
 
 from core_10x.xnone import XNone
@@ -1641,3 +1641,121 @@ class TestForwardRefTraitables:
             class _BadFwd(Traitable):
                 xid: int = T(T.ID)
                 items: list[NeverEverExistsTraitable] = T()  # noqa: F821
+
+
+# =====================================================================================
+#   TS_TIME / TS_USER store-side trait flags
+# =====================================================================================
+
+
+def test_ts_flag_values_and_common_bit():
+    assert T.TS_TIME.value() == 0x1000
+    assert T.TS_USER.value() == 0x2000
+    assert T.TS.value() == T.TS_TIME.value() | T.TS_USER.value()
+    # Exclusive kinds under any-bit flags_on:
+    assert not (T.TS_TIME.value() & T.TS_USER.value())
+
+
+def test_event_base_uses_ts_flags():
+    at = EventBase.trait('_at')
+    who = EventBase.trait('_who')
+    assert at.flags_on(T.TS)
+    assert who.flags_on(T.TS)
+    assert (at.flags & T.TS.value()) == T.TS_TIME.value()
+    assert (who.flags & T.TS.value()) == T.TS_USER.value()
+    assert at.flags_on(T.TS_TIME)
+    assert who.flags_on(T.TS_USER)
+    assert not at.flags_on(T.TS_USER)
+    assert not who.flags_on(T.TS_TIME)
+    assert not at.flags_on(T.RUNTIME)
+    assert not who.flags_on(T.RUNTIME)
+    assert EventBase.is_storable()
+
+
+def test_ts_time_wrong_type_integrity():
+    with pytest.raises(RuntimeError, match='BadTime.when - str TS traits must be TS_USER'):
+
+        class BadTime(Traitable):
+            when: str = T(T.TS_TIME)
+            x: int = T()
+
+
+def test_ts_user_wrong_type_integrity():
+    with pytest.raises(RuntimeError, match='BadUser.who - int trait cannot be a TS trait'):
+
+        class BadUser(Traitable):
+            who: int = T(T.TS_USER)
+            x: int = T()
+
+
+def test_ts_runtime_integrity():
+    with pytest.raises(RuntimeError, match='must be storable'):
+
+        class BadRt(Traitable):
+            when: datetime = RT(T.TS_TIME)
+            x: int = T()
+
+
+def test_ts_bare_flag_integrity():
+    with pytest.raises(RuntimeError, match='BareTs.meta - str TS traits must be TS_USER'):
+
+        class BareTs(Traitable):
+            meta: str = T(T.TS)
+            x: int = T()
+
+
+def test_ts_both_bits_integrity():
+    with pytest.raises(RuntimeError, match='BothBits.when - datetime TS traits must be TS_TIME'):
+
+        class BothBits(Traitable):
+            when: datetime = T(T.TS_TIME | T.TS_USER)
+            x: int = T()
+
+
+def test_serialize_skips_ts_traits_and_post_serialize_injects():
+    class Ev(Traitable, keep_history=False):
+        name: str = T(T.ID)
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
+
+    class Store:
+        def add_when(self, field, serialized_data):
+            serialized_data[field] = datetime(2020, 1, 2, 3, 4, 5)
+            return serialized_data
+
+        def add_who(self, field, serialized_data):
+            serialized_data[field] = 'alice'
+            return serialized_data
+
+    with CACHE_ONLY():
+        ev = Ev(name='e1')
+        blob = ev.serialize_object(False)
+        assert 'saved_at' not in blob
+        assert 'saved_by' not in blob
+        assert blob['name'] == 'e1'
+
+        ev.__class__.store = classmethod(lambda cls: Store())
+        post = ev.post_serialize(blob)
+        assert post['saved_at'] == datetime(2020, 1, 2, 3, 4, 5)
+        assert post['saved_by'] == 'alice'
+        assert 'saved_at' not in blob  # original not mutated
+
+
+def test_runtime_unsets_ts_flags():
+    class Ev(Traitable, keep_history=False):
+        name: str = T(T.ID)
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
+
+    runtime_ev = Ev.runtime()
+    rt_at = runtime_ev.trait('saved_at')
+    rt_by = runtime_ev.trait('saved_by')
+    assert rt_at.flags_on(T.RUNTIME)
+    assert rt_by.flags_on(T.RUNTIME)
+    assert not rt_at.flags_on(T.TS)
+    assert not rt_by.flags_on(T.TS)
+    assert not rt_at.flags_on(T.TS_TIME)
+    assert not rt_by.flags_on(T.TS_USER)
+    # Original class unchanged
+    assert Ev.trait('saved_at').flags_on(T.TS)
+    assert (Ev.trait('saved_at').flags & T.TS.value()) == T.TS_TIME.value()

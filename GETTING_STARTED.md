@@ -47,6 +47,7 @@ Traitables are the fundamental data models in `py10x-core`. They are Python clas
 Traits are typed attributes that can be:
 - **Regular traits**: Stored and searchable (use `T()`)
 - **Runtime traits**: Not stored or persisted; otherwise identical to `T()` (use `RT()` or omit)
+- **Traitable store-side traits**: Stored, but written by the Traitable Store on `save()` rather than from client values (use `T(T.TS_TIME)` / `T(T.TS_USER)` — see [Traitable store-side traits](#traitable-store-side-traits))
 - **ID traits**: Define traitable identity for global sharing (use `T(T.ID)` or `RT(T.ID)`)
 - **ID_LIKE traits**: Helper traits that participate in ID construction indirectly (use `T(T.ID_LIKE)` or `RT(T.ID_LIKE)`)
 
@@ -1518,9 +1519,43 @@ class LogEntry(Traitable):
 
 Manual creation via `collection().create_index(...)` is still supported when needed. Indexes are created on first write.
 
+### Traitable store-side traits
+
+Some fields must be authoritative in the Traitable Store (timestamp of the write, authenticated store user). Mark them with trait flags rather than assigning them in application code before `save()`:
+
+| Flag | Type | On save |
+|------|------|---------|
+| `T.TS_TIME` | `datetime` | `TsStore.add_when(field, …)` (e.g. Mongo `$currentDate`, DuckDB `server_time()`) |
+| `T.TS_USER` | `str` | `TsStore.add_who(field, …)` (authenticated store user, if any) |
+
+`T.TS_TIME` and `T.TS_USER` are exclusive bits; `T.TS` is their mask (`TS_TIME | TS_USER`). Use `flags_on(T.TS)` for “any store-side field”, and exact kind checks such as `(flags & T.TS) == T.TS_USER` when both bits must not be set. Behavior:
+
+- **Not sent by the client** — `serialize_traits` omits any trait with `T.TS`.
+- **Filled on save** — default `Traitable.post_serialize` walks `TS_*` traits and calls the store helpers above.
+- **Loaded like normal stored fields** — present in the document after save; set on the instance when the object is loaded or reloaded.
+- **Must be storable** — not `RT()` / `RUNTIME`; integrity checks enforce type and storability.
+
+```python
+from datetime import datetime
+from core_10x.traitable import Traitable, T, EventBase
+
+class AuditEvent(Traitable, keep_history=False):
+    kind: str = T(T.ID)
+    # Optional custom names — any trait can use the flags:
+    recorded_at: datetime = T(T.TS_TIME)
+    recorded_by: str = T(T.TS_USER)
+
+# EventBase already declares the conventional pair used by history and event collections:
+#   _at:  datetime = T(T.TS_TIME)
+#   _who: str      = T(T.TS_USER)
+assert EventBase.trait('_at').flags_on(T.TS)
+```
+
+Use `EventBase` when you want those standard field names and the default `_at` index; use the flags directly when you need different names or only one of the two.
+
 ### Revision history
 
-Storable traitables keep a revision history **by default**. Each successful `save()` that advances `_rev` also writes a snapshot to a companion `{collection}#history` store as a dynamically generated `TraitableHistory` class. History entries include server-populated `_at` (timestamp) and `_who` (authenticated store user) fields.
+Storable traitables keep a revision history **by default**. Each successful `save()` that advances `_rev` also writes a snapshot to a companion `{collection}#history` store as a dynamically generated `TraitableHistory` class. History entries include store-side `_at` (timestamp) and `_who` (authenticated store user) fields.
 
 Opt out with `keep_history=False` on the class definition, for example `class Person(Traitable, keep_history=False):`. Note, that by default traitable classes declared with `keep_history=False` are immutable (i.e. can only be persisted once). This behavior can be disabled by also specifying `immutable=False`.
 
