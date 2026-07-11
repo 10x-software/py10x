@@ -131,7 +131,7 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
     def add_who(self, field: str, serialized_data: dict) -> dict:
         if field in serialized_data:
             raise RuntimeError(f'Field {field} is already in use.')
-        serialized_data['_who'] = self.auth_user()
+        serialized_data[field] = self.auth_user()
         return serialized_data
 
     def add_when(self, field: str, serialized_data: dict) -> dict:

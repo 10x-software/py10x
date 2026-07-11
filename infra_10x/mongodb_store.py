@@ -308,7 +308,7 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         sd = serialized_data.get('$set', serialized_data)
         if field in sd:
             raise RuntimeError(f'Field {field} is already in use.')
-        sd['_who'] = self.auth_user()
+        sd[field] = self.auth_user()
         return serialized_data
 
     def add_when(self, field: str, serialized_data: dict) -> dict:

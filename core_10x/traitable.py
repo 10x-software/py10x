@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Any, get_origin
 
-from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache
+from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache, BFlags
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
@@ -550,8 +550,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         class Runtime(cls):
             @classmethod
             def _post_build_trait_dir(cls, trait_dir: dict):
-                for trait in trait_dir.values():
-                    trait.set_flags(T.RUNTIME.value())
+                # Re-create traits so we do not mutate shared parent Trait instances.
+                for trait_name, trait in list(trait_dir.items()):
+                    trait_def = trait.t_def.copy()
+                    trait_def.flags.reset(T.TS.value())
+                    trait_def.flags.set(T.RUNTIME.value())
+                    trait_dir[trait_name] = Trait.create(trait_name, trait_def)
 
         Runtime._post_build_trait_dir = cls._post_build_trait_dir
         return Runtime
@@ -779,7 +783,22 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.restore(traitable_id, timestamp, save)
 
     def post_serialize(self, serialized_data: dict) -> dict:
-        return serialized_data
+        """Inject Traitable store-side TS_TIME / TS_USER fields into the serialized blob."""
+        ts_traits = list(self.traits(flags_on=T.TS))
+        if not ts_traits:
+            return serialized_data
+
+        store = self.store()
+        post_serialized = dict(serialized_data)
+        for trait in ts_traits:
+            match kind := BFlags(trait.flags) & T.TS:
+                case T.TS_TIME:
+                    store.add_when(trait.name, post_serialized)
+                case T.TS_USER:
+                    store.add_who(trait.name, post_serialized)
+                case _:
+                    raise RuntimeError(f"Unexpected TS trait kind for {trait.name}: {kind}")
+        return post_serialized
 
 class TraitableFwdRef(Traitable, root_class=True):
     """Internal base for deferred sibling Traitable annotations; not for direct use."""
@@ -1130,17 +1149,10 @@ def __getattr__(name):
 
 
 class EventBase(Traitable, keep_history=False):
-    _at: datetime               = RT() // 'time saved'
-    _who: str                   = RT() // 'authenticated user, if any'
+    _at: datetime               = T(T.TS_TIME) // 'time saved'
+    _who: str                   = T(T.TS_USER) // 'authenticated user, if any'
 
     s_indices = [Index('_at_idx', '_at')]
-
-    def post_serialize(self, serialized_data: dict) -> dict:
-        store = self.store()
-        post_serialized = dict(serialized_data)
-        store.add_who(self.T._who.name, post_serialized)
-        store.add_when(self.T._at.name, post_serialized)
-        return post_serialized
 
 
 class TraitableHistory(EventBase):
@@ -1172,7 +1184,10 @@ class TraitableHistory(EventBase):
         )
 
     def deserialize_traits(self, serialized_data):
-        hist_data = {trait.name: serialized_data.pop(trait.name, None) for trait in itertools.chain(EventBase.traits(),self.traits(flags_off=T.RUNTIME))}
+        hist_data = {
+            trait.name: serialized_data.pop(trait.name, None)
+            for trait in itertools.chain(self.traits(flags_on=T.TS), self.traits(flags_off=T.RUNTIME | T.TS))
+        }
         self.serialized_traitable = serialized_data | {v: hist_data[k] for k, v in self.s_trait_name_map.items()}
         return super().deserialize_traits(hist_data)
 
@@ -1264,6 +1279,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
     def post_ctor(self): ...
 
     def check_integrity(self, cls, rc: RC):
+        super().check_integrity(cls,rc)
         is_runtime = self.flags_on(T.RUNTIME)
         if self.flags_on(T.EMBEDDED):
             if is_runtime:
