@@ -1531,9 +1531,9 @@ Some fields must be authoritative in the Traitable Store (timestamp of the write
 `T.TS_TIME` and `T.TS_USER` are exclusive bits; `T.TS` is their mask (`TS_TIME | TS_USER`). Use `flags_on(T.TS)` for “any store-side field”, and exact kind checks such as `(flags & T.TS) == T.TS_USER` when both bits must not be set. Behavior:
 
 - **Not sent by the client** — `serialize_traits` omits any trait with `T.TS`.
-- **Filled on save** — default `Traitable.post_serialize` walks `TS_*` traits and calls the store helpers above.
-- **Hydrated on the client after `save()`** — the store returns those field values with the new revision; no `reload()` required for the writer.
-- **Loaded like normal stored fields** — also present when other clients load or reload the document.
+- **Filled on save (default)** — default `Traitable.post_serialize` walks `TS_*` traits and calls the store helpers above. Overrides may inject only some traits (or none) when a field should be introduced only on certain saves.
+- **Hydrated on the client after `save()`** — the store returns post-write values for those fields with the new revision; no `reload()` required for the writer. Only fields present in the save result are applied (skipped injections are not errors).
+- **Loaded like normal stored fields** — also present when other clients load or reload the document (if they were written).
 - **Must be storable** — not `RT()` / `RUNTIME`; integrity checks enforce type and storability.
 
 ```python

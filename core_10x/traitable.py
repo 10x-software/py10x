@@ -788,7 +788,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.restore(traitable_id, timestamp, save)
 
     def post_serialize(self, serialized_data: dict) -> dict:
-        """Inject Traitable store-side TS_TIME / TS_USER fields into the serialized blob."""
+        """Inject Traitable store-side TS_TIME / TS_USER fields into the serialized blob.
+
+        Default injects every ``T.TS`` trait via ``add_when`` / ``add_who``. Overrides may
+        call those helpers selectively (or not at all) to introduce a store-side field only
+        on some saves. Hydration after save applies only fields present in the store result —
+        omitted injections are not errors.
+        """
         ts_traits = list(self.traits(flags_on=T.TS))
         if not ts_traits:
             return serialized_data
@@ -1012,6 +1018,8 @@ class StorableHelper(AbstractStorableHelper):
             if not coll:
                 return RC(False, f'{self.__class__} - no store available')
 
+            # Candidate hydrate keys (flags). post_serialize may inject only a subset;
+            # missing keys in save_result are skipped (not an error).
             ts_trait_names = tuple(t.name for t in traitable.traits(flags_on=T.TS))
             with self._transaction_ctx():
                 save_result = self._save_serialized(
@@ -1026,6 +1034,8 @@ class StorableHelper(AbstractStorableHelper):
         rev_tag = Nucleus.REVISION_TAG()
         traitable.set_revision(save_result[rev_tag])
         for trait in traitable.traits(flags_on=T.TS):
+            if trait.name not in save_result:
+                continue
             traitable.set_trait_value(trait, trait.f_deserialize(trait, save_result[trait.name]))
         return RC_TRUE
 

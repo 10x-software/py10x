@@ -64,7 +64,7 @@ class MongoCollection(TsCollection):
             return {_REV: rev}, 0
         new_rev = doc[_REV]
         assert new_rev in (rev, rev + 1)
-        return {_REV: new_rev, **{field: doc[field] for field in ts_trait_names}}, 1
+        return {_REV: new_rev, **({f: v for f in ts_trait_names if (v:=doc.get(f))})}, 1
 
 
     def collection_name(self) -> str:

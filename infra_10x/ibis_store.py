@@ -149,8 +149,8 @@ class IbisCollection(TsCollection):
             raise
         # Hydrate only from RETURNING — never from the client payload.
         assert rows, f'{type(self).__name__}.save_new: INSERT returned no row for {_ID}={id_val!r}'
-        doc = json.loads(rows[0][0]) if ts_trait_names else None
-        return {_REV: rev, **{field: doc[field] for field in ts_trait_names}}
+        doc = json.loads(rows[0][0]) if ts_trait_names else {}
+        return {_REV: rev, **({f: v for f in ts_trait_names if (v:=doc.get(f))})}
 
     def save(self, serialized_traitable: dict, ts_trait_names: Sequence[str] = ()) -> dict:
         """Optimistic save in **one** round trip (like Mongo ``find_one_and_update`` AFTER).
@@ -188,8 +188,8 @@ class IbisCollection(TsCollection):
             raise RuntimeError(f'Revision conflict saving {id_val}: rev {rev} no longer current')
         new_rev, data_json = rows[0]
         assert new_rev in (rev, rev + 1)
-        doc = json.loads(data_json) if ts_trait_names else None
-        return {_REV: new_rev, **{field: doc[field] for field in ts_trait_names}}
+        doc = json.loads(data_json) if ts_trait_names else {}
+        return {_REV: new_rev, **({f: v for f in ts_trait_names if (v:=doc.get(f))})}
 
     def delete(self, id_value: str) -> bool:
         rows = self._execute(
