@@ -729,10 +729,11 @@ def test_store_save():
                 @classmethod
                 def collection(cls, _coll_name: str = None):
                     class Collection:
-                        def save_new(self, serialized_data):
+                        def save_new(self, serialized_data,**kwargs):
                             id_value = serialized_data['_id']
                             save_calls[id_value] += 1
                             serialized[id_value] = serialized_data
+                            return {'_rev':save_calls[id_value]}
 
                     return Collection()
             return Store()
