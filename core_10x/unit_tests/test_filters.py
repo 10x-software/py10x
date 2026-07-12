@@ -235,24 +235,24 @@ def test_named_serializers():
 
     assert trait.serialize_value(5) == 'age:5'
 
-    assert EQ(5).prefix_notation(field_name=trait.name, traitable_class=P.s_bclass) == {'$eq': 'age:5'}
+    assert EQ(5).prefix_notation(field_name=trait.name, trait_dir=P.s_dir) == {'$eq': 'age:5'}
 
-    assert BETWEEN(1, 5).prefix_notation(field_name=trait.name, traitable_class=P.s_bclass) == {
+    assert BETWEEN(1, 5).prefix_notation(field_name=trait.name, trait_dir=P.s_dir) == {
         '$gte': 'age:1',
         '$lte': 'age:5',
     }
 
     x = OR(f(age=LE(70)), f(first_name=NE('Sasha')), f(last_name=XNone))
-    assert x.prefix_notation(traitable_class=P.s_bclass) == {
+    assert x.prefix_notation(trait_dir=P.s_dir) == {
         '$or': [{'age': {'$lte': 'age:70'}}, {'first_name': {'$ne': 'Sasha'}}, {'last_name': {'$eq': None}}]
     }
 
     x = f(age=BETWEEN(50, 70), first_name=NE('Sasha'))
 
-    assert f(x, P.s_bclass).prefix_notation() == x.prefix_notation(traitable_class=P.s_bclass)
+    assert f(x, P.s_dir).prefix_notation() == x.prefix_notation(trait_dir=P.s_dir)
 
     r = OR(f(age=BETWEEN(50, 70), first_name=NE('Sasha')), f(age=17))
-    assert r.prefix_notation(traitable_class=P.s_bclass) == {
+    assert r.prefix_notation(trait_dir=P.s_dir) == {
         '$or': [
             {'age': {'$gte': 'age:50', '$lte': 'age:70'}, 'first_name': {'$ne': 'Sasha'}},
             {'age': {'$eq': 'age:17'}},
@@ -260,15 +260,15 @@ def test_named_serializers():
     }
 
 
-def test_f_pinned_traitable_class_takes_precedence():
+def test_f_pinned_trait_dir_takes_precedence():
     # Regression test for the precedence fix in `f.prefix_notation`:
-    # a traitable_class pinned on `self` (via `f(_f, _t)` or `f(..., _t=...)`)
-    # must take precedence over a `traitable_class` argument supplied by an
+    # a trait_dir pinned on `self` (via `f(_f, trait_dir)` or `f(..., trait_dir=...)`)
+    # must take precedence over a `trait_dir` argument supplied by an
     # outer caller. This matters for nested filters like
-    # `f(f(f(...), Inner.s_bclass), ...)` where the inner `f` is constructed
+    # `f(f(f(...), Inner.s_dir), ...)` where the inner `f` is constructed
     # for a specific class and must keep serializing against it even when
     # evaluated through an outer `prefix_notation(...)` that forwards its
-    # own class context down.
+    # own trait context down.
     class PA(Person):
         @classmethod
         def age_serialize(cls, t, v):
@@ -279,22 +279,22 @@ def test_f_pinned_traitable_class_takes_precedence():
         def age_serialize(cls, t, v):
             return f'b:{v}'
 
-    pinned = f(_t=PA.s_bclass, age=EQ(5))
+    pinned = f(trait_dir=PA.s_dir, age=EQ(5))
 
-    # Pinned class wins when the caller passes a different class.
-    assert pinned.prefix_notation(traitable_class=PB.s_bclass) == {'age': {'$eq': 'a:5'}}
+    # Pinned trait_dir wins when the caller passes a different one.
+    assert pinned.prefix_notation(trait_dir=PB.s_dir) == {'age': {'$eq': 'a:5'}}
 
-    # Pinned class is used when no class is supplied by the caller.
+    # Pinned trait_dir is used when none is supplied by the caller.
     assert pinned.prefix_notation() == {'age': {'$eq': 'a:5'}}
 
-    # Without a pinned class, the caller-supplied class is honored.
+    # Without a pinned trait_dir, the caller-supplied one is honored.
     bare = f(age=EQ(5))
-    assert bare.prefix_notation(traitable_class=PB.s_bclass) == {'age': {'$eq': 'b:5'}}
+    assert bare.prefix_notation(trait_dir=PB.s_dir) == {'age': {'$eq': 'b:5'}}
 
-    # The pinned class is also propagated down into a nested `.filter`.
+    # The pinned trait_dir is also propagated down into a nested `.filter`.
     inner = f(age=EQ(7))
-    wrapped = f(inner, PA.s_bclass)
-    assert wrapped.prefix_notation(traitable_class=PB.s_bclass) == {'age': {'$eq': 'a:7'}}
+    wrapped = f(inner, PA.s_dir)
+    assert wrapped.prefix_notation(trait_dir=PB.s_dir) == {'age': {'$eq': 'a:7'}}
 
 
 class RefTarget(Traitable):
@@ -421,7 +421,7 @@ class TestCompoundFilters:
         coll = Sample.collection(_coll_name=coll_name)
 
         try:
-            yield store, coll, data, overrides, coll_name, Sample.s_bclass
+            yield store, coll, data, overrides, coll_name, Sample.s_dir
         finally:
             store.delete_collection(coll_name)
             store.end_using()
@@ -429,66 +429,66 @@ class TestCompoundFilters:
 
     @pytest.mark.parametrize('trait_name', ['cl', 'lst', 'dct', 'nc', 'nc2', 'fl', 'by'])
     def test_trait_prefix_and_find(self, trait_name, prepared):
-        _store, coll, data, _overrides, _coll_name, bclass = prepared
-        q = f(**{trait_name: data[trait_name]}, _t=bclass)
+        _store, coll, data, _overrides, _coll_name, trait_dir = prepared
+        q = f(**{trait_name: data[trait_name]}, trait_dir=trait_dir)
         ser = Sample.trait(trait_name).serialize_value(data[trait_name])
-        assert q.prefix_notation(traitable_class=bclass) == {trait_name: {'$eq': ser}}
-        assert len(list(coll.find(f(q, bclass)))) == 2
+        assert q.prefix_notation(trait_dir=trait_dir) == {trait_name: {'$eq': ser}}
+        assert len(list(coll.find(f(q, trait_dir)))) == 2
 
     def test_primitives(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, bclass = prepared
-        assert len(list(coll.find(f(i=10, _t=bclass)))) == 2
-        assert len(list(coll.find(f(f=1.5, _t=bclass)))) == 2
-        assert len(list(coll.find(f(b=True, _t=bclass)))) == 2
-        assert len(list(coll.find(f(s='world', _t=bclass)))) == 1
+        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
+        assert len(list(coll.find(f(i=10, trait_dir=trait_dir)))) == 2
+        assert len(list(coll.find(f(f=1.5, trait_dir=trait_dir)))) == 2
+        assert len(list(coll.find(f(b=True, trait_dir=trait_dir)))) == 2
+        assert len(list(coll.find(f(s='world', trait_dir=trait_dir)))) == 1
 
     def test_datetime(self, prepared):
-        _store, coll, data, overrides, _coll_name, bclass = prepared
-        assert len(list(coll.find(f(dt=overrides['dt'], _t=bclass)))) == 1
-        assert len(list(coll.find(f(dt=GT(data['dt']), _t=bclass)))) == 1
+        _store, coll, data, overrides, _coll_name, trait_dir = prepared
+        assert len(list(coll.find(f(dt=overrides['dt'], trait_dir=trait_dir)))) == 1
+        assert len(list(coll.find(f(dt=GT(data['dt']), trait_dir=trait_dir)))) == 1
 
     def test_date(self, prepared):
-        _store, coll, _data, overrides, _coll_name, bclass = prepared
-        assert len(list(coll.find(f(d=overrides['d'], _t=bclass)))) == 1
+        _store, coll, _data, overrides, _coll_name, trait_dir = prepared
+        assert len(list(coll.find(f(d=overrides['d'], trait_dir=trait_dir)))) == 1
 
     def test_xnone(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, bclass = prepared
-        qnull = f(opt=XNone, _t=bclass)
-        nullres = list(coll.find(f(qnull, bclass)))
+        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
+        qnull = f(opt=XNone, trait_dir=trait_dir)
+        nullres = list(coll.find(f(qnull, trait_dir)))
         nullids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in nullres)
         assert nullids == ['s2', 's3']
 
     def test_xnone_traitable_ref(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, bclass = prepared
-        q = f(ref=XNone, _t=bclass)
-        nullids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(q, bclass)))
+        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
+        q = f(ref=XNone, trait_dir=trait_dir)
+        nullids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(q, trait_dir)))
         assert nullids == ['s2', 's3']
 
-        qset = f(ref=NE(XNone), _t=bclass)
-        setids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(qset, bclass)))
+        qset = f(ref=NE(XNone), trait_dir=trait_dir)
+        setids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(qset, trait_dir)))
         assert setids == ['s1']
 
     def test_in_and_nin(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, bclass = prepared
-        assert len(list(coll.find(f(i=IN([10, 99]), _t=bclass)))) == 2
-        qmix = f(AND(f(b=True), f(i=NIN([99]))), bclass)
+        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
+        assert len(list(coll.find(f(i=IN([10, 99]), trait_dir=trait_dir)))) == 2
+        qmix = f(AND(f(b=True), f(i=NIN([99]))), trait_dir)
         assert len(list(coll.find(qmix))) == 2
 
     # compounds
 
     def test_compound_and(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, bclass = prepared
+        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
         inner = AND(f(i=10), f(s='hello'))
-        q_and = f(inner, bclass)
+        q_and = f(inner, trait_dir)
         res = list(coll.find(q_and))
         ids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
         assert ids == ['s1', 's3']
-        pn_and = q_and.prefix_notation(traitable_class=bclass)
+        pn_and = q_and.prefix_notation(trait_dir=trait_dir)
         assert '$and' in pn_and or len(pn_and) > 0
 
     def test_compound_or(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, bclass = prepared
-        q_or = f(OR(f(i=10), f(i=20)), bclass)
+        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
+        q_or = f(OR(f(i=10), f(i=20)), trait_dir)
         res = list(coll.find(q_or))
         ids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
         assert ids == ['s1', 's2', 's3']

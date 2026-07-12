@@ -973,7 +973,7 @@ class StorableHelper(AbstractStorableHelper):
         # TODO FUTURE - current state as history query?
         cls = self.traitable_class
         coll = cls.collection(_coll_name=_coll_name)
-        return coll.find(f(query, cls.s_bclass), _at_most=_at_most, _order=_order)
+        return coll.find(f(query, cls.s_dir), _at_most=_at_most, _order=_order)
 
     def load_many(
         self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True
