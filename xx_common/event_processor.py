@@ -1,5 +1,4 @@
 import inspect
-import time
 from datetime import timedelta
 
 from core_10x.py_class import PyClass
@@ -66,9 +65,6 @@ class EventProcessor(Traitable):
         self.save()
 
     def needs_processing(self, event: Event) -> bool:
-        """Whether this processor should apply `event`. Default: everything in its inputs. Override to
-        scope a processor to a subset (e.g. one partition) — the per-processor watermark still advances
-        over skipped events, so each event is seen once per processor and never re-applied."""
         return True
 
     def process_pending_events(self) -> int:
@@ -80,27 +76,3 @@ class EventProcessor(Traitable):
 
         self.advance(watermarks)
         return len(events)
-
-    def run_until(self, event: Event = None, timeout: float = 5.0) -> int:
-        """Drain pending events until quiescent, then return the total processed.
-
-        Loops `process_pending_events` past the sub-millisecond watermark lag (a just-saved event's
-        `_at` is younger than the `server_time - 1ms` watermark) and past cascades (a handler may emit
-        further events applied on a later pass). `event` is **advisory** — the event you expect to see
-        applied — kept only for call-site readability; draining to quiescence is what actually
-        guarantees it and any cascade it triggers. Raises `TimeoutError` if the drain has not settled
-        within `timeout` seconds (an unbounded arrival stream, or a handler that keeps re-emitting).
-        """
-        deadline = time.monotonic() + timeout
-        total = 0
-        while True:
-            n = self.process_pending_events()
-            total += n
-            if n == 0:
-                time.sleep(0.003)  # let just-saved events age past the watermark, then re-check
-                n = self.process_pending_events()
-                total += n
-                if n == 0:
-                    return total
-            if time.monotonic() > deadline:
-                raise TimeoutError(f'{type(self).__name__}.run_until did not settle within {timeout}s')
