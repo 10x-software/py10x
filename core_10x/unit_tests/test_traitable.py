@@ -290,7 +290,8 @@ def test_declarative_indices():
     assert '_at_idx' in hist_names
 
     # Also check a concrete Event subclass (from xx_common) inherits it
-    from xx_common.event import Event as XXEvent
+    class XXEvent(EventBase):
+        n: int = T(0)
 
     assert any(ix.name == '_at_idx' for ix in XXEvent.s_indices)
 
@@ -770,15 +771,14 @@ def test_serialize(monkeypatch):
                         def create_index(self, name, trait_name):
                             return name
 
-                        def save(self, serialized_data):
+                        def save(self, serialized_data, ts_trait_names=()):
                             id_value = serialized_data['_id']
                             if not collection_name.endswith('#history'):
                                 save_calls[id_value] += 1
                             else:
                                 history_save_calls[id_value] += 1
                             serialized[id_value] = serialized_data
-                            return 1
-
+                            return {'_rev': 1, **{name: 'test_user' if name == '_who' else datetime.utcnow() for name in ts_trait_names}}
                         save_new = save
 
                     return Collection()
@@ -856,10 +856,10 @@ def test_reference_serialization_roundtrip(monkeypatch):
                         def create_index(self, name, trait_name):
                             return name
 
-                        def save(self, serialized_data):
+                        def save(self, serialized_data, ts_trait_names=()):
                             id_value = serialized_data['_id']
                             serialized[id_value] = serialized_data
-                            return 1
+                            return {'_rev': 1}
 
                         save_new = save
 
@@ -1738,6 +1738,27 @@ def test_serialize_skips_ts_traits_and_post_serialize_injects():
         assert post['saved_at'] == datetime(2020, 1, 2, 3, 4, 5)
         assert post['saved_by'] == 'alice'
         assert 'saved_at' not in blob  # original not mutated
+
+
+class SelectivePostSerializeEv(Traitable, keep_history=False, immutable=False):
+    """Injects only ``saved_at`` — used to test optional TS introduction on save."""
+
+    name: str = T(T.ID)
+    saved_at: datetime = T(T.TS_TIME)
+    saved_by: str = T(T.TS_USER)
+
+    def post_serialize(self, serialized_data: dict) -> dict:
+        return self.store().add_when('saved_at', dict(serialized_data))
+
+
+def test_selective_post_serialize_skips_hydrate_for_omitted_ts_traits(ts_instance):
+    """Custom post_serialize may inject only some TS traits; save hydrates those only."""
+    ts_instance.username = 'test_user'
+    with ts_instance:
+        ev = SelectivePostSerializeEv(name='e1', _replace=True)
+        ev.save().throw()
+        assert ev.is_trait_valid(ev.trait('saved_at'))
+        assert not ev.is_trait_valid(ev.trait('saved_by'))
 
 
 def test_runtime_unsets_ts_flags():

@@ -84,18 +84,18 @@ class TestTSStore:
 
         collection = ts_store.collection(c)
         serialized_entity = p.serialize_object()
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         assert p._rev == _rev
 
         serialized_entity |= {'attr': {'nested': 'value'}}
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 1 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
         # test that nested dictionary replaces rather than updates
         serialized_entity |= {'attr': {'nested1': 'value1'}}
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 2 == _rev
         # assert collection.load(_id) == serialized_entity|{'attr': {'nested': 'value', 'nested1': 'value1'}} #incorrect behavior
@@ -103,7 +103,7 @@ class TestTSStore:
 
         # test that dots are not interpreted as nested fields at the top level
         serialized_entity |= {'attr.nested2': 'value2'}
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 3 == _rev
         assert collection.load(p.id().value) == serialized_entity
@@ -111,7 +111,7 @@ class TestTSStore:
         # check that we can have dictionary keys starting with $
         serialized_entity |= {'foo': {'$foo': 1}}
         # with pytest.raises(pyts_store.errors.WriteError, match="Unrecognized expression '\\$foo',"): #incorrect behavior
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 4 == _rev
         assert collection.load(p.id().value) == serialized_entity
@@ -119,7 +119,7 @@ class TestTSStore:
         # check that we can *not* have top level keys starting with $ (current behavior, not ideal, but prob. ok)
         serialized_entity |= {'$foo': 1}
         with pytest.raises(Exception, match='Use of undefined variable: foo'):
-            _rev = collection.save(serialized_entity.copy())
+            collection.save(serialized_entity.copy())
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 4 == _rev
         del serialized_entity['$foo']
@@ -127,17 +127,65 @@ class TestTSStore:
 
         # test that dots are not interpreted as nested fields at the nested level
         serialized_entity |= {'attr': {'nested.value': 1}}
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 5 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
         # check that we can unset fields
         del serialized_entity['attr']
-        _rev = collection.save(serialized_entity.copy())
+        _rev = collection.save(serialized_entity.copy())['_rev']
         serialized_entity |= dict(_rev=_rev)
         assert p._rev + 6 == _rev
         assert collection.load(p.id().value) == serialized_entity
+
+    def test_save_with_ts_trait_names(self, ts_setup):
+        """FOAU / RETURNING hydrate path: rev must bump on update and return store fields.
+
+        Complements ``test_save`` (empty ``ts_trait_names`` → plain ``update_one`` / no hydrate).
+        Uses a flat ``_at`` stamp for ``save()`` so Mongo ``prepare_filter_and_pipeline`` works;
+        ``save_new`` + ``add_when`` (incl. Mongo ``$currentDate``) is covered separately.
+        """
+        ts_store, _p, _p1, c, _c1 = ts_setup
+        collection = ts_store.collection(c)
+        doc_id = f'ts_hydrate_{uuid4().hex}'
+
+        r1 = collection.save_new(
+            ts_store.add_when('_at', {'_id': doc_id, 'name': 'v1'}),
+            ts_trait_names=('_at',),
+        )
+        assert r1['_rev'] == 1
+        assert '_at' in r1
+
+        def flat_update(name: str, rev: int) -> dict:
+            # Flat doc required for save() pipeline / optimistic update (not $set/$currentDate wrap).
+            return {
+                '_id': doc_id,
+                'name': name,
+                '_rev': rev,
+                '_at': ts_store.server_time(),
+            }
+
+        time.sleep(0.001)
+        r2 = collection.save(flat_update('v2', 1), ts_trait_names=('_at',))
+        assert r2['_rev'] == 2, f'expected rev bump on FOAU/RETURNING update, got {r2!r}'
+        assert '_at' in r2
+        loaded = collection.load(doc_id)
+        assert loaded['name'] == 'v2'
+        assert loaded['_rev'] == 2
+        assert '_at' in loaded
+
+        time.sleep(0.001)
+        r3 = collection.save(flat_update('v3', 2), ts_trait_names=('_at',))
+        assert r3['_rev'] == 3
+        assert '_at' in r3
+        assert collection.load(doc_id)['name'] == 'v3'
+
+        # Unchanged payload → revision stays put; hydrate fields still returned.
+        same = collection.load(doc_id)
+        r_same = collection.save(dict(same), ts_trait_names=('_at',))
+        assert r_same['_rev'] == same['_rev']
+        assert '_at' in r_same
 
     def test_delete_restore(self, ts_setup):
         ts_store, p, _p1, c, _c1= ts_setup
@@ -175,19 +223,29 @@ class TestTSStore:
         assert result is None
 
     def test_save_new_with_overwrite(self, ts_setup):
-        """Test save_new with overwrite=True flag."""
+        """Test save_new with overwrite=True flag (plain and ts_trait_names hydrate paths)."""
         ts_store, p, _p1, c, _c1= ts_setup
         collection = ts_store.collection(c)
         serialized_entity = p.serialize_object()
         id_value = serialized_entity['_id']
 
-        # Try to save_new with overwrite=True on existing document
+        # Plain overwrite (no hydrate)
         result = collection.save_new(serialized_entity.copy(), overwrite=True)
-        assert result == 1
+        assert result['_rev'] == 1
         assert collection.load(id_value) == serialized_entity
+        assert list(result) == ['_rev']
+
+        # Overwrite with store-side field hydrate
+        stamped = ts_store.add_when('_at', {'_id': id_value, 'name': 'overwritten'})
+        result = collection.save_new(stamped, overwrite=True, ts_trait_names=('_at',))
+        assert result['_rev'] == 1
+        assert '_at' in result
+        loaded = collection.load(id_value)
+        assert loaded['name'] == 'overwritten'
+        assert '_at' in loaded
 
     def test_save_new_with_set_operation(self, ts_setup):
-        """Test save_new with $set MongoDB-style operation."""
+        """Test save_new with store-side time field (Mongo $currentDate / DuckDB stamp) + hydrate."""
         ts_store, _p, _p1, c, _c1= ts_setup
         collection = ts_store.collection(c)
 
@@ -197,10 +255,11 @@ class TestTSStore:
 
         dt1 = datetime.utcnow()
         time.sleep(0.001)
-        result = collection.save_new(ts_store.add_when('_at', dict(serialized_entity)))
+        result = collection.save_new(ts_store.add_when('_at', dict(serialized_entity)), ts_trait_names=('_at',))
         time.sleep(0.001)
         dt2 = datetime.utcnow()
-        assert result == 1
+        assert result['_rev'] == 1
+        assert set(result) == {'_rev', '_at'}
 
         t = datetime_trait(T())
         loaded = collection.load(doc_id)
@@ -217,7 +276,7 @@ class TestTSStore:
         # Test 1: Duplicate without $set
         doc_id = 'duplicate_test_123'
         result = collection.save_new({'_id': doc_id, 'name': 'Original'})
-        assert result == 1
+        assert result['_rev'] == 1
         loaded = collection.load(doc_id)
         assert loaded['name'] == 'Original'
 
@@ -229,48 +288,46 @@ class TestTSStore:
 
         # Test 2: Duplicate with $set
         doc_id2 = 'duplicate_test_456'
-        result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id2, 'name': 'Original'}))
-        assert result == 1
+        result = collection.save_new( ts_store.add_when('_at', {'_id': doc_id2, 'name': 'Original'}), ts_trait_names=('_at',))
+        assert result['_rev'] == 1
+        at = result['_at']
         loaded = collection.load(doc_id2)
         assert loaded['name'] == 'Original'
-        at = loaded['_at']
+        assert loaded['_at'] == at
         time.sleep(0.001)
 
         # Try to insert the same document again without overwrite (with $set)
         with pytest.raises(TsDuplicateKeyError, match=f'Duplicate key error collection.*dup key.*{doc_id2}'):
-            collection.save_new(ts_store.add_when('_at', {'_id': doc_id2, 'name': 'Original'}), overwrite=False)
+            collection.save_new(ts_store.add_when('_at', {'_id': doc_id2, 'name': 'Original'}), overwrite=False, ts_trait_names=('_at',),)
 
         loaded = collection.load(doc_id2)
         assert loaded['name'] == 'Original'
-        if ts_store.s_driver_name == 'MONGO_DB':
-            # Documents current Mongo behavior: save_new applies $set/$currentDate
-            # via update_one before raising TsDuplicateKeyError.
-            assert loaded['_at'] > at
-            pytest.xfail('Mongo should not advance _at on a rejected duplicate insert')
-        else:
-            assert loaded['_at'] == at
+        assert loaded['_at'] == at
 
     def test_save_new_with_set_and_overwrite(self, ts_setup):
-        """Test save_new with $set and overwrite=True."""
+        """Test save_new with $set and overwrite=True; hydrate must return refreshed store fields."""
         ts_store, _p, _p1, c, _c1= ts_setup
         collection = ts_store.collection(c)
 
         doc_id = 'set_overwrite_test_123'
         # First insert
-        result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id, 'name': 'Original'}))
-        assert result == 1
+        result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id, 'name': 'Original'}), ts_trait_names=('_at',))
+        assert result['_rev'] == 1
+        assert '_at' in result
         loaded = collection.load(doc_id)
         assert loaded['name'] == 'Original'
         at = loaded['_at']
 
         # Update with overwrite=True; allow server clock to advance (Windows timer resolution).
         time.sleep(0.001)
-        result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id, 'name': 'Updated'}), overwrite=True)
-        assert result == 1
+        result = collection.save_new(ts_store.add_when('_at', {'_id': doc_id, 'name': 'Updated'}), overwrite=True, ts_trait_names=('_at',))
+        assert result['_rev'] == 1
+        assert result['_at'] > at
 
         loaded = collection.load(doc_id)
         assert loaded['name'] == 'Updated'
         assert loaded['_at'] > at
+        assert loaded['_at'] == result['_at']
 
     def test_ts_class_association_ts_uri_resolution(self, ts_instance):
         """Test that TsClassAssociation.ts_uri correctly resolves store URIs for classes and their subclasses."""

@@ -77,16 +77,16 @@ class TsUnionCollection(TsCollection):
         results = (item for _, item in heapq.merge(*keyed_iterables, key=operator.itemgetter(0)))
         return (item for i, item in enumerate(results) if i < _at_most) if _at_most else results
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int:
-        return self.collections[0].save_new(serialized_traitable, overwrite=overwrite)
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names=()):
+        return self.collections[0].save_new(serialized_traitable, overwrite=overwrite, ts_trait_names=ts_trait_names)
 
-    def save(self, serialized_traitable):
+    def save(self, serialized_traitable, ts_trait_names=()):
         # if serialized_traitable was not loaded from the union head, we need to call save_new
         id_tag = Nucleus.ID_TAG()
         if not self.collections[0].exists(f(**{id_tag: EQ(serialized_traitable[id_tag])})):
             # TODO: optimize by introducing save with overwrite flag to bypass the "inappropriate restore from deleted" check
-            return self.collections[0].save_new(serialized_traitable)
-        return self.collections[0].save(serialized_traitable)
+            return self.collections[0].save_new(serialized_traitable, ts_trait_names=ts_trait_names)
+        return self.collections[0].save(serialized_traitable, ts_trait_names=ts_trait_names)
 
     def delete(self, id_value):
         # if id_value exists in the union tail, return False as the object wasn't fully deleted

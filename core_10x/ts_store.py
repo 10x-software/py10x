@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from core_10x.environment_variables import EnvVars
 from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
+from core_10x.nucleus import Nucleus
 from core_10x.py_class import PyClass
 from core_10x.rc import RC
 from core_10x.resource import TS_STORE, Resource, ResourceSpec
@@ -21,6 +22,9 @@ from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
     from core_10x.traitable import Traitable
+
+
+_REV = Nucleus.REVISION_TAG()
 
 
 class TsDuplicateKeyError(Exception):
@@ -42,9 +46,9 @@ class TsCollection(abc.ABC):
     @abc.abstractmethod
     def count(self, query: f = None) -> int: ...
     @abc.abstractmethod
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> int: ...
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names: Sequence[str] = ()) -> dict: ...
     @abc.abstractmethod
-    def save(self, serialized_traitable: dict) -> int: ...
+    def save(self, serialized_traitable: dict, ts_trait_names: Sequence[str] = ()) -> dict: ...
     @abc.abstractmethod
     def delete(self, id_value: str) -> bool: ...
     @abc.abstractmethod
@@ -67,14 +71,13 @@ class TsCollection(abc.ABC):
 
         for doc in self.find():
             try:
-                if not to_coll.save_new(doc, overwrite=overwrite):
+                if not to_coll.save_new(doc, overwrite=overwrite).get(_REV):
                     rc.add_error(f'Failed to save {doc.get(to_coll.s_id_tag)} to {to_coll.collection_name()}')
             except TsDuplicateKeyError:
                 if overwrite:
                     raise  # -- we do not expect an exception in case of overwrite, so raise
 
         return rc
-
 
 
 class TsStore(Resource, resource_type=TS_STORE):

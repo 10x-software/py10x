@@ -125,11 +125,20 @@ class TestTraitableHistory:
         class CustomCollectionHistory(TraitableHistory, custom_collection=True):
             s_traitable_class = Traitable
 
-        CustomCollectionHistory(
+        hist = CustomCollectionHistory(
             serialized_traitable=serialized_data,
             _traitable_rev=2,
             _collection_name=test_collection.collection_name(),
-        ).save().throw()
+        )
+        hist.save().throw()
+        # Store-side TS fields hydrated on the client without reload
+        assert hist._who == 'test_user'
+        assert hist._at is not None
+        assert isinstance(hist._at, datetime)
+
+        hist.reload()
+        assert hist._who == 'test_user'
+        assert isinstance(hist._at, datetime)
 
         # Verify that the history entry was saved
         assert test_collection.count() == 1
@@ -150,12 +159,12 @@ class TestTraitableHistory:
     def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, with_transactions, monkeypatch):  # noqa: F811
         """When history save fails, the main document save is rolled back (revision not applied)."""
 
-        def _save_serialized_raise(self, coll, serialized_data, old_rev):
-            rev = StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
+        def _save_serialized_raise(self, coll, serialized_data, old_rev, ts_trait_names=()):
+            save_result = StorableHelper._save_serialized(self, coll, serialized_data, old_rev, ts_trait_names)
             assert obj.collection().count() == 1
-            if rev > old_rev:
+            if save_result['_rev'] > old_rev:
                 raise RuntimeError('history save fails')
-            return rev
+            return save_result
 
         monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
 
@@ -168,10 +177,10 @@ class TestTraitableHistory:
 
     def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions): # noqa: F811
         """When a nested or main save fails, the transaction rolls back (no docs committed)."""
-        def _save_serialized_raise(self, coll, serialized_data, old_rev):
+        def _save_serialized_raise(self, coll, serialized_data, old_rev, ts_trait_names=()):
             if serialized_data['_id'] == '1':
                 raise RuntimeError('save error')
-            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
+            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev, ts_trait_names)
 
         monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
         monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *a, **kw: PyClass.name(cls))
@@ -728,7 +737,7 @@ class TestTraitableHistory:
     def test_save_new_with_overwrite_parameter(self, test_store, test_collection):
         """Test DuckDbCollection.save_new with overwrite parameter."""
         result = test_collection.save_new({'_id': 'new-id', 'name': 'New Person', 'age': 25})
-        assert result == 1  # Should succeed for new document
+        assert result['_rev'] == 1  # Should succeed for new document
 
         # Fails because the document already exists
         with pytest.raises(TsDuplicateKeyError):
