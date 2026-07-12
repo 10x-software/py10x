@@ -383,7 +383,7 @@ rio-ui==0.12.2
     # via py10x-core (pyproject.toml)
 ruff==0.15.21
     # via py10x-core (pyproject.toml)
-scikit-build-core==0.12.2
+scikit-build-core==1.0.3
     # via
     #   py10x-kernel (../cxx10x/core_10x/pyproject.toml)
     #   py10x-core (pyproject.toml)
