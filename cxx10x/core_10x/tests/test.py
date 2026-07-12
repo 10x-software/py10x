@@ -1150,11 +1150,33 @@ def test_reload_loads_ts_fields():
     assert x.saved_at == datetime(2021, 2, 3, 4, 5, 6)
     assert x.saved_by == 'bob'
 
+def test_event():
+    from infra_10x.duckdb_store import DuckDbStore
+    from core_10x.traitable import EventBase
+    cnt=0
+
+    class X(EventBase):
+        x: int = T()
+
+        @classmethod
+        def collection(cls, _coll_name: str = None, _ensure_indices=False):
+            return cls.store().collection('__main__/test_event/<locals>/X')
+
+    store = DuckDbStore()
+    with store:
+        x = X()
+        x.save().throw()
+        assert x._at <= store.server_time()
+
+        x.reload()
+        assert x._at <= store.server_time()
+
 
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
     test_deserialize_skips_runtime_keeps_eval_once()
+    test_event()
     test_set_eval_once()
     test_custom_collection()
     test_person_xnone()
