@@ -36,9 +36,20 @@ def clock_freezer(mocker, ts_instance, request):
     frozen_now = ClockFreezer()
     if request.param:
         frozen_now.append(datetime.utcnow())
-        from infra_10x.duckdb_store import DuckDbStore
-        mocker.patch.object(DuckDbStore, 'server_time',
-                            lambda self: frozen_now[0].replace(tzinfo=timezone.utc))
+        from infra_10x.duckdb_store import DuckDbCollection, DuckDbStore
+
+        # History/Event _at uses SQL via _server_time_sql_expr (not only Python server_time()).
+        mocker.patch.object(
+            DuckDbStore,
+            'server_time',
+            lambda self: frozen_now[0].replace(tzinfo=None),
+        )
+
+        mocker.patch.object(
+            DuckDbCollection,
+            '_server_time_sql_expr',
+            lambda self: f"'{frozen_now[0].replace(tzinfo=None).strftime('%Y-%m-%dT%H:%M:%S.%f')}'",
+        )
     yield frozen_now
 
 class NameValueTraitableBase(Traitable):
@@ -68,11 +79,28 @@ class PersonTraitableBase(Traitable):
         return RC_TRUE
 
 
+class MutableWithTsTimeBase(Traitable):
+    """Mutable (keeps history) traitable that stamps a store-side time on every save.
+
+    Exercises ``add_ts`` + hydrate on *update* (rev >= 1), not only insert via ``save_new``.
+    """
+
+    name: str = T(T.ID)
+    value: int = T()
+    saved_at: datetime = T(T.TS_TIME)
+
+
 NameValueTraitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (NameValueTraitableBase,), {'__module__': __name__})
 PersonTraitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (PersonTraitableBase,), {'__module__': __name__})
+MutableWithTsTime = type(
+    f'MutableWithTsTime#{uuid.uuid1().hex}',
+    (MutableWithTsTimeBase,),
+    {'__module__': __name__},
+)
 
 globals()[NameValueTraitable.__name__] = NameValueTraitable
 globals()[PersonTraitable.__name__] = PersonTraitable
+globals()[MutableWithTsTime.__name__] = MutableWithTsTime
 
 
 @pytest.fixture
@@ -159,8 +187,8 @@ class TestTraitableHistory:
     def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, with_transactions, monkeypatch):  # noqa: F811
         """When history save fails, the main document save is rolled back (revision not applied)."""
 
-        def _save_serialized_raise(self, coll, serialized_data, old_rev, ts_trait_names=()):
-            save_result = StorableHelper._save_serialized(self, coll, serialized_data, old_rev, ts_trait_names)
+        def _save_serialized_raise(self, coll, serialized_data, old_rev):
+            save_result = StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
             assert obj.collection().count() == 1
             if save_result['_rev'] > old_rev:
                 raise RuntimeError('history save fails')
@@ -177,10 +205,10 @@ class TestTraitableHistory:
 
     def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions): # noqa: F811
         """When a nested or main save fails, the transaction rolls back (no docs committed)."""
-        def _save_serialized_raise(self, coll, serialized_data, old_rev, ts_trait_names=()):
+        def _save_serialized_raise(self, coll, serialized_data, old_rev):
             if serialized_data['_id'] == '1':
                 raise RuntimeError('save error')
-            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev, ts_trait_names)
+            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
 
         monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
         monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *a, **kw: PyClass.name(cls))
@@ -199,6 +227,30 @@ class TestTraitableHistory:
             assert len(X.load_many()) == 1
 
             X.delete_collection()
+
+    def test_mutable_ts_time_update_hydrates(self, test_store):
+        """Mutable traitable with TS_TIME: second save is update path with post_serialize stamp."""
+        assert not MutableWithTsTime.s_immutable
+        name = f'ts-upd-{uuid.uuid4().hex}'
+        obj = MutableWithTsTime(name=name, value=1, _replace=True)
+        obj.save().throw()
+        assert obj.get_revision() == 1
+        assert obj.is_trait_valid(obj.trait('saved_at'))
+        at1 = obj.saved_at
+
+        time.sleep(0.001)
+        obj.value = 2
+        obj.save().throw()
+        assert obj.get_revision() == 2
+        assert obj.is_trait_valid(obj.trait('saved_at'))
+        assert obj.saved_at >= at1
+        assert obj.value == 2
+
+        loaded = MutableWithTsTime.existing_instance(name=name)
+        loaded.reload()
+        assert loaded.value == 2
+        assert loaded.get_revision() == 2
+        assert loaded.is_trait_valid(loaded.trait('saved_at'))
 
     def test_traitable_class_history_methods(self, test_store, test_collection, clock_freezer):
         """Test Traitable class history methods."""

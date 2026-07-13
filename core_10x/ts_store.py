@@ -15,16 +15,18 @@ from core_10x.nucleus import Nucleus
 from core_10x.py_class import PyClass
 from core_10x.rc import RC
 from core_10x.resource import TS_STORE, Resource, ResourceSpec
+from core_10x.trait_definition import T
 from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
-from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
+from py10x_kernel import BFlags, BTraitableProcessorSetValueTracker as BTPTracker
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable
     from core_10x.traitable import Traitable
 
 
 _REV = Nucleus.REVISION_TAG()
+TS_FIELDS_TAG = '_ts_fields'
 
 
 class TsDuplicateKeyError(Exception):
@@ -46,9 +48,9 @@ class TsCollection(abc.ABC):
     @abc.abstractmethod
     def count(self, query: f = None) -> int: ...
     @abc.abstractmethod
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names: Sequence[str] = ()) -> dict: ...
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict: ...
     @abc.abstractmethod
-    def save(self, serialized_traitable: dict, ts_trait_names: Sequence[str] = ()) -> dict: ...
+    def save(self, serialized_traitable: dict) -> dict: ...
     @abc.abstractmethod
     def delete(self, id_value: str) -> bool: ...
     @abc.abstractmethod
@@ -169,13 +171,24 @@ class TsStore(Resource, resource_type=TS_STORE):
     def db_name(self) -> str: ...
 
     @abc.abstractmethod
-    def add_who(self, field: str, serialized_data: dict) -> dict: ...
-
-    @abc.abstractmethod
-    def add_when(self, field: str, serialized_data: dict) -> dict: ...
-
-    @abc.abstractmethod
     def server_time(self) -> datetime: ...
+
+    def add_ts(self, field: str, flag, serialized_data: dict) -> dict:
+        """Record intent to stamp ``field`` server-side (``TS_TIME`` / ``TS_USER``).
+
+        Writes only ``_ts_fields``; ``save`` / ``save_new`` apply server operators (or
+        materialize) and hydrate returned values. Does not put the field value on the blob.
+        """
+        kind = BFlags(flag) & T.TS
+        if kind not in (T.TS_TIME, T.TS_USER):
+            raise RuntimeError(f'add_ts requires TS_TIME or TS_USER, got {kind!r} for {field!r}')
+        if field in serialized_data:
+            raise RuntimeError(f'Field {field} is already in use.')
+        ts_fields = serialized_data.setdefault(TS_FIELDS_TAG, {})
+        if field in ts_fields:
+            raise RuntimeError(f'Field {field} is already listed in {TS_FIELDS_TAG}.')
+        ts_fields[field] = kind.value()
+        return serialized_data
 
     def supports_transactions(self) -> bool:
         return True

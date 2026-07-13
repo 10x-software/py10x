@@ -753,12 +753,10 @@ def test_serialize(monkeypatch):
 
         @classmethod
         def store(cls):
-            class Store:
-                def add_who(self, trait_name, serialized_data):
-                    return serialized_data
+            from core_10x.ts_store import TS_FIELDS_TAG, TsStore
 
-                def add_when(self, trait_name, serialized_data):
-                    return serialized_data
+            class Store:
+                add_ts = TsStore.add_ts
 
                 def auth_user(self):
                     return 'test_user'
@@ -771,14 +769,20 @@ def test_serialize(monkeypatch):
                         def create_index(self, name, trait_name):
                             return name
 
-                        def save(self, serialized_data, ts_trait_names=()):
-                            id_value = serialized_data['_id']
+                        def save(self, serialized_data):
+                            data = dict(serialized_data)
+                            ts_fields = dict(data.pop(TS_FIELDS_TAG, None) or {})
+                            id_value = data['_id']
                             if not collection_name.endswith('#history'):
                                 save_calls[id_value] += 1
                             else:
                                 history_save_calls[id_value] += 1
-                            serialized[id_value] = serialized_data
-                            return {'_rev': 1, **{name: 'test_user' if name == '_who' else datetime.utcnow() for name in ts_trait_names}}
+                            serialized[id_value] = data
+                            out = {'_rev': 1}
+                            for name in ts_fields:
+                                out[name] = 'test_user' if name == '_who' else datetime.utcnow()
+                            return out
+
                         save_new = save
 
                     return Collection()
@@ -856,7 +860,7 @@ def test_reference_serialization_roundtrip(monkeypatch):
                         def create_index(self, name, trait_name):
                             return name
 
-                        def save(self, serialized_data, ts_trait_names=()):
+                        def save(self, serialized_data):
                             id_value = serialized_data['_id']
                             serialized[id_value] = serialized_data
                             return {'_rev': 1}
@@ -1711,20 +1715,16 @@ def test_ts_both_bits_integrity():
             x: int = T()
 
 
-def test_serialize_skips_ts_traits_and_post_serialize_injects():
+def test_serialize_skips_ts_traits_and_post_serialize_marks_ts_fields():
+    from core_10x.ts_store import TS_FIELDS_TAG, TsStore
+
     class Ev(Traitable, keep_history=False):
         name: str = T(T.ID)
         saved_at: datetime = T(T.TS_TIME)
         saved_by: str = T(T.TS_USER)
 
     class Store:
-        def add_when(self, field, serialized_data):
-            serialized_data[field] = datetime(2020, 1, 2, 3, 4, 5)
-            return serialized_data
-
-        def add_who(self, field, serialized_data):
-            serialized_data[field] = 'alice'
-            return serialized_data
+        add_ts = TsStore.add_ts
 
     with CACHE_ONLY():
         ev = Ev(name='e1')
@@ -1735,20 +1735,24 @@ def test_serialize_skips_ts_traits_and_post_serialize_injects():
 
         ev.__class__.store = classmethod(lambda cls: Store())
         post = ev.post_serialize(blob)
-        assert post['saved_at'] == datetime(2020, 1, 2, 3, 4, 5)
-        assert post['saved_by'] == 'alice'
+        assert post[TS_FIELDS_TAG] == {
+            'saved_at': T.TS_TIME.value(),
+            'saved_by': T.TS_USER.value(),
+        }
+        assert 'saved_at' not in post
+        assert 'saved_by' not in post
         assert 'saved_at' not in blob  # original not mutated
 
 
 class SelectivePostSerializeEv(Traitable, keep_history=False, immutable=False):
-    """Injects only ``saved_at`` — used to test optional TS introduction on save."""
+    """Marks only ``saved_at`` for stamping — optional TS introduction on save."""
 
     name: str = T(T.ID)
     saved_at: datetime = T(T.TS_TIME)
     saved_by: str = T(T.TS_USER)
 
     def post_serialize(self, serialized_data: dict) -> dict:
-        return self.store().add_when('saved_at', dict(serialized_data))
+        return self.store().add_ts('saved_at', T.TS_TIME, dict(serialized_data))
 
 
 def test_selective_post_serialize_skips_hydrate_for_omitted_ts_traits(ts_instance):

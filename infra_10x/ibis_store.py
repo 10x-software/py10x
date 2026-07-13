@@ -11,16 +11,19 @@ import ibis
 import ibis.expr.operations as ibis_ops
 
 from core_10x.nucleus import Nucleus
-from core_10x.ts_store import TsCollection, TsDuplicateKeyError, TsStore
+from core_10x.trait_definition import T
+from core_10x.ts_store import TS_FIELDS_TAG, TsCollection, TsDuplicateKeyError, TsStore
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable
 
     from core_10x.trait_filter import f as FilterExpr  # noqa: N812
 
 
 _ID  = Nucleus.ID_TAG()
 _REV = Nucleus.REVISION_TAG()
+_TS_TIME = T.TS_TIME.value()
+_TS_USER = T.TS_USER.value()
 
 
 # ---------------------------------------------------------------------------
@@ -54,13 +57,13 @@ class IbisCollection(TsCollection):
     def _execute(self, sql: str, params: list = ()) -> list[tuple]:
         return self._store._execute(sql, params)
 
-    def _insert_sql(self, *, overwrite: bool) -> str:
-        """Single-statement INSERT that returns the written ``_data`` JSON (one round trip)."""
-        raise NotImplementedError(f'{type(self).__name__} must implement _insert_sql')
-
     def _handle_insert_error(self, exc: BaseException, id_val: str) -> None:
         """Map backend integrity errors to :class:`TsDuplicateKeyError`, else re-raise."""
         raise exc
+
+    def _insert_sql(self, *, overwrite: bool, data_sql: str) -> str:
+        """Dialect INSERT (or upsert) that binds ``(?, ?, {data_sql})`` and returns ``_rev, _data``."""
+        raise NotImplementedError(f'{type(self).__name__} must implement _insert_sql')
 
     # ------------------------------------------------------------------
     # Column resolution
@@ -121,75 +124,134 @@ class IbisCollection(TsCollection):
         doc[_REV] = rev
         return doc
 
-    def _encode_doc(self, doc: dict) -> tuple[str, int, str]:
-        id_val = doc[_ID]
-        rev = doc.get(_REV, 0)
-        data = {k: v for k, v in doc.items() if k not in (_ID, _REV)}
-        return id_val, rev, json.dumps(data, default=self._json_encode_value)
-
     # ------------------------------------------------------------------
     # DML operations
     # ------------------------------------------------------------------
 
-    def save_new(
-        self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names: Sequence[str] = ()
-    ) -> dict:
-        """Insert (or replace) in **one** round trip via dialect ``INSERT … RETURNING _data``."""
-        doc = dict(serialized_traitable)
-        doc[_REV] = 1
-        id_val, rev, data_json = self._encode_doc(doc)
-        assert id_val, f'{type(self).__name__}.save_new requires a non-empty {_ID}'
-        try:
-            rows = self._execute(
-                self._insert_sql(overwrite=overwrite),
-                [id_val, rev, data_json],
-            )
-        except Exception as e:
-            self._handle_insert_error(e, id_val)
-            raise
-        # Hydrate only from RETURNING — never from the client payload.
-        assert rows, f'{type(self).__name__}.save_new: INSERT returned no row for {_ID}={id_val!r}'
-        doc = json.loads(rows[0][0]) if ts_trait_names else {}
-        return {_REV: rev, **({f: v for f in ts_trait_names if (v:=doc.get(f))})}
+    def _prepare_write(self, serialized_traitable: dict, *, rev: int | None = None):
+        """Copy write map, pop ``_ts_fields``, build ``_data`` SQL/params.
 
-    def save(self, serialized_traitable: dict, ts_trait_names: Sequence[str] = ()) -> dict:
-        """Optimistic save in **one** round trip (like Mongo ``find_one_and_update`` AFTER).
-
-        Conditional ``UPDATE … RETURNING``:
-        - matches on ``_id`` + expected ``_rev``
-        - bumps ``_rev`` only when ``_data`` actually changes (``IS DISTINCT FROM``)
-        - returns post-write ``_rev`` and ``_data`` for store-field hydration
+        If ``rev`` is set (insert/upsert), forces that revision on the doc.
         """
-        rev = serialized_traitable[_REV]
-        if rev == 0:
-            return self.save_new(serialized_traitable, ts_trait_names=ts_trait_names)
-
-        undef = next((k[1:] for k in serialized_traitable if k.startswith('$')), None)
-        if undef:
-            raise RuntimeError(f'Use of undefined variable: {undef}')
-
         doc = dict(serialized_traitable)
+        ts_fields = dict(doc.pop(TS_FIELDS_TAG, None) or {})
+        if rev is not None:
+            doc[_REV] = rev
         id_val = doc[_ID]
-        assert id_val
-
-        new_data = {k: v for k, v in doc.items() if k not in (_ID, _REV)}
-        new_data_json = json.dumps(new_data, default=self._json_encode_value)
-
-        # Single statement: no prior SELECT. Zero rows ⇒ missing id or rev conflict.
-        rows = self._execute(
-            f'UPDATE {self._qname()} SET '
-            f'{_REV} = CASE WHEN _data IS DISTINCT FROM ? THEN {_REV} + 1 ELSE {_REV} END, '
-            f'_data = CASE WHEN _data IS DISTINCT FROM ? THEN ? ELSE _data END '
-            f'WHERE {_ID} = ? AND {_REV} = ? '
-            f'RETURNING {_REV}, _data',
-            [new_data_json, new_data_json, new_data_json, id_val, rev],
+        assert id_val, f'{type(self).__name__} requires a non-empty {_ID}'
+        rev = doc[_REV]
+        data_json = json.dumps(
+            {k: v for k, v in doc.items() if k not in (_ID, _REV)},
+            default=self._json_encode_value,
         )
+        data_sql, data_params = self._data_sql_and_params(data_json, ts_fields)
+        return id_val, rev, ts_fields, data_sql, data_params
+
+    def _save_sql(
+        self,
+        *,
+        insert: bool = False,
+        update: bool = False,
+        upsert: bool = False,
+        data_sql: str,
+        data_params: list,
+        id_val: str,
+        rev: int,
+    ) -> tuple[str, list]:
+        """Build INSERT / INSERT OR REPLACE / optimistic UPDATE SQL and bind params."""
+        if sum((insert, update, upsert)) != 1:
+            raise ValueError('exactly one of insert, update, upsert must be true')
+        if update:
+            # Same merged expression for DISTINCT check and assignment (server stamps included).
+            sql = (
+                f'UPDATE {self._qname()} SET '
+                f'{_REV} = CASE WHEN _data IS DISTINCT FROM ({data_sql}) THEN {_REV} + 1 ELSE {_REV} END, '
+                f'_data = {data_sql} '
+                f'WHERE {_ID} = ? AND {_REV} = ? '
+                f'RETURNING {_REV}, _data'
+            )
+            return sql, [*data_params, *data_params, id_val, rev]
+        sql = self._insert_sql(overwrite=upsert, data_sql=data_sql)
+        return sql, [id_val, rev, *data_params]
+
+    def _save(
+        self,
+        serialized_traitable: dict,
+        *,
+        insert: bool = False,
+        update: bool = False,
+        upsert: bool = False,
+    ) -> dict:
+        id_val, rev, ts_fields, data_sql, data_params = self._prepare_write(
+            serialized_traitable, rev=1 if insert or upsert else None
+        )
+        sql, params = self._save_sql(
+            insert=insert,
+            update=update,
+            upsert=upsert,
+            data_sql=data_sql,
+            data_params=data_params,
+            id_val=id_val,
+            rev=rev,
+        )
+        try:
+            rows = self._execute(sql, params)
+        except Exception as e:
+            if insert or upsert:
+                self._handle_insert_error(e, id_val)
+            raise
         if not rows:
-            raise RuntimeError(f'Revision conflict saving {id_val}: rev {rev} no longer current')
+            detail = (
+                f'rev {rev} no longer current'
+                if update
+                else f'no row returned for {_ID}={id_val!r}'
+            )
+            raise RuntimeError(f'{"Revision conflict" if update else "Write failed"} saving {id_val}: {detail}')
         new_rev, data_json = rows[0]
-        assert new_rev in (rev, rev + 1)
-        doc = json.loads(data_json) if ts_trait_names else {}
-        return {_REV: new_rev, **({f: v for f in ts_trait_names if (v:=doc.get(f))})}
+        assert new_rev == rev if insert or upsert else new_rev in (rev, rev + 1)
+        if not ts_fields:
+            return {_REV: new_rev}
+        persisted = json.loads(data_json)
+        return {_REV: new_rev, **{f: v for f in ts_fields if (v := persisted.get(f, persisted)) is not persisted}}
+
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
+        """Insert (or replace) in **one** round trip via dialect ``INSERT … RETURNING``."""
+        return self._save(serialized_traitable, upsert=overwrite, insert=not overwrite)
+
+    def save(self, serialized_traitable: dict) -> dict:
+        """Optimistic save in **one** round trip (like Mongo ``find_one_and_update`` AFTER)."""
+        if serialized_traitable[_REV] == 0:
+            return self.save_new(serialized_traitable)
+        return self._save(serialized_traitable, update=True)
+
+    def _server_time_sql_expr(self) -> str:
+        """SQL expression for a JSON-compatible server timestamp (dialect-specific)."""
+        raise NotImplementedError(f'{type(self).__name__} must implement _server_time_sql_expr')
+
+    def _auth_user_sql_expr(self) -> str:
+        """SQL expression for auth user (default: bound parameter ``?``)."""
+        return '?'
+
+    def _auth_user_sql_params(self) -> list:
+        return [self._store.auth_user()]
+
+    def _data_sql_and_params(self, data_json: str, ts_fields: dict) -> tuple[str, list]:
+        """SQL expression and bind params for the ``_data`` column (base JSON ± TS merge)."""
+        if not ts_fields:
+            return '?', [data_json]
+        # json_merge_patch(base, json_object(field, expr, ...)) — exprs from dialect hooks.
+        obj_parts: list[str] = []
+        params: list = [data_json]
+        for field, kind in ts_fields.items():
+            safe = field.replace("'", "''")
+            if kind == _TS_TIME:
+                obj_parts.append(f"'{safe}', {self._server_time_sql_expr()}")
+            else:  # TS_USER
+                obj_parts.append(f"'{safe}', {self._auth_user_sql_expr()}")
+                params.extend(self._auth_user_sql_params())
+        merge = f"json_object({', '.join(obj_parts)})"
+        return f'json_merge_patch(CAST(? AS JSON), {merge})', params
+
 
     def delete(self, id_value: str) -> bool:
         rows = self._execute(
