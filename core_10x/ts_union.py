@@ -77,16 +77,16 @@ class TsUnionCollection(TsCollection):
         results = (item for _, item in heapq.merge(*keyed_iterables, key=operator.itemgetter(0)))
         return (item for i, item in enumerate(results) if i < _at_most) if _at_most else results
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names=()):
-        return self.collections[0].save_new(serialized_traitable, overwrite=overwrite, ts_trait_names=ts_trait_names)
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False):
+        return self.collections[0].save_new(serialized_traitable, overwrite=overwrite)
 
-    def save(self, serialized_traitable, ts_trait_names=()):
+    def save(self, serialized_traitable):
         # if serialized_traitable was not loaded from the union head, we need to call save_new
         id_tag = Nucleus.ID_TAG()
         if not self.collections[0].exists(f(**{id_tag: EQ(serialized_traitable[id_tag])})):
             # TODO: optimize by introducing save with overwrite flag to bypass the "inappropriate restore from deleted" check
-            return self.collections[0].save_new(serialized_traitable, ts_trait_names=ts_trait_names)
-        return self.collections[0].save(serialized_traitable, ts_trait_names=ts_trait_names)
+            return self.collections[0].save_new(serialized_traitable)
+        return self.collections[0].save(serialized_traitable)
 
     def delete(self, id_value):
         # if id_value exists in the union tail, return False as the object wasn't fully deleted
@@ -156,11 +156,10 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
     def db_name(self) -> str | None:
         return self.stores[0].db_name() if self.stores else None
 
-    def add_who(self, field: str, serialized_data: dict) -> dict:
-        return self.stores[0].add_who(field, serialized_data) if self.stores else serialized_data
-
-    def add_when(self, field: str, serialized_data: dict) -> dict:
-        return self.stores[0].add_when(field, serialized_data) if self.stores else serialized_data
+    def add_ts(self, field: str, flag, serialized_data: dict) -> dict:
+        if not self.stores:
+            return serialized_data
+        return self.stores[0].add_ts(field, flag, serialized_data)
 
     def server_time(self) -> datetime:
         return self.stores[0].server_time() if self.stores else None

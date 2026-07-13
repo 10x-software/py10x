@@ -36,7 +36,7 @@ from core_10x.trait_definition import (
 )
 from core_10x.trait_filter import LE, f
 from core_10x.traitable_id import ID
-from core_10x.ts_store import TS_STORE, TsStore
+from core_10x.ts_store import TS_FIELDS_TAG, TS_STORE, TsStore
 from core_10x.sec_keys import SecKeys
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.xnone import XNone, XNoneType
@@ -788,12 +788,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.restore(traitable_id, timestamp, save)
 
     def post_serialize(self, serialized_data: dict) -> dict:
-        """Inject Traitable store-side TS_TIME / TS_USER fields into the serialized blob.
+        """Mark store-side TS_TIME / TS_USER fields for stamping in ``save`` / ``save_new``.
 
-        Default injects every ``T.TS`` trait via ``add_when`` / ``add_who``. Overrides may
-        call those helpers selectively (or not at all) to introduce a store-side field only
-        on some saves. Hydration after save applies only fields present in the store result —
-        omitted injections are not errors.
+        Default records every ``T.TS`` trait via ``TsStore.add_ts`` (``_ts_fields`` side
+        channel). Overrides may call ``add_ts`` selectively. Hydration applies only fields
+        present in the save result — omitted marks are not errors.
         """
         ts_traits = list(self.traits(flags_on=T.TS))
         if not ts_traits:
@@ -802,13 +801,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         store = self.store()
         post_serialized = dict(serialized_data)
         for trait in ts_traits:
-            match kind := BFlags(trait.flags) & T.TS:
-                case T.TS_TIME:
-                    store.add_when(trait.name, post_serialized)
-                case T.TS_USER:
-                    store.add_who(trait.name, post_serialized)
-                case _:
-                    raise RuntimeError(f"Unexpected TS trait kind for {trait.name}: {kind}")
+            store.add_ts(trait.name, BFlags(trait.flags) & T.TS, post_serialized)
         return post_serialized
 
 class TraitableFwdRef(Traitable, root_class=True):
@@ -920,7 +913,7 @@ class NotStorableHelper(AbstractStorableHelper):
     def save(self, traitable: Traitable, save_references: bool) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
-    def _save_serialized(self, coll, serialized_data, old_rev, ts_trait_names: tuple[str, ...] = ()):
+    def _save_serialized(self, coll, serialized_data, old_rev):
         return {Nucleus.REVISION_TAG(): old_rev}
 
     def delete(self, traitable: Traitable) -> RC:
@@ -1018,21 +1011,18 @@ class StorableHelper(AbstractStorableHelper):
             if not coll:
                 return RC(False, f'{self.__class__} - no store available')
 
-            # Candidate hydrate keys (flags). post_serialize may inject only a subset;
-            # missing keys in save_result are skipped (not an error).
-            ts_trait_names = tuple(t.name for t in traitable.traits(flags_on=T.TS))
             with self._transaction_ctx():
                 save_result = self._save_serialized(
                     coll,
                     traitable.post_serialize(serialized_data),
                     traitable.get_revision(),
-                    ts_trait_names,
                 )
         except Exception as e:
             return RC(False, f'Error saving traitable: {e}')
 
         rev_tag = Nucleus.REVISION_TAG()
         traitable.set_revision(save_result[rev_tag])
+        # Hydrate store-side fields returned by save (subset of T.TS; missing = not stamped).
         for trait in traitable.traits(flags_on=T.TS):
             if trait.name not in save_result:
                 continue
@@ -1042,10 +1032,10 @@ class StorableHelper(AbstractStorableHelper):
     def _transaction_ctx(self):
         return nullcontext()
 
-    def _save_serialized(self, coll, serialized_data, old_rev, ts_trait_names: tuple[str, ...] = ()) -> dict:
+    def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
         if self.traitable_class.s_immutable:
-            return coll.save_new(serialized_data, ts_trait_names=ts_trait_names)
-        return coll.save(serialized_data, ts_trait_names=ts_trait_names)
+            return coll.save_new(serialized_data)
+        return coll.save(serialized_data)
 
     def delete(self, traitable: Traitable) -> RC:
         rc = self.delete_in_store(traitable.id())
@@ -1070,12 +1060,16 @@ class StorableHelperWithHistory(StorableHelper):
     def _transaction_ctx(self):
         return self.traitable_class.store().transaction() if EnvVars.use_ts_store_transactions else nullcontext()
 
-    def _save_serialized(self, coll, serialized_data, old_rev, ts_trait_names: tuple[str, ...] = ()) -> dict:
-        save_result = super()._save_serialized(coll, serialized_data, old_rev, ts_trait_names)
+    def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
+        save_result = super()._save_serialized(coll, serialized_data, old_rev)
         rev = save_result[Nucleus.REVISION_TAG()]
         if rev > old_rev:
             self.traitable_class.s_history_class(
-                serialized_traitable=serialized_data,
+                serialized_traitable={
+                    k: v
+                    for k, v in (serialized_data | save_result).items()
+                    if k not in (Nucleus.REVISION_TAG(), TS_FIELDS_TAG)
+                },
                 _traitable_rev=rev,
                 _collection_name=(coll.collection_name() + '#history') if self.traitable_class.s_custom_collection else XNone,
             ).save().throw()

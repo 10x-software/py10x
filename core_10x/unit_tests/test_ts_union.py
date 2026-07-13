@@ -55,9 +55,7 @@ def test_save_new(union_collection):
     union, collection1, collection2 = union_collection
     serialized_traitable = {Nucleus.ID_TAG(): 1}
     union.save_new(serialized_traitable)
-    collection1.save_new.assert_called_once_with(
-        serialized_traitable, overwrite=False, ts_trait_names=()
-    )
+    collection1.save_new.assert_called_once_with(serialized_traitable, overwrite=False)
     collection2.save.assert_not_called()
 
 
@@ -66,7 +64,7 @@ def test_save(union_collection):
     serialized_traitable = {Nucleus.ID_TAG(): 1}
     collection1.exists.return_value = False
     union.save(serialized_traitable)
-    collection1.save_new.assert_called_once_with(serialized_traitable, ts_trait_names=())
+    collection1.save_new.assert_called_once_with(serialized_traitable)
     collection1.save.assert_not_called()
     collection2.save_new.assert_not_called()
     collection2.save.assert_not_called()
@@ -75,7 +73,7 @@ def test_save(union_collection):
     collection1.exists.return_value = True
     union.save(serialized_traitable)
     collection1.save_new.assert_not_called()
-    collection1.save.assert_called_once_with(serialized_traitable, ts_trait_names=())
+    collection1.save.assert_called_once_with(serialized_traitable)
     collection2.save_new.assert_not_called()
     collection2.save.assert_not_called()
 

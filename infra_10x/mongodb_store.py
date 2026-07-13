@@ -5,7 +5,9 @@ from typing import TYPE_CHECKING, Any
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
+from core_10x.trait_definition import T
 from core_10x.ts_store import (
+    TS_FIELDS_TAG,
     TsCollection,
     TsDuplicateKeyError,
     TsStore,
@@ -17,13 +19,16 @@ from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailur
 from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping, Sequence
+    from collections.abc import Iterable, Mapping
 
     from core_10x.ts_store import f
     from pymongo.collection import Collection
     from pymongo.database import Database
 
 _REV = Nucleus.REVISION_TAG()
+_TS_TIME = T.TS_TIME.value()
+_TS_USER = T.TS_USER.value()
+
 
 class MongoCollection(TsCollection):
     s_id_tag = '_id'
@@ -43,11 +48,12 @@ class MongoCollection(TsCollection):
         filter: dict,
         update: Mapping[str, Any] | list,
         *,
-        upsert: bool = False,
+        upsert: bool,
         rev: int,
-        ts_trait_names: Sequence[str] = (),
+        ts_fields: dict,
     ) -> tuple[dict, int]:
-        if not ts_trait_names:
+        ts_fields = ts_fields or {}
+        if not ts_fields:
             res = self.coll.update_one(filter, update, upsert=upsert, **self._session_kw())
             assert res.acknowledged, f'{self.coll} update_one not acknowledged'
             return {_REV: rev + int(
@@ -64,8 +70,7 @@ class MongoCollection(TsCollection):
             return {_REV: rev}, 0
         new_rev = doc[_REV]
         assert new_rev in (rev, rev + 1)
-        return {_REV: new_rev, **({f: v for f in ts_trait_names if (v:=doc.get(f))})}, 1
-
+        return {_REV: new_rev, **{f: v for f in ts_fields if (v := doc.get(f, doc)) is not doc}}, 1
 
     def collection_name(self) -> str:
         return self.coll.name
@@ -84,54 +89,53 @@ class MongoCollection(TsCollection):
     def count(self, query: f = None) -> int:
         return self.coll.count_documents(query.prefix_notation() if query else {}, **self._session_kw())
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names: Sequence[str] = ()) -> dict:
-        needs_upsert = bool(ts_trait_names) or overwrite
-        set_values = serialized_traitable.get('$set')
+    def _prepare_to_save(self, serialized_traitable):
         id_tag = self.s_id_tag
-        id_value = (set_values or serialized_traitable)[id_tag]
+        doc = dict(serialized_traitable)
+        ts_fields = doc.pop(TS_FIELDS_TAG, None) or {}
+        doc |= {field: self.store.auth_user() for field, kind in ts_fields.items() if kind == _TS_USER}
+        return doc, ts_fields, id_tag, doc[id_tag]
+
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
+        doc, ts_fields, id_tag, id_value = self._prepare_to_save(serialized_traitable)
         rev_tag = _REV
 
         # TODO: overwrite via save(), not save_new() so that revision is incremented rather than reset
-        (set_values or serialized_traitable)[rev_tag] = 1
+        doc[rev_tag] = 1
 
-        sk = self._session_kw()
         try:
-            if not needs_upsert:
-                res = self.coll.insert_one(serialized_traitable, **sk)
+            if not ts_fields and not overwrite:
+                res = self.coll.insert_one(doc, **self._session_kw())
                 assert res.acknowledged, f'{self.coll} insert_one not acknowledged for {id_tag}={id_value!r}'
                 return {rev_tag: 1}
 
             result, _matched = self._apply_update(
                 {id_tag: id_value} if overwrite else {id_tag: id_value, rev_tag: {'$exists': False}},
-                serialized_traitable if set_values else {'$set': serialized_traitable},
+                [{'$replaceWith': {'$literal': doc}}, *({'$set': {field: '$$NOW'}} for field, kind in ts_fields.items() if kind == _TS_TIME)],
                 upsert=True,
                 rev=1,
-                ts_trait_names=ts_trait_names,
+                ts_fields=ts_fields,
             )
         except DuplicateKeyError as e:
             raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value}) from e
 
         return result
 
-    def save(self, serialized_traitable: dict, ts_trait_names: Sequence[str] = ()) -> dict:
-        rev_tag = _REV
-        id_tag = self.s_id_tag
-
-        revision = serialized_traitable.get(rev_tag, -1)
+    def save(self, serialized_traitable: dict) -> dict:
+        revision = serialized_traitable.get(_REV, -1)
         assert revision >= 0, 'revision must be >= 0'
 
         if revision == 0:
-            return self.save_new(serialized_traitable, ts_trait_names=ts_trait_names)
+            return self.save_new(serialized_traitable)
 
-        id_value = serialized_traitable.get(id_tag)
+        doc, ts_fields, id_tag, id_value = self._prepare_to_save(serialized_traitable)
 
         filter = {}
         pipeline = []
-        serialized_traitable = dict(serialized_traitable)  # -- copy to avoid modifying the input
-        MongoCollectionHelper.prepare_filter_and_pipeline(serialized_traitable, filter, pipeline)
-
+        MongoCollectionHelper.prepare_filter_and_pipeline(doc, filter, pipeline)
+        pipeline.extend({'$set': {field: '$$NOW'}} for field, kind in ts_fields.items() if kind == _TS_TIME)
         result, matched = self._apply_update(
-            filter, pipeline, rev=revision, ts_trait_names=ts_trait_names
+            filter, pipeline, upsert=False, rev=revision, ts_fields=ts_fields
         )
 
         if not matched:  # -- e.g. restore from deleted
@@ -339,20 +343,4 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
     def db_name(self) -> str:
         return self.db.name
 
-    def add_who(self, field: str, serialized_data: dict) -> dict:
-        sd = serialized_data.get('$set', serialized_data)
-        if field in sd:
-            raise RuntimeError(f'Field {field} is already in use.')
-        sd[field] = self.auth_user()
-        return serialized_data
 
-    def add_when(self, field: str, serialized_data: dict) -> dict:
-        sd = serialized_data.get('$set', serialized_data)
-        if field in sd:
-            raise RuntimeError(f'Field {field} is already in use.')
-        if sd is serialized_data:
-            sd = dict(sd)
-            serialized_data.clear()
-            serialized_data['$set'] = sd
-        serialized_data.setdefault('$currentDate', {})[field] = True
-        return serialized_data

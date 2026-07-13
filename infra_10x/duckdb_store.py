@@ -21,17 +21,21 @@ class DuckDbCollection(IbisCollection):
         super().__init__(store, name)
         self._con = store._con
 
-    def _insert_sql(self, *, overwrite: bool) -> str:
-        # INSERT … RETURNING _data — single round trip (shared save_new on IbisCollection).
-        verb = 'INSERT OR REPLACE' if overwrite else 'INSERT'
-        return (
-            f'{verb} INTO {self._qname()} ({_ID}, {_REV}, _data) VALUES (?, ?, ?) RETURNING _data'
-        )
-
     def _handle_insert_error(self, exc: BaseException, id_val: str) -> None:
         if isinstance(exc, duckdb.ConstraintException):
             raise TsDuplicateKeyError(self._name, {_ID: id_val}) from exc
         raise exc
+
+    def _insert_sql(self, *, overwrite: bool, data_sql: str) -> str:
+        verb = 'INSERT OR REPLACE' if overwrite else 'INSERT'
+        return (
+            f'{verb} INTO {self._qname()} ({_ID}, {_REV}, _data) '
+            f'VALUES (?, ?, {data_sql}) RETURNING {_REV}, _data'
+        )
+
+    def _server_time_sql_expr(self) -> str:
+        # Server clock in JSON; ISO-like string for datetime_trait round-trip.
+        return "strftime(CAST(current_timestamp AS TIMESTAMP), '%Y-%m-%dT%H:%M:%S.%f')"
 
     def _index_expr(self, field: str) -> str | None:
         # Document schema: only real columns are indexable (no JSON expression indexes).
@@ -106,16 +110,6 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         return self.dbname
 
     def server_time(self) -> datetime:
-        return datetime.now(timezone.utc).replace(tzinfo=None)
-
-    def add_who(self, field: str, serialized_data: dict) -> dict:
-        if field in serialized_data:
-            raise RuntimeError(f'Field {field} is already in use.')
-        serialized_data[field] = self.auth_user()
-        return serialized_data
-
-    def add_when(self, field: str, serialized_data: dict) -> dict:
-        if field in serialized_data:
-            raise RuntimeError(f'Field {field} is already in use.')
-        serialized_data[field] = self.server_time()
-        return serialized_data
+        # Prefer DB clock (same process, but one path with SQL CURRENT_TIMESTAMP).
+        row = self._con.execute('SELECT CAST(current_timestamp AS TIMESTAMP)').fetchone()
+        return row[0].replace(tzinfo=None) if row and row[0] is not None else datetime.now(timezone.utc).replace(tzinfo=None)
