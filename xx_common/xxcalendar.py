@@ -4,7 +4,7 @@ from collections import deque
 from datetime import date, timedelta
 
 from core_10x.global_cache import cache
-from core_10x.traitable import RT, T, Traitable
+from core_10x.traitable import RT, T, Traitable, NamedTraitable
 
 
 class CalendarNameParser:
@@ -109,8 +109,9 @@ class CalendarAdjustment(Traitable):
 
 
 #-- TODO: _default_cache = True!
-class Calendar(Traitable):
-    name: str               = T(T.ID)
+#class Calendar(Traitable):
+class Calendar(NamedTraitable):
+    # name: str               = T(T.ID)
     adjusted_for: str       = T(T.ID,   default = '')   // 'Name of a specific adjustment to this calendar, if any'
     description: str        = T()                       // 'Calendar Description'
     non_working_days: list  = T()                       // 'Non-Working Days'
