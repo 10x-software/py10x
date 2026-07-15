@@ -4,380 +4,523 @@ import abc
 import json
 import re
 from base64 import b64encode
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import ibis
 import ibis.expr.operations as ibis_ops
+from ibis.common.exceptions import TableNotFound
 
+from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
+from core_10x.trait import Trait
 from core_10x.trait_definition import T
-from core_10x.ts_store import TS_FIELDS_TAG, TsCollection, TsDuplicateKeyError, TsStore
+from core_10x.traitable import Traitable
+from core_10x.ts_store import TS_FIELDS_TAG, TsCollection, TsStore
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
 
     from core_10x.trait_filter import f as FilterExpr  # noqa: N812
 
 
-_ID  = Nucleus.ID_TAG()
+_ID = Nucleus.ID_TAG()
 _REV = Nucleus.REVISION_TAG()
+_DATA = '_data'
 _TS_TIME = T.TS_TIME.value()
 _TS_USER = T.TS_USER.value()
-
-
-# ---------------------------------------------------------------------------
-# IbisCollection — shared ibis-based query logic
-# ---------------------------------------------------------------------------
+_SCALAR_WIRE_TYPES = frozenset({str, int, float, bool, datetime, date, bytes})
 
 
 class IbisCollection(TsCollection):
-    """Abstract base for ibis-backed collections.
-
-    Shared DML (save / save_new / delete) and all read-path logic live here.
-    Subclasses supply dialect hooks (insert SQL, unique-violation mapping) and DDL.
-    """
+    """Ibis-backed collection (hybrid columns + JSON blob + add_ts). Dialect hooks live on the store."""
 
     s_id_tag = _ID
 
-    def __init__(self, store: IbisStore, name: str):
+    def __init__(self, store: IbisStore, name: str, trait_dir: dict):
         self._store = store
         self._name = name
-        self._ibis_con = store._ibis_con
+        self.col_trait_dir = {}
+        self._update_trait_dir(trait_dir)
+
+    def _update_trait_dir(self, trait_dir: dict) -> None:
+        """Union column-eligible traits; names must be Python identifiers (used as SQL cols)."""
+        assert all(tn.isidentifier() for tn in trait_dir), (
+            f'Invalid trait_dir - names must be identifiers: '
+            f'{[tn for tn in trait_dir if not tn.isidentifier()]}'
+        )
+        self.col_trait_dir.update(
+            (tn, t) for tn, t in trait_dir.items()
+            if not t.flags_on(T.RUNTIME | T.RESERVED) and t.serialize_to_types() in _SCALAR_WIRE_TYPES
+        )
 
     def collection_name(self) -> str:
         return self._name
 
     def _qname(self) -> str:
-        return f'"{self._name}"'
-
-    def _ibis_table(self):
-        return self._ibis_con.table(self._name)
+        return self._store._qname(self._name)
 
     def _execute(self, sql: str, params: list = ()) -> list[tuple]:
         return self._store._execute(sql, params)
 
-    def _handle_insert_error(self, exc: BaseException, id_val: str) -> None:
-        """Map backend integrity errors to :class:`TsDuplicateKeyError`, else re-raise."""
-        raise exc
+    def _collection_columns(self) -> dict[str, type]:
+        """Physical columns for this collection (``name → Python type``; empty if missing)."""
+        return self._store._collection_columns(self._name)
 
-    def _insert_sql(self, *, overwrite: bool, data_sql: str) -> str:
-        """Dialect INSERT (or upsert) that binds ``(?, ?, {data_sql})`` and returns ``_rev, _data``."""
-        raise NotImplementedError(f'{type(self).__name__} must implement _insert_sql')
-
-    # ------------------------------------------------------------------
-    # Column resolution
-    # ------------------------------------------------------------------
-
-    def _ibis_col(self, table, field: str):
-        if field == _ID:
-            return table._id
-        if field == _REV:
-            return table._rev
-        return table._data.cast('json')[field]
-
-    def ibis_col(self, name: str, trait=None):
-        col = self._ibis_col(self._ibis_table(), name)
-        if name in (_ID, _REV):
-            return col
-        if trait:
-            dt = getattr(trait, 'data_type', None)
-            if not dt and hasattr(trait, 'serialize_to_type'):
-                dt = trait.serialize_to_type()
-            if dt and (fn := self._store.caster_map.get(dt)):
-                return fn(col)
-            if dt and dt in self._store.serializer_map:
-                return ibis_ops.UnwrapJSONString(col).to_expr()
-
-        unwrapped = ibis_ops.UnwrapJSONString(col).to_expr()
-        raw_str = col.cast("string")
-        return ibis.ifelse(raw_str == "null", ibis.null(), unwrapped.coalesce(raw_str))
-
-    def ibis_right_value(self, value):
-        if fn := self._store.serializer_map.get(type(value)):
-            return fn(value)
-        if isinstance(value, (dict, list)): # -- non-primitieve types are compared as strings
-            # -- dict and list are the only non-primitive types since value is already passed trait serialization
-            return json.dumps(value, separators=(",", ":"))
-        return value
-
-    # ------------------------------------------------------------------
-    # Filter → ibis expression
-    # ------------------------------------------------------------------
-
-    def _ibis_filter(self, query: FilterExpr):
-        return query.ibis(ibis_collection=self)
-
-    # ------------------------------------------------------------------
-    # Row encoding / decoding
-    # ------------------------------------------------------------------
-
-    def _json_encode_value(self, v):
-        if fn := self._store.serializer_map.get(type(v)):
-            return fn(v)
-        raise TypeError(f'Object of type {type(v).__name__} is not JSON serializable')
-
-    def _decode_row(self, row) -> dict:
-        id_val, rev, data_json = row
-        doc = json.loads(data_json)
-        doc[_ID] = id_val
-        doc[_REV] = rev
-        return doc
-
-    # ------------------------------------------------------------------
-    # DML operations
-    # ------------------------------------------------------------------
-
-    def _prepare_write(self, serialized_traitable: dict, *, rev: int | None = None):
-        """Copy write map, pop ``_ts_fields``, build ``_data`` SQL/params.
-
-        If ``rev`` is set (insert/upsert), forces that revision on the doc.
-        """
-        doc = dict(serialized_traitable)
-        ts_fields = dict(doc.pop(TS_FIELDS_TAG, None) or {})
-        if rev is not None:
-            doc[_REV] = rev
-        id_val = doc[_ID]
-        assert id_val, f'{type(self).__name__} requires a non-empty {_ID}'
-        rev = doc[_REV]
-        data_json = json.dumps(
-            {k: v for k, v in doc.items() if k not in (_ID, _REV)},
-            default=self._json_encode_value,
-        )
-        data_sql, data_params = self._data_sql_and_params(data_json, ts_fields)
-        return id_val, rev, ts_fields, data_sql, data_params
-
-    def _save_sql(
-        self,
-        *,
-        insert: bool = False,
-        update: bool = False,
-        upsert: bool = False,
-        data_sql: str,
-        data_params: list,
-        id_val: str,
-        rev: int,
-    ) -> tuple[str, list]:
-        """Build INSERT / INSERT OR REPLACE / optimistic UPDATE SQL and bind params."""
-        if sum((insert, update, upsert)) != 1:
-            raise ValueError('exactly one of insert, update, upsert must be true')
-        if update:
-            # Same merged expression for DISTINCT check and assignment (server stamps included).
-            sql = (
-                f'UPDATE {self._qname()} SET '
-                f'{_REV} = CASE WHEN _data IS DISTINCT FROM ({data_sql}) THEN {_REV} + 1 ELSE {_REV} END, '
-                f'_data = {data_sql} '
-                f'WHERE {_ID} = ? AND {_REV} = ? '
-                f'RETURNING {_REV}, _data'
-            )
-            return sql, [*data_params, *data_params, id_val, rev]
-        sql = self._insert_sql(overwrite=upsert, data_sql=data_sql)
-        return sql, [id_val, rev, *data_params]
-
-    def _save(
-        self,
-        serialized_traitable: dict,
-        *,
-        insert: bool = False,
-        update: bool = False,
-        upsert: bool = False,
-    ) -> dict:
-        id_val, rev, ts_fields, data_sql, data_params = self._prepare_write(
-            serialized_traitable, rev=1 if insert or upsert else None
-        )
-        sql, params = self._save_sql(
-            insert=insert,
-            update=update,
-            upsert=upsert,
-            data_sql=data_sql,
-            data_params=data_params,
-            id_val=id_val,
-            rev=rev,
-        )
-        try:
-            rows = self._execute(sql, params)
-        except Exception as e:
-            if insert or upsert:
-                self._handle_insert_error(e, id_val)
-            raise
-        if not rows:
-            detail = (
-                f'rev {rev} no longer current'
-                if update
-                else f'no row returned for {_ID}={id_val!r}'
-            )
-            raise RuntimeError(f'{"Revision conflict" if update else "Write failed"} saving {id_val}: {detail}')
-        new_rev, data_json = rows[0]
-        assert new_rev == rev if insert or upsert else new_rev in (rev, rev + 1)
-        if not ts_fields:
-            return {_REV: new_rev}
-        persisted = json.loads(data_json)
-        return {_REV: new_rev, **{f: v for f in ts_fields if (v := persisted.get(f, persisted)) is not persisted}}
-
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
-        """Insert (or replace) in **one** round trip via dialect ``INSERT … RETURNING``."""
-        return self._save(serialized_traitable, upsert=overwrite, insert=not overwrite)
-
-    def save(self, serialized_traitable: dict) -> dict:
-        """Optimistic save in **one** round trip (like Mongo ``find_one_and_update`` AFTER)."""
-        if serialized_traitable[_REV] == 0:
-            return self.save_new(serialized_traitable)
-        return self._save(serialized_traitable, update=True)
-
-    def _server_time_sql_expr(self) -> str:
-        """SQL expression for a JSON-compatible server timestamp (dialect-specific)."""
-        raise NotImplementedError(f'{type(self).__name__} must implement _server_time_sql_expr')
-
-    def _auth_user_sql_expr(self) -> str:
-        """SQL expression for auth user (default: bound parameter ``?``)."""
-        return '?'
-
-    def _auth_user_sql_params(self) -> list:
-        return [self._store.auth_user()]
+    def intrinsic_trait_dir(self) -> dict[str, Trait]:
+        return {col: Trait.create(col,T(data_type=typ)) for col, typ in self._collection_columns().items() if col not in (_ID, _REV, _DATA)}
 
     def _data_sql_and_params(self, data_json: str, ts_fields: dict) -> tuple[str, list]:
         """SQL expression and bind params for the ``_data`` column (base JSON ± TS merge)."""
         if not ts_fields:
             return '?', [data_json]
-        # json_merge_patch(base, json_object(field, expr, ...)) — exprs from dialect hooks.
         obj_parts: list[str] = []
         params: list = [data_json]
         for field, kind in ts_fields.items():
-            safe = field.replace("'", "''")
+            # field is a Python identifier (enforced in _update_trait_dir / reserved tags).
             if kind == _TS_TIME:
-                obj_parts.append(f"'{safe}', {self._server_time_sql_expr()}")
+                obj_parts.append(f"'{field}', {self._store._server_time_sql_expr()}")
             else:  # TS_USER
-                obj_parts.append(f"'{safe}', {self._auth_user_sql_expr()}")
-                params.extend(self._auth_user_sql_params())
+                obj_parts.append(f"'{field}', {self._store._auth_user_sql_expr()}")
+                params.extend(self._store._auth_user_sql_params())
         merge = f"json_object({', '.join(obj_parts)})"
         return f'json_merge_patch(CAST(? AS JSON), {merge})', params
 
+    def _ensure_columns(self, serialized_data: dict) -> None:
+        """Promote column-eligible fields to real SQL columns when the dialect allows."""
+        if not self._store.s_supports_add_column_if_not_exists:
+            return
+        cols = self._collection_columns()
+        for key in serialized_data:
+            if key in cols or (trait := self.col_trait_dir.get(key)) is None:
+                continue
+
+            ddl = self._store.s_ddl_types.get(typ := trait.serialize_to_types(), 'VARCHAR')
+            self._execute(f'ALTER TABLE {self._qname()} ADD COLUMN IF NOT EXISTS "{key}" {ddl}')
+            cols[key] = typ
+
+
+    def ibis_col(self, name: str, trait=None):
+        if (t := self._ibis_table_or_none()) is None:
+            return ibis.null()
+        if name in self._collection_columns():
+            return t[name]
+        trait = trait or self.col_trait_dir.get(name)
+        col = t._data.cast('json')[name]
+        if trait is not None:
+            st = trait.serialize_to_types()
+            if fn := self._store.json_caster_map.get(st):
+                return fn(col)
+            if st in self._store.json_serializer_map:
+                return ibis_ops.UnwrapJSONString(col).to_expr()
+        unwrapped = ibis_ops.UnwrapJSONString(col).to_expr()
+        raw_str = col.cast('string')
+        return ibis.ifelse(raw_str == 'null', ibis.null(), unwrapped.coalesce(raw_str))
+
+    def ibis_right_value(self, value, field_name: str | None = None):
+        """RHS encoding for filters: :attr:`col_serializer_map` vs :attr:`json_serializer_map`."""
+        serializer_map = (
+            self._store.col_serializer_map
+            if field_name in self._collection_columns()
+            else self._store.json_serializer_map
+        )
+        field_type = (
+            trait.serialize_to_types()
+            if field_name and (trait := self.col_trait_dir.get(field_name)) is not None
+            else type(value)
+        )
+        if fn := serializer_map.get(field_type):
+            return fn(value)
+        if field_type in (dict, list):
+            return json.dumps(value, separators=(',', ':'))
+        return value
+
+    def _json_encode_value(self, v):
+        if fn := self._store.json_serializer_map.get(type(v)):
+            return fn(v)
+        raise TypeError(f'Object of type {type(v).__name__} is not JSON serializable')
+
+    def _make_row_tuple(self, doc: dict) -> tuple[str, int, dict, str | None]:
+        id_val = doc[_ID]
+        rev = doc.get(_REV, 0)
+        col_vals: dict = {}
+        data: dict = {}
+        table_cols = self._collection_columns()
+        for k, v in doc.items():
+            if k in (_ID, _REV):
+                continue
+            if k in self.col_trait_dir and k in table_cols:
+                col_vals[k] = fn(v) if v is not None and (fn := self._store.col_serializer_map.get(self.col_trait_dir[k].serialize_to_types())) else v
+                if v is None:
+                    data[k] = None # -- this way we can tell if the key was present when deserializing
+            else:
+                data[k] = v
+        data_json = json.dumps(data, default=self._json_encode_value)
+        return id_val, rev, col_vals, data_json
+
+    def _decode_row(self, columns: Sequence[str], row: tuple) -> dict:
+        """Map a physical row (polars / SQL RETURNING) to a traitable document dict."""
+        col_doc = {}
+        json_doc = {}
+        for col, val in zip(columns, row, strict=True):
+            if val is None:
+                continue
+            if col == _DATA:
+                json_doc = json.loads(val)
+                continue
+            col_doc[col] = val
+        return json_doc | col_doc
+
+    def _hydrate(self, columns: Sequence[str], row: tuple, ts_fields: dict) -> dict:
+        if not ts_fields:
+            rev_idx = columns.index(_REV)
+            return {_REV: row[rev_idx]}
+        doc = self._decode_row(columns, row)
+        return {_REV: doc[_REV], **{f: doc[f] for f in ts_fields if f in doc}}
+
+    def _prepare_write(self, doc: dict):
+        self._store.ensure_table(self._name)
+        ts_fields = doc.pop(TS_FIELDS_TAG, None) or {}
+        # Promote columns for body keys and declared TS stamp fields.
+        ensure_keys = {**doc, **{f: None for f in ts_fields}}
+        self._ensure_columns(ensure_keys)
+
+        ts_for_json: dict = {}
+        for field, kind in ts_fields.items():
+            if field in self.col_trait_dir:
+                if kind == _TS_TIME:
+                    doc[field] = self._store.server_time()
+                else:
+                    doc[field] = self._store.auth_user()
+            else:
+                ts_for_json[field] = kind
+
+        id_val, rev_out, col_vals, data_json = self._make_row_tuple(doc)
+        assert id_val, f'{type(self).__name__} requires a non-empty {_ID}'
+        data_sql, data_params = self._data_sql_and_params(data_json, ts_for_json)
+        return id_val, rev_out, ts_fields, col_vals, data_sql, data_params
+
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
+        id_val, rev, ts_fields, col_vals, data_sql, data_params = self._prepare_write(serialized_traitable|{_REV:1})
+        try:
+            rows = self._execute(
+                self._store._insert_sql(self._name, overwrite=overwrite,column_names=col_vals,data_sql=data_sql),
+                [id_val, rev, *col_vals.values(), *data_params],
+            )
+        except Exception as e:
+            self._store._handle_insert_error(e, self._name, id_val)
+            raise
+        assert rows, f'{type(self).__name__}.save_new: INSERT returned no row for {_ID}={id_val!r}'
+        return self._hydrate([_ID, _REV, *col_vals, _DATA], rows[0], ts_fields)
+
+    def save(self, serialized_traitable: dict) -> dict:
+        rev = serialized_traitable[_REV]
+        if rev == 0:
+            return self.save_new(serialized_traitable)
+
+        undef = next((k[1:] for k in serialized_traitable if k.startswith('$')), None)
+        if undef:
+            raise RuntimeError(f'Use of undefined variable: {undef}')
+
+        id_val, rev, ts_fields, col_vals, data_sql, data_params = self._prepare_write(dict(serialized_traitable))
+
+        # Apply new values only when something actually changes (chg in WHERE).
+        # Binds once for SET and once for the change predicate — not per CASE column.
+        set_clauses = [f'{_REV} = {_REV} + 1', *(f'"{c}" = ?' for c in col_vals), f'{_DATA} = ({data_sql})']
+        chg = ' OR '.join(
+            (*(f'"{c}" IS DISTINCT FROM ?' for c in col_vals), f'{_DATA} IS DISTINCT FROM ({data_sql})')
+        )
+        ret_cols = [_REV, _DATA, *col_vals]
+        returning = ', '.join([_REV, _DATA, *(f'"{c}"' for c in col_vals)])
+        new_vals = [*col_vals.values(), *data_params]
+        rows = self._execute(
+            f'UPDATE {self._qname()} SET {", ".join(set_clauses)} '
+            f'WHERE {_ID} = ? AND {_REV} = ? AND ({chg}) RETURNING {returning}',
+            [*new_vals, id_val, rev, *new_vals],
+        )
+        if rows:
+            result = self._hydrate(ret_cols, rows[0], ts_fields)
+            assert result[_REV] == rev + 1
+            return result
+
+        # No row updated: either nothing changed (same rev) or optimistic-lock conflict.
+        rows = self._execute(
+            f'SELECT {returning} FROM {self._qname()} WHERE {_ID} = ? AND {_REV} = ?',
+            [id_val, rev],
+        )
+        if not rows:
+            raise RuntimeError(f'Revision conflict saving {id_val}: rev {rev} no longer current')
+        result = self._hydrate(ret_cols, rows[0], ts_fields)
+        assert result[_REV] == rev
+        return result
 
     def delete(self, id_value: str) -> bool:
+        if not self._collection_columns():
+            return False
         rows = self._execute(
             f'DELETE FROM {self._qname()} WHERE {_ID} = ? RETURNING {_ID}', [id_value]
         )
         return len(rows) > 0
 
     def _index_expr(self, field: str) -> str | None:
-        """SQL expression for one index key, or ``None`` if this dialect cannot index ``field``.
-
-        Default returns ``field`` as a bare column name so new dialects fail loudly in tests
-        until they override (e.g. DuckDB only real columns; Postgres JSON path expressions).
-        """
-        return field
+        """SQL index key expression, or None if ``field`` is not a physical column."""
+        return f'"{field}"' if field in self._collection_columns() else None
 
     def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
-        """Create an index using dialect ``_index_expr`` for each key field.
+        """Create an index on physical columns.
 
-        If any field is unsupported (``_index_expr`` returns ``None``), the call is a no-op
-        and still returns ``name``.
-
-        Honors ``unique=True`` (Mongo parity for :class:`~core_10x.traitable.Index` kwargs).
-        Other Mongo-only ``index_args`` are ignored.
+        Column-eligible traits are promoted first (so ``s_indices`` on first save
+        works before any row write). Raises if a field cannot be a real column
+        (JSON-only / not in ``col_trait_dir``) — that traitable cannot use this store.
         """
-        if isinstance(trait_name, list):
-            parts: list[str] = []
-            for field, direction in trait_name:
-                expr = self._index_expr(field)
-                if expr is None:
-                    return name
-                parts.append(f"{expr} {'DESC' if direction < 0 else 'ASC'}")
-            cols = ', '.join(parts)
-        else:
-            expr = self._index_expr(trait_name)
+        self._store.ensure_table(self._name)
+        fields = [f for f, _ in trait_name] if isinstance(trait_name, list) else [trait_name]
+        # Promote index keys that are column-eligible but not yet ALTERed.
+        self._ensure_columns(dict.fromkeys(fields))
+
+        def _require_expr(field: str) -> str:
+            expr = self._index_expr(field)
             if expr is None:
-                return name
-            cols = expr
+                raise ValueError(
+                    f'{type(self._store).__name__} cannot index {field!r} on '
+                    f'{self._name!r}: not a physical column'
+                )
+            return expr
+
+        if isinstance(trait_name, list):
+            cols = ', '.join(
+                f'{_require_expr(field)} {"DESC" if direction < 0 else "ASC"}'
+                for field, direction in trait_name
+            )
+        else:
+            cols = _require_expr(trait_name)
 
         unique = 'UNIQUE ' if index_args.get('unique') else ''
         safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
-        self._execute(
-            f'CREATE {unique}INDEX IF NOT EXISTS {safe_name} ON {self._qname()} ({cols})'
-        )
+        self._execute(f'CREATE {unique}INDEX IF NOT EXISTS {safe_name} ON {self._qname()} ({cols})')
         return name
 
-    # ------------------------------------------------------------------
-    # Query operations
-    # ------------------------------------------------------------------
+    def _ibis_table_or_none(self):
+        """Ibis table, or None if missing (and drop a stale column cache after rollback)."""
+        if not self._collection_columns():
+            return None
+        try:
+            return self._store._ibis_con.table(self._name)
+        except TableNotFound:
+            # CREATE TABLE rolled back (or table dropped) while @cache still held schema.
+            self._store._forget_collection_columns(self._name)
+            return None
 
     def id_exists(self, id_value: str) -> bool:
-        t = self._ibis_table()
+        if (t := self._ibis_table_or_none()) is None:
+            return False
         return t.filter(t._id == id_value).count().execute() > 0
 
     def find(self, query: FilterExpr = None, _at_most: int = 0, _order: dict = None) -> Iterable:
-        t = self._ibis_table()
+        if (t := self._ibis_table_or_none()) is None:
+            return
         if query is not None:
-            pred = self._ibis_filter(query)
+            pred = query.ibis(ibis_collection=self)
             if pred is not None:
                 t = t.filter(pred)
         if _order:
             sort_keys = []
             for field, direction in _order.items():
-                col = self._ibis_col(t, field)
+                col = self.ibis_col(field)
                 sort_keys.append(col.asc() if direction >= 0 else col.desc())
             t = t.order_by(sort_keys)
         if _at_most > 0:
             t = t.limit(_at_most)
-        df = t.execute()
-        return (self._decode_row(row) for row in df.itertuples(index=False))
+        df = t.to_polars()
+        if df.is_empty():
+            return
+        cols = df.columns
+        for row in df.iter_rows():
+            yield self._decode_row(cols, row)
 
     def count(self, query: FilterExpr = None) -> int:
-        t = self._ibis_table()
+        if (t := self._ibis_table_or_none()) is None:
+            return 0
         if query is not None:
-            pred = self._ibis_filter(query)
+            pred = query.ibis(ibis_collection=self)
             if pred is not None:
                 t = t.filter(pred)
-        return t.count().execute()
+        return int(t.count().execute())
 
     def max(self, trait_name: str, filter: FilterExpr = None) -> dict:
-        t = self._ibis_table()
+        if (t := self._ibis_table_or_none()) is None:
+            return {}
         if filter is not None:
-            pred = self._ibis_filter(filter)
+            pred = filter.ibis(ibis_collection=self)
             if pred is not None:
                 t = t.filter(pred)
-        col = self._ibis_col(t, trait_name)
-        df = t.order_by(col.desc()).limit(1).execute()
-        if df.empty:
+        col = self.ibis_col(trait_name)
+        df = t.order_by(col.desc()).limit(1).to_polars()
+        if df.is_empty():
             return {}
-        return self._decode_row(next(df.itertuples(index=False)))
+        return self._decode_row(df.columns, df.row(0))
 
     def min(self, trait_name: str, filter: FilterExpr = None) -> dict:
-        t = self._ibis_table()
+        if (t := self._ibis_table_or_none()) is None:
+            return {}
         if filter is not None:
-            pred = self._ibis_filter(filter)
+            pred = filter.ibis(ibis_collection=self)
             if pred is not None:
                 t = t.filter(pred)
-        col = self._ibis_col(t, trait_name)
-        df = t.order_by(col.asc()).limit(1).execute()
-        if df.empty:
+        col = self.ibis_col(trait_name)
+        df = t.order_by(col.asc()).limit(1).to_polars()
+        if df.is_empty():
             return {}
-        return self._decode_row(next(df.itertuples(index=False)))
-
-
-# ---------------------------------------------------------------------------
-# IbisStore — abstract base for ibis-backed stores
-# ---------------------------------------------------------------------------
+        return self._decode_row(df.columns, df.row(0))
 
 
 class IbisStore(TsStore):
-    """Abstract base for ibis-backed stores (DuckDB, Postgres, …)."""
+    """Abstract base for ibis-backed stores (DuckDB, Postgres, …).
 
-    # fmt: off
-    serializer_map = {
-        datetime: lambda v: v.replace(tzinfo=None).isoformat(),
-        bytes:    lambda v: b64encode(v).decode(),
+    Concrete stores implement dialect hooks here; :class:`IbisCollection` is shared.
+    """
+
+    s_requires_schema = True
+    s_supports_add_column_if_not_exists: bool = False
+    s_ddl_types: dict[type, str] = {
+        str: 'VARCHAR',
+        int: 'BIGINT',
+        float: 'DOUBLE',
+        bool: 'BOOLEAN',
+        datetime: 'TIMESTAMP',
+        date: 'DATE',
+        bytes: 'VARCHAR',
     }
-    caster_map = {
-        str:   lambda col: ibis_ops.UnwrapJSONString(col).to_expr(),
-        int:   lambda col: ibis_ops.UnwrapJSONInt64(col).to_expr(),
+
+
+    # JSON field → typed ibis expr (filter LHS on blob path).
+    json_caster_map = {
+        str: lambda col: ibis_ops.UnwrapJSONString(col).to_expr(),
+        int: lambda col: ibis_ops.UnwrapJSONInt64(col).to_expr(),
         float: lambda col: ibis_ops.UnwrapJSONFloat64(col).to_expr(),
-        bool:  lambda col: ibis_ops.UnwrapJSONBoolean(col).to_expr(),
+        bool: lambda col: ibis_ops.UnwrapJSONBoolean(col).to_expr(),
     }
-    # fmt: on
+    # Python value → native SQL bind (TIMESTAMP / DATE / b64 text in VARCHAR, …).
+    col_serializer_map = {
+        datetime: lambda v: v.replace(tzinfo=None),
+        bytes: lambda v: b64encode(v).decode(),
+    }
+    # Python value → JSON wire (``_data`` blob and JSON-path filter RHS).
+    json_serializer_map = col_serializer_map | {
+        datetime: lambda v: v.replace(tzinfo=None).isoformat(),
+    }
+
+    def __init__(self):
+        super().__init__()
+        self._collections: dict[str, IbisCollection] = {}
+
+    def __init_subclass__(cls, **kwargs):
+        if 's_ddl_types' in cls.__dict__:
+            parent_types = {}
+            for base in cls.__bases__:
+                if issubclass(base, IbisStore):
+                    parent_types = dict(base.s_ddl_types)
+                    break
+            cls.s_ddl_types = {**parent_types, **cls.__dict__['s_ddl_types']}
+        super().__init_subclass__(**kwargs)
 
     @abc.abstractmethod
     def _execute(self, sql: str, params: list = ()) -> list[tuple]: ...
+
+    def _qname(self, collection_name: str) -> str:
+        """Quoted table identifier for SQL (ANSI double quotes; dialect may override)."""
+        return f'"{collection_name.replace(chr(34), chr(34) * 2)}"'
+
+    @abc.abstractmethod
+    def _create_table_if_not_exists(self, collection_name: str) -> None: ...
+
+    @abc.abstractmethod
+    def _drop_table(self, collection_name: str) -> None: ...
+
+    @abc.abstractmethod
+    def _insert_sql(
+        self,
+        collection_name: str,
+        *,
+        overwrite: bool,
+        column_names: Iterable[str],
+        data_sql: str = '?',
+    ) -> str:
+        """Dialect-specific INSERT (or INSERT OR REPLACE) with RETURNING (always includes ``_data``)."""
+
+    def _handle_insert_error(self, exc: BaseException, collection_name: str, id_val: str) -> None:
+        """Map dialect constraint errors to :class:`TsDuplicateKeyError`; re-raise otherwise."""
+        raise exc
+
+    @abc.abstractmethod
+    def _server_time_sql_expr(self) -> str:
+        """SQL expression for a JSON-compatible server timestamp (dialect-specific)."""
+
+    @abc.abstractmethod
+    def _auth_user_sql_expr(self) -> str:
+        """SQL expression for the acting user in JSON (dialect-specific; may be a bind ``?``)."""
+
+    @abc.abstractmethod
+    def _auth_user_sql_params(self) -> list:
+        """Bind params for :meth:`_auth_user_sql_expr` (empty if the expr is pure SQL)."""
+
+    @cache
+    def _collection_columns(self, collection_name: str) -> dict[str, type]:
+        """Catalog lookup: column name → Python type. Empty dict if the table is missing.
+
+        Cached via :func:`core_10x.global_cache.cache`. Callers that mutate schema must
+        either update the returned dict in place (ADD COLUMN) or
+        :meth:`_forget_collection_columns` (create after sticky empty / drop).
+        """
+        try:
+            schema = self._ibis_con.table(collection_name).limit(0).to_polars().schema
+        except TableNotFound:
+            return {}
+        return {name: dtype.to_python() for name, dtype in schema.items()}
+
+    def _forget_collection_columns(self, collection_name: str) -> None:
+        """Drop the ``@cache`` entry for ``collection_name`` (e.g. after CREATE / DROP)."""
+        self._collection_columns.cache.pop((self, collection_name), None)
+
+    def _forget_all_collection_columns(self) -> None:
+        """Drop all ``@cache`` column maps for this store (e.g. after ROLLBACK of DDL)."""
+        cache = self._collection_columns.cache
+        for key in list(cache):
+            if key and key[0] is self:
+                del cache[key]
+
+    def collection_names(self, regexp: str = None) -> list:
+        # Only collections with a physical table (lazy DDL: open alone does not create one).
+        names = sorted(n for n in self._collections if self._collection_columns(n))
+        if regexp:
+            pattern = re.compile(regexp)
+            names = [n for n in names if pattern.match(n)]
+        return names
+
+    def collection(self, collection_name: str, trait_dir: dict) -> IbisCollection:
+        """Return a collection handle. Physical table is created on first write / index."""
+        if (coll := self._collections.get(collection_name)) is None:
+            coll = self._collections[collection_name] = IbisCollection(self, collection_name, trait_dir)
+        elif trait_dir:
+            # Bundle members (and other late openers): union column-eligible traits.
+            coll._update_trait_dir(trait_dir)
+        return coll
+
+    def delete_collection(self, collection_name: str) -> bool:
+        """Drop the physical table (if any) and forget any cached handle / column map."""
+        if known := collection_name in self._collections or bool(self._collection_columns(collection_name)):
+            self._drop_table(collection_name)
+            self._forget_collection_columns(collection_name)
+            self._collections.pop(collection_name, None)
+        return known
+
+    def ensure_table(self, collection_name) -> None:
+        """Create the physical table on first need (idempotent; Mongo-like lazy create)."""
+        if self._collection_columns(collection_name):
+            return
+        self._create_table_if_not_exists(collection_name)
+        self._forget_collection_columns(collection_name)
+        assert self._collection_columns(collection_name), f'failed to create table {collection_name!r}'
 
     class Transaction(TsStore.Transaction):
         def __init__(self, store: IbisStore):
@@ -396,3 +539,5 @@ class IbisStore(TsStore):
                     self.store._execute('ROLLBACK')
                 except Exception:
                     pass
+                # CREATE TABLE / ALTER may have been rolled back; drop sticky schema cache.
+                self.store._forget_all_collection_columns()

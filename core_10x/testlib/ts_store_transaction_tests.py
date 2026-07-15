@@ -30,7 +30,7 @@ class TestTsStoreTransaction:
 
     @pytest.fixture
     def coll(self, store, coll_name):
-        c = store.collection(coll_name)
+        c = store.collection(coll_name, {})  # blob-only: raw dict transaction tests
         yield c
         if coll_name in store.collection_names():
             store.delete_collection(coll_name)
@@ -140,11 +140,11 @@ class TestSaveIfChanged:
                 b.value = 20
                 assert tracker.tracked_objects() == [a,b]
 
-            assert ts_instance.collection(coll_a_name).count() == 1
-            assert ts_instance.collection(coll_b_name).count() == 0
+            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == 1
+            assert ts_instance.collection(coll_b_name, TrackedB.s_dir).count() == 0
 
             a.delete()
-            assert ts_instance.collection(coll_a_name).count() == 0
+            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == 0
 
             with pytest.raises(RuntimeError,match='boom'):
                 with SaveIfChanged() as tracker:
@@ -152,8 +152,8 @@ class TestSaveIfChanged:
                     b.value = 30
                 assert tracker.tracked_objects() == [a,b]
 
-            assert ts_instance.collection(coll_a_name).count() == int(not with_transactions)
-            assert ts_instance.collection(coll_b_name).count() == 0
+            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == int(not with_transactions)
+            assert ts_instance.collection(coll_b_name, TrackedB.s_dir).count() == 0
 
     def test_save_if_changed_requires_storable_classes(self):
         class NotStorable:

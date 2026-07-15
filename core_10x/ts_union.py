@@ -66,6 +66,9 @@ class TsUnionCollection(TsCollection):
     def __init__(self, *collections: TsCollection):
         self.collections = collections
 
+    def intrinsic_trait_dir(self) -> dict:
+        return self.collections[0].intrinsic_trait_dir() if self.collections else {}
+
     def collection_name(self) -> str:
         return self.collections[0].collection_name() if self.collections else ''
 
@@ -144,8 +147,8 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
     def collection_names(self, regexp: str = None) -> list:
         return list(set(itertools.chain(*(store.collection_names(regexp) for store in self.stores))))
 
-    def collection(self, collection_name):
-        return TsUnionCollection(*(store.collection(collection_name) for store in self.stores))
+    def collection(self, collection_name, trait_dir: dict):
+        return TsUnionCollection(*(store.collection(collection_name, trait_dir) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:
         return self.stores[0].delete_collection(collection_name) if self.stores else False

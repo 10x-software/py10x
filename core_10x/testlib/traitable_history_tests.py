@@ -36,7 +36,7 @@ def clock_freezer(mocker, ts_instance, request):
     frozen_now = ClockFreezer()
     if request.param:
         frozen_now.append(datetime.utcnow())
-        from infra_10x.duckdb_store import DuckDbCollection, DuckDbStore
+        from infra_10x.duckdb_store import DuckDbStore
 
         # History/Event _at uses SQL via _server_time_sql_expr (not only Python server_time()).
         mocker.patch.object(
@@ -46,7 +46,7 @@ def clock_freezer(mocker, ts_instance, request):
         )
 
         mocker.patch.object(
-            DuckDbCollection,
+            DuckDbStore,
             '_server_time_sql_expr',
             lambda self: f"'{frozen_now[0].replace(tzinfo=None).strftime('%Y-%m-%dT%H:%M:%S.%f')}'",
         )
@@ -107,7 +107,7 @@ globals()[MutableWithTsTime.__name__] = MutableWithTsTime
 def test_collection(test_store):
     """Create a test collection for testing."""
     collection_name = f'test_collection_{uuid.uuid1()}'
-    yield test_store.collection(collection_name=collection_name)
+    yield test_store.collection(collection_name, NameValueTraitable.s_dir)
     test_store.delete_collection(collection_name=collection_name)
     test_store.delete_collection(collection_name=f'{collection_name}#history')
 
@@ -296,7 +296,10 @@ class TestTraitableHistory:
         person.save()
 
         # Check that history was created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        history_collection = test_store.collection(
+            f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history',
+            PersonTraitable.s_history_class.s_dir,
+        )
         assert history_collection.count() == 1
 
         # Verify history entry structure
@@ -326,7 +329,10 @@ class TestTraitableHistory:
         person.save()
 
         # Check that two history entries were created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        history_collection = test_store.collection(
+            f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history',
+            PersonTraitable.s_history_class.s_dir,
+        )
         assert history_collection.count() == 2
 
         # Verify both history entries
@@ -554,7 +560,10 @@ class TestTraitableHistory:
         item.save()
 
         # Check that no history collection was created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{NoHistoryTraitable.__name__}#history')
+        history_collection = test_store.collection(
+            f'{__name__.replace(".", "/")}/{NoHistoryTraitable.__name__}#history',
+            {},  # no history class; blob-only probe
+        )
         assert history_collection.count() == 0
 
     def test_asof_with_keep_history_false_is_noop(self, test_store, monkeypatch):
@@ -787,7 +796,7 @@ class TestTraitableHistory:
         assert '_at' not in prepared_data
 
     def test_save_new_with_overwrite_parameter(self, test_store, test_collection):
-        """Test DuckDbCollection.save_new with overwrite parameter."""
+        """Test DuckDB save_new with overwrite parameter."""
         result = test_collection.save_new({'_id': 'new-id', 'name': 'New Person', 'age': 25})
         assert result['_rev'] == 1  # Should succeed for new document
 
@@ -798,7 +807,7 @@ class TestTraitableHistory:
         test_collection.save_new({'_id': 'new-id'}, overwrite=True)
 
     def test_find_without_filter_parameter(self, test_store, test_collection):
-        """Test DuckDbCollection.find without _filter parameter."""
+        """Test DuckDB find without _filter parameter."""
 
         # Add documents using the interface method
         test_collection.save_new({'_id': 'doc1', 'name': 'Person 1', 'age': 25})
@@ -851,7 +860,10 @@ class TestTraitableHistory:
         person.age = 31
         person.save().throw()
 
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        history_collection = test_store.collection(
+            f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history',
+            PersonTraitable.s_history_class.s_dir,
+        )
         assert history_collection.count() == 2
 
         # Load a history entry as TraitableHistory instance

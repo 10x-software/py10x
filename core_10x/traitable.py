@@ -719,6 +719,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return store
 
     @classmethod
+    def collection_trait_dir(cls) -> dict:
+        """Trait metadata passed to ``TsStore.collection`` (overridden by Bundle)."""
+        return cls.s_dir
+
+    @classmethod
     def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
         return _ensure_indices and cls._ensure_indices(_coll_name) or cls.s_storage_helper.collection(_coll_name)
 
@@ -936,7 +941,7 @@ class StorableHelper(AbstractStorableHelper):
     def collection(self, _coll_name: str = None) -> TsCollection:
         cls = self.traitable_class
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        return cls.store().collection(cname)
+        return cls.store().collection(cname, trait_dir=cls.collection_trait_dir())
 
     def exists_in_store(self, id: ID) -> bool:
         return self.traitable_class.collection(_coll_name=id.collection_name).id_exists(id.value)
@@ -1023,11 +1028,13 @@ class StorableHelper(AbstractStorableHelper):
         rev_tag = Nucleus.REVISION_TAG()
         traitable.set_revision(save_result[rev_tag])
         # Hydrate store-side fields returned by save (subset of T.TS; missing = not stamped).
+        # Mutable RC(True): RC_TRUE is constant and rejects ``+=``.
+        rc = RC(True)
         for trait in traitable.traits(flags_on=T.TS):
             if trait.name not in save_result:
                 continue
-            traitable.set_trait_value(trait, trait.f_deserialize(trait, save_result[trait.name]))
-        return RC_TRUE
+            rc += traitable.set_trait_value(trait, trait.f_deserialize(trait, save_result[trait.name]))
+        return rc
 
     def _transaction_ctx(self):
         return nullcontext()
@@ -1342,6 +1349,25 @@ class Bundle(Traitable):
     @classmethod
     def is_bundle_base(cls) -> bool:
         return cls.s_bundle_base is cls
+
+    @classmethod
+    def collection_trait_dir(cls) -> dict:
+        """Trait metadata for opening the shared store collection.
+
+        Bundle members share one collection; when members are known, return the
+        union of the base and every registered member so hybrid SQL columns cover
+        all member-specific scalar fields (not only the base's often-empty
+        ``s_dir``). When members are unknown, fall back to this class's ``s_dir``
+        (store re-open still unions column-eligible fields into ``col_trait_dir``).
+        """
+        base = cls.s_bundle_base or cls
+        members = base.s_bundle_members
+        if not members:
+            return cls.s_dir
+        merged = dict(base.s_dir)
+        for member in members.values():
+            merged.update(member.s_dir)
+        return merged
 
     def __init_subclass__(cls, members_known=False, **kwargs):
         base = cls.s_bundle_base

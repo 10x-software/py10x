@@ -764,7 +764,7 @@ def test_serialize(monkeypatch):
                 def transaction(self):
                     return contextlib.nullcontext()
 
-                def collection(self, collection_name):
+                def collection(self, collection_name, trait_dir=None):
                     class Collection:
                         def create_index(self, name, trait_name):
                             return name
@@ -855,7 +855,7 @@ def test_reference_serialization_roundtrip(monkeypatch):
                 def transaction(self):
                     return contextlib.nullcontext()
 
-                def collection(self, collection_name):
+                def collection(self, collection_name, trait_dir=None):
                     class Collection:
                         def create_index(self, name, trait_name):
                             return name

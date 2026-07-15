@@ -321,6 +321,29 @@ class TestBundleHistoryWithNonStorableBase:
         assert docs[b.id().value]['_cls'] == 'Bear'
         assert docs[b.id().value]['den'] == 'oak_hollow'
 
+        # Schema store: member-specific scalar traits must promote to SQL columns
+        # (union of all members' trait dirs), not sit only in the JSON blob.
+        store = bundle_history_store
+        coll_name = base_coll.collection_name()
+        assert 'howl_pitch' in base_coll.col_trait_dir
+        assert 'den' in base_coll.col_trait_dir
+        sql_cols = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
+        assert 'howl_pitch' in sql_cols
+        assert 'den' in sql_cols
+        import json
+
+        for doc_id, member_field in (
+            (w.id().value, 'howl_pitch'),
+            (b.id().value, 'den'),
+        ):
+            row = store._con.execute(
+                f'SELECT "{member_field}", _data FROM "{coll_name}" WHERE _id = ?',
+                [doc_id],
+            ).fetchone()
+            assert row[0] is not None
+            blob = json.loads(row[1] or '{}')
+            assert member_field not in blob
+
     def test_member_history_records_share_lazy_base_history_collection(self, bundle_history_store):
         """History records for storable members of a non-storable bundle base
         all land in the ONE lazily-created ``<Base>#history`` collection,
@@ -508,6 +531,17 @@ class TestBundleHistoryBehavior:
         loaded = next(doc for doc in base_coll.find() if doc['_id'] == d.id().value)
         assert loaded['_cls'] == 'Dog'
         assert loaded['breed'] == 'lab'
+
+        c = Cat(name='cat_main_cols', _replace=True)
+        c.indoor = True
+        c.save().throw()
+        # Union of Dog.breed + Cat.indoor must both be SQL columns after both members save.
+        store = bundle_history_store
+        coll_name = base_coll.collection_name()
+        assert 'breed' in base_coll.col_trait_dir
+        assert 'indoor' in base_coll.col_trait_dir
+        sql_cols = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
+        assert 'breed' in sql_cols and 'indoor' in sql_cols
 
     def test_history_records_share_the_base_history_collection(self, bundle_history_store):
         """All members' history records land in the ONE shared

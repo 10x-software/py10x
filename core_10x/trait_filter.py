@@ -76,7 +76,7 @@ class Op(_filter, ABC):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = ibis_collection.ibis_right_value(self.serialize_right_value(field_name, trait_dir))
+        right = ibis_collection.ibis_right_value(self.serialize_right_value(field_name, trait_dir), field_name=field_name)
         return self._eval(col, right)
 
 
@@ -143,7 +143,7 @@ class IN(Op):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = [ibis_collection.ibis_right_value(v) for v in self.serialize_right_value(field_name, trait_dir)]
+        right = [ibis_collection.ibis_right_value(v, field_name=field_name) for v in self.serialize_right_value(field_name, trait_dir)]
         return col.isin(right)
 
 
@@ -155,7 +155,7 @@ class NIN(IN):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = [ibis_collection.ibis_right_value(v) for v in self.serialize_right_value(field_name, trait_dir)]
+        right = [ibis_collection.ibis_right_value(v, field_name=field_name) for v in self.serialize_right_value(field_name, trait_dir)]
         return ~col.isin(right)
 
 

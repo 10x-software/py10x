@@ -270,10 +270,10 @@ def test_collection(union_store):
     collection_name = 'collection_name'
     mock_store1.collection.return_value = MagicMock()
     mock_store2.collection.return_value = MagicMock()
-    result = union_store.collection(collection_name)
+    result = union_store.collection(collection_name, {})
     assert isinstance(result, TsUnionCollection)
-    mock_store1.collection.assert_called_once_with(collection_name)
-    mock_store2.collection.assert_called_once_with(collection_name)
+    mock_store1.collection.assert_called_once_with(collection_name, {})
+    mock_store2.collection.assert_called_once_with(collection_name, {})
 
 
 def test_delete_collection(union_store):

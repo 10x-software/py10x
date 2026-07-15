@@ -222,7 +222,7 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         def _run_pending_create_index(self) -> None:
             """Run create_index calls that were deferred during the transaction (MongoDB disallows createIndex in txn)."""
             for coll_name, name, trait_name, index_args in self.pending_create_index:
-                coll = self.store.collection(coll_name)
+                coll = self.store.collection(coll_name, {})  # Mongo ignores trait_dir
                 coll.create_index(name, trait_name, **index_args)
             self.pending_create_index.clear()
 
@@ -297,8 +297,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         filter = dict(name={'$regex': regexp}) if regexp else None
         return self.db.list_collection_names(filter=filter)
 
-    def collection(self, collection_name: str) -> TsCollection:
-        return MongoCollection(self.db, collection_name, store=self)
+    def collection(self, collection_name: str, trait_dir: dict) -> TsCollection:
+        return MongoCollection(self.db, collection_name, store=self)  # Mongo is schemaless; trait_dir unused
 
     def supports_transactions(self) -> bool:
         """True if this MongoDB deployment supports multi-document transactions (replica set or mongos)."""

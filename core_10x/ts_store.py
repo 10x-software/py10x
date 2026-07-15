@@ -21,7 +21,8 @@ from core_10x.ts_store_type import TS_STORE_TYPE
 from py10x_kernel import BFlags, BTraitableProcessorSetValueTracker as BTPTracker
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
+
     from core_10x.traitable import Traitable
 
 
@@ -34,6 +35,20 @@ class TsDuplicateKeyError(Exception):
 
     def __init__(self, collection_name: str, duplicate_key: dict):
         super().__init__(f'Duplicate key error collection {collection_name} dup key: {duplicate_key} was found while insert was attempted.')
+
+
+class TsCopyError(Exception):
+    """Raised when copy_to cannot map source layout to the target store."""
+
+
+class TsSchemaMismatchError(Exception):
+    """Raised when serialized data requires columns the store cannot add (dialect without IF NOT EXISTS)."""
+
+    def __init__(self, collection_name: str, field: str, expected_type: str):
+        super().__init__(f'Collection {collection_name!r}: field {field!r} requires column type {expected_type}')
+        self.collection_name = collection_name
+        self.field = field
+        self.expected_type = expected_type
 
 
 class TsCollection(abc.ABC):
@@ -67,8 +82,12 @@ class TsCollection(abc.ABC):
         for data in self.find(f(**{self.s_id_tag: id_value})):
             return data
 
+    def intrinsic_trait_dir(self) -> dict:
+        """trait dir inferred from the collection"""
+        return {} # -- no schema by default
+
     def copy_to(self, to_coll: TsCollection, overwrite: bool = False) -> RC:
-        """Copy all documents from this collection to another collection."""
+        """Copy all documents to another collection (same store-type rules as :meth:`TsStore.copy_to`)."""
         rc = RC(True)
 
         for doc in self.find():
@@ -83,6 +102,8 @@ class TsCollection(abc.ABC):
 
 
 class TsStore(Resource, resource_type=TS_STORE):
+    s_requires_schema: bool = False
+
     s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
         Resource.SSL_TAG: (Resource.SSL_TAG,    True),
         'sst':            ('sst',               1000),
@@ -159,7 +180,7 @@ class TsStore(Resource, resource_type=TS_STORE):
     def collection_names(self, regexp: str = None) -> list: ...
 
     @abc.abstractmethod
-    def collection(self, collection_name: str) -> TsCollection: ...
+    def collection(self, collection_name: str, trait_dir: dict) -> TsCollection: ...
 
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...
@@ -194,14 +215,31 @@ class TsStore(Resource, resource_type=TS_STORE):
         return True
 
     def copy_to(self, to_store: TsStore, overwrite: bool = False) -> RC:
-        """Copy all collections from this store to another store."""
+        """Copy all collections.
+
+        Allowed directions: schemaless→schemaless (e.g. Mongo→Mongo), schema→schema
+        (Ibis→Ibis), and schema→schemaless (Ibis→Mongo). Schema→requires schema source.
+
+        When the source is a schema store (Ibis), target layout comes from
+        :meth:`TsCollection.intrinsic_trait_dir` (live table columns only).
+        """
+        if to_store.s_requires_schema and not self.s_requires_schema:
+            raise TsCopyError(f'Cannot copy from {type(self).__name__} to {type(to_store).__name__}')
+
         rc = RC(True)
-
         for collection_name in self.collection_names():
-            from_coll = self.collection(collection_name)
-            to_coll = to_store.collection(collection_name)
+            from_coll = self.collection(collection_name, {})
+            if self.s_requires_schema:
+                # Ibis (and other schema stores): layout from the table only.
+                if to_store.s_requires_schema:
+                    if not (trait_dir := from_coll.intrinsic_trait_dir()):
+                        raise TsCopyError(f'Cannot resolve intrinsic_trait_dir for collection {collection_name!r}')
+                    to_coll = to_store.collection(collection_name, trait_dir)
+                else:
+                    to_coll = to_store.collection(collection_name, {})
+            else:
+                to_coll = to_store.collection(collection_name, {})
             rc += from_coll.copy_to(to_coll, overwrite=overwrite)
-
         return rc
 
     @contextmanager
