@@ -52,7 +52,6 @@ class MongoCollection(TsCollection):
         rev: int,
         ts_fields: dict,
     ) -> tuple[dict, int]:
-        ts_fields = ts_fields or {}
         if not ts_fields:
             res = self.coll.update_one(filter, update, upsert=upsert, **self._session_kw())
             assert res.acknowledged, f'{self.coll} update_one not acknowledged'

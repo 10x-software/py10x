@@ -272,7 +272,7 @@ class IbisCollection(TsCollection):
     def id_exists(self, id_value: str) -> bool:
         if (t := self._ibis_table_or_none()) is None:
             return False
-        return t.filter(t._id == id_value).count().execute() > 0
+        return t.filter(t._id == id_value).count().to_polars() > 0
 
     def find(self, query: FilterExpr = None, _at_most: int = 0, _order: dict = None) -> Iterable:
         if (t := self._ibis_table_or_none()) is None:
@@ -303,7 +303,7 @@ class IbisCollection(TsCollection):
             pred = query.ibis(ibis_collection=self)
             if pred is not None:
                 t = t.filter(pred)
-        return int(t.count().execute())
+        return t.count().to_polars()
 
     def max(self, trait_name: str, filter: FilterExpr = None) -> dict:
         if (t := self._ibis_table_or_none()) is None:
