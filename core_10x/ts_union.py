@@ -146,7 +146,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
     def collection_names(self, regexp: str = None) -> list:
         return list(set(itertools.chain(*(store.collection_names(regexp) for store in self.stores))))
 
-    def collection(self, collection_name, trait_dir: dict):
+    def collection(self, collection_name: str, trait_dir: dict | None = None) -> TsUnionCollection:
         return TsUnionCollection(*(store.collection(collection_name, trait_dir) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:

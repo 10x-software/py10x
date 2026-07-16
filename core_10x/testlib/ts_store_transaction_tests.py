@@ -30,7 +30,13 @@ class TestTsStoreTransaction:
 
     @pytest.fixture
     def coll(self, store, coll_name):
-        c = store.collection(coll_name, {})  # blob-only: raw dict transaction tests
+        from core_10x.trait_definition import T
+        from core_10x.traitable import Traitable
+
+        class _Pad(Traitable, custom_collection=True, keep_history=False):
+            pad: int = T()
+
+        c = store.collection(coll_name, _Pad.s_dir)  # writable schema; raw dict payloads OK
         yield c
         if coll_name in store.collection_names():
             store.delete_collection(coll_name)

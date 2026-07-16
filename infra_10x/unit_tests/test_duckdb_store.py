@@ -13,16 +13,22 @@ from infra_10x.duckdb_store import DuckDbStore
 from infra_10x.ibis_store import IbisCollection, _DATA, _ID, _REV
 
 
+class _Pad(Traitable, custom_collection=True, keep_history=False):
+    """Minimal storable schema so the collection is writable; extra keys stay untyped/blob."""
+
+    pad: int = T()
+
+
 @pytest.fixture
 def store():
     s = DuckDbStore()
-    s.collection('test', {})  # blob-only: no trait metadata for column promotion
+    s.collection('test', _Pad.s_dir)
     return s
 
 
 @pytest.fixture
 def collection(store) -> IbisCollection:
-    return store.collection('test', {})  # blob-only
+    return store.collection('test', _Pad.s_dir)
 
 
 def _index_names(collection: IbisCollection) -> set[str]:
@@ -273,16 +279,39 @@ def test_index_on_scalar_column_after_save(hybrid_store):
 
 
 def test_untyped_json_path_string_extract_for_artifacts():
-    """No trait: string unwrap (not JSON-typed compare) so ``_cls`` equality works."""
+    """Keys without trait metadata: string unwrap so ``_cls`` equality works."""
     from core_10x.trait_filter import f
 
     store = DuckDbStore()
     coll_name = f'sort_{uuid.uuid4().hex}'
-    coll = store.collection(coll_name, {})
+    coll = store.collection(coll_name, _Pad.s_dir)
     coll.save_new({'_id': 'a', 'n': 10, '_cls': 'Wolf#history'})
     coll.save_new({'_id': 'b', 'n': 2, '_cls': 'Cat#history'})
     assert {r['_id'] for r in coll.find(f(_cls='Cat#history'))} == {'b'}
     store.delete_collection(coll_name)
+
+
+def test_untyped_json_multi_key_numeric_order():
+    """Payload keys not in col_trait_dir: order/min/max use multi unwrap (numeric)."""
+    store = DuckDbStore()
+    coll_name = f'sort_mk_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, _Pad.s_dir)
+    coll.save_new({'_id': 'a', 'n': 10})
+    coll.save_new({'_id': 'b', 'n': 2})
+    assert 'n' not in coll.col_trait_dir
+    assert [r['n'] for r in coll.find(_order={'n': 1})] == [2, 10]
+    assert coll.min('n')['n'] == 2
+    assert coll.max('n')['n'] == 10
+    store.delete_collection(coll_name)
+
+
+def test_empty_trait_dir_is_read_only():
+    store = DuckDbStore()
+    coll = store.collection(f'ro_{uuid.uuid4().hex}', None)
+    with pytest.raises(RuntimeError, match='read-only'):
+        coll.save_new({'_id': 'a', 'n': 1})
+    with pytest.raises(RuntimeError, match='read-only'):
+        coll.create_index('idx_id', _ID)
 
 
 def test_typed_json_path_numeric_order(monkeypatch):

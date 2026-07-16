@@ -36,14 +36,16 @@ class IbisCollection(TsCollection):
 
     s_id_tag = _ID
 
-    def __init__(self, store: IbisStore, name: str, trait_dir: dict):
+    def __init__(self, store: IbisStore, name: str, trait_dir: dict | None = None):
         self._store = store
         self._name = name
         self.col_trait_dir = {}
         self._update_trait_dir(trait_dir)
 
-    def _update_trait_dir(self, trait_dir: dict) -> None:
+    def _update_trait_dir(self, trait_dir: dict | None) -> None:
         """Union column-eligible traits; names must be Python identifiers (used as SQL cols)."""
+        if not trait_dir:
+            return
         assert all(tn.isidentifier() for tn in trait_dir), (
             f'Invalid trait_dir - names must be identifiers: {[tn for tn in trait_dir if not tn.isidentifier()]}'
         )
@@ -83,7 +85,7 @@ class IbisCollection(TsCollection):
         merge = f'json_object({", ".join(obj_parts)})'
         return f'json_merge_patch(CAST(? AS JSON), {merge})', params
 
-    def ibis_col(self, name: str, trait=None):
+    def ibis_col(self, name: str, trait=None, raw=False):
         """Ibis expression for `name`."""
         if (t := self._ibis_table_or_none()) is None:
             return ibis.null()
@@ -95,8 +97,18 @@ class IbisCollection(TsCollection):
                 return fn(col)
             if st in self._store.json_serializer_map:
                 return ibis_ops.UnwrapJSONString(col).to_expr()
+        elif raw:
+            return col
         raw_str = col.cast('string')
         return ibis.ifelse(raw_str == 'null', ibis.null(), ibis_ops.UnwrapJSONString(col).to_expr().coalesce(raw_str))
+
+    def _ibis_order_cols(self, name: str, trait=None) -> tuple:
+        """Sort key(s) for ``name``. Typed/physical: one col. Untyped JSON: float, bool, str unwraps (null off-type)."""
+        trait = trait or self.col_trait_dir.get(name)
+        if name in self._collection_columns() or trait is not None:
+            return (self.ibis_col(name, trait),)
+        col = self.ibis_col(name, raw=True)
+        return tuple(c(col) for t, c in self._store.json_caster_map.items() if t != int)
 
     def ibis_right_value(self, value, field_name: str | None = None):
         """RHS encoding from ``type(value)``: col serializers on physical columns, JSON wire serializers on blob path (never cast to JSON type)."""
@@ -284,11 +296,7 @@ class IbisCollection(TsCollection):
             if pred is not None:
                 t = t.filter(pred)
         if _order:
-            sort_keys = []
-            for field, direction in _order.items():
-                col = self.ibis_col(field)
-                sort_keys.append(col.asc() if direction >= 0 else col.desc())
-            t = t.order_by(sort_keys)
+            t = t.order_by([col.asc() if d >= 0 else col.desc() for f, d in _order.items() for col in self._ibis_order_cols(f)])
         if _at_most > 0:
             t = t.limit(_at_most)
         df = t.to_polars()
@@ -308,30 +316,14 @@ class IbisCollection(TsCollection):
         return t.count().to_polars()
 
     def max(self, trait_name: str, filter: FilterExpr = None) -> dict:
-        if (t := self._ibis_table_or_none()) is None:
-            return {}
-        if filter is not None:
-            pred = filter.ibis(ibis_collection=self)
-            if pred is not None:
-                t = t.filter(pred)
-        col = self.ibis_col(trait_name)
-        df = t.order_by(col.desc()).limit(1).to_polars()
-        if df.is_empty():
-            return {}
-        return self._decode_row(df.columns, df.row(0))
+        for doc in self.find(filter, _at_most=1, _order={trait_name: -1}):
+            return doc
+        return {}
 
     def min(self, trait_name: str, filter: FilterExpr = None) -> dict:
-        if (t := self._ibis_table_or_none()) is None:
-            return {}
-        if filter is not None:
-            pred = filter.ibis(ibis_collection=self)
-            if pred is not None:
-                t = t.filter(pred)
-        col = self.ibis_col(trait_name)
-        df = t.order_by(col.asc()).limit(1).to_polars()
-        if df.is_empty():
-            return {}
-        return self._decode_row(df.columns, df.row(0))
+        for doc in self.find(filter, _at_most=1, _order={trait_name: 1}):
+            return doc
+        return {}
 
 
 class IbisStore(TsStore):
@@ -467,8 +459,11 @@ class IbisStore(TsStore):
             names = [n for n in names if pattern.match(n)]
         return names
 
-    def collection(self, collection_name: str, trait_dir: dict) -> IbisCollection:
-        """Return a collection handle. Physical table is created on first write / index."""
+    def collection(self, collection_name: str, trait_dir: dict | None = None) -> IbisCollection:
+        """Return a collection handle. Physical table is created on first write / index.
+
+        ``trait_dir`` None/empty → read-only (no storable schema; writes hit ``_ensure_columns``).
+        """
         if (coll := self._collections.get(collection_name)) is None:
             coll = self._collections[collection_name] = IbisCollection(self, collection_name, trait_dir)
         elif trait_dir:
@@ -501,7 +496,13 @@ class IbisStore(TsStore):
         return f'"{field}"' if field in self._collection_columns(collection_name) else None
 
     def _ensure_columns(self, collection_name: str, keys: Iterable, col_trait_dir: dict) -> None:
-        """Promote column-eligible fields to real SQL columns when the dialect allows."""
+        """Promote column-eligible fields to real SQL columns when the dialect allows.
+
+        Empty ``col_trait_dir`` means read-only (no storable schema) — refuse before the
+        no-op promote path so ``_prepare_write`` / ``create_index`` cannot proceed.
+        """
+        if not col_trait_dir:
+            raise RuntimeError(f'{collection_name!r} is read-only (no storable trait_dir)')
         if not self.s_supports_add_column_if_not_exists:
             return
         cols = self._collection_columns(collection_name)
