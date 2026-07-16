@@ -9,7 +9,7 @@ from infra_10x.duckdb_store import DuckDbStore
 class TestDuckDbStore(DuckDbStore, resource_name='TEST_DUCK_DB'):
     s_supports_add_column_if_not_exists = False
 
-    def create_index(self, coll, name, trait_name, **index_args) -> str:
+    def create_index(self, collection_name, name, trait_name, col_trait_dir, **index_args) -> str:
         # Schemaless test store: no online DDL, so payload fields (e.g. history `_at`)
         # cannot be real columns — skip index creation entirely.
         return name

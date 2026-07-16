@@ -154,7 +154,7 @@ class IbisCollection(TsCollection):
         return {_REV: doc[_REV], **{f: doc[f] for f in ts_fields if f in doc}}
 
     def _ensure_columns(self, columns: dict):
-        self._store._ensure_columns(self._name, columns)
+        self._store._ensure_columns(self._name, columns, self.col_trait_dir)
 
     def _prepare_write(self, doc: dict):
         self._store.ensure_table(self._name)
@@ -256,7 +256,7 @@ class IbisCollection(TsCollection):
     def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
         # Index DDL is dialect-specific; the store owns it so a store can override
         # indexing wholesale (JSON-path indexes, or a no-op on schemaless stores).
-        return self._store.create_index(self._name, name, trait_name, **index_args)
+        return self._store.create_index(self._name, name, trait_name, self.col_trait_dir, **index_args)
 
     def _ibis_table_or_none(self):
         """Ibis table, or None if missing (and drop a stale column cache after rollback)."""
@@ -498,20 +498,20 @@ class IbisStore(TsStore):
         """
         return f'"{field}"' if field in self._collection_columns(collection_name) else None
 
-    def _ensure_columns(self, collection_name: str, keys: Iterable) -> None:
+    def _ensure_columns(self, collection_name: str, keys: Iterable, col_trait_dir: dict) -> None:
         """Promote column-eligible fields to real SQL columns when the dialect allows."""
         if not self.s_supports_add_column_if_not_exists:
             return
         cols = self._collection_columns(collection_name)
         for key in keys:
-            if key in cols or (trait := self._collections[collection_name].col_trait_dir.get(key)) is None:
+            if key in cols or (trait := col_trait_dir.get(key)) is None:
                 continue
 
             ddl = self.s_ddl_types.get(typ := trait.serialize_to_types(), 'VARCHAR')
             self._execute(f'ALTER TABLE {self._qname(collection_name)} ADD COLUMN IF NOT EXISTS "{key}" {ddl}')
             cols[key] = typ
 
-    def create_index(self, collection_name: str, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
+    def create_index(self, collection_name: str, name: str, trait_name: str | list[tuple[str, int]], col_trait_dir: dict, **index_args) -> str:
         """Create an index on ``collection_name`` using physical columns.
 
         Column-eligible traits are promoted first (so ``s_indices`` on first save works
@@ -521,7 +521,7 @@ class IbisStore(TsStore):
         self.ensure_table(collection_name)
         fields = [f for f, _ in trait_name] if isinstance(trait_name, list) else [trait_name]
         # Promote index keys that are column-eligible but not yet ALTERed.
-        self._ensure_columns(collection_name, dict.fromkeys(fields))
+        self._ensure_columns(collection_name, dict.fromkeys(fields), col_trait_dir)
 
         def _require_expr(field: str) -> str:
             expr = self._index_expr(collection_name, field)
