@@ -3,14 +3,21 @@ import pytest
 from core_10x.testlib.fixtures import stub_log_logger
 from core_10x.ts_store import TsStore
 
+from infra_10x.duckdb_store import DuckDbStore
 
-@pytest.fixture(scope='module',params=[True, False], ids=['hybrid','blob-only'])
+
+class TestDuckDbStore(DuckDbStore, resource_name='TEST_DUCK_DB'):
+    s_supports_add_column_if_not_exists = False
+
+    def create_index(self, coll, name, trait_name, **index_args) -> str:
+        # Schemaless test store: no online DDL, so payload fields (e.g. history `_at`)
+        # cannot be real columns — skip index creation entirely.
+        return name
+
+
+@pytest.fixture(scope='module', params=[True, False], ids=['hybrid', 'blob-only'])
 def ts_instance(request):
-    from infra_10x.duckdb_store import DuckDbStore
     assert not TsStore.s_instances
 
-    orig = DuckDbStore.s_supports_add_column_if_not_exists
-    DuckDbStore.s_supports_add_column_if_not_exists = request.param
-    yield DuckDbStore.instance()
-    DuckDbStore.s_supports_add_column_if_not_exists = orig
+    yield DuckDbStore.instance() if request.param else TestDuckDbStore.instance()
     TsStore.s_instances.clear()

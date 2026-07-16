@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from core_10x.global_cache import cache
@@ -20,6 +19,7 @@ from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
+    from datetime import datetime
 
     from core_10x.ts_store import f
     from pymongo.collection import Collection
@@ -56,8 +56,7 @@ class MongoCollection(TsCollection):
         if not ts_fields:
             res = self.coll.update_one(filter, update, upsert=upsert, **self._session_kw())
             assert res.acknowledged, f'{self.coll} update_one not acknowledged'
-            return {_REV: rev + int(
-                res.matched_count == 1 and res.modified_count == 1)}, res.matched_count
+            return {_REV: rev + int(res.matched_count == 1 and res.modified_count == 1)}, res.matched_count
 
         doc = self.coll.find_one_and_update(
             filter,
@@ -90,14 +89,13 @@ class MongoCollection(TsCollection):
         return self.coll.count_documents(query.prefix_notation() if query else {}, **self._session_kw())
 
     def _prepare_to_save(self, serialized_traitable):
-        id_tag = self.s_id_tag
         doc = dict(serialized_traitable)
         ts_fields = doc.pop(TS_FIELDS_TAG, None) or {}
         doc |= {field: self.store.auth_user() for field, kind in ts_fields.items() if kind == _TS_USER}
-        return doc, ts_fields, id_tag, doc[id_tag]
+        return doc, ts_fields, doc[self.s_id_tag]
 
     def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
-        doc, ts_fields, id_tag, id_value = self._prepare_to_save(serialized_traitable)
+        doc, ts_fields, id_value = self._prepare_to_save(serialized_traitable)
         rev_tag = _REV
 
         # TODO: overwrite via save(), not save_new() so that revision is incremented rather than reset
@@ -106,18 +104,18 @@ class MongoCollection(TsCollection):
         try:
             if not ts_fields and not overwrite:
                 res = self.coll.insert_one(doc, **self._session_kw())
-                assert res.acknowledged, f'{self.coll} insert_one not acknowledged for {id_tag}={id_value!r}'
+                assert res.acknowledged, f'{self.coll} insert_one not acknowledged for {self.s_id_tag}={id_value!r}'
                 return {rev_tag: 1}
 
             result, _matched = self._apply_update(
-                {id_tag: id_value} if overwrite else {id_tag: id_value, rev_tag: {'$exists': False}},
+                {self.s_id_tag: id_value} if overwrite else {self.s_id_tag: id_value, rev_tag: {'$exists': False}},
                 [{'$replaceWith': {'$literal': doc}}, *({'$set': {field: '$$NOW'}} for field, kind in ts_fields.items() if kind == _TS_TIME)],
                 upsert=True,
                 rev=1,
                 ts_fields=ts_fields,
             )
         except DuplicateKeyError as e:
-            raise TsDuplicateKeyError(self.collection_name(), {id_tag: id_value}) from e
+            raise TsDuplicateKeyError(self.collection_name(), {self.s_id_tag: id_value}) from e
 
         return result
 
@@ -128,15 +126,13 @@ class MongoCollection(TsCollection):
         if revision == 0:
             return self.save_new(serialized_traitable)
 
-        doc, ts_fields, id_tag, id_value = self._prepare_to_save(serialized_traitable)
+        doc, ts_fields, id_value = self._prepare_to_save(serialized_traitable)
 
         filter = {}
         pipeline = []
         MongoCollectionHelper.prepare_filter_and_pipeline(doc, filter, pipeline)
         pipeline.extend({'$set': {field: '$$NOW'}} for field, kind in ts_fields.items() if kind == _TS_TIME)
-        result, matched = self._apply_update(
-            filter, pipeline, upsert=False, rev=revision, ts_fields=ts_fields
-        )
+        result, matched = self._apply_update(filter, pipeline, upsert=False, rev=revision, ts_fields=ts_fields)
 
         if not matched:  # -- e.g. restore from deleted
             raise AssertionError(f'{self.coll} {id_value} has been most probably inappropriately restored from deleted')
@@ -318,16 +314,16 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
     @classmethod
     @cache
     def is_running_with_auth(cls, host_name: str, port: int) -> tuple:  # -- (is_running, with_auth)
-        client = MongoClient(host = host_name, port = port, serverSelectionTimeoutMS = 10000, directConnection = True)
+        client = MongoClient(host=host_name, port=port, serverSelectionTimeoutMS=10000, directConnection=True)
         try:
-            #-- 'hello' works without credentials — confirms the server is reachable
+            # -- 'hello' works without credentials — confirms the server is reachable
             client.admin.command('hello')
         except (ConnectionFailure, ServerSelectionTimeoutError):
             client.close()
             return (False, False)
 
         try:
-            #-- 'listDatabases' requires auth; if it succeeds unauthenticated, auth is off
+            # -- 'listDatabases' requires auth; if it succeeds unauthenticated, auth is off
             client.admin.command('listDatabases')
             return (True, False)
 
@@ -342,5 +338,3 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
     def db_name(self) -> str:
         return self.db.name
-
-

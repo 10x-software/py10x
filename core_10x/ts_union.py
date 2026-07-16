@@ -3,7 +3,6 @@ from __future__ import annotations
 import heapq
 import itertools
 import operator
-from datetime import datetime
 from itertools import zip_longest
 from typing import TYPE_CHECKING
 
@@ -13,6 +12,7 @@ from core_10x.ts_store import TsCollection, TsStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
 
 class _OrderKey:
@@ -122,13 +122,12 @@ class TsUnionCollection(TsCollection):
 
 
 class TsUnion(TsStore, resource_name='TS_UNION'):
-
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
         raise NotImplementedError('TsUnion does not support URI parsing')
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
 
     @classmethod

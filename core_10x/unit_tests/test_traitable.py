@@ -161,49 +161,53 @@ def test_dynamic_traits():
     assert y.y == 20
 
 
-class TestStorageHelper:
+def test_subclass_does_not_inherit_parent_storage_helper(ts_instance, monkeypatch):
+    """Regression: each Traitable subclass must own its `s_storage_helper`.
+
+    Class-attribute lookup on `s_storage_helper_cached` walks the MRO, so if
+    a parent class has its helper cached and the child does not have its own
+    slot, the child silently inherits the parent's helper - and routes saves
+    and history to the parent's collection.  `Traitable.__init_subclass__`
+    is expected to give every subclass its own
+    `s_storage_helper_cached = None` slot to prevent that leak.
+    """
+    monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
+
     class _ParentT(Traitable):
         pid: str = T(T.ID)
 
     class _ChildT(_ParentT):
         extra: int = T()
 
-    def test_subclass_does_not_inherit_parent_storage_helper(self, ts_instance):
-        """Regression: each Traitable subclass must own its `s_storage_helper`.
+    assert _ParentT.s_storage_helper_cached is None
+    assert _ChildT.s_storage_helper_cached is None
 
-        Class-attribute lookup on `s_storage_helper_cached` walks the MRO, so if
-        a parent class has its helper cached and the child does not have its own
-        slot, the child silently inherits the parent's helper - and routes saves
-        and history to the parent's collection.  `Traitable.__init_subclass__`
-        is expected to give every subclass its own
-        `s_storage_helper_cached = None` slot to prevent that leak.
-        """
-        # Make sure neither class has been touched yet by other tests.
-        assert self._ParentT.s_storage_helper_cached is None
-        assert self._ChildT.s_storage_helper_cached is None
+    # Unique ids so the parametrized store instances don't share cached
+    # traitable instances (which would carry a stale revision across params).
+    pid = f'p-{uuid.uuid4().hex}'
+    cid = f'c-{uuid.uuid4().hex}'
+    store = ts_instance
+    store.username = 'test_user'
+    store.begin_using()
+    try:
+        _ParentT(pid=pid, _replace=True).save().throw()
 
-        store = ts_instance
-        store.username = 'test_user'
-        store.begin_using()
-        try:
-            self._ParentT(pid='p1', _replace=True).save().throw()
+        assert _ParentT.s_storage_helper_cached is not None
+        assert _ChildT.s_storage_helper.traitable_class is _ChildT
+        assert _ChildT.s_storage_helper is not _ParentT.s_storage_helper
 
-            assert self._ParentT.s_storage_helper_cached is not None
-            assert self._ChildT.s_storage_helper.traitable_class is self._ChildT
-            assert self._ChildT.s_storage_helper is not self._ParentT.s_storage_helper
+        c = _ChildT(pid=cid, extra=42, _replace=True)
+        c.save().throw()
 
-            c = self._ChildT(pid='c1', extra=42, _replace=True)
-            c.save().throw()
-
-            parent_coll = self._ParentT.collection()
-            child_coll = self._ChildT.collection()
-            assert parent_coll is not child_coll
-            assert {d['_id'] for d in parent_coll.find()} == {'p1'}
-            assert {d['_id'] for d in child_coll.find()} == {'c1'}
-        finally:
-            for cn in store.collection_names():
-                store.delete_collection(cn)
-            store.end_using()
+        parent_coll = _ParentT.collection()
+        child_coll = _ChildT.collection()
+        assert parent_coll is not child_coll
+        assert {d['_id'] for d in parent_coll.find()} == {pid}
+        assert {d['_id'] for d in child_coll.find()} == {cid}
+    finally:
+        for cn in store.collection_names():
+            store.delete_collection(cn)
+        store.end_using()
 
 
 def test_collection_name_rt():
@@ -214,7 +218,7 @@ def test_collection_name_rt():
     assert X.trait('_collection_name') is None
 
     with pytest.raises(AttributeError, match="'X' object has no attribute '_collection_name'"):
-        X(x=1)._collection_name
+        _ = X(x=1)._collection_name
 
 
 def test_custom_collection():
@@ -1676,7 +1680,7 @@ def test_event_base_uses_ts_flags():
 
 
 def test_ts_time_wrong_type_integrity():
-    with pytest.raises(RuntimeError, match='BadTime.when - str TS traits must be TS_USER'):
+    with pytest.raises(RuntimeError, match=r'BadTime.when - str TS traits must be TS_USER'):
 
         class BadTime(Traitable):
             when: str = T(T.TS_TIME)
@@ -1684,7 +1688,7 @@ def test_ts_time_wrong_type_integrity():
 
 
 def test_ts_user_wrong_type_integrity():
-    with pytest.raises(RuntimeError, match='BadUser.who - int trait cannot be a TS trait'):
+    with pytest.raises(RuntimeError, match=r'BadUser.who - int trait cannot be a TS trait'):
 
         class BadUser(Traitable):
             who: int = T(T.TS_USER)
@@ -1692,7 +1696,7 @@ def test_ts_user_wrong_type_integrity():
 
 
 def test_ts_runtime_integrity():
-    with pytest.raises(RuntimeError, match='must be storable'):
+    with pytest.raises(RuntimeError, match=r'must be storable'):
 
         class BadRt(Traitable):
             when: datetime = RT(T.TS_TIME)
@@ -1700,7 +1704,7 @@ def test_ts_runtime_integrity():
 
 
 def test_ts_bare_flag_integrity():
-    with pytest.raises(RuntimeError, match='BareTs.meta - str TS traits must be TS_USER'):
+    with pytest.raises(RuntimeError, match=r'BareTs.meta - str TS traits must be TS_USER'):
 
         class BareTs(Traitable):
             meta: str = T(T.TS)
@@ -1708,7 +1712,7 @@ def test_ts_bare_flag_integrity():
 
 
 def test_ts_both_bits_integrity():
-    with pytest.raises(RuntimeError, match='BothBits.when - datetime TS traits must be TS_TIME'):
+    with pytest.raises(RuntimeError, match=r'BothBits.when - datetime TS traits must be TS_TIME'):
 
         class BothBits(Traitable):
             when: datetime = T(T.TS_TIME | T.TS_USER)
@@ -1747,22 +1751,32 @@ def test_serialize_skips_ts_traits_and_post_serialize_marks_ts_fields():
 class SelectivePostSerializeEv(Traitable, keep_history=False, immutable=False):
     """Marks only ``saved_at`` for stamping — optional TS introduction on save."""
 
-    name: str = T(T.ID)
     saved_at: datetime = T(T.TS_TIME)
     saved_by: str = T(T.TS_USER)
 
     def post_serialize(self, serialized_data: dict) -> dict:
-        return self.store().add_ts('saved_at', T.TS_TIME, dict(serialized_data))
+        if not self._rev:
+            return self.store().add_ts('saved_at', T.TS_TIME, dict(serialized_data))
+        return self.store().add_ts('saved_by', T.TS_USER, dict(serialized_data)) | {'saved_at': self.saved_at}
 
 
 def test_selective_post_serialize_skips_hydrate_for_omitted_ts_traits(ts_instance):
     """Custom post_serialize may inject only some TS traits; save hydrates those only."""
     ts_instance.username = 'test_user'
     with ts_instance:
-        ev = SelectivePostSerializeEv(name='e1', _replace=True)
+        ev = SelectivePostSerializeEv(name=f'e-{uuid.uuid4().hex}', _replace=True)
         ev.save().throw()
-        assert ev.is_trait_valid(ev.trait('saved_at'))
-        assert not ev.is_trait_valid(ev.trait('saved_by'))
+        at = ev.saved_at
+        assert ev.is_set(ev.T.saved_at)
+        assert not ev.is_set(ev.T.saved_by)
+
+        ev.save().throw()
+        assert ev.is_set(ev.T.saved_at)
+        assert ev.is_set(ev.T.saved_by)
+        assert ev.saved_at == at
+
+        ev.reload()
+        assert ev.saved_at == at
 
 
 def test_runtime_unsets_ts_flags():

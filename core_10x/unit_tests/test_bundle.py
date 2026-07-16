@@ -20,7 +20,10 @@ on the bundle base:
 
 from __future__ import annotations
 
+import json
+
 import pytest
+from py10x_kernel import BTraitableProcessor, XCache
 
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import RT, T, Bundle, BundleHistory, Traitable
@@ -141,9 +144,6 @@ class TestBundleMembersUnknown:
 # ---------------------------------------------------------------------------
 # Bundle vs. plain Traitable
 # ---------------------------------------------------------------------------
-
-
-
 
 
 class TestIsBundleDistinguishesPlainTraitable:
@@ -301,6 +301,7 @@ class TestBundleHistoryWithNonStorableBase:
         base's helper would be ``NotStorableHelper`` and the save would
         silently no-op."""
         w = Wolf(name='wolf_main', _replace=True)
+        assert w._rev == 0
         w.howl_pitch = 7
         w.save().throw()
 
@@ -325,24 +326,30 @@ class TestBundleHistoryWithNonStorableBase:
         # (union of all members' trait dirs), not sit only in the JSON blob.
         store = bundle_history_store
         coll_name = base_coll.collection_name()
-        assert 'howl_pitch' in base_coll.col_trait_dir
-        assert 'den' in base_coll.col_trait_dir
         sql_cols = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
-        assert 'howl_pitch' in sql_cols
-        assert 'den' in sql_cols
-        import json
 
-        for doc_id, member_field in (
-            (w.id().value, 'howl_pitch'),
-            (b.id().value, 'den'),
+        for obj, member_field in (
+            (w, 'howl_pitch'),
+            (b, 'den'),
         ):
-            row = store._con.execute(
-                f'SELECT "{member_field}", _data FROM "{coll_name}" WHERE _id = ?',
-                [doc_id],
-            ).fetchone()
-            assert row[0] is not None
-            blob = json.loads(row[1] or '{}')
-            assert member_field not in blob
+            assert member_field in base_coll.col_trait_dir
+            data = store._con.execute(
+                f'SELECT _data FROM "{coll_name}" WHERE _id = ?',
+                [obj.id_value()],
+            ).fetchone()[0]
+            blob = json.loads(data)
+            if store.s_supports_add_column_if_not_exists:
+                row = store._con.execute(
+                    f'SELECT "{member_field}" FROM "{coll_name}" WHERE _id = ?',
+                    [obj.id_value()],
+                ).fetchone()
+                assert row[0] == obj.get_value(member_field)
+                assert member_field in sql_cols
+                assert member_field not in blob
+            else:
+                assert member_field not in sql_cols
+                assert member_field in blob
+                assert blob[member_field] == obj.get_value(member_field)
 
     def test_member_history_records_share_lazy_base_history_collection(self, bundle_history_store):
         """History records for storable members of a non-storable bundle base
@@ -516,6 +523,13 @@ def bundle_history_store(ts_instance):
     store.end_using()
 
 
+@pytest.fixture(autouse=True)
+def cache_isolation():
+    yield None
+    XCache.clear()
+    BTraitableProcessor.current().end_using()
+
+
 class TestBundleHistoryBehavior:
     """Live save/history checks against a DuckDbStore."""
 
@@ -535,13 +549,23 @@ class TestBundleHistoryBehavior:
         c = Cat(name='cat_main_cols', _replace=True)
         c.indoor = True
         c.save().throw()
-        # Union of Dog.breed + Cat.indoor must both be SQL columns after both members save.
+        # Union of Dog.breed + Cat.indoor: SQL columns on a schema store (not only
+        # the JSON blob), else in the blob on a schemaless store.
         store = bundle_history_store
         coll_name = base_coll.collection_name()
-        assert 'breed' in base_coll.col_trait_dir
-        assert 'indoor' in base_coll.col_trait_dir
         sql_cols = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
-        assert 'breed' in sql_cols and 'indoor' in sql_cols
+        for obj, member_field in ((d, 'breed'), (c, 'indoor')):
+            assert member_field in base_coll.col_trait_dir
+            blob = json.loads(store._con.execute(f'SELECT _data FROM "{coll_name}" WHERE _id = ?', [obj.id_value()]).fetchone()[0])
+            if store.s_supports_add_column_if_not_exists:
+                row = store._con.execute(f'SELECT "{member_field}" FROM "{coll_name}" WHERE _id = ?', [obj.id_value()]).fetchone()
+                assert row[0] == obj.get_value(member_field)
+                assert member_field in sql_cols
+                assert member_field not in blob
+            else:
+                assert member_field not in sql_cols
+                assert member_field in blob
+                assert blob[member_field] == obj.get_value(member_field)
 
     def test_history_records_share_the_base_history_collection(self, bundle_history_store):
         """All members' history records land in the ONE shared

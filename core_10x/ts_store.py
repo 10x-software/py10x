@@ -3,10 +3,7 @@ from __future__ import annotations
 import abc
 from collections import deque
 from contextlib import ExitStack, contextmanager
-from datetime import datetime
 from typing import TYPE_CHECKING
-
-#from polars.testing.parametric.strategies import data
 
 from core_10x.environment_variables import EnvVars
 from core_10x.exec_control import ProcessContext
@@ -22,6 +19,7 @@ from py10x_kernel import BFlags, BTraitableProcessorSetValueTracker as BTPTracke
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+    from datetime import datetime
 
     from core_10x.traitable import Traitable
 
@@ -39,16 +37,6 @@ class TsDuplicateKeyError(Exception):
 
 class TsCopyError(Exception):
     """Raised when copy_to cannot map source layout to the target store."""
-
-
-class TsSchemaMismatchError(Exception):
-    """Raised when serialized data requires columns the store cannot add (dialect without IF NOT EXISTS)."""
-
-    def __init__(self, collection_name: str, field: str, expected_type: str):
-        super().__init__(f'Collection {collection_name!r}: field {field!r} requires column type {expected_type}')
-        self.collection_name = collection_name
-        self.field = field
-        self.expected_type = expected_type
 
 
 class TsCollection(abc.ABC):
@@ -84,7 +72,7 @@ class TsCollection(abc.ABC):
 
     def intrinsic_trait_dir(self) -> dict:
         """trait dir inferred from the collection"""
-        return {} # -- no schema by default
+        return {}  # -- no schema by default
 
     def copy_to(self, to_coll: TsCollection, overwrite: bool = False) -> RC:
         """Copy all documents to another collection (same store-type rules as :meth:`TsStore.copy_to`)."""
@@ -105,8 +93,8 @@ class TsStore(Resource, resource_type=TS_STORE):
     s_requires_schema: bool = False
 
     s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
-        Resource.SSL_TAG: (Resource.SSL_TAG,    True),
-        'sst':            ('sst',               1000),
+        Resource.SSL_TAG: (Resource.SSL_TAG, True),
+        'sst': ('sst', 1000),
     }
 
     class Transaction:
@@ -130,7 +118,6 @@ class TsStore(Resource, resource_type=TS_STORE):
             self.store.end_transaction(self)
             self._do_abort()
 
-
         def _do_commit(self) -> None: ...
 
         def _do_abort(self) -> None: ...
@@ -138,7 +125,7 @@ class TsStore(Resource, resource_type=TS_STORE):
     def __init__(self):
         self._active_transactions = deque()
 
-    def current_transaction(self) -> Transaction|None:
+    def current_transaction(self) -> Transaction | None:
         return self._active_transactions[-1] if self._active_transactions else None
 
     def begin_transaction(self, transaction: Transaction) -> None:
@@ -167,7 +154,7 @@ class TsStore(Resource, resource_type=TS_STORE):
         return ResourceSpec(ts_class, kwargs)
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
 
     def on_enter(self):
@@ -257,13 +244,12 @@ class TsStore(Resource, resource_type=TS_STORE):
                 tx.abort()
 
 
-
 @contextmanager
 def SaveIfChanged(classes: Sequence[type[Traitable]] = ()):  # noqa: N802
     if any(not cls.is_storable() for cls in classes):
         raise RuntimeError('Classes passed to SaveIfChanged must be storable.')
 
-    if not isinstance(classes,tuple):
+    if not isinstance(classes, tuple):
         classes = tuple(classes)
 
     tracker = BTPTracker()

@@ -29,9 +29,9 @@ test_classes = {
         {
             '__module__': __name__,
         },
-        custom_collection=custom_collection
+        custom_collection=custom_collection,
     )
-    for custom_collection in (None,True)
+    for custom_collection in (None, True)
     for cls_name in (f'Person#{uuid4().hex}{(custom_collection and "#Custom") or ""}' for _ in range(2))
 }
 
@@ -39,9 +39,9 @@ globals().update(test_classes)
 
 
 @pytest.fixture(params=[True, False], ids=['custom_collection', 'default_collection'])
-def ts_setup(ts_instance,request):
-    Person, Person1 = list(test_classes.values())[request.param*2:][:2] # noqa: N806
-    c, c1 = [uuid4().hex if request.param else PackageRefactoring.find_class_id(cls) for cls in (Person,Person1)]
+def ts_setup(ts_instance, request):
+    Person, Person1 = list(test_classes.values())[request.param * 2 :][:2]  # noqa: N806
+    c, c1 = [uuid4().hex if request.param else PackageRefactoring.find_class_id(cls) for cls in (Person, Person1)]
 
     with ts_instance:
         p = Person(first_name='John', last_name='Doe', _collection_name=c if request.param else None)
@@ -52,7 +52,6 @@ def ts_setup(ts_instance,request):
         p.save().throw()
         assert p._rev == 1
         assert p.id().collection_name == (c if request.param else None)
-
 
         p1 = Person1(first_name='Joe', last_name='Doe', _collection_name=c1 if request.param else None)
         p1.set_values(age=32, weight_lbs=200)
@@ -75,12 +74,12 @@ class TestTSStore:
     """Test class for TS Store functionality."""
 
     def test_collection(self, ts_setup):
-        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
         assert collection is not None
 
     def test_save(self, ts_setup):
-        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
 
         collection = ts_store.collection(c, Person.s_dir)
         serialized_entity = p.serialize_object()
@@ -134,7 +133,7 @@ class TestTSStore:
 
         Complements ``test_save`` (no ``_ts_fields`` → plain update / no hydrate).
         """
-        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
         doc_id = f'ts_hydrate_{uuid4().hex}'
 
@@ -143,9 +142,7 @@ class TestTSStore:
         assert '_at' in r1
 
         def stamped(name: str, rev: int) -> dict:
-            return ts_store.add_ts(
-                '_at', T.TS_TIME, {'_id': doc_id, 'name': name, '_rev': rev}
-            )
+            return ts_store.add_ts('_at', T.TS_TIME, {'_id': doc_id, 'name': name, '_rev': rev})
 
         time.sleep(0.001)
         r2 = collection.save(stamped('v2', 1))
@@ -169,7 +166,7 @@ class TestTSStore:
         assert '_at' in r_same
 
     def test_delete_restore(self, ts_setup):
-        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
         serialized_entity = p.serialize_object()
         id_value = serialized_entity['_id']
@@ -181,21 +178,21 @@ class TestTSStore:
         assert collection.load(id_value) == serialized_entity
 
     def test_find(self, ts_setup):
-        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
         result = collection.find()
         assert next(iter(result)) == p.serialize_object()
         assert list(result) == []
 
     def test_load(self, ts_setup):
-        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
         id_value = p.id().value
         result = collection.load(id_value)
         assert result == p.serialize_object()
 
     def test_delete(self, ts_setup):
-        ts_store, _p, p1, _c, c1, _Person, Person1 = ts_setup
+        ts_store, _p, p1, _c, c1, _Person, Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c1, Person1.s_dir)
         id_value = p1.id().value
         result = collection.delete(id_value)
@@ -205,7 +202,7 @@ class TestTSStore:
 
     def test_save_new_with_overwrite(self, ts_setup):
         """Test save_new with overwrite=True (plain and ``_ts_fields`` hydrate paths)."""
-        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
         serialized_entity = p.serialize_object()
         id_value = serialized_entity['_id']
@@ -227,7 +224,7 @@ class TestTSStore:
 
     def test_save_new_with_ts_fields(self, ts_setup):
         """Test save_new with ``add_ts`` / server time + hydrate."""
-        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
 
         doc_id = 'test_doc_123'
@@ -244,13 +241,13 @@ class TestTSStore:
         t = datetime_trait(T())
         loaded = collection.load(doc_id)
         at = t.deserialize(loaded['_at'])
-        assert isinstance(at,datetime)
-        assert dt1<at<dt2, f'{dt1} < {at} < {dt2}'
+        assert isinstance(at, datetime)
+        assert dt1 < at < dt2, f'{dt1} < {at} < {dt2}'
         assert loaded == serialized_entity | {'_rev': 1} | {'_at': loaded['_at']}
 
     def test_save_new_duplicate_key_error(self, ts_setup):
         """Test that save_new raises TsDuplicateKeyError when inserting duplicate without overwrite."""
-        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
 
         doc_id = 'duplicate_test_123'
@@ -285,7 +282,7 @@ class TestTSStore:
 
     def test_save_new_with_ts_fields_and_overwrite(self, ts_setup):
         """Test save_new overwrite=True; hydrate must return refreshed store fields."""
-        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup
+        ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
 
         doc_id = 'set_overwrite_test_123'

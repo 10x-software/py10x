@@ -75,7 +75,6 @@ class TestCopyTo:
 
     def test_ibis_to_ibis_copies_extra_sql_columns(self, duck_src):
         src, name = duck_src
-        coll = src.collection(name, CopyPerson.s_dir)
         safe = name.replace('"', '""')
         src._con.execute(f'ALTER TABLE "{safe}" ADD COLUMN IF NOT EXISTS "legacy" VARCHAR')
         src._con.execute(

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 import duckdb
@@ -17,6 +16,7 @@ from infra_10x.ibis_store import (
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
 
 class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
@@ -51,29 +51,34 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         *,
         overwrite: bool,
         column_names: Iterable[str],
+        column_value_sqls: list[str],
         data_sql: str = '?',
     ) -> str:
         verb = 'INSERT OR REPLACE' if overwrite else 'INSERT'
-        # Materialize once: may be a dict (keys) or other iterable.
+        # Materialize once: may be a dict (keys) or other one-shot iterable.
         col_names = list(column_names)
+        assert len(col_names) == len(column_value_sqls), (
+            f'_insert_sql: column_names ({len(col_names)}) and column_value_sqls ({len(column_value_sqls)}) length mismatch'
+        )
         cols = [_ID, _REV, *col_names, _DATA]
-        value_exprs = ['?', '?'] + ['?'] * len(col_names) + [data_sql]
+        value_exprs = ['?', '?', *column_value_sqls, data_sql]
         # Column names are Python identifiers; quote non-system cols for SQL keywords (e.g. by).
         col_sql = ', '.join(c if c in (_ID, _REV, _DATA) else f'"{c}"' for c in cols)
         values_sql = ', '.join(value_exprs)
-        return (
-            f'{verb} INTO {self._qname(collection_name)} ({col_sql}) '
-            f'VALUES ({values_sql}) RETURNING {col_sql}'
-        )
+        return f'{verb} INTO {self._qname(collection_name)} ({col_sql}) VALUES ({values_sql}) RETURNING {col_sql}'
 
     def _handle_insert_error(self, exc: BaseException, collection_name: str, id_val: str) -> None:
         if isinstance(exc, duckdb.ConstraintException):
             raise TsDuplicateKeyError(collection_name, {_ID: id_val}) from exc
         raise exc
 
+    def _server_time_col_sql_expr(self) -> str:
+        # Server clock as a native (naive) TIMESTAMP for a real column.
+        return 'CAST(current_timestamp AS TIMESTAMP)'
+
     def _server_time_sql_expr(self) -> str:
         # Server clock in JSON; ISO-like string for datetime_trait round-trip.
-        return "strftime(CAST(current_timestamp AS TIMESTAMP), '%Y-%m-%dT%H:%M:%S.%f')"
+        return f"strftime({self._server_time_col_sql_expr()}, '%Y-%m-%dT%H:%M:%S.%f')"
 
     def _auth_user_sql_expr(self) -> str:
         # DuckDB current_user is the engine role ('duckdb'), not Resource username — bind app identity.
@@ -101,4 +106,4 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         return self.dbname
 
     def server_time(self) -> datetime:
-        return self._con.execute('SELECT CAST(current_timestamp AS TIMESTAMP)').fetchone()[0].replace(tzinfo=None)
+        return self._con.execute(f'SELECT {self._server_time_col_sql_expr()}').fetchone()[0].replace(tzinfo=None)

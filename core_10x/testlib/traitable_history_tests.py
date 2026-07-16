@@ -38,7 +38,9 @@ def clock_freezer(mocker, ts_instance, request):
         frozen_now.append(datetime.utcnow())
         from infra_10x.duckdb_store import DuckDbStore
 
-        # History/Event _at uses SQL via _server_time_sql_expr (not only Python server_time()).
+        # TS_TIME is stamped by SQL server exprs, not Python server_time(): freeze all three
+        # sources — the JSON-blob expr, the native-column expr, and server_time() for any
+        # remaining Python callers.
         mocker.patch.object(
             DuckDbStore,
             'server_time',
@@ -50,7 +52,14 @@ def clock_freezer(mocker, ts_instance, request):
             '_server_time_sql_expr',
             lambda self: f"'{frozen_now[0].replace(tzinfo=None).strftime('%Y-%m-%dT%H:%M:%S.%f')}'",
         )
+
+        mocker.patch.object(
+            DuckDbStore,
+            '_server_time_col_sql_expr',
+            lambda self: f"CAST('{frozen_now[0].replace(tzinfo=None).strftime('%Y-%m-%dT%H:%M:%S.%f')}' AS TIMESTAMP)",
+        )
     yield frozen_now
+
 
 class NameValueTraitableBase(Traitable):
     """Test traitable class for testing."""
@@ -118,7 +127,7 @@ def test_store(ts_instance):
     store.username = 'test_user'
     store.begin_using()
     yield store
-    for cn in store.collection_names() :
+    for cn in store.collection_names():
         store.delete_collection(cn)
     store.end_using()
 
@@ -203,8 +212,9 @@ class TestTraitableHistory:
         assert obj.history() == []
         assert len(obj.load_many()) == (1 - with_transactions)
 
-    def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions): # noqa: F811
+    def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions):  # noqa: F811
         """When a nested or main save fails, the transaction rolls back (no docs committed)."""
+
         def _save_serialized_raise(self, coll, serialized_data, old_rev):
             if serialized_data['_id'] == '1':
                 raise RuntimeError('save error')

@@ -46,6 +46,8 @@ if TYPE_CHECKING:
 
     from core_10x.ts_store import TsCollection
 
+_REV = Nucleus.REVISION_TAG()
+
 
 class Index:
     """Declarative definition of a collection index for a Traitable subclass.
@@ -154,7 +156,7 @@ class TraitableMetaclass(type(BTraitable)):
     @staticmethod
     def reserved_storable_traits(traitable_cls):
         return {
-            Nucleus.REVISION_TAG(): traitable_cls.rev_trait(),
+            _REV: traitable_cls.rev_trait(),
             COLL_NAME_TAG: traitable_cls.collection_name_trait(),
         }
 
@@ -187,9 +189,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @classmethod
     @cache
     def rev_trait(cls) -> Trait:
-        trait_name = Nucleus.REVISION_TAG()
         return Trait.create(
-            trait_name,
+            _REV,
             T(0, T.RESERVED, data_type=int),
         )
 
@@ -324,8 +325,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return (base.s_dir for base in reversed(cls.__bases__) if issubclass(base, Traitable))
 
     @classmethod
-    def _own_indices(cls) -> dict[str,Index]:
-        return {idx.name: idx for idx in getattr(cls,'s_indices',())}
+    def _own_indices(cls) -> dict[str, Index]:
+        return {idx.name: idx for idx in getattr(cls, 's_indices', ())}
 
     @classmethod
     def _inherited_indices(cls) -> Generator[dict[str, Index]]:
@@ -725,11 +726,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
-        return _ensure_indices and cls._ensure_indices(_coll_name) or cls.s_storage_helper.collection(_coll_name)
+        return (_ensure_indices and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name)
 
     @classmethod
     @cache(keep_value=False)
-    def _ensure_indices(cls, _coll_name: str = None) -> TsCollection|None:
+    def _ensure_indices(cls, _coll_name: str = None) -> TsCollection | None:
         coll = cls.collection(_coll_name)
         if coll is not None:
             for idx in cls.s_indices:
@@ -808,6 +809,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         for trait in ts_traits:
             store.add_ts(trait.name, BFlags(trait.flags) & T.TS, post_serialized)
         return post_serialized
+
 
 class TraitableFwdRef(Traitable, root_class=True):
     """Internal base for deferred sibling Traitable annotations; not for direct use."""
@@ -919,7 +921,7 @@ class NotStorableHelper(AbstractStorableHelper):
         return RC(False, f'{self.traitable_class} is not storable')
 
     def _save_serialized(self, coll, serialized_data, old_rev):
-        return {Nucleus.REVISION_TAG(): old_rev}
+        return {_REV: old_rev}
 
     def delete(self, traitable: Traitable) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
@@ -1025,7 +1027,7 @@ class StorableHelper(AbstractStorableHelper):
         except Exception as e:
             return RC(False, f'Error saving traitable: {e}')
 
-        rev_tag = Nucleus.REVISION_TAG()
+        rev_tag = _REV
         traitable.set_revision(save_result[rev_tag])
         # Hydrate store-side fields returned by save (subset of T.TS; missing = not stamped).
         # Mutable RC(True): RC_TRUE is constant and rejects ``+=``.
@@ -1069,14 +1071,10 @@ class StorableHelperWithHistory(StorableHelper):
 
     def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
         save_result = super()._save_serialized(coll, serialized_data, old_rev)
-        rev = save_result[Nucleus.REVISION_TAG()]
+        rev = save_result[_REV]
         if rev > old_rev:
             self.traitable_class.s_history_class(
-                serialized_traitable={
-                    k: v
-                    for k, v in (serialized_data | save_result).items()
-                    if k not in (Nucleus.REVISION_TAG(), TS_FIELDS_TAG)
-                },
+                serialized_traitable={k: v for k, v in (serialized_data | save_result).items() if k not in (_REV, TS_FIELDS_TAG)},
                 _traitable_rev=rev,
                 _collection_name=(coll.collection_name() + '#history') if self.traitable_class.s_custom_collection else XNone,
             ).save().throw()
@@ -1132,14 +1130,7 @@ class StorableHelperWithHistory(StorableHelper):
             return False
 
         if save:
-            return bool(
-                self.traitable_class.collection(
-                    traitable_id.collection_name,
-                ).save_new(
-                    history_entry.serialized_traitable,
-                    overwrite=True,
-                ).get(Nucleus.REVISION_TAG())
-            )
+            return bool(self.traitable_class.collection(traitable_id.collection_name).save_new(history_entry.serialized_traitable, overwrite=True).get(_REV))
         return True
 
 
@@ -1289,14 +1280,15 @@ class AsOfContext:
 
         self._reset_storage_helpers()
 
+
 class NamedTraitable(Traitable):
     s_ctor_allowed = True
 
-    name: str   = T(T.ID)
+    name: str = T(T.ID)
 
     def __init__(self, _name: str = None, **kwargs):
         if _name:
-            super().__init__(name = _name, **kwargs)
+            super().__init__(name=_name, **kwargs)
             if not self.id_exists():
                 raise ValueError(f'{self.__class__}.{self.name} does not exist')
         else:
@@ -1307,7 +1299,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
     def post_ctor(self): ...
 
     def check_integrity(self, cls, rc: RC):
-        super().check_integrity(cls,rc)
+        super().check_integrity(cls, rc)
         is_runtime = self.flags_on(T.RUNTIME)
         if self.flags_on(T.EMBEDDED):
             if is_runtime:

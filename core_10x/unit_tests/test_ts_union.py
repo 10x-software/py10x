@@ -304,8 +304,8 @@ def test_new_instance(ts_union):
         (('dbname', 'dbname1'), ('hostname', 'localhost')),
         (('dbname', 'dbname2'), ('hostname', 'localhost')),
         (
-            (('dbname', 'dbname1'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost'),),
-            (('dbname', 'dbname2'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost'),),
+            (('dbname', 'dbname1'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost')),
+            (('dbname', 'dbname2'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost')),
         ),
     ]
 
