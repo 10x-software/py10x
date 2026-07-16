@@ -272,6 +272,59 @@ def test_index_on_scalar_column_after_save(hybrid_store):
             coll.create_index('idx_i', 'i')
 
 
+def test_untyped_json_path_string_extract_for_artifacts():
+    """No trait: string unwrap (not JSON-typed compare) so ``_cls`` equality works."""
+    from core_10x.trait_filter import f
+
+    store = DuckDbStore()
+    coll_name = f'sort_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, {})
+    coll.save_new({'_id': 'a', 'n': 10, '_cls': 'Wolf#history'})
+    coll.save_new({'_id': 'b', 'n': 2, '_cls': 'Cat#history'})
+    assert {r['_id'] for r in coll.find(f(_cls='Cat#history'))} == {'b'}
+    store.delete_collection(coll_name)
+
+
+def test_typed_json_path_numeric_order(monkeypatch):
+    """With col_trait_dir, blob-path int uses typed unwrap (numeric order, not JSON/text)."""
+    from core_10x.traitable import Traitable
+
+    class Num(Traitable, custom_collection=True):
+        name: str = T(T.ID)
+        n: int = T()
+
+    store = DuckDbStore()
+    monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
+    coll_name = f'sort_json_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, Num.s_dir)
+    coll.save_new({'_id': 'a', 'name': 'a', 'n': 10})
+    coll.save_new({'_id': 'b', 'name': 'b', 'n': 2})
+    assert 'n' not in coll._collection_columns()
+    assert coll.min('n')['n'] == 2
+    assert coll.max('n')['n'] == 10
+    assert [r['n'] for r in coll.find(_order={'n': 1})] == [2, 10]
+    store.delete_collection(coll_name)
+
+
+def test_physical_column_sort_is_typed(monkeypatch):
+    """Promoted SQL columns use native typed order."""
+    from core_10x.traitable import Traitable
+
+    class Num(Traitable, custom_collection=True):
+        name: str = T(T.ID)
+        n: int = T()
+
+    store = DuckDbStore()
+    monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', True)
+    coll_name = f'sort_col_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, Num.s_dir)
+    coll.save_new({'_id': 'a', 'name': 'a', 'n': 10})
+    coll.save_new({'_id': 'b', 'name': 'b', 'n': 2})
+    assert 'n' in coll._collection_columns()
+    assert [r['n'] for r in coll.find(_order={'n': 1})] == [2, 10]
+    store.delete_collection(coll_name)
+
+
 def test_column_cache_is_per_store_instance():
     """Two DuckDbStore instances must not share schema evolution cache."""
     from core_10x.traitable import Traitable

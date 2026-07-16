@@ -84,30 +84,28 @@ class IbisCollection(TsCollection):
         return f'json_merge_patch(CAST(? AS JSON), {merge})', params
 
     def ibis_col(self, name: str, trait=None):
+        """Ibis expression for `name`."""
         if (t := self._ibis_table_or_none()) is None:
             return ibis.null()
         if name in self._collection_columns():
             return t[name]
-        trait = trait or self.col_trait_dir.get(name)
         col = t._data.cast('json')[name]
-        if trait is not None:
-            st = trait.serialize_to_types()
-            if fn := self._store.json_caster_map.get(st):
+        if (trait := (trait or self.col_trait_dir.get(name))) is not None:
+            if fn := self._store.json_caster_map.get(st := trait.serialize_to_types()):
                 return fn(col)
             if st in self._store.json_serializer_map:
                 return ibis_ops.UnwrapJSONString(col).to_expr()
-        unwrapped = ibis_ops.UnwrapJSONString(col).to_expr()
         raw_str = col.cast('string')
-        return ibis.ifelse(raw_str == 'null', ibis.null(), unwrapped.coalesce(raw_str))
+        return ibis.ifelse(raw_str == 'null', ibis.null(), ibis_ops.UnwrapJSONString(col).to_expr().coalesce(raw_str))
 
     def ibis_right_value(self, value, field_name: str | None = None):
-        """RHS encoding for filters: :attr:`col_serializer_map` vs :attr:`json_serializer_map`."""
+        """RHS encoding from ``type(value)``: col serializers on physical columns, JSON wire serializers on blob path (never cast to JSON type)."""
+
         serializer_map = self._store.col_serializer_map if field_name in self._collection_columns() else self._store.json_serializer_map
-        field_type = trait.serialize_to_types() if field_name and (trait := self.col_trait_dir.get(field_name)) is not None else type(value)
-        if fn := serializer_map.get(field_type):
+        if fn := serializer_map.get(vt := type(value)):
             return fn(value)
-        if field_type in (dict, list):
-            return json.dumps(value, separators=(',', ':'))
+        if vt in (dict, list):
+            return json.dumps(value, separators=(',', ':'), default=self._json_encode_value)
         return value
 
     def _json_encode_value(self, v):
@@ -130,7 +128,7 @@ class IbisCollection(TsCollection):
                     data[k] = None  # -- this way we can tell if the key was present when deserializing
             else:
                 data[k] = v
-        data_json = json.dumps(data, default=self._json_encode_value)
+        data_json = json.dumps(data, separators=(',', ':'), default=self._json_encode_value)
         return id_val, rev, col_vals, data_json
 
     def _decode_row(self, columns: Sequence[str], row: tuple) -> dict:
@@ -249,7 +247,11 @@ class IbisCollection(TsCollection):
 
     def delete(self, id_value: str) -> bool:
         if not self._collection_columns():
-            return False
+            # Cache reports no table. Re-verify against the catalog before giving up: a
+            # stale empty entry would otherwise silently hide real rows from the DELETE.
+            self._store._forget_collection_columns(self._name)
+            if not self._collection_columns():
+                return False
         rows = self._execute(f'DELETE FROM {self._qname()} WHERE {_ID} = ? RETURNING {_ID}', [id_value])
         return len(rows) > 0
 
@@ -514,8 +516,8 @@ class IbisStore(TsStore):
     def create_index(self, collection_name: str, name: str, trait_name: str | list[tuple[str, int]], col_trait_dir: dict, **index_args) -> str:
         """Create an index on ``collection_name`` using physical columns.
 
-        Column-eligible traits are promoted first (so ``s_indices`` on first save works
-        before any row write). Raises if a field cannot be a real column (JSON-only). Stores that index differently (JSON paths) or cannot index
+        Column-eligible traits are promoted first (so ``s_indices`` on first save works before any row write).
+        Raises if a field cannot be a real column (JSON-only). Stores that index differently (JSON paths) or cannot index
         at all (schemaless) override this.
         """
         self.ensure_table(collection_name)
