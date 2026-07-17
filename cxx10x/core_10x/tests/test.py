@@ -1157,6 +1157,7 @@ def test_event():
 
     class X(EventBase):
         x: int = T()
+        y: EventBase = T()
 
         @classmethod
         def collection(cls, _coll_name: str = None, _ensure_indices=False):
@@ -1165,18 +1166,26 @@ def test_event():
     store = DuckDbStore()
     with store:
         x = X()
+        assert not x.is_set(x.T.y)
+        assert x.y is XNone
+
+        assert x.serialize_object() == {'_id': x.id_value(), '_rev': 0, 'x': None, 'y': None}
         x.save().throw()
         assert x._at <= store.server_time()
+        assert not x.is_set(x.T.y)
+        assert x.y is XNone
 
         x.reload()
         assert x._at <= store.server_time()
+        assert x.is_set(x.T.y)
+        assert x.y is XNone
 
 
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
-    test_deserialize_skips_runtime_keeps_eval_once()
     test_event()
+    test_deserialize_skips_runtime_keeps_eval_once()
     test_set_eval_once()
     test_custom_collection()
     test_person_xnone()
