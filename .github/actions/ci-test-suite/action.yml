@@ -88,9 +88,7 @@ runs:
         $procdumpDir = Join-Path $env:RUNNER_TEMP 'procdump'
         Invoke-WebRequest -Uri 'https://download.sysinternals.com/files/Procdump.zip' -OutFile $procdumpZip
         Expand-Archive -Path $procdumpZip -DestinationPath $procdumpDir -Force
-        $procdump = Join-Path $procdumpDir 'procdump64.exe'
-        & $procdump -accepteula -ma -i $dumpFolder
-        Write-Host "ProcDump registered as post-mortem debugger; dumps -> $dumpFolder"
+        Write-Host "ProcDump ready for first-chance attach; dumps -> $dumpFolder"
 
     - name: Run full test suite
       shell: bash
@@ -103,7 +101,28 @@ runs:
         XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        python -m pytest
+        if [ "${{ inputs.runner-os }}" != "Windows" ]; then
+          python -m pytest
+        else
+          # First-chance ACCESS_VIOLATION dump (AeDebug/WER miss these). Preserve pytest exit
+          # code; do not use procdump -x as the parent (it does not propagate child exit codes).
+          dump_folder="${RUNNER_TEMP}/crashdumps"
+          procdump="${RUNNER_TEMP}/procdump/procdump64.exe"
+          python -m pytest -p no:faulthandler &
+          pytest_pid=$!
+          if [ -f "/proc/${pytest_pid}/winpid" ]; then
+            attach_pid=$(tr -d '\0\r\n' < "/proc/${pytest_pid}/winpid")
+          else
+            attach_pid=$pytest_pid
+          fi
+          "$procdump" -accepteula -ma -e 1 -f "ACCESS_VIOLATION" "$attach_pid" "$dump_folder" &
+          set +e
+          wait "$pytest_pid"
+          exit_code=$?
+          wait
+          set -e
+          exit "$exit_code"
+        fi
 
     - name: Upload Windows minidump
       if: failure() && inputs.runner-os == 'Windows'
