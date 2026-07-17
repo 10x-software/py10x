@@ -292,7 +292,7 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         filter = dict(name={'$regex': regexp}) if regexp else None
         return self.db.list_collection_names(filter=filter)
 
-    def collection(self, collection_name: str, trait_dir: dict) -> TsCollection:
+    def collection(self, collection_name: str, trait_dir: dict | None = None) -> MongoCollection:
         return MongoCollection(self.db, collection_name, store=self)  # Mongo is schemaless; trait_dir unused
 
     def supports_transactions(self) -> bool:

@@ -69,6 +69,11 @@ class TsUnionCollection(TsCollection):
     def intrinsic_trait_dir(self) -> dict:
         return self.collections[0].intrinsic_trait_dir() if self.collections else {}
 
+    def extend_trait_dir(self, trait_dir: dict | None) -> None:
+        """Forward to the head only — writes always go to ``collections[0]``."""
+        if self.collections:
+            self.collections[0].extend_trait_dir(trait_dir)
+
     def collection_name(self) -> str:
         return self.collections[0].collection_name() if self.collections else ''
 
@@ -146,7 +151,7 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
     def collection_names(self, regexp: str = None) -> list:
         return list(set(itertools.chain(*(store.collection_names(regexp) for store in self.stores))))
 
-    def collection(self, collection_name, trait_dir: dict):
+    def collection(self, collection_name: str, trait_dir: dict | None = None) -> TsUnionCollection:
         return TsUnionCollection(*(store.collection(collection_name, trait_dir) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:

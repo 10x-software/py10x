@@ -13,16 +13,22 @@ from infra_10x.duckdb_store import DuckDbStore
 from infra_10x.ibis_store import IbisCollection, _DATA, _ID, _REV
 
 
+class _Pad(Traitable, custom_collection=True, keep_history=False):
+    """Minimal storable schema so the collection is writable; extra keys stay untyped/blob."""
+
+    pad: int = T()
+
+
 @pytest.fixture
 def store():
     s = DuckDbStore()
-    s.collection('test', {})  # blob-only: no trait metadata for column promotion
+    s.collection('test', _Pad.s_dir)
     return s
 
 
 @pytest.fixture
 def collection(store) -> IbisCollection:
-    return store.collection('test', {})  # blob-only
+    return store.collection('test', _Pad.s_dir)
 
 
 def _index_names(collection: IbisCollection) -> set[str]:
@@ -209,6 +215,49 @@ def test_hybrid_column_vs_blob_placement(hybrid_store, field, sample_value, colu
         assert field in blob
 
 
+def test_traitable_ref_promoted_to_sql_column(monkeypatch):
+    """Non-embedded Traitable refs wire as str and are promoted to VARCHAR columns."""
+    from core_10x.exec_control import CACHE_ONLY
+
+    class RefTarget(Traitable, custom_collection=True, keep_history=False):
+        name: str = T(T.ID)
+
+    class RefOwner(Traitable, custom_collection=True, keep_history=False):
+        name: str = T(T.ID)
+        peer: RefTarget = T()
+
+    assert RefOwner.s_dir['peer'].serialize_to_types() is str
+    assert 'peer' in _eligible_column_traits(RefOwner.s_dir)
+
+    store = DuckDbStore()
+    coll_name = f'ref_col_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, RefOwner.s_dir)
+    with CACHE_ONLY():
+        target = RefTarget(name='t1', _collection_name='targets')
+        wire = RefOwner.s_dir['peer'].serialize_value(target, replace_xnone=True)
+    assert wire == 't1^targets'
+    coll.save_new({'_id': 'o1', 'name': 'o1', 'peer': wire})
+
+    assert 'peer' in coll.col_trait_dir
+    assert 'peer' in _sql_columns(store, coll_name)
+    assert 'peer' not in _blob_keys(store, coll_name, 'o1')
+    row = store._con.execute(
+        f'SELECT peer FROM "{coll_name.replace(chr(34), chr(34) * 2)}" WHERE {_ID} = ?',
+        ['o1'],
+    ).fetchone()
+    assert row[0] == 't1^targets'
+
+    # Without ADD COLUMN, ref stays in the blob (still str wire).
+    monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
+    coll2_name = f'ref_blob_{uuid.uuid4().hex}'
+    coll2 = store.collection(coll2_name, RefOwner.s_dir)
+    coll2.save_new({'_id': 'o2', 'name': 'o2', 'peer': wire})
+    assert 'peer' not in _sql_columns(store, coll2_name)
+    assert 'peer' in _blob_keys(store, coll2_name, 'o2')
+    store.delete_collection(coll_name)
+    store.delete_collection(coll2_name)
+
+
 def test_schema_evolution_lazy_alter(hybrid_store):
     store, coll, coll_name = hybrid_store
     assert 'i' not in _sql_columns(store, coll_name)
@@ -272,6 +321,82 @@ def test_index_on_scalar_column_after_save(hybrid_store):
             coll.create_index('idx_i', 'i')
 
 
+def test_untyped_json_path_string_extract_for_artifacts():
+    """Keys without trait metadata: string unwrap so ``_cls`` equality works."""
+    from core_10x.trait_filter import f
+
+    store = DuckDbStore()
+    coll_name = f'sort_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, _Pad.s_dir)
+    coll.save_new({'_id': 'a', 'n': 10, '_cls': 'Wolf#history'})
+    coll.save_new({'_id': 'b', 'n': 2, '_cls': 'Cat#history'})
+    assert {r['_id'] for r in coll.find(f(_cls='Cat#history'))} == {'b'}
+    store.delete_collection(coll_name)
+
+
+def test_untyped_json_multi_key_numeric_order():
+    """Payload keys not in col_trait_dir: order/min/max use multi unwrap (numeric)."""
+    store = DuckDbStore()
+    coll_name = f'sort_mk_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, _Pad.s_dir)
+    coll.save_new({'_id': 'a', 'n': 10})
+    coll.save_new({'_id': 'b', 'n': 2})
+    assert 'n' not in coll.col_trait_dir
+    assert [r['n'] for r in coll.find(_order={'n': 1})] == [2, 10]
+    assert coll.min('n')['n'] == 2
+    assert coll.max('n')['n'] == 10
+    store.delete_collection(coll_name)
+
+
+def test_empty_trait_dir_is_read_only():
+    store = DuckDbStore()
+    coll = store.collection(f'ro_{uuid.uuid4().hex}', None)
+    with pytest.raises(RuntimeError, match='read-only'):
+        coll.save_new({'_id': 'a', 'n': 1})
+    with pytest.raises(RuntimeError, match='read-only'):
+        coll.create_index('idx_id', _ID)
+
+
+def test_typed_json_path_numeric_order(monkeypatch):
+    """With col_trait_dir, blob-path int uses typed unwrap (numeric order, not JSON/text)."""
+    from core_10x.traitable import Traitable
+
+    class Num(Traitable, custom_collection=True):
+        name: str = T(T.ID)
+        n: int = T()
+
+    store = DuckDbStore()
+    monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
+    coll_name = f'sort_json_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, Num.s_dir)
+    coll.save_new({'_id': 'a', 'name': 'a', 'n': 10})
+    coll.save_new({'_id': 'b', 'name': 'b', 'n': 2})
+    assert 'n' not in coll._collection_columns()
+    assert coll.min('n')['n'] == 2
+    assert coll.max('n')['n'] == 10
+    assert [r['n'] for r in coll.find(_order={'n': 1})] == [2, 10]
+    store.delete_collection(coll_name)
+
+
+def test_physical_column_sort_is_typed(monkeypatch):
+    """Promoted SQL columns use native typed order."""
+    from core_10x.traitable import Traitable
+
+    class Num(Traitable, custom_collection=True):
+        name: str = T(T.ID)
+        n: int = T()
+
+    store = DuckDbStore()
+    monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', True)
+    coll_name = f'sort_col_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, Num.s_dir)
+    coll.save_new({'_id': 'a', 'name': 'a', 'n': 10})
+    coll.save_new({'_id': 'b', 'name': 'b', 'n': 2})
+    assert 'n' in coll._collection_columns()
+    assert [r['n'] for r in coll.find(_order={'n': 1})] == [2, 10]
+    store.delete_collection(coll_name)
+
+
 def test_column_cache_is_per_store_instance():
     """Two DuckDbStore instances must not share schema evolution cache."""
     from core_10x.traitable import Traitable
@@ -312,10 +437,16 @@ def test_column_cache_is_per_collection_instance():
     store.delete_collection(name)
 
 
+@pytest.mark.parametrize('store_kind', ['duckdb', 'union_head_duckdb'], ids=['duckdb', 'union_head_duckdb'])
 @pytest.mark.parametrize('supports_add_column', [True, False], ids=['with_add_column', 'blob_only_store'])
-def test_merge_trait_dir_unions_bundle_member_schemas(supports_add_column, monkeypatch):
-    """Re-opening the same collection with another member's s_dir unions col_trait_dir."""
+def test_extend_trait_dir_unions_and_promotes(store_kind, supports_add_column, monkeypatch):
+    """``extend_trait_dir`` grows the writable schema; write promotes SQL columns when enabled.
+
+    Bundle members call ``coll.extend_trait_dir(member.s_dir)`` after opening the base.
+    Also runs with ``TsUnion(DuckDb, …)`` so head-only extend still drives hybrid writes.
+    """
     from core_10x.traitable import Traitable
+    from core_10x.ts_union import TsUnion, TsUnionCollection
 
     class MemberA(Traitable, custom_collection=True):
         name: str = T(T.ID)
@@ -325,29 +456,41 @@ def test_merge_trait_dir_unions_bundle_member_schemas(supports_add_column, monke
         name: str = T(T.ID)
         den: str = T()
 
-    store = DuckDbStore()
+    head = DuckDbStore()
+    store = TsUnion(head, DuckDbStore()) if store_kind == 'union_head_duckdb' else head
     if not supports_add_column:
-        monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'bundle_{uuid.uuid4().hex}'
-    c_a = store.collection(coll_name, MemberA.s_dir)
-    c_b = store.collection(coll_name, MemberB.s_dir)
-    assert c_a is c_b
-    assert 'howl_pitch' in c_b.col_trait_dir
-    assert 'den' in c_b.col_trait_dir
+        monkeypatch.setattr(DuckDbStore, 's_supports_add_column_if_not_exists', False)
 
-    c_a.save_new({'_id': 'w', 'name': 'wolf', 'howl_pitch': 7})
-    c_b.save_new({'_id': 'b', 'name': 'bear', 'den': 'cave'})
-    cols = _sql_columns(store, coll_name)
+    coll_name = f'bundle_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, MemberA.s_dir)
+    head_coll = coll.collections[0] if isinstance(coll, TsUnionCollection) else coll
+    assert 'howl_pitch' in head_coll.col_trait_dir
+    assert 'den' not in head_coll.col_trait_dir
+
+    coll.extend_trait_dir(MemberB.s_dir)
+    assert 'howl_pitch' in head_coll.col_trait_dir and 'den' in head_coll.col_trait_dir
+
+    # Re-open applies trait_dir via extend; duckdb reuses the handle, union wraps the same head.
+    coll2 = store.collection(coll_name, MemberB.s_dir)
+    if store_kind == 'duckdb':
+        assert coll2 is coll
+    else:
+        assert coll2.collections[0] is head_coll
+        assert 'den' in coll2.collections[0].col_trait_dir
+
+    coll.save_new({'_id': 'w', 'name': 'wolf', 'howl_pitch': 7})
+    coll.save_new({'_id': 'b', 'name': 'bear', 'den': 'cave'})
+    cols = _sql_columns(head, coll_name)
     if supports_add_column:
         assert 'howl_pitch' in cols and 'den' in cols
-        assert 'howl_pitch' not in _blob_keys(store, coll_name, 'w')
-        assert 'den' not in _blob_keys(store, coll_name, 'b')
+        assert 'howl_pitch' not in _blob_keys(head, coll_name, 'w')
+        assert 'den' not in _blob_keys(head, coll_name, 'b')
     else:
         assert 'howl_pitch' not in cols and 'den' not in cols
-        assert 'howl_pitch' in _blob_keys(store, coll_name, 'w')
-        assert 'den' in _blob_keys(store, coll_name, 'b')
-        assert c_a.load('w')['howl_pitch'] == 7
-        assert c_b.load('b')['den'] == 'cave'
+        assert 'howl_pitch' in _blob_keys(head, coll_name, 'w')
+        assert 'den' in _blob_keys(head, coll_name, 'b')
+        assert coll.load('w')['howl_pitch'] == 7
+        assert coll.load('b')['den'] == 'cave'
     store.delete_collection(coll_name)
 
 

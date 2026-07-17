@@ -742,7 +742,7 @@ with CACHE_ONLY():
     employee = Employee(first_name="Alice", last_name="Smith", company=company, _replace=True)
     
     # The company is stored by reference
-    assert employee.serialize_object()['company'] == {'_id': 'Acme Corp'}
+    assert employee.serialize_object()['company'] == 'Acme Corp'
 ```
 
 ### Embedded Traits (Stored Embedded)
@@ -785,7 +785,7 @@ When two `Traitable` classes reference each other — or when a class is defined
 from core_10x.traitable import Traitable, T
 
 class Order(Traitable):
-    order_id: str       = T(T.ID)
+    order_id: str      = T(T.ID)
     customer: Customer = T()   # Customer is defined below
 
 class Customer(Traitable):
@@ -2083,8 +2083,7 @@ assert Shape.deserialize_class_id('Circle') is Circle
 assert Shape.deserialize_class_id('Square') is Square
 
 # Members share the bundle base's collection.
-assert Circle.collection == Shape.collection
-assert Square.collection == Shape.collection
+assert Circle.collection() is Shape.collection() is Square.collection()
 
 # Members are constructed and persisted like any other Traitable.
 with CACHE_ONLY():

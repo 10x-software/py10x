@@ -47,15 +47,16 @@ class TestNamedResourceIntegrity:
     at class-definition time, so the failure mode is a clear ``RuntimeError``
     raised during the offending ``class`` statement."""
 
-    def test_named_ts_store_is_a_resource_family_member(self):
+    def test_named_ts_store_is_a_resource_family_member(self, ts_instance):
         """The shipped ``NamedTsStore`` declares ``s_resource_dt`` and ends up
         as a member of the ``NamedResource`` family (sharing its collection)."""
         assert NamedResource.is_bundle_base()
         assert not NamedTsStore.is_bundle_base()
         assert NamedTsStore.s_bundle_base is NamedResource
         assert NamedTsStore.s_resource_dt is CONCRETE_RESOURCE.TS_STORE
-        # Members share the family collection (one DB collection per family).
-        assert NamedTsStore.collection == NamedResource.collection
+        # Members share the family collection (one physical handle per family).
+        with ts_instance:
+            assert NamedTsStore.collection() is NamedResource.collection()
 
     def test_member_without_s_resource_dt_is_rejected(self):
         """A member that forgets to set ``s_resource_dt`` must fail

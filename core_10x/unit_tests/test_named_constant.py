@@ -24,7 +24,7 @@ def test_serialize(ts_instance, status):
         status_val = {'_type': '_nx', '_cls': 'test_named_constant/StatusEx', '_obj': 'DEPRECATED'} if status is StatusEx.DEPRECATED else 'ACTIVE'
         assert s == {'_id': x.id().value, '_rev': 0, 'status': status_val}
 
-        x.save()
+        x.save().throw()
 
         assert x == X.load(x.id())
 

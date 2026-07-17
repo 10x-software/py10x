@@ -519,7 +519,7 @@ def test_anonymous_traitable(monkeypatch):
 
     class Y(Traitable):
         y: int = T(T.ID)
-        x: Traitable = T()
+        x: AnonymousTraitable = T()
 
         @classmethod
         def exists_in_store(cls, id):
@@ -882,7 +882,7 @@ def test_reference_serialization_roundtrip(monkeypatch):
     # Manually serialize both with references (simulating save_references=True behavior)
     serialized['Tatiana|Pevzner'] = p2.serialize_object()
     serialized['Ilya|Pevzner'] = p1.serialize_object()
-    assert serialized['Ilya|Pevzner']['spouse'] == {'_id': 'Tatiana|Pevzner'}
+    assert serialized['Ilya|Pevzner']['spouse'] == 'Tatiana|Pevzner'
 
     # Reload and verify references are preserved
     loaded_p1 = Person.load(ID('Ilya|Pevzner'))

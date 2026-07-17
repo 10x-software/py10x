@@ -220,7 +220,7 @@ class TestGraphDeps:
             setter_called.clear()
 
             gd = GraphDeps(gp2, q.T.computed, QuoteWithSetter, 'price')
-            for cls, obj_id, trait, val in gd.deps(objects=False):
+            for cls, obj_id, trait, _val in gd.deps(objects=False):
                 gd.perturb(cls, obj_id, trait, 20.0)
 
             assert setter_called == []   # setter was NOT called by perturb
@@ -232,7 +232,7 @@ class TestGraphDeps:
         assert pf.value == 300.0
 
         gd = GraphDeps(gp, pf.T.value, self.Quote, 'price')
-        for cls, obj, trait_name, val in gd.deps(trait_names=True):
+        for _cls, obj, trait_name, val in gd.deps(trait_names=True):
             obj.set_value(trait_name, val * 2.0)
 
         assert pf.value == 600.0  # 200 + 400

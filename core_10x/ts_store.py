@@ -74,6 +74,9 @@ class TsCollection(abc.ABC):
         """trait dir inferred from the collection"""
         return {}  # -- no schema by default
 
+    def extend_trait_dir(self, trait_dir: dict | None) -> None:
+        """Union additional trait metadata into this collection's schema (no-op by default)."""
+
     def copy_to(self, to_coll: TsCollection, overwrite: bool = False) -> RC:
         """Copy all documents to another collection (same store-type rules as :meth:`TsStore.copy_to`)."""
         rc = RC(True)
@@ -167,7 +170,7 @@ class TsStore(Resource, resource_type=TS_STORE):
     def collection_names(self, regexp: str = None) -> list: ...
 
     @abc.abstractmethod
-    def collection(self, collection_name: str, trait_dir: dict) -> TsCollection: ...
+    def collection(self, collection_name: str, trait_dir: dict | None = None) -> TsCollection: ...
 
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...

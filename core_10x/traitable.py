@@ -13,6 +13,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Any, get_origin
+from urllib.parse import unquote
 
 from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache, BFlags
 from typing_extensions import Self, deprecated
@@ -720,13 +721,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return store
 
     @classmethod
-    def collection_trait_dir(cls) -> dict:
-        """Trait metadata passed to ``TsStore.collection`` (overridden by Bundle)."""
-        return cls.s_dir
-
-    @classmethod
     def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
-        return (_ensure_indices and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name)
+        return _ensure_indices and cls._ensure_indices(_coll_name) or cls.s_storage_helper.collection(_coll_name)
 
     @classmethod
     @cache(keep_value=False)
@@ -794,12 +790,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.restore(traitable_id, timestamp, save)
 
     def post_serialize(self, serialized_data: dict) -> dict:
-        """Mark store-side TS_TIME / TS_USER fields for stamping in ``save`` / ``save_new``.
-
-        Default records every ``T.TS`` trait via ``TsStore.add_ts`` (``_ts_fields`` side
-        channel). Overrides may call ``add_ts`` selectively. Hydration applies only fields
-        present in the save result — omitted marks are not errors.
-        """
+        """Mark store-side TS_TIME / TS_USER fields for stamping in ``save`` / ``save_new``."""
         ts_traits = list(self.traits(flags_on=T.TS))
         if not ts_traits:
             return serialized_data
@@ -943,7 +934,7 @@ class StorableHelper(AbstractStorableHelper):
     def collection(self, _coll_name: str = None) -> TsCollection:
         cls = self.traitable_class
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        return cls.store().collection(cname, trait_dir=cls.collection_trait_dir())
+        return cls.store().collection(cname, trait_dir=cls.s_dir)
 
     def exists_in_store(self, id: ID) -> bool:
         return self.traitable_class.collection(_coll_name=id.collection_name).id_exists(id.value)
@@ -1029,13 +1020,11 @@ class StorableHelper(AbstractStorableHelper):
 
         rev_tag = _REV
         traitable.set_revision(save_result[rev_tag])
-        # Hydrate store-side fields returned by save (subset of T.TS; missing = not stamped).
-        # Mutable RC(True): RC_TRUE is constant and rejects ``+=``.
         rc = RC(True)
         for trait in traitable.traits(flags_on=T.TS):
             if trait.name not in save_result:
                 continue
-            rc += traitable.set_trait_value(trait, trait.f_deserialize(trait, save_result[trait.name]))
+            rc <<= traitable.set_trait_value(trait, trait.f_deserialize(trait, save_result[trait.name]))
         return rc
 
     def _transaction_ctx(self):
@@ -1080,7 +1069,7 @@ class StorableHelperWithHistory(StorableHelper):
             ).save().throw()
         return save_result
 
-    def as_of(self, traitable_id: ID, as_of_time: datetime) -> Self:
+    def as_of(self, traitable_id: ID, as_of_time: datetime) -> Self | None:
         history_entry = self.traitable_class.latest_revision(traitable_id, as_of_time, deserialize=True)
         return history_entry.traitable if history_entry else None
 
@@ -1307,6 +1296,9 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
             if not self.data_type.s_embeddable:
                 rc.add_error(f"{cls.__name__}.{self.name} - class {self.data_type} must be declared 'embeddable'")
 
+    def serialize_to_types(self) -> type | tuple:
+        return dict if self.data_type.s_embeddable else str
+
     def default_value(self):
         def_value = self.default
         if def_value is XNone:
@@ -1319,6 +1311,64 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
             return self.data_type(**def_value)
 
         raise ValueError(f'{self.data_type} - may not be constructed from {def_value}')
+
+    _REF_CLS_SEP = '~'
+    _REF_COLL_SEP = '^'
+    _REF_ID_ESCAPE = f'%{_REF_CLS_SEP}{_REF_COLL_SEP}'
+
+    def serialize(self, value: Traitable) -> dict|str:
+        """Pack non-embedded *id* refs to a string; leave embedded / full payloads as dict."""
+        val = super().serialize(value)
+        if self.data_type.s_embeddable or not isinstance(val, dict):
+            return val
+        if value.s_embeddable:
+            raise RuntimeError(f'{self.data_type} is not embeddable but value type {type(value)} is.')
+        packed = self._pack_xref(val)
+        return packed if packed is not None else val
+
+    def deserialize(self, serialized_value) -> Nucleus:
+        """Accept compact ref strings or legacy / embedded dict wire forms."""
+        if isinstance(serialized_value, str):
+            serialized_value = self._unpack_xref(serialized_value)
+        return super().deserialize(serialized_value)
+
+    @classmethod
+    def _pack_xref(cls, val: dict) -> str | None:
+        if val.get(Nucleus.TYPE_TAG()) == Nucleus.NX_RECORD_TAG():
+            if not (obj := val.get(Nucleus.OBJECT_TAG())):
+                raise RuntimeError(f'No object tag in nucleus record: {val}')
+            if not (cls_id := val.get(Nucleus.CLASS_TAG())):
+                raise RuntimeError(f'No class tag in nucleus record: {val}')
+            class_prefix = f'{cls_id}{cls._REF_CLS_SEP}'
+            val = obj
+        else:
+            class_prefix = ''
+        if not (id_val := val.get(Nucleus.ID_TAG())):
+            raise RuntimeError(f'No id in record: {val}')
+        id_enc = ''.join(f'%{ord(c):02X}' if c in cls._REF_ID_ESCAPE else c for c in id_val)
+        coll_suffix = f'{cls._REF_COLL_SEP}{coll}' if (coll := val.get(Nucleus.COLLECTION_TAG())) else ''
+        return f'{class_prefix}{id_enc}{coll_suffix}'
+
+    @classmethod
+    def _unpack_xref(cls, s: str) -> dict:
+        cls_sep, coll_sep = cls._REF_CLS_SEP, cls._REF_COLL_SEP
+        coll = None
+        if coll_sep in s:
+            s, coll = s.split(coll_sep, 1)
+        if cls_sep in s:
+            class_id, id_enc = s.rsplit(cls_sep, 1)
+            obj = {Nucleus.ID_TAG(): unquote(id_enc, errors='strict')}
+            if coll is not None:
+                obj[Nucleus.COLLECTION_TAG()] = coll
+            return {
+                Nucleus.TYPE_TAG(): Nucleus.NX_RECORD_TAG(),
+                Nucleus.CLASS_TAG(): class_id,
+                Nucleus.OBJECT_TAG(): obj,
+            }
+        d = {Nucleus.ID_TAG(): unquote(s, errors='strict')}
+        if coll is not None:
+            d[Nucleus.COLLECTION_TAG()] = coll
+        return d
 
     def from_str(self, s: str):
         return self.data_type.from_str(s)
@@ -1343,23 +1393,14 @@ class Bundle(Traitable):
         return cls.s_bundle_base is cls
 
     @classmethod
-    def collection_trait_dir(cls) -> dict:
-        """Trait metadata for opening the shared store collection.
+    def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
+        if (base := cls.s_bundle_base) is None or cls.is_bundle_base():
+            return super().collection(_coll_name, _ensure_indices)
 
-        Bundle members share one collection; when members are known, return the
-        union of the base and every registered member so hybrid SQL columns cover
-        all member-specific scalar fields (not only the base's often-empty
-        ``s_dir``). When members are unknown, fall back to this class's ``s_dir``
-        (store re-open still unions column-eligible fields into ``col_trait_dir``).
-        """
-        base = cls.s_bundle_base or cls
-        members = base.s_bundle_members
-        if not members:
-            return cls.s_dir
-        merged = dict(base.s_dir)
-        for member in members.values():
-            merged.update(member.s_dir)
-        return merged
+        if (coll := base.collection(_coll_name, _ensure_indices)) is not None:
+            coll.extend_trait_dir(cls.s_dir)
+
+        return coll
 
     def __init_subclass__(cls, members_known=False, **kwargs):
         base = cls.s_bundle_base
@@ -1371,9 +1412,6 @@ class Bundle(Traitable):
             bundle_members = base.s_bundle_members
             if bundle_members is not None:
                 bundle_members[cls.__name__] = cls
-
-            # cls.collection_name = base.collection_name #TODO: fix
-            cls.collection = base.collection
 
             if base.s_history_class is XNone:
                 base.s_history_class = base.s_history_base.history_class(base)

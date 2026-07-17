@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -48,15 +48,15 @@ def event_store(monkeypatch, mocker):
     monkeypatch.setenv('XX_VAULT_URI', 'duckdb://localhost/vault')
 
     # Monotonic store clock so event _at values sit strictly below each watermark query.
+    # TS_TIME is stamped in SQL via _server_time_col_sql_expr (not Python server_time alone).
     clock = [datetime(2026, 6, 1, 12, 0, 0)]
 
-    def now(tz):
-        assert tz == timezone.utc
+    def server_time_sql(self):
         clock[0] += timedelta(milliseconds=10)
-        return clock[0]
+        return f"CAST('{clock[0].strftime('%Y-%m-%d %H:%M:%S.%f')}' AS TIMESTAMP)"
 
     from infra_10x.duckdb_store import DuckDbStore
-    mocker.patch.object(DuckDbStore, 'server_time', lambda self: now(timezone.utc))
+    mocker.patch.object(DuckDbStore, '_server_time_col_sql_expr', server_time_sql)
 
     store = Traitable.main_store()
     yield store
