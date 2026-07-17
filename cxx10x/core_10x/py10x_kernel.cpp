@@ -127,6 +127,7 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def_property_readonly_static("TS_TIME",        [](const py::object&) { return BFlags(BTraitFlags::TS_TIME); })
             .def_property_readonly_static("TS_USER",        [](const py::object&) { return BFlags(BTraitFlags::TS_USER); })
             .def_property_readonly_static("TS",             [](const py::object&) { return BFlags(BTraitFlags::TS); })
+            .def_property_readonly_static("NOT_EMBEDDABLE", [](const py::object&) { return BFlags(BTraitFlags::NOT_EMBEDDABLE); })
             ;
 
     py::class_<BTrait>(m, "BTrait")

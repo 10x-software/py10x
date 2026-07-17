@@ -820,7 +820,7 @@ def test_new_or_replace_store():
 
         @classmethod
         def collection(cls, _coll_name: str = None, _ensure_indices=False):
-            return cls.store().collection('__main__/test_new_or_replace_store/<locals>/X')
+            return cls.store().collection('__main__/test_new_or_replace_store/<locals>/X', cls.s_dir)
 
         @classmethod
         def load_data(cls, id):
@@ -1160,7 +1160,7 @@ def test_event():
 
         @classmethod
         def collection(cls, _coll_name: str = None, _ensure_indices=False):
-            return cls.store().collection('__main__/test_event/<locals>/X')
+            return cls.store().collection('__main__/test_event/<locals>/X', cls.s_dir)
 
     store = DuckDbStore()
     with store:

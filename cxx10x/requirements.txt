@@ -12,3 +12,4 @@ pymongo>=4.7.3
 
 # for tests
 ibis-framework[duckdb]
+polars
