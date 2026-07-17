@@ -2083,8 +2083,7 @@ assert Shape.deserialize_class_id('Circle') is Circle
 assert Shape.deserialize_class_id('Square') is Square
 
 # Members share the bundle base's collection.
-assert Circle.collection == Shape.collection
-assert Square.collection == Shape.collection
+assert Circle.collection() is Shape.collection() is Square.collection()
 
 # Members are constructed and persisted like any other Traitable.
 with CACHE_ONLY():
