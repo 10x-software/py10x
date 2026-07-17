@@ -41,9 +41,9 @@ class IbisCollection(TsCollection):
         self._name = name
         self.col_trait_dir = {}
         self._writable = False
-        self._update_trait_dir(trait_dir)
+        self.extend_trait_dir(trait_dir)
 
-    def _update_trait_dir(self, trait_dir: dict | None) -> None:
+    def extend_trait_dir(self, trait_dir: dict | None) -> None:
         """Union column-eligible traits; names must be Python identifiers (used as SQL cols)."""
         if not trait_dir:
             return
@@ -78,7 +78,7 @@ class IbisCollection(TsCollection):
         obj_parts: list[str] = []
         params: list = [data_json]
         for field, kind in ts_fields.items():
-            # field is a Python identifier (enforced in _update_trait_dir / reserved tags).
+            # field is a Python identifier (enforced in extend_trait_dir / reserved tags).
             if kind == _TS_TIME:
                 obj_parts.append(f"'{field}', {self._store._server_time_sql_expr()}")
             else:  # TS_USER
@@ -476,7 +476,7 @@ class IbisStore(TsStore):
             coll = self._collections[collection_name] = IbisCollection(self, collection_name, trait_dir)
         elif trait_dir:
             # Bundle members (and other late openers): union column-eligible traits.
-            coll._update_trait_dir(trait_dir)
+            coll.extend_trait_dir(trait_dir)
         return coll
 
     def delete_collection(self, collection_name: str) -> bool:

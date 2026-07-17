@@ -276,6 +276,15 @@ def test_collection(union_store):
     mock_store2.collection.assert_called_once_with(collection_name, {})
 
 
+def test_extend_trait_dir_forwards_to_head_only(union_collection):
+    """Writes hit collections[0]; extend_trait_dir must update the head only."""
+    union, collection1, collection2 = union_collection
+    trait_dir = {'x': object()}
+    union.extend_trait_dir(trait_dir)
+    collection1.extend_trait_dir.assert_called_once_with(trait_dir)
+    collection2.extend_trait_dir.assert_not_called()
+
+
 def test_delete_collection(union_store):
     union_store, mock_store1, mock_store2 = union_store
     collection_name = 'collection_name'

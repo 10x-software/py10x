@@ -437,10 +437,16 @@ def test_column_cache_is_per_collection_instance():
     store.delete_collection(name)
 
 
+@pytest.mark.parametrize('store_kind', ['duckdb', 'union_head_duckdb'], ids=['duckdb', 'union_head_duckdb'])
 @pytest.mark.parametrize('supports_add_column', [True, False], ids=['with_add_column', 'blob_only_store'])
-def test_merge_trait_dir_unions_bundle_member_schemas(supports_add_column, monkeypatch):
-    """Re-opening the same collection with another member's s_dir unions col_trait_dir."""
+def test_extend_trait_dir_unions_and_promotes(store_kind, supports_add_column, monkeypatch):
+    """``extend_trait_dir`` grows the writable schema; write promotes SQL columns when enabled.
+
+    Bundle members call ``coll.extend_trait_dir(member.s_dir)`` after opening the base.
+    Also runs with ``TsUnion(DuckDb, …)`` so head-only extend still drives hybrid writes.
+    """
     from core_10x.traitable import Traitable
+    from core_10x.ts_union import TsUnion, TsUnionCollection
 
     class MemberA(Traitable, custom_collection=True):
         name: str = T(T.ID)
@@ -450,29 +456,41 @@ def test_merge_trait_dir_unions_bundle_member_schemas(supports_add_column, monke
         name: str = T(T.ID)
         den: str = T()
 
-    store = DuckDbStore()
+    head = DuckDbStore()
+    store = TsUnion(head, DuckDbStore()) if store_kind == 'union_head_duckdb' else head
     if not supports_add_column:
-        monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'bundle_{uuid.uuid4().hex}'
-    c_a = store.collection(coll_name, MemberA.s_dir)
-    c_b = store.collection(coll_name, MemberB.s_dir)
-    assert c_a is c_b
-    assert 'howl_pitch' in c_b.col_trait_dir
-    assert 'den' in c_b.col_trait_dir
+        monkeypatch.setattr(DuckDbStore, 's_supports_add_column_if_not_exists', False)
 
-    c_a.save_new({'_id': 'w', 'name': 'wolf', 'howl_pitch': 7})
-    c_b.save_new({'_id': 'b', 'name': 'bear', 'den': 'cave'})
-    cols = _sql_columns(store, coll_name)
+    coll_name = f'bundle_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, MemberA.s_dir)
+    head_coll = coll.collections[0] if isinstance(coll, TsUnionCollection) else coll
+    assert 'howl_pitch' in head_coll.col_trait_dir
+    assert 'den' not in head_coll.col_trait_dir
+
+    coll.extend_trait_dir(MemberB.s_dir)
+    assert 'howl_pitch' in head_coll.col_trait_dir and 'den' in head_coll.col_trait_dir
+
+    # Re-open applies trait_dir via extend; duckdb reuses the handle, union wraps the same head.
+    coll2 = store.collection(coll_name, MemberB.s_dir)
+    if store_kind == 'duckdb':
+        assert coll2 is coll
+    else:
+        assert coll2.collections[0] is head_coll
+        assert 'den' in coll2.collections[0].col_trait_dir
+
+    coll.save_new({'_id': 'w', 'name': 'wolf', 'howl_pitch': 7})
+    coll.save_new({'_id': 'b', 'name': 'bear', 'den': 'cave'})
+    cols = _sql_columns(head, coll_name)
     if supports_add_column:
         assert 'howl_pitch' in cols and 'den' in cols
-        assert 'howl_pitch' not in _blob_keys(store, coll_name, 'w')
-        assert 'den' not in _blob_keys(store, coll_name, 'b')
+        assert 'howl_pitch' not in _blob_keys(head, coll_name, 'w')
+        assert 'den' not in _blob_keys(head, coll_name, 'b')
     else:
         assert 'howl_pitch' not in cols and 'den' not in cols
-        assert 'howl_pitch' in _blob_keys(store, coll_name, 'w')
-        assert 'den' in _blob_keys(store, coll_name, 'b')
-        assert c_a.load('w')['howl_pitch'] == 7
-        assert c_b.load('b')['den'] == 'cave'
+        assert 'howl_pitch' in _blob_keys(head, coll_name, 'w')
+        assert 'den' in _blob_keys(head, coll_name, 'b')
+        assert coll.load('w')['howl_pitch'] == 7
+        assert coll.load('b')['den'] == 'cave'
     store.delete_collection(coll_name)
 
 
