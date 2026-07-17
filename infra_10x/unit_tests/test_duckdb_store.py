@@ -215,6 +215,49 @@ def test_hybrid_column_vs_blob_placement(hybrid_store, field, sample_value, colu
         assert field in blob
 
 
+def test_traitable_ref_promoted_to_sql_column(monkeypatch):
+    """Non-embedded Traitable refs wire as str and are promoted to VARCHAR columns."""
+    from core_10x.exec_control import CACHE_ONLY
+
+    class RefTarget(Traitable, custom_collection=True, keep_history=False):
+        name: str = T(T.ID)
+
+    class RefOwner(Traitable, custom_collection=True, keep_history=False):
+        name: str = T(T.ID)
+        peer: RefTarget = T()
+
+    assert RefOwner.s_dir['peer'].serialize_to_types() is str
+    assert 'peer' in _eligible_column_traits(RefOwner.s_dir)
+
+    store = DuckDbStore()
+    coll_name = f'ref_col_{uuid.uuid4().hex}'
+    coll = store.collection(coll_name, RefOwner.s_dir)
+    with CACHE_ONLY():
+        target = RefTarget(name='t1', _collection_name='targets')
+        wire = RefOwner.s_dir['peer'].serialize_value(target, replace_xnone=True)
+    assert wire == 't1^targets'
+    coll.save_new({'_id': 'o1', 'name': 'o1', 'peer': wire})
+
+    assert 'peer' in coll.col_trait_dir
+    assert 'peer' in _sql_columns(store, coll_name)
+    assert 'peer' not in _blob_keys(store, coll_name, 'o1')
+    row = store._con.execute(
+        f'SELECT peer FROM "{coll_name.replace(chr(34), chr(34) * 2)}" WHERE {_ID} = ?',
+        ['o1'],
+    ).fetchone()
+    assert row[0] == 't1^targets'
+
+    # Without ADD COLUMN, ref stays in the blob (still str wire).
+    monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
+    coll2_name = f'ref_blob_{uuid.uuid4().hex}'
+    coll2 = store.collection(coll2_name, RefOwner.s_dir)
+    coll2.save_new({'_id': 'o2', 'name': 'o2', 'peer': wire})
+    assert 'peer' not in _sql_columns(store, coll2_name)
+    assert 'peer' in _blob_keys(store, coll2_name, 'o2')
+    store.delete_collection(coll_name)
+    store.delete_collection(coll2_name)
+
+
 def test_schema_evolution_lazy_alter(hybrid_store):
     store, coll, coll_name = hybrid_store
     assert 'i' not in _sql_columns(store, coll_name)

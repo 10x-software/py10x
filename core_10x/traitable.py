@@ -13,6 +13,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Any, get_origin
+from urllib.parse import unquote
 
 from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache, BFlags
 from typing_extensions import Self, deprecated
@@ -312,7 +313,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             return
 
         rc = RC(True)
-        for other_cls, trait_name, _ref_str in pending:
+        for other_cls, trait_name, _xref in pending:
             trait = other_cls.s_dir.get(trait_name)
             if trait is None:
                 continue  # -- trait was redefined / removed since registration
@@ -1307,6 +1308,9 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
             if not self.data_type.s_embeddable:
                 rc.add_error(f"{cls.__name__}.{self.name} - class {self.data_type} must be declared 'embeddable'")
 
+    def serialize_to_types(self) -> type | tuple:
+        return dict if self.data_type.s_embeddable else str
+
     def default_value(self):
         def_value = self.default
         if def_value is XNone:
@@ -1319,6 +1323,64 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
             return self.data_type(**def_value)
 
         raise ValueError(f'{self.data_type} - may not be constructed from {def_value}')
+
+    _REF_CLS_SEP = '~'
+    _REF_COLL_SEP = '^'
+    _REF_ID_ESCAPE = f'%{_REF_CLS_SEP}{_REF_COLL_SEP}'
+
+    def serialize(self, value: Traitable) -> dict|str:
+        """Pack non-embedded *id* refs to a string; leave embedded / full payloads as dict."""
+        val = super().serialize(value)
+        if self.data_type.s_embeddable or not isinstance(val, dict):
+            return val
+        if value.s_embeddable:
+            raise RuntimeError(f'{self.data_type} is not embeddable but value type {type(value)} is.')
+        packed = self._pack_xref(val)
+        return packed if packed is not None else val
+
+    def deserialize(self, serialized_value) -> Nucleus:
+        """Accept compact ref strings or legacy / embedded dict wire forms."""
+        if isinstance(serialized_value, str):
+            serialized_value = self._unpack_xref(serialized_value)
+        return super().deserialize(serialized_value)
+
+    @classmethod
+    def _pack_xref(cls, val: dict) -> str | None:
+        if val.get(Nucleus.TYPE_TAG()) == Nucleus.NX_RECORD_TAG():
+            if not (obj := val.get(Nucleus.OBJECT_TAG())):
+                raise RuntimeError(f'No object tag in nucleus record: {val}')
+            if not (cls_id := val.get(Nucleus.CLASS_TAG())):
+                raise RuntimeError(f'No class tag in nucleus record: {val}')
+            class_prefix = f'{cls_id}{cls._REF_CLS_SEP}'
+            val = obj
+        else:
+            class_prefix = ''
+        if not (id_val := val.get(Nucleus.ID_TAG())):
+            raise RuntimeError(f'No id in record: {val}')
+        id_enc = ''.join(f'%{ord(c):02X}' if c in cls._REF_ID_ESCAPE else c for c in id_val)
+        coll_suffix = f'{cls._REF_COLL_SEP}{coll}' if (coll := val.get(Nucleus.COLLECTION_TAG())) else ''
+        return f'{class_prefix}{id_enc}{coll_suffix}'
+
+    @classmethod
+    def _unpack_xref(cls, s: str) -> dict:
+        cls_sep, coll_sep = cls._REF_CLS_SEP, cls._REF_COLL_SEP
+        coll = None
+        if coll_sep in s:
+            s, coll = s.split(coll_sep, 1)
+        if cls_sep in s:
+            class_id, id_enc = s.rsplit(cls_sep, 1)
+            obj = {Nucleus.ID_TAG(): unquote(id_enc, errors='strict')}
+            if coll is not None:
+                obj[Nucleus.COLLECTION_TAG()] = coll
+            return {
+                Nucleus.TYPE_TAG(): Nucleus.NX_RECORD_TAG(),
+                Nucleus.CLASS_TAG(): class_id,
+                Nucleus.OBJECT_TAG(): obj,
+            }
+        d = {Nucleus.ID_TAG(): unquote(s, errors='strict')}
+        if coll is not None:
+            d[Nucleus.COLLECTION_TAG()] = coll
+        return d
 
     def from_str(self, s: str):
         return self.data_type.from_str(s)

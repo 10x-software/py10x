@@ -85,13 +85,44 @@ def is_ui_code_block(code_block: str) -> bool:
     return any(indicator in code_block for indicator in ui_indicators)
 
 
-def validate_python_syntax(code: str) -> bool:
-    """Validate that code has valid Python syntax."""
+def validate_python_syntax(code: str) -> None:
+    """Validate that code has valid Python syntax; raise AssertionError with underlined block on failure."""
     try:
         ast.parse(code)
-        return True
-    except SyntaxError:
-        return False
+    except SyntaxError as e:
+        raise AssertionError(format_code_block_failure(code, e, source='syntax')) from None
+
+
+def format_code_block_failure(code_block: str, exc: BaseException, *, source: str = '') -> str:
+    """Pretty-print a doc code block with the failing line underlined (from traceback if possible)."""
+    lines = code_block.splitlines()
+    fail_lineno: int | None = None
+    # Prefer the deepest frame that executes the doc string (filename '<string>' from exec).
+    tb = exc.__traceback__
+    while tb is not None:
+        if tb.tb_frame.f_code.co_filename == '<string>':
+            fail_lineno = tb.tb_lineno
+        tb = tb.tb_next
+    if fail_lineno is None and isinstance(exc, SyntaxError) and exc.lineno:
+        fail_lineno = exc.lineno
+
+    width = len(str(len(lines)))
+    out = [f'Documentation code block failed{f" ({source})" if source else ""}: {type(exc).__name__}: {exc}', '']
+    for i, line in enumerate(lines, 1):
+        out.append(f'{i:>{width}} | {line}')
+        if fail_lineno is not None and i == fail_lineno:
+            # Underline caret: prefer SyntaxError.offset, else full non-empty span.
+            col = getattr(exc, 'offset', None) if isinstance(exc, SyntaxError) else None
+            if col and col > 0:
+                out.append(f'{" " * width} | {" " * (col - 1)}^')
+            else:
+                stripped = line.lstrip(' ')
+                indent = len(line) - len(stripped)
+                out.append(f'{" " * width} | {" " * indent}{"^" * max(1, len(stripped.rstrip()))}')
+    if fail_lineno is None:
+        out.append('')
+        out.append('(could not determine failing line from traceback)')
+    return '\n'.join(out)
 
 
 @pytest.fixture(autouse=True)
@@ -133,8 +164,8 @@ def test_documentation_code_block_execution(
     # Skip if code block is empty
     assert code_block.strip()
 
-    # Validate syntax
-    assert validate_python_syntax(code_block), f'Syntax error in {test_name}'
+    # Validate syntax (underlined code block on failure)
+    validate_python_syntax(code_block)
 
     doc_file_name = test_name.split('_block_')[0]
     fake_module_name = f'__doc_test_{doc_file_name}__'
@@ -154,9 +185,12 @@ def test_documentation_code_block_execution(
     if future_annotations:
         exec('from __future__ import annotations', fake_module.__dict__)
     try:
-        exec(code_block, fake_module.__dict__)
-    except OSError as e:
-        need(False, f'MongoDB reachable for doc block {test_name} ({type(e).__name__})')
+        try:
+            exec(code_block, fake_module.__dict__)
+        except OSError as e:
+            need(False, f'MongoDB reachable for doc block {test_name} ({type(e).__name__})')
+        except Exception as e:
+            pytest.fail(format_code_block_failure(code_block, e, source=test_name), pytrace=False)
     finally:
         # Clean up the fake module; store cleanup is handled by main_test_store fixture
         if fake_module_name in sys.modules:
@@ -177,7 +211,10 @@ def test_documentation_ui_code_block_syntax(test_name: str, code_block: str, sou
     assert code_block.strip()
 
     # Validate syntax only for UI blocks (execution requires async UI environment)
-    assert validate_python_syntax(code_block), f'Syntax error in UI code block {source_file} {test_name}'
+    try:
+        validate_python_syntax(code_block)
+    except AssertionError as e:
+        raise AssertionError(f'{source_file} {test_name}\n{e}') from None
 
 
 def test_documentation_files_and_code_blocks():

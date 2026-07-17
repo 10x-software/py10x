@@ -40,12 +40,14 @@ class IbisCollection(TsCollection):
         self._store = store
         self._name = name
         self.col_trait_dir = {}
+        self._writable = False
         self._update_trait_dir(trait_dir)
 
     def _update_trait_dir(self, trait_dir: dict | None) -> None:
         """Union column-eligible traits; names must be Python identifiers (used as SQL cols)."""
         if not trait_dir:
             return
+        self._writable = True
         assert all(tn.isidentifier() for tn in trait_dir), (
             f'Invalid trait_dir - names must be identifiers: {[tn for tn in trait_dir if not tn.isidentifier()]}'
         )
@@ -163,7 +165,12 @@ class IbisCollection(TsCollection):
         doc = self._decode_row(columns, row)
         return {_REV: doc[_REV], **{f: doc[f] for f in ts_fields if f in doc}}
 
+    def _require_writable(self) -> None:
+        if not self._writable:
+            raise RuntimeError(f'{self._name!r} is read-only (no storable trait_dir)')
+
     def _ensure_columns(self, columns: dict):
+        self._require_writable()
         self._store._ensure_columns(self._name, columns, self.col_trait_dir)
 
     def _prepare_write(self, doc: dict):
@@ -270,6 +277,7 @@ class IbisCollection(TsCollection):
     def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str:
         # Index DDL is dialect-specific; the store owns it so a store can override
         # indexing wholesale (JSON-path indexes, or a no-op on schemaless stores).
+        self._require_writable()
         return self._store.create_index(self._name, name, trait_name, self.col_trait_dir, **index_args)
 
     def _ibis_table_or_none(self):
@@ -496,13 +504,7 @@ class IbisStore(TsStore):
         return f'"{field}"' if field in self._collection_columns(collection_name) else None
 
     def _ensure_columns(self, collection_name: str, keys: Iterable, col_trait_dir: dict) -> None:
-        """Promote column-eligible fields to real SQL columns when the dialect allows.
-
-        Empty ``col_trait_dir`` means read-only (no storable schema) — refuse before the
-        no-op promote path so ``_prepare_write`` / ``create_index`` cannot proceed.
-        """
-        if not col_trait_dir:
-            raise RuntimeError(f'{collection_name!r} is read-only (no storable trait_dir)')
+        """Promote column-eligible fields to real SQL columns when the dialect allows."""
         if not self.s_supports_add_column_if_not_exists:
             return
         cols = self._collection_columns(collection_name)
