@@ -216,7 +216,7 @@ def test_hybrid_column_vs_blob_placement(hybrid_store, field, sample_value, colu
 
 
 def test_traitable_ref_promoted_to_sql_column(monkeypatch):
-    """Non-embedded Traitable refs wire as str and are promoted to VARCHAR columns."""
+    """Non-embeddable Traitable refs are serialized as str and are promoted to VARCHAR columns."""
     from core_10x.exec_control import CACHE_ONLY
 
     class RefTarget(Traitable, custom_collection=True, keep_history=False):
@@ -224,7 +224,7 @@ def test_traitable_ref_promoted_to_sql_column(monkeypatch):
 
     class RefOwner(Traitable, custom_collection=True, keep_history=False):
         name: str = T(T.ID)
-        peer: RefTarget = T()
+        peer: RefTarget = T(T.NOT_EMBEDDABLE)
 
     assert RefOwner.s_dir['peer'].serialize_to_types() is str
     assert 'peer' in _eligible_column_traits(RefOwner.s_dir)
