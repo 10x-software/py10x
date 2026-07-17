@@ -537,8 +537,21 @@ def test_anonymous_traitable(monkeypatch):
         class _T1(Traitable):
             x: Traitable = T(T.EMBEDDED)
 
-    class _T2(Traitable):
-        x: AnonymousTraitable = T()
+    with pytest.raises(RuntimeError, match=r'T2.x - may NOT be NOT_EMBEDDABLE: class .* is embeddable'):
+
+        class _T2(Traitable):
+            x: AnonymousTraitable = T(T.NOT_EMBEDDABLE)
+
+    class _T3(Traitable):
+        x: Traitable = T(T.NOT_EMBEDDABLE)
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            return None
 
     x = X(a=1)
     assert x.serialize(True) == {'a': 1}
@@ -554,6 +567,32 @@ def test_anonymous_traitable(monkeypatch):
     z = Z(y=2, x=Y(y=3), _replace=True)
     with pytest.raises(TraitMethodError, match=r"test_anonymous_traitable.<locals>.Y/3 - embedded instance must be 'embeddable'"):
         z.serialize_object()
+
+    # Wide Traitable trait may hold an embeddable value as a body (value-driven).
+    class Wide(Traitable):
+        w: int = T(T.ID)
+        peer: Traitable = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            return None
+
+    wide = Wide(w=1, peer=x, _replace=True)
+    assert wide.serialize_object()['peer'] == {
+        '_obj': {'a': 1},
+        '_type': '_nx',
+        '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X',
+    }
+
+    # NOT_EMBEDDABLE rejects embeddable values at serialize time.
+    ref_only = _T3(x=Y(y=9), _replace=True)
+    assert isinstance(ref_only.serialize_object()['x'], str)
+    with pytest.raises(TraitMethodError, match=r'NOT_EMBEDDABLE trait cannot hold embeddable'):
+        _T3(x=x, _replace=True).serialize_object()
 
 
 class TestSerializeEmbedded:

@@ -1291,13 +1291,17 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
         super().check_integrity(cls, rc)
         is_runtime = self.flags_on(T.RUNTIME)
         if self.flags_on(T.EMBEDDED):
+            if self.flags_on(T.NOT_EMBEDDABLE):
+                rc.add_error(f'{cls.__name__}.{self.name} - may NOT be both EMBEDDED and NOT_EMBEDDABLE')
             if is_runtime:
                 rc.add_error(f'{cls.__name__}.{self.name} - may NOT be both RUNTIME and EMBEDDED')
             if not self.data_type.s_embeddable:
                 rc.add_error(f"{cls.__name__}.{self.name} - class {self.data_type} must be declared 'embeddable'")
+        if self.flags_on(T.NOT_EMBEDDABLE) and self.data_type.s_embeddable:
+            rc.add_error(f"{cls.__name__}.{self.name} - may NOT be NOT_EMBEDDABLE: class {self.data_type} is embeddable")
 
     def serialize_to_types(self) -> type | tuple:
-        return dict if self.data_type.s_embeddable else str
+        return str if self.flags_on(T.NOT_EMBEDDABLE) else  super().serialize_to_types()
 
     def default_value(self):
         def_value = self.default
@@ -1318,13 +1322,10 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
 
     def serialize(self, value: Traitable) -> dict|str:
         """Pack non-embedded *id* refs to a string; leave embedded / full payloads as dict."""
+        if (embeddable:=value.s_embeddable) and self.flags_on(T.NOT_EMBEDDABLE):
+            raise RuntimeError(f'{self.name} - NOT_EMBEDDABLE trait cannot hold embeddable value type {type(value)}')
         val = super().serialize(value)
-        if self.data_type.s_embeddable or not isinstance(val, dict):
-            return val
-        if value.s_embeddable:
-            raise RuntimeError(f'{self.data_type} is not embeddable but value type {type(value)} is.')
-        packed = self._pack_xref(val)
-        return packed if packed is not None else val
+        return self._pack_xref(val) if not embeddable else val
 
     def deserialize(self, serialized_value) -> Nucleus:
         """Accept compact ref strings or legacy / embedded dict wire forms."""
