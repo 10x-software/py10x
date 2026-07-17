@@ -37,9 +37,29 @@ def clock_freezer(mocker, ts_instance, request):
     if request.param:
         frozen_now.append(datetime.utcnow())
         from infra_10x.duckdb_store import DuckDbStore
-        mocker.patch.object(DuckDbStore, 'server_time',
-                            lambda self: frozen_now[0].replace(tzinfo=timezone.utc))
+
+        # TS_TIME is stamped by SQL server exprs, not Python server_time(): freeze all three
+        # sources — the JSON-blob expr, the native-column expr, and server_time() for any
+        # remaining Python callers.
+        mocker.patch.object(
+            DuckDbStore,
+            'server_time',
+            lambda self: frozen_now[0].replace(tzinfo=None),
+        )
+
+        mocker.patch.object(
+            DuckDbStore,
+            '_server_time_sql_expr',
+            lambda self: f"'{frozen_now[0].replace(tzinfo=None).strftime('%Y-%m-%dT%H:%M:%S.%f')}'",
+        )
+
+        mocker.patch.object(
+            DuckDbStore,
+            '_server_time_col_sql_expr',
+            lambda self: f"CAST('{frozen_now[0].replace(tzinfo=None).strftime('%Y-%m-%dT%H:%M:%S.%f')}' AS TIMESTAMP)",
+        )
     yield frozen_now
+
 
 class NameValueTraitableBase(Traitable):
     """Test traitable class for testing."""
@@ -68,18 +88,35 @@ class PersonTraitableBase(Traitable):
         return RC_TRUE
 
 
+class MutableWithTsTimeBase(Traitable):
+    """Mutable (keeps history) traitable that stamps a store-side time on every save.
+
+    Exercises ``add_ts`` + hydrate on *update* (rev >= 1), not only insert via ``save_new``.
+    """
+
+    name: str = T(T.ID)
+    value: int = T()
+    saved_at: datetime = T(T.TS_TIME)
+
+
 NameValueTraitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (NameValueTraitableBase,), {'__module__': __name__})
 PersonTraitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (PersonTraitableBase,), {'__module__': __name__})
+MutableWithTsTime = type(
+    f'MutableWithTsTime#{uuid.uuid1().hex}',
+    (MutableWithTsTimeBase,),
+    {'__module__': __name__},
+)
 
 globals()[NameValueTraitable.__name__] = NameValueTraitable
 globals()[PersonTraitable.__name__] = PersonTraitable
+globals()[MutableWithTsTime.__name__] = MutableWithTsTime
 
 
 @pytest.fixture
 def test_collection(test_store):
     """Create a test collection for testing."""
     collection_name = f'test_collection_{uuid.uuid1()}'
-    yield test_store.collection(collection_name=collection_name)
+    yield test_store.collection(collection_name, NameValueTraitable.s_dir)
     test_store.delete_collection(collection_name=collection_name)
     test_store.delete_collection(collection_name=f'{collection_name}#history')
 
@@ -90,7 +127,7 @@ def test_store(ts_instance):
     store.username = 'test_user'
     store.begin_using()
     yield store
-    for cn in store.collection_names() :
+    for cn in store.collection_names():
         store.delete_collection(cn)
     store.end_using()
 
@@ -159,8 +196,8 @@ class TestTraitableHistory:
     def test_save_transactional_rollback_when_history_fails(self, test_store, test_collection, with_transactions, monkeypatch):  # noqa: F811
         """When history save fails, the main document save is rolled back (revision not applied)."""
 
-        def _save_serialized_raise(self, coll, serialized_data, old_rev, ts_trait_names=()):
-            save_result = StorableHelper._save_serialized(self, coll, serialized_data, old_rev, ts_trait_names)
+        def _save_serialized_raise(self, coll, serialized_data, old_rev):
+            save_result = StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
             assert obj.collection().count() == 1
             if save_result['_rev'] > old_rev:
                 raise RuntimeError('history save fails')
@@ -175,12 +212,13 @@ class TestTraitableHistory:
         assert obj.history() == []
         assert len(obj.load_many()) == (1 - with_transactions)
 
-    def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions): # noqa: F811
+    def test_save_transactional_no_rollback_when_serialization_fails(self, test_store, monkeypatch, with_transactions):  # noqa: F811
         """When a nested or main save fails, the transaction rolls back (no docs committed)."""
-        def _save_serialized_raise(self, coll, serialized_data, old_rev, ts_trait_names=()):
+
+        def _save_serialized_raise(self, coll, serialized_data, old_rev):
             if serialized_data['_id'] == '1':
                 raise RuntimeError('save error')
-            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev, ts_trait_names)
+            return StorableHelper._save_serialized(self, coll, serialized_data, old_rev)
 
         monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
         monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *a, **kw: PyClass.name(cls))
@@ -199,6 +237,30 @@ class TestTraitableHistory:
             assert len(X.load_many()) == 1
 
             X.delete_collection()
+
+    def test_mutable_ts_time_update_hydrates(self, test_store):
+        """Mutable traitable with TS_TIME: second save is update path with post_serialize stamp."""
+        assert not MutableWithTsTime.s_immutable
+        name = f'ts-upd-{uuid.uuid4().hex}'
+        obj = MutableWithTsTime(name=name, value=1, _replace=True)
+        obj.save().throw()
+        assert obj.get_revision() == 1
+        assert obj.is_trait_valid(obj.trait('saved_at'))
+        at1 = obj.saved_at
+
+        time.sleep(0.001)
+        obj.value = 2
+        obj.save().throw()
+        assert obj.get_revision() == 2
+        assert obj.is_trait_valid(obj.trait('saved_at'))
+        assert obj.saved_at >= at1
+        assert obj.value == 2
+
+        loaded = MutableWithTsTime.existing_instance(name=name)
+        loaded.reload()
+        assert loaded.value == 2
+        assert loaded.get_revision() == 2
+        assert loaded.is_trait_valid(loaded.trait('saved_at'))
 
     def test_traitable_class_history_methods(self, test_store, test_collection, clock_freezer):
         """Test Traitable class history methods."""
@@ -244,7 +306,10 @@ class TestTraitableHistory:
         person.save()
 
         # Check that history was created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        history_collection = test_store.collection(
+            f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history',
+            PersonTraitable.s_history_class.s_dir,
+        )
         assert history_collection.count() == 1
 
         # Verify history entry structure
@@ -274,7 +339,10 @@ class TestTraitableHistory:
         person.save()
 
         # Check that two history entries were created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        history_collection = test_store.collection(
+            f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history',
+            PersonTraitable.s_history_class.s_dir,
+        )
         assert history_collection.count() == 2
 
         # Verify both history entries
@@ -502,7 +570,10 @@ class TestTraitableHistory:
         item.save()
 
         # Check that no history collection was created
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{NoHistoryTraitable.__name__}#history')
+        history_collection = test_store.collection(
+            f'{__name__.replace(".", "/")}/{NoHistoryTraitable.__name__}#history',
+            {},  # no history class; blob-only probe
+        )
         assert history_collection.count() == 0
 
     def test_asof_with_keep_history_false_is_noop(self, test_store, monkeypatch):
@@ -735,7 +806,7 @@ class TestTraitableHistory:
         assert '_at' not in prepared_data
 
     def test_save_new_with_overwrite_parameter(self, test_store, test_collection):
-        """Test DuckDbCollection.save_new with overwrite parameter."""
+        """Test DuckDB save_new with overwrite parameter."""
         result = test_collection.save_new({'_id': 'new-id', 'name': 'New Person', 'age': 25})
         assert result['_rev'] == 1  # Should succeed for new document
 
@@ -746,7 +817,7 @@ class TestTraitableHistory:
         test_collection.save_new({'_id': 'new-id'}, overwrite=True)
 
     def test_find_without_filter_parameter(self, test_store, test_collection):
-        """Test DuckDbCollection.find without _filter parameter."""
+        """Test DuckDB find without _filter parameter."""
 
         # Add documents using the interface method
         test_collection.save_new({'_id': 'doc1', 'name': 'Person 1', 'age': 25})
@@ -799,7 +870,10 @@ class TestTraitableHistory:
         person.age = 31
         person.save().throw()
 
-        history_collection = test_store.collection(f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history')
+        history_collection = test_store.collection(
+            f'{__name__.replace(".", "/")}/{PersonTraitable.__name__}#history',
+            PersonTraitable.s_history_class.s_dir,
+        )
         assert history_collection.count() == 2
 
         # Load a history entry as TraitableHistory instance

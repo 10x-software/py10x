@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
     serialized_traitable = dict(_id=id_value, _rev=rev, name='test', age=60)
 
-    coll = store.collection('test')
+    coll = store.collection('test', {})  # blob-only
 
     data1 = dict(serialized_traitable)
     pipeline1 = []

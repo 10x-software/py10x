@@ -13,6 +13,7 @@ from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Any, get_origin
+from urllib.parse import unquote
 
 from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache, BFlags
 from typing_extensions import Self, deprecated
@@ -36,7 +37,7 @@ from core_10x.trait_definition import (
 )
 from core_10x.trait_filter import LE, f
 from core_10x.traitable_id import ID
-from core_10x.ts_store import TS_STORE, TsStore
+from core_10x.ts_store import TS_FIELDS_TAG, TS_STORE, TsStore
 from core_10x.sec_keys import SecKeys
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.xnone import XNone, XNoneType
@@ -45,6 +46,8 @@ if TYPE_CHECKING:
     from collections.abc import Generator
 
     from core_10x.ts_store import TsCollection
+
+_REV = Nucleus.REVISION_TAG()
 
 
 class Index:
@@ -154,7 +157,7 @@ class TraitableMetaclass(type(BTraitable)):
     @staticmethod
     def reserved_storable_traits(traitable_cls):
         return {
-            Nucleus.REVISION_TAG(): traitable_cls.rev_trait(),
+            _REV: traitable_cls.rev_trait(),
             COLL_NAME_TAG: traitable_cls.collection_name_trait(),
         }
 
@@ -187,9 +190,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     @classmethod
     @cache
     def rev_trait(cls) -> Trait:
-        trait_name = Nucleus.REVISION_TAG()
         return Trait.create(
-            trait_name,
+            _REV,
             T(0, T.RESERVED, data_type=int),
         )
 
@@ -324,8 +326,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return (base.s_dir for base in reversed(cls.__bases__) if issubclass(base, Traitable))
 
     @classmethod
-    def _own_indices(cls) -> dict[str,Index]:
-        return {idx.name: idx for idx in getattr(cls,'s_indices',())}
+    def _own_indices(cls) -> dict[str, Index]:
+        return {idx.name: idx for idx in getattr(cls, 's_indices', ())}
 
     @classmethod
     def _inherited_indices(cls) -> Generator[dict[str, Index]]:
@@ -724,7 +726,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     @cache(keep_value=False)
-    def _ensure_indices(cls, _coll_name: str = None) -> TsCollection|None:
+    def _ensure_indices(cls, _coll_name: str = None) -> TsCollection | None:
         coll = cls.collection(_coll_name)
         if coll is not None:
             for idx in cls.s_indices:
@@ -788,13 +790,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.restore(traitable_id, timestamp, save)
 
     def post_serialize(self, serialized_data: dict) -> dict:
-        """Inject Traitable store-side TS_TIME / TS_USER fields into the serialized blob.
-
-        Default injects every ``T.TS`` trait via ``add_when`` / ``add_who``. Overrides may
-        call those helpers selectively (or not at all) to introduce a store-side field only
-        on some saves. Hydration after save applies only fields present in the store result —
-        omitted injections are not errors.
-        """
+        """Mark store-side TS_TIME / TS_USER fields for stamping in ``save`` / ``save_new``."""
         ts_traits = list(self.traits(flags_on=T.TS))
         if not ts_traits:
             return serialized_data
@@ -802,14 +798,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         store = self.store()
         post_serialized = dict(serialized_data)
         for trait in ts_traits:
-            match kind := BFlags(trait.flags) & T.TS:
-                case T.TS_TIME:
-                    store.add_when(trait.name, post_serialized)
-                case T.TS_USER:
-                    store.add_who(trait.name, post_serialized)
-                case _:
-                    raise RuntimeError(f"Unexpected TS trait kind for {trait.name}: {kind}")
+            store.add_ts(trait.name, BFlags(trait.flags) & T.TS, post_serialized)
         return post_serialized
+
 
 class TraitableFwdRef(Traitable, root_class=True):
     """Internal base for deferred sibling Traitable annotations; not for direct use."""
@@ -920,8 +911,8 @@ class NotStorableHelper(AbstractStorableHelper):
     def save(self, traitable: Traitable, save_references: bool) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
-    def _save_serialized(self, coll, serialized_data, old_rev, ts_trait_names: tuple[str, ...] = ()):
-        return {Nucleus.REVISION_TAG(): old_rev}
+    def _save_serialized(self, coll, serialized_data, old_rev):
+        return {_REV: old_rev}
 
     def delete(self, traitable: Traitable) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
@@ -943,7 +934,7 @@ class StorableHelper(AbstractStorableHelper):
     def collection(self, _coll_name: str = None) -> TsCollection:
         cls = self.traitable_class
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        return cls.store().collection(cname)
+        return cls.store().collection(cname, trait_dir=cls.s_dir)
 
     def exists_in_store(self, id: ID) -> bool:
         return self.traitable_class.collection(_coll_name=id.collection_name).id_exists(id.value)
@@ -1018,34 +1009,31 @@ class StorableHelper(AbstractStorableHelper):
             if not coll:
                 return RC(False, f'{self.__class__} - no store available')
 
-            # Candidate hydrate keys (flags). post_serialize may inject only a subset;
-            # missing keys in save_result are skipped (not an error).
-            ts_trait_names = tuple(t.name for t in traitable.traits(flags_on=T.TS))
             with self._transaction_ctx():
                 save_result = self._save_serialized(
                     coll,
                     traitable.post_serialize(serialized_data),
                     traitable.get_revision(),
-                    ts_trait_names,
                 )
         except Exception as e:
             return RC(False, f'Error saving traitable: {e}')
 
-        rev_tag = Nucleus.REVISION_TAG()
+        rev_tag = _REV
         traitable.set_revision(save_result[rev_tag])
+        rc = RC(True)
         for trait in traitable.traits(flags_on=T.TS):
             if trait.name not in save_result:
                 continue
-            traitable.set_trait_value(trait, trait.f_deserialize(trait, save_result[trait.name]))
-        return RC_TRUE
+            rc <<= traitable.set_trait_value(trait, trait.f_deserialize(trait, save_result[trait.name]))
+        return rc
 
     def _transaction_ctx(self):
         return nullcontext()
 
-    def _save_serialized(self, coll, serialized_data, old_rev, ts_trait_names: tuple[str, ...] = ()) -> dict:
+    def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
         if self.traitable_class.s_immutable:
-            return coll.save_new(serialized_data, ts_trait_names=ts_trait_names)
-        return coll.save(serialized_data, ts_trait_names=ts_trait_names)
+            return coll.save_new(serialized_data)
+        return coll.save(serialized_data)
 
     def delete(self, traitable: Traitable) -> RC:
         rc = self.delete_in_store(traitable.id())
@@ -1070,18 +1058,18 @@ class StorableHelperWithHistory(StorableHelper):
     def _transaction_ctx(self):
         return self.traitable_class.store().transaction() if EnvVars.use_ts_store_transactions else nullcontext()
 
-    def _save_serialized(self, coll, serialized_data, old_rev, ts_trait_names: tuple[str, ...] = ()) -> dict:
-        save_result = super()._save_serialized(coll, serialized_data, old_rev, ts_trait_names)
-        rev = save_result[Nucleus.REVISION_TAG()]
+    def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
+        save_result = super()._save_serialized(coll, serialized_data, old_rev)
+        rev = save_result[_REV]
         if rev > old_rev:
             self.traitable_class.s_history_class(
-                serialized_traitable=serialized_data,
+                serialized_traitable={k: v for k, v in (serialized_data | save_result).items() if k not in (_REV, TS_FIELDS_TAG)},
                 _traitable_rev=rev,
                 _collection_name=(coll.collection_name() + '#history') if self.traitable_class.s_custom_collection else XNone,
             ).save().throw()
         return save_result
 
-    def as_of(self, traitable_id: ID, as_of_time: datetime) -> Self:
+    def as_of(self, traitable_id: ID, as_of_time: datetime) -> Self | None:
         history_entry = self.traitable_class.latest_revision(traitable_id, as_of_time, deserialize=True)
         return history_entry.traitable if history_entry else None
 
@@ -1131,14 +1119,7 @@ class StorableHelperWithHistory(StorableHelper):
             return False
 
         if save:
-            return bool(
-                self.traitable_class.collection(
-                    traitable_id.collection_name,
-                ).save_new(
-                    history_entry.serialized_traitable,
-                    overwrite=True,
-                ).get(Nucleus.REVISION_TAG())
-            )
+            return bool(self.traitable_class.collection(traitable_id.collection_name).save_new(history_entry.serialized_traitable, overwrite=True).get(_REV))
         return True
 
 
@@ -1288,14 +1269,15 @@ class AsOfContext:
 
         self._reset_storage_helpers()
 
+
 class NamedTraitable(Traitable):
     s_ctor_allowed = True
 
-    name: str   = T(T.ID)
+    name: str = T(T.ID)
 
     def __init__(self, _name: str = None, **kwargs):
         if _name:
-            super().__init__(name = _name, **kwargs)
+            super().__init__(name=_name, **kwargs)
             if not self.id_exists():
                 raise ValueError(f'{self.__class__}.{self.name} does not exist')
         else:
@@ -1306,13 +1288,16 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
     def post_ctor(self): ...
 
     def check_integrity(self, cls, rc: RC):
-        super().check_integrity(cls,rc)
+        super().check_integrity(cls, rc)
         is_runtime = self.flags_on(T.RUNTIME)
         if self.flags_on(T.EMBEDDED):
             if is_runtime:
                 rc.add_error(f'{cls.__name__}.{self.name} - may NOT be both RUNTIME and EMBEDDED')
             if not self.data_type.s_embeddable:
                 rc.add_error(f"{cls.__name__}.{self.name} - class {self.data_type} must be declared 'embeddable'")
+
+    def serialize_to_types(self) -> type | tuple:
+        return dict if self.data_type.s_embeddable else str
 
     def default_value(self):
         def_value = self.default
@@ -1326,6 +1311,64 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
             return self.data_type(**def_value)
 
         raise ValueError(f'{self.data_type} - may not be constructed from {def_value}')
+
+    _REF_CLS_SEP = '~'
+    _REF_COLL_SEP = '^'
+    _REF_ID_ESCAPE = f'%{_REF_CLS_SEP}{_REF_COLL_SEP}'
+
+    def serialize(self, value: Traitable) -> dict|str:
+        """Pack non-embedded *id* refs to a string; leave embedded / full payloads as dict."""
+        val = super().serialize(value)
+        if self.data_type.s_embeddable or not isinstance(val, dict):
+            return val
+        if value.s_embeddable:
+            raise RuntimeError(f'{self.data_type} is not embeddable but value type {type(value)} is.')
+        packed = self._pack_xref(val)
+        return packed if packed is not None else val
+
+    def deserialize(self, serialized_value) -> Nucleus:
+        """Accept compact ref strings or legacy / embedded dict wire forms."""
+        if isinstance(serialized_value, str):
+            serialized_value = self._unpack_xref(serialized_value)
+        return super().deserialize(serialized_value)
+
+    @classmethod
+    def _pack_xref(cls, val: dict) -> str | None:
+        if val.get(Nucleus.TYPE_TAG()) == Nucleus.NX_RECORD_TAG():
+            if not (obj := val.get(Nucleus.OBJECT_TAG())):
+                raise RuntimeError(f'No object tag in nucleus record: {val}')
+            if not (cls_id := val.get(Nucleus.CLASS_TAG())):
+                raise RuntimeError(f'No class tag in nucleus record: {val}')
+            class_prefix = f'{cls_id}{cls._REF_CLS_SEP}'
+            val = obj
+        else:
+            class_prefix = ''
+        if not (id_val := val.get(Nucleus.ID_TAG())):
+            raise RuntimeError(f'No id in record: {val}')
+        id_enc = ''.join(f'%{ord(c):02X}' if c in cls._REF_ID_ESCAPE else c for c in id_val)
+        coll_suffix = f'{cls._REF_COLL_SEP}{coll}' if (coll := val.get(Nucleus.COLLECTION_TAG())) else ''
+        return f'{class_prefix}{id_enc}{coll_suffix}'
+
+    @classmethod
+    def _unpack_xref(cls, s: str) -> dict:
+        cls_sep, coll_sep = cls._REF_CLS_SEP, cls._REF_COLL_SEP
+        coll = None
+        if coll_sep in s:
+            s, coll = s.split(coll_sep, 1)
+        if cls_sep in s:
+            class_id, id_enc = s.rsplit(cls_sep, 1)
+            obj = {Nucleus.ID_TAG(): unquote(id_enc, errors='strict')}
+            if coll is not None:
+                obj[Nucleus.COLLECTION_TAG()] = coll
+            return {
+                Nucleus.TYPE_TAG(): Nucleus.NX_RECORD_TAG(),
+                Nucleus.CLASS_TAG(): class_id,
+                Nucleus.OBJECT_TAG(): obj,
+            }
+        d = {Nucleus.ID_TAG(): unquote(s, errors='strict')}
+        if coll is not None:
+            d[Nucleus.COLLECTION_TAG()] = coll
+        return d
 
     def from_str(self, s: str):
         return self.data_type.from_str(s)
@@ -1349,6 +1392,16 @@ class Bundle(Traitable):
     def is_bundle_base(cls) -> bool:
         return cls.s_bundle_base is cls
 
+    @classmethod
+    def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
+        if (base := cls.s_bundle_base) is None or cls.is_bundle_base():
+            return super().collection(_coll_name, _ensure_indices)
+
+        if (coll := base.collection(_coll_name, _ensure_indices)) is not None:
+            coll.extend_trait_dir(cls.s_dir)
+
+        return coll
+
     def __init_subclass__(cls, members_known=False, **kwargs):
         base = cls.s_bundle_base
         if not base:
@@ -1359,9 +1412,6 @@ class Bundle(Traitable):
             bundle_members = base.s_bundle_members
             if bundle_members is not None:
                 bundle_members[cls.__name__] = cls
-
-            # cls.collection_name = base.collection_name #TODO: fix
-            cls.collection = base.collection
 
             if base.s_history_class is XNone:
                 base.s_history_class = base.s_history_base.history_class(base)

@@ -2,8 +2,12 @@
 
 A `Bundle` is a `Traitable` whose subclasses all share the bundle base's
 collection.  The first concrete subclass becomes the *bundle base*
-(``s_bundle_base``); every further subclass is a *member* registered on the
-base and gets ``cls.collection`` bound to the base's ``collection``.
+(``s_bundle_base``); every further subclass is a *member*.
+
+``Bundle.collection`` on a member opens the base collection, then
+``extend_trait_dir`` with that member's ``s_dir`` so hybrid stores promote
+member-specific columns progressively (no ``member.collection = base.collection``
+rebind).
 
 Because all members live in one collection, the serialized record carries a
 class id that lets the framework rebuild the right concrete subclass.
@@ -20,9 +24,13 @@ on the bundle base:
 
 from __future__ import annotations
 
+import json
+
 import pytest
+from py10x_kernel import BTraitableProcessor, XCache
 
 from core_10x.exec_control import CACHE_ONLY
+from core_10x.package_refactoring import PackageRefactoring
 from core_10x.traitable import RT, T, Bundle, BundleHistory, Traitable
 
 
@@ -72,13 +80,6 @@ class TestBundleMembersKnown:
     def test_deserialize_empty_id_raises(self):
         with pytest.raises(ValueError, match='missing serialized class ID'):
             Animals.deserialize_class_id('')
-
-    def test_members_share_base_collection(self):
-        # `cls.collection = base.collection` in __init_subclass__ binds the
-        # members' `collection` attribute to the *base*'s bound classmethod.
-        # The descriptors are therefore the same callable object.
-        assert Dog.collection == Animals.collection
-        assert Cat.collection == Animals.collection
 
     def test_is_bundle_for_base_and_members(self):
         # is_bundle() must be True for any class that overrode
@@ -137,13 +138,9 @@ class TestBundleMembersUnknown:
         assert Vehicles.is_bundle()
         assert Car.is_bundle()
 
-
 # ---------------------------------------------------------------------------
 # Bundle vs. plain Traitable
 # ---------------------------------------------------------------------------
-
-
-
 
 
 class TestIsBundleDistinguishesPlainTraitable:
@@ -253,26 +250,21 @@ class TestBundleHistoryWithNonStorableBase:
         assert base_hist.s_bundle_members['Wolf#history'] is wolf_hist
         assert base_hist.s_bundle_members['Bear#history'] is bear_hist
 
-    def test_member_history_classes_share_collection_method(self):
-        # Bundle.__init_subclass__ rebinds member's collection -> base's.
-        # Once the lazy base history class is in place, all member histories
-        # resolve to the same collection callable.
+    def test_member_history_classes_share_base_history_collection(self, bundle_history_store):
+        # History members open base history collection then union own s_dir.
         base_hist = AbstractAnimals.s_history_class
-        assert Wolf.s_history_class.collection == base_hist.collection
-        assert Bear.s_history_class.collection == base_hist.collection
+        assert Wolf.s_history_class.collection() is base_hist.collection()
+        assert Bear.s_history_class.collection() is base_hist.collection()
 
     def test_lazy_base_storage_helper_promotes_non_storable_base(self, bundle_history_store):
         """The non-storable bundle base also gets a real (storable) storage
-        helper at the same time as its lazy history class - so that members
-        sharing `cls.collection = base.collection` actually route to a real
-        collection instead of `NotStorableHelper.collection() == None`."""
-        # Base is not storable on its own (no T.ID), but its cached helper was
-        # promoted - so member-side `collection()` returns a real collection
-        # (its base's), not `None`.
+        helper at the same time as its lazy history class so base.collection()
+        works for cross-member queries. Members open that same physical collection."""
         assert not AbstractAnimals.is_storable()
         assert Wolf.collection() is not None
         assert Bear.collection() is not None
         assert Wolf.collection() is Bear.collection()
+        assert Wolf.collection() is AbstractAnimals.collection()
 
     def test_storage_helper_rederived_from_history_class_after_cache_clear(self, bundle_history_store):
         """Helper cache is ephemeral; a real ``s_history_class`` must re-derive WithHistory.
@@ -301,6 +293,7 @@ class TestBundleHistoryWithNonStorableBase:
         base's helper would be ``NotStorableHelper`` and the save would
         silently no-op."""
         w = Wolf(name='wolf_main', _replace=True)
+        assert w._rev == 0
         w.howl_pitch = 7
         w.save().throw()
 
@@ -320,6 +313,35 @@ class TestBundleHistoryWithNonStorableBase:
         assert docs[w.id().value]['howl_pitch'] == 7
         assert docs[b.id().value]['_cls'] == 'Bear'
         assert docs[b.id().value]['den'] == 'oak_hollow'
+
+        # Schema store: member-specific scalar traits must promote to SQL columns
+        # (union of all members' trait dirs), not sit only in the JSON blob.
+        store = bundle_history_store
+        coll_name = base_coll.collection_name()
+        sql_cols = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
+
+        for obj, member_field in (
+            (w, 'howl_pitch'),
+            (b, 'den'),
+        ):
+            assert member_field in base_coll.col_trait_dir
+            data = store._con.execute(
+                f'SELECT _data FROM "{coll_name}" WHERE _id = ?',
+                [obj.id_value()],
+            ).fetchone()[0]
+            blob = json.loads(data)
+            if store.s_supports_add_column_if_not_exists:
+                row = store._con.execute(
+                    f'SELECT "{member_field}" FROM "{coll_name}" WHERE _id = ?',
+                    [obj.id_value()],
+                ).fetchone()
+                assert row[0] == obj.get_value(member_field)
+                assert member_field in sql_cols
+                assert member_field not in blob
+            else:
+                assert member_field not in sql_cols
+                assert member_field in blob
+                assert blob[member_field] == obj.get_value(member_field)
 
     def test_member_history_records_share_lazy_base_history_collection(self, bundle_history_store):
         """History records for storable members of a non-storable bundle base
@@ -400,23 +422,19 @@ class TestBundleInstancesRoundTrip:
 # Bundle + TraitableHistory
 # ---------------------------------------------------------------------------
 #
-# Bundle members share the bundle base's `collection` (by design).  History
-# classes mirror the same structure: `<Base>#history` is itself a Bundle
-# base, and every `<Member>#history` is a Bundle member of `<Base>#history`,
-# so all member histories share one history collection (`<Base>#history`).
-# Class-based filtering on read time (in `StorableHelperWithHistory._find`)
-# ensures that querying via a member's history class returns only that
-# member's records, even though they all live in the shared collection.
+# Bundle members share the bundle base's collection via ``Bundle.collection``
+# (base open + member ``s_dir``).  History classes mirror the same structure:
+# `<Base>#history` is itself a Bundle base, and every `<Member>#history` is a
+# Bundle member of `<Base>#history`, so all member histories share one history
+# collection (`<Base>#history`).  Class-based filtering on read time (in
+# `StorableHelperWithHistory._find`) ensures that querying via a member's
+# history class returns only that member's records, even though they all live
+# in the shared collection.
 # ---------------------------------------------------------------------------
 
 
 class TestBundleHistoryStaticWiring:
     """Static (no-store) checks of how Bundle interacts with TraitableHistory."""
-
-    def test_member_main_collection_is_shared_with_base(self):
-        # Bundle.__init_subclass__ rebinds cls.collection -> base.collection.
-        assert Dog.collection == Animals.collection
-        assert Cat.collection == Animals.collection
 
     def test_each_member_has_its_own_history_class(self):
         # Per-class history classes are still distinct objects: each carries
@@ -464,11 +482,6 @@ class TestBundleHistoryStaticWiring:
         assert animals_hist.s_bundle_members['Dog#history'] is dog_hist
         assert animals_hist.s_bundle_members['Cat#history'] is cat_hist
 
-        # Members share the base's collection (by Bundle's normal contract).
-        assert dog_hist.collection == animals_hist.collection
-        assert cat_hist.collection == animals_hist.collection
-
-
 # ---------------------------------------------------------------------------
 # Empirical save/history tests against the in-memory DuckDbStore
 # ---------------------------------------------------------------------------
@@ -493,8 +506,19 @@ def bundle_history_store(ts_instance):
     store.end_using()
 
 
+@pytest.fixture(autouse=True)
+def cache_isolation():
+    yield None
+    XCache.clear()
+    BTraitableProcessor.current().end_using()
+
+
 class TestBundleHistoryBehavior:
     """Live save/history checks against a DuckDbStore."""
+
+    def test_members_share_base_collection_handle(self, bundle_history_store):
+        """Members open the same physical collection as the base (not a rebound method)."""
+        assert Dog.collection() is Animals.collection() is Cat.collection()
 
     def test_main_record_routes_to_base_collection(self, bundle_history_store):
         """Main records go to the bundle base's collection - this is the
@@ -504,10 +528,60 @@ class TestBundleHistoryBehavior:
         d.save().throw()
 
         base_coll = Animals.collection()
+        assert base_coll is Dog.collection()
         assert base_coll.count() >= 1
         loaded = next(doc for doc in base_coll.find() if doc['_id'] == d.id().value)
         assert loaded['_cls'] == 'Dog'
         assert loaded['breed'] == 'lab'
+
+        c = Cat(name='cat_main_cols', _replace=True)
+        c.indoor = True
+        c.save().throw()
+        # Progressive union of Dog.breed + Cat.indoor via each member's s_dir on open:
+        # SQL columns on a schema store (not only the JSON blob), else in the blob.
+        store = bundle_history_store
+        coll_name = base_coll.collection_name()
+        sql_cols = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
+        for obj, member_field in ((d, 'breed'), (c, 'indoor')):
+            assert member_field in base_coll.col_trait_dir
+            blob = json.loads(store._con.execute(f'SELECT _data FROM "{coll_name}" WHERE _id = ?', [obj.id_value()]).fetchone()[0])
+            if store.s_supports_add_column_if_not_exists:
+                row = store._con.execute(f'SELECT "{member_field}" FROM "{coll_name}" WHERE _id = ?', [obj.id_value()]).fetchone()
+                assert row[0] == obj.get_value(member_field)
+                assert member_field in sql_cols
+                assert member_field not in blob
+            else:
+                assert member_field not in sql_cols
+                assert member_field in blob
+                assert blob[member_field] == obj.get_value(member_field)
+
+    def test_member_s_dir_promotes_columns_progressively(self, bundle_history_store):
+        """Each member open unions that member's s_dir — not a pre-merged schema."""
+        store = bundle_history_store
+        # Fresh collection handle: base open alone must not invent member columns.
+        Animals.delete_collection()
+        base_coll = Animals.collection()
+        assert 'breed' not in base_coll.col_trait_dir
+        assert 'indoor' not in base_coll.col_trait_dir
+
+        d = Dog(name='dog_prog', _replace=True)
+        d.breed = 'pug'
+        d.save().throw()
+        coll = Dog.collection()
+        assert coll is base_coll
+        assert 'breed' in coll.col_trait_dir
+        assert 'indoor' not in coll.col_trait_dir
+        if store.s_supports_add_column_if_not_exists:
+            assert 'breed' in set(coll._collection_columns())
+            assert 'indoor' not in set(coll._collection_columns())
+
+        c = Cat(name='cat_prog', _replace=True)
+        c.indoor = False
+        c.save().throw()
+        assert 'breed' in coll.col_trait_dir and 'indoor' in coll.col_trait_dir
+        if store.s_supports_add_column_if_not_exists:
+            cols = set(coll._collection_columns())
+            assert 'breed' in cols and 'indoor' in cols
 
     def test_history_records_share_the_base_history_collection(self, bundle_history_store):
         """All members' history records land in the ONE shared
@@ -531,6 +605,32 @@ class TestBundleHistoryBehavior:
 
         cls_values = {doc['_cls'] for doc in animals_hist_coll.find()}
         assert {'Dog#history', 'Cat#history'} <= cls_values
+
+    def test_unknown_member_promotes_own_s_dir_on_save(self, bundle_history_store):
+        """members_known=False: member still shares base collection and unions its s_dir."""
+        store = bundle_history_store
+        Vehicles.delete_collection()
+
+        car = Car(plate='ABC-1', _replace=True)
+        car.doors = 4
+        car.save().throw()
+
+        coll = Car.collection()
+        assert coll is Vehicles.collection()
+        assert coll.collection_name() == PackageRefactoring.find_class_id(Vehicles)
+        assert 'doors' in coll.col_trait_dir
+        loaded = coll.load(car.id().value)
+        assert loaded['doors'] == 4
+        assert loaded['_cls'] == Car.serialize_class_id()
+        if store.s_supports_add_column_if_not_exists:
+            assert 'doors' in set(coll._collection_columns())
+            blob = json.loads(
+                store._con.execute(
+                    f'SELECT _data FROM "{coll.collection_name()}" WHERE _id = ?',
+                    [car.id().value],
+                ).fetchone()[0]
+            )
+            assert 'doors' not in blob
 
     def test_member_history_query_filters_by_class(self, bundle_history_store):
         """``Cat.history()`` returns only Cat records even though Cats and

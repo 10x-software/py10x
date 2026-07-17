@@ -3,7 +3,6 @@ from __future__ import annotations
 import heapq
 import itertools
 import operator
-from datetime import datetime
 from itertools import zip_longest
 from typing import TYPE_CHECKING
 
@@ -13,6 +12,7 @@ from core_10x.ts_store import TsCollection, TsStore
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from datetime import datetime
 
 
 class _OrderKey:
@@ -66,6 +66,14 @@ class TsUnionCollection(TsCollection):
     def __init__(self, *collections: TsCollection):
         self.collections = collections
 
+    def intrinsic_trait_dir(self) -> dict:
+        return self.collections[0].intrinsic_trait_dir() if self.collections else {}
+
+    def extend_trait_dir(self, trait_dir: dict | None) -> None:
+        """Forward to the head only — writes always go to ``collections[0]``."""
+        if self.collections:
+            self.collections[0].extend_trait_dir(trait_dir)
+
     def collection_name(self) -> str:
         return self.collections[0].collection_name() if self.collections else ''
 
@@ -77,16 +85,16 @@ class TsUnionCollection(TsCollection):
         results = (item for _, item in heapq.merge(*keyed_iterables, key=operator.itemgetter(0)))
         return (item for i, item in enumerate(results) if i < _at_most) if _at_most else results
 
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names=()):
-        return self.collections[0].save_new(serialized_traitable, overwrite=overwrite, ts_trait_names=ts_trait_names)
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False):
+        return self.collections[0].save_new(serialized_traitable, overwrite=overwrite)
 
-    def save(self, serialized_traitable, ts_trait_names=()):
+    def save(self, serialized_traitable):
         # if serialized_traitable was not loaded from the union head, we need to call save_new
         id_tag = Nucleus.ID_TAG()
         if not self.collections[0].exists(f(**{id_tag: EQ(serialized_traitable[id_tag])})):
             # TODO: optimize by introducing save with overwrite flag to bypass the "inappropriate restore from deleted" check
-            return self.collections[0].save_new(serialized_traitable, ts_trait_names=ts_trait_names)
-        return self.collections[0].save(serialized_traitable, ts_trait_names=ts_trait_names)
+            return self.collections[0].save_new(serialized_traitable)
+        return self.collections[0].save(serialized_traitable)
 
     def delete(self, id_value):
         # if id_value exists in the union tail, return False as the object wasn't fully deleted
@@ -119,13 +127,12 @@ class TsUnionCollection(TsCollection):
 
 
 class TsUnion(TsStore, resource_name='TS_UNION'):
-
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
         raise NotImplementedError('TsUnion does not support URI parsing')
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
 
     @classmethod
@@ -144,8 +151,8 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
     def collection_names(self, regexp: str = None) -> list:
         return list(set(itertools.chain(*(store.collection_names(regexp) for store in self.stores))))
 
-    def collection(self, collection_name):
-        return TsUnionCollection(*(store.collection(collection_name) for store in self.stores))
+    def collection(self, collection_name: str, trait_dir: dict | None = None) -> TsUnionCollection:
+        return TsUnionCollection(*(store.collection(collection_name, trait_dir) for store in self.stores))
 
     def delete_collection(self, collection_name: str) -> bool:
         return self.stores[0].delete_collection(collection_name) if self.stores else False
@@ -156,11 +163,10 @@ class TsUnion(TsStore, resource_name='TS_UNION'):
     def db_name(self) -> str | None:
         return self.stores[0].db_name() if self.stores else None
 
-    def add_who(self, field: str, serialized_data: dict) -> dict:
-        return self.stores[0].add_who(field, serialized_data) if self.stores else serialized_data
-
-    def add_when(self, field: str, serialized_data: dict) -> dict:
-        return self.stores[0].add_when(field, serialized_data) if self.stores else serialized_data
+    def add_ts(self, field: str, flag, serialized_data: dict) -> dict:
+        if not self.stores:
+            return serialized_data
+        return self.stores[0].add_ts(field, flag, serialized_data)
 
     def server_time(self) -> datetime:
         return self.stores[0].server_time() if self.stores else None

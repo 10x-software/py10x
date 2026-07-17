@@ -3,10 +3,7 @@ from __future__ import annotations
 import abc
 from collections import deque
 from contextlib import ExitStack, contextmanager
-from datetime import datetime
 from typing import TYPE_CHECKING
-
-#from polars.testing.parametric.strategies import data
 
 from core_10x.environment_variables import EnvVars
 from core_10x.exec_control import ProcessContext
@@ -15,16 +12,20 @@ from core_10x.nucleus import Nucleus
 from core_10x.py_class import PyClass
 from core_10x.rc import RC
 from core_10x.resource import TS_STORE, Resource, ResourceSpec
+from core_10x.trait_definition import T
 from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
-from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
+from py10x_kernel import BFlags, BTraitableProcessorSetValueTracker as BTPTracker
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
+    from datetime import datetime
+
     from core_10x.traitable import Traitable
 
 
 _REV = Nucleus.REVISION_TAG()
+TS_FIELDS_TAG = '_ts_fields'
 
 
 class TsDuplicateKeyError(Exception):
@@ -32,6 +33,10 @@ class TsDuplicateKeyError(Exception):
 
     def __init__(self, collection_name: str, duplicate_key: dict):
         super().__init__(f'Duplicate key error collection {collection_name} dup key: {duplicate_key} was found while insert was attempted.')
+
+
+class TsCopyError(Exception):
+    """Raised when copy_to cannot map source layout to the target store."""
 
 
 class TsCollection(abc.ABC):
@@ -46,9 +51,9 @@ class TsCollection(abc.ABC):
     @abc.abstractmethod
     def count(self, query: f = None) -> int: ...
     @abc.abstractmethod
-    def save_new(self, serialized_traitable: dict, overwrite: bool = False, ts_trait_names: Sequence[str] = ()) -> dict: ...
+    def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict: ...
     @abc.abstractmethod
-    def save(self, serialized_traitable: dict, ts_trait_names: Sequence[str] = ()) -> dict: ...
+    def save(self, serialized_traitable: dict) -> dict: ...
     @abc.abstractmethod
     def delete(self, id_value: str) -> bool: ...
     @abc.abstractmethod
@@ -65,8 +70,15 @@ class TsCollection(abc.ABC):
         for data in self.find(f(**{self.s_id_tag: id_value})):
             return data
 
+    def intrinsic_trait_dir(self) -> dict:
+        """trait dir inferred from the collection"""
+        return {}  # -- no schema by default
+
+    def extend_trait_dir(self, trait_dir: dict | None) -> None:
+        """Union additional trait metadata into this collection's schema (no-op by default)."""
+
     def copy_to(self, to_coll: TsCollection, overwrite: bool = False) -> RC:
-        """Copy all documents from this collection to another collection."""
+        """Copy all documents to another collection (same store-type rules as :meth:`TsStore.copy_to`)."""
         rc = RC(True)
 
         for doc in self.find():
@@ -81,9 +93,11 @@ class TsCollection(abc.ABC):
 
 
 class TsStore(Resource, resource_type=TS_STORE):
+    s_requires_schema: bool = False
+
     s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
-        Resource.SSL_TAG: (Resource.SSL_TAG,    True),
-        'sst':            ('sst',               1000),
+        Resource.SSL_TAG: (Resource.SSL_TAG, True),
+        'sst': ('sst', 1000),
     }
 
     class Transaction:
@@ -107,7 +121,6 @@ class TsStore(Resource, resource_type=TS_STORE):
             self.store.end_transaction(self)
             self._do_abort()
 
-
         def _do_commit(self) -> None: ...
 
         def _do_abort(self) -> None: ...
@@ -115,7 +128,7 @@ class TsStore(Resource, resource_type=TS_STORE):
     def __init__(self):
         self._active_transactions = deque()
 
-    def current_transaction(self) -> Transaction|None:
+    def current_transaction(self) -> Transaction | None:
         return self._active_transactions[-1] if self._active_transactions else None
 
     def begin_transaction(self, transaction: Transaction) -> None:
@@ -144,7 +157,7 @@ class TsStore(Resource, resource_type=TS_STORE):
         return ResourceSpec(ts_class, kwargs)
 
     @classmethod
-    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:   # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
 
     def on_enter(self):
@@ -157,7 +170,7 @@ class TsStore(Resource, resource_type=TS_STORE):
     def collection_names(self, regexp: str = None) -> list: ...
 
     @abc.abstractmethod
-    def collection(self, collection_name: str) -> TsCollection: ...
+    def collection(self, collection_name: str, trait_dir: dict | None = None) -> TsCollection: ...
 
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...
@@ -169,26 +182,54 @@ class TsStore(Resource, resource_type=TS_STORE):
     def db_name(self) -> str: ...
 
     @abc.abstractmethod
-    def add_who(self, field: str, serialized_data: dict) -> dict: ...
-
-    @abc.abstractmethod
-    def add_when(self, field: str, serialized_data: dict) -> dict: ...
-
-    @abc.abstractmethod
     def server_time(self) -> datetime: ...
+
+    def add_ts(self, field: str, flag, serialized_data: dict) -> dict:
+        """Record intent to stamp ``field`` server-side (``TS_TIME`` / ``TS_USER``).
+
+        Writes only ``_ts_fields``; ``save`` / ``save_new`` apply server operators (or
+        materialize) and hydrate returned values. Does not put the field value on the blob.
+        """
+        kind = BFlags(flag) & T.TS
+        if kind not in (T.TS_TIME, T.TS_USER):
+            raise RuntimeError(f'add_ts requires TS_TIME or TS_USER, got {kind!r} for {field!r}')
+        if field in serialized_data:
+            raise RuntimeError(f'Field {field} is already in use.')
+        ts_fields = serialized_data.setdefault(TS_FIELDS_TAG, {})
+        if field in ts_fields:
+            raise RuntimeError(f'Field {field} is already listed in {TS_FIELDS_TAG}.')
+        ts_fields[field] = kind.value()
+        return serialized_data
 
     def supports_transactions(self) -> bool:
         return True
 
     def copy_to(self, to_store: TsStore, overwrite: bool = False) -> RC:
-        """Copy all collections from this store to another store."""
+        """Copy all collections.
+
+        Allowed directions: schemaless→schemaless (e.g. Mongo→Mongo), schema→schema
+        (Ibis→Ibis), and schema→schemaless (Ibis→Mongo). Schema→requires schema source.
+
+        When the source is a schema store (Ibis), target layout comes from
+        :meth:`TsCollection.intrinsic_trait_dir` (live table columns only).
+        """
+        if to_store.s_requires_schema and not self.s_requires_schema:
+            raise TsCopyError(f'Cannot copy from {type(self).__name__} to {type(to_store).__name__}')
+
         rc = RC(True)
-
         for collection_name in self.collection_names():
-            from_coll = self.collection(collection_name)
-            to_coll = to_store.collection(collection_name)
+            from_coll = self.collection(collection_name, {})
+            if self.s_requires_schema:
+                # Ibis (and other schema stores): layout from the table only.
+                if to_store.s_requires_schema:
+                    if not (trait_dir := from_coll.intrinsic_trait_dir()):
+                        raise TsCopyError(f'Cannot resolve intrinsic_trait_dir for collection {collection_name!r}')
+                    to_coll = to_store.collection(collection_name, trait_dir)
+                else:
+                    to_coll = to_store.collection(collection_name, {})
+            else:
+                to_coll = to_store.collection(collection_name, {})
             rc += from_coll.copy_to(to_coll, overwrite=overwrite)
-
         return rc
 
     @contextmanager
@@ -206,13 +247,12 @@ class TsStore(Resource, resource_type=TS_STORE):
                 tx.abort()
 
 
-
 @contextmanager
 def SaveIfChanged(classes: Sequence[type[Traitable]] = ()):  # noqa: N802
     if any(not cls.is_storable() for cls in classes):
         raise RuntimeError('Classes passed to SaveIfChanged must be storable.')
 
-    if not isinstance(classes,tuple):
+    if not isinstance(classes, tuple):
         classes = tuple(classes)
 
     tracker = BTPTracker()

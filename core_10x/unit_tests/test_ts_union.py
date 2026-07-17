@@ -55,9 +55,7 @@ def test_save_new(union_collection):
     union, collection1, collection2 = union_collection
     serialized_traitable = {Nucleus.ID_TAG(): 1}
     union.save_new(serialized_traitable)
-    collection1.save_new.assert_called_once_with(
-        serialized_traitable, overwrite=False, ts_trait_names=()
-    )
+    collection1.save_new.assert_called_once_with(serialized_traitable, overwrite=False)
     collection2.save.assert_not_called()
 
 
@@ -66,7 +64,7 @@ def test_save(union_collection):
     serialized_traitable = {Nucleus.ID_TAG(): 1}
     collection1.exists.return_value = False
     union.save(serialized_traitable)
-    collection1.save_new.assert_called_once_with(serialized_traitable, ts_trait_names=())
+    collection1.save_new.assert_called_once_with(serialized_traitable)
     collection1.save.assert_not_called()
     collection2.save_new.assert_not_called()
     collection2.save.assert_not_called()
@@ -75,7 +73,7 @@ def test_save(union_collection):
     collection1.exists.return_value = True
     union.save(serialized_traitable)
     collection1.save_new.assert_not_called()
-    collection1.save.assert_called_once_with(serialized_traitable, ts_trait_names=())
+    collection1.save.assert_called_once_with(serialized_traitable)
     collection2.save_new.assert_not_called()
     collection2.save.assert_not_called()
 
@@ -272,10 +270,19 @@ def test_collection(union_store):
     collection_name = 'collection_name'
     mock_store1.collection.return_value = MagicMock()
     mock_store2.collection.return_value = MagicMock()
-    result = union_store.collection(collection_name)
+    result = union_store.collection(collection_name, {})
     assert isinstance(result, TsUnionCollection)
-    mock_store1.collection.assert_called_once_with(collection_name)
-    mock_store2.collection.assert_called_once_with(collection_name)
+    mock_store1.collection.assert_called_once_with(collection_name, {})
+    mock_store2.collection.assert_called_once_with(collection_name, {})
+
+
+def test_extend_trait_dir_forwards_to_head_only(union_collection):
+    """Writes hit collections[0]; extend_trait_dir must update the head only."""
+    union, collection1, collection2 = union_collection
+    trait_dir = {'x': object()}
+    union.extend_trait_dir(trait_dir)
+    collection1.extend_trait_dir.assert_called_once_with(trait_dir)
+    collection2.extend_trait_dir.assert_not_called()
 
 
 def test_delete_collection(union_store):
@@ -306,8 +313,8 @@ def test_new_instance(ts_union):
         (('dbname', 'dbname1'), ('hostname', 'localhost')),
         (('dbname', 'dbname2'), ('hostname', 'localhost')),
         (
-            (('dbname', 'dbname1'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost'),),
-            (('dbname', 'dbname2'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost'),),
+            (('dbname', 'dbname1'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost')),
+            (('dbname', 'dbname2'), ('driver_name', 'DUCK_DB'), ('hostname', 'localhost')),
         ),
     ]
 

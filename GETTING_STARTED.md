@@ -742,7 +742,7 @@ with CACHE_ONLY():
     employee = Employee(first_name="Alice", last_name="Smith", company=company, _replace=True)
     
     # The company is stored by reference
-    assert employee.serialize_object()['company'] == {'_id': 'Acme Corp'}
+    assert employee.serialize_object()['company'] == 'Acme Corp'
 ```
 
 ### Embedded Traits (Stored Embedded)
@@ -785,7 +785,7 @@ When two `Traitable` classes reference each other — or when a class is defined
 from core_10x.traitable import Traitable, T
 
 class Order(Traitable):
-    order_id: str       = T(T.ID)
+    order_id: str      = T(T.ID)
     customer: Customer = T()   # Customer is defined below
 
 class Customer(Traitable):
@@ -1525,14 +1525,14 @@ Some fields must be authoritative in the Traitable Store (timestamp of the write
 
 | Flag | Type | On save |
 |------|------|---------|
-| `T.TS_TIME` | `datetime` | `TsStore.add_when(field, …)` (e.g. Mongo `$currentDate`, DuckDB `server_time()`) |
-| `T.TS_USER` | `str` | `TsStore.add_who(field, …)` (authenticated store user, if any) |
+| `T.TS_TIME` | `datetime` | `TsStore.add_ts(field, T.TS_TIME, …)` → stamped in `save`/`save_new` (server time / `$$NOW` / SQL `current_timestamp` when available) |
+| `T.TS_USER` | `str` | `TsStore.add_ts(field, T.TS_USER, …)` → authenticated store user applied on save |
 
 `T.TS_TIME` and `T.TS_USER` are exclusive bits; `T.TS` is their mask (`TS_TIME | TS_USER`). Use `flags_on(T.TS)` for “any store-side field”, and exact kind checks such as `(flags & T.TS) == T.TS_USER` when both bits must not be set. Behavior:
 
 - **Not sent by the client** — `serialize_traits` omits any trait with `T.TS`.
-- **Filled on save (default)** — default `Traitable.post_serialize` walks `TS_*` traits and calls the store helpers above. Overrides may inject only some traits (or none) when a field should be introduced only on certain saves.
-- **Hydrated on the client after `save()`** — the store returns post-write values for those fields with the new revision; no `reload()` required for the writer. Only fields present in the save result are applied (skipped injections are not errors).
+- **Marked on save (default)** — default `Traitable.post_serialize` walks `TS_*` traits and calls `TsStore.add_ts`, which only records intent in a `_ts_fields` side channel. Overrides may mark only some traits (or none). The collection `save` / `save_new` path applies server operators (or materializes) and strips `_ts_fields` before persistence.
+- **Hydrated on the client after `save()`** — the store returns post-write values for stamped fields with the new revision; no `reload()` required for the writer. Only fields present in the save result are applied (unmarked traits are not errors).
 - **Loaded like normal stored fields** — also present when other clients load or reload the document (if they were written).
 - **Must be storable** — not `RT()` / `RUNTIME`; integrity checks enforce type and storability.
 
@@ -2083,8 +2083,7 @@ assert Shape.deserialize_class_id('Circle') is Circle
 assert Shape.deserialize_class_id('Square') is Square
 
 # Members share the bundle base's collection.
-assert Circle.collection == Shape.collection
-assert Square.collection == Shape.collection
+assert Circle.collection() is Shape.collection() is Square.collection()
 
 # Members are constructed and persisted like any other Traitable.
 with CACHE_ONLY():
