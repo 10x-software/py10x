@@ -1,18 +1,15 @@
-from datetime import datetime
-import time
-
 import pytest
 
 from core_10x.testlib.fixtures import with_transactions
-from core_10x.testlib.traitable_history_tests import TestTraitableHistory, test_collection, test_store
+from core_10x.testlib.traitable_history_tests import (
+    TestTraitableHistory,
+    make_clock_freezer,
+    test_collection,
+    test_store,
+)
 
 
 @pytest.fixture
-def clock_freezer():
-    class Freezer:
-        @staticmethod
-        def utcnow():
-            time.sleep(0.001)
-            return datetime.utcnow()
-
-    return Freezer
+def clock_freezer(ts_instance):
+    """Mongo cannot freeze ``$$NOW``; reuse the shared flowing server_time cut+wait."""
+    return make_clock_freezer(ts_instance, freeze=False)

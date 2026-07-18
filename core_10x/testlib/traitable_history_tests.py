@@ -20,45 +20,56 @@ from core_10x.traitable_id import ID
 from core_10x.traitable import StorableHelper, StorableHelperWithHistory
 from core_10x.ts_store import TsDuplicateKeyError
 
+from infra_10x.duckdb_store import DuckDbStore
 
-@pytest.fixture(params=[True, False], ids=['frozen', 'flowing'], autouse=True)
-def clock_freezer(mocker, ts_instance, request):
+def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
+    """Build a clock freezer for as-of / restore cutpoints.
+
+    *flowing* (``freeze=False``): cut on ``store.server_time()`` and wait until it
+    advances past the cut so the next stamp is strictly later.
+
+    *frozen* (``freeze=True``, DuckDB only): mock ``_server_time_col_sql_expr`` so
+    stamps share an identical ``_at`` until ``utcnow()`` advances the freeze.
+    """
+
     class ClockFreezer(list):
         def utcnow(self):
-            tm = datetime.utcnow()
             if self:
-                tm, self[0] = self[0], tm
-            else:
-                time.sleep(0.001)
+                # Return the frozen cut, then advance the freeze to wall "now" so later
+                # stamps (via mocked SQL) are strictly after the cut.
+                real = datetime.now(timezone.utc).replace(tzinfo=None)
+                prev, self[0] = self[0], real
+                return prev
 
-            return tm
+            ts = ts_instance.server_time()
+            tries = 10
+            for _ in range(tries):
+                if ts_instance.server_time() > ts:
+                    break
+                time.sleep(0.001)
+            else:
+                assert False, f'server_time {ts} failed to advance after {tries} tries.'
+            return ts
 
     frozen_now = ClockFreezer()
-    if request.param:
-        frozen_now.append(datetime.utcnow())
-        from infra_10x.duckdb_store import DuckDbStore
+    if freeze:
+        assert isinstance(ts_instance, DuckDbStore)
+        if mocker is None:
+            raise TypeError('mocker is required when freeze=True')
+        frozen_now.append(datetime.now(timezone.utc).replace(tzinfo=None))
 
-        # TS_TIME is stamped by SQL server exprs, not Python server_time(): freeze all three
-        # sources — the JSON-blob expr, the native-column expr, and server_time() for any
-        # remaining Python callers.
-        mocker.patch.object(
-            DuckDbStore,
-            'server_time',
-            lambda self: frozen_now[0].replace(tzinfo=None),
-        )
-
-        mocker.patch.object(
-            DuckDbStore,
-            '_server_time_sql_expr',
-            lambda self: f"'{frozen_now[0].replace(tzinfo=None).strftime('%Y-%m-%dT%H:%M:%S.%f')}'",
-        )
-
+        # TS_TIME / server_time() both go through _server_time_col_sql_expr.
         mocker.patch.object(
             DuckDbStore,
             '_server_time_col_sql_expr',
-            lambda self: f"CAST('{frozen_now[0].replace(tzinfo=None).strftime('%Y-%m-%dT%H:%M:%S.%f')}' AS TIMESTAMP)",
+            lambda self: f"CAST('{frozen_now[0].strftime('%Y-%m-%dT%H:%M:%S.%f')}' AS TIMESTAMP)",
         )
-    yield frozen_now
+    return frozen_now
+
+
+@pytest.fixture(params=[True, False], ids=['frozen', 'flowing'], autouse=True)
+def clock_freezer(mocker, ts_instance, request):
+    yield make_clock_freezer(ts_instance, mocker, freeze=request.param)
 
 
 class NameValueTraitableBase(Traitable):
