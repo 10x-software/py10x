@@ -4,12 +4,14 @@
 #pragma once
 
 #include <set>
+#include <stdexcept>
 
 #include "py_linkage.h"
 
 const unsigned STATE_VALID          = 0x1;
 const unsigned STATE_SET            = 0x2;
 const unsigned STATE_IMPORTED       = 0x4;
+const unsigned STATE_GETTER_GUARD   = 0x8;      // transient: this node's getter is evaluating
 const unsigned STATE_VALID_AND_SET  = STATE_VALID | STATE_SET;
 
 class NODE_TYPE {
@@ -34,8 +36,20 @@ public:
     BasicNode() : m_value(PyLinkage::XNone()), m_state(0x0)  {}
     virtual ~BasicNode() = default;
 
+    [[nodiscard]] bool is_getter_guarded() const { return m_state & STATE_GETTER_GUARD; }
+    void set_getter_guard(bool on)              { on ? m_state |= STATE_GETTER_GUARD : m_state &= ~STATE_GETTER_GUARD; }
+
+    // throw if a set()/invalidate() reaches a node whose own getter is still evaluating
+    void throw_if_getter_guarded() const {
+        if (m_state & STATE_GETTER_GUARD)
+            throw std::runtime_error(
+                "write-during-read: a getter mutated a graph node it depends on while "
+                "that getter is still evaluating; see the Python traceback for the "
+                "getter and the mutation site");
+    }
+
     [[nodiscard]] bool is_valid() const         { return m_state & STATE_VALID; }
-    [[nodiscard]] bool is_set() const           { return m_state == STATE_VALID_AND_SET; }
+    [[nodiscard]] bool is_set() const           { return (m_state & ~STATE_GETTER_GUARD) == STATE_VALID_AND_SET; }
     [[nodiscard]] bool is_valid_and_not_set() const { return (m_state & STATE_VALID) && ((m_state & STATE_SET) == 0x0); }
 
     [[nodiscard]] py::object value() const      { return m_value; }
@@ -49,7 +63,7 @@ public:
     void make_invalid()                         { m_state &= ~STATE_VALID_AND_SET; }
     void set_state(unsigned state)              { m_state = state; }
 
-    virtual void set(const py::object& v )      { m_value = v; m_state = STATE_VALID_AND_SET; }
+    virtual void set(const py::object& v )      { m_value = v; m_state = (m_state & STATE_GETTER_GUARD) | STATE_VALID_AND_SET; }
 
     virtual void invalidate() {
         if (is_valid()) {
@@ -76,6 +90,16 @@ public:
 
 };
 
+// marks a node's "getter is evaluating" bit for the duration of its getter call
+class GetterGuard {
+    BasicNode* m_node;
+public:
+    explicit GetterGuard(BasicNode* n) : m_node(n)  { m_node->set_getter_guard(true); }
+    ~GetterGuard()                                  { m_node->set_getter_guard(false); }
+    GetterGuard(const GetterGuard&) = delete;
+    GetterGuard& operator=(const GetterGuard&) = delete;
+};
+
 class PY10X_API TreeNode : public BasicNode {
 protected:
     NodeSet     m_parents;
@@ -86,21 +110,23 @@ public:
 
     [[nodiscard]] int node_type() const override    { return NODE_TYPE::TREE; }
 
-    void invalidate_parents() {
+    void invalidate_parents() const {
         for (auto p : m_parents)
-            if (p->is_valid_and_not_set())
+            if (p->is_getter_guarded() || p->is_valid_and_not_set())
                 p->invalidate();
     }
 
     void invalidate() override {
+        throw_if_getter_guarded();      // must precede the is_valid() early return
         if (is_valid()) {
             m_value = PyLinkage::XNone();
-            m_state = 0x0;
+            m_state &= STATE_GETTER_GUARD;      // clear all but the guard bit
             invalidate_parents();
         }
     }
 
     void set(const py::object& value) override {
+        throw_if_getter_guarded();
         BasicNode::set(value);
         invalidate_parents();
     }
@@ -193,8 +219,9 @@ public:
     void set_refresh_emit(py::object f)     { f_refresh_emit = f; }
 
     void invalidate() final {
+        throw_if_getter_guarded();
         if (is_valid()) {
-            m_state = 0x0;
+            m_state &= STATE_GETTER_GUARD;
             f_refresh_emit();
         }
     }

@@ -466,6 +466,50 @@ def test_computed_trait():
             assert x.z == 21
 
 
+def test_write_during_read_ripple():
+    """A getter re-sets a leaf several levels below it; the ripple reaches the guarded ancestor."""
+    class X(Traitable):
+        base: int = RT()
+        mid: int = RT()
+        top: int = RT()
+
+        def mid_get(self):
+            return self.base + 1        # mid depends on base
+
+        def top_get(self):
+            _ = self.mid                # top depends on mid depends on base
+            self.base = 999             # re-set leaf -> ripple base -> mid -> top (guarded)
+            return self.mid
+
+    with GRAPH_ON():
+        x = X(base=10)
+        try:
+            _ = x.top
+        except TraitMethodError as e:
+            assert 'write-during-read' in str(e), str(e)
+        else:
+            assert False, "Expected write-during-read error"
+
+
+def test_write_during_read_self_set():
+    """A getter that sets its own trait raises write-during-read."""
+    class X(Traitable):
+        z: int = RT()
+
+        def z_get(self):
+            self.z = 5          # set the node whose own getter is running
+            return 1
+
+    with GRAPH_ON():
+        x = X()
+        try:
+            _ = x.z
+        except TraitMethodError as e:
+            assert 'write-during-read' in str(e), str(e)
+        else:
+            assert False, "Expected write-during-read error"
+
+
 def test_duplicate_id():
     class X(Traitable):
         x: int = RT(T.ID)
@@ -1204,6 +1248,8 @@ if __name__ == '__main__':
     test_default_trait_invalidate()
     test_existing_multi_cache()
     test_computed_trait()
+    test_write_during_read_ripple()
+    test_write_during_read_self_set()
     test_duplicate_id()
     test_lazy_load_once()
     test_empty_object_share()

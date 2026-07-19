@@ -3,6 +3,7 @@
 //
 
 #include "btrait_processor.h"
+#include "bnode.h"
 #include "btrait.h"
 #include "btraitable.h"
 #include "btraitable_processor.h"
@@ -48,10 +49,13 @@ py::object BTraitProcessor::get_node_value_on_graph(BTraitableProcessor* proc, B
         // TODO: PLACEBO_MAKER!
         NodeGuard node_guard(xstack, node);      // push node to the stack
 
-        auto old_children = node->children();
+        const auto old_children = node->children();
         node->clear_children();
 
-        value = f();       // calling a fully bound python method
+        {
+            GetterGuard getter_guard(node);
+            value = f();
+        }
         node->assign(value);
         auto new_children = node->children();
         for (auto c: *old_children)
