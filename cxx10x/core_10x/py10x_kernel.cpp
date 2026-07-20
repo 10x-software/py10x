@@ -250,11 +250,13 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("is_id_endogenous",            &BTraitableClass::is_id_endogenous)
             .def("is_custom_collection",        &BTraitableClass::is_custom_collection)
             .def("find_trait",                  &BTraitableClass::find_trait)
-            .def("load",                        &BTraitableClass::load)
+            .def("load",                        &BTraitableClass::load,
+                        "id"_a, "reload"_a=true
+                )
             ;
 
     py::class_<BTraitable,PyBTraitable>(m, "BTraitable")
-            .def(py::init<BTraitableClass*, const py::object&>())
+            .def(py::init<const BTraitableClass*, const py::object&>())
             .def("initialize",                  &BTraitable::initialize,
                     "Initialize object",
                     "trait_values"_a, "_replace"_a=false, "_update"_a=false
@@ -307,7 +309,7 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("deserialize_traits",          &BTraitable::deserialize_traits)
             .def_static("deserialize_object",   &BTraitable::deserialize_object,
                         "Deserialize object",
-                        "bclass"_a, "collection_name"_a, "serialized_data"_a
+                        "bclass"_a, "collection_name"_a, "serialized_data"_a, "reload"_a=true
                 )
             .def("reload",                      &BTraitable::reload)
             .def("bui_class",                   &BTraitable::bui_class, py::return_value_policy::reference)

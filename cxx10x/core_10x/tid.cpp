@@ -6,7 +6,7 @@
 #include "btraitable_class.h"
 #include "bnucleus.h"
 
-TID::TID(BTraitableClass* cls, const py::object& id) : m_class(cls) {
+TID::TID(const BTraitableClass* cls, const py::object& id) : m_class(cls) {
     m_id = id;
     if (cls->is_custom_collection()) {
         if (!py::bool_(coll_name()))

@@ -23,7 +23,7 @@ protected:
     bool            m_custom_collection;
     bool            m_embeddable;
 
-    BUiClass*       m_ui_class = nullptr;
+    mutable BUiClass*       m_ui_class = nullptr;
 
     eval_once_const(BTraitableClass, bool, is_storable);
     eval_once_const(BTraitableClass, bool, is_id_endogenous);
@@ -35,7 +35,7 @@ protected:
     bool    is_storable_get() const;
     bool    is_id_endogenous_get() const;
 
-    BUiClass* bui_class();
+    BUiClass* bui_class() const;
 
 public:
 
@@ -109,7 +109,7 @@ public:
         return py::none();
     }
 
-    py::object load(const py::object& id);
+    py::object load(const py::object& id, bool reload = true) const;
     py::object load_data(const py::object& id) const;
 
 };

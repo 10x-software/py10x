@@ -17,7 +17,7 @@
 //    delete m_ui_class;
 //}
 
-BUiClass* BTraitableClass::bui_class() {
+BUiClass* BTraitableClass::bui_class() const{
     if (!m_ui_class)
         m_ui_class = new BUiClass(this);
     return m_ui_class;
@@ -42,7 +42,7 @@ bool BTraitableClass::is_id_endogenous_get() const {
 }
 
 BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
-    auto trait = PyLinkage::dict_get(trait_dir(), trait_name);
+    const auto trait = PyLinkage::dict_get(trait_dir(), trait_name);
     if (trait.is(PyLinkage::XNone()))
         return nullptr;
 
@@ -50,7 +50,7 @@ BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
 }
 
 bool BTraitableClass::instance_in_cache(const TID &tid) {
-    auto cache = ThreadContext::current_traitable_proc()->cache();
+    const auto cache = ThreadContext::current_traitable_proc()->cache();
     return cache->find_object_cache(tid) != nullptr;
 }
 
@@ -61,7 +61,7 @@ bool BTraitableClass::instance_in_store(const TID &tid) const {
     return m_py_class.attr("exists_in_store")(tid.id()).cast<bool>();
 }
 
-py::object BTraitableClass::load(const py::object& id) {
+py::object BTraitableClass::load(const py::object& id, bool reload) const {
     if (!may_exist_in_store() || !TID::is_valid(id))
         return py::none();
 
@@ -69,7 +69,7 @@ py::object BTraitableClass::load(const py::object& id) {
     if (serialized_data.is_none())
         return serialized_data;
 
-    return BTraitable::deserialize_object(this, id.attr("collection_name"), serialized_data);
+    return BTraitable::deserialize_object(this, id.attr("collection_name"), serialized_data, reload);
 }
 
 py::object BTraitableClass::load_data(const py::object& id) const {

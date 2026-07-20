@@ -180,7 +180,7 @@ public:
 class PY10X_API XCache {
 protected:
     using IDs           = py::set;
-    using IDsByClass    = std::unordered_map<BTraitableClass*, IDs>;    // extra map to facilitate obj search
+    using IDsByClass    = std::unordered_map<const BTraitableClass*, IDs>;    // extra map to facilitate obj search
 
     using Data      = std::unordered_map<TID, ObjectCache*>;
     using TmpData   = std::unordered_map<const TID*, ObjectCache*>;
@@ -286,7 +286,7 @@ public:
         return oc;
     }
 
-    py::set object_ids_by_class(BTraitableClass* cls) const;
+    py::set object_ids_by_class(const BTraitableClass* cls) const;
 
     XCache *find_origin_cache(const TID &tid);
 

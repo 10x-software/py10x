@@ -71,7 +71,7 @@ protected:
 
 
 public:
-    explicit BTraitable(BTraitableClass* cls, const py::object& id) : m_tid(cls, id) {
+    explicit BTraitable(const BTraitableClass* cls, const py::object& id) : m_tid(cls, id) {
         const auto proc = ThreadContext::current_traitable_proc();
         set_origin_cache(proc->cache());
         if (m_tid.is_valid()) {
@@ -114,7 +114,7 @@ public:
     }
 
     [[nodiscard]] XCache*           origin_cache() const        { return m_origin_cache; }
-    [[nodiscard]] BTraitableClass*  my_class() const            { return m_tid.cls(); }
+    [[nodiscard]] const BTraitableClass*  my_class() const            { return m_tid.cls(); }
     [[nodiscard]] BUiClass*         bui_class() const           { return my_class()->bui_class(); }
     [[nodiscard]] py::str           class_name() const          { return my_class()->name(); }
     [[nodiscard]] const TID&        tid() const                 { return m_tid; }
@@ -330,7 +330,7 @@ public:
     py::list            serialize_id_traits();
     static py::dict     deserialize_id_traits(const BTraitableClass* cls, const py::object& serialized_data);
 
-    static py::object   deserialize_object(const BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data);
+    static py::object   deserialize_object(const BTraitableClass* cls, const py::object& coll_name, const py::dict& serialized_data, bool reload = true);
     virtual void        deserialize_traits(const py::dict& trait_values);
     static py::object   deserialize_nx(const BTraitableClass* cls, const py::dict& serialized_data);
     py::object          _reload(const bool rev_only = false);

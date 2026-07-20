@@ -24,7 +24,7 @@ XCache *XCache::find_origin_cache(const TID &tid) {
     return nullptr;
 }
 
-py::set XCache::object_ids_by_class(BTraitableClass* cls) const {
+py::set XCache::object_ids_by_class(const BTraitableClass* cls) const {
     auto it = m_ids_by_class.find(cls);
     py::set result;
     if (it != m_ids_by_class.end())

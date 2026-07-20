@@ -79,7 +79,7 @@ public:
 
 };
 
-BUiClass::BUiClass(BTraitableClass* cls) : m_class(cls) {
+BUiClass::BUiClass(const BTraitableClass* cls) : m_class(cls) {
     //-- skipping HIDDEN traits and traits with custom getters/setters with params
     for (auto item : cls->trait_dir()) {
         auto py_trait = item.second.cast<py::object>();

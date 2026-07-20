@@ -15,11 +15,11 @@ class BTrait;
 class PY10X_API BUiClass {
     using Dir = std::unordered_map<const BTrait*, BTrait*>;
 
-    BTraitableClass*    m_class;
+    const BTraitableClass*    m_class;
     Dir                 m_own_dir;
 
 public:
-    explicit BUiClass(BTraitableClass* cls);
+    explicit BUiClass(const BTraitableClass* cls);
 
     BTrait *bui_trait(const BTrait *trait) const;
 

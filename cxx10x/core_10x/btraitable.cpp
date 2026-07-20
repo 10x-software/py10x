@@ -353,21 +353,23 @@ py::object BTraitable::serialize_object(const bool save_references) {
     return serialized_data;
 }
 
-py::object BTraitable::deserialize_object(const BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data) {
+py::object BTraitable::deserialize_object(const BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data, bool reload) {
     if (!cls)
         throw std::runtime_error("BTraitable class is required!");
     if (const auto class_id = cls->get_field(serialized_data, BNucleus::CLASS_TAG(), false); !class_id.is_none())
         cls = cls->deserialize_class_id(class_id).attr("s_bclass").cast<BTraitableClass*>();
 
     const auto id_value = cls->get_field(serialized_data, BNucleus::ID_TAG());
-    const auto rev = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+    const auto id = PyLinkage::traitable_id(id_value, coll_name);
+    if (!reload && BTraitableClass::instance_in_cache(TID(cls, id)))
+        return cls->from_id(id);
 
-    auto py_traitable = cls->from_id(PyLinkage::traitable_id(id_value, coll_name));
+    auto py_traitable = cls->from_id(id);
 
     const auto obj = py_traitable.cast<BTraitable*>();
     obj->clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
     obj->deserialize_traits(serialized_data);
-    obj->set_revision(rev);
+    obj->set_revision(cls->get_field(serialized_data, BNucleus::REVISION_TAG()));
 
     return py_traitable;
 }

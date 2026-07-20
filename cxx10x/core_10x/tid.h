@@ -12,12 +12,12 @@
 class BTraitableClass;
 
 class PY10X_API TID {
-    BTraitableClass*    m_class;
+    const BTraitableClass*    m_class;
     py::object          m_id;       //-- python's Traitable.ID instance
     mutable std::size_t m_hash;
 
 public:
-    TID(BTraitableClass* cls, const py::object& id);
+    TID(const BTraitableClass* cls, const py::object& id);
     TID(const TID& tid) = default;
 
     static bool is_valid(const py::object& id)                      { return !id.attr("value").is_none(); }
@@ -32,7 +32,7 @@ public:
     [[nodiscard]] py::object            id() const                  { return m_id; }
     [[nodiscard]] py::object            id_value() const            { return m_id.attr("value"); }
     [[nodiscard]] py::object            coll_name() const           { return m_id.attr("collection_name"); }
-    [[nodiscard]] BTraitableClass*      cls() const                 { return m_class; }
+    [[nodiscard]] const BTraitableClass*      cls() const           { return m_class; }
     [[nodiscard]] py::object            traitable_id() const        { return PyLinkage::traitable_id(id_value(), coll_name()); }
 
     bool operator == (const TID& other) const {
@@ -43,7 +43,7 @@ public:
 
 private:
     [[nodiscard]] std::size_t hash() const              { return m_hash; }
-    static std::size_t compute_hash(BTraitableClass* cls, const py::object& id) {
+    static std::size_t compute_hash(const BTraitableClass* cls, const py::object& id) {
         std::size_t seed = 0;
         hash_combine(seed, cls);
         hash_combine(seed, py::hash(id.attr("value")));
