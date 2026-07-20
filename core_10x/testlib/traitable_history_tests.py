@@ -478,7 +478,7 @@ class TestTraitableHistory:
                 None,
             ):
                 with ctx():
-                    person1 = PersonTraitable(person_id)
+                    person1 = PersonTraitable.from_id(person_id)
                     assert person1.dob == date(1985, 7, 6)
 
                     person_as_of = PersonTraitable.as_of(person_id, as_of_time=ts)
@@ -490,7 +490,7 @@ class TestTraitableHistory:
                         with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
                             _ = person_as_of.dob
 
-                        person2 = PersonTraitable(person_id)
+                        person2 = PersonTraitable.from_id(person_id)
                         assert person2.dob == (date(1985, 7, 5 + (as_of is None)))
                         assert person2.spouse.dob == (date(1985, 7, 5 + (as_of is None)))
 
