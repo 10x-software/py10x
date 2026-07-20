@@ -32,6 +32,11 @@ PYBIND11_MODULE(py10x_infra, m)
 //           ;
 
     py::class_<MongoCollectionHelper>(m, "MongoCollectionHelper")
-            .def_static("prepare_filter_and_pipeline",  &MongoCollectionHelper::prepare_filter_and_pipeline)
+            .def_static(
+                "prepare_filter_and_pipeline",
+                &MongoCollectionHelper::prepare_filter_and_pipeline,
+                py::arg("serialized_traitable"),
+                py::arg("filter"),
+                py::arg("pipeline"))
             ;
 }
