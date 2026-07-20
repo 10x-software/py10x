@@ -481,14 +481,23 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         if cls.is_storable() and (rt_id_trait := next((trait for trait in cls.traits(flags_on=T.ID) if trait.flags_on((T.RUNTIME))), None)):
             rc.add_error(f'{cls}.{rt_id_trait.name} is a RUNTIME ID trait - traitable must not be storable (all traits must be RUNTIME)')
 
-    def __init__(self, _id: ID = None, _collection_name: str = None, _skip_init=False, _replace=False, _update=False, **trait_values):
+    def __init__(
+        self,
+        *,
+        _id: ID = None,
+        _collection_name: str = None,
+        _skip_init=False,
+        _replace=False,
+        _update=False,
+        **trait_values,
+    ):
         cls = self.__class__
 
         assert not (_replace and _update), f'{self.__class__}: _replace and _update cannot both be True'
 
         if _id is not None:
-            assert _collection_name is None, f'{self.__class__}(id_value) may not be invoked with _collection_name'
-            assert not trait_values, f'{self.__class__}(id_value) may not be invoked with trait_values'
+            assert _collection_name is None, f'{self.__class__}(_id=...) may not be invoked with _collection_name'
+            assert not trait_values, f'{self.__class__}(_id=...) may not be invoked with trait_values'
             super().__init__(cls.s_bclass, _id)
         else:
             super().__init__(cls.s_bclass, ID(collection_name=_collection_name))
@@ -500,6 +509,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def __post_init__(self):
         # Default no-op; users can override this in subclasses
         pass
+
+    @classmethod
+    def from_id(cls, _id: ID) -> Self:
+        return cls(_id=_id)
 
     @classmethod
     def existing_instance(cls, _collection_name: str = None, _throw: bool = True, **trait_values) -> Self | None:

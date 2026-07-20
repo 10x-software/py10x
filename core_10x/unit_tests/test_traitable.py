@@ -124,7 +124,7 @@ def test_overriding_init_disallowed():
 def test_init_with_id():
     with GRAPH_ON():  # isolate lazy reference so it does not affect other tests
         pid = ID('John|Smith')
-        p = Person(pid)
+        p = Person.from_id(pid)
         assert p.id() == pid
 
 
@@ -234,7 +234,7 @@ def test_custom_collection():
     assert X.trait('_collection_name')
 
     X(x=1, v=10, _collection_name='collA', _replace=True)
-    x = X(ID('1', collection_name='collA'))
+    x = X.from_id(ID('1', collection_name='collA'))
     assert x._collection_name == 'collA'
     assert x.x == 1 and x.v == 10
 
@@ -984,14 +984,14 @@ def test_reload():
             return data
 
     # reload of lazy ref
-    x = X(ID('1'))
+    x = X.from_id(ID('1'))
     x.reload()
     assert x._rev == 1
 
     x.reload()
     assert x._rev == 2
 
-    x = X(ID('2'))
+    x = X.from_id(ID('2'))
     with GRAPH_ON():
         x.reload()
         assert x._rev == 3
@@ -999,9 +999,9 @@ def test_reload():
     assert x._rev == 3
     assert rev == 3
 
-    x = X(ID('3'))
+    x = X.from_id(ID('3'))
     with GRAPH_ON():
-        y = X(ID('3'))
+        y = X.from_id(ID('3'))
         assert y._rev == 4
     assert x._rev == 4
 

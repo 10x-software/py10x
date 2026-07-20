@@ -17,12 +17,15 @@ Not covered: ``T.EMBEDDED`` (full / nx payload dicts).
 
 from __future__ import annotations
 
+import pytest
+
 from core_10x.concrete_traits import nucleus_trait
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.nucleus import Nucleus
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.trait_definition import T
-from core_10x.traitable import Traitable
+from core_10x.traitable import NamedTraitable, Traitable
+from core_10x.traitable_id import ID
 
 # ---------------------------------------------------------------------------
 # Default collection (no custom_collection)
@@ -237,3 +240,75 @@ def test_legacy_dict_wire_still_deserializes():
         back2 = trait.deserialize({'_type': '_nx', '_cls': cls_id, '_obj': {'_id': 'legacy_sub'}})
         assert type(back2) is RefSub
         assert back2.id_value() == 'legacy_sub'
+
+
+# ---------------------------------------------------------------------------
+# NamedTraitable (+ multi-part ID) as non-embedded ref target
+# ---------------------------------------------------------------------------
+# C++ uses Traitable.from_id(id); NamedTraitable positional first arg is name only.
+
+
+class NamedCal(NamedTraitable, keep_history=False):
+    adjusted_for: str = T(T.ID, default='')
+
+
+class NamedCcy(NamedTraitable, keep_history=False):
+    bank_calendar: NamedCal = T()
+
+
+def test_named_traitable_name_convenience_and_from_id():
+    """NamedTraitable('name') convenience; by-id via from_id / _id= keyword."""
+    with CACHE_ONLY():
+        cal = NamedCal(name='FD', adjusted_for='', _update=True)
+        assert cal.id_value() == 'FD|'
+        assert cal.name == 'FD'
+
+        by_name = NamedCal('FD')
+        assert by_name.id_value() == 'FD|'
+        assert by_name.name == 'FD'
+
+        by_from_id = NamedCal.from_id(ID('FD|'))
+        assert by_from_id.id_value() == 'FD|'
+        assert by_from_id.name == 'FD'
+
+        by_kw = NamedCal(_id=ID('FD|'))
+        assert by_kw.id_value() == 'FD|'
+        assert by_kw.name == 'FD'
+
+
+def test_traitable_init_rejects_positional_id():
+    """Traitable.__init__ is keyword-only for construction control args."""
+    with CACHE_ONLY():
+        RefBase(name='pos_id_probe', _update=True)
+        with pytest.raises(TypeError):
+            RefBase(ID('pos_id_probe'))  # intentional positional — must raise
+        ok = RefBase.from_id(ID('pos_id_probe'))
+        assert ok.id_value() == 'pos_id_probe'
+
+
+def test_named_traitable_ref_deserialize_composite_id():
+    """Non-embedded ref to multi-ID NamedTraitable deserializes (dict + packed)."""
+    with CACHE_ONLY():
+        cal = NamedCal(name='FD', adjusted_for='', _update=True)
+        ccy = NamedCcy(name='USD', bank_calendar=cal, _update=True)
+        trait = NamedCcy.s_dir['bank_calendar']
+
+        # Nucleus dict wire (legacy store form)
+        dict_wire = _nucleus_ser(trait, cal)
+        assert dict_wire == {Nucleus.ID_TAG(): 'FD|'}
+        back_dict = trait.deserialize(dict_wire)
+        assert back_dict.id_value() == 'FD|'
+        assert back_dict.name == 'FD'
+
+        # Packed string wire
+        ser, back = _roundtrip_packed(trait, cal)
+        assert ser == 'FD|'
+        assert back.id_value() == 'FD|'
+        assert back.name == 'FD'
+
+        # Full holder reload path: deserialize bank_calendar from saved object
+        saved = ccy.serialize_object()
+        assert saved['bank_calendar'] in ('FD|', {Nucleus.ID_TAG(): 'FD|'})
+        reloaded = NamedCcy.deserialize(saved)
+        assert reloaded.bank_calendar.id_value() == 'FD|'
+        assert reloaded.bank_calendar.name == 'FD'
