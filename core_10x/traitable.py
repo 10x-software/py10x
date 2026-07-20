@@ -759,12 +759,12 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.delete_in_store(id)
 
     @classmethod
-    def load(cls, id: ID) -> Traitable | None:
-        return cls.s_storage_helper.load(id)
+    def load(cls, id: ID, reload: bool = True) -> Traitable | None:
+        return cls.s_storage_helper.load(id, reload=reload)
 
     @classmethod
-    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Self]:
-        return cls.s_storage_helper.load_many(query, _coll_name, _at_most, _order, _deserialize)
+    def load_many(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, reload: bool = True) -> list[Self]:
+        return cls.s_storage_helper.load_many(query, _coll_name, _at_most, _order, _deserialize, reload=reload)
 
     @classmethod
     def load_ids(cls, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
@@ -863,10 +863,10 @@ class AbstractStorableHelper(ABC):
     def delete_in_store(self, id: ID) -> RC: ...
 
     @abstractmethod
-    def load(self, id: ID) -> Traitable | None: ...
+    def load(self, id: ID, reload: bool = True) -> Traitable | None: ...
 
     @abstractmethod
-    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Traitable]: ...
+    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, reload: bool = True) -> list[Traitable]: ...
 
     @abstractmethod
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]: ...
@@ -909,10 +909,10 @@ class NotStorableHelper(AbstractStorableHelper):
     def delete_in_store(self, id: ID) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
-    def load(self, id: ID) -> Traitable | None:
+    def load(self, id: ID, reload: bool = True) -> Traitable | None:
         return None
 
-    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True) -> list[Traitable]:
+    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize=True, reload: bool = True) -> list[Traitable]:
         return []
 
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
@@ -964,8 +964,8 @@ class StorableHelper(AbstractStorableHelper):
             return RC(False, f'{cls} - failed to delete {id.value} from {coll}')
         return RC_TRUE
 
-    def load(self, id: ID) -> Traitable | None:
-        return self.traitable_class.s_bclass.load(id)
+    def load(self, id: ID, reload: bool = True) -> Traitable | None:
+        return self.traitable_class.s_bclass.load(id, reload)
 
     def _find(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None):
         cls = self.traitable_class
@@ -979,15 +979,13 @@ class StorableHelper(AbstractStorableHelper):
         coll = cls.collection(_coll_name=_coll_name)
         return coll.find(f(query, cls.s_dir), _at_most=_at_most, _order=_order)
 
-    def load_many(
-        self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True
-    ) -> list[Traitable] | list[dict]:
+    def load_many(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None, _deserialize: bool = True, reload: bool = True) -> list[Traitable] | list[dict]:
         cursor = self._find(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
 
         if not _deserialize:
             return list(cursor)
 
-        f_deserialize = functools.partial(Traitable.deserialize_object, self.traitable_class.s_bclass, _coll_name)
+        f_deserialize = functools.partial(Traitable.deserialize_object, self.traitable_class.s_bclass, _coll_name, reload=reload)
         return [f_deserialize(serialized_data) for serialized_data in cursor]
 
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:

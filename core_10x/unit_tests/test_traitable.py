@@ -1006,6 +1006,95 @@ def test_reload():
     assert x._rev == 4
 
 
+def test_load_reload_flag(monkeypatch):
+    """reload=False keeps in-memory trait values; reload=True (default) refreshes from store."""
+    monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
+    store: dict[str, dict] = {}
+    load_data_calls: list[str] = []
+
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id: ID) -> bool:
+            return id.value in store
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            load_data_calls.append(id.value)
+            return store.get(id.value)
+
+        @classmethod
+        def store(cls):
+            class Store:
+                def auth_user(self):
+                    return 'test_user'
+
+                def transaction(self):
+                    return contextlib.nullcontext()
+
+                def collection(self, collection_name, trait_dir=None):
+                    class Collection:
+                        s_id_tag = '_id'
+
+                        def create_index(self, name, trait_name):
+                            return name
+
+                        def find(self, query, _at_most=0, _order=None):
+                            return list(store.values())
+
+                        def save(self, serialized_data):
+                            id_value = serialized_data['_id']
+                            store[id_value] = serialized_data
+                            return {'_rev': serialized_data.get('_rev', 0) + 1}
+
+                        save_new = save
+
+                    return Collection()
+
+            return Store()
+
+    x = X(x=1, y=10, _replace=True)
+    store['1'] = {'_id': '1', 'x': 1, 'y': 10, '_rev': 1}
+    # Touch traits so any constructor-time lazy rev load finishes before we measure calls.
+    assert x.y == 10
+    x.y = 99
+    store['1'] = {'_id': '1', 'x': 1, 'y': 20, '_rev': 2}
+
+    load_data_calls.clear()
+    loaded = X.load(ID('1'), reload=False)
+    assert loaded == x
+    assert loaded.y == 99
+    assert x.y == 99
+    assert load_data_calls == ['1']  # still reads store; skips deserialize into cache
+
+    loaded = X.load(ID('1'))
+    assert loaded == x
+    assert loaded.y == 20
+    assert x.y == 20
+    assert load_data_calls == ['1', '1']
+
+    x.y = 99
+    store['1'] = {'_id': '1', 'x': 1, 'y': 30, '_rev': 3}
+    store['2'] = {'_id': '2', 'x': 2, 'y': 40, '_rev': 1}
+    load_data_calls.clear()
+
+    many = X.load_many(reload=False)
+    assert {o.x for o in many} == {1, 2}
+    by_x = {o.x: o for o in many}
+    assert by_x[1] == x
+    assert by_x[1].y == 99
+    assert x.y == 99
+    assert by_x[2].y == 40
+
+    many = X.load_many()
+    by_x = {o.x: o for o in many}
+    assert by_x[1].y == 30
+    assert x.y == 30
+    assert by_x[2].y == 40
+
+
 def test_separation():
     class X(Traitable):
         x: int = RT(T.ID)
