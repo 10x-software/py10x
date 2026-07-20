@@ -176,7 +176,7 @@ def test_lazy_load_nested():
             return super().load_data(id) | {'c': {'_id':str(int(id.value)+1)}}
 
     with BTP.create(1,1,1,True,True):
-        x = Y(ID('1'))
+        x = Y.from_id(ID('1'))
         assert x.id().value == '1'
         assert x.k==1
         #assert x.v==10
@@ -234,7 +234,7 @@ def test_self_trait_lazy():
 
     with  BTP.create(1,1,1,True,True):
         x1 = X(a=1,b=1,_replace=True)
-        x = X(ID("0"))
+        x = X(_id=ID("0"))
         print(x.a)
         #print(x,x,x,x.x.a)
         #assert x.x.a==1
@@ -547,7 +547,7 @@ def test_lazy_load_once():
             return {'_id': id.value, 'x': int(id.value), 'y': int(id.value) * 10, '_rev': 1}
 
 
-    x = X(ID('1')) # lazy ref
+    x = X.from_id(ID('1')) # lazy ref
 
     # with GRAPH_ON():
     #     assert x.y == 10 # load
@@ -707,14 +707,14 @@ def test_reload_rev():
             return data
 
     # reload of lazy ref
-    x = X(ID('1'))
+    x = X(_id=ID('1'))
     x.reload()
     assert x._rev == 1
 
     x.reload()
     assert x._rev == 2
 
-    x = X(ID('2'))
+    x = X(_id=ID('2'))
     with GRAPH_ON():
         x.reload()
         assert x._rev == 3
@@ -788,7 +788,7 @@ def test_store_save():
 
         def y_get(self) -> 'X':
             i = int(self.id().value)
-            return X(ID(str(i+10))) if i<10 else XNone
+            return X(_id=ID(str(i+10))) if i<10 else XNone
 
         def z_get(self)-> int:
             return self.y._rev if int(self.id().value) < 100 else 0
@@ -802,7 +802,7 @@ def test_store_save():
     save_calls.clear()
 
     assert not serialized
-    assert X(x=1,z=1,_replace=True).save()
+    X(x=1,z=1,_replace=True).save().throw()
     assert save_calls == {'1': 1}
     assert serialized['1']['z'] == 1
     save_calls.clear()
@@ -848,7 +848,7 @@ def test_lazy_ref_replace():
             return {'_id': id.value, 'x': int(id.value), 'y': int(id.value) * 10, '_rev': 1}
 
 
-    x = X(ID('1')) # lazy ref
+    x = X(_id=ID('1')) # lazy ref
     assert x.y == 10 # load
 
     x = X(x=2,y=10,_replace=True)
@@ -1017,7 +1017,7 @@ def test_custom_collection():
 
     with CACHE_ONLY(),GRAPH_OFF():
         X(x=1, v=10, _collection_name='collA', _replace=True)
-        x = X(ID('1', collection_name='collA'))
+        x = X.from_id(ID('1', collection_name='collA'))
         assert x._collection_name == 'collA'
         assert x.x == 1 and x.v == 10
 
@@ -1096,7 +1096,7 @@ def test_deserialize_skips_runtime_keeps_eval_once():
         assert x2.x is XNone
 
     # lazy load must not fill RUNTIME traits either
-    lazy = X(ID('3'))
+    lazy = X(_id=ID('3'))
     assert lazy.x is XNone, f'lazy load must not hydrate RUNTIME, got {lazy.x}'
 
 
@@ -1188,7 +1188,7 @@ def test_reload_loads_ts_fields():
                 'saved_by': 'bob',
             }
 
-    x = X(ID('n1'))
+    x = X(_id=ID('n1'))
     assert x.reload()
     assert x.name == 'n1'
     assert x.saved_at == datetime(2021, 2, 3, 4, 5, 6)

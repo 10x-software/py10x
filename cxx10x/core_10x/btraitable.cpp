@@ -297,7 +297,7 @@ py::object BTraitable::serialize_nx(const bool embed) {
             throw py::type_error(py::str("{}/{} - cannot serialize a non-storable exogenous reference").format(class_name(), id_value()));
         }
         if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES && !ThreadContext::serialization_memo().contains(m_tid)) {
-            auto py_traitable = my_class()->py_class()(m_tid.traitable_id());    // cls(_id = id)
+            auto py_traitable = my_class()->from_id(m_tid.traitable_id());
             if (const auto rc = py_traitable.attr("save")(); !py::cast<bool>(rc)) {
                 throw py::value_error(py::str("{}/{} - failed to save referenced object: {}").format(class_name(), id_value(),rc.attr("error")()));
             }
@@ -317,7 +317,7 @@ py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict
     }
 
     if (auto id = TID::deserialize_id(serialized_data, false); !id.is_none()) {     //-- external reference
-        auto lazy_ref = cls->py_class()(id);     // cls(_id = id)   - keep lazy reference
+        auto lazy_ref = cls->from_id(id);  // lazy reference
         if (const auto obj = lazy_ref.cast<BTraitable*>(); obj->lazy_load_flags() & BTraitableProcessor::DEBUG) {
             obj->set_lazy_load_flags(XCache::LOAD_REQUIRED);
             obj->lazy_load_if_needed();
@@ -362,7 +362,7 @@ py::object BTraitable::deserialize_object(const BTraitableClass *cls, const py::
     const auto id_value = cls->get_field(serialized_data, BNucleus::ID_TAG());
     const auto rev = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
 
-    auto py_traitable = cls->py_class()(PyLinkage::traitable_id(id_value, coll_name));    // cls(_id = id)
+    auto py_traitable = cls->from_id(PyLinkage::traitable_id(id_value, coll_name));
 
     const auto obj = py_traitable.cast<BTraitable*>();
     obj->clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);

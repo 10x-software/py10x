@@ -17,6 +17,7 @@ class BUiClass;
 class PY10X_API BTraitableClass {
 protected:
     py::object      m_py_class;
+    py::object      m_from_id;
     py::str         m_name;
     py::dict        m_trait_dir;
     bool            m_custom_collection;
@@ -40,7 +41,8 @@ public:
 
     explicit BTraitableClass(const py::object& py_cls) {
         m_py_class = py_cls;
-        m_name = py_cls.attr("__qualname__");
+        m_from_id = m_py_class.attr("from_id");
+        m_name = m_py_class.attr("__qualname__");
         m_trait_dir = m_py_class.attr("s_dir");
         m_custom_collection = m_py_class.attr("s_custom_collection").cast<bool>();
         m_embeddable = m_py_class.attr("s_embeddable").cast<bool>();
@@ -54,6 +56,11 @@ public:
 
     py::object deserialize_class_id(const py::object& class_id) const {
         return m_py_class.attr("deserialize_class_id")(class_id);
+    }
+
+    /** ``cls.from_id(id)`` via cached bound method. */
+    py::object from_id(const py::object& id) const {
+        return m_from_id(id);
     }
 
    // bool check_coll_kwargs(py::dict& coll_kwargs);
