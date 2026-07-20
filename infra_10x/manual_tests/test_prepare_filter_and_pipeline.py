@@ -18,7 +18,6 @@ if __name__ == '__main__':
     data2 = dict(serialized_traitable)
     pipeline2 = []
     filter2 = {}
-
     MongoCollectionHelper.prepare_filter_and_pipeline(data2, filter2, pipeline2)
 
     assert filter1 == filter2
