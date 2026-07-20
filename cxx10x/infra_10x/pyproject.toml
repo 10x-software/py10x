@@ -25,7 +25,7 @@ classifiers = [
 Homepage = "https://10x-software.org"
 
 [dependency-groups]
-test = ["py10x-core==0.2.2"]
+test = ["py10x-core>=0.2.3rc35"]
 
 [build-system]
 requires = [
