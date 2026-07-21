@@ -50,6 +50,17 @@ runs:
         git clone --branch "${{ steps.cxx10x_branch.outputs.branch }}" \
           https://github.com/10x-software/cxx10x.git ../cxx10x
 
+    - name: Select Windows Debug build (native crash diagnosis)
+      if: inputs.runner-os == 'Windows'
+      shell: bash
+      run: |
+        # Build the cxx10x C++ backend in Debug so a crash yields full PDBs and unoptimized,
+        # symbolized C++ frames (plus active asserts). XX_UV_INCREMENTAL routes the local sibling
+        # installs through the no-build-isolation path that honors XX_UV_BUILD_TYPE (see
+        # dev_10x/uv_sync.py::_incremental_flags). These persist to the install + test steps.
+        echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
+        echo "XX_UV_BUILD_TYPE=Debug" >> "$GITHUB_ENV"
+
     - name: Install dependencies
       shell: bash
       env:
@@ -78,22 +89,32 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         playwright install --with-deps chromium
 
-    - name: Enable Windows crash dumps
+    - name: Locate cdb for native crash capture
       if: inputs.runner-os == 'Windows'
       shell: pwsh
       run: |
+        # cdb (Debugging Tools for Windows) launches pytest and, unlike an attach-only tool,
+        # follows child processes (-o) and prints the faulting thread's C/C++ stack itself.
         $dumpFolder = Join-Path $env:RUNNER_TEMP 'crashdumps'
         New-Item -ItemType Directory -Force -Path $dumpFolder | Out-Null
-        $procdumpZip = Join-Path $env:RUNNER_TEMP 'procdump.zip'
-        $procdumpDir = Join-Path $env:RUNNER_TEMP 'procdump'
-        Invoke-WebRequest -Uri 'https://download.sysinternals.com/files/Procdump.zip' -OutFile $procdumpZip
-        Expand-Archive -Path $procdumpZip -DestinationPath $procdumpDir -Force
-        Write-Host "ProcDump ready for first-chance attach; dumps -> $dumpFolder"
+        $cdb = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe' `
+                 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if (-not $cdb) {
+          $cdb = Get-ChildItem 'C:\Program Files*\Windows Kits\*\Debuggers\x64\cdb.exe' -Recurse `
+                   -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        }
+        if (-not $cdb) { throw 'cdb.exe not found - Debugging Tools for Windows is not installed on this runner' }
+        "CDB_PATH=$cdb" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        Write-Host "cdb located: $cdb"
 
     - name: Run full test suite
       shell: bash
       env:
         PYTHONUNBUFFERED: "1"
+        # In-process fatal-error handler: dumps the Python traceback (all threads) to stderr on a
+        # native crash, and is inherited by any subprocess. Complements cdb's C/C++ stack below by
+        # naming the test/line, and is the sole signal on Linux.
+        PYTHONFAULTHANDLER: "1"
         # Strict only where fully provisioned: the Linux runner gets a replica set (transactions),
         # but Windows is standalone by design, so leave strict OFF there - the transaction gate must
         # skip, not fail, on Windows. (git/uv/source/siblings are present on both, so those guards
@@ -104,24 +125,37 @@ runs:
         if [ "${{ inputs.runner-os }}" != "Windows" ]; then
           python -m pytest
         else
-          # First-chance ACCESS_VIOLATION dump (AeDebug/WER miss these). Preserve pytest exit
-          # code; do not use procdump -x as the parent (it does not propagate child exit codes).
-          dump_folder="${RUNNER_TEMP}/crashdumps"
-          procdump="${RUNNER_TEMP}/procdump/procdump64.exe"
-          python -m pytest -p no:faulthandler &
-          pytest_pid=$!
-          if [ -f "/proc/${pytest_pid}/winpid" ]; then
-            attach_pid=$(tr -d '\0\r\n' < "/proc/${pytest_pid}/winpid")
-          else
-            attach_pid=$pytest_pid
-          fi
-          "$procdump" -accepteula -ma -e 1 -f "ACCESS_VIOLATION" "$attach_pid" "$dump_folder" &
-          set +e
-          wait "$pytest_pid"
-          exit_code=$?
-          wait
-          set -e
-          exit "$exit_code"
+          # Run pytest under cdb so a native (C++) fault in the cxx10x backend prints its C/C++
+          # call stack to the job log. cdb -o follows child processes, so a crash in a spawned
+          # worker is caught too - unlike the earlier procdump attach, which watched only the
+          # parent and therefore saw nothing but the process exit. A Git-bash wrapper records
+          # pytest's real exit code so ordinary test failures still fail the step; a crash aborts
+          # before the code is written, so we default to failure.
+          cdb="$(cygpath -u "$CDB_PATH")"
+          bash_win="$(cygpath -w "$(command -v bash)")"
+          dump_win="$(cygpath -w "${RUNNER_TEMP}/crashdumps/pytest_crash.dmp")"
+          rc_file="${RUNNER_TEMP}/pytest_rc"
+          cmds_file="${RUNNER_TEMP}/cdb_cmds.txt"
+          rm -f "$rc_file"
+          # PDBs sit next to the Debug .pyd; cdb finds them by adjacency. Point the symbol path at
+          # the editable build tree as a backstop.
+          export _NT_SYMBOL_PATH="$(cygpath -w "${GITHUB_WORKSPACE}/.venv")"
+          # On a fatal (second-chance) native fault: every thread's C/C++ stack, !analyze, a full
+          # minidump, then kill the tree and quit. First-chance breaks stay off (sxd) so benign
+          # first-chance exceptions from Python/MSYS do not stop the run; `ii` is always fatal.
+          capture="~*kP 128; !analyze -v; .dump /ma ${dump_win}; .kill; qq"
+          {
+            echo "sxd -c2 \"${capture}\" av"
+            echo "sxd -c2 \"${capture}\" sov"
+            echo "sxd -c2 \"${capture}\" sbo"
+            echo "sxe  -c \"${capture}\" ii"
+            echo "g"
+          } > "$cmds_file"
+          "$cdb" -g -G -o -cf "$(cygpath -w "$cmds_file")" \
+            "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && python -m pytest; echo \$? > '${rc_file}'"
+          code="$(cat "$rc_file" 2>/dev/null || echo 1)"
+          echo "pytest exit code: ${code}"
+          exit "${code}"
         fi
 
     - name: Upload Windows minidump
