@@ -7,7 +7,7 @@ option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer
 function(_resolve_lib_output_dir)
     if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
         if(WIN32)
-            set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Release PARENT_SCOPE)
+            set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE} PARENT_SCOPE)
         else()
             set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} PARENT_SCOPE)
         endif()
