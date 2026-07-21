@@ -1194,6 +1194,51 @@ def test_reload_loads_ts_fields():
     assert x.saved_at == datetime(2021, 2, 3, 4, 5, 6)
     assert x.saved_by == 'bob'
 
+
+def test_deserialize_object_reload_flag():
+    """reload=False skips overwrite only when already cached; cold IDs still hydrate."""
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+    with CACHE_ONLY():
+        # Cold path: not in cache yet — must still apply the blob (not return a bare lazy ref).
+        cold = X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': 1, 'x': 1, 'y': 10}, reload=False)
+        assert cold.y == 10
+        assert cold.get_revision() == 1
+
+        # Warm path: keep local trait values when reload=False.
+        cold.y = 99
+        assert X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': 2, 'x': 1, 'y': 20}, reload=False).y == 99
+        assert X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': 2, 'x': 1, 'y': 20}).y == 20
+
+
+def test_history_deserialize_object_captures_rev_before_pop():
+    """TraitableHistory.deserialize_traits pops _rev; deserialize_object must read it first."""
+    class X(Traitable):
+        name: str = T(T.ID)
+        v: int = T()
+
+    H = X.s_history_class
+    # Flattened history row shape (traitable body + history fields), as stored by serialize_object.
+    data = {
+        'name': 'n1',
+        'v': 10,
+        '_id': 'h1',
+        '_rev': 3,
+        '_at': datetime(2020, 1, 1),
+        '_who': 'u',
+        '_traitable_id': 'n1',
+        '_traitable_rev': 1,
+    }
+    with CACHE_ONLY():
+        h = H.deserialize_object(H.s_bclass, None, dict(data))
+        assert h.get_revision() == 3
+        assert h.serialized_traitable['_id'] == 'n1'
+        assert h.serialized_traitable['_rev'] == 1
+        assert h.serialized_traitable['v'] == 10
+
+
 def test_event():
     from infra_10x.duckdb_store import DuckDbStore
     from core_10x.traitable import EventBase
@@ -1275,4 +1320,6 @@ if __name__ == '__main__':
     test_serialize_traits_ts_only_allows_empty_blob()
     test_deserialize_traits_loads_ts_fields()
     test_reload_loads_ts_fields()
+    test_deserialize_object_reload_flag()
+    test_history_deserialize_object_captures_rev_before_pop()
 

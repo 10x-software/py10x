@@ -364,14 +364,14 @@ py::object BTraitable::deserialize_object(const BTraitableClass *cls, const py::
     if (!reload && BTraitableClass::instance_in_cache(TID(cls, id)))
         return cls->from_id(id);
 
-    auto py_traitable = cls->from_id(id);
-
-    const auto obj = py_traitable.cast<BTraitable*>();
+    const auto py_obj = cls->from_id(id);
+    const auto rev = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+    const auto obj = py_obj.cast<BTraitable*>();
     obj->clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
     obj->deserialize_traits(serialized_data);
-    obj->set_revision(cls->get_field(serialized_data, BNucleus::REVISION_TAG()));
+    obj->set_revision(rev);
 
-    return py_traitable;
+    return py_obj;
 }
 
 py::dict BTraitable::serialize_traits() {
