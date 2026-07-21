@@ -30,7 +30,7 @@ dependencies = [
 Homepage = "https://10x-software.org"
 
 [dependency-groups]
-test = ["py10x-core==0.2.2"]
+test = ["py10x-core>=0.2.3rc36"]
 
 [build-system]
 requires = [
