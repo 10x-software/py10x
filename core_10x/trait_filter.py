@@ -62,7 +62,7 @@ class Op(_filter, ABC):
     def serialize_right_value(self, field_name: str, trait_dir: dict[str, Trait] | None):
         return trait.serialize_value(self.right_value, replace_xnone=True) if trait_dir and (trait := trait_dir.get(field_name)) else self.right_value
 
-    def prefix_notation(self, field_name: str=None, trait_dir: dict[str, Trait] | None=None) -> dict:
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         # noinspection PyTypeChecker
         return {self.label: self.serialize_right_value(field_name, trait_dir)}
 
@@ -76,12 +76,12 @@ class Op(_filter, ABC):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = ibis_collection.ibis_right_value(self.serialize_right_value(field_name, trait_dir))
+        right = ibis_collection.ibis_right_value(self.serialize_right_value(field_name, trait_dir), field_name=field_name)
         return self._eval(col, right)
 
 
 class NOT_EMPTY(Op, label=''):
-    def prefix_notation(self, field_name: str=None, trait_dir: dict[str, Trait] | None=None) -> dict:
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         raise NotImplementedError
 
     @staticmethod
@@ -134,7 +134,11 @@ class IN(Op):
         return super().__new__(cls, values)
 
     def serialize_right_value(self, field_name: str, trait_dir: dict[str, Trait] | None):
-        return [trait.serialize_value(value, replace_xnone=True) for value in self.right_value] if trait_dir and (trait := trait_dir.get(field_name)) else self.right_value
+        return (
+            [trait.serialize_value(value, replace_xnone=True) for value in self.right_value]
+            if trait_dir and (trait := trait_dir.get(field_name))
+            else self.right_value
+        )
 
     @staticmethod
     def _eval(left, right) -> bool:
@@ -143,7 +147,7 @@ class IN(Op):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = [ibis_collection.ibis_right_value(v) for v in self.serialize_right_value(field_name, trait_dir)]
+        right = [ibis_collection.ibis_right_value(v, field_name=field_name) for v in self.serialize_right_value(field_name, trait_dir)]
         return col.isin(right)
 
 
@@ -155,7 +159,7 @@ class NIN(IN):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
-        right = [ibis_collection.ibis_right_value(v) for v in self.serialize_right_value(field_name, trait_dir)]
+        right = [ibis_collection.ibis_right_value(v, field_name=field_name) for v in self.serialize_right_value(field_name, trait_dir)]
         return ~col.isin(right)
 
 
@@ -176,10 +180,9 @@ class BETWEEN(Op, label=''):
         return self.left.eval(x) & self.right.eval(x)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
-        return (self.left.ibis(ibis_collection, field_name, trait_dir) &
-                self.right.ibis(ibis_collection, field_name, trait_dir))
+        return self.left.ibis(ibis_collection, field_name, trait_dir) & self.right.ibis(ibis_collection, field_name, trait_dir)
 
-    def prefix_notation(self, field_name: str=None, trait_dir: dict[str, Trait] | None=None) -> dict:
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         res = self.left.prefix_notation(field_name, trait_dir)
         res.update(self.right.prefix_notation(field_name, trait_dir))
         return res
@@ -187,7 +190,7 @@ class BETWEEN(Op, label=''):
 
 class BoolOp(Op, ABC, label=''):
     s_false: IN = IN([])
-    _op = None       # operator.and_ or operator.or_, set by subclasses
+    _op = None  # operator.and_ or operator.or_, set by subclasses
     _identity = None  # reduce identity: True for AND, False for OR
 
     @classmethod
@@ -201,7 +204,7 @@ class BoolOp(Op, ABC, label=''):
         obj = super().__new__(cls, expressions)
         return obj
 
-    def prefix_notation(self, field_name: str=None, trait_dir: dict[str, Trait] | None=None) -> dict:
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         rvalues = [pn for e in self.right_value if (pn := e.prefix_notation(field_name, trait_dir))]
         return {self.label: rvalues} if rvalues else {}
 
@@ -245,31 +248,31 @@ class f(_filter):
         f = filter_fn(self.filter, td) if self.filter else None
         n = [(name, r) for name, op in self.named_expressions.items() if (r := named_fn(name, op, td)) is not None]
         r = reduce_fn(n) if n else None
-        return combine_fn(f,r) if f is not None and r is not None else f if f is not None else r
+        return combine_fn(f, r) if f is not None and r is not None else f if f is not None else r
 
     def eval(self, traitable_instance: Traitable) -> bool:
         return self._apply(
             None,
-            filter_fn = lambda filter_instance, td: filter_instance.eval(traitable_instance),
-            named_fn = lambda trait_name, op, td: op.eval(traitable_instance[trait_name]),
-            reduce_fn = lambda parts: reduce(operator.and_, map(operator.itemgetter(1),parts)) if parts else True,
-            combine_fn=operator.and_
+            filter_fn=lambda filter_instance, td: filter_instance.eval(traitable_instance),
+            named_fn=lambda trait_name, op, td: op.eval(traitable_instance[trait_name]),
+            reduce_fn=lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
+            combine_fn=operator.and_,
         )
 
-    def prefix_notation(self, field_name: str=None, trait_dir: dict[str, Trait] | None=None) -> dict:
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         return self._apply(
             trait_dir,
             filter_fn=lambda filt, td: filt.prefix_notation(trait_dir=td),
             named_fn=lambda name, op, td: op.prefix_notation(field_name=name, trait_dir=td),
             reduce_fn=lambda parts: dict(parts) if parts else None,
-            combine_fn=lambda a,b: {AND.label: [a,b]}
+            combine_fn=lambda a, b: {AND.label: [a, b]},
         )
 
-    def ibis(self, ibis_collection, field_name: str=None, trait_dir: dict[str, Trait] | None=None):
+    def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         return self._apply(
             trait_dir,
             filter_fn=lambda filt, td: filt.ibis(ibis_collection, trait_dir=td),
             named_fn=lambda name, op, td: op.ibis(ibis_collection, name, td),
-            reduce_fn=lambda parts: reduce(operator.and_, map(operator.itemgetter(1),parts)) if parts else True,
-            combine_fn=operator.and_
+            reduce_fn=lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
+            combine_fn=operator.and_,
         )

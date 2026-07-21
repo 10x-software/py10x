@@ -59,7 +59,7 @@ if __name__ == '__main__':
                 None,
             ):
                 with ctx():
-                    person1 = MarriedPerson(person_id)
+                    person1 = MarriedPerson.from_id(person_id)
                     assert person1.dob == date(1985, 7, 6)
 
                     person_as_of = MarriedPerson.as_of(person_id, as_of_time=ts)
@@ -71,7 +71,7 @@ if __name__ == '__main__':
                         with pytest.raises(RuntimeError, match=r'MarriedPerson/Alyssa|Lees: object not usable - origin cache is not reachable'):
                             _ = person_as_of.dob
 
-                        person2 = MarriedPerson(person_id)
+                        person2 = MarriedPerson.from_id(person_id)
                         assert person2.dob == (date(1985, 7, 5 + (as_of is None)))
                         assert person2.spouse.dob == (date(1985, 7, 5 + (as_of is None)))
 

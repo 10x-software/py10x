@@ -9,23 +9,26 @@ from core_10x.traitable_cli import TraitableCli
 #   Test command hierarchy
 # ----------------------------------------------------------------------------
 
+
 class Cli(TraitableCli):
     """Master parser - the root command."""
+
     verbose: bool = T(False)
 
 
-class Add(Cli, _command = 'add'):
-    a: float = T(0.)
-    b: float = T(0.)
+class Add(Cli, _command='add'):
+    a: float = T(0.0)
+    b: float = T(0.0)
 
 
-class Greet(Cli, _command = 'greet'):
+class Greet(Cli, _command='greet'):
     name: str = T('world')
 
 
 # ----------------------------------------------------------------------------
 #   parse() - splitting argv into positional args and --option value pairs
 # ----------------------------------------------------------------------------
+
 
 def _parse(input_args):
     args, trait_values = [], {}
@@ -71,14 +74,14 @@ def test_parse_boolean_shortcut_true():
 
 
 def test_parse_boolean_shortcut_true_at_end():
-    rc, args, tv = _parse(['--verbose'])
+    rc, _args, tv = _parse(['--verbose'])
     assert rc
     assert tv == {'verbose': 'true'}
 
 
 def test_parse_boolean_shortcut_no_option():
     # --no-option is equivalent to --option false
-    rc, args, tv = _parse(['--no-verbose', '--no-dry-run'])
+    rc, _args, tv = _parse(['--no-verbose', '--no-dry-run'])
     assert rc
     assert tv == {'verbose': 'false', 'dry_run': 'false'}
 
@@ -92,7 +95,7 @@ def test_parse_positional_then_options():
 
 def test_parse_negative_number_value():
     # a single-dash token is a value, not an option
-    rc, args, tv = _parse(['--a', '-3'])
+    rc, _args, tv = _parse(['--a', '-3'])
     assert rc
     assert tv == {'a': '-3'}
 
@@ -100,6 +103,7 @@ def test_parse_negative_number_value():
 # ----------------------------------------------------------------------------
 #   parse() - error conditions
 # ----------------------------------------------------------------------------
+
 
 def test_parse_bare_double_dash():
     rc, _, _ = _parse(['--', 'value'])
@@ -110,6 +114,7 @@ def test_parse_bare_double_dash():
 # ----------------------------------------------------------------------------
 #   instance_from_args() - routing to the right command class
 # ----------------------------------------------------------------------------
+
 
 def test_instantiate_master_no_subcommand():
     # instance_from_args() converts string tokens to trait types on its own.
@@ -163,6 +168,7 @@ def test_instantiate_forces_conversion_inside_convert_off():
 #   instance_from_args() - error conditions
 # ----------------------------------------------------------------------------
 
+
 def test_instantiate_unknown_command():
     rc, obj = Cli.instance_from_args(['bogus'])
     assert not rc
@@ -188,6 +194,7 @@ def test_instantiate_propagates_parse_error():
 #   __init_subclass__ - command registration & validation
 # ----------------------------------------------------------------------------
 
+
 def test_subcommands_registered_on_master():
     assert Cli.s_switch['add'] is Add
     assert Cli.s_switch['greet'] is Greet
@@ -195,11 +202,13 @@ def test_subcommands_registered_on_master():
 
 def test_master_may_not_have_command():
     with pytest.raises(AssertionError):
-        class BadMaster(TraitableCli, _command = 'oops'):
+
+        class BadMaster(TraitableCli, _command='oops'):
             pass
 
 
 def test_command_must_be_identifier():
     with pytest.raises(AssertionError):
-        class BadCommand(Cli, _command = 'not an id'):
+
+        class BadCommand(Cli, _command='not an id'):
             pass

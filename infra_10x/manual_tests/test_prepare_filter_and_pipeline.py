@@ -8,7 +8,7 @@ if __name__ == '__main__':
 
     serialized_traitable = dict(_id=id_value, _rev=rev, name='test', age=60)
 
-    coll = store.collection('test')
+    coll = store.collection('test', {})  # blob-only
 
     data1 = dict(serialized_traitable)
     pipeline1 = []
@@ -18,7 +18,6 @@ if __name__ == '__main__':
     data2 = dict(serialized_traitable)
     pipeline2 = []
     filter2 = {}
-
     MongoCollectionHelper.prepare_filter_and_pipeline(data2, filter2, pipeline2)
 
     assert filter1 == filter2

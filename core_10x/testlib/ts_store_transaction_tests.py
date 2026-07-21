@@ -1,4 +1,5 @@
 """Store-agnostic TsStore transaction tests. Use ts_instance fixture from conftest (core_10x → DuckDbStore, infra_10x → MongoStore)."""
+
 from uuid import uuid4
 
 import pytest
@@ -17,8 +18,7 @@ class TestTsStoreTransaction:
     @pytest.fixture(autouse=True)
     def _skip_if_store_does_not_support_transactions(self, ts_instance):
         """Skip this class when the store lacks transactions (Mongo standalone) - fail under strict."""
-        need(ts_instance.supports_transactions(),
-             'store supports transactions (replica-set Mongo, not standalone)')
+        need(ts_instance.supports_transactions(), 'store supports transactions (replica-set Mongo, not standalone)')
 
     @pytest.fixture
     def store(self, ts_instance):
@@ -30,7 +30,13 @@ class TestTsStoreTransaction:
 
     @pytest.fixture
     def coll(self, store, coll_name):
-        c = store.collection(coll_name)
+        from core_10x.trait_definition import T
+        from core_10x.traitable import Traitable
+
+        class _Pad(Traitable, custom_collection=True, keep_history=False):
+            pad: int = T()
+
+        c = store.collection(coll_name, _Pad.s_dir)  # writable schema; raw dict payloads OK
         yield c
         if coll_name in store.collection_names():
             store.delete_collection(coll_name)
@@ -111,8 +117,8 @@ class TestTsStoreTransaction:
 
 class TestSaveIfChanged:
     @pytest.fixture
-    def coll_names(self,ts_instance):
-        coll_names = tuple(f'save_if_changed#{x}#{uuid4().hex}' for x in ('a','b'))
+    def coll_names(self, ts_instance):
+        coll_names = tuple(f'save_if_changed#{x}#{uuid4().hex}' for x in ('a', 'b'))
         assert not set(coll_names).intersection(ts_instance.collection_names())
         yield coll_names
         for coll_name in coll_names:
@@ -121,6 +127,7 @@ class TestSaveIfChanged:
     def test_save_if_changed_filters_by_classes(self, ts_instance, coll_names, with_transactions):  # noqa: F811
 
         coll_a_name, coll_b_name = coll_names
+
         class TrackedA(Traitable, custom_collection=True):
             i: int = T(T.ID)
             value: int = T()
@@ -129,8 +136,8 @@ class TestSaveIfChanged:
             i: int = T(T.ID)
             value: int = T()
 
-            def save(self,save_references=True):
-                return RC(False,'boom')
+            def save(self, save_references=True):
+                return RC(False, 'boom')
 
         with ts_instance:
             a = TrackedA(i=1, _collection_name=coll_a_name)
@@ -138,22 +145,22 @@ class TestSaveIfChanged:
             with SaveIfChanged([TrackedA]) as tracker:
                 a.value = 10
                 b.value = 20
-                assert tracker.tracked_objects() == [a,b]
+                assert tracker.tracked_objects() == [a, b]
 
-            assert ts_instance.collection(coll_a_name).count() == 1
-            assert ts_instance.collection(coll_b_name).count() == 0
+            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == 1
+            assert ts_instance.collection(coll_b_name, TrackedB.s_dir).count() == 0
 
             a.delete()
-            assert ts_instance.collection(coll_a_name).count() == 0
+            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == 0
 
-            with pytest.raises(RuntimeError,match='boom'):
+            with pytest.raises(RuntimeError, match='boom'):
                 with SaveIfChanged() as tracker:
                     a.value = 20
                     b.value = 30
-                assert tracker.tracked_objects() == [a,b]
+                assert tracker.tracked_objects() == [a, b]
 
-            assert ts_instance.collection(coll_a_name).count() == int(not with_transactions)
-            assert ts_instance.collection(coll_b_name).count() == 0
+            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == int(not with_transactions)
+            assert ts_instance.collection(coll_b_name, TrackedB.s_dir).count() == 0
 
     def test_save_if_changed_requires_storable_classes(self):
         class NotStorable:

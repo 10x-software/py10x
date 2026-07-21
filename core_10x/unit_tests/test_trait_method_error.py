@@ -43,7 +43,7 @@ class X(Traitable):
         return self.bombing_method(value)
 
     @classmethod
-    def s_serialize(cls, value):
+    def s_serialize(cls, trait, value):
         return cls.bombing_method(value)
 
     @classmethod
