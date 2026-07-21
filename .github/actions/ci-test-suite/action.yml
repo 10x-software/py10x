@@ -54,19 +54,22 @@ runs:
       if: inputs.runner-os == 'Windows'
       shell: bash
       run: |
-        # Give the C++ backend full PDBs + readable frames so a crash yields a symbolized C/C++
-        # stack under cdb - without switching build type. A Debug (or RelWithDebInfo) config is
-        # not viable here: the -T toolset pin forces the VS multi-config generator, and cxx10x's
-        # pybind11-stubgen post-build step hardcodes the Release output dir, so a non-Release
-        # config lands the .pyd in Debug\ and stubgen can't import it (ModuleNotFoundError).
-        # Instead stay in Release and add debug info + disable inlining via the Release flags;
-        # the release CRT is kept, so the .pyd still loads normally.
+        # Add debug symbols to the *Release* build so a crash yields a symbolized C/C++ stack
+        # under cdb, while keeping the exact Release codegen. The crash is intermittent and
+        # optimization-sensitive, so we must NOT perturb codegen (no Debug build, no disabled
+        # inlining) or the fault stops reproducing - we only want symbols on the binary that
+        # actually crashes. /Z7 embeds CodeView debug info without changing optimization; linker
+        # /DEBUG emits the PDB. The release CRT is kept, so the .pyd loads normally.
+        #
+        # (A true Debug/RelWithDebInfo build is also blocked here: the -T pin forces the VS
+        # multi-config generator and cxx10x's stubgen step must resolve the per-config output dir
+        # correctly - fixed upstream in py10x-kernel, but Debug still changes codegen, so avoid.)
         #
         # XX_UV_INCREMENTAL routes the local siblings through the no-build-isolation path whose
         # persistent build dir (.venv/py10x-build/...) keeps the .pyd and its .pdb side by side
         # for cdb to resolve; an isolated build would discard the PDB after install.
         echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
-        echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob0 /DNDEBUG /Z7;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
+        echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_CXX_FLAGS=/Z7;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
 
     - name: Install dependencies
       shell: bash
