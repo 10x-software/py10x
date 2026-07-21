@@ -68,8 +68,13 @@ runs:
         # XX_UV_INCREMENTAL routes the local siblings through the no-build-isolation path whose
         # persistent build dir (.venv/py10x-build/...) keeps the .pyd and its .pdb side by side
         # for cdb to resolve; an isolated build would discard the PDB after install.
+        #
+        # -DCMAKE_BUILD_TYPE=Release: cxx10x's stub-output-dir resolver reads ${CMAKE_BUILD_TYPE},
+        # which scikit-build-core leaves EMPTY under the VS multi-config generator (it drives the
+        # config via CMAKE_CONFIGURATION_TYPES/--config). Setting it keeps that resolver pointed at
+        # the Release output dir; harmless once py10x-kernel switches to a $<CONFIG> genexpr.
         echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
-        echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_CXX_FLAGS=/Z7;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
+        echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_BUILD_TYPE=Release;-DCMAKE_CXX_FLAGS=/Z7;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
 
     - name: Install dependencies
       shell: bash
@@ -147,8 +152,8 @@ runs:
           rc_file="${RUNNER_TEMP}/pytest_rc"
           cmds_file="${RUNNER_TEMP}/cdb_cmds.txt"
           rm -f "$rc_file"
-          # PDBs sit next to the Debug .pyd; cdb finds them by adjacency. Point the symbol path at
-          # the editable build tree as a backstop.
+          # PDBs sit next to the Release .pyd; cdb finds them by adjacency. Point the symbol path
+          # at the editable build tree as a backstop.
           export _NT_SYMBOL_PATH="$(cygpath -w "${GITHUB_WORKSPACE}/.venv")"
           # On a fatal (second-chance) native fault: every thread's C/C++ stack, !analyze, a full
           # minidump, then kill the tree and quit. First-chance breaks stay off (sxd) so benign
@@ -161,8 +166,20 @@ runs:
             echo "sxe  -c \"${capture}\" ii"
             echo "g"
           } > "$cmds_file"
+          # The crash is intermittent, so instead of one full-suite run (a lottery ticket) we
+          # stress the suspect module - test_traitable_history, where the fault landed, and the
+          # focus of the HEAD commit - in a loop under a single cdb session. cdb -o follows each
+          # pytest child, so an access violation in any iteration is caught and dumped. The loop
+          # stops on the first non-zero pytest exit; a hard crash is killed by cdb (.kill;qq)
+          # before the rc file is written, so the step then fails by default.
+          stress_module="core_10x/unit_tests/test_traitable_history.py"
+          iters="${XX_CRASH_STRESS_ITERS:-40}"
           "$cdb" -g -G -o -cf "$(cygpath -w "$cmds_file")" \
-            "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && python -m pytest; echo \$? > '${rc_file}'"
+            "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && \
+              for i in \$(seq 1 ${iters}); do \
+                echo \"=== stress iteration \$i / ${iters} ===\"; \
+                python -m pytest ${stress_module} || { echo \$? > '${rc_file}'; exit 0; }; \
+              done; echo 0 > '${rc_file}'"
           code="$(cat "$rc_file" 2>/dev/null || echo 1)"
           echo "pytest exit code: ${code}"
           exit "${code}"
