@@ -187,8 +187,14 @@ runs:
           #  - detect_leaks=0 to avoid LSan exit-time noise; -s so the report reaches the log.
           mkdir -p asan
           libasan="$(gcc -print-file-name=libasan.so)"
-          echo "LD_PRELOAD libasan -> ${libasan}"
-          export LD_PRELOAD="${libasan}"
+          libstdcxx="$(gcc -print-file-name=libstdc++.so)"
+          # Preload libstdc++ alongside libasan: third-party manylinux wheels (matplotlib/ft2font,
+          # duckdb, polars) bundle their own static libstdc++ and throw C++ exceptions at import,
+          # which makes ASan's __cxa_throw interceptor CHECK-fail (real___cxa_throw==0) and abort
+          # before our tests run. Preloading the system libstdc++ makes the real __cxa_throw
+          # resolvable so those benign throws pass through.
+          echo "LD_PRELOAD -> ${libasan}:${libstdcxx}"
+          export LD_PRELOAD="${libasan}:${libstdcxx}"
           # detect_odr_violation=0: suppress the benign ODR false positive where the same libstdc++
           # inline global (std::piecewise_construct) exists in both py10x_kernel.so and
           # py10x_infra.so - it aborts at import before any test runs and is not a real bug.
