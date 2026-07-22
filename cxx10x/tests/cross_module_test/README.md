@@ -15,7 +15,7 @@ Run this when you want a completely fresh start:
 ```bash
 rm -rf .venv build uv.lock
 uv venv
-uv pip install -r pyproject.toml -e .
+uv pip install -r pyproject.toml 
 ```
 
 ## Run

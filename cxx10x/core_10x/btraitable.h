@@ -325,7 +325,7 @@ public:
     void                set_revision(const py::object& rev);
 
     py::dict            serialize_traits();
-    py::object          serialize_object(bool save_references);
+    py::object          serialize_object(unsigned save_references);
     py::object          serialize_nx(bool embed);      //-- Nucleus' method
     py::list            serialize_id_traits();
     static py::dict     deserialize_id_traits(const BTraitableClass* cls, const py::object& serialized_data);
@@ -344,3 +344,9 @@ public:
 };
 
 
+class PY10X_API BSaveRefs {
+public:
+    static constexpr unsigned NONE     = 0x0;
+    static constexpr unsigned ALL      = 0x1;
+    static constexpr unsigned NEW_ONLY = 0x2;
+};

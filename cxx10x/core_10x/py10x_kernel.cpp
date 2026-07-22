@@ -130,6 +130,12 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def_property_readonly_static("NOT_EMBEDDABLE", [](const py::object&) { return BFlags(BTraitFlags::NOT_EMBEDDABLE); })
             ;
 
+    py::class_<BSaveRefs>(m, "BSaveRefs")
+            .def_property_readonly_static("NONE",     [](const py::object&) { return BFlags(BSaveRefs::NONE); })
+            .def_property_readonly_static("ALL",      [](const py::object&) { return BFlags(BSaveRefs::ALL); })
+            .def_property_readonly_static("NEW_ONLY", [](const py::object&) { return BFlags(BSaveRefs::NEW_ONLY); })
+            ;
+
     py::class_<BTrait>(m, "BTrait")
             .def(py::init<>())
             .def(py::init<const BTrait&>())
@@ -304,7 +310,7 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def_static("deserialize_nx",       &BTraitable::deserialize_nx)
             .def("serialize_object",            &BTraitable::serialize_object,
                         "Serialize object",
-                        "save_references"_a=false
+                        "save_references"_a=0
                 )
             .def("deserialize_traits",          &BTraitable::deserialize_traits)
             .def_static("deserialize_object",   &BTraitable::deserialize_object,
@@ -370,6 +376,8 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("set_reset",                   &BFlags::set_reset)
             .def("next",                        &BFlags::next)
             .def("__repr__",                    &BFlags::repr)
+            .def("__int__",                     &BFlags::value)
+            .def("__index__",                   &BFlags::value)
             .def("__or__",                      &BFlags::add)
             .def("__add__",                     &BFlags::add)
             .def("__and__",                     &BFlags::bit_and)

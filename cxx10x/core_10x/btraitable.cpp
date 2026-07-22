@@ -296,9 +296,11 @@ py::object BTraitable::serialize_nx(const bool embed) {
             }
             throw py::type_error(py::str("{}/{} - cannot serialize a non-storable exogenous reference").format(class_name(), id_value()));
         }
-        if (ThreadContext::flags() & ThreadContext::SAVE_REFERENCES && !ThreadContext::serialization_memo().contains(m_tid)) {
+        const auto mode = ThreadContext::flags();
+        const auto cascade =(mode & BSaveRefs::ALL) || ((mode & BSaveRefs::NEW_ONLY) && !(lazy_load_flags() & XCache::LOAD_REQUIRED) && get_revision().cast<int>() == 0);
+        if (cascade && !ThreadContext::serialization_memo().contains(m_tid)) {
             auto py_traitable = my_class()->from_id(m_tid.traitable_id());
-            if (const auto rc = py_traitable.attr("save")(); !py::cast<bool>(rc)) {
+            if (const auto rc = py_traitable.attr("save")(BSaveRefs::NONE); !py::cast<bool>(rc)) {
                 throw py::value_error(py::str("{}/{} - failed to save referenced object: {}").format(class_name(), id_value(),rc.attr("error")()));
             }
         }
@@ -331,7 +333,7 @@ py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict
     return py_traitable;
 }
 
-py::object BTraitable::serialize_object(const bool save_references) {
+py::object BTraitable::serialize_object(const unsigned save_references) {
     if (lazy_load_flags() & XCache::LOAD_REQUIRED) {
         if (my_class()->instance_in_store(m_tid))
             return py::none();                                //-- lazy reference exists in store - nothing to save

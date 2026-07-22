@@ -34,7 +34,6 @@ public:
         return ctx;
     }
 
-    static constexpr unsigned SAVE_REFERENCES       = 0x1;
     static void set_flags(const unsigned flags)     { current_context().m_flags = flags; }
     [[nodiscard]] static unsigned flags()           { return current_context().m_flags; }
 
@@ -44,20 +43,20 @@ public:
     }
 
     class SerializationScope {
-        bool m_save_references;
+        unsigned m_mode;
         unsigned m_original_flags;
 
     public:
-        SerializationScope(const bool save_references, const TID& tid)
-            : m_save_references(save_references), m_original_flags(flags()) {
-            if (m_save_references) {
-                set_flags(SAVE_REFERENCES);
+        SerializationScope(const unsigned mode, const TID& tid)
+            : m_mode(mode), m_original_flags(flags()) {
+            if (m_mode) {
+                set_flags(m_mode);
                 serialization_memo().insert(tid);
             }
         }
 
         ~SerializationScope() {
-            if (m_save_references) {
+            if (m_mode) {
                 set_flags(m_original_flags);
                 serialization_memo().clear();
             }
