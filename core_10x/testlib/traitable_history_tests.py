@@ -132,12 +132,21 @@ def test_collection(test_store):
 
 
 @pytest.fixture
-def test_store(ts_instance):
+def test_store(ts_instance, monkeypatch):
     store = ts_instance
     store.username = 'test_user'
     store.begin_using()
+    # Only drop collections this test opened — full DB wipe races concurrent pytest sessions.
+    created: set[str] = set()
+    original_collection = store.collection
+
+    def tracking_collection(collection_name: str, *args, **kwargs):
+        created.add(collection_name)
+        return original_collection(collection_name, *args, **kwargs)
+
+    monkeypatch.setattr(store, 'collection', tracking_collection)
     yield store
-    for cn in store.collection_names():
+    for cn in created:
         store.delete_collection(cn)
     store.end_using()
 
