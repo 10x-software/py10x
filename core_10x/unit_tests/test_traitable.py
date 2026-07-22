@@ -847,17 +847,33 @@ def test_serialize(monkeypatch):
     save_calls.clear()
     load_calls.clear()
 
+    # Default BSaveRefs.NEW_ONLY cascades to never-saved refs (_rev == 0).
     x = X(x=1, y=X(x=2, y=X(x=1), _replace=True), _replace=True)
     x.save()
-    assert save_calls == {'1': 1}
+    assert save_calls == {'1': 1, '2': 1}
     assert load_calls == {str(i): 1 for i in range(1, 3)}
+    assert x.get_revision() == 1 and x.y.get_revision() == 1
     save_calls.clear()
     load_calls.clear()
 
+    # NEW_ONLY again: children already have _rev > 0 — root only.
+    x.save()
+    assert save_calls == {'1': 1}
+    assert load_calls == {}
+    save_calls.clear()
+
+    # ALL re-saves the whole graph (legacy True).
     x.save(save_references=True)
     assert save_calls == {'1': 1, '2': 1}
     assert load_calls == {}
     save_calls.clear()
+
+    # NONE saves root only even when the child is still new.
+    x2 = X(x=7, y=X(x=8, _replace=True), _replace=True)
+    x2.save(save_references=False)
+    assert save_calls == {'7': 1}
+    save_calls.clear()
+    load_calls.clear()
 
     X(x=3, y=Y(_id=ID('4')), z=0, _replace=True).save(save_references=True)
     assert load_calls == {'3': 1}

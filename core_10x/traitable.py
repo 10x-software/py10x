@@ -15,7 +15,7 @@ from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Any, get_origin
 from urllib.parse import unquote
 
-from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache, BFlags
+from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, BSaveRefs, OsUser, XCache, BFlags
 from typing_extensions import Self, deprecated
 
 import core_10x.concrete_traits as concrete_traits
@@ -774,8 +774,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def delete_collection(cls, _coll_name: str = None) -> bool:
         return cls.s_storage_helper.delete_collection(_coll_name)
 
-    def save(self, save_references=False) -> RC:
-        return self.__class__.s_storage_helper.save(self, save_references=save_references)
+    def save(self, save_references: bool | BFlags | int = BSaveRefs.NEW_ONLY) -> RC:
+        return self.__class__.s_storage_helper.save(self, save_references=int(save_references))
+
+    def serialize_object(self, save_references: int = BSaveRefs.NONE):
+        return super().serialize_object(int(save_references))
 
     def delete(self) -> RC:
         return self.__class__.s_storage_helper.delete(self)
@@ -875,7 +878,7 @@ class AbstractStorableHelper(ABC):
     def delete_collection(self, _coll_name: str = None) -> bool: ...
 
     @abstractmethod
-    def save(self, traitable: Traitable, save_references: bool) -> RC: ...
+    def save(self, traitable: Traitable, save_references: int) -> RC: ...
 
     @abstractmethod
     def _save_serialized(self, coll, serialized_data, old_rev): ...
@@ -921,7 +924,7 @@ class NotStorableHelper(AbstractStorableHelper):
     def delete_collection(self, _coll_name: str = None) -> bool:
         return False
 
-    def save(self, traitable: Traitable, save_references: bool) -> RC:
+    def save(self, traitable: Traitable, save_references: int) -> RC:
         return RC(False, f'{self.traitable_class} is not storable')
 
     def _save_serialized(self, coll, serialized_data, old_rev):
@@ -1001,7 +1004,7 @@ class StorableHelper(AbstractStorableHelper):
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
         return store.delete_collection(collection_name=cname)
 
-    def save(self, traitable: Traitable, save_references: bool) -> RC:
+    def save(self, traitable: Traitable, save_references: int) -> RC:
         rc = traitable.verify()
         if not rc:
             return rc
@@ -1192,7 +1195,7 @@ class TraitableHistory(EventBase):
     def _traitable_id_get(self) -> str:
         return self.serialized_traitable['_id']
 
-    def serialize_object(self, save_references: bool = False):
+    def serialize_object(self, save_references: bool | BFlags | int = BSaveRefs.NONE):
         return {**self.serialized_traitable, **super().serialize_object(save_references)}
 
     def traitable_get(self):

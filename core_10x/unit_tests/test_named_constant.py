@@ -29,6 +29,14 @@ def test_serialize(ts_instance, status):
         assert x == X.load(x.id())
 
 
+def test_bsave_refs():
+    from py10x_kernel import BSaveRefs
+
+    assert int(BSaveRefs.ALL) == int(True)
+    assert int(BSaveRefs.NONE) == int(False)
+    assert int(BSaveRefs.NEW_ONLY) != int(BSaveRefs.ALL)
+
+
 def test_named_constant_value_and_table():
     class Row(NamedConstant):
         A = ()

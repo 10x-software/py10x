@@ -641,7 +641,7 @@ with traitable_store:
     person.dob = date(1990, 5, 15)
     person.save()  # Persists to traitable store backed by Mongo
 ```
-To persist a traitable and all of its referenced objects (including self-references), use `person.save(save_references=True)`.
+By default `save()` also persists **new** storable references (`_rev == 0`) via `BSaveRefs.NEW_ONLY`. For a full graph save use `person.save(save_references=BSaveRefs.ALL)` (or `True`); for the root only, `BSaveRefs.NONE` (or `False`).
 
 ### Connecting to stores
 
@@ -2464,7 +2464,7 @@ The shipping `EnvVars` class declares the following configuration points (all op
 | `XX_LOG_TS_STORE_URI` | `log_ts_store_uri` | `str` | `''` | Mongo URI for `LOG` persistence (see [LOG — Structured Asynchronous Logging](#log--structured-asynchronous-logging)); when unset, log messages go to stdout only and are not persisted. |
 | `XX_FUNCTIONAL_ACCOUNT_PREFIX` | `functional_account_prefix` | `str` | `'xx'` | Prefix identifying functional accounts in usernames. |
 | `XX_GRAPH_ON` | `graph_on` | `bool` | `False` | When `True`, `core_10x` enters `GRAPH_ON()` at process start — see [GRAPH_ON](#graph_on---dependency-tracking-and-caching). |
-| `XX_USE_TS_STORE_TRANSACTIONS` | `use_ts_store_transactions` | `bool` | `False` | Wrap multi-save operations in TsStore transactions — applies to history-keeping saves, `save(save_references=True)`, and [`SaveIfChanged`](#saveifchanged--auto-save-modified-traitables). Requires a transaction-capable backend (e.g. MongoDB replica set). |
+| `XX_USE_TS_STORE_TRANSACTIONS` | `use_ts_store_transactions` | `bool` | `False` | Wrap multi-save operations in TsStore transactions — applies to history-keeping saves, multi-object `save()` cascades (`BSaveRefs.NEW_ONLY` / `BSaveRefs.ALL`), and [`SaveIfChanged`](#saveifchanged--auto-save-modified-traitables). Requires a transaction-capable backend (e.g. MongoDB replica set). |
 | `XX_DATE_FORMAT` | `date_format` | `str` | `XDateTime.FORMAT_ISO` | Default date format; applied to `XDateTime.set_default_format` on first access via the `date_format_apply` hook. |
 
 ## Basket and Bucket Facility
