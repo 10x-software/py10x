@@ -101,6 +101,32 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         playwright install --with-deps chromium
 
+    - name: Stage ASan runtime next to the instrumented .pyd
+      if: inputs.runner-os == 'Windows'
+      shell: pwsh
+      run: |
+        # The ASan-instrumented .pyd links clang_rt.asan_dynamic-x86_64.dll. Python 3.8+ does NOT
+        # search PATH for an extension module's dependency DLLs, so having the MSVC bin dir on PATH
+        # isn't enough - the runtime must sit in a directory the loader checks for the .pyd's
+        # imports. The .pyd's own directory always is, so copy it next to each built module.
+        $asanDir = Join-Path $env:VCToolsInstallDir 'bin\Hostx64\x64'
+        $asan = Get-ChildItem -Path $asanDir -Filter 'clang_rt.asan_dynamic-x86_64.dll' `
+                  -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if (-not $asan) {
+          $asan = Get-ChildItem -Path $env:VCToolsInstallDir -Recurse `
+                    -Filter 'clang_rt.asan_dynamic-x86_64.dll' -ErrorAction SilentlyContinue |
+                    Select-Object -First 1 -ExpandProperty FullName
+        }
+        if (-not $asan) { throw 'ASan runtime clang_rt.asan_dynamic-x86_64.dll not found under VCToolsInstallDir' }
+        Write-Host "ASan runtime: $asan"
+        $buildRoot = Join-Path $env:GITHUB_WORKSPACE '.venv\py10x-build'
+        $pyds = Get-ChildItem -Path $buildRoot -Recurse -Filter '*.pyd' -ErrorAction SilentlyContinue
+        if (-not $pyds) { throw "no built .pyd found under $buildRoot" }
+        foreach ($d in ($pyds | ForEach-Object { $_.DirectoryName } | Sort-Object -Unique)) {
+          Copy-Item -Path $asan -Destination $d -Force
+          Write-Host "staged ASan runtime -> $d"
+        }
+
     - name: Run full test suite
       shell: bash
       env:
