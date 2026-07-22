@@ -15,15 +15,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # PR / push: Linux + Windows on the recommended Python (3.12).
+  # PR / push: Linux + Windows across the supported Python versions.
   full-tests:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
-    name: Full tests (${{ matrix.os }})
+    name: Full tests (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-2025]
+        python: ["3.11", "3.12", "3.13"]
 
     defaults:
       run:
@@ -43,7 +44,7 @@ jobs:
       - name: Run test suite
         uses: ./.github/actions/ci-test-suite
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           mongodb-version: "7.0"
           runner-os: ${{ runner.os }}
 
@@ -56,7 +57,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-2025]
-        python: ["3.11", "3.12"]
+        python: ["3.11", "3.12", "3.13"]
 
     defaults:
       run:
