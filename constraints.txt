@@ -43,7 +43,7 @@ cattrs==24.1.3 ; python_full_version < '3.12'
     # via requests-cache
 cattrs==26.1.0 ; python_full_version >= '3.12'
     # via requests-cache
-certifi==2026.6.17
+certifi==2026.7.22
     # via requests
 cffi==2.1.0 ; platform_python_implementation != 'PyPy' or sys_platform == 'win32'
     # via
@@ -88,7 +88,7 @@ depgather==0.5.0 ; python_full_version >= '3.12'
     # via licensecheck
 dnspython==2.8.0
     # via pymongo
-duckdb==1.5.4
+duckdb==1.5.5
     # via ibis-framework
 editables==0.6
     # via py10x-core (pyproject.toml)
@@ -102,7 +102,7 @@ fonttools==4.63.0
     # via matplotlib
 gitignore-parser==0.1.13
     # via rio-ui
-greenlet==3.5.3
+greenlet==3.5.4
     # via playwright
 h11==0.16.0
     # via uvicorn
@@ -251,7 +251,7 @@ pillow==12.3.0
     # via
     #   matplotlib
     #   rio-ui
-platformdirs==4.10.1
+platformdirs==4.11.0
     # via
     #   licensecheck
     #   requests-cache
@@ -263,9 +263,9 @@ pluggy==1.6.0
     #   hatchling
     #   pytest
     #   pytest-cov
-polars==1.42.1
+polars==1.43.0
     # via py10x-core (pyproject.toml)
-polars-runtime-32==1.42.1
+polars-runtime-32==1.43.0
     # via polars
 propcache==0.5.2
     # via yarl
@@ -408,11 +408,11 @@ sentinel==1.0.0
     # via introspection
 setuptools==83.0.0
     # via setuptools-scm
-setuptools-scm==10.2.0
+setuptools-scm==10.2.1
     # via py10x-core (pyproject.toml)
 six==1.17.0
     # via python-dateutil
-sqlglot==30.12.0
+sqlglot==30.13.0
     # via ibis-framework
 starlette==1.3.1
     # via fastapi
@@ -481,7 +481,7 @@ uuid6==2025.0.1
     #   py10x-kernel (../cxx10x/core_10x/pyproject.toml)
     #   py10x-core (pyproject.toml)
     #   py10x-kernel
-uv==0.11.30
+uv==0.11.31
     # via
     #   py10x-core (pyproject.toml)
     #   licensecheck
