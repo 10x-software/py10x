@@ -70,6 +70,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          cache-suffix: ${{ matrix.python }}
           cache-dependency-glob: "**/pyproject.toml"
 
       - uses: ./.github/actions/checkout-sibling-py10x
@@ -104,6 +105,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          cache-suffix: ${{ matrix.python }}
           cache-dependency-glob: "**/pyproject.toml"
 
       - uses: ./.github/actions/checkout-sibling-py10x
