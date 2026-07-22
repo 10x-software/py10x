@@ -189,7 +189,10 @@ runs:
           libasan="$(gcc -print-file-name=libasan.so)"
           echo "LD_PRELOAD libasan -> ${libasan}"
           export LD_PRELOAD="${libasan}"
-          export ASAN_OPTIONS="detect_leaks=0:alloc_dealloc_mismatch=0:detect_stack_use_after_return=1:quarantine_size_mb=1024:max_free_fill_size=65536:halt_on_error=1:abort_on_error=0:print_stats=0:log_path=asan/asan"
+          # detect_odr_violation=0: suppress the benign ODR false positive where the same libstdc++
+          # inline global (std::piecewise_construct) exists in both py10x_kernel.so and
+          # py10x_infra.so - it aborts at import before any test runs and is not a real bug.
+          export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:detect_stack_use_after_return=1:quarantine_size_mb=1024:max_free_fill_size=65536:halt_on_error=1:abort_on_error=0:print_stats=0:log_path=asan/asan"
           set +e
           python -m pytest -s
           code=$?
