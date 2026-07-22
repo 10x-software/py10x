@@ -1,7 +1,7 @@
 [project]
 name = "cross-module-test"
 description = "Minimal test extension that exercises cross-module pybind11 types from py10x-kernel"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 dynamic = ["version"]
 dependencies = [
     "py10x-core[dev]",

@@ -48,13 +48,14 @@ jobs:
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
   cxx10x-tests:
-    name: cxx10x tests (${{ matrix.os }})
+    name: cxx10x tests (${{ matrix.os }}, py${{ matrix.python }})
     needs: resolve-py10x-branch
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-2025]
+        python: ["3.11", "3.12", "3.13"]
 
     defaults:
       run:
@@ -77,16 +78,18 @@ jobs:
 
       - uses: ./.github/actions/cxx10x-tests
         with:
+          python-version: ${{ matrix.python }}
           mongodb-version: "7.0"
 
   full-tests:
-    name: Full tests (${{ matrix.os }})
+    name: Full tests (${{ matrix.os }}, py${{ matrix.python }})
     needs: [resolve-py10x-branch, cxx10x-tests]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-2025]
+        python: ["3.11", "3.12", "3.13"]
 
     defaults:
       run:
@@ -109,7 +112,7 @@ jobs:
 
       - uses: ./.github/actions/full-py10x-test-suite
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python }}
           mongodb-version: "7.0"
           py10x-branch: ${{ needs.resolve-py10x-branch.outputs.branch }}
           wait-for-coordinated-main: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}

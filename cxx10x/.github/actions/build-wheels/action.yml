@@ -20,7 +20,7 @@ runs:
         package-dir: ${{ inputs.package-dir }}
         output-dir: ${{ inputs.package-dir }}/wheelhouse
       env:
-        CIBW_BUILD: "cp311-* cp312-*"
+        CIBW_BUILD: "cp311-* cp312-* cp313-*"
         CIBW_SKIP: "*-musllinux_*"
         CIBW_ARCHS_LINUX: "x86_64"
         CIBW_ARCHS_MACOS: "universal2"
