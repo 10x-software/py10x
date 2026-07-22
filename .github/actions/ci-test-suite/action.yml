@@ -73,6 +73,16 @@ runs:
         echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
         echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_BUILD_TYPE=Release;-DCMAKE_CXX_FLAGS=/Z7;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
 
+    - name: Enable Linux ASan build for the cxx10x backend
+      if: inputs.runner-os == 'Linux'
+      shell: bash
+      run: |
+        # Hunt the *root cause* on Linux, where ASan is first-class and fast. The Windows crash is
+        # heap-layout- and prior-test-dependent (a memory-corruption signature, not a deterministic
+        # deep stack), and ASan detects a bad free/access regardless of platform - even though a
+        # plain Linux run is green, ASan-on-Linux should still flag the corruption at its origin.
+        echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
+
     - name: Install dependencies
       shell: bash
       env:
@@ -168,7 +178,29 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         if [ "${{ inputs.runner-os }}" != "Windows" ]; then
-          python -m pytest
+          # Linux: run the ASan-instrumented backend so a use-after-free / heap-overflow in the
+          # cxx10x as-of/history lifetime path is caught at its origin with alloc+free+use stacks.
+          #  - LD_PRELOAD the ASan runtime: python itself is not instrumented, so the runtime must
+          #    initialize before the instrumented .so loads ("ASan runtime does not come first").
+          #  - Big quarantine + free-fill so a freed block stays poisoned and a dangling read is
+          #    actually caught (a small default quarantine lets the block get reused -> silent).
+          #  - detect_leaks=0 to avoid LSan exit-time noise; -s so the report reaches the log.
+          mkdir -p asan
+          libasan="$(gcc -print-file-name=libasan.so)"
+          echo "LD_PRELOAD libasan -> ${libasan}"
+          export LD_PRELOAD="${libasan}"
+          export ASAN_OPTIONS="detect_leaks=0:alloc_dealloc_mismatch=0:detect_stack_use_after_return=1:quarantine_size_mb=1024:max_free_fill_size=65536:halt_on_error=1:abort_on_error=0:print_stats=0:log_path=asan/asan"
+          set +e
+          python -m pytest -s
+          code=$?
+          set -e
+          echo "pytest exit code: ${code}"
+          for f in asan/asan.*; do
+            [ -e "$f" ] || continue
+            echo "===== ASan report: ${f} ====="
+            cat "$f"
+          done
+          exit "${code}"
         else
           # The ASan build reliably reproduces the crash: ASan inflates every stack frame with
           # redzones, so the underlying deep recursion overflows the stack much sooner. ASan itself
