@@ -138,12 +138,27 @@ runs:
           & dumpbin /nologo /dependents $kernel
         }
 
+    - name: Locate cdb for stack-overflow capture
+      if: inputs.runner-os == 'Windows'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path (Join-Path $env:RUNNER_TEMP 'crashdumps') | Out-Null
+        $cdb = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe' `
+                 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if (-not $cdb) {
+          $cdb = Get-ChildItem 'C:\Program Files*\Windows Kits\*\Debuggers\x64\cdb.exe' -Recurse `
+                   -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        }
+        if (-not $cdb) { throw 'cdb.exe not found - Debugging Tools for Windows is not installed on this runner' }
+        "CDB_PATH=$cdb" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        Write-Host "cdb located: $cdb"
+
     - name: Run full test suite
       shell: bash
       env:
         PYTHONUNBUFFERED: "1"
         # In-process fatal-error handler: dumps the Python traceback (all threads) to stderr on a
-        # native crash, inherited by subprocesses. Names the test/line alongside the ASan report.
+        # native crash, inherited by subprocesses. Names the test/line alongside the native stack.
         PYTHONFAULTHANDLER: "1"
         # Strict only where fully provisioned: the Linux runner gets a replica set (transactions),
         # but Windows is standalone by design, so leave strict OFF there - the transaction gate must
@@ -155,33 +170,38 @@ runs:
         if [ "${{ inputs.runner-os }}" != "Windows" ]; then
           python -m pytest
         else
-          # The cxx10x backend is ASan-instrumented (ENABLE_SANITIZERS build), so it detects the
-          # bad memory access itself and prints a symbolized C/C++ report - no debugger needed.
-          # Run the FULL suite once: the fault needs full-suite context (40x of the suspect module
-          # in isolation never reproduced it). `-s` keeps native stderr uncaptured so the report
-          # reaches the job log; ASAN_OPTIONS also mirrors it to a file (relative log_path avoids
-          # the drive-letter ':' clashing with the option separator) as a backup in case the
-          # process dies mid-capture. alloc_dealloc_mismatch=0 suppresses false positives from
-          # cxx10x-allocated memory freed by the uninstrumented Python/CRT.
-          mkdir -p asan
-          export ASAN_OPTIONS="halt_on_error=1:abort_on_error=0:alloc_dealloc_mismatch=0:detect_leaks=0:log_path=asan/asan"
-          set +e
-          python -m pytest -s
-          code=$?
-          set -e
+          # The ASan build reliably reproduces the crash: ASan inflates every stack frame with
+          # redzones, so the underlying deep recursion overflows the stack much sooner. ASan itself
+          # prints nothing and neither does faulthandler - the process hard-terminates with
+          # 0xC0000005 and no user-mode exception dispatch, exactly what a stack overflow does (no
+          # stack left to run any handler). An out-of-process debugger is the only thing that can
+          # catch it: cdb receives the FIRST-chance stack-overflow (sov) at the guard page while the
+          # deep call stack is still intact, and dumps it. Second-chance av and a breakpoint (an
+          # ASan __debugbreak, should one ever fire) are covered so cdb never hangs on them.
+          cdb="$(cygpath -u "$CDB_PATH")"
+          bash_win="$(cygpath -w "$(command -v bash)")"
+          dump_win="$(cygpath -w "${RUNNER_TEMP}/crashdumps/pytest_crash.dmp")"
+          rc_file="${RUNNER_TEMP}/pytest_rc"; rm -f "$rc_file"
+          cmds_file="${RUNNER_TEMP}/cdb_cmds.txt"
+          export _NT_SYMBOL_PATH="$(cygpath -w "${GITHUB_WORKSPACE}/.venv")"
+          cap="~*kP 120; !analyze -v; .dump /ma ${dump_win}; .kill; qq"
+          {
+            echo "sxe  -c \"${cap}\" sov"
+            echo "sxd -c2 \"${cap}\" av"
+            echo "sxe  -c \"${cap}\" bpe"
+            echo "g"
+          } > "$cmds_file"
+          "$cdb" -g -G -o -cf "$(cygpath -w "$cmds_file")" \
+            "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && python -m pytest; echo \$? > '${rc_file}'"
+          code="$(cat "$rc_file" 2>/dev/null || echo 1)"
           echo "pytest exit code: ${code}"
-          for f in asan/asan.*; do
-            [ -e "$f" ] || continue
-            echo "===== ASan report: ${f} ====="
-            cat "$f"
-          done
           exit "${code}"
         fi
 
-    - name: Upload Windows ASan report
+    - name: Upload Windows crash dump
       if: failure() && inputs.runner-os == 'Windows'
       uses: actions/upload-artifact@v7
       with:
-        name: windows-asan-report-${{ github.run_id }}
-        path: asan/asan.*
+        name: windows-crash-dump-${{ github.run_id }}
+        path: ${{ runner.temp }}/crashdumps/*.dmp
         if-no-files-found: warn
