@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 from typing import Any
-from uuid import uuid4
+from uuid6 import uuid7
 
 import numpy
 import pytest
@@ -32,7 +32,7 @@ test_classes = {
         custom_collection=custom_collection,
     )
     for custom_collection in (None, True)
-    for cls_name in (f'Person#{uuid4().hex}{(custom_collection and "#Custom") or ""}' for _ in range(2))
+    for cls_name in (f'Person#{uuid7().hex}{(custom_collection and "#Custom") or ""}' for _ in range(2))
 }
 
 globals().update(test_classes)
@@ -41,7 +41,7 @@ globals().update(test_classes)
 @pytest.fixture(params=[True, False], ids=['custom_collection', 'default_collection'])
 def ts_setup(ts_instance, request):
     Person, Person1 = list(test_classes.values())[request.param * 2 :][:2]  # noqa: N806
-    c, c1 = [uuid4().hex if request.param else PackageRefactoring.find_class_id(cls) for cls in (Person, Person1)]
+    c, c1 = [uuid7().hex if request.param else PackageRefactoring.find_class_id(cls) for cls in (Person, Person1)]
 
     with ts_instance:
         p = Person(first_name='John', last_name='Doe', _collection_name=c if request.param else None)
@@ -135,7 +135,7 @@ class TestTSStore:
         """
         ts_store, _p, _p1, c, _c1, Person, _Person1 = ts_setup  # noqa: N806
         collection = ts_store.collection(c, Person.s_dir)
-        doc_id = f'ts_hydrate_{uuid4().hex}'
+        doc_id = f'ts_hydrate_{uuid7().hex}'
 
         r1 = collection.save_new(ts_store.add_ts('_at', T.TS_TIME, {'_id': doc_id, 'name': 'v1'}))
         assert r1['_rev'] == 1

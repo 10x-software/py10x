@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import time
-import uuid
-from contextlib import nullcontext
+import uuid6
 from datetime import date, datetime, timezone
 
 import pytest
@@ -110,10 +109,10 @@ class MutableWithTsTimeBase(Traitable):
     saved_at: datetime = T(T.TS_TIME)
 
 
-NameValueTraitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (NameValueTraitableBase,), {'__module__': __name__})
-PersonTraitable = type(f'PersonTraitable#{uuid.uuid1().hex}', (PersonTraitableBase,), {'__module__': __name__})
+NameValueTraitable = type(f'PersonTraitable{uuid6.uuid7().hex}', (NameValueTraitableBase,), {'__module__': __name__})
+PersonTraitable = type(f'PersonTraitable{uuid6.uuid7().hex}', (PersonTraitableBase,), {'__module__': __name__})
 MutableWithTsTime = type(
-    f'MutableWithTsTime#{uuid.uuid1().hex}',
+    f'MutableWithTsTime#{uuid6.uuid7().hex}',
     (MutableWithTsTimeBase,),
     {'__module__': __name__},
 )
@@ -126,7 +125,7 @@ globals()[MutableWithTsTime.__name__] = MutableWithTsTime
 @pytest.fixture
 def test_collection(test_store):
     """Create a test collection for testing."""
-    collection_name = f'test_collection_{uuid.uuid1()}'
+    collection_name = f'test_collection_{uuid6.uuid7()}'
     yield test_store.collection(collection_name, NameValueTraitable.s_dir)
     test_store.delete_collection(collection_name=collection_name)
     test_store.delete_collection(collection_name=f'{collection_name}#history')
@@ -252,7 +251,7 @@ class TestTraitableHistory:
     def test_mutable_ts_time_update_hydrates(self, test_store):
         """Mutable traitable with TS_TIME: second save is update path with post_serialize stamp."""
         assert not MutableWithTsTime.s_immutable
-        name = f'ts-upd-{uuid.uuid4().hex}'
+        name = f'ts-upd-{uuid6.uuid7().hex}'
         obj = MutableWithTsTime(name=name, value=1, _replace=True)
         obj.save().throw()
         assert obj.get_revision() == 1

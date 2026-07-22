@@ -4,7 +4,7 @@ import collections
 import contextlib
 import re
 import sys
-import uuid
+import uuid6
 from collections import Counter
 from contextlib import nullcontext
 from datetime import date, datetime
@@ -73,7 +73,7 @@ def test_is_storable():
     with pytest.raises(RuntimeError, match='No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI'):
         SubTraitable2().save().throw()
 
-    assert 'is not storable' in SubTraitable(trait1=uuid.uuid1().int).save().error()
+    assert 'is not storable' in SubTraitable(trait1=uuid6.uuid7().int).save().error()
 
 
 def test_trait_update():
@@ -184,8 +184,8 @@ def test_subclass_does_not_inherit_parent_storage_helper(ts_instance, monkeypatc
 
     # Unique ids so the parametrized store instances don't share cached
     # traitable instances (which would carry a stale revision across params).
-    pid = f'p-{uuid.uuid4().hex}'
-    cid = f'c-{uuid.uuid4().hex}'
+    pid = f'p-{uuid6.uuid7().hex}'
+    cid = f'c-{uuid6.uuid7().hex}'
     store = ts_instance
     store.username = 'test_user'
     store.begin_using()
@@ -1908,7 +1908,7 @@ def test_selective_post_serialize_skips_hydrate_for_omitted_ts_traits(ts_instanc
     """Custom post_serialize may inject only some TS traits; save hydrates those only."""
     ts_instance.username = 'test_user'
     with ts_instance:
-        ev = SelectivePostSerializeEv(name=f'e-{uuid.uuid4().hex}', _replace=True)
+        ev = SelectivePostSerializeEv(name=f'e-{uuid6.uuid7().hex}', _replace=True)
         ev.save().throw()
         at = ev.saved_at
         assert ev.is_set(ev.T.saved_at)

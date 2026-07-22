@@ -1,6 +1,6 @@
 """Store-agnostic TsStore transaction tests. Use ts_instance fixture from conftest (core_10x → DuckDbStore, infra_10x → MongoStore)."""
 
-from uuid import uuid4
+from uuid6 import uuid7
 
 import pytest
 
@@ -26,7 +26,7 @@ class TestTsStoreTransaction:
 
     @pytest.fixture
     def coll_name(self):
-        return f'ts_store_tx_test#{uuid4().hex}'
+        return f'ts_store_tx_test#{uuid7().hex}'
 
     @pytest.fixture
     def coll(self, store, coll_name):
@@ -118,7 +118,7 @@ class TestTsStoreTransaction:
 class TestSaveIfChanged:
     @pytest.fixture
     def coll_names(self, ts_instance):
-        coll_names = tuple(f'save_if_changed#{x}#{uuid4().hex}' for x in ('a', 'b'))
+        coll_names = tuple(f'save_if_changed#{x}#{uuid7().hex}' for x in ('a', 'b'))
         assert not set(coll_names).intersection(ts_instance.collection_names())
         yield coll_names
         for coll_name in coll_names:
