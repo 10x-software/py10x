@@ -38,6 +38,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          cache-suffix: ${{ matrix.python }}
           cache-dependency-glob: |
             **/pyproject.toml
 
@@ -71,6 +72,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          cache-suffix: ${{ matrix.python }}
           cache-dependency-glob: |
             **/pyproject.toml
 
