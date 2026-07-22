@@ -106,9 +106,11 @@ runs:
       shell: pwsh
       run: |
         # The ASan-instrumented .pyd links clang_rt.asan_dynamic-x86_64.dll. Python 3.8+ does NOT
-        # search PATH for an extension module's dependency DLLs, so having the MSVC bin dir on PATH
-        # isn't enough - the runtime must sit in a directory the loader checks for the .pyd's
-        # imports. The .pyd's own directory always is, so copy it next to each built module.
+        # search PATH for an extension module's dependency DLLs; the loader only checks system
+        # dirs, the Python executable's own directory, and the directory of the .pyd being loaded.
+        # The editable install rebuilds+installs the .pyd into site-packages at import time, so
+        # stage the runtime into the venv Scripts dir (the executable dir, always searched) AND
+        # every dir that holds a built/installed .pyd under the venv.
         $asanDir = Join-Path $env:VCToolsInstallDir 'bin\Hostx64\x64'
         $asan = Get-ChildItem -Path $asanDir -Filter 'clang_rt.asan_dynamic-x86_64.dll' `
                   -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
@@ -119,12 +121,21 @@ runs:
         }
         if (-not $asan) { throw 'ASan runtime clang_rt.asan_dynamic-x86_64.dll not found under VCToolsInstallDir' }
         Write-Host "ASan runtime: $asan"
-        $buildRoot = Join-Path $env:GITHUB_WORKSPACE '.venv\py10x-build'
-        $pyds = Get-ChildItem -Path $buildRoot -Recurse -Filter '*.pyd' -ErrorAction SilentlyContinue
-        if (-not $pyds) { throw "no built .pyd found under $buildRoot" }
-        foreach ($d in ($pyds | ForEach-Object { $_.DirectoryName } | Sort-Object -Unique)) {
-          Copy-Item -Path $asan -Destination $d -Force
-          Write-Host "staged ASan runtime -> $d"
+        $venv = Join-Path $env:GITHUB_WORKSPACE '.venv'
+        $targets = New-Object System.Collections.Generic.HashSet[string]
+        [void]$targets.Add((Join-Path $venv 'Scripts'))
+        Get-ChildItem -Path $venv -Recurse -Filter '*.pyd' -ErrorAction SilentlyContinue |
+          ForEach-Object { [void]$targets.Add($_.DirectoryName) }
+        foreach ($d in $targets) {
+          if (Test-Path $d) { Copy-Item -Path $asan -Destination $d -Force; Write-Host "staged ASan runtime -> $d" }
+        }
+        # Diagnostic: list the instrumented module's DLL imports so a lingering load failure names
+        # the exact missing dependency instead of a generic 'module could not be found'.
+        $kernel = Get-ChildItem -Path $venv -Recurse -Filter 'py10x_kernel*.pyd' -ErrorAction SilentlyContinue |
+                    Select-Object -First 1 -ExpandProperty FullName
+        if ($kernel) {
+          Write-Host "== dumpbin /dependents $kernel =="
+          & dumpbin /nologo /dependents $kernel
         }
 
     - name: Run full test suite
