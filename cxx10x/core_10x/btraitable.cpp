@@ -35,7 +35,7 @@ py::object BTraitable::lazy_load_if_needed() {
     if (flags & XCache::MUST_EXIST_IN_STORE && !my_class()->is_storable())
         throw runtime_error( "is an invalid lazy reference to non-storable that does not exist in memory" );
 
-    auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(m_origin_cache, flags));
+    auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(origin_cache(), flags));
     clear_lazy_load_flags(flags);
     const auto serialized_data = _reload(flags & XCache::LOAD_REV_ONLY);
     set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set

@@ -24,6 +24,13 @@ XCache *XCache::find_origin_cache(const TID &tid) {
     return nullptr;
 }
 
+bool XCache::is_descendent_of_origin(const BTraitable* obj) const {
+    for (auto parent = this; parent; parent = parent->m_parent)
+        if (obj->origin_cache_is(parent))
+            return true;
+    return false;
+}
+
 py::set XCache::object_ids_by_class(const BTraitableClass* cls) const {
     auto it = m_ids_by_class.find(cls);
     py::set result;
@@ -38,26 +45,12 @@ py::set XCache::object_ids_by_class(const BTraitableClass* cls) const {
 }
 
 ObjectCache * XCache::find_or_create_object_cache(BTraitable *obj) {
-    // check if object's origin cache is reachable from *this*
-    // handle lazy load if needed
-    // find or create object cache in *this*
-
-    const auto &tid = obj->tid();
-    auto parent = this;
-
-    while(parent) {
-        if (obj->origin_cache_is(parent))
-            break;
-        parent = parent->m_parent;
-    }
-
-    if (!parent)
-        //-- origin cache is not reachable!
+    if (!is_descendent_of_origin(obj))
         throw obj->runtime_error("not usable - origin cache is not reachable");
 
     obj->lazy_load_if_needed();
 
-    return _find_or_create_object_cache(tid);
+    return _find_or_create_object_cache(obj->tid());
 }
 
 BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int node_type, const bool import_from_parents) {

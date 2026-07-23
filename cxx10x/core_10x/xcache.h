@@ -290,6 +290,8 @@ public:
 
     XCache *find_origin_cache(const TID &tid);
 
+    [[nodiscard]] bool is_descendent_of_origin(const BTraitable* obj) const;
+
     BasicNode* find_set_or_invalid_node_in_parents(const TID& tid, const BTrait* trait, const bool parents_only=true) const {
         auto parent = parents_only ? m_parent : this;
         while(parent) {

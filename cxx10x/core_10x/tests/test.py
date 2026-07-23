@@ -139,6 +139,35 @@ def test_cache_unreachable():
         assert 'object not usable - origin cache is not reachable' in str(e)
 
 
+    try:
+        x.serialize_object()
+        assert False, 'expected RuntimeError'
+    except RuntimeError as e:
+        assert 'object not usable - origin cache is not reachable' in str(e)
+
+
+def test_eval_once_requires_default_cache_origin():
+    class X(Traitable):
+        x: int = T(T.ID)
+        v: int = T(T.EVAL_ONCE)
+
+        @staticmethod
+        def load_data(id):
+            return {'_id': id.value, 'x': int(id.value), 'v': int(id.value)*20, '_rev': 1}
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+    with GRAPH_ON():
+        x = X(x=1)
+        try:
+            _ = x.v
+            assert False, 'expected RuntimeError'
+        except RuntimeError as e:
+            assert 'object not usable - origin cache is not reachable' in str(e)
+
+
 def test_deserialize_traits_override():
     class X(Traitable):
         s_custom_collection=True
@@ -853,7 +882,7 @@ def test_nucleus_named_constant():
 
 
     print(Nucleus.serialize_any(Status.DEPRECATED,True))
-    print(Nucleus.deserialize_record({'_type': '_nx','_cls': '__main__/Status', '_obj': 'DEPRECATED'}))
+    print(Nucleus.deserialize_record({'_type': '_nx','_cls': f'{__name__}/Status', '_obj': 'DEPRECATED'}))
 
 
 def test_lazy_ref_replace():

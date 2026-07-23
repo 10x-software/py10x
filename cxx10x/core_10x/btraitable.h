@@ -69,14 +69,13 @@ protected:
     XCache* m_origin_cache;
     uint64_t m_origin_cache_generation = 0;
 
-
 public:
     explicit BTraitable(const BTraitableClass* cls, const py::object& id) : m_tid(cls, id) {
         const auto proc = ThreadContext::current_traitable_proc();
-        set_origin_cache(proc->cache());
+        const auto origin_cache = set_origin_cache(proc->cache());
         if (m_tid.is_valid()) {
             //-- lazy reference, must exist in store unless exists in memory
-            if (const auto existing_cache = m_origin_cache->find_origin_cache(m_tid))
+            if (const auto existing_cache = origin_cache->find_origin_cache(m_tid))
                 set_origin_cache(existing_cache);
             else {
                 set_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST|proc->flags()&BTraitableProcessor::DEBUG);
@@ -87,9 +86,9 @@ public:
 
     py::object endogenous_id();
 
-    void set_lazy_load_flags(const unsigned flags) const        { m_origin_cache->set_lazy_load_flags(m_tid, flags); }
-    void clear_lazy_load_flags(unsigned lazy_load_flags) const  { m_origin_cache->clear_lazy_load_flags(m_tid, lazy_load_flags); }
-    [[nodiscard]] unsigned lazy_load_flags() const              { return m_origin_cache->lazy_load_flags(m_tid); }
+    void set_lazy_load_flags(const unsigned flags) const { origin_cache()->set_lazy_load_flags(m_tid, flags); }
+    void clear_lazy_load_flags(unsigned lazy_load_flags) const { origin_cache()->clear_lazy_load_flags(m_tid, lazy_load_flags); }
+    [[nodiscard]] unsigned lazy_load_flags() const { return origin_cache()->lazy_load_flags(m_tid); }
 
     py::object lazy_load_if_needed();
 
@@ -104,16 +103,22 @@ public:
     bool id_exists();
 
     void set_id_value(const py::object& id_value) const         { m_tid.set_id_value(id_value); }
-    void set_origin_cache(XCache *oc) {
+    XCache* set_origin_cache(XCache *oc) {
         m_origin_cache = oc;
         m_origin_cache_generation = oc ? oc->generation() : 0;
+        return oc;
     }
 
     [[nodiscard]] bool origin_cache_is(const XCache* cache) const {
         return cache && m_origin_cache == cache && m_origin_cache_generation == cache->generation();
     }
 
-    [[nodiscard]] XCache*           origin_cache() const        { return m_origin_cache; }
+    [[nodiscard]] XCache* origin_cache() const {
+        if (origin_cache_is(XCache::default_cache()) || ThreadContext::current_traitable_proc()->cache()->is_descendent_of_origin(this))
+            return m_origin_cache;
+        throw runtime_error("not usable - origin cache is not reachable");
+    }
+
     [[nodiscard]] const BTraitableClass*  my_class() const            { return m_tid.cls(); }
     [[nodiscard]] BUiClass*         bui_class() const           { return my_class()->bui_class(); }
     [[nodiscard]] py::str           class_name() const          { return my_class()->name(); }

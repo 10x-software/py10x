@@ -13,9 +13,13 @@
 #  pragma warning(pop)
 #endif
 #include <sstream>
+#include <cstdlib>
 
 inline std::string current_stacktrace()
 {
+    if (std::getenv("XX_DISABLE_STACKTRACE"))
+        return "(stacktrace disabled: XX_DISABLE_STACKTRACE)";
+
     backward::StackTrace st;
     st.load_here();
 
