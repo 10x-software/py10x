@@ -394,6 +394,9 @@ class EnumBits(NamedConstant):
     def same_values(cls, value1, value2) -> bool:
         return value1 is value2 or value1.name == value2.name
 
+    def __int__(self) -> int:
+        return int(self.value)
+
 
 class ErrorCode(Enum, seed=-1, step=-1):
     def __call__(self, *args, **kwargs):
