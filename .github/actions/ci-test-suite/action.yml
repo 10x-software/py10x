@@ -166,6 +166,34 @@ runs:
         "CDB_PATH=$cdb" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
         Write-Host "cdb located: $cdb"
 
+    - name: Stage private debug symbols (PDB) next to the .pyd
+      if: inputs.runner-os == 'Windows'
+      shell: pwsh
+      run: |
+        # cdb needs the /DEBUG-linked py10x_kernel/py10x_infra PDBs to resolve the recursion-driver
+        # frames (otherwise they collapse to the nearest export symbol, e.g. "BRC::~BRC+0xe390"). The
+        # PDBs are produced in the incremental build-dir (.venv/py10x-build/...), NOT installed next
+        # to the .pyd in site-packages, and may not share the .pyd basename - so search broadly, log
+        # every PDB found (diagnostic for when a match is missing), and copy each next to the
+        # matching installed module (cdb always searches a loaded module's own directory).
+        $venv = Join-Path $env:GITHUB_WORKSPACE '.venv'
+        $roots = @($venv, (Join-Path $env:GITHUB_WORKSPACE '..\cxx10x')) | Where-Object { Test-Path $_ }
+        $pdbs = Get-ChildItem -Path $roots -Recurse -Filter '*.pdb' -ErrorAction SilentlyContinue
+        Write-Host "== all PDBs found under $($roots -join ', ') =="
+        $pdbs | ForEach-Object { Write-Host "  $($_.FullName)" }
+        $mods = Get-ChildItem -Path (Join-Path $venv 'Lib\site-packages') -Filter 'py10x_*.pyd' -ErrorAction SilentlyContinue
+        foreach ($m in $mods) {
+          # module stem up to the first dot: py10x_kernel.cp313-win_amd64.pyd -> py10x_kernel
+          $stem = ($m.Name -split '\.')[0]
+          $match = $pdbs | Where-Object { $_.Name -like "$stem*" } | Select-Object -First 1
+          if ($match) {
+            Copy-Item -Path $match.FullName -Destination $m.DirectoryName -Force
+            Write-Host "staged: $($match.Name) -> $($m.DirectoryName) (for $($m.Name))"
+          } else {
+            Write-Host "WARNING: no PDB matching '$stem*' found for $($m.Name)"
+          }
+        }
+
     - name: Run full test suite
       shell: bash
       env:
@@ -241,25 +269,17 @@ runs:
           dump_win="$(cygpath -m "${RUNNER_TEMP}/crashdumps/pytest_crash.dmp")"
           rc_file="${RUNNER_TEMP}/pytest_rc"; rm -f "$rc_file"
           cmds_file="${RUNNER_TEMP}/cdb_cmds.txt"
-          # Private symbols: the build links with /DEBUG (+ /Z7), so a py10x_kernel PDB with full
-          # private symbols exists - but scikit-build does not install it next to the .pyd, so cdb
-          # falls back to export-only symbols and mislabels every recursion-driver frame to the
-          # nearest public symbol (e.g. "BRC::~BRC+0xe390", "CurveTemplate<int>+0x56185"). Stage the
-          # PDB beside the installed .pyd (cdb always searches a module's own directory) and point
-          # _NT_SYMBOL_PATH there so .reload matches it by signature.
+          # Private symbols: the "Stage private debug symbols" step copied the /DEBUG-linked
+          # py10x_kernel/py10x_infra PDBs next to their installed .pyd. Point _NT_SYMBOL_PATH at that
+          # site-packages dir so cdb matches them by signature; without this, recursion-driver frames
+          # collapse to the nearest export symbol (e.g. "BRC::~BRC+0xe390", "CurveTemplate<int>+...").
           pyd_dir="$(dirname "$(find .venv -name 'py10x_kernel*.pyd' | head -1)")"
-          pdb="$(find . -name 'py10x_kernel*.pdb' 2>/dev/null | head -1)"
-          if [ -n "$pdb" ]; then
-            cp -f "$pdb" "$pyd_dir/" && echo "staged private symbols: ${pdb} -> ${pyd_dir}"
-          else
-            echo "WARNING: py10x_kernel PDB not found - stack frames will be export-only"
-          fi
           export _NT_SYMBOL_PATH="$(cygpath -w "$pyd_dir")"
-          # Capture only the faulting thread (cdb breaks in on it for a first-chance sov), wrapped in
-          # greppable banners, with private symbols force-loaded first. Dropped ~*kP (all threads) and
-          # !analyze -v (its WRONG_SYMBOLS pseudo-thread output was pure noise); .exr -1 gives the
-          # exception code/address cleanly.
-          cap=".reload /f; .echo ===EXCEPTION===; .exr -1; .echo ===FAULTING STACK BEGIN===; kP 400; .echo ===FAULTING STACK END===; .dump /ma ${dump_win}; .kill; qq"
+          # Force-load ONLY our modules' symbols (a blanket ".reload /f" tried every third-party/OS
+          # module and buried the result in hundreds of "cannot find" lines); lm confirms whether the
+          # private PDB actually bound. Capture just the faulting thread (cdb breaks in on it for a
+          # first-chance sov) inside greppable banners. .exr -1 gives the exception code cleanly.
+          cap=".reload /f py10x_kernel*.pyd; .reload /f py10x_infra*.pyd; .echo ===MODULES===; lm vm py10x_kernel*; .echo ===EXCEPTION===; .exr -1; .echo ===FAULTING STACK BEGIN===; kP 400; .echo ===FAULTING STACK END===; .dump /ma ${dump_win}; .kill; qq"
           {
             echo "sxe  -c \"${cap}\" sov"
             echo "sxd -c2 \"${cap}\" av"
