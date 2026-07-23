@@ -29,6 +29,15 @@ function(_install_import_lib target)
             FILES_MATCHING PATTERN "${target}*.lib")
 endfunction()
 
+function(_install_pdb target)
+    if(NOT MSVC)
+        return()
+    endif()
+    install(FILES $<TARGET_PDB_FILE:${target}>
+            DESTINATION .
+            OPTIONAL)
+endfunction()
+
 function(_add_rtld_link_options target)
     if(APPLE)
         target_link_options(${target} PRIVATE -undefined dynamic_lookup)
@@ -118,6 +127,7 @@ function(finalize_pybind_module target)
         add_pybind_stubs(${target})
     endif()
     _install_import_lib(${target})
+    _install_pdb(${target})
 endfunction()
 
 # ---------------------------------------------------------------------------
@@ -132,4 +142,5 @@ function(finalize_pybind_module_rtld target cxx10x_cmake_dir)
     else()
         add_pybind_stubs_rtld(${target} ${cxx10x_cmake_dir})
     endif()
+    _install_pdb(${target})
 endfunction()
