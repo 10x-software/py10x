@@ -7,7 +7,7 @@ option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer
 function(_resolve_lib_output_dir)
     if(NOT DEFINED CMAKE_LIBRARY_OUTPUT_DIRECTORY)
         if(WIN32)
-            set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Release PARENT_SCOPE)
+            set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG> PARENT_SCOPE)
         else()
             set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR} PARENT_SCOPE)
         endif()
@@ -39,14 +39,24 @@ endfunction()
 
 function(_add_sanitizers target)
     message(STATUS "Sanitizers enabled for ${target}")
-    target_compile_options(${target} PRIVATE
-            -fsanitize=address,undefined
-            -fno-omit-frame-pointer
-            -g
-    )
-    target_link_options(${target} PRIVATE
-            -fsanitize=address,undefined
-    )
+    if(MSVC)
+        # MSVC supports AddressSanitizer only; there is no UndefinedBehaviorSanitizer.
+        # ASan is incompatible with the /RTC runtime checks and incremental linking.
+        # /Zi provides the debug info ASan needs to symbolize reports. At runtime the
+        # ASan runtime DLL (clang_rt.asan_dynamic-*.dll from the MSVC toolchain) must
+        # be on PATH, e.g. by building/running from a Developer command prompt.
+        target_compile_options(${target} PRIVATE /fsanitize=address /Zi)
+        target_link_options(${target} PRIVATE /INCREMENTAL:NO)
+    else()
+        target_compile_options(${target} PRIVATE
+                -fsanitize=address,undefined
+                -fno-omit-frame-pointer
+                -g
+        )
+        target_link_options(${target} PRIVATE
+                -fsanitize=address,undefined
+        )
+    endif()
 endfunction()
 
 # ---------------------------------------------------------------------------

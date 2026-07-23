@@ -16,7 +16,7 @@ from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
 
-from py10x_kernel import BTraitableProcessor, BTraitableProcessorSetValueTracker, XCache
+from py10x_kernel import BSaveRefs, BTraitableProcessor, BTraitableProcessorSetValueTracker, XCache
 
 from core_10x.environment_variables import EnvVars
 
@@ -638,9 +638,11 @@ def test_save_load_calls():
         x: int = T(T.ID)
         y: Self = T()
 
-        def save(self, save_references=False):
+        def save(self, save_references=0):
+            # Nested cascade from C++ always passes 0 (NONE) so outer mode flags apply.
             if self.serialize_object(save_references):
                 save_calls[self.id().value] += 1
+                self.set_revision(max(self.get_revision(), 1))
             return RC(True)
 
         @classmethod
@@ -661,24 +663,45 @@ def test_save_load_calls():
     x = X(x=1, y=y, _replace=True)
     assert load_calls == {'1': 1, '2': 1}, load_calls
 
-    x.save()
+    # NONE: root only
+    x.save(BSaveRefs.NONE)
     assert save_calls == {'1': 1}
     assert load_calls == {'1': 1, '2': 1}
-
+    x.set_revision(0)
+    x.y.set_revision(0)
     save_calls.clear()
 
-    x.save(save_references=True)
+    # NEW_ONLY: cascade never-saved refs (rev==0)
+    x.save(BSaveRefs.NEW_ONLY)
+    assert save_calls == {'1': 1, '2': 1}
+    save_calls.clear()
+
+    # NEW_ONLY again: children already have rev>0 — root only
+    x.save(BSaveRefs.NEW_ONLY)
+    assert save_calls == {'1': 1}
+    save_calls.clear()
+
+    # ALL (and legacy True): full graph again
+    x.save(BSaveRefs.ALL)
+    assert save_calls == {'1': 1, '2': 1}
+    save_calls.clear()
+    x.save(True)
     assert save_calls == {'1': 1, '2': 1}
     save_calls.clear()
 
     x = X(_id=ID('4'))
     x.save()
-    assert save_calls == {} # save of a lazy ref is noop
+    assert save_calls == {}  # lazy ref in store is noop
 
     x = X(x=1, y=X(_id=ID('4')), _replace=True)
-    x.save(save_references=True)
-    print(save_calls)
-    assert save_calls == {'1': 1}  # save of a lazy ref is noop
+    x.save(BSaveRefs.ALL)
+    assert save_calls == {'1': 1}  # lazy ref in store is noop
+    save_calls.clear()
+
+    # NEW_ONLY does not treat pure lazy (even missing) as a new object
+    x = X(x=9, y=X(_id=ID('0')), _replace=True)
+    x.save(BSaveRefs.NEW_ONLY)
+    assert save_calls == {'9': 1}
 
 def test_id_immutable():
     class X(Traitable):
