@@ -234,11 +234,32 @@ runs:
           # ASan __debugbreak, should one ever fire) are covered so cdb never hangs on them.
           cdb="$(cygpath -u "$CDB_PATH")"
           bash_win="$(cygpath -w "$(command -v bash)")"
-          dump_win="$(cygpath -w "${RUNNER_TEMP}/crashdumps/pytest_crash.dmp")"
+          # Use -m (mixed / forward slashes) for the .dump path: cdb's command parser eats backslash
+          # escapes (\a, \t, ...) in a Windows path, which silently mangled the filename before
+          # ("D:a_tempcrashdumpspytest_crash.dmp") so the artifact never uploaded. Forward slashes
+          # are accepted by cdb and survive intact.
+          dump_win="$(cygpath -m "${RUNNER_TEMP}/crashdumps/pytest_crash.dmp")"
           rc_file="${RUNNER_TEMP}/pytest_rc"; rm -f "$rc_file"
           cmds_file="${RUNNER_TEMP}/cdb_cmds.txt"
-          export _NT_SYMBOL_PATH="$(cygpath -w "${GITHUB_WORKSPACE}/.venv")"
-          cap="~*kP 120; !analyze -v; .dump /ma ${dump_win}; .kill; qq"
+          # Private symbols: the build links with /DEBUG (+ /Z7), so a py10x_kernel PDB with full
+          # private symbols exists - but scikit-build does not install it next to the .pyd, so cdb
+          # falls back to export-only symbols and mislabels every recursion-driver frame to the
+          # nearest public symbol (e.g. "BRC::~BRC+0xe390", "CurveTemplate<int>+0x56185"). Stage the
+          # PDB beside the installed .pyd (cdb always searches a module's own directory) and point
+          # _NT_SYMBOL_PATH there so .reload matches it by signature.
+          pyd_dir="$(dirname "$(find .venv -name 'py10x_kernel*.pyd' | head -1)")"
+          pdb="$(find . -name 'py10x_kernel*.pdb' 2>/dev/null | head -1)"
+          if [ -n "$pdb" ]; then
+            cp -f "$pdb" "$pyd_dir/" && echo "staged private symbols: ${pdb} -> ${pyd_dir}"
+          else
+            echo "WARNING: py10x_kernel PDB not found - stack frames will be export-only"
+          fi
+          export _NT_SYMBOL_PATH="$(cygpath -w "$pyd_dir")"
+          # Capture only the faulting thread (cdb breaks in on it for a first-chance sov), wrapped in
+          # greppable banners, with private symbols force-loaded first. Dropped ~*kP (all threads) and
+          # !analyze -v (its WRONG_SYMBOLS pseudo-thread output was pure noise); .exr -1 gives the
+          # exception code/address cleanly.
+          cap=".reload /f; .echo ===EXCEPTION===; .exr -1; .echo ===FAULTING STACK BEGIN===; kP 400; .echo ===FAULTING STACK END===; .dump /ma ${dump_win}; .kill; qq"
           {
             echo "sxe  -c \"${cap}\" sov"
             echo "sxd -c2 \"${cap}\" av"
