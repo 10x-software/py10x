@@ -192,10 +192,19 @@ runs:
         foreach ($m in $mods) {
           # module stem up to the first dot: py10x_kernel.cp313-win_amd64.pyd -> py10x_kernel
           $stem = ($m.Name -split '\.')[0]
-          $match = $pdbs | Where-Object { $_.Name -like "$stem*" } | Select-Object -First 1
+          $dest = Join-Path $m.DirectoryName "$stem.pdb"
+          if (Test-Path $dest) {
+            # cxx10x's install(FILES $<TARGET_PDB_FILE:...>) already placed the PDB next to the .pyd.
+            Write-Host "PDB already beside module: $dest"
+            continue
+          }
+          # Fallback: no installed PDB (e.g. install rule filtered out this config) - copy the
+          # build-dir PDB. Exclude the module's own dir so we never copy a file onto itself, and
+          # tolerate any copy error so a symbol-staging hiccup never fails the crash-capture run.
+          $match = $pdbs | Where-Object { $_.Name -like "$stem*" -and $_.DirectoryName -ne $m.DirectoryName } | Select-Object -First 1
           if ($match) {
-            Copy-Item -Path $match.FullName -Destination $m.DirectoryName -Force
-            Write-Host "staged: $($match.Name) -> $($m.DirectoryName) (for $($m.Name))"
+            Copy-Item -Path $match.FullName -Destination $m.DirectoryName -Force -ErrorAction SilentlyContinue
+            Write-Host "staged: $($match.FullName) -> $($m.DirectoryName) (for $($m.Name))"
           } else {
             Write-Host "WARNING: no PDB matching '$stem*' found for $($m.Name)"
           }
