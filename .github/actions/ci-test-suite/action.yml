@@ -81,7 +81,10 @@ runs:
         # heap-layout- and prior-test-dependent (a memory-corruption signature, not a deterministic
         # deep stack), and ASan detects a bad free/access regardless of platform - even though a
         # plain Linux run is green, ASan-on-Linux should still flag the corruption at its origin.
+        # -fsanitize-address-use-after-scope also catches a dangling reference to a *stack* object
+        # (use-after-scope), which plain ASan misses unless the build enables it explicitly.
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
+        echo "SKBUILD_CMAKE_ARGS=-DCMAKE_CXX_FLAGS=-fsanitize-address-use-after-scope" >> "$GITHUB_ENV"
 
     - name: Install dependencies
       shell: bash
@@ -199,8 +202,12 @@ runs:
           # inline global (std::piecewise_construct) exists in both py10x_kernel.so and
           # py10x_infra.so - it aborts at import before any test runs and is not a real bug.
           export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:detect_stack_use_after_return=1:quarantine_size_mb=1024:max_free_fill_size=65536:halt_on_error=1:abort_on_error=0:print_stats=0:log_path=asan/asan"
+          # Scope to core_10x (where test_traitable_history lives and where the pre-crash state is
+          # built - it runs before infra/ui); skips the slow UI tests that time out under ASan. The
+          # serialize-depth probe reports the deepest embedded-serialization per test, classifying
+          # bounded-deep vs unbounded-cycle and naming the trigger.
           set +e
-          python -m pytest -s
+          python -m pytest core_10x -p serialize_depth_probe -s
           code=$?
           set -e
           echo "pytest exit code: ${code}"
