@@ -67,11 +67,18 @@ runs:
         # pointed at the Release dir (it reads ${CMAKE_BUILD_TYPE}, which scikit-build-core leaves
         # empty under the VS multi-config generator).
         #
+        # CMAKE_MODULE_LINKER_FLAGS is the one that matters for the .pyd: a pybind11 extension is a
+        # CMake MODULE library, whose link flags come from *_MODULE_LINKER_FLAGS - not _SHARED_. An
+        # earlier attempt set only _SHARED_/_EXE_, so /DEBUG never reached the extension link and NO
+        # PDB was produced (cdb loaded the .pyd with export symbols only, every frame collapsing to
+        # the nearest export like "BRC::~BRC+0xe390"). Keep all three so the flag lands wherever the
+        # target kind falls.
+        #
         # NOTE: ASan is incompatible with /GL (whole-program opt / LTCG); cxx10x's ENABLE_SANITIZERS
         # path is expected to drop it. If the build fails on that, the fix belongs upstream.
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
         echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
-        echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_BUILD_TYPE=Release;-DCMAKE_CXX_FLAGS=/Z7;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
+        echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_BUILD_TYPE=Release;-DCMAKE_CXX_FLAGS=/Z7;-DCMAKE_MODULE_LINKER_FLAGS=/DEBUG;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
 
     - name: Enable Linux ASan build for the cxx10x backend
       if: inputs.runner-os == 'Linux'
