@@ -178,6 +178,12 @@ runs:
         # skip, not fail, on Windows. (git/uv/source/siblings are present on both, so those guards
         # run regardless; strict only flips an *unmet* precondition from skip to fail.)
         XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
+        # Diagnostic: skip the native stack walk in BTraitable::runtime_error() (backward.hpp/DbgHelp
+        # on Windows), which fires on every "not usable - origin cache is not reachable" throw.
+        # test_as_of_error_cases triggers it up to 18x in one run; DbgHelp is known to be fragile
+        # under repeated calls, and this is the leading hypothesis for the intermittent Windows
+        # crash there. Windows-only: Linux's backward.hpp backend isn't the suspect.
+        XX_DISABLE_STACKTRACE: ${{ inputs.runner-os == 'Windows' && '1' || '' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         if [ "${{ inputs.runner-os }}" != "Windows" ]; then
