@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import uuid
+import uuid6
 
 import pytest
 
@@ -25,7 +25,7 @@ class TestCopyTo:
     def duck_src(self):
         store = DuckDbStore()
         store.begin_using()
-        name = f'copy_src_{uuid.uuid4().hex}'
+        name = f'copy_src_{uuid6.uuid7().hex}'
         coll = store.collection(name, CopyPerson.s_dir)
         coll.save_new({'_id': 'a', 'name': 'Ann', 'age': 30})
         coll.save_new({'_id': 'b', 'name': 'Bob', 'age': 40})
@@ -37,12 +37,12 @@ class TestCopyTo:
     def mongo_src(self):
         store = None
         try:
-            store = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid.uuid4().hex}', sst=100)
+            store = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid6.uuid7().hex}', sst=100)
         except Exception:
             self.s_mongo_running = False
         need(self.s_mongo_running, 'MongoDB running (copy_to tests)')
         store.begin_using()
-        name = f'mcopy_{uuid.uuid4().hex}'
+        name = f'mcopy_{uuid6.uuid7().hex}'
         coll = store.collection(name, {})  # Mongo ignores trait_dir
         coll.save_new({'_id': 'm1', 'x': 1})
         yield store, name
@@ -96,7 +96,7 @@ class TestCopyTo:
     def test_ibis_empty_table_empty_intrinsic_trait_dir_raises(self):
         store = DuckDbStore()
         store.begin_using()
-        name = f'empty_{uuid.uuid4().hex}'
+        name = f'empty_{uuid6.uuid7().hex}'
         # Register handle + empty shell (no payload columns → empty intrinsic_trait_dir).
         store.collection(name, {})
         store.ensure_table(name)
@@ -113,7 +113,7 @@ class TestCopyTo:
     def test_ibis_open_without_write_not_in_collection_names(self):
         store = DuckDbStore()
         store.begin_using()
-        name = f'lazy_{uuid.uuid4().hex}'
+        name = f'lazy_{uuid6.uuid7().hex}'
         store.collection(name, {})
         assert name not in store.collection_names()
         store.end_using()
@@ -122,7 +122,7 @@ class TestCopyTo:
         """Physical table must be droppable even if never opened into ``_collections``."""
         store = DuckDbStore()
         store.begin_using()
-        name = f'uncached_{uuid.uuid4().hex}'
+        name = f'uncached_{uuid6.uuid7().hex}'
         store._create_table_if_not_exists(name)
         assert store._collection_columns(name)
         assert name not in store._collections
@@ -143,7 +143,7 @@ class TestCopyTo:
     def test_ibis_to_mongo(self, duck_src):
         src, name = duck_src
         try:
-            dst = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid.uuid4().hex}', sst=100)
+            dst = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid6.uuid7().hex}', sst=100)
         except Exception:
             pytest.skip('MongoDB not available')
         dst.begin_using()
@@ -160,7 +160,7 @@ class TestCopyTo:
     def test_mongo_to_mongo(self, mongo_src):
         src, name = mongo_src
         try:
-            dst = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid.uuid4().hex}', sst=100)
+            dst = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid6.uuid7().hex}', sst=100)
         except Exception:
             pytest.skip('MongoDB not available')
         dst.begin_using()

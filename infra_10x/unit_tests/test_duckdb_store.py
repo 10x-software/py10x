@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-import uuid
+import uuid6
 from datetime import date, datetime, timezone
 
 import pytest
@@ -116,7 +116,7 @@ class _TraitFixtureBase(Traitable):
 
 
 TraitFixture = type(
-    f'TraitFixture#{uuid.uuid4().hex}',
+    f'TraitFixture#{uuid6.uuid7().hex}',
     (_TraitFixtureBase,),
     {'__module__': __name__, 'custom_collection': True},
 )
@@ -171,7 +171,7 @@ def hybrid_store(request, monkeypatch):
     store = DuckDbStore()
     if not request.param:
         monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'hybrid_{uuid.uuid4().hex}'
+    coll_name = f'hybrid_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, TraitFixture.s_dir)
     yield store, coll, coll_name
     store.delete_collection(coll_name)
@@ -230,7 +230,7 @@ def test_traitable_ref_promoted_to_sql_column(monkeypatch):
     assert 'peer' in _eligible_column_traits(RefOwner.s_dir)
 
     store = DuckDbStore()
-    coll_name = f'ref_col_{uuid.uuid4().hex}'
+    coll_name = f'ref_col_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, RefOwner.s_dir)
     with CACHE_ONLY():
         target = RefTarget(name='t1', _collection_name='targets')
@@ -249,7 +249,7 @@ def test_traitable_ref_promoted_to_sql_column(monkeypatch):
 
     # Without ADD COLUMN, ref stays in the blob (still str wire).
     monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll2_name = f'ref_blob_{uuid.uuid4().hex}'
+    coll2_name = f'ref_blob_{uuid6.uuid7().hex}'
     coll2 = store.collection(coll2_name, RefOwner.s_dir)
     coll2.save_new({'_id': 'o2', 'name': 'o2', 'peer': wire})
     assert 'peer' not in _sql_columns(store, coll2_name)
@@ -280,7 +280,7 @@ def test_datetime_filter_on_empty_table_json_path():
         _at: datetime = T(T.TS_TIME)
 
     store = DuckDbStore()
-    coll_name = f'filt_{uuid.uuid4().hex}'
+    coll_name = f'filt_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, Ev.s_dir)
     assert '_at' not in coll._collection_columns() or '_at' not in _sql_columns(store, coll_name)
     assert list(coll.find(f(_at=LT(datetime.now(timezone.utc))))) == []
@@ -299,7 +299,7 @@ def test_datetime_filter_on_json_blob_casts_to_timestamp(monkeypatch):
 
     monkeypatch.setattr(DuckDbStore, 's_supports_add_column_if_not_exists', False)
     store = DuckDbStore()
-    coll_name = f'filt_blob_{uuid.uuid4().hex}'
+    coll_name = f'filt_blob_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, Ev.s_dir)
     assert '_at' not in _sql_columns(store, coll_name)
     coll.save_new(store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'}))
@@ -326,7 +326,7 @@ def test_untyped_json_path_string_extract_for_artifacts():
     from core_10x.trait_filter import f
 
     store = DuckDbStore()
-    coll_name = f'sort_{uuid.uuid4().hex}'
+    coll_name = f'sort_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, _Pad.s_dir)
     coll.save_new({'_id': 'a', 'n': 10, '_cls': 'Wolf#history'})
     coll.save_new({'_id': 'b', 'n': 2, '_cls': 'Cat#history'})
@@ -337,7 +337,7 @@ def test_untyped_json_path_string_extract_for_artifacts():
 def test_untyped_json_multi_key_numeric_order():
     """Payload keys not in col_trait_dir: order/min/max use multi unwrap (numeric)."""
     store = DuckDbStore()
-    coll_name = f'sort_mk_{uuid.uuid4().hex}'
+    coll_name = f'sort_mk_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, _Pad.s_dir)
     coll.save_new({'_id': 'a', 'n': 10})
     coll.save_new({'_id': 'b', 'n': 2})
@@ -350,7 +350,7 @@ def test_untyped_json_multi_key_numeric_order():
 
 def test_empty_trait_dir_is_read_only():
     store = DuckDbStore()
-    coll = store.collection(f'ro_{uuid.uuid4().hex}', None)
+    coll = store.collection(f'ro_{uuid6.uuid7().hex}', None)
     with pytest.raises(RuntimeError, match='read-only'):
         coll.save_new({'_id': 'a', 'n': 1})
     with pytest.raises(RuntimeError, match='read-only'):
@@ -367,7 +367,7 @@ def test_typed_json_path_numeric_order(monkeypatch):
 
     store = DuckDbStore()
     monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'sort_json_{uuid.uuid4().hex}'
+    coll_name = f'sort_json_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, Num.s_dir)
     coll.save_new({'_id': 'a', 'name': 'a', 'n': 10})
     coll.save_new({'_id': 'b', 'name': 'b', 'n': 2})
@@ -388,7 +388,7 @@ def test_physical_column_sort_is_typed(monkeypatch):
 
     store = DuckDbStore()
     monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', True)
-    coll_name = f'sort_col_{uuid.uuid4().hex}'
+    coll_name = f'sort_col_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, Num.s_dir)
     coll.save_new({'_id': 'a', 'name': 'a', 'n': 10})
     coll.save_new({'_id': 'b', 'name': 'b', 'n': 2})
@@ -424,7 +424,7 @@ def test_column_cache_is_per_collection_instance():
         age: int = T()
 
     store = DuckDbStore()
-    name = f'clr_{uuid.uuid4().hex}'
+    name = f'clr_{uuid6.uuid7().hex}'
     coll = store.collection(name, A.s_dir)
     coll.save_new({'_id': '1', 'name': 'n', 'age': 3})
     assert 'age' in coll._collection_columns()
@@ -461,7 +461,7 @@ def test_extend_trait_dir_unions_and_promotes(store_kind, supports_add_column, m
     if not supports_add_column:
         monkeypatch.setattr(DuckDbStore, 's_supports_add_column_if_not_exists', False)
 
-    coll_name = f'bundle_{uuid.uuid4().hex}'
+    coll_name = f'bundle_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, MemberA.s_dir)
     head_coll = coll.collections[0] if isinstance(coll, TsUnionCollection) else coll
     assert 'howl_pitch' in head_coll.col_trait_dir
@@ -507,7 +507,7 @@ def test_ts_fields_when_eligible(supports_add_column, monkeypatch):
     store = DuckDbStore()
     if not supports_add_column:
         monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'ts_{uuid.uuid4().hex}'
+    coll_name = f'ts_{uuid6.uuid7().hex}'
     coll = store.collection(coll_name, Ev.s_dir)
     body = store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'})
     body = store.add_ts('_who', T.TS_USER, body)
