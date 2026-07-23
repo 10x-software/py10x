@@ -14,22 +14,6 @@
 #include "brc.h"
 
 
-Placebo::Placebo(ExecStack* xstack) : m_stack(xstack) {
-    if (xstack) {
-        auto node = new BasicNode();
-        m_node = node;
-        xstack->push(node);
-    } else
-    m_node = nullptr;
-}
-
-Placebo::~Placebo() {
-    if (m_stack) {
-        m_stack->pop();
-        delete m_node;
-    }
-}
-
 unsigned BTraitableProcessor::s_default_type = PLAIN;   // = OffGraphNoConvertNoDebug;
 
 BTraitableProcessor::~BTraitableProcessor() {

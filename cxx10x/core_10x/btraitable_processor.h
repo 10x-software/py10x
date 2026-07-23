@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <thread>
 
+#include "bnode.h"
 #include "py_linkage.h"
 #include "tid.h"
 
@@ -33,15 +34,6 @@ public:
     NodeGuard(ExecStack* xstack, BasicNode* node) : m_xstack(xstack)    { xstack->push(node); }
     NodeGuard(const NodeGuard& ng) = default;
     ~NodeGuard()                                                        { m_xstack->pop(); }
-};
-
-class Placebo {
-    ExecStack* m_stack;
-    BasicNode* m_node;
-public:
-    explicit Placebo(ExecStack* xstack);
-    Placebo(const Placebo& p) = default;
-    ~Placebo();
 };
 
 class XCache;
@@ -191,4 +183,34 @@ public:
     py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override;
     py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override;
     py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const override;
+};
+
+// A throwaway graph node is pushed onto the current processor's exec stack as a fake parent node.
+// It effectively cuts the dependency chain upward
+class PY10X_API UpwardDepsOff {
+    ExecStack*       m_stack = nullptr;
+    BasicGraphNode*  m_node  = nullptr;
+
+public:
+    UpwardDepsOff() = default;
+    UpwardDepsOff(const UpwardDepsOff&) = delete;
+    UpwardDepsOff& operator=(const UpwardDepsOff&) = delete;
+
+    void begin_using() {
+        m_stack = BTraitableProcessor::current()->exec_stack();
+        m_node  = new BasicGraphNode();
+        m_stack->push(m_node);
+    }
+
+    void end_using() {
+        if (m_stack->parent() != m_node)
+            throw std::runtime_error("Mismanaged UpwardDepsOff block");
+
+        m_stack->pop();
+        m_node->unlink();          // detach from anything that parented onto it -- avoids dangling pointers
+        delete m_node;
+    }
+
+    UpwardDepsOff* py_enter()               { begin_using(); return this; }
+    void     py_exit(const py::args&) const { const_cast<UpwardDepsOff*>(this)->end_using(); }
 };

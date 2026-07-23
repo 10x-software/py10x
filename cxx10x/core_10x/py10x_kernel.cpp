@@ -357,6 +357,14 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("tracked_objects", &BTraitableProcessorSetValueTracker::tracked_objects)
             ;
 
+    py::class_<UpwardDepsOff>(m, "UpwardDepsOff")
+            .def(py::init<>())
+            .def("begin_using",                 &UpwardDepsOff::begin_using)
+            .def("end_using",                   &UpwardDepsOff::end_using)
+            .def("__enter__",                   &UpwardDepsOff::py_enter)
+            .def("__exit__",                    &UpwardDepsOff::py_exit)
+            ;
+
     py::class_<BFlags>(m, "BFlags")
             .def(py::init<>())
             .def(py::init<unsigned>())
