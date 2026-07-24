@@ -1,1 +1,1 @@
-from dev_10x.pytest_plugin import pytest_ignore_collect, default_cache_isolation
+from dev_10x.pytest_plugin import pytest_ignore_collect, test_isolation
