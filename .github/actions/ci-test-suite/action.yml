@@ -54,44 +54,20 @@ runs:
       if: inputs.runner-os == 'Windows'
       shell: bash
       run: |
-        # The Windows crash is an intermittent access violation that needs full-suite context and
-        # would not reproduce under isolated stress. Rather than gamble on catching the fault,
-        # instrument the C++ backend with AddressSanitizer: cxx10x supports it via
-        # ENABLE_SANITIZERS=ON at build time. ASan then detects the invalid memory access (heap
-        # overflow / use-after-free / wild pointer) deterministically and reports the faulting +
-        # allocation/free C/C++ stacks - and also prints a symbolized backtrace on a raw SEGV.
-        #
-        # /Z7 + linker /DEBUG give ASan the PDBs it needs to symbolize (kept as insurance in case
-        # the sanitizer preset omits debug info). XX_UV_INCREMENTAL keeps the .pyd/.pdb in a
-        # persistent build dir. -DCMAKE_BUILD_TYPE=Release keeps cxx10x's stub-output resolver
-        # pointed at the Release dir (it reads ${CMAKE_BUILD_TYPE}, which scikit-build-core leaves
-        # empty under the VS multi-config generator).
-        #
-        # CMAKE_MODULE_LINKER_FLAGS is the one that matters for the .pyd: a pybind11 extension is a
-        # CMake MODULE library, whose link flags come from *_MODULE_LINKER_FLAGS - not _SHARED_. An
-        # earlier attempt set only _SHARED_/_EXE_, so /DEBUG never reached the extension link and NO
-        # PDB was produced (cdb loaded the .pyd with export symbols only, every frame collapsing to
-        # the nearest export like "BRC::~BRC+0xe390"). Keep all three so the flag lands wherever the
-        # target kind falls.
-        #
-        # NOTE: ASan is incompatible with /GL (whole-program opt / LTCG); cxx10x's ENABLE_SANITIZERS
-        # path is expected to drop it. If the build fails on that, the fix belongs upstream.
+        # Instrument cxx10x via ENABLE_SANITIZERS=ON only. Compile/link flags (/fsanitize,
+        # /Zi, /EHsc, /DEBUG, /INCREMENTAL:NO) live in cxx10x cmake/PybindStubs.cmake
+        # (_add_sanitizers) so CI never overrides CMAKE_CXX_FLAGS (which replaces MSVC
+        # defaults and previously dropped /EHsc → C4530 / RAII skip on throw).
+        # XX_UV_INCREMENTAL keeps the .pyd/.pdb in a persistent build dir.
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
         echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
-        echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_BUILD_TYPE=Release;-DCMAKE_CXX_FLAGS=/Z7;-DCMAKE_MODULE_LINKER_FLAGS=/DEBUG;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
 
     - name: Enable Linux ASan build for the cxx10x backend
       if: inputs.runner-os == 'Linux'
       shell: bash
       run: |
-        # Hunt the *root cause* on Linux, where ASan is first-class and fast. The Windows crash is
-        # heap-layout- and prior-test-dependent (a memory-corruption signature, not a deterministic
-        # deep stack), and ASan detects a bad free/access regardless of platform - even though a
-        # plain Linux run is green, ASan-on-Linux should still flag the corruption at its origin.
-        # -fsanitize-address-use-after-scope also catches a dangling reference to a *stack* object
-        # (use-after-scope), which plain ASan misses unless the build enables it explicitly.
+        # ASan flags come from ENABLE_SANITIZERS in cxx10x (_add_sanitizers).
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
-        echo "SKBUILD_CMAKE_ARGS=-DCMAKE_CXX_FLAGS=-fsanitize-address-use-after-scope" >> "$GITHUB_ENV"
 
     - name: Install dependencies
       shell: bash
