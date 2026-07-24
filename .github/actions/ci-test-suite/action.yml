@@ -299,17 +299,38 @@ runs:
           # middle of the cycle. Capture enough to reach the BASE of the stack - the test entry that
           # initiated it (an explicit serialize_object() vs. an as-of/read path) - which is what tells
           # us why the serialize traversal is running at all.
-          cap=".reload /f py10x_kernel*.pyd; .reload /f py10x_infra*.pyd; .echo ===MODULES===; lm vm py10x_kernel*; .echo ===EXCEPTION===; .exr -1; .echo ===FAULTING STACK BEGIN===; kP 6000; .echo ===FAULTING STACK END===; .dump /ma ${dump_win}; .kill; qq"
+          native=".reload /f py10x_kernel*.pyd; .reload /f py10x_infra*.pyd; .echo ===MODULES===; lm vm py10x_kernel*; .echo ===EXCEPTION===; .exr -1; .echo ===FAULTING STACK BEGIN===; kP 6000; .echo ===FAULTING STACK END===; .dump /ma ${dump_win}"
+          # On the first-chance sov: dump the native (C++) stack + minidump, then HAND THE EXCEPTION
+          # BACK TO THE APP (gN) so Python's faulthandler prints the Python traceback (function+line)
+          # to stderr - giving BOTH stacks at the crash site. Before gN, sxi disables further sov/av
+          # breaks so the unavoidable second chance doesn't re-break cdb and hang it on empty stdin;
+          # faulthandler then chains to the default handler and the process exits, so cdb exits too.
+          # av/bpe keep capture-and-kill (secondary, must never hang).
+          sov_cap="${native}; .echo ===PASSING TO APP: python faulthandler follows===; sxi sov; sxi av; gN"
+          kill_cap="${native}; .kill; qq"
           {
-            echo "sxe  -c \"${cap}\" sov"
-            echo "sxd -c2 \"${cap}\" av"
-            echo "sxe  -c \"${cap}\" bpe"
+            echo "sxe  -c \"${sov_cap}\" sov"
+            echo "sxd -c2 \"${kill_cap}\" av"
+            echo "sxe  -c \"${kill_cap}\" bpe"
             echo "g"
           } > "$cmds_file"
+          # Capture ASan's OWN report (error class + the allocation & free stacks) to a file. When
+          # ASan trips it raises its "san" exception (0xE073616E) and __debugbreak; our cdb +
+          # faulthandler interception swallows the stderr report, but the alloc/free stacks are the
+          # single most valuable artifact for a use-after-free. log_path makes ASan write the full
+          # report to a file regardless of who catches the exception. Relative path (no drive letter)
+          # avoids ASan's option parser splitting on the ':' in a Windows path.
+          mkdir -p asan_win
+          export ASAN_OPTIONS="log_path=asan_win/asan:abort_on_error=0:halt_on_error=1:print_stats=0"
           "$cdb" -g -G -o -cf "$(cygpath -w "$cmds_file")" \
             "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && python -m pytest; echo \$? > '${rc_file}'"
           code="$(cat "$rc_file" 2>/dev/null || echo 1)"
           echo "pytest exit code: ${code}"
+          for f in asan_win/asan.*; do
+            [ -e "$f" ] || continue
+            echo "===== ASan report: ${f} ====="
+            cat "$f"
+          done
           exit "${code}"
         fi
 
