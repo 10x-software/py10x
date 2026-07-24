@@ -7,10 +7,10 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 dependencies = [
-    "py10x-kernel (>=0.2.1rc28,<0.2.1rc29)",
-    "py10x-infra (>=0.2.1rc26,<0.2.1rc27)",
+    "py10x-kernel (>=0.2.1rc32,<0.2.1rc33)",
+    "py10x-infra (>=0.2.1rc29,<0.2.1rc30)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -32,6 +32,7 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",

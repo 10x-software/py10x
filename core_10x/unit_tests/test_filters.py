@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
-import uuid
+import uuid6
 
 import pytest
 
@@ -371,7 +371,7 @@ class TestCompoundFilters:
         go = GRAPH_OFF()
         go.begin_using()
 
-        coll_name = 'tf_' + uuid.uuid4().hex[:12]
+        coll_name = 'tf_' + uuid6.uuid7().hex[:12]
 
         data = dict(
             i=10,
