@@ -21,3 +21,4 @@ def ts_instance(request):
 
     yield DuckDbStore.instance() if request.param else TestDuckDbStore.instance()
     TsStore.s_instances.clear()
+

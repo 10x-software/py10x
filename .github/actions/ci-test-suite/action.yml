@@ -50,6 +50,49 @@ runs:
         git clone --branch "${{ steps.cxx10x_branch.outputs.branch }}" \
           https://github.com/10x-software/cxx10x.git ../cxx10x
 
+    - name: Enable Windows ASan build for the cxx10x backend
+      if: inputs.runner-os == 'Windows'
+      shell: bash
+      run: |
+        # The Windows crash is an intermittent access violation that needs full-suite context and
+        # would not reproduce under isolated stress. Rather than gamble on catching the fault,
+        # instrument the C++ backend with AddressSanitizer: cxx10x supports it via
+        # ENABLE_SANITIZERS=ON at build time. ASan then detects the invalid memory access (heap
+        # overflow / use-after-free / wild pointer) deterministically and reports the faulting +
+        # allocation/free C/C++ stacks - and also prints a symbolized backtrace on a raw SEGV.
+        #
+        # /Z7 + linker /DEBUG give ASan the PDBs it needs to symbolize (kept as insurance in case
+        # the sanitizer preset omits debug info). XX_UV_INCREMENTAL keeps the .pyd/.pdb in a
+        # persistent build dir. -DCMAKE_BUILD_TYPE=Release keeps cxx10x's stub-output resolver
+        # pointed at the Release dir (it reads ${CMAKE_BUILD_TYPE}, which scikit-build-core leaves
+        # empty under the VS multi-config generator).
+        #
+        # CMAKE_MODULE_LINKER_FLAGS is the one that matters for the .pyd: a pybind11 extension is a
+        # CMake MODULE library, whose link flags come from *_MODULE_LINKER_FLAGS - not _SHARED_. An
+        # earlier attempt set only _SHARED_/_EXE_, so /DEBUG never reached the extension link and NO
+        # PDB was produced (cdb loaded the .pyd with export symbols only, every frame collapsing to
+        # the nearest export like "BRC::~BRC+0xe390"). Keep all three so the flag lands wherever the
+        # target kind falls.
+        #
+        # NOTE: ASan is incompatible with /GL (whole-program opt / LTCG); cxx10x's ENABLE_SANITIZERS
+        # path is expected to drop it. If the build fails on that, the fix belongs upstream.
+        echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
+        echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
+        echo "SKBUILD_CMAKE_ARGS=${SKBUILD_CMAKE_ARGS};-DCMAKE_BUILD_TYPE=Release;-DCMAKE_CXX_FLAGS=/Z7;-DCMAKE_MODULE_LINKER_FLAGS=/DEBUG;-DCMAKE_SHARED_LINKER_FLAGS=/DEBUG;-DCMAKE_EXE_LINKER_FLAGS=/DEBUG" >> "$GITHUB_ENV"
+
+    - name: Enable Linux ASan build for the cxx10x backend
+      if: inputs.runner-os == 'Linux'
+      shell: bash
+      run: |
+        # Hunt the *root cause* on Linux, where ASan is first-class and fast. The Windows crash is
+        # heap-layout- and prior-test-dependent (a memory-corruption signature, not a deterministic
+        # deep stack), and ASan detects a bad free/access regardless of platform - even though a
+        # plain Linux run is green, ASan-on-Linux should still flag the corruption at its origin.
+        # -fsanitize-address-use-after-scope also catches a dangling reference to a *stack* object
+        # (use-after-scope), which plain ASan misses unless the build enables it explicitly.
+        echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
+        echo "SKBUILD_CMAKE_ARGS=-DCMAKE_CXX_FLAGS=-fsanitize-address-use-after-scope" >> "$GITHUB_ENV"
+
     - name: Install dependencies
       shell: bash
       env:
@@ -78,56 +121,225 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         playwright install --with-deps chromium
 
-    - name: Enable Windows crash dumps
+    - name: Stage ASan runtime next to the instrumented .pyd
       if: inputs.runner-os == 'Windows'
       shell: pwsh
       run: |
-        $dumpFolder = Join-Path $env:RUNNER_TEMP 'crashdumps'
-        New-Item -ItemType Directory -Force -Path $dumpFolder | Out-Null
-        $procdumpZip = Join-Path $env:RUNNER_TEMP 'procdump.zip'
-        $procdumpDir = Join-Path $env:RUNNER_TEMP 'procdump'
-        Invoke-WebRequest -Uri 'https://download.sysinternals.com/files/Procdump.zip' -OutFile $procdumpZip
-        Expand-Archive -Path $procdumpZip -DestinationPath $procdumpDir -Force
-        Write-Host "ProcDump ready for first-chance attach; dumps -> $dumpFolder"
+        # The ASan-instrumented .pyd links clang_rt.asan_dynamic-x86_64.dll. Python 3.8+ does NOT
+        # search PATH for an extension module's dependency DLLs; the loader only checks system
+        # dirs, the Python executable's own directory, and the directory of the .pyd being loaded.
+        # The editable install rebuilds+installs the .pyd into site-packages at import time, so
+        # stage the runtime into the venv Scripts dir (the executable dir, always searched) AND
+        # every dir that holds a built/installed .pyd under the venv.
+        $asanDir = Join-Path $env:VCToolsInstallDir 'bin\Hostx64\x64'
+        $asan = Get-ChildItem -Path $asanDir -Filter 'clang_rt.asan_dynamic-x86_64.dll' `
+                  -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if (-not $asan) {
+          $asan = Get-ChildItem -Path $env:VCToolsInstallDir -Recurse `
+                    -Filter 'clang_rt.asan_dynamic-x86_64.dll' -ErrorAction SilentlyContinue |
+                    Select-Object -First 1 -ExpandProperty FullName
+        }
+        if (-not $asan) { throw 'ASan runtime clang_rt.asan_dynamic-x86_64.dll not found under VCToolsInstallDir' }
+        Write-Host "ASan runtime: $asan"
+        $venv = Join-Path $env:GITHUB_WORKSPACE '.venv'
+        $targets = New-Object System.Collections.Generic.HashSet[string]
+        [void]$targets.Add((Join-Path $venv 'Scripts'))
+        Get-ChildItem -Path $venv -Recurse -Filter '*.pyd' -ErrorAction SilentlyContinue |
+          ForEach-Object { [void]$targets.Add($_.DirectoryName) }
+        foreach ($d in $targets) {
+          if (Test-Path $d) { Copy-Item -Path $asan -Destination $d -Force; Write-Host "staged ASan runtime -> $d" }
+        }
+        # Diagnostic: list the instrumented module's DLL imports so a lingering load failure names
+        # the exact missing dependency instead of a generic 'module could not be found'.
+        $kernel = Get-ChildItem -Path $venv -Recurse -Filter 'py10x_kernel*.pyd' -ErrorAction SilentlyContinue |
+                    Select-Object -First 1 -ExpandProperty FullName
+        if ($kernel) {
+          Write-Host "== dumpbin /dependents $kernel =="
+          & dumpbin /nologo /dependents $kernel
+        }
+
+    - name: Locate cdb for stack-overflow capture
+      if: inputs.runner-os == 'Windows'
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Force -Path (Join-Path $env:RUNNER_TEMP 'crashdumps') | Out-Null
+        $cdb = Get-ChildItem 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe' `
+                 -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        if (-not $cdb) {
+          $cdb = Get-ChildItem 'C:\Program Files*\Windows Kits\*\Debuggers\x64\cdb.exe' -Recurse `
+                   -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+        }
+        if (-not $cdb) { throw 'cdb.exe not found - Debugging Tools for Windows is not installed on this runner' }
+        "CDB_PATH=$cdb" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+        Write-Host "cdb located: $cdb"
+
+    - name: Stage private debug symbols (PDB) next to the .pyd
+      if: inputs.runner-os == 'Windows'
+      shell: pwsh
+      run: |
+        # cdb needs the /DEBUG-linked py10x_kernel/py10x_infra PDBs to resolve the recursion-driver
+        # frames (otherwise they collapse to the nearest export symbol, e.g. "BRC::~BRC+0xe390"). The
+        # PDBs are produced in the incremental build-dir (.venv/py10x-build/...), NOT installed next
+        # to the .pyd in site-packages, and may not share the .pyd basename - so search broadly, log
+        # every PDB found (diagnostic for when a match is missing), and copy each next to the
+        # matching installed module (cdb always searches a loaded module's own directory).
+        $venv = Join-Path $env:GITHUB_WORKSPACE '.venv'
+        $roots = @($venv, (Join-Path $env:GITHUB_WORKSPACE '..\cxx10x')) | Where-Object { Test-Path $_ }
+        $pdbs = Get-ChildItem -Path $roots -Recurse -Filter '*.pdb' -ErrorAction SilentlyContinue
+        Write-Host "== all PDBs found under $($roots -join ', ') =="
+        $pdbs | ForEach-Object { Write-Host "  $($_.FullName)" }
+        $mods = Get-ChildItem -Path (Join-Path $venv 'Lib\site-packages') -Filter 'py10x_*.pyd' -ErrorAction SilentlyContinue
+        foreach ($m in $mods) {
+          # module stem up to the first dot: py10x_kernel.cp313-win_amd64.pyd -> py10x_kernel
+          $stem = ($m.Name -split '\.')[0]
+          $dest = Join-Path $m.DirectoryName "$stem.pdb"
+          if (Test-Path $dest) {
+            # cxx10x's install(FILES $<TARGET_PDB_FILE:...>) already placed the PDB next to the .pyd.
+            Write-Host "PDB already beside module: $dest"
+            continue
+          }
+          # Fallback: no installed PDB (e.g. install rule filtered out this config) - copy the
+          # build-dir PDB. Exclude the module's own dir so we never copy a file onto itself, and
+          # tolerate any copy error so a symbol-staging hiccup never fails the crash-capture run.
+          $match = $pdbs | Where-Object { $_.Name -like "$stem*" -and $_.DirectoryName -ne $m.DirectoryName } | Select-Object -First 1
+          if ($match) {
+            Copy-Item -Path $match.FullName -Destination $m.DirectoryName -Force -ErrorAction SilentlyContinue
+            Write-Host "staged: $($match.FullName) -> $($m.DirectoryName) (for $($m.Name))"
+          } else {
+            Write-Host "WARNING: no PDB matching '$stem*' found for $($m.Name)"
+          }
+        }
 
     - name: Run full test suite
       shell: bash
       env:
         PYTHONUNBUFFERED: "1"
+        # In-process fatal-error handler: dumps the Python traceback (all threads) to stderr on a
+        # native crash, inherited by subprocesses. Names the test/line alongside the native stack.
+        PYTHONFAULTHANDLER: "1"
         # Strict only where fully provisioned: the Linux runner gets a replica set (transactions),
         # but Windows is standalone by design, so leave strict OFF there - the transaction gate must
         # skip, not fail, on Windows. (git/uv/source/siblings are present on both, so those guards
         # run regardless; strict only flips an *unmet* precondition from skip to fail.)
         XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
+        # Diagnostic: skip the native stack walk in BTraitable::runtime_error() (backward.hpp/DbgHelp
+        # on Windows), which fires on every "not usable - origin cache is not reachable" throw.
+        # test_as_of_error_cases triggers it up to 18x in one run; DbgHelp is known to be fragile
+        # under repeated calls, and this is the leading hypothesis for the intermittent Windows
+        # crash there. Windows-only: Linux's backward.hpp backend isn't the suspect.
+        XX_DISABLE_STACKTRACE: ${{ inputs.runner-os == 'Windows' && '1' || '' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         if [ "${{ inputs.runner-os }}" != "Windows" ]; then
-          python -m pytest
-        else
-          # First-chance ACCESS_VIOLATION dump (AeDebug/WER miss these). Preserve pytest exit
-          # code; do not use procdump -x as the parent (it does not propagate child exit codes).
-          dump_folder="${RUNNER_TEMP}/crashdumps"
-          procdump="${RUNNER_TEMP}/procdump/procdump64.exe"
-          python -m pytest -p no:faulthandler &
-          pytest_pid=$!
-          if [ -f "/proc/${pytest_pid}/winpid" ]; then
-            attach_pid=$(tr -d '\0\r\n' < "/proc/${pytest_pid}/winpid")
-          else
-            attach_pid=$pytest_pid
-          fi
-          "$procdump" -accepteula -ma -e 1 -f "ACCESS_VIOLATION" "$attach_pid" "$dump_folder" &
+          # Linux: run the ASan-instrumented backend so a use-after-free / heap-overflow in the
+          # cxx10x as-of/history lifetime path is caught at its origin with alloc+free+use stacks.
+          #  - LD_PRELOAD the ASan runtime: python itself is not instrumented, so the runtime must
+          #    initialize before the instrumented .so loads ("ASan runtime does not come first").
+          #  - Big quarantine + free-fill so a freed block stays poisoned and a dangling read is
+          #    actually caught (a small default quarantine lets the block get reused -> silent).
+          #  - detect_leaks=0 to avoid LSan exit-time noise; -s so the report reaches the log.
+          mkdir -p asan
+          libasan="$(gcc -print-file-name=libasan.so)"
+          libstdcxx="$(gcc -print-file-name=libstdc++.so)"
+          # Preload libstdc++ alongside libasan: third-party manylinux wheels (matplotlib/ft2font,
+          # duckdb, polars) bundle their own static libstdc++ and throw C++ exceptions at import,
+          # which makes ASan's __cxa_throw interceptor CHECK-fail (real___cxa_throw==0) and abort
+          # before our tests run. Preloading the system libstdc++ makes the real __cxa_throw
+          # resolvable so those benign throws pass through.
+          echo "LD_PRELOAD -> ${libasan}:${libstdcxx}"
+          export LD_PRELOAD="${libasan}:${libstdcxx}"
+          # detect_odr_violation=0: suppress the benign ODR false positive where the same libstdc++
+          # inline global (std::piecewise_construct) exists in both py10x_kernel.so and
+          # py10x_infra.so - it aborts at import before any test runs and is not a real bug.
+          export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:detect_stack_use_after_return=1:quarantine_size_mb=1024:max_free_fill_size=65536:halt_on_error=1:abort_on_error=0:print_stats=0:log_path=asan/asan"
+          # Scope to core_10x (where test_traitable_history lives and where the pre-crash state is
+          # built - it runs before infra/ui); skips the slow UI tests that time out under ASan. The
+          # serialize-depth probe reports the deepest embedded-serialization per test, classifying
+          # bounded-deep vs unbounded-cycle and naming the trigger.
           set +e
-          wait "$pytest_pid"
-          exit_code=$?
-          wait
+          # -v so the last-printed nodeid names the exact test running when ASan aborts (the -s dots
+          # do not identify which documentation code block hits the origin-cache use-after-free).
+          python -m pytest core_10x -p serialize_depth_probe -s -v
+          code=$?
           set -e
-          exit "$exit_code"
+          echo "pytest exit code: ${code}"
+          for f in asan/asan.*; do
+            [ -e "$f" ] || continue
+            echo "===== ASan report: ${f} ====="
+            cat "$f"
+          done
+          exit "${code}"
+        else
+          # The ASan build reliably reproduces the crash: ASan inflates every stack frame with
+          # redzones, so the underlying deep recursion overflows the stack much sooner. ASan itself
+          # prints nothing and neither does faulthandler - the process hard-terminates with
+          # 0xC0000005 and no user-mode exception dispatch, exactly what a stack overflow does (no
+          # stack left to run any handler). An out-of-process debugger is the only thing that can
+          # catch it: cdb receives the FIRST-chance stack-overflow (sov) at the guard page while the
+          # deep call stack is still intact, and dumps it. Second-chance av and a breakpoint (an
+          # ASan __debugbreak, should one ever fire) are covered so cdb never hangs on them.
+          cdb="$(cygpath -u "$CDB_PATH")"
+          bash_win="$(cygpath -w "$(command -v bash)")"
+          # Use -m (mixed / forward slashes) for the .dump path: cdb's command parser eats backslash
+          # escapes (\a, \t, ...) in a Windows path, which silently mangled the filename before
+          # ("D:a_tempcrashdumpspytest_crash.dmp") so the artifact never uploaded. Forward slashes
+          # are accepted by cdb and survive intact.
+          dump_win="$(cygpath -m "${RUNNER_TEMP}/crashdumps/pytest_crash.dmp")"
+          rc_file="${RUNNER_TEMP}/pytest_rc"; rm -f "$rc_file"
+          cmds_file="${RUNNER_TEMP}/cdb_cmds.txt"
+          # Private symbols: the "Stage private debug symbols" step copied the /DEBUG-linked
+          # py10x_kernel/py10x_infra PDBs next to their installed .pyd. Point _NT_SYMBOL_PATH at that
+          # site-packages dir so cdb matches them by signature; without this, recursion-driver frames
+          # collapse to the nearest export symbol (e.g. "BRC::~BRC+0xe390", "CurveTemplate<int>+...").
+          pyd_dir="$(dirname "$(find .venv -name 'py10x_kernel*.pyd' | head -1)")"
+          export _NT_SYMBOL_PATH="$(cygpath -w "$pyd_dir")"
+          # Force-load ONLY our modules' symbols (a blanket ".reload /f" tried every third-party/OS
+          # module and buried the result in hundreds of "cannot find" lines); lm confirms whether the
+          # private PDB actually bound. Capture just the faulting thread (cdb breaks in on it for a
+          # first-chance sov) inside greppable banners. .exr -1 gives the exception code cleanly.
+          # kP 6000: the recursion is deeper than a few hundred frames, so a small cap only shows the
+          # middle of the cycle. Capture enough to reach the BASE of the stack - the test entry that
+          # initiated it (an explicit serialize_object() vs. an as-of/read path) - which is what tells
+          # us why the serialize traversal is running at all.
+          native=".reload /f py10x_kernel*.pyd; .reload /f py10x_infra*.pyd; .echo ===MODULES===; lm vm py10x_kernel*; .echo ===EXCEPTION===; .exr -1; .echo ===FAULTING STACK BEGIN===; kP 6000; .echo ===FAULTING STACK END===; .dump /ma ${dump_win}"
+          # On the first-chance sov: dump the native (C++) stack + minidump, then HAND THE EXCEPTION
+          # BACK TO THE APP (gN) so Python's faulthandler prints the Python traceback (function+line)
+          # to stderr - giving BOTH stacks at the crash site. Before gN, sxi disables further sov/av
+          # breaks so the unavoidable second chance doesn't re-break cdb and hang it on empty stdin;
+          # faulthandler then chains to the default handler and the process exits, so cdb exits too.
+          # av/bpe keep capture-and-kill (secondary, must never hang).
+          sov_cap="${native}; .echo ===PASSING TO APP: python faulthandler follows===; sxi sov; sxi av; gN"
+          kill_cap="${native}; .kill; qq"
+          {
+            echo "sxe  -c \"${sov_cap}\" sov"
+            echo "sxd -c2 \"${kill_cap}\" av"
+            echo "sxe  -c \"${kill_cap}\" bpe"
+            echo "g"
+          } > "$cmds_file"
+          # Capture ASan's OWN report (error class + the allocation & free stacks) to a file. When
+          # ASan trips it raises its "san" exception (0xE073616E) and __debugbreak; our cdb +
+          # faulthandler interception swallows the stderr report, but the alloc/free stacks are the
+          # single most valuable artifact for a use-after-free. log_path makes ASan write the full
+          # report to a file regardless of who catches the exception. Relative path (no drive letter)
+          # avoids ASan's option parser splitting on the ':' in a Windows path.
+          mkdir -p asan_win
+          export ASAN_OPTIONS="log_path=asan_win/asan:abort_on_error=0:halt_on_error=1:print_stats=0"
+          "$cdb" -g -G -o -cf "$(cygpath -w "$cmds_file")" \
+            "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && python -m pytest; echo \$? > '${rc_file}'"
+          code="$(cat "$rc_file" 2>/dev/null || echo 1)"
+          echo "pytest exit code: ${code}"
+          for f in asan_win/asan.*; do
+            [ -e "$f" ] || continue
+            echo "===== ASan report: ${f} ====="
+            cat "$f"
+          done
+          exit "${code}"
         fi
 
-    - name: Upload Windows minidump
+    - name: Upload Windows crash dump
       if: failure() && inputs.runner-os == 'Windows'
       uses: actions/upload-artifact@v7
       with:
-        name: windows-minidump-${{ github.run_id }}
+        name: windows-crash-dump-${{ github.run_id }}
         path: ${{ runner.temp }}/crashdumps/*.dmp
         if-no-files-found: warn

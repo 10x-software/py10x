@@ -3,8 +3,13 @@ from __future__ import annotations
 from pathlib import Path
 import importlib.metadata as md
 
+import pytest
+from py10x_kernel import BTraitableProcessor, XCache
+
 import core_10x
 from core_10x.global_cache import cache
+from core_10x.scenario import Scenario
+from core_10x.ts_store import TsStore
 
 PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent
 
@@ -72,3 +77,16 @@ def pytest_ignore_collect(collection_path, config):
     # Do not ignore tests located in a unit_tests parent directory.
     return not(len(parts) > 1 and parts[-2] == 'unit_tests')
 
+BTP = BTraitableProcessor.current()
+@pytest.fixture(autouse=True)
+def test_isolation():
+    global BTP
+    assert BTP is BTraitableProcessor.current()
+    yield
+
+    assert BTP is BTraitableProcessor.current()
+    Scenario.s_instances.clear()
+    XCache.clear()
+    BTP.end_using()
+    BTP = BTraitableProcessor.current()
+    TsStore.s_instances.clear()

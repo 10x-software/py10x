@@ -26,9 +26,8 @@ class X(Traitable):
 def callback(btp, x, t, v):
     assert btp is BTP.current()
     # assert x.get_trait_value(t) == v
-    print(btp, BTP.current())
+    #print(btp, BTP.current())
     x.bui_class().update_ui_node(x, t)
-
 
 def test_ui_nodes():
     x = X(x=1)
@@ -51,10 +50,10 @@ def test_ui_nodes():
         return mx, my, mz
 
     with INTERACTIVE() as i0:
-        print(i0)
+        #print(i0)
         mx, my, mz = t(1, 2)
         with INTERACTIVE() as i:
-            print(i)
+            #print(i)
             t(2, 3)
         i.export_nodes()
         assert x.x == x.y == x.z == 3
