@@ -295,7 +295,11 @@ runs:
           # module and buried the result in hundreds of "cannot find" lines); lm confirms whether the
           # private PDB actually bound. Capture just the faulting thread (cdb breaks in on it for a
           # first-chance sov) inside greppable banners. .exr -1 gives the exception code cleanly.
-          cap=".reload /f py10x_kernel*.pyd; .reload /f py10x_infra*.pyd; .echo ===MODULES===; lm vm py10x_kernel*; .echo ===EXCEPTION===; .exr -1; .echo ===FAULTING STACK BEGIN===; kP 400; .echo ===FAULTING STACK END===; .dump /ma ${dump_win}; .kill; qq"
+          # kP 6000: the recursion is deeper than a few hundred frames, so a small cap only shows the
+          # middle of the cycle. Capture enough to reach the BASE of the stack - the test entry that
+          # initiated it (an explicit serialize_object() vs. an as-of/read path) - which is what tells
+          # us why the serialize traversal is running at all.
+          cap=".reload /f py10x_kernel*.pyd; .reload /f py10x_infra*.pyd; .echo ===MODULES===; lm vm py10x_kernel*; .echo ===EXCEPTION===; .exr -1; .echo ===FAULTING STACK BEGIN===; kP 6000; .echo ===FAULTING STACK END===; .dump /ma ${dump_win}; .kill; qq"
           {
             echo "sxe  -c \"${cap}\" sov"
             echo "sxd -c2 \"${cap}\" av"
