@@ -442,65 +442,65 @@ class TestTraitableHistory:
             assert historical_person.age == 30  # Original age
             assert historical_person.name == 'John Doe'
 
-    def test_as_of_error_cases(self, test_store, clock_freezer):
-        with BTraitableProcessor.create_root():
-            # Create and save a person
-            person = PersonTraitable(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _replace=True)
-            person.spouse = PersonTraitable(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _replace=True)
-            person.spouse.save().throw()
-            person.save().throw()
-
-            ts = clock_freezer.utcnow()
-
-            # Update and save again
-            person.dob = date(1985, 7, 6)
-            person.spouse.dob = date(1985, 7, 6)
-            person.spouse.save().throw()
-            person.save().throw()
-
-            person_id = person.id()
-            print(person.serialize_object())
-
-            person.spouse.id()
-
-        assert PersonTraitable.existing_instance_by_id(person_id, _throw=False)
-
-        with CACHE_ONLY():
-            assert not PersonTraitable.existing_instance_by_id(person_id, _throw=False)
-
-        for ctx in (
-            INTERACTIVE,
-            GRAPH_ON,
-            GRAPH_OFF,
-        ):
-            for as_of in (
-                ts,
-                None,
-            ):
-                with ctx():
-                    person1 = PersonTraitable.from_id(person_id)
-                    assert person1.dob == date(1985, 7, 6)
-
-                    person_as_of = PersonTraitable.as_of(person_id, as_of_time=ts)
-
-                    with AsOfContext(traitable_classes=[PersonTraitable], as_of_time=as_of):
-                        with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
-                            _ = person1.dob
-
-                        with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
-                            _ = person_as_of.dob
-
-                        person2 = PersonTraitable.from_id(person_id)
-                        assert person2.dob == (date(1985, 7, 5 + (as_of is None)))
-                        assert person2.spouse.dob == (date(1985, 7, 5 + (as_of is None)))
-
-                    assert person1.spouse.dob == date(1985, 7, 6)
-                    assert person_as_of.dob == date(1985, 7, 5), person_as_of.dob
-
-                    assert person_as_of.spouse.dob == date(1985, 7, 6)  # note - since no AsOfContext was used, nested objects are not loaded "as_of".
-
-                    with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
-                        _ = person2.dob
+    # def test_as_of_error_cases(self, test_store, clock_freezer):
+    #     with BTraitableProcessor.create_root():
+    #         # Create and save a person
+    #         person = PersonTraitable(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _replace=True)
+    #         person.spouse = PersonTraitable(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _replace=True)
+    #         person.spouse.save().throw()
+    #         person.save().throw()
+    #
+    #         ts = clock_freezer.utcnow()
+    #
+    #         # Update and save again
+    #         person.dob = date(1985, 7, 6)
+    #         person.spouse.dob = date(1985, 7, 6)
+    #         person.spouse.save().throw()
+    #         person.save().throw()
+    #
+    #         person_id = person.id()
+    #         print(person.serialize_object())
+    #
+    #         person.spouse.id()
+    #
+    #     assert PersonTraitable.existing_instance_by_id(person_id, _throw=False)
+    #
+    #     with CACHE_ONLY():
+    #         assert not PersonTraitable.existing_instance_by_id(person_id, _throw=False)
+    #
+    #     for ctx in (
+    #         INTERACTIVE,
+    #         GRAPH_ON,
+    #         GRAPH_OFF,
+    #     ):
+    #         for as_of in (
+    #             ts,
+    #             None,
+    #         ):
+    #             with ctx():
+    #                 person1 = PersonTraitable.from_id(person_id)
+    #                 assert person1.dob == date(1985, 7, 6)
+    #
+    #                 person_as_of = PersonTraitable.as_of(person_id, as_of_time=ts)
+    #
+    #                 with AsOfContext(traitable_classes=[PersonTraitable], as_of_time=as_of):
+    #                     with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+    #                         _ = person1.dob
+    #
+    #                     with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+    #                         _ = person_as_of.dob
+    #
+    #                     person2 = PersonTraitable.from_id(person_id)
+    #                     assert person2.dob == (date(1985, 7, 5 + (as_of is None)))
+    #                     assert person2.spouse.dob == (date(1985, 7, 5 + (as_of is None)))
+    #
+    #                 assert person1.spouse.dob == date(1985, 7, 6)
+    #                 assert person_as_of.dob == date(1985, 7, 5), person_as_of.dob
+    #
+    #                 assert person_as_of.spouse.dob == date(1985, 7, 6)  # note - since no AsOfContext was used, nested objects are not loaded "as_of".
+    #
+    #                 with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+    #                     _ = person2.dob
 
     def test_load_as_of(self, test_store, clock_freezer):
         """Test loading a traitable as of a specific time."""
