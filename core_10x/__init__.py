@@ -10,8 +10,7 @@ ctypes.CDLL(py10x_kernel.__file__, ctypes.RTLD_GLOBAL)
 
 def cleanup():
     XCache.clear()
-    if EnvVars.graph_on:
-        BTraitableProcessor.current().end_using()
+    BTraitableProcessor.current().end_using()
     PyLinkage.clear()
 
 atexit.register(cleanup)

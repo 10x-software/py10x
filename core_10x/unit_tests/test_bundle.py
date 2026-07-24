@@ -504,13 +504,22 @@ def bundle_history_store(ts_instance):
     for cn in store.collection_names():
         store.delete_collection(cn)
     store.end_using()
+#
+# BTP = None
+# @pytest.fixture(autouse=True)
+# def cache_isolation():
+#     global BTP
+#     if BTP is None:
+#         BTP = BTraitableProcessor.current()
+#     yield None
+#     assert BTraitableProcessor.current() is BTP
+#     XCache.clear()
+#     BTraitableProcessor.current().end_using()
+#     assert BTraitableProcessor.current() is not BTP
+#     assert BTP is not BTraitableProcessor.current()
+#     print(f'BTP: {BTP}->{BTraitableProcessor.current()}')
+#     BTP = BTraitableProcessor.current()
 
-
-@pytest.fixture(autouse=True)
-def cache_isolation():
-    yield None
-    XCache.clear()
-    BTraitableProcessor.current().end_using()
 
 
 class TestBundleHistoryBehavior:
