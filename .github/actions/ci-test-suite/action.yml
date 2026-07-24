@@ -257,7 +257,9 @@ runs:
           # serialize-depth probe reports the deepest embedded-serialization per test, classifying
           # bounded-deep vs unbounded-cycle and naming the trigger.
           set +e
-          python -m pytest core_10x -p serialize_depth_probe -s
+          # -v so the last-printed nodeid names the exact test running when ASan aborts (the -s dots
+          # do not identify which documentation code block hits the origin-cache use-after-free).
+          python -m pytest core_10x -p serialize_depth_probe -s -v
           code=$?
           set -e
           echo "pytest exit code: ${code}"
