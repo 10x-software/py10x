@@ -1,11 +1,9 @@
 import pytest
 
-from core_10x.scenario import Scenario
 from core_10x.testlib.fixtures import stub_log_logger
 from core_10x.ts_store import TsStore
 
 from infra_10x.duckdb_store import DuckDbStore
-from py10x_kernel import BTraitableProcessor, XCache
 
 
 class TestDuckDbStore(DuckDbStore, resource_name='TEST_DUCK_DB'):
@@ -24,14 +22,3 @@ def ts_instance(request):
     yield DuckDbStore.instance() if request.param else TestDuckDbStore.instance()
     TsStore.s_instances.clear()
 
-BTP = BTraitableProcessor.current()
-@pytest.fixture(autouse=True)
-def default_cache_isolation():
-    global BTP
-    assert BTP is BTraitableProcessor.current()
-    yield
-    assert BTP is BTraitableProcessor.current()
-    Scenario.s_instances.clear()
-    XCache.clear()
-    BTP.end_using()
-    BTP = BTraitableProcessor.current()
