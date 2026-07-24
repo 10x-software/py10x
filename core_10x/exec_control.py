@@ -1,5 +1,6 @@
 from py10x_kernel import BProcessContext
 from py10x_kernel import BTraitableProcessor as BTP  # noqa: N817
+from py10x_kernel import UpwardDepsOff as _UpwardDepsOff
 
 from core_10x.trait import Trait, BoundTrait
 from core_10x.traitable_id import ID
@@ -22,6 +23,13 @@ def GRAPH_ON(debug: bool = -1, convert_values: bool = -1):  # noqa: N802
 
 def GRAPH_OFF(debug: bool = -1, convert_values: bool = -1):  # noqa: N802
     return BTP.create(0, convert_values, debug, False, False)
+
+
+def UPWARD_DEPS_OFF():
+    """
+    Stays on-graph, but effectively cuts off dependency chain upwards
+    """
+    return _UpwardDepsOff()
 
 
 def DEBUG_ON(convert_values: bool = -1):  # noqa: N802
