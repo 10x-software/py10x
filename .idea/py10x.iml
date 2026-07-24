@@ -10,7 +10,7 @@
     <content url="file://$MODULE_DIR$/../rio">
       <excludeFolder url="file://$MODULE_DIR$/../rio/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.12 (py10x)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="uv (py10x) (2)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="TestRunnerService">
