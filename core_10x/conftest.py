@@ -1,5 +1,6 @@
 import pytest
 
+from core_10x.scenario import Scenario
 from core_10x.testlib.fixtures import stub_log_logger
 from core_10x.ts_store import TsStore
 
@@ -30,6 +31,7 @@ def default_cache_isolation():
     assert BTP is BTraitableProcessor.current()
     yield
     assert BTP is BTraitableProcessor.current()
+    Scenario.s_instances.clear()
     XCache.clear()
     BTP.end_using()
     BTP = BTraitableProcessor.current()
