@@ -40,8 +40,8 @@ class CurveParams(Traitable):
     def interpolator_get(self):     return self.__class__.DEFAULT_INTERPOLATOR
 
 class Curve(AnonymousTraitable):
-    times: list         = T([])       #-- only ints or floats are allowed
-    values: list        = T([])
+    times: list         = T([], T.STICKY)       #-- only ints or floats are allowed
+    values: list        = T([], T.STICKY)
     params: CurveParams = RT()
 
     beginning_of_time: Any  = T(None)    #-- may be float or int
