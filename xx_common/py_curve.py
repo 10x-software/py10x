@@ -10,6 +10,7 @@ from scipy import interpolate
 
 from core_10x.named_constant import NamedConstant
 from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, M, T, Traitable
+from core_10x.exec_control import UPWARD_DEPS_OFF
 
 
 class IP_KIND(NamedConstant, lowercase_values = True):
@@ -62,12 +63,16 @@ class Curve(AnonymousTraitable):
         times = self.times
         return times[-1] if times else None
 
-    def update(self, t, value, reset=True):
+    @classmethod
+    def _to_number(cls, t):
+        return t
+
+    @classmethod
+    def insert_time_value(cls, times, values, t, value):
+        t = cls._to_number(t)
         if type(value) is float64:
             value = float(value)
 
-        times = self.times
-        values = self.values
         i = bisect.bisect_left(times, t)
         if i >= len(times):
             times.append(t)
@@ -79,20 +84,53 @@ class Curve(AnonymousTraitable):
                 times.insert(i, t)
                 values.insert(i, value)
 
-        self.times = times
-        self.values = values
-        if reset:
-            self.reset()
+    def update(self, t, value, reset=True):
+        with UPWARD_DEPS_OFF():
+            times = self.times
+            values = self.values
+            self.insert_time_value(times, values, t, value)
+
+            self.times = times
+            self.values = values
+            if reset:
+                self.reset()
 
     def update_many(self, times, values, reset=True):
         assert len(times) == len(values), 'times and values size mismatch'
-        for i, t in enumerate(times):
-            self.update(t, values[i], reset=False)
+        with UPWARD_DEPS_OFF():
+            c_times = self.times
+            c_values = self.values
 
+        f = self.__class__.insert_time_value
+        for i, t in enumerate(times):
+            f(c_times, c_values, t, values[i])
+
+        self.times = c_times
+        self.values = c_values
         if reset:
             self.reset()
 
+    class Builder:
+        def __init__(self, curve):
+            with UPWARD_DEPS_OFF():
+                self.curve = curve
+                self.times = curve.times
+                self.values = curve.values
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            c = self.curve
+            c.times = self.times
+            c.values = self.values
+            c.reset()
+
+        def update(self, t, value):
+            self.curve.__class__.insert_time_value(self.times, self.values, t, value)
+
     def remove(self, t, reset=True) -> bool:
+        t = self._to_number(t)
         times = self.times
         if t not in times:
             return False
@@ -131,6 +169,7 @@ class Curve(AnonymousTraitable):
         )
 
     def value(self, t) -> float:
+        t = self._to_number(t)
         times = self.times
 
         if self.params.ip_kind is IP_KIND.NO_INTERP:
@@ -201,21 +240,12 @@ class DateCurve(Curve):
         times = self.dates
         return times[-1] if times else None
 
-    def update(self, d: date, value, reset=True):
-        x = self._to_number(d)
-        super().update(x, value, reset=reset)
-
     def reset(self):
         super().reset()
         self.invalidate_value('dates')
 
-    def value(self, d: date) -> float:
-        x = self._to_number(d)
-        return super().value(x)
-
     def remove(self, d, reset=True):
-        t = self._to_number(d)
-        if super().remove(t, reset=reset):
+        if super().remove(d, reset=reset):
             self.invalidate_value('dates')
 
     def dates_values(self, min_date: date = None, max_date: date = None) -> list:
