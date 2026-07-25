@@ -352,7 +352,7 @@ python-dotenv==1.2.2
     # via uvicorn
 pythonnet==3.1.0 ; sys_platform == 'win32'
     # via pywebview
-pytz==2026.2
+pytz==2026.3
     # via rio-ui
 pywebview==6.2.1
     # via webview-proc
