@@ -62,8 +62,8 @@ runs:
       shell: bash
       run: |
         # cxx10x cmake (_add_sanitizers) turns ENABLE_SANITIZERS into the right per-compiler flags
-        # (/fsanitize=address + /Zi /EHsc /DEBUG on MSVC, -fsanitize=address on gcc). Keep the built
-        # .pyd/.pdb in a persistent dir so the Windows step below can find the PDB for symbolization.
+        # (/fsanitize=address + /Zi /EHsc /DEBUG on MSVC, -fsanitize=address on gcc). XX_UV_INCREMENTAL
+        # builds the local cxx siblings without build isolation so that env var reaches cmake.
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
         echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
 
@@ -95,28 +95,21 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         playwright install --with-deps chromium
 
-    - name: Stage ASan runtime + PDBs next to the .pyd
+    - name: Stage ASan runtime next to the .pyd
       if: inputs.asan == 'true' && inputs.runner-os == 'Windows'
       shell: bash
       run: |
         set -euo pipefail
         venv="${GITHUB_WORKSPACE}/.venv"
-        # 1) clang_rt.asan_dynamic runtime: Python 3.8+ does not search PATH for an extension's
-        #    dependency DLLs (only system dirs, the exe dir, and the .pyd's own dir), so copy the
-        #    runtime next to every built/installed .pyd and into the venv Scripts (exe) dir.
+        # Python 3.8+ does not search PATH for an extension's dependency DLLs (only system dirs, the
+        # exe dir, and the .pyd's own dir), so copy the clang_rt ASan runtime next to every .pyd and
+        # into the venv Scripts (exe) dir. (cxx10x already installs py10x_*.pdb beside each .pyd, so
+        # cdb symbolizes from there - no PDB staging needed.)
         asan="$(find "$VCToolsInstallDir" -name 'clang_rt.asan_dynamic-x86_64.dll' 2>/dev/null | head -1)"
         [ -n "$asan" ] || { echo "clang_rt.asan_dynamic-x86_64.dll not found under VCToolsInstallDir"; exit 1; }
         echo "ASan runtime: $asan"
         { echo "$venv/Scripts"; find "$venv" -name '*.pyd' -exec dirname {} \; ; } | sort -u | while IFS= read -r d; do
           [ -d "$d" ] && cp -f "$asan" "$d/"
-        done
-        # 2) Private PDBs: cxx10x installs py10x_*.pdb next to the .pyd, but stage a build-dir copy as
-        #    a fallback so cdb resolves real C++ frames instead of nearest-export symbols.
-        find "$venv/Lib/site-packages" -maxdepth 1 -name 'py10x_*.pyd' | while IFS= read -r pyd; do
-          dir="$(dirname "$pyd")"; stem="$(basename "$pyd" | cut -d. -f1)"
-          [ -e "$dir/$stem.pdb" ] && continue
-          pdb="$(find "$venv" "${GITHUB_WORKSPACE}/../cxx10x" -name "${stem}*.pdb" 2>/dev/null | head -1 || true)"
-          [ -n "$pdb" ] && cp -f "$pdb" "$dir/" && echo "staged $pdb -> $dir" || echo "no PDB for $stem"
         done
 
     - name: Locate cdb
