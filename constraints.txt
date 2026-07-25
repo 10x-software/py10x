@@ -236,7 +236,7 @@ packaging==26.2
     #   scikit-build-core
     #   setuptools-scm
     #   vcs-versioning
-pandas==3.0.3
+pandas==3.0.5
     # via ibis-framework
 parsy==2.2
     # via ibis-framework
