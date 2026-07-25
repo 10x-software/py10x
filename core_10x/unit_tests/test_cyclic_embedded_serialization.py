@@ -1,4 +1,4 @@
-"""Reproduces the unbounded-recursion crash in embedded-traitable serialization.
+"""Embedded-traitable serialization recurses without bound on a reference cycle.
 
 An ``embeddable`` traitable held by a trait is serialized *inline* (full payload),
 so a reference cycle among embeddable instances makes ``serialize`` recurse without
@@ -7,9 +7,13 @@ Nucleus.serialize_any(EMBEDDED) -> serialize_object -> ...
 
 On CPython the recursion limit trips first (RecursionError); on an ASan build with
 inflated stack frames the native stack overflows first (STATUS_STACK_OVERFLOW /
-0xC00000FD) - the intermittent Windows CI crash in test_traitable_history. The
-recursion limit is capped low here so the failure is deterministic and cannot
-hard-crash the test process on any platform.
+0xC00000FD) - the intermittent Windows CI crash in test_traitable_history.
+
+These tests assert the *desired* behavior - that ``serialize`` terminates on a cycle
+instead of recursing unbounded - and are marked xfail until the kernel detects the
+cycle. The recursion limit is capped low so the current failure is a deterministic
+RecursionError that cannot hard-crash the test process on any platform; drop the cap
+and the xfail marker once the cycle is handled.
 """
 
 from __future__ import annotations
@@ -28,21 +32,30 @@ class CyclicEmbeddable(AnonymousTraitable):
     peer: AnonymousTraitable = T()  # embeddable value -> serialized inline
 
 
-def test_self_referential_embeddable_serialize_recurses_unbounded():
+# Expected to fail until embedded serialization detects reference cycles instead of recursing.
+xfail_unbounded_recursion = pytest.mark.xfail(
+    reason='embedded serialization recurses unbounded on a reference cycle - to be fixed in kernel',
+    raises=(RecursionError, TraitMethodError),
+    strict=True,
+)
+
+
+@xfail_unbounded_recursion
+def test_self_referential_embeddable_serialize_terminates():
     with CACHE_ONLY():
         node = CyclicEmbeddable()
         node.peer = node  # self-cycle
 
         old = sys.getrecursionlimit()
-        sys.setrecursionlimit(80)  # trip well before any native stack overflow
+        sys.setrecursionlimit(80)  # trip Python's guard before any native stack overflow
         try:
-            with pytest.raises((RecursionError, TraitMethodError)):
-                node.serialize(True)
+            node.serialize(True)  # should terminate; currently recurses unbounded
         finally:
             sys.setrecursionlimit(old)
 
 
-def test_mutual_cycle_embeddable_serialize_recurses_unbounded():
+@xfail_unbounded_recursion
+def test_mutual_cycle_embeddable_serialize_terminates():
     with CACHE_ONLY():
         a = CyclicEmbeddable()
         b = CyclicEmbeddable()
@@ -52,7 +65,6 @@ def test_mutual_cycle_embeddable_serialize_recurses_unbounded():
         old = sys.getrecursionlimit()
         sys.setrecursionlimit(80)
         try:
-            with pytest.raises((RecursionError, TraitMethodError)):
-                a.serialize(True)
+            a.serialize(True)  # should terminate; currently recurses unbounded
         finally:
             sys.setrecursionlimit(old)
