@@ -154,7 +154,12 @@ runs:
           mkdir -p asan
           export LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libstdc++.so)"
           export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:halt_on_error=1:abort_on_error=0:log_path=asan/asan"
-          set +e; python -m pytest -v; code=$?; set -e
+          # LD_PRELOAD is inherited by every child process, including Playwright's uninstrumented
+          # Chromium, which can deadlock under a force-loaded ASan runtime. Bound the run so a hang
+          # can't stall the job for hours: SIGABRT drives PYTHONFAULTHANDLER to dump all threads'
+          # Python stacks (naming the hung test) before the process aborts. 124 == timed out.
+          set +e; timeout --signal=ABRT 45m python -m pytest -v; code=$?; set -e
+          [ "$code" = "124" ] && echo "::error::Linux ASan suite exceeded 45m wall clock (likely subprocess deadlock)"
           for f in asan/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
           exit "$code"
         fi
