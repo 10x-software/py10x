@@ -62,10 +62,12 @@ runs:
       shell: bash
       run: |
         # cxx10x cmake (_add_sanitizers) turns ENABLE_SANITIZERS into the right per-compiler flags
-        # (/fsanitize=address + /Zi /EHsc /DEBUG on MSVC, -fsanitize=address on gcc). XX_UV_INCREMENTAL
-        # builds the local cxx siblings without build isolation so that env var reaches cmake.
+        # (/fsanitize=address + /Zi /EHsc /DEBUG on MSVC, -fsanitize=address on gcc). The build
+        # subprocess inherits this env var, so a normal (build-isolated) install of the cxx siblings
+        # is instrumented - the step below asserts that, and failing there beats a silently
+        # uninstrumented "ASan" run. (No XX_UV_INCREMENTAL, so no import-time editable rebuild hook -
+        # which is why the Windows lane needs no SKBUILD_EDITABLE_SKIP rebuild-race workaround.)
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
-        echo "XX_UV_INCREMENTAL=1" >> "$GITHUB_ENV"
 
     - name: Install dependencies
       shell: bash
@@ -83,6 +85,27 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check
+
+    # Guard against a silently uninstrumented build: if ENABLE_SANITIZERS did not reach cmake, the
+    # extension links fine but carries no ASan, and the whole run would pass green while catching
+    # nothing. Assert the built kernel actually references the sanitizer runtime.
+    - name: Verify the extension is ASan-instrumented
+      if: inputs.asan == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        pyd="$(find .venv \( -name 'py10x_kernel*.pyd' -o -name 'py10x_kernel*.so' \) 2>/dev/null | head -1)"
+        [ -n "$pyd" ] || { echo "py10x_kernel extension not found under .venv"; exit 1; }
+        echo "extension: $pyd"
+        if [ "${{ inputs.runner-os }}" = "Windows" ]; then
+          # The instrumented .pyd imports clang_rt.asan_dynamic-x86_64.dll; the name sits in its
+          # import table as a literal ASCII string.
+          grep -aq 'clang_rt\.asan' "$pyd" || { echo "ERROR: not ASan-instrumented (no clang_rt.asan import)"; exit 1; }
+        else
+          # An instrumented .so references libasan's __asan_init interceptor as an undefined symbol.
+          nm -D "$pyd" | grep -q '__asan_init' || { echo "ERROR: not ASan-instrumented (no __asan_init)"; exit 1; }
+        fi
+        echo "OK: extension is ASan-instrumented"
 
     - name: Setup Mongo replica set
       uses: ./.github/actions/setup-mongo-replica-set
@@ -132,14 +155,6 @@ runs:
         XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-
-        # The scikit-build-core editable rebuild hook (enabled by XX_UV_INCREMENTAL on the ASan lane)
-        # runs `cmake --build` on every `import py10x_kernel`. Its rebuild lock is Unix-only, so a
-        # test that spawns concurrent child processes (Windows multiprocessing = re-import) races the
-        # hook into a build-dir collision and one child exits non-zero. CI sources are frozen after
-        # install, so disable import-time rebuilds: list each finder's build dir in the skip var it
-        # honors. No-op on the release lane (rebuild hook not installed).
-        export SKBUILD_EDITABLE_SKIP="$(python -c 'import sys,os; print(os.pathsep.join(f.path for f in sys.meta_path if type(f).__name__=="ScikitBuildRedirectingFinder" and getattr(f,"path",None)))')"
 
         # ---- Standard release build: just run the suite. ----
         if [ "${{ inputs.asan }}" != "true" ]; then
