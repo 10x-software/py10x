@@ -7,14 +7,11 @@ import rio.testing.browser_client
 
 @contextlib.contextmanager
 def _drop_ld_preload():
-    """Remove LD_PRELOAD for the duration of the block (the browser-subprocess spawn window).
+    """Remove LD_PRELOAD across the browser-spawn window (no-op when unset).
 
-    Under AddressSanitizer the suite runs with LD_PRELOAD=libasan..., which every child process
-    inherits - including Playwright's node driver and the uninstrumented Chromium it launches, which
-    then hang/time out. Every browser spawn happens while entering prepare_browser_client(), so drop
-    LD_PRELOAD just for that: the browser execs with a clean environment, the main process keeps its
-    already-mapped libasan (clearing the env var does not unload it), and tests that spawn
-    py10x_kernel subprocesses still see LD_PRELOAD once it is restored. No-op when unset.
+    Under ASan the suite runs with LD_PRELOAD=libasan, which Playwright's node driver and Chromium
+    would inherit and hang on. Dropping it for the spawn lets the browser exec clean; the main
+    process keeps its already-mapped libasan (clearing the env var doesn't unload it) once restored.
     """
     saved = os.environ.pop('LD_PRELOAD', None)
     try:
@@ -44,8 +41,7 @@ async def manage_server(request):
         if rio.testing.browser_client.DEBUGGER_ACTIVE:
             pytest.mark.async_timeout(0 if rio.testing.browser_client.DEBUGGER_ACTIVE else 90)
 
-    # Spawn the browser (node driver + Chromium) with LD_PRELOAD stripped, then restore it so the
-    # rest of the session runs instrumented as usual. Browser processes are only spawned on enter.
+    # Browser processes are only spawned on enter, so strip LD_PRELOAD just for that.
     cm = rio.testing.browser_client.prepare_browser_client()
     with _drop_ld_preload():
         await cm.__aenter__()

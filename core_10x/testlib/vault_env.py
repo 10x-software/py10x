@@ -48,32 +48,12 @@ from core_10x.vault_utils import VaultUtils
 # points to so ``Traitable.vault_store()`` resolves.
 VAULT_URI = 'duckdb://vaulthost.example.com:27017/_vault_'
 
-# BTP = None
 def _clear_internal_state():
-    """Drop process-wide cached state earlier tests may have populated.
-
-    The sequence matters: ``end_using()`` releases the current
-    ``BTraitableProcessor`` only *after* ``XCache.clear()`` so any references
-    held by the cache are gone — otherwise the prime-table backing the
-    B-traitable class registry keeps growing across tests and eventually
-    overflows.
-    """
-    # global BTP
-    # if BTP is None:
-    #     BTP = BTraitableProcessor.current()
-    #     print('BTP*',BTP)
+    """Drop process-wide cached state earlier tests may have populated."""
     SecKeys.retrieve_master_password.__func__.clear()
     SecKeys.retrieve_vault_login_password.__func__.clear()
     SecKeys.check_vault_uri.__func__.clear()
     Traitable.__dict__['vault_store'].__func__.clear()
-    # TsStore.s_instances.clear()
-    # print('BTP?', BTP, BTraitableProcessor.current())
-    # assert BTP is BTraitableProcessor.current()
-    # XCache.clear()
-    # BTP.end_using()
-    # assert BTP is not BTraitableProcessor.current()
-    # print(f'BTP: {BTP}->{BTraitableProcessor.current()}')
-    # BTP = BTraitableProcessor.current()
 
 @pytest.fixture
 def vault_env(monkeypatch):

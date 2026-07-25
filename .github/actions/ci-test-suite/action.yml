@@ -61,12 +61,9 @@ runs:
       if: inputs.asan == 'true'
       shell: bash
       run: |
-        # cxx10x cmake (_add_sanitizers) turns ENABLE_SANITIZERS into the right per-compiler flags
-        # (/fsanitize=address + /Zi /EHsc /DEBUG on MSVC, -fsanitize=address on gcc). The build
-        # subprocess inherits this env var, so a normal (build-isolated) install of the cxx siblings
-        # is instrumented - the step below asserts that, and failing there beats a silently
-        # uninstrumented "ASan" run. (No XX_UV_INCREMENTAL, so no import-time editable rebuild hook -
-        # which is why the Windows lane needs no SKBUILD_EDITABLE_SKIP rebuild-race workaround.)
+        # cxx10x cmake (_add_sanitizers) reads ENABLE_SANITIZERS and adds the per-compiler flags. The
+        # build subprocess inherits it, so a normal build-isolated install is instrumented (asserted
+        # below). No XX_UV_INCREMENTAL means no import-time rebuild hook for concurrent tests to race.
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
 
     - name: Install dependencies
@@ -86,9 +83,8 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check
 
-    # Guard against a silently uninstrumented build: if ENABLE_SANITIZERS did not reach cmake, the
-    # extension links fine but carries no ASan, and the whole run would pass green while catching
-    # nothing. Assert the built kernel actually references the sanitizer runtime.
+    # If ENABLE_SANITIZERS did not reach cmake the extension links fine but carries no ASan, so the
+    # run passes green catching nothing. Assert the kernel references the sanitizer runtime.
     - name: Verify the extension is ASan-instrumented
       if: inputs.asan == 'true'
       shell: bash
@@ -124,10 +120,9 @@ runs:
       run: |
         set -euo pipefail
         venv="${GITHUB_WORKSPACE}/.venv"
-        # Python 3.8+ does not search PATH for an extension's dependency DLLs (only system dirs, the
-        # exe dir, and the .pyd's own dir), so copy the clang_rt ASan runtime next to every .pyd and
-        # into the venv Scripts (exe) dir. (cxx10x already installs py10x_*.pdb beside each .pyd, so
-        # cdb symbolizes from there - no PDB staging needed.)
+        # Python 3.8+ won't load an extension's dependency DLLs from PATH (only system/exe/.pyd dirs),
+        # so copy the clang_rt ASan runtime next to every .pyd and the venv Scripts dir. (PDBs are
+        # already installed beside each .pyd, so cdb symbolizes from there.)
         asan="$(find "$VCToolsInstallDir" -name 'clang_rt.asan_dynamic-x86_64.dll' 2>/dev/null | head -1)"
         [ -n "$asan" ] || { echo "clang_rt.asan_dynamic-x86_64.dll not found under VCToolsInstallDir"; exit 1; }
         echo "ASan runtime: $asan"
@@ -164,26 +159,21 @@ runs:
 
         # ---- AddressSanitizer run (nightly diagnostics). ----
         if [ "${{ inputs.runner-os }}" != "Windows" ]; then
-          # Linux: LD_PRELOAD the ASan runtime (python itself is uninstrumented) plus the system
-          # libstdc++ (so third-party manylinux wheels' C++ throws resolve __cxa_throw). Write ASan's
-          # report to a file so it survives to the log; -v names the test running at an abort.
+          # Linux: LD_PRELOAD libasan (python is uninstrumented) + system libstdc++ (so manylinux
+          # wheels' C++ throws resolve __cxa_throw). ASan report -> file; -v names the aborting test.
           mkdir -p asan
           export LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libstdc++.so)"
           export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:halt_on_error=1:abort_on_error=0:log_path=asan/asan"
-          # rio still runs: its conftest strips LD_PRELOAD around the browser spawn so Chromium
-          # launches uninstrumented (a force-loaded ASan runtime in the browser hangs/times out),
-          # while the instrumented main process keeps its coverage. Bound the run regardless: SIGABRT
-          # drives PYTHONFAULTHANDLER to dump all threads' Python stacks (naming any hang) before
-          # aborting. 124 == timed out.
+          # rio's conftest strips LD_PRELOAD around the browser spawn so Chromium runs clean. Bound
+          # the run: SIGABRT drives PYTHONFAULTHANDLER to dump all thread stacks on a hang. 124 == timeout.
           set +e; timeout --signal=ABRT 45m python -m pytest -v; code=$?; set -e
           [ "$code" = "124" ] && echo "::error::Linux ASan suite exceeded 45m wall clock (likely subprocess deadlock)"
           for f in asan/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
           exit "$code"
         fi
 
-        # Windows: ASan can report heap errors to a file, but a stack overflow leaves no stack for its
-        # handler - so wrap pytest in cdb to catch native faults and print a symbolized C++ stack.
-        # No minidump: the .dmp needs the exact matching binaries+PDBs to open, which we don't retain.
+        # Windows: a stack overflow leaves ASan no stack to report, so wrap pytest in cdb to catch
+        # native faults and print a symbolized C++ stack. No minidump (needs the matching binaries).
         mkdir -p asan_win
         export ASAN_OPTIONS="halt_on_error=1:abort_on_error=0:log_path=asan_win/asan"
         export _NT_SYMBOL_PATH="$(cygpath -w "$(dirname "$(find .venv -name 'py10x_kernel*.pyd' | head -1)")")"
@@ -191,16 +181,12 @@ runs:
         bash_win="$(cygpath -w "$(command -v bash)")"
         rc_file="${RUNNER_TEMP}/pytest_rc"; rm -f "$rc_file"
         cmds="${RUNNER_TEMP}/cdb_cmds.txt"
-        # Capture the faulting thread's exception + C++ stack between greppable banners. On a
-        # first-chance stack-overflow (sov) also hand the exception back to the app (gN, after sxi
-        # disables further breaks) so Python's faulthandler prints the Python traceback too; av/bpe
-        # capture and kill.
+        # Capture the faulting thread's exception + C++ stack between greppable banners. On stack
+        # overflow (sov) also hand it back to the app (gN) so faulthandler prints the Python stack too.
         cap=".reload /f py10x_kernel*.pyd; .echo ===EXCEPTION===; .exr -1; .echo ===STACK BEGIN===; kP 400; .echo ===STACK END==="
         {
-          # Silence the benign first-chance AV flood: Windows SEH and ASan's shadow-memory probes
-          # raise many handled access violations during a normal run, which cdb would otherwise echo.
-          # Real faults still surface - a stack overflow via sov, an ASan-detected error via its
-          # __debugbreak (bpe), plus ASan's own report written to asan_win/asan.*.
+          # sxi av: silence the benign first-chance AV flood (Windows SEH + ASan shadow probes). Real
+          # faults still surface via sov (stack overflow), bpe (ASan __debugbreak), and the report file.
           echo "sxi av"
           echo "sxe -c \"${cap}; .echo ===pass to app===; sxi sov; gN\" sov"
           echo "sxe -c \"${cap}; .kill; qq\" bpe"

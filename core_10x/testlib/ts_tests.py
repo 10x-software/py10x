@@ -37,13 +37,9 @@ test_classes = {
 
 globals().update(test_classes)
 
-BTP = None
 
 @pytest.fixture(params=[True, False], ids=['custom_collection', 'default_collection'])
 def ts_setup(ts_instance, request):
-    # global BTP
-    # if BTP is None:
-    #     BTP = BTraitableProcessor.current()
     Person, Person1 = list(test_classes.values())[request.param * 2 :][:2]  # noqa: N806
     c, c1 = [uuid7().hex if request.param else PackageRefactoring.find_class_id(cls) for cls in (Person, Person1)]
     with ts_instance:
@@ -64,14 +60,6 @@ def ts_setup(ts_instance, request):
         assert p1.id().collection_name == (c1 if request.param else None)
 
     yield ts_instance, p, p1, c, c1, Person, Person1
-
-    # # Cleanup
-    # assert BTraitableProcessor.current() == BTP
-    # XCache.clear()
-    # BTP.end_using()
-    # assert BTraitableProcessor.current() != BTP
-    # print(f'BTP: {BTP}->{BTraitableProcessor.current()}')
-    # BTP = BTraitableProcessor.current()
 
     for cn in [c, c1]:
         ts_instance.delete_collection(cn)
