@@ -162,16 +162,11 @@ runs:
           mkdir -p asan
           export LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libstdc++.so)"
           export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:halt_on_error=1:abort_on_error=0:log_path=asan/asan"
-          # Drop the rio browser tests (XX_SKIP_RIO, honored by the root conftest): LD_PRELOAD is
-          # inherited by every child process, so rio's browser client runs uninstrumented-under-ASan
-          # and its tests time out; worse, rio's asyncio-atexit close then deadlocks
-          # alt_pytest_asyncio's session teardown. rio exercises the browser, not the C++ kernel, so
-          # this costs no memory-error coverage. (Windows ASan links the runtime into the .pyd -
-          # nothing is preloaded into children - so it keeps rio.) `--ignore` can't do this: the
-          # dev_10x pytest plugin force-collects every unit_tests dir and overrides it. Bound the run
-          # regardless: SIGABRT drives PYTHONFAULTHANDLER to dump all threads' Python stacks (naming
-          # any hang) before aborting. 124 == timed out.
-          export XX_SKIP_RIO=1
+          # rio still runs: its conftest strips LD_PRELOAD around the browser spawn so Chromium
+          # launches uninstrumented (a force-loaded ASan runtime in the browser hangs/times out),
+          # while the instrumented main process keeps its coverage. Bound the run regardless: SIGABRT
+          # drives PYTHONFAULTHANDLER to dump all threads' Python stacks (naming any hang) before
+          # aborting. 124 == timed out.
           set +e; timeout --signal=ABRT 45m python -m pytest -v; code=$?; set -e
           [ "$code" = "124" ] && echo "::error::Linux ASan suite exceeded 45m wall clock (likely subprocess deadlock)"
           for f in asan/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
