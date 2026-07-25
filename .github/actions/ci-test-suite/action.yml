@@ -140,6 +140,14 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
 
+        # The scikit-build-core editable rebuild hook (enabled by XX_UV_INCREMENTAL on the ASan lane)
+        # runs `cmake --build` on every `import py10x_kernel`. Its rebuild lock is Unix-only, so a
+        # test that spawns concurrent child processes (Windows multiprocessing = re-import) races the
+        # hook into a build-dir collision and one child exits non-zero. CI sources are frozen after
+        # install, so disable import-time rebuilds: list each finder's build dir in the skip var it
+        # honors. No-op on the release lane (rebuild hook not installed).
+        export SKBUILD_EDITABLE_SKIP="$(python -c 'import sys,os; print(os.pathsep.join(f.path for f in sys.meta_path if type(f).__name__=="ScikitBuildRedirectingFinder" and getattr(f,"path",None)))')"
+
         # ---- Standard release build: just run the suite. ----
         if [ "${{ inputs.asan }}" != "true" ]; then
           python -m pytest
@@ -154,11 +162,14 @@ runs:
           mkdir -p asan
           export LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libstdc++.so)"
           export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:halt_on_error=1:abort_on_error=0:log_path=asan/asan"
-          # LD_PRELOAD is inherited by every child process, including Playwright's uninstrumented
-          # Chromium, which can deadlock under a force-loaded ASan runtime. Bound the run so a hang
-          # can't stall the job for hours: SIGABRT drives PYTHONFAULTHANDLER to dump all threads'
-          # Python stacks (naming the hung test) before the process aborts. 124 == timed out.
-          set +e; timeout --signal=ABRT 45m python -m pytest -v; code=$?; set -e
+          # Exclude the rio browser tests: LD_PRELOAD is inherited by every child process, so rio's
+          # browser client runs uninstrumented-under-ASan and its tests time out; worse, rio's
+          # asyncio-atexit close then deadlocks alt_pytest_asyncio's session teardown. rio exercises
+          # the browser, not the C++ kernel, so this costs no memory-error coverage. (Windows ASan
+          # links the runtime into the .pyd - nothing is preloaded into children - so it keeps rio.)
+          # Bound the run regardless: SIGABRT drives PYTHONFAULTHANDLER to dump all threads' Python
+          # stacks (naming any hang) before aborting. 124 == timed out.
+          set +e; timeout --signal=ABRT 45m python -m pytest -v --ignore=ui_10x/rio; code=$?; set -e
           [ "$code" = "124" ] && echo "::error::Linux ASan suite exceeded 45m wall clock (likely subprocess deadlock)"
           for f in asan/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
           exit "$code"
