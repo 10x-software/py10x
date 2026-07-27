@@ -8,7 +8,7 @@ alt-pytest-asyncio==0.9.5
     # via py10x-core (pyproject.toml)
 annotated-doc==0.0.4
     # via fastapi
-annotated-types==0.7.0
+annotated-types==0.8.0
     # via pydantic
 ansicon==1.89.0 ; sys_platform == 'win32'
     # via jinxed
@@ -82,7 +82,7 @@ cssutils==2.15.0
     # via rio-ui
 cycler==0.12.1
     # via matplotlib
-cython==3.2.8
+cython==3.2.9
     # via py10x-core (pyproject.toml)
 depgather==0.5.0 ; python_full_version >= '3.12'
     # via licensecheck
@@ -236,7 +236,7 @@ packaging==26.2
     #   scikit-build-core
     #   setuptools-scm
     #   vcs-versioning
-pandas==3.0.3
+pandas==3.0.5
     # via ibis-framework
 parsy==2.2
     # via ibis-framework
@@ -352,7 +352,7 @@ python-dotenv==1.2.2
     # via uvicorn
 pythonnet==3.1.0 ; sys_platform == 'win32'
     # via pywebview
-pytz==2026.2
+pytz==2026.3.post1
     # via rio-ui
 pywebview==6.2.1
     # via webview-proc
@@ -481,7 +481,7 @@ uuid6==2025.0.1
     #   py10x-kernel (../cxx10x/core_10x/pyproject.toml)
     #   py10x-core (pyproject.toml)
     #   py10x-kernel
-uv==0.11.31
+uv==0.11.32
     # via
     #   py10x-core (pyproject.toml)
     #   licensecheck
