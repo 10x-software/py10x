@@ -1,24 +1,7 @@
-import contextlib
 import os
 
 import pytest
 import rio.testing.browser_client
-
-
-@contextlib.contextmanager
-def _drop_ld_preload():
-    """Remove LD_PRELOAD across the browser-spawn window (no-op when unset).
-
-    Under ASan the suite runs with LD_PRELOAD=libasan, which Playwright's node driver and Chromium
-    would inherit and hang on. Dropping it for the spawn lets the browser exec clean; the main
-    process keeps its already-mapped libasan (clearing the env var doesn't unload it) once restored.
-    """
-    saved = os.environ.pop('LD_PRELOAD', None)
-    try:
-        yield
-    finally:
-        if saved is not None:
-            os.environ['LD_PRELOAD'] = saved
 
 
 def running_with_coverage(config):
@@ -41,14 +24,17 @@ async def manage_server(request):
         if rio.testing.browser_client.DEBUGGER_ACTIVE:
             pytest.mark.async_timeout(0 if rio.testing.browser_client.DEBUGGER_ACTIVE else 90)
 
-    # Browser processes are only spawned on enter, so strip LD_PRELOAD just for that.
-    cm = rio.testing.browser_client.prepare_browser_client()
-    with _drop_ld_preload():
-        await cm.__aenter__()
+    # Under ASan the suite runs with LD_PRELOAD=libasan; Playwright's node driver and Chromium would
+    # inherit it and hang. Drop it while the browser client is alive so the browser execs clean (the
+    # main process keeps its already-mapped libasan). Safe because no test that collects after
+    # ui_10x/rio spawns a py10x_kernel subprocess (which would need libasan preloaded to import).
+    saved = os.environ.pop('LD_PRELOAD', None)
     try:
-        yield
+        async with rio.testing.browser_client.prepare_browser_client():
+            yield
     finally:
-        await cm.__aexit__(None, None, None)
+        if saved is not None:
+            os.environ['LD_PRELOAD'] = saved
 
 
 @pytest.fixture(autouse=True)
