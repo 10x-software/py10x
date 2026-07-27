@@ -506,13 +506,6 @@ def bundle_history_store(ts_instance):
     store.end_using()
 
 
-@pytest.fixture(autouse=True)
-def cache_isolation():
-    yield None
-    XCache.clear()
-    BTraitableProcessor.current().end_using()
-
-
 class TestBundleHistoryBehavior:
     """Live save/history checks against a DuckDbStore."""
 

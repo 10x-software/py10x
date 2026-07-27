@@ -1,5 +1,10 @@
 name: CI test suite
-description: Install cxx siblings, verify constraints, MongoDB, Playwright, and run pytest
+description: >-
+  Install cxx siblings, verify constraints, MongoDB, Playwright, and run pytest.
+  With asan=true, build the cxx10x backend under AddressSanitizer and run the
+  suite under it (nightly memory-error diagnostics), capturing a symbolized C++
+  report on any fault. With asan=false (default), build/test the standard
+  release configuration.
 inputs:
   python-version:
     description: Python version to install via uv
@@ -12,6 +17,10 @@ inputs:
   runner-os:
     description: Host runner OS from the calling workflow (Linux, Windows, or macOS)
     required: true
+  asan:
+    description: 'Build + run under AddressSanitizer ("true"/"false"). Nightly diagnostics only.'
+    required: false
+    default: "false"
 runs:
   using: composite
   steps:
@@ -50,6 +59,12 @@ runs:
         git clone --branch "${{ steps.cxx10x_branch.outputs.branch }}" \
           https://github.com/10x-software/cxx10x.git ../cxx10x
 
+    - name: Enable AddressSanitizer build
+      if: inputs.asan == 'true'
+      shell: bash
+      run: |
+        echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
+
     - name: Install dependencies
       shell: bash
       env:
@@ -67,6 +82,24 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check
 
+    - name: Verify the extension is ASan-instrumented
+      if: inputs.asan == 'true'
+      shell: bash
+      run: |
+        set -euo pipefail
+        pyd="$(find .venv \( -name 'py10x_kernel*.pyd' -o -name 'py10x_kernel*.so' \) 2>/dev/null | head -1)"
+        [ -n "$pyd" ] || { echo "py10x_kernel extension not found under .venv"; exit 1; }
+        echo "extension: $pyd"
+        if [ "${{ inputs.runner-os }}" = "Windows" ]; then
+          # The instrumented .pyd imports clang_rt.asan_dynamic-x86_64.dll; the name sits in its
+          # import table as a literal ASCII string.
+          grep -aq 'clang_rt\.asan' "$pyd" || { echo "ERROR: not ASan-instrumented (no clang_rt.asan import)"; exit 1; }
+        else
+          # An instrumented .so references libasan's __asan_init interceptor as an undefined symbol.
+          nm -D "$pyd" | grep -q '__asan_init' || { echo "ERROR: not ASan-instrumented (no __asan_init)"; exit 1; }
+        fi
+        echo "OK: extension is ASan-instrumented"
+
     - name: Setup Mongo replica set
       uses: ./.github/actions/setup-mongo-replica-set
       with:
@@ -78,56 +111,84 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         playwright install --with-deps chromium
 
-    - name: Enable Windows crash dumps
-      if: inputs.runner-os == 'Windows'
-      shell: pwsh
+    - name: Stage ASan runtime next to the .pyd
+      if: inputs.asan == 'true' && inputs.runner-os == 'Windows'
+      shell: bash
       run: |
-        $dumpFolder = Join-Path $env:RUNNER_TEMP 'crashdumps'
-        New-Item -ItemType Directory -Force -Path $dumpFolder | Out-Null
-        $procdumpZip = Join-Path $env:RUNNER_TEMP 'procdump.zip'
-        $procdumpDir = Join-Path $env:RUNNER_TEMP 'procdump'
-        Invoke-WebRequest -Uri 'https://download.sysinternals.com/files/Procdump.zip' -OutFile $procdumpZip
-        Expand-Archive -Path $procdumpZip -DestinationPath $procdumpDir -Force
-        Write-Host "ProcDump ready for first-chance attach; dumps -> $dumpFolder"
+        set -euo pipefail
+        venv="${GITHUB_WORKSPACE}/.venv"
+        # Python 3.8+ won't load an extension's dependency DLLs from PATH (only system/exe/.pyd dirs),
+        # so copy the clang_rt ASan runtime next to every .pyd and the venv Scripts dir. (PDBs are
+        # already installed beside each .pyd, so cdb symbolizes from there.)
+        asan="$(find "$VCToolsInstallDir" -name 'clang_rt.asan_dynamic-x86_64.dll' 2>/dev/null | head -1)"
+        [ -n "$asan" ] || { echo "clang_rt.asan_dynamic-x86_64.dll not found under VCToolsInstallDir"; exit 1; }
+        echo "ASan runtime: $asan"
+        { echo "$venv/Scripts"; find "$venv" -name '*.pyd' -exec dirname {} \; ; } | sort -u | while IFS= read -r d; do
+          [ -d "$d" ] && cp -f "$asan" "$d/"
+        done
 
-    - name: Run full test suite
+    - name: Locate cdb
+      if: inputs.asan == 'true' && inputs.runner-os == 'Windows'
+      shell: bash
+      run: |
+        cdb="$(find '/c/Program Files (x86)/Windows Kits' -name cdb.exe -ipath '*debuggers/x64*' 2>/dev/null | head -1)"
+        [ -n "$cdb" ] || { echo 'cdb.exe not found - Debugging Tools for Windows missing'; exit 1; }
+        echo "CDB_PATH=$cdb" >> "$GITHUB_ENV"
+        echo "cdb: $cdb"
+
+    - name: Run test suite
       shell: bash
       env:
         PYTHONUNBUFFERED: "1"
-        # Strict only where fully provisioned: the Linux runner gets a replica set (transactions),
-        # but Windows is standalone by design, so leave strict OFF there - the transaction gate must
-        # skip, not fail, on Windows. (git/uv/source/siblings are present on both, so those guards
-        # run regardless; strict only flips an *unmet* precondition from skip to fail.)
+        PYTHONFAULTHANDLER: "1"
         XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        if [ "${{ inputs.runner-os }}" != "Windows" ]; then
+
+        # ---- Standard release build: just run the suite. ----
+        if [ "${{ inputs.asan }}" != "true" ]; then
           python -m pytest
-        else
-          # First-chance ACCESS_VIOLATION dump (AeDebug/WER miss these). Preserve pytest exit
-          # code; do not use procdump -x as the parent (it does not propagate child exit codes).
-          dump_folder="${RUNNER_TEMP}/crashdumps"
-          procdump="${RUNNER_TEMP}/procdump/procdump64.exe"
-          python -m pytest -p no:faulthandler &
-          pytest_pid=$!
-          if [ -f "/proc/${pytest_pid}/winpid" ]; then
-            attach_pid=$(tr -d '\0\r\n' < "/proc/${pytest_pid}/winpid")
-          else
-            attach_pid=$pytest_pid
-          fi
-          "$procdump" -accepteula -ma -e 1 -f "ACCESS_VIOLATION" "$attach_pid" "$dump_folder" &
-          set +e
-          wait "$pytest_pid"
-          exit_code=$?
-          wait
-          set -e
-          exit "$exit_code"
+          exit $?
         fi
 
-    - name: Upload Windows minidump
-      if: failure() && inputs.runner-os == 'Windows'
-      uses: actions/upload-artifact@v7
-      with:
-        name: windows-minidump-${{ github.run_id }}
-        path: ${{ runner.temp }}/crashdumps/*.dmp
-        if-no-files-found: warn
+        # ---- AddressSanitizer run (nightly diagnostics). ----
+        if [ "${{ inputs.runner-os }}" != "Windows" ]; then
+          # Linux: LD_PRELOAD libasan (python is uninstrumented) + system libstdc++ (so manylinux
+          # wheels' C++ throws resolve __cxa_throw). ASan report -> file; -v names the aborting test.
+          mkdir -p asan
+          export LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libstdc++.so)"
+          export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:halt_on_error=1:abort_on_error=0:log_path=asan/asan"
+          # rio's conftest strips LD_PRELOAD around the browser spawn so Chromium runs clean. Bound
+          # the run: SIGABRT drives PYTHONFAULTHANDLER to dump all thread stacks on a hang. 124 == timeout.
+          set +e; timeout --signal=ABRT 45m python -m pytest -v; code=$?; set -e
+          [ "$code" = "124" ] && echo "::error::Linux ASan suite exceeded 45m wall clock (likely subprocess deadlock)"
+          for f in asan/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
+          exit "$code"
+        fi
+
+        # Windows: a stack overflow leaves ASan no stack to report, so wrap pytest in cdb to catch
+        # native faults and print a symbolized C++ stack. No minidump (needs the matching binaries).
+        mkdir -p asan_win
+        export ASAN_OPTIONS="halt_on_error=1:abort_on_error=0:log_path=asan_win/asan"
+        export _NT_SYMBOL_PATH="$(cygpath -w "$(dirname "$(find .venv -name 'py10x_kernel*.pyd' | head -1)")")"
+        cdb="$(cygpath -u "$CDB_PATH")"
+        bash_win="$(cygpath -w "$(command -v bash)")"
+        rc_file="${RUNNER_TEMP}/pytest_rc"; rm -f "$rc_file"
+        cmds="${RUNNER_TEMP}/cdb_cmds.txt"
+        # Capture the faulting thread's exception + C++ stack between greppable banners. On stack
+        # overflow (sov) also hand it back to the app (gN) so faulthandler prints the Python stack too.
+        cap=".reload /f py10x_kernel*.pyd; .echo ===EXCEPTION===; .exr -1; .echo ===STACK BEGIN===; kP 400; .echo ===STACK END==="
+        {
+          # sxi av: silence the benign first-chance AV flood (Windows SEH + ASan shadow probes). Real
+          # faults still surface via sov (stack overflow), bpe (ASan __debugbreak), and the report file.
+          echo "sxi av"
+          echo "sxe -c \"${cap}; .echo ===pass to app===; sxi sov; gN\" sov"
+          echo "sxe -c \"${cap}; .kill; qq\" bpe"
+          echo "g"
+        } > "$cmds"
+        "$cdb" -g -G -o -cf "$(cygpath -w "$cmds")" \
+          "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && python -m pytest -v; echo \$? > '${rc_file}'"
+        code="$(cat "$rc_file" 2>/dev/null || echo 1)"
+        for f in asan_win/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
+        echo "pytest exit code: ${code}"
+        exit "${code}"
