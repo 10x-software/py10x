@@ -43,13 +43,9 @@ from core_10x.ts_store import TsStore
 from core_10x.vault_utils import VaultUtils
 
 
-# Default vault URI used by ``vault_env``.  Tests may save resource accessors
-# for any other ``duckdb://`` URI; this one is what ``EnvVars.main_vault_uri``
-# points to so ``Traitable.vault_store()`` resolves.
 VAULT_URI = 'duckdb://vaulthost.example.com:27017/_vault_'
 
-def _clear_internal_state():
-    """Drop process-wide cached state earlier tests may have populated."""
+def _clear_cached_vault_state():
     SecKeys.retrieve_master_password.__func__.clear()
     SecKeys.retrieve_vault_login_password.__func__.clear()
     SecKeys.check_vault_uri.__func__.clear()
@@ -104,7 +100,7 @@ def vault_env(monkeypatch):
 
     # 6. Drop any process-wide cached state that earlier tests / module
     #    imports may have populated.
-    _clear_internal_state()
+    _clear_cached_vault_state()
 
     env = SimpleNamespace(
         keyring     = keyring,
@@ -126,7 +122,7 @@ def vault_env(monkeypatch):
         what we want when switching identity.
         """
         current_os[0] = name
-        _clear_internal_state()
+        _clear_cached_vault_state()
 
     def run_user_init(*, vault_login: str, vault_pwd: str, master_pwd: str) -> None:
         """Feed canned answers to ``VaultUtils.user_init()``'s prompts."""
@@ -135,11 +131,11 @@ def vault_env(monkeypatch):
         VaultUtils.user_init().throw()
         assert not text_q and not secret_q, 'queued prompts left over'
 
-        _clear_internal_state()
+        _clear_cached_vault_state()
 
     env.switch_os_user = switch_os_user
     env.run_user_init  = run_user_init
 
     yield env
 
-    _clear_internal_state()
+    _clear_cached_vault_state()

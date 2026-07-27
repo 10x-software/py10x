@@ -24,10 +24,7 @@ async def manage_server(request):
         if rio.testing.browser_client.DEBUGGER_ACTIVE:
             pytest.mark.async_timeout(0 if rio.testing.browser_client.DEBUGGER_ACTIVE else 90)
 
-    # Under ASan the suite runs with LD_PRELOAD=libasan; Playwright's node driver and Chromium would
-    # inherit it and hang. Drop it while the browser client is alive so the browser execs clean (the
-    # main process keeps its already-mapped libasan). Safe because no test that collects after
-    # ui_10x/rio spawns a py10x_kernel subprocess (which would need libasan preloaded to import).
+    # Drop any LD_PRELOAD used by address sanitizer tests to avoid playwright/chromium hangs
     saved = os.environ.pop('LD_PRELOAD', None)
     try:
         async with rio.testing.browser_client.prepare_browser_client():

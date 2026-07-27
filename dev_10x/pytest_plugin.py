@@ -82,11 +82,13 @@ BTP = BTraitableProcessor.current()
 def test_isolation():
     global BTP
     assert BTP is BTraitableProcessor.current()
-    yield
 
-    assert BTP is BTraitableProcessor.current()
-    Scenario.s_instances.clear()
-    XCache.clear()
-    BTP.end_using()
-    BTP = BTraitableProcessor.current()
-    TsStore.s_instances.clear()
+    try:
+        yield
+    finally:
+        assert BTP is BTraitableProcessor.current()
+        Scenario.s_instances.clear()
+        XCache.clear()
+        BTP.end_using()
+        BTP = BTraitableProcessor.current()
+        TsStore.s_instances.clear()

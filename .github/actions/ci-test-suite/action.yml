@@ -37,7 +37,9 @@ runs:
       shell: bash
       run: |
         candidates=()
-        [ -n "${{ github.head_ref }}" ] && candidates+=("${{ github.head_ref }}")
+        if [ -n "${{ github.head_ref }}" ]; then
+          candidates+=("${{ github.head_ref }}")
+        fi
         if [ -n "${{ github.base_ref }}" ]; then
           candidates+=("${{ github.base_ref }}")
         else
@@ -61,9 +63,6 @@ runs:
       if: inputs.asan == 'true'
       shell: bash
       run: |
-        # cxx10x cmake (_add_sanitizers) reads ENABLE_SANITIZERS and adds the per-compiler flags. The
-        # build subprocess inherits it, so a normal build-isolated install is instrumented (asserted
-        # below). No XX_UV_INCREMENTAL means no import-time rebuild hook for concurrent tests to race.
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
 
     - name: Install dependencies
@@ -83,8 +82,6 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check
 
-    # If ENABLE_SANITIZERS did not reach cmake the extension links fine but carries no ASan, so the
-    # run passes green catching nothing. Assert the kernel references the sanitizer runtime.
     - name: Verify the extension is ASan-instrumented
       if: inputs.asan == 'true'
       shell: bash
@@ -143,10 +140,7 @@ runs:
       shell: bash
       env:
         PYTHONUNBUFFERED: "1"
-        # In-process fatal-error handler: prints the Python traceback (all threads) on a native crash.
         PYTHONFAULTHANDLER: "1"
-        # Strict only where fully provisioned: Linux gets a replica set (transactions); Windows Mongo
-        # is standalone by design, so the transaction gate must skip (not fail) there.
         XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
