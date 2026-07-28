@@ -6,9 +6,10 @@ import re
 import sys
 import uuid6
 from collections import Counter
-from contextlib import nullcontext
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any
+
+from py10x_kernel import BSaveRefs
 from typing_extensions import Self
 
 import numpy as np
@@ -26,6 +27,7 @@ from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Traita
 from core_10x.traitable_id import ID
 
 from core_10x.xnone import XNone
+from infra_10x.duckdb_store import DuckDbStore
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -395,7 +397,7 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             assert x.x.x == x1  # found existing instance
             assert x1.x is XNone  # reload in debug mode
         else:
-            with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False) if nested else nullcontext():
+            with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False) if nested else contextlib.nullcontext():
                 assert load_calls == expected(1)
                 assert x.x
                 assert not self_ref or x == x.x
@@ -571,7 +573,7 @@ def test_anonymous_traitable(monkeypatch):
     # Wide Traitable trait may hold an embeddable value as a body (value-driven).
     class Wide(Traitable):
         w: int = T(T.ID)
-        peer: Traitable = T()
+        embedded: Traitable = T()
 
         @classmethod
         def exists_in_store(cls, id):
@@ -581,8 +583,8 @@ def test_anonymous_traitable(monkeypatch):
         def load_data(cls, id):
             return None
 
-    wide = Wide(w=1, peer=x, _replace=True)
-    assert wide.serialize_object()['peer'] == {
+    wide = Wide(w=1, embedded=x, _replace=True)
+    assert wide.serialize_object()['embedded'] == {
         '_obj': {'a': 1},
         '_type': '_nx',
         '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X',
@@ -1648,9 +1650,9 @@ class TestForwardRefTraitables:
         full = PyClass.name(c)
         dot = full.rfind('.')
         assert dot >= 0
-        peer_key = f'{full[:dot]}.Peer'
+        embedded_key = f'{full[:dot]}.Peer'
 
-        assert TraitableFwdRef.resolve_key(c, 'Peer') == peer_key
+        assert TraitableFwdRef.resolve_key(c, 'Peer') == embedded_key
 
     def test_resolve_key_nested_class_replaces_trailing_segment_only(self):
         inn = _ResolveKeyOuterStub.Inner
@@ -1659,9 +1661,9 @@ class TestForwardRefTraitables:
 
         full = PyClass.name(inn)
         dot = full.rfind('.')
-        peer_key = f'{full[:dot]}.Peer'
+        embedded_key = f'{full[:dot]}.Peer'
 
-        assert TraitableFwdRef.resolve_key(inn, 'Peer') == peer_key
+        assert TraitableFwdRef.resolve_key(inn, 'Peer') == embedded_key
 
     @staticmethod
     def _exec_module(source: str, module_name: str):
@@ -1747,15 +1749,15 @@ class TestForwardRefTraitables:
     def test_self_reference_via_forward_ref_string(self):
         """A class forward-referencing itself by name (not Self) still resolves."""
 
-        class Node(Traitable):
+        class Ref(Traitable):
             nid: int = T(T.ID)
-            parent: Node = T()  # self-forward-ref by name (not via Self)
+            parent: Ref = T()  # self-forward-ref by name (not via Self)
 
-        assert Node.trait('parent').data_type is Node
+        assert Ref.trait('parent').data_type is Ref
 
         with CACHE_ONLY():
-            root = Node(nid=1)
-            child = Node(nid=2)
+            root = Ref(nid=1)
+            child = Ref(nid=2)
             child.parent = root
             assert child.parent is root
 
@@ -1941,3 +1943,61 @@ def test_runtime_unsets_ts_flags():
     # Original class unchanged
     assert Ev.trait('saved_at').flags_on(T.TS)
     assert (Ev.trait('saved_at').flags & T.TS.value()) == T.TS_TIME.value()
+
+
+@pytest.mark.parametrize('mode', [BSaveRefs.NONE, BSaveRefs.ALL, BSaveRefs.NEW_ONLY, True, False])
+class TestCycles:
+    class Ref(Traitable):
+        ref: Self = T()
+
+    class Embeddable(AnonymousTraitable):
+        ref: Self = T()
+
+    @pytest.fixture(autouse=True)
+    def duck_db(self):
+        with DuckDbStore():
+            yield
+
+    @classmethod
+    def _serialization_context(cls, node):
+        if node is cls.Ref:
+            return contextlib.nullcontext()
+        assert node is cls.Embeddable
+        return pytest.raises(TraitMethodError, match=r'circular embedded serialization')
+
+    @pytest.mark.parametrize('node', [Ref,Embeddable])
+    def test_root_over_mutual_cycle(self, mode, node):
+        a = node()
+        b = node()
+        a.ref = b
+        b.ref = a
+        root = node(k=uuid6.uuid7().hex)
+        root.ref = a
+        with self._serialization_context(node):
+            root.serialize_object(save_references=int(mode))
+
+    @pytest.mark.parametrize('node', [Ref, Embeddable])
+    def test_mutual_cycle(self, mode, node):
+        a = node()
+        b = node()
+        a.ref = b
+        b.ref = a
+        with self._serialization_context(node):
+            a.serialize_object(save_references=int(mode))
+
+    @pytest.mark.parametrize('node', [Ref, Embeddable])
+    def test_self_cycle(self, mode, node):
+        a = node()
+        a.ref = a
+        with self._serialization_context(node):
+            a.serialize_object(save_references=int(mode))
+
+    @pytest.mark.parametrize('node', [Ref, Embeddable])
+    def test_tree(self, mode, node):
+        """Non-cyclic embed chain still serializes to a nested payload."""
+        a = node()
+        b = node()
+        a.ref = b
+        ser = a.serialize_object(save_references=int(mode))
+        assert isinstance(ser, dict)
+        assert ser.get('ref') is not None
