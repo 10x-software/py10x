@@ -62,9 +62,6 @@ def ts_setup(ts_instance, request):
 
     yield ts_instance, p, p1, c, c1, Person, Person1
 
-    # Cleanup
-    XCache.clear()
-    BTraitableProcessor.current().end_using()
     for cn in [c, c1]:
         ts_instance.delete_collection(cn)
     assert not {c, c1}.intersection(ts_instance.collection_names('.*'))

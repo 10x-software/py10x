@@ -15,11 +15,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # PR / push: Linux + Windows across the supported Python versions.
+  # PR / push: standard release build, Linux + Windows across the supported Python versions.
   full-tests:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
     name: Full tests (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -48,12 +49,14 @@ jobs:
           python-version: ${{ matrix.python }}
           mongodb-version: "7.0"
           runner-os: ${{ runner.os }}
+          asan: "false"
 
-  # Nightly / manual: full OS × Python matrix (requires-python floor through recommended).
-  full-matrix-tests:
+  # Nightly / manual: same matrix, built and run under AddressSanitizer for memory-error diagnostics.
+  asan-tests:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    name: Full matrix (${{ matrix.os }}, py${{ matrix.python }})
+    name: ASan (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
@@ -82,3 +85,4 @@ jobs:
           python-version: ${{ matrix.python }}
           mongodb-version: "7.0"
           runner-os: ${{ runner.os }}
+          asan: "true"

@@ -24,8 +24,14 @@ async def manage_server(request):
         if rio.testing.browser_client.DEBUGGER_ACTIVE:
             pytest.mark.async_timeout(0 if rio.testing.browser_client.DEBUGGER_ACTIVE else 90)
 
-    async with rio.testing.browser_client.prepare_browser_client():
-        yield
+    # Drop any LD_PRELOAD used by address sanitizer tests to avoid playwright/chromium hangs
+    saved = os.environ.pop('LD_PRELOAD', None)
+    try:
+        async with rio.testing.browser_client.prepare_browser_client():
+            yield
+    finally:
+        if saved is not None:
+            os.environ['LD_PRELOAD'] = saved
 
 
 @pytest.fixture(autouse=True)
