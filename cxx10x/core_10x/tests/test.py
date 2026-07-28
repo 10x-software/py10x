@@ -516,9 +516,9 @@ def test_write_during_read_ripple():
         try:
             _ = x.top
         except TraitMethodError as e:
-            assert 'write-during-read' in str(e), str(e)
+            assert 'set/invalidate during get' in str(e), str(e)
         else:
-            assert False, "Expected write-during-read error"
+            assert False, "Expected set/invalidate during get error"
 
 
 def test_write_during_read_self_set():
@@ -535,9 +535,9 @@ def test_write_during_read_self_set():
         try:
             _ = x.z
         except TraitMethodError as e:
-            assert 'write-during-read' in str(e), str(e)
+            assert 'set/invalidate during get' in str(e), str(e)
         else:
-            assert False, "Expected write-during-read error"
+            assert False, "Expected set/invalidate during get error"
 
 
 def test_duplicate_id():
