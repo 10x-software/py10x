@@ -307,6 +307,7 @@ py::object BTraitable::serialize_nx(const bool embed) {
         return res;
     }
 
+    ThreadContext::EmbedSerializationScope embed_scope(m_tid);
     return serialize_traits();
 }
 

@@ -761,6 +761,43 @@ def test_save_reference_cycles():
 
             root.save(mode)
 
+
+def test_embedded_serialization_cycles():
+    """Embeddable inline serialize must detect cycles (shared serialization_memo stack)."""
+
+    class Embeddable(AnonymousTraitable):
+        ref: Self = T()
+
+    with CACHE_ONLY():
+        # self-cycle
+        a = Embeddable()
+        a.ref = a
+        try:
+            a.serialize(True)
+        except TraitMethodError as e:
+            assert 'circular embedded serialization' in str(e)
+        else:
+            assert False, 'expected circular embedded serialization'
+
+        # mutual cycle
+        a = Embeddable()
+        b = Embeddable()
+        a.ref = b
+        b.ref = a
+        try:
+            a.serialize(True)
+        except TraitMethodError as e:
+            assert 'circular embedded serialization' in str(e)
+        else:
+            assert False, 'expected circular embedded serialization'
+
+        # tree (no cycle) still serializes
+        a = Embeddable()
+        b = Embeddable()
+        a.ref = b
+        assert a.serialize(True)['ref']
+
+
 def test_id_immutable():
     class X(Traitable):
         x: int = RT(T.ID)
@@ -1355,6 +1392,7 @@ if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
     test_save_reference_cycles()
+    test_embedded_serialization_cycles()
     test_event()
     test_deserialize_skips_runtime_keeps_eval_once()
     test_set_eval_once()

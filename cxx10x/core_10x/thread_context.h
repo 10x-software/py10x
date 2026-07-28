@@ -6,6 +6,7 @@
 
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "py_linkage.h"
 #include "stackable_context.h"
@@ -38,8 +39,7 @@ public:
     [[nodiscard]] static unsigned flags()           { return current_context().m_flags; }
 
     static std::unordered_set<TID> &serialization_memo() {
-        auto &context = current_context();
-        return context.m_serialization_memo;
+        return current_context().m_serialization_memo;
     }
 
     class SerializationScope {
@@ -60,6 +60,24 @@ public:
                 set_flags(m_original_flags);
                 serialization_memo().clear();
             }
+        }
+    };
+
+    class EmbedSerializationScope {
+        TID  m_tid;
+        bool m_inserted = false;
+
+    public:
+        explicit EmbedSerializationScope(const TID& tid) : m_tid(tid) {
+            if (!serialization_memo().insert(m_tid).second)
+                throw py::value_error(
+                    py::str("{}/{} - circular embedded serialization")
+                        .format(m_tid.cls()->name(), m_tid.id_value()));
+            m_inserted = true;
+        }
+
+        ~EmbedSerializationScope() {
+            if (m_inserted) serialization_memo().erase(m_tid);
         }
     };
 
