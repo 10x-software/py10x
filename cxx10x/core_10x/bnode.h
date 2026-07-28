@@ -43,9 +43,10 @@ public:
     void throw_if_getter_guarded() const {
         if (m_state & STATE_GETTER_GUARD)
             throw std::runtime_error(
-                "write-during-read: a getter mutated a graph node it depends on while "
+                "set/invalidate during get: a getter mutated a graph node it depends on while "
                 "that getter is still evaluating; see the Python traceback for the "
-                "getter and the mutation site");
+                "getter and the mutation site"
+            );
     }
 
     [[nodiscard]] bool is_valid() const         { return m_state & STATE_VALID; }
