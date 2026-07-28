@@ -152,6 +152,7 @@ runs:
         fi
 
         # ---- AddressSanitizer run (nightly diagnostics). ----
+        export XX_DISABLE_STACKTRACE=1 # avoid any secondary errors
         if [ "${{ inputs.runner-os }}" != "Windows" ]; then
           # Linux: LD_PRELOAD libasan (python is uninstrumented) + system libstdc++ (so manylinux
           # wheels' C++ throws resolve __cxa_throw). ASan report -> file; -v names the aborting test.
@@ -179,9 +180,13 @@ runs:
         # overflow (sov) also hand it back to the app (gN) so faulthandler prints the Python stack too.
         cap=".reload /f py10x_kernel*.pyd; .echo ===EXCEPTION===; .exr -1; .echo ===STACK BEGIN===; kP 400; .echo ===STACK END==="
         {
-          # sxi av: silence the benign first-chance AV flood (Windows SEH + ASan shadow probes). Real
-          # faults still surface via sov (stack overflow), bpe (ASan __debugbreak), and the report file.
-          echo "sxi av"
+          # sxd av: ignore first-chance AVs (ASan shadow probes) but break on *unhandled* AVs so we
+          # get a native stack. Do NOT use sxi av — that ignores second-chance too and leaves the
+          # process in a faulthandler dump loop with no ===EXCEPTION=== capture.
+          # sxi eh: silence first-chance C++ EH (0xE06D7363) from pybind11/cxx throws.
+          # bpe: ASan __debugbreak. sov: stack overflow. Report file covers ASan diagnostics.
+          echo "sxd -c \"${cap}; .kill; qq\" av"
+          echo "sxi eh"
           echo "sxe -c \"${cap}; .echo ===pass to app===; sxi sov; gN\" sov"
           echo "sxe -c \"${cap}; .kill; qq\" bpe"
           echo "g"
