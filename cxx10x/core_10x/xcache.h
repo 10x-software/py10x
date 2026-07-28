@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <new>
 #include <ranges>
 
 #include "py_linkage.h"
@@ -263,8 +264,8 @@ public:
     }
 
     static void clear() {
-        delete s_default;
-        s_default = new XCache();
+        s_default->~XCache();
+        new (s_default) XCache();
     }
 
     static XCache* default_cache()      { return s_default; }

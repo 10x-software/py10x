@@ -298,7 +298,7 @@ py::object BTraitable::serialize_nx(const bool embed) {
         }
         const auto mode = ThreadContext::flags();
         const auto cascade =(mode & BSaveRefs::ALL) || ((mode & BSaveRefs::NEW_ONLY) && !(lazy_load_flags() & XCache::LOAD_REQUIRED) && get_revision().cast<int>() == 0);
-        if (cascade && !ThreadContext::serialization_memo().contains(m_tid)) {
+        if (cascade && ThreadContext::serialization_memo().insert(m_tid).second) {
             auto py_traitable = my_class()->from_id(m_tid.traitable_id());
             if (const auto rc = py_traitable.attr("save")(BSaveRefs::NONE); !py::cast<bool>(rc)) {
                 throw py::value_error(py::str("{}/{} - failed to save referenced object: {}").format(class_name(), id_value(),rc.attr("error")()));

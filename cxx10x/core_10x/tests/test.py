@@ -1,4 +1,5 @@
 import gc
+import sys
 import traceback
 from collections import Counter
 from datetime import date, datetime
@@ -127,7 +128,7 @@ def test_cache_unreachable():
     assert x.x==1
 
     XCache.clear()
-    BTraitableProcessor.current().end_using()
+
     try:
         assert x.x
     except RuntimeError as e:
@@ -732,6 +733,34 @@ def test_save_load_calls():
     x.save(BSaveRefs.NEW_ONLY)
     assert save_calls == {'9': 1}
 
+
+def test_save_reference_cycles():
+    class Node(Traitable):
+        k: int = T(T.ID)
+        ref: Self = T()
+
+        def save(self, save_references=0):
+            if self.serialize_object(int(save_references)):
+                self.set_revision(max(int(self.get_revision()), 1))
+            return RC(True)
+
+    with CACHE_ONLY():
+        a = Node(k=1)
+        b = Node(k=2)
+        a.ref = b
+        b.ref = a
+        a.save(BSaveRefs.NEW_ONLY)
+
+        for mode in (BSaveRefs.NEW_ONLY, BSaveRefs.ALL, True):
+            a2 = Node(k=3)
+            b2 = Node(k=4)
+            a2.ref = b2
+            b2.ref = a2
+            root = Node(k=0)
+            root.ref = a2
+
+            root.save(mode)
+
 def test_id_immutable():
     class X(Traitable):
         x: int = RT(T.ID)
@@ -1325,6 +1354,7 @@ def test_event():
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
+    test_save_reference_cycles()
     test_event()
     test_deserialize_skips_runtime_keeps_eval_once()
     test_set_eval_once()
