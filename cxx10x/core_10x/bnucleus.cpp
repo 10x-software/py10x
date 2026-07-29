@@ -268,7 +268,15 @@ BNucleus::SerializationMethod BNucleus::serialization_method(const py::object& d
     }
 
     auto it = s_serialization_map->find(data_type);
-    return it != s_serialization_map->end() ? it->second : nullptr;
+    if (it != s_serialization_map->end())
+        return it->second;
+
+    //-- data_type not registered exactly, but if it's itself a metaclass (a subclass of `type`), its instances
+    //-- are classes -- e.g. TraitableMetaclass for any Traitable subclass -- so route through serialize_type.
+    if (PyLinkage::issubclass(data_type, PyLinkage::type_class()))
+        return serialize_type;
+
+    return nullptr;
 }
 
 BNucleus::DeserializationMap* BNucleus::s_deserialization_map = nullptr;
@@ -295,5 +303,11 @@ BNucleus::DeserializationMethod BNucleus::deserialization_method(const py::objec
     }
 
     auto it = s_deserialization_map->find(data_type);
-    return it != s_deserialization_map->end() ? it->second : nullptr;
+    if (it != s_deserialization_map->end())
+        return it->second;
+
+    if (PyLinkage::issubclass(data_type, PyLinkage::type_class()))
+        return deserialize_type;
+
+    return nullptr;
 }
