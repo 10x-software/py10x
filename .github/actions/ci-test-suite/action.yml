@@ -140,7 +140,6 @@ runs:
       shell: bash
       env:
         PYTHONUNBUFFERED: "1"
-        PYTHONFAULTHANDLER: "1"
         XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
@@ -160,7 +159,8 @@ runs:
           export LD_PRELOAD="$(gcc -print-file-name=libasan.so):$(gcc -print-file-name=libstdc++.so)"
           export ASAN_OPTIONS="detect_leaks=0:detect_odr_violation=0:alloc_dealloc_mismatch=0:halt_on_error=1:abort_on_error=0:log_path=asan/asan"
           # rio's conftest strips LD_PRELOAD around the browser spawn so Chromium runs clean. Bound
-          # the run: SIGABRT drives PYTHONFAULTHANDLER to dump all thread stacks on a hang. 124 == timeout.
+          # the run: SIGABRT drives faulthandler (enabled in conftest) to dump all thread stacks on a hang.
+          # 124 == timeout.
           set +e; timeout --signal=ABRT 45m python -m pytest -v; code=$?; set -e
           [ "$code" = "124" ] && echo "::error::Linux ASan suite exceeded 45m wall clock (likely subprocess deadlock)"
           for f in asan/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
