@@ -11,8 +11,11 @@ import ibis
 import ibis.expr.operations as ibis_ops
 from ibis.common.exceptions import TableNotFound
 
+from typing_extensions import Self
+
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
+from core_10x.resource import Resource
 from core_10x.trait import Trait
 from core_10x.trait_definition import T
 from core_10x.ts_store import TS_FIELDS_TAG, TsCollection, TsStore
@@ -84,8 +87,7 @@ class IbisCollection(TsCollection):
             else:  # TS_USER
                 obj_parts.append(f"'{field}', {self._store._auth_user_sql_expr()}")
                 params.extend(self._store._auth_user_sql_params())
-        merge = f'json_object({", ".join(obj_parts)})'
-        return f'json_merge_patch(CAST(? AS JSON), {merge})', params
+        return self._store._json_ts_merge_sql(obj_parts), params
 
     def ibis_col(self, name: str, trait=None, raw=False):
         """Ibis expression for `name`."""
@@ -153,7 +155,7 @@ class IbisCollection(TsCollection):
             if val is None:
                 continue
             if col == _DATA:
-                json_doc = json.loads(val)
+                json_doc = self._store._decode_data(val)
                 continue
             col_doc[col] = val
         return json_doc | col_doc
@@ -285,7 +287,7 @@ class IbisCollection(TsCollection):
         if not self._collection_columns():
             return None
         try:
-            return self._store._ibis_con.table(self._name)
+            return self._store._ibis_table(self._name)
         except TableNotFound:
             # CREATE TABLE rolled back (or table dropped) while @cache still held schema.
             self._store._forget_collection_columns(self._name)
@@ -369,9 +371,22 @@ class IbisStore(TsStore):
         datetime: lambda v: v.replace(tzinfo=None).isoformat(),
     }
 
-    def __init__(self):
+    def __init__(self, hostname=None, dbname=None, username=None, password=None, **kwargs):
+        """Bind Resource identity fields (same shape as :class:`~infra_10x.mongodb_store.MongoStore`).
+
+        ``port`` / ``ssl`` / other options arrive in ``kwargs`` from
+        :meth:`~core_10x.resource.Resource.translate_kwargs`. Connection is opened via
+        :meth:`_ibis_connect`.
+        """
         super().__init__()
         self._collections: dict[str, IbisCollection] = {}
+        self.hostname = hostname
+        self.dbname = dbname
+        self.username = username
+        self.password = password
+        self.port = kwargs.get(Resource.PORT_TAG)
+        self._ibis_con = self._ibis_connect()
+        self._con = getattr(self._ibis_con, 'con', None)
 
     def __init_subclass__(cls, **kwargs):
         if 's_ddl_types' in cls.__dict__:
@@ -383,12 +398,38 @@ class IbisStore(TsStore):
             cls.s_ddl_types = {**parent_types, **cls.__dict__['s_ddl_types']}
         super().__init_subclass__(**kwargs)
 
+    @classmethod
+    def new_instance(cls, hostname=None, dbname=None, username=None, password=None, **kwargs) -> Self:
+        """Factory used by :meth:`~core_10x.resource.Resource.instance` (Mongo-style identity args)."""
+        return cls(hostname=hostname, dbname=dbname, username=username, password=password, **kwargs)
+
+    def db_name(self) -> str | None:
+        return self.dbname
+
+    @abc.abstractmethod
+    def _ibis_connect(self):
+        """Open and return the dialect ibis backend (e.g. ``ibis.postgres.connect(...)``)."""
+
     @abc.abstractmethod
     def _execute(self, sql: str, params: list = ()) -> list[tuple]: ...
 
+    def _physical_table_name(self, collection_name: str) -> str:
+        """Physical table name in the backend (default: logical collection name)."""
+        return collection_name
+
+    def _prepare_ibis_table(self, table):
+        """Dialect hook before ibis→polars scans (e.g. cast JSONB ``_data`` to string)."""
+        return table
+
+    def _ibis_table(self, collection_name: str):
+        """Logical collection name → ibis Table (physical name + :meth:`_prepare_ibis_table`)."""
+        phys = self._physical_table_name(collection_name)
+        return self._prepare_ibis_table(self._ibis_con.table(phys))
+
     def _qname(self, collection_name: str) -> str:
         """Quoted table identifier for SQL (ANSI double quotes; dialect may override)."""
-        return f'"{collection_name.replace(chr(34), chr(34) * 2)}"'
+        name = self._physical_table_name(collection_name)
+        return f'"{name.replace(chr(34), chr(34) * 2)}"'
 
     @abc.abstractmethod
     def _create_table_if_not_exists(self, collection_name: str) -> None: ...
@@ -428,6 +469,18 @@ class IbisStore(TsStore):
     def _auth_user_sql_params(self) -> list:
         """Bind params for :meth:`_auth_user_sql_expr` (empty if the expr is pure SQL)."""
 
+    @abc.abstractmethod
+    def _json_ts_merge_sql(self, obj_parts: list[str]) -> str:
+        """SQL expression that merges base JSON bind ``?`` with TS field pairs.
+
+        ``obj_parts`` items are already ``'field', <sql_expr>`` fragments (time/user stamps).
+        The expression must take one leading bind for the base JSON document.
+        """
+
+    @abc.abstractmethod
+    def _decode_data(self, val) -> dict:
+        """Convert a physical ``_data`` cell to a dict (shared decode path always sees a dict)."""
+
     def _ts_col_sql_and_params(self, kind: str) -> tuple[str, list]:
         """Value SQL (+ binds) that stamps a TS **column** server-side (``TS_TIME`` / ``TS_USER``)."""
         if kind == _TS_TIME:
@@ -443,7 +496,7 @@ class IbisStore(TsStore):
         :meth:`_forget_collection_columns` (create after sticky empty / drop).
         """
         try:
-            schema = self._ibis_con.table(collection_name).limit(0).to_polars().schema
+            schema = self._ibis_table(collection_name).limit(0).to_polars().schema
         except TableNotFound:
             return {}
         return {name: dtype.to_python() for name, dtype in schema.items()}

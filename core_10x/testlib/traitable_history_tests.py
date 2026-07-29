@@ -188,12 +188,13 @@ class TestTraitableHistory:
         )
         hist.save().throw()
         # Store-side TS fields hydrated on the client without reload
-        assert hist._who == 'test_user'
+        who = test_store.auth_user()
+        assert hist._who == who
         assert hist._at is not None
         assert isinstance(hist._at, datetime)
 
         hist.reload()
-        assert hist._who == 'test_user'
+        assert hist._who == who
         assert isinstance(hist._at, datetime)
 
         # Verify that the history entry was saved
@@ -206,7 +207,7 @@ class TestTraitableHistory:
         saved_doc = saved_docs[0]
         assert saved_doc['_traitable_id'] == 'test-123'
         assert saved_doc['_traitable_rev'] == 2
-        assert saved_doc['_who'] == 'test_user'
+        assert saved_doc['_who'] == who
         assert saved_doc['name'] == 'Test Item'
         assert saved_doc['value'] == 42
         at_val = saved_doc['_at']
@@ -298,7 +299,7 @@ class TestTraitableHistory:
         assert len(history) == 1
         assert history[0]['_traitable_id'] == test_item.id().value
         assert history[0]['_traitable_rev'] == test_item._rev
-        assert history[0]['_who'] == 'test_user'
+        assert history[0]['_who'] == test_store.auth_user()
         assert '_at' in history[0]  # Should have timestamp
         assert history[0]['name'] == 'Test Item'
         assert history[0]['value'] == 42
@@ -337,7 +338,7 @@ class TestTraitableHistory:
         assert history_doc['_traitable_id'] == person.id().value
         # History entry is created before revision increment, so it should be 0
         assert history_doc['_traitable_rev'] == person._rev
-        assert history_doc['_who'] == 'test_user'
+        assert history_doc['_who'] == test_store.auth_user()
         assert '_at' in history_doc
         assert history_doc['name'] == 'John Doe'
         assert history_doc['age'] == 30
@@ -398,7 +399,7 @@ class TestTraitableHistory:
         # Both entries should have the correct traitable_id
         for entry in history:
             assert entry['_traitable_id'] == person.id().value
-            assert entry['_who'] == 'test_user'
+            assert entry['_who'] == test_store.auth_user()
             assert '_at' in entry
 
     def test_latest_revision(self, test_store):
@@ -423,7 +424,7 @@ class TestTraitableHistory:
         # Should be the latest revision
         assert latest['_traitable_id'] == person.id().value
         assert latest['_traitable_rev'] == person._rev
-        assert latest['_who'] == 'test_user'
+        assert latest['_who'] == test_store.auth_user()
         assert '_at' in latest
         assert latest['age'] == 31  # Updated age
 

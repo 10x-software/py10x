@@ -1,9 +1,8 @@
+"""MongoDB-specific dialect tests (shared suites run via conftest ts_instance matrix)."""
+
 from core_10x.concrete_resource import CONCRETE_RESOURCE
-from core_10x.testlib.fixtures import with_transactions
-from core_10x.testlib.ts_tests import TestTSStore, ts_setup  # collected by pytest
-from core_10x.testlib.ts_store_transaction_tests import TestSaveIfChanged, TestTsStoreTransaction  # collected by pytest
 from core_10x.traitable import VaultResourceAccessor
-from infra_10x.mongodb_store import MongoCollection, MongoStore
+from infra_10x.mongodb_store import MongoStore
 
 
 def test_mongo_parse_uri_round_trip():
@@ -25,7 +24,7 @@ def test_spec_from_uri_includes_protocol_tag():
 
 
 def test_mongo_canonical_uri_adds_default_port():
-    no_port   = VaultResourceAccessor._canonical_uri(
+    no_port = VaultResourceAccessor._canonical_uri(
         CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com/mydb')
     with_port = VaultResourceAccessor._canonical_uri(
         CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com:27017/mydb')
@@ -33,8 +32,10 @@ def test_mongo_canonical_uri_adds_default_port():
     assert ':27017' in no_port
     assert no_port == with_port
 
+
 def test_filter_and_pipeline_equivalence():
     from py10x_infra import MongoCollectionHelper
+
     from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
 
     serialized_traitable = dict(_id='AAAA', _rev=10, name='test', age=60)

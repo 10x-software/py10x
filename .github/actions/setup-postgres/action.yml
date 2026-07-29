@@ -1,0 +1,73 @@
+name: Setup PostgreSQL
+description: >-
+  Start a local PostgreSQL for infra_10x PostgresStore tests (Linux Docker; no-op on Windows).
+  Uses trust auth and a SUPERUSER role matching the host OS user so tests can connect as
+  getpass.getuser() with no password (same as typical local Homebrew setups).
+inputs:
+  postgres-version:
+    description: PostgreSQL major version for the Docker image
+    required: false
+    default: "16"
+  postgres-db:
+    description: Default database name
+    required: false
+    default: postgres
+  postgres-port:
+    description: Host port
+    required: false
+    default: "5432"
+runs:
+  using: composite
+  steps:
+    - name: Start PostgreSQL (Docker)
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        PG_VERSION: ${{ inputs.postgres-version }}
+        POSTGRES_DB: ${{ inputs.postgres-db }}
+        PG_PORT: ${{ inputs.postgres-port }}
+      run: |
+        set -euo pipefail
+        HOST_USER="$(whoami)"
+        docker rm -f py10x-postgres 2>/dev/null || true
+        # trust: no password on TCP (tests use OS-user role, not postgres/postgres).
+        docker run -d --name py10x-postgres \
+          -e POSTGRES_HOST_AUTH_METHOD=trust \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_DB \
+          -p "${PG_PORT}:5432" \
+          "postgres:${PG_VERSION}"
+
+        deadline=$(( $(date +%s) + 60 ))
+        while true; do
+          if docker exec py10x-postgres pg_isready -U postgres -d "$POSTGRES_DB" >/dev/null 2>&1; then
+            break
+          fi
+          if [ "$(date +%s)" -ge "$deadline" ]; then
+            echo "PostgreSQL did not become ready within 60 seconds" >&2
+            docker logs py10x-postgres >&2 || true
+            exit 1
+          fi
+          sleep 1
+        done
+
+        # Host OS user (GHA: runner; local docker: $USER) — matches conftest getpass.getuser() URI.
+        # Role + DB named like the OS user so libpq defaults (user=dbname=OS user) work without password.
+        docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+          "DO \$\$ BEGIN
+             IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${HOST_USER}') THEN
+               CREATE ROLE \"${HOST_USER}\" WITH LOGIN SUPERUSER;
+             END IF;
+           END \$\$;"
+        docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -tc \
+          "SELECT 1 FROM pg_database WHERE datname = '${HOST_USER}'" | grep -q 1 \
+          || docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+               "CREATE DATABASE \"${HOST_USER}\" OWNER \"${HOST_USER}\";"
+
+        echo "PostgreSQL ready on 127.0.0.1:${PG_PORT} (role/db=${HOST_USER}, auth=trust)"
+
+    # Windows CI leaves XX_TEST_STRICT off; PostgresStore tests skip when unreachable.
+    - name: Skip PostgreSQL on Windows
+      if: runner.os == 'Windows'
+      shell: bash
+      run: echo "PostgreSQL not provisioned on Windows (postgres store tests will skip)"

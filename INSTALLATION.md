@@ -37,12 +37,18 @@ If either applies, install one of:
 
 **Traitable Store backends** (for persistence examples and optional full test coverage):
 
-- `core_10x` tests use the **in-process** Traitable Store — no external database.
-- `infra_10x` tests exercise the **MongoDB-backed** store (`MongoStore`, implemented in `infra_10x`).
-  A local MongoDB is **not required** to run `pytest` — mongo-dependent tests skip when the server
-  is unreachable. To run them locally, install a **passwordless MongoDB** instance on **port 27017**
-  (replica set recommended for transaction tests). CI sets `XX_TEST_STRICT=1` and provisions a
-  replica set so those tests must run there.
+- `core_10x` tests use the **in-process** Traitable Store (DuckDB) — no external database.
+- `infra_10x` tests exercise **MongoDB** (`MongoStore`) and **PostgreSQL** (`PostgresStore`,
+  ibis-backed). Neither is required to run `pytest` — dependent tests skip when the server is
+  unreachable (see `core_10x/testlib/strict.py` — `need()` skips locally; under
+  `XX_TEST_STRICT=1`, as in Linux CI, an unmet precondition **fails** instead).
+  - **MongoDB**: passwordless instance on **port 27017** (replica set recommended for transaction
+    tests). CI provisions a replica set.
+  - **PostgreSQL**: instance on **port 5432**, database `postgres`, login as the **OS user** (no
+    password) — `postgresql://$USER@localhost:5432/postgres`. Typical local Homebrew installs
+    already use that role; CI Docker enables trust auth and creates a SUPERUSER role for
+    `whoami` (see `.github/actions/setup-postgres`). `TS_USER` stamps use the server session user
+    (`current_user`), not a client-side app username.
 
 See platform setup below for install commands. Other docs link here; do not duplicate the full blurb.
 

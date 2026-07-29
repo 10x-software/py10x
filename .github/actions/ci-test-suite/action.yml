@@ -105,6 +105,9 @@ runs:
       with:
         mongodb-version: ${{ inputs.mongodb-version }}
 
+    - name: Setup PostgreSQL
+      uses: ./.github/actions/setup-postgres
+
     - name: Install Playwright chromium
       shell: bash
       run: |

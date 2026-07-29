@@ -1,4 +1,7 @@
-"""Store-agnostic TsStore transaction tests. Use ts_instance fixture from conftest (core_10x → DuckDbStore, infra_10x → MongoStore)."""
+"""Store-agnostic TsStore transaction tests.
+
+Use ``ts_instance`` from conftest: core_10x → DuckDbStore; infra_10x → MongoStore / PostgresStore.
+"""
 
 from uuid6 import uuid7
 
