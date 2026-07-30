@@ -30,10 +30,7 @@ public:
 
     ThreadContext() : m_tid(std::this_thread::get_id()) {}
 
-    static ThreadContext &current_context() {
-        thread_local ThreadContext ctx;
-        return ctx;
-    }
+    static PY10X_API ThreadContext &current_context(); // -- this should not be inlined for cross-dll sharing
 
     static void set_flags(const unsigned flags)     { current_context().m_flags = flags; }
     [[nodiscard]] static unsigned flags()           { return current_context().m_flags; }

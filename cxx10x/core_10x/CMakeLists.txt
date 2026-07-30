@@ -39,6 +39,7 @@ pybind11_add_module(py10x_kernel
         xcache.cpp
         os_user.cpp
         bcurve.cpp
+        thread_context.cpp
 )
 
 # Export all symbols so that classes exposed via pybind11 (their vtables and
