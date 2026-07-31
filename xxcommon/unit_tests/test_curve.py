@@ -15,15 +15,20 @@ def curve_backend(request):
 @pytest.fixture
 def curve_mod(curve_backend, monkeypatch):
     """Run curve tests against both Python and experimental C++ (BCurve) backends."""
-    from xx_common.xxcommon_env_vars import XXCommonEnvVars
+    from xxcommon.xxcommon_env_vars import XXCommonEnvVars
 
     monkeypatch.setenv('XXCOMMON_USE_CXX_CURVE', str(curve_backend))
     object.__getattribute__(XXCommonEnvVars, 'use_cxx_curve').fget.clear()
 
-    import xx_common.curve as curve_mod
+    import xxcommon.curve as curve_mod
 
     importlib.reload(curve_mod)
-    return curve_mod
+    yield curve_mod
+    # Reload default (Python) backend so later tests that import xxcommon.curve
+    # without this fixture are not stuck on the experimental C++ path.
+    monkeypatch.setenv('XXCOMMON_USE_CXX_CURVE', 'False')
+    object.__getattribute__(XXCommonEnvVars, 'use_cxx_curve').fget.clear()
+    importlib.reload(curve_mod)
 
 
 def _seed_date_curve_dates(dc, d1: date, d2: date, *, cxx: bool) -> None:
@@ -158,13 +163,13 @@ class TestCurve:
 
 class TestTwoFuncInterpolator:
     def test_requires_in_func_or_in_func_on_arrays(self):
-        from xx_common.curve import TwoFuncInterpolator
+        from xxcommon.curve import TwoFuncInterpolator
 
         with pytest.raises(AssertionError):
             TwoFuncInterpolator(None, lambda t, v: v)
 
     def test_composed_interpolation(self):
-        from xx_common.curve import TwoFuncInterpolator
+        from xxcommon.curve import TwoFuncInterpolator
 
         # in_func multiplies values by 2, out_func divides by 2 -- net effect is identity
         def in_func_on_arrays(xs, ys):

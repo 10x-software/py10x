@@ -115,7 +115,7 @@ py10x-infra  = { path = "../cxx10x/infra_10x" }
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xx_common"]
+packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xxcommon"]
 #exclude = [ "**/*_tests/**" ]
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]

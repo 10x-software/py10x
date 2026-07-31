@@ -5,8 +5,8 @@ if __name__ == '__main__':
     from core_10x.xdate_time import XDateTime
     from core_10x.logger import PerfTimer
 
-    #from xx_common.curve import DateCurve, IP_KIND
-    from xx_common.py_curve import DateCurve, IP_KIND
+    #from xxcommon.curve import DateCurve, IP_KIND
+    from xxcommon.py_curve import DateCurve, IP_KIND
 
 
     def test1() -> tuple:
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     py_res, py_dt = test1()
 
-    from xx_common.cxx_curve import DateCurve, IP_KIND
+    from xxcommon.cxx_curve import DateCurve, IP_KIND
 
     cxx_res, cxx_dt = test1()
 

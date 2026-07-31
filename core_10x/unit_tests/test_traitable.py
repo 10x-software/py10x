@@ -295,7 +295,7 @@ def test_declarative_indices():
     # Because EventBase is in the MRO for history (via TraitableHistory -> EventBase), the _at_idx is also present
     assert '_at_idx' in hist_names
 
-    # Also check a concrete Event subclass (from xx_common) inherits it
+    # Also check a concrete Event subclass (from xxcommon) inherits it
     class XXEvent(EventBase):
         n: int = T(0)
 
