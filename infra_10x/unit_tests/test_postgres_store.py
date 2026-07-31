@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import socket
+import struct
 from datetime import datetime  # noqa: TC003  # used as runtime trait data_type
 
 import pytest
@@ -12,7 +14,7 @@ from core_10x.traitable import Traitable
 from core_10x.ts_store import TsDuplicateKeyError, TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
 from infra_10x.ibis_store import _DATA, _ID
-from infra_10x.postgres_store import PostgresStore
+from infra_10x.postgres_store import PostgresStore, _PG_AUTH_OK
 from infra_10x.unit_tests.conftest import TEST_TS_STORE
 
 
@@ -32,6 +34,72 @@ def test_postgresql_parse_uri_and_registry():
     assert uri.startswith('postgresql://')
     assert helpers == (False,)
     assert hard == False
+
+
+def test_is_running_with_auth_unreachable_host_port():
+    """TCP cannot connect → (False, False) only."""
+    assert PostgresStore.is_running_with_auth('127.0.0.1', 59999) == (False, False)
+
+
+def test_is_running_with_auth_non_postgres_service_on_port():
+    """Something on the port that is not a successful open PG login → not (True, False).
+
+    Mongo on 27017 (if up) fails the PG handshake after TCP; if nothing listens, TCP fails.
+    Either way we must not report open access. Prefer (False, False) or (True, True).
+    """
+    result = PostgresStore.is_running_with_auth('127.0.0.1', 27017)
+    assert result in ((False, False), (True, True))
+    assert result != (True, False)
+
+
+def test_is_running_with_auth_local_trust_no_password(postgres_store):
+    """Passwordless ReadyForQuery (local trust / OS user) → (True, False)."""
+    uri = TEST_TS_STORE.POSTGRES.value[0]
+    spec = TsStore.spec_from_uri(uri)
+    assert PostgresStore.is_running_with_auth(spec.hostname(), spec.port()) == (True, False)
+
+
+def test_is_running_with_auth_unknown_role_try_vault(postgres_store):
+    """Unknown role: ErrorResponse after handshake → (True, True) so vault is tried."""
+    uri = TEST_TS_STORE.POSTGRES.value[0]
+    spec = TsStore.spec_from_uri(uri)
+    host, port = spec.hostname(), int(spec.port())
+    dbname = PostgresStore.s_instance_kwargs_map[PostgresStore.DBNAME_TAG][1]
+    sock = socket.create_connection((host, port), timeout=3.0)
+    assert PostgresStore._startup_auth_probe(
+        sock, host=host, user='no_such_pg_role_zz_xyz', database=dbname
+    ) == (True, True)
+
+
+@pytest.mark.parametrize(
+    'tag, payload, expected',
+    [
+        # Only ReadyForQuery is open access; everything decisive else is try-vault.
+        (b'R', struct.pack('!I', 3), (True, True)),   # cleartext password
+        (b'R', struct.pack('!I', 5) + b'salt', (True, True)),  # MD5
+        (b'R', struct.pack('!I', 10), (True, True)),  # SASL
+        (b'R', struct.pack('!I', _PG_AUTH_OK), None),  # AuthOk → keep reading
+        (b'E', b'SFATAL\x00', (True, True)),
+        (b'Z', b'I', (True, False)),  # only open success
+        (b'S', b'application_name\x00\x00', None),
+        (b'K', b'\x00' * 8, None),
+        (b'N', b'', None),
+    ],
+    ids=[
+        'auth-cleartext-try-vault',
+        'auth-md5-try-vault',
+        'auth-sasl-try-vault',
+        'auth-ok-continue',
+        'error-try-vault',
+        'ready-open',
+        'parameter-status',
+        'backend-key',
+        'notice',
+    ],
+)
+def test_classify_startup_backend_message(tag, payload, expected):
+    """Message rules: open only on ReadyForQuery; else try vault or continue."""
+    assert PostgresStore._classify_startup_backend_message(tag, payload) == expected
 
 
 def test_auth_user_is_server_session_user(postgres_store):

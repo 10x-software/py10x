@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import getpass
 import hashlib
 import json
 import re
+import socket
+import ssl
+import struct
 from typing import TYPE_CHECKING
 
 import ibis
@@ -19,6 +23,11 @@ from infra_10x.ibis_store import (
 # PostgreSQL NAMEDATALEN is 64 (63 usable bytes); long class-id collection names
 # (and their ``#history`` siblings) must not truncate into the same physical table.
 _PG_IDENT_MAX = 63
+# Frontend/Backend protocol: StartupMessage protocol 3.0; SSLRequest code.
+_PG_PROTOCOL_3_0 = 196608
+_PG_SSL_REQUEST_CODE = 80877103
+# AuthenticationRequest codes (see Postgres protocol docs).
+_PG_AUTH_OK = 0
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -173,76 +182,102 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
 
     @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:
-        """Return ``(is_running, with_auth)`` by probing PostgreSQL on host/port.
+        """Return ``(is_running, with_auth)`` for vault / store_from_uri routing.
 
-        Same contract as :meth:`MongoStore.is_running_with_auth`:
+        Conservative policy (prefer vault over false open access):
 
-        * ``(False, False)`` — host/port unreachable (refused / timeout / DNS).
-        * ``(True, False)`` — passwordless connect succeeds (trust/peer/open).
-        * ``(True, True)`` — server answered but password auth is required (or
-          unauthenticated access was denied). Does **not** depend on any fixed
-          username/password working.
+        * ``(True, False)`` — only if passwordless startup fully succeeds (ReadyForQuery).
+        * ``(False, False)`` — only if TCP cannot reach host:port (refused / timeout / DNS).
+        * ``(True, True)`` — any other outcome after TCP connects (auth challenge, ErrorResponse,
+          SSL failure, non-PG service, truncated handshake, …) so callers try vault credentials.
 
-        Probes ``dbname`` from :attr:`s_instance_kwargs_map` (default ``postgres``):
-        without it libpq uses the OS username as the database name, which often
-        does not exist even when the server is up.
+        Uses map default ``dbname`` and the OS user in the StartupMessage.
         """
-        import psycopg
-
+        if port is None:
+            port = cls.s_instance_kwargs_map[cls.PORT_TAG][1]
         dbname = cls.s_instance_kwargs_map[cls.DBNAME_TAG][1]
+        port = int(port)
         try:
-            with psycopg.connect(
-                host=host_name, port=port, dbname=dbname, connect_timeout=3, autocommit=True
-            ) as con:
-                with con.cursor() as cur:
-                    cur.execute('SELECT 1')
-            return True, False
-        except psycopg.Error as e:
-            return cls._running_with_auth_from_connect_error(e)
+            sock = socket.create_connection((host_name, port), timeout=3.0)
+        except OSError:
+            return False, False
+        try:
+            return cls._startup_auth_probe(
+                sock, host=host_name, user=getpass.getuser(), database=dbname, timeout=3.0
+            )
+        except OSError:
+            # TCP succeeded; handshake/SSL/protocol failed → treat as up + try vault.
+            return True, True
 
     @staticmethod
-    def _running_with_auth_from_connect_error(exc: BaseException) -> tuple:
-        """Classify a failed passwordless connect as down vs running-with-auth.
+    def _startup_auth_probe(
+        sock: socket.socket, *, host: str, user: str, database: str, timeout: float = 3.0
+    ) -> tuple:
+        """SSLRequest + StartupMessage on an already-connected socket → (is_running, with_auth)."""
 
-        Mongo equivalent: ``hello`` succeeds then ``listDatabases`` fails with
-        OperationFailure → ``(True, True)``; connection failure → ``(False, False)``.
+        def _recv_exact(n: int) -> bytes:
+            buf = bytearray()
+            while len(buf) < n:
+                chunk = sock.recv(n - len(buf))
+                if not chunk:
+                    raise ConnectionError('postgres closed during startup probe')
+                buf.extend(chunk)
+            return bytes(buf)
+
+        sock.settimeout(timeout)
+        try:
+            # SSLRequest → 'S' (TLS) or 'N' (cleartext).
+            sock.sendall(struct.pack('!II', 8, _PG_SSL_REQUEST_CODE))
+            ssl_flag = _recv_exact(1)
+            if ssl_flag == b'S':
+                ctx = ssl.create_default_context()
+                sock = ctx.wrap_socket(sock, server_hostname=host)
+            elif ssl_flag != b'N':
+                # Connected but not speaking PG SSL negotiation → up, not open.
+                return True, True
+
+            params = b''.join(
+                k + b'\x00' + v + b'\x00'
+                for k, v in (
+                    (b'user', user.encode()),
+                    (b'database', database.encode()),
+                    (b'client_encoding', b'UTF8'),
+                )
+            ) + b'\x00'
+            body = struct.pack('!I', _PG_PROTOCOL_3_0) + params
+            sock.sendall(struct.pack('!I', 4 + len(body)) + body)
+
+            # Trust: AuthenticationOk then Error (bad role). Open: AuthOk … ReadyForQuery.
+            while True:
+                tag = _recv_exact(1)
+                length = struct.unpack('!I', _recv_exact(4))[0]
+                payload = _recv_exact(length - 4) if length > 4 else b''
+                if (result := PostgresStore._classify_startup_backend_message(tag, payload)) is not None:
+                    return result
+        finally:
+            try:
+                sock.close()
+            except OSError:
+                pass
+
+    @staticmethod
+    def _classify_startup_backend_message(tag: bytes, payload: bytes) -> tuple | None:
+        """Map one backend message to a final result, or ``None`` to keep reading.
+
+        Only ReadyForQuery after AuthenticationOk yields open access ``(True, False)``.
+        Auth challenges and errors yield ``(True, True)`` (try vault).
         """
-        msg = str(exc).lower()
-        # Network / no postmaster — not running.
-        if any(
-            s in msg
-            for s in (
-                'connection refused',
-                'could not connect',
-                'timeout expired',
-                'timed out',
-                'network is unreachable',
-                'no route to host',
-                'name or service not known',
-                'nodename nor servname',  # macOS getaddrinfo
-            )
-        ):
-            return False, False
-        # Server challenged or rejected credentials — running, needs auth.
-        if any(
-            s in msg
-            for s in (
-                'password authentication failed',
-                'no password supplied',
-                'authentication failed',
-                'password required',
-                'fe_sendauth',
-            )
-        ):
-            return True, True
-        # Authenticated far enough that the catalog answered (wrong DB name, etc.).
-        if 'database' in msg and 'does not exist' in msg:
+        if tag == b'R':  # Authentication*
+            if len(payload) < 4:
+                return True, True
+            code = struct.unpack('!I', payload[:4])[0]
+            return None if code == _PG_AUTH_OK else (True, True)
+        if tag == b'Z':  # ReadyForQuery — fully accepted without a password challenge
             return True, False
-        # Other postmaster FATAL (role missing, pg_hba reject, …): server is up;
-        # treat as auth-gated so store_from_uri uses vault rather than open access.
-        if 'fatal' in msg:
+        if tag == b'E':  # ErrorResponse
             return True, True
-        return False, False
+        # ParameterStatus (S), BackendKeyData (K), Notice (N), …
+        return None
 
     def auth_user(self) -> str | None:
         rows = self._execute('SELECT current_user')
