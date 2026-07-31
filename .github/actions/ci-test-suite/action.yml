@@ -179,16 +179,28 @@ runs:
         # overflow (sov) also hand it back to the app (gN) so faulthandler prints the Python stack too.
         cap=".reload /f py10x_kernel*.pyd; .echo ===EXCEPTION===; .exr -1; .echo ===STACK BEGIN===; kP 400; .echo ===STACK END==="
         {
+          # cdb runs this at the FIRST break (the first-chance fault). Dump that fault's C++ stack
+          # right away - in particular ASan's own managed exception (0xe0736170 / 0xe073616e), which
+          # had no dedicated handler and was being stepped past with no diagnostic at all.
+          echo "${cap}"
           # sxi av: silence the benign first-chance AV flood (Windows SEH + ASan shadow probes). Real
           # faults still surface via sov (stack overflow), bpe (ASan __debugbreak), and the report file.
           echo "sxi av"
           echo "sxe -c \"${cap}; .echo ===pass to app===; sxi sov; gN\" sov"
           echo "sxe -c \"${cap}; .kill; qq\" bpe"
+          echo "sxe -c \"${cap}; .kill; qq\" e0736170"
+          echo "sxe -c \"${cap}; .kill; qq\" e073616e"
           echo "g"
         } > "$cmds"
+        # cdb exits non-zero on a caught fault; guard it so the step's `set -e` does not abort before
+        # we dump ASan's own report (log_path) and the exit codes below - that abort is exactly why
+        # earlier Windows ASan crashes produced no diagnostic at all.
+        set +e
         "$cdb" -g -G -o -cf "$(cygpath -w "$cmds")" \
           "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && python -m pytest -v; echo \$? > '${rc_file}'"
-        code="$(cat "$rc_file" 2>/dev/null || echo 1)"
+        cdb_rc=$?
+        set -e
+        code="$(cat "$rc_file" 2>/dev/null || echo "$cdb_rc")"
         for f in asan_win/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
-        echo "pytest exit code: ${code}"
+        echo "cdb exit: ${cdb_rc}; pytest exit code: ${code}"
         exit "${code}"
