@@ -170,18 +170,20 @@ py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *t
         const auto trait_type = trait->flags_on(BTraitFlags::FAUX) ? "ID_LIKE" : "ID";
         throw py::value_error(py::str("{}.{} ({}) - cannot change {} trait value from '{}' to '{}'").format(obj->class_name(), trait->name(), trait->data_type(), trait_type, trait_value,value));
     }
-
     const auto converted_value = adjust_set_value(obj, trait, value);
-    if (!trait->f_set.is_none())     // custom setter is defined
+    if (!trait->f_set.is_none()) {     // custom setter is defined
+        const auto guard = upward_deps_off();
         return trait->wrapper_f_set(obj, converted_value);
-
+    }
     return raw_set_trait_value(obj, trait, converted_value);
 }
 
 py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value, const py::args& args) {
     const auto converted_value = adjust_set_value(obj, trait, value);
-    if (!trait->f_set.is_none())     // custom setter is defined
+    if (!trait->f_set.is_none()) {    // custom setter is defined
+        const auto guard = upward_deps_off();
         return trait->wrapper_f_set(obj, converted_value, args);
+    }
 
     return raw_set_trait_value(obj, trait, converted_value, args);
 }
@@ -256,7 +258,6 @@ public:
     py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
         if (value.is_none() || value.is(PyLinkage::XNone()))
             return value;
-
         auto converted_value = obj->from_any(trait, value);
         check_value(obj, trait, converted_value);
         return converted_value;
@@ -321,9 +322,10 @@ public:
 class OnGraphConvertNoDebug : public OnGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
-        if (value.is_none() || value.is(PyLinkage::XNone()))
+        if (value.is_none() || value.is(PyLinkage::XNone()) || py::isinstance(value, trait->m_datatype))
             return value;
 
+        const auto guard = upward_deps_off();
         return obj->from_any(trait, value);
     }
 };
@@ -331,9 +333,10 @@ public:
 class OnGraphConvertDebug : public OnGraphNoConvertNoDebug {
 public:
     py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
-        if (value.is_none() || value.is(PyLinkage::XNone()))
+        if (value.is_none() || value.is(PyLinkage::XNone()) || py::isinstance(value, trait->m_datatype))
             return value;
 
+        const auto guard = upward_deps_off();
         auto converted_value = obj->from_any(trait, value);
         check_value(obj, trait, converted_value);
         return converted_value;

@@ -55,6 +55,7 @@ py::object BTraitable::endogenous_id() {
     py::list regulars;
     auto hasher = PyHasher();
     const auto proc = ThreadContext::current_traitable_proc();
+    const auto guard = proc->upward_deps_off();
     for (const auto [trait_name, trait_handle] : my_class()->trait_dir()) {
         if (const auto trait = trait_handle.cast<BTrait*>(); trait->flags_on(BTraitFlags::ID) && !trait->flags_on(BTraitFlags::FAUX)) {
             auto value = proc->get_trait_value(this, trait);
@@ -238,7 +239,8 @@ py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unkn
 
 py::object BTraitable::get_revision() {
     const auto rt = my_class()->find_trait(BNucleus::REVISION_TAG());
-    return rt ? get_value(rt) : py::int_(0);
+    const auto proc = ThreadContext::current_traitable_proc();
+    return rt ? rt->proc()->get_value_off_graph(proc, this, rt) : py::int_(0);
 }
 
 void BTraitable::set_revision(const py::object& rev) {

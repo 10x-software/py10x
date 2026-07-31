@@ -17,6 +17,7 @@
 class BasicNode;
 class BTraitable;
 class BTrait;
+class UpwardDepsOffScope;
 
 class ExecStack : public std::deque<BasicNode*> {
 public:
@@ -146,6 +147,9 @@ public:
     //----
     virtual py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const;
 
+    // No-op off-graph; active on-graph. Defined after UpwardDepsOffScope below.
+    [[nodiscard]] UpwardDepsOffScope upward_deps_off() const;
+
     class Use {
         bool    m_temp;
     public:
@@ -186,7 +190,7 @@ public:
 };
 
 // A throwaway graph node is pushed onto the current processor's exec stack as a fake parent node.
-// It effectively cuts the dependency chain upward
+// It effectively cuts the dependency chain upward. Always active (used from Python with-protocol).
 class PY10X_API UpwardDepsOff {
     ExecStack*       m_stack = nullptr;
     BasicGraphNode*  m_node  = nullptr;
@@ -214,3 +218,24 @@ public:
     UpwardDepsOff* py_enter()               { begin_using(); return this; }
     void     py_exit(const py::args&) const { const_cast<UpwardDepsOff*>(this)->end_using(); }
 };
+
+class UpwardDepsOffScope {
+    UpwardDepsOff m_off;
+    bool          m_active = false;
+public:
+    UpwardDepsOffScope() = default;
+    explicit UpwardDepsOffScope(bool active) {
+        if (active) {
+            m_off.begin_using();
+            m_active = true;
+        }
+    }
+    ~UpwardDepsOffScope() {
+        if (m_active)
+            m_off.end_using();
+    }
+};
+
+inline UpwardDepsOffScope BTraitableProcessor::upward_deps_off() const {
+    return UpwardDepsOffScope(flags_on(ON_GRAPH));
+}
