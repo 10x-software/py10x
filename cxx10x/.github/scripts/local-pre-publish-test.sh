@@ -33,9 +33,9 @@ source pre-publish.env
 echo "Installed: core=$(python3 -c 'import importlib.metadata as m; print(m.version("py10x-core"))') kernel=$(python3 -c 'import importlib.metadata as m; print(m.version("py10x-kernel"))') infra=$(python3 -c 'import importlib.metadata as m; print(m.version("py10x-infra"))')"
 
 pytest --collect-only -q $(python3 -c "
-import core_10x, dev_10x, infra_10x, ui_10x, xx_common
+import core_10x, dev_10x, infra_10x, ui_10x, xxcommon
 from pathlib import Path
 print(' '.join(str(Path(m.__file__).resolve().parent) for m in (
-    core_10x, infra_10x, ui_10x, xx_common, dev_10x)))
+    core_10x, infra_10x, ui_10x, xxcommon, dev_10x)))
 ") 2>&1 | tail -5
 echo "=== PASS for $TAG ==="

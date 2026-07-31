@@ -51,9 +51,9 @@ runs:
         "
 
         TEST_ROOTS=$(python3 -c "
-        import core_10x, dev_10x, infra_10x, ui_10x, xx_common
+        import core_10x, dev_10x, infra_10x, ui_10x, xxcommon
         from pathlib import Path
         print(' '.join(str(Path(m.__file__).resolve().parent) for m in (
-            core_10x, infra_10x, ui_10x, xx_common, dev_10x)))
+            core_10x, infra_10x, ui_10x, xxcommon, dev_10x)))
         ")
         PYTHONUNBUFFERED=1 pytest $TEST_ROOTS
