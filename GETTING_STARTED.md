@@ -369,6 +369,7 @@ with CONVERT_VALUES_OFF():
 - **`_get` methods**: Computation when accessing values  
 - **`_set` methods**: Validation and transformation when setting values
 - **Setters can propagate to other traits**: Unlike converters, setters can set multiple traits in response to one assignment
+- **Under `GRAPH_ON`**: reads inside custom setters and converters are **not** tracked as upward reactive dependencies of the caller (they only decide what gets stored). Getter reads **are** tracked. See [What is (and is not) tracked as an upward dependency](#what-is-and-is-not-tracked-as-an-upward-dependency).
 
 ## Object Identification System
 
@@ -482,6 +483,8 @@ class Cross(Traitable):
 ```
 
 Here `base_ccy` and `quote_ccy` are ID_LIKE traits; changing them changes the `cross` ID trait value via the getter, and thus the logical identity, even though only `cross` is marked as `T.ID`. They can be set during initialization without requiring `_replace=True` because they are often needed to compute the actual ID traits.
+
+When identity is built under `GRAPH_ON`, reads performed only to compute that identity (ID-trait getters inside `endogenous_id`) do not attach as upward deps of the constructing caller. See [What is (and is not) tracked as an upward dependency](#what-is-and-is-not-tracked-as-an-upward-dependency).
 
 ### Exogenous Traitables (Auto-generated UUID)
 
@@ -843,6 +846,58 @@ with GRAPH_OFF():
     calc.x = 6
     assert calc.sum == 9  # Getter called again (no caching)
 ```
+
+#### What is (and is not) tracked as an upward dependency
+
+Under `GRAPH_ON`, a getter that reads trait `B` while evaluating trait `A`
+registers `A` as depending on `B`: later changes to `B` invalidate `A`.
+
+Some reads are **plumbing used only to decide what to store or how to identify
+an object**. Those reads must not become live upward deps of the evaluating
+parent (doing so can re-enter a still-running getter when the plumbing node is
+later written — `set/invalidate during get`).
+
+The kernel automatically cuts upward deps for:
+
+| Situation | What is not tracked upward |
+|---|---|
+| Custom **setter** (`*_set`) | Traits read while the setter decides the stored value |
+| Custom **converter** (`*_from_str` / `*_from_any_xstr`) | Traits read while converting the incoming value |
+| **Identity construction** (`endogenous_id`) | ID-trait gets (including ID-trait getters) used only to compute identity at construct / `share` time |
+| **`get_revision()`** | Always off-graph; `_rev` is storage metadata |
+
+Rationale: the caller's dependency should terminate on the **value that was
+stored** (or the object identity that was established), not on internal reads
+used along the way. Setters and converters are never reactively re-run when
+those internal inputs change, so tracking them as upward edges has no valid
+invalidation semantics.
+
+**Still tracked** (do not suppress these):
+
+* Normal **getter** reads that feed a computed trait.
+* Reads of an ID trait *after* construction, when you access it as a live
+  trait value (e.g. `obj.cross` later under a parent getter). That is ordinary
+  on-graph evaluation of that node — not the identity-construction cut above.
+
+For rare cases outside the automatic cuts, use an explicit scope:
+
+```python
+from core_10x.exec_control import GRAPH_ON, UPWARD_DEPS_OFF
+
+with GRAPH_ON():
+    with UPWARD_DEPS_OFF():
+        # Gets here do not attach the outer evaluating getter as a dependent.
+        ...
+```
+
+`UPWARD_DEPS_OFF` stays on-graph (caching still applies) but inserts a
+throwaway parent so upward edges stop there. Prefer the automatic kernel cuts
+when they already cover the path; reach for the explicit scope only for
+application-level plumbing that is not a setter, converter, or identity build.
+
+See unit tests in `core_10x/unit_tests/test_graph_upward_deps.py` for the
+contracts above (GraphDeps + recompute checks, plus a Ccy/CcyCross-shaped
+nested-construct case).
 
 #### GraphDeps — Querying the Dependency Graph
 
@@ -3032,7 +3087,7 @@ See [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) for commands (`uv run 
 
 - **Documentation**: [README.md](https://github.com/10x-software/py10x/blob/main/README.md)
 - **Companion packages**:
-  - [`xx_common/README.md`](https://github.com/10x-software/py10x/blob/main/xx_common/README.md) — finance-oriented helpers built on `core_10x`: `Calendar`, `RDate` (tenors / business-day rolls), and `Curve` / `DateCurve`.
+  - [`xxcommon/README.md`](https://github.com/10x-software/py10x/blob/main/xxcommon/README.md) — finance-oriented helpers built on `core_10x`: `Calendar`, `RDate` (tenors / business-day rolls), and `Curve` / `DateCurve`.
 - **Contributing**: [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md)
 - **Release engineering**: [dev_10x/README.md](dev_10x/README.md) (`uv-sync`, `xx-promote`)
 - **Changelog**: [CHANGELOG.md](https://github.com/10x-software/py10x/blob/main/CHANGELOG.md)
