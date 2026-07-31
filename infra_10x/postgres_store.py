@@ -175,40 +175,74 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:
         """Return ``(is_running, with_auth)`` by probing PostgreSQL on host/port.
 
-        Callers should pass a port already resolved via :class:`~core_10x.resource.ResourceSpec`
-        (map defaults). Always probe ``dbname`` from :attr:`s_instance_kwargs_map` (default
-        ``postgres``): without it libpq uses the OS username as the database name, which often
-        does not exist even when the server is up and URI stores use ``/postgres``.
+        Same contract as :meth:`MongoStore.is_running_with_auth`:
+
+        * ``(False, False)`` — host/port unreachable (refused / timeout / DNS).
+        * ``(True, False)`` — passwordless connect succeeds (trust/peer/open).
+        * ``(True, True)`` — server answered but password auth is required (or
+          unauthenticated access was denied). Does **not** depend on any fixed
+          username/password working.
+
+        Probes ``dbname`` from :attr:`s_instance_kwargs_map` (default ``postgres``):
+        without it libpq uses the OS username as the database name, which often
+        does not exist even when the server is up.
         """
         import psycopg
 
         dbname = cls.s_instance_kwargs_map[cls.DBNAME_TAG][1]
         try:
-            # OS-user / trust (local Homebrew, CI setup-postgres); no password.
             with psycopg.connect(
                 host=host_name, port=port, dbname=dbname, connect_timeout=3, autocommit=True
             ) as con:
                 with con.cursor() as cur:
                     cur.execute('SELECT 1')
             return True, False
-        except psycopg.Error:
-            pass
-        try:
-            # Password auth (e.g. stock docker without trust / OS-user role).
-            with psycopg.connect(
-                host=host_name,
-                port=port,
-                dbname=dbname,
-                user='postgres',
-                password='postgres',
-                connect_timeout=3,
-                autocommit=True,
-            ) as con:
-                with con.cursor() as cur:
-                    cur.execute('SELECT 1')
-            return True, True
-        except psycopg.Error:
+        except psycopg.Error as e:
+            return cls._running_with_auth_from_connect_error(e)
+
+    @staticmethod
+    def _running_with_auth_from_connect_error(exc: BaseException) -> tuple:
+        """Classify a failed passwordless connect as down vs running-with-auth.
+
+        Mongo equivalent: ``hello`` succeeds then ``listDatabases`` fails with
+        OperationFailure → ``(True, True)``; connection failure → ``(False, False)``.
+        """
+        msg = str(exc).lower()
+        # Network / no postmaster — not running.
+        if any(
+            s in msg
+            for s in (
+                'connection refused',
+                'could not connect',
+                'timeout expired',
+                'timed out',
+                'network is unreachable',
+                'no route to host',
+                'name or service not known',
+                'nodename nor servname',  # macOS getaddrinfo
+            )
+        ):
             return False, False
+        # Server challenged or rejected credentials — running, needs auth.
+        if any(
+            s in msg
+            for s in (
+                'password authentication failed',
+                'no password supplied',
+                'authentication failed',
+                'password required',
+                'fe_sendauth',
+            )
+        ):
+            return True, True
+        # Authenticated far enough that the catalog answered (wrong DB name, etc.).
+        if 'database' in msg and 'does not exist' in msg:
+            return True, False
+        # Other postmaster FATAL (role missing, pg_hba reject, …): server is up;
+        # treat as auth-gated so store_from_uri uses vault rather than open access.
+        if 'fatal' in msg:
+            return True, True
+        return False, False
 
     def auth_user(self) -> str | None:
         rows = self._execute('SELECT current_user')
