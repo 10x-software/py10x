@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from pathlib import Path
 import importlib.metadata as md
-
-import pytest
-from py10x_kernel import BTraitableProcessor, XCache
+import os
+from pathlib import Path
 
 import core_10x
+import pytest
 from core_10x.global_cache import cache
-from core_10x.scenario import Scenario
-from core_10x.ts_store import TsStore
+from py10x_kernel import BTraitableProcessor
 
 PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent
+
 
 @cache
 def _owned_top_levels() -> set[str] | None:
@@ -33,13 +32,11 @@ def _owned_top_levels() -> set[str] | None:
 
 
 def pytest_configure(config):
-    import os
+
     if 'USER' not in os.environ:
         import getpass
-        try:
-            os.environ['USER'] = getpass.getuser()
-        except Exception:
-            pass
+
+        os.environ['USER'] = getpass.getuser()
 
     try:
         config.pluginmanager.import_plugin('alt_pytest_asyncio.enable')
@@ -75,20 +72,27 @@ def pytest_ignore_collect(collection_path, config):
         return False
 
     # Do not ignore tests located in a unit_tests parent directory.
-    return not(len(parts) > 1 and parts[-2] == 'unit_tests')
+    return not (len(parts) > 1 and parts[-2] == 'unit_tests')
+
 
 BTP = BTraitableProcessor.current()
+
+
 @pytest.fixture(autouse=True)
 def test_isolation():
     global BTP
     assert BTP is BTraitableProcessor.current()
-
     try:
         yield
     finally:
         assert BTP is BTraitableProcessor.current()
-        Scenario.s_instances.clear()
-        XCache.clear()
         BTP.end_using()
         BTP = BTraitableProcessor.current()
-        TsStore.s_instances.clear()
+
+        from core_10x.testlib.ts_store_isolation import (
+            reset_traitable_process_state,
+            restore_pinned_ts_stores,
+        )
+
+        reset_traitable_process_state()
+        restore_pinned_ts_stores()

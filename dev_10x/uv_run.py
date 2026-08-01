@@ -13,8 +13,7 @@ def main():
 
     Usage: uv-run <command> [args...]   e.g.  uv-run pytest -q
     """
-    subprocess.run(['uv', 'run', '--no-sync', *sys.argv[1:]],
-                   cwd=Path('.').resolve(), check=True)
+    subprocess.run(['uv', 'run', '--no-sync', *sys.argv[1:]], cwd=Path.cwd(), check=True)
 
 
 if __name__ == '__main__':
