@@ -1,9 +1,9 @@
-from xx_common.xxcommon_env_vars import XXCommonEnvVars
+from xxcommon.xxcommon_env_vars import XXCommonEnvVars
 
 if not XXCommonEnvVars.use_cxx_curve:
-    from xx_common.py_curve import Curve, DateCurve, IP_KIND, CurveParams
+    from xxcommon.py_curve import Curve, DateCurve, IP_KIND, CurveParams
 else:
-    from xx_common.cxx_curve import Curve, DateCurve, IP_KIND, CurveParams
+    from xxcommon.cxx_curve import Curve, DateCurve, IP_KIND, CurveParams
 
 from scipy import interpolate
 

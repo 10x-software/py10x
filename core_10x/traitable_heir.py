@@ -26,7 +26,7 @@ class TraitableHeir(Traitable):
         trait = grantor.__class__.trait(trait_name)
         return grantor.get_trait_value(trait) if trait else XNone
 
-    def serialize_object(self, save_references: bool | BFlags | int = BSaveRefs.NONE) -> dict:
+    def serialize_object(self, save_references: int = BSaveRefs.NONE) -> dict:
         serialized_data = super().serialize_object(save_references=save_references)
         for name, trait in self.__class__.s_grantor_traits.items():
             if not self.is_set(trait):

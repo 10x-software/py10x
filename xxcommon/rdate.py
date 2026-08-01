@@ -11,7 +11,7 @@ from dateutil.relativedelta import relativedelta as delta
 
 from core_10x.named_constant import NamedConstant, NamedConstantTable
 from core_10x.nucleus import Nucleus
-from xx_common.xxcalendar import Calendar
+from xxcommon.xxcalendar import Calendar
 
 #=====
 #   Biz Day Roll Rules

@@ -32,7 +32,7 @@ DOCUMENTATION_FILES = [
     'GETTING_STARTED.md',
     'INSTALLATION.md',
     'CONTRIBUTING.md',
-    'xx_common/README.md',
+    'xxcommon/README.md',
 ]
 MISSING_DOCUMENTATION_FILES = [doc_file for doc_file in DOCUMENTATION_FILES if not (project_root / doc_file).exists()]
 

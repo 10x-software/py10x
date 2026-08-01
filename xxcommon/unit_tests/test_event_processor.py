@@ -4,8 +4,8 @@ import pytest
 
 from core_10x.environment_variables import EnvVars
 from core_10x.traitable import T, Traitable
-from xx_common.event import Event
-from xx_common.event_processor import EventProcessor
+from xxcommon.event import Event
+from xxcommon.event_processor import EventProcessor
 
 
 def _clear_main_store_caches() -> None:

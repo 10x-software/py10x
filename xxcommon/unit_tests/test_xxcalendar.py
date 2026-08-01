@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 from core_10x.exec_control import CACHE_ONLY
-from xx_common.xxcalendar import Calendar, CalendarAdjustment, CalendarNameParser
+from xxcommon.xxcalendar import Calendar, CalendarAdjustment, CalendarNameParser
 
 
 class TestCalendarNameParser:

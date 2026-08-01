@@ -1080,7 +1080,7 @@ class StorableHelperWithHistory(StorableHelper):
                 serialized_traitable={k: v for k, v in (serialized_data | save_result).items() if k not in (_REV, TS_FIELDS_TAG)},
                 _traitable_rev=rev,
                 _collection_name=(coll.collection_name() + '#history') if self.traitable_class.s_custom_collection else XNone,
-            ).save().throw()
+            ).save(save_references=BSaveRefs.NONE).throw()
         return save_result
 
     def as_of(self, traitable_id: ID, as_of_time: datetime) -> Self | None:
@@ -1195,7 +1195,7 @@ class TraitableHistory(EventBase):
     def _traitable_id_get(self) -> str:
         return self.serialized_traitable['_id']
 
-    def serialize_object(self, save_references: bool | BFlags | int = BSaveRefs.NONE):
+    def serialize_object(self, save_references: int = BSaveRefs.NONE):
         return {**self.serialized_traitable, **super().serialize_object(save_references)}
 
     def traitable_get(self):

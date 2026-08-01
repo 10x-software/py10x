@@ -1,6 +1,6 @@
 if __name__ == '__main__':
 
-       from xx_common.rdate import RDate
+       from xxcommon.rdate import RDate
 
 
        r = RDate('3M')
