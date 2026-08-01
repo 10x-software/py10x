@@ -1,11 +1,10 @@
 import pytest
-
 from core_10x.traitable_id import ID
-
 
 # ----------------------------------------------------------------------------
 #   Construction & basic attributes
 # ----------------------------------------------------------------------------
+
 
 def test_id_default_construction():
     i = ID()
@@ -29,6 +28,7 @@ def test_id_with_value_and_collection():
 #   __bool__
 # ----------------------------------------------------------------------------
 
+
 def test_id_bool_truthy_with_value():
     assert ID('abc')
     assert bool(ID('abc', 'col'))
@@ -43,6 +43,7 @@ def test_id_bool_falsy_without_value():
 # ----------------------------------------------------------------------------
 #   __repr__
 # ----------------------------------------------------------------------------
+
 
 def test_id_repr_without_collection():
     assert repr(ID('abc')) == 'abc'
@@ -59,6 +60,7 @@ def test_id_repr_none_value():
 # ----------------------------------------------------------------------------
 #   __eq__ and __hash__
 # ----------------------------------------------------------------------------
+
 
 def test_id_equality_same_value_and_collection():
     assert ID('x', 'c') == ID('x', 'c')
@@ -94,6 +96,7 @@ def test_id_usable_as_dict_key():
 # ----------------------------------------------------------------------------
 #   __lt__ and ordering (total_ordering)
 # ----------------------------------------------------------------------------
+
 
 def test_id_lt_compares_collection_first():
     # ('a', 'z') < ('b', 'a') because 'a' < 'b'

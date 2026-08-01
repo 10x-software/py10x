@@ -11,10 +11,8 @@ Two flavors of test live here:
 from __future__ import annotations
 
 import pytest
-
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.exec_control import CACHE_ONLY
-from infra_10x.duckdb_store import DuckDbStore
 from core_10x.testlib.vault_env import vault_env
 from core_10x.traitable import (
     NamedResource,
@@ -22,7 +20,7 @@ from core_10x.traitable import (
     Traitable,
     VaultResourceAccessor,
 )
-
+from infra_10x.duckdb_store import DuckDbStore
 
 # Credentials/URIs for the resource-instance scenario.  Distinct from the
 # ones in ``test_user_onboarding`` so the two test files cannot interfere
@@ -30,10 +28,10 @@ from core_10x.traitable import (
 ALICE, ALICE_VAULT_PWD, ALICE_MASTER = 'alice_res', 'AliceRes7!', 'AliceMaster9!'
 
 # A vault-host URI (matches the ``VAULT_URI`` host in conftest).
-VAULT_HOST_URI    = 'duckdb://vaulthost.example.com:27017'
-ANOTHER_DB_URI    = 'duckdb://vaulthost.example.com/another'   # has matching RA in vault-hit test
-NO_RA_URI         = 'duckdb://otherhost.example.com/lonely'    # has no RA in vault-miss test
-RESOURCE_PWD      = 'ResourcePwd9!'
+VAULT_HOST_URI = 'duckdb://vaulthost.example.com:27017'
+ANOTHER_DB_URI = 'duckdb://vaulthost.example.com/another'  # has matching RA in vault-hit test
+NO_RA_URI = 'duckdb://otherhost.example.com/lonely'  # has no RA in vault-miss test
+RESOURCE_PWD = 'ResourcePwd9!'
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +97,7 @@ class TestNamedResourceInstance:
     whether credentials were forwarded.
     """
 
-    def _spy_new_instance(self, vault_env, monkeypatch): # noqa: F811  (pytest fixture)
+    def _spy_new_instance(self, vault_env, monkeypatch):  # noqa: F811  (pytest fixture)
         """Replace ``DuckDbStore.new_instance`` with a spy that records each
         call's kwargs and still returns ``vault_env.vault_db`` (matching the
         fixture-level mock)."""
@@ -118,7 +116,8 @@ class TestNamedResourceInstance:
         unlocked and her ``VaultUser`` row exists."""
         env.switch_os_user(ALICE)
         env.run_user_init(
-            vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD,
+            vault_login=ALICE,
+            vault_pwd=ALICE_VAULT_PWD,
             master_pwd=ALICE_MASTER,
         )
 
@@ -130,7 +129,7 @@ class TestNamedResourceInstance:
         assert matches, f'no DuckDbStore.new_instance call for host {hostname}; got {calls!r}'
         return matches[-1]
 
-    def test_vault_hit_uses_credentials_from_vault(self, vault_env, monkeypatch): # noqa: F811  (pytest fixture)
+    def test_vault_hit_uses_credentials_from_vault(self, vault_env, monkeypatch):  # noqa: F811  (pytest fixture)
         """When an RA exists for ``(s_resource_dt, uri)``, ``resource_instance``
         forwards the RA's credentials to ``instance_from_uri``."""
         env = vault_env
@@ -138,11 +137,11 @@ class TestNamedResourceInstance:
 
         with Traitable.vault_store():
             VaultResourceAccessor.save_ra(
-                resource_dt   = CONCRETE_RESOURCE.TS_STORE,
-                resource_uri  = ANOTHER_DB_URI,
-                password      = RESOURCE_PWD,
-                login         = ALICE,
-                username      = ALICE,
+                resource_dt=CONCRETE_RESOURCE.TS_STORE,
+                resource_uri=ANOTHER_DB_URI,
+                password=RESOURCE_PWD,
+                login=ALICE,
+                username=ALICE,
             ).throw()
 
         calls = self._spy_new_instance(env, monkeypatch)
@@ -162,7 +161,7 @@ class TestNamedResourceInstance:
         assert kwargs.get('username') == ALICE
         assert kwargs.get('password') == RESOURCE_PWD
 
-    def test_vault_miss_falls_back_to_instance_from_uri(self, vault_env, monkeypatch): # noqa: F811  (pytest fixture)
+    def test_vault_miss_falls_back_to_instance_from_uri(self, vault_env, monkeypatch):  # noqa: F811  (pytest fixture)
         """When no RA exists for ``(s_resource_dt, uri)``, ``retrieve_ra`` raises
         and ``resource_instance`` falls back to a credential-less
         ``instance_from_uri`` call."""

@@ -13,16 +13,18 @@ Use this ONLY for *provisioning* preconditions. Genuinely-conditional skips (emp
 backend that owns a type, platform-specific cases) must stay plain `pytest.skip` — they should skip
 even when fully provisioned.
 """
+
 from __future__ import annotations
 
 import pytest
 
 from core_10x.environment_variables import EnvVars
 
+
 def need(ok: bool, reason: str) -> None:
     """Require a provisioning precondition: skip when unmet, or FAIL under XX_TEST_STRICT."""
     if ok:
         return
     if EnvVars.test_strict:
-        pytest.fail(f"XX_TEST_STRICT set but precondition unmet: {reason}")
+        pytest.fail(f'XX_TEST_STRICT set but precondition unmet: {reason}')
     pytest.skip(reason)

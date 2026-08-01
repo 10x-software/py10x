@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
-import uuid6
 
 import pytest
-
+import uuid6
 from core_10x.exec_control import GRAPH_OFF
 from core_10x.named_constant import EnumBits, NamedConstant
-from core_10x.testlib.strict import need
 from core_10x.nucleus import Nucleus
+from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
 from core_10x.trait_filter import (
     AND,
@@ -335,11 +334,12 @@ class Sample(Traitable, custom_collection=True):
     nc: FilterTestNC = T()
     nc2: FilterTestNC = T()
     fl: FilterTestFlags = T()
-    ref: RefTarget = T()   # nullable Traitable reference; XNone serializes as JSON null
+    ref: RefTarget = T()  # nullable Traitable reference; XNone serializes as JSON null
 
 
 class TestCompoundFilters:
     s_mongo_running = True
+
     @pytest.fixture(scope='class', autouse=True)
     def clear_store_cache(self):
         assert not TsStore.s_instances
@@ -373,37 +373,37 @@ class TestCompoundFilters:
 
         coll_name = 'tf_' + uuid6.uuid7().hex[:12]
 
-        data = dict(
-            i=10,
-            f=1.5,
-            b=True,
-            s='hello',
-            dt=datetime(2024, 1, 1, tzinfo=timezone.utc),
-            d=date(2024, 6, 1),
-            by=b'hello\x00',
-            cl=Person,
-            lst=[10, 20],
-            dct={'k': 99},
-            nc=FilterTestNC.FOO,
-            nc2=FilterTestSubNC.BAZ,
-            fl=FilterTestFlags.READ | FilterTestFlags.WRITE,
-        )
+        data = {
+            'i': 10,
+            'f': 1.5,
+            'b': True,
+            's': 'hello',
+            'dt': datetime(2024, 1, 1, tzinfo=timezone.utc),
+            'd': date(2024, 6, 1),
+            'by': b'hello\x00',
+            'cl': Person,
+            'lst': [10, 20],
+            'dct': {'k': 99},
+            'nc': FilterTestNC.FOO,
+            'nc2': FilterTestSubNC.BAZ,
+            'fl': FilterTestFlags.READ | FilterTestFlags.WRITE,
+        }
 
-        overrides = dict(
-            i=20,
-            f=2,
-            b=False,
-            s='world',
-            dt=datetime(2025, 1, 1, tzinfo=timezone.utc),
-            d=date(2025, 6, 1),
-            by=b'other',
-            cl=int,
-            lst=[99],
-            dct={},
-            nc=FilterTestNC.BAR,
-            nc2=FilterTestSubNC.BAR,
-            fl=FilterTestFlags.EXEC,
-        )
+        overrides = {
+            'i': 20,
+            'f': 2,
+            'b': False,
+            's': 'world',
+            'dt': datetime(2025, 1, 1, tzinfo=timezone.utc),
+            'd': date(2025, 6, 1),
+            'by': b'other',
+            'cl': int,
+            'lst': [99],
+            'dct': {},
+            'nc': FilterTestNC.BAR,
+            'nc2': FilterTestSubNC.BAR,
+            'fl': FilterTestFlags.EXEC,
+        }
 
         for i in range(3):
             kw = dict(

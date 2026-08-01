@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-
 from core_10x.testlib.fixtures import main_test_store, temp_duck_db_uri
 from core_10x.testlib.strict import need
 from infra_10x.mongodb_store import MongoStore
@@ -134,6 +133,7 @@ def patch_person():
     yield
     core_10x.code_samples.person.Person.s_history_class = old_history_class
 
+
 @pytest.fixture(autouse=True)
 def patch_mongo_sst():
     kw_map = MongoStore.s_instance_kwargs_map
@@ -145,20 +145,20 @@ def patch_mongo_sst():
 
 @pytest.mark.parametrize(
     'test_name,code_block,future_annotations',
-    args:=[
+    args := [
         (name, code, future_annotations)
         for name, code, src in extract_code_blocks_from_docs()
         for future_annotations in (True, False)
         if not is_ui_code_block(code)  # Skip UI code blocks - tested separately
     ],
-    ids=[f'{a[0]}-{a[2]}' for a in args]
+    ids=[f'{a[0]}-{a[2]}' for a in args],
 )
 def test_documentation_code_block_execution(
-        test_name: str,
-        code_block: str,
-        future_annotations: bool,
-        temp_duck_db_uri,  # noqa: F811
-        main_test_store,  # noqa: F811
+    test_name: str,
+    code_block: str,
+    future_annotations: bool,
+    temp_duck_db_uri,  # noqa: F811
+    main_test_store,  # noqa: F811
 ):
     """Test that documentation code blocks can execute successfully."""
     # Skip if code block is empty
@@ -177,20 +177,21 @@ def test_documentation_code_block_execution(
                 '__file__': f'<{doc_file_name}>',
                 '__builtins__': __builtins__,
                 'analytics_db_uri': temp_duck_db_uri,
-                'main_store':       main_test_store,
+                'main_store': main_test_store,
             }
         )
         sys.modules[fake_module_name] = fake_module
 
     if future_annotations:
-        exec('from __future__ import annotations', fake_module.__dict__)
+        exec('from __future__ import annotations', fake_module.__dict__)  # noqa: S102
     try:
         try:
-            exec(code_block, fake_module.__dict__)
+            exec(code_block, fake_module.__dict__)  # noqa: S102
         except OSError as e:
             need(False, f'MongoDB reachable for doc block {test_name} ({type(e).__name__})')
         except Exception as e:
             pytest.fail(format_code_block_failure(code_block, e, source=test_name), pytrace=False)
+            raise  # for lint
     finally:
         # Clean up the fake module; store cleanup is handled by main_test_store fixture
         if fake_module_name in sys.modules:

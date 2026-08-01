@@ -6,10 +6,10 @@ import pytest
 from core_10x.environment_variables import EnvVars
 from core_10x.logger import LOG
 from core_10x.rel_db import RelDb
-from core_10x.testlib.stub_logger import stub_log_module_logger
 from core_10x.testlib.strict import need
+from core_10x.testlib.stub_logger import stub_log_module_logger
+from core_10x.testlib.ts_store_isolation import pin_current_ts_stores, unpin_ts_stores
 from core_10x.traitable import Traitable
-from core_10x.ts_store import TsStore  # used in teardown
 
 
 @pytest.fixture(params=[True, False], ids=['with_transactions', 'without_transactions'])
@@ -18,11 +18,10 @@ def with_transactions(request, ts_instance, monkeypatch):
     if use_transactions:
         # Only Mongo-standalone lacks transaction support (DuckDB/Ibis report True); under
         # XX_TEST_STRICT a non-replica-set Mongo in CI is a provisioning failure, not a skip.
-        need(ts_instance.supports_transactions(),
-             'store supports transactions (replica-set Mongo, not standalone)')
+        need(ts_instance.supports_transactions(), 'store supports transactions (replica-set Mongo, not standalone)')
 
     monkeypatch.setenv('XX_USE_TS_STORE_TRANSACTIONS', '1' if use_transactions else '0')
-    object.__getattribute__(EnvVars, 'use_ts_store_transactions').fget.clear()
+    EnvVars.__dict__['use_ts_store_transactions'].fget.clear()
     yield use_transactions
 
 
@@ -43,43 +42,34 @@ def stub_log_logger(request):
 
 @pytest.fixture
 def temp_duck_db_uri(tmp_path):
-    path = (tmp_path / "test.db").as_posix()
-    uri = f"duckdb://{path[0:2]}//{path[3:]}" if sys.platform == 'win32' else f"duckdb:///{path}"
+    path = (tmp_path / 'test.db').as_posix()
+    uri = f'duckdb://{path[0:2]}//{path[3:]}' if sys.platform == 'win32' else f'duckdb:///{path}'
     spec = RelDb.spec_from_uri(uri)
     assert uri == spec.uri()
 
-    RelDb.instance_from_uri(uri).insert('prices', pl.DataFrame({'symbol': ['AAPL', 'MSFT'], 'price': [5,6]}))
+    RelDb.instance_from_uri(uri).insert('prices', pl.DataFrame({'symbol': ['AAPL', 'MSFT'], 'price': [5, 6]}))
 
     return uri
-
-
-def _clear_main_store_caches():
-    """Clear cached main-store-related properties so the next access re-evaluates."""
-    object.__getattribute__(EnvVars, 'main_ts_store_uri').fget.clear()
-    object.__getattribute__(EnvVars, 'main_vault_uri').fget.clear()
-    object.__getattribute__(EnvVars, 'vault_uri').fget.clear()
-    # main_store / vault_store are @staticmethod @cache — unwrap via __func__
-    object.__getattribute__(Traitable, 'main_store').__func__.clear()
-    object.__getattribute__(Traitable, 'vault_store').__func__.clear()
 
 
 @pytest.fixture(scope='module')
 def main_test_store():
     """Activate an in-memory DuckDbStore as the main Traitable store and vault.
 
-    Sets ``XX_MAIN_TS_STORE_URI`` and ``XX_VAULT_URI`` to in-process
+    Sets ``Env.main_ts_store_uri`` and ``Env.vault_uri`` to in-process
     ``duckdb://`` URIs so vault lookups resolve against an empty vault store
     rather than raising ``OSError`` — resources open without credentials,
     matching a dev environment with no secrets configured.
-    Stores and caches are torn down automatically at module end.
+
+    The store is **pinned** for the module lifetime so py10x_core ``test_isolation``
+    re-publishes it after each test clear (see ``core_10x.testlib.ts_store_isolation``).
     """
-    _clear_main_store_caches()
-
-    with pytest.MonkeyPatch.context() as mp:
-        mp.setenv('XX_MAIN_TS_STORE_URI', 'duckdb://localhost/main')
-        mp.setenv('XX_MAIN_VAULT_URI',    'duckdb://localhost/vault')
-        mp.setenv('XX_VAULT_URI',         'duckdb://localhost/vault')
+    EnvVars.main_ts_store_uri = 'duckdb://localhost/main'
+    EnvVars.main_vault_uri = 'duckdb://localhost/vault'
+    Traitable.main_store.clear()
+    Traitable.vault_store.clear()
+    pin_current_ts_stores()
+    try:
         yield Traitable.main_store()
-
-    _clear_main_store_caches()
-    TsStore.s_instances.clear()
+    finally:
+        unpin_ts_stores()

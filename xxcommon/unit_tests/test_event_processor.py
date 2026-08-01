@@ -2,15 +2,9 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from core_10x.environment_variables import EnvVars
-from core_10x.traitable import T, Traitable
+from core_10x.traitable import T
 from xxcommon.event import Event
 from xxcommon.event_processor import EventProcessor
-
-
-def _clear_main_store_caches() -> None:
-    object.__getattribute__(EnvVars, 'main_ts_store_uri').fget.clear()
-    object.__getattribute__(Traitable, 'main_store').__func__.clear()
 
 
 class Ping(Event):
@@ -42,11 +36,7 @@ def test_event_immutable():
     assert Pong.s_history_class is None
 
 @pytest.fixture
-def event_store(monkeypatch, mocker):
-    _clear_main_store_caches()
-    monkeypatch.setenv('XX_MAIN_TS_STORE_URI', 'duckdb://localhost/event_processor')
-    monkeypatch.setenv('XX_VAULT_URI', 'duckdb://localhost/vault')
-
+def event_store(mocker):
     # Monotonic store clock so event _at values sit strictly below each watermark query.
     # TS_TIME is stamped in SQL via _server_time_col_sql_expr (not Python server_time alone).
     clock = [datetime(2026, 6, 1, 12, 0, 0)]
@@ -58,11 +48,9 @@ def event_store(monkeypatch, mocker):
     from infra_10x.duckdb_store import DuckDbStore
     mocker.patch.object(DuckDbStore, '_server_time_col_sql_expr', server_time_sql)
 
-    store = Traitable.main_store()
-    yield store
-    for name in store.collection_names():
-        store.delete_collection(name)
-    _clear_main_store_caches()
+    store = DuckDbStore()
+    with store:
+        yield
 
 
 def test_process_pending_events_loads_and_dispatches(event_store):

@@ -1,8 +1,7 @@
 """Store-agnostic TsStore transaction tests. Use ts_instance fixture from conftest (core_10x → DuckDbStore, infra_10x → MongoStore)."""
 
-from uuid6 import uuid7
-
 import pytest
+from uuid6 import uuid7
 
 from core_10x.rc import RC
 from core_10x.testlib.fixtures import with_transactions
@@ -66,10 +65,9 @@ class TestTsStoreTransaction:
 
     def test_exception_triggers_abort(self, store, coll):
         coll.save_new({'_id': 'a', '_rev': 0}, overwrite=False)
-        with pytest.raises(RuntimeError, match='rollback'):
-            with store.transaction():
-                coll.save_new({'_id': 'd', '_rev': 0}, overwrite=False)
-                raise RuntimeError('rollback')
+        with pytest.raises(RuntimeError, match='rollback'), store.transaction():
+            coll.save_new({'_id': 'd', '_rev': 0}, overwrite=False)
+            raise RuntimeError('rollback')
         assert coll.count() == 1
         assert not coll.id_exists('d')
 
@@ -168,6 +166,5 @@ class TestSaveIfChanged:
             def is_storable(cls):
                 return False
 
-        with pytest.raises(RuntimeError, match='SaveIfChanged must be storable'):
-            with SaveIfChanged([NotStorable]):
-                pass
+        with pytest.raises(RuntimeError, match='SaveIfChanged must be storable'), SaveIfChanged([NotStorable]):
+            pass

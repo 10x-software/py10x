@@ -1,6 +1,5 @@
 import pytest
-
-from core_10x.environment_variables import EnvVars, _EnvVars
+from core_10x.environment_variables import EnvVars
 from core_10x.xdate_time import XDateTime, date
 
 
@@ -34,10 +33,11 @@ def test_env_vars_converts_bool_true(monkeypatch, truth, values):
 # EnvVars.var accessor and Var.check()
 # ---------------------------------------------------------------------------
 
+
 class TestEnvVarsVarAccessor:
     def test_var_returns_var_instance(self):
         v = EnvVars.var.date_format
-        assert isinstance(v, _EnvVars.Var)
+        assert isinstance(v, EnvVars.Var)
 
     def test_var_value_matches_property(self):
         v = EnvVars.var.date_format

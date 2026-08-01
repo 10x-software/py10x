@@ -4,30 +4,28 @@ import collections
 import contextlib
 import re
 import sys
-import uuid6
 from collections import Counter
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING, Any
-
-from py10x_kernel import BSaveRefs
-from typing_extensions import Self
 
 import numpy as np
 import pytest
+import uuid6
 from core_10x import trait_definition
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE, DEBUG_OFF, CONVERT_VALUES_ON, CONVERT_VALUES_OFF, DEBUG_ON
+from core_10x.exec_control import BTP, CACHE_ONLY, CONVERT_VALUES_OFF, CONVERT_VALUES_ON, DEBUG_OFF, DEBUG_ON, GRAPH_ON, INTERACTIVE
+from core_10x.named_constant import NamedCallable
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
-from core_10x.named_constant import NamedCallable
 from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Traitable, TraitableFwdRef, TraitAccessor, Index
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Index, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
-
 from core_10x.xnone import XNone
 from infra_10x.duckdb_store import DuckDbStore
+from py10x_kernel import BSaveRefs
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -146,7 +144,7 @@ def test_set_values():
 
 def test_dynamic_traits():
     class X(Traitable):
-        s_own_trait_definitions = dict(x=RT(data_type=int, default=10))
+        s_own_trait_definitions = {'x': RT(data_type=int, default=10)}
 
     x = X()
     assert x.T.x.data_type is int
@@ -825,7 +823,7 @@ def test_serialize(monkeypatch):
                             serialized[id_value] = data
                             out = {'_rev': 1}
                             for name in ts_fields:
-                                out[name] = 'test_user' if name == '_who' else datetime.utcnow()
+                                out[name] = 'test_user' if name == '_who' else datetime.now(timezone.utc).replace(tzinfo=None)
                             return out
 
                         save_new = save
@@ -1302,16 +1300,16 @@ class TestExistingInstance:
 
         if 1:
             id_traits = [
-                dict(last_name='Davidovich', first_name='Sasha'),
-                dict(last_name='Pevzner', first_name='Ilya'),
-                dict(last_name='Lesin', first_name='Alex'),
-                dict(last_name='Smith', first_name='John'),
+                {'last_name': 'Davidovich', 'first_name': 'Sasha'},
+                {'last_name': 'Pevzner', 'first_name': 'Ilya'},
+                {'last_name': 'Lesin', 'first_name': 'Alex'},
+                {'last_name': 'Smith', 'first_name': 'John'},
             ]
             kwargs = [
-                dict(weight_lbs=170, _replace=True),
-                dict(),
-                dict(weight_lbs=190, _replace=True),
-                dict(),
+                {'weight_lbs': 170, '_replace': True},
+                {},
+                {'weight_lbs': 190, '_replace': True},
+                {},
             ]
             classes = [
                 self.TestablePerson,
@@ -1680,7 +1678,7 @@ class TestForwardRefTraitables:
         # forward-ref eval that consults `sys.modules[cls.__module__].__dict__`.
         sys.modules[module_name] = mod
         try:
-            exec(compile(source, f'<{module_name}>', 'exec'), mod.__dict__)
+            exec(compile(source, f'<{module_name}>', 'exec'), mod.__dict__)  # noqa: S102
         except BaseException:
             sys.modules.pop(module_name, None)
             raise

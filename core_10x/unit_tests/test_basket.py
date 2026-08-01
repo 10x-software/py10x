@@ -5,28 +5,25 @@ from __future__ import annotations
 import itertools
 
 import pytest
-
-from core_10x.trait_method_error import TraitMethodError
-
 from core_10x.basket import (
     BUCKET_SHAPE,
     Basket,
     Basketable,
     BucketDict,
-    BucketList,
-    BucketSet,
     Bucketizer,
     BucketizerByBreakPoints,
     BucketizerByClass,
     BucketizerByFeature,
     BucketizerByRange,
+    BucketList,
+    BucketSet,
     Interval,
 )
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.named_constant import NamedCallable
+from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import RT, T, Traitable
 from core_10x.xinf import XInf
-
 
 # ---------------------------------------------------------------------------
 # Domain model shared across all tests
@@ -579,9 +576,8 @@ class TestBucketizerByBreakPoints:
 
     def test_include_last_with_xinf_raises(self):
         """include_last=True is rejected at construction time when the last breakpoint is XInf."""
-        with CACHE_ONLY():
-            with pytest.raises(TraitMethodError, match='meaningless'):
-                Bucketizer.by_breakpoints(Animal, Animal.T.weight, 0.0, 50.0, XInf, include_last=True)
+        with CACHE_ONLY(), pytest.raises(TraitMethodError, match='meaningless'):
+            Bucketizer.by_breakpoints(Animal, Animal.T.weight, 0.0, 50.0, XInf, include_last=True)
 
     def test_unordered_breakpoints_raise(self):
         with CACHE_ONLY():
@@ -1038,7 +1034,7 @@ class TestBucketizersEmbeddedSerialization:
     def _inner(self, basket: Basket) -> dict:
         """Return the traits dict from serialize_object(), stripping any _obj wrapper."""
         s = basket.serialize_object()
-        return s['_obj'] if '_obj' in s else s
+        return s.get('_obj', s)
 
     def test_bucketizers_serialized_as_inline_objects(self):
         """A single bucketizer is serialized as [type_path, data_dict]."""

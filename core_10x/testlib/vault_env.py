@@ -29,6 +29,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
+from infra_10x.duckdb_store import DuckDbStore
 from py10x_kernel import BTraitableProcessor, XCache
 
 import core_10x.sec_keys as sec_keys_mod
@@ -37,35 +38,32 @@ import core_10x.vault_utils as vault_utils_mod
 from core_10x.environment_variables import EnvVars
 from core_10x.resource import Resource
 from core_10x.sec_keys import SecKeys
-from infra_10x.duckdb_store import DuckDbStore
 from core_10x.traitable import Traitable, VaultUser
 from core_10x.ts_store import TsStore
 from core_10x.vault_utils import VaultUtils
 
-
 VAULT_URI = 'duckdb://vaulthost.example.com:27017/_vault_'
+
 
 def _clear_cached_vault_state():
     SecKeys.retrieve_master_password.__func__.clear()
     SecKeys.retrieve_vault_login_password.__func__.clear()
     SecKeys.check_vault_uri.__func__.clear()
-    Traitable.__dict__['vault_store'].__func__.clear()
+    Traitable.vault_store.clear()
+
 
 @pytest.fixture
 def vault_env(monkeypatch):
-    keyring     = {}
-    current_os  = ['']
-    text_q      = []
-    secret_q    = []
-    vault_db    = DuckDbStore()
+    keyring = {}
+    current_os = ['']
+    text_q = []
+    secret_q = []
+    vault_db = DuckDbStore()
 
     # 1. Keyring (in-memory).
-    monkeypatch.setattr(sec_keys_mod.keyring, 'get_password',
-                        lambda s, u:    keyring.get((s, u)))
-    monkeypatch.setattr(sec_keys_mod.keyring, 'set_password',
-                        lambda s, u, p: keyring.__setitem__((s, u), p))
-    monkeypatch.setattr(sec_keys_mod.keyring, 'delete_password',
-                        lambda s, u:    keyring.pop((s, u), None))
+    monkeypatch.setattr(sec_keys_mod.keyring, 'get_password', lambda s, u: keyring.get((s, u)))
+    monkeypatch.setattr(sec_keys_mod.keyring, 'set_password', lambda s, u, p: keyring.__setitem__((s, u), p))
+    monkeypatch.setattr(sec_keys_mod.keyring, 'delete_password', lambda s, u: keyring.pop((s, u), None))
 
     # 2. OS user — used by SecKeys (master password / vault keyring lookups)
     #    and as the default for ``VaultUser.user_id``.
@@ -74,25 +72,27 @@ def vault_env(monkeypatch):
     monkeypatch.setattr(traitable_mod, 'OsUser', fake_os)
     # ``VaultUser.myname`` is @cache'd at the class level; replace with a
     # fresh classmethod that always re-reads ``current_os``.
-    monkeypatch.setattr(VaultUser, 'myname',
-                        classmethod(lambda cls: current_os[0]))
+    monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: current_os[0]))
 
     # 3. Prompts. ``vault_utils`` imports the ``getpass`` *module*, so patch
     #    its bound attribute as well as the global one.
-    monkeypatch.setattr('builtins.input',  lambda *_a, **_k: text_q.pop(0))
+    monkeypatch.setattr('builtins.input', lambda *_a, **_k: text_q.pop(0))
     monkeypatch.setattr('getpass.getpass', lambda *_a, **_k: secret_q.pop(0))
-    monkeypatch.setattr(vault_utils_mod.getpass, 'getpass',
-                                           lambda *_a, **_k: secret_q.pop(0))
+    monkeypatch.setattr(vault_utils_mod.getpass, 'getpass', lambda *_a, **_k: secret_q.pop(0))
 
     # 4. Auth-required + every ``DuckDbStore.instance(...)`` returns the same
     #    store; admin and alice's connections share the underlying
     #    "deployment" so they can read/write each other's state.
     monkeypatch.setattr(DuckDbStore, 's_with_auth', True)
-    monkeypatch.setattr(DuckDbStore, 's_instance_kwargs_map',  DuckDbStore.s_instance_kwargs_map|{
-        Resource.PORT_TAG: (Resource.PORT_TAG, 27017),
-    })
-    monkeypatch.setattr(DuckDbStore, 'new_instance',
-                        classmethod(lambda cls, *a, **kw: vault_db))
+    monkeypatch.setattr(
+        DuckDbStore,
+        's_instance_kwargs_map',
+        DuckDbStore.s_instance_kwargs_map
+        | {
+            Resource.PORT_TAG: (Resource.PORT_TAG, 27017),
+        },
+    )
+    monkeypatch.setattr(DuckDbStore, 'new_instance', classmethod(lambda cls, *a, **kw: vault_db))
 
     # 5. Vault URI (direct env-var assignment, the same idiom as
     #    ``ui_10x/apps/collection_editor_app.py``).
@@ -103,11 +103,11 @@ def vault_env(monkeypatch):
     _clear_cached_vault_state()
 
     env = SimpleNamespace(
-        keyring     = keyring,
-        text_q      = text_q,
-        secret_q    = secret_q,
-        vault_db    = vault_db,
-        as_os_user  = current_os,  # mutate ``[0]`` to switch user
+        keyring=keyring,
+        text_q=text_q,
+        secret_q=secret_q,
+        vault_db=vault_db,
+        as_os_user=current_os,  # mutate ``[0]`` to switch user
     )
 
     def switch_os_user(name: str) -> None:
@@ -134,7 +134,7 @@ def vault_env(monkeypatch):
         _clear_cached_vault_state()
 
     env.switch_os_user = switch_os_user
-    env.run_user_init  = run_user_init
+    env.run_user_init = run_user_init
 
     yield env
 
