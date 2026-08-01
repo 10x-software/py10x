@@ -14,6 +14,8 @@ from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.testlib.fixtures import with_transactions
+from py10x_kernel import BSaveRefs
+
 from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
 from core_10x.traitable_id import ID
 from core_10x.traitable import StorableHelper, StorableHelperWithHistory
@@ -127,8 +129,6 @@ def test_collection(test_store):
     """Create a test collection for testing."""
     collection_name = f'test_collection_{uuid6.uuid7()}'
     yield test_store.collection(collection_name, NameValueTraitable.s_dir)
-    test_store.delete_collection(collection_name=collection_name)
-    test_store.delete_collection(collection_name=f'{collection_name}#history')
 
 
 @pytest.fixture
@@ -255,7 +255,29 @@ class TestTraitableHistory:
             assert obj.y.get_revision() == 1
             assert len(X.load_many()) == 1
 
-            X.delete_collection()
+    def test_history_save_none_avoids_recascade_on_cycle(self, test_store, monkeypatch):
+        """History must use BSaveRefs.NONE so it does not clear the cascade memo mid-save.
+
+        A simple A↔B cycle does *not* expose the bug: the back-edge to A is walked
+        during B.serialize *before* B's history save runs (memo still holds A).
+
+        Need two children both pointing at the root so that after B's history
+        SerializationScope clears the memo, C's back-edge re-enters A while A is
+        still at _rev==0 → infinite recascade under ALL.
+        """
+        monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *a, **kw: PyClass.name(cls))
+
+        class Node(Traitable):
+            kids: list = T()
+
+        assert isinstance(Node.s_storage_helper, StorableHelperWithHistory)
+
+        with test_store:
+            a = Node.new_or_replace(kids=[Node(),Node()])
+            for kid in a.kids:
+                kid.kids = [a]
+            a.save(save_references=BSaveRefs.ALL).throw()
+            assert len(Node.history()) == 3
 
     def test_mutable_ts_time_update_hydrates(self, test_store):
         """Mutable traitable with TS_TIME: second save is update path with post_serialize stamp."""

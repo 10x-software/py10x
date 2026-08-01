@@ -1949,9 +1949,11 @@ def test_runtime_unsets_ts_flags():
 class TestCycles:
     class Ref(Traitable):
         ref: Self = T()
+        lref: list = T()
 
     class Embeddable(AnonymousTraitable):
         ref: Self = T()
+        lref: list = T()
 
     @pytest.fixture(autouse=True)
     def duck_db(self):
@@ -1965,7 +1967,7 @@ class TestCycles:
         assert node is cls.Embeddable
         return pytest.raises(TraitMethodError, match=r'circular embedded serialization')
 
-    @pytest.mark.parametrize('node', [Ref,Embeddable])
+    @pytest.mark.parametrize('node', [Ref, Embeddable])
     def test_root_over_mutual_cycle(self, mode, node):
         a = node()
         b = node()
@@ -1981,7 +1983,7 @@ class TestCycles:
         a = node()
         b = node()
         a.ref = b
-        b.ref = a
+        b.lref = [a]
         with self._serialization_context(node):
             a.serialize_object(save_references=int(mode))
 
@@ -1998,6 +2000,7 @@ class TestCycles:
         a = node()
         b = node()
         a.ref = b
+        a.lref = [b]
         ser = a.serialize_object(save_references=int(mode))
         assert isinstance(ser, dict)
         assert ser.get('ref') is not None
