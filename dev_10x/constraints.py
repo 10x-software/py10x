@@ -27,10 +27,11 @@ import importlib.metadata as md
 import re
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
 
-PROJECT_ROOT = Path('.').resolve()
+import tomllib
+
+PROJECT_ROOT = Path.cwd()
 CONSTRAINTS = PROJECT_ROOT / 'constraints.txt'
 
 
@@ -123,7 +124,7 @@ def compile_(upgrade: bool = False) -> int:
         cmd.append('--upgrade')
     cmd.extend(['--output-file', str(CONSTRAINTS.name)])
     print('$', ' '.join(cmd))
-    return subprocess.run(cmd, cwd=PROJECT_ROOT).returncode
+    return subprocess.run(cmd, cwd=PROJECT_ROOT, check=False).returncode
 
 
 def _pinned_names() -> set[str]:

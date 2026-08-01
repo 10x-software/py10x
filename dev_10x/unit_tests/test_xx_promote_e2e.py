@@ -11,6 +11,7 @@ See `dev_10x/README.md` (xx-promote).
 from __future__ import annotations
 
 import shutil
+from typing import TYPE_CHECKING
 
 import pytest
 import tomlkit
@@ -19,7 +20,6 @@ from packaging.specifiers import SpecifierSet
 
 from dev_10x import xx_promote as xp
 from dev_10x.xx_helpers import GitHelpers, VersionHelpers
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -383,7 +383,7 @@ def test_pre_pushes_each_publish_trigger_in_own_atomic_push(remotes, monkeypatch
     def tracking_git(repo, *args, check=True):
         if args and args[0] == 'push' and '--atomic' in args:
             refspecs = [a for a in args if a not in ('push', '--atomic', 'origin', '-q')]
-            if any(r.startswith('pre/') or r.startswith('prod/') for r in refspecs):
+            if any(r.startswith(('pre/', 'prod/')) for r in refspecs):
                 trigger_create_pushes.append((repo, refspecs))
             elif any('refs/tags/pre/' in r or 'refs/tags/prod/' in r for r in refspecs):
                 trigger_delete_pushes.append((repo, refspecs))
@@ -396,7 +396,7 @@ def test_pre_pushes_each_publish_trigger_in_own_atomic_push(remotes, monkeypatch
     assert len(trigger_create_pushes) == 3  # core + kernel + infra
     assert len([specs for repo, specs in trigger_create_pushes if repo == cxx]) == 2
     for _repo, refspecs in trigger_create_pushes:
-        assert sum(r.startswith('pre/') or r.startswith('prod/') for r in refspecs) == 1
+        assert sum(r.startswith(('pre/', 'prod/')) for r in refspecs) == 1
         assert not any(r.startswith(':refs/') for r in refspecs)
 
 

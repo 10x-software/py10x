@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import shutil
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 import tomlkit
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
 from dev_10x import xx_ci
 from dev_10x.xx_helpers import GitHelpers, VersionHelpers
-from packaging.specifiers import SpecifierSet
-from packaging.version import Version
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from pathlib import Path

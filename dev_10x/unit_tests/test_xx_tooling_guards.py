@@ -20,10 +20,10 @@ from pathlib import Path
 import pytest
 import setuptools_scm
 import tomlkit
-from packaging.version import Version
-
 from core_10x.environment_variables import EnvVars
 from core_10x.testlib.strict import need
+from packaging.version import Version
+
 from dev_10x.xx_helpers import GitHelpers
 
 requires_git = pytest.mark.skipif(shutil.which('git') is None and not EnvVars.test_strict, reason='git not available')
@@ -116,7 +116,7 @@ def _commit(repo: Path, name: str = 'a.txt', content: str = 'x\n', msg: str = 'c
 
 def _exit_code(repo: Path, *args: str) -> int:
     """Raw git exit code (GitHelpers.git hides it; the reachability gate keys off 0 vs 1)."""
-    return subprocess.run(['git', *args], cwd=repo, capture_output=True, text=True).returncode
+    return subprocess.run(['git', *args], cwd=repo, capture_output=True, text=True, check=False).returncode
 
 
 # --------------------------------------------------------------- #1 setuptools-scm version stamping
@@ -345,6 +345,7 @@ def test_editable_below_rc_window_floor_does_not_fallback_to_index(tmp_path):
         cwd=tmp_path,
         capture_output=True,
         text=True,
+        check=False,
     )
 
     assert proc.returncode != 0, 'lagged editable below the rc-window floor must not silently fall back to an index wheel'

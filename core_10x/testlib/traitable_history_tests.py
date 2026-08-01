@@ -3,25 +3,22 @@
 from __future__ import annotations
 
 import time
-import uuid6
 from datetime import date, datetime, timezone
 
 import pytest
-from py10x_kernel import BTraitableProcessor
+import uuid6
+from infra_10x.duckdb_store import DuckDbStore
+from py10x_kernel import BSaveRefs, BTraitableProcessor
 from typing_extensions import Self
 
 from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.testlib.fixtures import with_transactions
-from py10x_kernel import BSaveRefs
-
-from core_10x.traitable import AsOfContext, T, Traitable, TraitableHistory
+from core_10x.traitable import AsOfContext, StorableHelper, StorableHelperWithHistory, T, Traitable, TraitableHistory
 from core_10x.traitable_id import ID
-from core_10x.traitable import StorableHelper, StorableHelperWithHistory
 from core_10x.ts_store import TsDuplicateKeyError
 
-from infra_10x.duckdb_store import DuckDbStore
 
 def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
     """Build a clock freezer for as-of / restore cutpoints.
@@ -49,7 +46,7 @@ def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
                     break
                 time.sleep(0.001)
             else:
-                assert False, f'server_time {ts} failed to advance after {tries} tries.'
+                raise AssertionError(f'server_time {ts} failed to advance after {tries} tries.')
             return ts
 
     frozen_now = ClockFreezer()
@@ -156,14 +153,14 @@ class TestTraitableHistory:
 
     def test_asof_context_enter_exit(self):
         """Test AsOfContext enter and exit."""
-        as_of_time = datetime(2023, 1, 1, 12, 0, 0)
+        as_of_time = datetime(2023, 1, 1, 12, 0, 0)  # noqa: DTZ001
 
         with AsOfContext(as_of_time, [NameValueTraitable]) as context:
             assert context.as_of_time == as_of_time
 
     def test_asof_context_manager(self):
         """Test AsOfContext as context manager."""
-        as_of_time = datetime(2023, 1, 1, 12, 0, 0)
+        as_of_time = datetime(2023, 1, 1, 12, 0, 0)  # noqa: DTZ001
 
         with AsOfContext(as_of_time, [NameValueTraitable]) as context:
             assert context.as_of_time == as_of_time
@@ -273,7 +270,7 @@ class TestTraitableHistory:
         assert isinstance(Node.s_storage_helper, StorableHelperWithHistory)
 
         with test_store:
-            a = Node.new_or_replace(kids=[Node(),Node()])
+            a = Node.new_or_replace(kids=[Node(), Node()])
             for kid in a.kids:
                 kid.kids = [a]
             a.save(save_references=BSaveRefs.ALL).throw()
@@ -628,7 +625,7 @@ class TestTraitableHistory:
         item = NoHistoryTraitable(key='k1', value='v1', _replace=True)
         item.save().throw()
         original_helper = NoHistoryTraitable.s_storage_helper
-        as_of_time = datetime(2020, 1, 1, 12, 0, 0)
+        as_of_time = datetime(2020, 1, 1, 12, 0, 0)  # noqa: DTZ001
 
         with pytest.raises(
             ValueError,
@@ -789,7 +786,7 @@ class TestTraitableHistory:
         person.save()
 
         # Try to restore to a time before the person existed
-        past_time = datetime(2020, 1, 1)
+        past_time = datetime(2020, 1, 1)  # noqa: DTZ001
         result = PersonTraitable.restore(person.id(), timestamp=past_time, save=False)
         assert result is False
 

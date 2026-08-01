@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from core_10x.trait_definition import RT
 from core_10x.traitable import T, Traitable
+
 from dev_10x.xx_helpers import GitHelpers, PyProjectHelpers, VersionHelpers
 
 if TYPE_CHECKING:

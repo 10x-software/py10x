@@ -25,7 +25,8 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
-from importlib.metadata import PackageNotFoundError, version as dist_version
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as dist_version
 from pathlib import Path
 
 import tomlkit

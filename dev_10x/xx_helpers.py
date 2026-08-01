@@ -4,10 +4,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import tomlkit
 from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-from packaging.version import Version, InvalidVersion
-import tomlkit
+from packaging.version import InvalidVersion, Version
 
 
 class VersionHelpers:
@@ -584,7 +584,7 @@ class PyProjectHelpers:
         for entry in deps:
             try:
                 name = Requirement(entry).name
-            except Exception:
+            except Exception:  # noqa: BLE001 - captured
                 out.append(entry)
                 continue
             out.append(f'{name} ({pins[name]})' if name in pins else entry)
@@ -697,6 +697,7 @@ class InstalledSourceHelpers:
             cwd=self.project_root,
             capture_output=True,
             text=True,
+            check=False,
         )
         if proc.returncode != 0 or 'Package(s) not found' in proc.stdout + proc.stderr:
             return None
@@ -749,7 +750,7 @@ class PyPIHelpers:
         A 404 means the project itself is not on the index (nothing published), which is a normal
         first-release state - not an error.
         """
-        from urllib import request, error
+        from urllib import error, request
 
         url = f'https://pypi.org/pypi/{name}/json'
         try:
