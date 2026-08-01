@@ -2,10 +2,10 @@ from unittest.mock import MagicMock
 
 import pytest
 from core_10x.nucleus import Nucleus
-from infra_10x.duckdb_store import DuckDbStore as TraitableStore
 from core_10x.trait_filter import GT, f
 from core_10x.ts_store import TsStore
 from core_10x.ts_union import TsUnion, TsUnionCollection, _OrderKey
+from infra_10x.duckdb_store import DuckDbStore as TraitableStore
 
 
 @pytest.fixture
@@ -296,8 +296,8 @@ def test_delete_collection(union_store):
 @pytest.fixture
 def ts_union():
     assert not TsUnion.s_instances
-    store_spec = dict(driver_name='DUCK_DB', hostname='localhost', dbname='dbname1', username='')
-    union_store = TsUnion.instance(store_spec, store_spec | dict(dbname='dbname2'))
+    store_spec = {'driver_name': 'DUCK_DB', 'hostname': 'localhost', 'dbname': 'dbname1', 'username': ''}
+    union_store = TsUnion.instance(store_spec, store_spec | {'dbname': 'dbname2'})
     yield union_store
     TsUnion.s_instances.clear()
 

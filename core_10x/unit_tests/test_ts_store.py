@@ -1,13 +1,11 @@
 """Unit tests for TsStore abstract bases. Transaction tests run from testlib against ts_instance (see conftest)."""
 
 import pytest
-
 from core_10x.testlib.fixtures import with_transactions
-from core_10x.ts_store import TsCollection, TsStore
-from core_10x.ts_union import TsUnion
-
 from core_10x.testlib.ts_store_transaction_tests import TestSaveIfChanged, TestTsStoreTransaction  # collected by pytest
 from core_10x.testlib.ts_tests import TestTSStore, ts_setup  # collected by pytest
+from core_10x.ts_store import TsCollection, TsStore
+from core_10x.ts_union import TsUnion
 
 
 class TestAbstractBases:

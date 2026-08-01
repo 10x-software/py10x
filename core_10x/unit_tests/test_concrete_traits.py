@@ -23,6 +23,7 @@ def _test_i(data_type: type, values, expected_values):
             except Exception as ex:
                 if not isinstance(ex, ev):
                     pytest.fail(f'Got {ex} instead of {ev} value {v} for type {data_type}')
+                    raise  # for lint
             else:
                 pytest.fail(f'Expected exception {ev} for value {v} for type {data_type}; converted to {p.value}')
         else:
@@ -99,7 +100,7 @@ def test_datetime_trait():
 
     data_type = datetime
     values = [
-        datetime(2020, 1, 1),
+        datetime(2020, 1, 1),  # noqa: DTZ001
         '2020-01-01T01:02:03',
         '2020-01-01 00:00:00',
         '2020-01-01',
@@ -111,16 +112,16 @@ def test_datetime_trait():
         'Feb 1, 2020 1:2:3',
     ]
     convert_expected = [
-        datetime(2020, 1, 1),
-        datetime(2020, 1, 1, 1, 2, 3),
-        datetime(2020, 1, 1),
-        datetime(2020, 1, 1),
+        datetime(2020, 1, 1),  # noqa: DTZ001
+        datetime(2020, 1, 1, 1, 2, 3),  # noqa: DTZ001
+        datetime(2020, 1, 1),  # noqa: DTZ001
+        datetime(2020, 1, 1),  # noqa: DTZ001
         TraitMethodError,
         None,
         XNone,
         TypeError,
         TypeError,
-        datetime(2020, 2, 1, 1, 2, 3),
+        datetime(2020, 2, 1, 1, 2, 3),  # noqa: DTZ001
     ]
     generic_test(data_type, values, convert_expected)
 

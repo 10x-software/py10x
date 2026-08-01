@@ -1,12 +1,11 @@
 import pytest
-
-from core_10x.trait_definition import T, RT, M, TraitDefinition, TraitModification
+from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.xnone import XNone, XNoneType
-
 
 # ----------------------------------------------------------------------------
 #   T() / TraitDefinition construction
 # ----------------------------------------------------------------------------
+
 
 def test_t_returns_trait_definition():
     td = T()
@@ -66,6 +65,7 @@ def test_t_flags_default_is_zero():
 #   T with flag argument
 # ----------------------------------------------------------------------------
 
+
 def test_t_with_id_flag_sets_id_bit():
     id_td = T(T.ID)
     plain_td = T()
@@ -88,6 +88,7 @@ def test_t_id_with_explicit_default():
 # ----------------------------------------------------------------------------
 #   RT()
 # ----------------------------------------------------------------------------
+
 
 def test_rt_returns_trait_definition():
     assert isinstance(RT(), TraitDefinition)
@@ -115,6 +116,7 @@ def test_rt_with_default_value():
 #   Flag constant isolation — RT() must not mutate BFlags constants
 # ----------------------------------------------------------------------------
 
+
 def test_rt_with_flag_positional_does_not_mutate_flag():
     before = T.STICKY.value()
     RT(T.STICKY)
@@ -130,6 +132,7 @@ def test_rt_with_flag_kwarg_does_not_mutate_flag():
 # ----------------------------------------------------------------------------
 #   __floordiv__ — UI tip comment
 # ----------------------------------------------------------------------------
+
 
 def test_floordiv_sets_ui_hint_tip():
     td = T() // 'my tooltip'
@@ -156,6 +159,7 @@ def test_floordiv_replaces_existing_tip():
 # ----------------------------------------------------------------------------
 #   T static color helpers
 # ----------------------------------------------------------------------------
+
 
 def test_fg_color_with_color():
     assert T.fg_color('red') == 'color: red'
@@ -195,6 +199,7 @@ def test_colors_both_empty_returns_empty():
 #   copy
 # ----------------------------------------------------------------------------
 
+
 def test_trait_definition_copy_is_independent():
     td = T(42)
     td2 = td.copy()
@@ -213,6 +218,7 @@ def test_trait_definition_copy_deep_copies_ui_hint():
 # ----------------------------------------------------------------------------
 #   M() / TraitModification
 # ----------------------------------------------------------------------------
+
 
 def test_m_returns_trait_modification():
     assert isinstance(M(), TraitModification)
@@ -247,6 +253,8 @@ def test_m_apply_does_not_mutate_original():
 #   T.STICKY alias
 # ----------------------------------------------------------------------------
 
+
 def test_t_sticky_has_same_value_as_offgraph_set():
     from py10x_kernel import BTraitFlags
+
     assert T.STICKY.value() == BTraitFlags.OFFGRAPH_SET.value()

@@ -1,12 +1,11 @@
 import pytest
-
-from core_10x.package_refactoring import PackageRefactoring, CLASS_ID_DELIMITER
+from core_10x.package_refactoring import CLASS_ID_DELIMITER, PackageRefactoring
 from core_10x.py_class import PyClass
-
 
 # ----------------------------------------------------------------------------
 #   CLASS_ID_DELIMITER
 # ----------------------------------------------------------------------------
+
 
 def test_class_id_delimiter_is_slash():
     assert CLASS_ID_DELIMITER == '/'
@@ -15,6 +14,7 @@ def test_class_id_delimiter_is_slash():
 # ----------------------------------------------------------------------------
 #   default_class_id  (no registered packages involved)
 # ----------------------------------------------------------------------------
+
 
 def test_default_class_id_replaces_dots_with_slashes():
     cid = PackageRefactoring.default_class_id(PackageRefactoring)
@@ -47,6 +47,7 @@ def test_default_class_id_rejects_non_class():
 #   find_class_id — falls back to default when no custom mapping exists
 # ----------------------------------------------------------------------------
 
+
 def test_find_class_id_matches_default_for_unmapped_class():
     cid = PackageRefactoring.find_class_id(PackageRefactoring)
     expected = PackageRefactoring.default_class_id(PackageRefactoring)
@@ -61,6 +62,7 @@ def test_find_class_id_for_py_class():
 # ----------------------------------------------------------------------------
 #   find_class — inverse of find_class_id
 # ----------------------------------------------------------------------------
+
 
 def test_find_class_resolves_package_refactoring():
     cid = 'core_10x/package_refactoring/PackageRefactoring'
@@ -82,6 +84,7 @@ def test_find_class_unknown_raises_os_error():
 #   round-trip: find_class_id -> find_class
 # ----------------------------------------------------------------------------
 
+
 def test_roundtrip_find_class_id_and_find_class():
     cid = PackageRefactoring.find_class_id(PyClass)
     cls = PackageRefactoring.find_class(cid)
@@ -91,6 +94,7 @@ def test_roundtrip_find_class_id_and_find_class():
 # ----------------------------------------------------------------------------
 #   register_top_level_packages & instance construction
 # ----------------------------------------------------------------------------
+
 
 def test_register_top_level_packages_creates_instances():
     before = dict(PackageRefactoring.s_instances)
@@ -110,6 +114,7 @@ def test_register_unknown_package_raises_os_error():
 # ----------------------------------------------------------------------------
 #   _find_or_create_instance
 # ----------------------------------------------------------------------------
+
 
 def test_find_or_create_instance_invalid_name_raises():
     with pytest.raises(ValueError):

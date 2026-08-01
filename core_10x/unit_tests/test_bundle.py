@@ -25,14 +25,12 @@ on the bundle base:
 from __future__ import annotations
 
 import json
+from datetime import timezone
 
 import pytest
-from py10x_kernel import BTraitableProcessor, XCache
-
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.package_refactoring import PackageRefactoring
-from core_10x.traitable import RT, T, Bundle, BundleHistory, Traitable
-
+from core_10x.traitable import RT, Bundle, BundleHistory, T, Traitable
 
 # ---------------------------------------------------------------------------
 # Bundle with members_known=True - short-name registry
@@ -137,6 +135,7 @@ class TestBundleMembersUnknown:
     def test_is_bundle_true_even_without_registry(self):
         assert Vehicles.is_bundle()
         assert Car.is_bundle()
+
 
 # ---------------------------------------------------------------------------
 # Bundle vs. plain Traitable
@@ -278,7 +277,7 @@ class TestBundleHistoryWithNonStorableBase:
         from core_10x.traitable import AsOfContext, StorableHelperWithHistory
 
         assert AbstractAnimals.s_history_class  # promotion installed a real history class
-        with AsOfContext(as_of_time=datetime.utcnow()):
+        with AsOfContext(as_of_time=datetime.now(timezone.utc).replace(tzinfo=None)):
             pass  # exit clears every subclass helper cache
 
         assert AbstractAnimals.s_storage_helper_cached is None
@@ -481,6 +480,7 @@ class TestBundleHistoryStaticWiring:
         assert animals_hist.s_bundle_members is not None
         assert animals_hist.s_bundle_members['Dog#history'] is dog_hist
         assert animals_hist.s_bundle_members['Cat#history'] is cat_hist
+
 
 # ---------------------------------------------------------------------------
 # Empirical save/history tests against the in-memory DuckDbStore

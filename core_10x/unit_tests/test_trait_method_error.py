@@ -1,12 +1,10 @@
 import traceback
 
 import pytest
-
 from core_10x.rc import RC
-from core_10x.trait_definition import T, RT
+from core_10x.trait_definition import RT, T
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import Traitable, AnonymousTraitable
-
+from core_10x.traitable import AnonymousTraitable, Traitable
 
 OUTPUTS = ['exception', 'object', 'args', 'value']
 GROUPS = [

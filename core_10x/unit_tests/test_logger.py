@@ -14,12 +14,10 @@ TestLOGStub         - functional tests of the LOG interface using a stub Logger
 import multiprocessing as mp
 import time
 
-import pytest
-
 import core_10x.logger as log_module
+import pytest
 from core_10x.logger import LOG, Logger, PerfTimer
 from core_10x.testlib.stub_logger import stub_log_module_logger
-
 
 # ---------------------------------------------------------------------------
 # PerfTimer
@@ -140,7 +138,7 @@ class TestLoggerEndToEnd:
         logger = Logger('e2e_test_start_stop', LOG.BRIEF.value, do_print=False)
         assert logger.proc.is_alive()
 
-        logger.shutdown()          # puts None → subprocess returns immediately
+        logger.shutdown()  # puts None → subprocess returns immediately
         assert logger.proc.exitcode == 0
 
     def test_queue_accepts_shutdown_signal(self):
@@ -236,7 +234,7 @@ class TestLOGStub:
     def test_end_is_idempotent_when_no_logger(self):
         """LOG.end() must not raise when LOGGER is already None."""
         assert log_module.LOGGER is None
-        LOG.end()   # should be a no-op
+        LOG.end()  # should be a no-op
 
     def test_logger_can_be_restarted_after_end(self, stub_log_logger):
         """After LOG.end() resets LOGGER, a new stub logger can be installed and used."""

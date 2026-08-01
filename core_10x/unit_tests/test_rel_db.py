@@ -1,8 +1,7 @@
 import sys
 
-import pytest
 import polars as pl
-
+import pytest
 from core_10x.rel_db import RelDb
 from core_10x.testlib.fixtures import temp_duck_db_uri
 
@@ -25,9 +24,11 @@ def test_rel_db_spec_from_uri_parses_uri_components():
     assert spec.kwargs[RelDb.PASSWORD_TAG] == 'pass'
     assert spec.kwargs[RelDb.PORT_TAG] == 5432
 
+
 @pytest.fixture
 def temp_duckdb(temp_duck_db_uri):  # noqa: F811
     return RelDb.instance_from_uri(temp_duck_db_uri)
+
 
 def test_rel_db_query_and_insert(temp_duckdb):
     source_df = pl.DataFrame({'a': [1, 2, 3], 'b': ['x', 'y', 'z']})
@@ -101,9 +102,8 @@ def test_rel_db_query_raises_without_context_manager(temp_duckdb):
 def test_rel_db_insert_raises_with_context_manager(temp_duckdb):
     db = temp_duckdb
     df = pl.DataFrame({'a': [1]})
-    with pytest.raises(RuntimeError, match='context manager'):
-        with db:
-            db.insert('test_data', df)
+    with pytest.raises(RuntimeError, match='context manager'), db:
+        db.insert('test_data', df)
 
 
 def test_rel_db_drop_table_raises_without_context_manager(temp_duckdb):

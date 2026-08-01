@@ -8,12 +8,12 @@ Exercises the pure-Python surface of Trait:
 - Trait.use_format_str / _format — string formatting helpers
 - Trait.register_by_datatype / register_by_baseclass — error on duplicate
 """
+
 import sys
 import types
-
-import pytest
 from unittest.mock import MagicMock
 
+import pytest
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.trait import (
     BoundTrait,
@@ -25,10 +25,10 @@ from core_10x.trait import (
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 
-
 # ----------------------------------------------------------------------------
 #   trait_value
 # ----------------------------------------------------------------------------
+
 
 def test_trait_value_stores_value_no_args():
     tv = trait_value(42)
@@ -57,6 +57,7 @@ def test_trait_value_with_none_value():
 #   BoundTrait
 # ----------------------------------------------------------------------------
 
+
 def test_bound_trait_call_returns_trait():
     mock_trait = MagicMock()
     bt = BoundTrait(None, mock_trait)
@@ -74,6 +75,7 @@ def test_bound_trait_getattr_returns_trait_attribute():
 # ----------------------------------------------------------------------------
 #   Trait.real_trait_class — registry dispatch
 # ----------------------------------------------------------------------------
+
 
 def test_real_trait_class_for_completely_unregistered_type():
     class _PurelyCustomType:
@@ -97,6 +99,7 @@ def test_real_trait_class_for_str_is_not_generic():
 #   Trait.register_by_datatype — duplicate raises
 # ----------------------------------------------------------------------------
 
+
 def test_register_by_datatype_duplicate_raises():
     # int is already registered; trying to re-register must fail.
     existing_cls = Trait.real_trait_class(int)
@@ -108,6 +111,7 @@ def test_register_by_datatype_duplicate_raises():
 #   Trait.register_by_baseclass — duplicate raises
 # ----------------------------------------------------------------------------
 
+
 def test_register_by_baseclass_non_trait_raises():
     with pytest.raises(AssertionError):
         Trait.register_by_baseclass(int, int)
@@ -116,6 +120,7 @@ def test_register_by_baseclass_non_trait_raises():
 # ----------------------------------------------------------------------------
 #   Trait._format / use_format_str
 # ----------------------------------------------------------------------------
+
 
 def _make_int_trait() -> Trait:
     int_trait_cls = Trait.real_trait_class(int)
@@ -174,6 +179,7 @@ def test_pybind_signature_parses_docstring_first_line():
 # ----------------------------------------------------------------------------
 #   ClassTrait
 # ----------------------------------------------------------------------------
+
 
 class _TestTraitable(Traitable):
     xid: int = T(T.ID, default=1)

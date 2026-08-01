@@ -4,9 +4,7 @@ import math
 import sys
 
 import pytest
-
 from core_10x.xinf import XInf
-
 
 # ---------------------------------------------------------------------------
 # Comparisons — positive infinity
@@ -24,22 +22,22 @@ class TestXInfComparisons:
         assert XInf > -1e300
 
     def test_equal_to_itself(self):
-        assert XInf == XInf
+        assert XInf == XInf  # noqa: PLR0124
 
     def test_not_equal_to_number(self):
         assert XInf != 1e300
 
     def test_ge_itself(self):
-        assert XInf >= XInf
+        assert XInf >= XInf  # noqa: PLR0124
 
     def test_not_lt_any_number(self):
         assert not (XInf < 1e300)
 
     def test_not_lt_itself(self):
-        assert not (XInf < XInf)
+        assert not (XInf < XInf)  # noqa: PLR0124
 
     def test_le_itself(self):
-        assert XInf <= XInf
+        assert XInf <= XInf  # noqa: PLR0124
 
     def test_not_le_number(self):
         assert not (XInf <= 1e300)

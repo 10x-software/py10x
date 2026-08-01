@@ -7,10 +7,10 @@ from core_10x.trait_definition import RT, T
 from core_10x.traitable import Traitable
 from core_10x.traitable_id import ID
 
-
 # ---------------------------------------------------------------------------
 # Shared leaves
 # ---------------------------------------------------------------------------
+
 
 class Leaf(Traitable):
     name: str = RT(T.ID)
@@ -39,6 +39,7 @@ def _rev_deps(gp, bound_trait, target_cls=Leaf):
 # ---------------------------------------------------------------------------
 # 1) get_value inside custom setters (and converters)
 # ---------------------------------------------------------------------------
+
 
 class BoxWithSetter(Traitable):
     name: str = RT(T.ID)
@@ -85,6 +86,7 @@ class ParentViaConverter(Traitable):
 
 class ParentViaGetter(Traitable):
     """Contrast: the same Leaf.payload read in a *getter* is a real dep."""
+
     name: str = RT(T.ID)
     out: float = RT()
     n_gets = 0
@@ -141,9 +143,11 @@ class TestCustomSetterAndConverterReads:
 # 2) ID-trait getters during object construction (endogenous_id)
 # ---------------------------------------------------------------------------
 
+
 class Cross(Traitable):
     """Single ID trait with a getter; construct from base/quote so endogenous_id
     must evaluate `cross_get` to build identity."""
+
     cross: str = RT(T.ID)
     base: str = RT(T.ID_LIKE)
     quote: str = RT(T.ID_LIKE)
@@ -194,6 +198,7 @@ class TestIdTraitGettersOnConstruction:
 # 3) get_revision is off-graph
 # ---------------------------------------------------------------------------
 
+
 class ParentReadsRevision(Traitable):
     name: str = RT(T.ID)
     out: int = RT()
@@ -222,6 +227,7 @@ class TestGetRevisionOffGraph:
 # 4) Ccy / CcyCross use-case from xx-fin-domain
 # ---------------------------------------------------------------------------
 
+
 class Ccy(Traitable):
     name: str = RT(T.ID)
     is_deliverable: bool = RT(True)
@@ -244,6 +250,7 @@ class CcyCross(Traitable):
 
 class FXMktConventions(Traitable):
     """Minimal stand-in for xxfin.fx_mkt_conventions.FXMktConventions.cross_get."""
+
     mkt_name: str = RT(T.ID)
     cross: str = RT()
 
@@ -254,6 +261,7 @@ class FXMktConventions(Traitable):
 
 class StorableCcy(Traitable):
     """Storable currency: share_object may touch revision / lazy-load."""
+
     name: str = T(T.ID)
     tag: str = T('x')
 

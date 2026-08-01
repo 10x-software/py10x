@@ -10,17 +10,18 @@ from core_10x.traitable import Traitable
 class TestGraphDeps:
     class QuoteBase(Traitable):
         """Shared base class — target_class accepts this to cover all subclasses."""
-        symbol: str   = RT(T.ID)
-        price:  float = RT()
+
+        symbol: str = RT(T.ID)
+        price: float = RT()
 
     class Quote(QuoteBase):
         pass
 
     class Portfolio(Traitable):
-        name:      str   = RT(T.ID)
-        q1_symbol: str   = RT()
-        q2_symbol: str   = RT()
-        value:     float = RT()
+        name: str = RT(T.ID)
+        q1_symbol: str = RT()
+        q2_symbol: str = RT()
+        value: float = RT()
 
         def value_get(self) -> float:
             # TestGraphDeps is resolved at call time from the module globals.
@@ -202,8 +203,8 @@ class TestGraphDeps:
         setter_called = []
 
         class QuoteWithSetter(Traitable):
-            symbol: str   = RT(T.ID)
-            price:  float = RT()
+            symbol: str = RT(T.ID)
+            price: float = RT()
             computed: float = RT()
 
             def computed_get(self) -> float:
@@ -215,16 +216,16 @@ class TestGraphDeps:
 
         with GRAPH_ON() as gp2:
             q = QuoteWithSetter(symbol='X')
-            q.price = 10.0               # triggers setter — expected
-            _ = q.computed               # prime graph
+            q.price = 10.0  # triggers setter — expected
+            _ = q.computed  # prime graph
             setter_called.clear()
 
             gd = GraphDeps(gp2, q.T.computed, QuoteWithSetter, 'price')
             for cls, obj_id, trait, _val in gd.deps(objects=False):
                 gd.perturb(cls, obj_id, trait, 20.0)
 
-            assert setter_called == []   # setter was NOT called by perturb
-            assert q.computed == 20.0   # but value is updated
+            assert setter_called == []  # setter was NOT called by perturb
+            assert q.computed == 20.0  # but value is updated
 
     def test_deps_objects_true_with_set_value(self, gp, portfolio):
         """deps(objects=True, trait_names=True) + set_value() is the simplified update path."""
