@@ -16,6 +16,7 @@ Commands (run from the py10x repo root):
                                       WAIT_FOR_SIBLING_BRANCH_INTERVAL); optional sync_base
                                       refreshes the py10x checkout each attempt (cxx10x CI)
 """
+
 from __future__ import annotations
 
 import importlib
@@ -42,19 +43,19 @@ class SiblingCheck:
 
 
 def _siblings_doc(base: Path) -> dict:
-    doc = tomlkit.parse((base / "pyproject.toml").read_text(encoding="utf-8"))
-    siblings = doc.get("tool", {}).get("dev_10x", {}).get("siblings", {})
+    doc = tomlkit.parse((base / 'pyproject.toml').read_text(encoding='utf-8'))
+    siblings = doc.get('tool', {}).get('dev_10x', {}).get('siblings', {})
     if not siblings:
-        raise SystemExit(f"no [tool.dev_10x.siblings] in {base}/pyproject.toml")
+        raise SystemExit(f'no [tool.dev_10x.siblings] in {base}/pyproject.toml')
     return siblings
 
 
 def _sibling_checks(base: Path) -> list[SiblingCheck]:
-    pyproject = base / "pyproject.toml"
+    pyproject = base / 'pyproject.toml'
     return [
         SiblingCheck(
             name=name,
-            src_dir=(base / spec["path"]).resolve(),
+            src_dir=(base / spec['path']).resolve(),
             pin=PyProjectHelpers.dependency_spec(pyproject, name),
         )
         for name, spec in _siblings_doc(base).items()
@@ -65,30 +66,30 @@ def _sibling(base: Path, name: str) -> tuple[Path, str]:
     """(repo root, tag prefix) for sibling `name`, read from `[tool.dev_10x.siblings]`."""
     siblings = _siblings_doc(base)
     if name not in siblings:
-        raise SystemExit(f"{name!r} not in [tool.dev_10x.siblings] of {base}/pyproject.toml")
+        raise SystemExit(f'{name!r} not in [tool.dev_10x.siblings] of {base}/pyproject.toml')
     spec = siblings[name]
-    src = (base / spec["path"]).resolve()
-    prefix = spec.get("tag_prefix", f"{name}-v")
+    src = (base / spec['path']).resolve()
+    prefix = spec.get('tag_prefix', f'{name}-v')
     return GitHelpers.git_root(src), prefix
 
 
 def _scm_version(src_dir: Path) -> Version:
     ver = subprocess.check_output(
-        [sys.executable, "-m", "setuptools_scm"],
+        [sys.executable, '-m', 'setuptools_scm'],
         cwd=src_dir,
         text=True,
         stderr=subprocess.DEVNULL,
     ).strip()
-    return Version(ver.split("+")[0])
+    return Version(ver.split('+')[0])
 
 
 def _sync_remote_branch(repo: Path, branch: str) -> None:
     if GitHelpers.has_origin(repo):
-        GitHelpers.git(repo, "fetch", "--quiet", "--tags", "origin", branch)
-        GitHelpers.git(repo, "pull", "--ff-only", "origin", branch)
+        GitHelpers.git(repo, 'fetch', '--quiet', '--tags', 'origin', branch)
+        GitHelpers.git(repo, 'pull', '--ff-only', 'origin', branch)
 
 
-def sibling_branch_ready(base: Path, branch: str = "main", *, verbose: bool = False) -> bool:
+def sibling_branch_ready(base: Path, branch: str = 'main', *, verbose: bool = False) -> bool:
     """Return True when every sibling's setuptools-scm version satisfies its forward pin on `branch`.
 
     Siblings are read from `[tool.dev_10x.siblings]`; git fetch + pull --ff-only run once per
@@ -105,20 +106,20 @@ def sibling_branch_ready(base: Path, branch: str = "main", *, verbose: bool = Fa
         except (subprocess.CalledProcessError, OSError, ValueError) as ex:
             ready = False
             if verbose:
-                print(f"{check.name}: setuptools-scm failed ({ex})", file=sys.stderr)
+                print(f'{check.name}: setuptools-scm failed ({ex})', file=sys.stderr)
             continue
         if ver not in SpecifierSet(check.pin):
             ready = False
             if verbose:
-                print(f"{check.name}: {ver} does not satisfy {check.pin!r}", file=sys.stderr)
+                print(f'{check.name}: {ver} does not satisfy {check.pin!r}', file=sys.stderr)
         elif verbose:
-            print(f"{check.name}: {ver} satisfies {check.pin!r}")
+            print(f'{check.name}: {ver} satisfies {check.pin!r}')
     return ready
 
 
 def wait_sibling_branch_ready(
     base: Path,
-    branch: str = "main",
+    branch: str = 'main',
     *,
     sync_base: bool = False,
     timeout: float | None = None,
@@ -126,8 +127,8 @@ def wait_sibling_branch_ready(
     verbose: bool = False,
 ) -> int:
     """Poll ``sibling_branch_ready`` until success or timeout (exit 0 / 1)."""
-    timeout = float(os.environ.get("WAIT_FOR_SIBLING_BRANCH_TIMEOUT", timeout if timeout is not None else 120))
-    interval = float(os.environ.get("WAIT_FOR_SIBLING_BRANCH_INTERVAL", interval if interval is not None else 5))
+    timeout = float(os.environ.get('WAIT_FOR_SIBLING_BRANCH_TIMEOUT', timeout if timeout is not None else 120))
+    interval = float(os.environ.get('WAIT_FOR_SIBLING_BRANCH_INTERVAL', interval if interval is not None else 5))
     deadline = time.monotonic() + timeout
     while True:
         if sync_base:
@@ -136,12 +137,12 @@ def wait_sibling_branch_ready(
             return 0
         if time.monotonic() >= deadline:
             print(
-                f"wait_sibling_branch_ready: timed out after {timeout}s (branch={branch})",
+                f'wait_sibling_branch_ready: timed out after {timeout}s (branch={branch})',
                 file=sys.stderr,
             )
             return 1
         print(
-            f"wait_sibling_branch_ready: not ready; retrying in {interval}s...",
+            f'wait_sibling_branch_ready: not ready; retrying in {interval}s...',
             file=sys.stderr,
         )
         time.sleep(interval)
@@ -154,26 +155,26 @@ def latest_tag(base: Path, name: str) -> str:
     final-only pin selects the latest final - i.e. exactly what the wheel being built will require.
     """
     repo, prefix = _sibling(base, name)
-    spec = PyProjectHelpers.dependency_spec(base / "pyproject.toml", name)
-    parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(repo, f"{prefix}*"), prefix)
+    spec = PyProjectHelpers.dependency_spec(base / 'pyproject.toml', name)
+    parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(repo, f'{prefix}*'), prefix)
     tag = VersionHelpers.latest_matching_tag(parsed, spec)
     if tag is None:
-        raise SystemExit(f"no {name} tag matches its pinned spec {spec!r}")
+        raise SystemExit(f'no {name} tag matches its pinned spec {spec!r}')
     return tag
 
 
 def verify_sibling(base: Path, name: str) -> int:
     """Assert the installed sibling matches the tag we resolved: import it + compare versions."""
     _, prefix = _sibling(base, name)
-    expected = latest_tag(base, name)[len(prefix):]
+    expected = latest_tag(base, name)[len(prefix) :]
     try:
         installed = dist_version(name)
-    except PackageNotFoundError:
-        raise SystemExit(f"{name} is not installed")
+    except PackageNotFoundError as e:
+        raise SystemExit(f'{name} is not installed') from e
     if Version(installed) != Version(expected):
-        raise SystemExit(f"{name}: installed {installed} != expected {expected} (from its pinned tag)")
-    importlib.import_module(name.replace("-", "_"))
-    print(f"{name} {installed} OK")
+        raise SystemExit(f'{name}: installed {installed} != expected {expected} (from its pinned tag)')
+    importlib.import_module(name.replace('-', '_'))
+    print(f'{name} {installed} OK')
     return 0
 
 
@@ -183,20 +184,20 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit(__doc__)
     cmd = argv[0]
     base = Path.cwd()
-    if cmd == "latest_tag" and len(argv) == 2:
+    if cmd == 'latest_tag' and len(argv) == 2:
         print(latest_tag(base, argv[1]))
         return 0
-    if cmd == "verify_sibling" and len(argv) == 2:
+    if cmd == 'verify_sibling' and len(argv) == 2:
         return verify_sibling(base, argv[1])
-    if cmd == "sibling_branch_ready" and len(argv) == 2:
+    if cmd == 'sibling_branch_ready' and len(argv) == 2:
         return int(not sibling_branch_ready(base, argv[1]))
-    if cmd == "wait_sibling_branch_ready" and 2 <= len(argv) <= 3:
+    if cmd == 'wait_sibling_branch_ready' and 2 <= len(argv) <= 3:
         sync_base = len(argv) == 3
-        if sync_base and argv[2] != "sync_base":
-            raise SystemExit(f"usage:\n{__doc__}")
+        if sync_base and argv[2] != 'sync_base':
+            raise SystemExit(f'usage:\n{__doc__}')
         return wait_sibling_branch_ready(base, argv[1], sync_base=sync_base)
-    raise SystemExit(f"usage:\n{__doc__}")
+    raise SystemExit(f'usage:\n{__doc__}')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main())
