@@ -24,7 +24,7 @@ class MarketSymbol(Traitable):
 
     def dp_set(self, trait, value) -> RC:
         self.prev_price = self.price
-        return self.raw_set_value(trait, value)
+        return self.raw_set_trait_value(trait, value)
 
     def prev_price_get(self) -> float:
         return self.prev_close
@@ -60,16 +60,16 @@ class MarketSymbol(Traitable):
 
 class MarketMonitor:
     s_symbols = [
-        MarketSymbol(symbol = 'MSFT',  prev_close = 398.04,     std = 0.9 ),
-        MarketSymbol(symbol = 'MS',    prev_close = 172.70,     std = 0.5 ),
-        MarketSymbol(symbol = 'JPM',   prev_close = 307.32,     std = 0.7 ),
-        MarketSymbol(symbol = 'IBM',   prev_close = 258.29,     std = 0.15 ),
-        MarketSymbol(symbol = 'GS',    prev_close = 918.30,     std = 0.2 ),
-        MarketSymbol(symbol = 'GOOG',  prev_close = 302.90,     std = 0.3 ),
-        MarketSymbol(symbol = 'NVDA',  prev_close = 188.50,     std = 10.0 ),
-        MarketSymbol(symbol = 'BAC',   prev_close = 52.74,      std = 0.9 ),
-        MarketSymbol(symbol = 'AMZN',  prev_close = 202.93,     std = 0.8 ),
-        MarketSymbol(symbol = 'AAPL',  prev_close = 263.47,     std = 0.7 ),
+        dict(symbol = 'MSFT',  prev_close = 398.04,     std = 0.9 ),
+        dict(symbol = 'MS',    prev_close = 172.70,     std = 0.5 ),
+        dict(symbol = 'JPM',   prev_close = 307.32,     std = 0.7 ),
+        dict(symbol = 'IBM',   prev_close = 258.29,     std = 0.15 ),
+        dict(symbol = 'GS',    prev_close = 918.30,     std = 0.2 ),
+        dict(symbol = 'GOOG',  prev_close = 302.90,     std = 0.3 ),
+        dict(symbol = 'NVDA',  prev_close = 188.50,     std = 10.0 ),
+        dict(symbol = 'BAC',   prev_close = 52.74,      std = 0.9 ),
+        dict(symbol = 'AMZN',  prev_close = 202.93,     std = 0.8 ),
+        dict(symbol = 'AAPL',  prev_close = 263.47,     std = 0.7 ),
     ]
 
     def __init__(self):
@@ -85,7 +85,7 @@ class MarketMonitor:
     def update_mkt_data(self):
         i = self.next_item
         if i < len(self.s_symbols):
-            self.table.extend_data([ self.s_symbols[i] ])
+            self.table.extend_data([ MarketSymbol(**self.s_symbols[i]) ])
             self.next_item += 1
 
         symbols = self.table.model().m_data
@@ -106,6 +106,7 @@ class MarketMonitor:
 if __name__ == '__main__':
     from core_10x.exec_control import INTERACTIVE
     from ui_10x.utils import UxDialog
+    from ui_10x.examples.price_simulator import MarketSymbol
 
     ux.init()
 
