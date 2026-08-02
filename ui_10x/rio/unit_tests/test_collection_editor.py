@@ -80,17 +80,13 @@ async def test_collection_editor() -> None:
             timeout_ms=_CE_TIMEOUT,
         )
 
-        dropdown_button = next(
-            b for b in reversed(tuple(test_client.get_components(rio.Button))) if b.icon == 'material/arrow_downward'
-        )
+        dropdown_button = next(b for b in reversed(tuple(test_client.get_components(rio.Button))) if b.icon == 'material/arrow_downward')
         await press_rio_button(test_client, dropdown_button)
         await wait_for_selectable_item_text(test_client, 'G', timeout_ms=_CE_TIMEOUT)
         await asyncio.sleep(UI_SETTLE_S)
 
         list_item_id = next(li._id_ for li in test_client.get_components(rio.SimpleListItem) if li.text == 'G')
-        await test_client.execute_js(
-            f'''document.querySelector('[dbg-id="{list_item_id}"]').querySelector('.rio-selectable-item').click()'''
-        )
+        await test_client.execute_js(f'''document.querySelector('[dbg-id="{list_item_id}"]').querySelector('.rio-selectable-item').click()''')
         await asyncio.sleep(UI_SETTLE_S)
 
         await wait_for_input_values(

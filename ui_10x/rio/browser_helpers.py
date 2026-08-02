@@ -26,6 +26,7 @@ async def ui_settle() -> None:
     """Short pause for Rio's async Python↔browser context to settle."""
     await asyncio.sleep(UI_SETTLE_S)
 
+
 DEFAULT_DOM_TIMEOUT_MS = 10_000
 COLLECTION_EDITOR_TIMEOUT_MS = 30_000
 DEFAULT_POLL_TIMEOUT_S = 10.0
@@ -34,17 +35,13 @@ LABEL_CLIENT_TEXT_JS = 'document.querySelector(".rio-text")?.children[0]?.innerT
 BUTTON_CLIENT_TEXT_JS = 'document.querySelector(".rio-button .rio-text")?.children[0]?.innerText || ""'
 CHECKBOX_JS = 'document.querySelector("input[type=\'checkbox\']")'
 LINE_EDIT_INPUT_JS = 'document.querySelector(".rio-input-box input")'
-LINE_EDIT_TOOLTIP_TEXT_JS = (
-    'document.querySelector(".rio-tooltip-popup .rio-text")?.children[0]?.innerText || ""'
-)
+LINE_EDIT_TOOLTIP_TEXT_JS = 'document.querySelector(".rio-tooltip-popup .rio-text")?.children[0]?.innerText || ""'
 CALENDAR_SELECTED_DATE_JS = (
     'document.querySelector(".rio-calendar-selected-day")?.textContent + " " + '
     'document.querySelector(".rio-calendar-year-month-display")?.textContent'
 )
 LIST_ITEMS_COUNT_JS = 'document.querySelectorAll(".rio-selectable-item").length'
-LIST_SELECTED_TEXT_JS = (
-    'document.querySelector(".selected .rio-text")?.children[0]?.innerText || ""'
-)
+LIST_SELECTED_TEXT_JS = 'document.querySelector(".selected .rio-text")?.children[0]?.innerText || ""'
 GROUP_BOX_COLUMN_TEXT_COUNT_JS = 'document.querySelectorAll(".rio-column .rio-text").length'
 GROUP_BOX_BUTTON_COUNT_JS = 'document.querySelectorAll(".rio-button").length'
 
@@ -137,17 +134,15 @@ async def wait_for_button_interactive(
     if text is not None:
         await wait_for_button_client_text(test_client, text, timeout_ms=timeout_ms)
     await test_client.playwright_page.wait_for_function(
-        '''() => {
+        """() => {
             const el = document.querySelector(".rio-button");
             if (!el) return false;
             const r = el.getBoundingClientRect();
             return r.width > 0 && r.height > 0;
-        }''',
+        }""",
         timeout=timeout_ms,
     )
-    await test_client.execute_js(
-        'new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))'
-    )
+    await test_client.execute_js('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
 
 
 async def wait_for_checkbox_state(
@@ -266,14 +261,14 @@ async def wait_for_dialog_button(
 ) -> None:
     """Wait until a Rio button with the given label text is in the DOM."""
     await test_client.playwright_page.wait_for_function(
-        f'''() => {{
+        f"""() => {{
             for (const el of document.querySelectorAll(".rio-button")) {{
                 const textEl = el.querySelector(".rio-text");
                 const text = textEl?.children[0]?.innerText || textEl?.innerText || "";
                 if (text === {content!r}) return true;
             }}
             return false;
-        }}''',
+        }}""",
         timeout=timeout_ms,
     )
 
@@ -286,12 +281,12 @@ async def wait_for_selectable_item_text(
 ) -> None:
     """Wait until a selectable list item with the given text is in the DOM."""
     await test_client.playwright_page.wait_for_function(
-        f'''() => {{
+        f"""() => {{
             for (const el of document.querySelectorAll(".rio-selectable-item")) {{
                 if (el.innerText === {text!r}) return true;
             }}
             return false;
-        }}''',
+        }}""",
         timeout=timeout_ms,
     )
 
@@ -305,7 +300,7 @@ async def wait_for_weight_unit_pairs(
     timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
 ) -> None:
     await test_client.playwright_page.wait_for_function(
-        f'''() => {{
+        f"""() => {{
             const inputs = [...document.querySelectorAll("input")];
             let pairs = 0;
             for (let i = 0; i < inputs.length - 1; i++) {{
@@ -314,7 +309,7 @@ async def wait_for_weight_unit_pairs(
                 }}
             }}
             return pairs >= {min_pairs};
-        }}''',
+        }}""",
         timeout=timeout_ms,
     )
 
@@ -334,11 +329,11 @@ async def wait_for_input_values(
         timeout=timeout_ms,
     )
     await test_client.playwright_page.wait_for_function(
-        f'''() => {{
+        f"""() => {{
             const inputs = document.querySelectorAll("input");
             return inputs[{weight_index}]?.value === {weight!r}
                 && inputs[{unit_index}]?.value === {unit!r};
-        }}''',
+        }}""",
         timeout=timeout_ms,
     )
 
@@ -347,7 +342,7 @@ async def press_rio_button(test_client, button) -> None:
     """Click a Rio button via its pressable element (for complex layouts)."""
     await test_client.execute_js(
         f'''document.querySelector('[dbg-id="{button._id_}"]')'''
-        f'''.querySelector('rio-pressable-element').click()'''
+        f""".querySelector('rio-pressable-element').click()"""
     )
 
 

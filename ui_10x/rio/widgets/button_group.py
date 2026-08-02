@@ -6,7 +6,7 @@ from ui_10x.rio.component_builder import Widget
 
 
 class RadioButton(Widget, i.RadioButton):
-    __slots__ = ('_button_group', )
+    __slots__ = ('_button_group',)
 
     s_component_class = rio_components.RadioButton
 
