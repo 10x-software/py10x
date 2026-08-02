@@ -180,16 +180,15 @@ runs:
         # overflow (sov) also hand it back to the app (gN) so faulthandler prints the Python stack too.
         cap=".reload /f py10x_kernel*.pyd; .echo ===EXCEPTION===; .exr -1; .echo ===STACK BEGIN===; kP 400; .echo ===STACK END==="
         {
-          # cdb runs this at the FIRST break (the first-chance fault). Dump that fault's C++ stack
-          # right away - in particular ASan's own managed exception (0xe0736170 / 0xe073616e), which
-          # had no dedicated handler and was being stepped past with no diagnostic at all.
-          echo "${cap}"
-          echo "sxi av"
-          echo "sxi eh"
+          # Never break on FIRST-chance exceptions: under ASan the process raises many that are
+          # caught and handled (its managed exception 0xe0736170, guard-page AVs while probing
+          # memory, ordinary C++ EH). Breaking on those aborts a healthy run. Only a SECOND-chance
+          # exception (-c2) means nothing handled it and the process is going down - capture that
+          # fault's C++ stack to the log, then kill. sov/bpe below re-enable a first-chance break
+          # for the two cases that need dedicated handling.
+          echo "sxd -c2 \"${cap}; .kill; qq\" *"
           echo "sxe -c \"${cap}; .echo ===pass to app===; sxi sov; gN\" sov"
           echo "sxe -c \"${cap}; .kill; qq\" bpe"
-          echo "sxe -c \"${cap}; .kill; qq\" e0736170"
-          echo "sxe -c \"${cap}; .kill; qq\" e073616e"
           echo "g"
         } > "$cmds"
         # cdb exits non-zero on a caught fault; guard it so the step's `set -e` does not abort before
@@ -200,7 +199,10 @@ runs:
           "$bash_win" -c "cd '$(pwd)' && source .venv/Scripts/activate && python -m pytest -v; echo \$? > '${rc_file}'"
         cdb_rc=$?
         set -e
-        code="$(cat "$rc_file" 2>/dev/null || echo "$cdb_rc")"
+        code="$(cat "$rc_file" 2>/dev/null || true)"
+        # A missing rc_file means pytest never returned - the debugger killed the process (a
+        # captured second-chance crash above, or bpe). Never let that fall through as success.
+        [ -n "$code" ] || { echo "::error::pytest did not report an exit code (process terminated under the debugger)"; code="${cdb_rc:-1}"; [ "$code" = 0 ] && code=1; }
         for f in asan_win/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
         echo "cdb exit: ${cdb_rc}; pytest exit code: ${code}"
         exit "${code}"
