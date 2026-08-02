@@ -271,6 +271,10 @@ public:
     static XCache* default_cache()      { return s_default; }
 
     explicit XCache(XCache* parent = nullptr);
+    ~XCache() {
+        for (auto &oc: m_data | std::views::values) delete oc;
+        for (auto &oc: m_tmp_data | std::views::values) delete oc;
+    }
 
     [[nodiscard]] uint64_t generation() const          { return m_generation; }
     [[nodiscard]] int default_node_type() const             { return m_default_node_type; }
@@ -438,9 +442,9 @@ public:
 
     py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const;
 
-    void perturb_existing_node(BTraitableClass* cls, const py::object& id, const BTrait* trait, const py::object& value) {
-        auto node = find_node(TID(cls, id), trait);
-        if (node)
+    void perturb_existing_node(BTraitableClass* cls, const py::object& id, const BTrait* trait, const py::object& value) const {
+        if (const auto node = find_node(TID(cls, id), trait))
             node->set(value);
     }
+
 };

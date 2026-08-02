@@ -43,6 +43,14 @@ py::list BDateCurve::dates() const {
     return result;
 }
 
+void BDateCurve::set_dates(const py::list& dates) {
+    TIMES times;
+    times.reserve(dates.size());
+    for (const py::handle h : dates)
+        times.push_back(PyLinkage::toordinal(py::reinterpret_borrow<py::object>(h)));
+    set_times(std::move(times));
+}
+
 py::list BDateCurve::dates_values(py::object min_date, py::object max_date) const {
     int min_ord = min_date.is_none() ? std::numeric_limits<int>::min() : PyLinkage::toordinal(min_date);
     int max_ord = max_date.is_none() ? std::numeric_limits<int>::max() : PyLinkage::toordinal(max_date);

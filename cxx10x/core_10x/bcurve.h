@@ -279,5 +279,6 @@ public:
     [[nodiscard]] double value(const py::object& d) const;
     [[nodiscard]] py::object beginning_of_time_as_date() const;
     [[nodiscard]] py::list dates() const;
+    void set_dates(const py::list &dates);
     [[nodiscard]] py::list dates_values(py::object min_date = py::none(), py::object max_date = py::none()) const;
 };

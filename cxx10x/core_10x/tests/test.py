@@ -1,4 +1,4 @@
-import gc
+import gc,weakref
 import sys
 import traceback
 from collections import Counter
@@ -1388,9 +1388,59 @@ def test_event():
         assert x.y is XNone
 
 
+def test_ref_leak():
+    class X(Traitable):
+        x: Traitable
+
+    x = X()
+    x.x = X()
+    wr_x = weakref.ref(x.x)
+
+    del x
+    assert wr_x()
+
+    XCache.clear()
+    assert not wr_x()
+
+
+def test_graph_ref_leak():
+    class X(Traitable):
+        x: Traitable
+
+    with GRAPH_ON() as g:
+        x = X()
+        x.x = X()
+        wr_x, wr_g = weakref.ref(x.x), weakref.ref(g)
+
+    del x
+    assert wr_x()
+    assert wr_g()
+
+    del g
+    assert not wr_g()
+    assert not wr_x()
+
+def test_self_ref_leak():
+    class X(Traitable):
+        x: Self
+
+    with GRAPH_ON() as g:
+        x = X()
+        x.x = x
+        wr = weakref.ref(x)
+
+    del x
+    assert wr()
+
+    del g
+    assert not wr()
+
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
+    test_graph_ref_leak()
+    test_ref_leak()
+    test_self_ref_leak()
     test_save_reference_cycles()
     test_embedded_serialization_cycles()
     test_event()
