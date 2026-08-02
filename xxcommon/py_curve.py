@@ -5,12 +5,11 @@ import math
 from datetime import date, timedelta
 from typing import Any
 
-from numpy import float64, floating, ndarray
-from scipy import interpolate
-
+from core_10x.exec_control import UPWARD_DEPS_OFF
 from core_10x.named_constant import NamedConstant
 from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, M, T, Traitable
-from core_10x.exec_control import UPWARD_DEPS_OFF
+from numpy import float64, floating, ndarray
+from scipy import interpolate
 
 
 class IP_KIND(NamedConstant, lowercase_values = True):
@@ -175,9 +174,8 @@ class Curve(AnonymousTraitable):
         if self.params.ip_kind is IP_KIND.NO_INTERP:
             return self.values[times.index(t)] if t in times else math.nan
 
-        if len(times) < self.min_curve_size:
-            if t in times:
-                return self.values[times.index(t)]
+        if len(times) < self.min_curve_size and t in times:
+            return self.values[times.index(t)]
 
         bot = self.beginning_of_time
         v   = self.interpolator(t) if (bot is None) or (t >= bot) else math.nan

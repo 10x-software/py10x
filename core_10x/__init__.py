@@ -45,7 +45,7 @@ except ImportError:
 
 from core_10x.environment_variables import EnvVars # noqa: E402
 if EnvVars.graph_on:
-    from core_10x.exec_control import GRAPH_ON
+    from core_10x.exec_control import GRAPH_ON as _GO
 
-    go = GRAPH_ON()
-    go.begin_using()
+    _go = _GO()
+    _go.begin_using()

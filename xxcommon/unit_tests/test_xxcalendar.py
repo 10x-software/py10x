@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 from core_10x.exec_control import CACHE_ONLY
+
 from xxcommon.xxcalendar import Calendar, CalendarAdjustment, CalendarNameParser
 
 
@@ -41,7 +42,6 @@ class TestCalendarNameParser:
         """Test operation_repr with string names."""
         # This would require existing calendars in the database
         # We'll test the assertion failures instead
-        pass
 
     def test_operation_repr_invalid_op(self):
         """Test operation_repr with invalid operation character."""
@@ -446,7 +446,6 @@ class TestCalendar:
         """Test non_working_days_get method."""
         # This method requires database access, so we'll skip detailed testing
         # The method parses calendar names and gets holidays from database
-        pass
 
     def test_non_working_days_trait_get(self):
         """Test _non_working_days_get trait method."""

@@ -30,27 +30,18 @@ from types import SimpleNamespace
 
 import pytest
 from infra_10x.duckdb_store import DuckDbStore
-from py10x_kernel import BTraitableProcessor, XCache
 
 import core_10x.sec_keys as sec_keys_mod
 import core_10x.traitable as traitable_mod
 import core_10x.vault_utils as vault_utils_mod
 from core_10x.environment_variables import EnvVars
+from core_10x.global_cache import _clear_all_caches
 from core_10x.resource import Resource
 from core_10x.sec_keys import SecKeys
 from core_10x.traitable import Traitable, VaultUser
-from core_10x.ts_store import TsStore
 from core_10x.vault_utils import VaultUtils
 
 VAULT_URI = 'duckdb://vaulthost.example.com:27017/_vault_'
-
-
-def _clear_cached_vault_state():
-    SecKeys.retrieve_master_password.__func__.clear()
-    SecKeys.retrieve_vault_login_password.__func__.clear()
-    SecKeys.check_vault_uri.__func__.clear()
-    Traitable.vault_store.clear()
-
 
 @pytest.fixture
 def vault_env(monkeypatch):
@@ -98,10 +89,6 @@ def vault_env(monkeypatch):
     #    ``ui_10x/apps/collection_editor_app.py``).
     monkeypatch.setattr(EnvVars, 'main_vault_uri', VAULT_URI)
 
-    # 6. Drop any process-wide cached state that earlier tests / module
-    #    imports may have populated.
-    _clear_cached_vault_state()
-
     env = SimpleNamespace(
         keyring=keyring,
         text_q=text_q,
@@ -122,7 +109,7 @@ def vault_env(monkeypatch):
         what we want when switching identity.
         """
         current_os[0] = name
-        _clear_cached_vault_state()
+        _clear_all_caches()
 
     def run_user_init(*, vault_login: str, vault_pwd: str, master_pwd: str) -> None:
         """Feed canned answers to ``VaultUtils.user_init()``'s prompts."""
@@ -131,11 +118,11 @@ def vault_env(monkeypatch):
         VaultUtils.user_init().throw()
         assert not text_q and not secret_q, 'queued prompts left over'
 
-        _clear_cached_vault_state()
+        _clear_all_caches()
 
     env.switch_os_user = switch_os_user
     env.run_user_init = run_user_init
 
     yield env
 
-    _clear_cached_vault_state()
+    _clear_all_caches()

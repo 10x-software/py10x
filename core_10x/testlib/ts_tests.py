@@ -60,12 +60,15 @@ def ts_setup(ts_instance, request):
         assert p1._rev == 1
         assert p1.id().collection_name == (c1 if request.param else None)
 
-    yield ts_instance, p, p1, c, c1, Person, Person1
 
-    for cn in [c, c1]:
-        ts_instance.delete_collection(cn)
-    assert not {c, c1}.intersection(ts_instance.collection_names('.*'))
-
+    to_yield = [ts_instance, p, p1, c, c1, Person, Person1]
+    try:
+        yield to_yield
+    finally:
+        for cn in [c, c1]:
+            ts_instance.delete_collection(cn)
+        assert not {c, c1}.intersection(ts_instance.collection_names('.*'))
+        to_yield.clear()
 
 class TestTSStore:
     """Test class for TS Store functionality."""

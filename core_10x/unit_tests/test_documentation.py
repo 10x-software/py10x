@@ -182,6 +182,10 @@ def test_documentation_code_block_execution(
         )
         sys.modules[fake_module_name] = fake_module
 
+    # Names injected for every block; everything else is from exec and must not outlive the test
+    # (test_isolation leftover assert would see Traitables still bound in the fake module).
+    _KEEP = frozenset({'__name__', '__file__', '__builtins__', 'analytics_db_uri', 'main_store'})
+
     if future_annotations:
         exec('from __future__ import annotations', fake_module.__dict__)  # noqa: S102
     try:
@@ -193,18 +197,22 @@ def test_documentation_code_block_execution(
             pytest.fail(format_code_block_failure(code_block, e, source=test_name), pytrace=False)
             raise  # for lint
     finally:
-        # Clean up the fake module; store cleanup is handled by main_test_store fixture
-        if fake_module_name in sys.modules:
-            del sys.modules[fake_module_name]
+        # Drop exec bindings (Developer, dev, dev2, …) before isolation's leftover check.
+        for key in list(fake_module.__dict__):
+            if key not in _KEEP:
+                del fake_module.__dict__[key]
+        sys.modules.pop(fake_module_name, None)
 
 
 @pytest.mark.parametrize(
     'test_name,code_block,source_file',
-    [
-        (f'{src}_{name}', code, src)
+    ui_args := [
+        (name, code, src)
         for name, code, src in extract_code_blocks_from_docs()
         if is_ui_code_block(code)  # Only test UI code blocks
     ],
+    # Without ids=, pytest embeds the full code_block in the node id (huge output).
+    ids=[f'{src}-{name}' for name, _code, src in ui_args],
 )
 def test_documentation_ui_code_block_syntax(test_name: str, code_block: str, source_file: str):
     """Test that UI documentation code blocks have valid syntax (execution tested separately in UI tests)."""

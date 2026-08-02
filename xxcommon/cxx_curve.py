@@ -1,7 +1,8 @@
 from datetime import date
 
-from py10x_kernel import BCurve, BDateCurve, IPKind as IP_KIND
-from core_10x.traitable import Any, RC, RC_TRUE, RT, AnonymousTraitable, T, Traitable
+from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, Any, T, Traitable
+from py10x_kernel import BCurve, BDateCurve
+from py10x_kernel import IPKind as IP_KIND  # noqa: N814
 
 
 class CurveParams(Traitable):

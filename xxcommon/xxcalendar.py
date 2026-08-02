@@ -4,7 +4,7 @@ from collections import deque
 from datetime import date, timedelta
 
 from core_10x.global_cache import cache
-from core_10x.traitable import RT, T, Traitable, NamedTraitable
+from core_10x.traitable import RT, NamedTraitable, T, Traitable
 
 
 class CalendarNameParser:
@@ -30,7 +30,7 @@ class CalendarNameParser:
 
     @classmethod
     def combo_name(cls, name: str) -> bool:
-        return any(sym in name for sym in cls.s_ops.keys())
+        return any(sym in name for sym in cls.s_ops)
 
     @classmethod
     def operation_repr(cls, calendar_cls, op_char: str, *calendars) -> str:
@@ -46,7 +46,7 @@ class CalendarNameParser:
                 assert cal, f"Unknown calendar '{cal_or_name}'"
                 cname = cal_or_name
             else:
-                raise NameError(f"Invalid calendar/name '{cal_or_name}'")
+                raise NameError(f"Invalid calendar/name '{cal_or_name}'")  # noqa: TRY004
 
             cal_names.append(cname)
 
