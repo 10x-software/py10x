@@ -230,7 +230,8 @@ class DateCurve(Curve):
         return self.raw_set_trait_value(trait, t)
 
     def beginning_of_time_as_date(self) -> date:
-        return self._from_number(self.beginning_of_time)
+        bot = self.beginning_of_time
+        return self._from_number(bot) if bot else None
 
     def start_time(self) -> date:
         times = self.dates
