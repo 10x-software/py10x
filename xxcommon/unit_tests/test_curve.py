@@ -37,7 +37,6 @@ def _configure_no_interp(c, params, ip_kind, *, cxx: bool) -> None:
         c.set_curve_params(ip_kind=ip_kind.NO_INTERP)
     else:
         c.params = params
-    c.set_curve_params(ip_kind=ip_kind.NO_INTERP)
 
 @pytest.mark.usefixtures('curve_mod')
 class TestCurve:
