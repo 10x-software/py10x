@@ -312,7 +312,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
     @classmethod
     @cache
-    def is_running_with_auth(cls, host_name: str, port: int) -> tuple:  # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
+        port = port or cls.s_instance_kwargs_map['port'][1]
         client = MongoClient(host=host_name, port=port, serverSelectionTimeoutMS=10000, directConnection=True)
         try:
             # -- 'hello' works without credentials — confirms the server is reachable
