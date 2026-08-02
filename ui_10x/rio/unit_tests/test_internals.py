@@ -46,7 +46,6 @@ class TestApp10x:
         # Should return early without calling webview methods
         # Since webview is imported inside the method, we can't easily test the early return
         # without more complex mocking, so we'll just verify the method doesn't crash
-        pass
 
     def test_update_window_size_with_dimensions(self, monkeypatch):
         """Test _update_window_size when dimensions are provided."""
@@ -277,7 +276,7 @@ class TestSession:
         # Test that Session has the expected class attributes
         assert hasattr(Session, 'app10x')
         # The app10x attribute should be a class attribute that can be set on instances
-        assert isinstance(Session.app10x, type(None)) or hasattr(Session, 'app10x')
+        assert (Session.app10x is None) or hasattr(Session, 'app10x')
 
     def test_session_inheritance(self):
         """Test that Session properly inherits from rio.Session."""

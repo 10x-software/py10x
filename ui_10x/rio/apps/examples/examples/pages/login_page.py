@@ -37,7 +37,7 @@ class LoginPage(rio.Component):
                 )
                 runtime_context.authenticated = True
 
-            except Exception as e:
+            except Exception as e:  # noqa:BLE001 - TODO better handling?
                 self.error_message = f'Login error - try again\n{e}'
                 return
 
@@ -53,7 +53,7 @@ class LoginPage(rio.Component):
             runtime_context = self.session[UserSessionContext]
             runtime_context.authenticated = False
             runtime_context.mongo_store = None
-        except Exception as e:
+        except Exception as e:  # noqa:BLE001 - TODO better handling?
             self.error_message = f'Logout error\n {e}'
             return
 

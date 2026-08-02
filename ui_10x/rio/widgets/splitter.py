@@ -28,7 +28,7 @@ class Splitter(Widget, i.Splitter):
         return kwargs
 
     def __init__(self, direction: Direction = Horizontal, **kwargs):
-        super().__init__(**kwargs | dict(direction=direction.label))
+        super().__init__(**kwargs | {'direction': direction.label})
 
     def add_widget(self, widget: Widget):
         self.add_children(widget)

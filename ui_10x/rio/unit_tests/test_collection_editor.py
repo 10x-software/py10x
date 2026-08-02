@@ -2,7 +2,6 @@ import asyncio
 from datetime import date
 
 import pytest
-import rio
 import rio.testing.browser_client
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import CACHE_ONLY, INTERACTIVE
@@ -17,6 +16,8 @@ from ui_10x.rio.browser_helpers import (
     wait_for_selectable_item_text,
 )
 from ui_10x.rio.component_builder import DynamicComponent
+
+import rio
 
 _CE_TIMEOUT = COLLECTION_EDITOR_TIMEOUT_MS
 

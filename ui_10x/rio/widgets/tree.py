@@ -34,7 +34,7 @@ class TreeItem(Widget, i.TreeItem):
 class TreeWidget(Widget, i.TreeWidget):
     __slots__ = ('handlers',)
     s_component_class = rio_components.RioTreeView
-    s_default_kwargs = dict(selection_mode='single')
+    s_default_kwargs = {'selection_mode': 'single'}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -59,7 +59,6 @@ class TreeWidget(Widget, i.TreeWidget):
 
     def resize_column_to_contents(self, col: int):
         """Adjust the width of the specified column (placeholder)."""
-        pass
 
     def item_expanded_connect(self, bound_method):
         self.handlers['on_item_expand'] = self.callback(bound_method)

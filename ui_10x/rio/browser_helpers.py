@@ -11,11 +11,13 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import time
-from collections.abc import Awaitable, Callable
-from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import rio
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+    from datetime import date
 
 UI_SETTLE_S = 0.5
 

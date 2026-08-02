@@ -16,7 +16,7 @@ class FindFlags(Enum):
 class ListItem(Widget, i.ListItem):
     __slots__ = ('_list_widget',)
     s_component_class = rio.SimpleListItem
-    args = dict(key=lambda kwargs: kwargs['text'])
+    args = {'key': lambda kwargs: kwargs['text']}
 
     def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)
@@ -38,7 +38,7 @@ class ListItem(Widget, i.ListItem):
 class ListWidget(Widget, i.ListWidget):
     __slots__ = ('_on_press',)
     s_component_class = rio.ListView
-    s_default_kwargs = dict(selection_mode='single')
+    s_default_kwargs = {'selection_mode': 'single'}
     s_unwrap_single_child = False
 
     def __init__(self, *args, **kwargs):
