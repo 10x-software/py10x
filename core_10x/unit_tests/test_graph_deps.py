@@ -259,3 +259,28 @@ class TestGraphDeps:
 
         by_symbol = {obj.symbol: value for _, obj, _, value in results}
         assert by_symbol == {'AAPL': 110.0, 'MSFT': 200.0}
+
+    def test_stale_deps_after_conditional_getter(self, gp):
+        """When a getter's dependencies change, old reverse edges must be removed."""
+        class X(Traitable):
+            use_a: bool = RT()
+            a: int = RT()
+            b: int = RT()
+            result: int = RT()
+
+            def result_get(self):
+                return self.a if self.use_a else self.b
+
+        x = X(use_a=True, a=1, b=2)
+        assert x.result == 1
+        deps = {name for _, _, name, _ in GraphDeps(
+            BTraitableProcessor.current(), x.T.result, X, 'a', 'b'
+        ).deps(trait_names=True)}
+        assert deps == {'a'}, deps
+
+        x.use_a = False
+        assert x.result == 2
+        deps = {name for _, _, name, _ in GraphDeps(
+            BTraitableProcessor.current(), x.T.result, X, 'a', 'b'
+        ).deps(trait_names=True)}
+        assert deps == {'b'}, deps
