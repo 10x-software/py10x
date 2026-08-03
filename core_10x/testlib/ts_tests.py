@@ -1,11 +1,11 @@
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
-from uuid6 import uuid7
 
 import numpy
 import pytest
 from py10x_kernel import BTraitableProcessor, XCache
+from uuid6 import uuid7
 
 from core_10x.code_samples.person import Person as BasePerson
 from core_10x.concrete_traits import datetime_trait
@@ -60,11 +60,14 @@ def ts_setup(ts_instance, request):
         assert p1._rev == 1
         assert p1.id().collection_name == (c1 if request.param else None)
 
-    yield ts_instance, p, p1, c, c1, Person, Person1
-
-    for cn in [c, c1]:
-        ts_instance.delete_collection(cn)
-    assert not {c, c1}.intersection(ts_instance.collection_names('.*'))
+    to_yield = [ts_instance, p, p1, c, c1, Person, Person1]
+    try:
+        yield to_yield
+    finally:
+        for cn in [c, c1]:
+            ts_instance.delete_collection(cn)
+        assert not {c, c1}.intersection(ts_instance.collection_names('.*'))
+        to_yield.clear()
 
 
 class TestTSStore:
@@ -85,14 +88,14 @@ class TestTSStore:
 
         serialized_entity |= {'attr': {'nested': 'value'}}
         _rev = collection.save(serialized_entity.copy())['_rev']
-        serialized_entity |= dict(_rev=_rev)
+        serialized_entity |= {'_rev': _rev}
         assert p._rev + 1 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
         # test that nested dictionary replaces rather than updates
         serialized_entity |= {'attr': {'nested1': 'value1'}}
         _rev = collection.save(serialized_entity.copy())['_rev']
-        serialized_entity |= dict(_rev=_rev)
+        serialized_entity |= {'_rev': _rev}
         assert p._rev + 2 == _rev
         # assert collection.load(_id) == serialized_entity|{'attr': {'nested': 'value', 'nested1': 'value1'}} #incorrect behavior
         assert collection.load(p.id().value) == serialized_entity
@@ -100,28 +103,28 @@ class TestTSStore:
         # test that dots are not interpreted as nested fields at the top level
         serialized_entity |= {'attr.nested2': 'value2'}
         _rev = collection.save(serialized_entity.copy())['_rev']
-        serialized_entity |= dict(_rev=_rev)
+        serialized_entity |= {'_rev': _rev}
         assert p._rev + 3 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
         # Nested keys may start with $ (not operators); top-level $ is unused outside Mongo ops.
         serialized_entity |= {'foo': {'$foo': 1}}
         _rev = collection.save(serialized_entity.copy())['_rev']
-        serialized_entity |= dict(_rev=_rev)
+        serialized_entity |= {'_rev': _rev}
         assert p._rev + 4 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
         # test that dots are not interpreted as nested fields at the nested level
         serialized_entity |= {'attr': {'nested.value': 1}}
         _rev = collection.save(serialized_entity.copy())['_rev']
-        serialized_entity |= dict(_rev=_rev)
+        serialized_entity |= {'_rev': _rev}
         assert p._rev + 5 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
         # check that we can unset fields
         del serialized_entity['attr']
         _rev = collection.save(serialized_entity.copy())['_rev']
-        serialized_entity |= dict(_rev=_rev)
+        serialized_entity |= {'_rev': _rev}
         assert p._rev + 6 == _rev
         assert collection.load(p.id().value) == serialized_entity
 
@@ -227,11 +230,11 @@ class TestTSStore:
         doc_id = 'test_doc_123'
         serialized_entity = {'_id': doc_id, 'name': 'Test Document', 'value': 42}
 
-        dt1 = datetime.utcnow()
+        dt1 = datetime.now(timezone.utc).replace(tzinfo=None)
         time.sleep(0.001)
         result = collection.save_new(ts_store.add_ts('_at', T.TS_TIME, dict(serialized_entity)))
         time.sleep(0.001)
-        dt2 = datetime.utcnow()
+        dt2 = datetime.now(timezone.utc).replace(tzinfo=None)
         assert result['_rev'] == 1
         assert set(result) == {'_rev', '_at'}
 

@@ -14,7 +14,7 @@ from typing import get_origin, get_type_hints
 
 from py10x_kernel import BTrait
 
-from core_10x.named_constant import NamedConstant, NamedCallable
+from core_10x.named_constant import NamedCallable, NamedConstant
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.rc import RC
 from core_10x.trait_definition import T, TraitDefinition, Ui
@@ -65,7 +65,7 @@ class Trait(BTrait, metaclass=TraitMetaclass):
                 if issubclass(data_type, base_class):
                     return tmap[base_class]
             except Exception:
-                break   #-- let's try generic trait
+                break  # -- let's try generic trait
 
         return generic_trait
 
@@ -139,20 +139,22 @@ class Trait(BTrait, metaclass=TraitMetaclass):
             f'{trait_name}_{(method_suffix := method_key.lower())}': (method_suffix, method_def)
             for method_key, method_def in TRAIT_METHOD.s_dir.items()
         }
+
     @staticmethod
     def pybind_signature(method):
         # pybind11 puts the callable signature on the docstring's first line; exec parses it when inspect cannot.
         doc = method.__doc__
         name = method.__name__
         mod = method.__module__
-        doc_signature, loc = doc.split('\n',1)[0].replace(f'{mod}.',''), {}
+        doc_signature, loc = doc.split('\n', 1)[0].replace(f'{mod}.', ''), {}
         exec(f'def {doc_signature}: ...', sys.modules[mod].__dict__, loc)
         return inspect.signature(loc[name])
 
     def set_trait_funcs(self, traitable_cls, rc):
         for method_name, (method_suffix, method_def) in Trait.method_defs(self.name).items():
-
-            cxx_method = next((getattr(cxx_mixin, method_name, None) for cxx_mixin in traitable_cls.s_cxx_mixins), None) if method_suffix == 'get' else None
+            cxx_method = (
+                next((getattr(cxx_mixin, method_name, None) for cxx_mixin in traitable_cls.s_cxx_mixins), None) if method_suffix == 'get' else None
+            )
             method = getattr(traitable_cls, method_name, cxx_method)
             if method and method_suffix == 'get' and self.t_def.default is not XNone:  # -- getter and default are defined - figure out which to use
                 for cls in traitable_cls.__mro__:
@@ -302,7 +304,7 @@ class Trait(BTrait, metaclass=TraitMetaclass):
         return False
 
     def check_integrity(self, cls, rc: RC):
-        if self.flags_on(T.TS) and self.check_ts(cls, rc) and self.flags_on(T.RUNTIME|T.RESERVED|T.EMBEDDED):
+        if self.flags_on(T.TS) and self.check_ts(cls, rc) and self.flags_on(T.RUNTIME | T.RESERVED | T.EMBEDDED):
             rc.add_error(f'{cls.__name__}.{self.name} - TS traits must be storable (not RUNTIME or RESERVED), and not EMBEDDED')
 
     def default_value(self):
@@ -353,7 +355,7 @@ class Trait(BTrait, metaclass=TraitMetaclass):
     def deserialize_value(self, value, replace_none=False):
         return XNone if replace_none and value is None else self.f_deserialize(self, value)
 
-    def serialize_to_types(self) -> type|tuple(type):
+    def serialize_to_types(self) -> type | tuple(type):
         return self.s_serialize_to_type or self.data_type
 
     # ===================================================================================================================
@@ -428,14 +430,11 @@ class ClassTrait(NamedCallable):
         return f'{self.cls}.{self.trait.name}'
 
     def serialize(self, embed: bool):
-        return [
-            PackageRefactoring.find_class_id(self.cls),
-            self.trait.name
-        ]
+        return [PackageRefactoring.find_class_id(self.cls), self.trait.name]
 
     @classmethod
     def deserialize(cls, serialized_data: list) -> ClassTrait:
         class_id, trait_name = serialized_data
         traitable_class = PackageRefactoring.find_class(class_id)
-        trait = traitable_class.trait(trait_name, throw = True)
+        trait = traitable_class.trait(trait_name, throw=True)
         return ClassTrait(traitable_class, trait)

@@ -1,9 +1,7 @@
 import pytest
-
 from core_10x.exec_control import CONVERT_VALUES_OFF
 from core_10x.traitable import T
 from core_10x.traitable_cli import TraitableCli
-
 
 # ----------------------------------------------------------------------------
 #   Test command hierarchy

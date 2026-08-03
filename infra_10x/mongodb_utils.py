@@ -48,6 +48,7 @@ def create_xx_admin(admin: MongodbAdmin, xx_admin: str, new_password: str) -> No
 def get_xx_admin(user: str):
     return f'{user}-admin'
 
+
 @cache
 def git_user(uid=''):
     uid = f'/{uid}' if uid else ''
@@ -66,7 +67,7 @@ def all_git_users():
     return [
         uname.lower()
         for user in requests.get(f'https://api.github.com/orgs/{git_org}/members', headers={'Authorization': f'token {git_token()}'}).json()
-        if (uname:=git_user(user['id']))
+        if (uname := git_user(user['id']))
     ]
 
 
@@ -74,7 +75,7 @@ def generate_password():
     return ''.join(secrets.choice(string.ascii_letters + string.digits + '!@#$%^&*') for _ in range(AUTO_PASSWORD_LENGTH))
 
 
-def create_users(hostname,port=27017):
+def create_users(hostname, port=27017):
     admin = MongodbAdmin(hostname=hostname, port=port, **get_credentials('xxadmin', hostname))
     create_xx_role(admin)
     for xx_user in all_git_users():
@@ -123,11 +124,11 @@ def copy_db(from_host: str, to_host: str, to_port: int, dbname: str, overwrite=F
 
 
 if __name__ == '__main__':
-    #host = 'mongo10x.eastus2.cloudapp.azure.com'
+    # host = 'mongo10x.eastus2.cloudapp.azure.com'
     host = 'xxfin.10xconcepts.com'
     port = 27018
     # drop_users(host, port)
     # clear_vault()
-    #create_users(host, port)
+    # create_users(host, port)
 
     copy_db(from_host='localhost', to_host=host, to_port=port, dbname='mkt_data', overwrite=False).throw()

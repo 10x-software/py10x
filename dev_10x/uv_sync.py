@@ -21,6 +21,7 @@ Reinstall rules (per package): (a) not installed; (b) installed from a different
 Source is classified from PEP 610 `direct_url.json`: absent -> index; `dir_info.editable` -> local;
 otherwise -> git/other.
 """
+
 from __future__ import annotations
 
 import os
@@ -34,7 +35,7 @@ if TYPE_CHECKING:
 
     from dev_10x.xx_helpers import InstalledSourceHelpers
 
-PROJECT_ROOT = Path('.').resolve()  # the py10x repo root (cwd)
+PROJECT_ROOT = Path.cwd()  # the py10x repo root (cwd)
 PROFILE_FILE = '.dev_10x_profile'
 CORE = 'py10x-core'
 PROFILES = ('user', 'domain-dev', 'py10x-dev', 'py10x-core-dev')
@@ -52,13 +53,15 @@ def ensure_env_and_runtime_deps(project_root: Path) -> ModuleType:
     if not (project_root / '.venv' / 'pyvenv.cfg').is_file():
         subprocess.run(['uv', 'venv'], cwd=project_root, check=True)
     try:
-        import packaging  # noqa: F401 - xx_helpers import gate
-        import tomlkit
+        import packaging
         import setuptools_scm  # imported only to check availability
+        import tomlkit
     except ImportError:
-        subprocess.run(['uv', 'pip', 'install', '--python', sys.executable, '--quiet',
-                        '-c', 'constraints.txt', 'packaging', 'tomlkit', 'setuptools-scm'],
-                       cwd=project_root, check=True)
+        subprocess.run(
+            ['uv', 'pip', 'install', '--python', sys.executable, '--quiet', '-c', 'constraints.txt', 'packaging', 'tomlkit', 'setuptools-scm'],
+            cwd=project_root,
+            check=True,
+        )
         import tomlkit
     return tomlkit
 
@@ -79,8 +82,7 @@ def _dev10x_cfg(tomlkit) -> dict:
 
 
 def _git_remote() -> str:
-    return subprocess.check_output(
-        ['git', 'remote', 'get-url', 'origin'], cwd=PROJECT_ROOT, text=True).strip()
+    return subprocess.check_output(['git', 'remote', 'get-url', 'origin'], cwd=PROJECT_ROOT, text=True).strip()
 
 
 def _swap_repo(remote: str, repo_dir: str) -> str:
@@ -149,9 +151,7 @@ def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
 def source_version(src: Path) -> str:
     # stderr suppressed: hatch-vcs projects have no [tool.setuptools_scm] section, so the scm CLI
     # logs a harmless "toml section missing" warning while still computing the git version.
-    return subprocess.check_output(
-        [sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True,
-        stderr=subprocess.DEVNULL).strip()
+    return subprocess.check_output([sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True, stderr=subprocess.DEVNULL).strip()
 
 
 def _sibling_pin(name: str) -> str | None:
@@ -164,8 +164,7 @@ def _sibling_pin(name: str) -> str | None:
         return None
 
 
-def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True,
-                 installs: InstalledSourceHelpers | None = None) -> bool:
+def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True, installs: InstalledSourceHelpers | None = None) -> bool:
     installs = installs or _installed_source_helpers(PROJECT_ROOT)
     cur_kind, cur_path = installs.installed_source(name)
     reason = None
@@ -186,7 +185,7 @@ def need_install(name: str, kind: str, pkg: dict, *, verbose: bool = True,
                 installed, src = installs.installed_version(name), source_version(pkg['local'])
                 if installed != src:
                     reason = f'version drift {installed} -> {src}'
-            except Exception as e:  # be safe: any failure -> reinstall
+            except Exception as e:  # noqa: BLE001 - any failure -> reinstall
                 reason = f'version check failed ({e})'
     if verbose:
         print(f'  {name}: {"reinstall - " + reason if reason else "up to date, skipping"}')
@@ -211,8 +210,10 @@ def _windows_cxx_cmake_flags(name: str) -> list[str]:
     if sys.platform != 'win32':
         return []
     return [
-        '--config-settings-package', f'{name}:cmake.args=-T',
-        '--config-settings-package', f'{name}:cmake.args=v143,version=14.44',
+        '--config-settings-package',
+        f'{name}:cmake.args=-T',
+        '--config-settings-package',
+        f'{name}:cmake.args=v143,version=14.44',
     ]
 
 
@@ -221,8 +222,8 @@ def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
     Build type comes from XX_UV_BUILD_TYPE (default Release); each type gets its own build
     dir so switching Debug<->Release does not force a full reconfigure/rebuild."""
     build_type = os.getenv('XX_UV_BUILD_TYPE', 'Release')
-    build_dir = f"{(venv / 'py10x-build' / name / build_type).as_posix()}/{{wheel_tag}}"
-    verbose = int(os.getenv('XX_UV_INCREMENTAL',0))==1
+    build_dir = f'{(venv / "py10x-build" / name / build_type).as_posix()}/{{wheel_tag}}'
+    verbose = int(os.getenv('XX_UV_INCREMENTAL', '0')) == 1
     return [
         '--no-build-isolation-package',
         name,
@@ -276,12 +277,8 @@ def _maybe_wait_for_sibling_branch() -> None:
     timeout = os.environ.get('WAIT_FOR_SIBLING_BRANCH_TIMEOUT', '120')
     interval = os.environ.get('WAIT_FOR_SIBLING_BRANCH_INTERVAL', '5')
     refresh = ' (refreshing py10x each attempt)' if sync_base else ''
-    print(
-        f'uv-sync: waiting for coordinated sibling pins on branch {branch!r}{refresh} '
-        f'(timeout={timeout}s, interval={interval}s)...'
-    )
-    code = xx_ci.wait_sibling_branch_ready(
-        PROJECT_ROOT, branch, sync_base=sync_base, verbose=True)
+    print(f'uv-sync: waiting for coordinated sibling pins on branch {branch!r}{refresh} (timeout={timeout}s, interval={interval}s)...')
+    code = xx_ci.wait_sibling_branch_ready(PROJECT_ROOT, branch, sync_base=sync_base, verbose=True)
     if code:
         raise SystemExit(code)
     print(f'uv-sync: sibling pins ready on branch {branch!r}')
@@ -294,7 +291,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     branch = _dev10x_cfg(tomlkit).get('branch', 'main')
     kinds = profile_kinds(profile, list(pkgs))
     siblings = [p for p in pkgs if p != CORE]
-    incremental = int(os.environ.get('XX_UV_INCREMENTAL', 0))
+    incremental = int(os.environ.get('XX_UV_INCREMENTAL', '0'))
     prev_incremental = read_incremental_state(PROJECT_ROOT)
     toggled = prev_incremental is not None and prev_incremental != incremental
 
@@ -302,8 +299,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
 
     print(f'uv-sync `{profile}`: ' + ', '.join(f'{p}={kinds[p]}' for p in pkgs))
     if toggled:
-        print(f'XX_UV_INCREMENTAL toggled ({prev_incremental} -> {incremental}): '
-              f'forcing rebuild of local C++ packages.')
+        print(f'XX_UV_INCREMENTAL toggled ({prev_incremental} -> {incremental}): forcing rebuild of local C++ packages.')
 
     if incremental and any(kinds[s] == 'local' and pkgs[s]['cxx'] for s in siblings):
         print('XX_UV_INCREMENTAL set: no-build-isolation incremental rebuilds for local C++ packages.')
@@ -319,8 +315,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
         if kind == 'index':
             if installs.installed_source(s)[0] not in (None, 'index'):
                 index_swaps.append(s)
-            print(f'  {s}: index (resolved with core deps in step 2'
-                  f'{" - forcing swap" if s in index_swaps else ""})')
+            print(f'  {s}: index (resolved with core deps in step 2{" - forcing swap" if s in index_swaps else ""})')
             continue
         do = need_install(s, kind, pkgs[s], installs=installs)
         if not do and toggled and kind == 'local' and pkgs[s]['cxx']:
@@ -328,8 +323,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
             do = True
         if do:
             if kind == 'local':
-                install_local(s, pkgs[s], pin=_sibling_pin(s),
-                              incremental=incremental, verbose=verbose)
+                install_local(s, pkgs[s], pin=_sibling_pin(s), incremental=incremental, verbose=verbose)
             else:  # git
                 install_git(s, pkgs[s], branch)
 
@@ -353,7 +347,8 @@ def uv_sync(profile: str, *uv_args: str) -> None:
         if kinds[s] == 'local' and installs.installed_source(s)[0] != 'local':
             raise RuntimeError(
                 f'{s}: expected an editable local install but it is '
-                f'{installs.installed_source(s)[0]!r} - py10x-core\'s pin likely pulled a non-editable build')
+                f"{installs.installed_source(s)[0]!r} - py10x-core's pin likely pulled a non-editable build"
+            )
 
     persist_profile(PROJECT_ROOT, profile)
     persist_incremental_state(PROJECT_ROOT, incremental)
@@ -392,7 +387,9 @@ def ensure_chromium_installed() -> None:
         import playwright  # imported only to check the package exists
     except ImportError:
         return
-    from playwright.sync_api import Error as PlaywrightError, sync_playwright
+    from playwright.sync_api import Error as PlaywrightError
+    from playwright.sync_api import sync_playwright
+
     try:
         with sync_playwright() as p:
             p.chromium.launch(headless=True)

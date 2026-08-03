@@ -2,11 +2,11 @@ if __name__ == '__main__':
 
     from datetime import date, timedelta
 
-    from core_10x.xdate_time import XDateTime
     from core_10x.logger import PerfTimer
+    from core_10x.xdate_time import XDateTime
 
-    #from xx_common.curve import DateCurve, IP_KIND
-    from xx_common.py_curve import DateCurve, IP_KIND
+    #from xxcommon.curve import DateCurve, IP_KIND
+    from xxcommon.py_curve import IP_KIND, DateCurve
 
 
     def test1() -> tuple:
@@ -24,7 +24,7 @@ if __name__ == '__main__':
         values = []
         d = d1
         v = 1.
-        for i in range(1000):
+        for _i in range(1000):
             dates.append(d)
             values.append(v)
             d = d + dt
@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
     py_res, py_dt = test1()
 
-    from xx_common.cxx_curve import DateCurve, IP_KIND
+    from xxcommon.cxx_curve import IP_KIND, DateCurve  # noqa: F811 - it's not unused
 
     cxx_res, cxx_dt = test1()
 

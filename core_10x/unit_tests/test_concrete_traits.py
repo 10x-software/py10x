@@ -23,6 +23,7 @@ def _test_i(data_type: type, values, expected_values):
             except Exception as ex:
                 if not isinstance(ex, ev):
                     pytest.fail(f'Got {ex} instead of {ev} value {v} for type {data_type}')
+                    raise  # for lint
             else:
                 pytest.fail(f'Expected exception {ev} for value {v} for type {data_type}; converted to {p.value}')
         else:

@@ -102,7 +102,7 @@ class App10x:
                 internal_on_server_created=_on_server_created,
                 debug_mode=debug_mode,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - TODO better handling?
             print(f'Error running app: {e}')
         finally:
             if webview.is_alive():

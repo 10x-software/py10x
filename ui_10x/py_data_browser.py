@@ -131,8 +131,8 @@ class PyDataBrowser:
                 except Exception:
                     return
 
-            for key, value in handler(item):
-                self.create_tree(key, value, node)
+            for child_key, child_value in handler(item):
+                self.create_tree(child_key, child_value, node)
 
     def widget(self) -> ux.TreeWidget:
         self.tree = tree = ux.TreeWidget()

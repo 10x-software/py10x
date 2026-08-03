@@ -24,10 +24,10 @@ if __name__ == '__main__':
         assert Person.exists_in_store(p.id()), f'Person must have been stored to {EnvVars.main_ts_store_uri}'
 
     #-- 1) Create NamedTsStore objects referring to all available extra TsStores for Class Associations
-    extra_uris = dict(
-        dummy1 = 'mongodb://localhost/dummy1',
-        dummy2 = 'mongodb://localhost/dummy2',
-    )
+    extra_uris = {
+        'dummy1': 'mongodb://localhost/dummy1',
+        'dummy2': 'mongodb://localhost/dummy2',
+    }
     for name, uri in extra_uris.items():
         #store = TsStore.instance_from_uri(uri)
         ns = NamedTsStore(_replace = True,

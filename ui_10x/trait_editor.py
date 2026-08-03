@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import weakref
 from contextlib import nullcontext
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from core_10x.concrete_traits import date_trait, dict_trait, flags_trait, list_trait
@@ -17,16 +17,22 @@ from ui_10x.utils import UxDialog, UxStyleSheet, ux, ux_pick_date
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from core_10x.traitable import Traitable
     from core_10x.exec_control import BTP
     from core_10x.rc import RC
     from core_10x.trait import Trait
+    from core_10x.traitable import Traitable
 
 
-@dataclass
 class TraitableWrapper:
-    traitable: Traitable
-    traitable_processor: Callable[[], BTP]
+    __slots__ = ('_traitable', 'traitable_processor')
+
+    def __init__(self, traitable: Traitable, traitable_processor: Callable[[], BTP] = None):
+        self._traitable = weakref.ref(traitable)
+        self.traitable_processor = traitable_processor
+
+    @property
+    def traitable(self) -> Traitable:
+        return self._traitable()
 
     def set_value(self, trait: Trait, value) -> RC:
         with self.traitable_processor() or nullcontext():
@@ -63,7 +69,9 @@ class TraitableWrapper:
 
 
 class TraitEditor:
-    def __init__(self, traitable, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None):
+    def __init__(
+        self, traitable, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None
+    ):
         self.traitable = TraitableWrapper(traitable, traitable_processor)
         self.trait = trait
         self.widget: TraitWidget | None = None

@@ -22,9 +22,8 @@ class StyleSheet(Traitable):
         if font := style.pop('font-family', None):
             kw['font'] = rio.Font.from_google_fonts(font)
 
-        if font_style := style.pop('font-style', None):
-            if font_style != 'normal':
-                kw[font_style] = True
+        if (font_style := style.pop('font-style', None)) and font_style != 'normal':
+            kw[font_style] = True
 
         if font_weight := style.pop('font-weight', None):
             kw['font_weight'] = font_weight

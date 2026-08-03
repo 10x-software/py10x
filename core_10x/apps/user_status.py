@@ -30,11 +30,11 @@ def main() -> int:
     # ------------------------------------------------------------------
     print('\n[1] Vault URI')
     from core_10x.sec_keys import SecKeys
+
     rc, vault_uri = SecKeys.check_vault_uri(main=True)
     if not rc:
-        _fail('XX_MAIN_VAULT_URI is not set',
-              'set the environment variable: export XX_MAIN_VAULT_URI=mongodb://<host>:<port>/<db>')
-        return 1        # nothing else makes sense without this
+        _fail('XX_MAIN_VAULT_URI is not set', 'set the environment variable: export XX_MAIN_VAULT_URI=mongodb://<host>:<port>/<db>')
+        return 1  # nothing else makes sense without this
     _ok(vault_uri)
 
     # ------------------------------------------------------------------
@@ -43,8 +43,7 @@ def main() -> int:
     print('\n[2] Master password (OS keyring)')
     rc, _ = SecKeys.retrieve_master_password()
     if not rc:
-        _fail('not found in OS keyring — self-registration has not been completed on this machine',
-              'run: xx-user-init')
+        _fail('not found in OS keyring — self-registration has not been completed on this machine', 'run: xx-user-init')
     else:
         _ok('found in OS keyring')
 
@@ -54,8 +53,7 @@ def main() -> int:
     print('\n[3] Vault login/password (OS keyring)')
     rc, login, _ = SecKeys.retrieve_vault_login_password(vault_uri)
     if not rc:
-        _fail('not found in OS keyring — self-registration has not been completed on this machine',
-              'run: xx-user-init')
+        _fail('not found in OS keyring — self-registration has not been completed on this machine', 'run: xx-user-init')
     else:
         _ok(f'login = {login!r}')
 
@@ -67,19 +65,20 @@ def main() -> int:
     # ------------------------------------------------------------------
     print('\n[4] Vault connection and user record')
     try:
-        from core_10x.traitable import Traitable, VaultUser, VaultResourceAccessor
+        from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
+
         vault = Traitable.vault_store()
     except Exception as exc:
-        _fail(f'Cannot connect to vault ({vault_uri}): {exc}',
-              'check that the vault server is reachable and that the stored credentials are correct')
+        _fail(f'Cannot connect to vault ({vault_uri}): {exc}', 'check that the vault server is reachable and that the stored credentials are correct')
         return 1
 
     with vault:
         me = VaultUser.existing_instance(_throw=False)
         if not me:
-            _fail(f'No user record found for {VaultUser.myname()!r} in the vault',
-                  f'XX_MAIN_VAULT_URI may be pointing to the wrong vault '
-                  f'(currently: {vault_uri})')
+            _fail(
+                f'No user record found for {VaultUser.myname()!r} in the vault',
+                f'XX_MAIN_VAULT_URI may be pointing to the wrong vault (currently: {vault_uri})',
+            )
             return 1
         _ok(f'user_id = {me.user_id!r}')
 
@@ -88,21 +87,22 @@ def main() -> int:
         # ------------------------------------------------------------------
         print('\n[5] Resource accessors')
         from core_10x.trait_filter import f
+
         ras = VaultResourceAccessor.load_many(f(username=me.user_id))
 
         if not ras:
-            print('      (none registered — ask an admin to run'
-                  ' xx-admin-save-user-credentials for any additional resources)')
+            print('      (none registered — ask an admin to run xx-admin-save-user-credentials for any additional resources)')
         else:
             for ra in ras:
                 label = f'{ra.resource_dt.name}  {ra.resource_uri}  (login: {ra.login})'
                 try:
-                    ra.resource # noqa: B018 useless-expression
+                    ra.resource  # noqa: B018 useless-expression
                     _ok(label)
                 except Exception as exc:
-                    _fail(label,
-                          f'connection failed: {exc} — check that the server is reachable '
-                          f'and ask an admin to verify or refresh the stored credentials')
+                    _fail(
+                        label,
+                        f'connection failed: {exc} — check that the server is reachable and ask an admin to verify or refresh the stored credentials',
+                    )
 
     print()
     if ok:

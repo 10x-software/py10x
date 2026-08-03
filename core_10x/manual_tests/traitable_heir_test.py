@@ -1,4 +1,5 @@
-from core_10x.traitable_heir import TraitableHeir, T, RT
+from core_10x.traitable_heir import RT, T, TraitableHeir
+
 
 class Conventions(TraitableHeir):
     mkt_name: str   = T(T.ID)

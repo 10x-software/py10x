@@ -35,7 +35,7 @@ class MongodbAdmin:
 
     def change_own_password(self, password: str):
         self.db.command(dict(updateUser=self.username, pwd=password))
-        self.client = MongoStore.connect(hostname=self.hostname, username=self.username, password=password, prot=self.port,_cache=False)
+        self.client = MongoStore.connect(hostname=self.hostname, username=self.username, password=password, prot=self.port, _cache=False)
         self.db = self.client[MongoStore.ADMIN]
 
         # # Discover which user/db you're authenticated as (handy to avoid hardcoding)

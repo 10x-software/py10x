@@ -1,6 +1,7 @@
 import math
 import sys
 
+
 class PInfType:
     def __hash__(self):                         return id(self)
 

@@ -1,15 +1,14 @@
 """Unit tests for core_10x/scenario.py."""
+
 from __future__ import annotations
 
 import functools
 from weakref import WeakKeyDictionary
 
 import pytest
-
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.scenario import Scenario
 from core_10x.traitable import RT, T, Traitable
-
 
 
 class TestScenarioIdentity:
@@ -77,21 +76,23 @@ class TestScenarioContextManager:
 
     def test_exception_propagates_through_context_manager(self):
         """Exceptions inside the with-block are not swallowed."""
-        with pytest.raises(ValueError, match='test error'):
-            with Scenario('scen_test_ctx_D'):
-                raise ValueError('test error')
+        with pytest.raises(ValueError, match='test error'), Scenario('scen_test_ctx_D'):
+            raise ValueError('test error')
 
 
 # ---------------------------------------------------------------------------
 # Helpers shared by E2E tests
 # ---------------------------------------------------------------------------
 
+
 def call_counter(method):
     """Decorator that counts per-instance getter invocations."""
+
     @functools.wraps(method)
     def wrapper(self, *args, **kwargs):
         wrapper.call_counts[self] = wrapper.call_counts.get(self, 0) + 1
         return method(self, *args, **kwargs)
+
     wrapper.call_counts = WeakKeyDictionary()
     wrapper.count = lambda obj: wrapper.call_counts.get(obj, 0)
     return wrapper
@@ -101,6 +102,7 @@ def call_counter(method):
 # End-to-end: Traitable computations inside Scenario contexts
 # ---------------------------------------------------------------------------
 
+
 class TestScenarioEndToEnd:
     """
     Verifies that a Scenario actually activates GRAPH_ON semantics:
@@ -109,8 +111,8 @@ class TestScenarioEndToEnd:
     """
 
     class Price(Traitable):
-        ticker:   str   = T(T.ID)
-        raw:      float = T()
+        ticker: str = T(T.ID)
+        raw: float = T()
         adjusted: float = RT()
 
         @call_counter
@@ -119,26 +121,24 @@ class TestScenarioEndToEnd:
 
     def test_computed_trait_is_cached_inside_scenario(self):
         """Inside Scenario (GRAPH_ON), the getter runs once; repeated reads hit the cache."""
-        with CACHE_ONLY():
-            with Scenario('e2e_cache_A'):
-                p = self.Price(ticker='e2e_AAPL_A')
-                p.raw = 100.0
-                v1 = p.adjusted                      # getter invoked → count = 1
-                v2 = p.adjusted                      # cache hit → count stays 1
-                assert self.Price.adjusted_get.count(p) == 1
-                assert v1 == v2 == pytest.approx(110.0)
+        with CACHE_ONLY(), Scenario('e2e_cache_A'):
+            p = self.Price(ticker='e2e_AAPL_A')
+            p.raw = 100.0
+            v1 = p.adjusted  # getter invoked → count = 1
+            v2 = p.adjusted  # cache hit → count stays 1
+            assert self.Price.adjusted_get.count(p) == 1
+            assert v1 == v2 == pytest.approx(110.0)
 
     def test_dependency_invalidation_triggers_recompute(self):
         """Changing a dependency invalidates the cached value; next read recomputes."""
-        with CACHE_ONLY():
-            with Scenario('e2e_dep_B'):
-                p = self.Price(ticker='e2e_AAPL_B')
-                p.raw = 100.0
-                _ = p.adjusted                       # compute and cache
-                p.raw = 200.0                        # invalidate dependency
-                v = p.adjusted                       # must recompute
-                assert v == pytest.approx(220.0)
-                assert self.Price.adjusted_get.count(p) == 2
+        with CACHE_ONLY(), Scenario('e2e_dep_B'):
+            p = self.Price(ticker='e2e_AAPL_B')
+            p.raw = 100.0
+            _ = p.adjusted  # compute and cache
+            p.raw = 200.0  # invalidate dependency
+            v = p.adjusted  # must recompute
+            assert v == pytest.approx(220.0)
+            assert self.Price.adjusted_get.count(p) == 2
 
     def test_named_scenario_reentry_sees_same_cached_data(self):
         """Data written during the first entry is visible when the Scenario is re-entered."""
@@ -146,9 +146,9 @@ class TestScenarioEndToEnd:
             with Scenario('e2e_reentry_C'):
                 p = self.Price(ticker='e2e_AAPL_C')
                 p.raw = 50.0
-                _ = p.adjusted                       # cache value = 55.0
+                _ = p.adjusted  # cache value = 55.0
 
-            with Scenario('e2e_reentry_C'):          # same BTP, same cache
+            with Scenario('e2e_reentry_C'):  # same BTP, same cache
                 p2 = self.Price(ticker='e2e_AAPL_C')
                 assert p2.raw == 50.0
                 assert p2.adjusted == pytest.approx(55.0)
@@ -175,21 +175,20 @@ class TestScenarioEndToEnd:
         before the inner Scenario overrides them. After the inner Scenario exits,
         the outer scope is restored unchanged.
         """
-        with CACHE_ONLY():
-            with Scenario('e2e_outer_G'):
-                p = self.Price(ticker='e2e_MSFT_G')
-                p.raw = 100.0
-                outer_adj = p.adjusted           # caches 110.0 in outer BTP
+        with CACHE_ONLY(), Scenario('e2e_outer_G'):
+            p = self.Price(ticker='e2e_MSFT_G')
+            p.raw = 100.0
+            outer_adj = p.adjusted  # caches 110.0 in outer BTP
 
-                with Scenario('e2e_inner_G'):
-                    # Parent-scope value is visible before any override
-                    assert p.raw == 100.0
-
-                    # Override inside the inner scope
-                    p.raw = 200.0
-                    inner_adj = p.adjusted       # recomputes to 220.0
-                    assert inner_adj == pytest.approx(220.0)
-
-                # After inner exits, outer scope is restored
+            with Scenario('e2e_inner_G'):
+                # Parent-scope value is visible before any override
                 assert p.raw == 100.0
-                assert p.adjusted == pytest.approx(outer_adj)
+
+                # Override inside the inner scope
+                p.raw = 200.0
+                inner_adj = p.adjusted  # recomputes to 220.0
+                assert inner_adj == pytest.approx(220.0)
+
+            # After inner exits, outer scope is restored
+            assert p.raw == 100.0
+            assert p.adjusted == pytest.approx(outer_adj)

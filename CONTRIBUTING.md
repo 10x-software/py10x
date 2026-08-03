@@ -90,15 +90,16 @@ python ui_10x/rio/manual_tests/basic_test.py
 ```python
 from core_10x.traitable import Traitable, T
 
+
 # Example unit test
 def test_traitable_creation():
-    
+
     class TestEntity(Traitable):
         name: str
         value: int
-    
-    entity = TestEntity(name="test", value=42)
-    assert entity.name == "test"
+
+    entity = TestEntity(name='test', value=42)
+    assert entity.name == 'test'
     assert entity.value == 42
 ```
 
@@ -140,7 +141,7 @@ py10x/
 │   ├── constraints.py, xx_ci.py, xx_plan.py, ...
 │   ├── pytest_plugin.py
 │   └── unit_tests/
-├── xx_common/              # Shared utilities (xxcalendar, curves, events, rdate, ...)
+├── xxcommon/              # Shared utilities (xxcalendar, curves, events, rdate, ...)
 │   └── unit_tests/, manual_tests/
 ├── scripts/                # Helper scripts (e.g. cloud Mongo setup)
 ├── docs/                   # Supplementary docs (IP checklist, onboarding)

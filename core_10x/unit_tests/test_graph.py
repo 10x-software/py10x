@@ -57,13 +57,13 @@ class TestablePerson(Person):
         return None
 
 
-@pytest.fixture
-def testable_person():
+def find_or_create():
     with CACHE_ONLY():
         return TestablePerson(first_name='John', last_name='Smith')
 
 
-def reset_person(p):
+def reset_person():
+    p = find_or_create()
     for trait in p.s_dir.values():
         if not trait.getter_params:
             p.invalidate_trait_value(trait)
@@ -79,9 +79,9 @@ def reset_person(p):
             ...
 
 
-def test_get_set(testable_person):
+def test_get_set():
     on = BTP.current().flags() & BTP.ON_GRAPH
-    p = testable_person
+    p = find_or_create()
     p.weight_lbs = 100.0
     p.weight_qu = WEIGHT_QU.LB
 
@@ -112,9 +112,9 @@ def test_get_set(testable_person):
         assert cc.call_count == 0
 
 
-def test_dep_change(testable_person):
+def test_dep_change():
     on = BTP.current().flags() & BTP.ON_GRAPH
-    p = testable_person
+    p = find_or_create()
     p.age = 30
 
     assert not p.young
@@ -131,10 +131,10 @@ def test_dep_change(testable_person):
     p.age = 30
 
 
-def test_dep_change_with_arg(testable_person):
+def test_dep_change_with_arg():
     on = BTP.current().flags() & BTP.ON_GRAPH
 
-    p = testable_person
+    p = find_or_create()
     p.age = 30
 
     assert not p.older_than(30)
@@ -180,7 +180,7 @@ def test_nested():
     assert p.full_name == 'Jane Smith'
 
 
-def test_convert(testable_person, on=False):
+def test_convert(on=False):
     assert on == bool(BTP.current().flags() & BTP.CONVERT_VALUES)
     if not on:
         with pytest.raises(TypeError):
@@ -190,41 +190,42 @@ def test_convert(testable_person, on=False):
         assert p.full_name == '1 2'
 
 
-def test_graph(testable_person, on=False):
+def test_graph(on=False):
     assert on == bool(BTP.current().flags() & BTP.ON_GRAPH)
-    test_dep_change(testable_person)
-    test_dep_change_with_arg(testable_person)
-    test_get_set(testable_person)
+    test_dep_change()
+    test_dep_change_with_arg()
+    test_get_set()
 
 
-def test_exec_control(testable_person, graph=False, convert=False, debug=False):
+def test_exec_control(graph=False, convert=False, debug=False):
     with CACHE_ONLY():
-        test_graph(testable_person, on=graph)
-        reset_person(testable_person)
-        test_convert(testable_person, on=convert)
-        reset_person(testable_person)
+        test_graph(on=graph)
+        reset_person()
+        test_convert(on=convert)
+        reset_person()
         if not convert:
-            test_debug(testable_person, on=debug)
+            test_debug(on=debug)
 
 
-def test_repro(testable_person):
+def test_repro():
     with GRAPH_ON():
-        testable_person.weight_lbs = 100
-        reset_person(testable_person)
+        p = find_or_create()
+        p.weight_lbs = 100
+        reset_person()
         with GRAPH_OFF():
-            testable_person.weight_lbs = 100
-            reset_person(testable_person)
+            p.weight_lbs = 100
+            reset_person()
 
 
-def test_graph_on(testable_person):
+def test_graph_on():
     with GRAPH_ON():
-        test_exec_control(testable_person, True, False, False)
+        test_exec_control(True, False, False)
         with GRAPH_OFF():
-            test_exec_control(testable_person, False, False, False)
-            reset_person(testable_person)
+            test_exec_control(False, False, False)
+            reset_person()
 
 
-def test_debug(testable_person, on=False):
+def test_debug(on=False):
     assert on == bool(BTP.current().flags() & BTP.DEBUG)
     p = TestablePerson(first_name='John', last_name='Smith')
     assert p.weight_lbs is XNone
@@ -244,38 +245,38 @@ def test_debug(testable_person, on=False):
     assert p.weight_lbs is XNone
 
 
-def test_graph_convert_debug(testable_person):
+def test_graph_convert_debug():
     with GRAPH_ON(convert_values=True, debug=True):
-        test_exec_control(testable_person, True, True, True)
+        test_exec_control(True, True, True)
         with GRAPH_OFF():
-            test_exec_control(testable_person, False, True, True)
+            test_exec_control(False, True, True)
         with GRAPH_OFF(convert_values=False):
-            test_exec_control(testable_person, False, False, True)
+            test_exec_control(False, False, True)
         with GRAPH_OFF(debug=False, convert_values=False):
-            test_exec_control(testable_person, False, False, False)
+            test_exec_control(False, False, False)
 
 
-def test_graph_convert(testable_person):
+def test_graph_convert():
     with GRAPH_ON(convert_values=True):
-        test_exec_control(testable_person, True, True, False)
+        test_exec_control(True, True, False)
         with GRAPH_OFF():
-            test_exec_control(testable_person, False, True, False)
+            test_exec_control(False, True, False)
         with GRAPH_OFF(convert_values=False):
-            test_exec_control(testable_person, False, False, False)
+            test_exec_control(False, False, False)
         with GRAPH_OFF(debug=True, convert_values=False):
-            test_exec_control(testable_person, False, False, True)
+            test_exec_control(False, False, True)
 
 
-def test_graph_debug(testable_person):
+def test_graph_debug():
     with GRAPH_ON(debug=True):
-        test_exec_control(testable_person, True, False, True)
+        test_exec_control(True, False, True)
 
         with GRAPH_OFF():
-            test_exec_control(testable_person, False, False, True)
+            test_exec_control(False, False, True)
         with GRAPH_OFF(debug=False):
-            test_exec_control(testable_person, False, False, False)
+            test_exec_control(False, False, False)
         with GRAPH_OFF(debug=False, convert_values=True):
-            test_exec_control(testable_person, False, True, False)
+            test_exec_control(False, True, False)
 
 
 @pytest.mark.parametrize('on_graph', [0, 1])

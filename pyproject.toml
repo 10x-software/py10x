@@ -9,8 +9,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "py10x-kernel (>=0.2.1rc33,<0.2.1rc34)",
-    "py10x-infra (>=0.2.1rc30,<0.2.1rc31)",
+    "py10x-kernel (>=0.2.1rc39,<0.2.1rc40)",
+    "py10x-infra (>=0.2.1rc32,<0.2.1rc33)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -115,7 +115,7 @@ py10x-infra  = { path = "../cxx10x/infra_10x" }
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xx_common"]
+packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xxcommon"]
 #exclude = [ "**/*_tests/**" ]
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]

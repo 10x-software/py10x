@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime
-import uuid6
+from typing import TYPE_CHECKING
 
-from core_10x.traitable import EventBase, T, RT, RC
-from core_10x.trait_filter import BETWEEN, LT, LE, GT, GE, f
+import uuid6
+from core_10x.trait_filter import BETWEEN, GE, GT, LE, LT, f
+from core_10x.traitable import RC, RT, EventBase, T
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 
 class Event(EventBase):
-    @classmethod
+    @staticmethod
     def uuid7_from_dt(dt: datetime) -> str:
         """
         Construct the lowest possible UUID v7 for a given datetime (random bits zeroed)

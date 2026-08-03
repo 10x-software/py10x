@@ -2,9 +2,10 @@ import inspect
 from datetime import timedelta
 
 from core_10x.py_class import PyClass
-from core_10x.trait_filter import f, BETWEEN, LT
-from core_10x.traitable import Traitable, T
-from xx_common.event import Event
+from core_10x.trait_filter import BETWEEN, LT, f
+from core_10x.traitable import T, Traitable
+
+from xxcommon.event import Event
 
 PROCESS_METHOD_SUFFIX = 'process'
 

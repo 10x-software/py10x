@@ -1,7 +1,6 @@
+import core_10x
 import py10x_kernel
 import pytest
-
-import core_10x
 
 
 @pytest.mark.parametrize('pattern', ['0.0.0', 'unknown'])

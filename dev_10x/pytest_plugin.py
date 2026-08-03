@@ -1,17 +1,16 @@
 from __future__ import annotations
 
-from pathlib import Path
 import importlib.metadata as md
-
-import pytest
-from py10x_kernel import BTraitableProcessor, XCache
+import os
+from pathlib import Path
 
 import core_10x
+import pytest
 from core_10x.global_cache import cache
-from core_10x.scenario import Scenario
-from core_10x.ts_store import TsStore
+from py10x_kernel import BTraitableProcessor
 
 PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent
+
 
 @cache
 def _owned_top_levels() -> set[str] | None:
@@ -33,13 +32,11 @@ def _owned_top_levels() -> set[str] | None:
 
 
 def pytest_configure(config):
-    import os
+
     if 'USER' not in os.environ:
         import getpass
-        try:
-            os.environ['USER'] = getpass.getuser()
-        except Exception:
-            pass
+
+        os.environ['USER'] = getpass.getuser()
 
     try:
         config.pluginmanager.import_plugin('alt_pytest_asyncio.enable')
@@ -75,20 +72,49 @@ def pytest_ignore_collect(collection_path, config):
         return False
 
     # Do not ignore tests located in a unit_tests parent directory.
-    return not(len(parts) > 1 and parts[-2] == 'unit_tests')
+    return not (len(parts) > 1 and parts[-2] == 'unit_tests')
+
 
 BTP = BTraitableProcessor.current()
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """Stash per-phase reports on the item so fixtures can see call outcome."""
+    outcome = yield
+    rep = outcome.get_result()
+    setattr(item, f'rep_{rep.when}', rep)
+
+
 @pytest.fixture(autouse=True)
-def test_isolation():
+def test_isolation(request):
     global BTP
     assert BTP is BTraitableProcessor.current()
+
+    # unittest.TestCase: fixture wraps setUp/test/tearDown. Snapshot instance keys
+    # *before* setUp so we can drop attrs stored on self (same idea as tracking
+    # orig_dict_keys in setUp/tearDown) before the leftover assert.
+    inst = getattr(request, 'instance', None)
+    keys_before = set(vars(inst)) if inst is not None else None
 
     try:
         yield
     finally:
         assert BTP is BTraitableProcessor.current()
-        Scenario.s_instances.clear()
-        XCache.clear()
         BTP.end_using()
         BTP = BTraitableProcessor.current()
-        TsStore.s_instances.clear()
+
+        from core_10x.testlib.ts_store_isolation import (
+            drop_new_instance_attrs,
+            reset_traitable_process_state,
+            restore_pinned_ts_stores,
+        )
+
+        if keys_before is not None:
+            drop_new_instance_attrs(inst, keys_before)
+
+        # On failed/skipped call phases, still clear state but skip leftover assert:
+        # locals / assertion frames often still hold Traitables and only add noise.
+        rep_call = getattr(request.node, 'rep_call', None)
+        reset_traitable_process_state(assert_clean=rep_call is None or rep_call.passed)
+        restore_pinned_ts_stores()

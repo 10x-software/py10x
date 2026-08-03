@@ -4,30 +4,28 @@ import collections
 import contextlib
 import re
 import sys
-import uuid6
 from collections import Counter
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import TYPE_CHECKING, Any
-
-from py10x_kernel import BSaveRefs
-from typing_extensions import Self
 
 import numpy as np
 import pytest
+import uuid6
 from core_10x import trait_definition
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_ON, INTERACTIVE, DEBUG_OFF, CONVERT_VALUES_ON, CONVERT_VALUES_OFF, DEBUG_ON
+from core_10x.exec_control import BTP, CACHE_ONLY, CONVERT_VALUES_OFF, CONVERT_VALUES_ON, DEBUG_OFF, DEBUG_ON, GRAPH_ON, INTERACTIVE
+from core_10x.named_constant import NamedCallable
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
-from core_10x.named_constant import NamedCallable
 from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Traitable, TraitableFwdRef, TraitAccessor, Index
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Index, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
-
 from core_10x.xnone import XNone
 from infra_10x.duckdb_store import DuckDbStore
+from py10x_kernel import BSaveRefs
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -110,6 +108,7 @@ def test_post_init_called():
 
     x = X(x=1)
     assert calls == [x]
+    calls.clear()
 
 
 def test_overriding_init_disallowed():
@@ -146,7 +145,7 @@ def test_set_values():
 
 def test_dynamic_traits():
     class X(Traitable):
-        s_own_trait_definitions = dict(x=RT(data_type=int, default=10))
+        s_own_trait_definitions = {'x': RT(data_type=int, default=10)}
 
     x = X()
     assert x.T.x.data_type is int
@@ -295,7 +294,7 @@ def test_declarative_indices():
     # Because EventBase is in the MRO for history (via TraitableHistory -> EventBase), the _at_idx is also present
     assert '_at_idx' in hist_names
 
-    # Also check a concrete Event subclass (from xx_common) inherits it
+    # Also check a concrete Event subclass (from xxcommon) inherits it
     class XXEvent(EventBase):
         n: int = T(0)
 
@@ -825,7 +824,7 @@ def test_serialize(monkeypatch):
                             serialized[id_value] = data
                             out = {'_rev': 1}
                             for name in ts_fields:
-                                out[name] = 'test_user' if name == '_who' else datetime.utcnow()
+                                out[name] = 'test_user' if name == '_who' else datetime.now(timezone.utc).replace(tzinfo=None)
                             return out
 
                         save_new = save
@@ -1302,16 +1301,16 @@ class TestExistingInstance:
 
         if 1:
             id_traits = [
-                dict(last_name='Davidovich', first_name='Sasha'),
-                dict(last_name='Pevzner', first_name='Ilya'),
-                dict(last_name='Lesin', first_name='Alex'),
-                dict(last_name='Smith', first_name='John'),
+                {'last_name': 'Davidovich', 'first_name': 'Sasha'},
+                {'last_name': 'Pevzner', 'first_name': 'Ilya'},
+                {'last_name': 'Lesin', 'first_name': 'Alex'},
+                {'last_name': 'Smith', 'first_name': 'John'},
             ]
             kwargs = [
-                dict(weight_lbs=170, _replace=True),
-                dict(),
-                dict(weight_lbs=190, _replace=True),
-                dict(),
+                {'weight_lbs': 170, '_replace': True},
+                {},
+                {'weight_lbs': 190, '_replace': True},
+                {},
             ]
             classes = [
                 self.TestablePerson,
@@ -1680,7 +1679,7 @@ class TestForwardRefTraitables:
         # forward-ref eval that consults `sys.modules[cls.__module__].__dict__`.
         sys.modules[module_name] = mod
         try:
-            exec(compile(source, f'<{module_name}>', 'exec'), mod.__dict__)
+            exec(compile(source, f'<{module_name}>', 'exec'), mod.__dict__)  # noqa: S102
         except BaseException:
             sys.modules.pop(module_name, None)
             raise
@@ -1949,9 +1948,11 @@ def test_runtime_unsets_ts_flags():
 class TestCycles:
     class Ref(Traitable):
         ref: Self = T()
+        lref: list = T()
 
     class Embeddable(AnonymousTraitable):
         ref: Self = T()
+        lref: list = T()
 
     @pytest.fixture(autouse=True)
     def duck_db(self):
@@ -1965,7 +1966,7 @@ class TestCycles:
         assert node is cls.Embeddable
         return pytest.raises(TraitMethodError, match=r'circular embedded serialization')
 
-    @pytest.mark.parametrize('node', [Ref,Embeddable])
+    @pytest.mark.parametrize('node', [Ref, Embeddable])
     def test_root_over_mutual_cycle(self, mode, node):
         a = node()
         b = node()
@@ -1981,7 +1982,7 @@ class TestCycles:
         a = node()
         b = node()
         a.ref = b
-        b.ref = a
+        b.lref = [a]
         with self._serialization_context(node):
             a.serialize_object(save_references=int(mode))
 
@@ -1998,6 +1999,7 @@ class TestCycles:
         a = node()
         b = node()
         a.ref = b
+        a.lref = [b]
         ser = a.serialize_object(save_references=int(mode))
         assert isinstance(ser, dict)
         assert ser.get('ref') is not None

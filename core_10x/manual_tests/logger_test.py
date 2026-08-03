@@ -5,7 +5,7 @@ if __name__ == '__main__':
     LOG.begin('test_logger', log_level = LOG.DETAILED)
 
     LOG('First message')
-    LOG.MEDIUM(dict(a = 1, b = 'ccc'))
+    LOG.MEDIUM({'a': 1, 'b': 'ccc'})
     LOG.DETAILED('Detailed message')
 
     for i in range(10):

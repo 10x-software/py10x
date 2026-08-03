@@ -96,6 +96,6 @@ class CUSTOM_ROLE(NamedConstant):
 SECURITY_KEYS_MISSING = 'Sec keys are missing. If you are using a new computer, please run "xx user new machine" from your shell'
 SECURITY_KEYS_INCOMPATIBLE = 'Sec keys are incompatible with an encrypted password'
 
-SECRETS_CLIENT_ARGS     = dict(service_name = 'secretmanager', region_name = 'me-south-1')
+SECRETS_CLIENT_ARGS     = {'service_name': 'secretmanager', 'region_name': 'me-south-1'}
 SECRETS_PATH_PREFIX     = '/external-secrets/xx'
 # fmt: on

@@ -3,13 +3,13 @@ from __future__ import annotations
 import bisect
 import functools
 import inspect
-from types import GeneratorType
 import itertools
-
-from core_10x.traitable import Traitable, Trait, T, RT, RC, RC_TRUE, XNone
-from core_10x.named_constant import NamedConstant, NamedCallable
-from core_10x.xinf import XInf
+from types import GeneratorType
 from typing import TYPE_CHECKING
+
+from core_10x.named_constant import NamedCallable, NamedConstant
+from core_10x.traitable import RC, RC_TRUE, RT, T, Trait, Traitable, XNone
+from core_10x.xinf import XInf
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -144,7 +144,7 @@ class Bucketizer(Traitable, embeddable = True):
             custom_f = custom_f.value
 
         if not callable(custom_f):
-            raise AssertionError(f'{label}: {custom_f} is not callable')
+            raise TypeError(f'{label}: {custom_f} is not callable')
 
         if arg_data_type is not None:
             sig = inspect.signature(custom_f)

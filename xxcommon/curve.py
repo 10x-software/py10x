@@ -1,11 +1,12 @@
-from xx_common.xxcommon_env_vars import XXCommonEnvVars
+from xxcommon.xxcommon_env_vars import XXCommonEnvVars
 
 if not XXCommonEnvVars.use_cxx_curve:
-    from xx_common.py_curve import Curve, DateCurve, IP_KIND, CurveParams
+    from xxcommon.py_curve import IP_KIND, Curve, CurveParams, DateCurve
 else:
-    from xx_common.cxx_curve import Curve, DateCurve, IP_KIND, CurveParams
+    from xxcommon.cxx_curve import IP_KIND, Curve, CurveParams, DateCurve
 
 from scipy import interpolate
+
 
 class TwoFuncInterpolator:
     def __init__(self, in_func, out_func, in_func_on_arrays=None, _interpolator=interpolate.interp1d):

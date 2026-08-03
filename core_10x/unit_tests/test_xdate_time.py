@@ -1,7 +1,7 @@
-import pytest
 from datetime import date, datetime
 
-from core_10x.xdate_time import XDateTime, MIN_CANONICAL_DATE
+import pytest
+from core_10x.xdate_time import MIN_CANONICAL_DATE, XDateTime
 
 
 @pytest.fixture(autouse=True)
@@ -22,6 +22,7 @@ def _reset_xdatetime_format():
 #   MIN_CANONICAL_DATE boundary
 # ----------------------------------------------------------------------------
 
+
 def test_min_canonical_date_value():
     assert MIN_CANONICAL_DATE == 10000101
 
@@ -29,6 +30,7 @@ def test_min_canonical_date_value():
 # ----------------------------------------------------------------------------
 #   int_to_date
 # ----------------------------------------------------------------------------
+
 
 def test_int_to_date_canonical_recent():
     assert XDateTime.int_to_date(20230115) == date(2023, 1, 15)
@@ -54,6 +56,7 @@ def test_int_to_date_ordinal_epoch():
 # ----------------------------------------------------------------------------
 #   date_to_int
 # ----------------------------------------------------------------------------
+
 
 def test_date_to_int_ordinal_by_default():
     d = date(2023, 1, 15)
@@ -86,6 +89,7 @@ def test_date_to_int_roundtrip_ordinal():
 # ----------------------------------------------------------------------------
 #   str_to_date
 # ----------------------------------------------------------------------------
+
 
 def test_str_to_date_x10_format():
     assert XDateTime.str_to_date('20230115') == date(2023, 1, 15)
@@ -124,6 +128,7 @@ def test_str_to_date_fully_unparseable_returns_none():
 #   date_to_str
 # ----------------------------------------------------------------------------
 
+
 def test_date_to_str_default_format():
     assert XDateTime.date_to_str(date(2023, 1, 15)) == '20230115'
 
@@ -140,6 +145,7 @@ def test_date_to_str_us_format():
 #   set_default_format
 # ----------------------------------------------------------------------------
 
+
 def test_set_default_format_changes_date_to_str():
     XDateTime.set_default_format('%Y-%m-%d')
     assert XDateTime.date_to_str(date(2023, 1, 15)) == '2023-01-15'
@@ -154,6 +160,7 @@ def test_set_default_format_updates_formats_list():
 # ----------------------------------------------------------------------------
 #   datetime_to_str
 # ----------------------------------------------------------------------------
+
 
 def test_datetime_to_str_without_ms():
     dt = datetime(2023, 1, 15, 10, 30, 45)
@@ -173,6 +180,7 @@ def test_datetime_to_str_midnight():
 # ----------------------------------------------------------------------------
 #   str_to_datetime
 # ----------------------------------------------------------------------------
+
 
 def test_str_to_datetime_with_hms():
     dt = XDateTime.str_to_datetime('20230115 10:30:45')
@@ -199,6 +207,7 @@ def test_str_to_datetime_unparseable_returns_none():
 #   date_to_datetime
 # ----------------------------------------------------------------------------
 
+
 def test_date_to_datetime_produces_midnight():
     d = date(2023, 6, 15)
     dt = XDateTime.date_to_datetime(d)
@@ -208,6 +217,7 @@ def test_date_to_datetime_produces_midnight():
 # ----------------------------------------------------------------------------
 #   to_date  (converter dispatch)
 # ----------------------------------------------------------------------------
+
 
 def test_to_date_from_date():
     d = date(2023, 6, 1)
@@ -235,6 +245,7 @@ def test_to_date_unsupported_type_returns_none():
 # ----------------------------------------------------------------------------
 #   to_datetime  (converter dispatch)
 # ----------------------------------------------------------------------------
+
 
 def test_to_datetime_from_datetime():
     dt = datetime(2023, 6, 1, 10, 0, 0)

@@ -1,11 +1,13 @@
-from core_10x.traitable import Traitable, Trait, T, RT, RC, XNone
-from py10x_kernel import BSaveRefs, BFlags
+from py10x_kernel import BFlags, BSaveRefs
+
+from core_10x.traitable import RC, RT, T, Trait, Traitable, XNone
 
 
 class TraitableHeir(Traitable):
     _grantor: Traitable = T()
 
     s_grantor_traits = {}
+
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
 
@@ -15,8 +17,8 @@ class TraitableHeir(Traitable):
         for trait in cls.traits():
             if trait is grantor_trait or trait.flags_on(T.RESERVED):
                 continue
-            if not trait.has_custom_getter() and trait.default is XNone:   #-- trait has neither getter nor default value
-                trait.set_f_get(lambda self, trait_name = trait.name: self.heir_getter(trait_name), False)
+            if not trait.has_custom_getter() and trait.default is XNone:  # -- trait has neither getter nor default value
+                trait.set_f_get(lambda self, trait_name=trait.name: self.heir_getter(trait_name), False)
                 dir[trait.name] = trait
 
     def heir_getter(self, trait_name: str):
@@ -26,7 +28,7 @@ class TraitableHeir(Traitable):
         trait = grantor.__class__.trait(trait_name)
         return grantor.get_trait_value(trait) if trait else XNone
 
-    def serialize_object(self, save_references: bool | BFlags | int = BSaveRefs.NONE) -> dict:
+    def serialize_object(self, save_references: int = BSaveRefs.NONE) -> dict:
         serialized_data = super().serialize_object(save_references=save_references)
         for name, trait in self.__class__.s_grantor_traits.items():
             if not self.is_set(trait):

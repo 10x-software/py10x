@@ -43,9 +43,10 @@ try:
 except ImportError:
     __version__ = '0.0.0+unknown'  # fallback for dev envs
 
-from core_10x.environment_variables import EnvVars # noqa: E402
-if EnvVars.graph_on:
-    from core_10x.exec_control import GRAPH_ON
+from core_10x.environment_variables import EnvVars  # noqa: E402
 
-    go = GRAPH_ON()
-    go.begin_using()
+if EnvVars.graph_on:
+    from core_10x.exec_control import GRAPH_ON as _GO
+
+    _go = _GO()
+    _go.begin_using()

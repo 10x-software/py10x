@@ -18,7 +18,6 @@ Not covered: ``T.EMBEDDED`` (full / nx payload dicts).
 from __future__ import annotations
 
 import pytest
-
 from core_10x.concrete_traits import nucleus_trait
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.nucleus import Nucleus

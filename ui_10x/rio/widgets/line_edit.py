@@ -6,7 +6,7 @@ from ui_10x.rio.component_builder import MouseEvent, Widget
 
 
 class LineEdit(Widget, i.LineEdit):
-    s_default_kwargs = dict(text='')
+    s_default_kwargs = {'text': ''}
     s_component_class = rio_components.LineEditComponent
     s_single_child = True
     s_children_attr = 'text'

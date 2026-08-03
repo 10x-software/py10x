@@ -1,14 +1,13 @@
 from core_10x.environment_variables import EnvVars
-
-from core_10x.ts_store import TsStore, ResourceSpec
 from core_10x.traitable import NamedTsStore, TsClassAssociation
+from core_10x.ts_store import ResourceSpec, TsStore
 
 
 def main(username: str = '', password: str = ''):
     v_main_uri: EnvVars.Var = EnvVars.var.main_ts_store_uri
     if not v_main_uri:
         print(
-f"""
+            f"""
 Environment variable {EnvVars.var_name(v_main_uri.attr_name)} is not defined
 Main Traitable Store is not specified, thus you must explicitly instantiate and use a particular Traitable Store, e.g.:
 
@@ -25,11 +24,11 @@ Main Traitable Store is not specified, thus you must explicitly instantiate and 
         ...
 """
         )
-        #-- there is nothing more to do
+        # -- there is nothing more to do
         return
 
     print(
-f"""
+        f"""
 Main Traitable Store is specified (Environment variable {EnvVars.var_name(v_main_uri.attr_name)} = {v_main_uri.value})
 It means that Traitable objects would be sought and saved in the above store.  
 """
@@ -42,15 +41,15 @@ It means that Traitable objects would be sought and saved in the above store.
         return
 
     if with_auth:
-        print(f"Main Traitable Store {v_main_uri.value} requires authentication. Let's check if a Vault is specified." )
+        print(f"Main Traitable Store {v_main_uri.value} requires authentication. Let's check if a Vault is specified.")
 
         v_vault_uri = EnvVars.var.vault_ts_store_uri
         if not v_vault_uri:
-            print(f"No Vault is specified (Environment variable {EnvVars.var_name(v_vault_uri.attr_name)} is not defined). Exiting...")
+            print(f'No Vault is specified (Environment variable {EnvVars.var_name(v_vault_uri.attr_name)} is not defined). Exiting...')
             return
 
         print(
-f"""
+            f"""
 Vault Store is specified (Environment variable {EnvVars.var_name(v_vault_uri.attr_name)} = {v_vault_uri.value})
 It means that some Traitable Stores in use (as well as other resources) require authentication.
 In order to use the Vault "automagically", you need to run "add_vault utiliry" entering your password to the Vault and your XX MasterPassword.
@@ -62,7 +61,7 @@ In order to use the Vault "automagically", you need to run "add_vault utiliry" e
     v_class_assoc = EnvVars.var.use_ts_store_per_class
     if v_class_assoc:
         print(
-f"""
+            f"""
 Different Traitable Stores may be used for different subclasses of Traitable (Environment variable {EnvVars.var_name(v_class_assoc.attr_name)} = {v_class_assoc.value})
 Checking further...
 """
@@ -74,8 +73,6 @@ Checking further...
 
 
 if __name__ == '__main__':
-
     import sys
 
     main(*sys.argv[1:])
-

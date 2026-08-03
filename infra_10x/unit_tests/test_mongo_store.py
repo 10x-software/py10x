@@ -24,21 +24,18 @@ def test_spec_from_uri_includes_protocol_tag():
 
 
 def test_mongo_canonical_uri_adds_default_port():
-    no_port = VaultResourceAccessor._canonical_uri(
-        CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com/mydb')
-    with_port = VaultResourceAccessor._canonical_uri(
-        CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com:27017/mydb')
+    no_port = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com/mydb')
+    with_port = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com:27017/mydb')
 
     assert ':27017' in no_port
     assert no_port == with_port
 
 
 def test_filter_and_pipeline_equivalence():
+    from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
     from py10x_infra import MongoCollectionHelper
 
-    from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
-
-    serialized_traitable = dict(_id='AAAA', _rev=10, name='test', age=60)
+    serialized_traitable = {'_id': 'AAAA', '_rev': 10, 'name': 'test', 'age': 60}
 
     data1 = dict(serialized_traitable)
     pipeline1: list = []

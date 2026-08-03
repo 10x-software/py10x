@@ -1,4 +1,4 @@
-# `xx_common`
+# `xxcommon`
 
 Shared, finance-oriented building blocks layered on top of `core_10x`:
 
@@ -19,7 +19,7 @@ An `RDate` is a `(count, freq)` pair describing an offset like *3 months* or *5 
 ### Construction
 
 ```python
-from xx_common.rdate import RDate, TENOR_FREQUENCY
+from xxcommon.rdate import RDate, TENOR_FREQUENCY
 
 RDate('3M')                                       # 3 months
 RDate('1Y')                                       # 1 year
@@ -28,7 +28,7 @@ RDate(freq=TENOR_FREQUENCY.MONTH, count=3)        # same as RDate('3M')
 RDate(freq=TENOR_FREQUENCY.YEAR)                  # count defaults to 1
 ```
 
-Supported frequency characters (see `FREQUENCY_TABLE` in `xx_common/rdate.py`):
+Supported frequency characters (see `FREQUENCY_TABLE` in `xxcommon/rdate.py`):
 
 | Char  | `TENOR_FREQUENCY` | Meaning           |
 |-------|-------------------|-------------------|
@@ -45,7 +45,7 @@ Supported frequency characters (see `FREQUENCY_TABLE` in `xx_common/rdate.py`):
 ### Reading the parts
 
 ```python
-from xx_common.rdate import RDate, TENOR_FREQUENCY
+from xxcommon.rdate import RDate, TENOR_FREQUENCY
 
 rd = RDate('3M')
 assert rd.count == 3                              # int (can be negative)
@@ -60,8 +60,8 @@ assert str(rd) == '3M'                            # via Nucleus.to_str
 from datetime import date
 
 from core_10x.exec_control import CACHE_ONLY
-from xx_common.rdate import RDate, BIZDAY_ROLL_RULE
-from xx_common.xxcalendar import Calendar
+from xxcommon.rdate import RDate, BIZDAY_ROLL_RULE
+from xxcommon.xxcalendar import Calendar
 
 with CACHE_ONLY():
     cal = Calendar(_replace=True, name='US', non_working_days=[
@@ -79,8 +79,8 @@ Chain several tenors at once:
 from datetime import date
 
 from core_10x.exec_control import CACHE_ONLY
-from xx_common.rdate import RDate, BIZDAY_ROLL_RULE
-from xx_common.xxcalendar import Calendar
+from xxcommon.rdate import RDate, BIZDAY_ROLL_RULE
+from xxcommon.xxcalendar import Calendar
 
 with CACHE_ONLY():
     cal = Calendar(_replace=True, name='US', non_working_days=[])
@@ -91,7 +91,7 @@ with CACHE_ONLY():
 ### Arithmetic and unit conversion
 
 ```python
-from xx_common.rdate import RDate, TENOR_FREQUENCY
+from xxcommon.rdate import RDate, TENOR_FREQUENCY
 
 assert (RDate('6M') * 2).symbol()      == '12M'
 assert (3 * RDate('6M')).symbol()      == '18M'
@@ -111,8 +111,8 @@ Conversions across frequency families that don’t share a base (e.g. `YEAR` ↔
 from datetime import date
 
 from core_10x.exec_control import CACHE_ONLY
-from xx_common.rdate import RDate, BIZDAY_ROLL_RULE, PROPAGATE_DATES
-from xx_common.xxcalendar import Calendar
+from xxcommon.rdate import RDate, BIZDAY_ROLL_RULE, PROPAGATE_DATES
+from xxcommon.xxcalendar import Calendar
 
 with CACHE_ONLY():
     cal = Calendar(_replace=True, name='US', non_working_days=[])
@@ -141,7 +141,7 @@ with CACHE_ONLY():
 from datetime import date
 
 from core_10x.exec_control import CACHE_ONLY
-from xx_common.xxcalendar import Calendar
+from xxcommon.xxcalendar import Calendar
 
 with CACHE_ONLY():
     us = Calendar(_replace=True, name='US', non_working_days=[
@@ -162,7 +162,7 @@ Combine calendars with set algebra; the result is itself a `Calendar`:
 from datetime import date
 
 from core_10x.exec_control import CACHE_ONLY
-from xx_common.xxcalendar import Calendar
+from xxcommon.xxcalendar import Calendar
 
 with CACHE_ONLY():
     Calendar(_replace=True, name='US', non_working_days=[date(2025, 1, 1), date(2025, 7, 4)])
@@ -182,7 +182,7 @@ Per-instance overlays via `CalendarAdjustment`:
 from datetime import date
 
 from core_10x.exec_control import CACHE_ONLY
-from xx_common.xxcalendar import Calendar, CalendarAdjustment
+from xxcommon.xxcalendar import Calendar, CalendarAdjustment
 
 with CACHE_ONLY():
     Calendar(_replace=True, name='US', non_working_days=[date(2025, 1, 1)])
@@ -201,7 +201,7 @@ with CACHE_ONLY():
 `Curve` and `DateCurve` are `AnonymousTraitable`s, so they don’t need a storage context — each instance is independent. `value(t)` requires `beginning_of_time` to be set (it’s the lower bound below which `value()` returns `nan`).
 
 ```python
-from xx_common.curve import Curve, IP_KIND
+from xxcommon.curve import Curve, IP_KIND
 
 c = Curve(times=[0.0, 1.0, 2.0, 3.0], values=[100.0, 110.0, 105.0, 102.0])
 c.beginning_of_time = 0.0
@@ -216,7 +216,7 @@ c.set_curve_params_to_flat_extrapolate()
 ```python
 from datetime import date
 
-from xx_common.curve import DateCurve
+from xxcommon.curve import DateCurve
 
 dc = DateCurve()
 dc.update(date(2025, 1, 1), 100.0)
@@ -235,12 +235,12 @@ Available `IP_KIND` values: `LINEAR`, `NEAREST`, `NEAREST_UP`, `PREVIOUS`, `NEXT
 
 ## Tests
 
-`xx_common` tests do not use MongoDB. Run them with:
+`xxcommon` tests do not use MongoDB. Run them with:
 
 ```bash
-uv run pytest xx_common/unit_tests/
+uv run pytest xxcommon/unit_tests/
 ```
 
-Manual / exploratory snippets live in `xx_common/manual_tests/`.
+Manual / exploratory snippets live in `xxcommon/manual_tests/`.
 
 The Python code blocks above are exercised by `core_10x/unit_tests/test_documentation.py`, which extracts ```python fences from project docs (now including this file) and `exec()`s them.

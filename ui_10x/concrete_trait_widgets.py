@@ -198,8 +198,6 @@ class PixmapLabelWidget(TraitWidget, ux.Label, widget_type=Ui.WIDGET_TYPE.PIXMAP
         ux.Label.__init__(self)
         # self.pixmap = UxPixmap()
 
-    ...
-
 
 class PushButtonWidget(TraitWidget, ux.PushButton, widget_type=Ui.WIDGET_TYPE.PUSH):
     def _create(self):
@@ -212,8 +210,6 @@ class PushButtonWidget(TraitWidget, ux.PushButton, widget_type=Ui.WIDGET_TYPE.PU
         cb = getattr(traitable.__class__, callback_name, None)
         if cb:
             self.clicked_connect(lambda dummy: cb(traitable, ed))
-
-    ...
 
     def _set_read_only(self, flag):
         pass

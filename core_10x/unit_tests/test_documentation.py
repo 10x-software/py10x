@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-
 from core_10x.testlib.fixtures import main_test_store, temp_duck_db_uri
 from core_10x.testlib.strict import need
 from infra_10x.mongodb_store import MongoStore
@@ -32,7 +31,7 @@ DOCUMENTATION_FILES = [
     'GETTING_STARTED.md',
     'INSTALLATION.md',
     'CONTRIBUTING.md',
-    'xx_common/README.md',
+    'xxcommon/README.md',
 ]
 MISSING_DOCUMENTATION_FILES = [doc_file for doc_file in DOCUMENTATION_FILES if not (project_root / doc_file).exists()]
 
@@ -134,6 +133,7 @@ def patch_person():
     yield
     core_10x.code_samples.person.Person.s_history_class = old_history_class
 
+
 @pytest.fixture(autouse=True)
 def patch_mongo_sst():
     kw_map = MongoStore.s_instance_kwargs_map
@@ -145,20 +145,20 @@ def patch_mongo_sst():
 
 @pytest.mark.parametrize(
     'test_name,code_block,future_annotations',
-    args:=[
+    args := [
         (name, code, future_annotations)
         for name, code, src in extract_code_blocks_from_docs()
         for future_annotations in (True, False)
         if not is_ui_code_block(code)  # Skip UI code blocks - tested separately
     ],
-    ids=[f'{a[0]}-{a[2]}' for a in args]
+    ids=[f'{a[0]}-{a[2]}' for a in args],
 )
 def test_documentation_code_block_execution(
-        test_name: str,
-        code_block: str,
-        future_annotations: bool,
-        temp_duck_db_uri,  # noqa: F811
-        main_test_store,  # noqa: F811
+    test_name: str,
+    code_block: str,
+    future_annotations: bool,
+    temp_duck_db_uri,  # noqa: F811
+    main_test_store,  # noqa: F811
 ):
     """Test that documentation code blocks can execute successfully."""
     # Skip if code block is empty
@@ -177,33 +177,42 @@ def test_documentation_code_block_execution(
                 '__file__': f'<{doc_file_name}>',
                 '__builtins__': __builtins__,
                 'analytics_db_uri': temp_duck_db_uri,
-                'main_store':       main_test_store,
+                'main_store': main_test_store,
             }
         )
         sys.modules[fake_module_name] = fake_module
 
+    # Names injected for every block; everything else is from exec and must not outlive the test
+    # (test_isolation leftover assert would see Traitables still bound in the fake module).
+    _keep = frozenset({'__name__', '__file__', '__builtins__', 'analytics_db_uri', 'main_store'})
+
     if future_annotations:
-        exec('from __future__ import annotations', fake_module.__dict__)
+        exec('from __future__ import annotations', fake_module.__dict__)  # noqa: S102
     try:
         try:
-            exec(code_block, fake_module.__dict__)
+            exec(code_block, fake_module.__dict__)  # noqa: S102
         except OSError as e:
             need(False, f'MongoDB reachable for doc block {test_name} ({type(e).__name__})')
         except Exception as e:
             pytest.fail(format_code_block_failure(code_block, e, source=test_name), pytrace=False)
+            raise  # for lint
     finally:
-        # Clean up the fake module; store cleanup is handled by main_test_store fixture
-        if fake_module_name in sys.modules:
-            del sys.modules[fake_module_name]
+        # Drop exec bindings (Developer, dev, dev2, …) before isolation's leftover check.
+        for key in list(fake_module.__dict__):
+            if key not in _keep:
+                del fake_module.__dict__[key]
+        sys.modules.pop(fake_module_name, None)
 
 
 @pytest.mark.parametrize(
     'test_name,code_block,source_file',
-    [
-        (f'{src}_{name}', code, src)
+    ui_args := [
+        (name, code, src)
         for name, code, src in extract_code_blocks_from_docs()
         if is_ui_code_block(code)  # Only test UI code blocks
     ],
+    # Without ids=, pytest embeds the full code_block in the node id (huge output).
+    ids=[f'{src}-{name}' for name, _code, src in ui_args],
 )
 def test_documentation_ui_code_block_syntax(test_name: str, code_block: str, source_file: str):
     """Test that UI documentation code blocks have valid syntax (execution tested separately in UI tests)."""

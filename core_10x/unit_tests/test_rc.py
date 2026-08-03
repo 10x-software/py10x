@@ -19,6 +19,7 @@ class A_PROBLEM(ErrorCode):
 #   Construction & truthiness
 # ----------------------------------------------------------------------------
 
+
 def test_bool_construction():
     assert RC(True)
     assert not RC(False)
@@ -57,6 +58,7 @@ def test_construction_without_data_has_empty_payload():
 #   unwrap / data
 # ----------------------------------------------------------------------------
 
+
 def test_unwrap():
     rc = RC(True, 'data')
     code, payload = rc.unwrap()
@@ -81,6 +83,7 @@ def test_data_multiple_items():
 #   add_data
 # ----------------------------------------------------------------------------
 
+
 def test_add_data_to_success():
     rc = RC(True)
     rc.add_data('a')
@@ -98,6 +101,7 @@ def test_add_data_to_error_fails():
 # ----------------------------------------------------------------------------
 #   add_error
 # ----------------------------------------------------------------------------
+
 
 def test_add_error_str_flips_to_failure():
     rc = RC(True)
@@ -156,6 +160,7 @@ def test_ilshift_alias_for_add_error():
 #   error()
 # ----------------------------------------------------------------------------
 
+
 def test_error_empty_for_success():
     assert RC(True).error() == ''
     assert RC(True, 'payload').error() == ''
@@ -167,7 +172,7 @@ def test_error_single_string():
 
 
 def test_error_with_error_code_formats_label():
-    rc = RC(A_PROBLEM.REV_CONFLICT, dict(cls='X', id='1', rev=3))
+    rc = RC(A_PROBLEM.REV_CONFLICT, {'cls': 'X', 'id': '1', 'rev': 3})
     msg = rc.error()
     assert 'X.1' in msg
     assert 'revision 3' in msg
@@ -196,6 +201,7 @@ def test_error_without_payload_returns_exception_info():
 #   prepend_error_header
 # ----------------------------------------------------------------------------
 
+
 def test_prepend_error_header_on_failure():
     rc = RC(False, 'detail')
     rc.prepend_error_header('header')
@@ -213,6 +219,7 @@ def test_prepend_error_header_on_success_is_noop():
 # ----------------------------------------------------------------------------
 #   throw
 # ----------------------------------------------------------------------------
+
 
 def test_throw_on_success_does_nothing():
     RC(True).throw()
@@ -234,6 +241,7 @@ def test_throw_custom_exception():
 # ----------------------------------------------------------------------------
 #   __add__ / __radd__ / sum
 # ----------------------------------------------------------------------------
+
 
 def test_add_two_truthy_rcs():
     rc = RC(True) + RC(True)
@@ -290,6 +298,7 @@ def test_sum_with_failure():
 #   new_rc / repr
 # ----------------------------------------------------------------------------
 
+
 def test_new_rc_returns_distinct_instance():
     rc = RC(True, 'a')
     other = rc.new_rc()
@@ -311,6 +320,7 @@ def test_repr_failure_shows_error():
 # ----------------------------------------------------------------------------
 #   RC_TRUE constant
 # ----------------------------------------------------------------------------
+
 
 def test_rc_true_is_truthy():
     assert RC_TRUE
@@ -352,6 +362,7 @@ def test_rc_true_iadd_always_raises():
 #   show_exception_info
 # ----------------------------------------------------------------------------
 
+
 def test_show_exception_info_from_active_exception():
     try:
         raise ValueError('explicit')
@@ -369,6 +380,7 @@ def test_show_exception_info_invalid_input():
 # ----------------------------------------------------------------------------
 #   exc_to_rc
 # ----------------------------------------------------------------------------
+
 
 def test_exc_to_rc_returns_rc_true_on_success():
     @exc_to_rc

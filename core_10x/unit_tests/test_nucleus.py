@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import pytest
-
 from core_10x.nucleus import Nucleus
-
 
 # ----------------------------------------------------------------------------
 #   Minimal concrete subclass used by the tests below
 # ----------------------------------------------------------------------------
+
 
 class _SimpleNucleus(Nucleus):
     def __init__(self, v):
@@ -40,25 +39,45 @@ class _SimpleNucleus(Nucleus):
 #   Class-level tag constants
 # ----------------------------------------------------------------------------
 
+
 def test_nucleus_tags_are_exposed():
-    for tag in ('TYPE_TAG', 'CLASS_TAG', 'REVISION_TAG', 'OBJECT_TAG',
-                'COLLECTION_TAG', 'ID_TAG', 'NX_RECORD_TAG',
-                'TYPE_RECORD_TAG', 'PICKLE_RECORD_TAG'):
+    for tag in (
+        'TYPE_TAG',
+        'CLASS_TAG',
+        'REVISION_TAG',
+        'OBJECT_TAG',
+        'COLLECTION_TAG',
+        'ID_TAG',
+        'NX_RECORD_TAG',
+        'TYPE_RECORD_TAG',
+        'PICKLE_RECORD_TAG',
+    ):
         assert hasattr(Nucleus, tag), f'Nucleus is missing {tag}'
 
 
 def test_nucleus_serialization_methods_exposed():
-    for name in ('serialize_any', 'deserialize_any', 'serialize_type',
-                 'deserialize_type', 'serialize_complex', 'deserialize_complex',
-                 'serialize_date', 'deserialize_date', 'serialize_list',
-                 'deserialize_list', 'serialize_dict', 'deserialize_dict',
-                 'deserialize_record'):
+    for name in (
+        'serialize_any',
+        'deserialize_any',
+        'serialize_type',
+        'deserialize_type',
+        'serialize_complex',
+        'deserialize_complex',
+        'serialize_date',
+        'deserialize_date',
+        'serialize_list',
+        'deserialize_list',
+        'serialize_dict',
+        'deserialize_dict',
+        'deserialize_record',
+    ):
         assert callable(getattr(Nucleus, name)), f'Nucleus.{name} is not callable'
 
 
 # ----------------------------------------------------------------------------
 #   choose_from
 # ----------------------------------------------------------------------------
+
 
 def test_nucleus_choose_from_returns_empty_dict():
     assert Nucleus.choose_from() == {}
@@ -68,6 +87,7 @@ def test_nucleus_choose_from_returns_empty_dict():
 # ----------------------------------------------------------------------------
 #   from_any dispatch
 # ----------------------------------------------------------------------------
+
 
 def test_from_any_returns_self_when_already_correct_instance():
     n = _SimpleNucleus('hello')
@@ -96,6 +116,7 @@ def test_from_any_with_list_value():
 #   __repr__ and __eq__
 # ----------------------------------------------------------------------------
 
+
 def test_nucleus_repr_delegates_to_to_str():
     n = _SimpleNucleus('my-value')
     assert repr(n) == 'my-value'
@@ -118,6 +139,7 @@ def test_nucleus_eq_different_type():
 #   to_id defaults to to_str
 # ----------------------------------------------------------------------------
 
+
 def test_to_id_defaults_to_to_str():
     n = _SimpleNucleus('my-id')
     assert n.to_id() == 'my-id'
@@ -126,6 +148,7 @@ def test_to_id_defaults_to_to_str():
 # ----------------------------------------------------------------------------
 #   Abstract methods raise NotImplementedError on the base class
 # ----------------------------------------------------------------------------
+
 
 def test_base_serialize_raises_not_implemented():
     n = object.__new__(Nucleus)
@@ -156,6 +179,7 @@ def test_base_same_values_raises_not_implemented():
 # ----------------------------------------------------------------------------
 #   Concrete subclass round-trip
 # ----------------------------------------------------------------------------
+
 
 def test_concrete_serialize_deserialize_round_trip():
     original = _SimpleNucleus('round-trip')

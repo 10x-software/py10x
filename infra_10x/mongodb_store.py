@@ -14,7 +14,7 @@ from core_10x.ts_store import (
 )
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, ReturnDocument, errors
-from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
+from pymongo.errors import ConnectionFailure, DuplicateKeyError, OperationFailure, ServerSelectionTimeoutError
 from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
 if TYPE_CHECKING:
@@ -312,7 +312,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
     @classmethod
     @cache
-    def is_running_with_auth(cls, host_name: str, port: int) -> tuple:  # -- (is_running, with_auth)
+    def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
+        port = port or cls.s_instance_kwargs_map['port'][1]
         client = MongoClient(host=host_name, port=port, serverSelectionTimeoutMS=10000, directConnection=True)
         try:
             # -- 'hello' works without credentials — confirms the server is reachable

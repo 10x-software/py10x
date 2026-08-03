@@ -1,7 +1,5 @@
 import pytest
-
 from core_10x.py_class import PyClass
-
 
 # Use PyClass itself as the test subject wherever a real module-level class is needed.
 
@@ -9,6 +7,7 @@ from core_10x.py_class import PyClass
 # ----------------------------------------------------------------------------
 #   name()
 # ----------------------------------------------------------------------------
+
 
 def test_name_canonical():
     assert PyClass.name(PyClass) == 'core_10x.py_class.PyClass'
@@ -35,6 +34,7 @@ def test_name_invalid_raises():
 #   top_level_package()
 # ----------------------------------------------------------------------------
 
+
 def test_top_level_package_core_10x():
     assert PyClass.top_level_package(PyClass) == 'core_10x'
 
@@ -46,6 +46,7 @@ def test_top_level_package_builtin():
 # ----------------------------------------------------------------------------
 #   find_symbol()
 # ----------------------------------------------------------------------------
+
 
 def test_find_symbol_existing():
     result = PyClass.find_symbol('core_10x.py_class.PyClass')
@@ -65,6 +66,7 @@ def test_find_symbol_invalid_name_raises():
 # ----------------------------------------------------------------------------
 #   find()
 # ----------------------------------------------------------------------------
+
 
 def test_find_existing_class():
     result = PyClass.find('core_10x.py_class.PyClass')
@@ -89,6 +91,7 @@ def test_find_nonexistent_returns_none():
 # ----------------------------------------------------------------------------
 #   derived_from()
 # ----------------------------------------------------------------------------
+
 
 def test_derived_from_direct_parent():
     assert PyClass.derived_from(bool, int)
@@ -122,6 +125,7 @@ def test_derived_from_excluded_not_in_hierarchy():
 #   parents()
 # ----------------------------------------------------------------------------
 
+
 def test_parents_of_bool_contains_int():
     parents = PyClass.parents(bool)
     assert int in parents
@@ -137,6 +141,7 @@ def test_parents_of_bool_returns_tuple():
 # ----------------------------------------------------------------------------
 #   own_attribute()
 # ----------------------------------------------------------------------------
+
 
 def test_own_attribute_exists():
     found, value = PyClass.own_attribute(PyClass, 'name')
@@ -160,6 +165,7 @@ def test_own_attribute_inherited_not_found():
 #   module_class_names()
 # ----------------------------------------------------------------------------
 
+
 def test_module_class_names_finds_pyclass():
     names = PyClass.module_class_names('core_10x', 'py_class.py')
     assert 'PyClass' in names
@@ -178,6 +184,7 @@ def test_module_class_names_nonexistent_package():
 # ----------------------------------------------------------------------------
 #   canonical_class_names() / class_names_by_module()
 # ----------------------------------------------------------------------------
+
 
 def test_canonical_class_names_finds_pyclass_in_core_10x():
     names = PyClass.canonical_class_names('core_10x')
