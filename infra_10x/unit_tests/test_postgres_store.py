@@ -2,19 +2,19 @@
 
 from __future__ import annotations
 
+import getpass
 import os
 import socket
 import struct
 from datetime import datetime  # noqa: TC003  # used as runtime trait data_type
 
 import pytest
-
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 from core_10x.ts_store import TsDuplicateKeyError, TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
 from infra_10x.ibis_store import _DATA, _ID
-from infra_10x.postgres_store import PostgresStore, _PG_AUTH_OK
+from infra_10x.postgres_store import _PG_AUTH_OK, PostgresStore
 from infra_10x.unit_tests.conftest import TEST_TS_STORE
 
 
@@ -29,11 +29,44 @@ def test_postgresql_parse_uri_and_registry():
     assert args[PostgresStore.PORT_TAG] == 5432
     spec = PostgresStore.spec_from_uri(uri)
     assert spec.kwargs.get(PostgresStore.PROTOCOL_TAG) == 'postgresql'
+    # Userinfo optional — omitted username stays None (libpq supplies OS user at connect).
+    no_user = PostgresStore.parse_uri('postgresql://localhost:5432/postgres')
+    assert no_user[PostgresStore.USERNAME_TAG] is None
+    assert no_user[PostgresStore.HOSTNAME_TAG] == 'localhost'
+    assert no_user[PostgresStore.DBNAME_TAG] == 'postgres'
+    with_user = PostgresStore.parse_uri('postgresql://alice@localhost:5432/postgres')
+    assert with_user[PostgresStore.USERNAME_TAG] == 'alice'
     # TEST_TS_STORE.POSTGRES is the same URI used by the shared suite fixture.
     uri, helpers, hard = TEST_TS_STORE.POSTGRES.value
-    assert uri.startswith('postgresql://')
+    assert uri == 'postgresql://localhost:5432/postgres'
     assert helpers == (False,)
-    assert hard == False
+    assert not hard
+
+
+def _short_lived_postgres(uri: str) -> PostgresStore:
+    """Connect outside the session fixture without caching in ``s_instances``."""
+    store = TsStore.instance_from_uri(uri, _cache=False)
+    assert isinstance(store, PostgresStore)
+    return store
+
+
+def test_passwordless_connect_userless_uri_uses_os_user(postgres_store):
+    """URI without userinfo: Resource.username is None; server role is the OS user."""
+    uri = TEST_TS_STORE.POSTGRES.value[0]
+    store = _short_lived_postgres(uri)
+    assert store.username is None
+    current = store._execute('SELECT current_user')[0][0]
+    assert current == getpass.getuser()
+
+
+def test_passwordless_connect_explicit_user_matches_server(postgres_store):
+    """URI with OS user@: Resource.username and current_user both equal that user."""
+    os_user = getpass.getuser()
+    uri = f'postgresql://{os_user}@localhost:5432/postgres'
+    store = _short_lived_postgres(uri)
+    assert store.username == os_user
+    current = store._execute('SELECT current_user')[0][0]
+    assert current == store.username
 
 
 def test_is_running_with_auth_unreachable_host_port():

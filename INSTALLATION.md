@@ -44,11 +44,13 @@ If either applies, install one of:
   `XX_TEST_STRICT=1`, as in Linux CI, an unmet precondition **fails** instead).
   - **MongoDB**: passwordless instance on **port 27017** (replica set recommended for transaction
     tests). CI provisions a replica set.
-  - **PostgreSQL**: instance on **port 5432**, database `postgres`, login as the **OS user** (no
-    password) — `postgresql://$USER@localhost:5432/postgres`. Typical local Homebrew installs
-    already use that role; CI Docker enables trust auth and creates a SUPERUSER role for
-    `whoami` (see `.github/actions/setup-postgres`). `TS_USER` stamps use the server session user
-    (`current_user`), not a client-side app username.
+  - **PostgreSQL**: instance on **port 5432**, database `postgres`, passwordless login as the
+    **OS user** — `postgresql://localhost:5432/postgres` (optional `user@`; libpq defaults to the
+    OS user when omitted). Typical local Homebrew installs already use that role; CI Docker
+    enables trust auth and creates a SUPERUSER role for `whoami` (see
+    `.github/actions/setup-postgres`). Authenticated hosts use the vault (URI `user@` is replaced
+    by the vault login). `TS_USER` stamps use the server session user (`current_user`), not a
+    client-side app username.
 
 See platform setup below for install commands. Other docs link here; do not duplicate the full blurb.
 

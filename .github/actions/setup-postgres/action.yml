@@ -1,8 +1,9 @@
 name: Setup PostgreSQL
 description: >-
   Start a local PostgreSQL for infra_10x PostgresStore tests (Linux Docker; no-op on Windows).
-  Uses trust auth and a SUPERUSER role matching the host OS user so tests can connect as
-  getpass.getuser() with no password (same as typical local Homebrew setups).
+  Uses trust auth and a SUPERUSER role matching the host OS user so clients can
+  omit URI userinfo (libpq defaults to getpass.getuser()) with no password —
+  same as typical local Homebrew setups.
 inputs:
   postgres-version:
     description: PostgreSQL major version for the Docker image
@@ -51,7 +52,8 @@ runs:
           sleep 1
         done
 
-        # Host OS user (GHA: runner; local docker: $USER) — matches conftest getpass.getuser() URI.
+        # Host OS user (GHA: runner; local docker: $USER) — libpq defaults to this role when
+        # URI userinfo is omitted (tests use postgresql://localhost:5432/postgres).
         # Role + DB named like the OS user so libpq defaults (user=dbname=OS user) work without password.
         docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
           "DO \$\$ BEGIN

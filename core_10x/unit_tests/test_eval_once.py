@@ -56,6 +56,7 @@ def test_eval_once_requires_default_cache_origin():
 
 def test_eval_once_under_create_root():
     """EVAL_ONCE nodes always live on default_cache, independent of create_root()'s orphan cache."""
+
     class X(Traitable):
         x: int = T(T.ID)
         v: int = T(T.EVAL_ONCE)
@@ -90,6 +91,7 @@ def test_eval_once_under_create_root():
 
 def test_deserialize_skips_runtime_keeps_eval_once():
     """RUNTIME is never store-backed; EVAL_ONCE still deserializes when not yet valid."""
+
     class X(Traitable):
         a: int = T(T.ID)
         x: int = RT()

@@ -10,14 +10,14 @@ import struct
 from typing import TYPE_CHECKING
 
 import ibis
-
 from core_10x.resource import Resource
 from core_10x.ts_store import TsDuplicateKeyError
+
 from infra_10x.ibis_store import (
-    IbisStore,
     _DATA,
     _ID,
     _REV,
+    IbisStore,
 )
 
 # PostgreSQL NAMEDATALEN is 64 (63 usable bytes); long class-id collection names

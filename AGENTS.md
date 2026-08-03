@@ -133,7 +133,7 @@ Rules agents must **not** violate:
 | Service | Purpose | How to start |
 |---------|---------|-------------|
 | MongoDB 8 (replica set) | Optional — mongo-backed `infra_10x` tests skip when absent | `docker start mongo-rs` (container pre-exists in snapshot) |
-| PostgreSQL | Optional — postgres-backed `infra_10x` tests skip when absent | See [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies) (`postgresql://$USER@localhost:5432/postgres`) |
+| PostgreSQL | Optional — postgres-backed `infra_10x` tests skip when absent | See [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies) (`postgresql://localhost:5432/postgres`) |
 | Docker daemon | Hosts MongoDB container | `sudo dockerd &>/tmp/dockerd.log &` |
 | Playwright/Chromium | Required for `ui_10x/rio` browser-based tests | Pre-installed; no startup needed |
 

@@ -160,6 +160,11 @@ class TsStore(Resource, resource_type=TS_STORE):
         return ResourceSpec(ts_class, kwargs)
 
     @classmethod
+    def is_running_with_auth_from_uri(cls, uri: str) -> tuple[bool, bool]:
+        spec = cls.spec_from_uri(uri)
+        return spec.resource_class.is_running_with_auth(spec.hostname(), spec.port())
+
+    @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
 

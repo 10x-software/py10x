@@ -657,7 +657,7 @@ By default `save()` also persists **new** storable references (`_rev == 0`) via 
 You can connect to a store in three ways:
 
 1. **Direct instance:** `MongoStore.instance(hostname='localhost', dbname='myapp')` (or `PostgresStore.instance(...)` / `DuckDbStore.instance(...)`)
-2. **URI:** `TsStore.instance_from_uri(...)` (from `core_10x.ts_store`) — e.g. `mongodb://localhost/myapp`, `postgresql://$USER@localhost:5432/postgres`, `duckdb://localhost/scratch`
+2. **URI:** `TsStore.instance_from_uri(...)` (from `core_10x.ts_store`) — e.g. `mongodb://localhost/myapp`, `postgresql://localhost:5432/postgres`, `duckdb://localhost/scratch`
 3. **Environment variable:** Set `XX_MAIN_TS_STORE_URI` to define a default global store used by all storable traitables — see [Configuration](#configuration) for the full list of supported environment variables.
 
 For per-class store routing, transactions, `TsUnion`, and the full persistence API see **[Traitable Store](#traitable-store)**.  
