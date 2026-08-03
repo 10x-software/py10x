@@ -625,7 +625,13 @@ with CACHE_ONLY():  # No traitable store, in-memory caching only
 
 ### Traitable Store and persistence
 
-The framework uses a **Traitable Store** for persistence. Implementations include the MongoDB-backed store (`MongoStore`, in `infra_10x`) and an in-process store (used by `core_10x` tests). For local MongoDB setup, see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies). Example with the MongoDB backend:
+The framework uses a **Traitable Store** for persistence. Backends in `infra_10x` include:
+
+- **MongoDB** — `MongoStore` (`mongodb://…`)
+- **PostgreSQL** — `PostgresStore` (`postgresql://…`, ibis-backed)
+- **DuckDB** — `DuckDbStore` (`duckdb://…`; in-process / in-memory, used heavily by `core_10x` tests)
+
+Local MongoDB and PostgreSQL setup: [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies). Example with the MongoDB backend (PostgreSQL is the same pattern via URI — see [Connecting to stores](#connecting-to-stores)):
 
 ```python
 from datetime import date
@@ -650,8 +656,8 @@ By default `save()` also persists **new** storable references (`_rev == 0`) via 
 
 You can connect to a store in three ways:
 
-1. **Direct instance:** `MongoStore.instance(hostname='localhost', dbname='myapp')`
-2. **URI:** `TsStore.instance_from_uri('mongodb://localhost/myapp')` (from `core_10x.ts_store`)
+1. **Direct instance:** `MongoStore.instance(hostname='localhost', dbname='myapp')` (or `PostgresStore.instance(...)` / `DuckDbStore.instance(...)`)
+2. **URI:** `TsStore.instance_from_uri(...)` (from `core_10x.ts_store`) — e.g. `mongodb://localhost/myapp`, `postgresql://$USER@localhost:5432/postgres`, `duckdb://localhost/scratch`
 3. **Environment variable:** Set `XX_MAIN_TS_STORE_URI` to define a default global store used by all storable traitables — see [Configuration](#configuration) for the full list of supported environment variables.
 
 For per-class store routing, transactions, `TsUnion`, and the full persistence API see **[Traitable Store](#traitable-store)**.  
@@ -1312,7 +1318,7 @@ The storage context is used for finding and loading traitables.
 
 You can associate particular Traitable classes (or modules) with specific store instances. 
 The framework resolves the store for a class via `TsClassAssociation` and `NamedTsStore` — create and persist those traitables in your main store so each class or module maps to a logical store name and URI. 
-This allows different Traitable subclasses to use different stores (e.g. different MongoDB databases or backends).
+This allows different Traitable subclasses to use different stores (e.g. different databases or backends such as MongoDB vs PostgreSQL).
 
 ### Storage Context and Traitable Creation
 
@@ -2218,7 +2224,7 @@ After the block, three attributes are available on the timer object:
 
 `LOG` provides a thin, level-filtered interface for structured application logging.  Messages are dispatched asynchronously via an `mp.Queue` to a background `Logger` subprocess (`logger_process`) that persists each entry as a `LogMessage` Traitable to a `TsStore`.
 
-**Persistence target** — set `EnvVars.log_ts_store_uri` (env var `XX_LOG_TS_STORE_URI` — see [Configuration](#configuration)) to a MongoDB URI to enable persistence; if the variable is not set, messages are printed to stdout only and not stored.
+**Persistence target** — set `EnvVars.log_ts_store_uri` (env var `XX_LOG_TS_STORE_URI` — see [Configuration](#configuration)) to a Traitable Store URI (`mongodb://…`, `postgresql://…`, …) to enable persistence; if the variable is not set, messages are printed to stdout only and not stored.
 
 **Lifecycle** — call once at application startup and shutdown:
 
@@ -2277,7 +2283,7 @@ with stub_log_module_logger(LOG.VERBOSE.value) as stub:
 
 ## Vault and Credential Management
 
-`py10x-core` includes a built-in credential vault so that database passwords and other secrets never appear in source code or environment variables.  The vault works with **all `Resource` types** — `TsStore` (MongoDB), `RelDb` (any ibis-supported database), and any custom `Resource` subclass.
+`py10x-core` includes a built-in credential vault so that database passwords and other secrets never appear in source code or environment variables.  The vault works with **all `Resource` types** — `TsStore` (MongoDB, PostgreSQL, DuckDB, …), `RelDb` (any ibis-supported database), and any custom `Resource` subclass.
 
 There are two user-facing patterns for connecting to resources:
 
@@ -2309,7 +2315,7 @@ See **[NamedResource and class associations](#namedresource-and-class-associatio
 
 | Component | What it is |
 |-----------|-----------|
-| **Vault** | A dedicated `TsStore` database (e.g. a separate MongoDB database) that stores encrypted credentials. URI set via `XX_MAIN_VAULT_URI`. |
+| **Vault** | A dedicated `TsStore` database (e.g. a separate MongoDB or PostgreSQL database) that stores encrypted credentials. URI set via `XX_MAIN_VAULT_URI`. |
 | **`VaultUser`** | One record per user, keyed by OS user name (`user_id`). Holds an RSA-2048 key pair: the public key in plain text, the private key encrypted with the user's **master password**. |
 | **`VaultResourceAccessor`** | One record per *(user, resource type, resource URI)* triple. Holds the login name and the resource password encrypted with that user's public key. |
 | **`SecKeys`** | Low-level helper: RSA encryption/decryption (`cryptography` library) + OS keyring integration (`keyring` library) for the master password and vault login/password. |
@@ -2441,8 +2447,8 @@ uri = EnvVars.main_ts_store_uri
 
 # Required-variable check — raises ValueError with the full env-var name if empty.
 try:
-    uri = EnvVars.var.main_ts_store_uri.check(err='must point at a running MongoDB')
-except ValueError:  # → ValueError('XX_MAIN_TS_STORE_URI must point at a running MongoDB') when unset
+    uri = EnvVars.var.main_ts_store_uri.check(err='must point at a running Traitable Store')
+except ValueError:  # → ValueError('XX_MAIN_TS_STORE_URI must point at a running Traitable Store') when unset
     pass
 
 # Predicate form — .check() takes an optional (value) -> bool callable.
@@ -2516,10 +2522,10 @@ The shipping `EnvVars` class declares the following configuration points (all op
 | `XX_MASTER_PASSWORD_KEY` | `master_password_key` | `str` | `'XX_MASTER_PASSWORD'` | Name of the env var that holds the vault master password. |
 | `XX_MAIN_TS_STORE_URI` | `main_ts_store_uri` | `str` | `''` | Default global Traitable Store URI used by storable traitables — see [Connecting to stores](#connecting-to-stores). |
 | `XX_MAIN_VAULT_URI` | `main_vault_uri` | `str` | `''` | URI of the vault TsStore (where `VaultUser` and `VaultResourceAccessor` records are kept). |
-| `XX_LOG_TS_STORE_URI` | `log_ts_store_uri` | `str` | `''` | Mongo URI for `LOG` persistence (see [LOG — Structured Asynchronous Logging](#log--structured-asynchronous-logging)); when unset, log messages go to stdout only and are not persisted. |
+| `XX_LOG_TS_STORE_URI` | `log_ts_store_uri` | `str` | `''` | Traitable Store URI for `LOG` persistence (see [LOG — Structured Asynchronous Logging](#log--structured-asynchronous-logging)); when unset, log messages go to stdout only and are not persisted. |
 | `XX_FUNCTIONAL_ACCOUNT_PREFIX` | `functional_account_prefix` | `str` | `'xx'` | Prefix identifying functional accounts in usernames. |
 | `XX_GRAPH_ON` | `graph_on` | `bool` | `False` | When `True`, `core_10x` enters `GRAPH_ON()` at process start — see [GRAPH_ON](#graph_on---dependency-tracking-and-caching). |
-| `XX_USE_TS_STORE_TRANSACTIONS` | `use_ts_store_transactions` | `bool` | `False` | Wrap multi-save operations in TsStore transactions — applies to history-keeping saves, multi-object `save()` cascades (`BSaveRefs.NEW_ONLY` / `BSaveRefs.ALL`), and [`SaveIfChanged`](#saveifchanged--auto-save-modified-traitables). Requires a transaction-capable backend (e.g. MongoDB replica set). |
+| `XX_USE_TS_STORE_TRANSACTIONS` | `use_ts_store_transactions` | `bool` | `False` | Wrap multi-save operations in TsStore transactions — applies to history-keeping saves, multi-object `save()` cascades (`BSaveRefs.NEW_ONLY` / `BSaveRefs.ALL`), and [`SaveIfChanged`](#saveifchanged--auto-save-modified-traitables). Requires a transaction-capable backend (e.g. MongoDB replica set or PostgreSQL). |
 | `XX_DATE_FORMAT` | `date_format` | `str` | `XDateTime.FORMAT_ISO` | Default date format; applied to `XDateTime.set_default_format` on first access via the `date_format_apply` hook. |
 
 ## Basket and Bucket Facility
