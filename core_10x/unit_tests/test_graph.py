@@ -7,9 +7,11 @@ import pytest
 from core_10x.code_samples.person import WEIGHT_QU, Person
 from core_10x.exec_control import BTP, CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
 from core_10x.trait_definition import RT, T
+from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
+from py10x_kernel import BTraitable
 
 
 def call_counter(method):
@@ -347,3 +349,91 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
     #     BTP.create(-1,-1,-1,use_parent_cache=True,use_default_cache=True)
 
     # TODO: node set, cleared, checked - each in nested cache level
+
+
+def test_write_during_read_self_set():
+    """A getter that sets its own trait raises write-during-read."""
+    class X(Traitable):
+        z: int = RT()
+
+        def z_get(self):
+            self.z = 5
+            return 1
+
+    with GRAPH_ON():
+        with pytest.raises(TraitMethodError, match='set/invalidate during get'):
+            _ = X().z
+
+
+def test_write_during_read_ripple():
+    """A getter re-sets a leaf several levels below it; the ripple reaches the guarded ancestor."""
+    class X(Traitable):
+        base: int = RT()
+        mid: int = RT()
+        top: int = RT()
+
+        def mid_get(self):
+            return self.base + 1
+
+        def top_get(self):
+            _ = self.mid
+            self.base = 999
+            return self.mid
+
+    with GRAPH_ON():
+        with pytest.raises(TraitMethodError, match='set/invalidate during get'):
+            _ = X(base=10).top
+
+
+def test_on_graph_choices_and_style_sheet():
+    """choices/style_sheet under GRAPH_ON use args-keyed nodes and track deps like getters."""
+    class X(Traitable):
+        mode: str = RT()
+        color: str = RT()
+        choice_calls = 0
+        style_calls = 0
+
+        def color_choices(self, trait):
+            type(self).choice_calls += 1
+            return ('red', 'blue') if self.mode == 'a' else ('green',)
+
+        def color_style_sheet(self):
+            type(self).style_calls += 1
+            return f'color:{self.color}'
+
+    with GRAPH_ON():
+        x = X(mode='a', color='red')
+        assert x.get_choices(x.T.color.trait) == ('red', 'blue')
+        assert X.choice_calls == 1
+        assert x.get_choices(x.T.color.trait) == ('red', 'blue')
+        assert X.choice_calls == 1  # cached
+
+        x.mode = 'b'
+        assert x.get_choices(x.T.color.trait) == ('green',)
+        assert X.choice_calls == 2
+
+        assert x.get_style_sheet(x.T.color.trait) == 'color:red'
+        assert X.style_calls == 1
+        assert x.get_style_sheet(x.T.color.trait) == 'color:red'
+        assert X.style_calls == 1
+
+        x.color = 'blue'
+        assert x.get_style_sheet(x.T.color.trait) == 'color:blue'
+        assert X.style_calls == 2
+
+
+def test_calc_values_and_aggregate():
+    """BTraitable.calc_values / calc_and_aggregate smoke over a small bucket."""
+    class X(Traitable):
+        n: int = RT()
+        doubled: int = RT()
+
+        def doubled_get(self):
+            return self.n * 2
+
+    with GRAPH_ON():
+        xs = [X(n=i) for i in (1, 2, 3)]
+        assert BTraitable.calc_values(xs, 'doubled') == [2, 4, 6]
+        assert BTraitable.calc_and_aggregate(xs, 'doubled', sum) == 12
+        assert BTraitable.calc_values_with_args(xs, 'doubled') == [2, 4, 6]
+        assert BTraitable.calc_and_aggregate_with_args(xs, 'doubled', sum) == 12
