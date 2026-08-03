@@ -49,7 +49,7 @@ py::object BTraitProcessor::get_node_value_on_graph(BTraitableProcessor* proc, B
         // TODO: PLACEBO_MAKER!
         NodeGuard node_guard(xstack, node);      // push node to the stack
 
-        const auto old_children = node->children();
+        const auto old_children = *node->children();
         node->clear_children();
 
         {
@@ -57,8 +57,8 @@ py::object BTraitProcessor::get_node_value_on_graph(BTraitableProcessor* proc, B
             value = f();
         }
         node->assign(value);
-        auto new_children = node->children();
-        for (auto c: *old_children)
+        const auto new_children = node->children();
+        for (auto c: old_children)
             if (new_children->find(c) == new_children->end())
                 c->remove_parent(node);
     } else

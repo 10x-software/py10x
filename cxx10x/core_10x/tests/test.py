@@ -12,7 +12,7 @@ from core_10x.xnone import XNone
 from core_10x.traitable import Traitable,T,RT,M,AnonymousTraitable,RC
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.code_samples.person import Person
-from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP, INTERACTIVE
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP, INTERACTIVE, GraphDeps
 from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
@@ -494,6 +494,34 @@ def test_computed_trait():
             print('getting z')
             print(x.z)
             assert x.z == 21
+
+
+def test_stale_deps_after_conditional_getter():
+    """When a getter's dependencies change, old reverse edges must be removed.
+
+    Reproduces btrait_processor.cpp get_node_value_on_graph: old_children aliases
+    m_children, clear_children() empties it, so remove_parent is never called for
+    dropped deps — GraphDeps still finds the old leaf via is_successor_of.
+    """
+    class X(Traitable):
+        use_a: bool = RT()
+        a: int = RT()
+        b: int = RT()
+        result: int = RT()
+
+        def result_get(self):
+            return self.a if self.use_a else self.b
+
+    with GRAPH_ON() as g:
+        x = X(use_a=True, a=1, b=2)
+        assert x.result == 1
+        deps = {name for _, _, name, _ in GraphDeps(g, x.T.result, X, 'a', 'b').deps(trait_names=True)}
+        assert deps == {'a'}, deps
+
+        x.use_a = False
+        assert x.result == 2
+        deps = {name for _, _, name, _ in GraphDeps(g, x.T.result, X, 'a', 'b').deps(trait_names=True)}
+        assert deps == {'b'}, f'stale deps still linked: {deps}'
 
 
 def test_write_during_read_ripple():
@@ -1037,6 +1065,50 @@ def test_create_root():
         assert Person(first_name='ilya', last_name = 'pevzner').weight_lbs == 205
 
 
+def test_eval_once_under_create_root():
+    """EVAL_ONCE nodes always live on default_cache, independent of create_root()'s orphan cache."""
+    class X(Traitable):
+        x: int = T(T.ID)
+        v: int = T(T.EVAL_ONCE)
+        calls = 0
+
+        def v_get(self):
+            type(self).calls += 1
+            return 10
+
+    with CACHE_ONLY():
+        default_cache = BTP.current().cache()
+        outer = X(x=1)
+
+        with BTP.create_root() as root:
+            assert root.cache() is not default_cache
+            assert BTP.current().cache() is root.cache()
+
+            # first evaluation under create_root still stores the node on default_cache
+            assert outer.v == 10
+            assert X.calls == 1
+            assert outer.v == 10
+            assert X.calls == 1
+
+            # object born under create_root has an orphan origin; default_cache cannot reach it
+            inner = X(x=1)
+            try:
+                _ = inner.v
+                assert False, 'expected RuntimeError'
+            except RuntimeError as e:
+                assert 'object not usable - origin cache is not reachable' in str(e)
+
+        # EVAL_ONCE value survives create_root teardown (node is on default_cache, not the orphan)
+        assert outer.v == 10
+        assert X.calls == 1
+
+        try:
+            outer.v = 99
+            assert False, 'expected TypeError'
+        except TypeError as e:
+            assert 'Trying to modify EVAL_ONCE trait' in str(e)
+
+
 def test_existing_composite_id():
     class X(Traitable):
         x: int = RT(T.ID)
@@ -1463,6 +1535,7 @@ if __name__ == '__main__':
     test_default_trait_invalidate()
     test_existing_multi_cache()
     test_computed_trait()
+    test_stale_deps_after_conditional_getter()
     test_write_during_read_ripple()
     test_write_during_read_self_set()
     test_duplicate_id()
@@ -1480,6 +1553,7 @@ if __name__ == '__main__':
     test_lazy_ref_replace()
     test_new_or_replace_store()
     test_create_root()
+    test_eval_once_under_create_root()
     test_existing_composite_id()
     test_trait_method_error()
     test_deserialize_wrong_class()
