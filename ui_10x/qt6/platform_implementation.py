@@ -72,7 +72,7 @@ FormLayout                      = QFormLayout
 FormLayout.__getattr__          = missing_attr
 
 Label                           = QLabel
-Label.set_text                  = QLabel.setText
+Label.__getattr__               = missing_attr
 
 Splitter                        = QSplitter
 
