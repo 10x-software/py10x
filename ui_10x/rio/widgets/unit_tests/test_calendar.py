@@ -20,7 +20,7 @@ async def test_calendar_comprehensive() -> None:
         await asyncio.sleep(0.5)
 
         # 1) Verify client shows widget value (initial state)
-        assert widget.selected_date() == date.today()  # noqa: DTZ011  TODO tz handling in calendar?
+        assert widget.selected_date() == date.today()
 
         # Verify client shows the expected date
         await verify_content(widget, test_client)

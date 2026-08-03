@@ -163,11 +163,11 @@ class EntityStocker(Traitable):
 
     def buttons_spec_get(self) -> dict:
         # fmt: off
-        return dict(
-            #new     = (self.on_new_entity,      'FileIcon'),
-            edit    = (self.on_edit_entity,     'FileDialogDetailedView'),
-            reload  = (self.on_reload_entity,   'ArrowDown'),
-            save    = (self.on_save_entity,     'DriveNetIcon'),
-            delete  = (self.on_delete_entity,   'DialogDiscardButton')
-        )
+        return {
+            #'new':   (self.on_new_entity,        'FileIcon'),
+            'edit':   (self.on_edit_entity,       'FileDialogDetailedView'),
+            'reload': (self.on_reload_entity,     'ArrowDown'),
+            'save':   (self.on_save_entity,       'DriveNetIcon'),
+            'delete': (self.on_delete_entity,     'DialogDiscardButton')
+        }
         # fmt: on

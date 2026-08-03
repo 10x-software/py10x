@@ -43,6 +43,7 @@ from core_10x.vault_utils import VaultUtils
 
 VAULT_URI = 'duckdb://vaulthost.example.com:27017/_vault_'
 
+
 @pytest.fixture
 def vault_env(monkeypatch):
     keyring = {}

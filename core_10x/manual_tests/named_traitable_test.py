@@ -1,6 +1,8 @@
 from datetime import date
-from core_10x.traitable import NamedTraitable, RT
+
 from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import RT, NamedTraitable
+
 
 class Cal(NamedTraitable):
     holidays: list  = RT()

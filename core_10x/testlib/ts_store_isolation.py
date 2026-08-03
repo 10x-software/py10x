@@ -116,7 +116,6 @@ def reset_traitable_process_state(*, assert_clean: bool = True) -> None:
     assert not leftovers, leftovers
 
 
-
 def pin_current_ts_stores() -> None:
     """Pin main, vault, and every store named on main (NamedTsStore rows).
 

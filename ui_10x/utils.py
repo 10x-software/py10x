@@ -284,7 +284,7 @@ class UxStyleSheet:
             return
 
         if _system:
-            old_data = { name: data.get(name) for name in named_sheet_attrs.keys() }
+            old_data = { name: data.get(name) for name in named_sheet_attrs }
             self.replacement_stack.append(old_data)
 
         data.update(named_sheet_attrs)
@@ -454,9 +454,9 @@ class UxSearchableList(ux.GroupBox):
 
             if not self.case_sensitive:
                 input = input.lower()
-                self.current_choices = [s for s in self.current_choices if not s.lower().find(input) == -1]
+                self.current_choices = [s for s in self.current_choices if s.lower().find(input) != -1]
             else:
-                self.current_choices = [s for s in self.current_choices if not s.find(input) == -1]
+                self.current_choices = [s for s in self.current_choices if s.find(input) != -1]
 
         self.w_list.add_items(self.current_choices)
 
@@ -479,7 +479,7 @@ class UxSearchableList(ux.GroupBox):
         return self.selection
 
     def reset(self):
-        if not self.current_choices == self.initial_choices:
+        if self.current_choices != self.initial_choices:
             self.current_choices = self.initial_choices
             self.w_list.clear()
             self.w_list.add_items( self.initial_choices)

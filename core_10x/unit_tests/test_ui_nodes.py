@@ -27,7 +27,7 @@ def callback(data):
     # Mutable bag holds bind-time BTP (and x/trait/v) so call-time can assert
     # identity; bags are cleared after the test so partials do not pin
     # INTERACTIVE BTP / x (hybrid C++/Python cycles are not GC-breakable yet).
-    btp, x, t, v = data
+    btp, x, t, _v = data
     assert btp is BTP.current()
     # assert x.get_trait_value(t) == v
     print(btp, BTP.current())

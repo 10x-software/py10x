@@ -17,10 +17,10 @@ from ui_10x.utils import UxDialog, UxStyleSheet, ux, ux_pick_date
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from core_10x.traitable import Traitable
     from core_10x.exec_control import BTP
     from core_10x.rc import RC
     from core_10x.trait import Trait
+    from core_10x.traitable import Traitable
 
 
 class TraitableWrapper:
@@ -69,7 +69,9 @@ class TraitableWrapper:
 
 
 class TraitEditor:
-    def __init__(self, traitable, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None):
+    def __init__(
+        self, traitable, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None
+    ):
         self.traitable = TraitableWrapper(traitable, traitable_processor)
         self.trait = trait
         self.widget: TraitWidget | None = None

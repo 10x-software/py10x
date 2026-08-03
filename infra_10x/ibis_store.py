@@ -109,7 +109,7 @@ class IbisCollection(TsCollection):
         if name in self._collection_columns() or trait is not None:
             return (self.ibis_col(name, trait),)
         col = self.ibis_col(name, raw=True)
-        return tuple(c(col) for t, c in self._store.json_caster_map.items() if t != int)
+        return tuple(c(col) for t, c in self._store.json_caster_map.items() if t is not int)
 
     def ibis_right_value(self, value, field_name: str | None = None):
         """RHS encoding from ``type(value)``: col serializers on physical columns, JSON wire serializers on blob path (never cast to JSON type)."""

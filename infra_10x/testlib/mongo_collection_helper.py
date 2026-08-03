@@ -33,6 +33,6 @@ class MongoCollectionHelperStub:
         # fmt: on
 
         pipeline.extend(
-            {'$replaceWith': {'$setField': dict(field=field, input='$$ROOT', value={'$literal': value})}}
+            {'$replaceWith': {'$setField': {'field': field, 'input': '$$ROOT', 'value': {'$literal': value}}}}
             for field, value in serialized_traitable.items()
         )

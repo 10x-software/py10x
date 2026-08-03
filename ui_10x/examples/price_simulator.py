@@ -1,9 +1,10 @@
 import random
 import threading
 
-from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE
-from ui_10x.utils import ux, UxAsync
+from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
+
 from ui_10x.table_view import TableView
+from ui_10x.utils import UxAsync, ux
 
 
 class MarketSymbol(Traitable):
@@ -60,16 +61,16 @@ class MarketSymbol(Traitable):
 
 class MarketMonitor:
     s_symbols = [
-        dict(symbol = 'MSFT',  prev_close = 398.04,     std = 0.9 ),
-        dict(symbol = 'MS',    prev_close = 172.70,     std = 0.5 ),
-        dict(symbol = 'JPM',   prev_close = 307.32,     std = 0.7 ),
-        dict(symbol = 'IBM',   prev_close = 258.29,     std = 0.15 ),
-        dict(symbol = 'GS',    prev_close = 918.30,     std = 0.2 ),
-        dict(symbol = 'GOOG',  prev_close = 302.90,     std = 0.3 ),
-        dict(symbol = 'NVDA',  prev_close = 188.50,     std = 10.0 ),
-        dict(symbol = 'BAC',   prev_close = 52.74,      std = 0.9 ),
-        dict(symbol = 'AMZN',  prev_close = 202.93,     std = 0.8 ),
-        dict(symbol = 'AAPL',  prev_close = 263.47,     std = 0.7 ),
+        {'symbol': 'MSFT',  'prev_close': 398.04,     'std': 0.9 },
+        {'symbol': 'MS',    'prev_close': 172.70,     'std': 0.5 },
+        {'symbol': 'JPM',   'prev_close': 307.32,     'std': 0.7 },
+        {'symbol': 'IBM',   'prev_close': 258.29,     'std': 0.15 },
+        {'symbol': 'GS',    'prev_close': 918.30,     'std': 0.2 },
+        {'symbol': 'GOOG',  'prev_close': 302.90,     'std': 0.3 },
+        {'symbol': 'NVDA',  'prev_close': 188.50,     'std': 10.0 },
+        {'symbol': 'BAC',   'prev_close': 52.74,      'std': 0.9 },
+        {'symbol': 'AMZN',  'prev_close': 202.93,     'std': 0.8 },
+        {'symbol': 'AAPL',  'prev_close': 263.47,     'std': 0.7 },
     ]
 
     def __init__(self):
@@ -105,8 +106,9 @@ class MarketMonitor:
 
 if __name__ == '__main__':
     from core_10x.exec_control import INTERACTIVE
-    from ui_10x.utils import UxDialog
+
     from ui_10x.examples.price_simulator import MarketSymbol
+    from ui_10x.utils import UxDialog
 
     ux.init()
 

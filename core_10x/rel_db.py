@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING, Literal
 
-
 from core_10x.resource import REL_DB, Resource, ResourceSpec
 
 if TYPE_CHECKING:
@@ -13,8 +12,9 @@ if TYPE_CHECKING:
 
 class RelDb(Resource, resource_type=REL_DB):
     s_instance_kwargs_map = Resource.s_instance_kwargs_map | {
-        Resource.PROTOCOL_TAG:     (Resource.PROTOCOL_TAG,   None),
+        Resource.PROTOCOL_TAG: (Resource.PROTOCOL_TAG, None),
     }
+
     def __init__(self, uri: str):
         self._uri = uri
         self._connection = None
@@ -48,6 +48,7 @@ class RelDb(Resource, resource_type=REL_DB):
         if self._connection is None:
             raise RuntimeError('RelDb must be used as a context manager for querying.')
         from ibis.common.exceptions import TableNotFound
+
         try:
             return self._connection.table(table_name, **kwargs)
         except TableNotFound:

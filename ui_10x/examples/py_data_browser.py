@@ -21,27 +21,27 @@ data = {
     'Just None': None,
     'Now': date.today(),
     'A simple list': [ 100, 'abracadabra', 375.89 ],
-    'A simple dict': dict(_a = 10, _b = None, _c = 'Atlantic Ocean'),
+    'A simple dict': {'_a': 10, '_b': None, '_c': 'Atlantic Ocean'},
     'Unknown': A(),
     'Unknown, but': B(),
 
-    'Nested Dict': dict(
-        person = dict(
-            first_name = 'Mike',
-            last_name = 'Fellows',
-            age = 50,
-            countries = ('USA', 'Japan', 'Korea'),
-        ),
-        regions = [
+    'Nested Dict': {
+        'person': {
+            'first_name': 'Mike',
+            'last_name': 'Fellows',
+            'age': 50,
+            'countries': ('USA', 'Japan', 'Korea'),
+        },
+        'regions': [
             'Europe',
-            dict(
-                North = [ 'Canada', 'USA', 'Mexico' ],
-                Central = [ 'Nicaragua', 'Costa Rica', 'Equador' ],
-                South = [ 'Brasil', 'Argentina' ],
-            ),
+            {
+                'North': [ 'Canada', 'USA', 'Mexico' ],
+                'Central': [ 'Nicaragua', 'Costa Rica', 'Equador' ],
+                'South': [ 'Brasil', 'Argentina' ],
+            },
             'Asia',
         ],
-    ),
+    },
     # 'People':           Person.generateList( _cache_only = True )
 }
 

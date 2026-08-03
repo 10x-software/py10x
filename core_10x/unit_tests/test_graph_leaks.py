@@ -12,6 +12,7 @@ are invisible to ``gc`` today, so these tests must break cycles explicitly
 are GC-aware, cyclic collection should tear them down automatically and those
 manual cleanups can be removed (or reduced to weakref-only assertions).
 """
+
 from __future__ import annotations
 
 import gc
@@ -20,10 +21,9 @@ import weakref
 from functools import partial
 
 import pytest
-from py10x_kernel import XCache, BTraitableProcessor
-
-from core_10x.exec_control import BTP, GRAPH_ON, GraphDeps, INTERACTIVE
+from core_10x.exec_control import BTP, GRAPH_ON, INTERACTIVE, GraphDeps
 from core_10x.traitable import RT, Traitable
+from py10x_kernel import BTraitableProcessor, XCache
 
 
 def test_ref_leak():
@@ -58,7 +58,8 @@ def test_graph_ref_leak():
     assert not wr_g()
     assert not wr_x()
 
-@pytest.mark.parametrize(argnames='ctx', argvalues=[GRAPH_ON, BTraitableProcessor.create_root],ids=['GRAPH_ON','BTP.create_root'])
+
+@pytest.mark.parametrize(argnames='ctx', argvalues=[GRAPH_ON, BTraitableProcessor.create_root], ids=['GRAPH_ON', 'BTP.create_root'])
 def test_self_ref_leak(ctx):
     class X(Traitable):
         x: Traitable
@@ -77,6 +78,7 @@ def test_self_ref_leak(ctx):
 
 def test_graph_deps_ref_leak():
     """GraphDeps.gp keeps the GRAPH_ON BTP alive after ``del g``, so node-held values stay too."""
+
     class X(Traitable):
         x: Traitable
         v: int = RT()
@@ -126,11 +128,12 @@ def test_ui_node_callback_ref_leak():
     involving Python callbacks should be collectable without ``data.clear()``;
     keep the bag only if we still want an explicit bind-time BTP capture API.
     """
+
     class X(Traitable):
         x: int = RT()
 
     def _cb(data):
-        btp, obj, trait = data
+        btp, _obj, _trait = data
         assert BTP.current() == btp
 
     with INTERACTIVE():
@@ -143,4 +146,3 @@ def test_ui_node_callback_ref_leak():
     del x
     data.clear()  # TODO(gc): remove when hybrid cycles are GC-breakable
     assert not wr()
-

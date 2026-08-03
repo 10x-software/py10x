@@ -184,7 +184,7 @@ def test_documentation_code_block_execution(
 
     # Names injected for every block; everything else is from exec and must not outlive the test
     # (test_isolation leftover assert would see Traitables still bound in the fake module).
-    _KEEP = frozenset({'__name__', '__file__', '__builtins__', 'analytics_db_uri', 'main_store'})
+    _keep = frozenset({'__name__', '__file__', '__builtins__', 'analytics_db_uri', 'main_store'})
 
     if future_annotations:
         exec('from __future__ import annotations', fake_module.__dict__)  # noqa: S102
@@ -199,7 +199,7 @@ def test_documentation_code_block_execution(
     finally:
         # Drop exec bindings (Developer, dev, dev2, …) before isolation's leftover check.
         for key in list(fake_module.__dict__):
-            if key not in _KEEP:
+            if key not in _keep:
                 del fake_module.__dict__[key]
         sys.modules.pop(fake_module_name, None)
 

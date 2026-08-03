@@ -1,10 +1,10 @@
-from datetime import datetime # noqa: TC003
 import itertools
 import random
+from datetime import datetime  # noqa: TC003
 
-from core_10x.basket import Basket, Basketable, BUCKET_SHAPE, BucketDict
-from core_10x.traitable import Traitable, T, RT
+from core_10x.basket import BUCKET_SHAPE, Basket, Basketable, BucketDict
 from core_10x.trait_filter import f
+from core_10x.traitable import RT, T, Traitable
 
 
 class FinInstrument(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.DICT):
@@ -89,7 +89,7 @@ class Portfolio(Traitable, Basketable, bucket_shape = BUCKET_SHAPE.SET):
         return itertools.chain(self.portfolios.members_qtys(), self.books.members_qtys())
 
 if __name__ == '__main__':
-    from core_10x.manual_tests.basketable_hierarchy_test import Portfolio, Book, Trade, FinInstrument, FinLeaf
+    from core_10x.manual_tests.basketable_hierarchy_test import Book, FinInstrument, FinLeaf, Portfolio, Trade
 
     l1 = FinLeaf(name = 'Leaf 1')
     l2 = FinLeaf(name = 'Leaf 2')

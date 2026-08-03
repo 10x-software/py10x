@@ -1,7 +1,8 @@
 from core_10x.basket import Basket, Bucketizer
 from core_10x.code_samples.person import Person
-from core_10x.xinf import XInf
 from core_10x.named_constant import NamedCallable
+from core_10x.xinf import XInf
+
 
 class FEATURE(NamedCallable):
     A60     = lambda p: p.older_than(60)

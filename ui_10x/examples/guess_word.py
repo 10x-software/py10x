@@ -4,16 +4,14 @@ import os
 import random
 from typing import TYPE_CHECKING
 
-from PyQt6.QtWidgets import QHeaderView
-
-import core_10x.trait_definition as trait_definition
+from core_10x import trait_definition
 from core_10x.global_cache import cache
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
-
-from ui_10x.utils import ux, ux_warning, ux_success, ux_push_button
+from PyQt6.QtWidgets import QHeaderView
 
 from ui_10x.table_view import TableView
 from ui_10x.traitable_editor import TraitableEditor
+from ui_10x.utils import ux, ux_push_button, ux_success, ux_warning
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -343,6 +341,7 @@ class _GuessWordData:
 
 if __name__ == '__main__':
     from core_10x.exec_control import INTERACTIVE
+
     from ui_10x.examples.guess_word import Game, _GuessWordData
     from ui_10x.utils import UxDialog
 

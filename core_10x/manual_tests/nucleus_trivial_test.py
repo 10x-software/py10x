@@ -23,9 +23,9 @@ if __name__ == '__main__':
         str:            'plain text',
         datetime:       datetime.now(),
         date:           date.today(),
-        list:           [ 10, 5.1, 'label', datetime.now(), date(2020, 1, 1), ['a', 100], dict( a = 1, b = 2) ],
-        tuple:          ( 10, 5.1, 'label', datetime.now(), date(2020, 1, 1), ['a', 100], dict( a = 1, b = 2) ),
-        dict:           { 1: 1, 'a': 'abc', 'b': [ 10, 100. ], 'c': dict(x = -100, y = -200) },
+        list:           [ 10, 5.1, 'label', datetime.now(), date(2020, 1, 1), ['a', 100], { 'a': 1, 'b': 2} ],
+        tuple:          ( 10, 5.1, 'label', datetime.now(), date(2020, 1, 1), ['a', 100], { 'a': 1, 'b': 2} ),
+        dict:           { 1: 1, 'a': 'abc', 'b': [ 10, 100. ], 'c': {'x': -100, 'y': -200} },
         COLOR:          COLOR.GREEN,
         STATE:          STATE.RUNNING | STATE.SUSPENDED
     }

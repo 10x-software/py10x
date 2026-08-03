@@ -8,10 +8,9 @@ if __name__ == '__main__':
 
     ux.init()
 
-    with TsStore.instance_from_uri('mongodb://localhost/test'):
-        with INTERACTIVE():
-            coll = Collection(cls = Person)
-            ce = CollectionEditor(coll = coll)
-            w = ce.main_widget()
-            d = UxDialog(w)
-            d.exec()
+    with TsStore.instance_from_uri('mongodb://localhost/test'), INTERACTIVE():
+        coll = Collection(cls = Person)
+        ce = CollectionEditor(coll = coll)
+        w = ce.main_widget()
+        d = UxDialog(w)
+        d.exec()

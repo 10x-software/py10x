@@ -14,7 +14,7 @@ from core_10x.ts_store import (
 )
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, ReturnDocument, errors
-from pymongo.errors import DuplicateKeyError, ConnectionFailure, OperationFailure, ServerSelectionTimeoutError
+from pymongo.errors import ConnectionFailure, DuplicateKeyError, OperationFailure, ServerSelectionTimeoutError
 from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
 if TYPE_CHECKING:

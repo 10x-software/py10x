@@ -219,13 +219,13 @@ def test_repro():
 
 def test_graph_on():
     with GRAPH_ON():
-        test_exec_control( True, False, False)
+        test_exec_control(True, False, False)
         with GRAPH_OFF():
-            test_exec_control( False, False, False)
+            test_exec_control(False, False, False)
             reset_person()
 
 
-def test_debug( on=False):
+def test_debug(on=False):
     assert on == bool(BTP.current().flags() & BTP.DEBUG)
     p = TestablePerson(first_name='John', last_name='Smith')
     assert p.weight_lbs is XNone

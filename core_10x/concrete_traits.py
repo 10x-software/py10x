@@ -2,7 +2,7 @@ import ast
 import inspect
 from base64 import b64decode
 
-from core_10x.named_constant import EnumBits, NamedConstant, NamedCallable
+from core_10x.named_constant import EnumBits, NamedCallable, NamedConstant
 from core_10x.nucleus import Nucleus
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
@@ -155,7 +155,7 @@ class datetime_trait(Trait, data_type=datetime):
         return value
 
     def deserialize(self, value):
-        if isinstance(value, str): # -- traitable store does not support datetime, stores as isoformat by convention
+        if isinstance(value, str):  # -- traitable store does not support datetime, stores as isoformat by convention
             return datetime.fromisoformat(value)
         return value
 
@@ -165,7 +165,7 @@ class datetime_trait(Trait, data_type=datetime):
 
 class date_trait(Trait, data_type=date):
     s_ui_hint = Ui.line(min_width=10, align_h=0)
-    s_serialize_to_type =  str
+    s_serialize_to_type = str
 
     def from_str(self, s: str):
         dt = XDateTime.str_to_date(s)
@@ -195,6 +195,7 @@ class date_trait(Trait, data_type=date):
     def to_id(self, value) -> str:
         return XDateTime.date_to_str(value)
 
+
 class bytes_trait(Trait, data_type=bytes):
     s_ui_hint = Ui.NONE
 
@@ -220,14 +221,14 @@ class bytes_trait(Trait, data_type=bytes):
         return value
 
     def deserialize(self, value):
-        if isinstance(value, str): # -- traitable store does not support bytest type, stores as base64 by convention
+        if isinstance(value, str):  # -- traitable store does not support bytest type, stores as base64 by convention
             return b64decode(value)
         return value
 
 
 class class_trait(Trait, data_type=type):
     s_ui_hint = Ui.line(align_h=-1)
-    s_serialize_to_type =  str
+    s_serialize_to_type = str
 
     def to_str(self, value):
         return PyClass.name(value)
@@ -272,8 +273,9 @@ class list_trait(Trait, data_type=list):
     def deserialize(self, value: list):
         return Nucleus.deserialize_list(value)
 
-class set_trait(list_trait, data_type = set):
-    s_serialize_to_type =  list
+
+class set_trait(list_trait, data_type=set):
+    s_serialize_to_type = list
 
     def default_value(self) -> set:
         return set(self.default)
@@ -283,6 +285,7 @@ class set_trait(list_trait, data_type = set):
 
     def deserialize(self, value: list):
         return set(Nucleus.deserialize_list(value))
+
 
 class dict_trait(Trait, data_type=dict):
     s_ui_hint = Ui.line(flags=Ui.SELECT_ONLY)
@@ -308,7 +311,7 @@ class dict_trait(Trait, data_type=dict):
 
 class any_trait(Trait, data_type=XNoneType):  # -- any
     s_ui_hint = Ui.NONE
-    s_serialize_to_type =  dict
+    s_serialize_to_type = dict
 
     def to_str(self, v) -> str:
         return str(v)
@@ -379,15 +382,16 @@ class named_constant_trait(nucleus_trait, data_type=NamedConstant, base_class=Tr
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
-class named_callable_trait(nucleus_trait, data_type = NamedCallable, base_class = True):
-    s_ui_hint = Ui.choice(flags = Ui.SELECT_ONLY)
+
+class named_callable_trait(nucleus_trait, data_type=NamedCallable, base_class=True):
+    s_ui_hint = Ui.choice(flags=Ui.SELECT_ONLY)
 
     def is_acceptable_type(self, data_type: type) -> bool:
         return data_type is self.data_type
 
     def serialize(self, value: NamedCallable):
         if value.name is None:
-            raise TypeError(f"Trait {self.name} = {value} - is just a callable, but supposed to be a NamedCallable")
+            raise TypeError(f'Trait {self.name} = {value} - is just a callable, but supposed to be a NamedCallable')
 
         return super().serialize(value)
 
@@ -403,6 +407,7 @@ class named_callable_trait(nucleus_trait, data_type = NamedCallable, base_class 
     def post_ctor(self):
         if not self.f_set:
             self.set_f_set(self.__class__.default_setter, False)
+
 
 class flags_trait(nucleus_trait, data_type=EnumBits, base_class=True):
     s_ui_hint = Ui.line()

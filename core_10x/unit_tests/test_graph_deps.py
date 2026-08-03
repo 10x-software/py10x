@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import pytest
-from py10x_kernel import BTraitableProcessor
-
 from core_10x.exec_control import GRAPH_OFF, GRAPH_ON, GraphDeps
 from core_10x.rc import RC
 from core_10x.trait_definition import RT, T
 from core_10x.traitable import Traitable
+from py10x_kernel import BTraitableProcessor
 
 
 class TestGraphDeps:
@@ -37,7 +36,7 @@ class TestGraphDeps:
     @pytest.fixture
     def gp(self):
         """GRAPH_ON processor, active for the duration of each test."""
-        with GRAPH_ON() as g:
+        with GRAPH_ON():
             yield
 
     @pytest.fixture

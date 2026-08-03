@@ -16,27 +16,28 @@ if __name__ == '__main__':
     from statistics import median, stdev
 
     from core_10x.logger import PerfTimer
-    from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
     from py10x_infra import MongoCollectionHelper
+
+    from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
 
     NUM_ITERS = 50_000
     WARMUP = 1_000
     NUM_TRIALS = 11
 
     payloads = {
-        'small': dict(_id='AAAA', _rev=10, name='test', age=60),
-        'medium': dict(
-            _id='BBBB',
-            _rev=42,
-            name='widget',
-            age=30,
-            city='NYC',
-            country='US',
-            score=99.5,
-            active=True,
-            tag='alpha',
-            notes='hello',
-        ),
+        'small': {'_id': 'AAAA', '_rev': 10, 'name': 'test', 'age': 60},
+        'medium': {
+            '_id': 'BBBB',
+            '_rev': 42,
+            'name': 'widget',
+            'age': 30,
+            'city': 'NYC',
+            'country': 'US',
+            'score': 99.5,
+            'active': True,
+            'tag': 'alpha',
+            'notes': 'hello',
+        },
         'large': {
             '_id': 'CCCC',
             '_rev': 100,

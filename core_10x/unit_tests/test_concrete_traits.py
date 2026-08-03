@@ -100,7 +100,7 @@ def test_datetime_trait():
 
     data_type = datetime
     values = [
-        datetime(2020, 1, 1),  # noqa: DTZ001
+        datetime(2020, 1, 1),
         '2020-01-01T01:02:03',
         '2020-01-01 00:00:00',
         '2020-01-01',
@@ -112,16 +112,16 @@ def test_datetime_trait():
         'Feb 1, 2020 1:2:3',
     ]
     convert_expected = [
-        datetime(2020, 1, 1),  # noqa: DTZ001
-        datetime(2020, 1, 1, 1, 2, 3),  # noqa: DTZ001
-        datetime(2020, 1, 1),  # noqa: DTZ001
-        datetime(2020, 1, 1),  # noqa: DTZ001
+        datetime(2020, 1, 1),
+        datetime(2020, 1, 1, 1, 2, 3),
+        datetime(2020, 1, 1),
+        datetime(2020, 1, 1),
         TraitMethodError,
         None,
         XNone,
         TypeError,
         TypeError,
-        datetime(2020, 2, 1, 1, 2, 3),  # noqa: DTZ001
+        datetime(2020, 2, 1, 1, 2, 3),
     ]
     generic_test(data_type, values, convert_expected)
 

@@ -43,7 +43,7 @@ def test_event_immutable():
 def event_store(mocker):
     # Monotonic store clock so event _at values sit strictly below each watermark query.
     # TS_TIME is stamped in SQL via _server_time_col_sql_expr (not Python server_time alone).
-    clock = [datetime(2026, 6, 1, 12, 0, 0)]  # noqa: DTZ001
+    clock = [datetime(2026, 6, 1, 12, 0, 0)]
 
     def server_time_sql(self):
         clock[0] += timedelta(milliseconds=10)

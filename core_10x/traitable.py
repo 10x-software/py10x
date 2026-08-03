@@ -11,22 +11,23 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, get_origin
 from urllib.parse import unquote
 
-from py10x_kernel import BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, BSaveRefs, OsUser, XCache, BFlags
+from py10x_kernel import BFlags, BSaveRefs, BTraitable, BTraitableClass, BTraitableProcessor, BTraitFlags, OsUser, XCache
 from typing_extensions import Self, deprecated
 
-import core_10x.concrete_traits as concrete_traits
+from core_10x import concrete_traits
+from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
-
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.resource import Resource
+from core_10x.sec_keys import SecKeys
 from core_10x.trait import TRAIT_METHOD, BoundTrait, ClassTrait, T, Trait, trait_value
 from core_10x.trait_definition import (
     RT,
@@ -38,8 +39,6 @@ from core_10x.trait_definition import (
 from core_10x.trait_filter import LE, f
 from core_10x.traitable_id import ID
 from core_10x.ts_store import TS_FIELDS_TAG, TS_STORE, TsStore
-from core_10x.sec_keys import SecKeys
-from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.xnone import XNone, XNoneType
 
 if TYPE_CHECKING:
@@ -735,7 +734,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     @classmethod
     def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
-        return _ensure_indices and cls._ensure_indices(_coll_name) or cls.s_storage_helper.collection(_coll_name)
+        return (_ensure_indices and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name)
 
     @classmethod
     @cache(keep_value=False)
@@ -841,7 +840,7 @@ class TraitableFwdRef(Traitable, root_class=True):
     @staticmethod
     @cache
     def placeholder(mod_nm: str, resolve_key: str) -> type:
-        placeholder = types.new_class(f'_TraitableFwdRefPlaceholder#{resolve_key}', (TraitableFwdRef,), dict(root_class=True))
+        placeholder = types.new_class(f'_TraitableFwdRefPlaceholder#{resolve_key}', (TraitableFwdRef,), {'root_class': True})
         placeholder.__module__ = mod_nm
         return placeholder
 
@@ -1101,7 +1100,7 @@ class StorableHelperWithHistory(StorableHelper):
         as_of = {'_at': LE(_before)} if _before else {}
         cursor = cls.s_history_class.load_many(
             f(_filter, **named_filters, **as_of),
-            _order=dict(_traitable_id=1, _at=-1, _traitable_rev=-1),
+            _order={'_traitable_id': 1, '_at': -1, '_traitable_rev': -1},
             _at_most=_at_most,
             _deserialize=_deserialize,
             _coll_name=_collection_name + '#history' if _collection_name else None,
@@ -1179,7 +1178,7 @@ class EventBase(Traitable, keep_history=False):
 
 class TraitableHistory(EventBase):
     s_traitable_class = None
-    s_trait_name_map = dict(_traitable_id='_id', _traitable_rev='_rev')
+    s_trait_name_map = {'_traitable_id': '_id', '_traitable_rev': '_rev'}
 
     # fmt: off
     traitable: Traitable        = RT() // 'original traitable'
@@ -1220,11 +1219,11 @@ class TraitableHistory(EventBase):
     @classmethod
     def history_class(cls, traitable_class: type[Traitable], base=None, **kwargs):
         history_class_name = f'{traitable_class.__name__}#history'
-        ns = dict(
-            s_traitable_class=traitable_class,
-            s_custom_collection=traitable_class.s_custom_collection,
-            __module__=traitable_class.__module__,
-        )
+        ns = {
+            's_traitable_class': traitable_class,
+            's_custom_collection': traitable_class.s_custom_collection,
+            '__module__': traitable_class.__module__,
+        }
         history_class = types.new_class(
             history_class_name,
             (cls,) if not base else (base,) if issubclass(base, cls) else (cls, base),
@@ -1263,8 +1262,7 @@ class AsOfContext:
                 continue
             visited.add(traitable_class)
             traitable_class.s_storage_helper_cached = None
-            for sub in traitable_class.s_direct_subclasses:
-                stack.append(sub)
+            stack.extend(traitable_class.s_direct_subclasses)
 
     def __enter__(self):
         self._reset_storage_helpers()

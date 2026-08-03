@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import pytest
-from py10x_kernel import BTraitableProcessor
-
 from core_10x.exec_control import GRAPH_ON, GraphDeps
 from core_10x.rc import RC
 from core_10x.trait_definition import RT, T
 from core_10x.traitable import Traitable
 from core_10x.traitable_id import ID
+from py10x_kernel import BTraitableProcessor
 
 # ---------------------------------------------------------------------------
 # Shared leaves
@@ -26,7 +25,7 @@ class Shared(Traitable):
 
 @pytest.fixture
 def go():
-    with GRAPH_ON() as g:
+    with GRAPH_ON():
         yield
 
 
@@ -98,6 +97,7 @@ class DepTracker:
     @staticmethod
     def _rev_deps(gp, bound_trait, target_cls=Leaf):
         return list(GraphDeps(gp or BTraitableProcessor.current(), bound_trait, target_cls, '_rev').deps(trait_names=True))
+
 
 class TestCustomSetterAndConverterReads(DepTracker):
     def test_setter_read_not_tracked(self, go):

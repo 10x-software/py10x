@@ -5,6 +5,9 @@ from collections import deque
 from contextlib import ExitStack, contextmanager
 from typing import TYPE_CHECKING
 
+from py10x_kernel import BFlags
+from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
+
 from core_10x.environment_variables import EnvVars
 from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
@@ -15,7 +18,6 @@ from core_10x.resource import TS_STORE, Resource, ResourceSpec
 from core_10x.trait_definition import T
 from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
-from py10x_kernel import BFlags, BTraitableProcessorSetValueTracker as BTPTracker
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -76,6 +78,7 @@ class TsCollection(abc.ABC):
 
     def extend_trait_dir(self, trait_dir: dict | None) -> None:
         """Union additional trait metadata into this collection's schema (no-op by default)."""
+        pass
 
     def copy_to(self, to_coll: TsCollection, overwrite: bool = False) -> RC:
         """Copy all documents to another collection (same store-type rules as :meth:`TsStore.copy_to`)."""

@@ -302,7 +302,7 @@ def test_datetime_filter_on_json_blob_casts_to_timestamp(monkeypatch):
     assert '_at' not in _sql_columns(store, coll_name)
     coll.save_new(store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'}))
     assert '_at' in _blob_keys(store, coll_name, '1')
-    rows = list(coll.find(f(_at=LT(datetime(2099, 1, 1)))))  # noqa: DTZ001 - testing naive time
+    rows = list(coll.find(f(_at=LT(datetime(2099, 1, 1)))))
     assert len(rows) == 1
     store.delete_collection(coll_name)
 
