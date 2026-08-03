@@ -1,4 +1,6 @@
 import asyncio
+import gc
+import weakref
 from datetime import date
 
 import pytest
@@ -22,7 +24,7 @@ import rio
 _CE_TIMEOUT = COLLECTION_EDITOR_TIMEOUT_MS
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_db_ops(monkeypatch):
     with CACHE_ONLY():
         sasha = Person(first_name='Sasha', last_name='Davidovich', weight_lbs=150, _replace=True)
@@ -33,18 +35,23 @@ def mock_db_ops(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def interactive_mode():
-    interactive = INTERACTIVE()
-    interactive.begin_using()
-    yield
-    interactive.end_using()
+def widget(mock_db_ops):
+    with INTERACTIVE():
+        ce = CollectionEditor(coll=Collection(cls=Person))
+        yield ce.main_widget()
+
+        wr = weakref.ref(ce)
+        del ce
+        gc.collect()
+        assert wr() is not None, 'select_hook must keep CollectionEditor reachable via the widget tree'
+
+        # Drop the intentional pin so test isolation's leftover assert stays quiet.
+        wr().searchable_list.hook = None
+
+    assert wr() is None
 
 
-async def test_collection_editor() -> None:
-    coll = Collection(cls=Person)
-    ce = CollectionEditor(coll=coll)
-    widget = ce.main_widget()
-
+async def test_collection_editor(widget) -> None:
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
         await asyncio.sleep(UI_SETTLE_S)
 

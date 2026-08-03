@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+import weakref
 from contextlib import nullcontext
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from core_10x.concrete_traits import date_trait, dict_trait, flags_trait, list_trait
@@ -23,10 +23,16 @@ if TYPE_CHECKING:
     from core_10x.trait import Trait
 
 
-@dataclass
 class TraitableWrapper:
-    traitable: Traitable
-    traitable_processor: Callable[[], BTP]
+    __slots__ = ('_traitable', 'traitable_processor')
+
+    def __init__(self, traitable: Traitable, traitable_processor: Callable[[], BTP] = None):
+        self._traitable = weakref.ref(traitable)
+        self.traitable_processor = traitable_processor
+
+    @property
+    def traitable(self) -> Traitable:
+        return self._traitable()
 
     def set_value(self, trait: Trait, value) -> RC:
         with self.traitable_processor() or nullcontext():

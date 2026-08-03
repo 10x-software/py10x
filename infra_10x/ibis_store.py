@@ -9,13 +9,12 @@ from typing import TYPE_CHECKING
 
 import ibis
 import ibis.expr.operations as ibis_ops
-from ibis.common.exceptions import TableNotFound
-
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 from core_10x.trait import Trait
 from core_10x.trait_definition import T
 from core_10x.ts_store import TS_FIELDS_TAG, TsCollection, TsStore
+from ibis.common.exceptions import TableNotFound
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence

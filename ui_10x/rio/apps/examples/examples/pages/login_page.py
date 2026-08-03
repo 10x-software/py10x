@@ -41,7 +41,7 @@ class LoginPage(rio.Component):
                 runtime_context.authenticated = True
 
             except Exception as e:
-                self.error_message = f'Login error - try again\n'
+                self.error_message = f'Login error - try again {e.__class__.__name__}\n'
                 print(e)
                 return
 

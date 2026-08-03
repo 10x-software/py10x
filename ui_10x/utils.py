@@ -242,6 +242,13 @@ class UxDialog(ux.Dialog):
         self.reject()
         self.done(0)
 
+    def done(self, code):
+        # Drop callbacks so nested closures do not keep entities
+        # alive after the dialog has finished, even if widget is still around
+        self.accept_callback = None
+        self.cancel_callback = None
+        super().done(code)
+
     def message(self, text: str):
         self.w_message.set_text(text)
 
@@ -394,6 +401,10 @@ class UxSearchableList(ux.GroupBox):
         self.sort = sort
         self.initial_choices = choices if not sort else sorted(choices)
         self.current_choices = self.initial_choices
+        # Bound-method hooks intentionally pin ``__self__``. Call sites such as
+        # ``CollectionEditor`` / Rio pages often retain only the widget tree; the
+        # hook is then what keeps the controller Traitable alive for selection.
+        # (Do not WeakMethod this — selection would silently no-op after GC.)
         self.hook = select_hook
         self.reset_selection = reset_selection
         self.case_sensitive = case_sensitive

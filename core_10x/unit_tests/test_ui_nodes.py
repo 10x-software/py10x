@@ -23,7 +23,11 @@ class X(Traitable):
         return self.x
 
 
-def callback(btp, x, t, v):
+def callback(data):
+    # Mutable bag holds bind-time BTP (and x/trait/v) so call-time can assert
+    # identity; bags are cleared after the test so partials do not pin
+    # INTERACTIVE BTP / x (hybrid C++/Python cycles are not GC-breakable yet).
+    btp, x, t, v = data
     assert btp is BTP.current()
     # assert x.get_trait_value(t) == v
     print(btp, BTP.current())
@@ -32,11 +36,21 @@ def callback(btp, x, t, v):
 
 def test_ui_nodes():
     x = X(x=1)
+    # TODO(gc): drop bags + data.clear() once BTP/XCache/UI nodes participate in
+    # cyclic GC and can break partial→BTP→cache→UI node→partial without help
+    # (see test_graph_leaks module docstring). Keep bagging only if we still need
+    # an explicit bind-time BTP for the callback identity assert.
+    bags: list[list] = []
 
     def t(ov, v):
-        mx = MagicMock(side_effect=partial(callback, BTP.current(), x, x.T.x, v))
-        my = MagicMock(side_effect=partial(callback, BTP.current(), x, x.T.y, v))
-        mz = MagicMock(side_effect=partial(callback, BTP.current(), x, x.T.z, v))
+        def make(trait):
+            data = [BTP.current(), x, trait, v]
+            bags.append(data)
+            return MagicMock(side_effect=partial(callback, data))
+
+        mx = make(x.T.x)
+        my = make(x.T.y)
+        mz = make(x.T.z)
         x.bui_class().create_ui_node(x, x.T.x, mx)
         x.bui_class().create_ui_node(x, x.T.y, my)
         x.bui_class().create_ui_node(x, x.T.z, mz)
@@ -59,6 +73,9 @@ def test_ui_nodes():
         i.export_nodes()
         assert x.x == x.y == x.z == 3
         assert mx.call_count == my.call_count == mz.call_count == 2
+
+    for data in bags:
+        data.clear()  # TODO(gc): remove when hybrid cycles are GC-breakable
 
 
 def test_exception():
