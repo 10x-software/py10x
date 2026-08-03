@@ -3,11 +3,12 @@ from __future__ import annotations
 import copy
 import sys
 import traceback
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING
 
 from core_10x.named_constant import Enum, ErrorCode
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from types import TracebackType
 
 
@@ -83,7 +84,7 @@ class RC:
 
     def __add__(self, other):
         rc = self.new_rc()
-        rc+=other
+        rc += other
         return rc
 
     def __radd__(self, other):
@@ -165,6 +166,7 @@ class RC:
     def new_rc(self) -> RC:
         return copy.copy(self)
 
+
 class _RcTrue(RC):
     def __init__(self):
         super().__init__(True)
@@ -181,6 +183,7 @@ class _RcTrue(RC):
 
 RC_TRUE = _RcTrue()
 
+
 def exc_to_rc(func: Callable[[...], None], exc_class: type[Exception] = Exception, message: str = None) -> Callable[[...], RC]:
     def wrapper(*args, **kwargs) -> RC:
         try:
@@ -188,4 +191,5 @@ def exc_to_rc(func: Callable[[...], None], exc_class: type[Exception] = Exceptio
         except exc_class:
             return RC(False, message)
         return RC_TRUE
+
     return wrapper

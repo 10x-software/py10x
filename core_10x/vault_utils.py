@@ -1,9 +1,10 @@
 import getpass
 
-from core_10x.environment_variables import EnvVars
-from core_10x.traitable import Traitable, VaultUser, VaultResourceAccessor, Resource, TsStore, RC, RC_TRUE
 from core_10x.concrete_resource import CONCRETE_RESOURCE
+from core_10x.environment_variables import EnvVars
 from core_10x.sec_keys import SecKeys
+from core_10x.traitable import RC, RC_TRUE, Resource, Traitable, TsStore, VaultResourceAccessor, VaultUser
+
 
 class VaultUtils:
     MIN_CHARS   = 8

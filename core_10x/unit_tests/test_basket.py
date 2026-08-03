@@ -428,7 +428,7 @@ class TestBucketizerByFeature:
             assert bz.calc_bucket_tag(bz_val) == 'heavy'
 
     def test_non_callable_feature_raises(self):
-        with pytest.raises(AssertionError, match='not callable'):
+        with pytest.raises(TypeError, match='not callable'):
             Bucketizer.by_feature(Animal, 'not_a_callable')
 
     def test_basket_split_by_feature(self):
@@ -1251,7 +1251,7 @@ class TestBucketizerValidation:
             Bucketizer.verify_base_class(int)
 
     def test_verify_custom_f_with_non_callable_raises(self):
-        with pytest.raises(AssertionError, match='not callable'):
+        with pytest.raises(TypeError, match='not callable'):
             Bucketizer.verify_custom_f('not_callable', 'test_label')
 
     def test_verify_custom_f_callable_passes(self):

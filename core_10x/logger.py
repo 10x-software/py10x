@@ -1,17 +1,19 @@
+import multiprocessing as mp
 import os
+import socket
 import time
 from datetime import datetime, timezone
-import psutil
 from typing import Any
-import multiprocessing as mp
-import socket
 
+import psutil
 from py10x_kernel import OsUser
-from core_10x.traitable import Traitable, T, RT
-from core_10x.xdate_time import XDateTime
+
 from core_10x.environment_variables import EnvVars
 from core_10x.resource import NULL_RESOURCE
+from core_10x.traitable import RT, T, Traitable
 from core_10x.ts_store import TsStore
+from core_10x.xdate_time import XDateTime
+
 
 class PerfTimer:
     def __enter__(self):
@@ -101,13 +103,13 @@ class LOG:
             return
 
         if payload is not None:
-            data = dict(
-                ns          = time.perf_counter_ns(),
-                level       = log_level,
-                mem_pc      = LOGGER.ps.memory_percent(),
-                num_threads = LOGGER.ps.num_threads(),
-                payload     = payload
-            )
+            data = {
+                'ns': time.perf_counter_ns(),
+                'level': log_level,
+                'mem_pc': LOGGER.ps.memory_percent(),
+                'num_threads': LOGGER.ps.num_threads(),
+                'payload': payload
+            }
         else:
             data = None
 

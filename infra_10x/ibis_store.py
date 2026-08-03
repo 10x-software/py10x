@@ -9,13 +9,12 @@ from typing import TYPE_CHECKING
 
 import ibis
 import ibis.expr.operations as ibis_ops
-from ibis.common.exceptions import TableNotFound
-
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 from core_10x.trait import Trait
 from core_10x.trait_definition import T
 from core_10x.ts_store import TS_FIELDS_TAG, TsCollection, TsStore
+from ibis.common.exceptions import TableNotFound
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -110,7 +109,7 @@ class IbisCollection(TsCollection):
         if name in self._collection_columns() or trait is not None:
             return (self.ibis_col(name, trait),)
         col = self.ibis_col(name, raw=True)
-        return tuple(c(col) for t, c in self._store.json_caster_map.items() if t != int)
+        return tuple(c(col) for t, c in self._store.json_caster_map.items() if t is not int)
 
     def ibis_right_value(self, value, field_name: str | None = None):
         """RHS encoding from ``type(value)``: col serializers on physical columns, JSON wire serializers on blob path (never cast to JSON type)."""

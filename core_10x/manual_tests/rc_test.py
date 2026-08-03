@@ -20,7 +20,7 @@ try:
 except Exception as e:
     print(str(e))
 
-rc = RC(CONDITION.MAIN, dict( a = 1, b = 1))
+rc = RC(CONDITION.MAIN, { 'a': 1, 'b': 1})
 print(rc)
 
 rc.add_data([100, 200])
@@ -33,7 +33,7 @@ try:
 except Exception as e:
     print(str(e))
 
-rc = RC(A_PROBLEM.REV_CONFLICT, dict(cls = 'XXX', id = '123456', rev = 3))
+rc = RC(A_PROBLEM.REV_CONFLICT, {'cls': 'XXX', 'id': '123456', 'rev': 3})
 print(rc)
 
 rc = RC(True)

@@ -109,7 +109,7 @@ class TraitableCli(Traitable):
                 return RC(False, 'Option name is missing after "--"')
 
             # -- --no-option / --no_option: boolean negation shortcut (== --option false)
-            if (name.startswith('no-') or name.startswith('no_')) and len(name) > 3:
+            if (name.startswith(('no-', 'no_'))) and len(name) > 3:
                 trait_values[name[3:].replace('-', '_')] = 'false'
                 i += 1
                 continue

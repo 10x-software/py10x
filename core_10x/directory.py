@@ -135,7 +135,7 @@ class Directory:
         v_n_map = { path[-1]: name for path, name in f.items() }
         res = {}
         cr = 1
-        for path in f.keys():
+        for path in f:
             label = path_delimiter.join(v_n_map[p] for p in path)
             value = path[-1]
             already_in = res.get(label)

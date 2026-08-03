@@ -4,6 +4,7 @@ import asyncio
 import inspect
 import operator
 import types
+import weakref
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -67,7 +68,7 @@ def session_context(session: rio.Session):
     CURRENT_SESSION = session
     try:
         user_session = session[UserSessionContext]
-    except Exception:
+    except Exception:  # noqa:BLE001 - TODO better handling?
         user_session = None
 
     if user_session:
@@ -100,6 +101,13 @@ class SignalDecl:
 
     def emit(self, *args) -> None:
         for handler, conn in self.handlers[CURRENT_SESSION]:
+            # Capture BTP at emit time so QUEUED handlers re-enter the same
+            # INTERACTIVE/GRAPH context when they run. The partial is normally
+            # short-lived (call_soon). A long-lived partial that pins BTP would
+            # keep the whole owned cache (and any Traitables on it) alive after
+            # the intended session/scope ended — prefer a mutable bag if deferred
+            # work can outlive BTP teardown.
+            # TODO(gc): GC-aware BTP would make accidental pins less severe.
             conn.value(partial(self._wrapper, BTP.current(), handler), *args)
 
 
@@ -170,7 +178,7 @@ class DynamicComponent(rio.Component):
 
 
 class ComponentBuilder:
-    __slots__ = ('_kwargs', 'component', 'subcomponent')
+    __slots__ = ('__weakref__', '_kwargs', 'component', 'subcomponent')
 
     s_component_class: type[rio.Component] = None
     s_forced_kwargs = {}
@@ -210,7 +218,7 @@ class ComponentBuilder:
 
     def _make_kwargs(self, **kwargs):
         defaults = {kw: value(self, kwargs) if callable(value) else value for kw, value in self.s_default_kwargs.items()}
-        return defaults | kwargs | self.s_forced_kwargs | dict(key=id(self))
+        return defaults | kwargs | self.s_forced_kwargs | {'key': id(self)}
 
     def __init__(self, *children, **kwargs):
         assert self.s_component_class, f'{self.__class__.__name__}: has no s_component_class'
@@ -307,7 +315,49 @@ class ComponentBuilder:
         except KeyError:
             return default
 
+    @staticmethod
+    def _without_strong_method_self(callback: Callable[[...], None]) -> Callable[[...], None]:
+        """Avoid session-long leaks: Rio keeps widgets (and their on_* handlers) alive.
+
+        A bound method in a handler pins ``__self__`` (editors, stockers, Traitables).
+        When panes/dialogs are replaced but the session still holds the old widget
+        tree, that becomes a production memory leak. WeakMethod keeps refresh/click
+        working while the controller lives; after it is dropped the handler no-ops.
+
+        Used by all ``clicked_connect`` / signal wiring that goes through
+        ``callback()`` (including ``ux_push_button``).
+        """
+        method = callback.func if isinstance(callback, partial) and isinstance(callback.func, types.MethodType) else callback
+        if not isinstance(method, types.MethodType):
+            return callback
+        try:
+            wm = weakref.WeakMethod(method)
+        except TypeError:
+            # __self__ not weak-referenceable (should be rare after ComponentBuilder.__weakref__)
+            return callback
+
+        if isinstance(callback, partial):
+            p_args, p_kwargs = callback.args, callback.keywords or {}
+
+            def call(*args, **kwargs):
+                m = wm()
+                if m is not None:
+                    return m(*p_args, *args, **p_kwargs, **kwargs)
+                return None
+
+            return call
+
+        def call(*args, **kwargs):
+            m = wm()
+            if m is not None:
+                return m(*args, **kwargs)
+            return None
+
+        return call
+
     def callback(self, callback):
+        callback = self._without_strong_method_self(callback)
+
         def cb(widget, *args, **kwargs):
             with session_context(widget.subcomponent.session):
                 # note - callback must not yield the event loop!
@@ -322,7 +372,7 @@ class Widget(ComponentBuilder, i.Widget):
     s_component_class = rio.Container
     s_stretch_arg = 'grow_x'
     s_default_layout_factory = lambda: FlowLayout()
-    s_default_kwargs = dict(grow_y=False, align_y=0)
+    s_default_kwargs = {'grow_y': False, 'align_y': 0}
     s_unwrap_single_child = True
 
     def __init_subclass__(cls, **kwargs):

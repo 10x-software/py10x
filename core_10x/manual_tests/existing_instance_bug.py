@@ -1,4 +1,5 @@
-from core_10x.traitable import Traitable, T, RT
+from core_10x.traitable import RT, T, Traitable
+
 
 class Book(Traitable):
     name: str       = T(T.ID)

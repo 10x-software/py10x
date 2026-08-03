@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 
 import pytest
-
 from core_10x.traitable import T
+
 from xxcommon.event import Event
 from xxcommon.event_processor import EventProcessor
 
@@ -21,10 +23,11 @@ class PingCounter(EventProcessor, inputs=(Ping,), outputs=()):
 class Pong(Event):
     n: int = T(0)
 
-class  PongCounter(EventProcessor, inputs=(Pong,), outputs=()):
+
+class PongCounter(EventProcessor, inputs=(Pong,), outputs=()):
     total: int = T(0)
 
-    def Pong_process(self, event: "Pong"):
+    def Pong_process(self, event: Pong):
         self.total = self.total + event.n
 
 
@@ -34,6 +37,7 @@ def test_event_immutable():
 
     assert Pong.s_immutable
     assert Pong.s_history_class is None
+
 
 @pytest.fixture
 def event_store(mocker):
@@ -46,6 +50,7 @@ def event_store(mocker):
         return f"CAST('{clock[0].strftime('%Y-%m-%d %H:%M:%S.%f')}' AS TIMESTAMP)"
 
     from infra_10x.duckdb_store import DuckDbStore
+
     mocker.patch.object(DuckDbStore, '_server_time_col_sql_expr', server_time_sql)
 
     store = DuckDbStore()
@@ -69,6 +74,6 @@ def test_string_annotated_process_method_resolves(event_store):
     Pong(n=4).save().throw()
     Pong(n=5).save().throw()
 
-    proc =  PongCounter()
+    proc = PongCounter()
     assert proc.process_pending_events() == 2
     assert proc.total == 9

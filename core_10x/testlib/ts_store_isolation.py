@@ -37,12 +37,15 @@ Restore always re-publishes the **top** pin frame only.
 
 from __future__ import annotations
 
+import gc
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from py10x_kernel import XCache
 
 from core_10x.environment_variables import EnvVars, classproperty
+from core_10x.global_cache import _clear_all_caches
+from core_10x.py_class import PyClass
 from core_10x.scenario import Scenario
 from core_10x.traitable import NamedTsStore, Traitable, TsClassAssociation
 from core_10x.ts_store import TsStore
@@ -72,11 +75,45 @@ def clear_traitable_store_state() -> None:
     TsStore.s_instances.clear()
 
 
-def reset_traitable_process_state() -> None:
+def drop_new_instance_attrs(inst: object, keys_before: set[str]) -> None:
+    """Remove instance attributes added after ``keys_before`` was snapshotted.
+
+    Used so ``unittest.TestCase.setUp`` storage on ``self`` (Traitables, lists of
+    them, etc.) does not keep objects alive through isolation's leftover check.
+    Safe no-op if ``inst`` is gone or keys were already deleted in ``tearDown``.
+    """
+    if inst is None:
+        return
+    for key in set(vars(inst)) - keys_before:
+        try:
+            delattr(inst, key)
+        except Exception:  # noqa: BLE001 — best-effort cleanup before leftover assert
+            pass
+
+
+def reset_traitable_process_state(*, assert_clean: bool = True) -> None:
+    """Clear process-global Traitable/XCache state after a test.
+
+    Also clears all ``@core_10x.global_cache.cache`` memos so test-held Traitables
+    do not outlive ``XCache.clear()`` (stale origin cache). Domain singletons that
+    are not ``@cache`` (e.g. ``PricingContext.s_current_pc``) still need local
+    fixture cleanup.
+
+    ``assert_clean`` (default True) fails if any Traitable is still reachable.
+    Pass False after a failed test so stack/fixture holders do not add noise on
+    top of the original failure.
+    """
     Scenario.s_instances.clear()
+    _clear_all_caches()
     XCache.clear()
     clear_traitable_store_state()
-    # TODO: gc.collect and flag any left-over traitables
+    gc.collect()
+
+    if not assert_clean:
+        return
+
+    leftovers = [(PyClass.name(obj.__class__), obj.id_value()) for obj in gc.get_objects() if isinstance(obj, Traitable)]
+    assert not leftovers, leftovers
 
 
 def pin_current_ts_stores() -> None:

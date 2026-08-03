@@ -1,9 +1,8 @@
 import pytest
+from infra_10x.duckdb_store import DuckDbStore
 
 from core_10x.testlib.fixtures import stub_log_logger
 from core_10x.ts_store import TsStore
-
-from infra_10x.duckdb_store import DuckDbStore
 
 
 class TestDuckDbStore(DuckDbStore, resource_name='TEST_DUCK_DB'):

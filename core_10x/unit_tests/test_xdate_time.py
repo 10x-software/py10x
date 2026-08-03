@@ -163,17 +163,17 @@ def test_set_default_format_updates_formats_list():
 
 
 def test_datetime_to_str_without_ms():
-    dt = datetime(2023, 1, 15, 10, 30, 45)  # noqa: DTZ001
+    dt = datetime(2023, 1, 15, 10, 30, 45)
     assert XDateTime.datetime_to_str(dt) == '20230115 10:30:45'
 
 
 def test_datetime_to_str_with_ms():
-    dt = datetime(2023, 1, 15, 10, 30, 45, 123456)  # noqa: DTZ001
+    dt = datetime(2023, 1, 15, 10, 30, 45, 123456)
     assert XDateTime.datetime_to_str(dt, with_ms=True) == '20230115 10:30:45.123456'
 
 
 def test_datetime_to_str_midnight():
-    dt = datetime(2023, 6, 1, 0, 0, 0)  # noqa: DTZ001
+    dt = datetime(2023, 6, 1, 0, 0, 0)
     assert XDateTime.datetime_to_str(dt) == '20230601 00:00:00'
 
 
@@ -184,7 +184,7 @@ def test_datetime_to_str_midnight():
 
 def test_str_to_datetime_with_hms():
     dt = XDateTime.str_to_datetime('20230115 10:30:45')
-    assert dt == datetime(2023, 1, 15, 10, 30, 45)  # noqa: DTZ001
+    assert dt == datetime(2023, 1, 15, 10, 30, 45)
 
 
 def test_str_to_datetime_with_hm_only():
@@ -211,7 +211,7 @@ def test_str_to_datetime_unparseable_returns_none():
 def test_date_to_datetime_produces_midnight():
     d = date(2023, 6, 15)
     dt = XDateTime.date_to_datetime(d)
-    assert dt == datetime(2023, 6, 15, 0, 0, 0)  # noqa: DTZ001
+    assert dt == datetime(2023, 6, 15, 0, 0, 0)
 
 
 # ----------------------------------------------------------------------------
@@ -225,7 +225,7 @@ def test_to_date_from_date():
 
 
 def test_to_date_from_datetime():
-    dt = datetime(2023, 6, 1, 12, 0, 0)  # noqa: DTZ001
+    dt = datetime(2023, 6, 1, 12, 0, 0)
     assert XDateTime.to_date(dt) == date(2023, 6, 1)
 
 
@@ -248,18 +248,18 @@ def test_to_date_unsupported_type_returns_none():
 
 
 def test_to_datetime_from_datetime():
-    dt = datetime(2023, 6, 1, 10, 0, 0)  # noqa: DTZ001
+    dt = datetime(2023, 6, 1, 10, 0, 0)
     assert XDateTime.to_datetime(dt) == dt
 
 
 def test_to_datetime_from_date():
     d = date(2023, 6, 1)
-    assert XDateTime.to_datetime(d) == datetime(2023, 6, 1, 0, 0, 0)  # noqa: DTZ001
+    assert XDateTime.to_datetime(d) == datetime(2023, 6, 1, 0, 0, 0)
 
 
 def test_to_datetime_from_ordinal_int():
     d = date(2023, 6, 1)
-    assert XDateTime.to_datetime(d.toordinal()) == datetime(2023, 6, 1, 0, 0, 0)  # noqa: DTZ001
+    assert XDateTime.to_datetime(d.toordinal()) == datetime(2023, 6, 1, 0, 0, 0)
 
 
 def test_to_datetime_from_str():

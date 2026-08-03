@@ -153,14 +153,14 @@ class TestTraitableHistory:
 
     def test_asof_context_enter_exit(self):
         """Test AsOfContext enter and exit."""
-        as_of_time = datetime(2023, 1, 1, 12, 0, 0)  # noqa: DTZ001
+        as_of_time = datetime(2023, 1, 1, 12, 0, 0)
 
         with AsOfContext(as_of_time, [NameValueTraitable]) as context:
             assert context.as_of_time == as_of_time
 
     def test_asof_context_manager(self):
         """Test AsOfContext as context manager."""
-        as_of_time = datetime(2023, 1, 1, 12, 0, 0)  # noqa: DTZ001
+        as_of_time = datetime(2023, 1, 1, 12, 0, 0)
 
         with AsOfContext(as_of_time, [NameValueTraitable]) as context:
             assert context.as_of_time == as_of_time
@@ -625,7 +625,7 @@ class TestTraitableHistory:
         item = NoHistoryTraitable(key='k1', value='v1', _replace=True)
         item.save().throw()
         original_helper = NoHistoryTraitable.s_storage_helper
-        as_of_time = datetime(2020, 1, 1, 12, 0, 0)  # noqa: DTZ001
+        as_of_time = datetime(2020, 1, 1, 12, 0, 0)
 
         with pytest.raises(
             ValueError,
@@ -786,7 +786,7 @@ class TestTraitableHistory:
         person.save()
 
         # Try to restore to a time before the person existed
-        past_time = datetime(2020, 1, 1)  # noqa: DTZ001
+        past_time = datetime(2020, 1, 1)
         result = PersonTraitable.restore(person.id(), timestamp=past_time, save=False)
         assert result is False
 

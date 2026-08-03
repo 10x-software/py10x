@@ -68,7 +68,6 @@ class TraitDefinition:
 
     def __call__(self, *args, **kwargs):
         """Prevent IDE from complaining about calling traits with parameters"""
-        ...
 
     def set_widget_type(self, widget_type: Ui.WIDGET_TYPE):
         ui_hint = getattr(self, UI_HINT_TAG)
@@ -168,6 +167,7 @@ class T(BTraitFlags):
         return f'background-color: {bg_color}; color: {fg_color}' if bg_color and fg_color else ''
 
     STICKY = BTraitFlags.OFFGRAPH_SET
+
 
 def RT(*args, **kwargs) -> TraitDefinition:  # noqa: N802
     trait_def = TraitDefinition(*args, **kwargs)

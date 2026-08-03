@@ -32,13 +32,17 @@ class LoginPage(rio.Component):
                 if not self.username and with_auth:
                     self.error_message = 'Username is required'
                     return
+                if not with_auth:
+                    self.username = ''
+                    self.password = ''
                 runtime_context.traitable_store = MongoStore.instance(
                     hostname=runtime_context.host, dbname=runtime_context.dbname, username=self.username, password=self.password
                 )
                 runtime_context.authenticated = True
 
             except Exception as e:
-                self.error_message = f'Login error - try again\n{e}'
+                self.error_message = f'Login error - try again {e.__class__.__name__}\n'
+                print(e)
                 return
 
             # The login was successful
@@ -55,6 +59,7 @@ class LoginPage(rio.Component):
             runtime_context.mongo_store = None
         except Exception as e:
             self.error_message = f'Logout error\n {e}'
+            print(e)
             return
 
         # The login was successful

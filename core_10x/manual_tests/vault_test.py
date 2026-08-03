@@ -1,7 +1,7 @@
 if __name__ == '__main__':
+    from core_10x.code_samples.person import Person
     from core_10x.environment_variables import EnvVars
     from core_10x.ts_store import TsStore
-    from core_10x.code_samples.person import Person
 
     vault_uri = 'mongodb://localhost:27018/vault'
     main_uri  = 'mongodb://localhost:27019/main'

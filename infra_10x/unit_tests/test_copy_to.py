@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import uuid6
-
 import pytest
-
+import uuid6
 from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
-from core_10x.ts_store import TsCopyError
+from core_10x.ts_store import TsCopyError, TsStore
 from infra_10x.duckdb_store import DuckDbStore
 from infra_10x.ibis_store import _DATA, _ID, _REV
 from infra_10x.mongodb_store import MongoStore
@@ -20,6 +18,15 @@ class CopyPerson(Traitable, custom_collection=True):
 
 class TestCopyTo:
     s_mongo_running = True
+
+    def _mongo_store(self) -> TsStore | None:
+        if self.s_mongo_running:
+            try:
+                return MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid6.uuid7().hex}', sst=100)
+            except Exception:  # noqa: BLE001
+                self.s_mongo_running = False
+        need(self.s_mongo_running, 'MongoDB running (copy_to tests)')
+        return None
 
     @pytest.fixture
     def duck_src(self):
@@ -35,19 +42,12 @@ class TestCopyTo:
 
     @pytest.fixture
     def mongo_src(self):
-        store = None
-        try:
-            store = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid6.uuid7().hex}', sst=100)
-        except Exception:
-            self.s_mongo_running = False
-        need(self.s_mongo_running, 'MongoDB running (copy_to tests)')
-        store.begin_using()
+        store = self._mongo_store()
         name = f'mcopy_{uuid6.uuid7().hex}'
         coll = store.collection(name, {})  # Mongo ignores trait_dir
         coll.save_new({'_id': 'm1', 'x': 1})
         yield store, name
         store.delete_collection(name)
-        store.end_using()
 
     def test_ibis_to_ibis_round_trip(self, duck_src):
         src, name = duck_src
@@ -133,20 +133,12 @@ class TestCopyTo:
     def test_mongo_to_ibis_raises(self, mongo_src):
         src, _name = mongo_src
         dst = DuckDbStore()
-        dst.begin_using()
-        try:
-            with pytest.raises(TsCopyError, match='Cannot copy from MongoStore'):
-                src.copy_to(dst)
-        finally:
-            dst.end_using()
+        with pytest.raises(TsCopyError, match='Cannot copy from MongoStore'):
+            src.copy_to(dst)
 
     def test_ibis_to_mongo(self, duck_src):
         src, name = duck_src
-        try:
-            dst = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid6.uuid7().hex}', sst=100)
-        except Exception:
-            pytest.skip('MongoDB not available')
-        dst.begin_using()
+        dst = self._mongo_store()
         try:
             rc = src.copy_to(dst)
             assert rc
@@ -155,15 +147,10 @@ class TestCopyTo:
             assert to_coll.load('a')['age'] == 30
         finally:
             dst.delete_collection(name)
-            dst.end_using()
 
     def test_mongo_to_mongo(self, mongo_src):
         src, name = mongo_src
-        try:
-            dst = MongoStore.instance(hostname='mongodb://localhost:27017/', dbname=f'copy_to_{uuid6.uuid7().hex}', sst=100)
-        except Exception:
-            pytest.skip('MongoDB not available')
-        dst.begin_using()
+        dst = self._mongo_store()
         try:
             rc = src.copy_to(dst)
             assert rc
@@ -171,4 +158,3 @@ class TestCopyTo:
             assert to_coll.load('m1')['x'] == 1
         finally:
             dst.delete_collection(name)
-            dst.end_using()

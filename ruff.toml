@@ -5,19 +5,47 @@ target-version = "py310"
 [format]
 quote-style = "single"
 exclude = [
+    "README.md",
+    "GETTING_STARTED.md",
+    "core_10x/attic/*",
+    "core_10x/jit/*",
     "core_10x/xnone.py",
+    "core_10x/__init__.py",
+    "core_10x/environment_variables.py",
+    "core_10x/basket.py",
+    "core_10x/resource.py",
+    "core_10x/logger.py",
+    "core_10x/nucleus.py",
+    "core_10x/named_constant.py",
+    "core_10x/traitable.py",
+    "core_10x/sec_keys.py",
+    "core_10x/vault_utils.py",
+    "core_10x/xinf.py",
     "core_10x/code_samples/*",
     "core_10x/manual_tests/*",
     "core_10x/experimental/*",
+    "infra_10x/mongodb_store.py",
     "ui_10x/qt6/*",
     "ui_10x/examples/*",
     "ui_10x/py_data_browser.py",
     "ui_10x/choice.py",
     "ui_10x/table*.py",
     "ui_10x/utils.py",
+    "ui_10x/traitable_editor.py",
+    "xxcommon/xxcalendar.py",
+    "xxcommon/roman_number.py",
+    "xxcommon/rdate.py",
+    "xxcommon/event_processor.py",
+    "xxcommon/manual_tests/*",
+    "xxcommon/README.md",
+    "xxcommon/*_curve.py",
 ]
 
 [lint]
+# Rule selection = Ruff 0.16 defaults ∪ extend-select below.
+# Do not replace `select` with full category letters (e.g. "S", "PL") — that enables
+# non-default rules and silently widens CI. Cap the ruff version in pyproject.toml
+# (`ruff>=0.13,<0.17`) so future default-set expansions do not change the gate unnoticed.
 ignore = [
     "RUF012", # Mutable class attributes should be annotated with `typing.ClassVar`
     "RUF013", # PEP 484 prohibits implicit `Optional`
@@ -27,6 +55,12 @@ ignore = [
     "F401",  # Unused imports
     "TC001", # Overly aggressive suggestion to move imports to if TYPE_CHECKING
     "TC002", # Overly aggressive suggestion to move imports to if TYPE_CHECKING
+    # TODO: naive datetime policy — adopt timezone-aware APIs/tests when designed; until then silence DTZ*
+    "DTZ001", # missing `tzinfo` parameter
+    "DTZ003", # `datetime.datetime.utcnow()` used
+    "DTZ005", # `datetime.datetime.now()` called without a `tz` argument
+    "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
+    "DTZ011", # `datetime.date.today()` used
 ]
 extend-select = [
   "TC", # type checking
@@ -34,7 +68,7 @@ extend-select = [
   #"TID", # tidy imports
   "FA",  # future annotations
   "B",   # flake8-bugbear
-  #"I",   # isort
+  "I",   # isort
   "PGH", # pygrep-hooks
   "RUF", # Ruff-specific
   "UP",  # pyupgrade
@@ -55,13 +89,96 @@ exclude = [
 [lint.per-file-ignores]
 "ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]
 "ui_10x/examples/price_simulator.py" = ["E711"]
-"xxcommon/rdate.py" = [ 
+"ui_10x/rio/apps/examples/examples/pages/login_page.py" = [
+    "BLE001", # Do not catch blind exception: `Exception`
+]
+"xxcommon/*rdate.py" = [
+    "N802", # Function names should be lowercase
+    "C408", # Unnecessary `dict()` call (rewrite as a literal)
+]
+"xxcommon/*event_processor.py" = [
     "N802", # Function names should be lowercase
 ]
-"core_10x/logger.py" = [ 
+"xxcommon/*curve.py" = [
+    "N802", # Function names should be lowercase
+    "N806", # Variable names should be lowercase
+]
+"xxcommon/roman_number.py" = [
+    "E741", # Ambiguous variable name
+    "C408", # Unnecessary `dict()` call (rewrite as a literal)
+]
+"core_10x/xdate_time.py" = [
+    "S110",   # `try`-`except`-`pass` detected, consider logging the exception
+    "S112",   # `try`-`except`-`continue` detected, consider logging the exception
+    "BLE001", # Do not catch blind exception: `Exception`
+]
+"core_10x/logger.py" = [
     "N802", # Function names should be lowercase
     "N805", # First argument of a method should be named `self`
 ]
 "core_10x/apps/runme_1st_app.py" = [
     "F841", # Local variable `available_stores` is assigned to but never used
+]
+# staticmethod first arg intentionally named `cls` (operates on classes)
+"core_10x/py_class.py" = [
+    "PLW0211", # First argument of a static method should not be named `cls`
+    "BLE001",  # Do not catch blind exception: `Exception`
+]
+"core_10x/package_refactoring.py" = [
+    "PLW0211", # First argument of a static method should not be named `cls`
+    "BLE001",  # Do not catch blind exception: `Exception`
+]
+# intentional broad except → RC / UI teardown / best-effort paths
+"core_10x/apps/user_status.py" = ["BLE001"]
+"core_10x/concrete_traits.py" = ["BLE001"]
+"core_10x/manual_tests/rc_test.py" = ["BLE001"]
+"core_10x/sec_keys.py" = ["BLE001"]
+"core_10x/trait.py" = [
+    "BLE001", # Do not catch blind exception: `Exception`
+    "S102",   # Use of `exec` detected — intentional for pybind docstring signatures
+    "SIM102", # nested ifs kept for clarity in trait method wiring
+]
+"core_10x/traitable.py" = [
+    "BLE001", # Do not catch blind exception: `Exception`
+    "SIM102", # nested ifs kept for clarity in traitable hot paths
+]
+"core_10x/traitable_cli.py" = ["BLE001"]
+"core_10x/vault_utils.py" = ["BLE001"]
+"core_10x/basket.py" = ["SIM102"]
+"infra_10x/ibis_store.py" = [
+    "BLE001", # Do not catch blind exception: `Exception`
+    "S110",   # `try`-`except`-`pass` detected, consider logging the exception
+]
+"infra_10x/mongodb_store.py" = [
+    "BLE001", # Do not catch blind exception: `Exception`
+    "C408",   # kwargs-style dict() matches MongoDB command/docs style
+]
+"infra_10x/mongodb_admin.py" = [
+    "C408",   # kwargs-style dict() matches MongoDB command/docs style
+    "SIM102",
+]
+"infra_10x/mongodb_utils.py" = [
+    "C408",   # kwargs-style dict() matches MongoDB command/docs style
+]
+"ui_10x/choice.py" = ["BLE001"]
+"ui_10x/entity_stocker.py" = ["BLE001"]
+"ui_10x/py_data_browser.py" = [
+    "BLE001", # Do not catch blind exception: `Exception`
+    "S110",   # `try`-`except`-`pass` detected, consider logging the exception
+]
+"ui_10x/trait_widget.py" = ["BLE001"] # Qt/Mac teardown and RC conversion
+"ui_10x/utils.py" = ["BLE001"]
+"ui_10x/trait_editor.py" = ["SIM102"]
+"core_10x/testlib/ts_store_isolation.py" = ["S110"]
+# intentional ALL_CAPS context-manager API
+"core_10x/exec_control.py" = [
+    "N802", # Function name `UPWARD_DEPS_OFF` should be lowercase
+]
+# avoid drive-by NamedConstant refactor for one-over complexity budget
+"core_10x/named_constant.py" = [
+    "C901", # `__init_subclass__` is too complex (17 > 15)
+]
+# weakref capture in default is intentional for editor lifetime
+"ui_10x/traitable_editor.py" = [
+    "B008", # Do not perform function call `weakref.ref` in argument defaults
 ]

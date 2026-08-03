@@ -1,16 +1,15 @@
 from __future__ import annotations
 
 import json
-import uuid6
 from datetime import date, datetime, timezone
 
 import pytest
-
+import uuid6
 from core_10x.named_constant import EnumBits, NamedConstant
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 from infra_10x.duckdb_store import DuckDbStore
-from infra_10x.ibis_store import IbisCollection, _DATA, _ID, _REV
+from infra_10x.ibis_store import _DATA, _ID, _REV, IbisCollection
 
 
 class _Pad(Traitable, custom_collection=True, keep_history=False):
@@ -134,9 +133,8 @@ def _sql_columns(store: DuckDbStore, coll_name: str) -> set[str]:
 
 def _eligible_column_traits(trait_dir: dict) -> set[str]:
     """Scalar, non-runtime/reserved traits that must be stored as SQL columns."""
-    from py10x_kernel import BTraitFlags
-
     from infra_10x.ibis_store import _SCALAR_WIRE_TYPES
+    from py10x_kernel import BTraitFlags
 
     out: set[str] = set()
     for name, trait in trait_dir.items():

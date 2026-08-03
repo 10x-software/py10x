@@ -77,11 +77,13 @@ Running `licensecheck` in this project reports:
      `pip install Pillow` then:
      ```python
      from PIL import Image
-     img = Image.open("10x-jerboa.jpeg")
+
+     img = Image.open('10x-jerboa.jpeg')
      print(img.info)  # general info
-     if getattr(img, "getexif", None):
+     if getattr(img, 'getexif', None):
          exif = img.getexif()
-         if exif: print(dict(exif))
+         if exif:
+             print(dict(exif))
      ```
      Some tools write the generator name in `info` or in XMP (Pillow may not show all XMP; exiftool is more complete).
 

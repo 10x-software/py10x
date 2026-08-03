@@ -1,7 +1,8 @@
 from datetime import date
 
-from py10x_kernel import BCurve, BDateCurve, IPKind as IP_KIND
-from core_10x.traitable import Any, RC, RC_TRUE, RT, AnonymousTraitable, T, Traitable
+from core_10x.traitable import RC, RC_TRUE, RT, AnonymousTraitable, Any, T, Traitable
+from py10x_kernel import BCurve, BDateCurve
+from py10x_kernel import IPKind as IP_KIND  # noqa: N814
 
 
 class CurveParams(Traitable):
@@ -27,7 +28,7 @@ class DateCurve(AnonymousTraitable):
 
     times: list             = T()
     values: list            = T()
-    beginning_of_time: int  = T(None)
+    beginning_of_time: int  = T()
 
     def bcurve_get(self) -> BDateCurve:
         return BDateCurve()
@@ -46,14 +47,25 @@ class DateCurve(AnonymousTraitable):
         self.bcurve.set_values(values)
         return RC_TRUE
 
+    def dates_set(self, t, dates) -> RC:
+        self.bcurve.set_dates(dates)
+        return RC_TRUE
+
     def params_get(self) -> CurveParams:
         return CurveParams()
 
     def dates_get(self) -> list:
         return self.bcurve.dates
 
+    def beginning_of_time_set(self,t,beginning_of_time) -> RC:
+        self.bcurve.set_beginning_of_time(beginning_of_time)
+        return RC_TRUE
+
+    def beginning_of_time_get(self) -> int:
+        return self.bcurve.beginning_of_time or None
+
     def beginning_of_time_as_date(self) -> date:
-        return self.beginning_of_time
+        return self.bcurve.beginning_of_time_as_date
 
     def start_time(self) -> date:
         return self.bcurve.start_time()
@@ -123,3 +135,15 @@ class DateCurve(AnonymousTraitable):
         return v1.times == v2.times and v1.values == v2.values
 
 
+    @classmethod
+    def _to_number(cls, d) -> int:
+        if isinstance(d, date):
+            return date.toordinal(d)
+        elif isinstance(d, int):
+            return d
+
+        raise ValueError(f'Unexpected value {d}')
+
+    @classmethod
+    def _from_number(cls, x: int) -> date:
+        return date.fromordinal(x)

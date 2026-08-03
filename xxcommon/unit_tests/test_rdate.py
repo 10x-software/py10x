@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 import pytest
+
 from xxcommon.rdate import (
     BIZDAY_ROLL_RULE,
     PROPAGATE_DATES,

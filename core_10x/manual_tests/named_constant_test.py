@@ -4,8 +4,6 @@ from math import exp, log
 
 from dateutil.relativedelta import relativedelta as delta
 
-from core_10x.traitable import Traitable, T
-
 from core_10x.named_constant import (
     Enum,
     EnumBits,
@@ -15,6 +13,7 @@ from core_10x.named_constant import (
     NamedConstantValue,
     Nucleus,
 )
+from core_10x.traitable import T, Traitable
 
 
 class COLOR(NamedConstant, lowercase_values = True):

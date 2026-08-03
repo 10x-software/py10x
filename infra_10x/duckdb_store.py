@@ -4,14 +4,14 @@ from typing import TYPE_CHECKING
 
 import duckdb
 import ibis
-
 from core_10x.resource import Resource
 from core_10x.ts_store import TsDuplicateKeyError
+
 from infra_10x.ibis_store import (
-    IbisStore,
     _DATA,
     _ID,
     _REV,
+    IbisStore,
 )
 
 if TYPE_CHECKING:

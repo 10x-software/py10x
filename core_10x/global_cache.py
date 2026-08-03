@@ -17,6 +17,14 @@ from core_10x.xnone import XNone
 # ===================================================================================================================================
 ARGS_KWARGS = (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD)
 
+_CLEARABLES = []
+
+
+def _clear_all_caches():
+    """For use in tests only. Not recommended for non-test applications."""
+    for clearable in _CLEARABLES:
+        clearable.clear()
+
 
 def cache(f=None, *, keep_value=True):
     def _cache(f):
@@ -24,7 +32,7 @@ def cache(f=None, *, keep_value=True):
         params = sig.parameters
         num_args = len(params)
         if num_args == 0:
-            return _cache_no_args(f,keep_value)
+            return _cache_no_args(f, keep_value)
 
         if num_args == 1:
             for param in params.values():
@@ -32,6 +40,7 @@ def cache(f=None, *, keep_value=True):
                     return _cache_single_arg(f, keep_value)
 
         return _cache_with_args(f, keep_value)
+
     return _cache if f is None else _cache(f)
 
 
@@ -51,6 +60,7 @@ def _cache_no_args(f, keep_value=True):
     getter.__name__ = f.__name__
     getter.value = the_value
     getter.clear = clear
+    _CLEARABLES.append(getter)
     return getter
 
 
@@ -68,6 +78,7 @@ def _cache_single_arg(f, keep_value=True):
     getter.__name__ = f.__name__
     getter.cache = the_cache
     getter.clear = lambda: the_cache.clear()
+    _CLEARABLES.append(getter)
     return getter
 
 
@@ -86,6 +97,7 @@ def _cache_with_args(f, keep_value=True):
     getter.__name__ = f.__name__
     getter.cache = the_cache
     getter.clear = lambda: the_cache.clear()
+    _CLEARABLES.append(getter)
     return getter
 
 

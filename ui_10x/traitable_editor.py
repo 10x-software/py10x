@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import weakref
 from typing import TYPE_CHECKING
 
 from core_10x.exec_control import INTERACTIVE
@@ -136,8 +137,9 @@ class TraitableEditor:
         self.init()
 
         callbacks = self.callbacks_for_traits
+        tp = lambda wr=weakref.ref(self): ed.traitable_processor if (ed := wr()) is not None else None
         self.trait_editors = {
-            trait.name: TraitEditor(entity, trait, ui_hint, custom_callback = callbacks.get(trait.name), traitable_processor = lambda: self.traitable_processor)
+            trait.name: TraitEditor(entity, trait, ui_hint, custom_callback=callbacks.get(trait.name), traitable_processor=tp)
             for trait, ui_hint in trait_hints.items()
         }
 

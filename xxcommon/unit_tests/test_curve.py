@@ -31,36 +31,12 @@ def curve_mod(curve_backend, monkeypatch):
     importlib.reload(curve_mod)
 
 
-def _seed_date_curve_dates(dc, d1: date, d2: date, *, cxx: bool) -> None:
-    if cxx:
-        dc.update(d1, 0.0, reset=False)
-        dc.update(d2, 1.0, reset=True)
-    else:
-        dc.dates = [d1, d2]
-
-
-def _assert_date_curve_dates(dc, d1: date, d2: date, *, cxx: bool) -> None:
-    assert isinstance(dc.times[0], int)
-    if cxx:
-        assert list(dc.bcurve.dates) == [d1, d2]
-    else:
-        assert dc.dates == [d1, d2]
-
-
-def _set_date_curve_beginning_of_time(dc, d: date, *, cxx: bool) -> None:
-    if cxx:
-        dc.bcurve.set_beginning_of_time(d)
-    else:
-        dc.beginning_of_time = dc._to_number(d)
-
-
 def _configure_no_interp(c, params, ip_kind, *, cxx: bool) -> None:
     params.ip_kind = ip_kind.NO_INTERP
     if cxx:
         c.set_curve_params(ip_kind=ip_kind.NO_INTERP)
     else:
         c.params = params
-
 
 @pytest.mark.usefixtures('curve_mod')
 class TestCurve:
@@ -201,8 +177,10 @@ class TestDateCurve:
 
         d1 = date(2023, 1, 1)
         d2 = date(2023, 1, 5)
-        _seed_date_curve_dates(dc, d1, d2, cxx=curve_backend)
-        _assert_date_curve_dates(dc, d1, d2, cxx=curve_backend)
+        dc.dates = [d1,d2]
+
+        assert isinstance(dc.times[0], int)
+        assert dc.dates == [d1, d2]
 
     def test_update_and_value(self, curve_mod, curve_backend):
         DateCurve = curve_mod.DateCurve
@@ -214,13 +192,28 @@ class TestDateCurve:
         dc.update(d1, 0.0, reset=False)
         dc.update(d2, 10.0, reset=True)
 
-        _set_date_curve_beginning_of_time(dc, d1, cxx=curve_backend)
+        dc.beginning_of_time = dc._to_number(d1)
 
         assert dc.value(d1) == pytest.approx(0.0)
         assert dc.value(d2) == pytest.approx(10.0)
 
         mid_date = d1 + (d2 - d1) / 2
         assert dc.value(mid_date) == pytest.approx(5.0)
+
+    def test_construct_from_dates_and_values(self, curve_mod, curve_backend):
+        """Construction kwargs ``dates=`` / ``values=`` (see xxfin date_curve_test)."""
+        DateCurve = curve_mod.DateCurve
+        d1 = date(2020, 1, 1)
+        d2 = date(2020, 12, 31)
+        mid = date(2020, 7, 31)
+        dc = DateCurve(values=[0.1, 0.2],dates=[d1, d2])
+
+        assert list(dc.dates) == [d1, d2]
+        assert list(dc.values) == pytest.approx([0.1, 0.2])
+        assert dc.value(d1) == pytest.approx(0.1)
+        assert dc.value(d2) == pytest.approx(0.2)
+        # linear between endpoints (both backends default to LINEAR / extrapolate)
+        assert dc.value(mid) == pytest.approx(0.1 + (0.2 - 0.1) * (mid - d1).days / (d2 - d1).days)
 
     def test_no_interp_mode(self, curve_mod, curve_backend):
         DateCurve = curve_mod.DateCurve
@@ -254,15 +247,21 @@ class TestDateCurve:
         assert dc._from_number(num) == some_date
 
     def test_beginning_of_time_as_date(self, curve_mod, curve_backend):
+        """DateCurve.beginning_of_time_as_date must return date, not the stored ordinal int."""
         DateCurve = curve_mod.DateCurve
         dc = DateCurve()
+        assert dc.beginning_of_time is None
+        assert dc.beginning_of_time_as_date() is None
 
         some_date = date(2020, 6, 15)
+
+        dc.beginning_of_time = dc._to_number(some_date)
+
+        assert isinstance(dc.beginning_of_time, int)
+        bot = dc.beginning_of_time_as_date()
+        assert type(bot) is date
+        assert bot == some_date
+        assert bot != dc.beginning_of_time  # not the raw ordinal
+
         if curve_backend:
-            dc.bcurve.set_beginning_of_time(some_date)
-            assert dc.bcurve.beginning_of_time_as_date() == some_date
-        else:
-            rc = dc.set_values(beginning_of_time=some_date)
-            assert rc
-            assert isinstance(dc.beginning_of_time, int)
-            assert dc.beginning_of_time_as_date() == some_date
+            assert dc.bcurve.beginning_of_time_as_date == some_date

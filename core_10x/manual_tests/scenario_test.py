@@ -1,8 +1,8 @@
 if __name__ == '__main__':
     from datetime import date
 
+    from core_10x.code_samples.person import WEIGHT_QU, Person
     from core_10x.scenario import Scenario
-    from core_10x.code_samples.person import Person, WEIGHT_QU
 
     Person.s_print = True
 

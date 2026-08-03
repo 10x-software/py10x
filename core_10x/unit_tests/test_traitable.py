@@ -108,6 +108,7 @@ def test_post_init_called():
 
     x = X(x=1)
     assert calls == [x]
+    calls.clear()
 
 
 def test_overriding_init_disallowed():

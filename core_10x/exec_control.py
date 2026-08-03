@@ -2,26 +2,26 @@ from py10x_kernel import BProcessContext
 from py10x_kernel import BTraitableProcessor as BTP  # noqa: N817
 from py10x_kernel import UpwardDepsOff as _UpwardDepsOff
 
-from core_10x.trait import Trait, BoundTrait
+from core_10x.trait import BoundTrait, Trait
 from core_10x.traitable_id import ID
 
 # TODO: consider splitting rename DEBUG into TYPE_CHECK and EAGER_LOAD.
 # TODO: consider making CONVERT/TYPE_CHECK mode default.
 
 
-def CHANGE_MODE(debug: bool = -1, convert_values: bool = -1):  # noqa: N802
+def CHANGE_MODE(debug: bool = -1, convert_values: bool = -1):
     return BTP.create(-1, convert_values, debug, True, False)
 
 
-def DEFAULT_CACHE(debug: bool = -1, convert_values: bool = -1):  # noqa: N802
+def DEFAULT_CACHE(debug: bool = -1, convert_values: bool = -1):
     return BTP.create(0, convert_values, debug, False, True)
 
 
-def GRAPH_ON(debug: bool = -1, convert_values: bool = -1):  # noqa: N802
+def GRAPH_ON(debug: bool = -1, convert_values: bool = -1):
     return BTP.create(1, convert_values, debug, False, False)
 
 
-def GRAPH_OFF(debug: bool = -1, convert_values: bool = -1):  # noqa: N802
+def GRAPH_OFF(debug: bool = -1, convert_values: bool = -1):
     return BTP.create(0, convert_values, debug, False, False)
 
 
@@ -32,23 +32,23 @@ def UPWARD_DEPS_OFF():
     return _UpwardDepsOff()
 
 
-def DEBUG_ON(convert_values: bool = -1):  # noqa: N802
+def DEBUG_ON(convert_values: bool = -1):
     return BTP.create(-1, convert_values, 1, True, False)
 
 
-def DEBUG_OFF(convert_values: bool = -1):  # noqa: N802
+def DEBUG_OFF(convert_values: bool = -1):
     return BTP.create(-1, convert_values, 0, True, False)
 
 
-def CONVERT_VALUES_ON(debug: bool = -1):  # noqa: N802
+def CONVERT_VALUES_ON(debug: bool = -1):
     return BTP.create(-1, 1, debug, True, False)
 
 
-def CONVERT_VALUES_OFF(debug: bool = -1):  # noqa: N802
+def CONVERT_VALUES_OFF(debug: bool = -1):
     return BTP.create(-1, 0, debug, True, False)
 
 
-def INTERACTIVE():  # noqa: N802
+def INTERACTIVE():
     return BTP.create_interactive()
 
 
@@ -108,14 +108,14 @@ class GraphDeps:
 
     def perturb_value(self, traitable, trait_name: str, value):
         obj_cls = traitable.__class__
-        trait = obj_cls.trait(trait_name, throw = True)
+        trait = obj_cls.trait(trait_name, throw=True)
         self.perturb(obj_cls, traitable.id(), trait, value)
 
-    def deps(self, objects = True, trait_names = False):
+    def deps(self, objects=True, trait_names=False):
         for cls, traits_by_id in self.deps_data.items():
             for id, traits in traits_by_id.items():
-                obj = cls(_id = id) if objects else id
-                for (t, value) in traits:
+                obj = cls(_id=id) if objects else id
+                for t, value in traits:
                     if trait_names:
                         t = t.name
                     yield (cls, obj, t, value)

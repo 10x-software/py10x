@@ -242,6 +242,13 @@ class UxDialog(ux.Dialog):
         self.reject()
         self.done(0)
 
+    def done(self, code):
+        # Drop callbacks so nested closures do not keep entities
+        # alive after the dialog has finished, even if widget is still around
+        self.accept_callback = None
+        self.cancel_callback = None
+        super().done(code)
+
     def message(self, text: str):
         self.w_message.set_text(text)
 
@@ -277,7 +284,7 @@ class UxStyleSheet:
             return
 
         if _system:
-            old_data = { name: data.get(name) for name in named_sheet_attrs.keys() }
+            old_data = { name: data.get(name) for name in named_sheet_attrs }
             self.replacement_stack.append(old_data)
 
         data.update(named_sheet_attrs)
@@ -394,6 +401,10 @@ class UxSearchableList(ux.GroupBox):
         self.sort = sort
         self.initial_choices = choices if not sort else sorted(choices)
         self.current_choices = self.initial_choices
+        # Bound-method hooks intentionally pin ``__self__``. Call sites such as
+        # ``CollectionEditor`` / Rio pages often retain only the widget tree; the
+        # hook is then what keeps the controller Traitable alive for selection.
+        # (Do not WeakMethod this — selection would silently no-op after GC.)
         self.hook = select_hook
         self.reset_selection = reset_selection
         self.case_sensitive = case_sensitive
@@ -443,9 +454,9 @@ class UxSearchableList(ux.GroupBox):
 
             if not self.case_sensitive:
                 input = input.lower()
-                self.current_choices = [s for s in self.current_choices if not s.lower().find(input) == -1]
+                self.current_choices = [s for s in self.current_choices if s.lower().find(input) != -1]
             else:
-                self.current_choices = [s for s in self.current_choices if not s.find(input) == -1]
+                self.current_choices = [s for s in self.current_choices if s.find(input) != -1]
 
         self.w_list.add_items(self.current_choices)
 
@@ -468,7 +479,7 @@ class UxSearchableList(ux.GroupBox):
         return self.selection
 
     def reset(self):
-        if not self.current_choices == self.initial_choices:
+        if self.current_choices != self.initial_choices:
             self.current_choices = self.initial_choices
             self.w_list.clear()
             self.w_list.add_items( self.initial_choices)
