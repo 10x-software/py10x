@@ -96,8 +96,7 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     def _create_table_if_not_exists(self, collection_name: str) -> None:
         # JSONB (not TEXT): enables expression indexes on blob keys; empty blob is '{}'::jsonb.
         self._execute(
-            f'CREATE TABLE IF NOT EXISTS {self._qname(collection_name)} '
-            f'({_ID} VARCHAR PRIMARY KEY, {_REV} INTEGER NOT NULL, {_DATA} JSONB NOT NULL)'
+            f'CREATE TABLE IF NOT EXISTS {self._qname(collection_name)} ({_ID} VARCHAR PRIMARY KEY, {_REV} INTEGER NOT NULL, {_DATA} JSONB NOT NULL)'
         )
 
     def _drop_table(self, collection_name: str) -> None:
@@ -146,7 +145,7 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
 
     def _server_time_sql_expr(self) -> str:
         # ISO-like string for datetime_trait in the JSONB blob (no % for psycopg pyformat).
-        return f"to_char({self._server_time_col_sql_expr()}, 'YYYY-MM-DD\"T\"HH24:MI:SS.US')"
+        return f'to_char({self._server_time_col_sql_expr()}, \'YYYY-MM-DD"T"HH24:MI:SS.US\')'
 
     def _auth_user_sql_expr(self) -> str:
         # Server-side logged-in role — not Resource.username.
@@ -202,17 +201,13 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         except OSError:
             return False, False
         try:
-            return cls._startup_auth_probe(
-                sock, host=host_name, user=getpass.getuser(), database=dbname, timeout=3.0
-            )
+            return cls._startup_auth_probe(sock, host=host_name, user=getpass.getuser(), database=dbname, timeout=3.0)
         except OSError:
             # TCP succeeded; handshake/SSL/protocol failed → treat as up + try vault.
             return True, True
 
     @staticmethod
-    def _startup_auth_probe(
-        sock: socket.socket, *, host: str, user: str, database: str, timeout: float = 3.0
-    ) -> tuple:
+    def _startup_auth_probe(sock: socket.socket, *, host: str, user: str, database: str, timeout: float = 3.0) -> tuple:
         """SSLRequest + StartupMessage on an already-connected socket → (is_running, with_auth)."""
 
         def _recv_exact(n: int) -> bytes:
@@ -236,14 +231,17 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
                 # Connected but not speaking PG SSL negotiation → up, not open.
                 return True, True
 
-            params = b''.join(
-                k + b'\x00' + v + b'\x00'
-                for k, v in (
-                    (b'user', user.encode()),
-                    (b'database', database.encode()),
-                    (b'client_encoding', b'UTF8'),
+            params = (
+                b''.join(
+                    k + b'\x00' + v + b'\x00'
+                    for k, v in (
+                        (b'user', user.encode()),
+                        (b'database', database.encode()),
+                        (b'client_encoding', b'UTF8'),
+                    )
                 )
-            ) + b'\x00'
+                + b'\x00'
+            )
             body = struct.pack('!I', _PG_PROTOCOL_3_0) + params
             sock.sendall(struct.pack('!I', 4 + len(body)) + body)
 

@@ -19,23 +19,48 @@ class TEST_TS_STORE(NamedConstant):
     POSTGRES = [f'postgresql://{getpass.getuser()}@localhost:5432/postgres', (False,), False]
 
 
-@pytest.fixture(params=[
-    pytest.param((backend, py_helper), id=f'{backend.name.lower()}{"-py-helper" if py_helper else ""}')
-    for backend in TEST_TS_STORE.s_dir.values() for py_helper in backend.value[1]]
+@pytest.fixture(scope='session')
+def ts_backends() -> dict[str, TsStore | None]:
+    """Probe + build each TEST_TS_STORE backend once; keep stores out of ``s_instances``.
+
+    Isolation clears ``@cache`` (and ``s_instances``) every test. Session-scoped stores
+    avoid re-probing Mongo (open+close → dead weakref proxies) and rebuilding connections.
+    ``s_instances`` is only a cache — assert empty, populate while connecting, then clear
+    so module fixtures can keep treating it as empty between tests.
+    """
+    assert not TsStore.s_instances
+    backends: dict[str, TsStore | None] = {}
+    for backend in TEST_TS_STORE.s_dir.values():
+        spec = TsStore.spec_from_uri(backend.value[0])
+        if not spec.resource_class.is_running_with_auth(spec.hostname(), spec.port())[0]:
+            backends[backend.name] = None
+            continue
+        backends[backend.name] = TsStore.instance_from_uri(backend.value[0])
+    TsStore.s_instances.clear()
+    return backends
+
+
+@pytest.fixture(
+    params=[
+        pytest.param((backend, py_helper), id=f'{backend.name.lower()}{"-py-helper" if py_helper else ""}')
+        for backend in TEST_TS_STORE.s_dir.values()
+        for py_helper in backend.value[1]
+    ]
 )
-def ts_instance(mocker, request):
+def ts_instance(mocker, request, ts_backends):
     backend = request.param[0]
-    spec = TsStore.spec_from_uri(backend.value[0])
-    running = spec.resource_class.is_running_with_auth(spec.hostname(), spec.port())[0]
+    instance = ts_backends[backend.name]
     if not backend.value[2]:
-        need(running, f'{backend.label} not running (at {spec.hostname()}:{spec.port()})')
-    instance = TsStore.instance_from_uri(backend.value[0])
+        need(instance is not None, f'{backend.label} not running (at {backend.value[0]})')
+    assert instance is not None
 
     instance.username = 'test_user'
     if not instance.supports_transactions():
         # Under XX_TEST_STRICT a missing replica set is a CI provisioning failure.
         if EnvVars.test_strict:
-            instance.transaction = lambda *args: pytest.fail(f'XX_TEST_STRICT set but {backend.label} lacks transactions (replica set not provisioned?)')
+            instance.transaction = lambda *args: pytest.fail(
+                f'XX_TEST_STRICT set but {backend.label} lacks transactions (replica set not provisioned?)'
+            )
         else:
             instance.transaction = lambda *args: nullcontext()
     if request.param[1]:
@@ -48,12 +73,9 @@ def ts_instance(mocker, request):
 
 
 @pytest.fixture
-def postgres_store():
-    backend = TEST_TS_STORE.POSTGRES
-    try:
-        store = TsStore.instance_from_uri(backend.value[0], _cache=False)
-    except OSError:
-        need(False, f'{backend.label} not running (at {backend.value[0]})')
+def postgres_store(ts_backends):
+    store = ts_backends[TEST_TS_STORE.POSTGRES.name]
+    need(store is not None, f'{TEST_TS_STORE.POSTGRES.label} not running (at {TEST_TS_STORE.POSTGRES.value[0]})')
     return store
 
 

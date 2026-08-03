@@ -112,7 +112,9 @@ def reset_traitable_process_state(*, assert_clean: bool = True) -> None:
     if not assert_clean:
         return
 
-    leftovers = [(PyClass.name(obj.__class__), obj.id_value()) for obj in gc.get_objects() if isinstance(obj, Traitable)]
+    # Prefer issubclass(type(obj), ...) over isinstance: gc.get_objects() can include
+    # dead weakref.proxy objects, and isinstance() dereferences them (ReferenceError).
+    leftovers = [(PyClass.name(obj.__class__), obj.id_value()) for obj in gc.get_objects() if issubclass(type(obj), Traitable)]
     assert not leftovers, leftovers
 
 

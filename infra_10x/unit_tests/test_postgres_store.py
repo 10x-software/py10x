@@ -66,16 +66,14 @@ def test_is_running_with_auth_unknown_role_try_vault(postgres_store):
     host, port = spec.hostname(), int(spec.port())
     dbname = PostgresStore.s_instance_kwargs_map[PostgresStore.DBNAME_TAG][1]
     sock = socket.create_connection((host, port), timeout=3.0)
-    assert PostgresStore._startup_auth_probe(
-        sock, host=host, user='no_such_pg_role_zz_xyz', database=dbname
-    ) == (True, True)
+    assert PostgresStore._startup_auth_probe(sock, host=host, user='no_such_pg_role_zz_xyz', database=dbname) == (True, True)
 
 
 @pytest.mark.parametrize(
     'tag, payload, expected',
     [
         # Only ReadyForQuery is open access; everything decisive else is try-vault.
-        (b'R', struct.pack('!I', 3), (True, True)),   # cleartext password
+        (b'R', struct.pack('!I', 3), (True, True)),  # cleartext password
         (b'R', struct.pack('!I', 5) + b'salt', (True, True)),  # MD5
         (b'R', struct.pack('!I', 10), (True, True)),  # SASL
         (b'R', struct.pack('!I', _PG_AUTH_OK), None),  # AuthOk → keep reading
@@ -162,8 +160,7 @@ def test_data_column_is_jsonb(postgres_store):
     coll.save_new({'_id': 'j', 'pad': 0, 'extra': 'blob'})
     phys = store._physical_table_name(coll_name)
     rows = store._execute(
-        'SELECT data_type FROM information_schema.columns '
-        'WHERE table_name = ? AND column_name = ?',
+        'SELECT data_type FROM information_schema.columns WHERE table_name = ? AND column_name = ?',
         [phys, _DATA],
     )
     assert rows and rows[0][0] == 'jsonb'
