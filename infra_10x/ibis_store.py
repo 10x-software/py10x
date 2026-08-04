@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import hashlib
 import json
 import re
 from base64 import b64encode
@@ -369,11 +370,16 @@ class IbisStore(TsStore):
         datetime: lambda v: v.replace(tzinfo=None).isoformat(),
     }
 
+    # Max UTF-8 bytes for physical table/index identifiers (``None`` = unlimited).
+    # Postgres sets 63 (NAMEDATALEN - 1); DuckDB leaves unlimited.
+    s_max_ident_bytes: int | None = None
+
     def __init__(self, hostname=None, dbname=None, username=None, password=None, **kwargs):
         """Bind Resource identity fields (same shape as :class:`~infra_10x.mongodb_store.MongoStore`).
 
-        ``port`` / ``ssl`` / other options arrive in ``kwargs`` from
-        :meth:`~core_10x.resource.Resource.translate_kwargs`. Connection is opened via
+        ``port`` / ``ssl`` arrive in ``kwargs`` from
+        :meth:`~core_10x.resource.Resource.translate_kwargs`. Dialect-only options
+        (e.g. Postgres ``sslmode``) stay on the subclass. Connection is opened via
         :meth:`_ibis_connect`.
         """
         super().__init__()
@@ -383,6 +389,7 @@ class IbisStore(TsStore):
         self.username = username
         self.password = password
         self.port = kwargs.get(Resource.PORT_TAG)
+        self.ssl = bool(kwargs.get(Resource.SSL_TAG, False))
         self._ibis_con = self._ibis_connect()
         self._con = getattr(self._ibis_con, 'con', None)
 
@@ -411,9 +418,34 @@ class IbisStore(TsStore):
     @abc.abstractmethod
     def _execute(self, sql: str, params: list = ()) -> list[tuple]: ...
 
+    def _fit_ident(self, raw: str, *, prefix: str, tail_from: str | None = None) -> str:
+        """Return ``raw`` if within :attr:`s_max_ident_bytes`, else a stable hashed identifier.
+
+        Hashed form is ``{prefix}_{tail}_{sha256[:32]}`` truncated to the byte limit.
+        ``tail_from`` (default ``raw``) supplies the readable middle segment.
+        """
+        max_n = self.s_max_ident_bytes
+        if max_n is None or len(raw.encode('utf-8')) <= max_n:
+            return raw
+        digest = hashlib.sha256(raw.encode('utf-8')).hexdigest()[:32]
+        src = tail_from if tail_from is not None else raw
+        tail = re.sub(r'[^A-Za-z0-9_]+', '_', src)[-20:].strip('_') or prefix
+        return f'{prefix}_{tail}_{digest}'[:max_n]
+
     def _physical_table_name(self, collection_name: str) -> str:
-        """Physical table name in the backend (default: logical collection name)."""
-        return collection_name
+        """Physical table name (logical name, or hashed when over :attr:`s_max_ident_bytes`)."""
+        return self._fit_ident(collection_name, prefix='c')
+
+    def _physical_index_name(self, collection_name: str, name: str) -> str:
+        """Physical index identifier (namespaced by table so IF NOT EXISTS is per-collection).
+
+        Always starts with ``i_`` so names remain valid when the collection name is a bare
+        UUID (custom_collection) or other digit-leading string. Hashed when over
+        :attr:`s_max_ident_bytes`.
+        """
+        safe_phys = re.sub(r'[^A-Za-z0-9_]', '_', self._physical_table_name(collection_name))
+        safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
+        return self._fit_ident(f'i_{safe_phys}__{safe_name}', prefix='i', tail_from=safe_name)
 
     def _prepare_ibis_table(self, table):
         """Dialect hook before ibis→polars scans (e.g. cast JSONB ``_data`` to string)."""
@@ -591,8 +623,9 @@ class IbisStore(TsStore):
             cols = _require_expr(trait_name)
 
         unique = 'UNIQUE ' if index_args.get('unique') else ''
-        safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
-        self._execute(f'CREATE {unique}INDEX IF NOT EXISTS {safe_name} ON {self._qname(collection_name)} ({cols})')
+        phys_idx = self._physical_index_name(collection_name, name)
+        qidx = f'"{phys_idx.replace(chr(34), chr(34) * 2)}"'
+        self._execute(f'CREATE {unique}INDEX IF NOT EXISTS {qidx} ON {self._qname(collection_name)} ({cols})')
         return name
 
     class Transaction(TsStore.Transaction):

@@ -1,15 +1,15 @@
 from __future__ import annotations
 
 import getpass
-import hashlib
 import json
-import re
 import socket
 import ssl
 import struct
 from typing import TYPE_CHECKING
+from urllib.parse import parse_qs
 
 import ibis
+from core_10x.global_cache import cache
 from core_10x.resource import Resource
 from core_10x.ts_store import TsDuplicateKeyError
 
@@ -20,9 +20,6 @@ from infra_10x.ibis_store import (
     IbisStore,
 )
 
-# PostgreSQL NAMEDATALEN is 64 (63 usable bytes); long class-id collection names
-# (and their ``#history`` siblings) must not truncate into the same physical table.
-_PG_IDENT_MAX = 63
 # Frontend/Backend protocol: StartupMessage protocol 3.0; SSLRequest code.
 _PG_PROTOCOL_3_0 = 196608
 _PG_SSL_REQUEST_CODE = 80877103
@@ -42,8 +39,12 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     keys can be expression-indexed later.
     """
 
+    SSLMODE_TAG = 'sslmode'
+
     s_with_auth = False
     s_supports_add_column_if_not_exists = True
+    # NAMEDATALEN is 64 → 63 usable bytes; long class-id / #history names must not collide.
+    s_max_ident_bytes = 63
     # Postgres has no bare DOUBLE type (DuckDB/ANSI alias); use DOUBLE PRECISION.
     s_ddl_types = {
         float: 'DOUBLE PRECISION',
@@ -53,38 +54,100 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         Resource.PORT_TAG: (Resource.PORT_TAG, 5432),
         Resource.DBNAME_TAG: (Resource.DBNAME_TAG, 'postgres'),
         Resource.SSL_TAG: (Resource.SSL_TAG, False),
+        SSLMODE_TAG: (SSLMODE_TAG, None),
     }
+
+    @classmethod
+    def parse_uri(cls, uri: str) -> dict:
+        """Lift ``sslmode`` / ``ssl`` query params into Resource SSL + connect ``sslmode``."""
+        kwargs = super().parse_uri(uri)
+        query = kwargs.pop(cls.QUERY_TAG, None) or ''
+        if not query:
+            return kwargs
+        qs = parse_qs(query, keep_blank_values=True)
+        raw = (qs.get(cls.SSLMODE_TAG) or qs.get(cls.SSL_TAG) or [None])[0]
+        if raw is None:
+            return kwargs
+        mode = str(raw).lower()
+        if mode in ('require', 'verify-ca', 'verify-full'):
+            kwargs[cls.SSL_TAG] = True
+            kwargs[cls.SSLMODE_TAG] = mode
+        elif mode in ('true', '1', 'yes'):
+            kwargs[cls.SSL_TAG] = True
+            kwargs[cls.SSLMODE_TAG] = 'require'
+        elif mode in ('disable', 'false', '0', 'no'):
+            kwargs[cls.SSL_TAG] = False
+            kwargs[cls.SSLMODE_TAG] = 'disable'
+        else:
+            # prefer / allow / etc. — pass through without forcing SSL_TAG.
+            kwargs[cls.SSLMODE_TAG] = mode
+        return kwargs
+
+    def __init__(self, hostname=None, dbname=None, username=None, password=None, **kwargs):
+        # libpq-only; must be set before ``IbisStore.__init__`` opens the connection.
+        self.sslmode = kwargs.get(self.SSLMODE_TAG)
+        super().__init__(hostname=hostname, dbname=dbname, username=username, password=password, **kwargs)
 
     def _ibis_connect(self):
         # Resource identity → ibis names (host/user/database); TS_USER uses SQL current_user.
         # autocommit=True so explicit BEGIN/COMMIT match DuckDB / IbisStore.Transaction.
-        return ibis.postgres.connect(
-            host=self.hostname,
-            port=self.port,
-            database=self.dbname,
-            user=self.username,
-            password=self.password,
-            autocommit=True,
-        )
+        connect_kw = {
+            'host': self.hostname,
+            'port': self.port,
+            'database': self.dbname,
+            'user': self.username,
+            'password': self.password,
+            'autocommit': True,
+        }
+        mode = self.sslmode or ('require' if self.ssl else None)
+        if mode:
+            connect_kw[self.SSLMODE_TAG] = mode
+        return ibis.postgres.connect(**connect_kw)
+
+    @staticmethod
+    def _rewrite_qmark_binds(sql: str) -> str:
+        """Replace bind ``?`` with ``%s``.
+
+        Leaves ``?`` inside single-quoted literals alone, and does not touch JSONB
+        ``?|`` / ``?&`` operators. Bare JSONB ``?`` (key existence) still collides with
+        binds — use ``->>`` / ``->`` instead (as ``_index_expr`` does).
+        """
+        out: list[str] = []
+        i = 0
+        in_str = False
+        while i < len(sql):
+            c = sql[i]
+            if in_str:
+                out.append(c)
+                if c == "'" and i + 1 < len(sql) and sql[i + 1] == "'":
+                    out.append("'")
+                    i += 2
+                    continue
+                if c == "'":
+                    in_str = False
+                i += 1
+                continue
+            if c == "'":
+                in_str = True
+                out.append(c)
+                i += 1
+                continue
+            if c == '?':
+                nxt = sql[i + 1] if i + 1 < len(sql) else ''
+                # Note: ``'' in '|&'`` is True in Python — require a real next char.
+                if nxt and nxt in '|&':
+                    out.append('?')
+                else:
+                    out.append('%s')
+                i += 1
+                continue
+            out.append(c)
+            i += 1
+        return ''.join(out)
 
     def _pg_sql(self, sql: str) -> str:
-        """Rewrite shared ``?`` binds to psycopg ``%s`` (no ``?`` in our string literals)."""
-        return sql.replace('?', '%s')
-
-    def _physical_table_name(self, collection_name: str) -> str:
-        """Map logical collection names to a ≤63-byte PostgreSQL identifier.
-
-        Untruncated names are used as-is when they fit. Longer names (typical class-id
-        paths and ``#history`` suffixes) get a stable hash so main vs history never collide.
-        """
-        raw = collection_name
-        if len(raw.encode('utf-8')) <= _PG_IDENT_MAX:
-            return raw
-        digest = hashlib.sha256(raw.encode('utf-8')).hexdigest()[:32]
-        # Readable prefix from the tail (often the class short name / uuid).
-        tail = re.sub(r'[^A-Za-z0-9_]+', '_', raw)[-20:].strip('_') or 't'
-        # c_<20>_<32> = 2+20+1+32 = 55 bytes max.
-        return f'c_{tail}_{digest}'[:_PG_IDENT_MAX]
+        """Rewrite shared ``?`` binds to psycopg ``%s`` (string-literal aware)."""
+        return self._rewrite_qmark_binds(sql)
 
     def _execute(self, sql: str, params: list = ()) -> list[tuple]:
         with self._con.cursor() as cur:
@@ -180,6 +243,7 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         return f"({_DATA} ->> '{field}')"
 
     @classmethod
+    @cache
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:
         """Return ``(is_running, with_auth)`` for vault / store_from_uri routing.
 
@@ -190,7 +254,8 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         * ``(True, True)`` — any other outcome after TCP connects (auth challenge, ErrorResponse,
           SSL failure, non-PG service, truncated handshake, …) so callers try vault credentials.
 
-        Uses map default ``dbname`` and the OS user in the StartupMessage.
+        Like Mongo, only ``host_name`` / ``port`` are inputs. The StartupMessage always uses
+        the map-default ``dbname`` and the OS user (URI userinfo is ignored for the probe).
         """
         if port is None:
             port = cls.s_instance_kwargs_map[cls.PORT_TAG][1]

@@ -9,15 +9,21 @@ Canonical documentation for release engineering and local dependency profiles.
 
 Declared in `[project.scripts]`:
 
-| command           | purpose                                                                 |
-|-------------------|-------------------------------------------------------------------------|
-| `uv-sync`         | prepare the venv for a chosen *dependency-source profile*               |
-| `uv-run`          | run a command in the prepared venv without `uv run` re-syncing          |
-| `xx-promote`      | cut release candidates / final releases and yank them                     |
-| `xx-constraints`  | regenerate or verify the committed third-party dependency freeze        |
+| command              | purpose                                                                 |
+|----------------------|-------------------------------------------------------------------------|
+| `uv-sync`            | prepare the venv for a chosen *dependency-source profile*               |
+| `uv-run`             | run a command in the prepared venv without `uv run` re-syncing          |
+| `xx-promote`         | cut release candidates / final releases and yank them                     |
+| `xx-constraints`     | regenerate or verify the committed third-party dependency freeze        |
+| `xx-postgres-local`  | start/stop/status a local **password-auth** Postgres on port 5433 (Homebrew) |
 
 Implementation: `dev_10x/uv_sync.py`, `dev_10x/uv_run.py`, `dev_10x/xx_promote.py`,
-`dev_10x/xx_helpers.py`, `dev_10x/xx_ci.py`, `dev_10x/constraints.py`.
+`dev_10x/xx_helpers.py`, `dev_10x/xx_ci.py`, `dev_10x/constraints.py`,
+`dev_10x/postgres_local.py`.
+
+`xx-postgres-local` leaves your Brew trust instance on 5432 alone. It manages a second
+cluster under `~/pgdata-py10x-auth` (user `postgres` / password `py10x_pg_auth`) for
+infra with-auth smoke tests — same contract as CI `.github/actions/setup-postgres`.
 
 ---
 

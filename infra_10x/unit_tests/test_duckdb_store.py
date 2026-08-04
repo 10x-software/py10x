@@ -35,28 +35,33 @@ def _index_names(collection: IbisCollection) -> set[str]:
     return {r[0] for r in rows}
 
 
+def _has_index(collection: IbisCollection, logical_name: str) -> bool:
+    phys = collection._store._physical_index_name(collection.collection_name(), logical_name)
+    return phys in _index_names(collection)
+
+
 class TestCreateIndex:
     def test_id_column_creates_index(self, collection):
         collection.create_index('idx_id', _ID)
-        assert 'idx_id' in _index_names(collection)
+        assert _has_index(collection, 'idx_id')
 
     def test_rev_column_creates_index(self, collection):
         collection.create_index('idx_rev', _REV)
-        assert 'idx_rev' in _index_names(collection)
+        assert _has_index(collection, 'idx_rev')
 
     def test_json_field_raises(self, collection):
         with pytest.raises(ValueError, match='cannot index'):
             collection.create_index('idx_name', 'name')
-        assert 'idx_name' not in _index_names(collection)
+        assert not _has_index(collection, 'idx_name')
 
     def test_list_with_json_field_raises(self, collection):
         with pytest.raises(ValueError, match="cannot index 'name'"):
             collection.create_index('idx_mixed', [(_ID, 1), ('name', -1)])
-        assert 'idx_mixed' not in _index_names(collection)
+        assert not _has_index(collection, 'idx_mixed')
 
     def test_list_id_rev_only_creates_index(self, collection):
         collection.create_index('idx_id_rev', [(_ID, 1), (_REV, -1)])
-        assert 'idx_id_rev' in _index_names(collection)
+        assert _has_index(collection, 'idx_id_rev')
 
     def test_returns_name(self, collection):
         assert collection.create_index('idx_id', _ID) == 'idx_id'
@@ -64,12 +69,22 @@ class TestCreateIndex:
     def test_idempotent(self, collection):
         collection.create_index('idx_rev', _REV)
         collection.create_index('idx_rev', _REV)  # IF NOT EXISTS — no error
-        assert 'idx_rev' in _index_names(collection)
+        assert _has_index(collection, 'idx_rev')
 
     def test_unique_true(self, collection):
         """Mongo Index(..., unique=True) parity on real columns."""
         collection.create_index('idx_rev_uq', _REV, unique=True)
-        assert 'idx_rev_uq' in _index_names(collection)
+        assert _has_index(collection, 'idx_rev_uq')
+
+    def test_same_logical_name_on_two_collections(self):
+        """Index names are per-table; IF NOT EXISTS must not skip the second collection."""
+        store = DuckDbStore()
+        a = store.collection('idx_coll_a', _Pad.s_dir)
+        b = store.collection('idx_coll_b', _Pad.s_dir)
+        a.create_index('shared_idx', _REV)
+        b.create_index('shared_idx', _REV)
+        assert _has_index(a, 'shared_idx')
+        assert _has_index(b, 'shared_idx')
 
     def test_index_expr_none_raises(self, collection, monkeypatch):
         monkeypatch.setattr(type(collection._store), '_index_expr', lambda self, coll, field: None)
@@ -88,7 +103,7 @@ class TestCreateIndex:
 
         monkeypatch.setattr(type(collection._store), '_index_expr', _expr)
         collection.create_index('idx_via_hook', 'name')
-        assert 'idx_via_hook' in _index_names(collection)
+        assert _has_index(collection, 'idx_via_hook')
 
 
 class HybridNC(NamedConstant):
@@ -312,7 +327,7 @@ def test_index_on_scalar_column_after_save(hybrid_store):
     coll.save_new({'_id': 'idx', 'test_id': 'idx', 'i': 42})
     if store.s_supports_add_column_if_not_exists:
         coll.create_index('idx_i', 'i')
-        assert 'idx_i' in _index_names(coll)
+        assert _has_index(coll, 'idx_i')
     else:
         # No physical column to index when ADD COLUMN is unsupported.
         with pytest.raises(ValueError, match='cannot index'):

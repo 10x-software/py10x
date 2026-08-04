@@ -133,15 +133,16 @@ Rules agents must **not** violate:
 | Service | Purpose | How to start |
 |---------|---------|-------------|
 | MongoDB 8 (replica set) | Optional — mongo-backed `infra_10x` tests skip when absent | `docker start mongo-rs` (container pre-exists in snapshot) |
-| PostgreSQL | Optional — postgres-backed `infra_10x` tests skip when absent | See [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies) (`postgresql://localhost:5432/postgres`) |
+| PostgreSQL | Optional — postgres-backed `infra_10x` tests skip when absent | Homebrew Postgres or Docker trust + OS-user role; URI `postgresql://localhost:5432/postgres` — see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies) |
 | Docker daemon | Hosts MongoDB container | `sudo dockerd &>/tmp/dockerd.log &` |
 | Playwright/Chromium | Required for `ui_10x/rio` browser-based tests | Pre-installed; no startup needed |
 
 ### Starting services before running tests
 
-MongoDB and PostgreSQL are **optional** for local runs — `pytest` skips store-dependent tests when the
-server is unreachable. Start them only when you want full `infra_10x` coverage locally. The Docker
-daemon and MongoDB container are pre-configured but **not auto-started** in this environment:
+MongoDB and PostgreSQL are **optional** for local runs — Postgres-backed tests soft-skip via
+`need()` when unreachable; the Mongo matrix entry hard-fails if Mongo is down. Start them only
+when you want full `infra_10x` coverage. The Docker daemon and MongoDB container are
+pre-configured but **not auto-started** in this environment:
 
 ```bash
 sudo dockerd &>/tmp/dockerd.log &
@@ -155,6 +156,11 @@ Wait for MongoDB to be writable (the replica set is already initiated):
 docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary"
 # Should print: true
 ```
+
+Local Postgres (Homebrew) should accept passwordless OS-user login on port 5432
+(`postgresql://localhost:5432/postgres`). For with-auth smoke tests on 5433:
+`uv run --no-sync xx-postgres-local start` (see [`dev_10x/README.md`](dev_10x/README.md)).
+CI uses `.github/actions/setup-postgres` for both.
 
 ### Running tests, lint, and build
 

@@ -39,18 +39,22 @@ If either applies, install one of:
 
 - `core_10x` tests use the **in-process** Traitable Store (DuckDB) — no external database.
 - `infra_10x` tests exercise **MongoDB** (`MongoStore`) and **PostgreSQL** (`PostgresStore`,
-  ibis-backed). Neither is required to run `pytest` — dependent tests skip when the server is
-  unreachable (see `core_10x/testlib/strict.py` — `need()` skips locally; under
-  `XX_TEST_STRICT=1`, as in Linux CI, an unmet precondition **fails** instead).
+  ibis-backed). Locally, Postgres-dependent tests use `need()` and **skip** when the server is
+  unreachable; the shared Mongo matrix entry is a **hard fail** if Mongo is listed but down
+  (see `infra_10x/unit_tests/conftest.py`). Under `XX_TEST_STRICT=1` (Linux CI), unmet
+  `need()` preconditions **fail** instead of skipping (`core_10x/testlib/strict.py`).
   - **MongoDB**: passwordless instance on **port 27017** (replica set recommended for transaction
     tests). CI provisions a replica set.
-  - **PostgreSQL**: instance on **port 5432**, database `postgres`, passwordless login as the
-    **OS user** — `postgresql://localhost:5432/postgres` (optional `user@`; libpq defaults to the
-    OS user when omitted). Typical local Homebrew installs already use that role; CI Docker
+  - **PostgreSQL**: passwordless trust instance on **port 5432**, database `postgres`, login as
+    the **OS user** — `postgresql://localhost:5432/postgres` (optional `user@`; libpq defaults to
+    the OS user when omitted). Typical local Homebrew installs already use that role; CI Docker
     enables trust auth and creates a SUPERUSER role for `whoami` (see
-    `.github/actions/setup-postgres`). Authenticated hosts use the vault (URI `user@` is replaced
-    by the vault login). `TS_USER` stamps use the server session user (`current_user`), not a
-    client-side app username.
+    `.github/actions/setup-postgres`). CI also starts a **password-auth** companion on
+    **port 5433** (user `postgres`, password `py10x_pg_auth`) for with-auth smoke tests.
+    Locally (Homebrew, no Docker): `uv run --no-sync xx-postgres-local start` (see
+    [`dev_10x/README.md`](dev_10x/README.md)).
+    Authenticated hosts use the vault (URI `user@` is replaced by the vault login). `TS_USER`
+    stamps use the server session user (`current_user`), not a client-side app username.
 
 See platform setup below for install commands. Other docs link here; do not duplicate the full blurb.
 

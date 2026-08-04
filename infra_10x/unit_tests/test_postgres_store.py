@@ -5,15 +5,20 @@ from __future__ import annotations
 import getpass
 import os
 import socket
+import ssl
 import struct
+from contextlib import nullcontext
 from datetime import datetime  # noqa: TC003  # used as runtime trait data_type
 
+import ibis
 import pytest
+from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
-from core_10x.traitable import Traitable
+from core_10x.traitable import Traitable, VaultResourceAccessor
 from core_10x.ts_store import TsDuplicateKeyError, TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
-from infra_10x.ibis_store import _DATA, _ID
+from dev_10x.postgres_local import PASSWORD_AUTH_PASSWORD, PASSWORD_AUTH_PORT
+from infra_10x.ibis_store import _DATA, _ID, _REV
 from infra_10x.postgres_store import _PG_AUTH_OK, PostgresStore
 from infra_10x.unit_tests.conftest import TEST_TS_STORE
 
@@ -215,8 +220,160 @@ def test_long_collection_names_do_not_collide_with_history(postgres_store):
     store.delete_collection(hist)
 
 
+def _pg_has_index(store: PostgresStore, collection_name: str, logical_name: str) -> bool:
+    phys_table = store._physical_table_name(collection_name)
+    phys_idx = store._physical_index_name(collection_name, logical_name)
+    rows = store._execute(
+        'SELECT 1 FROM pg_indexes WHERE tablename = ? AND indexname = ?',
+        [phys_table, phys_idx],
+    )
+    return bool(rows)
+
+
+def test_same_logical_index_name_on_two_collections(postgres_store):
+    """PG index names are schema-global; both collections must get a physical index."""
+
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+
+    store = postgres_store
+    a, b = f'pg_idx_a_{os.getpid()}', f'pg_idx_b_{os.getpid()}'
+    try:
+        ca = store.collection(a, Pad.s_dir)
+        cb = store.collection(b, Pad.s_dir)
+        assert ca.create_index('shared_idx', _REV) == 'shared_idx'
+        assert cb.create_index('shared_idx', _REV) == 'shared_idx'
+        assert _pg_has_index(store, a, 'shared_idx')
+        assert _pg_has_index(store, b, 'shared_idx')
+    finally:
+        store.delete_collection(a)
+        store.delete_collection(b)
+
+
+def test_index_name_ok_for_digit_leading_collection(postgres_store):
+    """custom_collection often uses a bare UUID hex collection name (starts with a digit)."""
+
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+
+    store = postgres_store
+    coll_name = f'019fc9{os.getpid():026d}'[:32]  # 32-char hex-like, digit-leading
+    assert coll_name[0].isdigit()
+    try:
+        coll = store.collection(coll_name, Pad.s_dir)
+        phys = store._physical_index_name(coll_name, '_at_idx')
+        assert phys[0].isalpha(), phys
+        assert coll.create_index('_at_idx', _REV) == '_at_idx'
+        assert _pg_has_index(store, coll_name, '_at_idx')
+    finally:
+        store.delete_collection(coll_name)
+
+
+def test_jsonb_path_index_on_blob_field(postgres_store):
+    """Blob keys are indexable via (_data ->> 'field') expression indexes."""
+
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+
+    store = postgres_store
+    coll_name = f'pg_jsonb_idx_{os.getpid()}'
+    try:
+        coll = store.collection(coll_name, Pad.s_dir)
+        coll.save_new({'_id': '1', 'pad': 0, 'blob_key': 'v'})
+        assert coll.create_index('idx_blob_key', 'blob_key') == 'idx_blob_key'
+        assert _pg_has_index(store, coll_name, 'idx_blob_key')
+        expr = store._index_expr(coll_name, 'blob_key')
+        assert expr is not None and _DATA in expr
+    finally:
+        store.delete_collection(coll_name)
+
+
 def test_instance_from_uri(postgres_store):
     uri = TEST_TS_STORE.POSTGRES.value[0]
     store = TsStore.instance_from_uri(uri, _cache=False)
     assert isinstance(store, PostgresStore)
     assert store.auth_user() is not None
+
+
+def test_rewrite_qmark_binds_skips_literals_and_jsonb_ops():
+    assert PostgresStore._rewrite_qmark_binds('SELECT ? WHERE x = ?') == 'SELECT %s WHERE x = %s'
+    assert PostgresStore._rewrite_qmark_binds("SELECT '?' , ?") == "SELECT '?' , %s"
+    assert PostgresStore._rewrite_qmark_binds('SELECT a ?| b , c ?& d , ?') == 'SELECT a ?| b , c ?& d , %s'
+
+
+def test_parse_uri_sslmode_and_ibis_connect_kwargs(monkeypatch):
+    args = PostgresStore.parse_uri('postgresql://h:5432/db?sslmode=require')
+    assert args[PostgresStore.SSL_TAG] is True
+    assert args[PostgresStore.SSLMODE_TAG] == 'require'
+    captured = {}
+
+    def fake_connect(**kwargs):
+        captured.update(kwargs)
+
+        class _Backend:
+            con = None
+
+        return _Backend()
+
+    monkeypatch.setattr(ibis.postgres, 'connect', fake_connect)
+    PostgresStore(hostname='h', port=5432, dbname='db', username='u', password='p', ssl=True, sslmode='require')
+    assert captured.get(PostgresStore.SSLMODE_TAG) == 'require'
+    captured.clear()
+    PostgresStore(hostname='h', port=5432, dbname='db', username='u', password='p', ssl=True)
+    assert captured.get(PostgresStore.SSLMODE_TAG) == 'require'
+    captured.clear()
+    PostgresStore(hostname='h', port=5432, dbname='db', username='u', password='p')
+    assert PostgresStore.SSLMODE_TAG not in captured
+
+
+def test_startup_probe_ssl_wrap_failure_tries_vault(monkeypatch):
+    """Post-TCP SSL negotiation failure → (True, True) so vault is tried."""
+
+    class _Sock:
+        def settimeout(self, _t): ...
+        def sendall(self, _data): ...
+        def recv(self, n):
+            return b'S'[:n]
+
+        def close(self): ...
+
+    monkeypatch.setattr(socket, 'create_connection', lambda *a, **k: _Sock())
+    monkeypatch.setattr(ssl.SSLContext, 'wrap_socket', lambda self, *a, **k: (_ for _ in ()).throw(ssl.SSLError('bad cert')))
+    assert PostgresStore.is_running_with_auth('ssl-fail.example', 55432) == (True, True)
+
+
+def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
+    sentinel = object()
+
+    class _FakeRA:
+        @property
+        def resource(self):
+            return sentinel
+
+    monkeypatch.setattr(PostgresStore, 'is_running_with_auth', classmethod(lambda cls, host_name, port=None: (True, True)))
+    monkeypatch.setattr(Traitable, 'vault_store', staticmethod(lambda: nullcontext()))
+    monkeypatch.setattr(VaultResourceAccessor, 'retrieve_ra', classmethod(lambda cls, *a, **k: _FakeRA()))
+    assert Traitable.store_from_uri('postgresql://vault-pg.example:5432/postgres') is sentinel
+
+
+def test_password_auth_probe_requires_auth():
+    running, with_auth = PostgresStore.is_running_with_auth('localhost', PASSWORD_AUTH_PORT)
+    need(running, f'password-auth Postgres not running on localhost:{PASSWORD_AUTH_PORT}')
+    assert with_auth is True
+
+
+def test_password_auth_connect():
+    need(
+        PostgresStore.is_running_with_auth('localhost', PASSWORD_AUTH_PORT)[0],
+        f'password-auth Postgres not running on localhost:{PASSWORD_AUTH_PORT}',
+    )
+    store = PostgresStore.instance(
+        hostname='localhost',
+        port=PASSWORD_AUTH_PORT,
+        dbname='postgres',
+        username='postgres',
+        password=PASSWORD_AUTH_PASSWORD,
+        _cache=False,
+    )
+    assert store._execute('SELECT 1')[0][0] == 1
+    assert store.auth_user() == 'postgres'

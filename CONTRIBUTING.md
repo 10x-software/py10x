@@ -71,7 +71,7 @@ uv run --no-sync pytest
 # Run specific test suites
 uv run --no-sync pytest core_10x/unit_tests/
 uv run --no-sync pytest ui_10x/unit_tests/
-uv run --no-sync pytest infra_10x/unit_tests/  # mongo/postgres; skips if servers unreachable
+uv run --no-sync pytest infra_10x/unit_tests/  # postgres soft-skips if down; mongo matrix hard-fails if down
 
 # Manual tests are debugging scripts (run directly)
 python core_10x/manual_tests/trivial_graph_test.py
@@ -132,8 +132,8 @@ py10x/
 │   ├── examples/           # Interactive UI demos
 │   └── ...
 ├── infra_10x/              # Storage and infrastructure
-│   ├── mongodb_store.py, ibis_store.py, duckdb_store.py, ...
-│   ├── unit_tests/         # live Mongo/Postgres stores; skip if unreachable locally
+│   ├── mongodb_store.py, ibis_store.py, duckdb_store.py, postgres_store.py, ...
+│   ├── unit_tests/         # live Mongo/Postgres stores (Postgres soft-skip; Mongo hard if listed)
 │   └── testlib/
 ├── dev_10x/                # Developer tooling and release engineering
 │   ├── uv_sync.py, uv_run.py   # Dependency profile management

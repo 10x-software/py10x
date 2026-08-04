@@ -14,7 +14,7 @@ from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
 class TEST_TS_STORE(NamedConstant):
     # Example with X509 auth (replace with your URI; do not commit real hostnames or paths):
     # MONGO = ('MongoDB', ('mongodb+srv://HOST/?authMechanism=MONGODB-X509&...', (True, False)))
-    MONGO = ['mongodb://localhost:27017/test_db', (True, False), True]
+    MONGO = ['mongodb://localhost:27017/test_db', (True, False), True]  # value layout: [uri, helper_flags, hard_require]
     POSTGRES = ['postgresql://localhost:5432/postgres', (False,), False]
 
 
@@ -38,11 +38,16 @@ def ts_backends() -> dict[str, TsStore]:
 def ts_instance(mocker, request, ts_backends):
     backend = request.param[0]
     instance = ts_backends.get(backend.name)
-    if not backend.value[2]:
-        need(instance is not None, f'{backend.label} not running (at {backend.value[0]})')
+    if instance is None:
+        msg = f'{backend.label} not running (at {backend.value[0]})'
+        if backend.value[2]:
+            pytest.fail(msg)
+        need(False, msg)
     assert instance is not None
 
-    instance.username = 'test_user'
+    # Mongo/DuckDB ``auth_user`` is Resource.username; Postgres stamps SQL ``current_user``.
+    if backend.name == TEST_TS_STORE.MONGO.name:
+        instance.username = 'test_user'
     if not instance.supports_transactions():
         # Under XX_TEST_STRICT a missing replica set is a CI provisioning failure.
         if EnvVars.test_strict:
