@@ -1,4 +1,5 @@
-"""PostgreSQL-specific dialect tests (shared suites run via conftest ts_instance matrix)."""
+"""PostgreSQL-specific dialect tests (shared TsStore suites run via conftest ts_instance matrix;
+shared IbisStore/index suites run via test_ibis_store.py, parameterized over DuckDB + Postgres)."""
 
 from __future__ import annotations
 
@@ -15,7 +16,7 @@ import pytest
 from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable, VaultResourceAccessor
-from core_10x.ts_store import TsDuplicateKeyError, TsStore
+from core_10x.ts_store import TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
 from dev_10x.postgres_local import PASSWORD_AUTH_PASSWORD, PASSWORD_AUTH_PORT
 from infra_10x.ibis_store import _DATA, _ID, _REV
@@ -175,19 +176,6 @@ def test_ts_user_stamped_from_current_user(postgres_store, monkeypatch):
     store.delete_collection(coll_name)
 
 
-def test_duplicate_key_raises(postgres_store):
-    class Pad(Traitable, custom_collection=True, keep_history=False):
-        pad: int = T()
-
-    store = postgres_store
-    coll_name = f'pg_dup_{os.getpid()}'
-    coll = store.collection(coll_name, Pad.s_dir)
-    coll.save_new({'_id': 'x', 'pad': 1})
-    with pytest.raises(TsDuplicateKeyError):
-        coll.save_new({'_id': 'x', 'pad': 2})
-    store.delete_collection(coll_name)
-
-
 def test_data_column_is_jsonb(postgres_store):
     class Pad(Traitable, custom_collection=True, keep_history=False):
         pad: int = T()
@@ -230,47 +218,8 @@ def _pg_has_index(store: PostgresStore, collection_name: str, logical_name: str)
     return bool(rows)
 
 
-def test_same_logical_index_name_on_two_collections(postgres_store):
-    """PG index names are schema-global; both collections must get a physical index."""
-
-    class Pad(Traitable, custom_collection=True, keep_history=False):
-        pad: int = T()
-
-    store = postgres_store
-    a, b = f'pg_idx_a_{os.getpid()}', f'pg_idx_b_{os.getpid()}'
-    try:
-        ca = store.collection(a, Pad.s_dir)
-        cb = store.collection(b, Pad.s_dir)
-        assert ca.create_index('shared_idx', _REV) == 'shared_idx'
-        assert cb.create_index('shared_idx', _REV) == 'shared_idx'
-        assert _pg_has_index(store, a, 'shared_idx')
-        assert _pg_has_index(store, b, 'shared_idx')
-    finally:
-        store.delete_collection(a)
-        store.delete_collection(b)
-
-
-def test_index_name_ok_for_digit_leading_collection(postgres_store):
-    """custom_collection often uses a bare UUID hex collection name (starts with a digit)."""
-
-    class Pad(Traitable, custom_collection=True, keep_history=False):
-        pad: int = T()
-
-    store = postgres_store
-    coll_name = f'019fc9{os.getpid():026d}'[:32]  # 32-char hex-like, digit-leading
-    assert coll_name[0].isdigit()
-    try:
-        coll = store.collection(coll_name, Pad.s_dir)
-        phys = store._physical_index_name(coll_name, '_at_idx')
-        assert phys[0].isalpha(), phys
-        assert coll.create_index('_at_idx', _REV) == '_at_idx'
-        assert _pg_has_index(store, coll_name, '_at_idx')
-    finally:
-        store.delete_collection(coll_name)
-
-
 def test_jsonb_path_index_on_blob_field(postgres_store):
-    """Blob keys are indexable via (_data ->> 'field') expression indexes."""
+    """Blob keys are indexable via (_data ->> 'field') expression indexes — Postgres-only (JSONB)."""
 
     class Pad(Traitable, custom_collection=True, keep_history=False):
         pad: int = T()

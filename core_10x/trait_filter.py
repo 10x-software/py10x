@@ -103,6 +103,19 @@ class NE(Op):
     def _eval(left, right) -> bool:
         return left != right
 
+    def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+        # A missing blob key unwraps to SQL NULL, and `NULL != x` is NULL (row excluded) under
+        # three-valued logic. Mongo's $ne matches missing fields, so match that here too — but
+        # not when the right-hand side is itself None/XNone: NE(XNone) means "field IS NOT
+        # NULL" (col != None already compiles to that), and ORing isnull() there would make it
+        # tautologically true instead.
+        trait = trait_dir.get(field_name) if trait_dir and field_name else None
+        col = ibis_collection.ibis_col(field_name, trait)
+        serialized = self.serialize_right_value(field_name, trait_dir)
+        right = ibis_collection.ibis_right_value(serialized, field_name=field_name)
+        cmp = col != right
+        return cmp if serialized is None else col.isnull() | cmp
+
 
 class GT(Op):
     @staticmethod
@@ -157,10 +170,11 @@ class NIN(IN):
         return left not in right
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+        # Same missing-field reasoning as NE.ibis: Mongo's $nin matches missing fields too.
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         col = ibis_collection.ibis_col(field_name, trait)
         right = [ibis_collection.ibis_right_value(v, field_name=field_name) for v in self.serialize_right_value(field_name, trait_dir)]
-        return ~col.isin(right)
+        return col.isnull() | ~col.isin(right)
 
 
 # class REGEX(Op):

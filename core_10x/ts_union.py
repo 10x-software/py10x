@@ -104,11 +104,11 @@ class TsUnionCollection(TsCollection):
         # TODO: verify that index exists in the union tail
         return self.collections[0].create_index(name, trait_name, **index_args)
 
-    def max(self, trait_name: str, filter: f = None) -> dict:
+    def max(self, trait_name: str, filter: f = None) -> dict | None:
         results = (result for result in (collection.max(trait_name, filter) for collection in self.collections) if result is not None)
         return max(results, key=operator.itemgetter(trait_name), default=None)
 
-    def min(self, trait_name: str, filter: f = None) -> dict:
+    def min(self, trait_name: str, filter: f = None) -> dict | None:
         results = (result for result in (collection.min(trait_name, filter) for collection in self.collections) if result is not None)
         return min(results, key=operator.itemgetter(trait_name), default=None)
 

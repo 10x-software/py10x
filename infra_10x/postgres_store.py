@@ -230,7 +230,15 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         return json.loads(val)
 
     def _prepare_ibis_table(self, table):
-        # Polars cannot ingest JSONB yet; cast ``_data`` to string for scans (decode still works).
+        # Ibis maps dt.JSON -> pa.string() for every output format (pandas/polars/pyarrow alike;
+        # see ibis.formats.pyarrow), and psycopg auto-decodes jsonb into dict/list before ibis
+        # ever sees it — so this SQL-level CAST is what actually produces a string, not a
+        # client-side re-serialization of an already-parsed dict. Not polars-specific and not
+        # obviously avoidable without bypassing ibis for reads (see raw psycopg _execute path
+        # used by inserts). Predicate pushdown still runs on the native jsonb column before this
+        # cast, so it only touches the filtered/limited result set, not full-table scans.
+        # TODO: revisit if profiling (see infra_10x/manual_tests/ postgres-vs-mongo perf test)
+        # shows this cast is a measurable hot path for real query patterns.
         if _DATA in table.schema():
             return table.mutate(**{_DATA: table[_DATA].cast('string')})
         return table

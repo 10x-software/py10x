@@ -1,15 +1,18 @@
 """Local password-auth Postgres companion for infra_10x with-auth smoke tests.
 
-Keeps the Brew (or other) trust instance on 5432 alone. Manages a second cluster on
-port 5433 with a known password — same contract as CI ``setup-postgres``.
+Keeps the trust instance on 5432 alone. Manages a second cluster on port 5433 with a
+known password — same contract as CI ``setup-postgres``. Prefers Docker (a
+``postgres:{DOCKER_PG_VERSION}`` container, mirroring CI) when the Docker daemon is
+reachable; falls back to a Homebrew-managed cluster (``initdb`` / ``pg_ctl`` from
+``postgresql@16`` or ``postgresql``) otherwise. Whichever backend was reachable at
+``start`` is also what ``stop`` / ``status`` check.
 
 Usage (from repo root, venv prepared)::
 
-    uv run --no-sync xx-postgres-local start
-    uv run --no-sync xx-postgres-local status
-    uv run --no-sync xx-postgres-local stop
+    uv run --no-sync xx-test-postgres-auth start
+    uv run --no-sync xx-test-postgres-auth status
+    uv run --no-sync xx-test-postgres-auth stop
 
-Homebrew-only helper (``initdb`` / ``pg_ctl`` from ``postgresql@16`` or ``postgresql``).
 Kernel-free: stdlib + subprocess only.
 """
 
@@ -25,11 +28,134 @@ import time
 from pathlib import Path
 
 # Shared with infra_10x password-auth smoke tests / CI setup-postgres defaults.
+# Not a real credential: a throwaway local test fixture, overridable via env so it never
+# needs to be hardcoded for anyone who wants a non-default value.
 PASSWORD_AUTH_PORT = 5433
 PASSWORD_AUTH_USER = 'postgres'
-PASSWORD_AUTH_PASSWORD = 'py10x_pg_auth'
+PASSWORD_AUTH_PASSWORD = os.environ.get('XX_PG_PASSWORD_AUTH_PASSWORD', 'py10x_pg_auth')
 PASSWORD_AUTH_DB = 'postgres'
-DEFAULT_DATA_DIR = Path.home() / 'pgdata-py10x-auth'
+DEFAULT_DATA_DIR = Path.home() / 'pgdata-py10x-auth'  # Homebrew fallback only.
+DOCKER_CONTAINER_NAME = 'py10x-postgres-auth-local'
+DOCKER_VOLUME_NAME = 'py10x-postgres-auth-local-data'
+DOCKER_PG_VERSION = '15'  # matches .github/actions/setup-postgres default
+
+
+# --- Docker backend --------------------------------------------------------------------
+
+
+def _docker_bin() -> str | None:
+    """Return the ``docker`` executable path if the CLI is on PATH and the daemon is reachable."""
+    docker = shutil.which('docker')
+    if not docker:
+        return None
+    try:
+        subprocess.run([docker, 'info'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5, check=True)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+        return None
+    return docker
+
+
+def _container_state(docker: str, name: str) -> str | None:
+    """Return docker's ``.State.Status`` (e.g. ``running``, ``exited``), or None if no such container."""
+    try:
+        out = subprocess.check_output([docker, 'inspect', '--format', '{{.State.Status}}', name], stderr=subprocess.DEVNULL, text=True)
+    except subprocess.CalledProcessError:
+        return None
+    return out.strip()
+
+
+def _container_host_port(docker: str, name: str) -> str | None:
+    try:
+        out = subprocess.check_output(
+            [docker, 'inspect', '--format', '{{(index (index .NetworkSettings.Ports "5432/tcp") 0).HostPort}}', name],
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except subprocess.CalledProcessError:
+        return None
+    return out.strip() or None
+
+
+def _docker_start(docker: str, port: int) -> int:
+    name = DOCKER_CONTAINER_NAME
+    state = _container_state(docker, name)
+    if state is not None and _container_host_port(docker, name) != str(port):
+        # --port changed since this container was created; recreate with the new mapping
+        # (named volume survives, so data isn't lost).
+        subprocess.check_call([docker, 'rm', '-f', name])
+        state = None
+
+    if state is None:
+        subprocess.check_call(
+            [
+                docker,
+                'run',
+                '-d',
+                '--name',
+                name,
+                '-e',
+                'POSTGRES_HOST_AUTH_METHOD=scram-sha-256',
+                '-e',
+                f'POSTGRES_USER={PASSWORD_AUTH_USER}',
+                '-e',
+                f'POSTGRES_PASSWORD={PASSWORD_AUTH_PASSWORD}',
+                '-e',
+                f'POSTGRES_DB={PASSWORD_AUTH_DB}',
+                '-v',
+                f'{DOCKER_VOLUME_NAME}:/var/lib/postgresql/data',
+                '-p',
+                f'{port}:5432',
+                f'postgres:{DOCKER_PG_VERSION}',
+            ]
+        )
+    elif state != 'running':
+        subprocess.check_call([docker, 'start', name])
+
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        if (
+            subprocess.call(
+                [docker, 'exec', name, 'pg_isready', '-U', PASSWORD_AUTH_USER, '-d', PASSWORD_AUTH_DB],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            == 0
+        ):
+            print(
+                f'password-auth Postgres ready on localhost:{port} (user={PASSWORD_AUTH_USER}, password={PASSWORD_AUTH_PASSWORD}, docker container={name})'
+            )
+            return 0
+        time.sleep(0.5)
+    print(f'Postgres did not become ready on localhost:{port}; see `docker logs {name}`', file=sys.stderr)
+    return 1
+
+
+def _docker_stop(docker: str) -> int:
+    name = DOCKER_CONTAINER_NAME
+    state = _container_state(docker, name)
+    if state is None:
+        print(f'No Docker container named {name}')
+        return 0
+    if state != 'running':
+        print(f'Already stopped ({name})')
+        return 0
+    subprocess.check_call([docker, 'stop', name])
+    print(f'Stopped password-auth Postgres (docker container {name})')
+    return 0
+
+
+def _docker_status(docker: str, port: int) -> int:
+    name = DOCKER_CONTAINER_NAME
+    state = _container_state(docker, name)
+    running = state == 'running'
+    print(f'cluster={"yes" if state is not None else "no"} docker container={name}')
+    print(f'listening={running} host=localhost port={port} user={PASSWORD_AUTH_USER} db={PASSWORD_AUTH_DB}')
+    if running:
+        print(f'password={PASSWORD_AUTH_PASSWORD}')
+    return 0 if running else 1
+
+
+# --- Homebrew fallback -------------------------------------------------------------------
 
 
 def _brew_pg_bin() -> Path | None:
@@ -56,7 +182,7 @@ def _resolve_bin(name: str, brew_bin: Path | None) -> str:
     found = shutil.which(name)
     if found:
         return found
-    raise SystemExit(f'{name} not found. Install Homebrew PostgreSQL (e.g. `brew install postgresql@16`) or put initdb/pg_ctl on PATH.')
+    raise SystemExit(f'{name} not found. Install Docker, or Homebrew PostgreSQL (e.g. `brew install postgresql@16`), or put initdb/pg_ctl on PATH.')
 
 
 def _ensure_port_config(data_dir: Path, port: int) -> None:
@@ -100,7 +226,7 @@ def _init_if_needed(initdb: str, data_dir: Path) -> None:
         elif leftover:
             raise SystemExit(
                 f'{data_dir} exists but is not a Postgres cluster and is not empty ({leftover!r}). '
-                'Remove it or pass --data-dir, then retry `xx-postgres-local start`.'
+                'Remove it or pass --data-dir, then retry `xx-test-postgres-auth start`.'
             )
     else:
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -126,7 +252,7 @@ def _init_if_needed(initdb: str, data_dir: Path) -> None:
         pw_path.unlink(missing_ok=True)
 
 
-def cmd_start(data_dir: Path, port: int) -> int:
+def _homebrew_start(data_dir: Path, port: int) -> int:
     brew_bin = _brew_pg_bin()
     initdb = _resolve_bin('initdb', brew_bin)
     pg_ctl = _resolve_bin('pg_ctl', brew_bin)
@@ -156,7 +282,7 @@ def cmd_start(data_dir: Path, port: int) -> int:
     return 1
 
 
-def cmd_stop(data_dir: Path) -> int:
+def _homebrew_stop(data_dir: Path) -> int:
     if not (data_dir / 'PG_VERSION').is_file():
         print(f'No cluster at {data_dir}')
         return 0
@@ -170,7 +296,7 @@ def cmd_stop(data_dir: Path) -> int:
     return 0
 
 
-def cmd_status(data_dir: Path, port: int) -> int:
+def _homebrew_status(data_dir: Path, port: int) -> int:
     brew_bin = _brew_pg_bin()
     pg_isready = _resolve_bin('pg_isready', brew_bin)
     running = (
@@ -189,14 +315,35 @@ def cmd_status(data_dir: Path, port: int) -> int:
     return 0 if running else 1
 
 
+# --- Dispatch --------------------------------------------------------------------------
+
+
+def cmd_start(data_dir: Path, port: int) -> int:
+    if (docker := _docker_bin()) is not None:
+        return _docker_start(docker, port)
+    return _homebrew_start(data_dir, port)
+
+
+def cmd_stop(data_dir: Path) -> int:
+    if (docker := _docker_bin()) is not None:
+        return _docker_stop(docker)
+    return _homebrew_stop(data_dir)
+
+
+def cmd_status(data_dir: Path, port: int) -> int:
+    if (docker := _docker_bin()) is not None:
+        return _docker_status(docker, port)
+    return _homebrew_status(data_dir, port)
+
+
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description='Manage local password-auth Postgres for py10x infra tests (port 5433).')
+    p = argparse.ArgumentParser(prog='xx-test-postgres-auth', description='Manage local password-auth Postgres for py10x infra tests (port 5433).')
     p.add_argument('command', choices=('start', 'stop', 'status'))
     p.add_argument(
         '--data-dir',
         type=Path,
         default=Path(os.environ.get('XX_PG_PASSWORD_AUTH_DATA', DEFAULT_DATA_DIR)),
-        help=f'cluster data directory (default: {DEFAULT_DATA_DIR} or $XX_PG_PASSWORD_AUTH_DATA)',
+        help=f'Homebrew fallback cluster data directory, ignored under Docker (default: {DEFAULT_DATA_DIR} or $XX_PG_PASSWORD_AUTH_DATA)',
     )
     p.add_argument(
         '--port',

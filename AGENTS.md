@@ -157,9 +157,10 @@ docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary"
 # Should print: true
 ```
 
-Local Postgres (Homebrew) should accept passwordless OS-user login on port 5432
+Local Postgres should accept passwordless OS-user login on port 5432
 (`postgresql://localhost:5432/postgres`). For with-auth smoke tests on 5433:
-`uv run --no-sync xx-postgres-local start` (see [`dev_10x/README.md`](dev_10x/README.md)).
+`uv run --no-sync xx-test-postgres-auth start` (prefers Docker, falls back to Homebrew — see
+[`dev_10x/README.md`](dev_10x/README.md)).
 CI uses `.github/actions/setup-postgres` for both.
 
 ### Running tests, lint, and build

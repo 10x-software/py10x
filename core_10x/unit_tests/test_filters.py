@@ -387,6 +387,7 @@ class TestCompoundFilters:
             'nc': FilterTestNC.FOO,
             'nc2': FilterTestSubNC.BAZ,
             'fl': FilterTestFlags.READ | FilterTestFlags.WRITE,
+            'non_existing': '3',
         }
 
         overrides = {
@@ -427,13 +428,25 @@ class TestCompoundFilters:
             store.end_using()
             go.end_using()
 
-    @pytest.mark.parametrize('trait_name', ['cl', 'lst', 'dct', 'nc', 'nc2', 'fl', 'by'])
-    def test_trait_prefix_and_find(self, trait_name, prepared):
+    @pytest.mark.parametrize('op', [EQ, NE])
+    @pytest.mark.parametrize('trait_name', ['cl', 'lst', 'dct', 'nc', 'nc2', 'fl', 'by', 'non_existing'])
+    def test_trait_prefix_and_find(self, op, trait_name, prepared):
         _store, coll, data, _overrides, _coll_name, trait_dir = prepared
-        q = f(**{trait_name: data[trait_name]}, trait_dir=trait_dir)
-        ser = Sample.trait(trait_name).serialize_value(data[trait_name])
-        assert q.prefix_notation(trait_dir=trait_dir) == {trait_name: {'$eq': ser}}
-        assert len(list(coll.find(f(q, trait_dir)))) == 2
+        q = f(**{trait_name: op(data[trait_name])}, trait_dir=trait_dir)
+        ser = t.serialize_value(data[trait_name]) if (t := Sample.trait(trait_name)) else data[trait_name]
+        assert q.prefix_notation(trait_dir=trait_dir) == {trait_name: {op.label: ser}}
+        res = list(coll.find(f(q, trait_dir)))
+        # 3 docs total: 2 match `data[trait_name]` (s1, s3), 1 matches `overrides[trait_name]` (s2).
+
+        expected = 0 if trait_name == 'non_existing' else 2
+        if op == NE:
+            expected = 3 - expected
+        assert len(res) == expected
+        assert coll.count(f(q, trait_dir)) == expected
+
+        key = lambda r: str(sorted(k.items())) if isinstance((k := r.get(trait_name, XNone)), dict) else k
+        assert coll.min(trait_name, f(q, trait_dir)) == (min(res, key=key) if res else None)
+        assert coll.max(trait_name, f(q, trait_dir)) == (max(res, key=key) if res else None)
 
     def test_primitives(self, prepared):
         _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
@@ -467,6 +480,47 @@ class TestCompoundFilters:
         qset = f(ref=NE(XNone), trait_dir=trait_dir)
         setids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(qset, trait_dir)))
         assert setids == ['s1']
+
+    @pytest.mark.parametrize(
+        'op, expected',
+        [
+            (EQ(5), ['has_x']),
+            (NE(5), ['no_x']),
+            (GT(3), ['has_x']),
+            (GE(5), ['has_x']),
+            (LT(10), ['has_x']),
+            (LE(5), ['has_x']),
+            (IN([5, 6]), ['has_x']),
+            (NIN([5, 6]), ['no_x']),
+            (BETWEEN(1, 10), ['has_x']),
+        ],
+        ids=['EQ', 'NE', 'GT', 'GE', 'LT', 'LE', 'IN', 'NIN', 'BETWEEN'],
+    )
+    def test_missing_field_semantics(self, prepared, op, expected):
+        """A field entirely absent from a document: only NE/NIN match it, mirroring MongoDB's
+        documented ``$ne``/``$nin`` "matches missing fields" semantics — ``NE.ibis``/``NIN.ibis``
+        in trait_filter.py add the same for SQL backends (a missing blob key unwraps to NULL,
+        and plain `NULL != x` would be NULL/excluded under three-valued logic without that).
+        Every other operator excludes the missing field on both backends. Locks in the
+        cross-backend contract after a real NE/NIN divergence was found and fixed here.
+        Postgres shares the same NE.ibis/NIN.ibis code path via IbisStore, verified manually,
+        but isn't in this parametrization (`prepared` only spans duckdb/mongo).
+        """
+        store, *_ = prepared
+
+        class MissingFieldSample(Traitable, custom_collection=True, keep_history=False):
+            marker: str = T(T.ID)
+            x: int = T()
+
+        coll_name = 'mf_' + uuid6.uuid7().hex[:12]
+        coll = store.collection(coll_name, MissingFieldSample.s_dir)
+        try:
+            coll.save_new({'_id': 'has_x', 'marker': 'has_x', 'x': 5})
+            coll.save_new({'_id': 'no_x', 'marker': 'no_x'})  # x entirely absent
+            ids = sorted(r['_id'] for r in coll.find(f(x=op, trait_dir=MissingFieldSample.s_dir)))
+            assert ids == expected
+        finally:
+            store.delete_collection(coll_name)
 
     def test_in_and_nin(self, prepared):
         _store, coll, _data, _overrides, _coll_name, trait_dir = prepared

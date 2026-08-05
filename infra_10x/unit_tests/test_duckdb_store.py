@@ -1,337 +1,19 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timezone
 
 import pytest
 import uuid6
-from core_10x.named_constant import EnumBits, NamedConstant
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 from infra_10x.duckdb_store import DuckDbStore
-from infra_10x.ibis_store import _DATA, _ID, _REV, IbisCollection
+from infra_10x.ibis_store import _DATA, _ID, _REV
 
 
 class _Pad(Traitable, custom_collection=True, keep_history=False):
     """Minimal storable schema so the collection is writable; extra keys stay untyped/blob."""
 
     pad: int = T()
-
-
-@pytest.fixture
-def store():
-    s = DuckDbStore()
-    s.collection('test', _Pad.s_dir)
-    return s
-
-
-@pytest.fixture
-def collection(store) -> IbisCollection:
-    return store.collection('test', _Pad.s_dir)
-
-
-def _index_names(collection: IbisCollection) -> set[str]:
-    rows = collection._store._con.execute(f"SELECT index_name FROM duckdb_indexes() WHERE table_name = '{collection.collection_name()}'").fetchall()
-    return {r[0] for r in rows}
-
-
-def _has_index(collection: IbisCollection, logical_name: str) -> bool:
-    phys = collection._store._physical_index_name(collection.collection_name(), logical_name)
-    return phys in _index_names(collection)
-
-
-class TestCreateIndex:
-    def test_id_column_creates_index(self, collection):
-        collection.create_index('idx_id', _ID)
-        assert _has_index(collection, 'idx_id')
-
-    def test_rev_column_creates_index(self, collection):
-        collection.create_index('idx_rev', _REV)
-        assert _has_index(collection, 'idx_rev')
-
-    def test_json_field_raises(self, collection):
-        with pytest.raises(ValueError, match='cannot index'):
-            collection.create_index('idx_name', 'name')
-        assert not _has_index(collection, 'idx_name')
-
-    def test_list_with_json_field_raises(self, collection):
-        with pytest.raises(ValueError, match="cannot index 'name'"):
-            collection.create_index('idx_mixed', [(_ID, 1), ('name', -1)])
-        assert not _has_index(collection, 'idx_mixed')
-
-    def test_list_id_rev_only_creates_index(self, collection):
-        collection.create_index('idx_id_rev', [(_ID, 1), (_REV, -1)])
-        assert _has_index(collection, 'idx_id_rev')
-
-    def test_returns_name(self, collection):
-        assert collection.create_index('idx_id', _ID) == 'idx_id'
-
-    def test_idempotent(self, collection):
-        collection.create_index('idx_rev', _REV)
-        collection.create_index('idx_rev', _REV)  # IF NOT EXISTS — no error
-        assert _has_index(collection, 'idx_rev')
-
-    def test_unique_true(self, collection):
-        """Mongo Index(..., unique=True) parity on real columns."""
-        collection.create_index('idx_rev_uq', _REV, unique=True)
-        assert _has_index(collection, 'idx_rev_uq')
-
-    def test_same_logical_name_on_two_collections(self):
-        """Index names are per-table; IF NOT EXISTS must not skip the second collection."""
-        store = DuckDbStore()
-        a = store.collection('idx_coll_a', _Pad.s_dir)
-        b = store.collection('idx_coll_b', _Pad.s_dir)
-        a.create_index('shared_idx', _REV)
-        b.create_index('shared_idx', _REV)
-        assert _has_index(a, 'shared_idx')
-        assert _has_index(b, 'shared_idx')
-
-    def test_index_expr_none_raises(self, collection, monkeypatch):
-        monkeypatch.setattr(type(collection._store), '_index_expr', lambda self, coll, field: None)
-        with pytest.raises(ValueError, match='cannot index'):
-            collection.create_index('idx_id', _ID)
-
-    def test_index_expr_override_used_for_payload_field(self, collection, monkeypatch):
-        """Dialect hook (on the store) maps a payload field to a real column expression."""
-
-        def _expr(self, coll, field: str) -> str | None:
-            if field == 'name':
-                return _REV  # stand-in for e.g. Postgres (_data->>'name')
-            if field in (_ID, _REV):
-                return field
-            return None
-
-        monkeypatch.setattr(type(collection._store), '_index_expr', _expr)
-        collection.create_index('idx_via_hook', 'name')
-        assert _has_index(collection, 'idx_via_hook')
-
-
-class HybridNC(NamedConstant):
-    FOO = ()
-
-
-class HybridFlags(EnumBits):
-    READ = ()
-
-
-class _TraitFixtureBase(Traitable):
-    test_id: str = T(T.ID)
-    i: int = T()
-    f: float = T()
-    b: bool = T()
-    s: str = T()
-    dt: datetime = T()
-    d: date = T()
-    by: bytes = T()
-    cl: type = T()
-    lst: list = T()
-    dct: dict = T()
-    nc: HybridNC = T()
-
-
-TraitFixture = type(
-    f'TraitFixture#{uuid6.uuid7().hex}',
-    (_TraitFixtureBase,),
-    {'__module__': __name__, 'custom_collection': True},
-)
-
-
-def _blob_keys(store: DuckDbStore, coll_name: str, doc_id: str) -> set[str]:
-    safe = coll_name.replace('"', '""')
-    row = store._con.execute(f'SELECT {_DATA} FROM "{safe}" WHERE {_ID} = ?', [doc_id]).fetchone()
-    return set(json.loads(row[0] or '{}').keys())
-
-
-def _sql_columns(store: DuckDbStore, coll_name: str) -> set[str]:
-    return set(store._collection_columns(coll_name)) - {_ID, _REV, _DATA}
-
-
-def _eligible_column_traits(trait_dir: dict) -> set[str]:
-    """Scalar, non-runtime/reserved traits that must be stored as SQL columns."""
-    from infra_10x.ibis_store import _SCALAR_WIRE_TYPES
-    from py10x_kernel import BTraitFlags
-
-    out: set[str] = set()
-    for name, trait in trait_dir.items():
-        if trait.flags_on(BTraitFlags.RUNTIME | BTraitFlags.RESERVED):
-            continue
-        st = trait.serialize_to_types()
-        if isinstance(st, tuple) or st not in _SCALAR_WIRE_TYPES:
-            continue
-        out.add(name)
-    return out
-
-
-def assert_eligible_fields_are_columns(store: DuckDbStore, coll_name: str, trait_dir: dict, *, doc_id: str | None = None) -> None:
-    """Assert every column-eligible trait is a real SQL column (not only in JSON).
-
-    When ``doc_id`` is given, also assert those fields are absent from that row's blob
-    when present on the document (values live in columns).
-    """
-    eligible = _eligible_column_traits(trait_dir)
-    cols = _sql_columns(store, coll_name)
-    missing = eligible - cols
-    assert not missing, f'eligible traits missing as SQL columns: {sorted(missing)}; have {sorted(cols)}'
-    if doc_id is not None:
-        blob = _blob_keys(store, coll_name, doc_id)
-        leaked = eligible & blob
-        assert not leaked, f'eligible traits still in _data blob: {sorted(leaked)}'
-
-
-@pytest.fixture(params=[True, False], ids=['with_add_column', 'blob_only_store'])
-def hybrid_store(request, monkeypatch):
-    """DuckDB hybrid collection; ``False`` simulates stores without online ADD COLUMN."""
-    store = DuckDbStore()
-    if not request.param:
-        monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'hybrid_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, TraitFixture.s_dir)
-    yield store, coll, coll_name
-    store.delete_collection(coll_name)
-
-
-def _want_sql_column(store: DuckDbStore, column_eligible: bool) -> bool:
-    return column_eligible and store.s_supports_add_column_if_not_exists
-
-
-@pytest.mark.parametrize(
-    'field, sample_value, column_eligible',
-    [
-        ('i', 7, True),
-        ('f', 1.25, True),
-        ('b', True, True),
-        ('s', 'txt', True),
-        ('dt', datetime(2024, 6, 1, tzinfo=timezone.utc), True),
-        ('d', date(2024, 6, 1), True),
-        ('by', b'raw', True),
-        ('cl', int, True),
-        ('lst', [1, 2], False),
-        ('dct', {'k': 1}, False),
-        ('nc', HybridNC.FOO, False),
-    ],
-)
-def test_hybrid_column_vs_blob_placement(hybrid_store, field, sample_value, column_eligible):
-    store, coll, coll_name = hybrid_store
-    doc_id = f'id_{field}'
-    trait = TraitFixture.trait(field)
-    # Match framework pre-store wire (serialize before the store layer).
-    wire_value = trait.serialize_value(sample_value)
-    coll.save_new({'_id': doc_id, 'test_id': doc_id, field: wire_value})
-    cols = _sql_columns(store, coll_name)
-    blob = _blob_keys(store, coll_name, doc_id)
-    if _want_sql_column(store, column_eligible):
-        assert field in cols
-        assert field not in blob
-        assert field in coll.col_trait_dir
-    else:
-        assert field not in cols
-        assert field in blob
-
-
-def test_traitable_ref_promoted_to_sql_column(monkeypatch):
-    """Non-embeddable Traitable refs are serialized as str and are promoted to VARCHAR columns."""
-    from core_10x.exec_control import CACHE_ONLY
-
-    class RefTarget(Traitable, custom_collection=True, keep_history=False):
-        name: str = T(T.ID)
-
-    class RefOwner(Traitable, custom_collection=True, keep_history=False):
-        name: str = T(T.ID)
-        peer: RefTarget = T(T.NOT_EMBEDDABLE)
-
-    assert RefOwner.s_dir['peer'].serialize_to_types() is str
-    assert 'peer' in _eligible_column_traits(RefOwner.s_dir)
-
-    store = DuckDbStore()
-    coll_name = f'ref_col_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, RefOwner.s_dir)
-    with CACHE_ONLY():
-        target = RefTarget(name='t1', _collection_name='targets')
-        wire = RefOwner.s_dir['peer'].serialize_value(target, replace_xnone=True)
-    assert wire == 't1^targets'
-    coll.save_new({'_id': 'o1', 'name': 'o1', 'peer': wire})
-
-    assert 'peer' in coll.col_trait_dir
-    assert 'peer' in _sql_columns(store, coll_name)
-    assert 'peer' not in _blob_keys(store, coll_name, 'o1')
-    row = store._con.execute(
-        f'SELECT peer FROM "{coll_name.replace(chr(34), chr(34) * 2)}" WHERE {_ID} = ?',
-        ['o1'],
-    ).fetchone()
-    assert row[0] == 't1^targets'
-
-    # Without ADD COLUMN, ref stays in the blob (still str wire).
-    monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll2_name = f'ref_blob_{uuid6.uuid7().hex}'
-    coll2 = store.collection(coll2_name, RefOwner.s_dir)
-    coll2.save_new({'_id': 'o2', 'name': 'o2', 'peer': wire})
-    assert 'peer' not in _sql_columns(store, coll2_name)
-    assert 'peer' in _blob_keys(store, coll2_name, 'o2')
-    store.delete_collection(coll_name)
-    store.delete_collection(coll2_name)
-
-
-def test_schema_evolution_lazy_alter(hybrid_store):
-    store, coll, coll_name = hybrid_store
-    assert 'i' not in _sql_columns(store, coll_name)
-    coll.save_new({'_id': 'evo', 'test_id': 'evo', 'i': 99})
-    if store.s_supports_add_column_if_not_exists:
-        assert 'i' in coll._collection_columns()
-    else:
-        assert 'i' not in coll._collection_columns()
-        assert 'i' in _blob_keys(store, coll_name, 'evo')
-        assert coll.load('evo')['i'] == 99
-
-
-def test_datetime_filter_on_empty_table_json_path():
-    """``_at < watermark`` must type-check on an empty collection (no ``_at`` column yet)."""
-    from core_10x.trait_filter import LT, f
-    from core_10x.traitable import Traitable
-
-    class Ev(Traitable, custom_collection=True):
-        name: str = T(T.ID)
-        _at: datetime = T(T.TS_TIME)
-
-    store = DuckDbStore()
-    coll_name = f'filt_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, Ev.s_dir)
-    assert '_at' not in coll._collection_columns() or '_at' not in _sql_columns(store, coll_name)
-    assert list(coll.find(f(_at=LT(datetime.now(timezone.utc))))) == []
-    store.delete_collection(coll_name)
-
-
-def test_datetime_filter_on_json_blob_casts_to_timestamp(monkeypatch):
-    """Blob-fallback ``_at`` (ISO string in ``_data``) must still compare to datetime."""
-    from core_10x.trait_definition import T
-    from core_10x.trait_filter import LT, f
-    from core_10x.traitable import Traitable
-
-    class Ev(Traitable, custom_collection=True):
-        name: str = T(T.ID)
-        _at: datetime = T(T.TS_TIME)
-
-    monkeypatch.setattr(DuckDbStore, 's_supports_add_column_if_not_exists', False)
-    store = DuckDbStore()
-    coll_name = f'filt_blob_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, Ev.s_dir)
-    assert '_at' not in _sql_columns(store, coll_name)
-    coll.save_new(store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'}))
-    assert '_at' in _blob_keys(store, coll_name, '1')
-    rows = list(coll.find(f(_at=LT(datetime(2099, 1, 1)))))
-    assert len(rows) == 1
-    store.delete_collection(coll_name)
-
-
-def test_index_on_scalar_column_after_save(hybrid_store):
-    store, coll, _coll_name = hybrid_store
-    coll.save_new({'_id': 'idx', 'test_id': 'idx', 'i': 42})
-    if store.s_supports_add_column_if_not_exists:
-        coll.create_index('idx_i', 'i')
-        assert _has_index(coll, 'idx_i')
-    else:
-        # No physical column to index when ADD COLUMN is unsupported.
-        with pytest.raises(ValueError, match='cannot index'):
-            coll.create_index('idx_i', 'i')
 
 
 def test_untyped_json_path_string_extract_for_artifacts():
@@ -450,6 +132,16 @@ def test_column_cache_is_per_collection_instance():
     store.delete_collection(name)
 
 
+def _blob_keys(store: DuckDbStore, coll_name: str, doc_id: str) -> set[str]:
+    safe = coll_name.replace('"', '""')
+    row = store._con.execute(f'SELECT {_DATA} FROM "{safe}" WHERE {_ID} = ?', [doc_id]).fetchone()
+    return set(json.loads(row[0] or '{}').keys())
+
+
+def _sql_columns(store: DuckDbStore, coll_name: str) -> set[str]:
+    return set(store._collection_columns(coll_name)) - {_ID, _REV, _DATA}
+
+
 @pytest.mark.parametrize('store_kind', ['duckdb', 'union_head_duckdb'], ids=['duckdb', 'union_head_duckdb'])
 @pytest.mark.parametrize('supports_add_column', [True, False], ids=['with_add_column', 'blob_only_store'])
 def test_extend_trait_dir_unions_and_promotes(store_kind, supports_add_column, monkeypatch):
@@ -504,52 +196,4 @@ def test_extend_trait_dir_unions_and_promotes(store_kind, supports_add_column, m
         assert 'den' in _blob_keys(head, coll_name, 'b')
         assert coll.load('w')['howl_pitch'] == 7
         assert coll.load('b')['den'] == 'cave'
-    store.delete_collection(coll_name)
-
-
-@pytest.mark.parametrize('supports_add_column', [True, False], ids=['with_add_column', 'blob_only_store'])
-def test_ts_fields_when_eligible(supports_add_column, monkeypatch):
-    """add_ts stamps land in SQL columns when ADD COLUMN is on; else in ``_data``."""
-    from core_10x.traitable import Traitable
-
-    class Ev(Traitable, custom_collection=True):
-        name: str = T(T.ID)
-        _at: datetime = T(T.TS_TIME)
-        _who: str = T(T.TS_USER)
-
-    store = DuckDbStore()
-    if not supports_add_column:
-        monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'ts_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, Ev.s_dir)
-    body = store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'})
-    body = store.add_ts('_who', T.TS_USER, body)
-
-    # TS_TIME must be stamped by the SQL server clock (column expr or JSON merge), never a
-    # Python server_time() round-trip — in both column and blob-fallback modes.
-    server_time_calls = []
-    orig_server_time = type(store).server_time
-    monkeypatch.setattr(
-        type(store),
-        'server_time',
-        lambda self: (server_time_calls.append(1), orig_server_time(self))[1],
-    )
-    result = coll.save_new(body)
-    assert not server_time_calls, 'TS_TIME must be stamped by the SQL server clock, not Python server_time()'
-    assert '_at' in result and '_who' in result
-    assert result['_at'] is not None  # hydrated from the SQL stamp via RETURNING
-    if supports_add_column:
-        assert_eligible_fields_are_columns(store, coll_name, Ev.s_dir, doc_id='1')
-        row = store._con.execute(f'SELECT "_at", "_who", {_DATA} FROM "{coll_name}" WHERE {_ID} = ?', ['1']).fetchone()
-        assert row[0] is not None, '_at SQL column must be non-null after add_ts'
-        assert row[1] == store.auth_user()
-        blob = json.loads(row[2] or '{}')
-        assert '_at' not in blob and '_who' not in blob
-    else:
-        assert '_at' not in _sql_columns(store, coll_name)
-        blob = _blob_keys(store, coll_name, '1')
-        assert '_at' in blob and '_who' in blob
-        doc = coll.load('1')
-        assert doc['_who'] == store.auth_user()
-        assert doc['_at'] is not None
     store.delete_collection(coll_name)

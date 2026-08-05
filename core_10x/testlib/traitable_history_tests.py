@@ -8,7 +8,7 @@ from datetime import date, datetime, timezone
 import pytest
 import uuid6
 from infra_10x.duckdb_store import DuckDbStore
-from py10x_kernel import BSaveRefs, BTraitableProcessor
+from py10x_kernel import BSaveRefs, BTraitableProcessor, OsUser
 from typing_extensions import Self
 
 from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
@@ -186,6 +186,7 @@ class TestTraitableHistory:
         hist.save().throw()
         # Store-side TS fields hydrated on the client without reload
         who = test_store.auth_user()
+        assert who.lower() in ('test_user', 'postgres', OsUser.me.name().lower())
         assert hist._who == who
         assert hist._at is not None
         assert isinstance(hist._at, datetime)

@@ -45,14 +45,19 @@ If either applies, install one of:
   `need()` preconditions **fail** instead of skipping (`core_10x/testlib/strict.py`).
   - **MongoDB**: passwordless instance on **port 27017** (replica set recommended for transaction
     tests). CI provisions a replica set.
-  - **PostgreSQL**: passwordless trust instance on **port 5432**, database `postgres`, login as
+  - **PostgreSQL**: version **15+** (oldest release with enough runway left in the
+    [community support window](https://www.postgresql.org/support/versioning/); nothing in
+    `PostgresStore` requires anything newer). CI tests exactly this floor
+    (`.github/actions/setup-postgres` defaults to `postgres:15`).
+    Passwordless trust instance on **port 5432**, database `postgres`, login as
     the **OS user** — `postgresql://localhost:5432/postgres` (optional `user@`; libpq defaults to
     the OS user when omitted). Typical local Homebrew installs already use that role; CI Docker
     enables trust auth and creates a SUPERUSER role for `whoami` (see
     `.github/actions/setup-postgres`). CI also starts a **password-auth** companion on
-    **port 5433** (user `postgres`, password `py10x_pg_auth`) for with-auth smoke tests.
-    Locally (Homebrew, no Docker): `uv run --no-sync xx-postgres-local start` (see
-    [`dev_10x/README.md`](dev_10x/README.md)).
+    **port 5433** (user `postgres`, password `py10x_pg_auth` — a throwaway local test fixture,
+    overridable via `XX_PG_PASSWORD_AUTH_PASSWORD`) for with-auth smoke tests.
+    Locally: `uv run --no-sync xx-test-postgres-auth start` (prefers Docker; falls back to
+    Homebrew — see [`dev_10x/README.md`](dev_10x/README.md)).
     Authenticated hosts use the vault (URI `user@` is replaced by the vault login). `TS_USER`
     stamps use the server session user (`current_user`), not a client-side app username.
 

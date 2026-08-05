@@ -324,15 +324,15 @@ class IbisCollection(TsCollection):
                 t = t.filter(pred)
         return t.count().to_polars()
 
-    def max(self, trait_name: str, filter: FilterExpr = None) -> dict:
+    def max(self, trait_name: str, filter: FilterExpr = None) -> dict | None:
         for doc in self.find(filter, _at_most=1, _order={trait_name: -1}):
             return doc
-        return {}
+        return None
 
-    def min(self, trait_name: str, filter: FilterExpr = None) -> dict:
+    def min(self, trait_name: str, filter: FilterExpr = None) -> dict | None:
         for doc in self.find(filter, _at_most=1, _order={trait_name: 1}):
             return doc
-        return {}
+        return None
 
 
 class IbisStore(TsStore):

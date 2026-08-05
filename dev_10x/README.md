@@ -15,15 +15,18 @@ Declared in `[project.scripts]`:
 | `uv-run`             | run a command in the prepared venv without `uv run` re-syncing          |
 | `xx-promote`         | cut release candidates / final releases and yank them                     |
 | `xx-constraints`     | regenerate or verify the committed third-party dependency freeze        |
-| `xx-postgres-local`  | start/stop/status a local **password-auth** Postgres on port 5433 (Homebrew) |
+| `xx-test-postgres-auth` | start/stop/status a local **password-auth** Postgres on port 5433 (Docker, falling back to Homebrew) |
 
 Implementation: `dev_10x/uv_sync.py`, `dev_10x/uv_run.py`, `dev_10x/xx_promote.py`,
 `dev_10x/xx_helpers.py`, `dev_10x/xx_ci.py`, `dev_10x/constraints.py`,
 `dev_10x/postgres_local.py`.
 
-`xx-postgres-local` leaves your Brew trust instance on 5432 alone. It manages a second
-cluster under `~/pgdata-py10x-auth` (user `postgres` / password `py10x_pg_auth`) for
-infra with-auth smoke tests — same contract as CI `.github/actions/setup-postgres`.
+`xx-test-postgres-auth` leaves your trust instance on 5432 alone. It manages a second
+cluster (user `postgres` / password `py10x_pg_auth` by default — a throwaway local test
+fixture, override with `XX_PG_PASSWORD_AUTH_PASSWORD`) for infra with-auth smoke tests —
+same contract as CI `.github/actions/setup-postgres`. Prefers a Docker container
+(`postgres:15`, matching CI) when the Docker daemon is reachable; otherwise falls back to a
+Homebrew-managed cluster under `~/pgdata-py10x-auth`.
 
 ---
 
