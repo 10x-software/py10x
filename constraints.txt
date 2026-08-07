@@ -385,7 +385,7 @@ rich==15.0.0
     #   licensecheck
 rio-ui==0.12.2
     # via py10x-core (pyproject.toml)
-ruff==0.16.1
+ruff==0.16.2
     # via py10x-core (pyproject.toml)
 scikit-build-core==0.12.2
     # via
