@@ -331,6 +331,11 @@ class VersionHelpers:
         return f'=={version}'
 
     @staticmethod
+    def test_group_dep_pin(name: str, version: str) -> str:
+        """Unpublished `dependency-groups.test` pin: `{name}>={version}` (see `test_group_pin`)."""
+        return f'{name}>={version}'
+
+    @staticmethod
     def test_group_pin(core_version: str) -> str:
         """Reverse py10x-core test dependency: `>=` the coordinated core version (dev-only, unpublished).
 
@@ -338,7 +343,7 @@ class VersionHelpers:
         rc sibling tests the prerelease line), `>=T` admits only finals (a final tests the released
         line). Uncapped but self-correcting via the forward `==` (`dev_10x/README.md`, Pin model).
         """
-        return f'py10x-core>={core_version}'
+        return VersionHelpers.test_group_dep_pin('py10x-core', core_version)
 
 
 class GitHelpers:
@@ -626,20 +631,31 @@ class PyProjectHelpers:
         return changes
 
     @classmethod
-    def write_test_group(cls, path: Path, core_pin: str) -> str:
-        """Set/refresh `[dependency-groups] test = [<core_pin>]`. Returns a description of the change."""
+    def write_test_group(cls, path: Path, pins: str | list[str]) -> str:
+        """Merge `pins` into `[dependency-groups] test` by requirement name; rewrite the group.
 
+        Accepts a single pin string (sibling → core) or a list (core → downstreams). Existing test
+        entries for other distribution names are preserved.
+        """
+        from packaging.requirements import Requirement
+
+        pin_list = [pins] if isinstance(pins, str) else list(pins)
         doc = cls._load(path)
         groups = doc.get('dependency-groups')
         if groups is None:
             groups = tomlkit.table()
             doc['dependency-groups'] = groups
         old = list(groups.get('test', []))
+        by_name = {Requirement(p).name: p for p in old}
+        for p in pin_list:
+            by_name[Requirement(p).name] = p
+        new = list(by_name.values())
         arr = tomlkit.array()
-        arr.append(core_pin)
+        for p in new:
+            arr.append(p)
         groups['test'] = arr
         cls._dump(path, doc)
-        return f'{old} -> [{core_pin!r}]'
+        return f'{old} -> {new!r}'
 
 
 class InstalledSourceHelpers:

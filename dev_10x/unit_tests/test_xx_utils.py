@@ -142,14 +142,28 @@ def test_diff_pathspecs():
     # a sibling: the whole repo with the *other* package subtrees excluded (shared files still count)
     assert GitHelpers.diff_pathspecs('infra_10x') == ('.', ':(exclude)infra_10x')
     assert GitHelpers.diff_pathspecs('core_10x', 'infra_10x') == ('.', ':(exclude)core_10x', ':(exclude)infra_10x')
+    # Nested same-repo downstream (xx_fin): exclude its subtree from core's footprint.
+    assert GitHelpers.diff_pathspecs('xx_fin') == ('.', ':(exclude)xx_fin')
+
+
+def test_footprint_skips_dot_as_exclude():
+    """Core's src_dir is `.`; excluding it would zero every nested package's footprint.
+
+    `PkgInput.footprint_changed_get` filters `sub != '.'` before calling `diff_pathspecs`.
+    """
+    other_subdirs = [s for s in ('.', 'xx_fin') if s != '.']
+    specs = GitHelpers.diff_pathspecs(*other_subdirs)
+    assert specs == ('.', ':(exclude)xx_fin')
+    assert ':(exclude).' not in specs
 
 
 def test_tree_changed_since_tag(tmp_path):
     repo = tmp_path / 'repo'
-    for d in ('pkg', 'sib', '.github/actions'):
+    for d in ('pkg', 'sib', 'xx_fin', '.github/actions'):
         (repo / d).mkdir(parents=True)
     (repo / 'pkg' / 'a.txt').write_text('v1\n', encoding='utf-8')  # this package's subtree
     (repo / 'sib' / 'b.txt').write_text('v1\n', encoding='utf-8')  # a sibling package's subtree
+    (repo / 'xx_fin' / 'c.txt').write_text('v1\n', encoding='utf-8')  # nested downstream subtree
     (repo / '.github' / 'actions' / 'build.yml').write_text('v1\n', encoding='utf-8')  # shared CI
     (repo / 'CMakeLists.txt').write_text('v1\n', encoding='utf-8')  # shared root build config
     GitHelpers.git(repo, 'init')
@@ -159,7 +173,8 @@ def test_tree_changed_since_tag(tmp_path):
     GitHelpers.git(repo, 'commit', '-m', 'init')
     GitHelpers.git(repo, 'tag', 'base')
 
-    fp = GitHelpers.diff_pathspecs('sib')  # footprint of `pkg`: whole repo minus sibling `sib`
+    # Core-like footprint: whole repo minus sibling + nested downstream (never exclude `.`).
+    fp = GitHelpers.diff_pathspecs('sib', 'xx_fin')
     assert not GitHelpers.tree_changed_since_tag(repo, 'base', *fp)  # no change yet
 
     def footprint_trips(path: str) -> bool:
@@ -171,9 +186,17 @@ def test_tree_changed_since_tag(tmp_path):
         return tripped
 
     assert footprint_trips('sib/b.txt') is False  # a sibling's subtree -> excluded
+    assert footprint_trips('xx_fin/c.txt') is False  # nested downstream -> excluded from core
     assert footprint_trips('pkg/a.txt') is True  # own subtree -> trips
     assert footprint_trips('.github/actions/build.yml') is True  # shared CI -> trips
     assert footprint_trips('CMakeLists.txt') is True  # shared root build config -> trips
+
+    # Downstream footprint must not treat core's `.` as an exclude (would match everything).
+    ds_fp = GitHelpers.diff_pathspecs()  # no excludes after filtering out `.`
+    (repo / 'xx_fin' / 'c.txt').write_text('v3\n', encoding='utf-8')
+    GitHelpers.git(repo, 'add', '.')
+    GitHelpers.git(repo, 'commit', '-qm', 'downstream-only')
+    assert GitHelpers.tree_changed_since_tag(repo, 'base', *ds_fp) is True
 
 
 def test_latest_matching_tag_dev_pin_picks_latest_rc():
@@ -340,6 +363,18 @@ def test_write_test_group_creates_and_refreshes(tmp_path):
     PyProjectHelpers.write_test_group(p, 'py10x-core==0.2.4')
     doc = tomlkit.parse(p.read_text())
     assert list(doc['dependency-groups']['test']) == ['py10x-core==0.2.4']
+
+
+def test_write_test_group_merges_list_by_name(tmp_path):
+    """Core → multiple downstream test pins merge by requirement name."""
+    p = tmp_path / 'pyproject.toml'
+    p.write_text(
+        '[project]\nname = "py10x-core"\n\n[dependency-groups]\ntest = ["py10x-fin-base>=0.1.0"]\n',
+        encoding='utf-8',
+    )
+    PyProjectHelpers.write_test_group(p, ['py10x-fin-base>=0.1.1rc1', 'py10x-other>=1.0'])
+    doc = tomlkit.parse(p.read_text())
+    assert set(doc['dependency-groups']['test']) == {'py10x-fin-base>=0.1.1rc1', 'py10x-other>=1.0'}
 
 
 # ------------------------------------------------------------- PEP 440 / resolver assumption guards

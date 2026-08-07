@@ -122,10 +122,11 @@ When adding new functionality, agents should **add or update tests** in the appr
 Rules agents must **not** violate:
 
 - **Third-party deps:** never `==`-pin `[project.dependencies]` in published metadata — use ranges + [`constraints.txt`](dev_10x/README.md#constraintstxt--reproducibility). First-party siblings are `==`-pinned on `pre`/`prod` only — see [Pin model](dev_10x/README.md#pin-model-three-places).
+- **Downstream ≠ sibling:** packages in `[tool.dev_10x.downstream]` depend on core; core does **not** publish a pin to them (unpublished `dependency-groups.test` only). Do not treat `not is_core` as sibling — see [dev_10x/README.md](dev_10x/README.md#the-packages-siblings-core-downstreams).
 - **`xx_ci.py` kernel-free** — no `core_10x` imports before siblings install.
-- **`uv-sync` pip-install based** — no transient `[tool.uv.sources]` edits to `pyproject.toml`.
+- **`uv-sync` pip-install based** — no transient `[tool.uv.sources]` edits to `pyproject.toml`. Downstream install is opt-in (`--with-downstream`); default sync is siblings + core only.
 - **`-c constraints.txt`** on every pip install; run `xx-constraints compile` after dep changes.
-- **Sibling paths** in `[tool.dev_10x.siblings]` only — keep `uv_sync.py`, `xx_promote.py`, `constraints.py` in sync.
+- **Sibling / downstream paths** in `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]` only — keep `uv_sync.py`, `xx_promote.py`, `constraints.py` in sync.
 - **Version ordering:** `packaging.version.Version` (`max`), never `git --sort=-v:refname` / `sort -V`.
 - **`xx-promote` sync + recovery:** start/finish with local == `origin`; atomic `git push --atomic` per repo; isolated publish-trigger pushes — see [xx-promote](dev_10x/README.md#xx-promote--release-promotion). Recovery: `resync` + idempotent re-run, not in-place reconcile.
 - **Publish triggers only** on `pre/`/`prod/` tags — not version tags or `.dev` markers on `main` — see [CI release gates](dev_10x/README.md#ci-release-gates).

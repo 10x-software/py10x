@@ -78,7 +78,7 @@ def clear_traitable_store_state() -> None:
 def drop_new_instance_attrs(inst: object, keys_before: set[str]) -> None:
     """Remove instance attributes added after ``keys_before`` was snapshotted.
 
-    Used so ``unittest.TestCase.setUp`` storage on ``self`` (Traitables, lists of
+    Used so any test class's storage on ``self`` (Traitables, lists of
     them, etc.) does not keep objects alive through isolation's leftover check.
     Safe no-op if ``inst`` is gone or keys were already deleted in ``tearDown``.
     """

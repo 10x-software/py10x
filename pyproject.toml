@@ -14,7 +14,7 @@ dependencies = [
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
-    "cryptography>=45.0.7,<49.1.0",
+    "cryptography>=45.0.7,<50.1.0",
     "pymongo (>=4.7.3)",
     "typing-extensions>=4.15.0",
     "scipy>=1.15.3",
@@ -50,7 +50,7 @@ dev = [
     "hatchling>=1.27.0",
     "hatch-build-scripts>=1.0.0",
     "licensecheck>=2025.1.0",
-    "playwright>=1.55,<1.57",
+    "playwright>=1.55,<1.62",
     #"pre-commit>=3.1,<5.0",
     "pytest>=8.3.4,<10.0",
     "pytest-cov>=6.0,<8.0",
@@ -59,7 +59,7 @@ dev = [
     "setuptools-scm>=9.2.2",
     "tomlkit>=0.13.0",
     "packaging>=24.0", # version/specifier logic for xx-promote
-    "uv>=0.11.20,<0.12",
+    "uv>=0.11.20,<0.13",
     "ibis-framework[duckdb]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
     "scikit-build-core>=0.12.2", # C++ build backend (incremental, no-isolation)
@@ -106,7 +106,7 @@ xx-user-status                  = "core_10x.apps.user_status:main"
 xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
 
 [build-system]
-requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright>=1.55,<1.57"]
+requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright>=1.55,<1.62"]
 build-backend = "hatchling.build"
 
 [tool.dev_10x.siblings]

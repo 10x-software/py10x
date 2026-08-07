@@ -91,9 +91,8 @@ def test_isolation(request):
     global BTP
     assert BTP is BTraitableProcessor.current()
 
-    # unittest.TestCase: fixture wraps setUp/test/tearDown. Snapshot instance keys
-    # *before* setUp so we can drop attrs stored on self (same idea as tracking
-    # orig_dict_keys in setUp/tearDown) before the leftover assert.
+    # Snapshot test instance keys *before* setUp so we can drop attrs stored on self
+    # during tearDown
     inst = getattr(request, 'instance', None)
     keys_before = set(vars(inst)) if inst is not None else None
 

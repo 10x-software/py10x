@@ -1,0 +1,115 @@
+# Trusted automatic PR opener for permanent developer sandbox branches.
+# Triggered only after the unprivileged "Sandbox Push" workflow completes.
+# Always uses the workflow definition from the default branch — never runs
+# sandbox-controlled YAML with App credentials.
+name: Sandbox Auto PR
+
+on:
+  workflow_run:
+    workflows:
+      - Sandbox Push
+    types:
+      - completed
+
+# Serialize per sandbox branch so two rapid pushes cannot open duplicate PRs.
+concurrency:
+  group: sandbox-auto-pr-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  open-pr:
+    name: Open PR if needed
+    runs-on: ubuntu-latest
+    # Defense in depth: only act on a successful same-repo sandbox push signal.
+    if: >-
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'push'
+      && startsWith(github.event.workflow_run.head_branch, 'sandbox/')
+      && github.event.workflow_run.repository.id == github.repository_id
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.SANDBOX_AUTOMATION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.SANDBOX_AUTOMATION_APP_PRIVATE_KEY }}
+          # Scope the installation token to this repository only.
+          repositories: ${{ github.event.repository.name }}
+          # Least privilege for this job: read trees, open/list PRs. No Contents write.
+          permission-contents: read
+          permission-pull-requests: write
+
+      # Checkout main only. Never check out the sandbox branch as a working tree
+      # and never execute code from it.
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 1
+          # Persist the App token so the next step can `git fetch` the sandbox tip
+          # without checking it out. Token is contents:read only.
+          persist-credentials: true
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Evaluate diff and open PR if needed
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Re-validate the branch name in shell (job `if` is not the only gate).
+          case "$HEAD_BRANCH" in
+            sandbox/*) ;;
+            *)
+              echo "Refusing unexpected head branch: ${HEAD_BRANCH}"
+              exit 1
+              ;;
+          esac
+
+          # Fetch the sandbox tip without checking it out or executing it.
+          git fetch --no-tags --depth=1 origin \
+            "refs/heads/${HEAD_BRANCH}:refs/remotes/origin/${HEAD_BRANCH}"
+
+          # Two-dot tree diff against the main tip we checked out above. Ignores
+          # divergent history when the file trees match (e.g. after a
+          # merge-commit sync pull from main).
+          if git diff --quiet HEAD "origin/${HEAD_BRANCH}"; then
+            echo "No file/content differences between main and ${HEAD_BRANCH}; nothing to propose."
+            exit 0
+          fi
+
+          echo "Content differs from main; checking for an existing open PR..."
+
+          existing_url="$(
+            gh pr list \
+              --repo "$REPO" \
+              --base main \
+              --head "$HEAD_BRANCH" \
+              --state open \
+              --json number,url \
+              --jq 'if length > 0 then .[0] | "\(.number) \(.url)" else empty end'
+          )"
+
+          if [ -n "$existing_url" ]; then
+            echo "Open PR already exists for ${HEAD_BRANCH} -> main: ${existing_url}"
+            exit 0
+          fi
+
+          title="Merge ${HEAD_BRANCH} into main"
+          body="Automatically created for changes pushed to \`${HEAD_BRANCH}\`."
+
+          url="$(
+            gh pr create \
+              --repo "$REPO" \
+              --base main \
+              --head "$HEAD_BRANCH" \
+              --title "$title" \
+              --body "$body"
+          )"
+
+          echo "Created PR: ${url}"

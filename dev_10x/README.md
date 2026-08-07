@@ -54,24 +54,36 @@ default. On Postgres it only considers tables carrying the collection layout (`_
 
 ---
 
-## The three packages
+## The packages (siblings, core, downstreams)
 
-They version **independently** and live in two git repos:
+They version **independently**. Core and its C++ siblings live in two git repos today; optional
+**downstreams** (packages that depend on core; core does **not** publish a pin to them) are declared
+separately and may live in-tree (e.g. a future `./xx_fin`).
 
-| package        | repo / path                | tag prefix         | tags                         |
-|----------------|----------------------------|--------------------|------------------------------|
-| `py10x-core`   | `py10x` (this repo)        | `v`                | finals/rc on `pre`/`prod`; `{T}rc(N+1).dev` on `main` after `pre`; `{next_micro(T)}rc0.dev` after `prod` |
-| `py10x-kernel` | `cxx10x` / `core_10x`      | `py10x-kernel-v`   | same pattern |
-| `py10x-infra`  | `cxx10x` / `infra_10x`     | `py10x-infra-v`    | same pattern |
+| role | package | repo / path | tag prefix | published pins |
+|------|---------|-------------|------------|----------------|
+| core | `py10x-core` | `py10x` (this repo) | `v` | `==` / windows onto **siblings only** |
+| sibling | `py10x-kernel` | `cxx10x` / `core_10x` | `py10x-kernel-v` | none (test-group → core) |
+| sibling | `py10x-infra` | `cxx10x` / `infra_10x` | `py10x-infra-v` | none (test-group → core) |
+| downstream | e.g. `py10x-fin-base` | `[tool.dev_10x.downstream]` (empty until registered) | `{name}-v` | `==` / windows onto **core** |
 
-py10x-core depends on the other two (forward). For testing, kernel/infra carry a *dev-only*
+py10x-core depends on the siblings (forward). For testing, kernel/infra carry a *dev-only*
 reverse dependency on py10x-core via a PEP 735 **`[dependency-groups]` `test`** group — which is
-**not** published in wheel metadata, so the dependency cycle never reaches consumers.
+**not** published in wheel metadata, so the dependency cycle never reaches consumers. Symmetrically,
+core may track downstreams in its unpublished `test` group (`py10x-fin-base>=…`) so an opt-in job can
+install fin-base and run **its** suite against that core — without making fin-base importable in the
+default core CI job (`--all-extras` does **not** pull `dependency-groups.test`).
 
-Sibling layout is declared once in `pyproject.toml` `[tool.dev_10x.siblings]` (path per sibling);
-`dev_10x/xx_promote.py:packages()` and `dev_10x/uv_sync.py:packages()` both read it. Git URLs are
-derived from `origin` (not hardcoded). Tag prefix defaults to `{name}-v`; repo root via
-`git rev-parse --show-toplevel`.
+| Role | Re-cut when | Yank side effects |
+|------|-------------|-------------------|
+| sibling | own footprint | refresh that sibling’s pin on **core** main |
+| core | own footprint **or sibling** pin lag | refresh sibling pins on core **and** each downstream’s published `py10x-core` pin (+ core test-group) |
+| downstream | own footprint **or core** pin lag | branch/tags + refresh **core’s test-group** pin; do **not** edit published core deps |
+
+Layout: `[tool.dev_10x.siblings]` and optional `[tool.dev_10x.downstream]` (same `{name = {path=…}}`
+shape). `xx_promote` / `uv_sync` / `constraints` all read both. Downstream install is **opt-in**:
+`uv-sync <profile> --with-downstream [name…]` (`cxx=False`; not on the C++ rebuild path). Git URLs
+are derived from `origin`. Tag prefix defaults to `{name}-v`.
 
 ### setuptools-scm / hatch-vcs gotchas
 
@@ -125,10 +137,12 @@ For a sibling at coordinated rc `rcN` or released final `T`:
   coordination guarantee — an rc/final wheel drags in exactly the coordinated siblings. `==<pre>`
   auto-enables prereleases on its own; `==<final>` admits only that final, **not** its rc and **not**
   its `.postN` (stricter than the old `>=T,<N`, by design — see *Conscious tradeoffs* in the design note).
-- **reverse `test` group (sibling → core, dev-only / unpublished):** `py10x-core>=<coordinated core>`.
-  `>=` not `==`: the prerelease token falls out for free — `>=Trc` admits core prereleases (an rc
-  sibling tests the prerelease line), `>=T` admits only finals. Uncapped but self-correcting via the
-  forward `==`.
+  Core never publishes a pin to downstreams.
+- **downstream → core (published):** same `==` / window shapes as core→sibling, written onto the
+  downstream’s `[project.dependencies]`.
+- **reverse `test` group (sibling → core, and core → downstreams; unpublished):**
+  `py10x-core>=<coordinated core>` on siblings; `py10x-fin-base>=…` (etc.) on core. `>=` not `==`:
+  the prerelease token falls out for free. Uncapped but self-correcting via the forward `==`.
 
 > Why not one pin for everything? Whether uv auto-enables pre-releases is decided by the literal
 > tokens in the specifier, so "dev-by-default but rc-when-released" cannot be a single static
@@ -272,11 +286,15 @@ uv run --no-sync pytest -q
 # local C++ sibling checkout at ../cxx10x
 uv run --no-sync python -m dev_10x.uv_sync py10x-core-dev --all-extras
 uv run --no-sync pytest -q
+
+# opt-in downstreams from [tool.dev_10x.downstream] (omitted by default; cxx=False)
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --with-downstream
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --with-downstream py10x-fin-base
 ```
 
 ### Install order
 
-1. **Siblings** (local or git) — install only when [reinstall rules](#reinstall-rules) say so.
+1. **Siblings** (+ opt-in downstreams) (local or git) — install only when [reinstall rules](#reinstall-rules) say so.
    For **local** siblings, `uv pip install -e <path> "<name> (<pin from pyproject>)"` on one command
    so a lagged editable below the rc-window floor fails resolve instead of silently pulling the index.
    Index siblings are resolved in step 2; `--reinstall-package` forces a swap if currently editable/git.
@@ -351,8 +369,9 @@ xx-constraints compile --upgrade    # bump all pins to latest within ranges
 xx-constraints check                # assert the active env is fully frozen
 ```
 
-- **`compile`** runs `uv pip compile` over **all three** pyprojects (py10x + both siblings, paths
-  from `[tool.dev_10x.siblings]`) with `--universal --all-extras --no-emit-package` for each sibling.
+- **`compile`** runs `uv pip compile` over core + sibling (+ configured downstream) pyprojects
+  (paths from `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]`) with `--universal --all-extras`
+  and `--no-emit-package` for each first-party name.
   Needs the `../cxx10x` checkout (`py10x-core-dev` mode). First-party packages are never pinned in the
   output (derived via `_first_party`: root `[project].name` + siblings + any `[tool.uv.workspace]`
   members — not a hardcoded list).
@@ -396,10 +415,11 @@ dependabot keeps pins fresh — orthogonal to reproducibility (update vs freeze)
 So `main` never auto-changes, the proposed freeze is green-by-construction, and a **red run is the
 alert** that an upstream release broke us (do not merge — investigate the pin). Notes:
 
-- A PR opened with the default `GITHUB_TOKEN` does **not** trigger `ci.yml` (GitHub blocks
-  recursive workflow runs). Set repo secret **`CONSTRAINTS_PR_TOKEN`** (PAT/App token with
-  Contents + PRs write) to also get the PR's own CI run; the workflow falls back to `GITHUB_TOKEN`
-  when absent (the in-run suite is still the gate).
+- The workflow mints a short-lived GitHub App installation token via
+  `actions/create-github-app-token@v3` (repo variable **`REFRESH_CONSTRAINTS_APP_CLIENT_ID`**, repo
+  secret **`REFRESH_CONSTRAINTS_APP_PRIVATE_KEY`**; Contents + Pull requests + Issues write) so the
+  opened PR is authored by the App and still gets its own CI run. The in-run suite remains the
+  gate before the PR is opened.
 - Failure notifications follow GitHub's default scheduled-workflow rules (the cron's last editor);
   add an explicit Slack/issue step for team-wide alerting.
 
@@ -426,6 +446,19 @@ On **`pre/v*`** / **`prod/v*`** publish-trigger tag push:
 - Install **kernel/infra editable first, then core** (core's pins admit them).
 - Verify `py10x-core==CORE_VER` and both siblings are **editable** (PEP 610) else fail.
 - Run py10x-core's full suite (replica-set tests auto-skip; no Mongo in cxx10x CI).
+
+### Downstream validation (after `xx_fin/` relocate — PR1)
+
+Mirror the cxx10x pattern with the inverse: sibling test-group → run **core** suite; core test-group →
+run **fin-base** suite. Keep these as **separate** jobs:
+
+| Job | Env | Runs | Purpose |
+|-----|-----|------|---------|
+| **Core (isolation)** | siblings + core; **no** fin-base / no `dependency-groups.test` | core / ui / infra / dev / xxcommon | Keep `xxfin` unimportable |
+| **Downstream validation** | core + install fin-base via core’s test-group pin (or `uv-sync … --with-downstream`) | `xx_fin/` / fin-base tests | Use fin-base suite to validate coordinated core |
+
+Do not fold fin-base into the default isolation job — same split as “core suite on cxx10x” vs
+“core suite without accidental fin-base.”
 
 ### CI gotchas
 

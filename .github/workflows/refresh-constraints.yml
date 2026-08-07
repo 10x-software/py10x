@@ -16,8 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   refresh:
@@ -27,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -104,15 +105,30 @@ jobs:
           source .venv/bin/activate
           pytest
 
-      # Reaching here means the suite passed against the fresh pins. Default
-      # GITHUB_TOKEN-created PRs do NOT trigger ci.yml (GitHub blocks recursive
-      # workflow runs); provide CONSTRAINTS_PR_TOKEN (PAT/App token) to also get
-      # the PR's own CI run. Falls back to GITHUB_TOKEN otherwise.
+      # Reaching here means the suite passed against the fresh pins. PRs opened
+      # with GITHUB_TOKEN do NOT trigger ci.yml (GitHub blocks recursive workflow
+      # runs); the App installation token below is required so the PR gets its
+      # own CI run. Authored as the App bot, not a personal account.
+      - name: Create GitHub App token
+        if: steps.diff.outputs.changed == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.REFRESH_CONSTRAINTS_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REFRESH_CONSTRAINTS_APP_PRIVATE_KEY }}
+          # Scope the installation token to this repository only.
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-pull-requests: write
+          # Labels are applied via the Issues API; needed so create-pull-request
+          # can set `dependencies` / `automated` (and create them if missing).
+          permission-issues: write
+
       - name: Open PR with the tested freeze
         if: steps.diff.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
-          token: ${{ secrets.CONSTRAINTS_PR_TOKEN || github.token }}
+          token: ${{ steps.app-token.outputs.token }}
           add-paths: constraints.txt
           branch: chore/refresh-constraints
           delete-branch: true
