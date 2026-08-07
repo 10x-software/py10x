@@ -75,17 +75,17 @@ class TENOR_PARAMS(NamedConstant):
     MIN_FREQUENCY   = ()
 
 FREQUENCY_TABLE = NamedConstantTable(TENOR_FREQUENCY, TENOR_PARAMS,
-    #              CHAR         RDATE_FUNC                                                        CONVERSIONS                                         MIN_FREQUENCY
-    BIZDAY      = ('B',         None,                                                             None,                                               None),
-    CALDAY      = ('C',         lambda d, n: d + delta(days    = n),                    dict(C = 1,     W = 1/7),                           TENOR_FREQUENCY.CALDAY),
-    WEEK        = ('W',         lambda d, n: d + delta(weeks   = n),                    dict(C = 7,     W = 1),                             TENOR_FREQUENCY.CALDAY),
-    MONTH       = ('M',         lambda d, n: d + delta(months  = n),                    dict(M = 1,     Q = 1/3,    S = 1/6,    Y = 1/12),  TENOR_FREQUENCY.MONTH),
-    QUARTER     = ('Q',         lambda d, n: d + delta(months  = n * 3),       dict(M = 3,     Q = 1,      S = 0.5,    Y = 0.25),  TENOR_FREQUENCY.MONTH),
-    HALF_YEAR   = ('S',         lambda d, n: d + delta(months  = n * 6),       dict(M = 6,     Q = 2,      S = 1,      Y = 0.5),   TENOR_FREQUENCY.MONTH),
-    YEAR        = ('Y',         lambda d, n: d + delta(years   = n),                    dict(M = 12,    Q = 4,      S = 2,      Y = 1),     TENOR_FREQUENCY.MONTH),
-    ## Start/End of month
-    SOM         = ('SOM',       lambda d, n: date(d.year, d.month, 1) + delta(months = n),                               None,       None),
-    EOM         = ('EOM',       lambda d, n: date(d.year, d.month, 1) + delta(months = n+1) + delta(days = -1), None,       None),
+    #              CHAR         RDATE_FUNC                                  CONVERSIONS                                         MIN_FREQUENCY
+    BIZDAY      = ('B',         None,                                       None,                                               None),
+    CALDAY      = ('C',         lambda d, n: d + delta(days    = n),        dict(C = 1,     W = 1/7),                           TENOR_FREQUENCY.CALDAY),
+    WEEK        = ('W',         lambda d, n: d + delta(weeks   = n),        dict(C = 7,     W = 1),                             TENOR_FREQUENCY.CALDAY),
+    MONTH       = ('M',         lambda d, n: d + delta(months  = n),        dict(M = 1,     Q = 1/3,    S = 1/6,    Y = 1/12),  TENOR_FREQUENCY.MONTH),
+    QUARTER     = ('Q',         lambda d, n: d + delta(months  = n * 3),    dict(M = 3,     Q = 1,      S = 0.5,    Y = 0.25),  TENOR_FREQUENCY.MONTH),
+    HALF_YEAR   = ('S',         lambda d, n: d + delta(months  = n * 6),    dict(M = 6,     Q = 2,      S = 1,      Y = 0.5),   TENOR_FREQUENCY.MONTH),
+    YEAR        = ('Y',         lambda d, n: d + delta(years   = n),        dict(M = 12,    Q = 4,      S = 2,      Y = 1),     TENOR_FREQUENCY.MONTH),
+
+    SOM         = ('SOM',       lambda d, n: date(d.year, d.month, 1) + delta(months = n),                          None,       None),
+    EOM         = ('EOM',       lambda d, n: date(d.year, d.month, 1) + delta(months = n+1) + delta(days = -1),     None,       None),
 
     #IMM_QUARTER = ( 'IMM',      lambda d, n: IMMQuarter.which( d ).ith( n ).last(), None,                                               None ),
 )
