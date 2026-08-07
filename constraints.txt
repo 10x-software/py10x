@@ -74,7 +74,7 @@ coverage==7.15.2
     # via pytest-cov
 crawlerdetect==0.3.2
     # via rio-ui
-cryptography==49.0.0
+cryptography==50.0.0
     # via
     #   py10x-core (pyproject.toml)
     #   secretstorage
