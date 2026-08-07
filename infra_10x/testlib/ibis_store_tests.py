@@ -29,7 +29,7 @@ from infra_10x.ibis_store import _DATA, _ID, _REV, _SCALAR_WIRE_TYPES, IbisColle
 from infra_10x.postgres_store import PostgresStore
 
 
-@pytest.fixture(params=[sid for sid in test_databases.ALL_STORE_PROTOCOLS if issubclass(TS_STORE_TYPE.ts_store_class(sid), IbisStore)])
+@pytest.fixture(params=[protocol for protocol in TS_STORE_TYPE.all_names() if issubclass(TS_STORE_TYPE.ts_store_class(protocol), IbisStore)])
 def ibis_store(request, live_store) -> IbisStore:
     """One store per ibis dialect (from the registry); a backend that is down skips."""
     need(store := live_store(store_protocol := request.param), f'{store_protocol} running (ibis store tests)')

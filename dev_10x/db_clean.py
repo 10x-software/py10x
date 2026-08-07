@@ -17,10 +17,11 @@ too, so do not ``drop`` while tests are in flight elsewhere.
 from __future__ import annotations
 
 from core_10x.rc import RC, RC_TRUE
-from core_10x.testlib.test_databases import ALL_STORE_PROTOCOLS, TEST_DB_PREFIX, test_uri
+from core_10x.testlib.test_databases import TEST_DB_PREFIX, test_uri
 from core_10x.trait_definition import RT
 from core_10x.traitable_cli import TraitableCli
 from core_10x.ts_store import TsStore
+from core_10x.ts_store_type import TS_STORE_TYPE
 
 # Before per-session databases, tests wrote into these fixed Mongo databases and into the
 # Postgres server default. Only `legacy` looks at them.
@@ -40,7 +41,7 @@ class TestDbCleanCli(TraitableCli):
     def _found(self) -> list[tuple[TsStore, list[str]]]:
         """``(server_store, names)`` per reachable server; an unreachable one is reported, not fatal."""
         out = []
-        for store_protocol in ALL_STORE_PROTOCOLS:
+        for store_protocol in TS_STORE_TYPE.all_names():
             server_uri = test_uri(store_protocol, session_db='')
             try:
                 store = TsStore.instance_from_uri(server_uri)

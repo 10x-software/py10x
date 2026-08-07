@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 import pytest
 import uuid6
 
+from core_10x.resource import Resource
 from core_10x.ts_store import TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
 
@@ -56,9 +57,6 @@ def test_uri(store_protocol: str, session_db: str = SESSION_DB) -> str:
     return f'{store_protocol.lower()}://localhost/{session_db}'
 
 
-ALL_STORE_PROTOCOLS = [store_type.lower() for store_type in TS_STORE_TYPE.all_names()]
-
-
 @pytest.fixture(scope='session')
 def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
     """``(protocol[, custom_db]) -> store``, or ``None`` when that backend is not running.
@@ -69,8 +67,8 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
     """
     from core_10x.ts_store import TsStore
 
-    stores: dict[str, TsStore | None] = {}
-    created: list[tuple[str, str]] = []
+    stores = {}
+    created = set()
 
     def test_store(store_protocol: str, custom_db: str = '') -> TsStore | None:
         dbname = custom_db or SESSION_DB
@@ -79,13 +77,13 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
                 stores[uri] = None
             else:
                 stores[uri] = TsStore.instance_from_uri(uri, _cache=False, _create_if_needed=True)
-                created.append((store_protocol, dbname))
+                created.add((Resource.uri_no_dbname(uri), dbname))
         return stores[uri]
 
     yield test_store
 
-    for store_protocol, dbname in created:
+    for uri, dbname in iter(created):
         if dbname == SESSION_DB and SESSION_DB_IS_PINNED:
             continue
         # From a store on the server default: a store cannot drop the database it is on.
-        TsStore.instance_from_uri(test_uri(store_protocol, session_db=''), _cache=False).delete_database(dbname)
+        TsStore.instance_from_uri(uri, _cache=False).delete_database(dbname)

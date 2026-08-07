@@ -27,6 +27,7 @@ from core_10x.trait_filter import (
 )
 from core_10x.traitable import Traitable, XNone
 from core_10x.ts_store import TsStore
+from core_10x.ts_store_type import TS_STORE_TYPE
 
 
 class Person(Traitable):
@@ -343,7 +344,7 @@ class TestCompoundFilters:
         yield
         TsStore.s_instances.clear()
 
-    @pytest.fixture(params=test_databases.ALL_STORE_PROTOCOLS)
+    @pytest.fixture(params=TS_STORE_TYPE.all_names())
     def prepared(self, request, live_store):
         need(
             store := live_store(store_protocol := request.param),
