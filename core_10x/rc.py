@@ -98,6 +98,9 @@ class RC:
     def __ilshift__(self, err):
         return self.add_error(err)
 
+    def __eq__(self, other):
+        return self.rc == other.rc and self.payload == other.payload
+
     def unwrap(self) -> tuple:  # -- ( rc, payload)
         return (self.rc, self.payload)
 
