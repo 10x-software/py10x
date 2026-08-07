@@ -1,0 +1,20 @@
+# Unprivileged signal only. Runs from the pushed sandbox commit's workflow file,
+# so it must never hold secrets, write permissions, or execute developer code.
+# The trusted "Sandbox Auto PR" workflow on the default branch observes this run.
+name: Sandbox Push
+
+on:
+  push:
+    branches:
+      - "sandbox/**"
+
+permissions:
+  contents: read
+
+jobs:
+  signal:
+    name: Signal sandbox push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Acknowledge sandbox push
+        run: echo "Sandbox push observed; trusted workflow will evaluate whether a PR is needed."
