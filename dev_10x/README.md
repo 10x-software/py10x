@@ -363,10 +363,11 @@ dependabot keeps pins fresh — orthogonal to reproducibility (update vs freeze)
 So `main` never auto-changes, the proposed freeze is green-by-construction, and a **red run is the
 alert** that an upstream release broke us (do not merge — investigate the pin). Notes:
 
-- A PR opened with the default `GITHUB_TOKEN` does **not** trigger `ci.yml` (GitHub blocks
-  recursive workflow runs). Set repo secret **`CONSTRAINTS_PR_TOKEN`** (PAT/App token with
-  Contents + PRs write) to also get the PR's own CI run; the workflow falls back to `GITHUB_TOKEN`
-  when absent (the in-run suite is still the gate).
+- The workflow mints a short-lived GitHub App installation token via
+  `actions/create-github-app-token@v3` (repo variable **`REFRESH_CONSTRAINTS_APP_CLIENT_ID`**, repo
+  secret **`REFRESH_CONSTRAINTS_APP_PRIVATE_KEY`**; Contents + Pull requests + Issues write) so the
+  opened PR is authored by the App and still gets its own CI run. The in-run suite remains the
+  gate before the PR is opened.
 - Failure notifications follow GitHub's default scheduled-workflow rules (the cron's last editor);
   add an explicit Slack/issue step for team-wide alerting.
 
