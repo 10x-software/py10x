@@ -78,7 +78,7 @@ runs:
         wait_ready py10x-postgres-auth
 
         # Host OS user (GHA: runner; local docker: $USER) — libpq defaults to this role when
-        # URI userinfo is omitted (tests use postgresql://localhost:5432/postgres).
+        # URI userinfo is omitted. Each pytest session CREATEs its own py10x_test_* database.
         # Role + DB named like the OS user so libpq defaults (user=dbname=OS user) work without password.
         docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
           "DO \$\$ BEGIN

@@ -48,7 +48,6 @@ if TYPE_CHECKING:
 
 _REV = Nucleus.REVISION_TAG()
 
-
 class Index:
     """Declarative definition of a collection index for a Traitable subclass.
 
@@ -770,8 +769,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.load_ids(query, _coll_name, _at_most, _order)
 
     @classmethod
-    def delete_collection(cls, _coll_name: str = None) -> bool:
-        return cls.s_storage_helper.delete_collection(_coll_name)
+    def delete_collection(cls, _coll_name: str = None, drop_history: bool = False) -> bool:
+        return cls.s_storage_helper.delete_collection(_coll_name, drop_history)
 
     def save(self, save_references: bool | BFlags | int = BSaveRefs.NEW_ONLY) -> RC:
         return self.__class__.s_storage_helper.save(self, save_references=int(save_references))
@@ -874,7 +873,7 @@ class AbstractStorableHelper(ABC):
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]: ...
 
     @abstractmethod
-    def delete_collection(self, _coll_name: str = None) -> bool: ...
+    def delete_collection(self, _coll_name: str = None, drop_history = False) -> bool: ...
 
     @abstractmethod
     def save(self, traitable: Traitable, save_references: int) -> RC: ...
@@ -920,7 +919,7 @@ class NotStorableHelper(AbstractStorableHelper):
     def load_ids(self, query: f = None, _coll_name: str = None, _at_most: int = 0, _order: dict = None) -> list[ID]:
         return []
 
-    def delete_collection(self, _coll_name: str = None) -> bool:
+    def delete_collection(self, _coll_name: str = None, drop_history = False) -> bool:
         return False
 
     def save(self, traitable: Traitable, save_references: int) -> RC:
@@ -995,7 +994,7 @@ class StorableHelper(AbstractStorableHelper):
         cursor = self._find(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
         return [ID(serialized_data.get(id_tag), _coll_name) for serialized_data in cursor]
 
-    def delete_collection(self, _coll_name: str = None) -> bool:
+    def delete_collection(self, _coll_name: str = None, drop_history = False) -> bool:
         cls = self.traitable_class
         store = cls.store()
         if not store:
@@ -1071,6 +1070,10 @@ class StorableHelperWithHistory(StorableHelper):
     def _transaction_ctx(self):
         return self.traitable_class.store().transaction() if EnvVars.use_ts_store_transactions else nullcontext()
 
+    def _history_collection_name(self, _collection_name) -> str | None:
+        if self.traitable_class.s_custom_collection and _collection_name:
+            return self.traitable_class.s_history_class.history_collection_name(_collection_name)
+
     def _save_serialized(self, coll, serialized_data, old_rev) -> dict:
         save_result = super()._save_serialized(coll, serialized_data, old_rev)
         rev = save_result[_REV]
@@ -1078,13 +1081,18 @@ class StorableHelperWithHistory(StorableHelper):
             self.traitable_class.s_history_class(
                 serialized_traitable={k: v for k, v in (serialized_data | save_result).items() if k not in (_REV, TS_FIELDS_TAG)},
                 _traitable_rev=rev,
-                _collection_name=(coll.collection_name() + '#history') if self.traitable_class.s_custom_collection else XNone,
+                _collection_name=self._history_collection_name(coll.collection_name()) if self.traitable_class.s_custom_collection else XNone,
             ).save(save_references=BSaveRefs.NONE).throw()
         return save_result
 
     def as_of(self, traitable_id: ID, as_of_time: datetime) -> Self | None:
         history_entry = self.traitable_class.latest_revision(traitable_id, as_of_time, deserialize=True)
         return history_entry.traitable if history_entry else None
+
+    def delete_collection(self, _coll_name: str = None, drop_history: bool = False) -> bool:
+        if (rc := super().delete_collection(_coll_name)) and drop_history:
+            return self.traitable_class.s_history_class.s_storage_helper.delete_collection(self._history_collection_name(_coll_name))
+        return rc
 
     def history(
         self, _at_most: int = 0, _filter: f = None, _deserialize=False, _collection_name: str = None, _before: datetime = None, **named_filters
@@ -1103,7 +1111,7 @@ class StorableHelperWithHistory(StorableHelper):
             _order={'_traitable_id': 1, '_at': -1, '_traitable_rev': -1},
             _at_most=_at_most,
             _deserialize=_deserialize,
-            _coll_name=_collection_name + '#history' if _collection_name else None,
+            _coll_name=self._history_collection_name(_collection_name),
         )
 
         return list(cursor)
@@ -1180,6 +1188,19 @@ class TraitableHistory(EventBase):
     s_traitable_class = None
     s_trait_name_map = {'_traitable_id': '_id', '_traitable_rev': '_rev'}
 
+    #-- Companion suffix for a ``keep_history=True`` class - both its class and collection name.
+    s_suffix = '#history'
+
+    @classmethod
+    def history_collection_name(cls, collection_name: str) -> str:
+        """Collection holding the history of ``collection_name``."""
+        return collection_name + cls.s_suffix
+
+    @classmethod
+    def base_collection_name(cls, collection_name: str) -> str:
+        """Inverse of :meth:`history_collection_name` (unchanged if not a history collection)."""
+        return collection_name.rsplit('#', 1)[0] if collection_name else collection_name
+
     # fmt: off
     traitable: Traitable        = RT() // 'original traitable'
     serialized_traitable: dict  = RT()
@@ -1200,7 +1221,7 @@ class TraitableHistory(EventBase):
     def traitable_get(self):
         return Traitable.deserialize_object(
             self.s_traitable_class.s_bclass,
-            self._collection_name.rsplit('#', 1)[0] if self._collection_name else None,  # -- strip the #history suffix
+            self.base_collection_name(self._collection_name),
             self.serialized_traitable,
         )
 
@@ -1218,7 +1239,7 @@ class TraitableHistory(EventBase):
 
     @classmethod
     def history_class(cls, traitable_class: type[Traitable], base=None, **kwargs):
-        history_class_name = f'{traitable_class.__name__}#history'
+        history_class_name = cls.history_collection_name(traitable_class.__name__)
         ns = {
             's_traitable_class': traitable_class,
             's_custom_collection': traitable_class.s_custom_collection,
@@ -1332,7 +1353,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
     _REF_COLL_SEP = '^'
     _REF_ID_ESCAPE = f'%{_REF_CLS_SEP}{_REF_COLL_SEP}'
 
-    def serialize(self, value: Traitable) -> dict|str:
+    def serialize(self, value: Traitable) -> dict | str:
         """Pack non-embedded *id* refs to a string; leave embedded / full payloads as dict."""
         if (embeddable:=value.s_embeddable) and self.flags_on(T.NOT_EMBEDDABLE):
             raise RuntimeError(f'{self.name} - NOT_EMBEDDABLE trait cannot hold embeddable value type {type(value)}')

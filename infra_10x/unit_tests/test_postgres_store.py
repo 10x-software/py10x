@@ -13,6 +13,7 @@ from datetime import datetime  # noqa: TC003  # used as runtime trait data_type
 
 import ibis
 import pytest
+from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable, VaultResourceAccessor
@@ -42,11 +43,10 @@ def test_postgresql_parse_uri_and_registry():
     assert no_user[PostgresStore.DBNAME_TAG] == 'postgres'
     with_user = PostgresStore.parse_uri('postgresql://alice@localhost:5432/postgres')
     assert with_user[PostgresStore.USERNAME_TAG] == 'alice'
-    # TEST_TS_STORE.POSTGRES is the same URI used by the shared suite fixture.
-    uri, helpers, hard = TEST_TS_STORE.POSTGRES.value
-    assert uri == 'postgresql://localhost:5432/postgres'
-    assert helpers == (False,)
-    assert not hard
+    # Same URI the shared suite fixture uses.
+    assert test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name).startswith('postgresql://localhost/py10x_test')
+    assert TEST_TS_STORE.POSTGRESQL.value.helper_flags == (False,)
+    assert not TEST_TS_STORE.POSTGRESQL.value.hard_require
 
 
 def _short_lived_postgres(uri: str) -> PostgresStore:
@@ -58,7 +58,7 @@ def _short_lived_postgres(uri: str) -> PostgresStore:
 
 def test_passwordless_connect_userless_uri_uses_os_user(postgres_store):
     """URI without userinfo: Resource.username is None; server role is the OS user."""
-    uri = TEST_TS_STORE.POSTGRES.value[0]
+    uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
     store = _short_lived_postgres(uri)
     assert store.username is None
     current = store._execute('SELECT current_user')[0][0]
@@ -93,14 +93,14 @@ def test_is_running_with_auth_non_postgres_service_on_port():
 
 def test_is_running_with_auth_local_trust_no_password(postgres_store):
     """Passwordless ReadyForQuery (local trust / OS user) → (True, False)."""
-    uri = TEST_TS_STORE.POSTGRES.value[0]
+    uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
     spec = TsStore.spec_from_uri(uri)
     assert PostgresStore.is_running_with_auth(spec.hostname(), spec.port()) == (True, False)
 
 
 def test_is_running_with_auth_unknown_role_try_vault(postgres_store):
     """Unknown role: ErrorResponse after handshake → (True, True) so vault is tried."""
-    uri = TEST_TS_STORE.POSTGRES.value[0]
+    uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
     spec = TsStore.spec_from_uri(uri)
     host, port = spec.hostname(), int(spec.port())
     dbname = PostgresStore.s_instance_kwargs_map[PostgresStore.DBNAME_TAG][1]
@@ -208,6 +208,38 @@ def test_long_collection_names_do_not_collide_with_history(postgres_store):
     store.delete_collection(hist)
 
 
+def test_fresh_connection_sees_existing_collections(postgres_store):
+    """Catalog-backed listing: a store that never opened the collection still finds it.
+
+    Postgres is the first *persistent* ibis dialect, so a handle-backed listing would return
+    ``[]`` on a fresh connection and make store-wide ``copy_to`` a silent no-op. The long
+    name is the interesting case — its physical table is hashed past NAMEDATALEN, so the
+    logical name can only come back from the comment stamped at CREATE time.
+    """
+
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+
+    store = postgres_store
+    short_name = f'pg_catalog_{os.getpid()}'
+    long_name = 'core_10x/testlib/ts_tests/Catalog#' + 'a' * 40
+    assert len(long_name.encode()) > 63
+    for name in (short_name, long_name):
+        store.delete_collection(name)  # -- leftover from an interrupted earlier run
+        store.collection(name, Pad.s_dir).save_new({'_id': 'a', 'pad': 1})
+
+    fresh = _short_lived_postgres(test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name))
+    try:
+        assert not fresh._collections, 'fixture must not have opened anything on this connection'
+        names = fresh.collection_names()
+        assert short_name in names
+        assert long_name in names, 'hashed physical name must round-trip via the stamped table comment'
+        assert fresh.collection(long_name, Pad.s_dir).load('a')['pad'] == 1
+    finally:
+        store.delete_collection(short_name)
+        store.delete_collection(long_name)
+
+
 def _pg_has_index(store: PostgresStore, collection_name: str, logical_name: str) -> bool:
     phys_table = store._physical_table_name(collection_name)
     phys_idx = store._physical_index_name(collection_name, logical_name)
@@ -238,7 +270,7 @@ def test_jsonb_path_index_on_blob_field(postgres_store):
 
 
 def test_instance_from_uri(postgres_store):
-    uri = TEST_TS_STORE.POSTGRES.value[0]
+    uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
     store = TsStore.instance_from_uri(uri, _cache=False)
     assert isinstance(store, PostgresStore)
     assert store.auth_user() is not None

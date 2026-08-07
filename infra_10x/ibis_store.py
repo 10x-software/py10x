@@ -9,6 +9,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import ibis
+import ibis.expr.datatypes as ibis_dtypes
 import ibis.expr.operations as ibis_ops
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
@@ -31,6 +32,7 @@ _DATA = '_data'
 _TS_TIME = T.TS_TIME.value()
 _TS_USER = T.TS_USER.value()
 _SCALAR_WIRE_TYPES = frozenset({str, int, float, bool, datetime, date, bytes})
+_MARKER_COLUMNS = frozenset({_ID, _REV, _DATA})  # Every collection table has these; a table without them is not one of ours (see collection_names).
 
 
 class IbisCollection(TsCollection):
@@ -47,9 +49,9 @@ class IbisCollection(TsCollection):
 
     def extend_trait_dir(self, trait_dir: dict | None) -> None:
         """Union column-eligible traits; names must be Python identifiers (used as SQL cols)."""
+        self._writable = trait_dir is not None
         if not trait_dir:
             return
-        self._writable = True
         assert all(tn.isidentifier() for tn in trait_dir), (
             f'Invalid trait_dir - names must be identifiers: {[tn for tn in trait_dir if not tn.isidentifier()]}'
         )
@@ -88,8 +90,8 @@ class IbisCollection(TsCollection):
                 params.extend(self._store._auth_user_sql_params())
         return self._store._json_ts_merge_sql(obj_parts), params
 
-    def ibis_col(self, name: str, trait=None, raw=False):
-        """Ibis expression for `name`."""
+    def _ibis_col(self, name: str, trait=None, raw=False):
+        """Scalar/text LHS expression for `name` (also the sort key — see :meth:`_ibis_order_cols`)."""
         if (t := self._ibis_table_or_none()) is None:
             return ibis.null()
         if name in self._collection_columns():
@@ -105,16 +107,31 @@ class IbisCollection(TsCollection):
         raw_str = col.cast('string')
         return ibis.ifelse(raw_str == 'null', ibis.null(), ibis_ops.UnwrapJSONString(col).to_expr().coalesce(raw_str))
 
+    def ibis_compare_pair(self, field_name: str, trait, values: list) -> tuple:
+        if (
+            field_name in self._collection_columns()
+            or not any(isinstance(v, (dict, list)) for v in values)
+            or (t := self._ibis_table_or_none()) is None
+        ):
+            return self._ibis_col(field_name, trait), [self._right_value(v, field_name=field_name) for v in values]
+        json_type = self._store.s_json_type
+        col = t[_DATA].cast(json_type)[field_name]
+        # JSON ``null`` must read as SQL NULL, as the scalar path does - else whether a null
+        # field matches would depend on some *other* list element being a structure.
+        lhs = ibis.ifelse(col.cast('string') == 'null', ibis.null().cast(json_type), col)
+        rhs = [ibis.literal(json.dumps(v, separators=(',', ':'), default=self._json_encode_value)).cast(json_type) for v in values]
+        return lhs, rhs
+
     def _ibis_order_cols(self, name: str, trait=None) -> tuple:
         """Sort key(s) for ``name``. Typed/physical: one col. Untyped JSON: float, bool, str unwraps (null off-type)."""
         trait = trait or self.col_trait_dir.get(name)
         if name in self._collection_columns() or trait is not None:
-            return (self.ibis_col(name, trait),)
-        col = self.ibis_col(name, raw=True)
+            return (self._ibis_col(name, trait),)
+        col = self._ibis_col(name, raw=True)
         return tuple(c(col) for t, c in self._store.json_caster_map.items() if t is not int)
 
-    def ibis_right_value(self, value, field_name: str | None = None):
-        """RHS encoding from ``type(value)``: col serializers on physical columns, JSON wire serializers on blob path (never cast to JSON type)."""
+    def _right_value(self, value, field_name: str | None = None):
+        """Scalar RHS encoding from ``type(value)``: col serializers on physical columns, JSON wire serializers on blob path (never cast to JSON type)."""
 
         serializer_map = self._store.col_serializer_map if field_name in self._collection_columns() else self._store.json_serializer_map
         if fn := serializer_map.get(vt := type(value)):
@@ -369,6 +386,9 @@ class IbisStore(TsStore):
     json_serializer_map = col_serializer_map | {
         datetime: lambda v: v.replace(tzinfo=None).isoformat(),
     }
+    # Dialect JSON type for structure comparisons (see :meth:`IbisCollection.ibis_compare_pair`).
+    # Postgres overrides with ``binary=True`` so ibis emits JSONB, whose equality is semantic.
+    s_json_type = ibis_dtypes.JSON()
 
     # Max UTF-8 bytes for physical table/index identifiers (``None`` = unlimited).
     # Postgres sets 63 (NAMEDATALEN - 1); DuckDB leaves unlimited.
@@ -542,9 +562,17 @@ class IbisStore(TsStore):
             if key and key[0] is self:
                 del cache[key]
 
+    def _catalog_collection_names(self) -> Iterable[str]:
+        return [n for n in self._ibis_con.list_tables() if _MARKER_COLUMNS <= self._collection_columns(n).keys()]
+
     def collection_names(self, regexp: str = None) -> list:
-        # Only collections with a physical table (lazy DDL: open alone does not create one).
-        names = sorted(n for n in self._collections if self._collection_columns(n))
+        """Collections that have a physical table, from the catalog (Mongo parity).
+
+        Catalog-backed, not handle-backed: a freshly connected store must see collections
+        written by an earlier process, or store-wide operations such as
+        :meth:`~core_10x.ts_store.TsStore.copy_to` would silently copy nothing.
+        """
+        names = sorted(set(self._catalog_collection_names()))
         if regexp:
             pattern = re.compile(regexp)
             names = [n for n in names if pattern.match(n)]
@@ -553,11 +581,12 @@ class IbisStore(TsStore):
     def collection(self, collection_name: str, trait_dir: dict | None = None) -> IbisCollection:
         """Return a collection handle. Physical table is created on first write / index.
 
-        ``trait_dir`` None/empty → read-only (no storable schema; writes hit ``_ensure_columns``).
+        ``trait_dir=None`` → read-only (no storable schema); ``{}`` → writable blob-only.
+        See :meth:`IbisCollection.extend_trait_dir`.
         """
         if (coll := self._collections.get(collection_name)) is None:
             coll = self._collections[collection_name] = IbisCollection(self, collection_name, trait_dir)
-        elif trait_dir:
+        elif trait_dir is not None:
             # Bundle members (and other late openers): union column-eligible traits.
             coll.extend_trait_dir(trait_dir)
         return coll

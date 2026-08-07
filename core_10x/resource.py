@@ -96,10 +96,10 @@ class ResourceSpec:
         self.resource_class = resource_class
         self.kwargs = kwargs
 
-    def hostname(self) -> str:
-        return self.kwargs[Resource.HOSTNAME_TAG]
+    def hostname(self) -> str | None:
+        return self.kwargs.get(Resource.HOSTNAME_TAG)
 
-    def port(self) -> int:
+    def port(self) -> int | None:
         return self.kwargs.get(Resource.PORT_TAG, self.resource_class.s_instance_kwargs_map.get(Resource.PORT_TAG, (None, None))[1])
 
     def set_credentials(self, username: str = None, password: str = None):
@@ -263,11 +263,18 @@ class Resource(abc.ABC):
         self.on_exit()
 
     @classmethod
-    def instance_from_uri(cls, uri: str, username: str = None, password: str = None, _cache = True) -> Resource:
+    def create_if_needed(cls, spec: ResourceSpec) -> bool:
+        """Create whatever ``spec`` names before connecting to it; True if it was created."""
+        return False
+
+    @classmethod
+    def instance_from_uri(cls, uri: str, username: str = None, password: str = None, _cache = True, _create_if_needed = False) -> Resource:
         assert cls is not Resource, 'This method must be called for a Resource subclass, e.g., TsStore'
 
         spec = cls.spec_from_uri(uri)
         spec.set_credentials(username = username, password = password)
+        if _create_if_needed:    #-- must precede connecting: Postgres refuses an absent database
+            spec.resource_class.create_if_needed(spec)
         return spec.resource_class.instance(**spec.kwargs, _cache = _cache)
 
     @classmethod

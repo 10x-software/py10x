@@ -71,8 +71,8 @@ if __name__ == '__main__':
         secs = ns / 1e9
         return f'{secs:7.3f}s  {n / secs:10,.0f}/s' if secs > 0 else f'{0:7.3f}s  {"n/a":>10}'
 
-    def bench_backend(uri: str, label: str) -> dict[str, str]:
-        store = TsStore.instance_from_uri(uri, _cache=False)
+    def bench_backend(uri: str) -> dict[str, str]:
+        store = TsStore.instance_from_uri(uri, _cache=False, _create_if_needed=True)
         results: dict[str, str] = {}
         doc_coll_name = f'bench_doc_{uuid6.uuid7().hex}'
         log_coll_name = f'bench_log_{uuid6.uuid7().hex}'
@@ -157,8 +157,8 @@ if __name__ == '__main__':
         return results
 
     backends = [
-        ('postgres', 'postgresql://localhost:5432/postgres'),
-        ('mongo', 'mongodb://localhost:27017/perf_test'),
+        ('postgres', 'postgresql://localhost:5432/py10x_test_perf'),
+        ('mongo', 'mongodb://localhost:27017/py10x_test_perf'),
     ]
 
     print(
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     all_results: dict[str, dict[str, str]] = {}
     for label, uri in backends:
         print(f'\n--- {label} ---')
-        all_results[label] = bench_backend(uri, label)
+        all_results[label] = bench_backend(uri)
         for phase, rate in all_results[label].items():
             print(f'  {phase:<26} {rate}')
 

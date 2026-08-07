@@ -37,7 +37,10 @@ If either applies, install one of:
 
 **Traitable Store backends** (for persistence examples and optional full test coverage):
 
-- `core_10x` tests use the **in-process** Traitable Store (DuckDB) — no external database.
+- `core_10x` tests use the **in-process** Traitable Store (DuckDB) and need no external database,
+  with one exception: `test_filters.py` runs its filter matrix against DuckDB, MongoDB **and**
+  PostgreSQL, because those tests *are* the cross-backend filter contract. The two external
+  backends skip individually when unreachable.
 - `infra_10x` tests exercise **MongoDB** (`MongoStore`) and **PostgreSQL** (`PostgresStore`,
   ibis-backed). Locally, Postgres-dependent tests use `need()` and **skip** when the server is
   unreachable; the shared Mongo matrix entry is a **hard fail** if Mongo is listed but down
@@ -49,17 +52,15 @@ If either applies, install one of:
     [community support window](https://www.postgresql.org/support/versioning/); nothing in
     `PostgresStore` requires anything newer). CI tests exactly this floor
     (`.github/actions/setup-postgres` defaults to `postgres:15`).
-    Passwordless trust instance on **port 5432**, database `postgres`, login as
-    the **OS user** — `postgresql://localhost:5432/postgres` (optional `user@`; libpq defaults to
-    the OS user when omitted). Typical local Homebrew installs already use that role; CI Docker
-    enables trust auth and creates a SUPERUSER role for `whoami` (see
-    `.github/actions/setup-postgres`). CI also starts a **password-auth** companion on
-    **port 5433** (user `postgres`, password `py10x_pg_auth` — a throwaway local test fixture,
-    overridable via `XX_PG_PASSWORD_AUTH_PASSWORD`) for with-auth smoke tests.
-    Locally: `uv run --no-sync xx-test-postgres-auth start` (prefers Docker; falls back to
+    Passwordless trust instance on **port 5432**, login as the **OS user** (optional `user@`;
+    libpq defaults to the OS user when omitted). Each pytest **session creates its own
+    `py10x_test_*` database** and drops it at the end, so a run never touches your own data
+    and two concurrent sessions cannot collide. A session killed
+    before teardown leaves its database behind — `uv run --no-sync xx-test-db-clean drop` sweeps
+    those (see [`dev_10x/README.md`](dev_10x/README.md)). CI also starts a **password-auth** companion on
+    **port 5433** for with-auth smoke tests. Locally: `uv run --no-sync xx-test-postgres-auth start` (prefers Docker; falls back to
     Homebrew — see [`dev_10x/README.md`](dev_10x/README.md)).
-    Authenticated hosts use the vault (URI `user@` is replaced by the vault login). `TS_USER`
-    stamps use the server session user (`current_user`), not a client-side app username.
+    Authenticated hosts use the vault
 
 See platform setup below for install commands. Other docs link here; do not duplicate the full blurb.
 

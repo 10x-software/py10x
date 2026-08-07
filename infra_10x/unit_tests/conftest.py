@@ -1,52 +1,48 @@
 from __future__ import annotations
 
 from contextlib import nullcontext
+from typing import NamedTuple
 
 import pytest
 from core_10x.environment_variables import EnvVars
 from core_10x.named_constant import NamedConstant
+from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
 from core_10x.ts_store import TsStore
 from infra_10x import MongoCollectionHelper
 from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
 
 
+class Backend(NamedTuple):
+    helper_flags: tuple[bool, ...]  # -- one fixture param per flag; True → patch in the py MongoCollectionHelper
+    hard_require: bool  # -- True → fail (not skip) when the server is unreachable
+
+
 class TEST_TS_STORE(NamedConstant):
-    # Example with X509 auth (replace with your URI; do not commit real hostnames or paths):
-    # MONGO = ('MongoDB', ('mongodb+srv://HOST/?authMechanism=MONGODB-X509&...', (True, False)))
-    MONGO = ['mongodb://localhost:27017/test_db', (True, False), True]  # value layout: [uri, helper_flags, hard_require]
-    POSTGRES = ['postgresql://localhost:5432/postgres', (False,), False]
-
-
-@pytest.fixture(scope='session')
-def ts_backends() -> dict[str, TsStore]:
-    """Probe + build each reachable TEST_TS_STORE backend once (``_cache=False``)."""
-    return {
-        backend.name: TsStore.instance_from_uri(backend.value[0], _cache=False)
-        for backend in TEST_TS_STORE.s_dir.values()
-        if TsStore.is_running_with_auth_from_uri(backend.value[0])[0]
-    }
+    # URIs are per-session databases — see core_10x/testlib/test_databases.py.
+    MONGODB = Backend((True, False), True)
+    POSTGRESQL = Backend((False,), False)
 
 
 @pytest.fixture(
     params=[
         pytest.param((backend, py_helper), id=f'{backend.name.lower()}{"-py-helper" if py_helper else ""}')
         for backend in TEST_TS_STORE.s_dir.values()
-        for py_helper in backend.value[1]
+        for py_helper in backend.value.helper_flags
     ]
 )
-def ts_instance(mocker, request, ts_backends):
+def ts_instance(mocker, request, live_store):
     backend = request.param[0]
-    instance = ts_backends.get(backend.name)
+    instance = live_store(backend.name)
     if instance is None:
-        msg = f'{backend.label} not running (at {backend.value[0]})'
-        if backend.value[2]:
+        msg = f'{backend.label} not running (at {test_databases.test_uri(backend.name)})'
+        if backend.value.hard_require:
             pytest.fail(msg)
         need(False, msg)
     assert instance is not None
 
     # Mongo/DuckDB ``auth_user`` is Resource.username; Postgres stamps SQL ``current_user``.
-    if backend.name == TEST_TS_STORE.MONGO.name:
+    if backend == TEST_TS_STORE.MONGODB:
         instance.username = 'test_user'
     if not instance.supports_transactions():
         # Under XX_TEST_STRICT a missing replica set is a CI provisioning failure.
@@ -66,9 +62,10 @@ def ts_instance(mocker, request, ts_backends):
 
 
 @pytest.fixture
-def postgres_store(ts_backends):
-    store = ts_backends.get(TEST_TS_STORE.POSTGRES.name)
-    need(store is not None, f'{TEST_TS_STORE.POSTGRES.label} not running (at {TEST_TS_STORE.POSTGRES.value[0]})')
+def postgres_store(live_store):
+    store_protocol = TEST_TS_STORE.POSTGRESQL.name
+    store = live_store(store_protocol)
+    need(store is not None, f'{store_protocol} not running (at {test_databases.test_uri(store_protocol)})')
     return store
 
 

@@ -1,9 +1,10 @@
 import pytest
 from core_10x.testlib.fixtures import with_transactions
-from core_10x.testlib.traitable_history_tests import (
+from core_10x.testlib.traitable_history_tests import (  # collected by pytest
     TestTraitableHistory,
     make_clock_freezer,
     test_collection,
+    test_delete_collection_drops_history_companion,
     test_store,
 )
 

@@ -89,6 +89,13 @@ When adding new functionality, agents should **add or update tests** in the appr
   - ✓ `serializable`, `behavior`, `color`, `initialize`, `recognize`, `analyze`
   - ✗ `serialisable`, `behaviour`, `colour`, `initialise`, `recognise`, `analyse`
 
+- **Comment only what is not obvious from the code.** A comment restating what the next line
+  plainly does is noise. Explain *why*, a non-obvious constraint, or a trap — not *what*.
+  - A comment should not be longer than the code it explains unless it carries a real insight
+    (a dialect quirk, a footgun, why the obvious approach fails).
+  - Prefer one dense line over three explanatory ones. The same applies to docstrings: state
+    the contract and anything surprising about it, then stop.
+
 ---
 
 ## 6. Default agent behavior in this repo
@@ -133,7 +140,7 @@ Rules agents must **not** violate:
 | Service | Purpose | How to start |
 |---------|---------|-------------|
 | MongoDB 8 (replica set) | Optional — mongo-backed `infra_10x` tests skip when absent | `docker start mongo-rs` (container pre-exists in snapshot) |
-| PostgreSQL | Optional — postgres-backed `infra_10x` tests skip when absent | Homebrew Postgres or Docker trust + OS-user role; URI `postgresql://localhost:5432/postgres` — see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies) |
+| PostgreSQL | Optional — postgres-backed `infra_10x` tests skip when absent | Homebrew Postgres or Docker trust + OS-user role; each pytest session creates/drops its own `py10x_test_*` database — see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies) |
 | Docker daemon | Hosts MongoDB container | `sudo dockerd &>/tmp/dockerd.log &` |
 | Playwright/Chromium | Required for `ui_10x/rio` browser-based tests | Pre-installed; no startup needed |
 
@@ -158,7 +165,7 @@ docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary"
 ```
 
 Local Postgres should accept passwordless OS-user login on port 5432
-(`postgresql://localhost:5432/postgres`). For with-auth smoke tests on 5433:
+(each pytest session creates and drops its own `py10x_test_*` database). For with-auth smoke tests on 5433:
 `uv run --no-sync xx-test-postgres-auth start` (prefers Docker, falls back to Homebrew — see
 [`dev_10x/README.md`](dev_10x/README.md)).
 CI uses `.github/actions/setup-postgres` for both.

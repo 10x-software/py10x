@@ -64,6 +64,12 @@ live store skip automatically when the server is unreachable (see `core_10x/test
 instead). Install Mongo and/or Postgres only if you want those tests to run locally — see
 [INSTALLATION.md § Optional Database Dependencies](INSTALLATION.md#optional-database-dependencies).
 
+Each pytest session gets its **own** database on each live backend and drops it at the end —
+the `live_store` fixture (`core_10x/testlib/test_databases.py`), which also hands out the
+stores. It is **requested, not autouse** and lazy per backend, so a run that never asks for a
+store neither probes for a server nor creates anything. A session killed before teardown leaves
+its database behind; [`xx-test-db-clean`](dev_10x/README.md) sweeps those.
+
 ```bash
 # Run all unit tests (with coverage by default)
 uv run --no-sync pytest

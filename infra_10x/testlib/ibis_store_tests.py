@@ -13,24 +13,26 @@ from datetime import date, datetime, timezone
 
 import pytest
 import uuid6
+from core_10x.exec_control import CACHE_ONLY
 from core_10x.named_constant import NamedConstant
+from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
+from core_10x.trait_filter import IN, LT, NE, f
 from core_10x.traitable import Traitable
 from core_10x.ts_store import TsDuplicateKeyError
+from core_10x.ts_store_type import TS_STORE_TYPE
+from py10x_kernel import BTraitFlags
 
 from infra_10x.duckdb_store import DuckDbStore
 from infra_10x.ibis_store import _DATA, _ID, _REV, _SCALAR_WIRE_TYPES, IbisCollection, IbisStore
 from infra_10x.postgres_store import PostgresStore
 
 
-@pytest.fixture(params=['duckdb', 'postgres'])
-def ibis_store(request, ts_backends) -> IbisStore:
-    """Fresh store per dialect; Postgres skips (``need()``) when unreachable."""
-    if request.param == 'duckdb':
-        return DuckDbStore()
-    store = ts_backends.get('POSTGRES')
-    need(store is not None, 'PostgreSQL not running (see infra_10x/unit_tests/conftest.py TEST_TS_STORE.POSTGRES)')
+@pytest.fixture(params=[sid for sid in test_databases.ALL_STORE_PROTOCOLS if issubclass(TS_STORE_TYPE.ts_store_class(sid), IbisStore)])
+def ibis_store(request, live_store) -> IbisStore:
+    """One store per ibis dialect (from the registry); a backend that is down skips."""
+    need(store := live_store(store_protocol := request.param), f'{store_protocol} running (ibis store tests)')
     return store
 
 
@@ -144,6 +146,63 @@ def test_duplicate_key_raises(collection):
         collection.save_new({'_id': 'x', 'pad': 2})
 
 
+def test_json_structure_filter_matches_stored_blob(collection):
+    """EQ/NE/IN on a JSON object or array, compared as the dialect's native JSON type.
+
+    Postgres JSONB renormalizes on write (reorders object keys, re-spaces), so a text
+    comparison against ``json.dumps`` output could never match and EQ silently returned
+    nothing. ``ibis_compare_pair`` compares as JSON instead, so the dialect's own equality
+    applies. Keys here are deliberately not in jsonb's canonical order.
+    """
+    obj = {'zz': 1, 'a': 2, 'kkk': 3}
+    arr = ['builtins/int', 10, 20]
+    collection.save_new({'_id': '1', 'pad': 0, 'obj': obj, 'arr': arr})
+    collection.save_new({'_id': '2', 'pad': 0, 'obj': {'other': 1}, 'arr': ['x']})
+
+    assert {r['_id'] for r in collection.find(f(obj=obj))} == {'1'}
+    assert {r['_id'] for r in collection.find(f(arr=arr))} == {'1'}
+    assert collection.count(f(obj=obj)) == 1
+    assert {r['_id'] for r in collection.find(f(obj=NE(obj)))} == {'2'}
+    assert collection.count(f(obj={'zz': 1, 'a': 999, 'kkk': 3})) == 0
+    # Mixed IN list: a JSON literal round-trips scalars too, so one encoding covers both.
+    assert {r['_id'] for r in collection.find(f(obj=IN([obj, 'not-a-struct'])))} == {'1'}
+
+
+def test_json_structure_filter_key_order(collection):
+    """Whether key order matters is the dialect's own JSON semantics, not ours.
+
+    Postgres compares ``jsonb`` values — order-insensitive. DuckDB's JSON is text-backed, so
+    reordering does not match there. Asserting both keeps the difference deliberate rather
+    than accidental.
+    """
+    collection.save_new({'_id': '1', 'pad': 0, 'obj': {'zz': 1, 'a': 2, 'kkk': 3}})
+    reordered = {'a': 2, 'kkk': 3, 'zz': 1}
+    expected = 1 if isinstance(collection._store, PostgresStore) else 0
+    assert collection.count(f(obj=reordered)) == expected
+
+
+def test_collection_names_from_catalog(ibis_store):
+    """Listing reads the catalog, and skips tables that are not collections.
+
+    A persistent dialect shares its database with whatever else lives there, so a table
+    without the ``_id`` / ``_rev`` / ``_data`` layout must not be reported as a collection
+    (``copy_to`` would otherwise try to copy it).
+    """
+    coll_name = f'catalog_{uuid6.uuid7().hex}'
+    other = f'plain_{uuid6.uuid7().hex}'
+    coll = _new_pad_collection(ibis_store, coll_name)
+    coll.save_new({'_id': 'a', 'pad': 1})
+    ibis_store._execute(f'CREATE TABLE "{other}" (x INTEGER)')
+    try:
+        names = ibis_store.collection_names()
+        assert coll_name in names
+        assert other not in names, 'table without the collection layout must not be listed'
+        assert ibis_store.collection_names(f'{coll_name}.*') == [coll_name]
+    finally:
+        ibis_store._execute(f'DROP TABLE "{other}"')
+        ibis_store.delete_collection(coll_name)
+
+
 def test_json_field_raises(collection):
     """Blob-only field indexing: DuckDB raises; Postgres can via a JSONB path (_index_expr)."""
     if isinstance(collection._store, PostgresStore):
@@ -209,8 +268,6 @@ def sql_columns(store: IbisStore, coll_name: str) -> set[str]:
 
 def _eligible_column_traits(trait_dir: dict) -> set[str]:
     """Scalar, non-runtime/reserved traits that must be stored as SQL columns."""
-    from py10x_kernel import BTraitFlags
-
     out: set[str] = set()
     for name, trait in trait_dir.items():
         if trait.flags_on(BTraitFlags.RUNTIME | BTraitFlags.RESERVED):
@@ -301,7 +358,6 @@ def test_schema_evolution_lazy_alter(hybrid_store):
 
 def test_traitable_ref_promoted_to_sql_column(ibis_store, monkeypatch):
     """Non-embeddable Traitable refs are serialized as str and are promoted to VARCHAR columns."""
-    from core_10x.exec_control import CACHE_ONLY
 
     class RefTarget(Traitable, custom_collection=True, keep_history=False):
         name: str = T(T.ID)
@@ -406,7 +462,6 @@ def test_ts_fields_when_eligible(ibis_store, supports_add_column, monkeypatch):
 
 def test_datetime_filter_on_empty_table_json_path(ibis_store):
     """``_at < watermark`` must type-check on an empty collection (no ``_at`` column yet)."""
-    from core_10x.trait_filter import LT, f
 
     class Ev(Traitable, custom_collection=True):
         name: str = T(T.ID)
@@ -422,7 +477,6 @@ def test_datetime_filter_on_empty_table_json_path(ibis_store):
 
 def test_datetime_filter_on_json_blob_casts_to_timestamp(ibis_store, monkeypatch):
     """Blob-fallback ``_at`` (ISO string in ``_data``) must still compare to datetime."""
-    from core_10x.trait_filter import LT, f
 
     class Ev(Traitable, custom_collection=True):
         name: str = T(T.ID)

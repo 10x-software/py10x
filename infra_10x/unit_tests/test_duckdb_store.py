@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import json
-
 import pytest
 import uuid6
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 from infra_10x.duckdb_store import DuckDbStore
-from infra_10x.ibis_store import _DATA, _ID, _REV
+from infra_10x.ibis_store import _ID
+from infra_10x.testlib.ibis_store_tests import blob_keys, sql_columns
 
 
 class _Pad(Traitable, custom_collection=True, keep_history=False):
@@ -43,13 +42,39 @@ def test_untyped_json_multi_key_numeric_order():
     store.delete_collection(coll_name)
 
 
-def test_empty_trait_dir_is_read_only():
+def test_no_trait_dir_is_read_only():
+    """``None`` = no schema declared."""
     store = DuckDbStore()
     coll = store.collection(f'ro_{uuid6.uuid7().hex}', None)
     with pytest.raises(RuntimeError, match='read-only'):
         coll.save_new({'_id': 'a', 'n': 1})
     with pytest.raises(RuntimeError, match='read-only'):
         coll.create_index('idx_id', _ID)
+
+
+def test_empty_trait_dir_is_writable_blob_only():
+    """``{}`` = schema declared with nothing column-eligible — writable, everything in the blob.
+
+    Distinct from ``None`` above; ``intrinsic_trait_dir()`` returns ``{}`` for such a table,
+    so ``copy_to`` depends on the two not being conflated.
+    """
+    store = DuckDbStore()
+    name = f'blob_{uuid6.uuid7().hex}'
+    coll = store.collection(name, {})
+    coll.save_new({'_id': 'a', 'n': 1})
+    assert coll.load('a')['n'] == 1
+    assert sql_columns(store, name) == set()
+    assert blob_keys(store, name, 'a') == {'n'}
+    store.delete_collection(name)
+
+
+def test_reopening_read_only_collection_with_empty_dir_makes_it_writable():
+    """A handle first opened ``None`` is promoted when reopened with a declared schema."""
+    store = DuckDbStore()
+    name = f'promote_{uuid6.uuid7().hex}'
+    assert store.collection(name, None)._writable is False
+    assert store.collection(name, {})._writable is True
+    store.delete_collection(name)
 
 
 def test_typed_json_path_numeric_order(monkeypatch):
@@ -132,16 +157,6 @@ def test_column_cache_is_per_collection_instance():
     store.delete_collection(name)
 
 
-def _blob_keys(store: DuckDbStore, coll_name: str, doc_id: str) -> set[str]:
-    safe = coll_name.replace('"', '""')
-    row = store._con.execute(f'SELECT {_DATA} FROM "{safe}" WHERE {_ID} = ?', [doc_id]).fetchone()
-    return set(json.loads(row[0] or '{}').keys())
-
-
-def _sql_columns(store: DuckDbStore, coll_name: str) -> set[str]:
-    return set(store._collection_columns(coll_name)) - {_ID, _REV, _DATA}
-
-
 @pytest.mark.parametrize('store_kind', ['duckdb', 'union_head_duckdb'], ids=['duckdb', 'union_head_duckdb'])
 @pytest.mark.parametrize('supports_add_column', [True, False], ids=['with_add_column', 'blob_only_store'])
 def test_extend_trait_dir_unions_and_promotes(store_kind, supports_add_column, monkeypatch):
@@ -185,15 +200,15 @@ def test_extend_trait_dir_unions_and_promotes(store_kind, supports_add_column, m
 
     coll.save_new({'_id': 'w', 'name': 'wolf', 'howl_pitch': 7})
     coll.save_new({'_id': 'b', 'name': 'bear', 'den': 'cave'})
-    cols = _sql_columns(head, coll_name)
+    cols = sql_columns(head, coll_name)
     if supports_add_column:
         assert 'howl_pitch' in cols and 'den' in cols
-        assert 'howl_pitch' not in _blob_keys(head, coll_name, 'w')
-        assert 'den' not in _blob_keys(head, coll_name, 'b')
+        assert 'howl_pitch' not in blob_keys(head, coll_name, 'w')
+        assert 'den' not in blob_keys(head, coll_name, 'b')
     else:
         assert 'howl_pitch' not in cols and 'den' not in cols
-        assert 'howl_pitch' in _blob_keys(head, coll_name, 'w')
-        assert 'den' in _blob_keys(head, coll_name, 'b')
+        assert 'howl_pitch' in blob_keys(head, coll_name, 'w')
+        assert 'den' in blob_keys(head, coll_name, 'b')
         assert coll.load('w')['howl_pitch'] == 7
         assert coll.load('b')['den'] == 'cave'
     store.delete_collection(coll_name)

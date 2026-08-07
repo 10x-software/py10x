@@ -75,8 +75,7 @@ class Op(_filter, ABC):
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
-        col = ibis_collection.ibis_col(field_name, trait)
-        right = ibis_collection.ibis_right_value(self.serialize_right_value(field_name, trait_dir), field_name=field_name)
+        col, (right,) = ibis_collection.ibis_compare_pair(field_name, trait, [self.serialize_right_value(field_name, trait_dir)])
         return self._eval(col, right)
 
 
@@ -110,9 +109,8 @@ class NE(Op):
         # NULL" (col != None already compiles to that), and ORing isnull() there would make it
         # tautologically true instead.
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
-        col = ibis_collection.ibis_col(field_name, trait)
         serialized = self.serialize_right_value(field_name, trait_dir)
-        right = ibis_collection.ibis_right_value(serialized, field_name=field_name)
+        col, (right,) = ibis_collection.ibis_compare_pair(field_name, trait, [serialized])
         cmp = col != right
         return cmp if serialized is None else col.isnull() | cmp
 
@@ -157,11 +155,27 @@ class IN(Op):
     def _eval(left, right) -> bool:
         return left in right
 
-    def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+    def _ibis_isin(self, ibis_collection, field_name: str, trait_dir: dict[str, Trait] | None) -> tuple:
+        """``(col, isin_pred_or_None, has_none)`` with ``None`` kept out of the SQL ``IN`` list.
+
+        Under three-valued logic ``x IN (a, NULL)`` is never TRUE and ``x NOT IN (a, NULL)`` is
+        never TRUE either, so a ``None`` in the list would silently poison the whole predicate.
+        It is stripped here and folded back by the caller as an explicit NULL test — which is
+        also exactly what Mongo means by ``$in`` / ``$nin`` matching missing fields.
+
+        ``isin_pred`` is None when every value was ``None`` (nothing left to match).
+        """
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
-        col = ibis_collection.ibis_col(field_name, trait)
-        right = [ibis_collection.ibis_right_value(v, field_name=field_name) for v in self.serialize_right_value(field_name, trait_dir)]
-        return col.isin(right)
+        values = list(self.serialize_right_value(field_name, trait_dir))
+        concrete = [v for v in values if v is not None]
+        col, right = ibis_collection.ibis_compare_pair(field_name, trait, concrete)
+        return col, (col.isin(right) if concrete else None), len(concrete) != len(values)
+
+    def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+        col, pred, has_none = self._ibis_isin(ibis_collection, field_name, trait_dir)
+        if pred is None:  # -- IN([None]): only a missing / null field qualifies
+            return col.isnull()
+        return col.isnull() | pred if has_none else pred
 
 
 class NIN(IN):
@@ -170,11 +184,12 @@ class NIN(IN):
         return left not in right
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
-        # Same missing-field reasoning as NE.ibis: Mongo's $nin matches missing fields too.
-        trait = trait_dir.get(field_name) if trait_dir and field_name else None
-        col = ibis_collection.ibis_col(field_name, trait)
-        right = [ibis_collection.ibis_right_value(v, field_name=field_name) for v in self.serialize_right_value(field_name, trait_dir)]
-        return col.isnull() | ~col.isin(right)
+        # Mongo's $nin matches missing fields (same reasoning as NE.ibis) — *unless* None is
+        # itself excluded, in which case missing/null are excluded along with it.
+        col, pred, has_none = self._ibis_isin(ibis_collection, field_name, trait_dir)
+        if pred is None:  # -- NIN([None]): every field that is actually present
+            return col.notnull()
+        return col.notnull() & ~pred if has_none else col.isnull() | ~pred
 
 
 # class REGEX(Op):

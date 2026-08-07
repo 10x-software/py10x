@@ -7,6 +7,7 @@ import uuid6
 from core_10x.exec_control import GRAPH_OFF
 from core_10x.named_constant import EnumBits, NamedConstant
 from core_10x.nucleus import Nucleus
+from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
 from core_10x.trait_filter import (
@@ -26,8 +27,6 @@ from core_10x.trait_filter import (
 )
 from core_10x.traitable import Traitable, XNone
 from core_10x.ts_store import TsStore
-from infra_10x.duckdb_store import DuckDbStore
-from infra_10x.mongodb_store import MongoStore
 
 
 class Person(Traitable):
@@ -338,34 +337,18 @@ class Sample(Traitable, custom_collection=True):
 
 
 class TestCompoundFilters:
-    s_mongo_running = True
-
     @pytest.fixture(scope='class', autouse=True)
     def clear_store_cache(self):
         assert not TsStore.s_instances
         yield
         TsStore.s_instances.clear()
 
-    @pytest.fixture(
-        params=[
-            lambda: DuckDbStore.instance(),
-            lambda: MongoStore.instance(hostname='mongodb://localhost:27017/', dbname='test_filters_mongo', sst=100),
-        ],
-        ids=['duckdb', 'mongodb'],
-    )
-    def prepared(self, request):
-        is_mongo_store = request.param_index == 1
-        store = None
-        try:
-            if not is_mongo_store or self.s_mongo_running:
-                store = request.param()
-        except Exception:
-            if is_mongo_store:
-                self.s_mongo_running = False
-            else:
-                raise
-        if is_mongo_store:
-            need(self.s_mongo_running, 'MongoDB running (mongo-store filter tests)')
+    @pytest.fixture(params=test_databases.ALL_STORE_PROTOCOLS)
+    def prepared(self, request, live_store):
+        need(
+            store := live_store(store_protocol := request.param),
+            f'{store_protocol} running at {test_databases.test_uri(store_protocol)} (store filter tests)',
+        )
 
         store.begin_using()
         go = GRAPH_OFF()
@@ -424,7 +407,7 @@ class TestCompoundFilters:
         try:
             yield store, coll, data, overrides, coll_name, Sample.s_dir
         finally:
-            store.delete_collection(coll_name)
+            Sample.delete_collection(coll_name, drop_history=True)
             store.end_using()
             go.end_using()
 
@@ -501,10 +484,9 @@ class TestCompoundFilters:
         documented ``$ne``/``$nin`` "matches missing fields" semantics — ``NE.ibis``/``NIN.ibis``
         in trait_filter.py add the same for SQL backends (a missing blob key unwraps to NULL,
         and plain `NULL != x` would be NULL/excluded under three-valued logic without that).
-        Every other operator excludes the missing field on both backends. Locks in the
-        cross-backend contract after a real NE/NIN divergence was found and fixed here.
-        Postgres shares the same NE.ibis/NIN.ibis code path via IbisStore, verified manually,
-        but isn't in this parametrization (`prepared` only spans duckdb/mongo).
+        Every other operator excludes the missing field. Locks in the cross-backend contract
+        after a real NE/NIN divergence was found and fixed here; runs on all three backends
+        via ``prepared``, so the SQL path is covered on both DuckDB and Postgres.
         """
         store, *_ = prepared
 
@@ -519,6 +501,54 @@ class TestCompoundFilters:
             coll.save_new({'_id': 'no_x', 'marker': 'no_x'})  # x entirely absent
             ids = sorted(r['_id'] for r in coll.find(f(x=op, trait_dir=MissingFieldSample.s_dir)))
             assert ids == expected
+        finally:
+            store.delete_collection(coll_name)
+
+    @pytest.mark.parametrize(
+        'op, expected',
+        [
+            (EQ({'a': 1}), ['has_obj']),
+            (EQ(None), ['has_null', 'missing']),
+            (IN([{'a': 1}]), ['has_obj']),
+            (NIN([{'a': 1}]), ['has_null', 'has_str', 'missing']),
+            (IN([{'a': 1}, 'sss']), ['has_obj', 'has_str']),
+            (IN([{'a': 1}, None]), ['has_null', 'has_obj', 'missing']),
+            (IN(['sss', None]), ['has_null', 'has_str', 'missing']),
+            (NIN([{'a': 1}, None]), ['has_str']),
+            (IN([None]), ['has_null', 'missing']),
+            (NIN([None]), ['has_obj', 'has_str']),
+            (NIN(['sss']), ['has_null', 'has_obj', 'missing']),
+        ],
+        ids=['EQ-obj', 'EQ-None', 'IN-obj', 'NIN-obj', 'IN-obj-str', 'IN-obj-None', 'IN-str-None', 'NIN-obj-None', 'IN-None', 'NIN-None', 'NIN-str'],
+    )
+    def test_in_nin_mixed_structure_and_null(self, prepared, op, expected):
+        """``IN`` / ``NIN`` lists mixing structures, scalars and ``None`` — Mongo is the contract.
+
+        Two traps, both verified equal on all three backends here:
+
+        * A structure in the list routes the comparison through the native-JSON path
+          (``ibis_compare_pair``), and *all* values encode that way — a JSON literal round-trips
+          scalars, so a mixed list is fine. But a key stored as JSON ``null`` reads back as a
+          JSON null, not SQL NULL, unless normalized — otherwise whether ``has_null`` matched
+          would depend on an unrelated element of the list.
+        * ``None`` cannot go into a SQL ``IN`` list at all: ``x IN (a, NULL)`` is never TRUE
+          and ``x NOT IN (a, NULL)`` is never TRUE either, so it is stripped and folded back
+          as an explicit NULL test (``IN._ibis_isin``). That is also what Mongo's ``$in`` /
+          ``$nin`` mean by matching missing fields.
+        """
+        store, *_ = prepared
+
+        class MixedSample(Traitable, custom_collection=True, keep_history=False):
+            marker: str = T(T.ID)
+
+        coll_name = 'mx_' + uuid6.uuid7().hex[:12]
+        coll = store.collection(coll_name, MixedSample.s_dir)
+        try:
+            coll.save_new({'_id': 'has_obj', 'marker': 'has_obj', 'v': {'a': 1}})
+            coll.save_new({'_id': 'has_str', 'marker': 'has_str', 'v': 'sss'})
+            coll.save_new({'_id': 'has_null', 'marker': 'has_null', 'v': None})
+            coll.save_new({'_id': 'missing', 'marker': 'missing'})  # -- v entirely absent
+            assert sorted(r['_id'] for r in coll.find(f(v=op))) == expected
         finally:
             store.delete_collection(coll_name)
 

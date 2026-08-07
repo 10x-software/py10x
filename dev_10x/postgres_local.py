@@ -13,12 +13,10 @@ Usage (from repo root, venv prepared)::
     uv run --no-sync xx-test-postgres-auth status
     uv run --no-sync xx-test-postgres-auth stop
 
-Kernel-free: stdlib + subprocess only.
 """
 
 from __future__ import annotations
 
-import argparse
 import os
 import shutil
 import subprocess
@@ -27,10 +25,16 @@ import tempfile
 import time
 from pathlib import Path
 
+from core_10x.rc import RC, RC_TRUE
+from core_10x.trait_definition import RT
+from core_10x.traitable_cli import TraitableCli
+
 # Shared with infra_10x password-auth smoke tests / CI setup-postgres defaults.
 # Not a real credential: a throwaway local test fixture, overridable via env so it never
-# needs to be hardcoded for anyone who wants a non-default value.
-PASSWORD_AUTH_PORT = 5433
+# needs to be hardcoded for anyone who wants a non-default value. Port and password are
+# both read here (not only in ``main``) so the tests that import these constants probe the
+# same instance this command starts.
+PASSWORD_AUTH_PORT = int(os.environ.get('XX_PG_PASSWORD_AUTH_PORT', '5433'))
 PASSWORD_AUTH_USER = 'postgres'
 PASSWORD_AUTH_PASSWORD = os.environ.get('XX_PG_PASSWORD_AUTH_PASSWORD', 'py10x_pg_auth')
 PASSWORD_AUTH_DB = 'postgres'
@@ -315,49 +319,65 @@ def _homebrew_status(data_dir: Path, port: int) -> int:
     return 0 if running else 1
 
 
-# --- Dispatch --------------------------------------------------------------------------
+# --- CLI --------------------------------------------------------------------------------
 
 
-def cmd_start(data_dir: Path, port: int) -> int:
-    if (docker := _docker_bin()) is not None:
-        return _docker_start(docker, port)
-    return _homebrew_start(data_dir, port)
+class PostgresAuthCli(TraitableCli):
+    """Local password-auth Postgres for infra with-auth smoke tests.
+
+    Usage:
+    xx-test-postgres-auth start     start it (Docker if the daemon is up, else Homebrew)
+    xx-test-postgres-auth stop      stop it
+    xx-test-postgres-auth status    report cluster / listening state
+    Options: --port <n> (default 5433, from $XX_PG_PASSWORD_AUTH_PORT); --data-dir <path>
+    (Homebrew fallback cluster, ignored under Docker; default ~/pgdata-py10x-auth or $XX_PG_PASSWORD_AUTH_DATA).
+    """
+
+    port: int = RT(PASSWORD_AUTH_PORT)
+    data_dir: str = RT(str(DEFAULT_DATA_DIR))
+
+    def dir(self) -> Path:
+        return Path(self.data_dir).expanduser().resolve()
+
+    @staticmethod
+    def _rc(code: int) -> RC:
+        return RC_TRUE if code == 0 else RC(False, f'{PASSWORD_AUTH_USER}@localhost:{PASSWORD_AUTH_PORT} - command failed')
 
 
-def cmd_stop(data_dir: Path) -> int:
-    if (docker := _docker_bin()) is not None:
-        return _docker_stop(docker)
-    return _homebrew_stop(data_dir)
+class Start(PostgresAuthCli, _command='start'):
+    """Start the password-auth instance, creating the cluster/container on first use."""
+
+    def run(self) -> RC:
+        docker = _docker_bin()
+        return self._rc(_docker_start(docker, self.port) if docker else _homebrew_start(self.dir(), self.port))
 
 
-def cmd_status(data_dir: Path, port: int) -> int:
-    if (docker := _docker_bin()) is not None:
-        return _docker_status(docker, port)
-    return _homebrew_status(data_dir, port)
+class Stop(PostgresAuthCli, _command='stop'):
+    """Stop the password-auth instance; leaves its data in place."""
+
+    def run(self) -> RC:
+        docker = _docker_bin()
+        return self._rc(_docker_stop(docker) if docker else _homebrew_stop(self.dir()))
 
 
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog='xx-test-postgres-auth', description='Manage local password-auth Postgres for py10x infra tests (port 5433).')
-    p.add_argument('command', choices=('start', 'stop', 'status'))
-    p.add_argument(
-        '--data-dir',
-        type=Path,
-        default=Path(os.environ.get('XX_PG_PASSWORD_AUTH_DATA', DEFAULT_DATA_DIR)),
-        help=f'Homebrew fallback cluster data directory, ignored under Docker (default: {DEFAULT_DATA_DIR} or $XX_PG_PASSWORD_AUTH_DATA)',
-    )
-    p.add_argument(
-        '--port',
-        type=int,
-        default=int(os.environ.get('XX_PG_PASSWORD_AUTH_PORT', PASSWORD_AUTH_PORT)),
-        help=f'listen port (default: {PASSWORD_AUTH_PORT} or $XX_PG_PASSWORD_AUTH_PORT)',
-    )
-    args = p.parse_args(argv)
-    data_dir = args.data_dir.expanduser().resolve()
-    if args.command == 'start':
-        return cmd_start(data_dir, args.port)
-    if args.command == 'stop':
-        return cmd_stop(data_dir)
-    return cmd_status(data_dir, args.port)
+class Status(PostgresAuthCli, _command='status'):
+    """Report whether the cluster exists and is accepting connections."""
+
+    def run(self) -> RC:
+        docker = _docker_bin()
+        return self._rc(_docker_status(docker, self.port) if docker else _homebrew_status(self.dir(), self.port))
+
+
+def main() -> int:
+    rc, inst = PostgresAuthCli.from_command_line()
+    if not rc:
+        print(rc.error())
+        return 2
+    rc = inst.run()
+    if not rc:
+        print(rc.error())
+        return 1
+    return 0
 
 
 if __name__ == '__main__':

@@ -94,7 +94,7 @@ def ux_warning(text: str, parent = None, title = '',  on_close: Callable[[bool],
         parent = None
     ux.MessageBox.warning(parent, title, text, on_close=on_close)
 
-def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool|None:
+def ux_answer(question: str, parent = None, title = '', on_close: Callable[[bool],None] = None) -> bool | None:
     if not title:
         title = 'Waiting for your answer...'
     if not parent:
@@ -252,7 +252,7 @@ class UxDialog(ux.Dialog):
     def message(self, text: str):
         self.w_message.set_text(text)
 
-def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None) -> date|None:
+def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None) -> date | None:
     cal = ux.CalendarWidget()
     cal.set_grid_visible(bool(grid))
     if show_date:

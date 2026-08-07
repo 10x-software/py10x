@@ -9,9 +9,13 @@ from typing import TYPE_CHECKING
 from urllib.parse import parse_qs
 
 import ibis
+import ibis.expr.datatypes as ibis_dtypes
+import psycopg
 from core_10x.global_cache import cache
 from core_10x.resource import Resource
 from core_10x.ts_store import TsDuplicateKeyError
+from psycopg import sql
+from psycopg.errors import UniqueViolation
 
 from infra_10x.ibis_store import (
     _DATA,
@@ -49,6 +53,9 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     s_ddl_types = {
         float: 'DOUBLE PRECISION',
     }
+    # JSONB, not JSON: ibis then emits jsonb casts, whose equality is *semantic* (key order and
+    # spacing insensitive). Text comparison could never match — jsonb renormalizes on write.
+    s_json_type = ibis_dtypes.JSON(binary=True)
     s_instance_kwargs_map = IbisStore.s_instance_kwargs_map | {
         Resource.HOSTNAME_TAG: (Resource.HOSTNAME_TAG, 'localhost'),
         Resource.PORT_TAG: (Resource.PORT_TAG, 5432),
@@ -86,6 +93,7 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     def __init__(self, hostname=None, dbname=None, username=None, password=None, **kwargs):
         # libpq-only; must be set before ``IbisStore.__init__`` opens the connection.
         self.sslmode = kwargs.get(self.SSLMODE_TAG)
+        self._auth_user: str | None = None  # -- lazily resolved SQL current_user (see auth_user)
         super().__init__(hostname=hostname, dbname=dbname, username=username, password=password, **kwargs)
 
     def _ibis_connect(self):
@@ -161,6 +169,25 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         self._execute(
             f'CREATE TABLE IF NOT EXISTS {self._qname(collection_name)} ({_ID} VARCHAR PRIMARY KEY, {_REV} INTEGER NOT NULL, {_DATA} JSONB NOT NULL)'
         )
+        literal = collection_name.replace("'", "''")
+        self._execute(f"COMMENT ON TABLE {self._qname(collection_name)} IS '{literal}'")
+
+    def _catalog_collection_names(self) -> list[str]:
+        """Logical names from the comment stamped by :meth:`_create_table_if_not_exists`.
+
+        One query does both the comment lookup and the marker-column check, so listing a
+        shared database does not scan every table in it. Un-stamped tables fall back to
+        ``relname`` (a short name is its own physical name).
+        """
+        rows = self._execute(
+            "SELECT c.relname, obj_description(c.oid, 'pg_class') "
+            'FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace '
+            "WHERE c.relkind = 'r' AND n.nspname = current_schema() "
+            'AND (SELECT count(*) FROM pg_attribute a '
+            '     WHERE a.attrelid = c.oid AND NOT a.attisdropped AND a.attname IN (?, ?, ?)) = 3',
+            [_ID, _REV, _DATA],
+        )
+        return [comment or relname for relname, comment in rows]
 
     def _drop_table(self, collection_name: str) -> None:
         self._execute(f'DROP TABLE IF EXISTS {self._qname(collection_name)}')
@@ -194,10 +221,6 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         return f'{insert} RETURNING {col_sql}'
 
     def _handle_insert_error(self, exc: BaseException, collection_name: str, id_val: str) -> None:
-        try:
-            from psycopg.errors import UniqueViolation
-        except ImportError:  # pragma: no cover
-            raise exc from None
         if isinstance(exc, UniqueViolation):
             raise TsDuplicateKeyError(collection_name, {_ID: id_val}) from exc
         raise exc
@@ -254,6 +277,14 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     @cache
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:
         """Return ``(is_running, with_auth)`` for vault / store_from_uri routing.
+
+        Deliberately speaks the v3 startup protocol on a raw socket instead of attempting a
+        libpq connection: libpq silently supplies credentials from ``~/.pgpass``, ``PGPASSWORD``
+        and service files, so a successful ``psycopg.connect()`` does **not** mean the server
+        is open — it may just mean *this* machine has a stored password. That would report
+        ``(True, False)``, skip the vault, and break for every other client. This probe never
+        sends a password, so ``(True, False)`` means the server genuinely accepts unauthenticated
+        logins. Do not "simplify" it into a connect-and-catch.
 
         Conservative policy (prefer vault over false open access):
 
@@ -350,11 +381,49 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         # ParameterStatus (S), BackendKeyData (K), Notice (N), …
         return None
 
+    @staticmethod
+    def _qdb(dbname: str) -> str:
+        return f'"{dbname.replace(chr(34), chr(34) * 2)}"'
+
+    def list_databases(self, prefix: str = '') -> list[str]:
+        return [r[0] for r in self._execute('SELECT datname FROM pg_database WHERE datname LIKE ? ORDER BY datname', [prefix + '%'])]
+
+    def delete_database(self, dbname: str) -> bool:
+        """``WITH (FORCE)`` (PG 13+) evicts other sessions, but libpq cannot drop the database
+        this connection is attached to — hence the ``self.dbname`` guard."""
+        if not dbname or dbname == self.dbname or not self._execute('SELECT 1 FROM pg_database WHERE datname = ?', [dbname]):
+            return False
+        self._execute(f'DROP DATABASE {self._qdb(dbname)} WITH (FORCE)')  # -- autocommit: no transaction block
+        return True
+
+    @classmethod
+    def create_if_needed(cls, spec) -> bool:
+        """Create the database in ``spec`` if absent, via the maintenance database. Needs CREATEDB."""
+        dbname = spec.kwargs.get(cls.DBNAME_TAG)
+        maintenance = cls.s_instance_kwargs_map[cls.DBNAME_TAG][1]
+        if not dbname or dbname == maintenance:
+            return False
+        connect_kw = {
+            'host': spec.hostname(),
+            'port': spec.port(),
+            'dbname': maintenance,
+            'user': spec.kwargs.get(cls.USERNAME_TAG),
+            'password': spec.kwargs.get(cls.PASSWORD_TAG),
+        }
+        with psycopg.connect(**{k: v for k, v in connect_kw.items() if v is not None}, autocommit=True) as con, con.cursor() as cur:
+            cur.execute('SELECT 1 FROM pg_database WHERE datname = %s', [dbname])
+            if cur.fetchone():
+                return False
+            cur.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(dbname)))
+        return True
+
     def auth_user(self) -> str | None:
-        rows = self._execute('SELECT current_user')
-        return rows[0][0] if rows else None
+        # ``current_user`` is fixed for the life of the connection — query it once.
+        if self._auth_user is None:
+            rows = self._execute('SELECT current_user')
+            self._auth_user = rows[0][0] if rows else None
+        return self._auth_user
 
     def server_time(self) -> datetime:
-        rows = self._execute(f'SELECT {self._server_time_col_sql_expr()}')
-        val = rows[0][0]
-        return val.replace(tzinfo=None) if hasattr(val, 'tzinfo') and val.tzinfo else val
+        # ``AT TIME ZONE 'UTC'`` yields ``timestamp without time zone`` → psycopg returns naive.
+        return self._execute(f'SELECT {self._server_time_col_sql_expr()}')[0][0]

@@ -148,6 +148,18 @@ def test_store(ts_instance, monkeypatch):
     store.end_using()
 
 
+def test_delete_collection_drops_history_companion(test_store):
+    for coll_name, drop_history, expected in ((f'casc_{uuid6.uuid7().hex}', True, []), (f'keep_{uuid6.uuid7().hex}', False, ['#history'])):
+        hist_name = TraitableHistory.history_collection_name(coll_name)
+        NameValueTraitableCustomCollection(name='a', value=1, _collection_name=coll_name).save().throw()
+        assert {coll_name, hist_name} <= set(test_store.collection_names()), 'save must create both collections'
+
+        NameValueTraitableCustomCollection.delete_collection(coll_name, drop_history=drop_history)
+        if left := [n.replace(coll_name, '') for n in test_store.collection_names() if n.startswith(coll_name)]:
+            test_store.delete_collection(hist_name)
+        assert left == expected
+
+
 class TestTraitableHistory:
     """Test TraitableHistory functionality."""
 
