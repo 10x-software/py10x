@@ -107,17 +107,17 @@ def _normalize_git_url(url: str) -> str:
 
 
 def packages(tomlkit) -> dict[str, dict]:
-    """Per-package source descriptor: {'local': Path, 'git': url, 'subdir': str|None, 'cxx': bool}.
+    """Per-package source descriptor: local/git/subdir/cxx/downstream.
 
-    py10x-core is the current repo (`.`); siblings come from `[tool.dev_10x.siblings]`, where a
-    path like `../cxx10x/core_10x` yields repo dir `cxx10x` (the sibling's git repo, same remote
-    host/org) and subdirectory `core_10x`.
+    py10x-core is the current repo (`.`); siblings come from `[tool.dev_10x.siblings]` (`cxx=True`);
+    optional downstreams from `[tool.dev_10x.downstream]` (`cxx=False`, omitted from default sync).
     """
     remote = _git_remote()
     pkgs: dict[str, dict] = {
-        CORE: {'local': PROJECT_ROOT, 'git': remote, 'subdir': None, 'cxx': False},
+        CORE: {'local': PROJECT_ROOT, 'git': remote, 'subdir': None, 'cxx': False, 'downstream': False},
     }
-    for name, spec in _dev10x_cfg(tomlkit).get('siblings', {}).items():
+    cfg = _dev10x_cfg(tomlkit)
+    for name, spec in cfg.get('siblings', {}).items():
         rel = PurePosixPath(spec['path'])
         non_dotdot = [p for p in rel.parts if p != '..']
         repo_dir = non_dotdot[0]
@@ -127,22 +127,60 @@ def packages(tomlkit) -> dict[str, dict]:
             'git': spec.get('git') or _swap_repo(remote, repo_dir),
             'subdir': spec.get('subdirectory', subdir),
             'cxx': True,  # siblings are the compiled C++ packages
+            'downstream': False,
+        }
+    for name, spec in cfg.get('downstream', {}).items():
+        rel = PurePosixPath(spec['path'])
+        if '..' in rel.parts:
+            non_dotdot = [p for p in rel.parts if p != '..']
+            git_url = _swap_repo(remote, non_dotdot[0])
+            subdir = '/'.join(non_dotdot[1:]) or None
+        else:
+            # Same-repo nested path (e.g. xx_fin): this repo's remote + subdirectory.
+            git_url = remote
+            subdir = None if rel.parts in ((), ('.',)) else str(rel)
+        pkgs[name] = {
+            'local': (PROJECT_ROOT / spec['path']).resolve(),
+            'git': spec.get('git') or git_url,
+            'subdir': spec.get('subdirectory', subdir),
+            'cxx': False,
+            'downstream': True,
         }
     return pkgs
 
 
 def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
     """Desired source kind ('local'|'git'|'index') per package for `profile`."""
-    siblings = [p for p in pkg_names if p != CORE]
+    others = [p for p in pkg_names if p != CORE]
     if profile == 'user':
-        return {CORE: 'local', **{s: 'index' for s in siblings}}
+        return {CORE: 'local', **{s: 'index' for s in others}}
     if profile == 'domain-dev':
         return {p: 'git' for p in pkg_names}
     if profile == 'py10x-dev':
-        return {CORE: 'local', **{s: 'git' for s in siblings}}
+        return {CORE: 'local', **{s: 'git' for s in others}}
     if profile == 'py10x-core-dev':
         return {p: 'local' for p in pkg_names}
     raise ValueError(f'unknown profile {profile!r}')
+
+
+def _parse_with_downstream(uv_args: tuple[str, ...]) -> tuple[bool, set[str] | None, list[str]]:
+    """Strip `--with-downstream [name…]` from uv_args. Returns (enabled, name filter or None, rest)."""
+    enabled = False
+    names: list[str] = []
+    rest: list[str] = []
+    i = 0
+    args = list(uv_args)
+    while i < len(args):
+        if args[i] == '--with-downstream':
+            enabled = True
+            i += 1
+            while i < len(args) and not args[i].startswith('-'):
+                names.append(args[i])
+                i += 1
+            continue
+        rest.append(args[i])
+        i += 1
+    return enabled, (set(names) if names else None), rest
 
 
 # --------------------------------------------------------------------------------------------
@@ -287,7 +325,16 @@ def _maybe_wait_for_sibling_branch() -> None:
 def uv_sync(profile: str, *uv_args: str) -> None:
     tomlkit = ensure_env_and_runtime_deps(PROJECT_ROOT)
     _maybe_wait_for_sibling_branch()
-    pkgs = packages(tomlkit)
+    with_downstream, downstream_filter, uv_args_list = _parse_with_downstream(uv_args)
+    uv_args = tuple(uv_args_list)
+    all_pkgs = packages(tomlkit)
+    if with_downstream:
+        if downstream_filter is not None:
+            pkgs = {n: p for n, p in all_pkgs.items() if not p.get('downstream') or n in downstream_filter}
+        else:
+            pkgs = all_pkgs
+    else:
+        pkgs = {n: p for n, p in all_pkgs.items() if not p.get('downstream')}
     branch = _dev10x_cfg(tomlkit).get('branch', 'main')
     kinds = profile_kinds(profile, list(pkgs))
     siblings = [p for p in pkgs if p != CORE]
@@ -306,9 +353,9 @@ def uv_sync(profile: str, *uv_args: str) -> None:
         # Seed the toolchain so the cold metadata hook + import-time `cmake --build` have it.
         _pip_install('--quiet', *CXX_BUILD_TOOLCHAIN)
     verbose = '--verbose' in uv_args
-    # 1. siblings (local/git). Index siblings are handled by step 2; force a swap there only if the
-    #    sibling is currently installed from a non-index source.
-    print('1. siblings:')
+    # 1. siblings / opt-in downstreams (local/git). Index siblings are handled by step 2; force a
+    #    swap there only if the sibling is currently installed from a non-index source.
+    print('1. siblings' + (' + downstreams' if with_downstream else '') + ':')
     index_swaps: list[str] = []
     for s in siblings:
         kind = kinds[s]
@@ -323,7 +370,9 @@ def uv_sync(profile: str, *uv_args: str) -> None:
             do = True
         if do:
             if kind == 'local':
-                install_local(s, pkgs[s], pin=_sibling_pin(s), incremental=incremental, verbose=verbose)
+                # Downstream is not a core published dep — no forward pin to apply.
+                pin = None if pkgs[s].get('downstream') else _sibling_pin(s)
+                install_local(s, pkgs[s], pin=pin, incremental=incremental, verbose=verbose)
             else:  # git
                 install_git(s, pkgs[s], branch)
 
@@ -402,7 +451,10 @@ def ensure_chromium_installed() -> None:
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in PROFILES:
-        print(f'Usage: uv-sync {"|".join(PROFILES)} [extra `uv pip install` options]')
+        print(
+            f'Usage: uv-sync {"|".join(PROFILES)} [--with-downstream [name…]] '
+            f'[extra `uv pip install` options]'
+        )
         return
     profile = sys.argv[1]
     uv_sync(profile, *sys.argv[2:])
