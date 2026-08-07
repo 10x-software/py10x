@@ -1,20 +1,11 @@
-"""Pure release-batch planning for `xx-promote` (no git / filesystem I/O).
+"""Pure, deterministic release planner for `xx-promote`.
 
-The design (`dev_10x/README.md`, *xx-promote*) calls for `_promote` to
-compute a **plan** purely - which packages re-cut, at what version, with what coordinated pins, on
-which branch, under what tag - separate from execution, so the combinatorial space can be asserted
-exhaustively in-memory. This module is that planner; `xx_promote.py` gathers the git/pyproject
+The planner is the single source of truth for *what* a `pre` / `prod` run should do. The CLI
+(`dev_10x.xx_promote`) is a thin executor: it gathers git / PyPI / working-tree state, packs that
 state into `PkgInput`s, calls `PrePlan`/`ProdPlan.create_batch`, then executes the returned `Plan`s.
-
-Stage 1 covers `pre --from=main` (cut the next coordinated rc). Batch formation is **declarative**
-(decisions compare persistent state - tags + current pins - never an in-process diff):
-
-- **sibling:** re-cut iff its own footprint changed since its last tag.
-- **core:** re-cut iff its own footprint changed **or** its current forward `==` pin lags a
-  sibling's coordinated version (so a fresh sibling rc forces a core re-cut to refresh the pin).
-
-An **unchanged** package is not re-cut; its coordinated version floors to its latest **final**
-(the "unchanged sibling" rule), which is what core then `==`-pins.
+Nothing here shells out or mutates the filesystem - every decision is a pure function of the inputs,
+so the combinatorial cases live in unit tests (`dev_10x/unit_tests/test_xx_plan.py`) and the CLI
+owns I/O. See `dev_10x/README.md` (xx-promote) for the release model this encodes.
 """
 
 from __future__ import annotations
@@ -22,8 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar
 
-from core_10x.trait_definition import RT
-from core_10x.traitable import T, Traitable
+from core_10x.traitable import RT, T, Traitable
 
 from dev_10x.xx_helpers import GitHelpers, PyProjectHelpers, VersionHelpers
 
@@ -36,9 +26,9 @@ class PkgInput(Traitable):
 
     In production the caller sets only `name` + `packages` (the `{name: Package}` registry); every
     other field is a **lazy getter** (the package's own attrs, or git reads, sticky-cached) - so a
-    `PkgInput` decides for itself whether it is core (has siblings to forward-pin) or a sibling.
-    Tests set the computed traits explicitly, which bypasses the getters, keeping the planner
-    unit-testable in-memory with no git.
+    `PkgInput` decides for itself whether it is core / sibling / downstream. Tests set the computed
+    traits explicitly, which bypasses the getters, keeping the planner unit-testable in-memory with
+    no git.
     """
 
     name: str = RT()
@@ -46,12 +36,13 @@ class PkgInput(Traitable):
     tag_prefix: str = RT(T.STICKY)  # "v" for core, "py10x-kernel-v" for a sibling
     repo: Path = RT(T.STICKY)
     src_dir: Path = RT(T.STICKY)
-    siblings: set = RT(T.STICKY)  # names this package forward-pins (only core's is non-empty)
+    siblings: set = RT(T.STICKY)  # names this package forward-pins (published deps)
     is_core: bool = RT(T.STICKY)
+    is_downstream: bool = RT(T.STICKY)
     parsed_tags: list = RT(T.STICKY)  # selection tags (yanked excluded)
     generation_tags: list = RT(T.STICKY)  # generation floor (yanked *included* - consumed)
     footprint_changed: bool = RT(T.STICKY)  # diff since the latest tag across diff_pathspecs
-    current_forward: dict = RT(T.STICKY)  # core only: {sibling: version currently ==-pinned}
+    current_forward: dict = RT(T.STICKY)  # exact == pins of `siblings` from latest tag
 
     def _pkg(self):
         return self.packages[self.name]
@@ -68,9 +59,20 @@ class PkgInput(Traitable):
     def is_core_get(self) -> bool:
         return self.tag_prefix == 'v'
 
+    def is_downstream_get(self) -> bool:
+        pkg = self.packages.get(self.name) if self.packages else None
+        return bool(pkg and getattr(pkg, 'is_downstream', False))
+
     def siblings_get(self) -> set:
-        # core forward-pins every other package; a sibling forward-pins nothing.
-        return {n for n in self.packages if n != self.name} if self.is_core else set()
+        # Forward-pin targets (published [project.dependencies]):
+        #   core -> siblings only (never downstreams)
+        #   downstream -> {core}
+        #   sibling -> empty
+        if self.is_core:
+            return {n for n, p in self.packages.items() if n != self.name and not p.is_core and not p.is_downstream}
+        if self.is_downstream:
+            return {n for n, p in self.packages.items() if p.is_core}
+        return set()
 
     def parsed_tags_get(self) -> list:
         return VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(self.repo, f'{self.tag_prefix}*'), self.tag_prefix)
@@ -82,15 +84,20 @@ class PkgInput(Traitable):
         # Diff from the main commit the latest tag was cut off (merge-base with main), not the tag
         # itself: the tag sits on the pre/prod line and carries pin commit(s), which aren't source.
         # Footprint = the whole repo minus the *other* packages' subtrees (shared files count, a
-        # sibling's subtree does not).
+        # sibling's subtree does not). Skip excluding `.` (core's src_dir) so a nested downstream
+        # still has a real footprint.
         latest = VersionHelpers.latest_tag(self.parsed_tags)
         if latest is None:
             return True
         fork = GitHelpers.git(self.repo, 'merge-base', latest[0], 'main')
-        sibling_subdirs = [
-            GitHelpers.repo_relative_subtree(self.repo, p.src_dir) for n, p in self.packages.items() if n != self.name and p.repo == self.repo
+        other_subdirs = [
+            sub
+            for n, p in self.packages.items()
+            if n != self.name and p.repo == self.repo
+            for sub in [GitHelpers.repo_relative_subtree(self.repo, p.src_dir)]
+            if sub != '.'
         ]
-        if not GitHelpers.tree_changed_since_tag(self.repo, fork, *GitHelpers.diff_pathspecs(*sibling_subdirs), rev='main'):
+        if not GitHelpers.tree_changed_since_tag(self.repo, fork, *GitHelpers.diff_pathspecs(*other_subdirs), rev='main'):
             return False
         if not self.is_core or not self.siblings:
             return True
@@ -102,8 +109,7 @@ class PkgInput(Traitable):
         return not PyProjectHelpers.diff_is_only_forward_pin_edits(old, new, self.siblings)
 
     def current_forward_get(self) -> dict:
-        # core's published forward `==` pins, read from its latest tag's pyproject and filtered to
-        # the sibling names. A sibling (empty `siblings`) tracks no forward pins.
+        # Exact `==` pins of `siblings` (forward-pin targets) from the latest tag's pyproject.
         if not self.siblings:
             return {}
         parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(self.repo, f'{self.tag_prefix}*'), self.tag_prefix)
@@ -142,11 +148,16 @@ def _prod_target(inp: PkgInput) -> str | None:
 
 @dataclass(frozen=True)
 class MainEdit:
-    """A `main`-epilogue pyproject edit (rendered as a MainEditStep on the plan's own package)."""
+    """A `main`-epilogue pyproject edit (rendered as a MainEditStep).
+
+    `target` overrides which package receives the edit (default: the plan's own package). Used when
+    a downstream cut must refresh core's unpublished test-group pin without re-cutting core.
+    """
 
     description: str
     forward_pins: dict[str, str] = field(default_factory=dict)
-    test_pin: str | None = None
+    test_pin: str | list[str] | None = None
+    target: str | None = None
 
 
 @dataclass(frozen=True)
@@ -155,8 +166,8 @@ class Plan:
 
     `create_batch` is shared: it asks the subclass to **decide** each package's coordinated version
     (the only real pre/prod difference), then builds the coordinated cross-pins (core `==` siblings,
-    each sibling `py10x-core>=` core) + the per-package plan + its `main` epilogue. Subclasses set
-    `FLAVOR`/`BASE_KIND` and supply `_decide` (+ `_epilogue`/`_skip_reason`). One planner, two decisions.
+    each sibling `py10x-core>=` core; downstream `==` core) + the per-package plan + its `main`
+    epilogue. Subclasses set `FLAVOR`/`BASE_KIND` and supply `_decide` (+ `_epilogue`/`_skip_reason`).
     """
 
     name: str
@@ -165,9 +176,9 @@ class Plan:
     tag: str | None = None  # f"{tag_prefix}{version}"
     branch: str | None = None  # tool-owned release branch
     base_kind: str = 'main'  # PromoteStep forks from "main" HEAD or latest "rc"
-    forward_pins: dict[str, str] = field(default_factory=dict)  # core: {sibling: "==ver"}
-    reverse_pin: str | None = None  # sibling: "py10x-core>=corever"
-    epilogue: tuple = ()  # MainEdit[] (main pin refresh on core / siblings)
+    forward_pins: dict[str, str] = field(default_factory=dict)  # published [project.dependencies] pins
+    reverse_pin: str | None = None  # sibling: "py10x-core>=corever" test-group
+    epilogue: tuple = ()  # MainEdit[] (main pin refresh on core / siblings / downstreams)
     skip_reason: str | None = None
 
     FLAVOR: ClassVar[str]  # "pre" | "prod"
@@ -177,7 +188,7 @@ class Plan:
     def create_batch(cls, inputs: list[PkgInput]) -> dict[str, Plan]:
         decided = cls._decide(inputs)  # {name: (coordinated version | None, acts)}
         core = next(i for i in inputs if i.is_core)
-        siblings = [i for i in inputs if not i.is_core]
+        siblings = [i for i in inputs if not i.is_core and not i.is_downstream]
         plans: dict[str, Plan] = {}
         for inp in inputs:
             version, acts = decided[inp.name]
@@ -186,6 +197,10 @@ class Plan:
                 continue
             if inp.is_core:
                 forward = {s.name: VersionHelpers.exact_pin(decided[s.name][0]) for s in siblings if decided[s.name][0] is not None}
+                reverse = None
+            elif inp.is_downstream:
+                core_v = decided[core.name][0]
+                forward = {core.name: VersionHelpers.exact_pin(core_v)} if core_v is not None else {}
                 reverse = None
             else:
                 core_v = decided[core.name][0]
@@ -218,6 +233,11 @@ class Plan:
         raise NotImplementedError
 
 
+def _downstream_test_pins(decided: dict, inputs: list[PkgInput]) -> list[str]:
+    """`dependency-groups.test` pins on core for each downstream with a coordinated version."""
+    return [VersionHelpers.test_group_dep_pin(i.name, decided[i.name][0]) for i in inputs if i.is_downstream and decided[i.name][0] is not None]
+
+
 class PrePlan(Plan):
     """`pre`: cut the next coordinated rc onto `pre`, forked from `main` HEAD; core `main` epilogue."""
 
@@ -226,18 +246,49 @@ class PrePlan(Plan):
 
     @classmethod
     def _epilogue(cls, inp, decided, inputs):
-        if not inp.is_core:
-            return ()
-        pins = {
-            s.name: VersionHelpers.main_forward_window_pin(decided[s.name][0]) for s in inputs if not s.is_core and decided[s.name][0] is not None
-        }
-        return (MainEdit('rc-window sibling pins on main', forward_pins=pins),) if pins else ()
+        core = next(i for i in inputs if i.is_core)
+        if inp.is_core:
+            edits: list[MainEdit] = []
+            pins = {
+                s.name: VersionHelpers.main_forward_window_pin(decided[s.name][0])
+                for s in inputs
+                if not s.is_core and not s.is_downstream and decided[s.name][0] is not None
+            }
+            if pins:
+                edits.append(MainEdit('rc-window sibling pins on main', forward_pins=pins))
+            ds_pins = _downstream_test_pins(decided, inputs)
+            if ds_pins:
+                edits.append(MainEdit('track downstreams in test group', test_pin=ds_pins))
+            return tuple(edits)
+        if inp.is_downstream:
+            edits = []
+            core_v = decided[core.name][0]
+            if core_v is not None:
+                edits.append(
+                    MainEdit(
+                        'rc-window core pin on main',
+                        forward_pins={core.name: VersionHelpers.main_forward_window_pin(core_v)},
+                    )
+                )
+            # Fin-base-only cut: refresh core's unpublished test-group pin without re-cutting core.
+            if not decided[core.name][1] and decided[inp.name][0] is not None:
+                edits.append(
+                    MainEdit(
+                        f'track {inp.name} in core test group',
+                        test_pin=VersionHelpers.test_group_dep_pin(inp.name, decided[inp.name][0]),
+                        target=core.name,
+                    )
+                )
+            return tuple(edits)
+        return ()
 
     @classmethod
     def _decide(cls, inputs):
         core = next(i for i in inputs if i.is_core)
-        decided = {i.name: _coordinated_version(i) for i in inputs if not i.is_core}
-        # core re-cuts on its own footprint OR a pin that lags any sibling's coordinated version.
+        siblings = [i for i in inputs if not i.is_core and not i.is_downstream]
+        downstreams = [i for i in inputs if i.is_downstream]
+        decided = {i.name: _coordinated_version(i) for i in siblings}
+        # core re-cuts on its own footprint OR a pin that lags any *sibling*'s coordinated version.
         pin_lag = any(v is not None and core.current_forward.get(n) != v for n, (v, _) in decided.items())
         if core.footprint_changed or pin_lag:
             gen = core.generation_tags
@@ -245,6 +296,15 @@ class PrePlan(Plan):
             decided[core.name] = (f'{target}rc{VersionHelpers.next_rc(gen, target)}', True)
         else:
             decided[core.name] = _coordinated_version(core)
+        # downstreams: own footprint OR published core pin lag vs this batch's coordinated core.
+        core_v = decided[core.name][0]
+        for d in downstreams:
+            if d.footprint_changed or (core_v is not None and d.current_forward.get(core.name) != core_v):
+                gen = d.generation_tags
+                target = VersionHelpers.target_version(gen)
+                decided[d.name] = (f'{target}rc{VersionHelpers.next_rc(gen, target)}', True)
+            else:
+                decided[d.name] = _coordinated_version(d)
         return decided
 
     @classmethod
@@ -265,10 +325,39 @@ class ProdPlan(Plan):
 
     @classmethod
     def _epilogue(cls, inp, decided, inputs):
-        core_v = decided[next(i.name for i in inputs if i.is_core)][0]
+        core = next(i for i in inputs if i.is_core)
+        core_v = decided[core.name][0]
         if inp.is_core:
-            dev = {i.name: VersionHelpers.post_final_window_pin(decided[i.name][0]) for i in inputs if not i.is_core and decided[i.name][1]}
-            return (MainEdit('post-final window sibling pins on main', forward_pins=dev),) if dev else ()
+            edits: list[MainEdit] = []
+            dev = {
+                i.name: VersionHelpers.post_final_window_pin(decided[i.name][0])
+                for i in inputs
+                if not i.is_core and not i.is_downstream and decided[i.name][1]
+            }
+            if dev:
+                edits.append(MainEdit('post-final window sibling pins on main', forward_pins=dev))
+            ds_pins = _downstream_test_pins(decided, inputs)
+            if ds_pins:
+                edits.append(MainEdit('track downstreams in test group', test_pin=ds_pins))
+            return tuple(edits)
+        if inp.is_downstream:
+            edits = []
+            if core_v is not None:
+                edits.append(
+                    MainEdit(
+                        'post-final core pin on main',
+                        forward_pins={core.name: VersionHelpers.post_final_window_pin(core_v)},
+                    )
+                )
+            if not decided[core.name][1] and decided[inp.name][0] is not None:
+                edits.append(
+                    MainEdit(
+                        f'track {inp.name} in core test group',
+                        test_pin=VersionHelpers.test_group_dep_pin(inp.name, decided[inp.name][0]),
+                        target=core.name,
+                    )
+                )
+            return tuple(edits)
         return (MainEdit('track released py10x-core in test group', test_pin=VersionHelpers.test_group_pin(core_v)),) if core_v is not None else ()
 
     @classmethod

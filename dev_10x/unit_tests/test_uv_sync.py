@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from dev_10x.uv_sync import _normalize_git_url, _swap_repo
+from unittest.mock import MagicMock
+
+from dev_10x.uv_sync import _normalize_git_url, _parse_with_downstream, _swap_repo, packages
 
 
 class TestNormalizeGitUrl:
@@ -34,3 +36,38 @@ class TestSwapRepo:
     def test_scp_preserved(self):
         # _swap_repo preserves the form; normalization is applied later in install_git
         assert _swap_repo('git@github.com:org/py10x.git', 'cxx10x') == 'git@github.com:org/cxx10x.git'
+
+
+class TestWithDownstream:
+    def test_parse_flag_and_names(self):
+        enabled, names, rest = _parse_with_downstream(('--all-extras', '--with-downstream', 'py10x-fin-base', '--quiet'))
+        assert enabled and names == {'py10x-fin-base'} and rest == ['--all-extras', '--quiet']
+
+    def test_parse_flag_alone_means_all(self):
+        enabled, names, rest = _parse_with_downstream(('--with-downstream',))
+        assert enabled and names is None and rest == []
+
+    def test_default_omits_downstream(self):
+        all_pkgs = {
+            'py10x-core': {'downstream': False},
+            'py10x-kernel': {'downstream': False},
+            'py10x-fin-base': {'downstream': True},
+        }
+        default = {n: p for n, p in all_pkgs.items() if not p.get('downstream')}
+        assert set(default) == {'py10x-core', 'py10x-kernel'}
+
+    def test_packages_marks_downstream_cxx_false(self, monkeypatch):
+        monkeypatch.setattr('dev_10x.uv_sync._git_remote', lambda: 'https://github.com/org/py10x.git')
+        monkeypatch.setattr(
+            'dev_10x.uv_sync._dev10x_cfg',
+            lambda _t: {
+                'siblings': {'py10x-kernel': {'path': '../cxx10x/core_10x'}},
+                'downstream': {'py10x-fin-base': {'path': 'xx_fin'}},
+            },
+        )
+        pkgs = packages(MagicMock())
+        assert pkgs['py10x-fin-base']['downstream'] is True
+        assert pkgs['py10x-fin-base']['cxx'] is False
+        assert pkgs['py10x-fin-base']['subdir'] == 'xx_fin'
+        assert pkgs['py10x-kernel']['downstream'] is False
+        assert pkgs['py10x-kernel']['cxx'] is True

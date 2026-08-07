@@ -14,13 +14,18 @@ from dev_10x.xx_plan import PkgInput, PrePlan, ProdPlan
 CORE, KERNEL, INFRA = 'v', 'py10x-kernel-v', 'py10x-infra-v'
 
 
-def _inp(name, is_core, prefix, tags, changed=False, current_forward=None, gen_tags=None):
+CORE_NAME, FIN = 'py10x-core', 'py10x-fin-base'
+FIN_PREFIX = 'py10x-fin-base-v'
+
+
+def _inp(name, is_core, prefix, tags, changed=False, current_forward=None, gen_tags=None, is_downstream=False):
     # PkgInput is a Traitable; setting the computed traits explicitly bypasses the (git) getters.
     parsed = VersionHelpers.parse_pkg_tags(tags, prefix)
     generation = VersionHelpers.parse_pkg_tags(gen_tags, prefix, include_yanked=True) if gen_tags is not None else parsed
     return PkgInput(
         name=name,
         is_core=is_core,
+        is_downstream=is_downstream,
         tag_prefix=prefix,
         parsed_tags=parsed,
         footprint_changed=changed,
@@ -211,3 +216,74 @@ def test_prod_nothing_to_promote_skips_all():
         ]
     )
     assert all(not p.act for p in plans.values())
+
+
+# ------------------------------------------------------------------------------- downstream role
+def test_downstream_only_footprint_skips_core_version_but_refreshes_test_group():
+    """Fin-base-only change: core does not re-cut; core main gets test-group pin via target=core."""
+    plans = PrePlan.create_batch(
+        [
+            _inp(CORE_NAME, True, CORE, ['v0.2.0'], False, current_forward={'py10x-kernel': '1.4.0'}),
+            _inp('py10x-kernel', False, KERNEL, [f'{KERNEL}1.4.0'], False),
+            _inp(FIN, False, FIN_PREFIX, [f'{FIN_PREFIX}0.1.0'], True, current_forward={CORE_NAME: '0.2.0'}, is_downstream=True),
+        ]
+    )
+    assert not plans[CORE_NAME].act
+    assert not plans['py10x-kernel'].act
+    assert plans[FIN].act and plans[FIN].version == '0.1.1rc1'
+    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.0'}
+    assert plans[FIN].reverse_pin is None
+    # Downstream epilogue: core window pin on fin-base main + core test-group refresh (target=core).
+    assert any(e.forward_pins.get(CORE_NAME) for e in plans[FIN].epilogue)
+    tg = next(e for e in plans[FIN].epilogue if e.target == CORE_NAME)
+    assert tg.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')
+
+
+def test_core_recut_forces_downstream_on_core_pin_lag():
+    """Core re-cut makes fin-base's published core pin stale -> fin-base acts even if unchanged."""
+    plans = PrePlan.create_batch(
+        [
+            _inp(CORE_NAME, True, CORE, ['v0.2.0'], True, current_forward={'py10x-kernel': '1.4.0'}),
+            _inp('py10x-kernel', False, KERNEL, [f'{KERNEL}1.4.0'], False),
+            _inp(FIN, False, FIN_PREFIX, [f'{FIN_PREFIX}0.1.0'], False, current_forward={CORE_NAME: '0.2.0'}, is_downstream=True),
+        ]
+    )
+    assert plans[CORE_NAME].act and plans[CORE_NAME].version == '0.2.1rc1'
+    assert FIN not in plans[CORE_NAME].forward_pins  # published pins are siblings only
+    assert plans[FIN].act and plans[FIN].version == '0.1.1rc1'
+    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.1rc1'}
+    # Core epilogue tracks downstream in unpublished test group.
+    assert any(
+        e.test_pin == [VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')] or e.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')
+        for e in plans[CORE_NAME].epilogue
+        if e.test_pin
+    )
+
+
+def test_downstream_does_not_force_core_recut():
+    """Unlike siblings, a fresh downstream rc alone must not re-cut core."""
+    plans = PrePlan.create_batch(
+        [
+            _inp(CORE_NAME, True, CORE, ['v0.2.0'], False, current_forward={'py10x-kernel': '1.4.0'}),
+            _inp('py10x-kernel', False, KERNEL, [f'{KERNEL}1.4.0'], False),
+            _inp(FIN, False, FIN_PREFIX, [f'{FIN_PREFIX}0.1.0'], True, current_forward={CORE_NAME: '0.2.0'}, is_downstream=True),
+        ]
+    )
+    assert not plans[CORE_NAME].act
+    assert plans[FIN].act
+
+
+def test_prod_downstream_pins_core_and_refreshes_core_test_group_when_core_skips():
+    plans = ProdPlan.create_batch(
+        [
+            _inp(CORE_NAME, True, CORE, ['v0.2.0']),  # latest final -> skip
+            _inp('py10x-kernel', False, KERNEL, [f'{KERNEL}1.4.0']),
+            _inp(FIN, False, FIN_PREFIX, [f'{FIN_PREFIX}0.1.0', f'{FIN_PREFIX}0.1.1rc1'], is_downstream=True),
+        ]
+    )
+    assert not plans[CORE_NAME].act
+    assert plans[FIN].act and plans[FIN].version == '0.1.1'
+    assert plans[FIN].forward_pins == {}  # no released core_v from this batch
+    # core skipped -> no core_v for published pin; still refresh core test group from finalized fin-base
+    tg = next(e for e in plans[FIN].epilogue if e.target == CORE_NAME)
+    assert tg.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1')

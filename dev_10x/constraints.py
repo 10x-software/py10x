@@ -40,11 +40,21 @@ def _normalize(name: str) -> str:
     return re.sub(r'[-_.]+', '-', name).lower()
 
 
+def _dev10x_paths(section: str) -> dict[str, Path]:
+    """{dist-name: pyproject.toml path} for each `[tool.dev_10x.{section}]` entry."""
+    data = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    entries = data.get('tool', {}).get('dev_10x', {}).get(section, {})
+    return {name: (PROJECT_ROOT / spec['path'] / 'pyproject.toml') for name, spec in entries.items()}
+
+
 def _siblings() -> dict[str, Path]:
     """{dist-name: pyproject.toml path} for each [tool.dev_10x.siblings] entry."""
-    data = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
-    sibs = data.get('tool', {}).get('dev_10x', {}).get('siblings', {})
-    return {name: (PROJECT_ROOT / spec['path'] / 'pyproject.toml') for name, spec in sibs.items()}
+    return _dev10x_paths('siblings')
+
+
+def _downstreams() -> dict[str, Path]:
+    """{dist-name: pyproject.toml path} for each [tool.dev_10x.downstream] entry."""
+    return _dev10x_paths('downstream')
 
 
 def _workspace_members() -> set[str]:
@@ -63,11 +73,15 @@ def _workspace_members() -> set[str]:
 
 
 def _first_party() -> set[str]:
-    """Normalized names never pinned in the freeze: the root project, its [tool.dev_10x.siblings],
-    and any [tool.uv.workspace] members. Owned by the profile system / xx-promote, not this freeze."""
+    """Normalized names never pinned in the freeze: root, siblings, downstreams, workspace members."""
     data = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
     root = data['project']['name']
-    return {_normalize(root), *(_normalize(n) for n in _siblings()), *_workspace_members()}
+    return {
+        _normalize(root),
+        *(_normalize(n) for n in _siblings()),
+        *(_normalize(n) for n in _downstreams()),
+        *_workspace_members(),
+    }
 
 
 def _python_floor() -> str:
@@ -87,18 +101,19 @@ def _python_floor() -> str:
 
 
 def compile_(upgrade: bool = False) -> int:
-    """Recompile constraints.txt from all three pyprojects (siblings excluded from the output)."""
+    """Recompile constraints.txt from core + sibling (+ downstream) pyprojects."""
     siblings = _siblings()
-    missing = [str(p) for p in siblings.values() if not p.is_file()]
+    downstreams = _downstreams()
+    compile_inputs = {**siblings, **downstreams}
+    missing = [str(p) for p in compile_inputs.values() if not p.is_file()]
     if missing:
         sys.exit(
-            f'xx-constraints: sibling pyproject(s) not found: {", ".join(missing)}\n'
-            f'  the C++ siblings must be checked out (e.g. run `uv-sync py10x-core-dev`) so '
-            f'their third-party deps are frozen too.'
+            f'xx-constraints: first-party pyproject(s) not found: {", ".join(missing)}\n'
+            f'  siblings need the ../cxx10x checkout (e.g. `uv-sync py10x-core-dev`); '
+            f'downstreams need their packaging roots present.'
         )
-    # Exclude every first-party package (siblings + any workspace members) from the emitted freeze,
-    # mirroring check()'s _first_party() set. The root project is never self-emitted by uv.
-    no_emit_names = sorted({*siblings, *_workspace_members()})
+    # Exclude every first-party package from the emitted freeze (mirrors check()'s _first_party()).
+    no_emit_names = sorted({*siblings, *downstreams, *_workspace_members()})
     no_emit = [arg for name in no_emit_names for arg in ('--no-emit-package', name)]
     compile_cmd = 'xx-constraints compile --upgrade' if upgrade else 'xx-constraints compile'
     cmd = [
@@ -106,7 +121,7 @@ def compile_(upgrade: bool = False) -> int:
         'pip',
         'compile',
         'pyproject.toml',
-        *[str(p) for p in siblings.values()],
+        *[str(p) for p in compile_inputs.values()],
         '--universal',
         '--all-extras',
         *no_emit,

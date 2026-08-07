@@ -57,6 +57,7 @@ class Package(Traitable):
     name: str  # distribution name, e.g. "py10x-kernel"
     src_dir: Path
     is_core: bool = RT(T.STICKY)
+    is_downstream: bool = RT(T.STICKY)  # depends on core; core must not publish-pin it
 
     repo: Path = RT(T.STICKY)  # git repo root - STICKY: `git_root` is immutable, don't re-shell per access
     tag_prefix: str = RT(T.STICKY)  # tag namespace, e.g. "py10x-kernel-v" (core is just "v")
@@ -70,6 +71,10 @@ class Package(Traitable):
 
     def pyproject_get(self) -> Path:
         return self.src_dir / 'pyproject.toml'
+
+    @property
+    def is_sibling(self) -> bool:
+        return not self.is_core and not self.is_downstream
 
 
 # --------------------------------------------------------------------------------------------
@@ -280,13 +285,13 @@ class MainEditStep(PkgStep):
     """
 
     forward_pins: dict = RT()  # {dep: spec} for [project.dependencies]
-    test_pin: str | None = RT()  # py10x-core pin for the `test` group
+    test_pin: object = RT()  # str | list[str] | None — pin(s) for dependency-groups.test
     description: str = RT()
 
     def forward_pins_get(self) -> dict:
         return {}
 
-    def test_pin_get(self) -> str | None:
+    def test_pin_get(self) -> object:
         return None
 
     def summary_get(self) -> str:
@@ -438,16 +443,20 @@ class XxPromoteCli(TraitableCli):
         cls.s_command = _command
 
     def packages_get(self) -> dict[str, Package]:
-        """Build the package registry from `[tool.dev_10x.siblings]` in `base/pyproject.toml`.
+        """Build the package registry from `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]`.
 
-        Sibling repo roots are discovered via `git rev-parse --show-toplevel`; tag prefixes follow
-        the naming convention `{name}-v` unless overridden by a `tag_prefix` key in the inline table.
+        Order: siblings, then downstreams, then core last (required by `post_verify`). Tag prefixes
+        follow `{name}-v` (core is `v`).
         """
         base = Path(self.base).resolve()
         doc = tomlkit.parse((base / 'pyproject.toml').read_text(encoding='utf-8'))
         core_name = str(doc['project']['name'])
-        siblings = doc.get('tool', {}).get('dev_10x', {}).get('siblings', {})
+        tool = doc.get('tool', {}).get('dev_10x', {})
+        siblings = tool.get('siblings', {})
+        downstreams = tool.get('downstream', {})
         result = {name: Package(name=name, src_dir=(base / spec['path']).resolve()) for name, spec in siblings.items()}
+        for name, spec in downstreams.items():
+            result[name] = Package(name=name, src_dir=(base / spec['path']).resolve(), is_downstream=True)
         result[core_name] = Package(name=core_name, src_dir=base, is_core=True)
         return result
 
@@ -582,7 +591,12 @@ class XxPromote(XxPromoteCli, _abstract=True):
         plans = self._create_batch()
         steps: list[Step] = [PromoteStep(pkg=pkg, plan=plans[name]) for name, pkg in pkgs.items()]
         steps += [
-            MainEditStep(pkg=pkgs[name], forward_pins=e.forward_pins, test_pin=e.test_pin, description=e.description)
+            MainEditStep(
+                pkg=pkgs[e.target or name],
+                forward_pins=e.forward_pins,
+                test_pin=e.test_pin,
+                description=e.description,
+            )
             for name, plan in plans.items()
             for e in plan.epilogue
         ]
@@ -718,20 +732,61 @@ class Yank(XxPromoteCli, _command='yank'):
             branch = GitHelpers.release_branch(self.branch_name, self.pkg, self.package.is_core)
             steps.append(RollbackStep(repo=repo, branch=branch, to_tag=prev_tag, to_commit=GitHelpers.tag_commit(repo, prev_tag)))
 
-        # Roll back py10x-core `main` forward pin(s) for the yanked release line.
+        # Roll back main pins for the yanked release line (role-aware).
         if self.package.is_core:
-            forward_pins = {
+            sibling_pins = {
                 name: VersionHelpers.main_forward_pin_from_selection(
                     VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f'{pkg.tag_prefix}*'), pkg.tag_prefix)
                 )
                 for name, pkg in self.packages.items()
-                if not pkg.is_core
+                if pkg.is_sibling
             }
+            if sibling_pins:
+                steps.append(
+                    MainEditStep(
+                        pkg=self.core,
+                        forward_pins=sibling_pins,
+                        description=f'roll back main sibling pin(s) after yanking {self.pkg} v{self.version}',
+                    )
+                )
+            core_pin = VersionHelpers.main_forward_pin_from_selection(remaining)
+            ds_test_pins: list[str] = []
+            for name, pkg in self.packages.items():
+                if not pkg.is_downstream:
+                    continue
+                steps.append(
+                    MainEditStep(
+                        pkg=pkg,
+                        forward_pins={self.core.name: core_pin},
+                        description=f'roll back {name} py10x-core pin after yanking {self.pkg} v{self.version}',
+                    )
+                )
+                ds_parsed = VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(pkg.repo, f'{pkg.tag_prefix}*'), pkg.tag_prefix)
+                ds_latest = VersionHelpers.latest_tag(ds_parsed)
+                if ds_latest is not None:
+                    ds_test_pins.append(VersionHelpers.test_group_dep_pin(name, str(ds_latest[1])))
+            if ds_test_pins:
+                steps.append(
+                    MainEditStep(
+                        pkg=self.core,
+                        test_pin=ds_test_pins,
+                        description=f'refresh core test-group downstream pins after yanking {self.pkg} v{self.version}',
+                    )
+                )
+        elif self.package.is_downstream:
+            ds_latest = VersionHelpers.latest_tag(remaining)
+            if ds_latest is not None:
+                steps.append(
+                    MainEditStep(
+                        pkg=self.core,
+                        test_pin=VersionHelpers.test_group_dep_pin(self.pkg, str(ds_latest[1])),
+                        description=f'roll back core test-group pin after yanking {self.pkg} v{self.version}',
+                    )
+                )
         else:
             forward_pins = {
                 self.pkg: VersionHelpers.main_forward_pin_from_selection(remaining),
             }
-        if forward_pins:
             steps.append(
                 MainEditStep(pkg=self.core, forward_pins=forward_pins, description=f'roll back main pin(s) after yanking {self.pkg} v{self.version}')
             )
