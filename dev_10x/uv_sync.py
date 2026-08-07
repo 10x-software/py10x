@@ -451,10 +451,7 @@ def ensure_chromium_installed() -> None:
 
 def main():
     if len(sys.argv) < 2 or sys.argv[1] not in PROFILES:
-        print(
-            f'Usage: uv-sync {"|".join(PROFILES)} [--with-downstream [name…]] '
-            f'[extra `uv pip install` options]'
-        )
+        print(f'Usage: uv-sync {"|".join(PROFILES)} [--with-downstream [name…]] [extra `uv pip install` options]')
         return
     profile = sys.argv[1]
     uv_sync(profile, *sys.argv[2:])

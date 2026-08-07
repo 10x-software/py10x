@@ -83,6 +83,7 @@ def _first_party() -> set[str]:
         *_workspace_members(),
     }
 
+
 def _python_floor() -> str:
     """Minimum supported Python (X.Y) from [project].requires-python, e.g. '>=3.11,<3.13' -> '3.11'.
 

@@ -11,11 +11,14 @@ owns I/O. See `dev_10x/README.md` (xx-promote) for the release model this encode
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from core_10x.traitable import RT, T, Traitable
+
 from dev_10x.xx_helpers import GitHelpers, PyProjectHelpers, VersionHelpers
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class PkgInput(Traitable):
@@ -232,11 +235,7 @@ class Plan:
 
 def _downstream_test_pins(decided: dict, inputs: list[PkgInput]) -> list[str]:
     """`dependency-groups.test` pins on core for each downstream with a coordinated version."""
-    return [
-        VersionHelpers.test_group_dep_pin(i.name, decided[i.name][0])
-        for i in inputs
-        if i.is_downstream and decided[i.name][0] is not None
-    ]
+    return [VersionHelpers.test_group_dep_pin(i.name, decided[i.name][0]) for i in inputs if i.is_downstream and decided[i.name][0] is not None]
 
 
 class PrePlan(Plan):

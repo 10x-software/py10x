@@ -353,6 +353,7 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
 
 def test_write_during_read_self_set():
     """A getter that sets its own trait raises write-during-read."""
+
     class X(Traitable):
         z: int = RT()
 
@@ -360,13 +361,13 @@ def test_write_during_read_self_set():
             self.z = 5
             return 1
 
-    with GRAPH_ON():
-        with pytest.raises(TraitMethodError, match='set/invalidate during get'):
-            _ = X().z
+    with GRAPH_ON(), pytest.raises(TraitMethodError, match='set/invalidate during get'):
+        _ = X().z
 
 
 def test_write_during_read_ripple():
     """A getter re-sets a leaf several levels below it; the ripple reaches the guarded ancestor."""
+
     class X(Traitable):
         base: int = RT()
         mid: int = RT()
@@ -380,13 +381,13 @@ def test_write_during_read_ripple():
             self.base = 999
             return self.mid
 
-    with GRAPH_ON():
-        with pytest.raises(TraitMethodError, match='set/invalidate during get'):
-            _ = X(base=10).top
+    with GRAPH_ON(), pytest.raises(TraitMethodError, match='set/invalidate during get'):
+        _ = X(base=10).top
 
 
 def test_on_graph_choices_and_style_sheet():
     """choices/style_sheet under GRAPH_ON use args-keyed nodes and track deps like getters."""
+
     class X(Traitable):
         mode: str = RT()
         color: str = RT()
@@ -424,6 +425,7 @@ def test_on_graph_choices_and_style_sheet():
 
 def test_calc_values_and_aggregate():
     """BTraitable.calc_values / calc_and_aggregate smoke over a small bucket."""
+
     class X(Traitable):
         n: int = RT()
         doubled: int = RT()
