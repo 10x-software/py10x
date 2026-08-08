@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/py10x.iml" filepath="$PROJECT_DIR$/.idea/py10x.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/py10x-core.iml" filepath="$PROJECT_DIR$/.idea/py10x-core.iml" />
     </modules>
   </component>
 </project>
