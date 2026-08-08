@@ -258,7 +258,7 @@ platformdirs==4.11.0
     #   licensecheck
     #   requests-cache
     #   rio-ui
-playwright==1.61.0
+playwright==1.62.0
     # via py10x-core (pyproject.toml)
 pluggy==1.6.0
     # via
