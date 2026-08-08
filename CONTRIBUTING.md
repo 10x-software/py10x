@@ -71,13 +71,16 @@ store neither probes for a server nor creates anything. A session killed before 
 its database behind; [`xx-test-db-clean`](dev_10x/README.md) sweeps those.
 
 ```bash
-# Run all unit tests (with coverage by default)
+# Run all unit tests (xdist: -n auto --dist loadscope via pytest.ini)
 uv run --no-sync pytest
 
 # Run specific test suites
 uv run --no-sync pytest core_10x/unit_tests/
 uv run --no-sync pytest ui_10x/unit_tests/
 uv run --no-sync pytest infra_10x/unit_tests/  # postgres soft-skips if down; mongo matrix hard-fails if down
+
+# Serial / pdb (disable xdist)
+uv run --no-sync pytest -n0 path/to/test_foo.py::test_bar
 
 # Manual tests are debugging scripts (run directly)
 python core_10x/manual_tests/trivial_graph_test.py
@@ -86,10 +89,10 @@ python ui_10x/rio/manual_tests/basic_test.py
 
 #### Test Structure
 
-- `unit_tests/`: Automated unit tests with coverage
+- `unit_tests/`: Automated unit tests (parallel via pytest-xdist by default)
 - `manual_tests/`: Debugging scripts for development and future test incorporation
 - Tests use pytest framework with custom fixtures
-- Coverage is enabled by default for all unit tests
+- Coverage reports are configured in `pytest.ini`; enable measurement with `--cov` (intended for the nightly ASan lane)
 
 #### Writing Tests
 
