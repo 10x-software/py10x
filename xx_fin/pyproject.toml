@@ -1,0 +1,47 @@
+[project]
+name = "py10x-fin-base"
+description = "10x financial domain foundation"
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dynamic = ["version"]
+authors = [
+    { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
+]
+dependencies = [
+    # >=0.0.0.dev0 forces prerelease-inclusion for py10x-core specifically (PEP 440), matching the
+    # domain root pyproject.toml's own pin. TODO: only correct while py10x-core has no current final
+    # release past 0.2.2; needs the Phase 2 promote/write_forward_pins automation (xxfin_move_plan.md)
+    # to keep this in sync instead of a hand-maintained pin.
+    "py10x-core>=0.2.2,<=0.2.3,!=0.2.3,>=0.0.0.dev0",
+    # Exact pin, not a range: py10x-fin-base and py10x-fin-base-cxx are tagged/released together
+    # under the same "py10x-fin-base-v*" tag, so they always share a version. Must be updated and
+    # committed here BEFORE cutting/moving the tag — CI only validates this matches the tagged
+    # version, it does not edit it (editing post-checkout would leave the tree dirty and produce an
+    # unpublishable +dirty version). TODO: automate updating+committing this pin as part of the
+    # release process once managed by xx-promote (Phase 2, xxfin_move_plan.md).
+    "py10x-fin-base-cxx==0.1.0rc1",
+    "quantlib-python>=1.18",
+    "aadc>=1.8.2; sys_platform != 'darwin'",
+]
+
+[project.optional-dependencies]
+bbg = ["xbbg>=1.4.5", "blpapi>=3.26.6.1"]
+
+[build-system]
+requires = ["hatchling>=1.17.0", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["xxfin"]
+exclude = ["**/manual_tests"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+root = ".."
+git_describe_command = "git describe --dirty --tags --long --match 'py10x-fin-base-v*'"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "xxfin/_version.py"

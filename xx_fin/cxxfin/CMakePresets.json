@@ -1,0 +1,29 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "clion",
+      "displayName": "CLion (VS 2022 x64)",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/clion",
+      "cacheVariables": {
+        "Python3_EXECUTABLE": "${sourceDir}/../../.venv/Scripts/python.exe"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "clion-debug",
+      "displayName": "Debug",
+      "configurePreset": "clion",
+      "configuration": "Debug"
+    },
+    {
+      "name": "clion-release",
+      "displayName": "Release",
+      "configurePreset": "clion",
+      "configuration": "Release"
+    }
+  ]
+}
