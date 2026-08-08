@@ -29,10 +29,10 @@ def ir_add_curve_point(f: Callable, bracket: tuple = bracket, xtol: float = xtol
             sol = root_scalar_impl(f, bracket = bracket, xtol = xtol, method = method)
 
         if sol.converged:
-            if _DBG: print(f'num iterations: {sol.iterations}, root: {sol.root}')
+            if _DBG: print(f'num iterations: {sol.iterations}, root: {sol.root}')   # pragma: no cover
             return RC_TRUE
 
-        if _DBG: print(f'status: {sol.flag}, num iterations: {sol.iterations}')
+        if _DBG: print(f'status: {sol.flag}, num iterations: {sol.iterations}') # pragma: no cover
         return RC(False, f'No convergence for xtol = {xtol}')
     except Exception as e:
         return RC(False, str(e))

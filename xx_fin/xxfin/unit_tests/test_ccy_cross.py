@@ -1,4 +1,5 @@
 import pytest
+from core_10x.rc import RC, RC_TRUE
 
 from xxfin.ccy_cross import CCY_CROSS_TYPE, CcyCross
 
@@ -68,5 +69,10 @@ class TestCcyCrossResolve:
         assert usd_cross1 == CcyCross(cross = 'USD/CHF')
         assert usd_cross2 == CcyCross(cross = 'USD/CAD')
 
-# if __name__ == '__main__':
-#     cross_type1, usd_cross1, cross_type2, usd_cross2 = CcyCross.resolve(cross = 'CHF/CAD')
+    def test_verify(self):
+        assert CcyCross(cross = 'USD/CHF').verify(cross = 'USD/CAD') == RC_TRUE
+        assert CcyCross(cross = 'USD/CHF').verify(cross = 'USD/USD') == RC_TRUE
+        assert CcyCross(cross = 'USD/CHF').verify(base_ccy = 'USD', quote_ccy = 'CAD') == RC_TRUE
+
+        assert CcyCross(cross = 'USD/CHF').verify(cross = 'USD/AED') == RC(False, 'AED does not exist')
+        assert CcyCross(cross = 'USD/CHF').verify(base_ccy = 'XXX', quote_ccy = 'YYY') == RC(False, 'XXX does not exist')

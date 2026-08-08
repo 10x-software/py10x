@@ -14,8 +14,8 @@ class TestCcyUnit:
             assert cu.price == 1.
 
     def test_mkt_deps(self):
-        for _cu in self.cus:
-            assert self.usd.mkt_deps == {}
+        for cu in self.cus:
+            assert cu.mkt_deps == {}
 
     def test_mkt_deps_deps_for_discounting(self):
         for cu in self.cus:

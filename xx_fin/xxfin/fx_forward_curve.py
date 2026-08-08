@@ -48,12 +48,17 @@ class FXForwardCurveSimple(TenorBasedSyntheticCurve, mas_class = FxForwardCurveM
         forwards = {}
         quotables[FXForwardQuotable] = forwards
         for stub in mao.create_quotable_stubs(FXForwardQuotable, fwd_data_definition, today):
-            quotable = FXForwardQuotable.existing_instance(**stub, **mkt_basis)
-            tenor = quotable.tenor
+            tenor = stub['tenor']  ## stub does have tenor; trying to create FXForwardQuotable too early isn't good
             start_date = today if tenor.symbol() == '1B' else spot_date
             d = tenor.apply(start_date, cal, roll_rule)
             if d == spot_date:
                 raise AssertionError(f'{self.mkt_name} >>> {tenor.symbol()} <<< forward specification conflicts with spot rate')   ## TODO: may check before raising if the conflicting rate value is diff from the spot rate
+            quotable = FXForwardQuotable.existing_instance(**stub, **mkt_basis)
+            # tenor = quotable.tenor
+            # start_date = today if tenor.symbol() == '1B' else spot_date
+            # d = tenor.apply(start_date, cal, roll_rule)
+            # if d == spot_date:
+            #     raise AssertionError(f'{self.mkt_name} >>> {tenor.symbol()} <<< forward specification conflicts with spot rate')   ## TODO: may check before raising if the conflicting rate value is diff from the spot rate
 
             forwards[d] = quotable
 
@@ -139,12 +144,12 @@ class FXFundedDiscRateCurve(SyntheticMktDataWithoutMas):
         )
         funding_curve = funding_curve_object.payload  #-- it will either get it, if already built, or build right here
 
-        if _DBG:
+        if _DBG:    # pragma: no cover
             print( self.mkt_conventions.cross)
             # ccY  = self.mkt_conventions.ccy
             # fccY = self.mkt_conventions.funding_ccy
 
-        if _DBG: print(f'curves dc/compound: ccy_disc - {ccy_disc_curve.compounding}/{ccy_disc_curve.dc_convention}; funding_curve - {funding_curve.compounding}/{funding_curve.dc_convention}\n')
+        if _DBG: print(f'curves dc/compound: ccy_disc - {ccy_disc_curve.compounding}/{ccy_disc_curve.dc_convention}; funding_curve - {funding_curve.compounding}/{funding_curve.dc_convention}\n')  # pragma: no cover
 
         dates_fx_rates  = fx_fwd_curve.dates_values()   ## the mkt quotes
         fx0             = fx_fwd_curve_object.now_rate
@@ -152,7 +157,7 @@ class FXFundedDiscRateCurve(SyntheticMktDataWithoutMas):
         for d, fx in dates_fx_rates:
             ccy_disc_curve.update(d, ccy_disc_curve.internal_rate_from_accrual(d, funding_curve.accrual(d) * (fx/fx0)**invert))
 
-            if _DBG:
+            if _DBG:    # pragma: no cover
                 print(f'date = {d}/{d.strftime("%A")}, fwd/now fx = {fx}/{fx0}, fwd fx ratio (for {self.mkt_conventions.cross}) = {(fx/fx0)**invert}, ')
                 print(f'$ accrual/ $ rate = {funding_curve.accrual(d)}/{funding_curve.value(d)}, '
                       f'ccy accrual/ ccy rate = {funding_curve.accrual(d)*((fx/fx0)**invert)}/{ccy_disc_curve.rate_from_accrual(d, funding_curve.accrual(d) * ((fx/fx0)**invert))}, ')
@@ -200,11 +205,9 @@ class FXForwardCurve(SyntheticMktDataWithoutMas):
 
         ## FX(d) = FX(0) * ccy_accrual / fccy_accrual for fccy/ccy cross (and inverse accrual ratio for inverted cross)
         if invert == -1:
-            print(f'>>>>> {self.mkt_name} - invert = -1 <<<<<')
             under_curve = ccy_disc_curve
             over_curve  = funding_disc_curve
         else:
-            print(f'>>>>> {self.mkt_name} - invert = +1 <<<<<')
             over_curve  = ccy_disc_curve
             under_curve = funding_disc_curve
 

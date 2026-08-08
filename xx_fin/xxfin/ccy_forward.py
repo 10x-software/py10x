@@ -22,9 +22,6 @@ class CcyForward(FinInstrument):
     denominated: Ccy    = RT(T.ID)   #-- became non-storable ID
     end_date: date      = RT(T.ID)
 
-    def pay_date_get(self):
-        return self.end_date
-
     def price_get(self) -> float:
         return self.discount_factor(self.end_date)
 

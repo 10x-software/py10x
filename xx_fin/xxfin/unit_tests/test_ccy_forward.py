@@ -24,6 +24,8 @@ class TestCcyForward:
         self.gbp_d   = CcyForward.existing_instance(denominated = Ccy('GBP'),end_date = day)
         self.gbp_fwds= [self.gbp_chd, self.gbp_nyd, self.gbp_ind, self.gbp_d]
 
+        self.fwds    = self.usd_fwds + self.gbp_fwds
+
         self.pc  = PricingContext.current()
         self.today = self.pc.md_date
 
@@ -49,7 +51,8 @@ class TestCcyForward:
             assert gfwd.price == self.gbp_zrc.discount_factor(d, self.today)
 
     def test_mkt_deps(self):
-        ...
+        for cf in self.fwds:
+            assert cf.mkt_deps == cf.mkt_deps_for_discounting
 
     def test_mkt_deps_deps_for_discounting(self):
         ...

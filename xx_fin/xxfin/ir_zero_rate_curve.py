@@ -56,7 +56,7 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, mas_class = IRZeroRateCurveMas):
         mc        = self.mkt_conventions
         spot_date = mc.spot_date(today)
 
-        if _DBG:
+        if _DBG:    # pragma: no cover
             dc_convention = mc.dc_convention
             compounding   = mc.compounding
             cal           = mc.calendar
@@ -72,11 +72,11 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, mas_class = IRZeroRateCurveMas):
         for end_date, quotable in quotables.items():
             start_date = today if quotable.tenor.symbol() == '1B' else spot_date
 
-            if _DBG: print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')
+            if _DBG: print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')  # pragma: no cover
 
             solve_cash_deposit(zrc, start_date, end_date, quotable.quote, mc, today)
 
-            if _DBG:
+            if _DBG:    # pragma: no cover
                 dc_convention = mc.dc_convention
                 compounding   = mc.compounding
                 quote_acc  = zrc.fixed_rate_accrual(quotable.quote, start_date, end_date, dc_convention, compounding)
@@ -102,7 +102,7 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, mas_class = IRZeroRateCurveMas):
         today     = self.md_date
         spot_date = mc.spot_date(today)
 
-        if _DBG:
+        if _DBG:    # pragma: no cover
             fixed_dc_convention = mc.fixed_leg_swap_dc_convention
             pay_calendar        = mc.settlement_calendar
             pay_roll_rule       = mc.roll_rule_to_settle
@@ -115,14 +115,14 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, mas_class = IRZeroRateCurveMas):
         for end_date, quotable in quotables.items():
             tenor = quotable.tenor
 
-            if _DBG:
+            if _DBG:    # pragma: no cover
                 fixed_freq: RDate = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
                 end_date_dbg = tenor.apply(spot_date, mc.calendar, mc.roll_rule)
                 print(f'swap tenor/freq = {tenor.symbol()}/{fixed_freq.symbol()}, start_date = {spot_date}/{spot_date.strftime("%A")}, end_date = {end_date_dbg}/{end_date_dbg.strftime("%A")}, swap quote = {quotable.quote}, ')
 
             solve_swap(zrc, spot_date, tenor, quotable.quote, mc, today)
 
-            if _DBG:
+            if _DBG:    # pragma: no cover
                 fixed_dc_convention = mc.fixed_leg_swap_dc_convention
                 fixed_freq          = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
                 pay_offset          = mc.settle_offset

@@ -2,8 +2,9 @@ if __name__=='__main__':
     from datetime import date
 
     from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
+
     from xxfin.ccy import Ccy
-    from xxfin.ccy_forward import CcyUnit, CcyForward
+    from xxfin.ccy_forward import CcyForward, CcyUnit
     from xxfin.fin_calendar import FinCalendar
     from xxfin.fx_forward_curve import FXForwardCurveSimple
     from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable
@@ -111,9 +112,9 @@ if __name__=='__main__':
                 deps[IRCashDepositQuotable] = cds
             if swps:
                 deps[IRSwapQuotable] = swps
-            print(f'manual deps =' )
+            print('manual deps =' )
             for cls, qts in deps.items(): print(f'\t{cls}:  {qts}')
-            print(f'mkt deps =')
+            print('mkt deps =')
             for cls, qts in cf.mkt_deps_for_discounting.items(): print(f'\t{cls}:  {qts}')
             assert deps == cf.mkt_deps_for_discounting
             print('\n')
