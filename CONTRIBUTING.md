@@ -58,11 +58,17 @@ uv run --no-sync ruff format .
 
 #### Running Tests
 
-`uv run --no-sync pytest` does **not** require a local MongoDB. Tests that need a live mongo store
-skip automatically when Mongo is unreachable (see `core_10x/testlib/strict.py` — `need()` skips
-locally; under `XX_TEST_STRICT=1`, as in Linux CI, an unmet precondition fails instead). Install
-Mongo only if you want those tests to run locally — see
+`uv run --no-sync pytest` does **not** require a local MongoDB or PostgreSQL. Tests that need a
+live store skip automatically when the server is unreachable (see `core_10x/testlib/strict.py` —
+`need()` skips locally; under `XX_TEST_STRICT=1`, as in Linux CI, an unmet precondition fails
+instead). Install Mongo and/or Postgres only if you want those tests to run locally — see
 [INSTALLATION.md § Optional Database Dependencies](INSTALLATION.md#optional-database-dependencies).
+
+Each pytest session gets its **own** database on each live backend and drops it at the end —
+the `live_store` fixture (`core_10x/testlib/test_databases.py`), which also hands out the
+stores. It is **requested, not autouse** and lazy per backend, so a run that never asks for a
+store neither probes for a server nor creates anything. A session killed before teardown leaves
+its database behind; [`xx-test-db-clean`](dev_10x/README.md) sweeps those.
 
 ```bash
 # Run all unit tests (with coverage by default)
@@ -71,7 +77,7 @@ uv run --no-sync pytest
 # Run specific test suites
 uv run --no-sync pytest core_10x/unit_tests/
 uv run --no-sync pytest ui_10x/unit_tests/
-uv run --no-sync pytest infra_10x/unit_tests/  # mongo-backed; skips if Mongo unreachable
+uv run --no-sync pytest infra_10x/unit_tests/  # postgres soft-skips if down; mongo matrix hard-fails if down
 
 # Manual tests are debugging scripts (run directly)
 python core_10x/manual_tests/trivial_graph_test.py
@@ -132,8 +138,8 @@ py10x/
 │   ├── examples/           # Interactive UI demos
 │   └── ...
 ├── infra_10x/              # Storage and infrastructure
-│   ├── mongodb_store.py, ibis_store.py, duckdb_store.py, ...
-│   ├── unit_tests/         # mongo-backed; skips if Mongo unreachable locally
+│   ├── mongodb_store.py, ibis_store.py, duckdb_store.py, postgres_store.py, ...
+│   ├── unit_tests/         # live Mongo/Postgres stores (Postgres soft-skip; Mongo hard if listed)
 │   └── testlib/
 ├── dev_10x/                # Developer tooling and release engineering
 │   ├── uv_sync.py, uv_run.py   # Dependency profile management

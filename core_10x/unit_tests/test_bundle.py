@@ -291,12 +291,12 @@ class TestBundleHistoryWithNonStorableBase:
         promoting the base's storage helper.  Without the lazy promotion, the
         base's helper would be ``NotStorableHelper`` and the save would
         silently no-op."""
-        w = Wolf(name='wolf_main', _replace=True)
+        w = Wolf(name='wolf_main')
         assert w._rev == 0
         w.howl_pitch = 7
         w.save().throw()
 
-        b = Bear(name='bear_main', _replace=True)
+        b = Bear(name='bear_main')
         b.den = 'oak_hollow'
         b.save().throw()
 

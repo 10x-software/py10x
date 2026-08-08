@@ -112,7 +112,9 @@ def reset_traitable_process_state(*, assert_clean: bool = True) -> None:
     if not assert_clean:
         return
 
-    leftovers = [(PyClass.name(obj.__class__), obj.id_value()) for obj in gc.get_objects() if isinstance(obj, Traitable)]
+    # Prefer issubclass(type(obj), ...) over isinstance: gc.get_objects() can include
+    # dead weakref.proxy objects, and isinstance() dereferences them (ReferenceError).
+    leftovers = [(PyClass.name(obj.__class__), obj.id_value()) for obj in gc.get_objects() if issubclass(type(obj), Traitable)]
     assert not leftovers, leftovers
 
 
@@ -137,11 +139,17 @@ def pin_current_ts_stores() -> None:
 
 
 def unpin_ts_stores() -> None:
-    """Pop the most recent pin frame, then reset + restore like test_isolation."""
+    """Pop the most recent pin frame, then reset + restore like test_isolation.
+
+    ``assert_clean=False``: unlike ``dev_10x.pytest_plugin.test_isolation``, this has
+    no ``rep_call`` to tell whether the preceding test passed. Asserting here would be
+    redundant when it did (per-test isolation already checked) and would pile a
+    spurious leftover error onto a real failure when it didn't.
+    """
     if not _pin_stack:
         return
     _pin_stack.pop()
-    reset_traitable_process_state()
+    reset_traitable_process_state(assert_clean=False)
     restore_pinned_ts_stores()
 
 

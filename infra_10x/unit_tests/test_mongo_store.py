@@ -1,9 +1,8 @@
+"""MongoDB-specific dialect tests (shared suites run via conftest ts_instance matrix)."""
+
 from core_10x.concrete_resource import CONCRETE_RESOURCE
-from core_10x.testlib.fixtures import with_transactions
-from core_10x.testlib.ts_store_transaction_tests import TestSaveIfChanged, TestTsStoreTransaction  # collected by pytest
-from core_10x.testlib.ts_tests import TestTSStore, ts_setup  # collected by pytest
 from core_10x.traitable import VaultResourceAccessor
-from infra_10x.mongodb_store import MongoCollection, MongoStore
+from infra_10x.mongodb_store import MongoStore
 
 
 def test_mongo_parse_uri_round_trip():

@@ -112,8 +112,11 @@ def test_isolation(request):
         if keys_before is not None:
             drop_new_instance_attrs(inst, keys_before)
 
-        # On failed/skipped call phases, still clear state but skip leftover assert:
-        # locals / assertion frames often still hold Traitables and only add noise.
+        # Only assert "no leftover Traitables" when the test *body* ran and passed.
+        # On setup ERROR, ``rep_call`` is missing (call never ran) — the old
+        # ``rep_call is None or …`` treated that as assert_clean and piled a
+        # leftover AssertionError on top of the real failure. Failed/skipped
+        # calls also skip the assert: frames often still hold Traitables.
         rep_call = getattr(request.node, 'rep_call', None)
-        reset_traitable_process_state(assert_clean=rep_call is None or rep_call.passed)
+        reset_traitable_process_state(assert_clean=rep_call is not None and rep_call.passed)
         restore_pinned_ts_stores()

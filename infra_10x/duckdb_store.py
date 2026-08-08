@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 
 import duckdb
 import ibis
-from core_10x.resource import Resource
 from core_10x.ts_store import TsDuplicateKeyError
 
 from infra_10x.ibis_store import (
@@ -25,12 +25,14 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
     s_with_auth = False
     s_supports_add_column_if_not_exists = True
 
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        self._con = duckdb.connect()
-        self._ibis_con = ibis.duckdb.from_connection(self._con)
-        self.username = kwargs.get(Resource.USERNAME_TAG, 'test_user')
-        self.dbname = kwargs.get(Resource.DBNAME_TAG)
+    def __init__(self, hostname=None, dbname=None, username=None, password=None, **kwargs):
+        super().__init__(hostname=hostname, dbname=dbname, username=username, password=password, **kwargs)
+        if self.username is None:
+            self.username = 'test_user'
+
+    def _ibis_connect(self):
+        # In-memory DuckDB; ignores host/credentials
+        return ibis.duckdb.connect()
 
     def _execute(self, sql: str, params: list = ()) -> list[tuple]:
         return self._con.execute(sql, params).fetchall()
@@ -87,13 +89,17 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
     def _auth_user_sql_params(self) -> list:
         return [self.auth_user()]
 
+    def _json_ts_merge_sql(self, obj_parts: list[str]) -> str:
+        merge = f'json_object({", ".join(obj_parts)})'
+        return f'json_merge_patch(CAST(? AS JSON), {merge})'
+
+    def _decode_data(self, val) -> dict:
+        # VARCHAR JSON text cell → dict for the shared _decode_row path.
+        return json.loads(val) if val else {}
+
     @classmethod
     def standard_key(cls, *args, username=None, **kwargs) -> tuple:
         return super().standard_key(*args, **kwargs)
-
-    @classmethod
-    def new_instance(cls, *args, **kwargs) -> DuckDbStore:
-        return cls(*args, **kwargs)
 
     @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:
@@ -101,9 +107,6 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
 
     def auth_user(self) -> str | None:
         return self.username
-
-    def db_name(self) -> str | None:
-        return self.dbname
 
     def server_time(self) -> datetime:
         return self._con.execute(f'SELECT {self._server_time_col_sql_expr()}').fetchone()[0].replace(tzinfo=None)

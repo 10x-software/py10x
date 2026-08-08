@@ -333,6 +333,15 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         finally:
             client.close()
 
+    def list_databases(self, prefix: str = '') -> list[str]:
+        return sorted(n for n in self.client.list_database_names() if n.startswith(prefix))
+
+    def delete_database(self, dbname: str) -> bool:
+        if dbname not in self.client.list_database_names():
+            return False
+        self.client.drop_database(dbname)
+        return True
+
     def auth_user(self) -> str:
         return self.username
 

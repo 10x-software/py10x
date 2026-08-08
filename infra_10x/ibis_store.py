@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import hashlib
 import json
 import re
 from base64 import b64encode
@@ -8,13 +9,16 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 import ibis
+import ibis.expr.datatypes as ibis_dtypes
 import ibis.expr.operations as ibis_ops
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
+from core_10x.resource import Resource
 from core_10x.trait import Trait
 from core_10x.trait_definition import T
 from core_10x.ts_store import TS_FIELDS_TAG, TsCollection, TsStore
 from ibis.common.exceptions import TableNotFound
+from typing_extensions import Self
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Sequence
@@ -28,6 +32,7 @@ _DATA = '_data'
 _TS_TIME = T.TS_TIME.value()
 _TS_USER = T.TS_USER.value()
 _SCALAR_WIRE_TYPES = frozenset({str, int, float, bool, datetime, date, bytes})
+_MARKER_COLUMNS = frozenset({_ID, _REV, _DATA})  # Every collection table has these; a table without them is not one of ours (see collection_names).
 
 
 class IbisCollection(TsCollection):
@@ -44,9 +49,9 @@ class IbisCollection(TsCollection):
 
     def extend_trait_dir(self, trait_dir: dict | None) -> None:
         """Union column-eligible traits; names must be Python identifiers (used as SQL cols)."""
+        self._writable = trait_dir is not None
         if not trait_dir:
             return
-        self._writable = True
         assert all(tn.isidentifier() for tn in trait_dir), (
             f'Invalid trait_dir - names must be identifiers: {[tn for tn in trait_dir if not tn.isidentifier()]}'
         )
@@ -83,11 +88,10 @@ class IbisCollection(TsCollection):
             else:  # TS_USER
                 obj_parts.append(f"'{field}', {self._store._auth_user_sql_expr()}")
                 params.extend(self._store._auth_user_sql_params())
-        merge = f'json_object({", ".join(obj_parts)})'
-        return f'json_merge_patch(CAST(? AS JSON), {merge})', params
+        return self._store._json_ts_merge_sql(obj_parts), params
 
-    def ibis_col(self, name: str, trait=None, raw=False):
-        """Ibis expression for `name`."""
+    def _ibis_col(self, name: str, trait=None, raw=False):
+        """Scalar/text LHS expression for `name` (also the sort key — see :meth:`_ibis_order_cols`)."""
         if (t := self._ibis_table_or_none()) is None:
             return ibis.null()
         if name in self._collection_columns():
@@ -103,16 +107,31 @@ class IbisCollection(TsCollection):
         raw_str = col.cast('string')
         return ibis.ifelse(raw_str == 'null', ibis.null(), ibis_ops.UnwrapJSONString(col).to_expr().coalesce(raw_str))
 
+    def ibis_compare_pair(self, field_name: str, trait, values: list) -> tuple:
+        if (
+            field_name in self._collection_columns()
+            or not any(isinstance(v, (dict, list)) for v in values)
+            or (t := self._ibis_table_or_none()) is None
+        ):
+            return self._ibis_col(field_name, trait), [self._right_value(v, field_name=field_name) for v in values]
+        json_type = self._store.s_json_type
+        col = t[_DATA].cast(json_type)[field_name]
+        # JSON ``null`` must read as SQL NULL, as the scalar path does - else whether a null
+        # field matches would depend on some *other* list element being a structure.
+        lhs = ibis.ifelse(col.cast('string') == 'null', ibis.null().cast(json_type), col)
+        rhs = [ibis.literal(json.dumps(v, separators=(',', ':'), default=self._json_encode_value)).cast(json_type) for v in values]
+        return lhs, rhs
+
     def _ibis_order_cols(self, name: str, trait=None) -> tuple:
         """Sort key(s) for ``name``. Typed/physical: one col. Untyped JSON: float, bool, str unwraps (null off-type)."""
         trait = trait or self.col_trait_dir.get(name)
         if name in self._collection_columns() or trait is not None:
-            return (self.ibis_col(name, trait),)
-        col = self.ibis_col(name, raw=True)
+            return (self._ibis_col(name, trait),)
+        col = self._ibis_col(name, raw=True)
         return tuple(c(col) for t, c in self._store.json_caster_map.items() if t is not int)
 
-    def ibis_right_value(self, value, field_name: str | None = None):
-        """RHS encoding from ``type(value)``: col serializers on physical columns, JSON wire serializers on blob path (never cast to JSON type)."""
+    def _right_value(self, value, field_name: str | None = None):
+        """Scalar RHS encoding from ``type(value)``: col serializers on physical columns, JSON wire serializers on blob path (never cast to JSON type)."""
 
         serializer_map = self._store.col_serializer_map if field_name in self._collection_columns() else self._store.json_serializer_map
         if fn := serializer_map.get(vt := type(value)):
@@ -152,7 +171,7 @@ class IbisCollection(TsCollection):
             if val is None:
                 continue
             if col == _DATA:
-                json_doc = json.loads(val)
+                json_doc = self._store._decode_data(val)
                 continue
             col_doc[col] = val
         return json_doc | col_doc
@@ -284,7 +303,7 @@ class IbisCollection(TsCollection):
         if not self._collection_columns():
             return None
         try:
-            return self._store._ibis_con.table(self._name)
+            return self._store._ibis_table(self._name)
         except TableNotFound:
             # CREATE TABLE rolled back (or table dropped) while @cache still held schema.
             self._store._forget_collection_columns(self._name)
@@ -322,15 +341,15 @@ class IbisCollection(TsCollection):
                 t = t.filter(pred)
         return t.count().to_polars()
 
-    def max(self, trait_name: str, filter: FilterExpr = None) -> dict:
+    def max(self, trait_name: str, filter: FilterExpr = None) -> dict | None:
         for doc in self.find(filter, _at_most=1, _order={trait_name: -1}):
             return doc
-        return {}
+        return None
 
-    def min(self, trait_name: str, filter: FilterExpr = None) -> dict:
+    def min(self, trait_name: str, filter: FilterExpr = None) -> dict | None:
         for doc in self.find(filter, _at_most=1, _order={trait_name: 1}):
             return doc
-        return {}
+        return None
 
 
 class IbisStore(TsStore):
@@ -367,10 +386,32 @@ class IbisStore(TsStore):
     json_serializer_map = col_serializer_map | {
         datetime: lambda v: v.replace(tzinfo=None).isoformat(),
     }
+    # Dialect JSON type for structure comparisons (see :meth:`IbisCollection.ibis_compare_pair`).
+    # Postgres overrides with ``binary=True`` so ibis emits JSONB, whose equality is semantic.
+    s_json_type = ibis_dtypes.JSON()
 
-    def __init__(self):
+    # Max UTF-8 bytes for physical table/index identifiers (``None`` = unlimited).
+    # Postgres sets 63 (NAMEDATALEN - 1); DuckDB leaves unlimited.
+    s_max_ident_bytes: int | None = None
+
+    def __init__(self, hostname=None, dbname=None, username=None, password=None, **kwargs):
+        """Bind Resource identity fields (same shape as :class:`~infra_10x.mongodb_store.MongoStore`).
+
+        ``port`` / ``ssl`` arrive in ``kwargs`` from
+        :meth:`~core_10x.resource.Resource.translate_kwargs`. Dialect-only options
+        (e.g. Postgres ``sslmode``) stay on the subclass. Connection is opened via
+        :meth:`_ibis_connect`.
+        """
         super().__init__()
         self._collections: dict[str, IbisCollection] = {}
+        self.hostname = hostname
+        self.dbname = dbname
+        self.username = username
+        self.password = password
+        self.port = kwargs.get(Resource.PORT_TAG)
+        self.ssl = bool(kwargs.get(Resource.SSL_TAG, False))
+        self._ibis_con = self._ibis_connect()
+        self._con = getattr(self._ibis_con, 'con', None)
 
     def __init_subclass__(cls, **kwargs):
         if 's_ddl_types' in cls.__dict__:
@@ -382,12 +423,63 @@ class IbisStore(TsStore):
             cls.s_ddl_types = {**parent_types, **cls.__dict__['s_ddl_types']}
         super().__init_subclass__(**kwargs)
 
+    @classmethod
+    def new_instance(cls, hostname=None, dbname=None, username=None, password=None, **kwargs) -> Self:
+        """Factory used by :meth:`~core_10x.resource.Resource.instance` (Mongo-style identity args)."""
+        return cls(hostname=hostname, dbname=dbname, username=username, password=password, **kwargs)
+
+    def db_name(self) -> str | None:
+        return self.dbname
+
+    @abc.abstractmethod
+    def _ibis_connect(self):
+        """Open and return the dialect ibis backend (e.g. ``ibis.postgres.connect(...)``)."""
+
     @abc.abstractmethod
     def _execute(self, sql: str, params: list = ()) -> list[tuple]: ...
 
+    def _fit_ident(self, raw: str, *, prefix: str, tail_from: str | None = None) -> str:
+        """Return ``raw`` if within :attr:`s_max_ident_bytes`, else a stable hashed identifier.
+
+        Hashed form is ``{prefix}_{tail}_{sha256[:32]}`` truncated to the byte limit.
+        ``tail_from`` (default ``raw``) supplies the readable middle segment.
+        """
+        max_n = self.s_max_ident_bytes
+        if max_n is None or len(raw.encode('utf-8')) <= max_n:
+            return raw
+        digest = hashlib.sha256(raw.encode('utf-8')).hexdigest()[:32]
+        src = tail_from if tail_from is not None else raw
+        tail = re.sub(r'[^A-Za-z0-9_]+', '_', src)[-20:].strip('_') or prefix
+        return f'{prefix}_{tail}_{digest}'[:max_n]
+
+    def _physical_table_name(self, collection_name: str) -> str:
+        """Physical table name (logical name, or hashed when over :attr:`s_max_ident_bytes`)."""
+        return self._fit_ident(collection_name, prefix='c')
+
+    def _physical_index_name(self, collection_name: str, name: str) -> str:
+        """Physical index identifier (namespaced by table so IF NOT EXISTS is per-collection).
+
+        Always starts with ``i_`` so names remain valid when the collection name is a bare
+        UUID (custom_collection) or other digit-leading string. Hashed when over
+        :attr:`s_max_ident_bytes`.
+        """
+        safe_phys = re.sub(r'[^A-Za-z0-9_]', '_', self._physical_table_name(collection_name))
+        safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
+        return self._fit_ident(f'i_{safe_phys}__{safe_name}', prefix='i', tail_from=safe_name)
+
+    def _prepare_ibis_table(self, table):
+        """Dialect hook before ibis→polars scans (e.g. cast JSONB ``_data`` to string)."""
+        return table
+
+    def _ibis_table(self, collection_name: str):
+        """Logical collection name → ibis Table (physical name + :meth:`_prepare_ibis_table`)."""
+        phys = self._physical_table_name(collection_name)
+        return self._prepare_ibis_table(self._ibis_con.table(phys))
+
     def _qname(self, collection_name: str) -> str:
         """Quoted table identifier for SQL (ANSI double quotes; dialect may override)."""
-        return f'"{collection_name.replace(chr(34), chr(34) * 2)}"'
+        name = self._physical_table_name(collection_name)
+        return f'"{name.replace(chr(34), chr(34) * 2)}"'
 
     @abc.abstractmethod
     def _create_table_if_not_exists(self, collection_name: str) -> None: ...
@@ -427,6 +519,18 @@ class IbisStore(TsStore):
     def _auth_user_sql_params(self) -> list:
         """Bind params for :meth:`_auth_user_sql_expr` (empty if the expr is pure SQL)."""
 
+    @abc.abstractmethod
+    def _json_ts_merge_sql(self, obj_parts: list[str]) -> str:
+        """SQL expression that merges base JSON bind ``?`` with TS field pairs.
+
+        ``obj_parts`` items are already ``'field', <sql_expr>`` fragments (time/user stamps).
+        The expression must take one leading bind for the base JSON document.
+        """
+
+    @abc.abstractmethod
+    def _decode_data(self, val) -> dict:
+        """Convert a physical ``_data`` cell to a dict (shared decode path always sees a dict)."""
+
     def _ts_col_sql_and_params(self, kind: str) -> tuple[str, list]:
         """Value SQL (+ binds) that stamps a TS **column** server-side (``TS_TIME`` / ``TS_USER``)."""
         if kind == _TS_TIME:
@@ -442,7 +546,7 @@ class IbisStore(TsStore):
         :meth:`_forget_collection_columns` (create after sticky empty / drop).
         """
         try:
-            schema = self._ibis_con.table(collection_name).limit(0).to_polars().schema
+            schema = self._ibis_table(collection_name).limit(0).to_polars().schema
         except TableNotFound:
             return {}
         return {name: dtype.to_python() for name, dtype in schema.items()}
@@ -458,9 +562,17 @@ class IbisStore(TsStore):
             if key and key[0] is self:
                 del cache[key]
 
+    def _catalog_collection_names(self) -> Iterable[str]:
+        return [n for n in self._ibis_con.list_tables() if _MARKER_COLUMNS <= self._collection_columns(n).keys()]
+
     def collection_names(self, regexp: str = None) -> list:
-        # Only collections with a physical table (lazy DDL: open alone does not create one).
-        names = sorted(n for n in self._collections if self._collection_columns(n))
+        """Collections that have a physical table, from the catalog (Mongo parity).
+
+        Catalog-backed, not handle-backed: a freshly connected store must see collections
+        written by an earlier process, or store-wide operations such as
+        :meth:`~core_10x.ts_store.TsStore.copy_to` would silently copy nothing.
+        """
+        names = sorted(set(self._catalog_collection_names()))
         if regexp:
             pattern = re.compile(regexp)
             names = [n for n in names if pattern.match(n)]
@@ -469,11 +581,12 @@ class IbisStore(TsStore):
     def collection(self, collection_name: str, trait_dir: dict | None = None) -> IbisCollection:
         """Return a collection handle. Physical table is created on first write / index.
 
-        ``trait_dir`` None/empty → read-only (no storable schema; writes hit ``_ensure_columns``).
+        ``trait_dir=None`` → read-only (no storable schema); ``{}`` → writable blob-only.
+        See :meth:`IbisCollection.extend_trait_dir`.
         """
         if (coll := self._collections.get(collection_name)) is None:
             coll = self._collections[collection_name] = IbisCollection(self, collection_name, trait_dir)
-        elif trait_dir:
+        elif trait_dir is not None:
             # Bundle members (and other late openers): union column-eligible traits.
             coll.extend_trait_dir(trait_dir)
         return coll
@@ -539,8 +652,9 @@ class IbisStore(TsStore):
             cols = _require_expr(trait_name)
 
         unique = 'UNIQUE ' if index_args.get('unique') else ''
-        safe_name = re.sub(r'[^A-Za-z0-9_]', '_', name)
-        self._execute(f'CREATE {unique}INDEX IF NOT EXISTS {safe_name} ON {self._qname(collection_name)} ({cols})')
+        phys_idx = self._physical_index_name(collection_name, name)
+        qidx = f'"{phys_idx.replace(chr(34), chr(34) * 2)}"'
+        self._execute(f'CREATE {unique}INDEX IF NOT EXISTS {qidx} ON {self._qname(collection_name)} ({cols})')
         return name
 
     class Transaction(TsStore.Transaction):

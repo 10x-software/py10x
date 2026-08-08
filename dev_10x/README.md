@@ -9,15 +9,48 @@ Canonical documentation for release engineering and local dependency profiles.
 
 Declared in `[project.scripts]`:
 
-| command           | purpose                                                                 |
-|-------------------|-------------------------------------------------------------------------|
-| `uv-sync`         | prepare the venv for a chosen *dependency-source profile*               |
-| `uv-run`          | run a command in the prepared venv without `uv run` re-syncing          |
-| `xx-promote`      | cut release candidates / final releases and yank them                     |
-| `xx-constraints`  | regenerate or verify the committed third-party dependency freeze        |
+| command              | purpose                                                                 |
+|----------------------|-------------------------------------------------------------------------|
+| `uv-sync`            | prepare the venv for a chosen *dependency-source profile*               |
+| `uv-run`             | run a command in the prepared venv without `uv run` re-syncing          |
+| `xx-promote`         | cut release candidates / final releases and yank them                     |
+| `xx-constraints`     | regenerate or verify the committed third-party dependency freeze        |
+| `xx-test-postgres-auth` | start/stop/status a local **password-auth** Postgres on port 5433 (Docker, falling back to Homebrew) |
+| `xx-test-db-clean`   | drop `py10x_test*` databases left by killed test sessions |
 
 Implementation: `dev_10x/uv_sync.py`, `dev_10x/uv_run.py`, `dev_10x/xx_promote.py`,
-`dev_10x/xx_helpers.py`, `dev_10x/xx_ci.py`, `dev_10x/constraints.py`.
+`dev_10x/xx_helpers.py`, `dev_10x/xx_ci.py`, `dev_10x/constraints.py`,
+`dev_10x/postgres_local.py`, `dev_10x/db_clean.py`.
+
+`xx-test-postgres-auth` leaves your trust instance on 5432 alone. It manages a second
+cluster (user `postgres` / password `py10x_pg_auth` by default — a throwaway local test
+fixture, override with `XX_PG_PASSWORD_AUTH_PASSWORD`) for infra with-auth smoke tests —
+same contract as CI `.github/actions/setup-postgres`. Prefers a Docker container
+(`postgres:15`, matching CI) when the Docker daemon is reachable; otherwise falls back to a
+Homebrew-managed cluster under `~/pgdata-py10x-auth`.
+
+`xx-test-db-clean` drops test databases left behind by killed sessions. Each pytest process
+creates its own `py10x_test_<timestamp>_<pid>_<rand>` database on Postgres and Mongo and drops it at the
+end (`core_10x/testlib/test_databases.py` + the root `conftest.py`), so nothing accumulates
+and concurrent sessions never share state. A session killed before teardown — Ctrl-C, a
+crash, a CI timeout — leaves its database behind. Dropping is a separate command rather than a flag, since it is
+not reversible:
+
+```bash
+uv run --no-sync xx-test-db-clean list             # what is there
+uv run --no-sync xx-test-db-clean drop             # drop it
+uv run --no-sync xx-test-db-clean legacy           # test data predating per-session databases
+uv run --no-sync xx-test-db-clean legacy --drop    # ... and remove it
+```
+
+Only names starting with `py10x_test` are candidates, so nothing of your own is at risk — but
+a *running* session's database matches too, so do not `drop` while tests run elsewhere.
+Set `XX_TEST_DB=<name>` to pin a session's database and keep it after the run for inspection.
+
+`legacy` is a one-time migration aid: before per-session databases, tests wrote into fixed
+Mongo databases (`test_db`, `test_filters_mongo`, `perf_test`) and into the Postgres server
+default. On Postgres it only considers tables carrying the collection layout (`_id` / `_rev` /
+`_data`), so tables of your own in that database are never candidates.
 
 ---
 

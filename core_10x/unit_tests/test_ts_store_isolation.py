@@ -270,3 +270,24 @@ def test_module_pin_after_explicit_isolation_sim(module_pinned_main):
     assert Traitable.main_store.value[0] is module_pinned_main
     assert module_pinned_main in TsStore.s_instances.values()
     assert any(m.name == 'seed' for m in _SeedMarker.load_many())
+
+
+def test_reset_skips_dead_weakref_proxies():
+    """Leftover scan must not dereference weakref proxies (isinstance would raise)."""
+    import gc
+    import weakref
+
+    from core_10x.trait_definition import RT
+
+    class _Leaf(Traitable):
+        name: str = RT(T.ID)
+
+    obj = _Leaf(name='weak-proxy-probe')
+    proxy = weakref.proxy(obj)
+    del obj
+    gc.collect()
+    with pytest.raises(ReferenceError):
+        isinstance(proxy, Traitable)
+    assert not issubclass(type(proxy), Traitable)
+
+    reset_traitable_process_state()

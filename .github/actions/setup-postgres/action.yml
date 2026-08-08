@@ -1,0 +1,101 @@
+name: Setup PostgreSQL
+description: >-
+  Start local PostgreSQL for infra_10x PostgresStore tests (Linux Docker; no-op on Windows).
+  Trust auth on port 5432 (OS-user SUPERUSER, passwordless) plus a password-auth instance on
+  port 5433 for with-auth smoke tests.
+inputs:
+  postgres-version:
+    description: PostgreSQL major version for the Docker image
+    required: false
+    default: "15"
+  postgres-db:
+    description: Default database name
+    required: false
+    default: postgres
+  postgres-port:
+    description: Host port for trust-auth (passwordless) Postgres
+    required: false
+    default: "5432"
+  postgres-auth-port:
+    description: Host port for password-auth Postgres
+    required: false
+    default: "5433"
+  postgres-auth-password:
+    description: Password for the password-auth container postgres superuser
+    required: false
+    default: py10x_pg_auth
+runs:
+  using: composite
+  steps:
+    - name: Start PostgreSQL (Docker trust + password-auth)
+      if: runner.os != 'Windows'
+      shell: bash
+      env:
+        PG_VERSION: ${{ inputs.postgres-version }}
+        POSTGRES_DB: ${{ inputs.postgres-db }}
+        PG_PORT: ${{ inputs.postgres-port }}
+        PG_AUTH_PORT: ${{ inputs.postgres-auth-port }}
+        PG_AUTH_PASSWORD: ${{ inputs.postgres-auth-password }}
+      run: |
+        set -euo pipefail
+        HOST_USER="$(whoami)"
+        docker rm -f py10x-postgres py10x-postgres-auth 2>/dev/null || true
+
+        # trust: no password on TCP (tests use OS-user role, not postgres/postgres).
+        docker run -d --name py10x-postgres \
+          -e POSTGRES_HOST_AUTH_METHOD=trust \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_DB \
+          -p "${PG_PORT}:5432" \
+          "postgres:${PG_VERSION}"
+
+        # Password required — probe must report (True, True); connect with password.
+        # Mechanism is scram-sha-256 (Postgres default); tests only care that a password is required.
+        docker run -d --name py10x-postgres-auth \
+          -e POSTGRES_HOST_AUTH_METHOD=scram-sha-256 \
+          -e POSTGRES_USER=postgres \
+          -e POSTGRES_PASSWORD="$PG_AUTH_PASSWORD" \
+          -e POSTGRES_DB \
+          -p "${PG_AUTH_PORT}:5432" \
+          "postgres:${PG_VERSION}"
+
+        wait_ready() {
+          local name="$1"
+          local deadline=$(( $(date +%s) + 60 ))
+          while true; do
+            if docker exec "$name" pg_isready -U postgres -d "$POSTGRES_DB" >/dev/null 2>&1; then
+              return 0
+            fi
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "PostgreSQL ($name) did not become ready within 60 seconds" >&2
+              docker logs "$name" >&2 || true
+              exit 1
+            fi
+            sleep 1
+          done
+        }
+        wait_ready py10x-postgres
+        wait_ready py10x-postgres-auth
+
+        # Host OS user (GHA: runner; local docker: $USER) — libpq defaults to this role when
+        # URI userinfo is omitted. Each pytest session CREATEs its own py10x_test_* database.
+        # Role + DB named like the OS user so libpq defaults (user=dbname=OS user) work without password.
+        docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+          "DO \$\$ BEGIN
+             IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${HOST_USER}') THEN
+               CREATE ROLE \"${HOST_USER}\" WITH LOGIN SUPERUSER;
+             END IF;
+           END \$\$;"
+        docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -tc \
+          "SELECT 1 FROM pg_database WHERE datname = '${HOST_USER}'" | grep -q 1 \
+          || docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+               "CREATE DATABASE \"${HOST_USER}\" OWNER \"${HOST_USER}\";"
+
+        echo "PostgreSQL trust ready on 127.0.0.1:${PG_PORT} (role/db=${HOST_USER}, auth=trust)"
+        echo "PostgreSQL password-auth ready on 127.0.0.1:${PG_AUTH_PORT} (user=postgres, password required)"
+
+    # Windows CI leaves XX_TEST_STRICT off; PostgresStore tests skip when unreachable.
+    - name: Skip PostgreSQL on Windows
+      if: runner.os == 'Windows'
+      shell: bash
+      run: echo "PostgreSQL not provisioned on Windows (postgres store tests will skip)"

@@ -33,7 +33,7 @@ Agents should **link to and rely on those files**, not duplicate them here.
   - The C++ source lives in the sibling package at `../cxx10x/` (sibling to this repo's checkout). Read it (don't modify it from this repo) when you need to verify what is actually exposed to Python — in particular `../cxx10x/core_10x/btraitable.h` for the `BTraitable` API surface and `../cxx10x/core_10x/core_10x.cpp` for the pybind11 bindings that determine which methods are visible from Python.
 
 - **Traitable Store & UI assumptions**
-  - Mongo-backed tests skip when Mongo is unreachable locally; see [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) and `INSTALLATION.md` § Optional Database Dependencies.
+  - Mongo- and Postgres-backed tests skip when the server is unreachable locally; see [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) and `INSTALLATION.md` § Optional Database Dependencies.
   - UI work should assume Rio/Qt backends as configured in `INSTALLATION.md` / `pyproject.toml`.
 
 For any environment ambiguity, favor the patterns and instructions in `INSTALLATION.md` and `CONTRIBUTING.md`.
@@ -59,7 +59,7 @@ Agents must **not** violate the following:
 
 - **Storage & identity**
   - Maintain the shared-by-ID semantics: instances with the same ID share trait values.
-  - Respect storage contexts (`CACHE_ONLY`, `MongoStore.instance(...)`) and do not introduce ad-hoc persistence mechanisms.
+  - Respect storage contexts (`CACHE_ONLY`, `MongoStore.instance(...)`, `PostgresStore.instance(...)`, `TsStore.instance_from_uri(...)`) and do not introduce ad-hoc persistence mechanisms.
 
 Before changing anything under `core_10x/traitable.py` or traitable-heavy code, agents should:
 - Read the relevant sections of `GETTING_STARTED.md`.
@@ -88,6 +88,13 @@ When adding new functionality, agents should **add or update tests** in the appr
 - **Use American English spelling** throughout all code, comments, docstrings, and documentation.
   - ✓ `serializable`, `behavior`, `color`, `initialize`, `recognize`, `analyze`
   - ✗ `serialisable`, `behaviour`, `colour`, `initialise`, `recognise`, `analyse`
+
+- **Comment only what is not obvious from the code.** A comment restating what the next line
+  plainly does is noise. Explain *why*, a non-obvious constraint, or a trap — not *what*.
+  - A comment should not be longer than the code it explains unless it carries a real insight
+    (a dialect quirk, a footgun, why the obvious approach fails).
+  - Prefer one dense line over three explanatory ones. The same applies to docstrings: state
+    the contract and anything surprising about it, then stop.
 
 ---
 
@@ -133,15 +140,17 @@ Rules agents must **not** violate:
 
 | Service | Purpose | How to start |
 |---------|---------|-------------|
-| MongoDB 8 (replica set) | Optional — runs mongo-backed tests that skip when absent | `docker start mongo-rs` (container pre-exists in snapshot) |
+| MongoDB 8 (replica set) | Optional — mongo-backed `infra_10x` tests skip when absent | `docker start mongo-rs` (container pre-exists in snapshot) |
+| PostgreSQL | Optional — postgres-backed `infra_10x` tests skip when absent | Homebrew Postgres or Docker trust + OS-user role; each pytest session creates/drops its own `py10x_test_*` database — see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies) |
 | Docker daemon | Hosts MongoDB container | `sudo dockerd &>/tmp/dockerd.log &` |
 | Playwright/Chromium | Required for `ui_10x/rio` browser-based tests | Pre-installed; no startup needed |
 
 ### Starting services before running tests
 
-MongoDB is **optional** for local runs — `pytest` skips mongo-dependent tests when the server is
-unreachable. Start Mongo only when you want full `infra_10x` coverage locally. The Docker daemon and
-MongoDB container are pre-configured but **not auto-started** in this environment:
+MongoDB and PostgreSQL are **optional** for local runs — Postgres-backed tests soft-skip via
+`need()` when unreachable; the Mongo matrix entry hard-fails if Mongo is down. Start them only
+when you want full `infra_10x` coverage. The Docker daemon and MongoDB container are
+pre-configured but **not auto-started** in this environment:
 
 ```bash
 sudo dockerd &>/tmp/dockerd.log &
@@ -156,6 +165,12 @@ docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary"
 # Should print: true
 ```
 
+Local Postgres should accept passwordless OS-user login on port 5432
+(each pytest session creates and drops its own `py10x_test_*` database). For with-auth smoke tests on 5433:
+`uv run --no-sync xx-test-postgres-auth start` (prefers Docker, falls back to Homebrew — see
+[`dev_10x/README.md`](dev_10x/README.md)).
+CI uses `.github/actions/setup-postgres` for both.
+
 ### Running tests, lint, and build
 
 See [CONTRIBUTING.md](CONTRIBUTING.md#development-workflow) (`uv run --no-sync pytest`, `uv run --no-sync ruff`, `uv --no-sync build`).
@@ -163,6 +178,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#development-workflow) (`uv run --no-sync p
 ### Non-obvious caveats
 
 - MongoDB must run as a **replica set** (`--replSet rs0`), not standalone, for transaction tests — see [INSTALLATION.md](INSTALLATION.md#optional-database-dependencies).
+- PostgreSQL for infra tests expects OS-user trust auth on port 5432 (same as CI) — see INSTALLATION.md.
 - The Docker socket permissions may need fixing after daemon restart: `sudo chmod 666 /var/run/docker.sock`.
 - The Docker storage driver is set to `fuse-overlayfs` and iptables uses `iptables-legacy` — these are required for nested container environments.
 - `uv` is installed at `~/.local/bin/uv`; ensure `$HOME/.local/bin` is on `PATH`.

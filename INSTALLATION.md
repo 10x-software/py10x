@@ -37,12 +37,30 @@ If either applies, install one of:
 
 **Traitable Store backends** (for persistence examples and optional full test coverage):
 
-- `core_10x` tests use the **in-process** Traitable Store — no external database.
-- `infra_10x` tests exercise the **MongoDB-backed** store (`MongoStore`, implemented in `infra_10x`).
-  A local MongoDB is **not required** to run `pytest` — mongo-dependent tests skip when the server
-  is unreachable. To run them locally, install a **passwordless MongoDB** instance on **port 27017**
-  (replica set recommended for transaction tests). CI sets `XX_TEST_STRICT=1` and provisions a
-  replica set so those tests must run there.
+- `core_10x` tests use the **in-process** Traitable Store (DuckDB) and need no external database,
+  with one exception: `test_filters.py` runs its filter matrix against DuckDB, MongoDB **and**
+  PostgreSQL, because those tests *are* the cross-backend filter contract. The two external
+  backends skip individually when unreachable.
+- `infra_10x` tests exercise **MongoDB** (`MongoStore`) and **PostgreSQL** (`PostgresStore`,
+  ibis-backed). Locally, Postgres-dependent tests use `need()` and **skip** when the server is
+  unreachable; the shared Mongo matrix entry is a **hard fail** if Mongo is listed but down
+  (see `infra_10x/unit_tests/conftest.py`). Under `XX_TEST_STRICT=1` (Linux CI), unmet
+  `need()` preconditions **fail** instead of skipping (`core_10x/testlib/strict.py`).
+  - **MongoDB**: passwordless instance on **port 27017** (replica set recommended for transaction
+    tests). CI provisions a replica set.
+  - **PostgreSQL**: version **15+** (oldest release with enough runway left in the
+    [community support window](https://www.postgresql.org/support/versioning/); nothing in
+    `PostgresStore` requires anything newer). CI tests exactly this floor
+    (`.github/actions/setup-postgres` defaults to `postgres:15`).
+    Passwordless trust instance on **port 5432**, login as the **OS user** (optional `user@`;
+    libpq defaults to the OS user when omitted). Each pytest **session creates its own
+    `py10x_test_*` database** and drops it at the end, so a run never touches your own data
+    and two concurrent sessions cannot collide. A session killed
+    before teardown leaves its database behind — `uv run --no-sync xx-test-db-clean drop` sweeps
+    those (see [`dev_10x/README.md`](dev_10x/README.md)). CI also starts a **password-auth** companion on
+    **port 5433** for with-auth smoke tests. Locally: `uv run --no-sync xx-test-postgres-auth start` (prefers Docker; falls back to
+    Homebrew — see [`dev_10x/README.md`](dev_10x/README.md)).
+    Authenticated hosts use the vault
 
 See platform setup below for install commands. Other docs link here; do not duplicate the full blurb.
 

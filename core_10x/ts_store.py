@@ -61,9 +61,9 @@ class TsCollection(abc.ABC):
     @abc.abstractmethod
     def create_index(self, name: str, trait_name: str | list[tuple[str, int]], **index_args) -> str: ...
     @abc.abstractmethod
-    def max(self, trait_name: str, filter: f = None) -> dict: ...
+    def max(self, trait_name: str, filter: f = None) -> dict | None: ...
     @abc.abstractmethod
-    def min(self, trait_name: str, filter: f = None) -> dict: ...
+    def min(self, trait_name: str, filter: f = None) -> dict | None: ...
 
     def exists(self, query: f) -> bool:
         return self.count(query) > 0
@@ -160,6 +160,19 @@ class TsStore(Resource, resource_type=TS_STORE):
         return ResourceSpec(ts_class, kwargs)
 
     @classmethod
+    def is_running_with_auth_from_uri(cls, uri: str) -> tuple[bool, bool]:
+        spec = cls.spec_from_uri(uri)
+        return spec.resource_class.is_running_with_auth(spec.hostname(), spec.port())
+
+    # -- Database-level operations on this store's server. Backends with no separate databases
+    # -- (DuckDB) or that create them on first write (Mongo) inherit these defaults.
+    def list_databases(self, prefix: str = '') -> list[str]:
+        return []
+
+    def delete_database(self, dbname: str) -> bool:
+        return False
+
+    @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
 
@@ -222,16 +235,7 @@ class TsStore(Resource, resource_type=TS_STORE):
         rc = RC(True)
         for collection_name in self.collection_names():
             from_coll = self.collection(collection_name, {})
-            if self.s_requires_schema:
-                # Ibis (and other schema stores): layout from the table only.
-                if to_store.s_requires_schema:
-                    if not (trait_dir := from_coll.intrinsic_trait_dir()):
-                        raise TsCopyError(f'Cannot resolve intrinsic_trait_dir for collection {collection_name!r}')
-                    to_coll = to_store.collection(collection_name, trait_dir)
-                else:
-                    to_coll = to_store.collection(collection_name, {})
-            else:
-                to_coll = to_store.collection(collection_name, {})
+            to_coll = to_store.collection(collection_name, from_coll.intrinsic_trait_dir())
             rc += from_coll.copy_to(to_coll, overwrite=overwrite)
         return rc
 

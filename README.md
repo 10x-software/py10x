@@ -24,7 +24,7 @@ Key superpowers:
   Dependencies are tracked automatically — no manual invalidation, no recompute storms.
 
 - **Deep Persistence**  
-  Complex nested object graphs saved to **Traitable Store** (MongoDB or in-memory).  
+  Complex nested object graphs saved to **Traitable Store** (MongoDB, PostgreSQL, or in-memory DuckDB).  
   Built-in versioning, history tracking, transparent lazy loading.
 
 - **Automatic UI Editors**  
