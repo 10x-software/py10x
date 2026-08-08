@@ -21,7 +21,26 @@ class TraitableCli(Traitable):
         super().__init_subclass__(**kwargs)
 
     @classmethod
-    def from_command_line(cls) -> tuple:  # -- (RC, Traitable)
+    def main(cls) -> int:
+        """Console-script entry point: parse ``sys.argv``, run, report. 2 = usage, 1 = failed.
+
+        The two steps cannot be folded into one expression: ``inst`` is None on a usage error.
+        """
+        rc, inst = cls.from_command_line()
+        if rc and not hasattr(inst, 'run'):
+            # -- no positional word, so the *master* class was instantiated; it has no command
+            # -- to run. Its docstring is the usage text.
+            rc = RC(False, cls.__doc__ or f'{cls.__name__}: no command given')
+        if not rc:
+            print(rc.error())
+            return 2
+        if not (rc := inst.run()):
+            print(rc.error())
+            return 1
+        return 0
+
+    @classmethod
+    def from_command_line(cls) -> tuple[RC, Traitable]:
         """
         Creates an instance of the target traitable: positional words select the target class and the
         remaining `--option value` pairs supply trait values.

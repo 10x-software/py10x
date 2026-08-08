@@ -368,17 +368,5 @@ class Status(PostgresAuthCli, _command='status'):
         return self._rc(_docker_status(docker, self.port) if docker else _homebrew_status(self.dir(), self.port))
 
 
-def main() -> int:
-    rc, inst = PostgresAuthCli.from_command_line()
-    if not rc:
-        print(rc.error())
-        return 2
-    rc = inst.run()
-    if not rc:
-        print(rc.error())
-        return 1
-    return 0
-
-
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise SystemExit(PostgresAuthCli.main())

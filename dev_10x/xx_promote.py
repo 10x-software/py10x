@@ -895,17 +895,5 @@ class Resync(XxPromoteCli, _command='resync'):
         return [ResetRepoStep(repo=repo, branches=sorted(repo_branches[repo]), tag_globs=repo_globs[repo]) for repo in repo_branches]
 
 
-def main() -> int:
-    rc, inst = XxPromoteCli.from_command_line()
-    if not rc:
-        print(rc.error())
-        return 2
-    rc = inst.run()
-    if not rc:
-        print(rc.error())
-        return 1
-    return 0
-
-
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise SystemExit(XxPromoteCli.main())

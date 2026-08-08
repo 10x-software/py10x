@@ -107,17 +107,5 @@ class Legacy(TestDbCleanCli, _command='legacy'):
         return RC_TRUE
 
 
-def main() -> int:
-    rc, inst = TestDbCleanCli.from_command_line()
-    if not rc:
-        print(rc.error())
-        return 2
-    rc = inst.run()
-    if not rc:
-        print(rc.error())
-        return 1
-    return 0
-
-
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise SystemExit(TestDbCleanCli.main())

@@ -410,3 +410,36 @@ def test_exc_to_rc_without_message_captures_exception_info():
     err = rc.error()
     assert 'ValueError' in err
     assert 'kaboom' in err
+
+
+# ----------------------------------------------------------------------------
+#   __eq__
+# ----------------------------------------------------------------------------
+
+
+def test_eq_matches_on_rc_and_payload():
+    assert RC(True) == RC(True)
+    assert RC(False, 'boom') == RC(False, 'boom')
+    assert RC(True, 'data') == RC(True, 'data')
+
+
+def test_eq_distinguishes_rc_and_payload():
+    assert RC(True) != RC(False, 'boom')
+    assert RC(False, 'boom') != RC(False, 'other')
+    assert RC(True, 'a') != RC(True, 'b')
+
+
+def test_eq_against_non_rc_is_false_never_raises():
+    rc = RC(True)
+    assert rc != True  # noqa: E712 -- an RC is not its own truthiness
+    assert rc != 1
+    assert rc != None  # noqa: E711
+    assert (rc == 'anything') is False
+
+
+def test_eq_makes_rc_unhashable():
+    """Defining ``__eq__`` without ``__hash__`` sets ``__hash__`` to None — RC cannot be a
+    dict key or set member. Collect them in a list."""
+    assert RC.__hash__ is None
+    with pytest.raises(TypeError, match='unhashable'):
+        {RC(True)}

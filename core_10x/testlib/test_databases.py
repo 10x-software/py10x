@@ -46,6 +46,7 @@ SESSION_DB: str = os.environ.get('XX_TEST_DB') or f'{TEST_DB_PREFIX}_{datetime.n
 # -- True when the name was pinned by the caller, who then owns its lifecycle.
 SESSION_DB_IS_PINNED: bool = bool(os.environ.get('XX_TEST_DB'))
 
+
 def test_uri(store_protocol: str, session_db: str = SESSION_DB) -> str:
     """URI for ``session_db`` on localhost (using ``store_protocol``'s default port). ``session_db=''`` gives the server."""
     # Lowercased: callers pass TS_STORE_TYPE member names (MONGODB), but a URI scheme is

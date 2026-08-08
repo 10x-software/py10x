@@ -1,5 +1,8 @@
+import sys
+
 import pytest
 from core_10x.exec_control import CONVERT_VALUES_OFF
+from core_10x.rc import RC, RC_TRUE
 from core_10x.traitable import T
 from core_10x.traitable_cli import TraitableCli
 
@@ -210,3 +213,47 @@ def test_command_must_be_identifier():
 
         class BadCommand(Cli, _command='not an id'):
             pass
+
+
+# ----------------------------------------------------------------------------
+#   main() - console-script entry point
+# ----------------------------------------------------------------------------
+
+
+class MainCli(TraitableCli):
+    """Usage: mycmd work"""
+
+
+class Work(MainCli, _command='work'):
+    fail: bool = T(False)
+
+    def run(self):
+        return RC(False, 'work failed') if self.fail else RC_TRUE
+
+
+def test_main_returns_zero_on_success(monkeypatch):
+    monkeypatch.setattr(sys, 'argv', ['mycmd', 'work'])
+    assert MainCli.main() == 0
+
+
+def test_main_returns_one_when_the_command_fails(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['mycmd', 'work', '--fail'])
+    assert MainCli.main() == 1
+    assert 'work failed' in capsys.readouterr().out
+
+
+def test_main_returns_two_on_a_usage_error(monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['mycmd', 'work', '--nope', 'x'])
+    assert MainCli.main() == 2
+    assert 'unknown attribute nope' in capsys.readouterr().out
+
+
+def test_main_shows_usage_when_no_command_is_given(monkeypatch, capsys):
+    """No positional word instantiates the *master*, which has no ``run`` — show its docstring.
+
+    Regression: ``main`` used to call ``inst.run()`` unconditionally and died with
+    ``AttributeError`` for any CLI whose master class defines no ``run`` of its own.
+    """
+    monkeypatch.setattr(sys, 'argv', ['mycmd'])
+    assert MainCli.main() == 2
+    assert 'Usage: mycmd work' in capsys.readouterr().out
