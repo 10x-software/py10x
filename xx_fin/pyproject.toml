@@ -11,8 +11,8 @@ authors = [
 dependencies = [
     # Pins below for py10x-core and py10x-fin-base-cxx are maintained by xx-promote.
     # Kernel/infra come transitively via py10x-core.
-    "py10x-core (>=0.2.3rc48,<0.2.3rc49)",
-    "py10x-fin-base-cxx (==0.1.0rc2)",  # co-released; same version as this package
+    "py10x-core (>=0.2.3rc49,<0.2.3rc50)",
+    "py10x-fin-base-cxx (==0.1.0rc3)",  # co-released; same version as this package
     "quantlib-python>=1.18",
     "aadc>=1.8.2; sys_platform != 'darwin'",
 ]
