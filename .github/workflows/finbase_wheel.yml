@@ -105,9 +105,15 @@ jobs:
 
       # Install straight from this run's build artifacts (not from PyPI) so a broken wheel is
       # caught here, before it's published, per the move plan's Phase 1 clean-venv smoke test.
+      # Transitive index deps (exact py10x-core == on the release commit, py10x-kernel for cxx)
+      # may still be publishing when smoke starts — poll like cxx10x pre-publish-tests.
       - name: Install from build artifacts
         shell: bash
+        env:
+          PYPI_TIMEOUT_SEC: "900"
+          PYPI_POLL_SEC: "90"
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           CXX_WHL=$(ls dist-cxx/*cp312*.whl | head -n1)
           FINBASE_WHL=$(ls dist-finbase/*.whl | head -n1)
@@ -116,7 +122,15 @@ jobs:
           # No --pre needed: py10x-fin-base's py10x-core pin and py10x-fin-base-cxx's py10x-kernel
           # pin (both in their respective pyproject.toml) already force prerelease-inclusion for
           # just those two packages via PEP 440.
-          pip install "$CXX_WHL" "$FINBASE_WHL"
+          deadline=$(( $(date +%s) + PYPI_TIMEOUT_SEC ))
+          until pip install --no-cache-dir "$CXX_WHL" "$FINBASE_WHL"; do
+            if [ "$(date +%s)" -ge "$deadline" ]; then
+              echo "::error::timed out after ${PYPI_TIMEOUT_SEC}s waiting for PyPI to satisfy fin-base deps (py10x-core / py10x-kernel)"
+              exit 1
+            fi
+            echo "waiting for PyPI deps (${PYPI_POLL_SEC}s)..." >&2
+            sleep "$PYPI_POLL_SEC"
+          done
 
       - name: Import smoke test
         run: python -c "import xxfin; import cxxfin; print(xxfin.__file__); print(cxxfin.__file__)"

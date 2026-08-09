@@ -491,6 +491,8 @@ shape as the former domain `finbase_wheel.yml`):
 2. Validate committed co-release pin (`py10x-fin-base-cxx (==<version>)`, written by xx-promote);
    `uv build --directory xx_fin` → `py10x-fin-base` sdist + wheel.
 3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`.
+   Polls PyPI up to 15 min (same idea as cxx10x `PYPI_TIMEOUT_SEC`) so a coordinated
+   `py10x-core==…` (and kernel for cxx) can finish publishing before install.
 4. Trusted PyPI publish (OIDC) of all artifacts.
 
 PyPI trusted publishers for `py10x-fin-base` and `py10x-fin-base-cxx` point at this repo
