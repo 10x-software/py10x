@@ -578,14 +578,22 @@ class GitHelpers:
         return Path(cls.git(path, 'rev-parse', '--show-toplevel'))
 
     @staticmethod
-    def release_branch(flavor: str, name: str, is_core: bool) -> str:
+    def release_branch(flavor: str, name: str, is_core: bool, is_downstream: bool = False) -> str:
         """Tool-owned release-line branch name for a package (`flavor` in {"pre", "prod"}).
 
-        core (one package per repo) uses the bare `pre`/`prod`; siblings sharing a repo (cxx10x's
-        kernel + infra) are namespaced per package, e.g. `pre/py10x-kernel`. See
-        `dev_10x/README.md` (Branches).
+        - core (one package per repo): bare ``pre`` / ``prod``
+        - siblings sharing a repo (cxx10x kernel + infra): ``pre/{name}`` (slash namespace)
+        - in-repo downstreams (same repo as core): ``pre-{name}`` — cannot nest under bare ``pre``
+          (git forbids ``refs/heads/pre`` and ``refs/heads/pre/...`` together)
+
+        Publish-trigger *tags* stay ``pre/{release}`` / ``prod/{release}`` (``refs/tags/``). See
+        ``dev_10x/README.md`` (Branches).
         """
-        return flavor if is_core else f'{flavor}/{name}'
+        if is_core:
+            return flavor
+        if is_downstream:
+            return f'{flavor}-{name}'
+        return f'{flavor}/{name}'
 
 
 class PyProjectHelpers:

@@ -93,10 +93,12 @@ are derived from `origin`. Tag prefix defaults to `{name}-v`.
 - **`0.1.dev1+g…` = NO tag found** (absolute fallback) — almost always a *shallow* checkout. CI that
   versions a co-dependency sibling needs `actions/checkout` `fetch-depth: 0`; the triggering tag is
   present even when shallow, other tags are not.
-- **pre/prod rc tags are not on `main`.** Publishable rc/final tags live on tool-owned `pre`/`prod`
-  branches. `xx-promote pre` tags `main` HEAD with `{T}rc(N+1).dev` when cutting rcN (a
-  setuptools-scm marker, not a release) so plain `git describe` / hatch-vcs on `main` stamps
-  `0.2.1rc18.devM+g…` while rc17 lives on `pre`. `xx-promote prod` replaces that with
+- **pre/prod rc tags are not on `main`.** Publishable rc/final tags live on tool-owned release
+  branches: bare `pre`/`prod` for core; `pre/{name}` for siblings in cxx10x; `pre-{name}` for
+  in-repo downstreams (same repo as core — git cannot nest `pre/{name}` under bare `pre`).
+  `xx-promote pre` tags `main` HEAD with `{T}rc(N+1).dev` when cutting rcN (a setuptools-scm
+  marker, not a release) so plain `git describe` / hatch-vcs on `main` stamps
+  `0.2.1rc18.devM+g…` while rc17 lives on the release branch. `xx-promote prod` replaces that with
   `{next_micro(T)}rc0.dev` (e.g. `0.2.2rc0.dev` after final `0.2.1`) so `main` stays above the
   release and below the first rc of the next micro.
   Publish workflows trigger on **`pre/{release}`** / **`prod/{release}`** tags (same commit as the
@@ -110,10 +112,11 @@ are derived from `origin`. Tag prefix defaults to `{name}-v`.
 
 Releases are not cut by hand-editing pins. `main` always carries **rc-window pins** (updated by
 `xx-promote` epilogues). `xx-promote` cuts
-each release onto a tool-owned branch — `pre` (current rc) / `prod` (current final), per package —
-writing **coordinated exact pins** there and tagging it, so an external `pip install …rc1` resolves
-the coordinated sibling set. Branch/coordination model: tool-owned `pre`/`prod` branches per package
-(see [Pin model](#pin-model-three-places) and [Design rationale](#design-rationale)).
+each release onto a tool-owned branch — bare `pre`/`prod` for core, `pre/{name}` for siblings,
+`pre-{name}` for in-repo downstreams — writing **coordinated exact pins** there and tagging it, so
+an external `pip install …rc1` resolves the coordinated sibling set. Branch/coordination model:
+tool-owned release branches per package (see [Pin model](#pin-model-three-places) and
+[Design rationale](#design-rationale)).
 
 `xx-promote` is a `core_10x.traitable_cli` tree: the command is a positional word and options use
 the `--option value` form (dashes in names map to underscores, e.g. `--dry-run` → `dry_run`).

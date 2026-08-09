@@ -779,7 +779,7 @@ class Yank(XxPromoteCli, _command='yank'):
         remaining = [(t, v) for t, v in self.parsed if v != Version(self.version)]
         prev_tag = VersionHelpers.latest_final_tag(remaining) if self.is_prod else VersionHelpers.latest_rc_tag_overall(remaining)
         if prev_tag is not None:
-            branch = GitHelpers.release_branch(self.branch_name, self.pkg, self.package.is_core)
+            branch = GitHelpers.release_branch(self.branch_name, self.pkg, self.package.is_core, self.package.is_downstream)
             steps.append(RollbackStep(repo=repo, branch=branch, to_tag=prev_tag, to_commit=GitHelpers.tag_commit(repo, prev_tag)))
 
         # Roll back main pins for the yanked release line (role-aware).
@@ -938,7 +938,10 @@ class Resync(XxPromoteCli, _command='resync'):
         repo_globs: dict[Path, list[str]] = {}
         for name, pkg in self.packages.items():
             repo_branches.setdefault(pkg.repo, {'main'}).update(
-                (GitHelpers.release_branch('pre', name, pkg.is_core), GitHelpers.release_branch('prod', name, pkg.is_core))
+                (
+                    GitHelpers.release_branch('pre', name, pkg.is_core, pkg.is_downstream),
+                    GitHelpers.release_branch('prod', name, pkg.is_core, pkg.is_downstream),
+                )
             )
             repo_globs.setdefault(pkg.repo, []).append(f'{pkg.tag_prefix}*')
             repo_globs[pkg.repo].extend(VersionHelpers.publish_trigger_globs(pkg.tag_prefix))

@@ -267,6 +267,7 @@ def test_downstream_only_footprint_skips_core_version_but_refreshes_test_group()
     assert not plans[CORE_NAME].act
     assert not plans['py10x-kernel'].act
     assert plans[FIN].act and plans[FIN].version == '0.1.1rc1'
+    assert plans[FIN].branch == f'pre-{FIN}'  # flat; cannot nest under bare core `pre`
     assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.0', FIN_CXX: '==0.1.1rc1'}
     assert plans[FIN].reverse_pin is None
     # Downstream epilogue: core window + co-release cxx on fin-base main; core test-group (target=core).

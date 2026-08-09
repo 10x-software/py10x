@@ -275,6 +275,9 @@ def test_release_branch_names():
     assert GitHelpers.release_branch('prod', 'py10x-core', is_core=True) == 'prod'
     assert GitHelpers.release_branch('pre', 'py10x-kernel', is_core=False) == 'pre/py10x-kernel'
     assert GitHelpers.release_branch('prod', 'py10x-infra', is_core=False) == 'prod/py10x-infra'
+    # In-repo downstreams cannot nest under bare core `pre`/`prod` (git ref collision).
+    assert GitHelpers.release_branch('pre', 'py10x-fin-base', is_core=False, is_downstream=True) == 'pre-py10x-fin-base'
+    assert GitHelpers.release_branch('prod', 'py10x-fin-base', is_core=False, is_downstream=True) == 'prod-py10x-fin-base'
 
 
 def test_forward_pin_edits_targets_only_named_and_preserves_format():

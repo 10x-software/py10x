@@ -217,8 +217,8 @@ Reuse `PyProjectHelpers.write_forward_pins` on `xx_fin/pyproject.toml` (must alr
 | Item | Fin-base | Fin-base-cxx |
 |------|----------|--------------|
 | Tag prefix | `py10x-fin-base-v` | `py10x-fin-base-cxx-v` |
-| Branches | `pre/py10x-fin-base`, `prod/py10x-fin-base` | mirror or shared release train (Phase 1 decision) |
-| Publish triggers | `pre/prod/py10x-fin-base-v*` | `pre/prod/py10x-fin-base-cxx-v*` (or folded into fin-base train) |
+| Branches | `pre-py10x-fin-base`, `prod-py10x-fin-base` (flat; cannot use `pre/{name}` — core already owns bare `pre` in the same repo) | co-released on fin-base train (no separate branch) |
+| Publish triggers | `pre/prod/py10x-fin-base-v*` (tags; `refs/tags/` OK alongside branch `pre`) | folded into fin-base train |
 
 Prefer a **parameterized** publish workflow template so additional downstreams are cheap.
 

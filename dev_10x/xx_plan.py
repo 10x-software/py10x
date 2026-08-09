@@ -224,7 +224,7 @@ class Plan:
                 act=True,
                 version=version,
                 tag=f'{inp.tag_prefix}{version}',
-                branch=GitHelpers.release_branch(cls.FLAVOR, inp.name, inp.is_core),
+                branch=GitHelpers.release_branch(cls.FLAVOR, inp.name, inp.is_core, inp.is_downstream),
                 base_kind=cls.BASE_KIND,
                 forward_pins=forward,
                 reverse_pin=reverse,
