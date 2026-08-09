@@ -83,10 +83,14 @@ future-annotations = true # add "from __future__ import annotations" to enable m
 exclude = [
     "core_10x/attic/*.py",
     "core_10x/jit/*",
-    "ui_10x/table*.py"
+    "ui_10x/table*.py",
+    "xx_fin/xxfin/jit_aadc/*",
 ]
-
 [lint.per-file-ignores]
+"xx_fin/xxfin/manual_tests/*" = [
+    "B905", # zip without strict
+    "B011", # assert False
+]
 "ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]
 "ui_10x/examples/price_simulator.py" = ["E711"]
 "ui_10x/rio/apps/examples/examples/pages/login_page.py" = [
