@@ -117,6 +117,20 @@ py10x-infra  = { path = "../cxx10x/infra_10x" }
 [tool.dev_10x.downstream]
 py10x-fin-base = { path = "./xx_fin" }
 
+# uv always resolves dependency-groups (including unpublished `test`) when locking.
+# Point fin-base at the in-repo tree so that group does not pull a PyPI wheel whose
+# exact core pin fights the local editable project version after promote.
+[tool.uv]
+no-build-isolation-package = ["py10x-fin-base-cxx"]
+
+[[tool.uv.dependency-metadata]]
+name = "py10x-fin-base-cxx"
+version = "0+dummy"
+
+[tool.uv.sources]
+py10x-fin-base = { path = "xx_fin" }
+py10x-fin-base-cxx = { path = "xx_fin/cxxfin" }
+
 [tool.hatch.metadata]
 allow-direct-references = true
 
