@@ -10,11 +10,14 @@ sibling/downstream packaging root (e.g. fin-base's `cxxfin` → `py10x-fin-base-
 stay owned by editable/git/promote pins, not this freeze.
 
 Subcommands:
-  compile [--upgrade]  regenerate constraints.txt from py10x's + both siblings' pyproject.toml.
+  compile [--upgrade] [--with-downstream [name…]]
+           regenerate constraints.txt from py10x's + siblings' pyproject.toml.
+           Downstream packaging roots are **opt-in** (same flag shape as `uv-sync`), matching
+           default core isolation — fin-base's third-party graph is not in the default freeze.
            Without --upgrade: conservative regen (keeps existing pins where still valid).
            With --upgrade: bump every pin to the latest version allowed by the ranges.
            Needs the ../cxx10x checkout (a precondition of `uv-sync py10x-core-dev`).
-  check                assert every *installed* third-party distribution is pinned in constraints.txt
+  check    assert every *installed* third-party distribution is pinned in constraints.txt
 
 Kernel-free (subprocess + importlib.metadata only) so it runs before any sibling is built.
 """
@@ -28,6 +31,8 @@ import sys
 from pathlib import Path
 
 import tomllib
+
+from dev_10x.uv_sync import _parse_with_downstream
 
 PROJECT_ROOT = Path.cwd()
 CONSTRAINTS = PROJECT_ROOT / 'constraints.txt'
@@ -53,6 +58,27 @@ def _siblings() -> dict[str, Path]:
 def _downstreams() -> dict[str, Path]:
     """{dist-name: pyproject.toml path} for each [tool.dev_10x.downstream] entry."""
     return _dev10x_paths('downstream')
+
+
+def _compile_inputs(
+    with_downstream: bool = False,
+    downstream_filter: set[str] | None = None,
+) -> dict[str, Path]:
+    """pyproject paths fed to `uv pip compile` (siblings; downstreams only if opted in)."""
+    inputs = dict(_siblings())
+    if not with_downstream:
+        return inputs
+    ds = _downstreams()
+    if downstream_filter is not None:
+        unknown = sorted(downstream_filter - set(ds))
+        if unknown:
+            sys.exit(
+                f'xx-constraints: unknown downstream(s): {", ".join(unknown)}\n'
+                f'  configured: {", ".join(sorted(ds)) or "(none)"}'
+            )
+        ds = {n: p for n, p in ds.items() if n in downstream_filter}
+    inputs.update(ds)
+    return inputs
 
 
 def _workspace_members_at(root: Path) -> set[str]:
@@ -109,22 +135,31 @@ def _python_floor() -> str:
     return m.group(1)
 
 
-def compile_(upgrade: bool = False) -> int:
-    """Recompile constraints.txt from core + sibling (+ downstream) pyprojects."""
-    siblings = _siblings()
-    downstreams = _downstreams()
-    compile_inputs = {**siblings, **downstreams}
+def compile_(
+    upgrade: bool = False,
+    with_downstream: bool = False,
+    downstream_filter: set[str] | None = None,
+) -> int:
+    """Recompile constraints.txt from core + siblings (+ opt-in downstream pyprojects)."""
+    compile_inputs = _compile_inputs(with_downstream, downstream_filter)
     missing = [str(p) for p in compile_inputs.values() if not p.is_file()]
     if missing:
         sys.exit(
             f'xx-constraints: first-party pyproject(s) not found: {", ".join(missing)}\n'
             f'  siblings need the ../cxx10x checkout (e.g. `uv-sync py10x-core-dev`); '
-            f'downstreams need their packaging roots present.'
+            f'downstreams need their packaging roots present (and `--with-downstream`).'
         )
     # Exclude every first-party package from the emitted freeze (mirrors check()'s `_first_party()`).
     no_emit_names = sorted(_first_party())
     no_emit = [arg for name in no_emit_names for arg in ('--no-emit-package', name)]
-    compile_cmd = 'xx-constraints compile --upgrade' if upgrade else 'xx-constraints compile'
+    compile_cmd_parts = ['xx-constraints', 'compile']
+    if with_downstream:
+        compile_cmd_parts.append('--with-downstream')
+        if downstream_filter:
+            compile_cmd_parts.extend(sorted(downstream_filter))
+    if upgrade:
+        compile_cmd_parts.append('--upgrade')
+    compile_cmd = ' '.join(compile_cmd_parts)
     cmd = [
         'uv',
         'pip',
@@ -184,10 +219,19 @@ def main() -> None:
         sys.exit(compile_())
     cmd = args[0]
     if cmd == 'compile':
-        sys.exit(compile_(upgrade='--upgrade' in args[1:]))
+        with_downstream, downstream_filter, rest = _parse_with_downstream(tuple(args[1:]))
+        sys.exit(
+            compile_(
+                upgrade='--upgrade' in rest,
+                with_downstream=with_downstream,
+                downstream_filter=downstream_filter,
+            )
+        )
     if cmd == 'check':
         sys.exit(check())
-    sys.exit('Usage: xx-constraints [compile [--upgrade]|check]')
+    sys.exit(
+        'Usage: xx-constraints [compile [--upgrade] [--with-downstream [name…]]|check]'
+    )
 
 
 if __name__ == '__main__':

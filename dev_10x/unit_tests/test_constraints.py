@@ -44,7 +44,7 @@ def test_first_party_includes_configured_downstreams(monkeypatch):
     assert 'py10x-core' in names
 
 
-def test_compile_inputs_merge_siblings_and_downstreams(monkeypatch, tmp_path):
+def test_compile_inputs_default_siblings_only(monkeypatch, tmp_path):
     sib = tmp_path / 'sib' / 'pyproject.toml'
     ds = tmp_path / 'xx_fin' / 'pyproject.toml'
     for p in (sib, ds):
@@ -52,8 +52,22 @@ def test_compile_inputs_merge_siblings_and_downstreams(monkeypatch, tmp_path):
         p.write_text('[project]\nname="x"\n', encoding='utf-8')
     monkeypatch.setattr(c, '_siblings', lambda: {'py10x-kernel': sib})
     monkeypatch.setattr(c, '_downstreams', lambda: {'py10x-fin-base': ds})
-    compile_inputs = {**c._siblings(), **c._downstreams()}
-    assert set(compile_inputs) == {'py10x-kernel', 'py10x-fin-base'}
+    assert set(c._compile_inputs()) == {'py10x-kernel'}
+
+
+def test_compile_inputs_with_downstream_opt_in(monkeypatch, tmp_path):
+    sib = tmp_path / 'sib' / 'pyproject.toml'
+    ds = tmp_path / 'xx_fin' / 'pyproject.toml'
+    for p in (sib, ds):
+        p.parent.mkdir(parents=True)
+        p.write_text('[project]\nname="x"\n', encoding='utf-8')
+    monkeypatch.setattr(c, '_siblings', lambda: {'py10x-kernel': sib})
+    monkeypatch.setattr(c, '_downstreams', lambda: {'py10x-fin-base': ds})
+    assert set(c._compile_inputs(with_downstream=True)) == {'py10x-kernel', 'py10x-fin-base'}
+    assert set(c._compile_inputs(with_downstream=True, downstream_filter={'py10x-fin-base'})) == {
+        'py10x-kernel',
+        'py10x-fin-base',
+    }
 
 
 def test_workspace_members_include_nested_downstream_workspace():
