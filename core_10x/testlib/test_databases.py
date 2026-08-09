@@ -61,6 +61,9 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
     Owns every database it creates: this session's by default, or ``custom_db`` when a test
     needs a *second* store on the same backend (a store-wide ``copy_to`` needs source and
     target to be different stores). All are dropped when the session ends.
+
+    Must be re-exported from ``dev_10x.pytest_plugin`` (pytest11); root ``conftest.py`` is
+    not loaded when pre-publish CI collects from site-packages.
     """
     from core_10x.ts_store import TsStore
 

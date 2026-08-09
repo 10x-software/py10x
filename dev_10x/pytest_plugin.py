@@ -8,7 +8,11 @@ import core_10x
 import pytest
 import tomlkit
 from core_10x.global_cache import cache
-from core_10x.testlib.test_databases import live_store  # noqa: F401 — pytest11 fixture
+
+# Cross-package / pre-publish fixtures must be registered here (pytest11 entry point),
+# not in repo-root conftest.py — CI collects from site-packages and never loads that file.
+from core_10x.testlib.test_databases import live_store  # noqa: F401
+
 from py10x_kernel import BTraitableProcessor
 
 PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent
