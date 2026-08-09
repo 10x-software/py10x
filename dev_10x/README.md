@@ -154,6 +154,9 @@ For a sibling at coordinated rc `rcN` or released final `T`:
 
 ```
 xx-promote pre                                # cut the next coordinated rc onto the `pre` branch
+xx-promote pre --next-version 0.3.0           # force core+siblings onto 0.3.0rc1 (coordinated bump)
+xx-promote pre --next-version X=2.0.0         # same, targeting only package X
+xx-promote pre --next-version X=2.0.0,Y=1.5.0 # independently targeting X and Y
 xx-promote pre --no-publish                   # cut without publish triggers (attach later)
 xx-promote pre --publish-only                 # create missing publish triggers only (idempotent)
 xx-promote prod                               # stack each final on its rc, onto the `prod` branch
@@ -202,6 +205,14 @@ crash re-derives the plan from current tags and resumes.
   Unchanged packages are skipped; a latest tag that is still an rc is offered for `--push`.
   On `main`, the epilogue writes **rc-window** pins (`>=rcN,<rc(N+1)`) for each sibling from the
   batch's coordinated versions.
+  **`--next-version X.Y.Z`** overrides the auto `next_micro(latest_final)` target for **core and
+  every sibling** with an explicit release — e.g. to force a coordinated minor/major bump
+  (`0.2.3rcN` → `--next-version 0.3.0` cuts `0.3.0rc1`) ahead of the next micro.
+  **`--next-version name=X.Y.Z[,name=X.Y.Z...]`** targets only the named package(s) instead (one
+  sibling alone, or a downstream). Each overridden package re-cuts even with an unchanged footprint;
+  the rest of the batch still coordinates by the normal rules (a forced re-cut can still pull others
+  forward via pin-lag). Every version must be a plain `X.Y.Z` release (no rc/dev/post) strictly
+  greater than its package's latest tag.
 - **`prod`** (per package whose **latest** tag is a pre-release with an rc for its target): force-updates
   the `prod` branch onto the latest rc commit, **stacks** a final-pin commit there (core → siblings
   exact `==X.Y`; sibling → `test = ["py10x-core>=X.Y"]`), and tags `v{T}`. Then on `main` it

@@ -114,6 +114,9 @@ build-backend = "hatchling.build"
 py10x-kernel = { path = "../cxx10x/core_10x" }
 py10x-infra  = { path = "../cxx10x/infra_10x" }
 
+[tool.dev_10x.downstream]
+py10x-fin-base = { path = "./xx_fin" }
+
 [tool.hatch.metadata]
 allow-direct-references = true
 

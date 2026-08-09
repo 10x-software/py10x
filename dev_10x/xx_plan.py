@@ -43,6 +43,7 @@ class PkgInput(Traitable):
     generation_tags: list = RT(T.STICKY)  # generation floor (yanked *included* - consumed)
     footprint_changed: bool = RT(T.STICKY)  # diff since the latest tag across diff_pathspecs
     current_forward: dict = RT(T.STICKY)  # exact == pins of `siblings` from latest tag
+    version_override: str | None = RT(None)  # `--next-version`: forces a cut onto this X.Y.Z instead of next_micro
 
     def _pkg(self):
         return self.packages[self.name]
@@ -121,6 +122,11 @@ class PkgInput(Traitable):
         return PyProjectHelpers.exact_pins_from_text(text, self.siblings) if text else {}
 
 
+def _next_rc_target(inp: PkgInput) -> str:
+    """The base `X.Y.Z` a new rc cuts onto: `version_override` (`--next-version`) if set, else `next_micro`."""
+    return VersionHelpers.base_version(inp.version_override) if inp.version_override else VersionHelpers.target_version(inp.generation_tags)
+
+
 def _coordinated_version(inp: PkgInput) -> tuple[str | None, bool]:
     """`pre`: (version, acts) by a package's own footprint - a new rc if changed, else its latest tag.
 
@@ -128,10 +134,12 @@ def _coordinated_version(inp: PkgInput) -> tuple[str | None, bool]:
     exists, so core's `==` pin onto it can never dangle, and during an rc cycle core stays
     coordinated with the in-flight rc rather than snapping back to an older final. The new-rc floor
     uses generation tags (so a yanked number is never reused); selection uses non-yanked tags.
+    `version_override` (`--next-version`) forces a cut even when the footprint is unchanged, onto
+    that target rather than the automatic next micro.
     """
-    if inp.footprint_changed:
+    if inp.footprint_changed or inp.version_override:
         gen = inp.generation_tags
-        target = VersionHelpers.target_version(gen)
+        target = _next_rc_target(inp)
         return f'{target}rc{VersionHelpers.next_rc(gen, target)}', True
     latest = VersionHelpers.latest_tag(inp.parsed_tags)
     return (str(latest[1]) if latest is not None else None), False
@@ -288,20 +296,22 @@ class PrePlan(Plan):
         siblings = [i for i in inputs if not i.is_core and not i.is_downstream]
         downstreams = [i for i in inputs if i.is_downstream]
         decided = {i.name: _coordinated_version(i) for i in siblings}
-        # core re-cuts on its own footprint OR a pin that lags any *sibling*'s coordinated version.
+        # core re-cuts on its own footprint, an explicit --next-version, OR a pin that lags any
+        # *sibling*'s coordinated version.
         pin_lag = any(v is not None and core.current_forward.get(n) != v for n, (v, _) in decided.items())
-        if core.footprint_changed or pin_lag:
+        if core.footprint_changed or core.version_override or pin_lag:
             gen = core.generation_tags
-            target = VersionHelpers.target_version(gen)
+            target = _next_rc_target(core)
             decided[core.name] = (f'{target}rc{VersionHelpers.next_rc(gen, target)}', True)
         else:
             decided[core.name] = _coordinated_version(core)
-        # downstreams: own footprint OR published core pin lag vs this batch's coordinated core.
+        # downstreams: own footprint, an explicit --next-version, OR published core pin lag vs this
+        # batch's coordinated core.
         core_v = decided[core.name][0]
         for d in downstreams:
-            if d.footprint_changed or (core_v is not None and d.current_forward.get(core.name) != core_v):
+            if d.footprint_changed or d.version_override or (core_v is not None and d.current_forward.get(core.name) != core_v):
                 gen = d.generation_tags
-                target = VersionHelpers.target_version(gen)
+                target = _next_rc_target(d)
                 decided[d.name] = (f'{target}rc{VersionHelpers.next_rc(gen, target)}', True)
             else:
                 decided[d.name] = _coordinated_version(d)
