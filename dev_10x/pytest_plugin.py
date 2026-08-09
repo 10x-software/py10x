@@ -76,6 +76,51 @@ def _dist_installed(name: str) -> bool:
         return False
 
 
+def _tops_from_dist(name: str) -> set[str]:
+    try:
+        files = md.distribution(name).files or []
+    except md.PackageNotFoundError:
+        return set()
+    tops: set[str] = set()
+    for f in files:
+        p = Path(f)
+        if not p.parts:
+            continue
+        top = p.parts[0]
+        if not top or top in {'.', '..'} or '.' in top:
+            continue
+        tops.add(top)
+    return tops
+
+
+@cache
+def _installed_py10x_dist_names() -> frozenset[str]:
+    """All installed distributions whose name starts with ``py10x-``."""
+    names: set[str] = set()
+    for dist in md.distributions():
+        name = getattr(dist, 'name', None) or dist.metadata.get('Name') or ''
+        if str(name).lower().startswith('py10x-'):
+            names.add(str(name))
+    return frozenset(names)
+
+
+@cache
+def _downstream_allowed_tops() -> set[str]:
+    """Tops collectable from installed first-party / downstream packages.
+
+    Includes in-repo path tops (``xx_fin``) from ``[tool.dev_10x.downstream]`` when
+    that dist is installed, plus import tops from every installed ``py10x-*``
+    distribution's RECORD (e.g. ``xxfin`` under site-packages).
+    """
+    allowed: set[str] = set()
+    for top, dist_name in _downstream_tops().items():
+        if _dist_installed(dist_name):
+            allowed.add(top)
+    for dist_name in _installed_py10x_dist_names():
+        allowed |= _tops_from_dist(dist_name)
+    return allowed
+
+
 def pytest_configure(config):
 
     if 'USER' not in os.environ:
@@ -98,8 +143,9 @@ def pytest_configure(config):
 def pytest_ignore_collect(collection_path, config):
     """Only constrain collection for py10x package paths.
 
-    Core isolation (default CI): collect only wheel-owned tops. Downstream trees such as
-    ``xx_fin/`` are ignored unless their dist is installed (``uv-sync … --with-downstream``).
+    Core isolation (default CI): collect only wheel-owned tops. Other trees under the
+    py10x root / site-packages (e.g. ``xx_fin/`` source or ``xxfin/`` installed) are
+    ignored unless owned by an installed ``py10x-*`` distribution.
     """
     p = Path(collection_path).resolve()
     if not p.is_relative_to(PY10X_ROOT):
@@ -114,11 +160,8 @@ def pytest_ignore_collect(collection_path, config):
         return True
 
     tops = _owned_top_levels()
-    if tops and parts[0] not in tops:
-        ds_name = _downstream_tops().get(parts[0])
-        if not (ds_name and _dist_installed(ds_name)):
-            return True
-        # Downstream installed: fall through to unit_tests rule below.
+    if tops and parts[0] not in tops and parts[0] not in _downstream_allowed_tops():
+        return True
 
     if p.is_dir():
         return False
