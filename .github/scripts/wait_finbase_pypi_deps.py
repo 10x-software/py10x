@@ -6,6 +6,9 @@ core version is published, then polls for each exact ``==`` sibling pin declared
 that core (``py10x-kernel``, ``py10x-infra``, …). Same race as cxx10x pre-publish
 waiting for core — fin-base smoke also needs core's forward-pinned siblings.
 
+A release is "available" only when the JSON API lists files **and** the simple
+index lists the version (pip's resolver uses the simple API; JSON can lead).
+
 Env:
   PYPI_TIMEOUT_SEC  total wait budget (default 900)
   PYPI_POLL_SEC     sleep between polls (default 90)
@@ -57,15 +60,38 @@ def _core_pin_from_wheel(wheel: Path) -> str:
     raise SystemExit(f'{wheel}: no exact {CORE}== pin in Requires-Dist')
 
 
+def _normalize_project(name: str) -> str:
+    return re.sub(r'[-_.]+', '-', name).lower()
+
+
 def _pypi_release_exists(name: str, version: str) -> bool:
-    url = f'https://pypi.org/pypi/{name}/{version}/json'
+    """True when JSON lists files and the simple index lists this version (pip-visible)."""
+    json_url = f'https://pypi.org/pypi/{name}/{version}/json'
     try:
-        with urllib.request.urlopen(url, timeout=30) as resp:  # noqa: S310 - fixed PyPI host
-            return resp.status == 200
+        with urllib.request.urlopen(json_url, timeout=30) as resp:  # noqa: S310 - fixed PyPI host
+            if resp.status != 200:
+                return False
+            data = json.load(resp)
     except urllib.error.HTTPError as e:
         if e.code == 404:
             return False
         raise
+    if not (data.get('urls') or []):
+        return False
+
+    # Pip resolves via the simple API; JSON can briefly lead the CDN.
+    simple_url = f'https://pypi.org/simple/{_normalize_project(name)}/'
+    try:
+        with urllib.request.urlopen(simple_url, timeout=30) as resp:  # noqa: S310
+            html = resp.read().decode('utf-8', errors='replace')
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return False
+        raise
+    # Filenames use underscores; accept either spelling in the listing.
+    needle = f'{_normalize_project(name).replace("-", "_")}-{version}'
+    alt = f'{_normalize_project(name)}-{version}'
+    return needle in html or alt in html
 
 
 def _pypi_requires_dist(name: str, version: str) -> list[str]:

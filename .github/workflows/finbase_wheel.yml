@@ -127,7 +127,17 @@ jobs:
           echo "fin-base wheel: $FINBASE_WHL"
           python .github/scripts/wait_finbase_pypi_deps.py "$FINBASE_WHL"
           # No --pre needed: release-wheel pins already force prerelease inclusion via PEP 440.
-          pip install --no-cache-dir "$CXX_WHL" "$FINBASE_WHL"
+          # Brief retry: simple-index visibility can still lag a few seconds after the wait.
+          for attempt in 1 2 3 4 5; do
+            if pip install --no-cache-dir "$CXX_WHL" "$FINBASE_WHL"; then
+              break
+            fi
+            if [ "$attempt" -eq 5 ]; then
+              exit 1
+            fi
+            echo "pip install failed (attempt $attempt); retrying in 30s..."
+            sleep 30
+          done
 
       - name: Import smoke test
         run: python -c "import xxfin; import cxxfin; print(xxfin.__file__); print(cxxfin.__file__)"
