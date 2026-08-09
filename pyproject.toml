@@ -133,3 +133,6 @@ raw-options = { git_describe_command = "git describe --dirty --tags --long --mat
 
 [tool.hatch.build.hooks.vcs]
 version-file = "dev_10x/version.py"
+
+[dependency-groups]
+test = ["py10x-fin-base>=0.1.0rc2"]
