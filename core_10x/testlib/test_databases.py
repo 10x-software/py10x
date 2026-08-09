@@ -1,7 +1,7 @@
 """Per-session databases for live-store tests.
 
 Every pytest process gets its **own** database on each backend, created at session start and
-dropped at the end (wired in the root ``conftest.py``).
+dropped at the end (wired via the ``py10x-core`` pytest11 plugin, ``dev_10x.pytest_plugin``).
 
 Why not share one test database and clean up what a run created: two sessions against the
 same server — two terminals, or a local run overlapping a CI agent — interleave. Any
@@ -11,7 +11,7 @@ remove the shared state instead of trying to arbitrate it.
 
 It also makes leak detection exact rather than heuristic: the database starts empty, so
 whatever is still in it at teardown was leaked by a fixture, with no baseline to diff
-against. See ``conftest.py``.
+against. See ``dev_10x.pytest_plugin``.
 
 Set ``XX_TEST_DB`` to pin a fixed name when you want to inspect a database after a run
 (it is then *not* dropped — the run that created it is the one that drops it).
