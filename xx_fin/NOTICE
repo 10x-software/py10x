@@ -1,0 +1,46 @@
+py10x-fin-base / py10x-fin-base-cxx (xxfin / cxxfin)
+Copyright (c) 2025-2026 10X CONCEPTS LLC, XXFIN LLC and contributors
+
+This project is licensed under the MIT License. See the LICENSE file for the full text.
+
+================================================================================
+Third-party open source software
+================================================================================
+
+This software uses or depends on the following open source packages, in
+addition to those already covered by py10x-core's own NOTICE. Their respective
+copyright notices and licenses apply to those components only.
+
+  - QuantLib / quantlib-python
+    Copyright (c) QuantLib contributors. BSD 3-Clause-style QuantLib License.
+    https://www.quantlib.org/
+
+  - xbbg (optional "bbg" extra)
+    Copyright (c) Alpha Xie and contributors. Apache License 2.0.
+    https://github.com/alpha-xone/xbbg
+
+================================================================================
+Dependencies requiring a separate commercial license to run
+================================================================================
+
+These are not open source. They are listed here because xxfin/cxxfin can
+optionally depend on them; installing xxfin/cxxfin does not grant any rights
+to them, and using them is subject to their own vendors' terms.
+
+  - aadc
+    Python interface to MatLogica's AADC (Adjoint Algorithmic Differentiation
+    Compiler). Installable from PyPI without restriction and ships with a
+    time-limited trial license out of the box; continued or production use
+    requires a license key obtained from MatLogica.
+    https://pypi.org/project/aadc/
+
+  - blpapi (optional "bbg" extra)
+    Copyright (c) Bloomberg Finance L.P. Bloomberg's proprietary API, not
+    open source. Distributed only via Bloomberg's own dedicated package
+    index under Bloomberg's license terms; requires a valid Bloomberg
+    entitlement/terminal to use at runtime.
+    https://www.bloomberg.com/professional/support/api-library/
+
+This NOTICE is not a substitute for the licenses of the above packages.
+Full license texts are typically included in each package's distribution
+or available at the project URLs above.

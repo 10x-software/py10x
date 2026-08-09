@@ -407,18 +407,20 @@ pytest xxfin_commod … xxfin_positions … xxfin_testing …
 
 ### Relocate (PR1)
 
-- [ ] Move domain `xx_fin/` → `py10x/xx_fin/`
-- [ ] Register under `[tool.dev_10x.downstream]`
-- [ ] Split CI: **core isolation** job (no fin-base / no test-group) + **downstream validation** job (install fin-base via core test-group / `--with-downstream`, run `xx_fin/` tests)
-- [ ] Publish workflows for fin-base (+ cxx) on py10x
-- [ ] Docs / CHANGELOG; `xx-constraints compile`
+- [x] Move domain `xx_fin/` → `py10x/xx_fin/` (live tree under py10x; domain copy in `attic/xx_fin/`)
+- [x] Register under `[tool.dev_10x.downstream]`
+- [x] Core isolation collection: ignore `xx_fin/` unless `py10x-fin-base` is installed (`dev_10x.pytest_plugin`)
+- [ ] Downstream validation CI job (install fin-base via `--with-downstream` / test-group, run `xx_fin/` tests)
+- [x] Publish workflows for fin-base (+ cxx) on py10x — `.github/workflows/finbase_wheel.yml` (domain job shape; triggers `pre|prod/py10x-fin-base-v*`)
+- [x] Promote co-pins `{name}-cxx==` on fin-base release commits; fin-base `pytest11` entry point
+- [ ] Docs / CHANGELOG; `xx-constraints compile` (constraints already include fin-base; CHANGELOG TBD)
 
 ### Domain hard-cut (PR2)
 
-- [ ] Depend on published/editable `py10x-fin-base`; lock
-- [ ] Drop local `xx_fin/` workspace members / tree
-- [ ] BUILD-NOTES editable path → `../py10x/xx_fin`
-- [ ] Domain unit tests
+- [x] Depend on published/editable `py10x-fin-base` (no local workspace member)
+- [x] Drop local `xx_fin/` workspace members / tree (`git mv` → `attic/xx_fin/`)
+- [x] BUILD-NOTES editable path → `../py10x/xx_fin`
+- [ ] Domain unit tests (smoke against attic-excluded pytest)
 
 ### Release
 

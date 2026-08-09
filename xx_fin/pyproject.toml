@@ -1,0 +1,70 @@
+[project]
+name = "py10x-fin-base"
+description = "10x Financial Domain Foundation"
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dynamic = ["version"]
+authors = [
+    { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
+]
+dependencies = [
+    # Pins below for py10x-core and py10x-fin-base-cxx are maintained by xx-promote.
+    # Kernel/infra come transitively via py10x-core.
+    "py10x-core>=0.2.2,<=0.2.3,!=0.2.3,>=0.0.0.dev0",
+    "py10x-fin-base-cxx (==0.1.0rc1)",  # co-released; same version as this package
+    "quantlib-python>=1.18",
+    "aadc>=1.8.2; sys_platform != 'darwin'",
+]
+
+[project.optional-dependencies]
+bbg = ["xbbg>=1.4.5", "blpapi>=3.26.6.1"]
+dev = ["py10x-core[dev]",
+    "scikit-build-core>=0.12.2", # fin-base-cxx no-isolation build backend
+    "setuptools-scm>=9.2.2", # fin-base-cxx no-isolation build backend
+    "cmake>=3.27", # fin-base-cxx build + import-time incremental rebuilds
+    "ninja>=1.11", # fin-base-cxx build + import-time incremental rebuilds
+]
+
+[project.entry-points.pytest11]
+py10x_fin_base = "xxfin.testlib.cxx_or_py"
+
+[build-system]
+requires = ["hatchling>=1.17.0", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["xxfin"]
+exclude = ["**/manual_tests"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+root = ".."
+git_describe_command = "git describe --dirty --tags --long --match 'py10x-fin-base-v*'"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "xxfin/_version.py"
+
+[tool.uv]
+no-build-isolation-package = ["py10x-fin-base-cxx"]
+
+[[tool.uv.dependency-metadata]]
+name = "py10x-fin-base-cxx"
+version = "0+dummy"
+
+[tool.uv.workspace]
+members = ["cxxfin",".."]
+
+[[tool.uv.index]]
+name = "bloomberg"
+url = "https://blpapi.bloomberg.com/repository/releases/python/simple/"
+explicit = true
+
+[tool.uv.sources]
+# Monorepo: resolve against local core / cxx for uv sync / xx-constraints.
+# Does not ship in the wheel; published installs use [project.dependencies] only.
+py10x-core = { workspace = true }
+py10x-fin-base-cxx = { workspace = true }
+blpapi = { index = "bloomberg" }

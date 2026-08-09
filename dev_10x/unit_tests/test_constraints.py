@@ -7,9 +7,11 @@ from pathlib import Path
 from dev_10x import constraints as c
 
 
-def test_downstreams_empty_when_unconfigured():
-    """Live `[tool.dev_10x.downstream]` defaults to {} until a package is registered (PR1)."""
-    assert c._downstreams() == {}
+def test_downstreams_reads_configured_map():
+    """Live `[tool.dev_10x.downstream]` paths resolve to each package's pyproject."""
+    ds = c._downstreams()
+    assert 'py10x-fin-base' in ds
+    assert ds['py10x-fin-base'].name == 'pyproject.toml'
 
 
 def test_first_party_includes_configured_downstreams(monkeypatch):
@@ -32,3 +34,17 @@ def test_compile_inputs_merge_siblings_and_downstreams(monkeypatch, tmp_path):
     monkeypatch.setattr(c, '_downstreams', lambda: {'py10x-fin-base': ds})
     compile_inputs = {**c._siblings(), **c._downstreams()}
     assert set(compile_inputs) == {'py10x-kernel', 'py10x-fin-base'}
+
+
+def test_workspace_members_include_nested_downstream_workspace():
+    """fin-base's `[tool.uv.workspace] members = ["cxxfin"]` → no-emit `py10x-fin-base-cxx`."""
+    assert 'py10x-fin-base-cxx' in c._workspace_members()
+    assert 'py10x-fin-base-cxx' in c._first_party()
+
+
+def test_no_emit_is_first_party_only():
+    """Root + registered packages + nested workspace members — no separate py10x-* dep scan."""
+    names = c._first_party()
+    assert 'py10x-core' in names
+    assert 'py10x-fin-base' in names
+    assert 'py10x-fin-base-cxx' in names

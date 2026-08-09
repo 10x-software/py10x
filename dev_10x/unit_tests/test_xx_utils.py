@@ -59,9 +59,50 @@ def test_target_and_next_micro():
     assert VersionHelpers.next_micro('1.0') == '1.0.1'
 
 
+def test_target_version_keeps_rc_base_when_no_final():
+    """Rc-only history (e.g. fin-base publish rehearsal) must continue that line, not fall back to 0.0.1."""
+    tags = VersionHelpers.parse_pkg_tags([f'{KERNEL}0.1.0rc1'], KERNEL)
+    assert VersionHelpers.target_version(tags) == '0.1.0'
+    assert VersionHelpers.next_rc(tags, '0.1.0') == 2
+    assert VersionHelpers.target_version([]) == '0.0.1'
+
+
 def test_next_rc_numbering():
     assert VersionHelpers.next_rc(parsed(), '0.2.1') == 3  # rc1, rc2 -> 3
     assert VersionHelpers.next_rc(parsed(), '0.3.0') == 1  # none yet -> 1
+
+
+def test_validate_next_version_override_normalizes_and_rejects_prereleases():
+    assert VersionHelpers.validate_next_version_override('0.3') == '0.3.0'
+    assert VersionHelpers.validate_next_version_override('0.3.0') == '0.3.0'
+    with pytest.raises(ValueError, match='released'):
+        VersionHelpers.validate_next_version_override('0.3.0rc1')
+    with pytest.raises(ValueError, match='released'):
+        VersionHelpers.validate_next_version_override('not-a-version')
+
+
+def test_parse_next_version_overrides_bare_applies_to_default_names():
+    assert VersionHelpers.parse_next_version_overrides('0.3.0', ['py10x-core', 'py10x-kernel']) == {
+        'py10x-core': '0.3.0',
+        'py10x-kernel': '0.3.0',
+    }
+
+
+def test_parse_next_version_overrides_named_targets_only_those_packages():
+    assert VersionHelpers.parse_next_version_overrides('py10x-core=0.3.0', ['py10x-core', 'py10x-kernel']) == {'py10x-core': '0.3.0'}
+    assert VersionHelpers.parse_next_version_overrides('py10x-core=0.3.0,py10x-fin-base=1.5.0', []) == {
+        'py10x-core': '0.3.0',
+        'py10x-fin-base': '1.5.0',
+    }
+
+
+def test_parse_next_version_overrides_rejects_malformed_entries():
+    with pytest.raises(ValueError, match='malformed'):
+        VersionHelpers.parse_next_version_overrides('py10x-core=0.3.0,bogus', [])
+    with pytest.raises(ValueError, match='malformed'):
+        VersionHelpers.parse_next_version_overrides('=0.3.0', [])
+    with pytest.raises(ValueError, match='released'):
+        VersionHelpers.parse_next_version_overrides('py10x-core=0.3.0rc1', [])
 
 
 def test_main_dev_markers_excluded_from_release_selection():

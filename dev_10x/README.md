@@ -140,6 +140,10 @@ For a sibling at coordinated rc `rcN` or released final `T`:
   Core never publishes a pin to downstreams.
 - **downstream → core (published):** same `==` / window shapes as core→sibling, written onto the
   downstream’s `[project.dependencies]`.
+- **downstream co-release `{name}-cxx` (published):** when a downstream product dist depends on an
+  impl wheel with the same tag train (e.g. `py10x-fin-base` → `py10x-fin-base-cxx`), promote writes
+  `==<coordinated downstream version>` on the release commit and keeps that exact pin on `main`
+  (not a window). `write_forward_pins` only rewrites the dep if it already exists.
 - **reverse `test` group (sibling → core, and core → downstreams; unpublished):**
   `py10x-core>=<coordinated core>` on siblings; `py10x-fin-base>=…` (etc.) on core. `>=` not `==`:
   the prerelease token falls out for free. Uncapped but self-correcting via the forward `==`.
@@ -154,6 +158,9 @@ For a sibling at coordinated rc `rcN` or released final `T`:
 
 ```
 xx-promote pre                                # cut the next coordinated rc onto the `pre` branch
+xx-promote pre --next-version 0.3.0           # force core+siblings onto 0.3.0rc1 (coordinated bump)
+xx-promote pre --next-version X=2.0.0         # same, targeting only package X
+xx-promote pre --next-version X=2.0.0,Y=1.5.0 # independently targeting X and Y
 xx-promote pre --no-publish                   # cut without publish triggers (attach later)
 xx-promote pre --publish-only                 # create missing publish triggers only (idempotent)
 xx-promote prod                               # stack each final on its rc, onto the `prod` branch
@@ -202,6 +209,14 @@ crash re-derives the plan from current tags and resumes.
   Unchanged packages are skipped; a latest tag that is still an rc is offered for `--push`.
   On `main`, the epilogue writes **rc-window** pins (`>=rcN,<rc(N+1)`) for each sibling from the
   batch's coordinated versions.
+  **`--next-version X.Y.Z`** overrides the auto `next_micro(latest_final)` target for **core and
+  every sibling** with an explicit release — e.g. to force a coordinated minor/major bump
+  (`0.2.3rcN` → `--next-version 0.3.0` cuts `0.3.0rc1`) ahead of the next micro.
+  **`--next-version name=X.Y.Z[,name=X.Y.Z...]`** targets only the named package(s) instead (one
+  sibling alone, or a downstream). Each overridden package re-cuts even with an unchanged footprint;
+  the rest of the batch still coordinates by the normal rules (a forced re-cut can still pull others
+  forward via pin-lag). Every version must be a plain `X.Y.Z` release (no rc/dev/post) strictly
+  greater than its package's latest tag.
 - **`prod`** (per package whose **latest** tag is a pre-release with an rc for its target): force-updates
   the `prod` branch onto the latest rc commit, **stacks** a final-pin commit there (core → siblings
   exact `==X.Y`; sibling → `test = ["py10x-core>=X.Y"]`), and tags `v{T}`. Then on `main` it
@@ -371,7 +386,9 @@ xx-constraints check                # assert the active env is fully frozen
 
 - **`compile`** runs `uv pip compile` over core + sibling (+ configured downstream) pyprojects
   (paths from `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]`) with `--universal --all-extras`
-  and `--no-emit-package` for each first-party name.
+  and `--no-emit-package` for each first-party name (root, siblings, downstreams, and
+  `[tool.uv.workspace]` members under the repo root and each sibling/downstream packaging root —
+  e.g. fin-base’s `cxxfin` → `py10x-fin-base-cxx`).
   Needs the `../cxx10x` checkout (`py10x-core-dev` mode). First-party packages are never pinned in the
   output (derived via `_first_party`: root `[project].name` + siblings + any `[tool.uv.workspace]`
   members — not a hardcoded list).
@@ -458,7 +475,24 @@ run **fin-base** suite. Keep these as **separate** jobs:
 | **Downstream validation** | core + install fin-base via core’s test-group pin (or `uv-sync … --with-downstream`) | `xx_fin/` / fin-base tests | Use fin-base suite to validate coordinated core |
 
 Do not fold fin-base into the default isolation job — same split as “core suite on cxx10x” vs
-“core suite without accidental fin-base.”
+“core suite without accidental fin-base.” Default `pytest` ignores in-repo downstream trees
+(`xx_fin/`, from `[tool.dev_10x.downstream]`) unless that dist is installed; editable core
+installs fall back to hatch wheel package names for the owned-top filter.
+
+### py10x `finbase_wheel.yml` (downstream publish)
+
+On **`pre/py10x-fin-base-v*`** / **`prod/py10x-fin-base-v*`** publish-trigger tag push (same job
+shape as the former domain `finbase_wheel.yml`):
+
+1. cibuildwheel `xx_fin/cxxfin` on ubuntu / macos / windows-2025 → `py10x-fin-base-cxx` wheels.
+2. Validate committed co-release pin (`py10x-fin-base-cxx (==<version>)`, written by xx-promote);
+   `uv build --directory xx_fin` → `py10x-fin-base` sdist + wheel.
+3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`.
+4. Trusted PyPI publish (OIDC) of all artifacts.
+
+PyPI trusted publishers for `py10x-fin-base` and `py10x-fin-base-cxx` point at this repo
+(`10x-software/py10x`) and workflow `finbase_wheel.yml`. The former domain-repo publishers were
+removed.
 
 ### CI gotchas
 

@@ -14,11 +14,11 @@ from dev_10x.xx_plan import PkgInput, PrePlan, ProdPlan
 CORE, KERNEL, INFRA = 'v', 'py10x-kernel-v', 'py10x-infra-v'
 
 
-CORE_NAME, FIN = 'py10x-core', 'py10x-fin-base'
+CORE_NAME, FIN, FIN_CXX = 'py10x-core', 'py10x-fin-base', 'py10x-fin-base-cxx'
 FIN_PREFIX = 'py10x-fin-base-v'
 
 
-def _inp(name, is_core, prefix, tags, changed=False, current_forward=None, gen_tags=None, is_downstream=False):
+def _inp(name, is_core, prefix, tags, changed=False, current_forward=None, gen_tags=None, is_downstream=False, version_override=None):
     # PkgInput is a Traitable; setting the computed traits explicitly bypasses the (git) getters.
     parsed = VersionHelpers.parse_pkg_tags(tags, prefix)
     generation = VersionHelpers.parse_pkg_tags(gen_tags, prefix, include_yanked=True) if gen_tags is not None else parsed
@@ -31,6 +31,7 @@ def _inp(name, is_core, prefix, tags, changed=False, current_forward=None, gen_t
         footprint_changed=changed,
         current_forward=current_forward or {},
         generation_tags=generation,
+        version_override=version_override,
     )
 
 
@@ -170,6 +171,41 @@ def test_yanked_rc_number_is_consumed_not_reused():
     assert plans['py10x-kernel'].version == '0.2.1rc2'  # rc1 consumed, not reused
 
 
+def test_version_override_forces_core_recut_onto_explicit_target():
+    """`--next-version` cuts even with an unchanged footprint, onto the given target rather than next_micro."""
+    plans = PrePlan.create_batch(
+        [
+            _inp('py10x-core', True, CORE, ['v0.2.3'], False, current_forward={'py10x-kernel': '1.4.0'}, version_override='0.3.0'),
+            _inp('py10x-kernel', False, KERNEL, [f'{KERNEL}1.4.0'], False),
+        ]
+    )
+    assert plans['py10x-core'].act and plans['py10x-core'].version == '0.3.0rc1'  # not the auto 0.2.4
+    assert not plans['py10x-kernel'].act  # unchanged and not the override target -> untouched
+
+
+def test_version_override_iterates_rc_number_within_its_own_line():
+    """A second `--next-version` cut onto the same target bumps the rc number, not the target."""
+    plans = PrePlan.create_batch(
+        [
+            _inp('py10x-core', True, CORE, ['v0.2.3', 'v0.3.0rc1'], False, version_override='0.3.0'),
+        ]
+    )
+    assert plans['py10x-core'].version == '0.3.0rc2'
+
+
+def test_version_override_on_sibling_forces_its_recut_without_forcing_core():
+    """Overriding a sibling forces only that sibling; core still re-cuts (pin lag) to follow it."""
+    plans = PrePlan.create_batch(
+        [
+            _inp('py10x-core', True, CORE, ['v0.2.0'], False, current_forward={'py10x-kernel': '1.4.0'}),
+            _inp('py10x-kernel', False, KERNEL, [f'{KERNEL}1.4.0'], False, version_override='2.0.0'),
+        ]
+    )
+    assert plans['py10x-kernel'].act and plans['py10x-kernel'].version == '2.0.0rc1'
+    assert plans['py10x-core'].act  # forced by the resulting pin lag, not by its own override
+    assert plans['py10x-core'].forward_pins == {'py10x-kernel': '==2.0.0rc1'}
+
+
 # ------------------------------------------------------------------------------ ProdPlan.create_batch
 def test_prod_promotes_rcs_to_finals_and_coordinates():
     """Each package whose latest tag is an rc finalizes; core `==`-pins the released sibling finals."""
@@ -231,10 +267,12 @@ def test_downstream_only_footprint_skips_core_version_but_refreshes_test_group()
     assert not plans[CORE_NAME].act
     assert not plans['py10x-kernel'].act
     assert plans[FIN].act and plans[FIN].version == '0.1.1rc1'
-    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.0'}
+    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.0', FIN_CXX: '==0.1.1rc1'}
     assert plans[FIN].reverse_pin is None
-    # Downstream epilogue: core window pin on fin-base main + core test-group refresh (target=core).
-    assert any(e.forward_pins.get(CORE_NAME) for e in plans[FIN].epilogue)
+    # Downstream epilogue: core window + co-release cxx on fin-base main; core test-group (target=core).
+    main_pins = next(e for e in plans[FIN].epilogue if e.forward_pins)
+    assert main_pins.forward_pins[CORE_NAME] == VersionHelpers.main_forward_window_pin('0.2.0')
+    assert main_pins.forward_pins[FIN_CXX] == '==0.1.1rc1'
     tg = next(e for e in plans[FIN].epilogue if e.target == CORE_NAME)
     assert tg.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')
 
@@ -251,7 +289,7 @@ def test_core_recut_forces_downstream_on_core_pin_lag():
     assert plans[CORE_NAME].act and plans[CORE_NAME].version == '0.2.1rc1'
     assert FIN not in plans[CORE_NAME].forward_pins  # published pins are siblings only
     assert plans[FIN].act and plans[FIN].version == '0.1.1rc1'
-    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.1rc1'}
+    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.1rc1', FIN_CXX: '==0.1.1rc1'}
     # Core epilogue tracks downstream in unpublished test group.
     assert any(
         e.test_pin == [VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')] or e.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')
@@ -283,7 +321,10 @@ def test_prod_downstream_pins_core_and_refreshes_core_test_group_when_core_skips
     )
     assert not plans[CORE_NAME].act
     assert plans[FIN].act and plans[FIN].version == '0.1.1'
-    assert plans[FIN].forward_pins == {}  # no released core_v from this batch
-    # core skipped -> no core_v for published pin; still refresh core test group from finalized fin-base
+    # no released core_v from this batch; still co-pin cxx to the finalized fin-base version
+    assert plans[FIN].forward_pins == {FIN_CXX: '==0.1.1'}
+    main_pins = next(e for e in plans[FIN].epilogue if e.forward_pins)
+    assert main_pins.forward_pins == {FIN_CXX: '==0.1.1'}
+    # core skipped -> still refresh core test group from finalized fin-base
     tg = next(e for e in plans[FIN].epilogue if e.target == CORE_NAME)
     assert tg.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1')

@@ -142,6 +142,41 @@ class VersionHelpers:
         return cls.is_final(Version(version_string))
 
     @classmethod
+    def validate_next_version_override(cls, version_string: str) -> str:
+        """Normalize a `--next-version` override to `X.Y.Z`; raises `ValueError` on anything else.
+
+        Used to let a caller pin the target `pre` cuts (e.g. a manual minor/major bump) instead of
+        the automatic `next_micro(latest_final)`; must be a plain released version, not an rc/dev/post.
+        """
+        try:
+            v = Version(version_string)
+        except InvalidVersion:
+            raise ValueError(f'--next-version must be a released X.Y.Z version, got {version_string!r}') from None
+        if not cls.is_final(v):
+            raise ValueError(f'--next-version must be a released X.Y.Z version (no rc/dev/post), got {version_string!r}')
+        return cls.base_version(v)
+
+    @classmethod
+    def parse_next_version_overrides(cls, spec: str, default_names: list[str]) -> dict[str, str]:
+        """Parse a `--next-version` spec into `{pkg name: X.Y.Z}`.
+
+        Two forms: a bare `X.Y.Z` applies to every name in `default_names` (core + siblings - the
+        coordinated group); `name=X.Y.Z[,name=X.Y.Z...]` overrides only the named package(s) instead
+        (e.g. one sibling, or a downstream). Raises `ValueError` on a malformed entry or a
+        non-final version; does not check `name` against the real package registry - the caller does.
+        """
+        if '=' not in spec:
+            version = cls.validate_next_version_override(spec)
+            return {name: version for name in default_names}
+        overrides: dict[str, str] = {}
+        for part in spec.split(','):
+            name, sep, version = part.strip().partition('=')
+            if not sep or not name:
+                raise ValueError(f'--next-version: malformed entry {part.strip()!r}; expected name=X.Y.Z')
+            overrides[name] = cls.validate_next_version_override(version.strip())
+        return overrides
+
+    @classmethod
     def latest_final(cls, parsed: list[tuple[str, Version]]) -> Version | None:
         """Highest released (non pre/dev) version, by PEP 440 ordering.
 
@@ -178,9 +213,20 @@ class VersionHelpers:
 
     @classmethod
     def target_version(cls, parsed: list[tuple[str, Version]]) -> str:
-        """The in-development target `T` = next micro after the latest final tag (`0.2.1` if none)."""
+        """The in-development target `T` for the next `pre` cut.
+
+        - Latest **final** `F` → `next_micro(F)` (start / continue the next micro's rc train).
+        - No final, but tags exist (typically an rc) → keep that tag's base so the rc line continues
+          (`0.1.0rc1` → `T=0.1.0` → next `0.1.0rc2`), rather than inventing `0.0.1`.
+        - Never tagged → `0.0.1`.
+        """
         lf = cls.latest_final(parsed)
-        return cls.next_micro(cls.base_version(lf)) if lf is not None else '0.0.1'
+        if lf is not None:
+            return cls.next_micro(cls.base_version(lf))
+        latest = cls.latest_tag(parsed)
+        if latest is not None:
+            return cls.base_version(latest[1])
+        return '0.0.1'
 
     @classmethod
     def next_rc(cls, parsed: list[tuple[str, Version]], target: str) -> int:

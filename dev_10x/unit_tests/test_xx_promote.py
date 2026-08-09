@@ -44,3 +44,9 @@ def test_cli_yank_traits_and_unknown_command():
     assert inst.get_value('pkg') == 'py10x-kernel' and inst.get_value('version') == '0.2.0'
     rc, inst = xp.XxPromoteCli.instance_from_args(['bogus'])
     assert not rc and inst is None
+
+
+def test_cli_pre_next_version_traits():
+    rc, inst = xp.XxPromoteCli.instance_from_args(['pre', '--next-version', 'py10x-kernel=0.3.0'])
+    assert rc and type(inst).__name__ == 'Pre'
+    assert inst.next_version == 'py10x-kernel=0.3.0'
