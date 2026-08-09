@@ -1,14 +1,12 @@
 import random
 
 from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-
 from xxfin.dev_data_helpers.data_creator import DataCreator
 from xxfin.fin_calendar import FinCalendar
 
 if __name__ == '__main__':
 
     from core_10x.exec_control import CACHE_ONLY, CONVERT_VALUES_ON, GRAPH_ON
-
     from xxfin.ccy_cross import Ccy, CcyCross
 
     fake_ccy_header = dict(

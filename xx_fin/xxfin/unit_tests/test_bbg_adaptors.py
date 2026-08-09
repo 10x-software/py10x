@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 import pytest
 from xxcommon.rdate import RDate
-
 from xxfin.bbg_adaptors.bbg_adaptor import BbgAdaptor
 from xxfin.bbg_adaptors.fx_spot_fwd_quotable_bbg_adaptors import (
     FXForwardQuotableBbgAdaptor,

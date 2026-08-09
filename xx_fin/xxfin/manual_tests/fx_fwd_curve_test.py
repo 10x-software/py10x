@@ -9,7 +9,6 @@ if __name__ == '__main__':
 
     #import matplotlib
     from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-
     from xxfin.fin_calendar import FinCalendar
     from xxfin.fx_forward_curve import FXForwardCurve, FXForwardCurveSimple
     from xxfin.fx_mkt_conventions import FXMktConventions

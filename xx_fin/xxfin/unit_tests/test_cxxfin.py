@@ -1,9 +1,8 @@
+import cxxfin
 import py10x_kernel
 import pytest
 from core_10x.trait_definition import RT
 from core_10x.traitable import Traitable
-
-import cxxfin
 
 
 @pytest.mark.parametrize(

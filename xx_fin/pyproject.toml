@@ -66,5 +66,8 @@ explicit = true
 # Monorepo: resolve against local core / cxx for uv sync / xx-constraints.
 # Does not ship in the wheel; published installs use [project.dependencies] only.
 py10x-core = { workspace = true }
+# Self: required so py10x-core's dependency-groups.test (py10x-fin-base) can resolve
+# when this workspace includes `..` as a member.
+py10x-fin-base = { workspace = true }
 py10x-fin-base-cxx = { workspace = true }
 blpapi = { index = "bloomberg" }

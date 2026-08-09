@@ -1,7 +1,6 @@
 from datetime import date
 
 from core_10x.traitable import T, Traitable
-
 from xxfin.ccy import Ccy
 from xxfin.ccy_forward import CcyForward, CcyUnit
 
@@ -27,7 +26,6 @@ class CheckCcyUnitForward(Traitable):
 
 if __name__ == '__main__':
     from core_10x.exec_control import GRAPH_ON
-
     from xxfin.manual_tests.ccy_forward_test import CheckCcyUnitForward
     from xxfin.pricing_context import PricingContext
 

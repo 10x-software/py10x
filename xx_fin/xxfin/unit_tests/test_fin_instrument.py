@@ -2,7 +2,6 @@ from datetime import date, timedelta
 
 import pytest
 from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-
 from xxfin.ccy import Ccy
 from xxfin.ccy_forward import CcyForward, CcyUnit
 from xxfin.fin_calendar import FinCalendar

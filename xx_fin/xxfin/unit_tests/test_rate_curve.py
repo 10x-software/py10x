@@ -3,7 +3,6 @@ from math import exp, log
 
 import pytest
 from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-
 from xxfin.fin_calendar import FinCalendar
 
 COMPOUNDING = None

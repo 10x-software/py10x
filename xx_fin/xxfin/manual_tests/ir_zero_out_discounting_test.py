@@ -1,7 +1,6 @@
 from datetime import date
 
 from core_10x.scenario import Scenario
-
 from xxfin.ccy import Ccy
 from xxfin.fin_instrument import FinInstrument
 from xxfin.ir_zero_rate_curve import ZeroRateCurve

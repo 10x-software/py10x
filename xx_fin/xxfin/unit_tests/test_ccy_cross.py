@@ -1,6 +1,5 @@
 import pytest
 from core_10x.rc import RC, RC_TRUE
-
 from xxfin.ccy_cross import CCY_CROSS_TYPE, CcyCross
 
 

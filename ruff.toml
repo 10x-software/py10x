@@ -39,6 +39,7 @@ exclude = [
     "xxcommon/manual_tests/*",
     "xxcommon/README.md",
     "xxcommon/*_curve.py",
+    "xx_fin/xxfin/*",
 ]
 
 [lint]
@@ -176,7 +177,7 @@ exclude = [
 "core_10x/testlib/ts_store_isolation.py" = ["S110"]
 # intentional ALL_CAPS context-manager API
 "core_10x/exec_control.py" = [
-    "N802", # Function name `UPWARD_DEPS_OFF` should be lowercase
+    "N802", # Function name should be lowercase
 ]
 # avoid drive-by NamedConstant refactor for one-over complexity budget
 "core_10x/named_constant.py" = [
@@ -185,4 +186,9 @@ exclude = [
 # weakref capture in default is intentional for editor lifetime
 "ui_10x/traitable_editor.py" = [
     "B008", # Do not perform function call `weakref.ref` in argument defaults
+]
+"xx_fin/*.py" = [
+    "N802", # Function name should be lowercase
+    "N806", # Variable in function should be lowercase
+    "C408", # Unnecessary `dict()` call (rewrite as a literal)
 ]

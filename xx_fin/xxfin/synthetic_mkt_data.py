@@ -39,7 +39,7 @@ class SyntheticMktDataWithoutMas(MktDataBasis):
 class SyntheticMktData(SyntheticMktDataWithoutMas):
     s_mas_class = None
     def __init_subclass__(cls, mas_class = None, **kwargs):
-        if not mas_class is XNone:
+        if mas_class is not XNone:
             if mas_class is not None:
                 cls.s_mas_class = mas_class
 

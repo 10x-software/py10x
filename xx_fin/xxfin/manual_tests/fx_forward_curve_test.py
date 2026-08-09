@@ -1,7 +1,6 @@
 if __name__ == '__main__':
     from core_10x.exec_control import GRAPH_ON
     from xxcommon.rdate import RDate
-
     from xxfin.fx_forward_curve import FXForwardCurve, FXForwardCurveSimple
     from xxfin.fx_forward_curve_mas import FxForwardCurveMas
     from xxfin.fx_mkt_conventions import FXMktConventions

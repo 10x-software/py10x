@@ -1,5 +1,4 @@
 import pytest
-
 import xxfin.py_ir_compounding as py
 
 COMPOUNDING = None

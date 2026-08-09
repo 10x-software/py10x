@@ -1,8 +1,7 @@
+import cxxfin
 import py10x_kernel
 from core_10x.trait_definition import RT
 from core_10x.traitable import Traitable
-
-import cxxfin
 
 print(f"cxxfin: {cxxfin.__version__} (from {cxxfin.__file__})")
 

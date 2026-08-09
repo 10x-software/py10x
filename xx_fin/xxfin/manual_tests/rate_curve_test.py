@@ -2,7 +2,6 @@ from datetime import date
 from math import exp
 
 from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-
 from xxfin.fin_calendar import FinCalendar
 from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
 from xxfin.py_ir_compounding import COMPOUND_TRANSFORM, COMPOUNDING, compounding_apply

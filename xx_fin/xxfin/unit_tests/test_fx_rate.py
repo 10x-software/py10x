@@ -2,7 +2,6 @@ from datetime import date
 
 import pytest
 from xxcommon.rdate import RDate
-
 from xxfin.ccy_cross import CcyCross
 from xxfin.fx_forward_curve_mas import FxForwardCurveMas
 from xxfin.fx_mkt_conventions import FXMktConventions

@@ -1,7 +1,6 @@
 from core_10x.trait_definition import RT, T
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable
-
 from xxfin.ccy import Ccy
 from xxfin.ccy_forward import CcyUnit
 

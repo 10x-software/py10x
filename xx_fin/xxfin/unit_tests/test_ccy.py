@@ -1,7 +1,6 @@
 from datetime import date
 
 import pytest
-
 from xxfin.ccy_cross import Ccy, CcyCross
 
 

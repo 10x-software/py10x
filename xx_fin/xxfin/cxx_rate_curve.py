@@ -1,6 +1,7 @@
 from datetime import date
 
 from cxxfin import BRateCurve as _BRC
+
 from xxfin.py_rate_curve import RateCurve as _PyRateCurve
 
 

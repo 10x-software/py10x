@@ -1,5 +1,4 @@
 from core_10x.named_constant import NamedConstant
-
 from cxxfin import BCompounding, BCompoundTransform
 from cxxfin import compounding_apply as _cxx_compounding_apply
 

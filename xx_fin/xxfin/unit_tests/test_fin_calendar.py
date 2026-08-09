@@ -2,7 +2,6 @@ import pytest
 from core_10x.exec_control import DEBUG_ON
 from infra_10x.duckdb_store import DuckDbStore
 from py10x_kernel import BTraitableProcessor
-
 from xxfin.fin_calendar import FinCalendar
 
 

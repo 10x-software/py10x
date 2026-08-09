@@ -4,7 +4,6 @@ if __name__ == '__main__':
 
     from core_10x.exec_control import GRAPH_ON
     from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-
     from xxfin.ccy_cross import CcyCross
     from xxfin.fx_forward_curve_mas import FxForwardCurveMas
     from xxfin.fx_mkt_conventions import FXMktConventions
