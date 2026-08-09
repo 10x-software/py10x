@@ -4,7 +4,27 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from dev_10x import constraints as c
+
+
+def _source_root() -> Path | None:
+    """Repo root when this file lives in a py10x checkout; None for a wheel-only install.
+
+    Pre-publish CI installs py10x-core from PyPI and runs with cwd under a temp RUN_DIR, so
+    ``constraints.PROJECT_ROOT`` (``Path.cwd()``) has no pyproject — these live-tree tests skip.
+    """
+    root = Path(__file__).resolve().parents[2]
+    return root if (root / 'pyproject.toml').is_file() else None
+
+
+@pytest.fixture(autouse=True)
+def _project_root_from_source(monkeypatch):
+    root = _source_root()
+    if root is None:
+        pytest.skip('py10x source checkout (no pyproject next to installed tests)')
+    monkeypatch.setattr(c, 'PROJECT_ROOT', root)
 
 
 def test_downstreams_reads_configured_map():
