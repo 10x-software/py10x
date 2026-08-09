@@ -475,7 +475,9 @@ run **fin-base** suite. Keep these as **separate** jobs:
 | **Downstream validation** | core + install fin-base via core’s test-group pin (or `uv-sync … --with-downstream`) | `xx_fin/` / fin-base tests | Use fin-base suite to validate coordinated core |
 
 Do not fold fin-base into the default isolation job — same split as “core suite on cxx10x” vs
-“core suite without accidental fin-base.”
+“core suite without accidental fin-base.” Default `pytest` ignores in-repo downstream trees
+(`xx_fin/`, from `[tool.dev_10x.downstream]`) unless that dist is installed; editable core
+installs fall back to hatch wheel package names for the owned-top filter.
 
 ### py10x `finbase_wheel.yml` (downstream publish)
 

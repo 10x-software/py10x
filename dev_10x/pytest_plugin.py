@@ -6,10 +6,39 @@ from pathlib import Path
 
 import core_10x
 import pytest
+import tomlkit
 from core_10x.global_cache import cache
 from py10x_kernel import BTraitableProcessor
 
 PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent
+
+
+@cache
+def _hatch_wheel_packages() -> set[str]:
+    """Top-level dirs shipped in the py10x-core wheel (from hatch config)."""
+    try:
+        doc = tomlkit.parse((PY10X_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+        pkgs = doc.get('tool', {}).get('hatch', {}).get('build', {}).get('targets', {}).get('wheel', {}).get('packages', [])
+        return {str(p) for p in pkgs}
+    except Exception:  # noqa: BLE001 - best-effort fallback
+        return set()
+
+
+@cache
+def _downstream_tops() -> dict[str, str]:
+    """Map in-repo top-level dir → dist name for `[tool.dev_10x.downstream]`."""
+    try:
+        doc = tomlkit.parse((PY10X_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+        ds = doc.get('tool', {}).get('dev_10x', {}).get('downstream', {}) or {}
+        out: dict[str, str] = {}
+        for name, spec in ds.items():
+            path = str(spec.get('path', '') if hasattr(spec, 'get') else '')
+            top = Path(path).as_posix().lstrip('./').split('/', 1)[0]
+            if top:
+                out[top] = str(name)
+        return out
+    except Exception:  # noqa: BLE001 - best-effort fallback
+        return {}
 
 
 @cache
@@ -25,10 +54,21 @@ def _owned_top_levels() -> set[str] | None:
         if not p.parts:
             continue
         top = p.parts[0]
-        if top and '.' not in top:
-            tops.add(top)
+        # Editable RECORDs are mostly `../…` scripts and `*.pth` / dist-info — skip those.
+        if not top or top in {'.', '..'} or '.' in top:
+            continue
+        tops.add(top)
 
-    return tops or None
+    # Editable installs often yield no usable tops; fall back to declared wheel packages.
+    return tops or _hatch_wheel_packages() or None
+
+
+def _dist_installed(name: str) -> bool:
+    try:
+        md.distribution(name)
+        return True
+    except md.PackageNotFoundError:
+        return False
 
 
 def pytest_configure(config):
@@ -51,7 +91,11 @@ def pytest_configure(config):
 
 
 def pytest_ignore_collect(collection_path, config):
-    """Only constrain collection for py10x package paths."""
+    """Only constrain collection for py10x package paths.
+
+    Core isolation (default CI): collect only wheel-owned tops. Downstream trees such as
+    ``xx_fin/`` are ignored unless their dist is installed (``uv-sync … --with-downstream``).
+    """
     p = Path(collection_path).resolve()
     if not p.is_relative_to(PY10X_ROOT):
         # Returning None means "no opinion" so user package collection is unaffected.
@@ -66,7 +110,10 @@ def pytest_ignore_collect(collection_path, config):
 
     tops = _owned_top_levels()
     if tops and parts[0] not in tops:
-        return True
+        ds_name = _downstream_tops().get(parts[0])
+        if not (ds_name and _dist_installed(ds_name)):
+            return True
+        # Downstream installed: fall through to unit_tests rule below.
 
     if p.is_dir():
         return False

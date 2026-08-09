@@ -409,7 +409,8 @@ pytest xxfin_commod … xxfin_positions … xxfin_testing …
 
 - [x] Move domain `xx_fin/` → `py10x/xx_fin/` (live tree under py10x; domain copy in `attic/xx_fin/`)
 - [x] Register under `[tool.dev_10x.downstream]`
-- [ ] Split CI: **core isolation** job (no fin-base / no test-group) + **downstream validation** job (install fin-base via core test-group / `--with-downstream`, run `xx_fin/` tests)
+- [x] Core isolation collection: ignore `xx_fin/` unless `py10x-fin-base` is installed (`dev_10x.pytest_plugin`)
+- [ ] Downstream validation CI job (install fin-base via `--with-downstream` / test-group, run `xx_fin/` tests)
 - [x] Publish workflows for fin-base (+ cxx) on py10x — `.github/workflows/finbase_wheel.yml` (domain job shape; triggers `pre|prod/py10x-fin-base-v*`)
 - [x] Promote co-pins `{name}-cxx==` on fin-base release commits; fin-base `pytest11` entry point
 - [ ] Docs / CHANGELOG; `xx-constraints compile` (constraints already include fin-base; CHANGELOG TBD)
