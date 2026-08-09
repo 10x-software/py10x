@@ -56,4 +56,6 @@ runs:
         print(' '.join(str(Path(m.__file__).resolve().parent) for m in (
             core_10x, infra_10x, ui_10x, xxcommon, dev_10x)))
         ")
-        PYTHONUNBUFFERED=1 pytest $TEST_ROOTS
+        # Match py10x pytest.ini: cwd is a temp RUN_DIR, so that addopts never apply.
+        # pytest-xdist comes in via py10x-core[dev] from pre-publish-install.sh.
+        PYTHONUNBUFFERED=1 pytest -n auto --dist loadscope $TEST_ROOTS
