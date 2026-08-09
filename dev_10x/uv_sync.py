@@ -187,9 +187,41 @@ def _parse_with_downstream(uv_args: tuple[str, ...]) -> tuple[bool, set[str] | N
 # installed-source detection (PEP 610) + reinstall decision
 # --------------------------------------------------------------------------------------------
 def source_version(src: Path) -> str:
-    # stderr suppressed: hatch-vcs projects have no [tool.setuptools_scm] section, so the scm CLI
-    # logs a harmless "toml section missing" warning while still computing the git version.
-    return subprocess.check_output([sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True, stderr=subprocess.DEVNULL).strip()
+    """Version of the package source tree at `src`.
+
+    Must honor that package's tag filter — bare ``python -m setuptools_scm`` at the py10x root
+    has no ``[tool.setuptools_scm]`` and will pick the nearest tag of *any* name (e.g. a
+    ``py10x-fin-base-v*`` tag), which falsely looks like core version drift. Hatch-vcs packages
+    declare ``git_describe_command`` (with ``--match``) under ``[tool.hatch.version]``; C++
+    packages use ``[tool.setuptools_scm]`` in their own pyproject (CLI from that cwd).
+    """
+    from setuptools_scm import get_version
+
+    pyproject = src / 'pyproject.toml'
+    if not pyproject.is_file():
+        return get_version(root=src)
+
+    import tomlkit
+
+    doc = tomlkit.parse(pyproject.read_text(encoding='utf-8'))
+    tool = doc.get('tool', {})
+    # C++ / scikit-build packages: CLI loads [tool.setuptools_scm] (root, describe match).
+    if 'setuptools_scm' in tool:
+        return subprocess.check_output(
+            [sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True, stderr=subprocess.DEVNULL
+        ).strip()
+
+    hatch_ver = tool.get('hatch', {}).get('version', {})
+    if hatch_ver.get('source') == 'vcs':
+        raw = hatch_ver.get('raw-options') or {}
+        describe = raw.get('git_describe_command')
+        rel_root = raw.get('root', '.')
+        scm_root = (src / str(rel_root)).resolve()
+        if describe:
+            return get_version(root=scm_root, git_describe_command=str(describe))
+        return get_version(root=scm_root)
+
+    return get_version(root=src)
 
 
 def _sibling_pin(name: str) -> str | None:

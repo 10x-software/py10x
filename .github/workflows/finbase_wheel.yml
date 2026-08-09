@@ -1,0 +1,142 @@
+name: wheels-py10x-fin-base
+
+on:
+  push:
+    tags:
+      # xx-promote publish triggers (same shape as cxx10x kernel/infra wheels).
+      - "pre/py10x-fin-base-v*"
+      - "prod/py10x-fin-base-v*"
+  workflow_dispatch:
+
+jobs:
+  build_cxx_wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: true # repo is still private; cut wasted CI minutes on the other OSes once one fails
+      matrix:
+        # windows-2025 (not windows-latest): matches cxx10x's own core_10x_wheels.yml /
+        # infra_10x_wheels.yml, which build the exact py10x-kernel wheel cxxfin links against.
+        # windows-latest moved to VS2026/MSVC 19.5x in June 2026, ahead of the v143/14.44 toolset
+        # Py10xMsvcVersion.cmake requires (see the matching cmake.args pin in cxxfin/pyproject.toml).
+        os: [ubuntu-latest, macos-latest, windows-2025]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.3.1
+        with:
+          package-dir: xx_fin/cxxfin
+          output-dir: xx_fin/cxxfin/wheelhouse
+        env:
+          CIBW_BUILD: "cp311-* cp312-*"
+          CIBW_SKIP: "*-musllinux_*"
+          CIBW_ARCHS_LINUX: "x86_64"
+          CIBW_ARCHS_MACOS: "universal2"
+          CIBW_ARCHS_WINDOWS: "AMD64"
+          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=13.3'
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux_2_34"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wheels-py10x-fin-base-cxx-${{ matrix.os }}
+          path: xx_fin/cxxfin/wheelhouse/*.whl
+
+  build_finbase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      # py10x-fin-base and py10x-fin-base-cxx share one tag train / version. xx-promote writes
+      # py10x-fin-base-cxx (==<version>) on the release commit (co-release forward pin). Editing it
+      # here would dirty the tree (git describe --dirty) and yield an unpublishable +dirty version.
+      # This step only validates the committed pin.
+      - name: Validate py10x-fin-base-cxx pin matches the tagged version
+        working-directory: xx_fin
+        run: |
+          VERSION=$(uvx --with hatch-vcs hatch version)
+          echo "Resolved tagged version: $VERSION"
+          if ! grep -qF "py10x-fin-base-cxx (==$VERSION)" pyproject.toml; then
+            echo "::error::pyproject.toml's py10x-fin-base-cxx pin doesn't match the tagged version ($VERSION). xx-promote should have written py10x-fin-base-cxx (==$VERSION) on the release commit."
+            grep py10x-fin-base-cxx pyproject.toml
+            exit 1
+          fi
+
+      - name: Build py10x-fin-base sdist + wheel
+        # Not a root workspace member — build from the packaging root.
+        run: uv build --directory xx_fin --out-dir dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-py10x-fin-base
+          path: dist/*
+
+  smoke_test:
+    needs: [build_cxx_wheels, build_finbase]
+    strategy:
+      fail-fast: true # repo is still private; cut wasted CI minutes on the other OSes once one fails
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-2025] # must match build_cxx_wheels' matrix.os
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: wheels-py10x-fin-base-cxx-${{ matrix.os }}
+          path: dist-cxx
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist-py10x-fin-base
+          path: dist-finbase
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # Install straight from this run's build artifacts (not from PyPI) so a broken wheel is
+      # caught here, before it's published, per the move plan's Phase 1 clean-venv smoke test.
+      - name: Install from build artifacts
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          CXX_WHL=$(ls dist-cxx/*cp312*.whl | head -n1)
+          FINBASE_WHL=$(ls dist-finbase/*.whl | head -n1)
+          echo "cxx wheel: $CXX_WHL"
+          echo "fin-base wheel: $FINBASE_WHL"
+          # No --pre needed: py10x-fin-base's py10x-core pin and py10x-fin-base-cxx's py10x-kernel
+          # pin (both in their respective pyproject.toml) already force prerelease-inclusion for
+          # just those two packages via PEP 440.
+          pip install "$CXX_WHL" "$FINBASE_WHL"
+
+      - name: Import smoke test
+        run: python -c "import xxfin; import cxxfin; print(xxfin.__file__); print(cxxfin.__file__)"
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build_cxx_wheels, build_finbase, smoke_test]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: dist
+
+      - name: Flatten distributions
+        run: |
+          mkdir -p upload
+          find dist -name "*.whl" -exec cp {} upload/ \;
+          find dist -name "*.tar.gz" -exec cp {} upload/ \;
+
+      - name: Upload to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload

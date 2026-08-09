@@ -1,6 +1,6 @@
 [project]
 name = "py10x-fin-base-cxx"
-description = "10x financial domain foundation (internals)"
+description = "10x Financial Domain Foundation (internals)"
 license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
@@ -25,9 +25,8 @@ classifiers = [
 requires = [
     "scikit-build-core>=0.10.7",
     "setuptools-scm>=9.2.2",
-    # >=0.0.0rc0 forces prerelease-inclusion for py10x-kernel (PEP 440), matching the domain root
-    # pyproject.toml's own pin. TODO: same caveat as py10x-core's pin in ../pyproject.toml — needs
-    # Phase 2 promote automation to keep in sync once py10x-kernel isn't prerelease-only.
+    # Direct build dep: CMake imports py10x_kernel for version → FetchContent headers.
+    # >=0.0.0rc0 admits current kernel prereleases (PEP 440). Not promote-managed.
     "py10x-kernel>=0.0.0rc0"
 ]
 

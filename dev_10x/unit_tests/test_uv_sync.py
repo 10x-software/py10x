@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+from packaging.version import Version
+
 from dev_10x.uv_sync import (
+    PROJECT_ROOT,
     _no_build_isolation_packages,
     _normalize_git_url,
     _parse_with_downstream,
     _swap_repo,
     _workspace_member_paths,
     packages,
+    source_version,
 )
 
 
@@ -109,3 +113,12 @@ class TestWithDownstream:
         child.mkdir()
         (child / 'pyproject.toml').write_text('[project]\nname = "child-dist"\n', encoding='utf-8')
         assert _workspace_member_paths(tmp_path) == {'child-dist': child.resolve()}
+
+    def test_source_version_root_uses_hatch_v_match_not_fin_base_tags(self):
+        """Unfiltered setuptools_scm at repo root would return fin-base's 0.1.x line."""
+        if not (PROJECT_ROOT / 'xx_fin' / 'pyproject.toml').is_file():
+            return
+        core_v = Version(source_version(PROJECT_ROOT))
+        fin_v = Version(source_version(PROJECT_ROOT / 'xx_fin'))
+        assert core_v.minor >= 2
+        assert fin_v.minor == 1

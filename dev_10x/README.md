@@ -140,6 +140,10 @@ For a sibling at coordinated rc `rcN` or released final `T`:
   Core never publishes a pin to downstreams.
 - **downstream → core (published):** same `==` / window shapes as core→sibling, written onto the
   downstream’s `[project.dependencies]`.
+- **downstream co-release `{name}-cxx` (published):** when a downstream product dist depends on an
+  impl wheel with the same tag train (e.g. `py10x-fin-base` → `py10x-fin-base-cxx`), promote writes
+  `==<coordinated downstream version>` on the release commit and keeps that exact pin on `main`
+  (not a window). `write_forward_pins` only rewrites the dep if it already exists.
 - **reverse `test` group (sibling → core, and core → downstreams; unpublished):**
   `py10x-core>=<coordinated core>` on siblings; `py10x-fin-base>=…` (etc.) on core. `>=` not `==`:
   the prerelease token falls out for free. Uncapped but self-correcting via the forward `==`.
@@ -472,6 +476,21 @@ run **fin-base** suite. Keep these as **separate** jobs:
 
 Do not fold fin-base into the default isolation job — same split as “core suite on cxx10x” vs
 “core suite without accidental fin-base.”
+
+### py10x `finbase_wheel.yml` (downstream publish)
+
+On **`pre/py10x-fin-base-v*`** / **`prod/py10x-fin-base-v*`** publish-trigger tag push (same job
+shape as the former domain `finbase_wheel.yml`):
+
+1. cibuildwheel `xx_fin/cxxfin` on ubuntu / macos / windows-2025 → `py10x-fin-base-cxx` wheels.
+2. Validate committed co-release pin (`py10x-fin-base-cxx (==<version>)`, written by xx-promote);
+   `uv build --directory xx_fin` → `py10x-fin-base` sdist + wheel.
+3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`.
+4. Trusted PyPI publish (OIDC) of all artifacts.
+
+PyPI trusted publishers for `py10x-fin-base` and `py10x-fin-base-cxx` point at this repo
+(`10x-software/py10x`) and workflow `finbase_wheel.yml`. The former domain-repo publishers were
+removed.
 
 ### CI gotchas
 

@@ -14,7 +14,7 @@ from dev_10x.xx_plan import PkgInput, PrePlan, ProdPlan
 CORE, KERNEL, INFRA = 'v', 'py10x-kernel-v', 'py10x-infra-v'
 
 
-CORE_NAME, FIN = 'py10x-core', 'py10x-fin-base'
+CORE_NAME, FIN, FIN_CXX = 'py10x-core', 'py10x-fin-base', 'py10x-fin-base-cxx'
 FIN_PREFIX = 'py10x-fin-base-v'
 
 
@@ -267,10 +267,12 @@ def test_downstream_only_footprint_skips_core_version_but_refreshes_test_group()
     assert not plans[CORE_NAME].act
     assert not plans['py10x-kernel'].act
     assert plans[FIN].act and plans[FIN].version == '0.1.1rc1'
-    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.0'}
+    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.0', FIN_CXX: '==0.1.1rc1'}
     assert plans[FIN].reverse_pin is None
-    # Downstream epilogue: core window pin on fin-base main + core test-group refresh (target=core).
-    assert any(e.forward_pins.get(CORE_NAME) for e in plans[FIN].epilogue)
+    # Downstream epilogue: core window + co-release cxx on fin-base main; core test-group (target=core).
+    main_pins = next(e for e in plans[FIN].epilogue if e.forward_pins)
+    assert main_pins.forward_pins[CORE_NAME] == VersionHelpers.main_forward_window_pin('0.2.0')
+    assert main_pins.forward_pins[FIN_CXX] == '==0.1.1rc1'
     tg = next(e for e in plans[FIN].epilogue if e.target == CORE_NAME)
     assert tg.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')
 
@@ -287,7 +289,7 @@ def test_core_recut_forces_downstream_on_core_pin_lag():
     assert plans[CORE_NAME].act and plans[CORE_NAME].version == '0.2.1rc1'
     assert FIN not in plans[CORE_NAME].forward_pins  # published pins are siblings only
     assert plans[FIN].act and plans[FIN].version == '0.1.1rc1'
-    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.1rc1'}
+    assert plans[FIN].forward_pins == {CORE_NAME: '==0.2.1rc1', FIN_CXX: '==0.1.1rc1'}
     # Core epilogue tracks downstream in unpublished test group.
     assert any(
         e.test_pin == [VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')] or e.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1rc1')
@@ -319,7 +321,10 @@ def test_prod_downstream_pins_core_and_refreshes_core_test_group_when_core_skips
     )
     assert not plans[CORE_NAME].act
     assert plans[FIN].act and plans[FIN].version == '0.1.1'
-    assert plans[FIN].forward_pins == {}  # no released core_v from this batch
-    # core skipped -> no core_v for published pin; still refresh core test group from finalized fin-base
+    # no released core_v from this batch; still co-pin cxx to the finalized fin-base version
+    assert plans[FIN].forward_pins == {FIN_CXX: '==0.1.1'}
+    main_pins = next(e for e in plans[FIN].epilogue if e.forward_pins)
+    assert main_pins.forward_pins == {FIN_CXX: '==0.1.1'}
+    # core skipped -> still refresh core test group from finalized fin-base
     tg = next(e for e in plans[FIN].epilogue if e.target == CORE_NAME)
     assert tg.test_pin == VersionHelpers.test_group_dep_pin(FIN, '0.1.1')
