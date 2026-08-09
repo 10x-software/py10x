@@ -17,7 +17,7 @@ from core_10x.ts_union import TsUnion
 
 from core_10x.traitable_id import ID
 
-from py10x_kernel import BSaveRefs, BTraitableProcessor, BTraitableProcessorSetValueTracker, XCache
+from py10x_kernel import BSaveRefs, BTraitable, BTraitableProcessor, BTraitableProcessorSetValueTracker, XCache
 
 from core_10x.environment_variables import EnvVars
 
@@ -566,6 +566,59 @@ def test_write_during_read_self_set():
             assert 'set/invalidate during get' in str(e), str(e)
         else:
             assert False, "Expected set/invalidate during get error"
+
+
+def test_on_graph_choices_and_style_sheet():
+    """choices/style_sheet under GRAPH_ON use args-keyed nodes and track deps like getters."""
+    class X(Traitable):
+        mode: str = RT()
+        color: str = RT()
+        choice_calls = 0
+        style_calls = 0
+
+        def color_choices(self, trait):
+            type(self).choice_calls += 1
+            return ('red', 'blue') if self.mode == 'a' else ('green',)
+
+        def color_style_sheet(self):
+            type(self).style_calls += 1
+            return f'color:{self.color}'
+
+    with GRAPH_ON():
+        x = X(mode='a', color='red')
+        assert x.get_choices(x.T.color.trait) == ('red', 'blue')
+        assert X.choice_calls == 1
+        assert x.get_choices(x.T.color.trait) == ('red', 'blue')
+        assert X.choice_calls == 1
+
+        x.mode = 'b'
+        assert x.get_choices(x.T.color.trait) == ('green',)
+        assert X.choice_calls == 2
+
+        assert x.get_style_sheet(x.T.color.trait) == 'color:red'
+        assert X.style_calls == 1
+        assert x.get_style_sheet(x.T.color.trait) == 'color:red'
+        assert X.style_calls == 1
+
+        x.color = 'blue'
+        assert x.get_style_sheet(x.T.color.trait) == 'color:blue'
+        assert X.style_calls == 2
+
+
+def test_calc_values_and_aggregate():
+    class X(Traitable):
+        n: int = RT()
+        doubled: int = RT()
+
+        def doubled_get(self):
+            return self.n * 2
+
+    with GRAPH_ON():
+        xs = [X(n=i) for i in (1, 2, 3)]
+        assert BTraitable.calc_values(xs, 'doubled') == [2, 4, 6]
+        assert BTraitable.calc_and_aggregate(xs, 'doubled', sum) == 12
+        assert BTraitable.calc_values_with_args(xs, 'doubled') == [2, 4, 6]
+        assert BTraitable.calc_and_aggregate_with_args(xs, 'doubled', sum) == 12
 
 
 def test_duplicate_id():
@@ -1538,6 +1591,8 @@ if __name__ == '__main__':
     test_stale_deps_after_conditional_getter()
     test_write_during_read_ripple()
     test_write_during_read_self_set()
+    test_on_graph_choices_and_style_sheet()
+    test_calc_values_and_aggregate()
     test_duplicate_id()
     test_lazy_load_once()
     test_empty_object_share()
