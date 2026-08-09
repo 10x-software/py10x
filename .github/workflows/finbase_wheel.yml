@@ -89,6 +89,12 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-2025] # must match build_cxx_wheels' matrix.os
     runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            .github/scripts
+          sparse-checkout-cone-mode: false
+
       - uses: actions/download-artifact@v8
         with:
           name: wheels-py10x-fin-base-cxx-${{ matrix.os }}
@@ -105,8 +111,8 @@ jobs:
 
       # Install straight from this run's build artifacts (not from PyPI) so a broken wheel is
       # caught here, before it's published, per the move plan's Phase 1 clean-venv smoke test.
-      # Transitive index deps (exact py10x-core == on the release commit, py10x-kernel for cxx)
-      # may still be publishing when smoke starts — poll like cxx10x pre-publish-tests.
+      # Coordinated py10x-core and its forward-pinned siblings may still be publishing — wait
+      # for those exact versions on PyPI (not a blind pip-install retry).
       - name: Install from build artifacts
         shell: bash
         env:
@@ -119,18 +125,9 @@ jobs:
           FINBASE_WHL=$(ls dist-finbase/*.whl | head -n1)
           echo "cxx wheel: $CXX_WHL"
           echo "fin-base wheel: $FINBASE_WHL"
-          # No --pre needed: py10x-fin-base's py10x-core pin and py10x-fin-base-cxx's py10x-kernel
-          # pin (both in their respective pyproject.toml) already force prerelease-inclusion for
-          # just those two packages via PEP 440.
-          deadline=$(( $(date +%s) + PYPI_TIMEOUT_SEC ))
-          until pip install --no-cache-dir "$CXX_WHL" "$FINBASE_WHL"; do
-            if [ "$(date +%s)" -ge "$deadline" ]; then
-              echo "::error::timed out after ${PYPI_TIMEOUT_SEC}s waiting for PyPI to satisfy fin-base deps (py10x-core / py10x-kernel)"
-              exit 1
-            fi
-            echo "waiting for PyPI deps (${PYPI_POLL_SEC}s)..." >&2
-            sleep "$PYPI_POLL_SEC"
-          done
+          python .github/scripts/wait_finbase_pypi_deps.py "$FINBASE_WHL"
+          # No --pre needed: release-wheel pins already force prerelease inclusion via PEP 440.
+          pip install --no-cache-dir "$CXX_WHL" "$FINBASE_WHL"
 
       - name: Import smoke test
         run: python -c "import xxfin; import cxxfin; print(xxfin.__file__); print(cxxfin.__file__)"
