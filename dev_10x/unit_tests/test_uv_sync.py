@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import shutil
 from unittest.mock import MagicMock
 
+import pytest
+import setuptools_scm
 from packaging.version import Version
 
+from core_10x.environment_variables import EnvVars
 from dev_10x.uv_sync import (
     PROJECT_ROOT,
     _no_build_isolation_packages,
@@ -16,6 +20,9 @@ from dev_10x.uv_sync import (
     packages,
     source_version,
 )
+from dev_10x.xx_helpers import GitHelpers
+
+requires_git = pytest.mark.skipif(shutil.which('git') is None and not EnvVars.test_strict, reason='git not available')
 
 
 class TestNormalizeGitUrl:
@@ -114,11 +121,47 @@ class TestWithDownstream:
         (child / 'pyproject.toml').write_text('[project]\nname = "child-dist"\n', encoding='utf-8')
         assert _workspace_member_paths(tmp_path) == {'child-dist': child.resolve()}
 
-    def test_source_version_root_uses_hatch_v_match_not_fin_base_tags(self):
-        """Unfiltered setuptools_scm at repo root would return fin-base's 0.1.x line."""
-        if not (PROJECT_ROOT / 'xx_fin' / 'pyproject.toml').is_file():
-            return
-        core_v = Version(source_version(PROJECT_ROOT))
-        fin_v = Version(source_version(PROJECT_ROOT / 'xx_fin'))
-        assert core_v.minor >= 2
+    @requires_git
+    def test_source_version_root_uses_hatch_v_match_not_fin_base_tags(self, tmp_path):
+        """Hatch ``--match 'v*'`` must win over a nearer ``py10x-fin-base-v*`` tag at repo root."""
+        repo = tmp_path / 'mono'
+        fin = repo / 'xx_fin'
+        fin.mkdir(parents=True)
+        (repo / 'pyproject.toml').write_text(
+            '[project]\nname = "py10x-core"\n'
+            '[tool.hatch.version]\nsource = "vcs"\n'
+            'raw-options = { git_describe_command = '
+            '"git describe --dirty --tags --long --match \'v*\'" }\n',
+            encoding='utf-8',
+        )
+        (fin / 'pyproject.toml').write_text(
+            '[project]\nname = "py10x-fin-base"\n'
+            '[tool.hatch.version]\nsource = "vcs"\n'
+            '[tool.hatch.version.raw-options]\n'
+            'root = ".."\n'
+            "git_describe_command = \"git describe --dirty --tags --long --match 'py10x-fin-base-v*'\"\n",
+            encoding='utf-8',
+        )
+        GitHelpers.git(repo, 'init', '-q', '-b', 'main')
+        GitHelpers.git(repo, 'config', 'user.email', 'test@example.com')
+        GitHelpers.git(repo, 'config', 'user.name', 'Test')
+        GitHelpers.git(repo, 'add', '.')
+        GitHelpers.git(repo, 'commit', '-qm', 'init')
+        # Older core release tag, then a newer fin-base tag on a later commit (nearest-any-tag trap).
+        GitHelpers.git(repo, 'tag', 'v0.2.0')
+        (fin / 'marker.txt').write_text('x\n', encoding='utf-8')
+        GitHelpers.git(repo, 'add', '.')
+        GitHelpers.git(repo, 'commit', '-qm', 'fin-base bump')
+        GitHelpers.git(repo, 'tag', 'py10x-fin-base-v0.1.0rc1')
+        (repo / 'core_touch.txt').write_text('y\n', encoding='utf-8')
+        GitHelpers.git(repo, 'add', '.')
+        GitHelpers.git(repo, 'commit', '-qm', 'core touch')
+
+        # Control: unfiltered setuptools_scm at root follows the nearer fin-base tag.
+        assert Version(setuptools_scm.get_version(root=str(repo))).minor == 1
+
+        core_v = Version(source_version(repo))
+        fin_v = Version(source_version(fin))
+        assert core_v.minor == 2
         assert fin_v.minor == 1
+        assert core_v != fin_v
