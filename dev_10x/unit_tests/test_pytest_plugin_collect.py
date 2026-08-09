@@ -22,6 +22,9 @@ def _clear_collect_caches():
 
 def test_hatch_wheel_packages_exclude_xx_fin():
     tops = pp._hatch_wheel_packages()
+    # Wheel-only installs (kernel pre-publish): PY10X_ROOT is site-packages — no hatch config.
+    if not tops:
+        pytest.skip('source pyproject.toml not available next to installed core_10x')
     assert 'core_10x' in tops
     assert 'xx_fin' not in tops
 
