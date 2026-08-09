@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from dev_10x.uv_sync import _normalize_git_url, _parse_with_downstream, _swap_repo, packages
+from dev_10x.uv_sync import (
+    _no_build_isolation_packages,
+    _normalize_git_url,
+    _parse_with_downstream,
+    _swap_repo,
+    _workspace_member_paths,
+    packages,
+)
 
 
 class TestNormalizeGitUrl:
@@ -71,3 +78,34 @@ class TestWithDownstream:
         assert pkgs['py10x-fin-base']['subdir'] == 'xx_fin'
         assert pkgs['py10x-kernel']['downstream'] is False
         assert pkgs['py10x-kernel']['cxx'] is True
+
+    def test_no_build_isolation_packages_reads_tool_uv(self, tmp_path):
+        (tmp_path / 'pyproject.toml').write_text(
+            '[project]\nname = "py10x-fin-base"\n\n[tool.uv]\nno-build-isolation-package = ["py10x-fin-base-cxx"]\n',
+            encoding='utf-8',
+        )
+        assert _no_build_isolation_packages(tmp_path) == ['py10x-fin-base-cxx']
+
+    def test_no_build_isolation_packages_empty_without_section(self, tmp_path):
+        (tmp_path / 'pyproject.toml').write_text('[project]\nname = "x"\n', encoding='utf-8')
+        assert _no_build_isolation_packages(tmp_path) == []
+
+    def test_live_fin_base_declares_cxx_no_isolation(self):
+        from dev_10x.uv_sync import PROJECT_ROOT
+
+        fin = PROJECT_ROOT / 'xx_fin'
+        if not (fin / 'pyproject.toml').is_file():
+            return
+        assert 'py10x-fin-base-cxx' in _no_build_isolation_packages(fin)
+        members = _workspace_member_paths(fin)
+        assert members.get('py10x-fin-base-cxx') == (fin / 'cxxfin').resolve()
+
+    def test_workspace_member_paths(self, tmp_path):
+        (tmp_path / 'pyproject.toml').write_text(
+            '[project]\nname = "parent"\n\n[tool.uv.workspace]\nmembers = ["child"]\n',
+            encoding='utf-8',
+        )
+        child = tmp_path / 'child'
+        child.mkdir()
+        (child / 'pyproject.toml').write_text('[project]\nname = "child-dist"\n', encoding='utf-8')
+        assert _workspace_member_paths(tmp_path) == {'child-dist': child.resolve()}

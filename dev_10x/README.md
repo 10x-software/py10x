@@ -382,7 +382,9 @@ xx-constraints check                # assert the active env is fully frozen
 
 - **`compile`** runs `uv pip compile` over core + sibling (+ configured downstream) pyprojects
   (paths from `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]`) with `--universal --all-extras`
-  and `--no-emit-package` for each first-party name.
+  and `--no-emit-package` for each first-party name (root, siblings, downstreams, and
+  `[tool.uv.workspace]` members under the repo root and each sibling/downstream packaging root —
+  e.g. fin-base’s `cxxfin` → `py10x-fin-base-cxx`).
   Needs the `../cxx10x` checkout (`py10x-core-dev` mode). First-party packages are never pinned in the
   output (derived via `_first_party`: root `[project].name` + siblings + any `[tool.uv.workspace]`
   members — not a hardcoded list).

@@ -255,6 +255,42 @@ def _windows_cxx_cmake_flags(name: str) -> list[str]:
     ]
 
 
+def _no_build_isolation_packages(src_dir: Path) -> list[str]:
+    """`[tool.uv] no-build-isolation-package` from a packaging root (e.g. fin-base → cxx).
+
+    `uv pip install` does not read this from the target pyproject the way `uv sync` does, so
+    uv-sync must forward the names as `--no-build-isolation-package` flags.
+    """
+    import tomllib
+
+    pyproject = Path(src_dir) / 'pyproject.toml'
+    if not pyproject.is_file():
+        return []
+    raw = tomllib.loads(pyproject.read_text(encoding='utf-8')).get('tool', {}).get('uv', {}).get('no-build-isolation-package', [])
+    return [str(n) for n in raw]
+
+
+def _workspace_member_paths(src_dir: Path) -> dict[str, Path]:
+    """`{dist-name: path}` for each `[tool.uv.workspace]` member under a packaging root."""
+    import tomllib
+
+    root = Path(src_dir)
+    pyproject = root / 'pyproject.toml'
+    if not pyproject.is_file():
+        return {}
+    patterns = tomllib.loads(pyproject.read_text(encoding='utf-8')).get('tool', {}).get('uv', {}).get('workspace', {}).get('members', [])
+    out: dict[str, Path] = {}
+    for pattern in patterns:
+        for path in sorted(root.glob(pattern)):
+            member = path / 'pyproject.toml'
+            if not member.is_file():
+                continue
+            name = tomllib.loads(member.read_text(encoding='utf-8')).get('project', {}).get('name')
+            if name:
+                out[str(name)] = path.resolve()
+    return out
+
+
 def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
     """No-isolation incremental rebuild flags for a local C++ package (XX_UV_INCREMENTAL).
     Build type comes from XX_UV_BUILD_TYPE (default Release); each type gets its own build
@@ -277,6 +313,23 @@ def _incremental_flags(name: str, src_dir: Path, venv: Path) -> list[str]:
 
 
 def install_local(name: str, pkg: dict, pin: str | None, incremental: int, verbose: bool) -> None:
+    # Downstream native deps (e.g. fin-base → cxxfin): install workspace members listed in
+    # `[tool.uv] no-build-isolation-package` *directly* first. Installing only via the parent
+    # `-e xx_fin` leaves `editable.rebuild`'s persistent build-dir without CMakeCache.txt.
+    if pkg.get('downstream'):
+        members = _workspace_member_paths(pkg['local'])
+        for n in _no_build_isolation_packages(pkg['local']):
+            member = members.get(n)
+            if member is None:
+                print(f'  warning: {n} in no-build-isolation-package but not a workspace member of {pkg["local"]}')
+                continue
+            print(f'  {n}: editable (no-build-isolation, workspace member of {name})')
+            margs = ['-e', str(member), f'--reinstall-package={n}', '--no-build-isolation-package', n]
+            margs += _windows_cxx_cmake_flags(n)
+            if verbose:
+                margs.append('--verbose')
+            _pip_install(*margs)
+
     args = ['-e', str(pkg['local'])]
     if pin:
         args.append(f'{name} ({pin})')
@@ -285,6 +338,10 @@ def install_local(name: str, pkg: dict, pin: str | None, incremental: int, verbo
         args += _windows_cxx_cmake_flags(name)
     if incremental and pkg['cxx']:
         args += _incremental_flags(name, pkg['local'], PROJECT_ROOT / '.venv')
+    # Keep no-isolation flags on the parent install too (transitive rebuilds / metadata).
+    if pkg.get('downstream'):
+        for n in _no_build_isolation_packages(pkg['local']):
+            args.extend(['--no-build-isolation-package', n])
     if verbose:
         args.append('--verbose')
     _pip_install(*args)
@@ -348,9 +405,16 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     if toggled:
         print(f'XX_UV_INCREMENTAL toggled ({prev_incremental} -> {incremental}): forcing rebuild of local C++ packages.')
 
+    # Seed the C++ toolchain when siblings use XX_UV_INCREMENTAL, or when a local downstream
+    # declares `[tool.uv] no-build-isolation-package` (fin-base → cxx) — those installs run in
+    # step 1 before `--all-extras` would otherwise pull cmake/ninja via core's dev extra.
+    toolchain_reasons: list[str] = []
     if incremental and any(kinds[s] == 'local' and pkgs[s]['cxx'] for s in siblings):
-        print('XX_UV_INCREMENTAL set: no-build-isolation incremental rebuilds for local C++ packages.')
-        # Seed the toolchain so the cold metadata hook + import-time `cmake --build` have it.
+        toolchain_reasons.append('XX_UV_INCREMENTAL siblings')
+    if any(pkgs[s].get('downstream') and kinds[s] == 'local' and _no_build_isolation_packages(pkgs[s]['local']) for s in siblings):
+        toolchain_reasons.append('downstream no-build-isolation-package')
+    if toolchain_reasons:
+        print(f'Seeding C++ build toolchain ({", ".join(toolchain_reasons)}).')
         _pip_install('--quiet', *CXX_BUILD_TOOLCHAIN)
     verbose = '--verbose' in uv_args
     # 1. siblings / opt-in downstreams (local/git). Index siblings are handled by step 2; force a

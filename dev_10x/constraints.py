@@ -4,12 +4,10 @@
 (py10x-kernel / py10x-infra), so dev and CI installs are reproducible. It is applied via
 `uv pip install -c constraints.txt` on every install (see `dev_10x/uv_sync.py` and the CI workflows).
 
-First-party packages are deliberately NOT pinned here: py10x-core is the project root (uv never
-self-emits it; its test-group reverse dep is a PEP 735 group, not pulled by `uv pip compile`), and the
-siblings are `--no-emit`'d. The excluded set is derived (`_first_party`) from the root [project].name,
-[tool.dev_10x.siblings], and any [tool.uv.workspace] members - not a hardcoded list - so it stays in
-sync as packages are added. Their versions are owned by the sibling-source profiles and the xx-promote
-pin model, not by this freeze.
+First-party packages are deliberately NOT pinned here. Compile `--no-emit`'s `_first_party()`: root,
+siblings, downstreams, and `[tool.uv.workspace]` members from the repo root **and** from each
+sibling/downstream packaging root (e.g. fin-base's `cxxfin` → `py10x-fin-base-cxx`). Their versions
+stay owned by editable/git/promote pins, not this freeze.
 
 Subcommands:
   compile [--upgrade]  regenerate constraints.txt from py10x's + both siblings' pyproject.toml.
@@ -57,18 +55,29 @@ def _downstreams() -> dict[str, Path]:
     return _dev10x_paths('downstream')
 
 
-def _workspace_members() -> set[str]:
-    """Normalized [project].name of each [tool.uv.workspace] member (empty if no workspace)."""
-    data = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+def _workspace_members_at(root: Path) -> set[str]:
+    """Normalized [project].name of each `[tool.uv.workspace]` member under `root`."""
+    pyproject = root / 'pyproject.toml'
+    if not pyproject.is_file():
+        return set()
+    data = tomllib.loads(pyproject.read_text(encoding='utf-8'))
     patterns = data.get('tool', {}).get('uv', {}).get('workspace', {}).get('members', [])
     names: set[str] = set()
     for pattern in patterns:
-        for path in sorted(PROJECT_ROOT.glob(pattern)):
+        for path in sorted(root.glob(pattern)):
             member = path / 'pyproject.toml'
             if member.is_file():
                 name = tomllib.loads(member.read_text(encoding='utf-8')).get('project', {}).get('name')
                 if name:
                     names.add(_normalize(name))
+    return names
+
+
+def _workspace_members() -> set[str]:
+    """Workspace members from the repo root and each sibling/downstream packaging root."""
+    names = _workspace_members_at(PROJECT_ROOT)
+    for path in {*_siblings().values(), *_downstreams().values()}:
+        names |= _workspace_members_at(path.parent)
     return names
 
 
@@ -112,8 +121,8 @@ def compile_(upgrade: bool = False) -> int:
             f'  siblings need the ../cxx10x checkout (e.g. `uv-sync py10x-core-dev`); '
             f'downstreams need their packaging roots present.'
         )
-    # Exclude every first-party package from the emitted freeze (mirrors check()'s _first_party()).
-    no_emit_names = sorted({*siblings, *downstreams, *_workspace_members()})
+    # Exclude every first-party package from the emitted freeze (mirrors check()'s `_first_party()`).
+    no_emit_names = sorted(_first_party())
     no_emit = [arg for name in no_emit_names for arg in ('--no-emit-package', name)]
     compile_cmd = 'xx-constraints compile --upgrade' if upgrade else 'xx-constraints compile'
     cmd = [
