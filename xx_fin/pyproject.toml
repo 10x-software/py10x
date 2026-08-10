@@ -55,7 +55,7 @@ name = "py10x-fin-base-cxx"
 version = "0+dummy"
 
 [tool.uv.workspace]
-members = ["cxxfin",".."]
+members = ["cxxfin"]
 
 [[tool.uv.index]]
 name = "bloomberg"
@@ -63,11 +63,10 @@ url = "https://blpapi.bloomberg.com/repository/releases/python/simple/"
 explicit = true
 
 [tool.uv.sources]
-# Monorepo: resolve against local core / cxx for uv sync / xx-constraints.
-# Does not ship in the wheel; published installs use [project.dependencies] only.
-py10x-core = { workspace = true }
-# Self: required so py10x-core's dependency-groups.test (py10x-fin-base) can resolve
-# when this workspace includes `..` as a member.
-py10x-fin-base = { workspace = true }
+# Monorepo: local core / cxx for uv sync. Does not ship in the wheel.
+# editable=true matches root's editable install so root `uv lock` (which
+# resolves dependency-groups.test → this tree) does not see path-vs-editable
+# URL conflicts for py10x-core.
+py10x-core = { path = "..", editable = true }
 py10x-fin-base-cxx = { workspace = true }
 blpapi = { index = "bloomberg" }

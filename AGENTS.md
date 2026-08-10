@@ -126,8 +126,8 @@ Rules agents must **not** violate:
 - **`xx_ci.py` kernel-free** — no `core_10x` imports before siblings install.
 - **`uv-sync` pip-install based** — no transient `[tool.uv.sources]` edits to `pyproject.toml`. Downstream install is opt-in (`--with-downstream`); default sync is siblings + core only.
 - **`-c constraints.txt`** on every pip install; run `xx-constraints compile` after dep changes.
-  Downstream packaging roots are opt-in (`xx-constraints compile --with-downstream`), same as
-  `uv-sync --with-downstream`.
+  Local CLI defaults to siblings only; commit/refresh the freeze with
+  `--with-downstream` (one shared file must cover `uv-sync --with-downstream`).
 - **Sibling / downstream paths** in `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]` only — keep `uv_sync.py`, `xx_promote.py`, `constraints.py` in sync.
 - **Version ordering:** `packaging.version.Version` (`max`), never `git --sort=-v:refname` / `sort -V`.
 - **`xx-promote` sync + recovery:** start/finish with local == `origin`; atomic `git push --atomic` per repo; isolated publish-trigger pushes — see [xx-promote](dev_10x/README.md#xx-promote--release-promotion). Recovery: `resync` + idempotent re-run, not in-place reconcile.

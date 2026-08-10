@@ -391,7 +391,10 @@ xx-constraints check                # assert the active env is fully frozen
 - **`compile`** runs `uv pip compile` over core + sibling pyprojects (paths from
   `[tool.dev_10x.siblings]`) with `--universal --all-extras`. Configured downstreams are
   **opt-in** via `--with-downstream [name…]` (same flag shape as `uv-sync`), matching default
-  core isolation. Always `--no-emit-package` for each first-party name (root, siblings, downstreams, and
+  core isolation for local CLI use. The **committed** freeze (and weekly refresh) still compiles
+  **with** `--with-downstream`: there is one `constraints.txt`, and it must cover
+  `uv-sync … --with-downstream` installs so `xx-constraints check` stays green. Always
+  `--no-emit-package` for each first-party name (root, siblings, downstreams, and
   `[tool.uv.workspace]` members under the repo root and each sibling/downstream packaging root —
   e.g. fin-base’s `cxxfin` → `py10x-fin-base-cxx`).
   Needs the `../cxx10x` checkout (`py10x-core-dev` mode). First-party packages are never pinned in the
@@ -399,9 +402,10 @@ xx-constraints check                # assert the active env is fully frozen
   members — not a hardcoded list).
   - **Default (no `--upgrade`)**: conservative regen — keeps existing pins from `constraints.txt`
     wherever they still satisfy the ranges; only changes what a pyproject edit forces. Use after
-    adding or changing a dependency.
+    adding or changing a dependency. Prefer `--with-downstream` before committing when a
+    downstream pyproject changed (or always, to match the refresh workflow).
   - **`--upgrade`**: re-resolves every pin to the latest version allowed by the ranges (ignores
-    existing pins). Used by `refresh-constraints.yml` for the weekly bulk bump.
+    existing pins). Used by `refresh-constraints.yml` as `compile --upgrade --with-downstream`.
   - **`--python-version` = the project floor** (parsed from `requires-python`, e.g. `3.11`).
     `--universal` anchors its lower bound to the *target* Python, **not** to `requires-python`, so
     compiling under 3.12 silently drops every 3.11-only pin and its `; python_full_version < '3.12'`
@@ -425,8 +429,9 @@ dependabot keeps pins fresh — orthogonal to reproducibility (update vs freeze)
 `.github/workflows/refresh-constraints.yml` automates the *update* side on a **weekly** cron
 (Mon 04:00 UTC, plus `workflow_dispatch`) **without** eroding the freeze:
 
-1. Sync `py10x-core-dev` (clones cxx10x `main` so all three pyprojects are present), then
-   `xx-constraints compile --upgrade` against the latest compatible PyPI graph.
+1. Sync `py10x-core-dev` (clones cxx10x `main` so sibling pyprojects are present), then
+   `xx-constraints compile --upgrade --with-downstream` against the latest compatible PyPI
+   graph (siblings + in-tree downstream packaging roots).
 2. If `constraints.txt` is unchanged → stop (no tests, no PR).
 3. If it changed → re-sync against the fresh pins (compile rewrites the file but does not
    reinstall), `xx-constraints check`, then the **full test suite** (CI-provisioned MongoDB replica

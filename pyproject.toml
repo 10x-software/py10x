@@ -117,18 +117,23 @@ py10x-infra  = { path = "../cxx10x/infra_10x" }
 [tool.dev_10x.downstream]
 py10x-fin-base = { path = "./xx_fin" }
 
-# Fin-base owns its uv workspace under xx_fin/ (`members = ["cxxfin", ".."]`).
-# Do not put py10x-fin-base in root sources/workspace — install via
-# `uv-sync … --with-downstream` only.
+# Fin-base owns its uv workspace under xx_fin/ (`members = ["cxxfin"]`; core is
+# a path dep there). Do not put fin-base in a root `[tool.uv.workspace]` —
+# editable install is via `uv-sync … --with-downstream` (or `--group test`).
 #
-# uv still *resolves* unpublished dependency-groups.test (PyPI fin-base) when
-# locking; override + self workspace source so that wheel's core pin cannot
-# fight this editable project.
+# uv still *resolves* dependency-groups.test when locking. Point fin-base at the
+# in-repo tree so that group does not pull a PyPI wheel whose exact core pin
+# fights this editable project.
 [tool.uv]
-override-dependencies = ["py10x-core>=0.0.0.dev0"]
+no-build-isolation-package = ["py10x-fin-base-cxx"]
+
+[[tool.uv.dependency-metadata]]
+name = "py10x-fin-base-cxx"
+version = "0+dummy"
 
 [tool.uv.sources]
-py10x-core = { workspace = true }
+py10x-fin-base = { path = "xx_fin" }
+py10x-fin-base-cxx = { path = "xx_fin/cxxfin" }
 
 [tool.hatch.metadata]
 allow-direct-references = true
