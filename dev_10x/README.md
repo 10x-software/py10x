@@ -474,20 +474,19 @@ On **`pre/v*`** / **`prod/v*`** publish-trigger tag push:
 - Verify `py10x-core==CORE_VER` and both siblings are **editable** (PEP 610) else fail.
 - Run py10x-core's full suite (replica-set tests auto-skip; no Mongo in cxx10x CI).
 
-### Downstream validation (after `xx_fin/` relocate — PR1)
+### Downstream validation (fin-base)
 
-Mirror the cxx10x pattern with the inverse: sibling test-group → run **core** suite; core test-group →
-run **fin-base** suite. Keep these as **separate** jobs:
+Same CI job as the core suite ([`.github/actions/ci-test-suite`](../.github/actions/ci-test-suite/action.yml)), sequential steps:
 
-| Job | Env | Runs | Purpose |
-|-----|-----|------|---------|
-| **Core (isolation)** | siblings + core; **no** fin-base / no `dependency-groups.test` | core / ui / infra / dev / xxcommon | Keep `xxfin` unimportable |
-| **Downstream validation** | core + install fin-base via core’s test-group pin (or `uv-sync … --with-downstream`) | `xx_fin/` / fin-base tests | Use fin-base suite to validate coordinated core |
+| Step | Env | Check |
+|------|-----|--------|
+| **Core isolation** | siblings + core; **no** `--with-downstream` | `find_spec('xxfin') is None`, then core / ui / infra / dev / xxcommon pytest |
+| **Downstream** | same venv + `uv-sync … --with-downstream` | `import xxfin; import cxxfin`, then `pytest xx_fin/` |
 
-Do not fold fin-base into the default isolation job — same split as “core suite on cxx10x” vs
-“core suite without accidental fin-base.” Default `pytest` ignores in-repo downstream trees
-(`xx_fin/`, from `[tool.dev_10x.downstream]`) unless that dist is installed; editable core
-installs fall back to hatch wheel package names for the owned-top filter.
+Do not install fin-base before the core suite — that would break isolation. Default `pytest`
+ignores in-repo downstream trees (`xx_fin/`, from `[tool.dev_10x.downstream]`) unless that dist
+is installed; editable core installs fall back to hatch wheel package names for the owned-top
+filter.
 
 ### py10x `finbase_wheel.yml` (downstream publish)
 

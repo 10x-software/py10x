@@ -3,7 +3,7 @@ name = "py10x-fin-base"
 description = "10x Financial Domain Foundation"
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 dynamic = ["version"]
 authors = [
     { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },

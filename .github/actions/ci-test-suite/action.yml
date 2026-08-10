@@ -1,10 +1,12 @@
 name: CI test suite
 description: >-
-  Install cxx siblings, verify constraints, MongoDB, Playwright, and run pytest.
-  With asan=true, build the cxx10x backend under AddressSanitizer and run the
-  suite under it (nightly memory-error diagnostics), capturing a symbolized C++
-  report on any fault. With asan=false (default), build/test the standard
-  release configuration.
+  Install cxx siblings, verify constraints, assert core isolation (xxfin absent),
+  MongoDB, Playwright, run core pytest, then install fin-base (--with-downstream)
+  and run xx_fin tests. With asan=true, build the cxx10x backend under
+  AddressSanitizer and run the core suite under it (nightly memory-error
+  diagnostics), capturing a symbolized C++ report on any fault. With asan=false
+  (default), build/test the standard release configuration. Fin-base/cxxfin is
+  always a normal (non-ASan) build in the downstream steps.
 inputs:
   python-version:
     description: Python version to install via uv
@@ -81,6 +83,13 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check
+
+    # Core isolation: fin-base must not be importable until --with-downstream (after core pytest).
+    - name: Assert xxfin not importable (core isolation)
+      shell: bash
+      run: |
+        source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+        python -c "import xxcommon; import importlib.util as u; assert u.find_spec('xxfin') is None, 'xxfin must not be importable in the core CI env'"
 
     - name: Verify the extension is ASan-instrumented
       if: inputs.asan == 'true'
@@ -213,3 +222,28 @@ runs:
         for f in asan_win/asan.*; do [ -e "$f" ] && { echo "===== ASan report: $f ====="; cat "$f"; }; done
         echo "cdb exit: ${cdb_rc}; pytest exit code: ${code}"
         exit "${code}"
+
+    # Downstream validation (same job, after core suite): install fin-base then run xx_fin tests.
+    # Core isolation was asserted before the core suite; xxfin must be importable here.
+    # Unset ENABLE_SANITIZERS so cxxfin is a normal build even on ASan nightlies (functional check).
+    - name: Install fin-base (--with-downstream)
+      shell: bash
+      env:
+        ENABLE_SANITIZERS: ""
+        WAIT_FOR_SIBLING_BRANCH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cxx10x_branch.outputs.branch || '' }}
+      run: |
+        source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+        unset ENABLE_SANITIZERS
+        python -m dev_10x.uv_sync py10x-core-dev --all-extras --with-downstream
+
+    - name: Assert xxfin importable and run fin-base tests
+      shell: bash
+      env:
+        PYTHONUNBUFFERED: "1"
+        XX_TEST_STRICT: ${{ inputs.runner-os == 'Windows' && '0' || '1' }}
+        ENABLE_SANITIZERS: ""
+      run: |
+        source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+        unset ENABLE_SANITIZERS
+        python -c "import xxfin; import cxxfin; print(xxfin.__file__); print(cxxfin.__file__)"
+        python -m pytest xx_fin/

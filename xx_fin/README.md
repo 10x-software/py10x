@@ -1,4 +1,25 @@
-# XXFIN 
+# XXFIN
+
+## Install
+
+Install the consumer package only:
+
+```bash
+pip install py10x-fin-base
+# or: uv pip install py10x-fin-base
+```
+
+That pulls **`py10x-fin-base-cxx`** transitively (import `cxxfin`). Do not depend on the cxx
+dist directly. Requires Python `>=3.11,<3.14` and a published `py10x-core` (plus its kernel/infra).
+
+In this monorepo the packaging root is [`xx_fin/`](.). Domain developers typically use editable
+path sources from a sibling `../py10x` checkout — see `xx-fin-domain` `BUILD-NOTES.txt`.
+
+```python
+from xxfin.ccy import Ccy
+import cxxfin  # native extension from py10x-fin-base-cxx
+```
+
 ## About
 The xxfin package of the 10x project serves a dual purpose:
 
