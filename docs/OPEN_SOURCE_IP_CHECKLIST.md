@@ -6,12 +6,12 @@ This document helps you prepare the `py10x-core` project for open-source release
 
 ## 1. Current state (as of this checklist)
 
-| Item | Status | Notes |
-|------|--------|--------|
-| **Project license** | MIT | `LICENSE` file present; copyright Copyright 2025-2026 10X CONCEPTS LLC |
-| **Copyright in source** | Root only | No file-level copyright headers in `.py` files. Optional to add (see below). |
-| **Third-party code** | None found | No "Based on", "From", "Source:", or vendored copies detected in repo. |
-| **NOTICE / THIRD_PARTY** | Optional | `NOTICE` in repo root if used for third-party attribution. |
+| Item | Status | Notes                                                                                   |
+|------|--------|-----------------------------------------------------------------------------------------|
+| **Project license** | MIT | `LICENSE` file present; copyright Copyright 2025-2026 10X CONCEPTS LLC and contributors |
+| **Copyright in source** | Root only | No file-level copyright headers in `.py` files. Optional to add (see below).            |
+| **Third-party code** | None found | No "Based on", "From", "Source:", or vendored copies detected in repo.                  |
+| **NOTICE / THIRD_PARTY** | Optional | `NOTICE` in repo root if used for third-party attribution.                              |
 
 ---
 

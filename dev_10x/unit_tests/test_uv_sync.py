@@ -15,6 +15,7 @@ from dev_10x.uv_sync import (
     _no_build_isolation_packages,
     _normalize_git_url,
     _parse_with_downstream,
+    _pip_extras_args,
     _swap_repo,
     _workspace_member_paths,
     packages,
@@ -64,6 +65,12 @@ class TestWithDownstream:
     def test_parse_flag_alone_means_all(self):
         enabled, names, rest = _parse_with_downstream(('--with-downstream',))
         assert enabled and names is None and rest == []
+
+    def test_pip_extras_args_extracts_all_extras_and_extra(self):
+        assert _pip_extras_args(('--all-extras', '--quiet')) == ['--all-extras']
+        assert _pip_extras_args(('--extra', 'bbg', '--all-extras', '--verbose')) == ['--extra', 'bbg', '--all-extras']
+        assert _pip_extras_args(('--extra=dev',)) == ['--extra=dev']
+        assert _pip_extras_args(('--quiet',)) == []
 
     def test_default_omits_downstream(self):
         all_pkgs = {

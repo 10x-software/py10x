@@ -343,8 +343,10 @@ installed dist came back non-editable (pin pulled an index build).
 Git URLs are derived from the sibling `path` and `origin` (`_swap_repo` preserves SSH vs HTTPS).
 Branch from `[tool.dev_10x] branch` (default `main`).
 
-Extras are **not** forced — pass `--all-extras` / `--extra X` as `uv-sync` args (they bind to the
-step-2 `--requirements pyproject.toml` install).
+Extras are **not** forced — pass `--all-extras` / `--extra X` as `uv-sync` args. They bind to the
+step-2 `--requirements pyproject.toml` install **and** are forwarded onto opt-in downstream
+installs as `-e <path> --all-extras --requirements <path>/pyproject.toml` (uv rejects bare
+`-e path --all-extras`).
 
 `py10x-core-dev` also runs `playwright install chromium` when needed.
 
