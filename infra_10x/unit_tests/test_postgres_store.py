@@ -13,6 +13,7 @@ from datetime import datetime  # noqa: TC003  # used as runtime trait data_type
 
 import ibis
 import pytest
+import uuid6
 from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
@@ -274,6 +275,30 @@ def test_instance_from_uri(postgres_store):
     store = TsStore.instance_from_uri(uri, _cache=False)
     assert isinstance(store, PostgresStore)
     assert store.auth_user() is not None
+
+
+def test_list_databases_prefix_underscores_are_literal(postgres_store):
+    """``list_databases`` must not treat ``_`` in the prefix as a LIKE wildcard.
+
+    ``TEST_DB_PREFIX`` is ``py10x_test``; a LIKE ``py10x_test%`` would also match
+    ``py10xXtest…``, and ``xx-test-db-clean drop`` would delete those. Mongo uses
+    ``str.startswith``; Postgres must match that literal-prefix contract.
+    """
+    # Maintenance DB — CREATE/DROP DATABASE cannot run against the target itself.
+    store = _short_lived_postgres(test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name, session_db='postgres'))
+    prefix = test_databases.TEST_DB_PREFIX
+    uid = uuid6.uuid7().hex[:8]
+    real = f'{prefix}_lit_{uid}'
+    decoy = prefix.replace('_', 'X', 1) + f'_decoy_{uid}'  # matches LIKE, not startswith
+    try:
+        for name in (real, decoy):
+            store._execute(f'CREATE DATABASE {store._qdb(name)}')
+        names = store.list_databases(prefix)
+        assert real in names
+        assert decoy not in names
+    finally:
+        for name in (real, decoy):
+            store.delete_database(name)
 
 
 def test_rewrite_qmark_binds_skips_literals_and_jsonb_ops():
