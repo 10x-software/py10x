@@ -1,4 +1,6 @@
-from datetime import date
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from core_10x.traitable import T
 from xxcommon.curve import DateCurve
@@ -7,6 +9,9 @@ from xxcommon.rdate import BIZDAY_ROLL_RULE, PROPAGATE_DATES, TENOR_FREQUENCY, R
 from xxfin.day_count_convention import DAY_COUNT_CONVENTION
 from xxfin.fin_calendar import FinCalendar
 from xxfin.ir_compounding import COMPOUND_TRANSFORM, COMPOUNDING, compounding_apply
+
+if TYPE_CHECKING:
+    from datetime import date
 
 
 class RateCurve(DateCurve):

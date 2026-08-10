@@ -192,3 +192,30 @@ exclude = [
     "N806", # Variable in function should be lowercase
     "C408", # Unnecessary `dict()` call (rewrite as a literal)
 ]
+"xx_fin/xxfin/ccy_cross.py" = [
+    "BLE001", # Do not catch blind exception: `Exception`
+    "N815",   # Variable in class scope should not be mixedCase
+]
+"xx_fin/xxfin/dev_data_helpers/RUN_ME.py" = [
+    "N999",   # Invalid module name: 'RUN_ME'
+]
+"xx_fin/xxfin/root_solver.py" = [
+    "E701",   # Multiple statements on one line (colon)
+    "BLE001", # Do not catch blind exception: `Exception`
+]
+"xx_fin/xxfin/*_curve.py" = [
+    "E701",   # Multiple statements on one line (colon)
+]
+"xx_fin/xxfin/manual_tests/fin_instrument_test.py" = [
+    "E701",   # Multiple statements on one line (colon)
+]
+"xx_fin/xxfin/ir_swap_quotable.py" = [
+    "BLE001", # Do not catch blind exception: `Exception`
+]
+"xx_fin/xxfin/fin_calendar.py" = [
+    "N813", # Camelcase `QuantLib` imported as lowercase `ql`
+    "BLE001", # Do not catch blind exception: `Exception`
+]
+"xx_fin/xxfin/fin_instrument.py" = [
+    "DTZ901", # Use of `datetime.datetime.max` without timezone information
+]

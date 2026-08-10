@@ -26,8 +26,8 @@ class FutureMonth:
 
         try:
             year = int(contract[1:])
-        except Exception:
-            raise AssertionError(f'Invalid contract year {contract[1:]} in {contract}')
+        except Exception as e:
+            raise AssertionError(f'Invalid contract year {contract[1:]} in {contract}') from e
 
         if n == 5:
             if year <= cls.BEGINNING_OF_TIME:

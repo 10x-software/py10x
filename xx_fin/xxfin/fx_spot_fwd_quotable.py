@@ -1,10 +1,15 @@
-from datetime import date
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from core_10x.traitable import RT, M, T
 from xxcommon.rdate import RDate
 
 from xxfin.fx_mkt_conventions import FXMktConventions
 from xxfin.mkt_quotable import SingleMktQuote
+
+if TYPE_CHECKING:
+    from datetime import date
 
 
 class FXSpotQuotable(SingleMktQuote):

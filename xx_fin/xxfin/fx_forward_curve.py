@@ -66,7 +66,7 @@ class FXForwardCurveSimple(TenorBasedSyntheticCurve, mas_class = FxForwardCurveM
 
     def payload_get(self) -> DateCurve:
         fx_crv = DateCurve(beginning_of_time = self.md_date)
-        for q_cls, quotables_by_date in self.quotables_by_class.items():
+        for quotables_by_date in self.quotables_by_class.values():
             for d, quotable in quotables_by_date.items():
                 fx_crv.update(d, quotable.quote)
 

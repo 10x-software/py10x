@@ -1,8 +1,13 @@
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from core_10x.exec_control import UPWARD_DEPS_OFF
 from core_10x.rc import RC, RC_TRUE
 from scipy.optimize import root_scalar as _scipy_root_scalar
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 _DBG    = False
 

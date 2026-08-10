@@ -72,10 +72,7 @@ def _compile_inputs(
     if downstream_filter is not None:
         unknown = sorted(downstream_filter - set(ds))
         if unknown:
-            sys.exit(
-                f'xx-constraints: unknown downstream(s): {", ".join(unknown)}\n'
-                f'  configured: {", ".join(sorted(ds)) or "(none)"}'
-            )
+            sys.exit(f'xx-constraints: unknown downstream(s): {", ".join(unknown)}\n  configured: {", ".join(sorted(ds)) or "(none)"}')
         ds = {n: p for n, p in ds.items() if n in downstream_filter}
     inputs.update(ds)
     return inputs
@@ -229,9 +226,7 @@ def main() -> None:
         )
     if cmd == 'check':
         sys.exit(check())
-    sys.exit(
-        'Usage: xx-constraints [compile [--upgrade] [--with-downstream [name…]]|check]'
-    )
+    sys.exit('Usage: xx-constraints [compile [--upgrade] [--with-downstream [name…]]|check]')
 
 
 if __name__ == '__main__':

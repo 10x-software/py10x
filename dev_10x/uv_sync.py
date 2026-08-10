@@ -207,9 +207,7 @@ def source_version(src: Path) -> str:
     tool = doc.get('tool', {})
     # C++ / scikit-build packages: CLI loads [tool.setuptools_scm] (root, describe match).
     if 'setuptools_scm' in tool:
-        return subprocess.check_output(
-            [sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True, stderr=subprocess.DEVNULL
-        ).strip()
+        return subprocess.check_output([sys.executable, '-m', 'setuptools_scm'], cwd=src, text=True, stderr=subprocess.DEVNULL).strip()
 
     hatch_ver = tool.get('hatch', {}).get('version', {})
     if hatch_ver.get('source') == 'vcs':
@@ -452,25 +450,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     # 1. siblings / opt-in downstreams (local/git). Index siblings are handled by step 2; force a
     #    swap there only if the sibling is currently installed from a non-index source.
     print('1. siblings' + (' + downstreams' if with_downstream else '') + ':')
-    index_swaps: list[str] = []
-    for s in siblings:
-        kind = kinds[s]
-        if kind == 'index':
-            if installs.installed_source(s)[0] not in (None, 'index'):
-                index_swaps.append(s)
-            print(f'  {s}: index (resolved with core deps in step 2{" - forcing swap" if s in index_swaps else ""})')
-            continue
-        do = need_install(s, kind, pkgs[s], installs=installs)
-        if not do and toggled and kind == 'local' and pkgs[s]['cxx']:
-            print(f'  {s}: reinstall - build mode changed (XX_UV_INCREMENTAL)')
-            do = True
-        if do:
-            if kind == 'local':
-                # Downstream is not a core published dep — no forward pin to apply.
-                pin = None if pkgs[s].get('downstream') else _sibling_pin(s)
-                install_local(s, pkgs[s], pin=pin, incremental=incremental, verbose=verbose)
-            else:  # git
-                install_git(s, pkgs[s], branch)
+    index_swaps = sync_siblings(branch, incremental, installs, kinds, pkgs, siblings, toggled, verbose)
 
     # 2. core's deps (additive: keeps the local/git siblings from step 1; pulls/refreshes index
     #    siblings). Extras are NOT forced - pass `--all-extras` / `--extra X` as uv-sync args; the
@@ -498,6 +478,29 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     persist_profile(PROJECT_ROOT, profile)
     persist_incremental_state(PROJECT_ROOT, incremental)
     print(f'uv-sync `{profile}` done.')
+
+
+def sync_siblings(branch, incremental, installs, kinds, pkgs, siblings, toggled, verbose):
+    index_swaps: list[str] = []
+    for s in siblings:
+        kind = kinds[s]
+        if kind == 'index':
+            if installs.installed_source(s)[0] not in (None, 'index'):
+                index_swaps.append(s)
+            print(f'  {s}: index (resolved with core deps in step 2{" - forcing swap" if s in index_swaps else ""})')
+            continue
+        do = need_install(s, kind, pkgs[s], installs=installs)
+        if not do and toggled and kind == 'local' and pkgs[s]['cxx']:
+            print(f'  {s}: reinstall - build mode changed (XX_UV_INCREMENTAL)')
+            do = True
+        if do:
+            if kind == 'local':
+                # Downstream is not a core published dep — no forward pin to apply.
+                pin = None if pkgs[s].get('downstream') else _sibling_pin(s)
+                install_local(s, pkgs[s], pin=pin, incremental=incremental, verbose=verbose)
+            else:  # git
+                install_git(s, pkgs[s], branch)
+    return index_swaps
 
 
 # --------------------------------------------------------------------------------------------

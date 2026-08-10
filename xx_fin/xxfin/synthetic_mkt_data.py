@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import bisect
-from datetime import date
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from core_10x.traitable import RT, M, T, Traitable
 from core_10x.xnone import XNone
@@ -8,6 +9,9 @@ from xxcommon.rdate import RDate
 
 from xxfin.mkt_data_basis import MktDataBasis
 from xxfin.mkt_quotables_scope import MktQuotablesScope
+
+if TYPE_CHECKING:
+    from datetime import date
 
 
 class MktAssembly(Traitable):

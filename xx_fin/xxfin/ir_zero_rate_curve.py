@@ -112,7 +112,7 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, mas_class = IRZeroRateCurveMas):
                   f'pay_calendar = {pay_calendar.name}, pay_roll_rule = {pay_roll_rule.name}, pay_delay = {pay_offset.symbol()}, \n')
 
         quotable: IRSwapQuotable
-        for end_date, quotable in quotables.items():
+        for quotable in quotables.values():
             tenor = quotable.tenor
 
             if _DBG:    # pragma: no cover

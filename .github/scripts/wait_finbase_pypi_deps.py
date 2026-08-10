@@ -68,7 +68,7 @@ def _pypi_release_exists(name: str, version: str) -> bool:
     """True when JSON lists files and the simple index lists this version (pip-visible)."""
     json_url = f'https://pypi.org/pypi/{name}/{version}/json'
     try:
-        with urllib.request.urlopen(json_url, timeout=30) as resp:  # noqa: S310 - fixed PyPI host
+        with urllib.request.urlopen(json_url, timeout=30) as resp:
             if resp.status != 200:
                 return False
             data = json.load(resp)
@@ -82,7 +82,7 @@ def _pypi_release_exists(name: str, version: str) -> bool:
     # Pip resolves via the simple API; JSON can briefly lead the CDN.
     simple_url = f'https://pypi.org/simple/{_normalize_project(name)}/'
     try:
-        with urllib.request.urlopen(simple_url, timeout=30) as resp:  # noqa: S310
+        with urllib.request.urlopen(simple_url, timeout=30) as resp:
             html = resp.read().decode('utf-8', errors='replace')
     except urllib.error.HTTPError as e:
         if e.code == 404:
@@ -96,7 +96,7 @@ def _pypi_release_exists(name: str, version: str) -> bool:
 
 def _pypi_requires_dist(name: str, version: str) -> list[str]:
     url = f'https://pypi.org/pypi/{name}/{version}/json'
-    with urllib.request.urlopen(url, timeout=30) as resp:  # noqa: S310
+    with urllib.request.urlopen(url, timeout=30) as resp:
         data = json.load(resp)
     return list(data.get('info', {}).get('requires_dist') or [])
 

@@ -71,7 +71,7 @@ def test_allow_installed_xxfin_when_py10x_dist_owns_it(monkeypatch, tmp_path):
 
     monkeypatch.setattr(pp, 'PY10X_ROOT', site)
     monkeypatch.setattr(pp, '_owned_top_levels', lambda: {'core_10x', 'dev_10x'})
-    monkeypatch.setattr(pp, '_downstream_tops', lambda: {})  # no source pyproject
+    monkeypatch.setattr(pp, '_downstream_tops', dict)  # no source pyproject
     monkeypatch.setattr(pp, '_installed_py10x_dist_names', lambda: frozenset({'py10x-fin-base'}))
     monkeypatch.setattr(pp, '_tops_from_dist', lambda name: {'xxfin'} if name == 'py10x-fin-base' else set())
 
@@ -87,7 +87,7 @@ def test_ignore_installed_xxfin_when_no_py10x_dist_owns_it(monkeypatch, tmp_path
 
     monkeypatch.setattr(pp, 'PY10X_ROOT', site)
     monkeypatch.setattr(pp, '_owned_top_levels', lambda: {'core_10x'})
-    monkeypatch.setattr(pp, '_downstream_tops', lambda: {})
+    monkeypatch.setattr(pp, '_downstream_tops', dict)
     monkeypatch.setattr(pp, '_installed_py10x_dist_names', lambda: frozenset())
     monkeypatch.setattr(pp, '_dist_installed', lambda _name: False)
 
