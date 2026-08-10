@@ -74,8 +74,9 @@ any other currency.
 `xxfin/jit_aadc/` optionally records curve/valuation code into a JIT-compiled adjoint
 differentiation kernel using [MatLogica's AADC](https://pypi.org/project/aadc/) (Adjoint Algorithmic
 Differentiation Compiler), enabled via the `use_cxxfin`/`aadc_license` settings in
-`xxfin_env_vars.py`. `aadc` installs freely from PyPI and is a required dependency on non-macOS platforms; it's excluded
-on macOS because MatLogica doesn't publish an aadc build for that platform. It ships with a
+`xxfin_env_vars.py`. `aadc` installs freely from PyPI where MatLogica publishes wheels; it is a
+required dependency except on macOS (no published build) and on Windows under Python 3.13 (no
+wheel yet). It ships with a
 time-limited trial license out of the box, but continued or production use requires a license key
 obtained from MatLogica. `xxfin` itself
 works fully without it — AADC only accelerates the JIT-compiled code path.

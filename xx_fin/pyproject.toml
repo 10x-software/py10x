@@ -14,7 +14,7 @@ dependencies = [
     "py10x-core (>=0.2.3rc51,<0.2.3rc52)",
     "py10x-fin-base-cxx (==0.1.0rc5)",  # co-released; same version as this package
     "quantlib-python>=1.18",
-    "aadc>=1.8.2; sys_platform != 'darwin'",
+    "aadc>=1.8.2; sys_platform != 'darwin' and (sys_platform != 'win32' or python_version != '3.13')",
 ]
 
 [project.optional-dependencies]

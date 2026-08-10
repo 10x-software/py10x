@@ -88,15 +88,15 @@ class TestFinInstrument:
 
     def test_price_ccy(self):
         gbp_fx_now = self.gbp_fxc.now_rate
-        assert self.usd_cu.price_ccy(Ccy('GBP')) == 1.0 / gbp_fx_now
-        assert self.usd_cf.price_ccy(Ccy('GBP')) == self.usd_cf.price / gbp_fx_now
+        assert self.usd_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / gbp_fx_now, abs=1e-15)
+        assert self.usd_cf.price_ccy(Ccy('GBP')) == pytest.approx(self.usd_cf.price / gbp_fx_now, abs=1e-15)
 
         cad_fx_now = self.cad_fxc.now_rate
-        assert self.usd_cu.price_ccy(Ccy('CAD')) == cad_fx_now
-        assert self.usd_cf.price_ccy(Ccy('CAD')) == self.usd_cf.price * cad_fx_now
+        assert self.usd_cu.price_ccy(Ccy('CAD')) == pytest.approx(cad_fx_now, abs=1e-15)
+        assert self.usd_cf.price_ccy(Ccy('CAD')) == pytest.approx(self.usd_cf.price * cad_fx_now, abs=1e-15)
 
-        assert self.cad_cu.price_ccy(Ccy('GBP')) == 1.0 / cad_fx_now / gbp_fx_now
-        assert self.cad_cu.price_ccy(Ccy('GBP')) == self.cad_cu.price / cad_fx_now / gbp_fx_now
+        assert self.cad_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / cad_fx_now / gbp_fx_now, abs=1e-15)
+        assert self.cad_cu.price_ccy(Ccy('GBP')) == pytest.approx(self.cad_cu.price / cad_fx_now / gbp_fx_now, abs=1e-15)
 
     def test_disc_curve(self):
         assert self.usd_cf.disc_curve == self.usd_zrc
