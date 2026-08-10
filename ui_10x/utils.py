@@ -487,6 +487,17 @@ class UxSearchableList(ux.GroupBox):
             self.w_list.clear()
             self.w_list.add_items(self.current_choices)
 
+    def release(self):
+        """Drop the select-hook pin and any Traitable choice/selection values.
+
+        The widget tree often outlives the controller; without this, bound-method
+        hooks and Traitable choices keep Traitables alive past test isolation.
+        """
+        self.hook = None
+        self.selection = None
+        self.initial_choices.clear()
+        self.current_choices = []
+
 class UxTreeViewer(ux.TreeWidget):
     s_label_max_length  = 40
 
