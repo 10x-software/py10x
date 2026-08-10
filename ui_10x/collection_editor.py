@@ -2,7 +2,6 @@ from typing import Any
 
 from core_10x.trait_filter import f
 from core_10x.traitable import RC, RT, T, Traitable
-from core_10x.traitable_id import ID
 
 from ui_10x.entity_stocker import EntityStocker, StockerPlug
 from ui_10x.traitable_editor import TraitableEditor
@@ -19,17 +18,17 @@ class Collection(Traitable):
     cls: type[Traitable]
     filter: f = RT(T.HIDDEN)
 
-    entity_ids: list[str]
+    entities: list[Traitable]
 
     def cls_set(self, t, cls) -> RC:
         assert issubclass(cls, Traitable), f'{cls} is not a Traitable class'
         return self.raw_set_trait_value(t, cls)
 
-    def entity_ids_get(self) -> list[str]:
-        return [entity_id.value for entity_id in self.cls.load_ids()]
+    def entities_get(self) -> list[Traitable]:
+        return [self.cls(_id=entity_id) for entity_id in self.cls.load_ids()]
 
     def refresh(self):
-        self.invalidate_value('entity_ids')
+        self.invalidate_value('entities')
 
 
 class CollectionEditor(Traitable):
@@ -71,8 +70,8 @@ class CollectionEditor(Traitable):
         self.searchable_list = list_w = UxSearchableList(
             text_widget = line_w,
             title       = f'Instances of {self.coll.cls.__name__}',
-            choices     = self.coll.entity_ids,
-            select_hook = self.on_entity_id_selection,
+            choices     = self.coll.entities,
+            select_hook = self.on_entity_selection,
             sort        = True,
         )
         # fmt: on
@@ -103,12 +102,11 @@ class CollectionEditor(Traitable):
                 main_w.add_widget(w)
                 self.num_panes = num_panes + 1
 
-    def on_entity_id_selection(self, id_value: str):
+    def on_entity_selection(self, entity: Traitable):
         if self.num_panes:
-            obj: Traitable = self.coll.cls(_id=ID(id_value))
             se = self.stocker
-            ed = se or TraitableEditor.editor(obj)
-            self.current_entity = obj
+            ed = se or TraitableEditor.editor(entity)
+            self.current_entity = entity
             self.current_editor = ed
             w = ed.main_widget()
             self.set_pane(0, w)
@@ -125,11 +123,11 @@ class CollectionEditor(Traitable):
                     # -- TODO: should we "merge" values from the existing instance?
 
                 else:
-                    self.searchable_list.add_choice(new_entity.id().value)
+                    self.searchable_list.add_choice(new_entity)
 
             ed.popup(copy_entity=False, title=f'New Entity of {cls.__name__}', save=True, accept_hook=accept_hook)
 
     def on_deleted_entity(self, deleted_entity: Traitable):
-        self.searchable_list.remove_choice(deleted_entity.id().value)
+        self.searchable_list.remove_choice(deleted_entity)
         if self.current_entity is deleted_entity:
             self.set_pane(0, ux.Widget())
