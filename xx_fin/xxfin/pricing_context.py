@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date
 
 from core_10x.named_constant import Enum
 from core_10x.traitable import RT, T, Traitable
 
 from xxfin.snapshot import SNAPSHOT
 from xxfin.xxfin_env_vars import XXFinEnvVars
-
-if TYPE_CHECKING:
-    from datetime import date
-
 
 class PRICING_MODE(Enum):
     PRICING     = ()

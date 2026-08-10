@@ -54,8 +54,12 @@ ignore = [
     "N801",  # Class name should use CapWords convention
     "E501",  # Line too long
     "F401",  # Unused imports
-    "TC001", # Overly aggressive suggestion to move imports to if TYPE_CHECKING
-    "TC002", # Overly aggressive suggestion to move imports to if TYPE_CHECKING
+    # Traitable eval's string annotations against the module dict. Moving names used in
+    # trait annotations (e.g. `date`) under TYPE_CHECKING leaves undeclared names that
+    # match the bare-identifier forward-ref path and break at runtime — keep TC* off.
+    "TC001", # move application import into TYPE_CHECKING
+    "TC002", # move third-party import into TYPE_CHECKING
+    "TC003", # move standard-library import into TYPE_CHECKING
     # TODO: naive datetime policy — adopt timezone-aware APIs/tests when designed; until then silence DTZ*
     "DTZ001", # missing `tzinfo` parameter
     "DTZ003", # `datetime.datetime.utcnow()` used

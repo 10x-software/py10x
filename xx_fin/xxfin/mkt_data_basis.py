@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date
 
 from core_10x.traitable import RC, RT, M, T, Traitable
 
 from xxfin.mkt_conventions import MktConventions
 from xxfin.snapshot import SNAPSHOT
-
-if TYPE_CHECKING:
-    from datetime import date
-
 
 class MktDataBasis(Traitable):
     provider_name: str  = T(T.ID | T.NOT_EMPTY) // 'Mkt Data Provider Name, e.g., BBG'  #-- using Enum seems not ideal due to extensions
