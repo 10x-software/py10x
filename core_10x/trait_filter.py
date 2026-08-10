@@ -163,7 +163,9 @@ class IN(Op):
         It is stripped here and folded back by the caller as an explicit NULL test — which is
         also exactly what Mongo means by ``$in`` / ``$nin`` matching missing fields.
 
-        ``isin_pred`` is None when every value was ``None`` (nothing left to match).
+        ``isin_pred`` is None when nothing concrete remains: either the list was empty
+        (``IN([])`` / ``NIN([])``) or every value was ``None``. Callers distinguish those via
+        ``has_none`` (False for empty, True for all-None).
         """
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         values = list(self.serialize_right_value(field_name, trait_dir))
@@ -173,8 +175,9 @@ class IN(Op):
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         col, pred, has_none = self._ibis_isin(ibis_collection, field_name, trait_dir)
-        if pred is None:  # -- IN([None]): only a missing / null field qualifies
-            return col.isnull()
+        if pred is None:
+            # IN([]): match nothing. IN([None, ...]): only missing / null qualifies.
+            return col.isnull() if has_none else False
         return col.isnull() | pred if has_none else pred
 
 
@@ -187,8 +190,9 @@ class NIN(IN):
         # Mongo's $nin matches missing fields (same reasoning as NE.ibis) — *unless* None is
         # itself excluded, in which case missing/null are excluded along with it.
         col, pred, has_none = self._ibis_isin(ibis_collection, field_name, trait_dir)
-        if pred is None:  # -- NIN([None]): every field that is actually present
-            return col.notnull()
+        if pred is None:
+            # NIN([]): match everything. NIN([None, ...]): every field that is present.
+            return col.notnull() if has_none else True
         return col.notnull() & ~pred if has_none else col.isnull() | ~pred
 
 
@@ -271,13 +275,23 @@ class f(_filter):
             name: expression if isinstance(expression, _filter) else EQ(expression) for name, expression in named_expressions.items()
         }
 
-    def _apply(self, trait_dir, filter_fn, named_fn, reduce_fn, combine_fn):
-        """Iterate self.filter and self.named_expressions, apply fns, combine with operator.and_."""
+    def _apply(self, trait_dir, filter_fn, named_fn, reduce_fn, combine_fn, *, empty):
+        """Iterate self.filter and self.named_expressions, apply fns, combine with operator.and_.
+
+        ``empty`` is the no-constraint result when both sides are absent (``f()``): True for
+        eval/ibis, ``{}`` for prefix_notation.
+        """
         td = self.trait_dir or trait_dir
         f = filter_fn(self.filter, td) if self.filter else None
         n = [(name, r) for name, op in self.named_expressions.items() if (r := named_fn(name, op, td)) is not None]
         r = reduce_fn(n) if n else None
-        return combine_fn(f, r) if f is not None and r is not None else f if f is not None else r
+        if f is not None and r is not None:
+            return combine_fn(f, r)
+        if f is not None:
+            return f
+        if r is not None:
+            return r
+        return empty
 
     def eval(self, traitable_instance: Traitable) -> bool:
         return self._apply(
@@ -286,6 +300,7 @@ class f(_filter):
             named_fn=lambda trait_name, op, td: op.eval(traitable_instance[trait_name]),
             reduce_fn=lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
             combine_fn=operator.and_,
+            empty=True,
         )
 
     def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
@@ -295,6 +310,7 @@ class f(_filter):
             named_fn=lambda name, op, td: op.prefix_notation(field_name=name, trait_dir=td),
             reduce_fn=lambda parts: dict(parts) if parts else None,
             combine_fn=lambda a, b: {AND.label: [a, b]},
+            empty={},
         )
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
@@ -304,4 +320,5 @@ class f(_filter):
             named_fn=lambda name, op, td: op.ibis(ibis_collection, name, td),
             reduce_fn=lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
             combine_fn=operator.and_,
+            empty=True,
         )
