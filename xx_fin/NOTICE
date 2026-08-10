@@ -28,10 +28,11 @@ optionally depend on them; installing xxfin/cxxfin does not grant any rights
 to them, and using them is subject to their own vendors' terms.
 
   - aadc
-    Python interface to MatLogica's AADC (Adjoint Algorithmic Differentiation
-    Compiler). Installable from PyPI without restriction and ships with a
-    time-limited trial license out of the box; continued or production use
-    requires a license key obtained from MatLogica.
+    Copyright (c) MatLogica Limited. Proprietary Python interface to MatLogica's
+    AADC (Adjoint Algorithmic Differentiation Compiler). Installable from PyPI
+    without restriction and ships with a time-limited trial license out of the
+    box; continued or production use requires a license key obtained from
+    MatLogica.
     https://pypi.org/project/aadc/
 
   - blpapi (optional "bbg" extra)

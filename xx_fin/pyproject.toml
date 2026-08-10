@@ -3,7 +3,7 @@ name = "py10x-fin-base"
 description = "10x Financial Domain Foundation"
 license = { text = "MIT" }
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 dynamic = ["version"]
 authors = [
     { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
@@ -14,7 +14,7 @@ dependencies = [
     "py10x-core (>=0.2.3rc51,<0.2.3rc52)",
     "py10x-fin-base-cxx (==0.1.0rc5)",  # co-released; same version as this package
     "quantlib-python>=1.18",
-    "aadc>=1.8.2; sys_platform != 'darwin'",
+    "aadc>=1.8.2; sys_platform != 'darwin' and (sys_platform != 'win32' or python_version != '3.13')",
 ]
 
 [project.optional-dependencies]

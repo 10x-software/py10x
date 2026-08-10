@@ -819,6 +819,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 class TraitableFwdRef(Traitable, root_class=True):
     """Internal base for deferred sibling Traitable annotations; not for direct use."""
 
+    s_name_prefix = '_TraitableFwdRefPlaceholder#'
+
     @staticmethod
     def resolve_key(owner_cls: type, referenced_simple_name: str) -> str:
         """Canonical name of the referenced sibling (trailing segment of :meth:`~PyClass.name` swapped)."""
@@ -828,18 +830,31 @@ class TraitableFwdRef(Traitable, root_class=True):
             return referenced_simple_name
         return f'{full[:dot]}.{referenced_simple_name}'
 
-    def __new__(cls, *args, **kwargs):
+    @classmethod
+    def unresolved_message(cls) -> str:
+        """Human-readable error when a placeholder type is used before the name resolves."""
         if cls is TraitableFwdRef:
-            raise TypeError('TraitableFwdRef cannot be instantiated')
-        rk = cls.__name__.split('#')
-        if len(rk) < 2:
-            raise TypeError('TraitableFwdRef may not be subclassed from application code')
-        raise TypeError(f'Traitable forward reference {rk[1]!r} is unresolved; define the referenced Traitable subclass or fix the annotation.')
+            return 'TraitableFwdRef cannot be used as a trait data type'
+        if not cls.__name__.startswith(TraitableFwdRef.s_name_prefix):
+            return 'TraitableFwdRef may not be subclassed from application code'
+        referenced = cls.__name__[len(TraitableFwdRef.s_name_prefix) :]
+        return f'`{referenced}` is not defined'
+
+    def __new__(cls, *args, **kwargs):
+        raise TypeError(cls.unresolved_message())
+
+    @classmethod
+    def from_str(cls, s: str) -> Nucleus:
+        raise TypeError(cls.unresolved_message())
+
+    @classmethod
+    def from_any_xstr(cls, value) -> Nucleus:
+        raise TypeError(cls.unresolved_message())
 
     @staticmethod
     @cache
     def placeholder(mod_nm: str, resolve_key: str) -> type:
-        placeholder = types.new_class(f'_TraitableFwdRefPlaceholder#{resolve_key}', (TraitableFwdRef,), {'root_class': True})
+        placeholder = types.new_class(f'{TraitableFwdRef.s_name_prefix}{resolve_key}', (TraitableFwdRef,), {'root_class': True})
         placeholder.__module__ = mod_nm
         return placeholder
 
@@ -1319,6 +1334,12 @@ class NamedTraitable(Traitable):
 
 class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_class=True):
     def post_ctor(self): ...
+
+    def is_acceptable_type(self, data_type: type) -> bool:
+        dt = self.data_type
+        if isinstance(dt, type) and issubclass(dt, TraitableFwdRef) and dt is not TraitableFwdRef:
+            raise TypeError(dt.unresolved_message())
+        return issubclass(data_type, dt)
 
     def check_integrity(self, cls, rc: RC):
         super().check_integrity(cls, rc)

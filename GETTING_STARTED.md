@@ -804,9 +804,11 @@ class Customer(Traitable):
 
 `py10x-core` resolves bare string annotations (simple identifiers only) lazily: as each `Traitable` class is registered, any pending forward references that match its name are patched automatically. No manual `update_forward_refs()` call is needed.
 
+If a bare name never resolves (missing import such as `date`, or a sibling Traitable that is never defined), the trait keeps an internal placeholder type. **Using** that trait — assignment, conversion, or constructing the placeholder — raises a clear error such as `` `xxfin.mkt_data_basis.date` is not defined `` rather than a misleading type-mismatch against the placeholder.
+
 **Limitations**:
 
-- Only **bare identifiers** (`"Peer"`) can be deferred. Composite forms such as `"list[Peer]"`, `"Optional[Peer]"`, and similar must resolve immediately — define the referenced class earlier, or use `typing.TYPE_CHECKING` to guard a non-string annotation.
+- Only **bare identifiers** (`Peer`) can be deferred. Composite forms such as `list[Peer]`, `Optional[Peer]`, and similar must resolve immediately — define the referenced class earlier, or use `typing.TYPE_CHECKING` to guard a non-string annotation.
 - Forward references across **different packages** work if the target class is imported and registered before the referencing module is fully evaluated; if uncertain, put the import at the top of the file rather than relying on deferred resolution.
 
 ## Execution Modes and Control

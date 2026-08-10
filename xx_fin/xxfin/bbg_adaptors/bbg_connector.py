@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date
 
 from core_10x.traitable import T
 
 from xxfin.mkt_adaptor import MktDataConnector
-
-if TYPE_CHECKING:
-    from datetime import date
-
 
 class DevBbgConnector(MktDataConnector):
     """In-memory ticker/date -> px_last lookup, for dev/test fixtures. No DB/network involved."""
@@ -17,7 +13,6 @@ class DevBbgConnector(MktDataConnector):
 
     def quote(self, md_date: date, ticker: str) -> float:
         return self.records.get((ticker, md_date), float('nan'))
-
 
 class LiveBbgConnector(MktDataConnector):
     """Real Bloomberg connector via xbbg (optional `bbg` extra). Import is lazy so this module

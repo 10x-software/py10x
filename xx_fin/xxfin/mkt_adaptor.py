@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from datetime import date
 from typing import TYPE_CHECKING
 
 from core_10x.py_class import PyClass
@@ -8,8 +9,6 @@ from core_10x.trait_filter import f
 from core_10x.traitable import Bundle, T
 
 if TYPE_CHECKING:
-    from datetime import date
-
     from xxfin.mkt_quotable import SingleMktQuote
 
 

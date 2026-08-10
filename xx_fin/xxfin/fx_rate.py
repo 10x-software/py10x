@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date
 
 from core_10x.traitable import RT, T, Traitable
 
 from xxfin.ccy_cross import CcyCross
 from xxfin.fx_forward_curve import FXForwardCurve
 from xxfin.pricing_context import SNAPSHOT, PricingContext
-
-if TYPE_CHECKING:
-    from datetime import date
-
 
 class FxRate(Traitable):
     cross_name: str = RT(T.ID)
@@ -46,5 +42,4 @@ class FxRate(Traitable):
         rate2 = self.quoted_cross_rate(cross2, d, provider, today, snapshot) if cross2 else 1.
 
         return rate1**type1.value * rate2**type2.value
-
 

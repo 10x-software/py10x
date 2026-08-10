@@ -112,6 +112,7 @@ Unlike reactive frameworks:
 |------------|------|
 | Install py10x | [INSTALLATION.md](INSTALLATION.md) |
 | Learn the Traitable framework | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| Install / use fin-base (`xxfin`) | [xx_fin/README.md](xx_fin/README.md) |
 | Contribute code | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Cut a release / sync dev deps | [dev_10x/README.md](dev_10x/README.md) |
 

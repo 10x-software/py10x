@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date
 
 from core_10x.traitable import RC, Bundle, T, Traitable
 from xxcommon.rdate import RDate
 
 from xxfin.mkt_quotable import MktQuotable
-
-if TYPE_CHECKING:
-    from datetime import date
-
 
 class MktQuotablesScope(Bundle):
     s_data_per_market: dict = None

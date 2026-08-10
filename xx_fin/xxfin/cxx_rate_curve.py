@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date
 
 from cxxfin import BRateCurve as _BRateCurve
 
 from xxfin.py_rate_curve import RateCurve as _PyRateCurve
-
-if TYPE_CHECKING:
-    from datetime import date
-
 
 class RateCurve(_PyRateCurve):
     def accrual(self, d: date, today: date = None) -> float:

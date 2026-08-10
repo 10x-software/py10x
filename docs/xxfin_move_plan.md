@@ -1,12 +1,19 @@
 # Move `xxfin` / `cxxfin` → `py10x-fin-base` (extract plan)
 
-**Status:** Phase 1 done in domain (py10x-fin-base-v0.1.0rc1 published to PyPI); py10x relocate remaining  
-**Last updated:** 2026-08-06  
+**Status:** Relocate + domain hard-cut done. Live tree is `py10x/xx_fin/`; domain
+depends on editable `../py10x` (+ PyPI kernel/infra). Co-release train on PyPI through
+**fin-base/cxx `0.1.0rc5`**, core **`0.2.3rc51`** (and later `.dev` / rc bumps).  
+**Last updated:** 2026-08-10  
 
 Extract the financial base into published packages, then relocate the already-packaged
 `xx_fin/` tree into the py10x monorepo as the first real **downstream** of `py10x-core`.
 
 An earlier idea to also extract `xx_common` as `py10x-common-domain` was **cancelled**.
+
+Day-to-day domain DX: `[tool.uv.sources]` editables for `../py10x`,
+`../py10x/xx_fin`, `../py10x/xx_fin/cxxfin`. Python changes visible after merge to
+py10x `main` + `git pull --no-rebase origin main`. Work on `sandbox/<who>`; main is
+protected. Kernel/infra stay on PyPI (optional local `-e ../cxx10x/…`).
 
 ---
 
@@ -17,7 +24,7 @@ An earlier idea to also extract `xx_common` as `py10x-common-domain` was **cance
 | **Product dist** | PyPI **`py10x-fin-base`** (only consumer-facing install name) |
 | **Impl dist** | PyPI **`py10x-fin-base-cxx`** (not separately supported; pulled as a dependency) |
 | **Imports** | **`xxfin`** + **`cxxfin`** (unchanged) |
-| **Layout** | `xx_fin/{xxfin,cxxfin}` (same tree in domain today → later `py10x/xx_fin/`) |
+| **Layout** | `py10x/xx_fin/{xxfin,cxxfin}` (relocated; domain attic keeps a historical copy) |
 | **Publish shape** | **C**: two build artifacts, one product — `py10x-fin-base` depends on `py10x-fin-base-cxx` |
 | **Release (after relocate)** | First real **downstream** of `py10x-core` via `[tool.dev_10x.downstream]` |
 | **Hard cut** | Domain drops local workspace `xx_fin/` once it depends on published (or editable) dists from py10x |
@@ -33,7 +40,7 @@ An earlier idea to also extract `xx_common` as `py10x-common-domain` was **cance
 
 ```python
 from xxcommon.rdate import RDate
-from xxfin.ccy import …          # today: workspace py10x-fin-base; later: published / py10x tree
+from xxfin.ccy import …          # py10x-fin-base (published or editable ../py10x/xx_fin)
 ```
 
 Consumers install **`py10x-fin-base` only** (never depend on `py10x-fin-base-cxx` directly).
@@ -45,12 +52,11 @@ Consumers install **`py10x-fin-base` only** (never depend on `py10x-fin-base-cxx
 | Phase | Where | Status |
 |-------|--------|--------|
 | **0** | `xx-fin-domain` | **Done** — workspace packages, layout, boundary cleanup |
-| **1** | `xx-fin-domain` | **Done** — publish rehearsal; `py10x-fin-base`/`py10x-fin-base-cxx` v0.1.0rc1 live on PyPI |
-| **2** | `py10x` | Promote `[tool.dev_10x.downstream]` tooling (**PR0 done**) → relocate (**PR1**) |
-| **3** | `py10x` + domain | Relocate `xx_fin/` → `py10x/xx_fin/`; domain hard-cut to published/editable |
+| **1** | `xx-fin-domain` | **Done** — publish rehearsal; first PyPI rc from domain |
+| **2** | `py10x` | **Done** — `[tool.dev_10x.downstream]` promote tooling + live `./xx_fin` entry |
+| **3** | `py10x` + domain | **Done** — tree at `py10x/xx_fin/`; domain attic + editable/PyPI hard-cut |
 
-Do **not** invent promote/`downstream` or copy trees into py10x until Phase 1 has a working
-`pip install py10x-fin-base` (cxx wheel resolved transitively).
+Migration complete for relocate / hard-cut / CI downstream validation / consumer docs.
 
 ---
 
@@ -89,7 +95,7 @@ xx-fin-domain/
 
 ### Still open from Phase 0
 
-- [ ] Commit leftover `xxfin_positions/dev_data_helpers/` if not yet on `main` (positions store associations)
+- [x] Track `xxfin_positions/dev_data_helpers/` on domain `main` (positions store associations)
 
 ---
 
@@ -143,15 +149,14 @@ are tagged/built/published together from one tag).
 3. **Coordinate versions** — done via a shared `git describe` tag pattern (both packages resolve the
    same version from one tag) plus an exact `py10x-fin-base-cxx==<version>` pin, hand-committed in
    `xx_fin/pyproject.toml` before tagging and only *validated* (not edited) by CI — editing it
-   post-checkout left the tree dirty and produced an unpublishable `+dirty` version. **TODO:**
-   automate committing this pin as part of the release process once managed by `xx-promote` (Phase 2).
+   post-checkout left the tree dirty and produced an unpublishable `+dirty` version. Later
+   automated via `xx-promote` co-release pins (`{name}-cxx==` on fin-base release commits).
 4. **Clean venv smoke** — done, and automated: a `smoke_test` CI job installs straight from that
    run's build artifacts (not the index) across all 3 OSes and runs `import xxfin; import cxxfin`,
-   gating `publish` on it passing — not a manual post-hoc step.
-5. Skipped TestPyPI — published directly to real PyPI. `py10x-fin-base` and `py10x-fin-base-cxx`
-   `v0.1.0rc1` are both live.
-
-**Explicitly defer to Phase 2+:** `[tool.dev_10x.downstream]`, relocating trees into py10x.
+   gating `publish` on it passing — not a manual post-hoc step. Post-relocate workflow also waits
+   for pip-visible sibling releases before smoke (`wait_finbase_pypi_deps`).
+5. Skipped TestPyPI — published directly to real PyPI. First domain rc was `v0.1.0rc1`; py10x
+   co-release train has continued (e.g. `v0.1.0rc5`).
 
 ---
 
@@ -251,33 +256,36 @@ Prefer a **parameterized** publish workflow template so additional downstreams a
 
 ---
 
-## Phase 3 — Relocate + domain hard-cut
+## Phase 3 — Relocate + domain hard-cut (**done**)
 
-1. Move `xx-fin-domain/xx_fin/` → `py10x/xx_fin/` (same internal layout; history rewrite optional).
-2. Register downstream(s); split CI; move/adapt publish workflows to py10x.
-3. Domain: depend on published/editable `py10x-fin-base`; remove workspace members / local `xx_fin/`.
-4. Keep `from xxfin…` everywhere (import name unchanged).
+1. ~~Move `xx-fin-domain/xx_fin/` → `py10x/xx_fin/`~~ — live under py10x; domain copy in `attic/xx_fin/`.
+2. ~~Register downstream; publish workflows on py10x~~ — `[tool.dev_10x.downstream]`,
+   `finbase_wheel.yml`. CI: same job asserts isolation then `--with-downstream` + `xx_fin/` tests.
+3. ~~Domain hard-cut~~ — depends on `py10x-fin-base`; no local workspace member.
+4. Imports remain `xxfin` / `cxxfin`.
 
-Editable bypass (`BUILD-NOTES.txt`):
+Domain normal mode (`BUILD-NOTES.txt` + `[tool.uv.sources]`):
 
 ```bash
-uv pip install -e ../py10x -e ../py10x/xx_fin
-# cxx comes via fin-base / workspace as configured
-uv run --no-sync pytest …
+# requires ../py10x checkout
+uv sync --upgrade
+# editables: py10x-core, py10x-fin-base, py10x-fin-base-cxx from ../py10x
+# kernel/infra: PyPI (optional: uv pip install -e ../cxx10x/…)
 ```
 
 ---
 
 ## Test isolation (after relocate)
 
-Enforce “core does not depend on fin-base” with a **separate CI venv/job**, not only packaging metadata.
+Enforce “core does not depend on fin-base” with **sequential steps in the same CI job**
+(`.github/actions/ci-test-suite`), not only packaging metadata.
 
-| Job | Env | Runs | Must not be importable |
-|-----|-----|------|------------------------|
-| **Core** | siblings + `py10x-core` | core / ui / infra / dev + **xxcommon** | `xxfin` / fin-base |
-| **Fin-base** | core + `py10x-fin-base` (+ cxx wheel) | `xx_fin/` tests | — |
+| Step | Env | Runs | Must not be importable |
+|------|-----|------|------------------------|
+| **Core** | siblings + `py10x-core` (no `--with-downstream`) | core / ui / infra / dev + **xxcommon** | `xxfin` / fin-base |
+| **Fin-base** | same venv + `--with-downstream` | `xx_fin/` tests | — |
 
-Optional core guard:
+Core guard (before core pytest):
 
 ```python
 import xxcommon
@@ -286,7 +294,7 @@ import importlib.util
 assert importlib.util.find_spec('xxfin') is None
 ```
 
-Local monorepo DX may use one venv with both packages; isolation is enforced in CI.
+Local monorepo DX may use one venv with both packages; isolation is the pre-downstream assert in CI.
 
 ---
 
@@ -296,19 +304,10 @@ Local monorepo DX may use one venv with both packages; isolation is enforced in 
 |------|------|--------|--------|
 | **Phase 0** | xx-fin-domain | Packageize + `xx_fin/{xxfin,cxxfin}` layout | **Done** (`4205538`) |
 | **Phase 1** | xx-fin-domain | Publish rehearsal (cxx + fin-base tags/wheels/index smoke) | **Done** |
-| **PR0** | py10x | Promote `downstream` role, planner, opt-in `uv_sync`, constraints, tests | **Done** (tooling; live map still empty) |
-| **PR1** | py10x | Relocate `xx_fin/`, split CI, publish workflows, register downstream | Pending |
-| **PR2** | xx-fin-domain | Depend on published/editable fin-base; drop local `xx_fin/` workspace | Pending |
-
-Recommended order:
-
-1. Finish **Phase 1** publish rehearsal in domain.
-2. Land **PR0** (tooling) then **PR1** (relocate) on py10x `main`.
-3. Local verify domain with editables against `../py10x/xx_fin`.
-4. **`xx-promote pre --push`** → first coordinated fin-base (+ cxx) rc from py10x.
-5. Land **PR2** once the index has the dists (and core without accidental coupling).
-
-Hard-cut window: do not leave domain resolving a mix that still expects an in-tree `xxfin` without the new dep.
+| **PR0** | py10x | Promote `downstream` role, planner, opt-in `uv_sync`, constraints, tests | **Done** |
+| **PR1** | py10x | Relocate `xx_fin/`, register downstream, publish workflows + CI downstream steps | **Done** |
+| **PR2** | xx-fin-domain | Depend on published/editable fin-base; drop local `xx_fin/` | **Done** (attic + path sources) |
+| **Release** | py10x | Coordinated fin-base (+ cxx) rcs from py10x via `xx-promote` | **Done** (through `0.1.0rc5`+) |
 
 ---
 
@@ -331,13 +330,12 @@ python -c "import xxfin; import cxxfin"
 ### Fin-base / isolation (PR1)
 
 ```bash
-# Core job
+# Same CI job, sequential:
 uv-sync py10x-core-dev --all-extras
-pytest core_10x infra_10x ui_10x dev_10x xxcommon
 python -c "import xxcommon; import importlib.util as u; assert u.find_spec('xxfin') is None"
-
-# Fin-base job
-uv-sync … --with-downstream py10x-fin-base
+pytest   # core suite (ignores xx_fin/ until fin-base is installed)
+uv-sync py10x-core-dev --all-extras --with-downstream
+python -c "import xxfin; import cxxfin"
 pytest xx_fin/
 ```
 
@@ -386,7 +384,7 @@ pytest xxfin_commod … xxfin_positions … xxfin_testing …
 - [x] Root depends on fin-base only; hatch drops `xxfin`
 - [x] Retarget cxx cibuildwheel tags/paths
 - [x] Boundary cleanup (`mkt_risk_proto`, stores split)
-- [ ] Track `xxfin_positions/dev_data_helpers/` on `main` if still missing
+- [x] Track `xxfin_positions/dev_data_helpers/` on `main`
 
 ### Phase 1 — domain publish rehearsal
 
@@ -394,14 +392,14 @@ pytest xxfin_commod … xxfin_positions … xxfin_testing …
 - [x] Cut cxx + fin-base rc tags; upload wheels — `py10x-fin-base-v0.1.0rc1`, both packages live on PyPI
 - [x] Clean-venv `pip install py10x-fin-base` smoke — automated as a CI `smoke_test` job, not manual
 - [x] Document version coordination (fin-base → cxx pin) — see `xx_fin/docs/OPEN_SOURCE_CHECKLIST.md`
-      §6; hand-committed exact pin today, TODO to automate via `xx-promote` (Phase 2)
+- [x] Automate co-release `{name}-cxx==` pin via `xx-promote` (post-relocate)
 
 ### Promote tooling (PR0)
 
-- [x] `[tool.dev_10x.downstream]` map + registry load (N packages; live map empty until PR1)
+- [x] `[tool.dev_10x.downstream]` map + registry load (N packages; live `./xx_fin` entry)
 - [x] `PkgInput` / `Plan` / `PrePlan` / `ProdPlan` three-role logic
 - [x] Yank: refresh all downstreams when core yanked; yank downstream → core test-group only
-- [x] `uv_sync` opt-in + `constraints` readers
+- [x] `uv_sync` opt-in (`--with-downstream`) + constraints opt-in / refresh with `--with-downstream`
 - [x] README + AGENTS.md §7
 - [x] Plan / utils / uv_sync / constraints unit tests
 
@@ -410,23 +408,24 @@ pytest xxfin_commod … xxfin_positions … xxfin_testing …
 - [x] Move domain `xx_fin/` → `py10x/xx_fin/` (live tree under py10x; domain copy in `attic/xx_fin/`)
 - [x] Register under `[tool.dev_10x.downstream]`
 - [x] Core isolation collection: ignore `xx_fin/` unless `py10x-fin-base` is installed (`dev_10x.pytest_plugin`)
-- [ ] Downstream validation CI job (install fin-base via `--with-downstream` / test-group, run `xx_fin/` tests)
-- [x] Publish workflows for fin-base (+ cxx) on py10x — `.github/workflows/finbase_wheel.yml` (domain job shape; triggers `pre|prod/py10x-fin-base-v*`)
+- [x] Downstream validation in CI (same job: isolation assert → core pytest → `--with-downstream` → `pytest xx_fin/`)
+- [x] Publish workflows for fin-base (+ cxx) on py10x — `.github/workflows/finbase_wheel.yml` (triggers `pre|prod/py10x-fin-base-v*`)
 - [x] Promote co-pins `{name}-cxx==` on fin-base release commits; fin-base `pytest11` entry point
-- [ ] Docs / CHANGELOG; `xx-constraints compile` (constraints already include fin-base; CHANGELOG TBD)
+- [x] Root/fin-base uv DX: fin-base owns workspace (`members = ["cxxfin"]`); core path-sources fin-base for lock/`test` group; `xx-constraints compile --with-downstream` for committed freeze
+- [x] Docs / CHANGELOG refresh for relocate + install story
 
 ### Domain hard-cut (PR2)
 
 - [x] Depend on published/editable `py10x-fin-base` (no local workspace member)
 - [x] Drop local `xx_fin/` workspace members / tree (`git mv` → `attic/xx_fin/`)
-- [x] BUILD-NOTES editable path → `../py10x/xx_fin`
-- [ ] Domain unit tests (smoke against attic-excluded pytest)
+- [x] Normal-mode `[tool.uv.sources]` editables → `../py10x` (+ `xx_fin` / `cxxfin`); BUILD-NOTES
+- [x] Domain unit tests (smoke against attic-excluded pytest; see BUILD-NOTES)
 
 ### Release
 
-- [ ] `xx-promote pre` (first fin-base rc from py10x + any core needed)
-- [ ] Confirm PyPI for fin-base (+ cxx)
-- [ ] Domain upgrade + verify
+- [x] `xx-promote pre` from py10x (coordinated fin-base + cxx rcs; e.g. through `0.1.0rc5`)
+- [x] Confirm PyPI for fin-base (+ cxx)
+- [x] Domain upgrade path (editables from `../py10x`; index for kernel/infra)
 
 ---
 
@@ -444,5 +443,5 @@ pytest xxfin_commod … xxfin_positions … xxfin_testing …
 | Promote role | Downstream, not sibling |
 | Core pins fin-base? | No published pin; unpublished `dependency-groups.test` only |
 | Fin-base pins core? | Yes (published `==` / window via promote) |
-| CI isolation | Separate job/venv without fin-base for core suite; separate job installs test-group and runs fin-base suite |
+| CI isolation | Same job: assert `xxfin` absent, run core suite, then `--with-downstream` + `xx_fin/` tests |
 | Downstream tooling | Designed for N packages; fin-base is the first real entry |

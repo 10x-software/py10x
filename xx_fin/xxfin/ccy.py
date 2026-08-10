@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from datetime import date
 
 from core_10x.global_cache import cache
 from core_10x.traitable import RT, NamedTraitable, T, Traitable
 from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
 
 from xxfin.fin_calendar import FinCalendar
-
-if TYPE_CHECKING:
-    from datetime import date
-
 
 #-- TODO: _force_default_cache = True
 class Ccy(NamedTraitable):
