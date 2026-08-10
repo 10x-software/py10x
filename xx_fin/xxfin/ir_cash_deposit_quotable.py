@@ -1,4 +1,6 @@
-from datetime import date
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from core_10x.traitable import RT, M, T
 from xxcommon.rdate import RDate
@@ -6,6 +8,9 @@ from xxcommon.rdate import RDate
 from xxfin.ir_compounding import COMPOUND_TRANSFORM, COMPOUNDING
 from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
 from xxfin.mkt_quotable import SingleMktQuote
+
+if TYPE_CHECKING:
+    from datetime import date
 
 
 class IRCashDepositQuotable(SingleMktQuote):

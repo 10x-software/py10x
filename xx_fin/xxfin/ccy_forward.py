@@ -1,6 +1,11 @@
-from datetime import date
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from xxfin.fin_instrument import RT, Ccy, FinInstrument, PricingContext, T
+
+if TYPE_CHECKING:
+    from datetime import date
 
 
 class CcyUnit(FinInstrument):

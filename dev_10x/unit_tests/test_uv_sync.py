@@ -7,9 +7,9 @@ from unittest.mock import MagicMock
 
 import pytest
 import setuptools_scm
+from core_10x.environment_variables import EnvVars
 from packaging.version import Version
 
-from core_10x.environment_variables import EnvVars
 from dev_10x.uv_sync import (
     PROJECT_ROOT,
     _no_build_isolation_packages,
@@ -102,8 +102,6 @@ class TestWithDownstream:
         assert _no_build_isolation_packages(tmp_path) == []
 
     def test_live_fin_base_declares_cxx_no_isolation(self):
-        from dev_10x.uv_sync import PROJECT_ROOT
-
         fin = PROJECT_ROOT / 'xx_fin'
         if not (fin / 'pyproject.toml').is_file():
             return
@@ -139,7 +137,7 @@ class TestWithDownstream:
             '[tool.hatch.version]\nsource = "vcs"\n'
             '[tool.hatch.version.raw-options]\n'
             'root = ".."\n'
-            "git_describe_command = \"git describe --dirty --tags --long --match 'py10x-fin-base-v*'\"\n",
+            'git_describe_command = "git describe --dirty --tags --long --match \'py10x-fin-base-v*\'"\n',
             encoding='utf-8',
         )
         GitHelpers.git(repo, 'init', '-q', '-b', 'main')

@@ -30,6 +30,6 @@ class IRCashDepositQuotableBbgAdaptor(BbgAdaptorIR):
             assert 1 <= tenor.count <= 12
             bbg_tenor = chr(ord('A') + tenor.count - 1) if tenor.count < 12 else '1'
         else:
-            assert False, tenor.freq
+            raise AssertionError(tenor.freq)
 
         return f'{cls.BBG_MKT[mkt_name]}{bbg_tenor} BGN{cls.BBG_CUT.get(mkt_name, "")}{cls.SUFFIX}'

@@ -1,10 +1,15 @@
-from datetime import date
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from core_10x.traitable import RT, T, Traitable
 
 from xxfin.ccy_cross import CcyCross
 from xxfin.fx_forward_curve import FXForwardCurve
 from xxfin.pricing_context import SNAPSHOT, PricingContext
+
+if TYPE_CHECKING:
+    from datetime import date
 
 
 class FxRate(Traitable):

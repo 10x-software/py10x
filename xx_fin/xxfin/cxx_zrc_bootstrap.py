@@ -64,7 +64,7 @@ def solve_swap(zrc, spot_date, swap_tenor, quote, mc, today):
         PROPAGATE_DATES.FORWARD, False,
     )
     pay_dates  = [pay_offset.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
-    dc_fracs   = [fixed_dc_convention(s, e) for s, e in zip(start_dates, end_dates)]
+    dc_fracs   = [fixed_dc_convention(s, e) for s, e in zip(start_dates, end_dates, strict=False)]
 
     end_date = swap_tenor.apply(spot_date, swap_calendar, swap_roll_rule)
     last_pay = pay_offset.apply(end_date, pay_calendar, pay_roll_rule)

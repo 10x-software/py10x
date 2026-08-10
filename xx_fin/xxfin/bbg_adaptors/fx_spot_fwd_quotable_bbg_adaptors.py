@@ -15,7 +15,6 @@ class FXForwardQuotableBbgAdaptor(BbgAdaptorFX):
     def ticker(cls, quotable: FXForwardQuotable) -> str:
         tenor = quotable.tenor
         if tenor.freq == TENOR_FREQUENCY.BIZDAY:
-            mkt_conventions = quotable.mkt_conventions
             if tenor.count == 1:
                 tenor = 'ON'
             if tenor.count == 2:  # TODO: if RDate.same_values(tenor,mkt_conventions.spot_offset):

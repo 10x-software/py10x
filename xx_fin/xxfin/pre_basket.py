@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from core_10x.trait_definition import RT
 from core_10x.traitable import Traitable
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class PreBasket(Traitable):

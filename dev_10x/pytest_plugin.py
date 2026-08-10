@@ -11,8 +11,7 @@ from core_10x.global_cache import cache
 
 # Cross-package / pre-publish fixtures must be registered here (pytest11 entry point),
 # not in repo-root conftest.py — CI collects from site-packages and never loads that file.
-from core_10x.testlib.test_databases import live_store  # noqa: F401
-
+from core_10x.testlib.test_databases import live_store
 from py10x_kernel import BTraitableProcessor
 
 PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent

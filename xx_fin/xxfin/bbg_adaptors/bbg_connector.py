@@ -1,10 +1,13 @@
 from __future__ import annotations
 
-from datetime import date
+from typing import TYPE_CHECKING
 
 from core_10x.traitable import T
 
 from xxfin.mkt_adaptor import MktDataConnector
+
+if TYPE_CHECKING:
+    from datetime import date
 
 
 class DevBbgConnector(MktDataConnector):
