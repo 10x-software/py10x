@@ -70,18 +70,19 @@ uv run --no-sync licensecheck -r xx_fin/pyproject.toml --extras bbg,dev
 
 ## 3. Own code and contributions
 
-- **Ownership:** all code under `xx_fin/` is written by 10X / contractors with appropriate
-  assignments; no code pasted in from Stack Overflow/blogs/other projects without attribution.
-- **Contributors:** external contributions, once accepted, are under the same MIT license as the
-  rest of the project (see root `CONTRIBUTING.md`).
+Same policy as the root checklist
+([`docs/OPEN_SOURCE_IP_CHECKLIST.md`](../../docs/OPEN_SOURCE_IP_CHECKLIST.md) §3) — ownership and
+contributor terms are project-wide, not per-package. Verified for `xx_fin/`: no code pasted in
+from Stack Overflow/blogs/other projects without attribution.
 
 ---
 
 ## 4. Trademarks, logos, and assets
 
-- **Names:** `xxfin`, `cxxfin`, `py10x-fin-base`, `py10x-fin-base-cxx` — same trademark posture as
-  `py10x-core`; no separate action needed here.
-- **No images/logos** are shipped under `xx_fin/`.
+Same posture as the root checklist
+([`docs/OPEN_SOURCE_IP_CHECKLIST.md`](../../docs/OPEN_SOURCE_IP_CHECKLIST.md) §4) — `xxfin`,
+`cxxfin`, `py10x-fin-base`, `py10x-fin-base-cxx` need no separate trademark action. No
+images/logos are shipped under `xx_fin/`.
 
 ---
 
@@ -94,8 +95,9 @@ uv run --no-sync licensecheck -r xx_fin/pyproject.toml --extras bbg,dev
 - `README.md` ("Optional JIT acceleration via AADC") — implementation detail on `aadc` (the
   `use_cxxfin`/`aadc_license` settings, platform exclusions); the licensing fact itself lives
   in NOTICE.
-- `THIRD_PARTY_LICENSES` — not needed: `xx_fin` only *declares* dependencies (no vendored/bundled
-  third-party source, no combined binary distribution), same reasoning as `py10x-core`.
+- `THIRD_PARTY_LICENSES` — not needed, per the root checklist's reasoning
+  ([`docs/OPEN_SOURCE_IP_CHECKLIST.md`](../../docs/OPEN_SOURCE_IP_CHECKLIST.md) §5): `xx_fin` only
+  *declares* dependencies, no vendored/bundled third-party source or combined binary distribution.
 
 ---
 

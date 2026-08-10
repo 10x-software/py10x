@@ -14,6 +14,8 @@ It points to canonical docs and records only the minimal, project-specific rules
 - **Security, changelog, community**: see `SECURITY.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`.
 - **Release engineering & dev tooling** (`uv-sync`, `xx-promote`, `constraints.txt`, CI gates): see [`dev_10x/README.md`](dev_10x/README.md). Agent guardrails: §7 below.
 - **Low-level traitable implementation details**: see `core_10x/traitable.py` and existing tests in `core_10x/unit_tests/`.
+- **Finance domain package** (`xx_fin/`, published as `py10x-fin-base`): see [`xx_fin/README.md`](xx_fin/README.md); its optional C++/AADC acceleration layer (`py10x-fin-base-cxx`): see [`xx_fin/cxxfin/README.md`](xx_fin/cxxfin/README.md).
+- **Shared utilities** (`xxcommon/`): see [`xxcommon/README.md`](xxcommon/README.md).
 - **C++ backend source (cxx10x)**: lives in the sibling package `../cxx10x/` (e.g. `../cxx10x/core_10x/btraitable.{h,cpp}`, `../cxx10x/core_10x/core_10x.cpp` for pybind11 bindings). When a Python method's body is just a thin wrapper or its docstring/comment says it is provided "from c++" (e.g. the comment block in `core_10x/traitable.py` around `get_value` / `set_value` / `set_values`), consult these files to confirm the actual signature and surface area exposed to Python.
 
 Agents should **link to and rely on those files**, not duplicate them here.
@@ -175,7 +177,7 @@ CI uses `.github/actions/setup-postgres` for both.
 
 ### Running tests, lint, and build
 
-See [CONTRIBUTING.md](CONTRIBUTING.md#development-workflow) (`uv run --no-sync pytest`, `uv run --no-sync ruff`, `uv --no-sync build`).
+See [CONTRIBUTING.md](CONTRIBUTING.md#development-workflow) (`uv run --no-sync pytest`, `uv run --no-sync ruff`, `uv build`).
 
 ### Non-obvious caveats
 
