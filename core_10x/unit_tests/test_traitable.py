@@ -1762,7 +1762,7 @@ class TestForwardRefTraitables:
 
     def test_unresolved_forward_ref_leaves_placeholder(self):
         """If the referenced class is never defined, the trait data type stays
-        a disposable placeholder subclass that raises on instantiation."""
+        a disposable placeholder subclass that raises on use."""
 
         class HasUnresolved(Traitable):
             hid: int = T(T.ID)
@@ -1779,7 +1779,7 @@ class TestForwardRefTraitables:
 
         assert any(entry[0] is HasUnresolved and entry[1] == 'ghost' for entry in Traitable.s_fwd_ref_pending[key])
 
-        with pytest.raises(TypeError, match=r'is unresolved'):
+        with pytest.raises(TypeError, match=r'NeverDefinedTraitable` is not defined'):
             ph()
 
         # Other tests assume no orphaned pending registrations.
@@ -1793,6 +1793,43 @@ class TestForwardRefTraitables:
             class _BadFwd(Traitable):
                 xid: int = T(T.ID)
                 items: list[NeverEverExistsTraitable] = T()  # noqa: F821
+
+    def test_missing_annotation_name_errors_on_placeholder_use(self):
+        """Missing imports like `date` become placeholders; using the trait must
+        report that the name is not defined."""
+        source = (
+            'from __future__ import annotations\n'
+            'from core_10x.trait_definition import T\n'
+            'from core_10x.traitable import Traitable\n'
+            '\n'
+            'class MissingDate(Traitable):\n'
+            '    xid: str = T(T.ID)\n'
+            '    md_date: date = T()\n'
+        )
+        mod = self._exec_module(source, 'test_traitable_missing_date_ann')
+        try:
+            MissingDate = mod.MissingDate
+            ph = MissingDate.trait('md_date').data_type
+            assert ph.__name__.startswith('_TraitableFwdRefPlaceholder#')
+            assert ph.__name__.endswith('.date')
+
+            unresolved = r'`test_traitable_missing_date_ann\.date` is not defined'
+            with CACHE_ONLY(), CONVERT_VALUES_OFF(), DEBUG_ON():
+                obj = MissingDate(xid='a')
+                with pytest.raises(TraitMethodError, match=unresolved):
+                    obj.md_date = '2025-03-12'
+
+            with CACHE_ONLY(), CONVERT_VALUES_ON():
+                obj2 = MissingDate(xid='b')
+                with pytest.raises(TraitMethodError, match=unresolved):
+                    obj2.md_date = '2025-03-12'
+
+            with pytest.raises(TypeError, match=unresolved):
+                ph()
+        finally:
+            key = TraitableFwdRef.resolve_key(mod.MissingDate, 'date')
+            Traitable.s_fwd_ref_pending.pop(key, None)
+            sys.modules.pop('test_traitable_missing_date_ann', None)
 
 
 # =====================================================================================
