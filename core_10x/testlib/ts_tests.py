@@ -207,10 +207,11 @@ class TestTSStore:
         serialized_entity = p.serialize_object()
         id_value = serialized_entity['_id']
 
-        # Plain overwrite (no hydrate)
-        result = collection.save_new(serialized_entity.copy(), overwrite=True)
-        assert result['_rev'] == 1
-        assert collection.load(id_value) == serialized_entity
+        collection.save_new({'_id': id_value, 'name': 'before'}, overwrite=True)
+        result = collection.save_new({'_id': id_value, 'name': 'after'}, overwrite=True)
+        loaded = collection.load(id_value)
+        assert result['_rev'] == 1 == loaded['_rev']
+        assert loaded['name'] == 'after'
         assert list(result) == ['_rev']
 
         # Overwrite with store-side field hydrate
@@ -220,6 +221,7 @@ class TestTSStore:
         assert '_at' in result
         loaded = collection.load(id_value)
         assert loaded['name'] == 'overwritten'
+        assert loaded['_rev'] == 1
         assert '_at' in loaded
 
     def test_save_new_with_ts_fields(self, ts_setup):
