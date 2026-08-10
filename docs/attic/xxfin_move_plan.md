@@ -1,5 +1,8 @@
 # Move `xxfin` / `cxxfin` → `py10x-fin-base` (extract plan)
 
+> **Archived** (2026-08-10). Migration complete — live tree is `py10x/xx_fin/`. Kept under
+> `docs/attic/` for design history only; do not treat as an active todo list.
+
 **Status:** Relocate + domain hard-cut done. Live tree is `py10x/xx_fin/`; domain
 depends on editable `../py10x` (+ PyPI kernel/infra). Co-release train on PyPI through
 **fin-base/cxx `0.1.0rc5`**, core **`0.2.3rc51`** (and later `.dev` / rc bumps).  

@@ -29,7 +29,7 @@ Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present 
 - **Test store migration**: removed `core_10x/testlib/test_store.py`; `testdb://` / `TS_STORE_TYPE.TESTDB` replaced by `duckdb://` / `TS_STORE_TYPE.DUCKDB`. Mongo `$set` / `$currentDate` semantics removed from core (`TsStoreMongoLike`); server-side TS stamping is now applied in `MongoCollection.save` / `save_new` from the `_ts_fields` side channel (see `TsStore.add_ts`); `datetime_trait` and `bytes_trait` deserialize ISO/base64 strings from JSON blob storage.
 - **Dependencies and packaging**: Dependabot bumps (`rio-ui` 0.12.2, widened `playwright` and `cryptography` ranges); optional `[project.optional-dependencies] jit` group for JIT tooling (not part of the default install).
 - **`GETTING_STARTED.md`**: clarified `GraphDeps` `target_class`, `perturb`, and `perturb_value` usage.
-- **Documentation**: consolidated release-engineering design into `dev_10x/README.md` appendices; deduplicated install/test guidance across README, INSTALLATION, CONTRIBUTING, GETTING_STARTED, and AGENTS; README documentation map.
+- **Documentation**: consolidated release-engineering design into `dev_10x/README.md` (operational reference) and `dev_10x/DESIGN.md` (rationale/Stage 2 roadmap); deduplicated install/test guidance across README, INSTALLATION, CONTRIBUTING, GETTING_STARTED, and AGENTS; README documentation map.
 
 ### Fixed
 - **Curves**: `Curve.value` with `beginning_of_time` — times strictly before the cutoff now return `NaN` (guard condition was previously inverted).

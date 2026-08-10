@@ -110,7 +110,7 @@ jobs:
           python-version: "3.12"
 
       # Install straight from this run's build artifacts (not from PyPI) so a broken wheel is
-      # caught here, before it's published, per the move plan's Phase 1 clean-venv smoke test.
+      # caught here, before it's published (clean-venv smoke).
       # Coordinated py10x-core and its forward-pinned siblings may still be publishing — wait
       # for those exact versions on PyPI (not a blind pip-install retry).
       - name: Install from build artifacts

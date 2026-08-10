@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 import uuid6
-from core_10x.exec_control import GRAPH_OFF
+from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF
 from core_10x.named_constant import EnumBits, NamedConstant
 from core_10x.nucleus import Nucleus
 from core_10x.testlib import test_databases
@@ -220,6 +220,25 @@ def test_f_named_expressions_eval_and_prefix():
     multi = f(age=EQ(10), first_name=NE('Alice'), last_name=NOT_EMPTY())
     assert multi.eval(Person(age=10, first_name='Bob', last_name='Smith'))
     assert not f(last_name=NOT_EMPTY()).eval(Person(last_name=''))  # empty string -> NOT_EMPTY false
+
+
+def test_empty_f_is_no_constraint():
+    with CACHE_ONLY():
+        a = Person(first_name='A', last_name='A')
+        b = Person(first_name='B', last_name='B')
+        empty = f()
+        assert empty.eval(a) is True
+        assert empty.eval(b) is True
+        assert empty.prefix_notation() == {}
+        ids = {p.id() for p in Person.existing_instances_by_filter(empty)}
+        assert a.id() in ids and b.id() in ids
+
+
+def test_empty_in_nin_eval():
+    assert not IN([]).eval(1)
+    assert not IN([]).eval(None)
+    assert NIN([]).eval(1)
+    assert NIN([]).eval(None)
 
 
 def test_named_serializers():
@@ -519,8 +538,24 @@ class TestCompoundFilters:
             (IN([None]), ['has_null', 'missing']),
             (NIN([None]), ['has_obj', 'has_str']),
             (NIN(['sss']), ['has_null', 'has_obj', 'missing']),
+            (IN([]), []),
+            (NIN([]), ['has_null', 'has_obj', 'has_str', 'missing']),
         ],
-        ids=['EQ-obj', 'EQ-None', 'IN-obj', 'NIN-obj', 'IN-obj-str', 'IN-obj-None', 'IN-str-None', 'NIN-obj-None', 'IN-None', 'NIN-None', 'NIN-str'],
+        ids=[
+            'EQ-obj',
+            'EQ-None',
+            'IN-obj',
+            'NIN-obj',
+            'IN-obj-str',
+            'IN-obj-None',
+            'IN-str-None',
+            'NIN-obj-None',
+            'IN-None',
+            'NIN-None',
+            'NIN-str',
+            'IN-empty',
+            'NIN-empty',
+        ],
     )
     def test_in_nin_mixed_structure_and_null(self, prepared, op, expected):
         """``IN`` / ``NIN`` lists mixing structures, scalars and ``None`` — Mongo is the contract.
@@ -535,7 +570,8 @@ class TestCompoundFilters:
         * ``None`` cannot go into a SQL ``IN`` list at all: ``x IN (a, NULL)`` is never TRUE
           and ``x NOT IN (a, NULL)`` is never TRUE either, so it is stripped and folded back
           as an explicit NULL test (``IN._ibis_isin``). That is also what Mongo's ``$in`` /
-          ``$nin`` mean by matching missing fields.
+          ``$nin`` mean by matching missing fields. Empty lists are a third case: always-false
+          / always-true, not the all-None NULL check.
         """
         store, *_ = prepared
 
@@ -558,6 +594,12 @@ class TestCompoundFilters:
         assert len(list(coll.find(f(i=IN([10, 99]), trait_dir=trait_dir)))) == 2
         qmix = f(AND(f(b=True), f(i=NIN([99]))), trait_dir)
         assert len(list(coll.find(qmix))) == 2
+
+    def test_empty_in_nin_find(self, prepared):
+        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
+        assert list(coll.find(f(i=IN([]), trait_dir=trait_dir))) == []
+        assert len(list(coll.find(f(i=NIN([]), trait_dir=trait_dir)))) == 3
+        assert len(list(coll.find(f(trait_dir=trait_dir)))) == 3
 
     # compounds
 

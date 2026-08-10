@@ -378,6 +378,7 @@ def ux_make_scrollable(w: ux.Widget, h = ux.SCROLL.AS_NEEDED, v = ux.SCROLL.AS_N
 
 class UxSearchableList(ux.GroupBox):
     __slots__ = ('case_sensitive', 'current_choices', 'hook', 'initial_choices', 'reset_selection', 'selection', 'sort', 'w_field', 'w_list')
+
     def __init__(
         self,
         text_widget: ux.LineEdit = None,
@@ -391,16 +392,17 @@ class UxSearchableList(ux.GroupBox):
         """
         :param text_widget: if an external text_widget given, it is used, otherwise its own is created on top of the list
         :param reset_selection: if True, text_widget will be reset on new selection
-        :param choices: all choices
-        :param select_hook: if given, will be called after a new selection is made: select_hook( selected_choice: str )
-        :param sort: sort choices if True
+        :param choices: strings and/or Traitables — keys are ``str(choice)`` (Traitables via ``to_str()``)
+        :param select_hook: called after selection: select_hook(selected_choice)
+        :param sort: sort choices by display label if True
         :param case_sensitive: whether to search with case sensitivity
         :param title: an optional title
         """
         super().__init__()
         self.sort = sort
-        self.initial_choices = choices if not sort else sorted(choices)
-        self.current_choices = self.initial_choices
+        items = {str(c): c for c in (choices or [])}
+        self.initial_choices = dict(sorted(items.items())) if sort else items
+        self.current_choices = list(self.initial_choices)  # labels currently shown
         # Bound-method hooks intentionally pin ``__self__``. Call sites such as
         # ``CollectionEditor`` / Rio pages often retain only the widget tree; the
         # hook is then what keeps the controller Traitable alive for selection.
@@ -423,66 +425,78 @@ class UxSearchableList(ux.GroupBox):
 
         self.w_list = ux.ListWidget()
 
-        self.w_list.add_items(self.initial_choices)
+        self.w_list.add_items(self.current_choices)
         self.w_list.clicked_connect(self.item_selected)
         lay.add_widget(self.w_list)
 
         self.set_layout(lay)
 
-    def add_choice(self, choice: str):
-        if choice not in self.initial_choices:
-            self.initial_choices.append(choice)
+    def add_choice(self, choice):
+        label = str(choice)
+        if label not in self.initial_choices:
+            self.initial_choices[label] = choice
             if self.sort:
-                self.initial_choices = sorted(self.initial_choices)
-
+                self.initial_choices = dict(sorted(self.initial_choices.items()))
+            self.current_choices = list(self.initial_choices)
             self.w_list.clear()
-            self.w_list.add_items(self.initial_choices)
+            self.w_list.add_items(self.current_choices)
 
-    def remove_choice(self, choice: str):
-        if choice in self.initial_choices:
-            self.initial_choices.remove(choice)
+    def remove_choice(self, choice):
+        label = str(choice)
+        if label in self.initial_choices:
+            del self.initial_choices[label]
+            self.current_choices = list(self.initial_choices)
             self.w_list.clear()
-            self.w_list.add_items(self.initial_choices)
+            self.w_list.add_items(self.current_choices)
 
     def process_input(self, input):
         self.w_list.clear()
-        if not input:
-            self.current_choices = self.initial_choices
-        else:
-            if not self.current_choices:
-                self.current_choices = self.initial_choices
-
+        labels = list(self.initial_choices)
+        if input:
             if not self.case_sensitive:
-                input = input.lower()
-                self.current_choices = [s for s in self.current_choices if s.lower().find(input) != -1]
+                needle = input.lower()
+                labels = [s for s in labels if needle in s.lower()]
             else:
-                self.current_choices = [s for s in self.current_choices if s.find(input) != -1]
-
+                labels = [s for s in labels if input in s]
+        self.current_choices = labels
         self.w_list.add_items(self.current_choices)
 
     def item_selected(self, item: ux.ListItem):
         i = item.row()
-        text = self.current_choices[i]
+        label = self.current_choices[i]
+        choice = self.initial_choices[label]
         self.reset()
 
-        items = self.w_list.find_items(text, ux.MatchExactly)
+        items = self.w_list.find_items(label, ux.MatchExactly)
         if len(items):
             items[0].set_selected(True)
-            text_s = '' if self.reset_selection else text
+            text_s = '' if self.reset_selection else label
             self.w_field.set_text(text_s)
 
-        self.selection = text
+        self.selection = choice
         if self.hook:
-            self.hook(text)
+            self.hook(choice)
 
-    def choice(self) -> str:
+    def choice(self):
         return self.selection
 
     def reset(self):
-        if self.current_choices != self.initial_choices:
-            self.current_choices = self.initial_choices
+        labels = list(self.initial_choices)
+        if self.current_choices != labels:
+            self.current_choices = labels
             self.w_list.clear()
-            self.w_list.add_items( self.initial_choices)
+            self.w_list.add_items(self.current_choices)
+
+    def release(self):
+        """Drop the select-hook pin and any Traitable choice/selection values.
+
+        The widget tree often outlives the controller; without this, bound-method
+        hooks and Traitable choices keep Traitables alive past test isolation.
+        """
+        self.hook = None
+        self.selection = None
+        self.initial_choices.clear()
+        self.current_choices = []
 
 class UxTreeViewer(ux.TreeWidget):
     s_label_max_length  = 40

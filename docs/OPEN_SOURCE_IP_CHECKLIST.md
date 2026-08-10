@@ -34,22 +34,47 @@ All direct dependencies in `pyproject.toml` are commonly used under permissive l
 | hatch-build-scripts | (check) | (verify) |
 | Optional: PyQt6 / Rio / pytest / ruff / etc. | GPL / MIT / BSD etc. | PyQt6 is GPL/Commercial – see §4 |
 
-**Recommended:** Before release, run a dependency license checker and fix or document any exceptions:
+**Recommended:** Before release, run a dependency license checker **including optional
+extras** (default `licensecheck` only resolves main dependencies) and fix or document any
+exceptions:
 
 ```bash
-uv run licensecheck
-# Or: pip install licensecheck && licensecheck
+# From the py10x repo root (requires the project venv / `licensecheck` from the `dev` extra):
+uv run --no-sync licensecheck -r pyproject.toml --extras rio,qt,dev
 ```
 
 Add any **attribution or notice** required by your dependencies to a `NOTICE` or `THIRD_PARTY_LICENSES` file (see §5).
 
 ### licensecheck results (summary)
 
-Running `licensecheck` in this project reports:
+Command (re-run before each release):
 
-- **Compatible (✔):** All third-party open-source dependencies (e.g. cryptography, pymongo, numpy, scipy, requests, importlib-resources, keyring, typing-extensions, etc.) are MIT-compatible (Apache 2.0, BSD, MIT, MPL 2.0, PSF, ISC).
+```bash
+uv run --no-sync licensecheck -r pyproject.toml --extras rio,qt,dev
+```
+
+**Last run:** 2026-08-10 (macOS / Python 3.11 venv) — **150** compatible, **6** flagged.
+
+- **Compatible (✔):** Main deps and most `rio`/`qt`/`dev` transitives (Apache 2.0, BSD, MIT, MPL
+  2.0, PSF, ISC, etc.), including cryptography, pymongo, numpy, scipy, requests,
+  importlib-resources, keyring, typing-extensions, hatchling, rio-ui, playwright, pytest, ruff.
 - **Flagged (✖), expected and documented:**
-  - **hatchling** — License sometimes reported empty by licensecheck; hatchling is MIT-licensed. If you run licensecheck in CI, allow-list hatchling so the check does not fail on this known exception; see the tool’s docs for ignore/allow-list options.
+  - **pyqt6** (`qt` extra) — GPL v3; optional UI backend only.
+  - **unicall**, **uniserde** (via `rio`) — MIT text in package metadata; licensecheck mis-parses
+    the copyright preamble as a proprietary license string.
+  - **identity-containers**, **introspection**, **path-imports** (via `rio`) — empty `License`
+    metadata on PyPI (tool false-positives; not release blockers).
+
+Do **not** treat commercial/GPL optional extras as release blockers for the MIT core package;
+document them and keep them optional.
+
+### Downstream packages
+
+Sibling / downstream publish checklists use the same licensecheck pattern (pass `-r` and
+`--extras` for that package’s `pyproject.toml`). See:
+
+- [`xx_fin/docs/OPEN_SOURCE_CHECKLIST.md`](../xx_fin/docs/OPEN_SOURCE_CHECKLIST.md) —
+  `py10x-fin-base` / `py10x-fin-base-cxx`
 
 ---
 
@@ -134,9 +159,13 @@ Before publishing the repo as open source:
 
 ## 8. Ongoing
 
-- Run a **license check** in CI (e.g. `licensecheck` or similar) to catch new dependencies that are not MIT-compatible or need attribution.
+- Run a **license check** in CI (e.g. `licensecheck -r pyproject.toml --extras …`) to catch new
+  dependencies that are not MIT-compatible or need attribution — include optional extras, not
+  only main deps.
 - When adding dependencies, **check license and notice requirements** before merging.
 - Keep **NOTICE** (and **THIRD_PARTY_LICENSES** if you use one) updated when dependencies change.
+- Keep **downstream** checklists in sync when the licensecheck command or exception list changes
+  (see `xx_fin/docs/OPEN_SOURCE_CHECKLIST.md`).
 
 ---
 

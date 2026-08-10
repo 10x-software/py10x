@@ -45,8 +45,8 @@ def widget(mock_db_ops):
         gc.collect()
         assert wr() is not None, 'select_hook must keep CollectionEditor reachable via the widget tree'
 
-        # Drop the intentional pin so test isolation's leftover assert stays quiet.
-        wr().searchable_list.hook = None
+        # Drop hook + Traitable choices so test isolation's leftover assert stays quiet.
+        wr().searchable_list.release()
 
     assert wr() is None
 

@@ -116,6 +116,7 @@ class MongoCollection(TsCollection):
         except DuplicateKeyError as e:
             raise TsDuplicateKeyError(self.collection_name(), {self.s_id_tag: id_value}) from e
 
+        result[rev_tag] = 1
         return result
 
     def save(self, serialized_traitable: dict) -> dict:
