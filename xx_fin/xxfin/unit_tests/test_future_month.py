@@ -44,6 +44,15 @@ class TestFutureMonth:
             else:
                 pytest.fail(msg)
 
+    def test_to_date2(self):
+        with pytest.raises(AssertionError, match = 'Future D12345 should be of format <contract month symbol><year> with 2- or 4-digit year'):
+            FutureMonth.to_date('D12345')
+        with pytest.raises(AssertionError, match = 'Contract month P of P2000 must be one of the standard future contract months: FGHJKMNQUVXZ'):
+            FutureMonth.to_date('P2000')
+        with pytest.raises(AssertionError, match = 'Invalid contract year AB in FAB'):
+            FutureMonth.to_date('FAB')
+        with pytest.raises(AssertionError, match = 'Contract year of Z1800 must be greater than 1960'):
+            FutureMonth.to_date('Z1800')
 
     def test_date_to_fut_month(self):
         assert FutureMonth.date_to_fut_month(date(2026, 1, 1)) == 'F2026'
