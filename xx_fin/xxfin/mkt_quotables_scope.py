@@ -48,5 +48,5 @@ class MktQuotablesScope(Bundle):
 
 class TenorBasedQuotablesScope(MktQuotablesScope):
     def create_quotable_stubs(self, quotable_class: type[MktQuotable], data_definition: str, md_date: date) -> list:
-        return [ dict(tenor = tenor) for tenor in RDate.from_tenors(data_definition) ]
+        return [ dict(tenor = tenor) for tenor in RDate.from_tenors(data_definition) ] if data_definition else []
 
