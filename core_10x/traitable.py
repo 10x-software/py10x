@@ -694,7 +694,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return store_class.instance(**spec.kwargs)
 
     @staticmethod
-    def store_from_uri(uri: str) -> TsStore:
+    def store_from_uri(uri: str, *, _create_if_needed: bool = False) -> TsStore:
         spec = TsStore.spec_from_uri(uri)
         store_class: type[TsStore] = spec.resource_class
         is_running, with_auth = store_class.is_running_with_auth(spec.hostname(), spec.port())
@@ -703,10 +703,10 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         if with_auth:
             with Traitable.vault_store():
-                ra = VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, uri)
+                ra = VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, uri, _create_resource_if_needed=_create_if_needed)
                 return ra.resource
 
-        return store_class.instance(**spec.kwargs)
+        return store_class.instance(**spec.kwargs, _create_if_needed=_create_if_needed)
 
     @staticmethod
     @cache
@@ -1541,7 +1541,7 @@ class VaultUser(Traitable):
 
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:
-        return user_id.split('-', 1) == EnvVars.functional_account_prefix
+        return user_id.split('-', 1)[0] == EnvVars.var.functional_account_prefix.value
 
     @classmethod
     @cache
@@ -1566,6 +1566,7 @@ class VaultResourceAccessor(Traitable):
 
     user: VaultUser = RT(T.EVAL_ONCE)
     resource: Resource = RT(T.EVAL_ONCE)
+    _create_resource_if_needed: bool = RT(False)
 
     def username_get(self) -> str:
         return VaultUser.myname()
@@ -1585,6 +1586,7 @@ class VaultResourceAccessor(Traitable):
             self.resource_uri,
             username=self.login,
             password=self.user.sec_keys.decrypt_text(self.password),
+            _create_if_needed=self._create_resource_if_needed,
         )
 
     @staticmethod
@@ -1610,7 +1612,7 @@ class VaultResourceAccessor(Traitable):
         return rc
 
     @classmethod
-    def retrieve_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, username: str = None) -> VaultResourceAccessor:
+    def retrieve_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, username: str = None, *, _create_resource_if_needed: bool = False) -> VaultResourceAccessor:
         if not username:
             username = VaultUser.myname()
 
@@ -1625,6 +1627,7 @@ class VaultResourceAccessor(Traitable):
         fake_ra = VaultResourceAccessor(resource_dt=resource_dt, username=username, resource_uri=resource_uri)
         fake_ra.login = ra.login
         fake_ra.password = ra.password
+        fake_ra._create_resource_if_needed = _create_resource_if_needed
         return fake_ra
 
 
@@ -1639,13 +1642,13 @@ class NamedResource(Bundle):
         if not cls.is_bundle_base() and cls.s_resource_dt is None:
             rc.add_error('Must define s_resource_dt')
 
-    def resource_instance(self):
+    def resource_instance(self, _create_if_needed=False):
         resource_uri = self.uri
         with Traitable.vault_store():
             try:
-                ra = VaultResourceAccessor.retrieve_ra(self.s_resource_dt, resource_uri)
+                ra = VaultResourceAccessor.retrieve_ra(self.s_resource_dt, resource_uri, _create_resource_if_needed=_create_if_needed)
             except ValueError:
-                return self.s_resource_dt.value.instance_from_uri(self.uri)
+                return self.s_resource_dt.value.instance_from_uri(self.uri, _create_if_needed=_create_if_needed)
             else:
                 return ra.resource
 

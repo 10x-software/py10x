@@ -273,9 +273,7 @@ class Resource(abc.ABC):
 
         spec = cls.spec_from_uri(uri)
         spec.set_credentials(username = username, password = password)
-        if _create_if_needed:    #-- must precede connecting: Postgres refuses an absent database
-            spec.resource_class.create_if_needed(spec)
-        return spec.resource_class.instance(**spec.kwargs, _cache = _cache)
+        return spec.resource_class.instance(**spec.kwargs, _cache = _cache, _create_if_needed = _create_if_needed)
 
     @classmethod
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
@@ -298,16 +296,19 @@ class Resource(abc.ABC):
         return {real_name: kwargs.get(name,def_value) for name, (real_name, def_value) in cls.s_instance_kwargs_map.items()}
 
     @classmethod
-    def instance(cls, *args, _cache: bool = True, **kwargs) -> Self:
+    def instance(cls, *args, _cache: bool = True, _create_if_needed: bool = False, **kwargs) -> Self:
         translated_kwargs = cls.translate_kwargs(kwargs)
         try:
-            if not _cache:
-                return cls.new_instance(*args, **translated_kwargs)
+            if _cache:
+                instance_key = cls.standard_key(*args, **kwargs)
+                if resource := cls.s_instances.get(instance_key):
+                    return resource
 
-            instance_key = cls.standard_key(*args, **kwargs)
-            resource = cls.s_instances.get(instance_key)
-            if not resource:
-                resource = cls.new_instance(*args, **translated_kwargs)
+            if _create_if_needed:  # -- must precede connecting: Postgres refuses an absent database
+                cls.create_if_needed(ResourceSpec(cls, kwargs))
+
+            resource = cls.new_instance(*args, **translated_kwargs)
+            if _cache:
                 cls.s_instances[instance_key] = resource
 
             return resource
