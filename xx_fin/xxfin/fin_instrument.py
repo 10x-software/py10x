@@ -89,10 +89,10 @@ class FinInstrument(Traitable):
 
     #-- Last date of the instrument, i.e., nothing may change its price after that date
     def max_date(self) -> date:
-        raise NotImplementedError
+        raise NotImplementedError    # pragma: no cover
 
     def mkt_deps_get(self) -> dict:
-        raise NotImplementedError
+        raise NotImplementedError    # pragma: no cover
 
 
 class PerpetualFinInstrument(FinInstrument):
