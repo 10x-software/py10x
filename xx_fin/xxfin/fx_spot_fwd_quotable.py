@@ -8,6 +8,7 @@ from xxcommon.rdate import RDate
 from xxfin.fx_mkt_conventions import FXMktConventions
 from xxfin.mkt_quotable import SingleMktQuote
 
+
 class FXSpotQuotable(SingleMktQuote):
     mkt_conventions: FXMktConventions   = M()
     start_date: date                    = M(T.RUNTIME)

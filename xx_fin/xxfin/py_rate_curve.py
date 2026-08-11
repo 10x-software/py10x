@@ -10,6 +10,7 @@ from xxfin.day_count_convention import DAY_COUNT_CONVENTION
 from xxfin.fin_calendar import FinCalendar
 from xxfin.ir_compounding import COMPOUND_TRANSFORM, COMPOUNDING, compounding_apply
 
+
 class RateCurve(DateCurve):
     dc_convention: DAY_COUNT_CONVENTION         = T(DAY_COUNT_CONVENTION.ACT360)    ## use only additive conventions (i.e., not 30/360 variety)
     compounding: COMPOUNDING                    = T(COMPOUNDING.CONTINUOUS)

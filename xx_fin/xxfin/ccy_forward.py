@@ -4,6 +4,7 @@ from datetime import date
 
 from xxfin.fin_instrument import RT, Ccy, FinInstrument, PricingContext, T
 
+
 class CcyUnit(FinInstrument):
     denominated: Ccy    = RT(T.ID)   #-- became non-storable ID
 

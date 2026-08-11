@@ -8,6 +8,7 @@ from xxfin.ccy_cross import CcyCross
 from xxfin.fx_forward_curve import FXForwardCurve
 from xxfin.pricing_context import SNAPSHOT, PricingContext
 
+
 class FxRate(Traitable):
     cross_name: str = RT(T.ID)
 

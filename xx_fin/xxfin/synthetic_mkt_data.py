@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
-
 import bisect
+from datetime import date
 from typing import Any
 
 from core_10x.traitable import RT, M, T, Traitable
@@ -11,6 +10,7 @@ from xxcommon.rdate import RDate
 
 from xxfin.mkt_data_basis import MktDataBasis
 from xxfin.mkt_quotables_scope import MktQuotablesScope
+
 
 class MktAssembly(Traitable):
     s_mas_data_per_market: dict = None
