@@ -1,3 +1,4 @@
+
 if __name__=='__main__':
     from datetime import date
 
@@ -5,11 +6,14 @@ if __name__=='__main__':
     from xxfin.ccy import Ccy
     from xxfin.ccy_forward import CcyForward, CcyUnit
     from xxfin.fin_calendar import FinCalendar
-    from xxfin.fx_forward_curve import FXForwardCurveSimple
+    from xxfin.fx_forward_curve import FXForwardCurveSimple,FXSpotQuotable, FXForwardQuotable
     from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable
     from xxfin.ir_swap_quotable import IRSwapQuotable
     from xxfin.ir_zero_rate_curve import ZeroRateCurve
     from xxfin.pricing_context import PricingContext
+
+    IR_DEPS = False
+    FX_DEPS = True
 
 
     pc = PricingContext.current()
@@ -71,54 +75,125 @@ if __name__=='__main__':
         IRSwapQuotable.existing_instance(tenor = RDate('30Y'),  mkt_name = 'SONIA', **md_basis),
     ]
 
-    mkt_deps_cases = [
+    mkt_ir_deps_cases = [
         ((usd_cf_6m, usd_cf_6y), (sofr_cash_depos,  sofr_swaps)),
         ((gbp_cf_2y, gbp_cf_3y), (sonia_cash_depos, sonia_swaps)),
     ]
 
-    for mdc in mkt_deps_cases:
-        secs = mdc[0]
-        cash_depos, swaps = mdc[1]
-        for cf in secs:
-            print(f'cf = {cf}')
-            ed = cf.max_date()
-            print(f'{cf}: ed = {ed}')
-            cds = []
-            for cd in cash_depos:
-            # for cd in sofr_cash_depos:
-                cds.append(cd)
-                print(f'{cd} pay date = {cd.pay_date}')
-                if cd.pay_date > ed:
-                    print(f'{cf}: last used cash depo = {cd}/{cd.pay_date}')
-                    break
 
-            swps = []
-            ## if the instrument max date > last cash depo "end" date then go into swaps
-            if ed > cd.pay_date:
-                for swp in swaps:
-                # for swp in sofr_swaps:
-                    swps.append(swp)
-                    print(f'{swp} pay date = {swp.pay_dates[-1]}')
-                    if swp.pay_date > ed:
-                        print(f'{cf}: last used swap = {swp}/{swp.pay_dates[-1]}')
-                    # if swp.pay_dates[-1] > ed:
+
+    if IR_DEPS:
+        print( f'>>> DISC MKT DEPS <<<')
+
+        for mdc in mkt_ir_deps_cases:
+            secs = mdc[0]
+            cash_depos, swaps = mdc[1]
+            for cf in secs:
+                print(f'cf = {cf}')
+                ed = cf.max_date()
+                print(f'{cf}: ed = {ed}')
+                cds = []
+                for cd in cash_depos:
+                # for cd in sofr_cash_depos:
+                    cds.append(cd)
+                    print(f'{cd} pay date = {cd.pay_date}')
+                    if cd.pay_date > ed:
+                        print(f'{cf}: last used cash depo = {cd}/{cd.pay_date}')
                         break
 
-            print(f'{cf}: cash depos = {cds}')
-            print(f'{cf}: swaps      = {swps}')
-            deps = {}
-            if cds:
-                deps[IRCashDepositQuotable] = cds
-            if swps:
-                deps[IRSwapQuotable] = swps
-            print('manual deps =' )
-            for cls, qts in deps.items(): print(f'\t{cls}:  {qts}')
-            print('mkt deps =')
-            for cls, qts in cf.mkt_deps_for_discounting.items(): print(f'\t{cls}:  {qts}')
-            assert deps == cf.mkt_deps_for_discounting
-            print('\n')
-            # print(f'{usd_zrc}: zrc quotables by class: {usd_zrc.quotables_by_class}')
-            # print(f'{usd_zrc}: zrc quotables map:')
-            # dates, quotables = usd_zrc.dates_quotables_map
-            # print(f'\t{dates}')
-            # print(f'\t{quotables}')
+                swps = []
+                ## if the instrument max date > last cash depo "end" date then go into swaps
+                if ed > cd.pay_date:
+                    for swp in swaps:
+                    # for swp in sofr_swaps:
+                        swps.append(swp)
+                        print(f'{swp} pay date = {swp.pay_dates[-1]}')
+                        if swp.pay_date > ed:
+                            print(f'{cf}: last used swap = {swp}/{swp.pay_dates[-1]}')
+                        # if swp.pay_dates[-1] > ed:
+                            break
+
+                print(f'{cf}: cash depos = {cds}')
+                print(f'{cf}: swaps      = {swps}')
+                deps = {}
+                if cds:
+                    deps[IRCashDepositQuotable] = cds
+                if swps:
+                    deps[IRSwapQuotable] = swps
+                print('manual deps =' )
+                for cls, qts in deps.items(): print(f'\t{cls}:  {qts}')
+                print('mkt deps =')
+                for cls, qts in cf.mkt_deps_for_discounting.items(): print(f'\t{cls}:  {qts}')
+                assert deps == cf.mkt_deps_for_discounting
+                print('\n')
+                # print(f'{usd_zrc}: zrc quotables by class: {usd_zrc.quotables_by_class}')
+                # print(f'{usd_zrc}: zrc quotables map:')
+                # dates, quotables = usd_zrc.dates_quotables_map
+                # print(f'\t{dates}')
+                # print(f'\t{quotables}')
+
+    gbp_fx_spot = FXSpotQuotable(mkt_name = 'GBP/USD', **md_basis)
+    gbp_fx_fwds = [
+        FXForwardQuotable.existing_instance(tenor = RDate('1B'),  mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('1W'),  mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('1M'),  mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('3M'),  mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('6M'),  mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('9M'),  mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('12M'), mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('2Y'),  mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('5Y'),  mkt_name = 'GBP/USD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('20Y'), mkt_name = 'GBP/USD', **md_basis),
+    ]
+
+    cad_fx_spot = FXSpotQuotable(mkt_name = 'USD/CAD', **md_basis)
+    cad_fx_fwds = [
+        FXForwardQuotable.existing_instance(tenor = RDate('1W'),  mkt_name = 'USD/CAD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('1M'),  mkt_name = 'USD/CAD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('3M'),  mkt_name = 'USD/CAD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('6M'),  mkt_name = 'USD/CAD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('9M'),  mkt_name = 'USD/CAD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('12M'), mkt_name = 'USD/CAD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('2Y'),  mkt_name = 'USD/CAD', **md_basis),
+        FXForwardQuotable.existing_instance(tenor = RDate('5Y'),  mkt_name = 'USD/CAD', **md_basis),
+    ]
+
+    ## last ccy = denom
+    mkt_fx_deps_cases = [
+        ((usd_cf_6m, usd_cf_6y), (('GBP', gbp_fx_spot, gbp_fx_fwds),)),
+        ((gbp_cf_2y, gbp_cf_3y), (('GBP', gbp_fx_spot, gbp_fx_fwds), ('CAD', cad_fx_spot, cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
+    ]
+
+
+
+
+    if FX_DEPS:
+        print( f'>>> FX MKT DEPS <<<')
+        for mdc in mkt_fx_deps_cases:
+            secs = mdc[0]
+            ccys = mdc[1]
+
+
+            for cf in secs:
+                fxdeps = {FXForwardQuotable: [], FXSpotQuotable: []}
+
+                print(f'cf = {cf}')
+                ed = cf.max_date()
+                print(f'{cf}: ed = {ed}')
+
+                for ccy_name,ccy_fx_spot, ccy_fx_fwds in ccys:
+                    fxdeps[FXSpotQuotable].append(ccy_fx_spot)
+                    print(f'{ccy_fx_spot} end date = {ccy_fx_spot.end_date}')
+
+                    for fxf in ccy_fx_fwds:
+                        fxf_ed = fxf.end_date
+                        fxdeps[FXForwardQuotable].append(fxf)
+                        if fxf_ed > ed:
+                            print(f'{cf}: last used fx fwd = {fxf}/{fxf_ed}')
+                            break
+
+                calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
+                print(f'{cf}/{ccy_name}: MANUAL fxdeps = {fxdeps}')
+                print(f'{cf}/{ccy_name}: CALC   fxdeps = {calc_fxdeps}')
+                assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
+                print(f'{cf}/{ccy_name}: *** calc fx deps = manual ***\n')
