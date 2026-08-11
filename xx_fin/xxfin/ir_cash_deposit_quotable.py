@@ -9,6 +9,7 @@ from xxfin.ir_compounding import COMPOUND_TRANSFORM, COMPOUNDING
 from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
 from xxfin.mkt_quotable import SingleMktQuote
 
+
 class IRCashDepositQuotable(SingleMktQuote):
     mkt_conventions: IRRateMktConventions = M()
 

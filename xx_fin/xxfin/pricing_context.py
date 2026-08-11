@@ -8,6 +8,7 @@ from core_10x.traitable import RT, T, Traitable
 from xxfin.snapshot import SNAPSHOT
 from xxfin.xxfin_env_vars import XXFinEnvVars
 
+
 class PRICING_MODE(Enum):
     PRICING     = ()
     MKT_RISK    = ()

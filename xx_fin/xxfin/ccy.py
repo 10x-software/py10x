@@ -8,6 +8,7 @@ from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
 
 from xxfin.fin_calendar import FinCalendar
 
+
 #-- TODO: _force_default_cache = True
 class Ccy(NamedTraitable):
     bank_calendar: FinCalendar  = T(T.NOT_EMPTY)

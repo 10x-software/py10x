@@ -6,6 +6,7 @@ from core_10x.traitable import T
 
 from xxfin.mkt_adaptor import MktDataConnector
 
+
 class DevBbgConnector(MktDataConnector):
     """In-memory ticker/date -> px_last lookup, for dev/test fixtures. No DB/network involved."""
 

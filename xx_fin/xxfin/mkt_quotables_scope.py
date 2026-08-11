@@ -7,6 +7,7 @@ from xxcommon.rdate import RDate
 
 from xxfin.mkt_quotable import MktQuotable
 
+
 class MktQuotablesScope(Bundle):
     s_data_per_market: dict = None
 

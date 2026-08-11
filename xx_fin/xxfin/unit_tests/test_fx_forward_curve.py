@@ -1,5 +1,6 @@
 import pytest
 from core_10x.trait_method_error import TraitMethodError
+
 # from xxcommon.py_curve import IP_KIND, Curve, DateCurve
 from xxcommon.rdate import RDate, date
 from xxfin.fx_forward_curve import FXForwardCurve, FXForwardCurveSimple

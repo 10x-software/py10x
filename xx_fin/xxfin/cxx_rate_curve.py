@@ -6,6 +6,7 @@ from cxxfin import BRateCurve as _BRateCurve
 
 from xxfin.py_rate_curve import RateCurve as _PyRateCurve
 
+
 class RateCurve(_PyRateCurve):
     def accrual(self, d: date, today: date = None) -> float:
         return _BRateCurve.accrual(self, d, today)
