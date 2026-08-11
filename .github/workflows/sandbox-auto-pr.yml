@@ -59,6 +59,10 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           REPO: ${{ github.repository }}
+          # Whoever pushed the sandbox branch. `workflow_run.actor` is the actor of the
+          # *originating* run (the human's push), not this workflow's App -- unlike the bare
+          # `github.actor`, which would be wrong here.
+          OWNER: ${{ github.event.workflow_run.actor.login }}
         run: |
           set -euo pipefail
 
@@ -102,6 +106,12 @@ jobs:
 
           title="Merge ${HEAD_BRANCH} into main"
           body="Automatically created for changes pushed to \`${HEAD_BRANCH}\`."
+          # An @mention subscribes the owner to the thread, so GitHub notifies them on review,
+          # merge and CI -- GitHub has no API to subscribe another user directly.
+          case "$OWNER" in
+            ''|*'[bot]') ;;
+            *) body="${body}"$'\n\n'"cc @${OWNER}" ;;
+          esac
 
           url="$(
             gh pr create \
