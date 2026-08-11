@@ -68,7 +68,7 @@ class SpotMktConventions(MktConventions):
     def roll_rule_get(self):
         return self.ccy.roll_rule
 
-    def spot_date(self, start_date: date) -> date:
+    def spot_date(self, start_date: date) -> date:  ## TODO: seems useful to allow start_date = Pricing_Context.current().md_date default
         ccy = self.ccy
         return self.spot_offset.apply(start_date, ccy.bank_calendar, ccy.roll_rule)
 
