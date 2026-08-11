@@ -386,7 +386,9 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         return f'"{dbname.replace(chr(34), chr(34) * 2)}"'
 
     def list_databases(self, prefix: str = '') -> list[str]:
-        return [r[0] for r in self._execute('SELECT datname FROM pg_database WHERE datname LIKE ? ORDER BY datname', [prefix + '%'])]
+        # ``starts_with`` — not ``LIKE`` — so ``_`` / ``%`` in the prefix are literals
+        # (Mongo uses ``str.startswith``; ``TEST_DB_PREFIX`` contains underscores).
+        return [r[0] for r in self._execute('SELECT datname FROM pg_database WHERE starts_with(datname, ?) ORDER BY datname', [prefix])]
 
     def delete_database(self, dbname: str) -> bool:
         """``WITH (FORCE)`` (PG 13+) evicts other sessions, but libpq cannot drop the database
