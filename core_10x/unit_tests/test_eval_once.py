@@ -39,8 +39,8 @@ def test_eval_once_uses_origin_cache_under_graph():
     """EVAL_ONCE stores on the object's origin cache (the GRAPH_ON child), not default_cache."""
 
     class X(Traitable):
-        x: int = T(T.ID)
-        v: int = T(T.EVAL_ONCE)
+        x: int = RT(T.ID)
+        v: int = RT(T.EVAL_ONCE)
         calls = 0
 
         def v_get(self):
