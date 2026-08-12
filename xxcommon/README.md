@@ -5,6 +5,7 @@ Shared, finance-oriented building blocks layered on top of `core_10x`:
 - **`xxcalendar`** — `Calendar` with non-working days, set algebra (union / intersection), and adjustments.
 - **`rdate`** — `RDate` tenors (e.g. `'3M'`, `'1Y'`) with business-day roll rules and date schedules.
 - **`curve`** — `Curve` / `DateCurve` with pluggable interpolation (`scipy.interpolate`).
+- **`event` / `event_processor`** — `Event`, a timestamped append-only record, and `EventProcessor`, a watermark-tracked, class-dispatched consumer of one or more `Event` subclasses.
 
 For the broader project (concepts, install, tests, style), see [`README.md`](../README.md), [`INSTALLATION.md`](../INSTALLATION.md), [`GETTING_STARTED.md`](../GETTING_STARTED.md), and [`CONTRIBUTING.md`](../CONTRIBUTING.md) at the repository root.
 
@@ -230,6 +231,90 @@ dc.dates_values(min_date=date(2025, 2, 1))
 Available `IP_KIND` values: `LINEAR`, `NEAREST`, `NEAREST_UP`, `PREVIOUS`, `NEXT`, `ZERO`, `SLINEAR`, `QUADRATIC`, `CUBIC`, `NO_INTERP`. Each carries a minimum-points label used by `min_curve_size`.
 
 `DateCurve` stores times internally as integer day offsets from `1970-01-01`; expose dates via `dates`, `start_time()`, `end_time()`, `dates_values(...)`.
+
+---
+
+## `Event` and `EventProcessor` — timestamped event streams
+
+`xxcommon.event.Event` and `xxcommon.event_processor.EventProcessor` provide a small framework for
+timestamped, append-only event streams and watermark-based processing of them.
+
+### `Event`
+
+`Event` is an `EventBase` subclass (see [Traitable store-side traits](../GETTING_STARTED.md#traitable-store-side-traits)
+in `GETTING_STARTED.md`) — every event carries store-side `_at` (`T.TS_TIME`) and `_who`
+(`T.TS_USER`) traits stamped on save, so events are naturally ordered and attributable without
+application code setting them.
+
+| Method | Purpose |
+|---|---|
+| `Event.between(start, end, including_start=True, including_end=True)` | Events with `_at` in `[start, end]`; either `start` or `end` may be omitted for an open-ended range. |
+| `Event.penultimate(when)` | The single event immediately before `when`, or `None`. |
+| `Event.uuid7_from_dt(dt)` | Lowest possible UUID v7 for a given `datetime` — a sortable cursor/boundary ID that depends only on time. |
+
+```python
+from datetime import datetime, timedelta
+from core_10x.traitable import T
+from infra_10x.mongodb_store import MongoStore
+from xxcommon.event import Event
+
+class PriceTick(Event):
+    ticker: str = T()
+    price: float = T()
+
+with MongoStore.instance(hostname='localhost', dbname='myapp'):
+    PriceTick(ticker='AAPL', price=189.0).save()
+    PriceTick(ticker='AAPL', price=190.5).save()
+
+    recent = PriceTick.between(datetime.utcnow() - timedelta(minutes=5), None)
+```
+
+### `EventProcessor`
+
+`EventProcessor` is a `Traitable` base class for consuming one or more `Event` subclasses through
+class-name-dispatched handlers, tracking progress with a persisted per-class watermark so a
+restart resumes cleanly instead of reprocessing or missing events.
+
+Declare inputs (and, optionally, outputs) via subclass keyword args, and a
+`<EventClassName>_process(self, event)` method for each input class:
+
+```python
+from core_10x.traitable import T
+from infra_10x.mongodb_store import MongoStore
+from xxcommon.event import Event
+from xxcommon.event_processor import EventProcessor
+
+class OrderPlaced(Event):
+    order_id: str = T()
+
+class OrderFilled(Event):
+    order_id: str = T()
+
+class OrderBook(EventProcessor, inputs=(OrderPlaced,), outputs=(OrderFilled,)):
+    name: str = T(T.ID)
+
+    def OrderPlaced_process(self, event: OrderPlaced) -> None:
+        OrderFilled(order_id=event.order_id).save()
+
+with MongoStore.instance(hostname='localhost', dbname='myapp'):
+    book = OrderBook(name='main')
+    n = book.process_pending_events()  # loads pending OrderPlaced events, dispatches, advances watermark, saves
+```
+
+Key points:
+
+- **Class-name dispatch, validated at class-definition time**: `__init_subclass__` checks that
+  every declared input class has a matching `<ClassName>_process(self, event)` method with the
+  right signature, so a missing or mistyped handler fails immediately instead of silently
+  dropping events.
+- **One watermark per input class, one query per store**: `pending_events()` computes a watermark
+  per store server (so multiple input classes sharing a store share one query), loads events
+  strictly after each class's last-processed watermark, and returns them sorted by `_at`.
+- **`process_pending_events()`** loads pending events, dispatches each to its handler (skipping
+  any for which `needs_processing()` returns `False` — override to filter), advances and persists
+  the watermark via `save()`, and returns the number of events processed.
+- **`advance(watermarks)`** merges new watermarks into `last_watermarks` and saves directly — use
+  it if you need custom control over when progress is committed.
 
 ---
 

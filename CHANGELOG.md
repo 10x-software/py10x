@@ -21,6 +21,7 @@ Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present 
 - **Curve backends** (`xxcommon/py_curve.py`, `xxcommon/cxx_curve.py`, `xxcommon/curve.py`, `xxcommon/roman_number.py`): Python implementation extracted to `py_curve.py`; facade re-exports `Curve`, `DateCurve`, `IP_KIND`, `CurveParams` and keeps `TwoFuncInterpolator`; `roman_number` moved from `core_10x` to `xxcommon`.
 - **Rio browser test helpers** (`ui_10x/rio/browser_helpers.py`): condition-based `wait_for_*` helpers and `ui_settle()` for stable Playwright/Rio widget tests on slow CI runners; collection-editor timeouts widened to match.
 - **Test precondition guards (`XX_TEST_STRICT`)** (`core_10x/testlib/strict.py`, `core_10x/environment_variables.py`, `.github/`): `need(ok, reason)` skips tests when a provisioning precondition is unmet — Mongo unreachable, no git/uv, cxx10x siblings not checked out, store lacks transactions — and **fails** instead when `XX_TEST_STRICT=1` (fully-provisioned Linux CI, publish gate, constraints refresh). Documentation code-block tests (`test_documentation.py`) skip on Mongo `OSError` locally; dev_10x tooling-guard tests skip when py10x/cxx10x source trees are absent (wheel-only installs). Windows CI leaves strict off (standalone Mongo by design).
+- **`Event` / `EventProcessor`** (`xxcommon/event.py`, `xxcommon/event_processor.py`): timestamped event traitables (`EventBase`-derived, store-side `_at`/`_who`) with `_at`-ordered query helpers (`between`, `penultimate`) and a processor base class that validates `<ClassName>_process` handlers at class-definition time, loads pending events by per-class watermark (one watermark query per store server), and advances/persists watermarks on `process_pending_events()`. See [`xxcommon/README.md`](xxcommon/README.md).
 
 ### Changed
 - **Import rename `xx_common` → `xxcommon`** (breaking): the package directory and import root are now `xxcommon` (still shipped in the `py10x-core` wheel). Update imports, e.g. `from xxcommon.rdate import RDate`, `from xxcommon.curve import DateCurve`, `from xxcommon.xxcalendar import Calendar`. There is no compatibility shim for `xx_common`.
@@ -37,7 +38,6 @@ Changes since **0.2.2** (2026-05-18). Items marked *(experimental)* are present 
 - **Platform / build**: Linux C++ extension modules — kernel symbols promoted to the global namespace; restricted-network / cloud builds no longer require network once dependencies are cached; `uv-sync` locates the venv interpreter correctly on Windows; `TraitableCli` subcommand default help renders correctly.
 
 ### Experimental / internal-only
-- **`Event` / `EventProcessor`** (`xxcommon/event.py`, `xxcommon/event_processor.py`): timestamped event traitables with `_at` indexing, query helpers (`between`, `penultimate`), and a processor base class that dispatches `ClassName_process` handlers, loads pending events by watermark (one watermark query per store server), and advances watermarks on `process_pending_events()`; API and store semantics may change.
 - **`XX_USE_CXX_CURVE` / `cxx_curve`** (`xxcommon/cxx_curve.py`, `xxcommon/xxcommon_env_vars.py`): optional `BCurve`/`BDateCurve` alongside pure-Python `py_curve.py`; selected at import time via `XX_USE_CXX_CURVE` (default `False`).
 - **JIT compilers** (`core_10x/jit/`): Numba/Cython getter optimization and related manual tests remain **internal R&D only** — installed via the optional `jit` extra, not documented in user-facing guides, and not covered by the default CI extra set.
 
@@ -279,7 +279,7 @@ No separate changelog; see Version History below.
 
 ## Version History
 
-- **Unreleased (since 0.2.2)**: release engineering (xx-promote, constraints, uv-sync redesign, CI gates); DuckDbStore/Ibis; Traitable cxx_mixins, post_serialize/deserialize_traits, collection-name semantics; TraitableCli syntax; XX_TEST_STRICT test preconditions; curve py/cxx split; Rio test stability; experimental Event/JIT/cxx curve
+- **Unreleased (since 0.2.2)**: release engineering (xx-promote, constraints, uv-sync redesign, CI gates); DuckDbStore/Ibis; Traitable cxx_mixins, post_serialize/deserialize_traits, collection-name semantics; TraitableCli syntax; XX_TEST_STRICT test preconditions; curve py/cxx split; Rio test stability; Event/EventProcessor; experimental JIT/cxx curve
 - **0.2.2**: Changelog-only release tag (no code delta from 0.2.1)
 - **0.2.1**: Windows CI and post-install test fixes
 - **0.2.0**: EventBase; forward refs for sibling Traitables; NamedResource bundle; user status util + onboarding guide; RC.sum(); Self return types; canonical resource URI; filter fixes (IN set, inner-class leak); bundle/history fix; is_bundle fix; storage sharing fix; MongoDB non-standard port fix; admin vault workflow fix; curve.value float fix; Basket/Bucket; NamedCallable/ClassTrait; NamedConstantValue/Table; rel_db, scenario, logger; xxcommon split; infra/mongo and UI updates; test run from installed package; CI Mongo action

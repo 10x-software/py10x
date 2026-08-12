@@ -21,6 +21,7 @@ from typing_extensions import Self, deprecated
 from core_10x import concrete_traits
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.environment_variables import EnvVars
+from core_10x.exec_control import UPWARD_DEPS_OFF
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 from core_10x.package_refactoring import PackageRefactoring
@@ -702,7 +703,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             raise OSError(f"TsStore '{uri}' is not running")
 
         if with_auth:
-            with Traitable.vault_store():
+            with UPWARD_DEPS_OFF(), Traitable.vault_store():
                 ra = VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, uri, _create_resource_if_needed=_create_if_needed)
                 return ra.resource
 
