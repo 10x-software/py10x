@@ -13,11 +13,11 @@ if TYPE_CHECKING:
 
 class Dialog(Widget, i.Dialog):
     __slots__ = (
+        '_auto_min_width',
         '_dialog',
         '_modal',
         '_parent',
         '_server',
-        '_auto_min_width',
         'accepted',
         'on_accept',
         'on_reject',
@@ -152,7 +152,7 @@ class Dialog(Widget, i.Dialog):
             build=build,
             on_session_start=on_session_start,
             on_session_close=on_session_close,
-            default_attachments=[UserSessionContext(host='localhost', dbname='test')],
+            default_attachments=[UserSessionContext()],
         )
         debug = True
         if debug:
@@ -172,11 +172,7 @@ class Dialog(Widget, i.Dialog):
             return
         rem_w = float(getattr(session, 'window_width', 0) or 0)
         ppf = float(getattr(session, 'pixels_per_font_height', 0) or 16)
-        rem = (
-            max(self.s_default_min_width_rem, rem_w * self.s_default_width_fraction)
-            if rem_w > 0
-            else self.s_default_min_width_rem
-        )
+        rem = max(self.s_default_min_width_rem, rem_w * self.s_default_width_fraction) if rem_w > 0 else self.s_default_min_width_rem
         # build() converts px → rem via / pixels_per_font_height
         self._kwargs['min_width'] = rem * ppf
 

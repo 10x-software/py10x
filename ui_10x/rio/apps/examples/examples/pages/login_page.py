@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from infra_10x.mongodb_store import MongoStore  # TODO: backbone
+
+from core_10x.environment_variables import EnvVars as XxEnvVars
+from core_10x.ts_store import TsStore
 from ui_10x.rio.component_builder import UserSessionContext
 
 import rio
@@ -25,7 +27,7 @@ class LoginPage(rio.Component):
 
             try:
                 runtime_context = self.session[UserSessionContext]
-                running, with_auth = MongoStore.is_running_with_auth(runtime_context.host)
+                running, with_auth = TsStore.is_running_with_auth_from_uri(XxEnvVars.main_ts_store_uri)
                 if not running:
                     self.error_message = 'Authentication is not available'
                     return
@@ -35,8 +37,10 @@ class LoginPage(rio.Component):
                 if not with_auth:
                     self.username = ''
                     self.password = ''
-                runtime_context.traitable_store = MongoStore.instance(
-                    hostname=runtime_context.host, dbname=runtime_context.dbname, username=self.username, password=self.password
+                runtime_context.traitable_store = TsStore.instance_from_uri(
+                    XxEnvVars.main_ts_store_uri,
+                    username=self.username,
+                    password=self.password,
                 )
                 runtime_context.authenticated = True
 
@@ -56,7 +60,7 @@ class LoginPage(rio.Component):
         try:
             runtime_context = self.session[UserSessionContext]
             runtime_context.authenticated = False
-            runtime_context.mongo_store = None
+            runtime_context.traitable_store = None
         except Exception as e:
             self.error_message = f'Logout error\n {e}'
             print(e)

@@ -29,9 +29,6 @@ if TYPE_CHECKING:
 
 @dataclass
 class UserSessionContext:
-    # TODO: backbone
-    host: str
-    dbname: str
     traitable_store: TsStore = None
     interactive: BTraitableProcessor = None
     authenticated: bool = False
