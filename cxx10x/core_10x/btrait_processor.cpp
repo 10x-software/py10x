@@ -176,13 +176,13 @@ py::object BTraitProcessor::raw_set_value_on_graph(const BTraitableProcessor* pr
 
 //======================================================================================================================
 //  Eval Once Trait
-//  - always evaluates in the Default BCache
+//  - always evaluates in the object's origin cache
 //  - may not be set or invalidated
 //======================================================================================================================
 
 py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait) {
-    const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
-    const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, true);
+    const auto cache = obj->origin_cache();    // Eval Once trait must be evaluated in origin cache
+    const auto node = cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, true);
     if(node->is_valid())
         return node->value();
 
@@ -192,8 +192,8 @@ py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitab
 }
 
 py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) {
-    const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
-    const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, args, true);
+    const auto cache = obj->origin_cache();    // Eval Once trait must be evaluated in origin cache
+    const auto node = cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, args, true);
     if(node->is_valid())
         return node->value();
 
@@ -203,8 +203,8 @@ py::object EvalOnceProc::get_value_off_graph(BTraitableProcessor* proc, BTraitab
 }
 
 py::object EvalOnceProc::raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value) const {
-    const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
-    const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, true);
+    const auto cache = obj->origin_cache();    // Eval Once trait must be evaluated in origin cache
+    const auto node = cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, true);
     if(node->is_valid())
        dont_touch_me(obj,trait);
     node->assign(value);
@@ -212,8 +212,8 @@ py::object EvalOnceProc::raw_set_value_off_graph(const BTraitableProcessor *proc
 }
 
 py::object EvalOnceProc::raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value, const py::args &args) const {
-    const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
-    const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, args, true);
+    const auto cache = obj->origin_cache();    // Eval Once trait must be evaluated in origin cache
+    const auto node = cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, args, true);
     if(node->is_valid())
         dont_touch_me(obj,trait);
     node->assign(value);
@@ -221,15 +221,15 @@ py::object EvalOnceProc::raw_set_value_off_graph(const BTraitableProcessor *proc
 }
 
 void EvalOnceProc::invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait) const {
-    const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
-    const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, true);
+    const auto cache = obj->origin_cache();    // Eval Once trait must be evaluated in origin cache
+    const auto node = cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, true);
     if(node->is_valid())
         dont_touch_me(obj, trait);
 }
 
 void EvalOnceProc::invalidate_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::args &args) const {
-    const auto def_cache = XCache::default_cache();    // Eval Once trait must be evaluated in Default Cache
-    const auto node = def_cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, args, true);
+    const auto cache = obj->origin_cache();    // Eval Once trait must be evaluated in origin cache
+    const auto node = cache->find_or_create_node(obj, trait, NODE_TYPE::BASIC, args, true);
     if(node->is_valid())
         dont_touch_me(obj, trait);
 }

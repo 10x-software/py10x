@@ -147,27 +147,37 @@ def test_cache_unreachable():
         assert 'object not usable - origin cache is not reachable' in str(e)
 
 
-def test_eval_once_requires_default_cache_origin():
+def test_eval_once_uses_origin_cache_under_graph():
+    """EVAL_ONCE stores on the object's origin cache (the GRAPH_ON child), not default_cache."""
     class X(Traitable):
         x: int = T(T.ID)
         v: int = T(T.EVAL_ONCE)
+        calls = 0
 
-        @staticmethod
-        def load_data(id):
-            return {'_id': id.value, 'x': int(id.value), 'v': int(id.value)*20, '_rev': 1}
+        def v_get(self):
+            type(self).calls += 1
+            return 10
 
-        @classmethod
-        def exists_in_store(cls, id):
-            return True
 
-    with GRAPH_ON():
-        x = X(x=1)
+    with CACHE_ONLY():
+        with GRAPH_ON():
+            x = X(x=1)
+            assert x.v == 10
+            assert X.calls == 1
+            assert x.v == 10
+            assert X.calls == 1
+
         try:
             _ = x.v
             assert False, 'expected RuntimeError'
         except RuntimeError as e:
             assert 'object not usable - origin cache is not reachable' in str(e)
 
+        x = X(x=1)
+        assert x.v == 10
+        assert X.calls == 2
+        assert x.v == 10
+        assert X.calls == 2
 
 def test_deserialize_traits_override():
     class X(Traitable):
@@ -1119,7 +1129,7 @@ def test_create_root():
 
 
 def test_eval_once_under_create_root():
-    """EVAL_ONCE nodes always live on default_cache, independent of create_root()'s orphan cache."""
+    """EVAL_ONCE nodes live on the object's origin cache."""
     class X(Traitable):
         x: int = T(T.ID)
         v: int = T(T.EVAL_ONCE)
@@ -1137,23 +1147,20 @@ def test_eval_once_under_create_root():
             assert root.cache() is not default_cache
             assert BTP.current().cache() is root.cache()
 
-            # first evaluation under create_root still stores the node on default_cache
+            # outer's origin is default_cache; EVAL_ONCE stores there
             assert outer.v == 10
             assert X.calls == 1
             assert outer.v == 10
             assert X.calls == 1
 
-            # object born under create_root has an orphan origin; default_cache cannot reach it
-            inner = X(x=1)
-            try:
-                _ = inner.v
-                assert False, 'expected RuntimeError'
-            except RuntimeError as e:
-                assert 'object not usable - origin cache is not reachable' in str(e)
+            # object born under create_root evaluates on the orphan origin cache
+            inner = X(x=2)
+            assert inner.v == 10
+            assert X.calls == 2
 
-        # EVAL_ONCE value survives create_root teardown (node is on default_cache, not the orphan)
+        # outer's EVAL_ONCE value survives create_root teardown (node on default_cache)
         assert outer.v == 10
-        assert X.calls == 1
+        assert X.calls == 2
 
         try:
             outer.v = 99
@@ -1608,6 +1615,7 @@ if __name__ == '__main__':
     test_lazy_ref_replace()
     test_new_or_replace_store()
     test_create_root()
+    test_eval_once_uses_origin_cache_under_graph()
     test_eval_once_under_create_root()
     test_existing_composite_id()
     test_trait_method_error()
