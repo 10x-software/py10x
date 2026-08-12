@@ -350,16 +350,71 @@ def test_startup_probe_ssl_wrap_failure_tries_vault(monkeypatch):
 
 def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
     sentinel = object()
+    captured = {}
+
+    class _FakeSecKeys:
+        def decrypt_text(self, _password):
+            return 'vault-secret'
+
+    class _FakeUser:
+        sec_keys = _FakeSecKeys()
 
     class _FakeRA:
+        login = 'vault-user'
+        password = b'encrypted'
+        user = _FakeUser()
+        resource_uri = 'postgresql://vault-pg.example:5432/postgres'
+        _create_resource_if_needed = False
+
         @property
         def resource(self):
-            return sentinel
+            # Mirror VaultResourceAccessor.resource_get: honor the stamp from retrieve_ra.
+            return PostgresStore.instance_from_uri(
+                self.resource_uri, username=self.login, password=self.user.sec_keys.decrypt_text(self.password),
+                _create_if_needed=self._create_resource_if_needed,
+            )
+
+    def _fake_retrieve_ra(cls, resource_dt, resource_uri, username=None, *, _create_resource_if_needed=False):
+        ra = _FakeRA()
+        ra.resource_uri = resource_uri
+        ra._create_resource_if_needed = _create_resource_if_needed
+        return ra
+
+    def _fake_instance_from_uri(cls, uri, username=None, password=None, _cache=True, _create_if_needed=False):
+        captured.update(uri=uri, username=username, password=password, _create_if_needed=_create_if_needed)
+        return sentinel
 
     monkeypatch.setattr(PostgresStore, 'is_running_with_auth', classmethod(lambda cls, host_name, port=None: (True, True)))
     monkeypatch.setattr(Traitable, 'vault_store', staticmethod(lambda: nullcontext()))
-    monkeypatch.setattr(VaultResourceAccessor, 'retrieve_ra', classmethod(lambda cls, *a, **k: _FakeRA()))
-    assert Traitable.store_from_uri('postgresql://vault-pg.example:5432/postgres') is sentinel
+    monkeypatch.setattr(VaultResourceAccessor, 'retrieve_ra', classmethod(_fake_retrieve_ra))
+    monkeypatch.setattr(PostgresStore, 'instance_from_uri', classmethod(_fake_instance_from_uri))
+
+    uri = 'postgresql://vault-pg.example:5432/postgres'
+    assert Traitable.store_from_uri(uri) is sentinel
+    assert captured == {'uri': uri, 'username': 'vault-user', 'password': 'vault-secret', '_create_if_needed': False}
+
+    assert Traitable.store_from_uri(uri, _create_if_needed=True) is sentinel
+    assert captured['_create_if_needed'] is True
+
+def test_resource_instance_create_if_needed_runs_before_new_instance(monkeypatch):
+    """``Resource.instance(..., _create_if_needed=True)`` creates only when constructing a new instance."""
+    order = []
+
+    monkeypatch.setattr(PostgresStore, 'create_if_needed', classmethod(lambda cls, spec: order.append(('create', spec.kwargs['dbname'])) or False))
+    monkeypatch.setattr(PostgresStore, 'new_instance', classmethod(lambda cls, **kw: order.append(('new', kw.get('dbname'))) or object()))
+
+    kw = dict(hostname='localhost', port=5432, dbname='to_create', username='u', password='p', _create_if_needed=True)
+    PostgresStore.instance(**kw, _cache=False)
+    assert order == [('create', 'to_create'), ('new', 'to_create')]
+
+    order.clear()
+    PostgresStore.s_instances.clear()
+    PostgresStore.instance(**kw)  # cache miss -> create + new
+    assert order == [('create', 'to_create'), ('new', 'to_create')]
+
+    order.clear()
+    PostgresStore.instance(**kw)  # cache hit -> neither
+    assert order == []
 
 
 def test_password_auth_probe_requires_auth():
