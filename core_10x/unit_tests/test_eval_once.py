@@ -35,27 +35,37 @@ def test_eval_once_set_blocked():
     assert x2.v == 40
 
 
-def test_eval_once_requires_default_cache_origin():
+def test_eval_once_uses_origin_cache_under_graph():
+    """EVAL_ONCE stores on the object's origin cache (the GRAPH_ON child), not default_cache."""
+
     class X(Traitable):
         x: int = T(T.ID)
         v: int = T(T.EVAL_ONCE)
+        calls = 0
 
-        @staticmethod
-        def load_data(id):
-            return {'_id': id.value, 'x': int(id.value), 'v': int(id.value) * 20, '_rev': 1}
-
-        @classmethod
-        def exists_in_store(cls, id):
-            return True
+        def v_get(self):
+            type(self).calls += 1
+            return 10
 
     with GRAPH_ON():
         x = X(x=1)
-        with pytest.raises(RuntimeError, match='object not usable - origin cache is not reachable'):
-            _ = x.v
+        assert x.v == 10
+        assert X.calls == 1
+        assert x.v == 10
+        assert X.calls == 1
+
+    with pytest.raises(RuntimeError, match='object not usable - origin cache is not reachable'):
+        _ = x.v
+
+    x = X(x=1)
+    assert x.v == 10
+    assert X.calls == 2
+    assert x.v == 10
+    assert X.calls == 2
 
 
 def test_eval_once_under_create_root():
-    """EVAL_ONCE nodes always live on default_cache, independent of create_root()'s orphan cache."""
+    """EVAL_ONCE nodes live on the object's origin cache."""
 
     class X(Traitable):
         x: int = T(T.ID)
@@ -74,17 +84,20 @@ def test_eval_once_under_create_root():
             assert root.cache() is not default_cache
             assert BTP.current().cache() is root.cache()
 
+            # outer's origin is default_cache; EVAL_ONCE stores there
             assert outer.v == 10
             assert X.calls == 1
             assert outer.v == 10
             assert X.calls == 1
 
-            inner = X(x=1)
-            with pytest.raises(RuntimeError, match='object not usable - origin cache is not reachable'):
-                _ = inner.v
+            # object born under create_root evaluates on the orphan origin cache
+            inner = X(x=2)
+            assert inner.v == 10
+            assert X.calls == 2
 
+        # outer's EVAL_ONCE value survives create_root teardown (node on default_cache)
         assert outer.v == 10
-        assert X.calls == 1
+        assert X.calls == 2
         with pytest.raises(TypeError, match='Trying to modify EVAL_ONCE trait'):
             outer.v = 99
 
