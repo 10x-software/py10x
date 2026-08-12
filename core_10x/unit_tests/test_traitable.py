@@ -1808,19 +1808,19 @@ class TestForwardRefTraitables:
         )
         mod = self._exec_module(source, 'test_traitable_missing_date_ann')
         try:
-            MissingDate = mod.MissingDate
-            ph = MissingDate.trait('md_date').data_type
+            missing_date = mod.MissingDate
+            ph = missing_date.trait('md_date').data_type
             assert ph.__name__.startswith('_TraitableFwdRefPlaceholder#')
             assert ph.__name__.endswith('.date')
 
             unresolved = r'`test_traitable_missing_date_ann\.date` is not defined'
             with CACHE_ONLY(), CONVERT_VALUES_OFF(), DEBUG_ON():
-                obj = MissingDate(xid='a')
+                obj = missing_date(xid='a')
                 with pytest.raises(TraitMethodError, match=unresolved):
                     obj.md_date = '2025-03-12'
 
             with CACHE_ONLY(), CONVERT_VALUES_ON():
-                obj2 = MissingDate(xid='b')
+                obj2 = missing_date(xid='b')
                 with pytest.raises(TraitMethodError, match=unresolved):
                     obj2.md_date = '2025-03-12'
 

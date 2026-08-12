@@ -6,7 +6,7 @@ if __name__=='__main__':
     from xxfin.ccy import Ccy
     from xxfin.ccy_forward import CcyForward, CcyUnit
     from xxfin.fin_calendar import FinCalendar
-    from xxfin.fx_forward_curve import FXForwardCurveSimple,FXSpotQuotable, FXForwardQuotable
+    from xxfin.fx_forward_curve import FXForwardCurveSimple, FXForwardQuotable, FXSpotQuotable
     from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable
     from xxfin.ir_swap_quotable import IRSwapQuotable
     from xxfin.ir_zero_rate_curve import ZeroRateCurve
@@ -83,7 +83,7 @@ if __name__=='__main__':
 
 
     if IR_DEPS:
-        print( f'>>> DISC MKT DEPS <<<')
+        print( '>>> DISC MKT DEPS <<<')
 
         for mdc in mkt_ir_deps_cases:
             secs = mdc[0]
@@ -168,7 +168,7 @@ if __name__=='__main__':
 
 
     if FX_DEPS:
-        print( f'>>> FX MKT DEPS <<<')
+        print( '>>> FX MKT DEPS <<<')
         for mdc in mkt_fx_deps_cases:
             secs = mdc[0]
             ccys = mdc[1]
@@ -192,8 +192,8 @@ if __name__=='__main__':
                             print(f'{cf}: last used fx fwd = {fxf}/{fxf_ed}')
                             break
 
-                calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
-                print(f'{cf}/{ccy_name}: MANUAL fxdeps = {fxdeps}')
-                print(f'{cf}/{ccy_name}: CALC   fxdeps = {calc_fxdeps}')
-                assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
-                print(f'{cf}/{ccy_name}: *** calc fx deps = manual ***\n')
+                    calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
+                    print(f'{cf}/{ccy_name}: MANUAL fxdeps = {fxdeps}')
+                    print(f'{cf}/{ccy_name}: CALC   fxdeps = {calc_fxdeps}')
+                    assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
+                    print(f'{cf}/{ccy_name}: *** calc fx deps = manual ***\n')

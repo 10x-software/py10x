@@ -1,6 +1,6 @@
 import itertools
 import random
-from datetime import datetime  # noqa: TC003
+from datetime import datetime
 
 from core_10x.basket import BUCKET_SHAPE, Basket, Basketable, BucketDict
 from core_10x.trait_filter import f

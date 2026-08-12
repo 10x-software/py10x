@@ -9,7 +9,7 @@ import socket
 import ssl
 import struct
 from contextlib import nullcontext
-from datetime import datetime  # noqa: TC003  # used as runtime trait data_type
+from datetime import datetime  # used as runtime trait data_type
 
 import ibis
 import pytest
@@ -370,7 +370,9 @@ def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
         def resource(self):
             # Mirror VaultResourceAccessor.resource_get: honor the stamp from retrieve_ra.
             return PostgresStore.instance_from_uri(
-                self.resource_uri, username=self.login, password=self.user.sec_keys.decrypt_text(self.password),
+                self.resource_uri,
+                username=self.login,
+                password=self.user.sec_keys.decrypt_text(self.password),
                 _create_if_needed=self._create_resource_if_needed,
             )
 
@@ -396,6 +398,7 @@ def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
     assert Traitable.store_from_uri(uri, _create_if_needed=True) is sentinel
     assert captured['_create_if_needed'] is True
 
+
 def test_resource_instance_create_if_needed_runs_before_new_instance(monkeypatch):
     """``Resource.instance(..., _create_if_needed=True)`` creates only when constructing a new instance."""
     order = []
@@ -403,7 +406,7 @@ def test_resource_instance_create_if_needed_runs_before_new_instance(monkeypatch
     monkeypatch.setattr(PostgresStore, 'create_if_needed', classmethod(lambda cls, spec: order.append(('create', spec.kwargs['dbname'])) or False))
     monkeypatch.setattr(PostgresStore, 'new_instance', classmethod(lambda cls, **kw: order.append(('new', kw.get('dbname'))) or object()))
 
-    kw = dict(hostname='localhost', port=5432, dbname='to_create', username='u', password='p', _create_if_needed=True)
+    kw = {'hostname': 'localhost', 'port': 5432, 'dbname': 'to_create', 'username': 'u', 'password': 'p', '_create_if_needed': True}
     PostgresStore.instance(**kw, _cache=False)
     assert order == [('create', 'to_create'), ('new', 'to_create')]
 
