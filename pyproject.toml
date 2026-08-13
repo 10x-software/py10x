@@ -9,8 +9,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "py10x-kernel (>=0.3.0,<0.3.1rc1)",
-    "py10x-infra (>=0.3.0,<0.3.1rc1)",
+    "py10x-kernel (>=0.3.1,<0.3.2rc1)",
+    "py10x-infra (>=0.3.1,<0.3.2rc1)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -153,4 +153,4 @@ raw-options = { git_describe_command = "git describe --dirty --tags --long --mat
 version-file = "dev_10x/version.py"
 
 [dependency-groups]
-test = ["py10x-fin-base>=0.1.0"]
+test = ["py10x-fin-base>=0.1.1"]

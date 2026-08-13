@@ -83,6 +83,7 @@ jobs:
 
   smoke_test:
     needs: [build_cxx_wheels, build_finbase]
+    timeout-minutes: 45
     strategy:
       fail-fast: true # repo is still private; cut wasted CI minutes on the other OSes once one fails
       matrix:
@@ -116,7 +117,7 @@ jobs:
       - name: Install from build artifacts
         shell: bash
         env:
-          PYPI_TIMEOUT_SEC: "900"
+          PYPI_TIMEOUT_SEC: "1800"
           PYPI_POLL_SEC: "90"
         run: |
           set -euo pipefail

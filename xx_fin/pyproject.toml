@@ -8,11 +8,26 @@ dynamic = ["version"]
 authors = [
     { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
 ]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Topic :: Office/Business :: Financial",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     # Pins below for py10x-core and py10x-fin-base-cxx are maintained by xx-promote.
     # Kernel/infra come transitively via py10x-core.
-    "py10x-core (>=0.3.0,<0.3.1rc1)",
-    "py10x-fin-base-cxx (==0.1.0)",  # co-released; same version as this package
+    "py10x-core (>=0.3.1,<0.3.2rc1)",
+    "py10x-fin-base-cxx (==0.1.1)",  # co-released; same version as this package
     "quantlib-python>=1.18",
     "aadc>=1.8.2; sys_platform != 'darwin' and (sys_platform != 'win32' or python_version != '3.13')",
 ]
