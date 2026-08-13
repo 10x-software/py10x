@@ -10,7 +10,7 @@ A release is "available" only when the JSON API lists files **and** the simple
 index lists the version (pip's resolver uses the simple API; JSON can lead).
 
 Env:
-  PYPI_TIMEOUT_SEC  total wait budget (default 900)
+  PYPI_TIMEOUT_SEC  total wait budget (default 1800)
   PYPI_POLL_SEC     sleep between polls (default 90)
 """
 
@@ -125,7 +125,7 @@ def main(argv: list[str]) -> None:
     if len(argv) != 2:
         raise SystemExit(f'usage: {Path(sys.argv[0]).name} <py10x-fin-base.whl>')
     wheel = Path(argv[1])
-    timeout = int(os.environ.get('PYPI_TIMEOUT_SEC', '900'))
+    timeout = int(os.environ.get('PYPI_TIMEOUT_SEC', '1800'))
     poll = int(os.environ.get('PYPI_POLL_SEC', '90'))
     deadline = time.time() + timeout
 
