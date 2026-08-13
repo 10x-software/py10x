@@ -3,7 +3,7 @@
 **Unified, identity-driven, dependency-aware object model for Python**  
 —with lazy dependency graph, persistence, automatic UI editors, and more
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue)](https://www.python.org)
+[![Python 3.11–3.13](https://img.shields.io/badge/python-3.11–3.13-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](https://opensource.org/licenses/MIT)
 
 <img src="https://10x-software.org/10x-jerboa.jpeg" alt="Jerboa Logo" width="240">

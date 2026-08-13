@@ -51,6 +51,30 @@ Their respective copyright notices and licenses apply to those components only.
     Copyright (c) 2015-present, Ofek Lev. MIT License.
     https://github.com/pypa/hatch
 
+  - hatch-build-scripts
+    Copyright (c) Ofek Lev and contributors. MIT License.
+    https://github.com/ofek/hatch-build-scripts
+
+  - polars
+    Copyright (c) Ritchie Vink and contributors. MIT License.
+    https://github.com/pola-rs/polars
+
+  - ibis-framework
+    Copyright (c) Ibis Project contributors. Apache License 2.0.
+    https://ibis-project.org/
+
+  - adbc-driver-manager
+    Copyright (c) The Apache Software Foundation. Apache License 2.0.
+    https://arrow.apache.org/adbc/
+
+  - psutil
+    Copyright (c) 2009, Jay Loden, Dave Daeschler, Giampaolo Rodola. BSD 3-Clause License.
+    https://github.com/giampaolo/psutil
+
+  - uuid6
+    Copyright (c) 2021-2024 oittaa and contributors. MIT License.
+    https://github.com/oittaa/uuid6-python
+
   - rio-ui (optional)
     Copyright (c) 2024, Rio. MIT License.
     https://github.com/nicohvi/rio

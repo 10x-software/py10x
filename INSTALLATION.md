@@ -8,7 +8,7 @@ See also the [documentation map in README.md](README.md#documentation-map).
 
 ### Core Requirements
 
-- **Python 3.12 (recommended), 3.11+ supported** - Install via UV for best experience
+- **Python 3.12 (recommended); 3.11, 3.12, and 3.13 supported** (`requires-python >=3.11,<3.14`) - Install via UV for best experience
 - **[UV](https://docs.astral.sh/uv/)** - Python installer and package manager (recommended)
 - **Git** - For cloning the repository
 

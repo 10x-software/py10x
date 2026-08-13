@@ -6,8 +6,9 @@ We provide security updates for the following versions of `py10x-core`:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
-| < 0.1   | :x:                |
+| 0.3.x   | :white_check_mark: |
+| 0.2.x   | :x:                |
+| 0.1.x   | :x:                |
 
 ## Reporting a Vulnerability
 
@@ -105,9 +106,9 @@ We will credit security researchers who responsibly disclose vulnerabilities, un
 
 Security updates will be released as:
 
-- **Patch releases** (e.g., 0.1.2.1) for critical and high severity issues
-- **Minor releases** (e.g., 0.1.3) for medium severity issues
-- **Major releases** (e.g., 0.2.0) for significant security improvements
+- **Patch releases** (e.g., 0.3.1) for critical and high severity issues
+- **Minor releases** (e.g., 0.4.0) for medium severity issues
+- **Major releases** (e.g., 1.0.0) for significant security improvements
 
 ## Security Advisories
 

@@ -31,7 +31,12 @@ All direct dependencies in `pyproject.toml` are commonly used under permissive l
 | keyring | MIT | Yes |
 | requests | Apache 2.0 | Yes |
 | hatchling | MIT | Yes |
-| hatch-build-scripts | (check) | (verify) |
+| hatch-build-scripts | MIT | Yes |
+| polars | MIT | Yes |
+| ibis-framework | Apache 2.0 | Yes |
+| adbc-driver-manager | Apache 2.0 | Yes |
+| psutil | BSD-3-Clause | Yes |
+| uuid6 | MIT | Yes |
 | Optional: PyQt6 / Rio / pytest / ruff / etc. | GPL / MIT / BSD etc. | PyQt6 is GPL/Commercial – see §4 |
 
 **Recommended:** Before release, run a dependency license checker **including optional
@@ -53,7 +58,7 @@ Command (re-run before each release):
 uv run --no-sync licensecheck -r pyproject.toml --extras rio,qt,dev
 ```
 
-**Last run:** 2026-08-10 (macOS / Python 3.11 venv) — **150** compatible, **6** flagged.
+**Last run:** 2026-08-12 (macOS / Python 3.11 venv) — **150** compatible, **6** flagged.
 
 - **Compatible (✔):** Main deps and most `rio`/`qt`/`dev` transitives (Apache 2.0, BSD, MIT, MPL
   2.0, PSF, ISC, etc.), including cryptography, pymongo, numpy, scipy, requests,

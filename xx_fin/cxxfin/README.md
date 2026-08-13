@@ -16,7 +16,7 @@ Built with pybind11 and scikit-build-core.
 
 ## Incremental, automatic rebuild
 
-`cxxfin` on is automatically rebuilt on `import cxxfin` whenever the sources changed. 
+`cxxfin` is automatically rebuilt on `import cxxfin` whenever the sources changed. 
 
 ## Clean rebuild
 

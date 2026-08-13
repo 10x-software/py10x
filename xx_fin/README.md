@@ -12,8 +12,9 @@ pip install py10x-fin-base
 That pulls **`py10x-fin-base-cxx`** transitively (import `cxxfin`). Do not depend on the cxx
 dist directly. Requires Python `>=3.11,<3.14` and a published `py10x-core` (plus its kernel/infra).
 
-In this monorepo the packaging root is [`xx_fin/`](.). Domain developers typically use editable
-path sources from a sibling `../py10x` checkout — see `xx-fin-domain` `BUILD-NOTES.txt`.
+In this monorepo the packaging root is [`xx_fin/`](.). Domain developers typically use
+`uv-sync py10x-dev --all-extras --with-downstream` from the py10x repo root — see
+[`CONTRIBUTING.md`](../CONTRIBUTING.md#development-setup).
 
 ```python
 from xxfin.ccy import Ccy
