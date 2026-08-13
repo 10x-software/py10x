@@ -74,7 +74,8 @@ class FinInstrument(Traitable):
         max_date = self.max_date()
         _, cross1, _, cross2 = CcyCross.resolve(base_ccy = ccy, quote_ccy = denom)
         fxc = FXForwardCurveSimple(mkt_name = cross1.cross, **md_basis)
-        quotables = dict(fxc.quotables_prior_to(max_date))
+        quotables = {k:v.copy() for k, v in fxc.quotables_prior_to(max_date).items()}
+        # quotables = dict(fxc.quotables_prior_to(max_date))
         if cross2:
             fxc2 = FXForwardCurveSimple(mkt_name = cross2.cross, **md_basis)
             quotables2 = fxc2.quotables_prior_to(max_date)

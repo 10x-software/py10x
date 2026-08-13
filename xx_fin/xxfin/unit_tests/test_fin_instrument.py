@@ -5,7 +5,7 @@ from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
 from xxfin.ccy import Ccy
 from xxfin.ccy_forward import CcyForward, CcyUnit
 from xxfin.fin_calendar import FinCalendar
-from xxfin.fx_forward_curve import FXForwardCurveSimple
+from xxfin.fx_forward_curve import FXForwardCurveSimple, FXForwardQuotable, FXSpotQuotable
 from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable
 from xxfin.ir_swap_quotable import IRSwapQuotable
 from xxfin.ir_zero_rate_curve import ZeroRateCurve
@@ -68,10 +68,36 @@ class TestFinInstrument:
             IRCashDepositQuotable.existing_instance(tenor=RDate('12M'), mkt_name='SONIA', **self.md_basis),
         ]
         self.sonia_swaps = [
-            IRSwapQuotable.existing_instance(tenor=RDate('5Y'), mkt_name='SONIA', **self.md_basis),
+            IRSwapQuotable.existing_instance(tenor=RDate('5Y'),  mkt_name='SONIA', **self.md_basis),
             IRSwapQuotable.existing_instance(tenor=RDate('10Y'), mkt_name='SONIA', **self.md_basis),
             IRSwapQuotable.existing_instance(tenor=RDate('20Y'), mkt_name='SONIA', **self.md_basis),
             IRSwapQuotable.existing_instance(tenor=RDate('30Y'), mkt_name='SONIA', **self.md_basis),
+        ]
+
+        self.gbp_fx_spot = FXSpotQuotable(mkt_name='GBP/USD', **self.md_basis)
+        self.gbp_fx_fwds = [
+            FXForwardQuotable.existing_instance(tenor=RDate('1B'),  mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('1W'),  mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('1M'),  mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('3M'),  mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('6M'),  mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('9M'),  mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('12M'), mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('2Y'),  mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('5Y'),  mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('20Y'), mkt_name='GBP/USD', **self.md_basis),
+        ]
+
+        self.cad_fx_spot = FXSpotQuotable(mkt_name='USD/CAD', **self.md_basis)
+        self.cad_fx_fwds = [
+            FXForwardQuotable.existing_instance(tenor=RDate('1W'),  mkt_name='USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('1M'),  mkt_name='USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('3M'),  mkt_name='USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('6M'),  mkt_name='USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('9M'),  mkt_name='USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('12M'), mkt_name='USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('2Y'),  mkt_name='USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor=RDate('5Y'),  mkt_name='USD/CAD', **self.md_basis),
         ]
 
         self.some_dates = [
@@ -134,7 +160,34 @@ class TestFinInstrument:
                     deps[IRSwapQuotable] = swps
                 assert deps == cf.mkt_deps_for_discounting
 
-    def test_mkt_deps_for_ccy(self): ...
+    def test_mkt_deps_for_ccy(self):
+        mkt_fx_deps_cases = [
+            ((self.usd_cf_6m, self.usd_cf_6y), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds),)),
+            ((self.gbp_cf_2y, self.gbp_cf_3y,), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds), ('CAD', self.cad_fx_spot, self.cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
+            # ((self.gbp_cf_2y, self.gbp_cf, self.gbp_cf_3y), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds), ('CAD', self.cad_fx_spot, self.cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
+            # ((self.gbp_cf_3y,), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds), ('CAD', self.cad_fx_spot, self.cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
+        ]
+
+        for mdc in mkt_fx_deps_cases:
+            secs = mdc[0]
+            ccys = mdc[1]
+
+            for cf in secs:
+                fxdeps = {FXForwardQuotable: [], FXSpotQuotable: []}
+
+                ed = cf.max_date()
+
+                for ccy_name,ccy_fx_spot, ccy_fx_fwds in ccys:
+                    fxdeps[FXSpotQuotable].append(ccy_fx_spot)
+
+                    for fxf in ccy_fx_fwds:
+                        fxf_ed = fxf.end_date
+                        fxdeps[FXForwardQuotable].append(fxf)
+                        if fxf_ed > ed:
+                            break
+
+                calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
+                assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
 
     def test_discount_factor(self):
         old_d = self.pc.md_date - timedelta(days=365)
