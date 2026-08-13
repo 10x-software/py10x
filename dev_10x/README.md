@@ -220,9 +220,10 @@ crash re-derives the plan from current tags and resumes.
   the rest of the batch still coordinates by the normal rules (a forced re-cut can still pull others
   forward via pin-lag). Every version must be a plain `X.Y.Z` release (no rc/dev/post) strictly
   greater than its package's latest tag.
-- **`prod`** (per package whose **latest** tag is a pre-release with an rc for its target): force-updates
-  the `prod` branch onto the latest rc commit, **stacks** a final-pin commit there (core → siblings
-  exact `==X.Y`; sibling → `test = ["py10x-core>=X.Y"]`), and tags `v{T}`. Then on `main` it
+- **`prod`** (per package whose **latest** tag is an rc): force-updates
+  the `prod` branch onto that rc commit, **stacks** a final-pin commit there (core → siblings
+  exact `==X.Y` of the rc's base — `0.3.0rc1` → `0.3.0`, not `next_micro(latest_final)`; sibling →
+  `test = ["py10x-core>=X.Y"]`), and tags `v{T}`. `--next-version` is **pre-only**. Then on `main` it
   retags `{next_micro(T)}rc0.dev` (dropping the stale rc-line marker), writes py10x-core's **post-final
   window** pins (`>=T,<{next_micro}rc1`), and points the reverse groups at the released core.
   **`prod/{tag}` publish triggers** on each final commit. Released

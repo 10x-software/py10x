@@ -230,6 +230,20 @@ def test_prod_promotes_rcs_to_finals_and_coordinates():
     assert plans['py10x-infra'].version == '0.9.1' and plans['py10x-infra'].reverse_pin == 'py10x-core>=0.2.1'
 
 
+def test_prod_finalizes_latest_rc_base_not_next_micro_of_latest_final():
+    """After `pre --next-version 0.3.0`, prod must cut 0.3.0 off 0.3.0rc1, not 0.2.3 off 0.2.3rcN."""
+    plans = ProdPlan.create_batch(
+        [
+            _inp('py10x-core', True, CORE, ['v0.2.2', 'v0.2.3rc55', 'v0.3.0rc1']),
+            _inp('py10x-kernel', False, KERNEL, [f'{KERNEL}0.2.0', f'{KERNEL}0.2.1rc41', f'{KERNEL}0.3.0rc1']),
+            _inp('py10x-infra', False, INFRA, [f'{INFRA}0.2.0', f'{INFRA}0.2.1rc33', f'{INFRA}0.3.0rc1']),
+        ]
+    )
+    assert plans['py10x-core'].act and plans['py10x-core'].version == '0.3.0'
+    assert plans['py10x-kernel'].version == '0.3.0' and plans['py10x-infra'].version == '0.3.0'
+    assert plans['py10x-core'].forward_pins == {'py10x-kernel': '==0.3.0', 'py10x-infra': '==0.3.0'}
+
+
 def test_prod_skips_packages_whose_latest_tag_is_final():
     """A package already on a final (nothing pre-release) is skipped; a promotable sibling still goes."""
     plans = ProdPlan.create_batch(

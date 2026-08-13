@@ -147,12 +147,16 @@ def _coordinated_version(inp: PkgInput) -> tuple[str | None, bool]:
 
 
 def _prod_target(inp: PkgInput) -> str | None:
-    """`prod`: the version `inp` would finalize, or None when its latest tag is not a promotable rc."""
+    """`prod`: finalize the latest tag's base (`0.3.0rc1` → `0.3.0`), or None if that tag is already final.
+
+    Must not use `target_version` (`next_micro(latest_final)`): that is the *pre* cut target. After
+    `pre --next-version 0.3.0`, latest is `0.3.0rc1` while `target_version` is still `0.2.3`, which
+    would promote the abandoned micro's last rc instead of the in-flight one.
+    """
     latest = VersionHelpers.latest_tag(inp.parsed_tags)
     if latest is None or VersionHelpers.is_final(latest[1]):
         return None
-    target = VersionHelpers.target_version(inp.parsed_tags)
-    return target if VersionHelpers.latest_rc_tag(inp.parsed_tags, target) is not None else None
+    return VersionHelpers.base_version(latest[1])
 
 
 @dataclass(frozen=True)
