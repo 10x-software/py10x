@@ -37,10 +37,10 @@ class TestIRSwapQuotable:
 
         self.irates = [self.sofr, self.sonia]
         for irate in self.irates:
-            irate['tenor'] = RDate(irate['tenor_sym'])
-            irate['mc'] = IRRateMktConventions(mkt_name=irate['irate'])
-            irate['zrc'] = ZeroRateCurve(mkt_name=irate['irate'], **self.md_basis).payload
-            irate['sq'] = IRSwapQuotable(mkt_name=irate['irate'], tenor=irate['tenor'], **self.md_basis)
+            irate['tenor']  = RDate(irate['tenor_sym'])
+            irate['mc']     = IRRateMktConventions(mkt_name = irate['irate'])
+            irate['zrc']    = ZeroRateCurve(mkt_name = irate['irate'], **self.md_basis).payload
+            irate['sq']     = IRSwapQuotable(mkt_name = irate['irate'], tenor=irate['tenor'], **self.md_basis)
 
     def test_start_end_dates(self):
         for irate in self.irates:
@@ -53,8 +53,7 @@ class TestIRSwapQuotable:
     def test_start_dates(self):
         for irate in self.irates:
             swap = irate['sq']
-            start_dates = [swap.start_date] + swap.end_dates[:-1]
-            assert start_dates == swap.start_dates
+            assert [swap.start_date] + swap.end_dates[:-1] == swap.start_dates
 
     def test_end_dates(self):
         for irate in self.irates:
@@ -78,9 +77,7 @@ class TestIRSwapQuotable:
             roll_rule = irate['roll_rule']
             pay_delay = irate['pay_delay']
             swap      = irate['sq']
-
-            pay_dates   = [ pay_delay.apply(ed, cal, roll_rule) for ed in swap.end_dates ]
-            assert pay_dates == swap.pay_dates
+            assert [ pay_delay.apply(ed, cal, roll_rule) for ed in swap.end_dates ] == swap.pay_dates
 
     def test_incremental_dc_fractions(self):
         for irate in self.irates:
@@ -100,9 +97,12 @@ class TestIRSwapQuotable:
                                                              zrc.discount_factors(swap.pay_dates, today=self.md_basis['md_date'])[:num + 1]))
                 assert manual_ann == swap.annuity_calc(zrc, num + 1)
 
-
     def test_periods(self):
         for irate in self.irates:
             swap = irate['sq']
             periods = [(sd, ed, pd, dcf) for sd, ed, pd, dcf in zip( swap.start_dates, swap.end_dates, swap.pay_dates, swap.incremental_dc_fractions, strict=True)]
             assert periods == swap.periods()
+
+    def test_empty_swap(self):
+        sq = IRSwapQuotable(mkt_name='SONIA', tenor=RDate('0C'), **self.md_basis)
+        assert sq.start_dates == sq.end_dates == sq.pay_dates == sq.periods() == sq.incremental_dc_fractions  == []
