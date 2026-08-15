@@ -11,8 +11,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Push/PR runs supersede each other per ref (cancel-in-progress). Nightly/manual ASan runs are
+  # long (~90m on Windows) and share this ref, so a routine push to main would otherwise cancel one
+  # mid-run. Give schedule/workflow_dispatch runs a unique group (per run_id) and never cancel them.
+  group: ci-${{ github.workflow }}-${{ github.ref }}${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && format('-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' && github.event_name != 'workflow_dispatch' }}
 
 jobs:
   # PR / push: standard release build, Linux + Windows across the supported Python versions.
