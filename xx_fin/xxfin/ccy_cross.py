@@ -28,8 +28,8 @@ class CcyCross(Traitable):
     base_ccy: Ccy           = RT(T.ID_LIKE)     // 'Base (left) currency'
     quote_ccy: Ccy          = RT(T.ID_LIKE)     // 'Quote (right) currency'
 
-    is_deliverable: bool    = RT()
-    delivery_ccy: Ccy       = RT()
+    is_deliverable: bool    = RT()              // 'Deliverable cross settles physically for both sides'
+    delivery_ccy: Ccy       = RT()              // 'Delivery currency for a NON-deliverable cross'
     calendar: FinCalendar   = RT()
 
     @classmethod
@@ -75,13 +75,17 @@ class CcyCross(Traitable):
     def is_deliverable_get(self) -> bool:
         base_deliverable = self.base_ccy.is_deliverable
         quote_deliverable = self.quote_ccy.is_deliverable
-        assert base_deliverable or quote_deliverable, f'Currently support crosses with at least on side deliverable, but neither of {self.cross} is'
         return base_deliverable and quote_deliverable
 
     def delivery_ccy_get(self) -> Ccy:
-        if not self.is_deliverable:
+        if self.is_deliverable:
             return None
-        return self.quote_ccy if self.quote_ccy.is_deliverable else self.base_ccy
+        if self.quote_ccy.is_deliverable:
+            return self.quote_ccy
+        elif self.base_ccy.is_deliverable:
+            return self.base_ccy
+        else:
+            return None
 
     def calendar_get(self) -> FinCalendar:
         at_most_three_calendars = {self.quote_ccy.bank_calendar, self.base_ccy.bank_calendar, Ccy.USD().bank_calendar}
@@ -90,9 +94,9 @@ class CcyCross(Traitable):
     @classmethod
     def is_same_ccy_cross(cls, cross: str) -> bool:
         ccys = cross.split('/')
-        if len(ccys) != 2:
-            return False
-        return ccys[0] == ccys[1]
+        assert len(ccys) == 2, f'Invalid cross {cross}, must consist of 2 currencies'
+        ccy1, ccy2 = cls.currencies(base_ccy = ccys[0], quote_ccy = ccys[1])
+        return ccy1 == ccy2
 
     @classmethod
     def invert_cross(cls, cross: str) -> str:
@@ -101,7 +105,8 @@ class CcyCross(Traitable):
 
     @classmethod
     def is_dollar_cross(cls, ccy1, ccy2) -> bool:
-        return ccy1 == 'USD' or ccy2 == 'USD'
+        ccy1, ccy2 = cls.currencies(base_ccy = ccy1, quote_ccy = ccy2)
+        return ccy1 == Ccy.USD() or ccy2 == Ccy.USD()
 
     @classmethod
     def dollar_cross(cls, ccy) -> CcyCross:
@@ -239,7 +244,7 @@ class CcyCross(Traitable):
     @classmethod
     def is_normal_cross(cls, cross: str) -> bool:
         ccy1, ccy2 = cls.currencies(cross = cross)
-        normal_cross = cls.normal_cross(ccy1, ccy2)
+        normal_cross = cls.normal_cross(ccy1.name, ccy2.name)
         return cross == normal_cross
 
     @classmethod

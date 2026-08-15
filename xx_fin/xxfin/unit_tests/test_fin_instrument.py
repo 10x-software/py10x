@@ -160,12 +160,15 @@ class TestFinInstrument:
                     deps[IRSwapQuotable] = swps
                 assert deps == cf.mkt_deps_for_discounting
 
+    def test_mkt_deps_for_ccy_same_ccy(self):
+        cfs = (self.usd_cf, self.gbp_cf, self.cad_cf)
+        for cf in cfs:
+            assert cf.mkt_deps_for_ccy(cf.denominated) == {}
+
     def test_mkt_deps_for_ccy(self):
         mkt_fx_deps_cases = [
             ((self.usd_cf_6m, self.usd_cf_6y), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds),)),
             ((self.gbp_cf_2y, self.gbp_cf_3y,), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds), ('CAD', self.cad_fx_spot, self.cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
-            # ((self.gbp_cf_2y, self.gbp_cf, self.gbp_cf_3y), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds), ('CAD', self.cad_fx_spot, self.cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
-            # ((self.gbp_cf_3y,), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds), ('CAD', self.cad_fx_spot, self.cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
         ]
 
         for mdc in mkt_fx_deps_cases:
