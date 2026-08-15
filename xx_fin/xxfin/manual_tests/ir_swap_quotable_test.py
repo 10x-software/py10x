@@ -1,15 +1,11 @@
-from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
 
 if __name__=='__main__':
     from datetime import date
 
     from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-    from xxfin.ccy import Ccy
-    from xxfin.ccy_forward import CcyForward, CcyUnit
+    from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
     from xxfin.fin_calendar import FinCalendar
-    # from xxfin.fx_forward_curve import FXForwardCurveSimple, FXForwardQuotable, FXSpotQuotable
     from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
-    from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable
     from xxfin.ir_swap_quotable import IRSwapQuotable
     from xxfin.ir_zero_rate_curve import ZeroRateCurve
     from xxfin.pricing_context import PricingContext
@@ -22,15 +18,10 @@ if __name__=='__main__':
     swap_freq   = RDate('1Y')
     pay_delay   = RDate('2B')
 
-
-
     tenor_sym   = '5Y'
-
-
 
     pc = PricingContext.current()
     md_basis = pc.md_basis
-
 
     tenor = RDate(tenor_sym)
     sq = IRSwapQuotable(mkt_name = irate, tenor = tenor, **md_basis)
