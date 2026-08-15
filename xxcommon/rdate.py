@@ -179,6 +179,10 @@ class RDate(Nucleus):
 
         return roll_rule(not_rolled, cal)
 
+    def apply_no_roll(self, d: date) -> date:
+        assert self.freq != TENOR_FREQUENCY.BIZDAY, f'apply_no_roll() is not applicable for BIZDAY type RDate {self.symbol()}'
+        return self.apply(d, Calendar.none, BIZDAY_ROLL_RULE.NO_ROLL)
+
     @classmethod
     def apply_rule(cls, d: date, cal: Calendar, roll_rule: BIZDAY_ROLL_RULE, comma_separated_rdates_str: str) -> date:
         rdates = comma_separated_rdates_str.split(',')

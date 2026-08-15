@@ -176,6 +176,23 @@ class TestRDate:
         expected = date(2023, 1, 20)  # 5 business days later
         assert result == expected
 
+    def test_apply_no_roll(self):
+        start_date = date(2023, 1, 12)
+        cases = (
+            ('2C',   date(2023, 1, 14)),
+            ('1M',   date(2023, 2, 12)),
+            ('2Y',   date(2025, 1, 12)),
+            ('1SOM', date(2023, 2, 1)),
+            ('2EOM', date(2023, 3, 31)),
+        )
+
+        for rd, exp_d in cases:
+            assert RDate(rd).apply_no_roll(start_date) == exp_d, f'calculated date {RDate(rd).apply_no_roll(start_date)} != expected date {exp_d}'
+
+        # with pytest.raises(AssertionError, match='apply_no_roll() is not applicable for BIZDAY type RDate 1B'):
+        with pytest.raises(AssertionError):
+            RDate('1B').apply_no_roll(start_date)
+
     def test_apply_rule(self):
         """Test apply_rule class method."""
         start_date = date(2023, 1, 15)

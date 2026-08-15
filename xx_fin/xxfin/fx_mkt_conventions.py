@@ -41,8 +41,9 @@ class FXMktConventions(SpotMktConventions):
     def calendar_get(self) -> FinCalendar:  ## calendar of non-USD base or quote and USD
         return self.cross.calendar
 
-    def settlement_calendar_get(self) -> FinCalendar:
-        return self.calendar
+    ## TODO: same def as in mkt_convention
+    # def settlement_calendar_get(self) -> FinCalendar:
+    #     return self.calendar
 
     def spot_date(self, start_date: date) -> date:
         return self.spot_offset.apply(start_date, self.calendar, self.roll_rule)

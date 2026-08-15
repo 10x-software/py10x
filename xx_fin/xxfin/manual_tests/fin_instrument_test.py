@@ -165,8 +165,6 @@ if __name__=='__main__':
     ]
 
 
-
-
     if FX_DEPS:
         print( '>>> FX MKT DEPS <<<')
         for mdc in mkt_fx_deps_cases:
@@ -196,4 +194,4 @@ if __name__=='__main__':
                     print(f'{cf}/{ccy_name}: MANUAL fxdeps = {fxdeps}')
                     print(f'{cf}/{ccy_name}: CALC   fxdeps = {calc_fxdeps}')
                     assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
-                    print(f'{cf}/{ccy_name}: *** calc fx deps = manual ***\n')
+                    print(f'{cf}/{ccy_name}: *** calc fx deps == manual ***\n')
