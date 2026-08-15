@@ -244,7 +244,7 @@ class CcyCross(Traitable):
     @classmethod
     def is_normal_cross(cls, cross: str) -> bool:
         ccy1, ccy2 = cls.currencies(cross = cross)
-        normal_cross = cls.normal_cross(ccy1, ccy2)
+        normal_cross = cls.normal_cross(ccy1.name, ccy2.name)
         return cross == normal_cross
 
     @classmethod

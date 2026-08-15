@@ -130,3 +130,28 @@ class TestCcyCrossResolve:
         assert CcyCross.dollar_cross_pair('USD', 'USD') == ()
         assert CcyCross.dollar_cross_pair('CHF', 'CHF') == ()
         assert CcyCross.dollar_cross_pair('EUR', 'EUR') == ()
+
+    ## TODO: currently runs on already setup major ccys; expand to non-major ccys
+    def test_normal_cross_from_ccy_hierarchys(self):
+        pair_to_cross = [
+            (('EUR', 'GBP'), ('EUR/GBP')),
+            (('GBP', 'EUR'), ('EUR/GBP')),
+
+            (('GBP', 'USD'), ('GBP/USD')),
+            (('USD', 'GBP'), ('GBP/USD')),
+
+            (('USD', 'JPY'), ('USD/JPY')),
+            (('JPY', 'USD'), ('USD/JPY')),
+
+            (('JPY', 'CAD'), ('CAD/JPY')),
+            (('CAD', 'JPY'), ('CAD/JPY')),
+
+            (('GBP', 'CHF'), ('GBP/CHF')),
+            (('CHF', 'GBP'), ('GBP/CHF')),
+        ]
+
+        for (c1, c2), nc in pair_to_cross:
+            assert CcyCross.normal_cross(c1, c2) == nc
+            assert CcyCross.is_normal_cross(nc) == True
+            assert CcyCross.normal_cross_from_major_ccys_hierarchy(c1, c2) == nc
+            assert CcyCross.normal_cross_from_ccy_hierarchy(c1, c2, CcyCross._major_ccys) == nc
