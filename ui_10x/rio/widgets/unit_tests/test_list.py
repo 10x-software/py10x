@@ -1,7 +1,11 @@
 import asyncio
 
 import rio.testing.browser_client
-from ui_10x.rio.browser_helpers import wait_for_list_item_count, wait_for_list_selection
+from ui_10x.rio.browser_helpers import (
+    wait_for_list_item_count,
+    wait_for_list_selection,
+    wait_for_pressable_sensitive,
+)
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import ListWidget
 
@@ -107,6 +111,7 @@ async def test_list_disabled_interaction() -> None:
         await asyncio.sleep(0.5)
 
         # Test initial enabled state - clicks should work
+        await wait_for_pressable_sensitive(test_client, True)
         await test_client.click(10, 1)
         await asyncio.sleep(0.5)
         assert len(clicked_calls) == 1
@@ -117,7 +122,9 @@ async def test_list_disabled_interaction() -> None:
         widget.set_enabled(False)
         await test_client.wait_for_refresh()
 
-        # Test that clicks are blocked when disabled
+        # Test that clicks are blocked when disabled. Wait until the client has applied the
+        # insensitive state so the click can't land while the item is still pressable.
+        await wait_for_pressable_sensitive(test_client, False)
         initial_calls = len(clicked_calls)
         await test_client.click(10, 1)
         await asyncio.sleep(0.5)
@@ -128,7 +135,9 @@ async def test_list_disabled_interaction() -> None:
         widget.set_enabled(True)
         await test_client.wait_for_refresh()
 
-        # Test that clicks work again
+        # Test that clicks work again. wait_for_refresh() only completes the server round trip; wait
+        # for the browser to re-enable the item before clicking, or the click is dropped.
+        await wait_for_pressable_sensitive(test_client, True)
         await test_client.click(10, 1)
         await asyncio.sleep(0.5)
         assert len(clicked_calls) == initial_calls + 1
