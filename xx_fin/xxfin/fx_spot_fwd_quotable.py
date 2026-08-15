@@ -23,10 +23,12 @@ class FXSpotQuotable(SingleMktQuote):
 
 class FXForwardQuotable(FXSpotQuotable):
     tenor: RDate        = T(T.ID | T.NOT_EMPTY)     // 'e.g., 1W, 3M'
-    dc_fraction: float  = RT(T.READONLY)            ## TODO: check if needed
+    ## TODO: dcf needed only when there are quantities spec'ed per unit of time (like annualized rates)
+    ##       FX rate is absolute for a given period, so dcf should not needed here
+    # dc_fraction: float  = RT(T.READONLY)
 
-    def dc_fraction_get(self) -> float:
-        return self.mkt_conventions.dc_convention(self.start_date, self.end_date)
+    # def dc_fraction_get(self) -> float:
+    #     return self.mkt_conventions.dc_convention(self.start_date, self.end_date)
 
     ## TODO: similarly to the above, start = md_date, end = start+tenor, pay = end+offset
     def end_date_get(self) -> date:

@@ -36,14 +36,14 @@ class IRSwapQuotable(IRCashDepositQuotable):
             for i in range(len(end_dates))
         ]
 
-    #-- TODO: for some reason(s) most of the getters return empty results - fix!
     def end_dates_get(self) -> list:
         mc = self.mkt_conventions
         cal = mc.calendar
         roll_rule = mc.roll_rule
+        swap_freq = mc.tenor_frequency
 
-        freq_method = FREQUENCY_TABLE[self.tenor.freq][TENOR_PARAMS.RDATE_FUNC]
-        freq_step   = self.tenor.count
+        freq_method = FREQUENCY_TABLE[swap_freq][TENOR_PARAMS.RDATE_FUNC]
+        freq_step   = 1
         raw_ed = rolled_ed = self.start_date
         swap_end_date = self.end_date
         end_dates = []
@@ -67,7 +67,7 @@ class IRSwapQuotable(IRCashDepositQuotable):
         end_dates = self.end_dates
         return [self.start_date, *end_dates[:-1]] if end_dates else []
 
-    def incremental_daycount_fracs_get(self) -> list:
+    def incremental_dc_fractions_get(self) -> list:
         end_dates = self.end_dates
         start_dates = self.start_dates
         if not start_dates or not end_dates:
@@ -77,19 +77,15 @@ class IRSwapQuotable(IRCashDepositQuotable):
         return [dc_method(start_dates[i], ed) for i, ed in enumerate(end_dates)]
 
     def annuity_calc(self, rate_curve: RateCurve, periods: int = None) -> float:
-        dfs = rate_curve.values_at(self.pay_dates)
-        num_periods = len(dfs)
+        swap_num_periods = len(self.pay_dates)
         if periods is None:
-            periods = num_periods
+            periods = swap_num_periods
         else:
-            assert periods >= 0 and periods <= num_periods
+            assert periods >= 0 and periods <= swap_num_periods
 
-        incr_fracs = self.incremental_dc_fractions
-        assert len(incr_fracs), 'empty swap??'
-
-        x = numpy.dot(dfs[:periods], incr_fracs[:periods])
-        try:
-            return float(x)
-        except Exception:
-            return x[0]     #-- numpy.dot() os f'd-up
-
+        return rate_curve.annuity_for_period_dates(
+            self.mkt_conventions.dc_convention,
+            self.start_dates[:periods],
+            self.end_dates[  :periods],
+            self.pay_dates[  :periods]
+        )

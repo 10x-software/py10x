@@ -110,6 +110,10 @@ class RateCurve(DateCurve):
     def discount_factor_fwd(self, d1, d2, today: date = None) -> float:
         return self.discount_factor(d2, today) / self.discount_factor(d1, today)
 
+    def annuity_for_period_dates(self, dc_conv: DAY_COUNT_CONVENTION, start_dates: list[date], end_dates: list[date], pay_dates: list[date], today: date = None ):
+        assert len(start_dates) == len(end_dates) == len(pay_dates), f'start, end, pay date lists must have the same length: starts/ends/pays: {len(start_dates), len(end_dates), len(pay_dates)}'
+        return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
+
     def annuity(
         self,
         dc_conv: DAY_COUNT_CONVENTION,
@@ -120,7 +124,8 @@ class RateCurve(DateCurve):
         start_dates, end_dates, _ = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
         pay_dates = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
 
-        return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
+        # return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
+        return self.annuity_for_period_dates(dc_conv, start_dates, end_dates, pay_dates, today)
 
     ## If rate compounding is SIMPLE then each swaplet payout is (fixed_rate - float_rate) * dc_fraction * disc_factor
     ## otherwise (never happens!) the payout would've been (fixed_rate_accrual - floating_rate_accrual) * disc_factor

@@ -23,6 +23,7 @@ class IRRateMktConventions(SpotMktConventions):
     fixing_frequency: RDate             = T(RDate('1B'))
 
     #-- floating leg
+    ## TODO: replace TENOR_FREQUENCY by RDate, so can use '3M', not necessarily 'QUARTER' <-- more general, e.g., can be '4M', etc
     tenor_frequency: TENOR_FREQUENCY    = T(TENOR_FREQUENCY.YEAR)           // 'Floating Leg Standard Swap Frequency, e.g., HALF_YEAR, QUARTER'
     fixing_convention: FIXING_CONVENTION = T(FIXING_CONVENTION.IN_ARREARS)  // 'Floating Leg Standard Swap Fixing Convention'
 
