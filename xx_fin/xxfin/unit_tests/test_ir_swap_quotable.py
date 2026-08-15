@@ -99,3 +99,10 @@ class TestIRSwapQuotable:
                 manual_ann = sum(dcf * df for dcf, df in zip(swap.incremental_dc_fractions[:num + 1],
                                                              zrc.discount_factors(swap.pay_dates, today=self.md_basis['md_date'])[:num + 1]))
                 assert manual_ann == swap.annuity_calc(zrc, num + 1)
+
+
+    def test_periods(self):
+        for irate in self.irates:
+            swap = irate['sq']
+            periods = [(sd, ed, pd, dcf) for sd, ed, pd, dcf in zip( swap.start_dates, swap.end_dates, swap.pay_dates, swap.incremental_dc_fractions, strict=True)]
+            assert periods == swap.periods()
