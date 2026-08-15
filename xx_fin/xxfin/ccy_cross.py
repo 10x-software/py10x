@@ -94,9 +94,9 @@ class CcyCross(Traitable):
     @classmethod
     def is_same_ccy_cross(cls, cross: str) -> bool:
         ccys = cross.split('/')
-        if len(ccys) != 2:
-            return False
-        return ccys[0] == ccys[1]
+        assert len(ccys) == 2, f'Invalid cross {cross}, must consist of 2 currencies'
+        ccy1, ccy2 = cls.currencies(base_ccy = ccys[0], quote_ccy = ccys[1])
+        return ccy1 == ccy2
 
     @classmethod
     def invert_cross(cls, cross: str) -> str:

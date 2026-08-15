@@ -87,10 +87,17 @@ class TestCcyCrossResolve:
         assert CcyCross(cross='GBP/EUR').delivery_ccy == Ccy('GBP')
         Ccy('GBP').is_deliverable = False
         assert CcyCross(cross='GBP/EUR').delivery_ccy is None
+        Ccy('EUR').is_deliverable = True
+        assert CcyCross(cross='GBP/EUR').delivery_ccy == Ccy('EUR')
 
     def test_same_ccy_cross(self):
-        assert CcyCross.is_same_ccy_cross(cross='GBP/EUR') == False
-        assert CcyCross.is_same_ccy_cross(cross='GBP/GBP') == True
+        assert CcyCross.is_same_ccy_cross(cross = 'GBP/EUR') == False
+        assert CcyCross.is_same_ccy_cross(cross = 'GBP/GBP') == True
+
+        with pytest.raises(AssertionError, match = 'Invalid cross GBP, must consist of 2 currencies'):
+            assert CcyCross.is_same_ccy_cross(cross = 'GBP')
+        with pytest.raises(ValueError, match = 'XXX does not exist'):
+            assert CcyCross.is_same_ccy_cross(cross = 'XXX/GBP')
 
     def test_invert_cross(self):
         assert CcyCross.invert_cross(cross='GBP/EUR') == 'EUR/GBP'
