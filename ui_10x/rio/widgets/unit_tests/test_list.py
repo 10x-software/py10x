@@ -1,7 +1,7 @@
 import asyncio
 
 import rio.testing.browser_client
-from ui_10x.rio.browser_helpers import wait_for_list_item_count, wait_for_list_selection
+from ui_10x.rio.browser_helpers import UI_SETTLE_S, wait_for_list_item_count, wait_for_list_selection
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import ListWidget
 
@@ -117,7 +117,11 @@ async def test_list_disabled_interaction() -> None:
         widget.set_enabled(False)
         await test_client.wait_for_refresh()
 
-        # Test that clicks are blocked when disabled
+        # Test that clicks are blocked when disabled. wait_for_refresh() completes the server round
+        # trip but not the client re-render; settle so the click can't land while the item is still
+        # pressable. (List items are pressable elements that, unlike buttons, don't expose
+        # aria-disabled, so there is no per-item sensitivity attribute to wait on.)
+        await asyncio.sleep(UI_SETTLE_S)
         initial_calls = len(clicked_calls)
         await test_client.click(10, 1)
         await asyncio.sleep(0.5)
@@ -128,7 +132,9 @@ async def test_list_disabled_interaction() -> None:
         widget.set_enabled(True)
         await test_client.wait_for_refresh()
 
-        # Test that clicks work again
+        # Test that clicks work again. Settle first so the browser has applied the re-enabled state
+        # before the click, otherwise the click is dropped.
+        await asyncio.sleep(UI_SETTLE_S)
         await test_client.click(10, 1)
         await asyncio.sleep(0.5)
         assert len(clicked_calls) == initial_calls + 1
