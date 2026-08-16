@@ -145,6 +145,33 @@ async def wait_for_button_interactive(
     await test_client.execute_js('new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))')
 
 
+async def wait_for_pressable_sensitive(
+    test_client,
+    sensitive: bool,
+    *,
+    selector: str = 'rio-pressable-element',
+    timeout_ms: int = DEFAULT_DOM_TIMEOUT_MS,
+) -> None:
+    """Wait until a Rio pressable element's client-side sensitivity is applied.
+
+    Rio gates press emission on the pressable element's own ``_isSensitive`` and
+    mirrors it to ``aria-disabled``. ``wait_for_refresh()`` only completes the
+    server round trip; a click issued before the browser applies the sensitivity
+    delta is silently dropped (or wrongly allowed) - the classic flake in the
+    disabled-interaction tests. Wait on ``aria-disabled`` so the click lands only
+    once the state the click depends on is real in the DOM.
+
+    ``selector`` defaults to the first pressable; buttons have one, and for a list
+    the first pressable is the top item that the tests click.
+    """
+    await wait_for_js_value(
+        test_client,
+        f'document.querySelector({selector!r})?.getAttribute("aria-disabled")',
+        'false' if sensitive else 'true',
+        timeout_ms=timeout_ms,
+    )
+
+
 async def wait_for_checkbox_state(
     test_client,
     *,

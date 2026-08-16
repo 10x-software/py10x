@@ -1,7 +1,11 @@
 import asyncio
 
 import rio.testing.browser_client
-from ui_10x.rio.browser_helpers import wait_for_button_client_text, wait_for_js_truthy
+from ui_10x.rio.browser_helpers import (
+    wait_for_button_client_text,
+    wait_for_js_truthy,
+    wait_for_pressable_sensitive,
+)
 from ui_10x.rio.component_builder import DynamicComponent
 from ui_10x.rio.widgets import PushButton
 
@@ -25,6 +29,7 @@ async def test_button_comprehensive() -> None:
         await wait_for_button_client_text(test_client, 'Click Me')
 
         # 2) Modify client value (user clicking button)
+        await wait_for_pressable_sensitive(test_client, True)  # click only once it can register
         await test_client.click(10, 10)  # Click on the button
 
         # 3) Verify widget reflects client value (click handler called)
@@ -51,6 +56,7 @@ async def test_button_disabled_interaction() -> None:
         await asyncio.sleep(0.5)
 
         # Test initial enabled state - clicks should work
+        await wait_for_pressable_sensitive(test_client, True)
         await test_client.click(10, 10)
         assert len(clicked_calls) == 1
 
@@ -59,7 +65,9 @@ async def test_button_disabled_interaction() -> None:
         await test_client.wait_for_refresh()
         assert not widget['is_sensitive']
 
-        # Test that clicks are blocked when disabled
+        # Test that clicks are blocked when disabled. Wait until the client has actually applied the
+        # insensitive state, otherwise the click could land while the button is still pressable.
+        await wait_for_pressable_sensitive(test_client, False)
         await test_client.click(10, 10)
         assert len(clicked_calls) == 1  # No additional calls
 
@@ -68,7 +76,9 @@ async def test_button_disabled_interaction() -> None:
         await test_client.wait_for_refresh()
         assert widget['is_sensitive']
 
-        # Test that clicks work again
+        # Test that clicks work again. wait_for_refresh() only completes the server round trip; wait
+        # for the browser to re-enable the pressable before clicking, or the click is dropped.
+        await wait_for_pressable_sensitive(test_client, True)
         await test_client.click(10, 10)
         assert len(clicked_calls) == 2
 
