@@ -41,11 +41,11 @@ if __name__ == '__main__':
         (('CHF', 'GBP'), ('GBP/CHF')),
     ]
 
-    print(f'>>> CCY PAIR to NORMAL CROSS <<<')
+    print('>>> CCY PAIR to NORMAL CROSS <<<')
     for (c1, c2), nc in pair_to_cross:
         print( f'normal cross for {c1, c2} is {nc}')
         assert CcyCross.normal_cross(c1, c2) == nc
-        assert CcyCross.is_normal_cross(nc) == True
+        assert CcyCross.is_normal_cross(nc)
         assert CcyCross.normal_cross_from_major_ccys_hierarchy(c1, c2) == nc
         assert CcyCross.normal_cross_from_ccy_hierarchy(c1, c2, CcyCross._major_ccys) == nc
 

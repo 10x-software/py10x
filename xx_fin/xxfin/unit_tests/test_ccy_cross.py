@@ -1,6 +1,6 @@
 import pytest
 from core_10x.rc import RC, RC_TRUE
-from xxfin.ccy_cross import CCY_CROSS_TYPE, CcyCross, Ccy
+from xxfin.ccy_cross import CCY_CROSS_TYPE, Ccy, CcyCross
 
 
 class TestCcyCross:
@@ -77,9 +77,9 @@ class TestCcyCrossResolve:
         assert CcyCross(cross = 'USD/CHF').verify(base_ccy = 'XXX', quote_ccy = 'YYY') == RC(False, 'XXX does not exist')
 
     def test_deliverable(self):
-        assert CcyCross(cross = 'GBP/EUR').is_deliverable == True
+        assert CcyCross(cross = 'GBP/EUR').is_deliverable
         Ccy('EUR').is_deliverable = False
-        assert CcyCross(cross = 'GBP/EUR').is_deliverable == False
+        assert not CcyCross(cross = 'GBP/EUR').is_deliverable
 
     def test_delivery_ccy(self):
         assert CcyCross(cross = 'GBP/EUR').delivery_ccy is None
@@ -91,8 +91,8 @@ class TestCcyCrossResolve:
         assert CcyCross(cross='GBP/EUR').delivery_ccy == Ccy('EUR')
 
     def test_same_ccy_cross(self):
-        assert CcyCross.is_same_ccy_cross(cross = 'GBP/EUR') == False
-        assert CcyCross.is_same_ccy_cross(cross = 'GBP/GBP') == True
+        assert not CcyCross.is_same_ccy_cross(cross = 'GBP/EUR')
+        assert CcyCross.is_same_ccy_cross(cross = 'GBP/GBP')
 
         with pytest.raises(AssertionError, match = 'Invalid cross GBP, must consist of 2 currencies'):
             assert CcyCross.is_same_ccy_cross(cross = 'GBP')
@@ -104,10 +104,10 @@ class TestCcyCrossResolve:
         assert CcyCross.invert_cross(cross='CHF/CHF') == 'CHF/CHF'
 
     def test_is_dollar_cross(self):
-        assert CcyCross.is_dollar_cross('GBP', 'EUR') == False
-        assert CcyCross.is_dollar_cross('GBP', 'USD') == True
-        assert CcyCross.is_dollar_cross('USD', 'GBP') == True
-        assert CcyCross.is_dollar_cross('USD', 'USD') == True
+        assert not CcyCross.is_dollar_cross('GBP', 'EUR')
+        assert CcyCross.is_dollar_cross('GBP', 'USD')
+        assert CcyCross.is_dollar_cross('USD', 'GBP')
+        assert CcyCross.is_dollar_cross('USD', 'USD')
 
     def test_dollar_cross(self):
         assert CcyCross.dollar_cross('GBP') == CcyCross(cross='GBP/USD')
@@ -152,6 +152,6 @@ class TestCcyCrossResolve:
 
         for (c1, c2), nc in pair_to_cross:
             assert CcyCross.normal_cross(c1, c2) == nc
-            assert CcyCross.is_normal_cross(nc) == True
+            assert CcyCross.is_normal_cross(nc)
             assert CcyCross.normal_cross_from_major_ccys_hierarchy(c1, c2) == nc
             assert CcyCross.normal_cross_from_ccy_hierarchy(c1, c2, CcyCross._major_ccys) == nc

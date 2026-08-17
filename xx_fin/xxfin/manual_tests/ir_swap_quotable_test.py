@@ -3,12 +3,12 @@ if __name__=='__main__':
     from datetime import date
 
     from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-    from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
     from xxfin.fin_calendar import FinCalendar
     from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
     from xxfin.ir_swap_quotable import IRSwapQuotable
     from xxfin.ir_zero_rate_curve import ZeroRateCurve
     from xxfin.pricing_context import PricingContext
+    from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
 
 
     irate       = 'SOFR'
@@ -50,7 +50,7 @@ if __name__=='__main__':
         end_dates.append(rolled_ed)
 
     swap_num_periods = len(end_dates)
-    start_dates = [swap_start_date] + end_dates[:-1]
+    start_dates = [swap_start_date, *end_dates[:-1]]
     pay_dates   = [ pay_delay.apply(ed, cal, roll_rule) for ed in end_dates ]
     print(f'start dates: {start_dates}\nend dates  : {end_dates}\npay dates  : {pay_dates}')
     assert start_dates == sq.start_dates, f'{start_dates} != {sq.start_dates}'
@@ -63,7 +63,7 @@ if __name__=='__main__':
     assert incr_dcfs == sq.incremental_dc_fractions, f'{incr_dcfs} != {sq.incremental_dc_fractions}'
 
 
-    assert sq.annuity_calc(zrc) == sq.annuity_calc(zrc,5), f'annuity default num periods is off'
+    assert sq.annuity_calc(zrc) == sq.annuity_calc(zrc,5), 'annuity default num periods is off'
 
     for num in range(5):
         manual_ann = sum(dcf*df for dcf, df in zip(incr_dcfs[:num+1], zrc.discount_factors(pay_dates, today = md_basis['md_date'])[:num+1]))

@@ -1,14 +1,14 @@
 from datetime import date, timedelta
 
 import pytest
-
 from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
-from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
 from xxfin.fin_calendar import FinCalendar
 from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
 from xxfin.ir_swap_quotable import IRSwapQuotable
 from xxfin.ir_zero_rate_curve import ZeroRateCurve
 from xxfin.pricing_context import PricingContext
+from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
+
 
 class TestIRSwapQuotable:
     def setup_method(self):
@@ -53,7 +53,7 @@ class TestIRSwapQuotable:
     def test_start_dates(self):
         for irate in self.irates:
             swap = irate['sq']
-            assert [swap.start_date] + swap.end_dates[:-1] == swap.start_dates
+            assert [swap.start_date, *swap.end_dates[:-1]] == swap.start_dates
 
     def test_end_dates(self):
         for irate in self.irates:
@@ -90,11 +90,15 @@ class TestIRSwapQuotable:
             zrc = irate['zrc']
             swap = irate['sq']
             num_periods = len(swap.pay_dates)
-            assert swap.annuity_calc(zrc) == swap.annuity_calc(zrc, num_periods), f'annuity default num periods is off'
+            assert swap.annuity_calc(zrc) == swap.annuity_calc(zrc, num_periods), 'annuity default num periods is off'
 
             for num in range(num_periods):
-                manual_ann = sum(dcf * df for dcf, df in zip(swap.incremental_dc_fractions[:num + 1],
-                                                             zrc.discount_factors(swap.pay_dates, today=self.md_basis['md_date'])[:num + 1]))
+                manual_ann = sum(dcf * df for dcf, df in zip(
+                        swap.incremental_dc_fractions[:num + 1],
+                        zrc.discount_factors(swap.pay_dates, today=self.md_basis['md_date'])[:num + 1],
+                        strict = True
+                    )
+                )
                 assert manual_ann == swap.annuity_calc(zrc, num + 1)
 
     def test_periods(self):
