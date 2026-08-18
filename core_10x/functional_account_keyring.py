@@ -60,15 +60,23 @@ class FunctionalAccountKeyring(keyring.backend.KeyringBackend):
 
     def __init__(self, entries: dict[tuple[str, str], str] | None = None):
         super().__init__()
+        # ``keyring``'s own backend auto-discovery (get_all_keyring(), see backend.py) constructs
+        # *every* imported KeyringBackend subclass with no arguments just to probe it -- merely
+        # importing this module registers it for that scan, regardless of whether anyone ever
+        # selects it. Only TypeError from that probe is suppressed, so __init__ must never raise;
+        # an unconfigured instance is deferred (see _require_entries) until it's actually used.
         if entries is None:
             secrets_file = os.environ.get(SECRETS_FILE_ENV_VAR)
-            if not secrets_file:
-                raise RuntimeError(
-                    f'{SECRETS_FILE_ENV_VAR} is not set (required for {type(self).__name__} '
-                    'when constructed with no arguments, e.g. via PYTHON_KEYRING_BACKEND auto-discovery)'
-                )
-            entries = self._read_manifest(secrets_file)
-        self._entries: dict[tuple[str, str], str] = dict(entries)
+            entries = self._read_manifest(secrets_file) if secrets_file else None
+        self._entries: dict[tuple[str, str], str] | None = dict(entries) if entries is not None else None
+
+    def _require_entries(self) -> dict[tuple[str, str], str]:
+        if self._entries is None:
+            raise RuntimeError(
+                f'{SECRETS_FILE_ENV_VAR} is not set (required for {type(self).__name__} '
+                'when constructed with no arguments, e.g. via PYTHON_KEYRING_BACKEND auto-discovery)'
+            )
+        return self._entries
 
     @staticmethod
     def _read_manifest(secrets_file: str | Path) -> dict[tuple[str, str], str]:
@@ -87,13 +95,13 @@ class FunctionalAccountKeyring(keyring.backend.KeyringBackend):
         return cls(entries=cls._read_manifest(secrets_file))
 
     def get_password(self, service: str, username: str) -> str | None:
-        return self._entries.get((service, username))
+        return self._require_entries().get((service, username))
 
     def set_password(self, service: str, username: str, password: str) -> None:
-        self._entries[(service, username)] = password
+        self._require_entries()[(service, username)] = password
 
     def delete_password(self, service: str, username: str) -> None:
         try:
-            del self._entries[(service, username)]
+            del self._require_entries()[(service, username)]
         except KeyError:
             raise keyring.errors.PasswordDeleteError(f'{service!r}/{username!r} not found') from None

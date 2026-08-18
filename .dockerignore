@@ -1,0 +1,16 @@
+# Keep the docker/Dockerfile build context small and free of host-specific artifacts. The `dev`
+# target creates its own venv and installs into it inside the container, so a host-built .venv
+# (with absolute paths baked into its symlinks, which won't resolve inside the container) must
+# never be copied in. .git/ is NOT excluded: the `dev` target's version comes from
+# setuptools-scm/hatch-vcs (and uv_sync reads `git remote get-url origin`), which needs real git
+# metadata -- a shallow/absent .git breaks both.
+.venv/
+**/.venv/
+**/__pycache__/
+*.pyc
+dist/
+**/dist/
+htmlcov/
+.pytest_cache/
+**/.pytest_cache/
+.ruff_cache/
