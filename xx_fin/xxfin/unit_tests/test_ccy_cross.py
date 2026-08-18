@@ -134,20 +134,22 @@ class TestCcyCrossResolve:
     ## TODO: currently runs on already setup major ccys; expand to non-major ccys
     def test_normal_cross_from_ccy_hierarchys(self):
         pair_to_cross = [
-            (('EUR', 'GBP'), ('EUR/GBP')),
-            (('GBP', 'EUR'), ('EUR/GBP')),
+            (('EUR', 'EUR'), 'EUR/EUR'),
 
-            (('GBP', 'USD'), ('GBP/USD')),
-            (('USD', 'GBP'), ('GBP/USD')),
+            (('EUR', 'GBP'), 'EUR/GBP'),
+            (('GBP', 'EUR'), 'EUR/GBP'),
 
-            (('USD', 'JPY'), ('USD/JPY')),
-            (('JPY', 'USD'), ('USD/JPY')),
+            (('GBP', 'USD'), 'GBP/USD'),
+            (('USD', 'GBP'), 'GBP/USD'),
 
-            (('JPY', 'CAD'), ('CAD/JPY')),
-            (('CAD', 'JPY'), ('CAD/JPY')),
+            (('USD', 'JPY'), 'USD/JPY'),
+            (('JPY', 'USD'), 'USD/JPY'),
 
-            (('GBP', 'CHF'), ('GBP/CHF')),
-            (('CHF', 'GBP'), ('GBP/CHF')),
+            (('JPY', 'CAD'), 'CAD/JPY'),
+            (('CAD', 'JPY'), 'CAD/JPY'),
+
+            (('GBP', 'CHF'), 'GBP/CHF'),
+            (('CHF', 'GBP'), 'GBP/CHF'),
         ]
 
         for (c1, c2), nc in pair_to_cross:
@@ -155,3 +157,82 @@ class TestCcyCrossResolve:
             assert CcyCross.is_normal_cross(nc)
             assert CcyCross.normal_cross_from_major_ccys_hierarchy(c1, c2) == nc
             assert CcyCross.normal_cross_from_ccy_hierarchy(c1, c2, CcyCross._major_ccys) == nc
+
+
+    def test_normal_cross_for_mock_ccys(self):
+        ...
+    '''
+    ## TODO: mock the Ccy.verified(ccy) by removing check exists_in_store():
+        # def verified(cls, ccy) -> Ccy:
+        #     if type(ccy) is str:
+        #         ccy = Ccy(ccy)
+        #     elif not isinstance(ccy, Ccy):
+        #         raise TypeError(f'Invalid ccy type: {type(ccy)}')
+        #     ### if not cls.exists_in_store(ccy.id()):
+        #     ###     raise ValueError(f'{ccy} does not exist')
+        #     return ccy
+
+
+        test_ccy_data = (
+            dict(name='SEK'),
+            dict(name='NOK'),
+            dict(name='SGD'),
+            dict(name='HKD'),
+            dict(name='KRW'),
+            dict(name='TWD'),
+            dict(name='BRL'),
+            dict(name='ZAR'),
+            dict(name='INR'),
+            dict(name='IDR'),
+            dict(name='XXX'),
+            dict(name='ZZZ'),
+        )
+        # ccy_tmpl = dict(
+        #     bank_calendar       = 'FD|',
+        #     settle_offset       = RDate('2B'),  ## default
+        #     spot_offset         = RDate('2B'),  ## default
+        #     roll_rule           = BIZDAY_ROLL_RULE.FOLLOWING,  ## default
+        #     is_deliverable      = False,  ## default
+        #     discounting_mkt_name='SOFR',
+        # )
+        # for ccy in test_ccy_data:
+        #     ccy.update(ccy_tmpl)
+
+        from xxfin.dev_data_helpers.data_creator import DataCreator
+        DataCreator.create(Ccy, test_ccy_data, save = False)
+
+        test_pair_to_cross = [
+            (('SEK', 'CHF'), 'CHF/SEK'),
+            (('NOK', 'SEK'), 'SEK/NOK'),
+            (('KRW', 'SGD'), 'SGD/KRW'),
+            (('KRW', 'TWD'), 'KRW/TWD'),
+            (('ZAR', 'SGD'), 'SGD/ZAR'),
+            (('ZAR', 'BRL'), 'ZAR/BRL'),
+
+            (('KRW', 'XXX'), 'KRW/XXX'),
+            (('XXX', 'SEK'), 'SEK/XXX'),
+            (('ZAR', 'XXX'), 'ZAR/XXX'),
+            (('GBP', 'XXX'), 'GBP/XXX'),
+        ]
+
+        for (c1, c2), nc in test_pair_to_cross:
+            print(f'normal cross for {c1, c2} is {nc}')
+            assert CcyCross.normal_cross(c1, c2) == nc
+            assert CcyCross.is_normal_cross(nc) == True
+
+        c1, c2 = ('XXX', 'ZZZ')
+        assert CcyCross.normal_cross(c1, c2) is None
+
+        test_pair_to_cross_same_hierarchy = [
+            (('NOK', 'SEK'), 'SEK/NOK', CcyCross._nordics),
+            (('HKD', 'SGD'), 'SGD/HKD', CcyCross._dev_asia),
+            (('KRW', 'TWD'), 'KRW/TWD', CcyCross._large_asia),
+            (('ZAR', 'BRL'), 'ZAR/BRL', CcyCross._other_EM_good_liq),
+
+        ]
+
+        for (c1, c2), nc, h in test_pair_to_cross_same_hierarchy:
+            assert CcyCross.normal_cross(c1, c2) == nc
+            assert CcyCross.is_normal_cross(nc) == True
+            assert CcyCross.normal_cross_from_ccy_hierarchy(c1, c2, h) == nc
+    '''
