@@ -93,7 +93,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           sparse-checkout: |
-            .github/scripts
+            dev_10x
+            pyproject.toml
+            constraints.txt
           sparse-checkout-cone-mode: false
 
       - uses: actions/download-artifact@v8
@@ -122,11 +124,14 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --upgrade pip
+          # dev_10x.xx_ci is kernel-free: needs only packaging + tomlkit, so it can resolve/wait
+          # on PyPI before py10x-core itself is installed (same reasoning as build.yml's test job).
+          pip install -c constraints.txt packaging tomlkit
           CXX_WHL=$(ls dist-cxx/*cp312*.whl | head -n1)
           FINBASE_WHL=$(ls dist-finbase/*.whl | head -n1)
           echo "cxx wheel: $CXX_WHL"
           echo "fin-base wheel: $FINBASE_WHL"
-          python .github/scripts/wait_finbase_pypi_deps.py "$FINBASE_WHL"
+          python -m dev_10x.xx_ci wait_pypi_release_for_wheel "$FINBASE_WHL"
           # No --pre needed: release-wheel pins already force prerelease inclusion via PEP 440.
           # Brief retry: simple-index visibility can still lag a few seconds after the wait.
           for attempt in 1 2 3 4 5; do

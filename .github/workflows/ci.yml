@@ -24,6 +24,9 @@ jobs:
     name: Full tests (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write  # dev-image push below (ubuntu-latest/py3.12 leg, push-to-main only)
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +56,40 @@ jobs:
           mongodb-version: "7.0"
           runner-os: ${{ runner.os }}
           asan: "false"
+
+      # dev image: this leg's .venv is already fully consistent (kernel+infra+core, this exact
+      # commit, real cxx10x build) -- reuse it directly rather than rebuilding anything. One leg
+      # only (ubuntu-latest/py3.12), and only on an actual merge to main, not every PR run.
+      - name: Log in to GHCR
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute short SHA
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: short_sha
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push dev image
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: dev
+          push: true
+          tags: |
+            ghcr.io/10x-software/py10x-core:dev
+            ghcr.io/10x-software/py10x-core:main-${{ steps.short_sha.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   # PR / push, Linux only, additive to (not part of) the full-tests matrix: builds the
   # functional-account container (docker/Dockerfile + docker/entrypoint.sh) and runs the
@@ -116,7 +153,7 @@ jobs:
         uses: ./.github/actions/setup-postgres
 
       - name: Build functional-account image
-        run: docker build -f docker/Dockerfile -t py10x-functional-e2e .
+        run: docker build -f docker/Dockerfile --target dev -t py10x-functional-e2e .
 
       - name: Run E2E test inside the container (real OS-account rename + real keyring materialization)
         run: |
