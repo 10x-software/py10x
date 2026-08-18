@@ -12,6 +12,27 @@ Exit codes:
 from __future__ import annotations
 
 
+def _keyring_setup_hint(vault_uri: str) -> str:
+    """Best-effort hint: prefer ``--new-machine`` when a VaultUser row already exists."""
+    from core_10x.sec_keys import SecKeys
+
+    rc, login, password = SecKeys.retrieve_vault_login_password(vault_uri)
+    if rc:
+        try:
+            from core_10x.traitable import TsStore, VaultUser
+
+            vault = TsStore.instance_from_uri(vault_uri, username=login, password=password, _cache=False)
+            with vault:
+                if VaultUser.existing_instance(_throw=False):
+                    return 'run: xx-user-init --new-machine'
+        except Exception:
+            pass
+    return (
+        'run: xx-user-init --new-user  (first machine) '
+        'or xx-user-init --new-machine  (existing account on a new machine)'
+    )
+
+
 def main() -> int:
     ok = True
 
@@ -37,13 +58,15 @@ def main() -> int:
         return 1  # nothing else makes sense without this
     _ok(vault_uri)
 
+    keyring_hint = _keyring_setup_hint(vault_uri)
+
     # ------------------------------------------------------------------
     # 2. Master password in OS keyring
     # ------------------------------------------------------------------
     print('\n[2] Master password (OS keyring)')
     rc, _ = SecKeys.retrieve_master_password()
     if not rc:
-        _fail('not found in OS keyring — self-registration has not been completed on this machine', 'run: xx-user-init')
+        _fail('not found in OS keyring — this machine is not set up for vault access', keyring_hint)
     else:
         _ok('found in OS keyring')
 
@@ -53,7 +76,7 @@ def main() -> int:
     print('\n[3] Vault login/password (OS keyring)')
     rc, login, _ = SecKeys.retrieve_vault_login_password(vault_uri)
     if not rc:
-        _fail('not found in OS keyring — self-registration has not been completed on this machine', 'run: xx-user-init')
+        _fail('not found in OS keyring — this machine is not set up for vault access', keyring_hint)
     else:
         _ok(f'login = {login!r}')
 

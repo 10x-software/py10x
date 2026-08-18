@@ -257,3 +257,31 @@ def test_main_shows_usage_when_no_command_is_given(monkeypatch, capsys):
     monkeypatch.setattr(sys, 'argv', ['mycmd'])
     assert MainCli.main() == 2
     assert 'Usage: mycmd work' in capsys.readouterr().out
+
+
+class VerifyCli(TraitableCli):
+    """Usage: vcli go"""
+
+    blocked: bool = T(False)
+
+    def post_verify(self):
+        return RC(False, 'blocked by post_verify') if self.blocked else super().post_verify()
+
+
+class Go(VerifyCli, _command='go'):
+    def run(self):
+        Go.ran = True
+        return RC_TRUE
+
+
+def test_main_calls_verify_before_run(monkeypatch, capsys):
+    """``main`` calls ``verify()``, which includes ``post_verify`` — a failing hook skips ``run``."""
+    Go.ran = False
+    monkeypatch.setattr(sys, 'argv', ['vcli', 'go', '--blocked'])
+    assert VerifyCli.main() == 1
+    assert 'blocked by post_verify' in capsys.readouterr().out
+    assert Go.ran is False
+
+    monkeypatch.setattr(sys, 'argv', ['vcli', 'go'])
+    assert VerifyCli.main() == 0
+    assert Go.ran is True

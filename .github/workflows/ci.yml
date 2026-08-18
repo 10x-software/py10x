@@ -54,6 +54,80 @@ jobs:
           runner-os: ${{ runner.os }}
           asan: "false"
 
+  # PR / push, Linux only, additive to (not part of) the full-tests matrix: builds the
+  # functional-account container (docker/Dockerfile + docker/entrypoint.sh) and runs the
+  # functional-account vault E2E test (core_10x/unit_tests/test_functional_account_vault.py)
+  # inside it, under a *really* renamed OS account with a *really* mounted secrets file -- the
+  # one boundary the plain pytest run in full-tests can't reach (OsUser.me is a C++ singleton,
+  # not renameable in-process). See core_10x/functional_account_keyring.py's module docstring.
+  functional-account-e2e:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: Functional-account vault E2E (container)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-suffix: functional-account-e2e
+          cache-dependency-glob: |
+            **/pyproject.toml
+
+      - name: Resolve corresponding cxx10x branch
+        id: cxx10x_branch
+        run: |
+          candidates=()
+          if [ -n "${{ github.head_ref }}" ]; then
+            candidates+=("${{ github.head_ref }}")
+          fi
+          if [ -n "${{ github.base_ref }}" ]; then
+            candidates+=("${{ github.base_ref }}")
+          else
+            candidates+=("${{ github.ref_name }}")
+          fi
+          candidates+=("main")
+          branch=$("${{ github.workspace }}/.github/scripts/resolve-sibling-branch.sh" \
+            "https://github.com/10x-software/cxx10x.git" \
+            "${candidates[@]}")
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout kernel/infra
+        run: |
+          rm -rf ../cxx10x
+          git clone --branch "${{ steps.cxx10x_branch.outputs.branch }}" \
+            https://github.com/10x-software/cxx10x.git ../cxx10x
+
+      - name: Install dependencies (image build context needs a prepared .venv)
+        run: |
+          uv venv
+          source .venv/bin/activate
+          python -m dev_10x.uv_sync py10x-core-dev --all-extras
+
+      - name: Setup PostgreSQL (host-side; the container reaches it via --network host)
+        uses: ./.github/actions/setup-postgres
+
+      - name: Build functional-account image
+        run: docker build -f docker/Dockerfile -t py10x-functional-e2e .
+
+      - name: Run E2E test inside the container (real OS-account rename + real keyring materialization)
+        run: |
+          secrets_dir="$(mktemp -d)"
+          echo '[]' > "$secrets_dir/keyring.json"  # entrypoint installs an empty backend; user_init populates it for real
+          docker run --rm --network host \
+            -e FUNCTIONAL_ACCOUNT_ID=xx-e2e-ci \
+            -e XX_SECRETS_DIR=/secrets \
+            -v "$secrets_dir:/secrets:ro" \
+            py10x-functional-e2e
+
   # Nightly / manual: same matrix, built and run under AddressSanitizer for memory-error diagnostics.
   asan-tests:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

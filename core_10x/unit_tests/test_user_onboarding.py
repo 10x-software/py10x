@@ -43,7 +43,9 @@ from __future__ import annotations
 
 import pytest
 from core_10x.concrete_resource import CONCRETE_RESOURCE
+from core_10x.environment_variables import EnvVars
 from core_10x.resource import Resource
+from core_10x.sec_keys import SecKeys
 from core_10x.testlib.vault_env import VAULT_URI, vault_env
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
@@ -195,6 +197,90 @@ def test_admin_cannot_decrypt_alice_credentials(vault_env):  # noqa: F811  (pyte
             username=ALICE,
         )
         assert ra.user.sec_keys.decrypt_text(ra.password) == PG_PWD
+
+
+# ---------------------------------------------------------------------------
+# --new-user / --new-machine
+# ---------------------------------------------------------------------------
+
+
+def test_new_machine_seeds_keyring_without_changing_vault_keys(vault_env):  # noqa: F811
+    """After first-time registration, a wiped local keyring is restored via
+    ``new_machine=True`` without rewriting the ``VaultUser`` key material."""
+    env = vault_env
+    env.switch_os_user(ALICE)
+    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+
+    with Traitable.vault_store():
+        me = VaultUser.existing_instance(user_id=ALICE)
+        public_key = me.public_key
+        private_key_encrypted = me.private_key_encrypted
+
+    env.clear_local_keyring()
+    assert not SecKeys.retrieve_master_password()[0]
+
+    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER, new_machine=True)
+
+    rc, mp = SecKeys.retrieve_master_password()
+    assert rc and mp == ALICE_MASTER
+    rc, login, pwd = SecKeys.retrieve_vault_login_password(VAULT_URI)
+    assert rc and login == ALICE and pwd == ALICE_VAULT_PWD
+
+    with Traitable.vault_store():
+        me = VaultUser.existing_instance(user_id=ALICE)
+        assert me.public_key == public_key
+        assert me.private_key_encrypted == private_key_encrypted
+        assert me.sec_keys.decrypt_text(
+            VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, Resource.uri_no_dbname(VAULT_URI)).password
+        ) == ALICE_VAULT_PWD
+
+
+def test_new_machine_wrong_master_does_not_seed_keyring(vault_env):  # noqa: F811
+    env = vault_env
+    env.switch_os_user(ALICE)
+    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.clear_local_keyring()
+
+    rc = VaultUtils.user_init(
+        new_machine=True,
+        login=ALICE,
+        password=ALICE_VAULT_PWD,
+        master_password='WrongMaster9!',
+    )
+    assert not rc
+    assert 'does not unlock' in rc.error()
+
+    # Neither keyring entry should have been written after a failed prove.
+    assert (EnvVars.master_password_key, ALICE) not in env.keyring
+    assert (VAULT_URI, ALICE) not in env.keyring
+
+
+def test_new_machine_without_vault_user_points_to_new_user(vault_env):  # noqa: F811
+    env = vault_env
+    env.switch_os_user(ALICE)
+    rc = VaultUtils.user_init(
+        new_machine=True,
+        login=ALICE,
+        password=ALICE_VAULT_PWD,
+        master_password=ALICE_MASTER,
+    )
+    assert not rc
+    assert '--new-user' in rc.error()
+
+
+def test_new_user_when_vault_user_exists_points_to_new_machine(vault_env):  # noqa: F811
+    env = vault_env
+    env.switch_os_user(ALICE)
+    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.clear_local_keyring()
+
+    rc = VaultUtils.user_init(
+        login=ALICE,
+        password=ALICE_VAULT_PWD,
+        master_password=ALICE_MASTER,
+    )
+    assert not rc
+    assert '--new-machine' in rc.error()
 
 
 # ---------------------------------------------------------------------------

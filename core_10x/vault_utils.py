@@ -31,14 +31,19 @@ class VaultUtils:
         return rc
 
     @classmethod
-    def create_master_password(cls, override = False) -> tuple[RC, str]:
+    def create_master_password(cls, override = False, master_password: str = None) -> tuple[RC, str]:
         if not override:
             rc, mp = SecKeys.retrieve_master_password()
             if rc:
                 return (RC(False, 'MasterPassword already exists'), None)
 
-        mp = getpass.getpass('Please create a memorable MasterPassword: ')
-        mp2= getpass.getpass('Please re-enter your MasterPassword: ')
+        if master_password is None:
+            mp = getpass.getpass('Please create a memorable MasterPassword: ')
+            mp2= getpass.getpass('Please re-enter your MasterPassword: ')
+        else:
+            # -- non-interactive (e.g. functional-account bootstrap): the value already came
+            # -- from a secret store, so there's no typo to guard against with a confirmation.
+            mp = mp2 = master_password
         rc = cls.verify_new_password(mp, mp2)
         if not rc:
             return (rc, None)
@@ -70,32 +75,59 @@ class VaultUtils:
         return TsStore.instance_from_uri(vault_uri, username = login, password = password)
 
     @classmethod
-    def user_init(cls) -> RC:
+    def user_init(cls, *, new_machine: bool = False, login: str = None, password: str = None, master_password: str = None) -> RC:
+        """Seed this machine for vault access.
+
+        ``new_machine=False`` (default): first-time self-registration — create
+        ``VaultUser`` + keys + server-wide RA, then write OS keyring entries.
+
+        ``new_machine=True``: same OS user on a new host — prove the existing
+        master password against the vault private key, then write OS keyring
+        entries only (no vault writes / no key rotation).
+        """
         rc, vault_uri = SecKeys.check_vault_uri(main = True)
         if not rc:
             return rc
 
-        rc, login, password = SecKeys.retrieve_vault_login_password(vault_uri)
-        if rc:
-            return rc
+        rc_mp, existing_master = SecKeys.retrieve_master_password()
+        rc_vl, existing_login, existing_password = SecKeys.retrieve_vault_login_password(vault_uri)
 
+        if not new_machine:
+            # -- already seeded on this machine
+            if rc_vl:
+                return rc_vl
+            return cls._user_init_new_user(vault_uri, login = login, password = password, master_password = master_password)
+
+        # -- new-machine: full no-op only when both keyring entries are present
+        if rc_mp and rc_vl:
+            return RC_TRUE
+
+        if login is None and rc_vl:
+            login = existing_login
+        if password is None and rc_vl:
+            password = existing_password
+        if master_password is None and rc_mp:
+            master_password = existing_master
+        return cls._user_init_new_machine(vault_uri, login = login, password = password, master_password = master_password)
+
+    @classmethod
+    def _user_init_new_user(cls, vault_uri: str, *, login: str = None, password: str = None, master_password: str = None) -> RC:
         #-- 1. Get main vault credentials and try to connect
-        rc, vault, login, password = cls._get_and_check_vault_credentials(vault_uri)
+        rc, vault, login, password = cls._get_and_check_vault_credentials(vault_uri, login = login, password = password)
         if not rc:
             return rc
 
-        #-- 2. At this point, connected to the vault, let's create the user object
-        #--    keyed by the OS user name (VaultUser.user_id), and then save a
-        #--    VaultResourceAccessor for the vault-DB *server* (uri stripped of
-        #--    dbname) so the same login/password is automatically picked up for
-        #--    any other DB on that server (resolved via the uri_no_dbname
-        #--    fallback in VaultResourceAccessor.retrieve_ra).
+        #-- 2. Create the user object keyed by the OS user name (VaultUser.user_id),
+        #--    then save a VaultResourceAccessor for the vault-DB *server* (uri
+        #--    stripped of dbname) so the same login/password is automatically
+        #--    picked up for any other DB on that server (resolved via the
+        #--    uri_no_dbname fallback in VaultResourceAccessor.retrieve_ra).
         username = VaultUser.myname()
         with vault:
             if VaultUser.existing_instance(user_id = username, _throw = False):
-                return RC(False, f'Vault User {username} already exists. Consult with admin')
+                return RC(False, f'Vault User {username} already exists. On a new machine run: xx-user-init --new-machine')
 
-            rc, master_pwd = cls.create_master_password(override = True)
+            rc, master_pwd = cls.create_master_password(override = True, master_password = master_password)
             if not rc:
                 raise OSError(rc.error())
 
@@ -123,12 +155,42 @@ class VaultUtils:
         return RC_TRUE
 
     @classmethod
-    def _get_and_check_vault_credentials(cls, vault_uri: str) -> tuple[RC, TsStore, str, str]:
+    def _user_init_new_machine(cls, vault_uri: str, *, login: str = None, password: str = None, master_password: str = None) -> RC:
+        rc, vault, login, password = cls._get_and_check_vault_credentials(vault_uri, login = login, password = password)
+        if not rc:
+            return rc
+
         username = VaultUser.myname()
-        login = input(f'Enter login name for {vault_uri} ({username}): ')
-        if not login:
-            login = username
-        password = getpass.getpass(f'Enter password (given to you by admin) for {login} @ {vault_uri} : ')
+        with vault:
+            me = VaultUser.existing_instance(user_id = username, _throw = False)
+            if not me:
+                return RC(
+                    False,
+                    f'Vault User {username} does not exist. Run: xx-user-init --new-user',
+                )
+
+            if master_password is None:
+                master_password = getpass.getpass('Enter your existing MasterPassword: ')
+
+            try:
+                SecKeys.decrypt_private_key(me.private_key_encrypted, master_password)
+            except Exception:
+                return RC(False, 'MasterPassword does not unlock the vault private key')
+
+        # -- prove succeeded: seed local keyring only (no vault writes)
+        SecKeys.change_master_password(master_password, override = True)
+        SecKeys.change_vault_login_password(login, password, vault_uri = vault_uri, override = True)
+        return RC_TRUE
+
+    @classmethod
+    def _get_and_check_vault_credentials(cls, vault_uri: str, login: str = None, password: str = None) -> tuple[RC, TsStore, str, str]:
+        username = VaultUser.myname()
+        if login is None:
+            login = input(f'Enter login name for {vault_uri} ({username}): ')
+            if not login:
+                login = username
+        if password is None:
+            password = getpass.getpass(f'Enter password (given to you by admin) for {login} @ {vault_uri} : ')
         try:
             vault = TsStore.instance_from_uri(vault_uri, username = login, password = password, _cache = False)
             return (RC_TRUE, vault, login, password)

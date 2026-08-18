@@ -50,3 +50,11 @@ def test_cli_pre_next_version_traits():
     rc, inst = xp.XxPromoteCli.instance_from_args(['pre', '--next-version', 'py10x-kernel=0.3.0'])
     assert rc and type(inst).__name__ == 'Pre'
     assert inst.next_version == 'py10x-kernel=0.3.0'
+
+
+def test_no_command_fails_in_post_verify():
+    rc, inst = xp.XxPromoteCli.instance_from_args([])
+    assert rc and type(inst) is xp.XxPromoteCli
+    rc = inst.post_verify()
+    assert not rc
+    assert 'xx-promote pre' in rc.error()

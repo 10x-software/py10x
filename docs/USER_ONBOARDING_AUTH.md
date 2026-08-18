@@ -56,7 +56,7 @@ The user runs, on their own machine:
 
 ```bash
 export XX_MAIN_VAULT_URI='mongodb://vault.example.com:27018/_vault_'
-xx-user-init
+xx-user-init            # same as: xx-user-init --new-user
 ```
 
 Prompts:
@@ -77,6 +77,28 @@ What happens behind the scenes:
 
 After this, the user tells the admin their **OS user name** (output of
 `whoami`). That is the only information that needs to flow back.
+
+## Same user, new machine
+
+The `VaultUser` row and encrypted private key live in the shared vault; the
+master password and vault login/password live only in each machine's OS
+keyring. On a second machine, do **not** re-run first-time registration
+(`--new-user` will refuse once the vault row exists). Instead:
+
+```bash
+export XX_MAIN_VAULT_URI='mongodb://vault.example.com:27018/_vault_'
+xx-user-init --new-machine
+```
+
+Prompts:
+
+1. Vault login and password (same credentials as on the first machine).
+2. The **existing** master password (the one that encrypts the vault private
+   key) — entered once; it is verified by decrypting that key.
+
+This writes the master password and vault login/password into the local OS
+keyring only. It does not rotate keys or rewrite the `VaultUser` row. Other
+machines keep working with the same master password.
 
 ## Step 3 — Admin grants access to additional resources
 
