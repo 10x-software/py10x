@@ -26,8 +26,8 @@ classifiers = [
 dependencies = [
     # Pins below for py10x-core and py10x-fin-base-cxx are maintained by xx-promote.
     # Kernel/infra come transitively via py10x-core.
-    "py10x-core (>=0.3.1,<0.3.2rc1)",
-    "py10x-fin-base-cxx (==0.1.1)",  # co-released; same version as this package
+    "py10x-core (==0.3.2rc1)",
+    "py10x-fin-base-cxx (==0.1.2rc1)",  # co-released; same version as this package
     "quantlib-python>=1.18",
     "aadc>=1.8.2; sys_platform != 'darwin' and (sys_platform != 'win32' or python_version != '3.13')",
 ]
