@@ -15,6 +15,11 @@ Commands (run from the py10x repo root):
                                       poll until ready (env: WAIT_FOR_SIBLING_BRANCH_TIMEOUT,
                                       WAIT_FOR_SIBLING_BRANCH_INTERVAL); optional sync_base
                                       refreshes the py10x checkout each attempt (cxx10x CI)
+    wait_pypi_release VERSION         poll until this repo's own package (name from
+                                      [project.name]) is at VERSION on PyPI, then its exact
+                                      ==-pinned siblings (env: PYPI_TIMEOUT_SEC, PYPI_POLL_SEC)
+    wait_pypi_release_for_wheel WHEEL same wait, but VERSION is read from WHEEL's own pin on this
+                                      repo's package (e.g. a downstream wheel pinning py10x-core)
 """
 
 from __future__ import annotations
@@ -30,10 +35,11 @@ from importlib.metadata import version as dist_version
 from pathlib import Path
 
 import tomlkit
+from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 
-from dev_10x.xx_helpers import GitHelpers, PyProjectHelpers, VersionHelpers
+from dev_10x.xx_helpers import GitHelpers, PyPIHelpers, PyProjectHelpers, VersionHelpers
 
 
 @dataclass(frozen=True)
@@ -149,6 +155,73 @@ def wait_sibling_branch_ready(
         time.sleep(interval)
 
 
+def wait_pypi_release(base: Path, version: str, *, timeout: float | None = None, poll: float | None = None) -> int:
+    """Poll until this repo's own package (name from `[project.name]`) is at `version` on PyPI,
+    then poll for each of its exact `==`-pinned first-party siblings (from
+    `[tool.dev_10x.siblings]`, resolved via the published release's own `Requires-Dist` - so a
+    sibling bump is picked up automatically, never hand-maintained here)."""
+    name = PyProjectHelpers.project_name(base / 'pyproject.toml')
+    siblings = set(_siblings_doc(base))
+    timeout = float(os.environ.get('PYPI_TIMEOUT_SEC', timeout if timeout is not None else 1800))
+    poll = float(os.environ.get('PYPI_POLL_SEC', poll if poll is not None else 90))
+    deadline = time.monotonic() + timeout
+
+    def _wait_for(pkg: str, ver: str) -> int:
+        while True:
+            if PyPIHelpers.release_exists(pkg, ver):
+                print(f'{pkg}=={ver} available on PyPI', flush=True)
+                return 0
+            if time.monotonic() >= deadline:
+                print(f'wait_pypi_release: timed out waiting for {pkg}=={ver} on PyPI', file=sys.stderr)
+                return 1
+            print(f'wait_pypi_release: {pkg}=={ver} not yet available; retrying in {poll}s...', file=sys.stderr)
+            time.sleep(poll)
+
+    rc = _wait_for(name, version)
+    if rc:
+        return rc
+
+    pins = PyPIHelpers.exact_pins(name, version, siblings)
+    if not pins:
+        print(f'wait_pypi_release: warning: no == pins for {sorted(siblings)} on {name}=={version}', file=sys.stderr)
+    for sib_name, sib_version in pins.items():
+        rc = _wait_for(sib_name, sib_version)
+        if rc:
+            return rc
+    return 0
+
+
+def _project_pin_from_wheel(wheel: Path, name: str) -> str:
+    """Exact `==` pin for `name` in a built wheel's `Requires-Dist` metadata."""
+    from email.parser import Parser
+    from zipfile import ZipFile
+
+    with ZipFile(wheel) as zf:
+        meta_names = [n for n in zf.namelist() if n.endswith('.dist-info/METADATA')]
+        if not meta_names:
+            raise SystemExit(f'no METADATA in {wheel}')
+        meta = Parser().parsestr(zf.read(meta_names[0]).decode())
+    for req_str in (v for k, v in meta.items() if k.lower() == 'requires-dist'):
+        try:
+            req = Requirement(req_str.split(';', 1)[0].strip())
+        except Exception:  # noqa: BLE001, S112 - a malformed Requires-Dist entry is skipped, not fatal
+            continue
+        if req.name == name:
+            exact = [s.version for s in req.specifier if s.operator == '==']
+            if exact:
+                return exact[0]
+    raise SystemExit(f'{wheel}: no exact {name}== pin in Requires-Dist')
+
+
+def wait_pypi_release_for_wheel(base: Path, wheel: Path, *, timeout: float | None = None, poll: float | None = None) -> int:
+    """Read this repo's own package's exact pin out of `wheel`'s metadata (e.g. a downstream
+    fin-base wheel pinning py10x-core), then `wait_pypi_release` for it and its siblings."""
+    name = PyProjectHelpers.project_name(base / 'pyproject.toml')
+    version = _project_pin_from_wheel(wheel, name)
+    print(f'{wheel.name} pins {name}=={version}', flush=True)
+    return wait_pypi_release(base, version, timeout=timeout, poll=poll)
+
+
 def latest_tag(base: Path, name: str) -> str:
     """The sibling tag whose version satisfies the spec currently pinned for it in pyproject.toml.
 
@@ -197,6 +270,10 @@ def main(argv: list[str] | None = None) -> int:
         if sync_base and argv[2] != 'sync_base':
             raise SystemExit(f'usage:\n{__doc__}')
         return wait_sibling_branch_ready(base, argv[1], sync_base=sync_base)
+    if cmd == 'wait_pypi_release' and len(argv) == 2:
+        return wait_pypi_release(base, argv[1])
+    if cmd == 'wait_pypi_release_for_wheel' and len(argv) == 2:
+        return wait_pypi_release_for_wheel(base, Path(argv[1]))
     raise SystemExit(f'usage:\n{__doc__}')
 
 

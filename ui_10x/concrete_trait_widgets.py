@@ -80,7 +80,7 @@ class TextEditForListWidget(TextEditWidget, widget_type=Ui.WIDGET_TYPE.TEXT4LIST
 
     def _set_value(self, value):
         if not isinstance(value, list):
-            raise AssertionError('list is expected')
+            raise TypeError('list is expected')
         self.set_plain_text('\n'.join(value))
 
 

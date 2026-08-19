@@ -112,17 +112,19 @@ def vault_env(monkeypatch):
         current_os[0] = name
         _clear_all_caches()
 
-    def run_user_init(*, vault_login: str, vault_pwd: str, master_pwd: str) -> None:
-        """Feed canned answers to ``VaultUtils.user_init()``'s prompts."""
-        text_q.append(vault_login)
-        secret_q.extend([vault_pwd, master_pwd, master_pwd])
-        VaultUtils.user_init().throw()
-        assert not text_q and not secret_q, 'queued prompts left over'
+    def run_user_init(*, vault_login: str, vault_pwd: str, master_pwd: str, new_machine: bool = False) -> None:
+        """Run ``VaultUtils.user_init`` non-interactively (kwargs, not prompts)."""
+        VaultUtils.user_init(new_machine=new_machine, login=vault_login, password=vault_pwd, master_password=master_pwd).throw()
+        _clear_all_caches()
 
+    def clear_local_keyring() -> None:
+        """Simulate a fresh machine: wipe OS-keyring entries for the current user."""
+        keyring.clear()
         _clear_all_caches()
 
     env.switch_os_user = switch_os_user
     env.run_user_init = run_user_init
+    env.clear_local_keyring = clear_local_keyring
 
     yield env
 

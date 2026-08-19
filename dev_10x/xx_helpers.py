@@ -609,6 +609,11 @@ class PyProjectHelpers:
         path.write_text(tomlkit.dumps(doc), encoding='utf-8', newline='\n')
 
     @classmethod
+    def project_name(cls, path: Path) -> str:
+        """`[project.name]` - the package this pyproject.toml declares itself to be."""
+        return str(cls._load(path)['project']['name'])
+
+    @classmethod
     def dependency_spec(cls, path: Path, name: str) -> str:
         """The version specifier currently pinned for dependency `name` in [project.dependencies]."""
         doc = cls._load(path)
@@ -830,6 +835,76 @@ class PyPIHelpers:
             if e.code == 404:
                 return set()
             raise
+
+    @staticmethod
+    def _normalize_project(name: str) -> str:
+        import re
+
+        return re.sub(r'[-_.]+', '-', name).lower()
+
+    @classmethod
+    def release_exists(cls, name: str, version: str, timeout: float = 10.0) -> bool:
+        """True when the exact `name==version` is pip-installable: the JSON API lists files
+        **and** the simple index lists the version (pip's resolver uses the simple API; the JSON
+        API can briefly lead the CDN after a fresh publish)."""
+        import json
+        from urllib import error, request
+
+        json_url = f'https://pypi.org/pypi/{name}/{version}/json'
+        try:
+            with request.urlopen(json_url, timeout=timeout) as resp:
+                if resp.status != 200:
+                    return False
+                data = json.loads(resp.read().decode('utf-8'))
+        except error.HTTPError as e:
+            if e.code == 404:
+                return False
+            raise
+        if not (data.get('urls') or []):
+            return False
+
+        simple_name = cls._normalize_project(name)
+        simple_url = f'https://pypi.org/simple/{simple_name}/'
+        try:
+            with request.urlopen(simple_url, timeout=timeout) as resp:
+                html = resp.read().decode('utf-8', errors='replace')
+        except error.HTTPError as e:
+            if e.code == 404:
+                return False
+            raise
+        # Filenames use underscores; accept either spelling in the listing.
+        needle = f'{simple_name.replace("-", "_")}-{version}'
+        alt = f'{simple_name}-{version}'
+        return needle in html or alt in html
+
+    @classmethod
+    def release_requires_dist(cls, name: str, version: str, timeout: float = 10.0) -> list[str]:
+        """`Requires-Dist` entries for an already-published `name==version`."""
+        import json
+        from urllib import request
+
+        url = f'https://pypi.org/pypi/{name}/{version}/json'
+        with request.urlopen(url, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        return list(data.get('info', {}).get('requires_dist') or [])
+
+    @classmethod
+    def exact_pins(cls, name: str, version: str, candidates: set[str], timeout: float = 10.0) -> dict[str, str]:
+        """{candidate: pinned version} for each of `candidates` carrying an exact `==` in the
+        published `name==version`'s `Requires-Dist` - the PyPI-side counterpart of
+        `PyProjectHelpers.exact_pins_from_text`, which reads the same shape of pin from a local
+        pyproject.toml instead of an already-published release's metadata."""
+        out: dict[str, str] = {}
+        for req_str in cls.release_requires_dist(name, version, timeout=timeout):
+            try:
+                req = Requirement(req_str.split(';', 1)[0].strip())
+            except Exception:  # noqa: BLE001, S112 - a malformed Requires-Dist entry is skipped, not fatal
+                continue
+            if req.name in candidates:
+                exact = [s.version for s in req.specifier if s.operator == '==']
+                if exact:
+                    out[req.name] = exact[0]
+        return out
 
 
 class GhUnavailableError(RuntimeError):

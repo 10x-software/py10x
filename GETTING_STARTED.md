@@ -2413,7 +2413,8 @@ Three entry points handle the admin/user setup workflow:
 
 | Command | Who runs it | What it does |
 |---------|-------------|--------------|
-| `xx-user-init` | New user | Prompts for vault login, temp password, and new master password; generates RSA key pair; stores credentials in vault and OS keyring |
+| `xx-user-init` / `--new-user` | New user (first machine) | Prompts for vault login, temp password, and new master password; generates RSA key pair; stores credentials in vault and OS keyring |
+| `xx-user-init --new-machine` | Same user on a new machine | Proves the existing master password against the vault private key; seeds the local OS keyring only (no key rotation) |
 | `xx-user-status` | Any user | Prints a health check for every registered resource accessor |
 | `xx-admin-save-user-credentials` | Admin | Encrypts a resource password with a user's public key and stores it in the vault |
 

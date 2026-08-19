@@ -115,11 +115,7 @@ class TestNamedResourceInstance:
         """Self-register ALICE via ``user_init`` so the vault store is
         unlocked and her ``VaultUser`` row exists."""
         env.switch_os_user(ALICE)
-        env.run_user_init(
-            vault_login=ALICE,
-            vault_pwd=ALICE_VAULT_PWD,
-            master_pwd=ALICE_MASTER,
-        )
+        env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
 
     def _last_call_for_host(self, calls, hostname):
         """Return the most recent recorded ``new_instance`` call for the

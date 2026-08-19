@@ -77,9 +77,11 @@ def repos(tmp_path):
 
 
 def _run_argv(argv):
-    """Construct + run() the CLI (verify()/post_verify() preconditions, then apply, then push)."""
+    """Construct + verify + run, matching ``TraitableCli.main`` (skipping argv / exit-code)."""
     rc, inst = xp.XxPromoteCli.instance_from_args(argv)
     assert rc, rc.error() if not rc else ''
+    if not (rc := inst.verify()):
+        return rc
     return inst.run()
 
 

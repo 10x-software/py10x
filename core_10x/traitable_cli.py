@@ -22,9 +22,9 @@ class TraitableCli(Traitable):
 
     @classmethod
     def main(cls) -> int:
-        """Console-script entry point: parse ``sys.argv``, run, report. 2 = usage, 1 = failed.
+        """Console-script entry point: parse ``sys.argv``, verify, run, report. 2 = usage, 1 = failed.
 
-        The two steps cannot be folded into one expression: ``inst`` is None on a usage error.
+        Parse and instantiate first: ``inst`` is None on a usage error, so verify/run cannot run yet.
         """
         rc, inst = cls.from_command_line()
         if rc and not hasattr(inst, 'run'):
@@ -34,6 +34,9 @@ class TraitableCli(Traitable):
         if not rc:
             print(rc.error())
             return 2
+        if not (rc := inst.verify()):
+            print(rc.error())
+            return 1
         if not (rc := inst.run()):
             print(rc.error())
             return 1

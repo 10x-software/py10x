@@ -557,24 +557,25 @@ class XxPromoteCli(TraitableCli):
                     self._atomic_push(repo, [refspec], label='isolated ')
         self._print_completion_hints()
 
-    @exc_to_rc
-    def post_verify(self) -> None:
-        if not self.dry_run:
-            repo_globs: dict[Path, list[str]] = {}
-            for p in self.packages.values():
-                repo_globs.setdefault(p.repo, []).append(f'{p.tag_prefix}*')
-                repo_globs[p.repo].extend(VersionHelpers.publish_trigger_globs(p.tag_prefix))
-            for repo, globs in repo_globs.items():
-                GitHelpers.require_synced(repo, globs)
-
-        if not next(reversed(self.packages.values())).is_core:
-            return RuntimeError('The core package must be last.')
-
-    def run(self) -> RC:
+    def post_verify(self) -> RC:
         if not self.s_command:
             return RC(False, self.__doc__)
-        if not (rc := self.verify()):
-            return rc
+        try:
+            if not self.dry_run:
+                repo_globs: dict[Path, list[str]] = {}
+                for p in self.packages.values():
+                    repo_globs.setdefault(p.repo, []).append(f'{p.tag_prefix}*')
+                    repo_globs[p.repo].extend(VersionHelpers.publish_trigger_globs(p.tag_prefix))
+                for repo, globs in repo_globs.items():
+                    GitHelpers.require_synced(repo, globs)
+
+            if not next(reversed(self.packages.values())).is_core:
+                raise RuntimeError('The core package must be last.')
+        except Exception:  # noqa: BLE001 -- same contract as @exc_to_rc
+            return RC(False)
+        return RC_TRUE
+
+    def run(self) -> RC:
         if title := (self.__doc__ or '').strip().splitlines():
             print(title[0])  # just the one-line title, not the whole docstring
         return self.run_steps()
@@ -881,9 +882,6 @@ class Status(XxPromoteCli, _command='status'):
         return cache[slug]
 
     def run(self) -> RC:
-        rc = self.verify()
-        if not rc:
-            return rc
         print('xx-promote status  (tagged but not yet published on PyPI)\n')
         runs_cache: dict[str, list[dict]] = {}
         gh_errors: dict[str, str] = {}

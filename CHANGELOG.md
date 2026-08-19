@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`TraitableCli.main`** now calls ``verify()`` before ``run()``. ``VaultUtils.user_init`` takes ``new_machine: bool = False`` instead of a ``mode`` string.
+
 ## [0.3.0] - 2026-08-12
 
 Changes since **0.2.2** (2026-05-18). Coordinated with **py10x-kernel** and **py10x-infra** at the same 0.3.0 line. Downstream **py10x-fin-base** / **py10x-fin-base-cxx** version independently (latest published line is `0.1.0rc*`, not 0.3.0). Items marked *(experimental)* are present in the codebase but not part of the supported public API yet.

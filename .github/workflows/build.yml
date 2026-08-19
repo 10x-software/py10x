@@ -117,3 +117,64 @@ jobs:
 
     - name: Publish to PyPI
       run: uv publish
+
+  # Publish the corresponding functional-account runtime image (docker/Dockerfile's `production`
+  # target) to GHCR, tagged with the exact package version -- a plain `uv pip install
+  # py10x-core==<version>` from the release just published above, no repo checkout baked into
+  # the image, no rebuild-from-source.
+  docker-image:
+    name: Build and push image
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive package version from the publish-trigger tag
+        id: version
+        run: |
+          # e.g. "pre/v1.2.3rc1" -> "1.2.3rc1" ; "prod/v1.2.3" -> "1.2.3"
+          ref="${{ github.ref_name }}"
+          release_tag="${ref#*/}"   # strip "pre/" or "prod/"
+          version="${release_tag#v}"  # strip core's tag_prefix "v"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      # dev_10x.xx_ci is kernel-free (same reasoning as the test job above): needs only
+      # packaging + tomlkit, so it can resolve/wait on PyPI before py10x-core itself is installed.
+      - name: Create venv + CI helper deps
+        run: |
+          uv venv
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          uv pip install -c constraints.txt packaging tomlkit
+
+      - name: Wait for the release to be resolvable on PyPI
+        run: python -m dev_10x.xx_ci wait_pypi_release "${{ steps.version.outputs.version }}"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push production image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: production
+          build-args: |
+            PY10X_CORE_VERSION=${{ steps.version.outputs.version }}
+          push: true
+          tags: ghcr.io/10x-software/py10x-core:${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

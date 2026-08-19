@@ -24,6 +24,9 @@ jobs:
     name: Full tests (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write  # dev-image push below (ubuntu-latest/py3.12 leg, push-to-main only)
     strategy:
       fail-fast: false
       matrix:
@@ -53,6 +56,132 @@ jobs:
           mongodb-version: "7.0"
           runner-os: ${{ runner.os }}
           asan: "false"
+
+      # dev image: pushed to GHCR after the test suite. Built from source (uv_sync
+      # py10x-core-dev --all-extras, same as ci-test-suite) rather than reused from this leg's
+      # .venv or PyPI: kernel/infra's published versions may not satisfy pyproject.toml's current
+      # pin (a normal mid-development state), and a coordinated core+cxx10x PR needs its own
+      # sibling source. One leg only (ubuntu-latest/py3.12), and only on an actual merge to main,
+      # not every PR run. Reuses ../cxx10x from ci-test-suite's own "Checkout kernel/infra" step
+      # above (same job, same runner) rather than cloning it again.
+      - name: Log in to GHCR
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute short SHA
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        id: short_sha
+        run: echo "sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push dev image
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: dev
+          build-contexts: |
+            cxx10x=../cxx10x
+          push: true
+          tags: |
+            ghcr.io/10x-software/py10x-core:dev
+            ghcr.io/10x-software/py10x-core:main-${{ steps.short_sha.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # PR / push, Linux only, additive to (not part of) the full-tests matrix: builds the
+  # functional-account container (docker/Dockerfile + docker/entrypoint.sh) and runs the
+  # functional-account vault E2E test (core_10x/unit_tests/test_functional_account_vault.py)
+  # inside it, under a *really* renamed OS account with a *really* mounted secrets file -- the
+  # one boundary the plain pytest run in full-tests can't reach (OsUser.me is a C++ singleton,
+  # not renameable in-process). See core_10x/functional_account_keyring.py's module docstring.
+  functional-account-e2e:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: Functional-account vault E2E (container)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve corresponding cxx10x branch
+        id: cxx10x_branch
+        run: |
+          candidates=()
+          if [ -n "${{ github.head_ref }}" ]; then
+            candidates+=("${{ github.head_ref }}")
+          fi
+          if [ -n "${{ github.base_ref }}" ]; then
+            candidates+=("${{ github.base_ref }}")
+          else
+            candidates+=("${{ github.ref_name }}")
+          fi
+          candidates+=("main")
+          branch=$("${{ github.workspace }}/.github/scripts/resolve-sibling-branch.sh" \
+            "https://github.com/10x-software/cxx10x.git" \
+            "${candidates[@]}")
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      # A full (non-shallow) clone: setuptools-scm needs real tag/history metadata to derive
+      # py10x-kernel/py10x-infra's version, which BuildKit's own git build-context fetcher can't
+      # supply (it fetches shallow, no tags) -- same reasoning as .git not being excluded from
+      # this repo's own build context in .dockerignore.
+      - name: Checkout kernel/infra
+        run: |
+          rm -rf ../cxx10x
+          git clone --branch "${{ steps.cxx10x_branch.outputs.branch }}" \
+            https://github.com/10x-software/cxx10x.git ../cxx10x
+
+      - name: Setup PostgreSQL (host-side; the container reaches it via --network host)
+        uses: ./.github/actions/setup-postgres
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # docker/Dockerfile's `dev` target builds this checkout together with its C++ siblings from
+      # source (uv_sync py10x-core-dev --all-extras) -- the `cxx10x` build context below supplies
+      # the sibling source from the full clone above.
+      - name: Build functional-account image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: dev
+          build-contexts: |
+            cxx10x=../cxx10x
+          tags: py10x-functional-e2e
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run E2E test inside the container (real OS-account rename + real keyring materialization)
+        run: |
+          secrets_dir="$(mktemp -d)"
+          # mktemp -d defaults to mode 700 (owner-only) -- the container's renamed functional
+          # account is a different, unrelated uid from the runner user that creates this dir, so
+          # without opening it up the container can't even traverse into the bind mount, let
+          # alone read the file inside. Not a real secret at this point (empty manifest --
+          # entrypoint installs an empty backend; user_init populates it for real).
+          chmod 755 "$secrets_dir"
+          echo '[]' > "$secrets_dir/keyring.json"
+          docker run --rm --network host \
+            -e FUNCTIONAL_ACCOUNT_ID=xx-e2e-ci \
+            -e XX_SECRETS_DIR=/secrets \
+            -v "$secrets_dir:/secrets:ro" \
+            py10x-functional-e2e
 
   # Nightly / manual: same matrix, built and run under AddressSanitizer for memory-error diagnostics.
   asan-tests:
