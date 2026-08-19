@@ -13,7 +13,8 @@ from core_10x.ts_store import (
     standard_key,
 )
 from py10x_infra import MongoCollectionHelper
-from pymongo import MongoClient, ReturnDocument, errors
+from pymongo import MongoClient, ReturnDocument
+from pymongo.common import TIMEOUT_OPTIONS
 from pymongo.errors import ConnectionFailure, DuplicateKeyError, OperationFailure, ServerSelectionTimeoutError
 from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
@@ -191,6 +192,7 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         port    = ('port',                      27017),
         ssl     = ('ssl',                       False),
         sst     = ('serverSelectionTimeoutMS',  10000),
+        direct  = ('directConnection', False),
     )
 
     s_cached_connections: dict[tuple, MongoClient] = {}
@@ -266,10 +268,13 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
         try:
+            aliases = { short: real for short, (real, _) in cls.s_instance_kwargs_map.items() if short != real }
+            for short, real in aliases.items():  # aliases are not valid uri params for mongo, so rewrite them
+                uri = uri.replace(f'?{short}=', f'?{real}=').replace(f'&{short}=', f'&{real}=')
             params = pymongo_parse_uri(uri)
             # fmt: off
-            hostname, port  = params['nodelist'][0]
-            kwargs          = params['options']
+            hostname, port        = params['nodelist'][0]
+            kwargs                = params['options']
             kwargs[cls.PORT_TAG]  = port
             args = {
                 cls.HOSTNAME_TAG:   hostname,
@@ -279,6 +284,10 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
             }
             # fmt: on
             args.update(kwargs)
+            args.update( # rename mongo params back to short aliases
+                (short, round(value*1000) if value and real.lower() in TIMEOUT_OPTIONS else value)
+                for short, real in aliases.items() if (value:=args.pop(real,args)) is not args
+            )
             return args
         except Exception as e:
             raise ValueError(f'Invalid URI = {uri}') from e

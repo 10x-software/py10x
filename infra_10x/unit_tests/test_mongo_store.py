@@ -14,8 +14,18 @@ def test_mongo_parse_uri_round_trip():
     assert args[MongoStore.USERNAME_TAG] == 'user'
     assert args[MongoStore.PASSWORD_TAG] == 'pass'
     assert args['port'] == 27017
-    # Options are driver-dependent; we only require that custom options are propagated.
-    assert 'serverSelectionTimeoutMS' in args
+    # Aliased options are folded to the short map key for translate_kwargs.
+    assert args['sst'] == 5000
+    assert 'serverSelectionTimeoutMS' not in args
+
+
+def test_mongo_parse_uri_short_aliases():
+    args = MongoStore.parse_uri('mongodb://localhost:27017/testdb?sst=5000&direct=true')
+    assert args['sst'] == 5000
+    assert args['direct'] is True
+    tr = MongoStore.translate_kwargs(args)
+    assert tr['serverSelectionTimeoutMS'] == 5000
+    assert tr['directConnection'] is True
 
 
 def test_spec_from_uri_includes_protocol_tag():
