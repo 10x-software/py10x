@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from core_10x.concrete_traits import list_trait
 from core_10x.trait import Ui
 
 from ui_10x.choice import Choice
@@ -54,17 +53,7 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type=Ui.WIDGET_TYPE.LINE):
         self.set_text(str_value)
 
 
-def create_text_widget(editor, trait: Trait):
-    if isinstance(trait, list_trait):
-        return TextEditForListWidget(editor, trait)
-
-    return TextEditWidget(editor, trait)
-
-
-TraitWidget.s_hinted_widgets[Ui.WIDGET_TYPE.TEXT] = create_text_widget
-
-
-class TextEditWidget(TraitWidget, ux.TextEdit):
+class TextEditWidget(TraitWidget, ux.TextEdit, widget_type=Ui.WIDGET_TYPE.TEXT):
     def _create(self):
         ux.TextEdit.__init__(self)
 
@@ -84,18 +73,15 @@ class TextEditWidget(TraitWidget, ux.TextEdit):
         self.set_plain_text(value)
 
 
-class TextEditForListWidget(TextEditWidget):
+class TextEditForListWidget(TextEditWidget, widget_type=Ui.WIDGET_TYPE.TEXT4LIST):
     def _value(self) -> list:
         text = self.to_plain_text()
-        return text.split('\n')
+        return text.split('\n') if text else []
 
     def _set_value(self, value):
-        if value:
-            if not isinstance(value, list):
-                raise AssertionError('list is expected')
-
-            value = '\n'.join(value)
-            self.set_plain_text(value)
+        if not isinstance(value, list):
+            raise AssertionError('list is expected')
+        self.set_plain_text('\n'.join(value))
 
 
 class PasswordWidget(LineEditWidget, widget_type=Ui.WIDGET_TYPE.PASSWORD):
