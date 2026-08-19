@@ -7,8 +7,12 @@ inputs:
   artifact-name:
     description: Name for the uploaded wheel artifact
     required: true
+  linux-arch:
+    description: CIBW_ARCHS_LINUX value (x86_64 or aarch64); ignored on macOS/Windows
+    required: false
+    default: x86_64
   manylinux-image:
-    description: CIBW_MANYLINUX_X86_64_IMAGE value
+    description: manylinux image tag for the selected Linux arch (CIBW_MANYLINUX_*_IMAGE)
     required: false
     default: manylinux_2_34
 runs:
@@ -22,11 +26,12 @@ runs:
       env:
         CIBW_BUILD: "cp311-* cp312-* cp313-*"
         CIBW_SKIP: "*-musllinux_*"
-        CIBW_ARCHS_LINUX: "x86_64"
+        CIBW_ARCHS_LINUX: ${{ inputs.linux-arch }}
         CIBW_ARCHS_MACOS: "universal2"
         CIBW_ARCHS_WINDOWS: "AMD64"
         CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET=13.3'
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ inputs.manylinux-image }}
+        CIBW_MANYLINUX_AARCH64_IMAGE: ${{ inputs.manylinux-image }}
 
     - uses: actions/upload-artifact@v7
       with:
