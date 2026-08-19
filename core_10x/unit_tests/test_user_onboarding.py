@@ -230,9 +230,10 @@ def test_new_machine_seeds_keyring_without_changing_vault_keys(vault_env):  # no
         me = VaultUser.existing_instance(user_id=ALICE)
         assert me.public_key == public_key
         assert me.private_key_encrypted == private_key_encrypted
-        assert me.sec_keys.decrypt_text(
-            VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, Resource.uri_no_dbname(VAULT_URI)).password
-        ) == ALICE_VAULT_PWD
+        assert (
+            me.sec_keys.decrypt_text(VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, Resource.uri_no_dbname(VAULT_URI)).password)
+            == ALICE_VAULT_PWD
+        )
 
 
 def test_new_machine_wrong_master_does_not_seed_keyring(vault_env):  # noqa: F811

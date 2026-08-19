@@ -1,7 +1,6 @@
 if __name__ == '__main__':
 
     from xxfin.ccy_cross import Ccy, CcyCross
-    from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
 
     base_ccy  = Ccy('GBP')
     quote_ccy = Ccy('EUR')
@@ -107,13 +106,13 @@ if __name__ == '__main__':
         (('GBP', 'XXX'), 'GBP/XXX'),
     ]
 
-    print(f'>>> ***TEST*** CCY PAIR to NORMAL CROSS <<<')
+    print('>>> ***TEST*** CCY PAIR to NORMAL CROSS <<<')
     for (c1, c2), nc in test_pair_to_cross:
         print( f'normal cross for {c1, c2} is {nc}')
         assert CcyCross.normal_cross(c1, c2) == nc
-        assert CcyCross.is_normal_cross(nc) == True
+        assert CcyCross.is_normal_cross(nc)
 
-    print(f'>>> ***TEST*** FULLY UNKNOWN CCY PAIR <<<')
+    print('>>> ***TEST*** FULLY UNKNOWN CCY PAIR <<<')
     c1, c2 = ('XXX', 'ZZZ')
     print( f'normal cross for {c1, c2} is {None}')
     assert CcyCross.normal_cross(c1, c2) is None
@@ -127,10 +126,10 @@ if __name__ == '__main__':
 
     ]
 
-    print(f'>>> ***TEST*** CCY PAIR  ***SAME HIERARCHY*** to NORMAL CROSS <<<')
+    print('>>> ***TEST*** CCY PAIR  ***SAME HIERARCHY*** to NORMAL CROSS <<<')
     for (c1, c2), nc, h in test_pair_to_cross_same_hierarchy:
         print( f'normal cross for {c1, c2} is {nc}')
         assert CcyCross.normal_cross(c1, c2) == nc
-        assert CcyCross.is_normal_cross(nc) == True
+        assert CcyCross.is_normal_cross(nc)
         assert CcyCross.normal_cross_from_ccy_hierarchy(c1, c2, h) == nc
 

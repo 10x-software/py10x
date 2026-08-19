@@ -46,7 +46,7 @@ async def test_text4list_trait_editor_list_only_and_empty_clears() -> None:
         assert tw.to_plain_text() == ''
         assert tw.widget_value() == []
 
-        with pytest.raises(AssertionError, match='list is expected'):
+        with pytest.raises(TypeError, match='list is expected'):
             tw._set_value('not-a-list')
 
         tw.set_widget_value(['alpha', 'beta'])

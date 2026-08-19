@@ -25,12 +25,9 @@ def _keyring_setup_hint(vault_uri: str) -> str:
             with vault:
                 if VaultUser.existing_instance(_throw=False):
                     return 'run: xx-user-init --new-machine'
-        except Exception:
+        except Exception:  # noqa: S110 - best-effort hint; any failure falls through to the generic message
             pass
-    return (
-        'run: xx-user-init --new-user  (first machine) '
-        'or xx-user-init --new-machine  (existing account on a new machine)'
-    )
+    return 'run: xx-user-init --new-user  (first machine) or xx-user-init --new-machine  (existing account on a new machine)'
 
 
 def main() -> int:
