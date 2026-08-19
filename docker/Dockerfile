@@ -31,7 +31,12 @@ RUN apt-get update \
 # Generic placeholder account. docker/entrypoint.sh renames it to the pod's functional-account
 # identity (FUNCTIONAL_ACCOUNT_ID) at container start, since VaultUser.myname() reads the real
 # OS username with no override hook -- identity has to be real before any Python runs.
-RUN useradd --create-home --shell /usr/sbin/nologin appuser
+# uid/gid pinned (not left to useradd's default first-free-uid, which happens to be 1000 today
+# but isn't a declared contract) so a Kubernetes Secret volume's securityContext.fsGroup can
+# reference a stable, documented number -- see docs/USER_ONBOARDING_AUTH.md's functional-account
+# section. usermod -l/-d/-m only rename the login and home dir; this uid/gid survives the rename.
+RUN groupadd --gid 10001 appuser \
+    && useradd --uid 10001 --gid 10001 --create-home --shell /usr/sbin/nologin appuser
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 

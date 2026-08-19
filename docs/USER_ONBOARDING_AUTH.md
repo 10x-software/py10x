@@ -167,6 +167,151 @@ To revoke a user's access, remove or suspend their vault DB account (and any
 other database accounts) using the respective database admin tooling. Their
 entries in the vault can also be deleted directly.
 
+## Functional (unattended service) accounts
+
+A functional account is the same `VaultUser` registration as above, run
+non-interactively for a service instead of a person. Two things are
+different from the human flow:
+
+- **OS identity is not something you set up.** The `py10x-core` Docker image
+  (`docker/Dockerfile`, `docker/entrypoint.sh`) ships a disposable placeholder
+  OS account that gets renamed to `FUNCTIONAL_ACCOUNT_ID` at container start
+  (`usermod -l`) — there is no OS account to create ahead of time. Pick a
+  `user_id` starting with the `xx-` prefix (`EnvVars.functional_account_prefix`),
+  e.g. `xx-myservice`; `VaultUser.is_functional_account` uses that prefix to
+  distinguish it from a human login.
+- **The two secrets never live in a file on disk.**
+  `core_10x.functional_account_keyring.FunctionalAccountKeyring` is
+  deliberately in-memory-only — it reads a JSON manifest once (from
+  `XX_SECRETS_DIR/keyring.json`, default `/var/run/secrets/xx-vault`) and
+  never writes anything back, so the mounted secret remains the only durable
+  copy. That's on purpose: it lets the manifest be delivered by a real secret
+  store (Docker Swarm secret, Kubernetes Secret) that is itself tmpfs-backed
+  in the container, so the master password is never written to a persistent
+  disk anywhere in the pipeline.
+
+### One-time: register the account and capture its secrets
+
+A functional account is registered and delivered in one step:
+`xx-user-init --functional-account --command '...'` *is* the delivery
+mechanism — there's no separate "register, then deliver" — `--command` is
+whatever creates the secret in your target secret store. It prompts for the
+vault login and password (same prompts the interactive flow uses — never a
+CLI arg or env var), generates a random master password (nobody ever types a
+functional account's master password back in, so there's no reason to make
+one up), then reads back both from the in-memory keyring and pipes the
+manifest — never prints it — into `--command`'s stdin.
+
+Run it once, inside a throwaway `docker run -it --rm` of the image with
+`FUNCTIONAL_ACCOUNT_ID` already set — required, not just convenient:
+`VaultUser.myname()` needs to already resolve to the right id, which only
+happens via `docker/entrypoint.sh`'s real OS-account rename, not by exporting
+the env var in your own shell. `--command`'s own target (`docker`/`kubectl`)
+also needs to be reachable from inside that container, e.g. by bind-mounting
+the host's socket/kubeconfig and CLI binary as shown below (only works
+mounting a Linux-built CLI into this Linux image — run this from a native
+Linux Docker host, not Docker Desktop on macOS/Windows):
+
+```bash
+docker run -it --rm \
+  -e FUNCTIONAL_ACCOUNT_ID=xx-myservice \
+  -e XX_MAIN_VAULT_URI=postgresql://vault-host:5432/vaultdb \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v "$(command -v docker)":/usr/local/bin/docker:ro \
+  ghcr.io/10x-software/py10x-core:<version> \
+  bash -c 'xx-user-init --functional-account --command "docker secret create {secret_name} -"'
+# you will be prompted to enter the vault account and password
+```
+
+`--command` is required in this mode — there is no fallback that prints the
+manifest. Its `{secret_name}` placeholder is substituted with a name derived
+from the account id (`FunctionalAccountKeyring.secret_name`), e.g.
+`xx-myservice-vault-keyring` — not something you type, so the name used to
+create the secret always matches what your deployment manifest should
+reference.
+
+### Docker Swarm: the `--command` above, then deploy
+
+That's the complete Swarm case already, above (`docker secret create
+{secret_name} -`, run once — a single-node `docker swarm init` is enough, no
+multi-host cluster required). Secret *names* share one cluster-wide namespace
+(unlike Kubernetes Secret objects, which are namespaced), which is exactly
+why the account id needs to be in the name — `target=` below decouples that
+name from the filename the container actually sees. Then deploy the service
+that consumes it:
+
+```bash
+docker service create \
+  --name py10x-myservice \
+  --secret source=xx-myservice-vault-keyring,target=keyring.json \
+  -e FUNCTIONAL_ACCOUNT_ID=xx-myservice \
+  -e XX_MAIN_VAULT_URI=postgresql://vault-host:5432/vaultdb \
+  -e XX_SECRETS_DIR=/run/secrets \
+  --network host \
+  ghcr.io/10x-software/py10x-core:<version> \
+  python3 your_app_entrypoint.py
+```
+
+`docker secret create ... -` reads the manifest from stdin — it's stored
+encrypted in Swarm's raft log and mounted, per `target=`, as a tmpfs file at
+`/run/secrets/keyring.json` *before* the container's entrypoint runs, so
+there's no race with `FunctionalAccountKeyring`'s lazy first read.
+
+### Kubernetes: swap the `--command`, then deploy
+
+Same pattern, different `--command`:
+```
+--command 'kubectl create secret generic {secret_name} --from-file=keyring.json=/dev/stdin'
+```
+(bind-mount `~/.kube` and a Linux `kubectl` binary into the provisioning
+container the same way, in place of the Docker socket/CLI above).
+
+A `Secret` mounted as a volume is tmpfs-backed by kubelet and, like Swarm,
+mounted before any container in the pod starts — this is the deployment
+target `XX_SECRETS_DIR`'s default (`/var/run/secrets/xx-vault`) was shaped
+to match, so no override is needed:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xx-myservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: xx-myservice}
+  template:
+    metadata:
+      labels: {app: xx-myservice}
+    spec:
+      securityContext:
+        fsGroup: 10001   # matches the image's pinned appuser gid -- so it can read the vault-secret
+      containers:
+        - name: xx-myservice
+          image: ghcr.io/10x-software/py10x-core:<version>
+          command: ["python3", "your_app_entrypoint.py"]
+          env:
+            - name: FUNCTIONAL_ACCOUNT_ID
+              value: xx-myservice
+            - name: XX_MAIN_VAULT_URI
+              value: postgresql://vault-host:5432/vaultdb
+          volumeMounts:
+            - name: vault-secret
+              mountPath: /var/run/secrets/xx-vault
+              readOnly: true
+      volumes:
+        - name: vault-secret
+          secret:
+            secretName: xx-myservice-vault-keyring
+            defaultMode: 0440
+```
+
+### Subsequent restarts
+
+`user_init` is a one-time step. On every later container start, the app's
+first `keyring.get_password(...)` call resolves straight from the mounted
+manifest — no need to re-run registration.
+
 ## Developer references
 
 - `core_10x/vault_utils.py` — `VaultUtils.user_init`,
@@ -177,6 +322,15 @@ entries in the vault can also be deleted directly.
   — entry-point wrappers (`xx-user-init`, `xx-user-status`,
   `xx-admin-save-user-credentials`)
 - `core_10x/sec_keys.py` — OS-keyring and RSA key handling
-- `core_10x/unit_tests/test_user_onboarding.py` — end-to-end test
+- `core_10x/unit_tests/test_user_onboarding.py` — end-to-end test (human flow)
 - `infra_10x/mongodb_admin.py`, `infra_10x/mongodb_utils.py` — Mongo
   account/role helpers used in step 1
+- `core_10x/functional_account_keyring.py` — `FunctionalAccountKeyring`,
+  the in-memory-only `keyring` backend for functional accounts, and
+  `FunctionalAccountKeyring.secret_name` (the naming convention)
+- `core_10x/apps/user_init.py` — `UserInitCli`'s `--functional-account`
+  / `--command` mode (non-interactive registration + manifest piping)
+- `docker/Dockerfile`, `docker/entrypoint.sh` — the container's OS-account
+  rename (pinned `10001:10001` uid/gid) + keyring wiring
+- `core_10x/unit_tests/test_functional_account_vault.py` — end-to-end test
+  (functional-account flow, against a real authenticated Postgres)

@@ -45,10 +45,12 @@ class FunctionalAccountKeyring(keyring.backend.KeyringBackend):
 
     Never persists anything to disk. Constructible two ways:
 
-    - no-arg (what ``PYTHON_KEYRING_BACKEND`` auto-discovery uses): reads the manifest path
-      from the ``XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE`` env var;
+    - no-arg (what ``PYTHON_KEYRING_BACKEND`` auto-discovery uses): reads the manifest from the
+      ``XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE`` env var's path; starts empty if the env var is unset
+      *or* the file doesn't exist yet (a provisioning run that's about to create the very
+      manifest a later container start will read has nothing to read yet -- that's not an error);
     - :meth:`from_secrets_file` (what tests use, for explicit control): reads an arbitrary
-      given path, independent of the environment.
+      given path, independent of the environment, with the same missing-file-is-empty handling.
 
     ``priority`` is irrelevant here beyond satisfying the abstract base class contract -- this
     backend is only ever selected explicitly via ``PYTHON_KEYRING_BACKEND`` or
@@ -63,30 +65,37 @@ class FunctionalAccountKeyring(keyring.backend.KeyringBackend):
         # ``keyring``'s own backend auto-discovery (get_all_keyring(), see backend.py) constructs
         # *every* imported KeyringBackend subclass with no arguments just to probe it -- merely
         # importing this module registers it for that scan, regardless of whether anyone ever
-        # selects it. Only TypeError from that probe is suppressed, so __init__ must never raise;
-        # an unconfigured instance is deferred (see _require_entries) until it's actually used.
+        # selects it. Only TypeError from that probe is suppressed, so __init__ must never raise --
+        # starting empty on a missing env var/file (rather than raising) satisfies that too.
         if entries is None:
             secrets_file = os.environ.get(SECRETS_FILE_ENV_VAR)
-            entries = self._read_manifest(secrets_file) if secrets_file else None
-        self._entries: dict[tuple[str, str], str] | None = dict(entries) if entries is not None else None
+            entries = self._read_manifest(secrets_file) if secrets_file else {}
+        self._entries: dict[tuple[str, str], str] = dict(entries)
 
-    def _require_entries(self) -> dict[tuple[str, str], str]:
-        if self._entries is None:
-            raise RuntimeError(
-                f'{SECRETS_FILE_ENV_VAR} is not set (required for {type(self).__name__} '
-                'when constructed with no arguments, e.g. via PYTHON_KEYRING_BACKEND auto-discovery)'
-            )
-        return self._entries
+    @staticmethod
+    def secret_name(user_id: str) -> str:
+        """Canonical secret-store name for `user_id`'s manifest (a Docker Swarm secret name, or
+        a Kubernetes ``Secret`` object's own name) -- derived, not hand-typed, so the name used
+        to create the secret always matches what a deployment manifest should reference. See
+        ``docs/USER_ONBOARDING_AUTH.md``'s functional-account section.
+        """
+        return f'{user_id}-vault-keyring'
 
     @staticmethod
     def _read_manifest(secrets_file: str | Path) -> dict[tuple[str, str], str]:
         """Parse a JSON manifest: ``[{"service", "username", "password"}, ...]``.
 
+        A missing file parses as empty, the same as an empty ``[]`` manifest -- no keyring entry,
+        not an error (see the class docstring).
+
         Shaped exactly like what ``SecKeys.change_master_password`` /
         ``change_vault_login_password`` would have written, so a provisioning script can
         produce the manifest directly from the same values.
         """
-        records = json.loads(Path(secrets_file).read_text())
+        path = Path(secrets_file)
+        if not path.exists():
+            return {}
+        records = json.loads(path.read_text())
         return {(r['service'], r['username']): r['password'] for r in records}
 
     @classmethod
@@ -95,13 +104,13 @@ class FunctionalAccountKeyring(keyring.backend.KeyringBackend):
         return cls(entries=cls._read_manifest(secrets_file))
 
     def get_password(self, service: str, username: str) -> str | None:
-        return self._require_entries().get((service, username))
+        return self._entries.get((service, username))
 
     def set_password(self, service: str, username: str, password: str) -> None:
-        self._require_entries()[(service, username)] = password
+        self._entries[(service, username)] = password
 
     def delete_password(self, service: str, username: str) -> None:
         try:
-            del self._require_entries()[(service, username)]
+            del self._entries[(service, username)]
         except KeyError:
             raise keyring.errors.PasswordDeleteError(f'{service!r}/{username!r} not found') from None

@@ -4,13 +4,25 @@ Installed by ``py10x-core`` as the ``xx-user-init`` console script (see
 ``pyproject.toml``); also runnable directly as
 ``python -m core_10x.apps.user_init``.
 
-See ``docs/USER_ONBOARDING_AUTH.md`` for the full procedure.
+See ``docs/USER_ONBOARDING_AUTH.md`` for the full procedure, including the
+``--functional-account`` mode this module implements.
 """
 
 from __future__ import annotations
 
-from core_10x.rc import RC
+import json
+import shlex
+import subprocess
+import sys
+
+import keyring
+
+from core_10x.environment_variables import EnvVars
+from core_10x.functional_account_keyring import FunctionalAccountKeyring
+from core_10x.rc import RC, RC_TRUE
+from core_10x.sec_keys import SecKeys
 from core_10x.trait_definition import RT
+from core_10x.traitable import VaultUser
 from core_10x.traitable_cli import TraitableCli
 from core_10x.vault_utils import VaultUtils
 
@@ -22,19 +34,74 @@ class UserInitCli(TraitableCli):
     xx-user-init                 first-time registration (default)
     xx-user-init --new-user      first-time registration: create VaultUser + keys and seed OS keyring
     xx-user-init --new-machine   existing user on a new machine: prove master password and seed local OS keyring
+    xx-user-init --functional-account --command 'docker secret create {secret_name} -'
+                                  non-interactive functional-account registration: run inside this
+                                  image's container with FUNCTIONAL_ACCOUNT_ID set (identity comes
+                                  from the real renamed OS account); prompts for the vault
+                                  login/password, generates a master password, and pipes the
+                                  resulting manifest into --command instead of printing it.
     """
 
     new_user: bool = RT(False)
     new_machine: bool = RT(False)
+    functional_account: bool = RT(False)
+    command: str = RT('')
 
     def post_verify(self) -> RC:
         rc = super().post_verify()
-        if self.new_user and self.new_machine:
-            return rc + RC(False, 'specify only one of --new-user or --new-machine')
+        modes_set = sum([self.new_user, self.new_machine, self.functional_account])
+        if modes_set > 1:
+            return rc + RC(False, 'specify only one of --new-user, --new-machine, or --functional-account')
+        if self.command and not self.functional_account:
+            return rc + RC(False, '--command only applies with --functional-account')
+        if self.functional_account and not self.command:
+            return rc + RC(False, "--functional-account requires --command (the manifest is never printed)")
         return rc
 
     def run(self) -> RC:
-        return VaultUtils.user_init(new_machine=self.new_machine)
+        if not self.functional_account:
+            return VaultUtils.user_init(new_machine=self.new_machine)
+
+        # Forces this backend explicitly rather than trusting ambient auto-discovery: whatever
+        # keyring happens to be installed on the machine running this (a real OS keychain isn't
+        # unsafe, just unpredictable and not what we want -- this command's job is a portable,
+        # readable-back manifest, not writing into one operator's personal keychain). No manifest
+        # file exists yet either way -- that's fine, FunctionalAccountKeyring starts empty.
+        keyring.set_keyring(FunctionalAccountKeyring())
+
+        # login/password are the vault server's own admin credentials (e.g. a Postgres login),
+        # prompted interactively same as the human flow. Identity (VaultUser.myname()) comes from
+        # the real OS account -- docker/entrypoint.sh has already renamed it to
+        # FUNCTIONAL_ACCOUNT_ID by the time this runs.
+        rc = VaultUtils.user_init(master_password=SecKeys.generate_password())
+        if not rc:
+            return rc
+
+        user_id = VaultUser.myname()
+        vault_uri = EnvVars.main_vault_uri
+        manifest = [
+            {
+                'service': EnvVars.master_password_key,
+                'username': user_id,
+                'password': keyring.get_password(EnvVars.master_password_key, user_id),
+            },
+            {
+                'service': vault_uri,
+                'username': user_id,
+                'password': keyring.get_password(vault_uri, user_id),
+            },
+        ]
+        payload = json.dumps(manifest)
+        secret_name = FunctionalAccountKeyring.secret_name(user_id)
+
+        argv = shlex.split(self.command.format(secret_name=secret_name))
+        try:
+            subprocess.run(argv, input=payload, text=True, check=True)
+        except (OSError, subprocess.CalledProcessError) as ex:
+            return RC(False, f'--command failed: {ex}')
+        print(f'seeded secret {secret_name!r} via: {self.command}', file=sys.stderr)
+
+        return RC_TRUE
 
 
 if __name__ == '__main__':
