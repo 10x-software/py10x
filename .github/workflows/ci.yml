@@ -170,7 +170,13 @@ jobs:
       - name: Run E2E test inside the container (real OS-account rename + real keyring materialization)
         run: |
           secrets_dir="$(mktemp -d)"
-          echo '[]' > "$secrets_dir/keyring.json"  # entrypoint installs an empty backend; user_init populates it for real
+          # mktemp -d defaults to mode 700 (owner-only) -- the container's renamed functional
+          # account is a different, unrelated uid from the runner user that creates this dir, so
+          # without opening it up the container can't even traverse into the bind mount, let
+          # alone read the file inside. Not a real secret at this point (empty manifest --
+          # entrypoint installs an empty backend; user_init populates it for real).
+          chmod 755 "$secrets_dir"
+          echo '[]' > "$secrets_dir/keyring.json"
           docker run --rm --network host \
             -e FUNCTIONAL_ACCOUNT_ID=xx-e2e-ci \
             -e XX_SECRETS_DIR=/secrets \

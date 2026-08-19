@@ -332,7 +332,7 @@ Applied per package (`need_install` in `dev_10x/uv_sync.py`):
 | switching to index from non-index | reinstall (via `--reinstall-package` in step 2) |
 | local editable path changed | reinstall |
 | local editable: installed version ≠ setuptools-scm of source | reinstall |
-| `XX_UV_INCREMENTAL` toggled | force reinstall of local C++ siblings |
+| `XX_UV_INSTALL_MODE` toggled | force reinstall of local C++ siblings |
 
 **Source detection** uses PEP 610 `direct_url.json`: absent → index; `dir_info.editable` → local
 (compare path); otherwise → git/other. The version-skip optimization matters for editable installs
@@ -351,20 +351,36 @@ installs as `-e <path> --all-extras --requirements <path>/pyproject.toml` (uv re
 
 `py10x-core-dev` also runs `playwright install chromium` when needed.
 
-### `XX_UV_INCREMENTAL=1`
+### `XX_UV_INSTALL_MODE`
 
-When set **and** the active profile uses local-editable C++ packages, kernel/infra switch to
-no-build-isolation incremental builds:
+Controls how local C++ siblings (py10x-kernel/py10x-infra) install. py10x-core itself is
+unaffected — it's pure Python and always installs editable, so tests collected by path from the
+source tree don't fight a second, non-editable copy in site-packages.
+
+| mode | shape | use case |
+|------|-------|----------|
+| `normal` | plain, non-editable install; no ongoing dependency on the sibling's source tree or a persistent build-dir | CI / a build-once image (`docker/Dockerfile`'s `dev` target, `ci-test-suite`) |
+| `editable` (default, i.e. unset) | editable, isolated build each invocation — slower per-install but hermetic | everyday local dev |
+| `incremental` | editable + no-build-isolation + a persistent build-dir + rebuild-check on every *import* (not just install) | iterating on C++ source locally |
+| `incremental_quiet` | same as `incremental`, with scikit-build-core's per-import rebuild-check log spam silenced (`editable.verbose=false`) | same, without the noise |
+
+`incremental`/`incremental_quiet` add:
 
 - `--no-build-isolation-package <pkg>`
 - `--config-settings-package <pkg>:build-dir=.venv/py10x-build/<pkg>/{wheel_tag}`
 - `--config-settings-package <pkg>:editable.rebuild=true`
 
-The active build mode is recorded in `.venv/.xx_uv_incremental`; toggling the env var forces a
-local C++ reinstall even if the version is unchanged.
+The active mode is recorded in `.venv/.xx_uv_install_mode`; toggling it forces a local C++
+reinstall even if the version is unchanged. `uv-sync` seeds the toolchain first
+(`scikit-build-core`, `setuptools-scm`, `cmake`, `ninja`, `editables`) for the incremental modes.
 
-`uv-sync` seeds the toolchain first (`scikit-build-core`, `setuptools-scm`, `cmake`, `ninja`,
-`editables`). Unset (default): packages build in isolation normally — slower but hermetic.
+`normal`-mode siblings are never classified `local` by the PEP 610 source detection below (they
+aren't editable), so they reinstall on every `uv-sync` invocation — irrelevant for a build-once
+CI/image run, a minor cost if invoked repeatedly in that mode locally.
+
+`normal` mode's non-editable install means the sibling's source checkout (e.g. `../cxx10x`) is
+only needed *during* the install, not afterward — a container build can drop it from later
+layers/stages once the compiled package is installed.
 
 ---
 
