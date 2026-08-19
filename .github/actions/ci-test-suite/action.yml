@@ -119,10 +119,9 @@ runs:
 
     - name: Install Playwright chromium
       shell: bash
-      timeout-minutes: 10
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        playwright install --with-deps chromium
+        timeout 600 playwright install --with-deps chromium
 
     - name: Stage ASan runtime next to the .pyd
       if: inputs.asan == 'true' && inputs.runner-os == 'Windows'
