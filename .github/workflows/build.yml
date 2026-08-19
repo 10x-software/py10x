@@ -122,17 +122,13 @@ jobs:
   # target) to GHCR, tagged with the exact package version -- a plain `uv pip install
   # py10x-core==<version>` from the release just published above, no repo checkout baked into
   # the image, no rebuild-from-source.
-  docker-image:
-    name: Build and push image
+  version:
+    name: Derive release version
     needs: publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v6
-
       - name: Derive package version from the publish-trigger tag
         id: version
         run: |
@@ -141,6 +137,27 @@ jobs:
           release_tag="${ref#*/}"   # strip "pre/" or "prod/"
           version="${release_tag#v}"  # strip core's tag_prefix "v"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  docker-image:
+    name: Build and push image (${{ matrix.arch }})
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-latest
+            platform: linux/amd64
+            arch: amd64
+          - runs-on: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v6
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -154,7 +171,7 @@ jobs:
           uv pip install -c constraints.txt packaging tomlkit
 
       - name: Wait for the release to be resolvable on PyPI
-        run: python -m dev_10x.xx_ci wait_pypi_release "${{ steps.version.outputs.version }}"
+        run: python -m dev_10x.xx_ci wait_pypi_release "${{ needs.version.outputs.version }}"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -172,9 +189,34 @@ jobs:
           context: .
           file: docker/Dockerfile
           target: production
+          platforms: ${{ matrix.platform }}
           build-args: |
-            PY10X_CORE_VERSION=${{ steps.version.outputs.version }}
+            PY10X_CORE_VERSION=${{ needs.version.outputs.version }}
           push: true
-          tags: ghcr.io/10x-software/py10x-core:${{ steps.version.outputs.version }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}-${{ matrix.arch }}
+          cache-from: type=gha,scope=py10x-core-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=py10x-core-${{ matrix.arch }}
+
+  docker-image-manifest:
+    name: Publish multi-arch manifest
+    needs: [version, docker-image]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Combine per-arch images into one multi-arch tag
+        run: |
+          docker buildx imagetools create \
+            -t ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }} \
+            ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}-amd64 \
+            ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}-arm64

@@ -119,6 +119,7 @@ runs:
 
     - name: Install Playwright chromium
       shell: bash
+      timeout-minutes: 10
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         playwright install --with-deps chromium

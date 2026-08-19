@@ -82,9 +82,26 @@ CMD ["python", "-m", "pytest", "core_10x/unit_tests/test_functional_account_vaul
 FROM base AS production
 ARG PY10X_CORE_VERSION
 COPY constraints.txt /tmp/constraints.txt
+# Retry + --refresh: the CI step that waits for this version to be resolvable on PyPI runs on the
+# runner's native network, while this RUN executes inside BuildKit's own network namespace -- the
+# two can land on different PyPI/Fastly CDN edges, so a release that already passed the outer wait
+# can still 404 here for a few seconds until propagation catches up on *this* path too (seen for
+# real: the outer check succeeded in <1s, this install 404'd 16s later on py10x-core==0.3.2rc2).
+# --refresh-package matters because /root/.cache/uv is a BuildKit cache mount that persists
+# *across* builds -- without it, a retry could keep re-serving the same stale cached index
+# response instead of actually re-checking PyPI on each attempt. Scoped to just the first-party
+# siblings (the only packages a release build could hit mid-propagation for) rather than a blanket
+# --refresh, which would also needlessly revalidate every other pin in constraints.txt.
 RUN --mount=type=cache,target=/root/.cache/uv \
     test -n "$PY10X_CORE_VERSION" \
-    && uv pip install --system -c /tmp/constraints.txt "py10x-core==${PY10X_CORE_VERSION}" \
+    && ok= \
+    && for i in 1 2 3 4 5 6; do \
+         uv pip install --refresh-package py10x-core --refresh-package py10x-kernel --refresh-package py10x-infra \
+           --system -c /tmp/constraints.txt "py10x-core==${PY10X_CORE_VERSION}" && { ok=1; break; }; \
+         echo "py10x-core==${PY10X_CORE_VERSION} not yet resolvable here (attempt $i/6); retrying in 15s..." >&2; \
+         sleep 15; \
+       done \
+    && [ -n "$ok" ] \
     && rm /tmp/constraints.txt
 
 CMD ["python", "-c", "import core_10x; print('py10x-core', core_10x.__version__, 'ready')"]
