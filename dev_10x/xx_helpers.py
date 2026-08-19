@@ -906,6 +906,43 @@ class PyPIHelpers:
                     out[req.name] = exact[0]
         return out
 
+    @classmethod
+    def wait_for_release(
+        cls,
+        name: str,
+        version: str,
+        deadline: float,
+        poll: float,
+        *,
+        quick_poll: float = 10.0,
+        quick_poll_window: float = 60.0,
+    ) -> bool:
+        """Poll until `name==version` is pip-installable, or `deadline` (a `time.monotonic()`
+        value) passes.
+
+        Checks quickly at first (every `quick_poll` seconds, for `quick_poll_window` seconds)
+        rather than immediately settling into the full `poll` interval: a release that's *about*
+        to appear (e.g. right after `uv publish`/a wheel-build workflow's own upload step, which
+        is exactly when this is called) typically finishes propagating to the simple index within
+        seconds, not a full 90s-scale interval - only backs off to `poll` once that quick window
+        has passed, to avoid hammering PyPI over what can be a much longer remaining wait (a
+        compiled sibling's multi-platform wheel build can run tens of minutes behind a pure-Python
+        package's near-instant publish).
+        """
+        import time
+
+        start = time.monotonic()
+        while True:
+            if cls.release_exists(name, version):
+                print(f'{name}=={version} available on PyPI', flush=True)
+                return True
+            if time.monotonic() >= deadline:
+                print(f'timed out waiting for {name}=={version} on PyPI', file=sys.stderr)
+                return False
+            interval = quick_poll if time.monotonic() - start < quick_poll_window else poll
+            print(f'{name}=={version} not yet available; retrying in {interval:g}s...', file=sys.stderr)
+            time.sleep(interval)
+
 
 class GhUnavailableError(RuntimeError):
     """`gh` (GitHub CLI) is missing or its API call failed - workflow state can't be resolved."""

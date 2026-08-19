@@ -166,28 +166,15 @@ def wait_pypi_release(base: Path, version: str, *, timeout: float | None = None,
     poll = float(os.environ.get('PYPI_POLL_SEC', poll if poll is not None else 90))
     deadline = time.monotonic() + timeout
 
-    def _wait_for(pkg: str, ver: str) -> int:
-        while True:
-            if PyPIHelpers.release_exists(pkg, ver):
-                print(f'{pkg}=={ver} available on PyPI', flush=True)
-                return 0
-            if time.monotonic() >= deadline:
-                print(f'wait_pypi_release: timed out waiting for {pkg}=={ver} on PyPI', file=sys.stderr)
-                return 1
-            print(f'wait_pypi_release: {pkg}=={ver} not yet available; retrying in {poll}s...', file=sys.stderr)
-            time.sleep(poll)
-
-    rc = _wait_for(name, version)
-    if rc:
-        return rc
+    if not PyPIHelpers.wait_for_release(name, version, deadline, poll):
+        return 1
 
     pins = PyPIHelpers.exact_pins(name, version, siblings)
     if not pins:
         print(f'wait_pypi_release: warning: no == pins for {sorted(siblings)} on {name}=={version}', file=sys.stderr)
     for sib_name, sib_version in pins.items():
-        rc = _wait_for(sib_name, sib_version)
-        if rc:
-            return rc
+        if not PyPIHelpers.wait_for_release(sib_name, sib_version, deadline, poll):
+            return 1
     return 0
 
 
