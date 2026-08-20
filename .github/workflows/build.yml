@@ -192,6 +192,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           build-args: |
             PY10X_CORE_VERSION=${{ needs.version.outputs.version }}
+            PY10X_CORE_EXTRAS=rio
           push: true
           tags: ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}-${{ matrix.arch }}
           cache-from: type=gha,scope=py10x-core-${{ matrix.arch }}

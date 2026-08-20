@@ -86,6 +86,10 @@ CMD ["python", "-m", "pytest", "core_10x/unit_tests/test_functional_account_vaul
 # ---- production: pip-equivalent install of a released version from PyPI -----------------------
 FROM base AS production
 ARG PY10X_CORE_VERSION
+# Empty by default (a local `docker build` without this arg gets the bare package); the published
+# ghcr.io/10x-software/py10x-core image always sets this to `rio` (see build.yml's docker-image
+# job), so the sample app under ui_10x/rio/apps/examples runs out of the box on the published tag.
+ARG PY10X_CORE_EXTRAS=""
 COPY constraints.txt /tmp/constraints.txt
 # Retry + --refresh: the CI step that waits for this version to be resolvable on PyPI runs on the
 # runner's native network, while this RUN executes inside BuildKit's own network namespace -- the
@@ -99,14 +103,23 @@ COPY constraints.txt /tmp/constraints.txt
 # --refresh, which would also needlessly revalidate every other pin in constraints.txt.
 RUN --mount=type=cache,target=/root/.cache/uv \
     test -n "$PY10X_CORE_VERSION" \
+    && spec="py10x-core==${PY10X_CORE_VERSION}" \
+    && [ -z "$PY10X_CORE_EXTRAS" ] || spec="py10x-core[${PY10X_CORE_EXTRAS}]==${PY10X_CORE_VERSION}" \
     && ok= \
     && for i in 1 2 3 4 5 6; do \
          uv pip install --refresh-package py10x-core --refresh-package py10x-kernel --refresh-package py10x-infra \
-           --system -c /tmp/constraints.txt "py10x-core==${PY10X_CORE_VERSION}" && { ok=1; break; }; \
-         echo "py10x-core==${PY10X_CORE_VERSION} not yet resolvable here (attempt $i/6); retrying in 15s..." >&2; \
+           --system -c /tmp/constraints.txt "$spec" && { ok=1; break; }; \
+         echo "$spec not yet resolvable here (attempt $i/6); retrying in 15s..." >&2; \
          sleep 15; \
        done \
     && [ -n "$ok" ] \
     && rm /tmp/constraints.txt
+
+# Symlink /app -> wherever `pip`/`uv --system` actually put the packages -- resolved here, once,
+# via sysconfig (the same mechanism pip itself uses), instead of every `docker run` command having
+# to hardcode a Python-version-specific site-packages path (that path changes on a base-image
+# Python bump; this symlink's target would just get regenerated at the next build). Lets
+# `-w /app/ui_10x/...`-style commands work identically against both the dev and production targets.
+RUN ln -s "$(python3 -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')" /app
 
 CMD ["python", "-c", "import core_10x; print('py10x-core', core_10x.__version__, 'ready')"]
