@@ -35,6 +35,9 @@ else
   exit 1
 fi
 
+export USER="$FUNCTIONAL_ACCOUNT_ID"
+export LOGNAME="$FUNCTIONAL_ACCOUNT_ID"
+
 export PYTHON_KEYRING_BACKEND=core_10x.functional_account_keyring.FunctionalAccountKeyring
 export XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE="$XX_SECRETS_DIR/keyring.json"
 

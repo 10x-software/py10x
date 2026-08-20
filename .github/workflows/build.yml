@@ -128,6 +128,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      is_prod: ${{ steps.version.outputs.is_prod }}
     steps:
       - name: Derive package version from the publish-trigger tag
         id: version
@@ -137,6 +138,13 @@ jobs:
           release_tag="${ref#*/}"   # strip "pre/" or "prod/"
           version="${release_tag#v}"  # strip core's tag_prefix "v"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          # :latest only tracks prod/ releases -- a pre/ (rc) publish must never move it, since
+          # that would hand `docker pull ...:latest` an unstable build.
+          if [[ "$ref" == prod/* ]]; then
+            echo "is_prod=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prod=false" >> "$GITHUB_OUTPUT"
+          fi
 
   docker-image:
     name: Build and push image (${{ matrix.arch }})
@@ -217,7 +225,10 @@ jobs:
 
       - name: Combine per-arch images into one multi-arch tag
         run: |
-          docker buildx imagetools create \
-            -t ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }} \
+          tags=(-t "ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}")
+          if [ "${{ needs.version.outputs.is_prod }}" = "true" ]; then
+            tags+=(-t "ghcr.io/10x-software/py10x-core:latest")
+          fi
+          docker buildx imagetools create "${tags[@]}" \
             ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}-amd64 \
             ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}-arm64
