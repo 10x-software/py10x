@@ -38,6 +38,18 @@ fi
 export USER="$FUNCTIONAL_ACCOUNT_ID"
 export LOGNAME="$FUNCTIONAL_ACCOUNT_ID"
 
+# If Docker socket is bind-mounted (e.g. for `xx-user-init --command 'docker secret create ...'`),
+# join whichever group owns it *before gosu*
+if [ -S /var/run/docker.sock ]; then
+  sock_gid="$(stat -c '%g' /var/run/docker.sock)"
+  sock_group="$(getent group "$sock_gid" | cut -d: -f1)"
+  if [ -z "$sock_group" ]; then
+    sock_group=docker-sock
+    groupadd -g "$sock_gid" "$sock_group"
+  fi
+  usermod -aG "$sock_group" "$FUNCTIONAL_ACCOUNT_ID"
+fi
+
 export PYTHON_KEYRING_BACKEND=core_10x.functional_account_keyring.FunctionalAccountKeyring
 export XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE="$XX_SECRETS_DIR/keyring.json"
 
