@@ -152,6 +152,8 @@ class TsStore(Resource, resource_type=TS_STORE):
 
     @classmethod
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
+        if not uri:
+            raise ValueError('TsStore URI is empty (check your EnvVars)')
         parts = uri.split(':', maxsplit=1)
         protocol = parts[0]
         ts_class = TS_STORE_TYPE.ts_store_class(protocol)
