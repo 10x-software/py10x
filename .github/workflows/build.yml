@@ -225,9 +225,15 @@ jobs:
 
       - name: Combine per-arch images into one multi-arch tag
         run: |
+          # :prod/:latest track the newest prod/ release; :pre tracks the newest pre/ (rc) release
+          # -- so :pre can move on every rc without ever risking handing someone an unstable build
+          # via :latest/:prod (those only ever move on an actual prod/ tag).
           tags=(-t "ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}")
           if [ "${{ needs.version.outputs.is_prod }}" = "true" ]; then
             tags+=(-t "ghcr.io/10x-software/py10x-core:latest")
+            tags+=(-t "ghcr.io/10x-software/py10x-core:prod")
+          else
+            tags+=(-t "ghcr.io/10x-software/py10x-core:pre")
           fi
           docker buildx imagetools create "${tags[@]}" \
             ghcr.io/10x-software/py10x-core:${{ needs.version.outputs.version }}-amd64 \
