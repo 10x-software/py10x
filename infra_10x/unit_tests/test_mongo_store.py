@@ -28,6 +28,23 @@ def test_mongo_parse_uri_short_aliases():
     assert tr['directConnection'] is True
 
 
+def test_mongo_direct_alias_uri_round_trip():
+    """?direct=true must not become ?direct=True or ?directConnection=True (keyring service name)."""
+    uri = 'mongodb://127.0.0.1:27017/__vault__?direct=true'
+    assert MongoStore.spec_from_uri(uri).uri() == uri
+    assert VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, uri) == uri
+
+
+def test_mongo_string_query_param_not_json_quoted():
+    """json.dumps would wrap replicaSet as %22rs0%22; keyring URIs must stay unquoted strings."""
+    uri = 'mongodb://127.0.0.1:27017/db?direct=true&replicaSet=rs0'
+    out = MongoStore.spec_from_uri(uri).uri()
+    assert 'direct=true' in out
+    assert 'replicaSet=rs0' in out
+    assert '%22' not in out
+    assert 'True' not in out.split('?', 1)[1]
+
+
 def test_spec_from_uri_includes_protocol_tag():
     spec = MongoStore.spec_from_uri('mongodb://localhost:27017/testdb')
     assert spec.kwargs.get(MongoStore.PROTOCOL_TAG) == 'mongodb'

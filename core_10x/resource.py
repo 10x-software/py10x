@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import abc
 import inspect
+import json
 from collections import deque
 from urllib.parse import quote, urlencode, urlsplit, urlunsplit
 
@@ -9,7 +10,7 @@ from typing_extensions import Self
 
 from core_10x.global_cache import standard_key
 
-#-- TODO: move to attic
+# -- TODO: move to attic
 # class ResourceRequirements:
 #     def __init__(self, resource_type, *args, **kwargs):
 #         self.domain = None
@@ -40,6 +41,7 @@ from core_10x.global_cache import standard_key
 #
 # R = ResourceBinding
 #
+
 
 class ResourceType:
     s_dir = {}
@@ -125,26 +127,27 @@ class ResourceSpec:
 
         port = kwargs.pop(Resource.PORT_TAG, None)
         host = kwargs.pop(Resource.HOSTNAME_TAG, None) or ''
-        if port is None: # add default port
+        if port is None:  # add default port
             port = self.resource_class.s_instance_kwargs_map.get(Resource.PORT_TAG, (None, None))[1]
 
-        dbname   = kwargs.pop(Resource.DBNAME_TAG, None)
-        query    = kwargs.pop(Resource.QUERY_TAG, '')
+        dbname = kwargs.pop(Resource.DBNAME_TAG, None)
+        query = kwargs.pop(Resource.QUERY_TAG, '')
         fragment = kwargs.pop(Resource.FRAGMENT_TAG, '')
         if kwargs:
-            extra = urlencode(kwargs, doseq=True)
+            extra = urlencode({k: v if isinstance(v, str) else json.dumps(v) for k, v in kwargs.items()}, doseq=True)
             query = f'{query}&{extra}' if query else extra
 
-        #-- always emit '//' so empty-netloc URIs like duckdb:// or duckdb:///path round-trip correctly;
-        #-- urlunsplit drops '//' for unknown schemes when netloc is empty
+        # -- always emit '//' so empty-netloc URIs like duckdb:// or duckdb:///path round-trip correctly;
+        # -- urlunsplit drops '//' for unknown schemes when netloc is empty
         netloc = userinfo + (f'{host}:{port}' if port is not None else host)
-        path   = f'{"/" if dbname[0]!="/" else ""}{dbname}' if dbname else ''
-        url    = f'{protocol}://{netloc}{path}'
+        path = f'{"/" if dbname[0] != "/" else ""}{dbname}' if dbname else ''
+        url = f'{protocol}://{netloc}{path}'
         if query:
             url += f'?{query}'
         if fragment:
             url += f'#{fragment}'
         return url
+
 
 def _has_abstract_methods(cls) -> bool:
     """Check whether cls has any unimplemented abstract methods.
@@ -163,6 +166,7 @@ def _has_abstract_methods(cls) -> bool:
 
 
 class Resource(abc.ABC):
+    # fmt: off
     PROTOCOL_TAG    = 'protocol'
     HOSTNAME_TAG    = 'hostname'
     PORT_TAG        = 'port'
@@ -180,7 +184,7 @@ class Resource(abc.ABC):
         DBNAME_TAG:    (DBNAME_TAG,   None),
         PORT_TAG:      (PORT_TAG,     None),
     }
-
+    # fmt: on
     s_resource_type: ResourceType = None
     s_driver_name: str = None
 
@@ -201,16 +205,12 @@ class Resource(abc.ABC):
                 raw_netloc = parts.netloc.split('@')[-1]
                 # urlsplit lowercases hostname; for Windows drive-letter netlocs (e.g. "C:") preserve
                 # the raw form so that uri() can reconstruct "duckdb://C://..." verbatim.
-                kwargs[cls.HOSTNAME_TAG] = (
-                    raw_netloc
-                    if len(raw_netloc) == 2 and raw_netloc[0].isalpha() and raw_netloc[1] == ':'
-                    else parts.hostname
-                )
+                kwargs[cls.HOSTNAME_TAG] = raw_netloc if len(raw_netloc) == 2 and raw_netloc[0].isalpha() and raw_netloc[1] == ':' else parts.hostname
             if parts.port is not None:
                 kwargs[cls.PORT_TAG] = parts.port
 
             db_name = parts.path
-            if db_name and db_name!='/':
+            if db_name and db_name != '/':
                 assert db_name[0] == '/'
                 if len(db_name) > 1 and db_name[1] != '/':
                     db_name = db_name[1:]
@@ -231,16 +231,15 @@ class Resource(abc.ABC):
         return spec.uri()
 
     def __init_subclass__(cls, resource_type: ResourceType = None, resource_name: str = None, **kwargs):
-        if cls.s_resource_type is None:     #-- must be a top class of a particular resource type, e.g. TsStore
+        if cls.s_resource_type is None:  # -- must be a top class of a particular resource type, e.g. TsStore
             assert resource_type and isinstance(resource_type, ResourceType), 'instance of ResourceType is expected'
             assert resource_name is None, f'May not define Resource name for top class of Resource Type: {resource_type}'
             cls.s_resource_type = resource_type
             cls.s_instances = {}
 
-        else:   #-- a Resource of a particular resource type, or an abstract intermediate
+        else:  # -- a Resource of a particular resource type, or an abstract intermediate
             assert resource_type is None, f'resource_type is already set: {cls.s_resource_type}'
-            assert resource_name or _has_abstract_methods(cls), \
-                f'{cls.__name__} is a concrete Resource subclass and must declare a resource_name'
+            assert resource_name or _has_abstract_methods(cls), f'{cls.__name__} is a concrete Resource subclass and must declare a resource_name'
             if resource_name:
                 assert isinstance(resource_name, str), 'a unique Resource name is expected'
                 cls.s_resource_type.register_driver(resource_name, cls)
@@ -268,12 +267,14 @@ class Resource(abc.ABC):
         return False
 
     @classmethod
-    def instance_from_uri(cls, uri: str, username: str = None, password: str = None, _cache = True, _create_if_needed = False) -> Resource:
+    def instance_from_uri(
+        cls, uri: str, username: str = None, password: str = None, _cache: bool = True, _create_if_needed: bool = False
+    ) -> Resource:
         assert cls is not Resource, 'This method must be called for a Resource subclass, e.g., TsStore'
 
         spec = cls.spec_from_uri(uri)
-        spec.set_credentials(username = username, password = password)
-        return spec.resource_class.instance(**spec.kwargs, _cache = _cache, _create_if_needed = _create_if_needed)
+        spec.set_credentials(username=username, password=password)
+        return spec.resource_class.instance(**spec.kwargs, _cache=_cache, _create_if_needed=_create_if_needed)
 
     @classmethod
     def spec_from_uri(cls, uri: str) -> ResourceSpec:
@@ -293,7 +294,7 @@ class Resource(abc.ABC):
 
     @classmethod
     def translate_kwargs(cls, kwargs: dict) -> dict:
-        return {real_name: kwargs.get(name,def_value) for name, (real_name, def_value) in cls.s_instance_kwargs_map.items()}
+        return {real_name: kwargs.get(name, def_value) for name, (real_name, def_value) in cls.s_instance_kwargs_map.items()}
 
     @classmethod
     def instance(cls, *args, _cache: bool = True, _create_if_needed: bool = False, **kwargs) -> Self:
@@ -320,6 +321,7 @@ class Resource(abc.ABC):
     def standard_key(cls, *args, password=None, **kwargs) -> tuple:
         return standard_key(args, kwargs)
 
+
 class NullResource:
     def __enter__(self):
         return self
@@ -327,9 +329,12 @@ class NullResource:
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
+
 NULL_RESOURCE = NullResource()
 
-#=========== Known Resource Types
+# =========== Known Resource Types
+# fmt: off
 TS_STORE        = ResourceType('TS_STORE')
 REL_DB          = ResourceType('REL_DB')
 CLOUD_CLUSTER   = ResourceType('CLOUD_CLUSTER')
+# fmt: on
