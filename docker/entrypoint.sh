@@ -42,7 +42,7 @@ export LOGNAME="$FUNCTIONAL_ACCOUNT_ID"
 # join whichever group owns it *before gosu*
 if [ -S /var/run/docker.sock ]; then
   sock_gid="$(stat -c '%g' /var/run/docker.sock)"
-  sock_group="$(getent group "$sock_gid" | cut -d: -f1)"
+  sock_group="$(getent group "$sock_gid" | cut -d: -f1 || true)"
   if [ -z "$sock_group" ]; then
     sock_group=docker-sock
     groupadd -g "$sock_gid" "$sock_group"
