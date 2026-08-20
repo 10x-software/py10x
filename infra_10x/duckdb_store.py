@@ -40,8 +40,7 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
     def _create_table_if_not_exists(self, collection_name: str) -> None:
         # _data is always present and NOT NULL; empty blob is stored as '{}'.
         self._con.execute(
-            f'CREATE TABLE IF NOT EXISTS {self._qname(collection_name)} '
-            f'({_ID} VARCHAR PRIMARY KEY, {_REV} INTEGER NOT NULL, {_DATA} VARCHAR NOT NULL)'
+            f'CREATE TABLE IF NOT EXISTS {self._qname(collection_name)} ({_ID} VARCHAR PRIMARY KEY, {_REV} INTEGER NOT NULL, {_DATA} VARCHAR NOT NULL)'
         )
 
     def _drop_table(self, collection_name: str) -> None:

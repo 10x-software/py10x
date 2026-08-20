@@ -36,10 +36,7 @@ BUTTON_CLIENT_TEXT_JS = 'document.querySelector(".rio-button .rio-text")?.childr
 CHECKBOX_JS = 'document.querySelector("input[type=\'checkbox\']")'
 LINE_EDIT_INPUT_JS = 'document.querySelector(".rio-input-box input")'
 LINE_EDIT_TOOLTIP_TEXT_JS = 'document.querySelector(".rio-tooltip-popup .rio-text")?.children[0]?.innerText || ""'
-CALENDAR_SELECTED_DATE_JS = (
-    'document.querySelector(".rio-calendar-selected-day")?.textContent + " " + '
-    'document.querySelector(".rio-calendar-year-month-display")?.textContent'
-)
+CALENDAR_SELECTED_DATE_JS = 'document.querySelector(".rio-calendar-selected-day")?.textContent + " " + document.querySelector(".rio-calendar-year-month-display")?.textContent'
 LIST_ITEMS_COUNT_JS = 'document.querySelectorAll(".rio-selectable-item").length'
 LIST_SELECTED_TEXT_JS = 'document.querySelector(".selected .rio-text")?.children[0]?.innerText || ""'
 GROUP_BOX_COLUMN_TEXT_COUNT_JS = 'document.querySelectorAll(".rio-column .rio-text").length'

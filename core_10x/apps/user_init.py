@@ -55,7 +55,7 @@ class UserInitCli(TraitableCli):
         if self.command and not self.functional_account:
             return rc + RC(False, '--command only applies with --functional-account')
         if self.functional_account and not self.command:
-            return rc + RC(False, "--functional-account requires --command (the manifest is never printed)")
+            return rc + RC(False, '--functional-account requires --command (the manifest is never printed)')
         return rc
 
     def run(self) -> RC:

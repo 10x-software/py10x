@@ -162,8 +162,7 @@ if __name__ == '__main__':
     ]
 
     print(
-        f'N_DOCS={N_DOCS}  N_CATEGORIES={N_CATEGORIES}  SAMPLE_SIZE={SAMPLE_SIZE}  '
-        f'HISTORY_ENTITIES={HISTORY_ENTITIES}  HISTORY_REVISIONS={HISTORY_REVISIONS}'
+        f'N_DOCS={N_DOCS}  N_CATEGORIES={N_CATEGORIES}  SAMPLE_SIZE={SAMPLE_SIZE}  HISTORY_ENTITIES={HISTORY_ENTITIES}  HISTORY_REVISIONS={HISTORY_REVISIONS}'
     )
     print(f'started {datetime.now(timezone.utc).isoformat()}')
 

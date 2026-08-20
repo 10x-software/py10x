@@ -765,8 +765,7 @@ class Yank(XxPromoteCli, _command='yank'):
         latest = VersionHelpers.latest_tag(self.parsed)
         if latest is None or Version(self.version) != latest[1]:
             raise RuntimeError(
-                f'{self.tag} is not the latest tag ({latest[0] if latest else "none"}); '
-                f'yanking an older release needs --cascade (Stage 2, not yet available)'
+                f'{self.tag} is not the latest tag ({latest[0] if latest else "none"}); yanking an older release needs --cascade (Stage 2, not yet available)'
             )
 
     def steps_get(self) -> list[Step]:

@@ -13,7 +13,6 @@ exclude = [
     "core_10x/__init__.py",
     "core_10x/environment_variables.py",
     "core_10x/basket.py",
-    "core_10x/resource.py",
     "core_10x/logger.py",
     "core_10x/nucleus.py",
     "core_10x/named_constant.py",
