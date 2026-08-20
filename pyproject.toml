@@ -153,4 +153,4 @@ raw-options = { git_describe_command = "git describe --dirty --tags --long --mat
 version-file = "dev_10x/version.py"
 
 [dependency-groups]
-test = ["py10x-fin-base>=0.1.2rc3"]
+test = ["py10x-fin-base>=0.1.2rc4"]
