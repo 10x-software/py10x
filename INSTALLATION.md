@@ -27,12 +27,6 @@ If either applies, install one of:
 - **macOS**: Xcode Command Line Tools (Clang) or GCC 10+
 - **Windows**: MSVC 2022+ (Visual Studio 2022 Build Tools or full IDE) with the *Desktop development with C++* workload
 
-### Optional UI Dependencies
-
-- **Node.js and npm** (for Rio UI backend)
-  - Required if you plan to use Rio UI components
-  - Download from [nodejs.org](https://nodejs.org/)
-
 ### Optional Database Dependencies
 
 **Traitable Store backends** (for persistence examples and optional full test coverage):
