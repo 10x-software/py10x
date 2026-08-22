@@ -16,6 +16,25 @@ def test_env_vars_date_format_applies_to_xdatetime(monkeypatch):
     assert XDateTime.date_to_str(d) == '02/01/2024'
 
 
+def test_env_vars_direct_reassignment_applies_to_xdatetime():
+    # -- EnvVars.date_format = value (no env var, no monkeypatch) must still fire date_format_apply,
+    #    not just silently replace the classproperty
+    object.__getattribute__(EnvVars, 'date_format').fget.clear()
+    EnvVars.date_format = '%Y.%m.%d'
+    assert EnvVars.date_format == '%Y.%m.%d'
+
+    d = date(2024, 1, 2)
+    assert XDateTime.date_to_str(d) == '2024.01.02'
+
+
+def test_env_vars_direct_reassignment_without_apply_still_works(monkeypatch):
+    # -- vars with no *_apply hook keep behaving exactly as before: plain overwrite, no special handling
+    monkeypatch.delenv('XX_MAIN_TS_STORE_URI', raising=False)
+    object.__getattribute__(EnvVars, 'main_ts_store_uri').fget.clear()
+    EnvVars.main_ts_store_uri = 'duckdb://localhost/reassigned'
+    assert EnvVars.main_ts_store_uri == 'duckdb://localhost/reassigned'
+
+
 @pytest.mark.parametrize(['truth', 'values'], [[True, ['1', '2', '-1', 'True', "'quoted'"]], [False, ['0', 'False', "''"]], [None, ['', 'Random']]])
 def test_env_vars_converts_bool_true(monkeypatch, truth, values):
     for value in values:

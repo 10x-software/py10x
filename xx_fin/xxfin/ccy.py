@@ -7,6 +7,7 @@ from core_10x.traitable import RT, NamedTraitable, T, Traitable
 from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
 
 from xxfin.fin_calendar import FinCalendar
+from xxfin.xxfin_env_vars import XXFinEnvVars
 
 
 #-- TODO: _force_default_cache = True
@@ -44,6 +45,7 @@ class Ccy(NamedTraitable):
         return go_back.apply(pay_date, self.bank_calendar, self.roll_rule)
 
     @classmethod
+    @cache
     def verified(cls, ccy) -> Ccy:
         if type(ccy) is str:
             ccy = Ccy(ccy)
@@ -51,7 +53,7 @@ class Ccy(NamedTraitable):
         elif not isinstance(ccy, Ccy):
             raise TypeError(f'Invalid ccy type: {type(ccy)}')
 
-        if not cls.exists_in_store(ccy.id()):
+        if XXFinEnvVars.verify_ccy and not cls.exists_in_store(ccy.id()):
             raise ValueError(f'{ccy} does not exist')
 
         return ccy

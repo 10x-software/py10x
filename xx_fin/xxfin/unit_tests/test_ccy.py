@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 from xxfin.ccy_cross import Ccy, CcyCross
+from xxfin.xxfin_env_vars import XXFinEnvVars
 
 
 class TestCcy:
@@ -63,3 +64,22 @@ class TestCcy:
         for ccy in [3.1415, self.ccys, CcyCross(cross = 'EUR/GBP')]:
             with pytest.raises(TypeError):
                 Ccy.verified(ccy)
+
+    def test_verified_cache_invalidated_when_verify_ccy_toggled(self):
+        # -- Ccy.verified is @cache-d; XXFinEnvVars.verify_ccy_apply() must clear that cache on every
+        # reassignment of verify_ccy, or a result cached under one setting would leak into the other.
+        XXFinEnvVars.verify_ccy = True
+        Ccy.verified.clear()
+        try:
+            with pytest.raises(ValueError):
+                Ccy.verified('XXX')
+
+            XXFinEnvVars.verify_ccy = False
+            assert Ccy.verified('XXX') == Ccy('XXX')  # -- not checked, cached as "valid" while unverified
+
+            XXFinEnvVars.verify_ccy = True
+            with pytest.raises(ValueError):  # -- must re-verify, not return the stale cached "valid" result
+                Ccy.verified('XXX')
+        finally:
+            XXFinEnvVars.verify_ccy = True
+            Ccy.verified.clear()

@@ -30,7 +30,22 @@ class classproperty(property):
         return self.fget(objtype)
 
 
-class _EnvVars:
+class _EnvVarsMeta(type):
+    #-- SomeEnvVars.attr = value bypasses classproperty.__get__ entirely (data descriptors defined on a class
+    #   only intercept instance access, not `ClassObj.attr = ...`, which goes through the metaclass instead).
+    #   Without this, reassignment would silently replace the classproperty and skip its *_apply hook forever.
+    def __setattr__(cls, name, value):
+        prop = cls.__dict__.get(name)
+        f_apply = getattr(prop, 'f_apply', None)
+        if isinstance(prop, classproperty) and f_apply:
+            f_apply.__get__(cls)(value)
+            prop.fget.cache[cls] = value
+            return
+
+        super().__setattr__(name, value)
+
+
+class _EnvVars(metaclass = _EnvVarsMeta):
     class Var:
         def __init__(self, env_var_class, attr_name: str, value = None):
             self.env_var_class = env_var_class
@@ -127,7 +142,9 @@ class _EnvVars:
 
             var_name = cls.create_var_name(env_name, name)
             full_getter = cls.full_getter(data_type, var_name, f_get, f_apply)
-            setattr(cls, name, classproperty(full_getter))
+            prop = classproperty(full_getter)
+            prop.f_apply = f_apply
+            setattr(cls, name, prop)
 
             cls.var = cls.AccessVar(cls)
 
