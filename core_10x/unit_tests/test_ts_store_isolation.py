@@ -23,6 +23,7 @@ from core_10x.testlib.ts_store_isolation import (
 )
 from core_10x.traitable import NamedTsStore, T, Traitable, TsClassAssociation
 from core_10x.ts_store import TsStore
+from core_10x.xdate_time import XDateTime
 from core_10x.xnone import XNone
 from infra_10x.duckdb_store import DuckDbStore
 
@@ -76,6 +77,13 @@ def test_clear_traitable_store_state_wipes_bindings():
 
     _assert_store_clean()
     assert EnvVars.use_ts_store_transactions is False
+
+
+def test_clear_traitable_store_state_does_not_poison_xdatetime_format():
+    XDateTime.set_default_format(XDateTime.FORMAT_X10)
+    clear_traitable_store_state()
+    assert XDateTime.__dict__['s_default_format'] == XDateTime.FORMAT_X10
+    assert isinstance(XDateTime.s_default_format, str)
 
 
 def test_pin_survives_isolation_clear_and_restore():

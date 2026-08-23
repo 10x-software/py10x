@@ -64,7 +64,7 @@ _ENV_CLASSPROPERTIES: dict[str, classproperty] = {name: value for name, value in
 def clear_traitable_store_state() -> None:
     """Drop Traitable store bindings (URIs, main/vault caches, store_per_class, s_instances)."""
     for name, desc in _ENV_CLASSPROPERTIES.items():
-        setattr(EnvVars, name, desc)
+        type.__setattr__(EnvVars, name, desc)  # restore descriptor; do not run *_apply
         desc.fget.clear()
 
     Traitable.main_store.clear()
