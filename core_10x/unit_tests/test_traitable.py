@@ -410,6 +410,66 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
     # TODO: nodes with args...
 
 
+def test_default_cache_traitable():
+    """default_cache=True: identity / init kwargs on default_cache; later writes use the current cache."""
+
+    class G(Traitable, default_cache=True):
+        x: int = RT(T.ID)
+        v: int = RT()
+
+    class L(Traitable):
+        x: int = RT(T.ID)
+        v: int = RT()
+
+    assert G.s_default_cache
+    assert G.s_bclass.is_default_cache()
+    assert not L.s_default_cache
+
+    class G2(G):
+        pass
+
+    assert G2.s_default_cache
+
+    G(x=1, v=10, _replace=True)
+    L(x=1, v=10, _replace=True)
+
+    default_cache = BTP.current().cache()
+    assert BTP.current().default_cache() is default_cache
+
+    with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False):
+        assert BTP.current().cache() is not default_cache
+        assert BTP.current().default_cache() is default_cache
+
+        assert G(x=1).v == 10
+        G(x=1).v = 11
+        G(x=2, v=20, _replace=True)
+        L(x=2, v=20, _replace=True)
+
+    assert G(x=1).v == 10
+    assert G(x=2).v == 20
+    assert L(x=2).v is XNone
+
+    with BTP.create_root() as root:
+        assert root.cache() is not default_cache
+        assert root.default_cache() is root.cache()
+
+        G(x=1, v=99, _replace=True)
+        assert G(x=1).v == 99
+        L(x=3, v=30, _replace=True)
+
+        with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False):
+            assert BTP.current().default_cache() is root.default_cache()
+            assert G(x=1).v == 99
+            G(x=1).v = 100
+            L(x=4, v=40, _replace=True)
+
+        assert G(x=1).v == 99
+        assert L(x=4).v is XNone
+
+        assert G(x=1).v == 10
+        assert L(x=3).v is XNone
+
+
 def test_trait_methods():
     class A(Traitable):
         s_default_trait_factory = T

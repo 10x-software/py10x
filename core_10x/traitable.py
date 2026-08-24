@@ -399,6 +399,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     s_bclass: BTraitableClass = None
     s_embeddable = False
     s_custom_collection = False
+    s_default_cache = False  # -- if True, instances are created/loaded on the processor's default_cache; later writes use the current cache
     s_history_class = XNone  # -- will be set in __init__subclass__ for storable traitables unless keep_history = False. affects storage only.
     s_history_base = None  # -- the history-class-builder root for `cls`; subclasses (e.g. Bundle) may override (-> BundleHistory).
     s_immutable = (
@@ -414,6 +415,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         root_class=False,  # -- the class is a 'root' with no intent to instantiate - skip irrelevant checks!
         embeddable: bool = None,  # -- if instances of cls may be embedded in other traitables
         custom_collection: bool = None,  # -- if instance(s) of cls may work with a specific collection
+        default_cache: bool = None,  # -- if True, instances are created/loaded on the processor's default_cache
         keep_history: bool = None,  # -- if revisions are kept in store
         immutable: bool = None,  # -- if instances in store are immutable
         cxx_mixins: tuple = (),  # -- pybind exposed c++ classes to check for getter implementations
@@ -426,6 +428,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         if custom_collection is not None:
             cls.s_custom_collection = custom_collection
+
+        if default_cache is not None:
+            cls.s_default_cache = default_cache
 
         if cxx_mixins:
             cls.s_cxx_mixins = (*cls.s_cxx_mixins, *cxx_mixins)
@@ -544,7 +549,8 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         # ids = cls.load_ids(query = query, _coll_name = _coll_name, _at_most = _at_most, _order = _order)
         # return [ obj for id in ids if(obj := cls.existing_instance_by_id(_id = id, _collection_name = _coll_name, _throw = False)) ]
         ids_in_store = cls.load_ids(query=query, _coll_name=_coll_name, _at_most=_at_most, _order=_order)
-        cache = BTraitableProcessor.current().cache()
+        proc = BTraitableProcessor.current()
+        cache = proc.default_cache() if cls.s_default_cache else proc.cache()
         ids_in_memory = cache.object_ids_by_class(cls.s_bclass)
         ids_sought = {id for id in ids_in_memory if query.eval(cls(_id=id))}
         ids_sought.update(ids_in_store)

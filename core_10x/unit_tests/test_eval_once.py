@@ -65,7 +65,7 @@ def test_eval_once_uses_origin_cache_under_graph():
 
 
 def test_eval_once_under_create_root():
-    """EVAL_ONCE nodes live on the object's origin cache."""
+    """create_root isolates from the process default cache; outer objects are not usable inside it."""
 
     class X(Traitable):
         x: int = T(T.ID)
@@ -79,23 +79,23 @@ def test_eval_once_under_create_root():
     with CACHE_ONLY():
         default_cache = BTP.current().cache()
         outer = X(x=1)
+        assert outer.v == 10
+        assert X.calls == 1
 
         with BTP.create_root() as root:
             assert root.cache() is not default_cache
+            assert root.default_cache() is root.cache()
             assert BTP.current().cache() is root.cache()
+            assert BTP.current().default_cache() is not default_cache
 
-            # outer's origin is default_cache; EVAL_ONCE stores there
-            assert outer.v == 10
-            assert X.calls == 1
-            assert outer.v == 10
-            assert X.calls == 1
+            with pytest.raises(RuntimeError, match='not usable'):
+                _ = outer.v
 
-            # object born under create_root evaluates on the orphan origin cache
             inner = X(x=2)
             assert inner.v == 10
             assert X.calls == 2
 
-        # outer's EVAL_ONCE value survives create_root teardown (node on default_cache)
+        # outer's EVAL_ONCE value survives create_root teardown (node on process default)
         assert outer.v == 10
         assert X.calls == 2
         with pytest.raises(TypeError, match='Trying to modify EVAL_ONCE trait'):
