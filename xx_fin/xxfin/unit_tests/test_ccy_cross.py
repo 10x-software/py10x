@@ -73,8 +73,8 @@ class TestCcyCrossResolve:
         assert CcyCross(cross = 'USD/CHF').verify(cross = 'USD/USD') == RC_TRUE
         assert CcyCross(cross = 'USD/CHF').verify(base_ccy = 'USD', quote_ccy = 'CAD') == RC_TRUE
 
-        assert CcyCross(cross = 'USD/CHF').verify(cross = 'USD/AED') == RC(False, 'AED does not exist')
-        assert CcyCross(cross = 'USD/CHF').verify(base_ccy = 'XXX', quote_ccy = 'YYY') == RC(False, 'XXX does not exist')
+        assert CcyCross(cross = 'USD/CHF').verify(cross = 'USD/AED') == RC(False, "Instance does not exist: <class 'xxfin.ccy.Ccy'>({'name': 'AED'})")
+        assert CcyCross(cross = 'USD/CHF').verify(base_ccy = 'XXX', quote_ccy = 'YYY') == RC(False, "Instance does not exist: <class 'xxfin.ccy.Ccy'>({'name': 'XXX'})")
 
     def test_deliverable(self):
         assert CcyCross(cross = 'GBP/EUR').is_deliverable
@@ -96,7 +96,7 @@ class TestCcyCrossResolve:
 
         with pytest.raises(AssertionError, match = 'Invalid cross GBP, must consist of 2 currencies'):
             assert CcyCross.is_same_ccy_cross(cross = 'GBP')
-        with pytest.raises(ValueError, match = 'XXX does not exist'):
+        with pytest.raises(ValueError, match = 'Instance does not exist.*XXX'):
             assert CcyCross.is_same_ccy_cross(cross = 'XXX/GBP')
 
     def test_invert_cross(self):

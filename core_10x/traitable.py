@@ -1332,9 +1332,8 @@ class NamedTraitable(Traitable):
 
     def __init__(self, _name: str = None, **kwargs):
         if _name:
-            super().__init__(name=_name, **kwargs)
-            if not self.id_exists():
-                raise ValueError(f'{self.__class__}.{self.name} does not exist')
+            obj = self.existing_instance(name = _name, **kwargs)
+            super().__init__(_id = obj.id())
         else:
             super().__init__(**kwargs)
 
