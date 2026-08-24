@@ -1322,6 +1322,29 @@ You can associate particular Traitable classes (or modules) with specific store 
 The framework resolves the store for a class via `TsClassAssociation` and `NamedTsStore` — create and persist those traitables in your main store so each class or module maps to a logical store name and URI. 
 This allows different Traitable subclasses to use different stores (e.g. different databases or backends such as MongoDB vs PostgreSQL).
 
+### Renaming or Moving a Storable Class
+
+A storable class's default collection name is not simply `cls.__name__` — it comes from `PackageRefactoring.find_class_id(cls)` (`core_10x/package_refactoring.py`). Renaming a class, or moving it to a different module, normally changes its canonical name (`module.path.ClassName`) and therefore the collection it reads and writes — silently orphaning anything already persisted under the old name.
+
+`PackageRefactoring.move_class(old_path, new_path)` avoids that: it remaps the class's existing collection id to the new canonical name and persists the mapping in a generated `_refactoring.py` module inside the relevant top-level package.
+
+```python
+from core_10x.package_refactoring import PackageRefactoring
+
+# Register the move before renaming FooBar -> FooBaz (or moving it to a new module),
+# so anything already persisted under the old name stays reachable:
+PackageRefactoring.move_class(
+    'mypackage.foo.FooBar',
+    'mypackage.foo_baz.FooBaz',
+)
+```
+
+Run this once — it writes/updates `mypackage/_refactoring.py` — then rename the class/module in code as usual.
+
+**When you need this**: only when the class already has real persisted data that must stay reachable under the old collection. If the class's data is routinely regenerated (e.g. via a dev-data creation script), a plain rename is simpler and this step isn't required.
+
+**Related**: `PackageRefactoring.remove_class(canonical_class_name)` deletes a mapping; `PackageRefactoring.register_top_level_packages(*names)` opts a top-level package into refactoring tracking in the first place.
+
 ### Storage Context and Traitable Creation
 
 Storage context is required for traitable creation because the constructor needs to:
