@@ -466,8 +466,8 @@ def test_default_cache_traitable():
         assert G(x=1).v == 99
         assert L(x=4).v is XNone
 
-        assert G(x=1).v == 10
-        assert L(x=3).v is XNone
+    assert G(x=1).v == 10
+    assert L(x=3).v is XNone
 
 
 def test_trait_methods():
