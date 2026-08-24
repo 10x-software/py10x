@@ -8,12 +8,15 @@ and runs them as tests to ensure examples remain functional.
 from __future__ import annotations
 
 import ast
+import contextlib
 import re
 import sys
+import types
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from core_10x.package_refactoring import PackageRefactoring
 from core_10x.testlib.fixtures import main_test_store, temp_duck_db_uri
 from core_10x.testlib.strict import need
 from infra_10x.mongodb_store import MongoStore
@@ -82,6 +85,41 @@ def is_ui_code_block(code_block: str) -> bool:
         'ui_10x.',
     ]
     return any(indicator in code_block for indicator in ui_indicators)
+
+
+def _setup_doc_test_packages(code_block: str, tmp_path: Path) -> tuple[list[str], list[str]]:
+    """Register ephemeral importable packages referenced in illustrative doc examples."""
+    sys_path_added: list[str] = []
+    package_names: list[str] = []
+
+    if 'mypackage' not in code_block:
+        return sys_path_added, package_names
+
+    pkg_dir = tmp_path / 'mypackage'
+    pkg_dir.mkdir(parents=True, exist_ok=True)
+    init_file = pkg_dir / '__init__.py'
+    init_file.write_text('')
+
+    path_str = str(tmp_path)
+    sys.path.insert(0, path_str)
+    sys_path_added.append(path_str)
+
+    mod = types.ModuleType('mypackage')
+    mod.__file__ = str(init_file)
+    mod.__path__ = [str(pkg_dir)]
+    sys.modules['mypackage'] = mod
+    package_names.append('mypackage')
+
+    return sys_path_added, package_names
+
+
+def _teardown_doc_test_packages(sys_path_added: list[str], package_names: list[str]) -> None:
+    for name in package_names:
+        sys.modules.pop(name, None)
+        PackageRefactoring.s_instances.pop(name, None)
+    for path_str in sys_path_added:
+        with contextlib.suppress(ValueError):
+            sys.path.remove(path_str)
 
 
 def validate_python_syntax(code: str) -> None:
@@ -159,6 +197,7 @@ def test_documentation_code_block_execution(
     future_annotations: bool,
     temp_duck_db_uri,  # noqa: F811
     main_test_store,  # noqa: F811
+    tmp_path: Path,
 ):
     """Test that documentation code blocks can execute successfully."""
     # Skip if code block is empty
@@ -188,6 +227,7 @@ def test_documentation_code_block_execution(
 
     if future_annotations:
         exec('from __future__ import annotations', fake_module.__dict__)  # noqa: S102
+    sys_path_added, package_names = _setup_doc_test_packages(code_block, tmp_path)
     try:
         try:
             exec(code_block, fake_module.__dict__)  # noqa: S102
@@ -197,6 +237,7 @@ def test_documentation_code_block_execution(
             pytest.fail(format_code_block_failure(code_block, e, source=test_name), pytrace=False)
             raise  # for lint
     finally:
+        _teardown_doc_test_packages(sys_path_added, package_names)
         # Drop exec bindings (Developer, dev, dev2, …) before isolation's leftover check.
         for key in list(fake_module.__dict__):
             if key not in _keep:

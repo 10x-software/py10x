@@ -4,18 +4,49 @@ import keyring
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
+from keyring.backends.kwallet import DBusKeyring, DBusKeyringKWallet4
+from keyring.backends.libsecret import Keyring as LibSecretKeyring
+from keyring.backends.macOS import Keyring as MacOSKeyring
+from keyring.backends.SecretService import Keyring as SecretServiceKeyring
+from keyring.backends.Windows import WinVaultKeyring
 from py10x_kernel import OsUser
 
 from core_10x.environment_variables import EnvVars
+from core_10x.functional_account_keyring import FunctionalAccountKeyring
 from core_10x.global_cache import cache
 from core_10x.rc import RC, RC_TRUE
+
+# -- Allowlist, not a denylist: only a recognized OS-native backend (or the explicit in-memory
+# functional-account one) may receive a write. A denylist naming known-bad backends (e.g.
+# keyrings.alt) would miss anything not yet known about; failing closed for anything unrecognized
+# is the safer default. See docs/VAULT_SECURITY_DESIGN.md §3.3.
+_ACCEPTABLE_KEYRING_BACKENDS = (
+    MacOSKeyring,
+    WinVaultKeyring,
+    SecretServiceKeyring,
+    DBusKeyring,
+    DBusKeyringKWallet4,
+    LibSecretKeyring,
+    FunctionalAccountKeyring,
+)
 
 PUBLIC_EXP = 65537
 KEY_SIZE = 2048
 PASSWORD_SIZE = 24
 ENCODING = 'utf-8'
 OAEP_HASH = hashes.SHA256  # -- mgf/algorithm hash used by every OAEP call in this module
+
+# -- OWASP-minimum scrypt work factor: the master password is derived through this before ever
+# reaching PKCS8's own (fixed at 2048, unraisable) inner PBKDF2, so scrypt's cost -- not PBKDF2's --
+# gates offline brute-force economics against an exfiltrated VaultUser row. See
+# docs/VAULT_SECURITY_DESIGN.md §6.1.
+SCRYPT_N = 2**17
+SCRYPT_R = 8
+SCRYPT_P = 1
+SCRYPT_SALT_SIZE = 16
+SCRYPT_KEY_LENGTH = 32
 
 
 class SecKeys:
@@ -47,6 +78,17 @@ class SecKeys:
         return secrets.token_urlsafe(length)
 
     @classmethod
+    def generate_salt(cls) -> bytes:
+        return secrets.token_bytes(SCRYPT_SALT_SIZE)
+
+    @staticmethod
+    def _derive_key(password, salt: bytes) -> bytes:
+        if type(password) is str:
+            password = bytes(password, encoding = ENCODING)
+        kdf = Scrypt(salt = salt, length = SCRYPT_KEY_LENGTH, n = SCRYPT_N, r = SCRYPT_R, p = SCRYPT_P)
+        return kdf.derive(password)
+
+    @classmethod
     @cache
     def retrieve_master_password(cls) -> tuple[RC, str]:
         username = OsUser.me.name()
@@ -60,6 +102,16 @@ class SecKeys:
 
         return (RC_TRUE, pwd)
 
+    @staticmethod
+    def _verify_keyring_backend():
+        active = keyring.get_keyring()
+        if not isinstance(active, _ACCEPTABLE_KEYRING_BACKENDS):
+            raise TypeError(
+                f'refusing to store a secret via {type(active).__module__}.{type(active).__qualname__} -- '
+                'not a recognized OS-native keyring backend (or FunctionalAccountKeyring); this is '
+                'most likely keyrings.alt or another plaintext-capable fallback'
+            )
+
     @classmethod
     def change_master_password(cls, password: str, override = False):
         username = OsUser.me.name()
@@ -68,6 +120,7 @@ class SecKeys:
             if rc:
                 raise AssertionError(f'MasterPassword for {username} is already set')
 
+        cls._verify_keyring_backend()
         keyring.set_password(EnvVars.master_password_key, username, password)
 
     @classmethod
@@ -112,6 +165,7 @@ class SecKeys:
             if name or pwd:
                 raise AssertionError(f'Password for {username} @ {vault_uri} is already set')
 
+        cls._verify_keyring_backend()
         keyring.set_password(vault_uri, username, f'{login}{cls.s_user_pwd_delim}{password}')
 
     @classmethod
@@ -152,20 +206,23 @@ class SecKeys:
         return res
 
     @classmethod
-    def encrypt_private_key(cls, private_key_pem: bytes, password) -> bytes:
-        if type(password) is str:
-            password = bytes(password, encoding = ENCODING)
+    def encrypt_private_key(cls, private_key_pem: bytes, password, salt: bytes) -> bytes:
+        # Every write always derives through scrypt -- no legacy/unsalted branch here, only on the
+        # read side (decrypt_private_key/__init__), for rows written before this existed.
+        derived = cls._derive_key(password, salt)
 
         private_key = load_pem_private_key(private_key_pem, password = None)
         return private_key.private_bytes(
             encoding = serialization.Encoding.PEM,
             format = serialization.PrivateFormat.PKCS8,
-            encryption_algorithm = serialization.BestAvailableEncryption(password),
+            encryption_algorithm = serialization.BestAvailableEncryption(derived),
         )
 
     @classmethod
-    def decrypt_private_key(cls, private_key_with_password, password) -> bytes:
-        if type(password) is str:
+    def decrypt_private_key(cls, private_key_with_password, password, salt: bytes = b'') -> bytes:
+        if salt:
+            password = cls._derive_key(password, salt)
+        elif type(password) is str:
             password = bytes(password, encoding = ENCODING)
 
         pk = load_pem_private_key(private_key_with_password, password = password)
@@ -175,8 +232,10 @@ class SecKeys:
             encryption_algorithm = serialization.NoEncryption(),
         )
 
-    def __init__(self, private_key_with_password: bytes, public_key_pem: bytes, password):
-        if type(password) is str:
+    def __init__(self, private_key_with_password: bytes, public_key_pem: bytes, password, salt: bytes = b''):
+        if salt:
+            password = SecKeys._derive_key(password, salt)
+        elif type(password) is str:
             password = bytes(password, encoding = ENCODING)
 
         self.private_key = load_pem_private_key(private_key_with_password, password = password)

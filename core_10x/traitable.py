@@ -1534,6 +1534,7 @@ class VaultUser(Traitable):
 
     private_key_encrypted: bytes = T()
     public_key: bytes = T()
+    master_password_salt: bytes = T(b'')  # -- empty only for rows written before this field existed
 
     sec_keys: SecKeys = RT(T.EVAL_ONCE)
 
@@ -1541,13 +1542,37 @@ class VaultUser(Traitable):
         return self.__class__.myname()
 
     def sec_keys_get(self) -> SecKeys:
+        # -- Every resource-credential and private-key decrypt for this identity goes through
+        # this property (RT(T.EVAL_ONCE)) -- the single choke point where suspension takes effect.
+        # See docs/VAULT_SECURITY_DESIGN.md §3.4 -- previously defined but never enforced anywhere.
+        if self.suspended:
+            raise RuntimeError(f'VaultUser {self.user_id!r} is suspended')
         rc, master_pwd = SecKeys.retrieve_master_password()
         rc.throw()
-        return SecKeys(self.private_key_encrypted, self.public_key, master_pwd)
+        return SecKeys(self.private_key_encrypted, self.public_key, master_pwd, self.master_password_salt)
+
+    def post_verify(self) -> RC:
+        rc = super().post_verify()
+        if self.private_key_encrypted and not self.master_password_salt:
+            return rc + RC(False, 'master_password_salt is required when saving an encrypted private key')
+        return rc
 
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:
         return user_id.split('-', 1)[0] == EnvVars.var.functional_account_prefix.value
+
+    @classmethod
+    def creator_login(cls, user_id: str) -> str | None:
+        """The vault-DB login that first created this row -- ``_who`` on the creation entry
+        (``_traitable_rev == 1``) of its free ``TraitableHistory`` audit trail. ``None`` if no
+        history exists. See docs/VAULT_SECURITY_DESIGN.md §3.2 -- lets a caller verify a
+        `VaultUser` row was actually registered by its own claimed identity, not pre-registered by
+        someone else. Filters directly for revision 1 rather than fetching the full (newest-first)
+        history and taking the last entry -- a single-row query either way.
+        """
+        for entry in cls.history(user_id=user_id, _filter=f(_traitable_rev=1), _at_most=1):
+            return entry.get('_who')
+        return None
 
     @classmethod
     @cache
