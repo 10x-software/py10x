@@ -10,7 +10,7 @@
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/xx_fin/.venv" />
     </content>
-    <orderEntry type="jdk" jdkName="uv (py10x) (3)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="uv (py10x)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="TestRunnerService">
