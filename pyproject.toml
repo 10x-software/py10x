@@ -9,7 +9,7 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "py10x-kernel (>=0.3.2rc1,<0.3.2rc2)",
+    "py10x-kernel (>=0.3.2rc2,<0.3.2rc3)",
     "py10x-infra (>=0.3.2rc1,<0.3.2rc2)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
