@@ -133,9 +133,11 @@ class VaultUtils:
 
             me = VaultUser()
             private_key_pem, public_key_pem = SecKeys.generate_keys()
+            salt = SecKeys.generate_salt()
             me.set_values(
                 public_key              = public_key_pem,
-                private_key_encrypted   = SecKeys.encrypt_private_key(private_key_pem, master_pwd),
+                private_key_encrypted   = SecKeys.encrypt_private_key(private_key_pem, master_pwd, salt),
+                master_password_salt    = salt,
             ).throw()
             me.save().throw()
 
@@ -169,11 +171,17 @@ class VaultUtils:
                     f'Vault User {username} does not exist. Run: xx-user-init --new-user',
                 )
 
+            # -- A suspended identity must not be able to re-establish access on a *new* machine
+            # either -- this uses SecKeys.decrypt_private_key directly, not VaultUser.sec_keys_get(),
+            # so it needs its own gate. See docs/VAULT_SECURITY_DESIGN.md §3.4.
+            if me.suspended:
+                return RC(False, f'Vault User {username} is suspended')
+
             if master_password is None:
                 master_password = getpass.getpass('Enter your existing MasterPassword: ')
 
             try:
-                SecKeys.decrypt_private_key(me.private_key_encrypted, master_password)
+                SecKeys.decrypt_private_key(me.private_key_encrypted, master_password, me.master_password_salt)
             except Exception:
                 return RC(False, 'MasterPassword does not unlock the vault private key')
 
@@ -242,6 +250,21 @@ class VaultUtils:
             user = VaultUser.existing_instance(user_id = username, _throw = False)
             if not user:
                 return RC(False, f'Vault User {username} does not exist. Ask {username} to run user_init utility')
+
+            if user.suspended:
+                return RC(False, f'Vault User {username} is suspended -- not granting new resource access')
+
+            # -- The vault-DB login that registered this VaultUser row must be its own claimed
+            # identity -- otherwise anyone with *any* valid vault login could pre-register an
+            # unclaimed user_id and silently receive any resource credential later granted to it.
+            # See docs/VAULT_SECURITY_DESIGN.md §3.2.
+            creator = VaultUser.creator_login(username)
+            if creator != username:
+                return RC(
+                    False,
+                    f'Vault User {username!r} was registered using vault login {creator!r}, not its '
+                    'own -- refusing to grant resource access (possible pre-registration/namesquatting)',
+                )
 
         res_choices = tuple(f'{name}: {i}' for i, name in enumerate(CONCRETE_RESOURCE.all_names()))
         res_index = int(input(f"Choose CONCRETE_RESOURCE ({', '.join(res_choices)})"))
