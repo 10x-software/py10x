@@ -20,8 +20,9 @@ BTraitable::~BTraitable() {
     //    Are traitables only usable on the thread they were created on?
 
     if (!m_tid.is_valid()) {    //-- remove temp obj's nodes
-        const auto cache = ThreadContext::current_traitable_proc()->cache();
-        cache->remove_temp_object_cache(m_tid);
+        const auto proc = ThreadContext::current_traitable_proc();
+        if (origin_cache_is(proc->default_cache()) || proc->cache()->is_descendent_of_origin(this))
+            m_origin_cache->remove_temp_object_cache(m_tid);
     }
     //TODO: class flag to indicate if objects is auto-disposable default = true
 }
@@ -35,7 +36,7 @@ py::object BTraitable::lazy_load_if_needed() {
     if (flags & XCache::MUST_EXIST_IN_STORE && !my_class()->is_storable())
         throw runtime_error( "is an invalid lazy reference to non-storable that does not exist in memory" );
 
-    auto use = BTraitableProcessor::Use(BTraitableProcessor::create_for_lazy_load(origin_cache(), flags), true);
+    auto use = BTraitableProcessor::Use(BTraitableProcessor::create_with_cache(origin_cache(), flags), true);
     clear_lazy_load_flags(flags);
     const auto serialized_data = _reload(flags & XCache::LOAD_REV_ONLY);
     set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set
@@ -93,15 +94,18 @@ py::object BTraitable::endogenous_id() {
 //======================================================================================================================
 void BTraitable::initialize(const py::dict& trait_values, const bool replace_existing=false, const bool update_existing=false) {
     if (const auto cls = my_class(); cls->is_id_endogenous()) {
-        const auto proc = ThreadContext::current_traitable_proc();
+        const auto current = ThreadContext::current_traitable_proc();
 
         if (trait_values.empty()) {  // kwargs empty
-            if (!proc->is_empty_object_allowed()) {
+            if (!current->is_empty_object_allowed()) {
                 /* The following check seems too restrictive: Traitable may have getters for ID traits */
                 //throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
             } else
                 return;
         }
+
+        auto use = BTraitableProcessor::Use(BTraitableProcessor::create_with_cache(origin_cache(), current->flags()), true);
+        const auto proc = ThreadContext::current_traitable_proc();
 
         //-- setting trait values (not calling set_values() for performance reasons and throwing immediately on error
         std::unordered_map<const BTrait *,py::object> non_id_traits_set;

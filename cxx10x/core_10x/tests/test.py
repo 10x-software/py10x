@@ -1129,7 +1129,7 @@ def test_create_root():
 
 
 def test_eval_once_under_create_root():
-    """EVAL_ONCE nodes live on the object's origin cache."""
+    """create_root isolates from the process default cache; outer objects are not usable inside it."""
     class X(Traitable):
         x: int = T(T.ID)
         v: int = T(T.EVAL_ONCE)
@@ -1142,23 +1142,26 @@ def test_eval_once_under_create_root():
     with CACHE_ONLY():
         default_cache = BTP.current().cache()
         outer = X(x=1)
+        assert outer.v == 10
+        assert X.calls == 1
 
         with BTP.create_root() as root:
             assert root.cache() is not default_cache
+            assert root.default_cache() is root.cache()
             assert BTP.current().cache() is root.cache()
+            assert BTP.current().default_cache() is not default_cache
 
-            # outer's origin is default_cache; EVAL_ONCE stores there
-            assert outer.v == 10
-            assert X.calls == 1
-            assert outer.v == 10
-            assert X.calls == 1
+            try:
+                _ = outer.v
+                assert False, 'expected RuntimeError'
+            except RuntimeError as e:
+                assert 'not usable' in str(e)
 
-            # object born under create_root evaluates on the orphan origin cache
             inner = X(x=2)
             assert inner.v == 10
             assert X.calls == 2
 
-        # outer's EVAL_ONCE value survives create_root teardown (node on default_cache)
+        # outer's EVAL_ONCE value survives create_root teardown (node on process default)
         assert outer.v == 10
         assert X.calls == 2
 
@@ -1167,6 +1170,68 @@ def test_eval_once_under_create_root():
             assert False, 'expected TypeError'
         except TypeError as e:
             assert 'Trying to modify EVAL_ONCE trait' in str(e)
+
+
+def test_default_cache_traitable():
+    """default_cache=True: identity lives on default_cache; later writes use the current cache."""
+    class G(Traitable, default_cache=True):
+        x: int = RT(T.ID)
+        v: int = RT()
+
+    class L(Traitable):
+        x: int = RT(T.ID)
+        v: int = RT()
+
+    assert G.s_default_cache
+    assert G.s_bclass.is_default_cache()
+    assert not L.s_default_cache
+
+    class G2(G):
+        pass
+    assert G2.s_default_cache
+
+    G(x=1, v=10, _replace=True)
+    L(x=1, v=10, _replace=True)
+
+    default_cache = BTP.current().cache()
+    assert BTP.current().default_cache() is default_cache
+
+    with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False):
+        child = BTP.current().cache()
+        assert child is not default_cache
+        assert BTP.current().default_cache() is default_cache
+
+        assert G(x=1).v == 10  # loaded from default_cache
+        G(x=1).v = 11          # isolated to current cache
+        G(x=2, v=20, _replace=True)  # initialize runs on origin (default_cache)
+        L(x=2, v=20, _replace=True)
+
+    assert G(x=1).v == 10
+    assert G(x=2).v == 20  # init kwargs landed on default_cache
+    assert L(x=2).v is XNone
+
+    with BTP.create_root() as root:
+        assert root.cache() is not default_cache
+        assert root.default_cache() is root.cache()
+        assert root.default_cache() is not default_cache
+
+        G(x=1, v=99, _replace=True)
+        assert G(x=1).v == 99
+        L(x=3, v=30, _replace=True)
+        assert L(x=3).v == 30
+
+        with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False):
+            assert BTP.current().cache() is not root.cache()
+            assert BTP.current().default_cache() is root.default_cache()
+            assert G(x=1).v == 99
+            G(x=1).v = 100
+            L(x=4, v=40, _replace=True)
+
+        assert G(x=1).v == 99
+        assert L(x=4).v is XNone
+
+    assert G(x=1).v == 10
+    assert L(x=3).v is XNone
 
 
 def test_existing_composite_id():
@@ -1617,6 +1682,7 @@ if __name__ == '__main__':
     test_create_root()
     test_eval_once_uses_origin_cache_under_graph()
     test_eval_once_under_create_root()
+    test_default_cache_traitable()
     test_existing_composite_id()
     test_trait_method_error()
     test_deserialize_wrong_class()

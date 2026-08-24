@@ -22,6 +22,7 @@ protected:
     py::dict        m_trait_dir;
     bool            m_custom_collection;
     bool            m_embeddable;
+    bool            m_default_cache;
 
     mutable BUiClass*       m_ui_class = nullptr;
 
@@ -46,6 +47,7 @@ public:
         m_trait_dir = m_py_class.attr("s_dir");
         m_custom_collection = m_py_class.attr("s_custom_collection").cast<bool>();
         m_embeddable = m_py_class.attr("s_embeddable").cast<bool>();
+        m_default_cache = m_py_class.attr("s_default_cache").cast<bool>();
     }
 
     //~BTraitableClass();
@@ -79,6 +81,10 @@ public:
 
     bool is_embeddable() const {
         return m_embeddable;
+    }
+
+    bool is_default_cache() const {
+        return m_default_cache;
     }
 
     const py::dict& trait_dir() const {

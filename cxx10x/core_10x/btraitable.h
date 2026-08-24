@@ -72,7 +72,7 @@ protected:
 public:
     explicit BTraitable(const BTraitableClass* cls, const py::object& id) : m_tid(cls, id) {
         const auto proc = ThreadContext::current_traitable_proc();
-        const auto origin_cache = set_origin_cache(proc->cache());
+        const auto origin_cache = set_origin_cache(cls->is_default_cache() ? proc->default_cache() : proc->cache());
         if (m_tid.is_valid()) {
             //-- lazy reference, must exist in store unless exists in memory
             if (const auto existing_cache = origin_cache->find_origin_cache(m_tid))
@@ -114,7 +114,8 @@ public:
     }
 
     [[nodiscard]] XCache* origin_cache() const {
-        if (origin_cache_is(XCache::default_cache()) || ThreadContext::current_traitable_proc()->cache()->is_descendent_of_origin(this))
+        const auto proc = ThreadContext::current_traitable_proc();
+        if (origin_cache_is(proc->default_cache()) || proc->cache()->is_descendent_of_origin(this))
             return m_origin_cache;
         throw runtime_error("not usable - origin cache is not reachable");
     }

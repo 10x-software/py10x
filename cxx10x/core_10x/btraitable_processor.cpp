@@ -31,9 +31,11 @@ BTraitableProcessor* BTraitableProcessor::create_default() {
 bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
     // returns true if the object existed in cache or storage
     const auto id_value = obj->tid().is_valid() ? obj->id_value() : obj->endogenous_id();
-    const auto tid = TID(obj->my_class(), PyLinkage::traitable_id(id_value, obj->tid().coll_name()));
-    if (const auto origin_cache = m_cache->find_origin_cache(tid)) {
-        if (origin_cache->lazy_load_flags(tid) & XCache::MUST_EXIST_IN_STORE && !obj->my_class()->instance_in_store(tid)) {
+    const auto cls = obj->my_class();
+    const auto tid = TID(cls, PyLinkage::traitable_id(id_value, obj->tid().coll_name()));
+    const auto cache = obj->origin_cache();
+    if (const auto origin_cache = cache->find_origin_cache(tid)) {
+        if (origin_cache->lazy_load_flags(tid) & XCache::MUST_EXIST_IN_STORE && !cls->instance_in_store(tid)) {
             // e.g. created with existing_object_by_id
             origin_cache->set_lazy_load_flags(tid, XCache::REPLACE_EXISTING);
             return false;
@@ -42,10 +44,10 @@ bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
         obj->set_origin_cache(origin_cache);
         return true;
     }
-    if (obj->my_class()->instance_in_store(tid)) {
-        m_cache->remove_temp_object_cache(obj->tid());
+    if (cls->instance_in_store(tid)) {
+        cache->remove_temp_object_cache(obj->tid());
         obj->set_id_value(id_value);
-        obj->set_origin_cache(m_cache);
+        obj->set_origin_cache(cache);
         obj->set_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST| flags() & DEBUG);
         return true;
     }
@@ -63,11 +65,12 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_
     const auto &tid = obj->tid();
     const auto &cls = tid.cls();
     const auto valid_tid = TID(cls, PyLinkage::traitable_id(id_value, tid.coll_name()));
-    if (const auto origin_cache =  m_cache->find_origin_cache(valid_tid)) {
+    const auto cache = obj->origin_cache();
+    if (const auto origin_cache = cache->find_origin_cache(valid_tid)) {
         if (! (origin_cache->lazy_load_flags(valid_tid) & XCache::REPLACE_EXISTING)) {
             // -- possible conflict with existing instance!
             if (accept_existing) {
-                m_cache->remove_temp_object_cache(tid);
+                cache->remove_temp_object_cache(tid);
                 obj->set_id_value(id_value);
                 obj->set_origin_cache(origin_cache);
                 return PyLinkage::RC_TRUE();
@@ -79,7 +82,7 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_
             }
         }
         // -- replacing existing instance
-        if (m_cache!=origin_cache)
+        if (cache!=origin_cache)
             throw py::value_error("Cannot only replace the existing instance in origin cache");
         BTraitable existing_obj(cls, valid_tid.traitable_id());
         existing_obj.clear_lazy_load_flags(existing_obj.lazy_load_flags()); // don't load existing object - we will lazy load revision later, as needed
@@ -92,13 +95,13 @@ py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_
                 invalidate_trait_value(&existing_obj, trait);
         }
         // discard object cache to prepare for make_permanent
-        m_cache->remove_object_cache(valid_tid, true);
+        cache->remove_object_cache(valid_tid, true);
     }
 
     // -- object does not exist in any cache
     obj->set_id_value(id_value);
-    obj->set_origin_cache(m_cache);
-    m_cache->make_permanent(tid);
+    obj->set_origin_cache(cache);
+    cache->make_permanent(tid);
     if ((accept_existing || replace_existing) && cls->may_exist_in_store() && obj->get_revision().cast<int>()==0) {
         auto lazy_load_flags = XCache::LOAD_REQUIRED | flags() & DEBUG;
         if (replace_existing)
@@ -373,6 +376,7 @@ BTraitableProcessor* BTraitableProcessor::create_root() {
     if (flags & ON_GRAPH)
         cache->set_default_node_type(NODE_TYPE::BASIC_GRAPH);
     proc->use_own_cache(cache);
+    proc->m_default_cache = cache;
     return proc;
 }
 
@@ -391,6 +395,7 @@ BTraitableProcessor* BTraitableProcessor::create(const int on_graph, const int c
         flags = debug == 1? flags | DEBUG : flags & ~DEBUG;
 
     auto proc = create_raw(flags);
+    proc->m_default_cache = parent->m_default_cache;
 
     // 1. use_parent_cache uses parent's cache as its own *only* when parent and new proc are either ON_GRAPH or OFF_GRAPH
     // 2. use_default_cache forces using the default cache *only* when the new processor is OFF_GRAPH
@@ -408,7 +413,7 @@ BTraitableProcessor* BTraitableProcessor::create(const int on_graph, const int c
     }
     else {  //-- OFF_GRAPH
         if (use_default_cache)
-            proc->use_cache(XCache::default_cache());
+            proc->use_cache(parent->default_cache());
 
         else {
             if (!use_parent_cache || parent_flags & ON_GRAPH) {
@@ -422,15 +427,20 @@ BTraitableProcessor* BTraitableProcessor::create(const int on_graph, const int c
     return proc;
 }
 
-BTraitableProcessor * BTraitableProcessor::create_for_lazy_load(XCache *cache, const unsigned lazy_load_flags) {
+BTraitableProcessor * BTraitableProcessor::create_with_cache(XCache *cache, const unsigned flags) {
     const auto proc_type = cache->default_node_type() == NODE_TYPE::BASIC_GRAPH ? ON_GRAPH : PLAIN;
-    const auto proc = create_raw(proc_type|(lazy_load_flags&DEBUG));
+    const auto proc = create_raw(proc_type | (flags & PROC_TYPE & ~ON_GRAPH));
+    proc->m_default_cache = current()->m_default_cache;
     proc->use_cache(cache);
     return proc;
 }
 
 BTraitableProcessor* BTraitableProcessor::current() {
     return ThreadContext::current_traitable_proc();
+}
+
+XCache* BTraitableProcessor::default_cache() const {
+    return m_default_cache ? m_default_cache : XCache::default_cache();
 }
 
 BTraitableProcessor::Use::Use(BTraitableProcessor *proc, bool temp) : m_temp(temp) {
@@ -448,6 +458,7 @@ BTraitableProcessorSetValueTracker::BTraitableProcessorSetValueTracker()
     : m_parent(BTraitableProcessor::current())
 {
     BTraitableProcessor::use_cache(m_parent->cache());
+    m_default_cache = m_parent->own_default_cache();
     set_flags(m_parent->flags());
 }
 

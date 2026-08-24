@@ -50,7 +50,8 @@ BTrait* BTraitableClass::find_trait(const py::object& trait_name) const {
 }
 
 bool BTraitableClass::instance_in_cache(const TID &tid) {
-    const auto cache = ThreadContext::current_traitable_proc()->cache();
+    const auto proc = ThreadContext::current_traitable_proc();
+    const auto cache = tid.cls()->is_default_cache() ? proc->default_cache() : proc->cache();
     return cache->find_object_cache(tid) != nullptr;
 }
 

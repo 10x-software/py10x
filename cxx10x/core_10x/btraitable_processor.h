@@ -45,6 +45,7 @@ protected:
     static unsigned s_default_type;
 
     XCache*     m_cache;
+    XCache*     m_default_cache = nullptr;
     ExecStack   m_stack;
     unsigned    m_flags;
     bool        m_own_cache = false;
@@ -70,7 +71,7 @@ public:
     // int param: -1 - inherit, 0 - reset, 1 - set
     static BTraitableProcessor* create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache);
 
-    static BTraitableProcessor* create_for_lazy_load(XCache *cache, unsigned lazy_load_flags);
+    static BTraitableProcessor* create_with_cache(XCache *cache, unsigned flags);
 
     static BTraitableProcessor* create_interactive() {
         const auto proc = create(1, 1, 1, false, false);
@@ -92,6 +93,9 @@ public:
 
     [[nodiscard]] XCache*   cache() const                   { return m_cache; }
     virtual void            use_cache(XCache* c)            { m_cache = c; }
+
+    [[nodiscard]] XCache*   default_cache() const;
+    [[nodiscard]] XCache*   own_default_cache() const       { return m_default_cache; }
 
     [[nodiscard]] bool      is_empty_object_allowed() const { return m_flags & EMPTY_OBJ_ALLOWED; }
     void                    allow_empty_objects(bool flag)  { flag ? m_flags |= EMPTY_OBJ_ALLOWED : m_flags &= ~EMPTY_OBJ_ALLOWED; }
