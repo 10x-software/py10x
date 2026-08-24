@@ -35,7 +35,7 @@ uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --upgrade
 fall back to PyPI-published siblings. The installed `uv-run` / `uv-sync` scripts are equivalent
 shortcuts when the venv is activated.
 
-See [INSTALLATION.md](INSTALLATION.md#development-installation-recommended) for clone steps (including when and how to obtain the `../cxx10x` sibling) and [`dev_10x/README.md`](dev_10x/README.md) for the full profile table, reinstall rules, `XX_UV_INCREMENTAL`, and other options.
+See [INSTALLATION.md](INSTALLATION.md#development-installation-recommended) for clone steps (including when and how to obtain the `../cxx10x` sibling) and [`dev_10x/README.md`](dev_10x/README.md) for the full profile table, reinstall rules, `XX_UV_INSTALL_MODE`, and other options.
 
 ## Development Workflow
 

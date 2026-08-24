@@ -56,6 +56,12 @@ class UserInitCli(TraitableCli):
             return rc + RC(False, '--command only applies with --functional-account')
         if self.functional_account and not self.command:
             return rc + RC(False, '--functional-account requires --command (the manifest is never printed)')
+        if self.functional_account and not VaultUser.is_functional_account(VaultUser.myname()):
+            return rc + RC(
+                False,
+                f'--functional-account requires the OS account name ({VaultUser.myname()!r}) to start with the '
+                f'functional-account prefix ({EnvVars.functional_account_prefix!r}) -- see docker/entrypoint.sh',
+            )
         return rc
 
     def run(self) -> RC:
@@ -94,7 +100,7 @@ class UserInitCli(TraitableCli):
         payload = json.dumps(manifest)
         secret_name = FunctionalAccountKeyring.secret_name(user_id)
 
-        argv = shlex.split(self.command.format(secret_name=secret_name))
+        argv = shlex.split(self.command.format(secret_name=shlex.quote(secret_name)))
         try:
             subprocess.run(argv, input=payload, text=True, check=True)
         except (OSError, subprocess.CalledProcessError) as ex:

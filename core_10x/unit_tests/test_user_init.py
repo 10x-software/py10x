@@ -85,6 +85,22 @@ def test_functional_account_and_new_user_are_mutually_exclusive(monkeypatch, cap
     assert 'specify only one of --new-user, --new-machine, or --functional-account' in capsys.readouterr().out
 
 
+def test_functional_account_rejects_non_prefixed_os_identity(monkeypatch, capsys):
+    """Defense-in-depth, not a fix for a currently-live gap (infra_10x/mongodb_utils.py's
+    is_functional_account() consumer has no live callers today -- see docs/VAULT_SECURITY_DESIGN.md
+    §3.3): registering a "functional account" whose real OS identity doesn't actually carry the
+    "xx-" prefix should still be rejected before VaultUtils.user_init (or anything else) runs, so
+    the convention holds before anything else grows to depend on it."""
+
+    def user_init(**_kwargs):
+        raise AssertionError('VaultUtils.user_init must not run for a non-prefixed identity')
+
+    monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: 'not-a-functional-account'))
+    argv = ['xx-user-init', '--functional-account', '--command', 'echo hi']
+    assert _run(monkeypatch, argv, user_init) == 1
+    assert 'to start with the functional-account prefix' in capsys.readouterr().out
+
+
 @pytest.mark.skipif(
     sys.platform == 'win32',
     reason='--functional-account is a Linux/Docker-container command (docker/entrypoint.sh); --command is not exercised on Windows',
@@ -93,11 +109,10 @@ def test_functional_account_generates_master_password_and_pipes_manifest(monkeyp
     """CLI plumbing only (vault I/O mocked, matching the module docstring): login/password are
     never passed to VaultUtils.user_init (so the real getpass prompts would fire for both), the
     master password is generated rather than supplied, and the resulting manifest is piped --
-    never printed -- into --command with {secret_name} substituted. Identity itself
-    (VaultUser.myname()) is not this CLI's concern -- it comes from the real OS account, already
-    renamed by docker/entrypoint.sh by the time this runs for real."""
+    never printed -- into --command with {secret_name} substituted."""
     vault_uri = 'postgresql://vault-host:5432/vaultdb'
     monkeypatch.setattr(EnvVars, 'main_vault_uri', vault_uri)
+    monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: 'xx-myservice'))
     original_backend = keyring.get_keyring()
 
     seen = {}
@@ -138,3 +153,38 @@ def test_functional_account_generates_master_password_and_pipes_manifest(monkeyp
         {'service': EnvVars.master_password_key, 'username': user_id, 'password': seen['master_password']},
         {'service': vault_uri, 'username': user_id, 'password': 'pg_admin\x1ffake-pg-password'},
     ]
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='same as above: --command is a Linux/Docker-container concern')
+def test_functional_account_quotes_secret_name_against_command_splintering(monkeypatch, capsys, tmp_path):
+    """A hostile/malformed account id must not let {secret_name} splinter into extra argv tokens
+    once folded into --command and shlex.split -- shlex.quote guarantees it stays one token."""
+    hostile_id = 'xx-evil; rm -rf /'
+    monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host:5432/vaultdb')
+    monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: hostile_id))
+    original_backend = keyring.get_keyring()
+
+    def user_init(*, master_password, **_kwargs):
+        user_id = VaultUser.myname()
+        keyring.set_password(EnvVars.master_password_key, user_id, master_password)
+        keyring.set_password('postgresql://vault-host:5432/vaultdb', user_id, 'pg_admin\x1ffake-pg-password')
+        return RC_TRUE
+
+    seen_argv: list[str] = []
+
+    def fake_run(argv, **_kwargs):
+        seen_argv.extend(argv)
+        return type('R', (), {'returncode': 0})()
+
+    monkeypatch.setattr('core_10x.apps.user_init.subprocess.run', fake_run)
+
+    argv = ['xx-user-init', '--functional-account', '--command', 'docker secret create {secret_name} -']
+    try:
+        rc = _run(monkeypatch, argv, user_init)
+    finally:
+        keyring.set_keyring(original_backend)
+
+    assert rc == 0
+    # secret_name (derived from hostile_id) must arrive as exactly ONE argv token, not splinter
+    # into ['create', 'xx-evil;', 'rm', '-rf', '/', '-'].
+    assert seen_argv == ['docker', 'secret', 'create', f'{hostile_id}-vault-keyring', '-']

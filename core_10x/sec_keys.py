@@ -15,9 +15,33 @@ PUBLIC_EXP = 65537
 KEY_SIZE = 2048
 PASSWORD_SIZE = 24
 ENCODING = 'utf-8'
+OAEP_HASH = hashes.SHA256  # -- mgf/algorithm hash used by every OAEP call in this module
 
 
 class SecKeys:
+    @staticmethod
+    def _oaep_padding() -> padding.AsymmetricPadding:
+        return padding.OAEP(mgf = padding.MGF1(algorithm = OAEP_HASH()), algorithm = OAEP_HASH(), label = None)
+
+    @staticmethod
+    def _max_oaep_plaintext_len(key_size_bits: int) -> int:
+        """Max RSA-OAEP plaintext length in bytes: k - 2*hLen - 2 (RFC 8017 §7.1.1), k = key size
+        in bytes, hLen = the OAEP hash's digest size. Beyond this, `cryptography` raises a bare
+        `ValueError: Encryption failed` with no indication of *why* -- checked for real: 190 bytes
+        succeeds, 191 fails, for a 2048-bit key with SHA-256 OAEP, matching this formula exactly.
+        """
+        return key_size_bits // 8 - 2 * OAEP_HASH().digest_size - 2
+
+    @classmethod
+    def _oaep_encrypt(cls, public_key, message: bytes) -> bytes:
+        max_len = cls._max_oaep_plaintext_len(public_key.key_size)
+        if len(message) > max_len:
+            raise ValueError(
+                f'message too long for RSA-OAEP encryption with a {public_key.key_size}-bit key: '
+                f'{len(message)} bytes > {max_len} byte max'
+            )
+        return public_key.encrypt(message, cls._oaep_padding())
+
     @classmethod
     def generate_password(cls, length = PASSWORD_SIZE) -> str:
         return secrets.token_urlsafe(length)
@@ -115,26 +139,12 @@ class SecKeys:
             message = bytes(message, encoding = ENCODING)
 
         public_key = load_pem_public_key(public_key_pem)
-        return public_key.encrypt(
-            message,
-            padding.OAEP(
-                mgf = padding.MGF1(algorithm = hashes.SHA256()),
-                algorithm = hashes.SHA256(),
-                label = None
-            )
-        )
+        return cls._oaep_encrypt(public_key, message)
 
     @classmethod
     def decrypt(cls, encrypted_message: bytes, private_key_pem: bytes, to_str = True):
         private_key = load_pem_private_key(private_key_pem, password = None)
-        res = private_key.decrypt(
-            encrypted_message,
-            padding.OAEP(
-                mgf = padding.MGF1(algorithm = hashes.SHA256()),
-                algorithm = hashes.SHA256(),
-                label = None
-            )
-        )
+        res = private_key.decrypt(encrypted_message, cls._oaep_padding())
 
         if to_str:
             res = res.decode(encoding = ENCODING)
@@ -173,23 +183,8 @@ class SecKeys:
         self.public_key = load_pem_public_key(public_key_pem)
 
     def encrypt_text(self, text: str) -> bytes:
-        message = bytes(text, encoding = ENCODING)
-        return self.public_key.encrypt(
-            message,
-            padding.OAEP(
-                mgf = padding.MGF1(algorithm = hashes.SHA256()),
-                algorithm = hashes.SHA256(),
-                label = None
-            )
-        )
+        return SecKeys._oaep_encrypt(self.public_key, bytes(text, encoding = ENCODING))
 
     def decrypt_text(self, encrypted_message: bytes) -> str:
-        res = self.private_key.decrypt(
-            encrypted_message,
-            padding.OAEP(
-                mgf = padding.MGF1(algorithm = hashes.SHA256()),
-                algorithm = hashes.SHA256(),
-                label = None
-            )
-        )
+        res = self.private_key.decrypt(encrypted_message, SecKeys._oaep_padding())
         return res.decode(encoding = ENCODING)

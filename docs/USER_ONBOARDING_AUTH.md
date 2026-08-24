@@ -202,29 +202,22 @@ functional account's master password back in, so there's no reason to make
 one up), then reads back both from the in-memory keyring and pipes the
 manifest — never prints it — into `--command`'s stdin.
 
-Run it once, inside a throwaway `docker run -it --rm` of the image with
-`FUNCTIONAL_ACCOUNT_ID` already set — required, not just convenient:
-`VaultUser.myname()` needs to already resolve to the right id, which only
-happens via `docker/entrypoint.sh`'s real OS-account rename, not by exporting
-the env var in your own shell. `--command`'s own target (`docker`/`kubectl`)
-also needs to be reachable from inside that container, e.g. by bind-mounting
-the host's socket/kubeconfig and CLI binary as shown below (only works
-mounting a Linux-built CLI into this Linux image — run this from a native
-Linux Docker host, not Docker Desktop on macOS/Windows):
+Set `USER` to the functional account's name and run `xx-user-init` with whatever
+`docker`/`kubectl` you already have on that machine. The id must actually carry the `xx-`
+prefix (`EnvVars.functional_account_prefix`) — `xx-user-init
+--functional-account` refuses to run otherwise.
 
 ```bash
-docker run -it --rm \
-  -e FUNCTIONAL_ACCOUNT_ID=xx-myservice \
-  -e XX_MAIN_VAULT_URI=postgresql://vault-host:5432/vaultdb \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -v "$(command -v docker)":/usr/local/bin/docker:ro \
-  ghcr.io/10x-software/py10x-core:<version> \
-  bash -c 'xx-user-init --functional-account --command "docker secret create {secret_name} -"'
+USER=xx-myservice \
+XX_MAIN_VAULT_URI=postgresql://vault-host:5432/vaultdb \
+  xx-user-init --functional-account --command "docker secret create {secret_name} -"
 # you will be prompted to enter the vault account and password
 ```
 
 `--command` is required in this mode — there is no fallback that prints the
-manifest. Its `{secret_name}` placeholder is substituted with a name derived
+manifest. Its `{secret_name}` placeholder is substituted (`shlex.quote`d, so
+it can't splinter into extra tokens even for an unusual account id) with a
+name derived
 from the account id (`FunctionalAccountKeyring.secret_name`), e.g.
 `xx-myservice-vault-keyring` — not something you type, so the name used to
 create the secret always matches what your deployment manifest should
@@ -238,7 +231,8 @@ multi-host cluster required). Secret *names* share one cluster-wide namespace
 (unlike Kubernetes Secret objects, which are namespaced), which is exactly
 why the account id needs to be in the name — `target=` below decouples that
 name from the filename the container actually sees. Then deploy the service
-that consumes it:
+that consumes it — this part still runs as a real container, with a real
+account rename via `docker/entrypoint.sh`:
 
 ```bash
 docker service create \
@@ -259,12 +253,11 @@ there's no race with `FunctionalAccountKeyring`'s lazy first read.
 
 ### Kubernetes: swap the `--command`, then deploy
 
-Same pattern, different `--command`:
+Same pattern, different `--command`, run with whatever `kubectl`/kubeconfig
+you already have on your machine — same bare-host provisioning step as above:
 ```
 --command 'kubectl create secret generic {secret_name} --from-file=keyring.json=/dev/stdin'
 ```
-(bind-mount `~/.kube` and a Linux `kubectl` binary into the provisioning
-container the same way, in place of the Docker socket/CLI above).
 
 A `Secret` mounted as a volume is tmpfs-backed by kubelet and, like Swarm,
 mounted before any container in the pod starts — this is the deployment
@@ -334,3 +327,6 @@ manifest — no need to re-run registration.
   rename (pinned `10001:10001` uid/gid) + keyring wiring
 - `core_10x/unit_tests/test_functional_account_vault.py` — end-to-end test
   (functional-account flow, against a real authenticated Postgres)
+- [`VAULT_SECURITY_DESIGN.md`](VAULT_SECURITY_DESIGN.md) — the security design behind this
+  document's procedures: threat model, tradeoffs, comparisons to existing systems, deployment
+  recommendations, and outstanding hardening items
