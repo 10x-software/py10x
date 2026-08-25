@@ -1544,7 +1544,7 @@ class VaultUser(Traitable):
     def sec_keys_get(self) -> SecKeys:
         # -- Every resource-credential and private-key decrypt for this identity goes through
         # this property (RT(T.EVAL_ONCE)) -- the single choke point where suspension takes effect.
-        # See docs/VAULT_SECURITY_DESIGN.md §3.4 -- previously defined but never enforced anywhere.
+        # See docs/VAULT_SECURITY_DESIGN.md §3.2.
         if self.suspended:
             raise RuntimeError(f'VaultUser {self.user_id!r} is suspended')
         rc, master_pwd = SecKeys.retrieve_master_password()
@@ -1565,13 +1565,19 @@ class VaultUser(Traitable):
     def creator_login(cls, user_id: str) -> str | None:
         """The vault-DB login that first created this row -- ``_who`` on the creation entry
         (``_traitable_rev == 1``) of its free ``TraitableHistory`` audit trail. ``None`` if no
-        history exists. See docs/VAULT_SECURITY_DESIGN.md §3.2 -- lets a caller verify a
+        history exists. See docs/VAULT_SECURITY_DESIGN.md §3.4 -- lets a caller verify a
         `VaultUser` row was actually registered by its own claimed identity, not pre-registered by
         someone else. Filters directly for revision 1 rather than fetching the full (newest-first)
         history and taking the last entry -- a single-row query either way.
         """
         for entry in cls.history(user_id=user_id, _filter=f(_traitable_rev=1), _at_most=1):
             return entry.get('_who')
+        return None
+
+    @classmethod
+    def login_already_registered(cls, login: str) -> str | None:
+        for entry in cls.history(_who=login, _filter=f(_traitable_rev=1), _at_most=1):
+            return entry.get('user_id')
         return None
 
     @classmethod

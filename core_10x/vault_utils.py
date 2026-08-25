@@ -127,6 +127,16 @@ class VaultUtils:
             if VaultUser.existing_instance(user_id = username, _throw = False):
                 return RC(False, f'Vault User {username} already exists. On a new machine run: xx-user-init --new-machine')
 
+            # -- Each vault-DB login may only ever register one VaultUser identity -- otherwise a
+            # single shared/reused login could be used to namesquat multiple unclaimed user_ids.
+            # See docs/VAULT_SECURITY_DESIGN.md §3.4.
+            if other_user := VaultUser.login_already_registered(vault.auth_user()):
+                return RC(
+                    False,
+                    f'Vault login {vault.auth_user()!r} already registered Vault User {other_user!r} -- '
+                    'each vault-DB login may only register one Vault User identity',
+                )
+
             rc, master_pwd = cls.create_master_password(override = True, master_password = master_password)
             if not rc:
                 raise OSError(rc.error())
@@ -257,7 +267,7 @@ class VaultUtils:
             # -- The vault-DB login that registered this VaultUser row must be its own claimed
             # identity -- otherwise anyone with *any* valid vault login could pre-register an
             # unclaimed user_id and silently receive any resource credential later granted to it.
-            # See docs/VAULT_SECURITY_DESIGN.md §3.2.
+            # See docs/VAULT_SECURITY_DESIGN.md §3.4.
             creator = VaultUser.creator_login(username)
             if creator != username:
                 return RC(
