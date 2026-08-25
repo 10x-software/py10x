@@ -10,7 +10,7 @@ import os
 import subprocess
 import sys
 
-_CODE = "import core_10x\nfrom py10x_kernel import OsUser\nprint(OsUser.me.name())\n"
+_CODE = 'import core_10x\nfrom py10x_kernel import OsUser\nprint(OsUser.me.name())\n'
 
 
 def _run(env_overrides: dict) -> subprocess.CompletedProcess:

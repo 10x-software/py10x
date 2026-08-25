@@ -65,9 +65,7 @@ def functional_account_env(monkeypatch, tmp_path):
     # VaultUser.login_already_registered (docs/VAULT_SECURITY_DESIGN.md §3.4) -- one vault-DB login
     # may only ever register one identity. A fixed, readable user_id can be used instead of a
     # per-run random one since the database itself is what's unique per run.
-    PostgresStore.instance_from_uri(
-        VAULT_URI, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True
-    )
+    PostgresStore.instance_from_uri(VAULT_URI, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True)
 
     container_account_id = os.environ.get('FUNCTIONAL_ACCOUNT_ID')
     if container_account_id:

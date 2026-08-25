@@ -99,8 +99,7 @@ class FunctionalAccountInitCli(TraitableCli):
         return (
             RC(
                 False,
-                f'no published image matches the running py10x-core version ({version}); '
-                'pass --image-tag dev|pre|prod|<tag> explicitly',
+                f'no published image matches the running py10x-core version ({version}); pass --image-tag dev|pre|prod|<tag> explicitly',
             ),
             '',
         )
@@ -111,8 +110,7 @@ class FunctionalAccountInitCli(TraitableCli):
             return (
                 RC(
                     False,
-                    'XX_MAIN_VAULT_URI must be set in this shell -- the container needs it to know '
-                    'which vault to register against',
+                    'XX_MAIN_VAULT_URI must be set in this shell -- the container needs it to know which vault to register against',
                 ),
                 [],
             )
