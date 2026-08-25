@@ -65,6 +65,7 @@ def vault_env(monkeypatch):
     # ``VaultUser.myname`` is @cache'd at the class level; replace with a
     # fresh classmethod that always re-reads ``current_os``.
     monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: current_os[0]))
+    monkeypatch.setattr(DuckDbStore, 'auth_user', lambda self: current_os[0])
 
     # 3. Prompts. ``vault_utils`` imports the ``getpass`` *module*, so patch
     #    its bound attribute as well as the global one.

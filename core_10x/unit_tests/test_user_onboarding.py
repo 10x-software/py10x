@@ -50,6 +50,7 @@ from core_10x.testlib.vault_env import VAULT_URI, vault_env
 from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
 from core_10x.vault_utils import VaultUtils
+from infra_10x.duckdb_store import DuckDbStore
 
 # -- URIs and credentials specific to the user-onboarding scenario ---------
 # (The ``vault_env`` fixture itself lives in ``core_10x.testlib.vault_env``
@@ -197,6 +198,223 @@ def test_admin_cannot_decrypt_alice_credentials(vault_env):  # noqa: F811  (pyte
             username=ALICE,
         )
         assert ra.user.sec_keys.decrypt_text(ra.password) == PG_PWD
+
+
+def test_admin_save_user_credentials_refuses_namesquatted_account(vault_env, monkeypatch):  # noqa: F811
+    """A `VaultUser` row registered under one vault-DB login but claiming a *different*
+    user_id -- e.g. an attacker pre-registering an unclaimed, plausible-looking service
+    name before the real owner does -- must not receive resource access later, even
+    though the row itself is real and exists. See docs/VAULT_SECURITY_DESIGN.md §3.4.
+    """
+    env = vault_env
+
+    env.switch_os_user(ADMIN)
+    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+
+    # Attacker: claims user_id 'xx-victim-service' while actually authenticated to the
+    # vault DB as a different login ('attacker_login') -- exactly the mismatch the
+    # provenance check exists to catch.
+    env.switch_os_user('xx-victim-service')
+    monkeypatch.setattr(DuckDbStore, 'auth_user', lambda self: 'attacker_login')
+    env.run_user_init(vault_login='attacker_login', vault_pwd='AttackerVault1!', master_pwd='AttackerMaster1!')
+
+    with Traitable.vault_store():
+        assert VaultUser.creator_login('xx-victim-service') == 'attacker_login'
+
+    # ADMIN later, believing this is the real service, tries to grant it a real resource.
+    env.switch_os_user(ADMIN)
+    env.text_q.append('xx-victim-service')  # 'Enter the user ID:'
+
+    rc = VaultUtils.admin_save_user_credentials()
+    assert not rc
+    assert 'namesquatting' in rc.error()
+
+    # No resource credential was ever created for the fake account.
+    with Traitable.vault_store():
+        ra = VaultResourceAccessor.existing_instance(
+            username='xx-victim-service',
+            resource_dt=CONCRETE_RESOURCE.REL_DB,
+            resource_uri=PG_URI,
+            _throw=False,
+        )
+        assert ra is None
+
+
+def test_user_init_refuses_reused_vault_login(vault_env, monkeypatch):  # noqa: F811
+    """A vault-DB login that already registered one `VaultUser` identity must be refused at
+    *registration* time for a second, different identity -- rather than letting the mismatched
+    row sit in the vault until an admin's later grant attempt catches it (§3.4's first
+    weakness). See docs/VAULT_SECURITY_DESIGN.md §3.4."""
+    env = vault_env
+
+    env.switch_os_user('xx-shared-service')
+    monkeypatch.setattr(DuckDbStore, 'auth_user', lambda self: 'shared_login')
+    env.run_user_init(vault_login='shared_login', vault_pwd='SharedVault1!', master_pwd='SharedMaster1!')
+
+    env.switch_os_user('xx-another-service')
+    rc = VaultUtils.user_init(
+        login='shared_login',
+        password='SharedVault1!',
+        master_password='AnotherMaster1!',
+    )
+    assert not rc
+    assert 'shared_login' in rc.error()
+    assert 'xx-shared-service' in rc.error()
+
+    env.switch_os_user('xx-shared-service')
+    with Traitable.vault_store():
+        assert VaultUser.existing_instance(user_id='xx-another-service', _throw=False) is None
+
+
+def test_creator_login_returns_original_creator_not_latest_editor(vault_env, monkeypatch):  # noqa: F811
+    """`VaultUser.creator_login` must report who *first* registered the row, even after a
+    later write (e.g. a master-password rotation) touches it under a different vault-DB
+    login -- `history()` is newest-first, so picking the wrong end would silently defeat
+    the provenance check."""
+    env = vault_env
+
+    env.switch_os_user(ALICE)
+    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+
+    # A later touch to the same row, under a *different* vault-DB login than the original
+    # registration -- simulates e.g. an admin-assisted rotation, without needing the real
+    # rotation flow just to exercise this ordering property.
+    monkeypatch.setattr(DuckDbStore, 'auth_user', lambda self: 'someone_else_login')
+    with Traitable.vault_store():
+        me = VaultUser.existing_instance(user_id=ALICE)
+        me.set_values(master_password_salt=SecKeys.generate_salt()).throw()
+        me.save().throw()
+
+        assert VaultUser.creator_login(ALICE) == ALICE, 'must report the original registrant, not the later editor'
+
+
+def test_creator_login_returns_latest_creator_after_delete_and_recreate(vault_env, monkeypatch):  # noqa: F811
+    """Deleting a `VaultUser` row and re-registering the same user_id starts a *new* row with
+    its own `_traitable_rev` counter -- so its history can contain more than one
+    `_traitable_rev == 1` entry, one per registration. `creator_login` must report the most
+    recent registrant, not a stale entry belonging to a row that no longer exists. This isn't
+    guaranteed by `_at_most=1` alone -- it depends on `history()`'s `_at`-descending ordering
+    being applied before the limit, so the first `_traitable_rev == 1` match found is also the
+    latest one. See docs/VAULT_SECURITY_DESIGN.md §3.4.
+
+    Saves `VaultUser` directly rather than through `VaultUtils.user_init` (unlike the other
+    tests in this file): the real onboarding flow's existing-instance guard, driven by
+    `accept_existing()` (`cxx10x/core_10x/btraitable_processor.cpp`), can report a row this
+    same process just deleted as still existing -- the process-wide identity cache isn't
+    invalidated by `delete()`. That's a separate, lower-severity caching quirk (a single
+    onboarding CLI run is short-lived, so delete-then-recreate within one process is not the
+    realistic path) and not what this test is about; `switch_os_user` clears it as a side
+    effect, worked around here rather than exercised.
+    """
+    env = vault_env
+
+    env.switch_os_user('xx-shared-service')
+    monkeypatch.setattr(DuckDbStore, 'auth_user', lambda self: 'first_login')
+    SecKeys.change_vault_login_password('first_login', 'FirstVaultPwd1!', vault_uri=VAULT_URI, override=True)
+    with Traitable.vault_store():
+        me = VaultUser()
+        me.set_values(master_password_salt=SecKeys.generate_salt()).throw()
+        me.save().throw()
+
+        assert VaultUser.creator_login('xx-shared-service') == 'first_login'
+        VaultUser.existing_instance(user_id='xx-shared-service').delete().throw()
+
+    # Drop the process-wide identity cache's stale entry for the just-deleted row (see
+    # docstring) -- `switch_os_user` clears it as a side effect even though the OS user
+    # doesn't actually change here.
+    env.switch_os_user('xx-shared-service')
+
+    # Re-registered later, under a different vault-DB login -- a brand-new row, its own
+    # _traitable_rev starting at 1 again.
+    monkeypatch.setattr(DuckDbStore, 'auth_user', lambda self: 'second_login')
+    SecKeys.change_vault_login_password('second_login', 'SecondVaultPwd1!', vault_uri=VAULT_URI, override=True)
+    with Traitable.vault_store():
+        me2 = VaultUser()
+        me2.set_values(master_password_salt=SecKeys.generate_salt()).throw()
+        me2.save().throw()
+
+        assert VaultUser.creator_login('xx-shared-service') == 'second_login', (
+            'must report the current registrant, not a stale _traitable_rev==1 entry from the deleted row'
+        )
+
+
+def test_suspended_account_cannot_decrypt(vault_env):  # noqa: F811
+    """`VaultUser.suspended` was defined but never checked anywhere -- confirmed by grep before
+    this fix existed. `sec_keys_get()` is the single choke point every resource-credential and
+    private-key decrypt goes through, so gating it there covers all of them at once. See
+    docs/VAULT_SECURITY_DESIGN.md §3.4.
+
+    Deliberately never evaluates `.sec_keys` before suspension: it's `RT(T.EVAL_ONCE)` -- cached
+    per identity for the process's lifetime, confirmed directly -- so a session that already holds
+    a cached value from before suspension keeps it; this only reliably covers a *fresh* evaluation,
+    which is what's tested here. See the caveat this finding added to §3.4's weaknesses.
+    """
+    env = vault_env
+    env.switch_os_user(ALICE)
+    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+
+    env.switch_os_user(ADMIN)
+    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+    with Traitable.vault_store():
+        me = VaultUser.existing_instance(user_id=ALICE)
+        me.set_values(suspended=True).throw()
+        me.save().throw()
+
+    env.switch_os_user(ALICE)
+    with Traitable.vault_store():
+        me = VaultUser.existing_instance(user_id=ALICE)
+        # -- property-getter exceptions get wrapped by the framework -- TraitMethodError, same as
+        # test_admin_cannot_decrypt_alice_credentials's analogous case above.
+        with pytest.raises(TraitMethodError, match='suspended'):
+            _ = me.sec_keys
+
+
+def test_suspended_account_cannot_seed_new_machine(vault_env):  # noqa: F811
+    """A suspended identity must not be able to re-establish local access on a *new* machine
+    either -- `_user_init_new_machine` decrypts via `SecKeys.decrypt_private_key` directly, not
+    `VaultUser.sec_keys_get()`, so it needs its own gate."""
+    env = vault_env
+    env.switch_os_user(ALICE)
+    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+
+    env.switch_os_user(ADMIN)
+    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+    with Traitable.vault_store():
+        me = VaultUser.existing_instance(user_id=ALICE)
+        me.set_values(suspended=True).throw()
+        me.save().throw()
+
+    env.switch_os_user(ALICE)
+    env.clear_local_keyring()
+    rc = VaultUtils.user_init(
+        new_machine=True,
+        login=ALICE,
+        password=ALICE_VAULT_PWD,
+        master_password=ALICE_MASTER,
+    )
+    assert not rc
+    assert 'suspended' in rc.error()
+    assert (EnvVars.master_password_key, ALICE) not in env.keyring
+
+
+def test_admin_save_user_credentials_refuses_suspended_account(vault_env):  # noqa: F811
+    """A suspended account shouldn't be granted *new* resource access either."""
+    env = vault_env
+    env.switch_os_user(ADMIN)
+    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+    env.switch_os_user(ALICE)
+    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+
+    env.switch_os_user(ADMIN)
+    with Traitable.vault_store():
+        me = VaultUser.existing_instance(user_id=ALICE)
+        me.set_values(suspended=True).throw()
+        me.save().throw()
+
+    env.text_q.append(ALICE)  # 'Enter the user ID:'
+    rc = VaultUtils.admin_save_user_credentials()
+    assert not rc
+    assert 'suspended' in rc.error()
 
 
 # ---------------------------------------------------------------------------

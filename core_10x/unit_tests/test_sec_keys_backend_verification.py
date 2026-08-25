@@ -1,4 +1,4 @@
-"""Tests for `SecKeys._verify_keyring_backend` (docs/VAULT_SECURITY_DESIGN.md §3.3) --
+"""Tests for `SecKeys._verify_keyring_backend` (docs/VAULT_SECURITY_DESIGN.md §3.2) --
 `change_master_password`/`change_vault_login_password` refuse to write through any keyring
 backend not on the allowlist, so a silently-selected plaintext fallback (e.g. `keyrings.alt`)
 can't receive a secret in the first place.
@@ -12,9 +12,7 @@ from core_10x.sec_keys import SecKeys
 
 
 class _FakePlaintextBackend(keyring.backend.KeyringBackend):
-    """Stands in for an unrecognized third-party backend (e.g. keyrings.alt's PlaintextKeyring)."""
-
-    priority = 1
+    priority = float('-inf')
 
     def get_password(self, service, username):
         return None

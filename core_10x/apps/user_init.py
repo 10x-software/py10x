@@ -11,8 +11,7 @@ See ``docs/USER_ONBOARDING_AUTH.md`` for the full procedure, including the
 from __future__ import annotations
 
 import json
-import shlex
-import subprocess
+import os
 import sys
 
 import keyring
@@ -34,28 +33,26 @@ class UserInitCli(TraitableCli):
     xx-user-init                 first-time registration (default)
     xx-user-init --new-user      first-time registration: create VaultUser + keys and seed OS keyring
     xx-user-init --new-machine   existing user on a new machine: prove master password and seed local OS keyring
-    xx-user-init --functional-account --command 'docker secret create {secret_name} -'
-                                  non-interactive functional-account registration: run inside this
-                                  image's container with FUNCTIONAL_ACCOUNT_ID set (identity comes
-                                  from the real renamed OS account); prompts for the vault
-                                  login/password, generates a master password, and pipes the
-                                  resulting manifest into --command instead of printing it.
+    xx-user-init --functional-account --output-file /path/to/manifest
+                                  non-interactive registration inside a functional-account
+                                  container; writes the manifest to --output-file (e.g. FIFO)
+                                  for a wrapper (e.g. xx-functional-account-init) to provision.
     """
 
     new_user: bool = RT(False)
     new_machine: bool = RT(False)
     functional_account: bool = RT(False)
-    command: str = RT('')
+    output_file: str = RT('')
 
     def post_verify(self) -> RC:
         rc = super().post_verify()
         modes_set = sum([self.new_user, self.new_machine, self.functional_account])
         if modes_set > 1:
             return rc + RC(False, 'specify only one of --new-user, --new-machine, or --functional-account')
-        if self.command and not self.functional_account:
-            return rc + RC(False, '--command only applies with --functional-account')
-        if self.functional_account and not self.command:
-            return rc + RC(False, '--functional-account requires --command (the manifest is never printed)')
+        if self.output_file and not self.functional_account:
+            return rc + RC(False, '--output-file only applies with --functional-account')
+        if self.functional_account and not self.output_file:
+            return rc + RC(False, '--functional-account requires --output-file (the manifest is never printed)')
         if self.functional_account and not VaultUser.is_functional_account(VaultUser.myname()):
             return rc + RC(
                 False,
@@ -100,12 +97,13 @@ class UserInitCli(TraitableCli):
         payload = json.dumps(manifest)
         secret_name = FunctionalAccountKeyring.secret_name(user_id)
 
-        argv = shlex.split(self.command.format(secret_name=shlex.quote(secret_name)))
         try:
-            subprocess.run(argv, input=payload, text=True, check=True)
-        except (OSError, subprocess.CalledProcessError) as ex:
-            return RC(False, f'--command failed: {ex}')
-        print(f'seeded secret {secret_name!r} via: {self.command}', file=sys.stderr)
+            fd = os.open(self.output_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, 'w') as f:
+                f.write(payload)
+        except OSError as ex:
+            return RC(False, f'--output-file failed: {ex}')
+        print(f'wrote manifest for secret {secret_name!r} to {self.output_file!r}', file=sys.stderr)
 
         return RC_TRUE
 

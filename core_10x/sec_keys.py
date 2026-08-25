@@ -18,10 +18,6 @@ from core_10x.functional_account_keyring import FunctionalAccountKeyring
 from core_10x.global_cache import cache
 from core_10x.rc import RC, RC_TRUE
 
-# -- Allowlist, not a denylist: only a recognized OS-native backend (or the explicit in-memory
-# functional-account one) may receive a write. A denylist naming known-bad backends (e.g.
-# keyrings.alt) would miss anything not yet known about; failing closed for anything unrecognized
-# is the safer default. See docs/VAULT_SECURITY_DESIGN.md §3.3.
 _ACCEPTABLE_KEYRING_BACKENDS = (
     MacOSKeyring,
     WinVaultKeyring,
