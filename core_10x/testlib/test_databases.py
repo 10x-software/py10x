@@ -27,8 +27,8 @@ import pytest
 import uuid6
 
 from core_10x.resource import Resource
+from core_10x.traitable import Traitable
 from core_10x.ts_store import TsStore
-from core_10x.ts_store_type import TS_STORE_TYPE
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -76,7 +76,9 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
             if not TsStore.is_running_with_auth_from_uri(uri)[0]:
                 stores[uri] = None
             else:
-                stores[uri] = TsStore.instance_from_uri(uri, _cache=False, _create_if_needed=True)
+                # Vault-aware: password-auth servers take credentials from the local vault;
+                # open (CI / unauthenticated mongo+postgres) servers skip it.
+                stores[uri] = Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True)
                 created.add((Resource.uri_no_dbname(uri), dbname))
         return stores[uri]
 
@@ -86,4 +88,4 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
         if dbname == SESSION_DB and SESSION_DB_IS_PINNED:
             continue
         # From a store on the server default: a store cannot drop the database it is on.
-        TsStore.instance_from_uri(uri, _cache=False).delete_database(dbname)
+        Traitable.store_from_uri(uri, _cache=False).delete_database(dbname)

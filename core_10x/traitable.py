@@ -701,7 +701,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return store_class.instance(**spec.kwargs)
 
     @staticmethod
-    def store_from_uri(uri: str, *, _create_if_needed: bool = False) -> TsStore:
+    def store_from_uri(uri: str, *, _cache: bool = True, _create_if_needed: bool = False) -> TsStore:
         spec = TsStore.spec_from_uri(uri)
         store_class: type[TsStore] = spec.resource_class
         is_running, with_auth = store_class.is_running_with_auth(spec.hostname(), spec.port())
@@ -710,10 +710,15 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         if with_auth:
             with UPWARD_DEPS_OFF(), Traitable.vault_store():
-                ra = VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, uri, _create_resource_if_needed=_create_if_needed)
+                ra = VaultResourceAccessor.retrieve_ra(
+                    CONCRETE_RESOURCE.TS_STORE,
+                    uri,
+                    _create_resource_if_needed=_create_if_needed,
+                    _cache=_cache,
+                )
                 return ra.resource
 
-        return store_class.instance(**spec.kwargs, _create_if_needed=_create_if_needed)
+        return store_class.instance(**spec.kwargs, _cache=_cache, _create_if_needed=_create_if_needed)
 
     @staticmethod
     @cache
@@ -1604,6 +1609,7 @@ class VaultResourceAccessor(Traitable):
     user: VaultUser = RT(T.EVAL_ONCE)
     resource: Resource = RT(T.EVAL_ONCE)
     _create_resource_if_needed: bool = RT(False)
+    _cache: bool = RT(True)
 
     def username_get(self) -> str:
         return VaultUser.myname()
@@ -1623,6 +1629,7 @@ class VaultResourceAccessor(Traitable):
             self.resource_uri,
             username=self.login,
             password=self.user.sec_keys.decrypt_text(self.password),
+            _cache=self._cache,
             _create_if_needed=self._create_resource_if_needed,
         )
 
@@ -1649,7 +1656,15 @@ class VaultResourceAccessor(Traitable):
         return rc
 
     @classmethod
-    def retrieve_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, username: str = None, *, _create_resource_if_needed: bool = False) -> VaultResourceAccessor:
+    def retrieve_ra(
+        cls,
+        resource_dt: CONCRETE_RESOURCE,
+        resource_uri: str,
+        username: str = None,
+        *,
+        _create_resource_if_needed: bool = False,
+        _cache: bool = True,
+    ) -> VaultResourceAccessor:
         if not username:
             username = VaultUser.myname()
 
@@ -1665,6 +1680,7 @@ class VaultResourceAccessor(Traitable):
         fake_ra.login = ra.login
         fake_ra.password = ra.password
         fake_ra._create_resource_if_needed = _create_resource_if_needed
+        fake_ra._cache = _cache
         return fake_ra
 
 
