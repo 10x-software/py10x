@@ -12,9 +12,7 @@ from core_10x.sec_keys import SecKeys
 
 
 class _FakePlaintextBackend(keyring.backend.KeyringBackend):
-    """Stands in for an unrecognized third-party backend (e.g. keyrings.alt's PlaintextKeyring)."""
-
-    priority = 1
+    priority = float('-inf')
 
     def get_password(self, service, username):
         return None
