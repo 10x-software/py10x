@@ -96,7 +96,7 @@ class TestCcyCrossResolve:
 
         with pytest.raises(AssertionError, match = 'Invalid cross GBP, must consist of 2 currencies'):
             assert CcyCross.is_same_ccy_cross(cross = 'GBP')
-        with pytest.raises(ValueError, match = 'Instance does not exist.*XXX'):
+        with pytest.raises(ValueError, match = r'Instance does not exist.*XXX'):
             assert CcyCross.is_same_ccy_cross(cross = 'XXX/GBP')
 
     def test_invert_cross(self):
