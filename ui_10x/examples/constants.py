@@ -1,5 +1,6 @@
 from core_10x.named_constant import NamedConstant
 
+
 class COLOR(NamedConstant):
     BLACK   = 'black'
     WHITE   = 'white'
