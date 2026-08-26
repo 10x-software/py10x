@@ -20,17 +20,15 @@ bool OsUser::get_user_name(std::string& user_name) {
 #elif defined(__unix__) || defined(__APPLE__) || defined(__linux)
 #   include <unistd.h>
 #   include <stdlib.h>
-    bool OsUser::get_user_name(std::string& user_name) {
-        const char* username = getenv("USER");
-        if (!username) {
-            username = getenv("LOGNAME");
-            if (!username)
-                return false;
-        }
+#   include <pwd.h>
 
-        user_name = username;
-        return true;
-    }
+bool OsUser::get_user_name(std::string& user_name) {
+    passwd* pw = getpwuid(geteuid());
+    if (!pw)
+        return false;
+    user_name = pw->pw_name;
+    return true;
+}
 #endif
 
 OsUser OsUser::me;
