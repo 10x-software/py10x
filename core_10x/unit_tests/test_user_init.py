@@ -60,32 +60,32 @@ def test_both_flags_are_rejected(monkeypatch, capsys):
     assert 'specify only one of --new-user, --new-machine, or --functional-account' in capsys.readouterr().out
 
 
-def test_functional_account_requires_command(monkeypatch, capsys):
+def test_functional_account_requires_output_file(monkeypatch, capsys):
     def user_init(**_kwargs):
-        raise AssertionError('VaultUtils.user_init must not run without --command')
+        raise AssertionError('VaultUtils.user_init must not run without --output-file')
 
     assert _run(monkeypatch, ['xx-user-init', '--functional-account'], user_init) == 1
-    assert '--functional-account requires --command' in capsys.readouterr().out
+    assert '--functional-account requires --output-file' in capsys.readouterr().out
 
 
-def test_command_requires_functional_account(monkeypatch, capsys):
+def test_output_file_requires_functional_account(monkeypatch, capsys, tmp_path):
     def user_init(**_kwargs):
         raise AssertionError('VaultUtils.user_init must not run')
 
-    assert _run(monkeypatch, ['xx-user-init', '--command', 'echo hi'], user_init) == 1
-    assert '--command only applies with --functional-account' in capsys.readouterr().out
+    assert _run(monkeypatch, ['xx-user-init', '--output-file', str(tmp_path / 'm.json')], user_init) == 1
+    assert '--output-file only applies with --functional-account' in capsys.readouterr().out
 
 
-def test_functional_account_and_new_user_are_mutually_exclusive(monkeypatch, capsys):
+def test_functional_account_and_new_user_are_mutually_exclusive(monkeypatch, capsys, tmp_path):
     def user_init(**_kwargs):
         raise AssertionError('VaultUtils.user_init must not run')
 
-    argv = ['xx-user-init', '--new-user', '--functional-account', '--command', 'echo hi']
+    argv = ['xx-user-init', '--new-user', '--functional-account', '--output-file', str(tmp_path / 'm.json')]
     assert _run(monkeypatch, argv, user_init) == 1
     assert 'specify only one of --new-user, --new-machine, or --functional-account' in capsys.readouterr().out
 
 
-def test_functional_account_rejects_non_prefixed_os_identity(monkeypatch, capsys):
+def test_functional_account_rejects_non_prefixed_os_identity(monkeypatch, capsys, tmp_path):
     """Defense-in-depth, not a fix for a currently-live gap (infra_10x/mongodb_utils.py's
     is_functional_account() consumer has no live callers today -- see docs/VAULT_SECURITY_DESIGN.md
     §3.3): registering a "functional account" whose real OS identity doesn't actually carry the
@@ -96,20 +96,19 @@ def test_functional_account_rejects_non_prefixed_os_identity(monkeypatch, capsys
         raise AssertionError('VaultUtils.user_init must not run for a non-prefixed identity')
 
     monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: 'not-a-functional-account'))
-    argv = ['xx-user-init', '--functional-account', '--command', 'echo hi']
+    argv = ['xx-user-init', '--functional-account', '--output-file', str(tmp_path / 'm.json')]
     assert _run(monkeypatch, argv, user_init) == 1
     assert 'to start with the functional-account prefix' in capsys.readouterr().out
 
 
 @pytest.mark.skipif(
     sys.platform == 'win32',
-    reason='--functional-account is a Linux/Docker-container command (docker/entrypoint.sh); --command is not exercised on Windows',
+    reason='--functional-account is a Linux/Docker-container command (docker/entrypoint.sh); --output-file is not exercised on Windows',
 )
-def test_functional_account_generates_master_password_and_pipes_manifest(monkeypatch, capsys, tmp_path):
-    """CLI plumbing only (vault I/O mocked, matching the module docstring): login/password are
-    never passed to VaultUtils.user_init (so the real getpass prompts would fire for both), the
-    master password is generated rather than supplied, and the resulting manifest is piped --
-    never printed -- into --command with {secret_name} substituted."""
+def test_functional_account_writes_manifest_to_output_file(monkeypatch, capsys, tmp_path):
+    """--output-file is the mode an outer wrapper (xx-functional-account-init) uses: the manifest
+    is written to a path (a plain file here; a bind-mounted FIFO for the real wrapper -- opened
+    the same way either way) instead of piped into a subprocess, and still never printed."""
     vault_uri = 'postgresql://vault-host:5432/vaultdb'
     monkeypatch.setattr(EnvVars, 'main_vault_uri', vault_uri)
     monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: 'xx-myservice'))
@@ -120,29 +119,21 @@ def test_functional_account_generates_master_password_and_pipes_manifest(monkeyp
     def user_init(*, master_password, **kwargs):
         seen['master_password'] = master_password
         seen['other_kwargs'] = kwargs
-        # Simulate what the real VaultUtils.user_init would have written, into whichever keyring
-        # _run_functional_account already installed for this call.
         user_id = VaultUser.myname()
         keyring.set_password(EnvVars.master_password_key, user_id, master_password)
         keyring.set_password(vault_uri, user_id, 'pg_admin\x1ffake-pg-password')
         return RC_TRUE
 
-    out_file = tmp_path / 'captured.json'
-    argv = [
-        'xx-user-init',
-        '--functional-account',
-        '--command',
-        f'tee {out_file}',
-    ]
+    out_file = tmp_path / 'manifest.json'
+    argv = ['xx-user-init', '--functional-account', '--output-file', str(out_file)]
     try:
         rc = _run(monkeypatch, argv, user_init)
     finally:
         keyring.set_keyring(original_backend)
 
     assert rc == 0
-    assert seen['other_kwargs'] == {}  # no login/password passed -> both prompted interactively
-    assert seen['master_password']  # generated (SecKeys.generate_password()), not supplied
-    assert len(seen['master_password']) >= 20  # not a trivially short placeholder
+    assert seen['other_kwargs'] == {}
+    assert seen['master_password']
 
     stdout = capsys.readouterr().out
     assert stdout == ''  # manifest must never be printed
@@ -153,38 +144,3 @@ def test_functional_account_generates_master_password_and_pipes_manifest(monkeyp
         {'service': EnvVars.master_password_key, 'username': user_id, 'password': seen['master_password']},
         {'service': vault_uri, 'username': user_id, 'password': 'pg_admin\x1ffake-pg-password'},
     ]
-
-
-@pytest.mark.skipif(sys.platform == 'win32', reason='same as above: --command is a Linux/Docker-container concern')
-def test_functional_account_quotes_secret_name_against_command_splintering(monkeypatch, capsys, tmp_path):
-    """A hostile/malformed account id must not let {secret_name} splinter into extra argv tokens
-    once folded into --command and shlex.split -- shlex.quote guarantees it stays one token."""
-    hostile_id = 'xx-evil; rm -rf /'
-    monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host:5432/vaultdb')
-    monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: hostile_id))
-    original_backend = keyring.get_keyring()
-
-    def user_init(*, master_password, **_kwargs):
-        user_id = VaultUser.myname()
-        keyring.set_password(EnvVars.master_password_key, user_id, master_password)
-        keyring.set_password('postgresql://vault-host:5432/vaultdb', user_id, 'pg_admin\x1ffake-pg-password')
-        return RC_TRUE
-
-    seen_argv: list[str] = []
-
-    def fake_run(argv, **_kwargs):
-        seen_argv.extend(argv)
-        return type('R', (), {'returncode': 0})()
-
-    monkeypatch.setattr('core_10x.apps.user_init.subprocess.run', fake_run)
-
-    argv = ['xx-user-init', '--functional-account', '--command', 'docker secret create {secret_name} -']
-    try:
-        rc = _run(monkeypatch, argv, user_init)
-    finally:
-        keyring.set_keyring(original_backend)
-
-    assert rc == 0
-    # secret_name (derived from hostile_id) must arrive as exactly ONE argv token, not splinter
-    # into ['create', 'xx-evil;', 'rm', '-rf', '/', '-'].
-    assert seen_argv == ['docker', 'secret', 'create', f'{hostile_id}-vault-keyring', '-']

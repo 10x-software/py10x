@@ -65,7 +65,6 @@ class UxRadioBox(ux.GroupBox):
         else:
             super().__init__()
 
-
         lay = ux.HBoxLayout() if horizontal else ux.VBoxLayout()
         self.set_layout(lay)
 
@@ -462,7 +461,7 @@ class UxSearchableList(ux.GroupBox):
         self.w_list.add_items(self.current_choices)
 
     def item_selected(self, item: ux.ListItem):
-        i = item.row()
+        i = self.w_list.row(item)
         label = self.current_choices[i]
         choice = self.initial_choices[label]
         self.reset()
@@ -499,6 +498,7 @@ class UxSearchableList(ux.GroupBox):
         self.current_choices = []
 
 class UxTreeViewer(ux.TreeWidget):
+    __slots__ = ('dir', 'num_cols', 'select_hook')
     s_label_max_length  = 40
 
     def __init__(self, dir: Directory, select_hook = None, label_max_length = -1, expand = False, **kwargs):
@@ -537,6 +537,8 @@ class UxTreeViewer(ux.TreeWidget):
         self.set_size_policy(ux.SizePolicy.MINIMUM_EXPANDING, ux.SizePolicy.MINIMUM_EXPANDING)
 
     class TreeItem(ux.TreeItem):
+        __slots__ = ('dir',)
+
         def __init__(self, parent_node, dir: Directory):
             super().__init__(parent_node)
             self.dir = dir

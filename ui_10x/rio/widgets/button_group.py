@@ -26,7 +26,7 @@ class RadioButton(Widget, i.RadioButton):
             self._button_group.on_change(self)
 
     def on_select(self):
-        self.set_checked(not self['checked'])
+        self.set_checked(True)   # Radios select; they do not toggle off when clicked again.
 
 
 class ButtonGroup(Widget, i.ButtonGroup):

@@ -701,7 +701,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return store_class.instance(**spec.kwargs)
 
     @staticmethod
-    def store_from_uri(uri: str, *, _create_if_needed: bool = False) -> TsStore:
+    def store_from_uri(uri: str, *, _cache: bool = True, _create_if_needed: bool = False) -> TsStore:
         spec = TsStore.spec_from_uri(uri)
         store_class: type[TsStore] = spec.resource_class
         is_running, with_auth = store_class.is_running_with_auth(spec.hostname(), spec.port())
@@ -710,10 +710,15 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         if with_auth:
             with UPWARD_DEPS_OFF(), Traitable.vault_store():
-                ra = VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, uri, _create_resource_if_needed=_create_if_needed)
+                ra = VaultResourceAccessor.retrieve_ra(
+                    CONCRETE_RESOURCE.TS_STORE,
+                    uri,
+                    _create_resource_if_needed=_create_if_needed,
+                    _cache=_cache,
+                )
                 return ra.resource
 
-        return store_class.instance(**spec.kwargs, _create_if_needed=_create_if_needed)
+        return store_class.instance(**spec.kwargs, _cache=_cache, _create_if_needed=_create_if_needed)
 
     @staticmethod
     @cache
@@ -1544,7 +1549,7 @@ class VaultUser(Traitable):
     def sec_keys_get(self) -> SecKeys:
         # -- Every resource-credential and private-key decrypt for this identity goes through
         # this property (RT(T.EVAL_ONCE)) -- the single choke point where suspension takes effect.
-        # See docs/VAULT_SECURITY_DESIGN.md §3.4 -- previously defined but never enforced anywhere.
+        # See docs/VAULT_SECURITY_DESIGN.md §3.2.
         if self.suspended:
             raise RuntimeError(f'VaultUser {self.user_id!r} is suspended')
         rc, master_pwd = SecKeys.retrieve_master_password()
@@ -1565,13 +1570,19 @@ class VaultUser(Traitable):
     def creator_login(cls, user_id: str) -> str | None:
         """The vault-DB login that first created this row -- ``_who`` on the creation entry
         (``_traitable_rev == 1``) of its free ``TraitableHistory`` audit trail. ``None`` if no
-        history exists. See docs/VAULT_SECURITY_DESIGN.md §3.2 -- lets a caller verify a
+        history exists. See docs/VAULT_SECURITY_DESIGN.md §3.4 -- lets a caller verify a
         `VaultUser` row was actually registered by its own claimed identity, not pre-registered by
         someone else. Filters directly for revision 1 rather than fetching the full (newest-first)
         history and taking the last entry -- a single-row query either way.
         """
         for entry in cls.history(user_id=user_id, _filter=f(_traitable_rev=1), _at_most=1):
             return entry.get('_who')
+        return None
+
+    @classmethod
+    def login_already_registered(cls, login: str) -> str | None:
+        for entry in cls.history(_who=login, _filter=f(_traitable_rev=1), _at_most=1):
+            return entry.get('user_id')
         return None
 
     @classmethod
@@ -1598,6 +1609,7 @@ class VaultResourceAccessor(Traitable):
     user: VaultUser = RT(T.EVAL_ONCE)
     resource: Resource = RT(T.EVAL_ONCE)
     _create_resource_if_needed: bool = RT(False)
+    _cache: bool = RT(True)
 
     def username_get(self) -> str:
         return VaultUser.myname()
@@ -1617,6 +1629,7 @@ class VaultResourceAccessor(Traitable):
             self.resource_uri,
             username=self.login,
             password=self.user.sec_keys.decrypt_text(self.password),
+            _cache=self._cache,
             _create_if_needed=self._create_resource_if_needed,
         )
 
@@ -1643,7 +1656,15 @@ class VaultResourceAccessor(Traitable):
         return rc
 
     @classmethod
-    def retrieve_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, username: str = None, *, _create_resource_if_needed: bool = False) -> VaultResourceAccessor:
+    def retrieve_ra(
+        cls,
+        resource_dt: CONCRETE_RESOURCE,
+        resource_uri: str,
+        username: str = None,
+        *,
+        _create_resource_if_needed: bool = False,
+        _cache: bool = True,
+    ) -> VaultResourceAccessor:
         if not username:
             username = VaultUser.myname()
 
@@ -1659,6 +1680,7 @@ class VaultResourceAccessor(Traitable):
         fake_ra.login = ra.login
         fake_ra.password = ra.password
         fake_ra._create_resource_if_needed = _create_resource_if_needed
+        fake_ra._cache = _cache
         return fake_ra
 
 

@@ -34,7 +34,7 @@ SCROLL = widgets.SCROLL
 
 Point = component_builder.Point
 FontMetrics = component_builder.FontMetrics
-SizePolicy = component_builder.FontMetrics
+SizePolicy = component_builder.SizePolicy
 TEXT_ALIGN = component_builder.TEXT_ALIGN
 
 Widget = component_builder.Widget

@@ -179,7 +179,8 @@ different from the human flow:
   (`usermod -l`) — there is no OS account to create ahead of time. Pick a
   `user_id` starting with the `xx-` prefix (`EnvVars.functional_account_prefix`),
   e.g. `xx-myservice`; `VaultUser.is_functional_account` uses that prefix to
-  distinguish it from a human login.
+  distinguish it from a human login. The same rename applies to one-time
+  registration (below), not just the running service.
 - **The two secrets never live in a file on disk.**
   `core_10x.functional_account_keyring.FunctionalAccountKeyring` is
   deliberately in-memory-only — it reads a JSON manifest once (from
@@ -192,33 +193,41 @@ different from the human flow:
 
 ### One-time: register the account and capture its secrets
 
-A functional account is registered and delivered in one step:
-`xx-user-init --functional-account --command '...'` *is* the delivery
-mechanism — there's no separate "register, then deliver" — `--command` is
-whatever creates the secret in your target secret store. It prompts for the
-vault login and password (same prompts the interactive flow uses — never a
-CLI arg or env var), generates a random master password (nobody ever types a
-functional account's master password back in, so there's no reason to make
-one up), then reads back both from the in-memory keyring and pipes the
-manifest — never prints it — into `--command`'s stdin.
+A functional account is registered and delivered in one step, via
+`xx-functional-account-init` (`core_10x/apps/functional_account_init.py`): it
+runs `xx-user-init --functional-account` inside a disposable container, then
+feeds the resulting manifest into `--command`, whatever creates the secret
+in your target secret store. Registration prompts for the vault login and
+password (same prompts the interactive flow uses — never a CLI arg or env
+var, and never printed anywhere), generates a random master password
+(nobody ever types a functional account's master password back in), and
+delivers the manifest to `--command` over a transient named pipe, not a file
+sitting readable on disk.
 
-Set `USER` to the functional account's name and run `xx-user-init` with whatever
-`docker`/`kubectl` you already have on that machine. The id must actually carry the `xx-`
-prefix (`EnvVars.functional_account_prefix`) — `xx-user-init
---functional-account` refuses to run otherwise.
+Image, vault URI, and Docker network mode are all auto-resolved — nothing to
+plumb by hand for the common case:
 
 ```bash
-USER=xx-myservice \
-XX_MAIN_VAULT_URI=postgresql://vault-host:5432/vaultdb \
-  xx-user-init --functional-account --command "docker secret create {secret_name} -"
+xx-functional-account-init \
+  --functional-account-id xx-myservice \
+  --command "docker secret create {secret_name} -"
 # you will be prompted to enter the vault account and password
 ```
 
-`--command` is required in this mode — there is no fallback that prints the
-manifest. Its `{secret_name}` placeholder is substituted (`shlex.quote`d, so
-it can't splinter into extra tokens even for an unusual account id) with a
-name derived
-from the account id (`FunctionalAccountKeyring.secret_name`), e.g.
+`XX_MAIN_VAULT_URI` must already be set in your shell (same as any other
+`xx-*` command) — it's forwarded into the container automatically, along
+with `--network host` when the vault host is a loopback address. The account
+id must carry the `xx-` prefix (`EnvVars.functional_account_prefix`) —
+`xx-functional-account-init` refuses to run otherwise. If the
+currently-installed `py10x-core` version has no matching published image
+(e.g. a local, unreleased dev build), pass `--image-tag dev|pre|prod|<tag>`
+explicitly; otherwise the image matching your installed version is found and
+used automatically.
+
+`--command` is required — there is no fallback that prints the manifest. Its
+`{secret_name}` placeholder is substituted (`shlex.quote`d, so it can't
+splinter into extra tokens even for an unusual account id) with a name
+derived from the account id (`FunctionalAccountKeyring.secret_name`), e.g.
 `xx-myservice-vault-keyring` — not something you type, so the name used to
 create the secret always matches what your deployment manifest should
 reference.
@@ -254,7 +263,7 @@ there's no race with `FunctionalAccountKeyring`'s lazy first read.
 ### Kubernetes: swap the `--command`, then deploy
 
 Same pattern, different `--command`, run with whatever `kubectl`/kubeconfig
-you already have on your machine — same bare-host provisioning step as above:
+you already have on your machine — same `xx-functional-account-init` step as above:
 ```
 --command 'kubectl create secret generic {secret_name} --from-file=keyring.json=/dev/stdin'
 ```
@@ -322,7 +331,11 @@ manifest — no need to re-run registration.
   the in-memory-only `keyring` backend for functional accounts, and
   `FunctionalAccountKeyring.secret_name` (the naming convention)
 - `core_10x/apps/user_init.py` — `UserInitCli`'s `--functional-account`
-  / `--command` mode (non-interactive registration + manifest piping)
+  / `--output-file` mode (non-interactive registration + manifest delivery)
+- `core_10x/apps/functional_account_init.py` — `FunctionalAccountInitCli`
+  (`xx-functional-account-init`), the automated Docker-wrapped provisioning
+  command: runs registration inside a real container and pipes the manifest
+  to a provisioning command outside it
 - `docker/Dockerfile`, `docker/entrypoint.sh` — the container's OS-account
   rename (pinned `10001:10001` uid/gid) + keyring wiring
 - `core_10x/unit_tests/test_functional_account_vault.py` — end-to-end test

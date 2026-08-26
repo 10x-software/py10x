@@ -72,7 +72,7 @@ if __name__ == '__main__':
         return f'{secs:7.3f}s  {n / secs:10,.0f}/s' if secs > 0 else f'{0:7.3f}s  {"n/a":>10}'
 
     def bench_backend(uri: str) -> dict[str, str]:
-        store = TsStore.instance_from_uri(uri, _cache=False, _create_if_needed=True)
+        store = Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True)
         results: dict[str, str] = {}
         doc_coll_name = f'bench_doc_{uuid6.uuid7().hex}'
         log_coll_name = f'bench_log_{uuid6.uuid7().hex}'

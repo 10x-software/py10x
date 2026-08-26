@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import json
 import os
-import uuid
 from types import SimpleNamespace
 
 import core_10x.sec_keys as sec_keys_mod
@@ -40,19 +39,34 @@ from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.environment_variables import EnvVars
 from core_10x.functional_account_keyring import FunctionalAccountKeyring
 from core_10x.global_cache import _clear_all_caches
+from core_10x.resource import Resource
 from core_10x.testlib.strict import need
+from core_10x.testlib.test_databases import SESSION_DB, SESSION_DB_IS_PINNED
 from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
 from core_10x.vault_utils import VaultUtils
 from dev_10x.postgres_local import PASSWORD_AUTH_PASSWORD, PASSWORD_AUTH_PORT, PASSWORD_AUTH_USER
 from infra_10x.postgres_store import PostgresStore
 
-VAULT_URI = f'postgresql://localhost:{PASSWORD_AUTH_PORT}/postgres'
+VAULT_URI = f'postgresql://localhost:{PASSWORD_AUTH_PORT}/{SESSION_DB}'
+FUNCTIONAL_ACCOUNT_USER_ID = 'xx-e2e-test'
 MASTER_PASSWORD = 'FnAcctMaster9!'
 
 
 @pytest.fixture
 def functional_account_env(monkeypatch, tmp_path):
     """Real ``keyring`` backend + a functional-account identity -- real if containerized, faked otherwise."""
+    need(
+        PostgresStore.is_running_with_auth('localhost', PASSWORD_AUTH_PORT)[0],
+        f'password-auth Postgres not running on localhost:{PASSWORD_AUTH_PORT}',
+    )
+    # -- A fresh, per-process database (SESSION_DB, like every other live-store test uses) rather
+    # than the shared `postgres` default: PASSWORD_AUTH_USER self-registering into a database that
+    # already holds an earlier run's VaultUser would now be refused by
+    # VaultUser.login_already_registered (docs/VAULT_SECURITY_DESIGN.md §3.4) -- one vault-DB login
+    # may only ever register one identity. A fixed, readable user_id can be used instead of a
+    # per-run random one since the database itself is what's unique per run.
+    PostgresStore.instance_from_uri(VAULT_URI, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True)
+
     container_account_id = os.environ.get('FUNCTIONAL_ACCOUNT_ID')
     if container_account_id:
         # -- Tier 2: inside docker/entrypoint.sh's container. Identity and the keyring backend
@@ -64,10 +78,11 @@ def functional_account_env(monkeypatch, tmp_path):
         _clear_all_caches()
         yield SimpleNamespace(user_id=container_account_id)
         _clear_all_caches()
+        _drop_session_db()
         return
 
     # -- Tier 1: plain pytest run (dev machine / normal CI matrix).
-    user_id = f'xx-e2e-{uuid.uuid4().hex[:10]}'  # unique per run: avoids "already exists" on repeated local runs
+    user_id = FUNCTIONAL_ACCOUNT_USER_ID
 
     secrets_file = tmp_path / 'keyring.json'
     secrets_file.write_text(json.dumps([]))  # starts empty; user_init populates it via real keyring.set_password
@@ -86,14 +101,18 @@ def functional_account_env(monkeypatch, tmp_path):
 
     keyring.set_keyring(original_backend)
     _clear_all_caches()
+    _drop_session_db()
+
+
+def _drop_session_db() -> None:
+    if SESSION_DB_IS_PINNED:
+        return
+    PostgresStore.instance_from_uri(
+        Resource.uri_no_dbname(VAULT_URI), username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False
+    ).delete_database(SESSION_DB)
 
 
 def test_functional_account_self_registers_against_real_vault(functional_account_env):
-    need(
-        PostgresStore.is_running_with_auth('localhost', PASSWORD_AUTH_PORT)[0],
-        f'password-auth Postgres not running on localhost:{PASSWORD_AUTH_PORT}',
-    )
-
     user_id = functional_account_env.user_id
     assert VaultUser.is_functional_account(user_id), 'test user_id must look like a functional account (xx- prefix)'
     assert not VaultUser.is_functional_account('alice')
