@@ -56,9 +56,7 @@ def test_rejects_non_prefixed_account_id(monkeypatch, capsys):
 
 def test_resolve_docker_args_requires_main_vault_uri(monkeypatch):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', '')
-    rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', 'xx-myservice', '--command', 'echo hi']
-    )
+    rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
     assert rc
     rc, _args = inst._resolve_docker_args()
     assert not rc
@@ -67,9 +65,7 @@ def test_resolve_docker_args_requires_main_vault_uri(monkeypatch):
 
 def test_resolve_docker_args_adds_network_host_for_loopback_vault(monkeypatch):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://localhost:5432/vaultdb')
-    rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', 'xx-myservice', '--command', 'echo hi']
-    )
+    rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
     rc, args = inst._resolve_docker_args()
     assert rc
     assert '-e' in args and 'XX_MAIN_VAULT_URI=postgresql://localhost:5432/vaultdb' in args
@@ -78,9 +74,7 @@ def test_resolve_docker_args_adds_network_host_for_loopback_vault(monkeypatch):
 
 def test_resolve_docker_args_skips_network_host_for_remote_vault(monkeypatch):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host.example.com:5432/vaultdb')
-    rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', 'xx-myservice', '--command', 'echo hi']
-    )
+    rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
     rc, args = inst._resolve_docker_args()
     assert rc
     assert '--network' not in args
@@ -108,12 +102,11 @@ def test_resolve_docker_args_appends_extra_args(monkeypatch):
 
 
 def test_image_tag_override_skips_auto_detection(monkeypatch):
-    monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', lambda *a, **k: (_ for _ in ()).throw(
-        AssertionError('docker manifest inspect must not run when --image-tag is given')
-    ))
-    rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', 'xx-myservice', '--command', 'echo hi', '--image-tag', 'dev']
+    monkeypatch.setattr(
+        'core_10x.apps.functional_account_init.subprocess.run',
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError('docker manifest inspect must not run when --image-tag is given')),
     )
+    rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi', '--image-tag', 'dev'])
     rc, image = inst._resolve_image()
     assert rc
     assert image == 'ghcr.io/10x-software/py10x-core:dev'
@@ -127,9 +120,7 @@ def test_image_auto_detection_failure_names_fallback(monkeypatch):
         return subprocess.CompletedProcess(argv, 1)
 
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
-    rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', 'xx-myservice', '--command', 'echo hi']
-    )
+    rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
     rc, _image = inst._resolve_image()
     assert not rc
     assert '--image-tag dev|pre|prod|<tag>' in rc.error()
@@ -155,9 +146,7 @@ def test_run_wires_functional_account_id_and_output_file_into_docker_argv(monkey
 
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
 
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', 'xx-myservice', '--command', 'cat']
-    )
+    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
     result = inst.run()
     assert result, result.error()
 
@@ -188,9 +177,7 @@ def test_run_quotes_secret_name_against_command_splintering(monkeypatch):
 
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
 
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', hostile_id, '--command', 'echo {secret_name} extra']
-    )
+    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', hostile_id, '--command', 'echo {secret_name} extra'])
     result = inst.run()
     assert result, result.error()
     assert seen_argv == ['echo', f'{hostile_id}-vault-keyring', 'extra']
@@ -221,9 +208,7 @@ def test_run_reports_docker_failure_and_cleans_up(monkeypatch):
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
     monkeypatch.setattr('core_10x.apps.functional_account_init.tempfile.mkdtemp', tracking_mkdtemp)
 
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', 'xx-myservice', '--command', 'echo hi']
-    )
+    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
     result = inst.run()
     assert not result
     assert 'docker run failed' in result.error()
@@ -254,9 +239,7 @@ def test_run_reports_provisioning_command_failure_and_cleans_up(monkeypatch):
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
     monkeypatch.setattr('core_10x.apps.functional_account_init.tempfile.mkdtemp', tracking_mkdtemp)
 
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(
-        ['--functional-account-id', 'xx-myservice', '--command', 'false']
-    )
+    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'false'])
     result = inst.run()
     assert not result
     assert '--command failed' in result.error()
