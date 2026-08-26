@@ -306,8 +306,9 @@ uv run --no-sync pytest -q
 uv run --no-sync python -m dev_10x.uv_sync py10x-core-dev --all-extras
 uv run --no-sync pytest -q
 
-# opt-in downstreams from [tool.dev_10x.downstream] (omitted by default; cxx=False)
-uv run --no-sync python -m dev_10x.uv_sync py10x-dev --with-downstream
+# opt-in downstreams from [tool.dev_10x.downstream] (omitted by default; cxx=False).
+# Always the local packaging root (not git/index), so extras can be applied.
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
 uv run --no-sync python -m dev_10x.uv_sync py10x-dev --with-downstream py10x-fin-base
 ```
 
@@ -345,9 +346,11 @@ Git URLs are derived from the sibling `path` and `origin` (`_swap_repo` preserve
 Branch from `[tool.dev_10x] branch` (default `main`).
 
 Extras are **not** forced — pass `--all-extras` / `--extra X` as `uv-sync` args. They bind to the
-step-2 `--requirements pyproject.toml` install **and** are forwarded onto opt-in downstream
-installs as `-e <path> --all-extras --requirements <path>/pyproject.toml` (uv rejects bare
-`-e path --all-extras`).
+current package (step 2 `--requirements pyproject.toml`) **and** to opt-in downstreams, which
+always install from the **local** packaging root (in-tree `xx_fin`, etc.) as
+`-e <path> --all-extras --requirements <path>/pyproject.toml` (uv rejects bare `-e path --all-extras`).
+Siblings never get extras: git specs have no pyproject source. A git downstream + extras raises
+as a safety net — `--with-downstream` itself forces local.
 
 `py10x-core-dev` also runs `playwright install chromium` when needed.
 

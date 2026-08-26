@@ -13,9 +13,11 @@ Per package the desired *source* comes from the profile:
   - index : released wheel from the package index
 
 Install order (so already-correct local/git siblings are kept, not re-pulled):
-  1. siblings / opt-in downstreams (local/git) - install only if the reinstall rules say so;
-     `--all-extras` / `--extra` are forwarded onto downstream package installs;
-  2. `uv pip install --all-extras --requirements pyproject.toml` - core's deps+extras, additive;
+  1. siblings / opt-in downstreams (local/git) - install only if the reinstall rules say so.
+     `--all-extras` / `--extra` are forwarded onto *local* downstream installs only
+     (they need a pyproject source; git specs have none, and siblings are never extras).
+  2. `uv pip install --requirements pyproject.toml` (+ caller args such as `--all-extras`) -
+     current package's deps+extras, additive;
   3. py10x-core itself (local/git) - install only if needed.
 
 Reinstall rules (per package): (a) not installed; (b) installed from a different source;
@@ -202,7 +204,7 @@ def _parse_with_downstream(uv_args: tuple[str, ...]) -> tuple[bool, set[str] | N
 
 
 def _pip_extras_args(uv_args: list[str] | tuple[str, ...]) -> list[str]:
-    """Extract `--all-extras` / `--extra` flags to forward onto a package install source."""
+    """Extract `--all-extras` / `--extra` flags to forward onto a local downstream install."""
     out: list[str] = []
     i = 0
     args = list(uv_args)
@@ -424,7 +426,7 @@ def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: boo
             args.extend(['--no-build-isolation-package', n])
         # `--all-extras` / `--extra` require an explicit requirements/pyproject source (same as
         # core step 2). Forward them onto the downstream pyproject so extras like fin-base `bbg`
-        # are installed — bare `-e path --all-extras` is rejected by uv.
+        # are installed — bare `-e path --all-extras` is rejected by uv. Downstreams must be local.
         if extras_args:
             args.extend([*extras_args, '--requirements', str(Path(pkg['local']) / 'pyproject.toml')])
     if verbose:
@@ -432,7 +434,7 @@ def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: boo
     _pip_install(*args)
 
 
-def install_git(name: str, pkg: dict, branch: str, extras_args: list[str] | tuple[str, ...] = ()) -> None:
+def install_git(name: str, pkg: dict, branch: str) -> None:
     git_url = _normalize_git_url(pkg['git'])
     spec = f'{name} @ git+{git_url}@{branch}'
     if pkg['subdir']:
@@ -440,11 +442,6 @@ def install_git(name: str, pkg: dict, branch: str, extras_args: list[str] | tupl
     args = [spec, f'--reinstall-package={name}']
     if pkg['cxx']:
         args += _windows_cxx_cmake_flags(name)
-    if pkg.get('downstream') and extras_args:
-        raise RuntimeError(
-            f'{name}: --all-extras/--extra on a git downstream install is unsupported; '
-            f'use a local checkout so uv can read its pyproject.toml (got {list(extras_args)})'
-        )
     _pip_install(*args)
 
 
@@ -484,6 +481,11 @@ def uv_sync(profile: str, *uv_args: str) -> None:
         pkgs = {n: p for n, p in all_pkgs.items() if not p.get('downstream')}
     branch = _dev10x_cfg(tomlkit).get('branch', 'main')
     kinds = profile_kinds(profile, list(pkgs))
+    # Opt-in downstreams are always the local packaging root (in-tree xx_fin, etc.).
+    # Profile git/index applies to siblings only — extras need a pyproject on disk.
+    for n, p in pkgs.items():
+        if p.get('downstream'):
+            kinds[n] = 'local'
     siblings = [p for p in pkgs if p != CORE]
     mode = install_mode()
     prev_mode = read_install_mode_state(PROJECT_ROOT)
@@ -513,9 +515,9 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     extras_args = _pip_extras_args(uv_args)
     index_swaps = sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbose, extras_args)
 
-    # 2. core's deps (additive: keeps the local/git siblings from step 1; pulls/refreshes index
-    #    siblings). Extras are NOT forced - pass `--all-extras` / `--extra X` as uv-sync args; they
-    #    bind to this `--requirements` source *and* are forwarded onto opt-in downstream installs.
+    # 2. current package deps (additive: keeps the local/git siblings from step 1; pulls/refreshes
+    #    index siblings). Extras are NOT forced - pass `--all-extras` / `--extra X` as uv-sync args;
+    #    they bind to this `--requirements` source *and* to local opt-in downstream installs.
     print('2. core deps:')
     reinstall = [f'--reinstall-package={s}' for s in index_swaps]
     _pip_install('--requirements', 'pyproject.toml', *reinstall, *uv_args)
@@ -558,18 +560,24 @@ def sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbos
         if not do and toggled and kind == 'local' and pkgs[s]['cxx']:
             print(f'  {s}: reinstall - install mode changed (XX_UV_INSTALL_MODE)')
             do = True
+        downstream_extras = extras_args if pkgs[s].get('downstream') else ()
         if do:
             if kind == 'local':
                 # Downstream is not a core published dep — no forward pin to apply.
                 pin = None if pkgs[s].get('downstream') else _sibling_pin(s)
-                install_local(s, pkgs[s], pin=pin, mode=mode, verbose=verbose, extras_args=extras_args)
+                install_local(s, pkgs[s], pin=pin, mode=mode, verbose=verbose, extras_args=downstream_extras)
             else:  # git
-                install_git(s, pkgs[s], branch, extras_args=extras_args)
-        elif pkgs[s].get('downstream') and extras_args and kind == 'local':
+                if downstream_extras:
+                    raise RuntimeError(
+                        f'{s}: --all-extras/--extra on a git downstream install is unsupported; '
+                        f'downstreams must be local so uv can read their pyproject.toml (got {list(downstream_extras)})'
+                    )
+                install_git(s, pkgs[s], branch)
+        elif downstream_extras and kind == 'local':
             # Already installed: still apply requested extras (e.g. fin-base `bbg`) without a full reinstall.
-            print(f'  {s}: ensuring extras ({" ".join(extras_args)})')
+            print(f'  {s}: ensuring extras ({" ".join(downstream_extras)})')
             local = Path(pkgs[s]['local'])
-            _pip_install('-e', str(local), *extras_args, '--requirements', str(local / 'pyproject.toml'))
+            _pip_install('-e', str(local), *downstream_extras, '--requirements', str(local / 'pyproject.toml'))
     return index_swaps
 
 
