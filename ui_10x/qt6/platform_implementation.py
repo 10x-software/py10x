@@ -109,7 +109,8 @@ ListItem.__getattr__            = missing_attr
 MatchExactly                    = Qt.MatchFlag.MatchExactly
 
 ListWidget                      = QListWidget
-ListWidget.clicked_connect      = lambda self, bound_method:    self.clicked.connect(bound_method)
+# clicked → QModelIndex; itemClicked → QListWidgetItem (handlers need item.text()).
+ListWidget.clicked_connect      = lambda self, bound_method:    self.itemClicked.connect(bound_method)
 
 TreeItem                        = QTreeWidgetItem
 TreeItem.__getattr__            = missing_attr
