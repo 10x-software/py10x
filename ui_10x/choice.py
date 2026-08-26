@@ -136,7 +136,7 @@ class MultiChoice(Choice):
             left_lay = ux.VBoxLayout()
             left.set_layout(left_lay)
 
-            self.rb = rb = UxRadioBox(self.SELECT_MODE, horizontal = True, title = 'Selection Mode')
+            self.rb = rb = UxRadioBox(self.SELECT_MODE, 'Selection Mode', horizontal=True)
             left_lay.add_widget(rb)
             left_lay.add_widget(sw)
         else:
@@ -144,6 +144,11 @@ class MultiChoice(Choice):
             self.rb = None
 
         w.add_widget(left)
+
+        # Same chrome as UxSearchableList (GroupBox + list), without the search field.
+        right = ux.GroupBox()
+        right_lay = ux.VBoxLayout()
+        right.set_layout(right_lay)
 
         self.selection_list = selection_list = ux.ListWidget()
         labels = self.values_selected
@@ -153,7 +158,8 @@ class MultiChoice(Choice):
 
         selection_list.add_items(labels)
         selection_list.clicked_connect(self.on_selection_list_selection)
-        w.add_widget(selection_list)
+        right_lay.add_widget(selection_list)
+        w.add_widget(right)
 
         return w
 

@@ -421,6 +421,7 @@ class Widget(ComponentBuilder, i.Widget):
         self[self.s_stretch_arg] = bool(stretch)
 
     def apply_style_sheet(self, style: dict) -> RC:
+        style = dict(style)
         if text_align := TEXT_ALIGN.from_str(style.pop('text-align', '')):
             self[text_align.rio_attr()] = text_align.rio_value()
         if hasattr(self.s_component_class, 'text_style'):
@@ -428,6 +429,8 @@ class Widget(ComponentBuilder, i.Widget):
             rc = ss.set_values(sheet=style)
             self['text_style'] = ss.text_style or None
             return rc
+        if hasattr(self.s_component_class, 'fill') and (color := style.pop('color', None)):
+            self['fill'] = StyleSheet.parse_color(color)
         return StyleSheet.rc(style)
 
     def set_style_sheet(self, sh: str):
@@ -498,8 +501,11 @@ class Widget(ComponentBuilder, i.Widget):
     @classmethod
     def create_component(cls, *children, **kwargs) -> rio.Component | None:
         if cls.s_unwrap_single_child and len(children) == 1 and isinstance(first_child := children[0], rio.Component):
-            if kwargs:
-                cls._not_supported(f'ignored kwargs {kwargs}')
+            # Wrapper layout attrs (defaults / key) do not apply to the unwrapped child.
+            noise = {'key', 'grow_x', 'grow_y', 'align_x', 'align_y'}
+            leftover = {k: v for k, v in kwargs.items() if k not in noise}
+            if leftover:
+                cls._not_supported(f'ignored kwargs {leftover}')
             return first_child
         return super().create_component(*children, **kwargs)
 
