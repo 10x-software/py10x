@@ -1,47 +1,36 @@
-from core_10x.exec_control import CACHE_ONLY
-from core_10x.traitable import T, Traitable, Ui
-
-COLORS = ('black', 'white', 'green', 'lightgreen', 'red', 'blue', 'grey')
+from core_10x.traitable import Traitable, RT, Ui
+from ui_10x.examples.constants import COLOR, FONT
 
 class StyleSheet(Traitable):
-    foreground: str     = T('black',        ui_hint = Ui(widget_type = Ui.WIDGET_TYPE.CHOICE))
-    background: str     = T('white',        ui_hint = Ui(widget_type = Ui.WIDGET_TYPE.CHOICE, flags = Ui.SEPARATOR))
+    foreground: COLOR   = RT(COLOR.LIGHTGREEN)
+    background: COLOR   = RT(COLOR.BLACK,   ui_hint = Ui(flags = Ui.SEPARATOR))
 
-    font: str           = T('Helvetica',    ui_hint = Ui(widget_type = Ui.WIDGET_TYPE.CHOICE))
-    font_style: bool    = T(False,          ui_hint = Ui('italic', right_label = True))
-    font_weight: bool   = T(False,          ui_hint = Ui('bold', flags = Ui.SEPARATOR, right_label = True))
+    font: FONT          = RT(FONT.HELVETICA)
+    italic: bool        = RT(True,          ui_hint = Ui('italic',  right_label = True))
+    bold: bool          = RT(False,         ui_hint = Ui('bold',    right_label = True, flags = Ui.SEPARATOR))
 
-    border_style: bool  = T(False)
-    border_color: str   = T('blue',         ui_hint = Ui(widget_type = Ui.WIDGET_TYPE.CHOICE))
-    border_width: int   = T(2,              ui_hint = Ui(flags = Ui.SEPARATOR))
+    border: bool        = RT(True)
+    border_color: COLOR = RT(COLOR.BLUE)
+    border_width: int   = RT(2,             ui_hint = Ui(flags = Ui.SEPARATOR))
 
-    show_me: str        = T('This is how it will look...',  ui_hint = Ui('WYSIWYG', min_width = 50))
-
-    def foreground_choices(self, t):    return COLORS
-    def background_choices(self, t):    return COLORS
-    def border_color_choices(self, t):  return COLORS
-    def font_choices(self, t):          return ('Times New Roman', 'Helvetica', 'Courier New')
+    show_me: str        = RT('This is how it will look...',  ui_hint = Ui('WYSIWYG', min_width = 50))
 
     def show_me_style_sheet(self) -> dict:
-        ss = {
-            Ui.FG_COLOR:        self.foreground,
-            Ui.BG_COLOR:        self.background,
-            Ui.FONT:            self.font,
-            Ui.FONT_STYLE:      'italic'   if self.font_style    else 'normal',
-            Ui.FONT_WEIGHT:     'bold'     if self.font_weight   else 'normal',
+        return {
+            Ui.FG_COLOR:        self.foreground.value,
+            Ui.BG_COLOR:        self.background.value,
+            Ui.FONT:            self.font.value,
+            Ui.FONT_STYLE:      'italic'   if self.italic   else 'normal',
+            Ui.FONT_WEIGHT:     'bold'     if self.bold     else 'normal',
             Ui.BORDER_WIDTH:    f'{self.border_width}px',
-            Ui.BORDER_STYLE:    'solid'    if self.border_style  else '',
-            Ui.BORDER_COLOR:    self.border_color,
+            Ui.BORDER_STYLE:    'solid'    if self.border   else '',
+            Ui.BORDER_COLOR:    self.border_color.value,
         }
-        print(ss)
-        return ss
 
 if __name__ == '__main__':
     from ui_10x.traitable_editor import TraitableEditor
 
-    with CACHE_ONLY():
-        sheet = StyleSheet()
-        e = TraitableEditor(sheet, _confirm = True)
-        e.dialog().exec()
-
+    sheet = StyleSheet()
+    e = TraitableEditor(sheet, _confirm = True)
+    e.popup()
 

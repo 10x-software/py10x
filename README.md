@@ -1,41 +1,27 @@
 # py10x-core
 
-**Unified, identity-driven, dependency-aware object model for Python**  
-—with lazy dependency graph, persistence, automatic UI editors, and more
+**The Substratum of Genaxy** — a generative core for software, not a feature list.
 
 [![Python 3.11–3.13](https://img.shields.io/badge/python-3.11–3.13-blue)](https://www.python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](https://opensource.org/licenses/MIT)
 
 <img src="https://10x-software.org/10x-jerboa.jpeg" alt="Jerboa Logo" width="240">
 
-## 🚀 Why py10x?
+## 🌌 Why Genaxy?
 
-Standard Python objects have no shared identity layer and no automatic dependency tracking.  
-**py10x-core** turns them into a coherent, **dependency-aware graph of connected identifiable objects** — a single shared layer that feels unified across modules, files and processes.
+10x exists for one audience: engineers, researchers, and developers who want to be 10 times more productive — not through better tooling at the edges, but by never having to rebuild the same foundation twice.
 
-Key superpowers:
+**Genaxy** is what makes that possible: a new kind of software system, built around a small, generative core rather than assembled feature by feature. At its center sits the **Substratum** — `py10x-core` — a handful of laws, not a feature set: identity, dependency, persistence, presentation. Everything else follows from these.
 
-- **Global Identity & Sharing**  
-  Objects with identical **ID Traits** are automatically the same logical entity.  
-  Change a value in one place → every reference sees the update instantly (global cache).
+Around the Substratum sit **Subject Domains** — real fields of work, each built on the same foundation instead of reinventing it. Finance is the first: `py10x-fin-base`. More will follow. Each domain surrounds the Substratum the way planets surround a star — independent, distinct, but all held together by the same underlying laws.
 
-- **Lazy Dependency Graph**  
-  Computed traits (derived values) are calculated only when accessed.  
-  Dependencies are tracked automatically — no manual invalidation, no recompute storms.
+Most software is built domain-first: a finance system, a healthcare system, a logistics system — each one reinventing identity, persistence, and UI from scratch. Genaxy inverts that. Build the Substratum once. Let every domain grow from it.
 
-- **Deep Persistence**  
-  Complex nested object graphs saved to **Traitable Store** (MongoDB, PostgreSQL, or in-memory DuckDB).  
-  Built-in versioning, history tracking, transparent lazy loading.
-
-- **Automatic UI Editors**  
-  Define your data model once → get native two-way editors for **Rio** (web) or **Qt** (desktop).  
-  No manual UI code for viewing/editing traitables.
-
-This approach dramatically reduces boilerplate while giving you fine-grained control over computation timing and persistence behavior.
+The four laws aren't a checklist to memorize — they're vocabulary for *describing* a real-world problem, before any specific technology gets chosen. Say what a thing **is** (its identity), what it **depends on**, where it **needs to live**, and how someone should **see and touch it** — and the application, the report, the service you actually needed falls out of that description, largely for free. More laws may join this list over time; the point was never the current four. It's that describing a problem well is what makes building it easy.
 
 ---
 
-## 🏁 Hello World
+## 🏁 Identity and Dependency, in Nine Lines
 
 By default, the `Traitable` constructor accepts **only ID traits**. For how the framework uses identity and storage to resolve or create instances, see [How Traitables Are Created](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md#how-traitables-are-created) in the Getting Started guide.
 
@@ -65,44 +51,83 @@ with CACHE_ONLY(), GRAPH_ON():
     print(dev2.energy)          # 120  ← shared via global cache
 ```
 
-
-Want automatic persistence, per-class stores, store unions, querying, nested objects, UI generation, verifiers, and more?
-→ Dive into [GETTING_STARTED.md](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md) for the full technical manual.
+Two of the four laws, in nine lines: `handle` is the *identity*, `energy` is a *dependency* on `coffee_cups`, tracked and recomputed automatically. For automatic persistence, per-class stores, querying, nested objects, and more, consult the comprehensive Getting Started documentation.
 
 ---
 
-## 🧠 When Should You Use py10x?
+## 🗄️ Everything Is a Resource
 
-py10x-core is a good fit when:
+Real systems rarely live in one database. Genaxy treats every external dependency — a MongoDB cluster, a Postgres box, a DuckDB file, a credentials vault — as a `Resource`: addressed by a plain URI, resolved to a concrete driver through a small, pluggable registry. The Traitable Store you persist objects to is just one kind of `Resource`, alongside anything else your system depends on.
 
-- Your application has rich domain models with **derived fields**
-- You need deterministic **object identity**
-- You want automatic dependency tracking
-- You want persistence and UI derived from the same model
+You define **logical** resources — names your code refers to, like `"main"` or `"mkt_data"` — and assign each one to a **physical** location (an actual URI) separately, per environment. Traitable classes associate themselves with a logical resource by name, so different parts of a system can live on different physical stores without any downstream code needing to know or care which.
 
-It may be overkill for simple scripts, stateless APIs, or lightweight validation-only use cases.
+Authentication follows the same shape. A user registers once: an RSA keypair is generated on their own machine, the private key is encrypted with their own master password, and everything lands in the OS keyring — never transmitted, never stored in plaintext. From that point on, every resource that user is entitled to just works, with no per-database credential wiring anywhere in application code.
 
-If your system has evolving state and relationships, py10x-core removes a large amount of manual synchronization code.
+---
+
+## 🎨 The UI Is Derived, Not Written
+
+Presentation is the fourth law, and it works the same way: describe the shape of the thing, and the UI for viewing and editing it comes for free. A dropdown that only accepts valid values isn't a widget you configure — it falls out of typing the trait as a `NamedConstant`:
+
+```python
+from core_10x.traitable import Traitable, RT, Ui
+from ui_10x.examples.constants import COLOR, FONT
+
+class StyleSheet(Traitable):
+    foreground: COLOR   = RT(COLOR.BLACK)
+    background: COLOR   = RT(COLOR.WHITE,   ui_hint = Ui(flags = Ui.SEPARATOR))
+
+    font: FONT          = RT(FONT.HELVETICA)
+    italic: bool        = RT(False,         ui_hint = Ui('italic',  right_label = True))
+    bold: bool          = RT(False,         ui_hint = Ui('bold',    right_label = True, flags = Ui.SEPARATOR))
+
+    border: bool        = RT(False)
+    border_color: COLOR = RT(COLOR.BLUE)
+    border_width: int   = RT(2,             ui_hint = Ui(flags = Ui.SEPARATOR))
+
+    show_me: str        = RT('This is how it will look...',  ui_hint = Ui('WYSIWYG', min_width = 50))
+
+    def show_me_style_sheet(self) -> dict:
+        return {
+            Ui.FG_COLOR:        self.foreground.value,
+            Ui.BG_COLOR:        self.background.value,
+            Ui.FONT:            self.font.value,
+            Ui.FONT_STYLE:      'italic'   if self.italic   else 'normal',
+            Ui.FONT_WEIGHT:     'bold'     if self.bold     else 'normal',
+            Ui.BORDER_WIDTH:    f'{self.border_width}px',
+            Ui.BORDER_STYLE:    'solid'    if self.border   else '',
+            Ui.BORDER_COLOR:    self.border_color.value,
+        }
+```
+
+That's the entire program — no layout code, no widget wiring, no dropdown population logic. `TraitableEditor(StyleSheet()).popup()` generates the full dialog below: dropdowns, checkboxes, and a live preview that updates itself, because it's just another computed trait sharing the same dependency graph as everything else.
+
+<img src="Screenshot_style_sheet.jpg" alt="The entire StyleSheet trait class (left) and the auto-generated editor it produces (right) — the WYSIWYG preview updates live from the dependency graph, with no manual UI code anywhere." width="1000">
+
+The same class definition renders as a native Qt desktop dialog or a Rio web view, depending only on which backend is active.
+
+---
+
+## 🧭 When Should You Build a Subject Domain on Genaxy?
+
+Genaxy fits problems with:
+
+- Real-world entities with derived, computed state
+- A need for deterministic, shared identity across a whole system
+- Data that outlives a single process — persistence you don't want to hand-roll
+- A UI that should never drift out of sync with the model it displays
+
+It's overkill for a simple script, a stateless API, or pure validation logic — those don't need a Substratum, they need a function. Genaxy pays off when a system's state and relationships keep evolving, and keeping everything in sync by hand is the actual cost center.
 
 ---
 
 ## 🔍 How Is This Different?
 
-Unlike `dataclasses` or `Pydantic`:
+Compared to `dataclasses` or Pydantic — objects have deterministic identity from their ID traits; the same identity always resolves to the same logical entity; derived fields are lazily computed and dependency-tracked, not just validated once at construction.
 
-- Objects have deterministic identity based on **ID traits**
-- Identical identity traits resolve to the same logical entity
-- Derived fields are lazily computed and dependency-tracked
+Compared to traditional ORMs — identity isn't tied to a database row, and persistence is optional and pluggable per class, not baked into one schema.
 
-Unlike traditional ORMs:
-
-- Identity is not tied to a database row
-- Persistence is optional and pluggable
-
-Unlike reactive frameworks:
-
-- Dependencies are tracked automatically
-- Computation is lazy by default
+Compared to reactive frameworks — dependencies are tracked automatically, computation is lazy by default, and the same graph drives persistence and UI, not just view updates.
 
 ---
 
@@ -110,9 +135,10 @@ Unlike reactive frameworks:
 
 | I want to… | Read |
 |------------|------|
+| Read the full vision and history | [WHITEPAPER.md](WHITEPAPER.md) |
 | Install py10x | [INSTALLATION.md](INSTALLATION.md) |
 | Learn the Traitable framework | [GETTING_STARTED.md](GETTING_STARTED.md) |
-| Install / use fin-base (`xxfin`) | [xx_fin/README.md](xx_fin/README.md) |
+| Install / use the finance Subject Domain (`xxfin`) | [xx_fin/README.md](xx_fin/README.md) |
 | Contribute code | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Cut a release / sync dev deps | [dev_10x/README.md](dev_10x/README.md) |
 
@@ -121,7 +147,3 @@ Unlike reactive frameworks:
 - **Project e-mail:** [py10x@10x-software.org](mailto:py10x@10x-software.org)
 - **Security:** Report vulnerabilities to [security@10x-software.org](mailto:security@10x-software.org)
 - **Discord:** [Join the 10x Community](https://discord.gg/m7AQSXfFwf)
-
-
-
-
