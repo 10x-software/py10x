@@ -22,10 +22,13 @@ import cxxfin  # native extension from py10x-fin-base-cxx
 ```
 
 ## About
-The xxfin package of the 10x project serves a dual purpose:
 
-- to illustrate the capabilities of the 10x system by implementing a sufficiently rich example solving an important
-  problem in an important subject domain
+`xxfin` (`py10x-fin-base`) is the first **subject domain** of [10x Genaxy](../README.md).
+
+The package serves a dual purpose:
+
+- to illustrate how a subject domain might use the capabilities of the substratum of 10x Genaxy (`py10x-core`) by implementing
+  a sufficiently rich example solving an important problem in an important subject domain
 - to provide a complete working implementation of the most foundational valuation problem in the financial domain:
   calculating today's price of a fixed amount of a future cash flow denominated in any currency.
 
