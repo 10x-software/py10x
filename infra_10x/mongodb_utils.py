@@ -8,6 +8,7 @@ import keyring
 import requests
 from core_10x.global_cache import cache
 from core_10x.rc import RC
+from core_10x.traitable import VaultUser
 
 from infra_10x.mongodb_admin import MongodbAdmin
 from infra_10x.mongodb_store import MongoStore
@@ -50,10 +51,10 @@ def get_xx_admin(user: str):
 
 
 @cache
-def git_user(uid=''):
+def git_user(uid='', login=True):
     uid = f'/{uid}' if uid else ''
     user = requests.get(f'https://api.github.com/user{uid}', headers={'Authorization': f'token {git_token()}'}).json()
-    return user['name'].lower() if user['name'] else user['login'] or input(f'Username{uid}:')
+    return user['name'].lower() if user['name'] and not login else user['login'] or input(f'Username{uid}:')
 
 
 @cache
@@ -75,12 +76,13 @@ def generate_password():
     return ''.join(secrets.choice(string.ascii_letters + string.digits + '!@#$%^&*') for _ in range(AUTO_PASSWORD_LENGTH))
 
 
-def create_users(hostname, port=27017):
+def create_users(hostname, port=27017, users=None):
     admin = MongodbAdmin(hostname=hostname, port=port, **get_credentials('xxadmin', hostname))
     create_xx_role(admin)
-    for xx_user in all_git_users():
-        xx_admin = get_xx_admin(xx_user)
-        if xx_admin != admin.username:  # -- do not break current working account!
+    for xx_user in users or all_git_users():
+        if (
+            not VaultUser.is_functional_account(xx_user) and (xx_admin := get_xx_admin(xx_user)) != admin.username
+        ):  # -- do not break current working account!
             create_xx_admin(admin, xx_admin, generate_password())
         create_xx_user(admin, xx_user, generate_password())
 
@@ -122,13 +124,28 @@ def copy_db(from_host: str, to_host: str, to_port: int, dbname: str, overwrite=F
     to_store = MongoStore.instance(hostname=to_host, port=to_port, dbname=dbname, **get_credentials('xxuser', to_host))
     return from_store.copy_to(to_store, overwrite=overwrite)
 
+def list_dbs(host, port, prefix):
+    store = MongoStore.instance(hostname=host, port=port, **get_credentials('xxuser', host))
+    return store.list_databases(prefix)
+
+
+def delete_dbs(host, port, prefix):
+    store = MongoStore.instance(hostname=host, port=port, **get_credentials('xxuser', host))
+    for dbname in store.list_databases(prefix):
+        store.delete_database(dbname)
+
 
 if __name__ == '__main__':
-    # host = 'mongo10x.eastus2.cloudapp.azure.com'
+    #host = 'mongo10x.eastus2.cloudapp.azure.com'
+    #port = 27017
+
     host = 'xxfin.10xconcepts.com'
     port = 27018
+    dbname = 'mkt_data'
+
     # drop_users(host, port)
     # clear_vault()
     # create_users(host, port)
 
-    copy_db(from_host='localhost', to_host=host, to_port=port, dbname='mkt_data', overwrite=False).throw()
+    # copy_db(from_host='localhost', to_host=host, to_port=port, dbname=dbname, overwrite=True).throw()
+
