@@ -105,6 +105,7 @@ ButtonGroup.__getattr__         = missing_attr
 
 ListItem                        = QListWidgetItem
 ListItem.__getattr__            = missing_attr
+ListItem.row                    = lambda self: self.listWidget().row(self)
 
 MatchExactly                    = Qt.MatchFlag.MatchExactly
 

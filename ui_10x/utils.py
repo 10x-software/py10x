@@ -461,7 +461,7 @@ class UxSearchableList(ux.GroupBox):
         self.w_list.add_items(self.current_choices)
 
     def item_selected(self, item: ux.ListItem):
-        i = self.w_list.row(item)
+        i = item.row()
         label = self.current_choices[i]
         choice = self.initial_choices[label]
         self.reset()
