@@ -58,11 +58,7 @@ class TreeWidget(Widget, i.TreeWidget):
         if on_double := item.get('on_double_press'):
             content = rio.PointerEventListener(content, on_double_press=on_double)
 
-        kids = [
-            self._to_simple_tree_item(child)
-            for child in item._get_children()
-            if isinstance(child, TreeItem)
-        ]
+        kids = [self._to_simple_tree_item(child) for child in item._get_children() if isinstance(child, TreeItem)]
 
         def on_expansion_change(event) -> None:
             item['is_expanded'] = event.is_expanded
@@ -94,11 +90,7 @@ class TreeWidget(Widget, i.TreeWidget):
 
     def _build_children(self, session: rio.Session):
         # Same idea as Layout._build_children: materialize children for create_component.
-        return [
-            self._to_simple_tree_item(child)
-            for child in self._get_children()
-            if isinstance(child, TreeItem)
-        ]
+        return [self._to_simple_tree_item(child) for child in self._get_children() if isinstance(child, TreeItem)]
 
     def build(self, session: rio.Session) -> rio.Component:
         tree = super().build(session)

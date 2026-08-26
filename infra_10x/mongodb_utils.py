@@ -124,6 +124,7 @@ def copy_db(from_host: str, to_host: str, to_port: int, dbname: str, overwrite=F
     to_store = MongoStore.instance(hostname=to_host, port=to_port, dbname=dbname, **get_credentials('xxuser', to_host))
     return from_store.copy_to(to_store, overwrite=overwrite)
 
+
 def list_dbs(host, port, prefix):
     store = MongoStore.instance(hostname=host, port=port, **get_credentials('xxuser', host))
     return store.list_databases(prefix)
@@ -136,8 +137,8 @@ def delete_dbs(host, port, prefix):
 
 
 if __name__ == '__main__':
-    #host = 'mongo10x.eastus2.cloudapp.azure.com'
-    #port = 27017
+    # host = 'mongo10x.eastus2.cloudapp.azure.com'
+    # port = 27017
 
     host = 'xxfin.10xconcepts.com'
     port = 27018
@@ -148,4 +149,3 @@ if __name__ == '__main__':
     # create_users(host, port)
 
     # copy_db(from_host='localhost', to_host=host, to_port=port, dbname=dbname, overwrite=True).throw()
-

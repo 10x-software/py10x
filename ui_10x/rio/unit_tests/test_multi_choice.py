@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 
-import rio
 import rio.testing.browser_client
 from core_10x.code_samples.directories import ANIMALS
 from ui_10x.choice import MultiChoice
@@ -14,6 +13,8 @@ from ui_10x.rio.browser_helpers import (
     wait_for_selectable_item_text,
 )
 from ui_10x.rio.component_builder import DynamicComponent
+
+import rio
 
 
 def test_multi_choice_flat_select_deselect() -> None:
@@ -97,10 +98,7 @@ async def test_multi_choice_directory_browser_select_deselect() -> None:
 
         errors = list(test_client.get_components(ErrorPlaceholder))
         assert not errors, f'tree failed to build: {[e.error_summary for e in errors]}'
-        texts = {
-            getattr(item.content, 'text', None)
-            for item in test_client.get_components(rio.SimpleTreeItem)
-        }
+        texts = {getattr(item.content, 'text', None) for item in test_client.get_components(rio.SimpleTreeItem)}
         assert 'Microorganisms' in texts
         assert 'Salt Water' in texts  # single-child parent must keep its own label
         assert 'Mollusks' in texts
