@@ -6,6 +6,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
+from keyring.backends.fail import Keyring as FailKeyring
 from keyring.backends.kwallet import DBusKeyring, DBusKeyringKWallet4
 from keyring.backends.libsecret import Keyring as LibSecretKeyring
 from keyring.backends.macOS import Keyring as MacOSKeyring
@@ -26,6 +27,7 @@ _ACCEPTABLE_KEYRING_BACKENDS = (
     DBusKeyringKWallet4,
     LibSecretKeyring,
     FunctionalAccountKeyring,
+    FailKeyring,  # -- always raises NoKeyringError on use; can never silently store insecurely
 )
 
 PUBLIC_EXP = 65537
