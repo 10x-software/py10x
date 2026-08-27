@@ -15,7 +15,7 @@ from core_10x.global_cache import cache
 from core_10x.resource import Resource
 from core_10x.ts_store import TsDuplicateKeyError
 from psycopg import sql
-from psycopg.errors import UniqueViolation
+from psycopg.errors import InsufficientPrivilege, UniqueViolation
 
 from infra_10x.ibis_store import (
     _DATA,
@@ -239,6 +239,15 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
 
     def _auth_user_sql_params(self) -> list:
         return []
+
+    def create_index(self, collection_name: str, name: str, trait_name: str | list[tuple[str, int]], col_trait_dir: dict, **index_args) -> str:
+        # Non-owners (e.g. vault users) cannot CREATE INDEX; the table owner already did. IF NOT EXISTS does not skip the ownership check.
+        try:
+            return super().create_index(collection_name, name, trait_name, col_trait_dir, **index_args)
+        except InsufficientPrivilege as e:
+            if 'must be owner of table' not in str(e):
+                raise
+            return name
 
     def _json_ts_merge_sql(self, obj_parts: list[str]) -> str:
         merge = f'jsonb_build_object({", ".join(obj_parts)})'
