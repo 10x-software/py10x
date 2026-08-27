@@ -196,7 +196,7 @@ class Game(Traitable):
         return _GuessWordData.new_word(self.num_chars).upper()
 
     def guess_set(self, trait, value: str) -> RC:
-        self.raw_set_value(trait, value.upper())
+        self.raw_set_trait_value(trait, value.upper())
         return RC_TRUE
 
     def guess_res_class_get(self):
