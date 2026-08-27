@@ -1,8 +1,6 @@
-"""`OsUser.me.name()` (`cxx10x/core_10x/os_user.cpp`) is a C++ singleton that caches its resolved
-name for the life of the process -- a single pytest process can't exercise more than one scenario
-in-process, so each runs in its own subprocess. See docs/VAULT_SECURITY_DESIGN.md §3.2: identity
-is resolved from `getpwuid(geteuid())`, the kernel's own idea of the effective user -- `$USER`/
-`$LOGNAME` are never read at all, so there is nothing in the environment that could influence it.
+"""`OsUser.me.name()` (`cxx10x/core_10x/os_user.cpp`) caches for the process lifetime, so
+each scenario runs in its own subprocess. Unix: `getpwuid(geteuid())`. Windows:
+`GetUserNameA`. `$USER`/`$LOGNAME` are never read. See docs/VAULT_SECURITY_DESIGN.md §3.2.
 """
 
 import getpass
