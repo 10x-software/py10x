@@ -34,12 +34,11 @@ PUBLIC_EXP = 65537
 KEY_SIZE = 2048
 PASSWORD_SIZE = 24
 ENCODING = 'utf-8'
-OAEP_HASH = hashes.SHA256  # -- mgf/algorithm hash used by every OAEP call in this module
+OAEP_HASH = hashes.SHA256
 
-# -- OWASP-minimum scrypt work factor: the master password is derived through this before ever
-# reaching PKCS8's own (fixed at 2048, unraisable) inner PBKDF2, so scrypt's cost -- not PBKDF2's --
-# gates offline brute-force economics against an exfiltrated VaultUser row. See
-# docs/VAULT_SECURITY_DESIGN.md §6.1.
+# OWASP-minimum scrypt; PKCS8's inner PBKDF2 is fixed at 2048 and unraisable, so this
+# is what gates offline guesses against an exfiltrated VaultUser row. See
+# docs/VAULT_SECURITY_DESIGN.md §3.1.
 SCRYPT_N = 2**17
 SCRYPT_R = 8
 SCRYPT_P = 1
@@ -54,10 +53,8 @@ class SecKeys:
 
     @staticmethod
     def _max_oaep_plaintext_len(key_size_bits: int) -> int:
-        """Max RSA-OAEP plaintext length in bytes: k - 2*hLen - 2 (RFC 8017 §7.1.1), k = key size
-        in bytes, hLen = the OAEP hash's digest size. Beyond this, `cryptography` raises a bare
-        `ValueError: Encryption failed` with no indication of *why* -- checked for real: 190 bytes
-        succeeds, 191 fails, for a 2048-bit key with SHA-256 OAEP, matching this formula exactly.
+        """Max RSA-OAEP plaintext length in bytes: k - 2*hLen - 2 (RFC 8017 §7.1.1).
+        `cryptography` raises a bare `ValueError: Encryption failed` past this, with no cause.
         """
         return key_size_bits // 8 - 2 * OAEP_HASH().digest_size - 2
 
@@ -205,8 +202,6 @@ class SecKeys:
 
     @classmethod
     def encrypt_private_key(cls, private_key_pem: bytes, password, salt: bytes) -> bytes:
-        # Every write always derives through scrypt -- no legacy/unsalted branch here, only on the
-        # read side (decrypt_private_key/__init__), for rows written before this existed.
         derived = cls._derive_key(password, salt)
 
         private_key = load_pem_private_key(private_key_pem, password = None)
