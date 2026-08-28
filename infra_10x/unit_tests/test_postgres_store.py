@@ -274,6 +274,33 @@ def test_jsonb_path_index_on_blob_field(postgres_store):
         store.delete_collection(coll_name)
 
 
+def test_create_index_ignores_must_be_owner(postgres_store):
+    """Workers cannot CREATE INDEX; IF NOT EXISTS still checks ownership, so skip that error."""
+
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+
+    store = postgres_store
+    suffix = uuid6.uuid7().hex[:8]
+    coll_name, role = f'pg_idx_own_{suffix}', f'idxown_{suffix}'
+    try:
+        coll = store.collection(coll_name, Pad.s_dir)
+        coll.save_new({'_id': '1', 'pad': 0})
+        coll.create_index('idx_pad', 'pad')
+        if not store._execute('SELECT 1 FROM pg_roles WHERE rolname = ?', [role]):
+            store._execute(f'CREATE ROLE "{role}" LOGIN NOSUPERUSER')
+        store._execute(f'GRANT SELECT, INSERT ON TABLE {store._qname(coll_name)} TO "{role}"')
+        store._execute(f'SET ROLE "{role}"')
+        try:
+            assert coll.create_index('idx_pad', 'pad') == 'idx_pad'
+        finally:
+            store._execute('RESET ROLE')
+    finally:
+        store.delete_collection(coll_name)
+        store._execute(f'DROP OWNED BY "{role}"')
+        store._execute(f'DROP ROLE IF EXISTS "{role}"')
+
+
 def test_list_databases_prefix_underscores_are_literal(postgres_store):
     """``list_databases`` must not treat ``_`` in the prefix as a LIKE wildcard.
 
