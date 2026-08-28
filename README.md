@@ -9,17 +9,17 @@
 
 ## 🌌 Why Genaxy?
 
-**10x** (as a concept) exists for one audience: engineers, researchers, and developers who want to be 10 times more productive — not through better tooling at the edges, but by never having to rebuild the same foundation twice.
+**10x** is the concept: never rebuild the same foundation twice. A **genaxy** is the kind of system that makes that possible — built around a small core rather than assembled feature by feature. **10x Genaxy** is this one. This package (`py10x-core`) is its **substratum**.
 
-**Genaxy** is a new kind of software system that makes 10x possible. Examples include SecDb, Athena, 10x Genaxy (this system), and other genaxies in that [lineage](LINEAGE.md). Each genaxy is built around a small generative core — the **substratum** — rather than assembled feature by feature. The substratum defines a handful of laws, not a feature set: identity, dependency, persistence, presentation. Everything else follows from these.
+The **substratum** is that core: a handful of laws (principles), not a feature set. Today those are identity, dependency, persistence, and presentation; more may join them. Everything else follows from these. They aren't a checklist to memorize — they're vocabulary for describing a real-world problem, before any specific technology gets chosen.
 
-Around the substratum sit **subject domains** — real fields of work, each built on the same foundation instead of reinventing it. For 10x Genaxy, finance is the first: `py10x-fin-base`. More will follow. Each domain surrounds the substratum the way planets surround a star — independent, distinct, but all held together by the same underlying laws.
+That core is **generative**: you describe the entity — what it is, what it depends on, where it is stored, how it should be presented and interacted with — and the application, the report, the service you needed falls out of that description, largely for free.
 
-Most software is built domain-first: a finance system, a healthcare system, a logistics system — each one reinventing identity, persistence, and UI from scratch. Genaxy inverts that. Build the substratum once. Let every domain grow from it.
+Around the substratum sit **subject domains** — real fields of work, each built on the same core instead of reinventing it. Finance is the first (`py10x-fin-base`). More will follow. Domains surround the substratum the way planets surround a star — independent, distinct, but held by the same laws.
 
-The four laws aren't a checklist to memorize — they're vocabulary for *describing* a real-world problem, before any specific technology gets chosen. Say what a thing **is** (its identity), what it **depends on**, where it **needs to live**, and how someone should **see and touch it** — and the application, the report, the service you actually needed falls out of that description, largely for free. More laws may join this list over time; the point was never the current four. It's that describing a problem well is what makes building it easy.
+Most software is built domain-first: a finance system, a healthcare system, a logistics system — each reinventing identity, persistence, and UI from scratch. Genaxy inverts that. Build the substratum once. Let every domain grow from it.
 
-This package — `py10x-core` — is the substratum of 10x Genaxy.
+10x Genaxy isn't the first genaxy — SecDb, Athena, and others came before it (See [lineage](LINEAGE.md)).
 
 In this README:
 
