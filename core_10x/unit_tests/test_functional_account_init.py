@@ -32,7 +32,8 @@ def _write_fifo_from_fake_docker(argv: list[str], payload: str) -> None:
     directly to the host-side path, exactly what the real container would produce via the mount."""
     mount = argv[argv.index('-v') + 1]
     host_dir, _sep, _container_dir = mount.partition(':')
-    with open(os.path.join(host_dir, 'manifest.fifo'), 'w') as f:
+    output = argv[argv.index('--output-file') + 1]
+    with open(os.path.join(host_dir, os.path.basename(output)), 'w') as f:
         f.write(payload)
 
 
@@ -152,7 +153,7 @@ def test_run_wires_functional_account_id_and_output_file_into_docker_argv(monkey
 
     argv = seen['docker_argv']
     assert '-e' in argv and 'FUNCTIONAL_ACCOUNT_ID=xx-myservice' in argv
-    assert argv[-4:] == ['xx-user-init', '--functional-account', '--output-file', '/var/run/xx-provisioning-output/manifest.fifo']
+    assert argv[-4:] == ['xx-user-init', '--functional-account', '--output-file', '/var/run/xx-provisioning-output/xx-myservice.fifo']
     assert 'fake-image:dev' in argv
     assert seen['provisioning_input'] == json.dumps([{'service': 's', 'username': 'u', 'password': 'p'}])
 

@@ -4,26 +4,16 @@ Installed by ``py10x-core`` as the ``xx-functional-account-init`` console script
 ``pyproject.toml``); also runnable directly as
 ``python -m core_10x.apps.functional_account_init``.
 
-Runs ``xx-user-init --functional-account --output-file <fifo>`` inside a disposable, real
-functional-account container (``docker/entrypoint.sh``'s ``usermod`` rename establishes the
-kernel-verified identity ``xx-user-init`` requires -- see docs/VAULT_SECURITY_DESIGN.md §3.3), then
-feeds the resulting manifest into an operator-supplied provisioning command running on the host,
-outside the container (e.g. ``docker secret create ... -``, which needs Docker/Swarm access a
-plain container doesn't have).
+Runs ``xx-user-init --functional-account --output-file <fifo>`` inside a disposable
+container (kernel-verified identity via ``docker/entrypoint.sh``; see
+docs/VAULT_SECURITY_DESIGN.md §3.3), then feeds the manifest to a host-side
+provisioning command over a bind-mounted FIFO, not a file.
 
-The manifest is delivered over a bind-mounted named pipe, not a plain file: a regular file would
-sit on host disk, readable by anything with matching permissions, for the whole window between the
-container exiting and this wrapper deleting it. A FIFO never holds that content as stat-able file
-content -- only as bytes in transit through a kernel pipe buffer between exactly this process and
-the container. The reader thread attaches *before* the container starts, so it always wins the
-rendezvous with the container's writer.
+``docker run -it`` (not stdout piping) keeps ``getpass`` prompts masked -- a pty is
+required, and once one exists stdout and stderr are merged, so the manifest cannot
+travel over stdout.
 
-``docker run -it`` (not stdout piping) is used so the vault login/password ``getpass`` prompts
-inside the container stay masked -- a pty is required for that, and once one exists, stdout and
-stderr are merged at the kernel level before Docker can demultiplex them, which is why the
-manifest can't travel over stdout at all here.
-
-See ``docs/USER_ONBOARDING_AUTH.md`` for the full procedure.
+See ``docs/USER_ONBOARDING_AUTH.md``.
 """
 
 from __future__ import annotations
@@ -135,23 +125,23 @@ class FunctionalAccountInitCli(TraitableCli):
         secret_name = FunctionalAccountKeyring.secret_name(self.functional_account_id)
         tmp_dir = tempfile.mkdtemp()
         os.chmod(tmp_dir, 0o700)
-        fifo_path = os.path.join(tmp_dir, 'manifest.fifo')
+        fifo_name = self.functional_account_id.replace('/', '_').replace('\0', '_') + '.fifo'
+        fifo_path = os.path.join(tmp_dir, fifo_name)
         os.mkfifo(fifo_path, 0o600)
-        container_fifo_path = f'{_CONTAINER_MOUNT_DIR}/manifest.fifo'
+        container_fifo_path = f'{_CONTAINER_MOUNT_DIR}/{fifo_name}'
 
         holder: dict = {}
 
         def _reader() -> None:
             try:
-                with open(fifo_path) as f:  # blocking open is the point (see module docstring)
+                with open(fifo_path) as f:
                     holder['payload'] = f.read()
             except OSError as ex:
                 holder['error'] = ex
 
-        # Started before `docker run` so this reader always wins the FIFO open() rendezvous --
-        # see module docstring. Daemon: if the container never writes (e.g. it errors before
-        # reaching that point), this thread stays blocked in open() forever, but a daemon thread
-        # doesn't block process exit, so we simply abandon it rather than hang.
+        # Attach before docker run so this process is first on the FIFO. Daemon: a container
+        # that never writes leaves this thread blocked in open(); abandoning it is better
+        # than hanging process exit.
         reader_thread = threading.Thread(target=_reader, daemon=True)
         reader_thread.start()
 
