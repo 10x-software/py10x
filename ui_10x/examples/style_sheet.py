@@ -1,5 +1,4 @@
 from core_10x.traitable import RT, Traitable, Ui
-
 from ui_10x.examples.constants import COLOR, FONT
 
 

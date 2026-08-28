@@ -260,7 +260,7 @@ def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, def
     accept_callback = (lambda: on_accept(cal.selected_date())) if on_accept else None
     dlg = UxDialog(cal, title = title, accept_callback = accept_callback)
     if on_accept:
-        dlg.show()
+        dlg.exec()
         return None
     return cal.selected_date() if dlg.exec() else default
 
