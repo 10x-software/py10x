@@ -1,14 +1,15 @@
 if __name__ == '__main__':
     from core_10x.code_samples.person import Person
     from core_10x.exec_control import INTERACTIVE
-    from core_10x.ts_store import TsStore
 
     from ui_10x.collection_editor import Collection, CollectionEditor
     from ui_10x.utils import UxDialog, ux
 
+    Person.some_ppl(save = True)
+
     ux.init()
 
-    with TsStore.instance_from_uri('mongodb://localhost/test'), INTERACTIVE():
+    with INTERACTIVE():
         coll = Collection(cls = Person)
         ce = CollectionEditor(coll = coll)
         w = ce.main_widget()

@@ -1,6 +1,7 @@
 from datetime import date
 
 from core_10x.named_constant import NamedConstant
+from core_10x.rc import RC
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
 
 
@@ -98,3 +99,48 @@ class Person(Traitable):
         cls = self.__class__
         if cls.s_print:
             print(f'inside {cls.__name__}.{trait_name}_get()')
+
+
+    first_name: str         = T(T.ID)
+    last_name: str          = T(T.ID)
+    dob: date               = T()
+
+    weight: float
+
+    @classmethod
+    def some_ppl(cls, save = False) -> list:
+        ppl = [
+            Person.new_or_update(
+                first_name  = 'John',
+                last_name   = 'Doe',
+                dob         = date(1980, 1, 1),
+                weight      = 180.
+            ),
+            Person.new_or_update(
+                first_name  = 'Melissa',
+                last_name   = 'Doe',
+                dob         = date(1990, 3, 4),
+                weight      = 160.
+            ),
+            Person.new_or_update(
+                first_name  = 'Mike',
+                last_name   = 'Doe',
+                dob         = date(2010, 7, 12),
+                weight      = 170.
+            ),
+            Person.new_or_update(
+                first_name  = 'Ann',
+                last_name   = 'Doe',
+                dob         = date(2015, 10, 24),
+                weight      = 130.
+            ),
+
+        ]
+        if save:
+            for p in ppl:
+                rc = p.save()
+                if not rc:
+                    print(rc.error())
+
+        return ppl
+

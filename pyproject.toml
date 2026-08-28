@@ -86,6 +86,10 @@ jit = [
     "cython>=3.2.4",
     "tccbox>=2025.10.27",
 ]
+examples = [
+    "yfinance>=1.7.0", # ui_10x/examples/price_simulator.py only
+    "pandas!=3.0.4",   # crashes with yfinance
+]
 
 [project.urls]
 Homepage = "https://github.com/10x-software/py10x"
