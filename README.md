@@ -11,7 +11,7 @@
 
 **10x** (as a concept) exists for one audience: engineers, researchers, and developers who want to be 10 times more productive — not through better tooling at the edges, but by never having to rebuild the same foundation twice.
 
-**Genaxy** is a new kind of software system that makes 10x possible. Examples include SecDb, Athena, 10x Genaxy (this system), and other genaxies in that [lineage](WHITEPAPER.md). Each genaxy is built around a small generative core — the **substratum** — rather than assembled feature by feature. The substratum defines a handful of laws, not a feature set: identity, dependency, persistence, presentation. Everything else follows from these.
+**Genaxy** is a new kind of software system that makes 10x possible. Examples include SecDb, Athena, 10x Genaxy (this system), and other genaxies in that [lineage](LINEAGE.md). Each genaxy is built around a small generative core — the **substratum** — rather than assembled feature by feature. The substratum defines a handful of laws, not a feature set: identity, dependency, persistence, presentation. Everything else follows from these.
 
 Around the substratum sit **subject domains** — real fields of work, each built on the same foundation instead of reinventing it. For 10x Genaxy, finance is the first: `py10x-fin-base`. More will follow. Each domain surrounds the substratum the way planets surround a star — independent, distinct, but all held together by the same underlying laws.
 
@@ -163,7 +163,7 @@ Compared to reactive frameworks — dependencies are tracked automatically, comp
 
 | I want to… | Read |
 |------------|------|
-| Read the full vision and history | [WHITEPAPER.md](WHITEPAPER.md) |
+| Read the full vision and history | [LINEAGE.md](LINEAGE.md) |
 | Install py10x | [INSTALLATION.md](INSTALLATION.md) |
 | Learn the Traitable framework | [GETTING_STARTED.md](GETTING_STARTED.md) |
 | Install / use the first subject domain of 10x Genaxy (`xxfin`) | [xx_fin/README.md](xx_fin/README.md) |
