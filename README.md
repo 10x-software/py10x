@@ -163,7 +163,6 @@ Compared to reactive frameworks — dependencies are tracked automatically, comp
 
 | I want to… | Read |
 |------------|------|
-| Read the full vision and history | [LINEAGE.md](LINEAGE.md) |
 | Install py10x | [INSTALLATION.md](INSTALLATION.md) |
 | Learn the Traitable framework | [GETTING_STARTED.md](GETTING_STARTED.md) |
 | Install / use the first subject domain of 10x Genaxy (`xxfin`) | [xx_fin/README.md](xx_fin/README.md) |
