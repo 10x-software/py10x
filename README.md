@@ -23,11 +23,11 @@ Most software is built domain-first: a finance system, a healthcare system, a lo
 
 In this README:
 
-- **Identity & sharing** — same ID traits, same entity ([nine lines](#-identity-and-dependency-in-nine-lines))
-- **Lazy dependency graph** — computed traits, tracked automatically ([nine lines](#-identity-and-dependency-in-nine-lines))
-- **Resources and persistence** — URI-addressed Traitable Store over MongoDB, PostgreSQL, DuckDB ([resources](#-everything-is-a-resource))
-- **Credential vault** — one registration, no passwords in application code ([resources](#-everything-is-a-resource))
-- **Derived UI** — Qt or Rio editors from the class ([UI](#-the-ui-is-derived-not-written))
+- **[Identity & sharing](#-identity-and-dependency-in-nine-lines)** — same ID traits, same entity
+- **[Lazy dependency graph](#-identity-and-dependency-in-nine-lines)** — computed traits, tracked automatically
+- **[Resources and persistence](#-everything-is-a-resource)** — seamless Traitable Store and other resources
+- **[Credential vault](#-everything-is-a-resource)** — one registration, no passwords in application code
+- **[Derived UI](#-the-ui-is-derived-not-written)** — Qt or Rio editors from the class
 
 ---
 
@@ -65,7 +65,7 @@ Two of the four laws, in nine lines: `handle` is the *identity*, `energy` is a *
 
 ---
 
-## 🗄️ Everything Is a Resource
+## 💾 Everything Is a Resource
 
 Real systems rarely live in one database. 10x Genaxy treats every external dependency — a MongoDB cluster, a Postgres box, a DuckDB file, a credentials vault — as a `Resource`: addressed by a plain URI, resolved to a concrete driver through a small, pluggable registry. The Traitable Store you persist objects to is just one kind of `Resource`, alongside anything else your system depends on.
 
