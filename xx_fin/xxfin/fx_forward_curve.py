@@ -136,7 +136,7 @@ class FXFundedDiscRateCurve(SyntheticMktDataWithoutMas):
         fx_fwd_curve = fx_fwd_curve_object.payload      #-- it will either get it, if already built, or build right here
 
         #-- 2) Funding Zero Rate Curve
-        funding_curve_object = ZeroRateCurve(
+        funding_curve_object = ZeroRateCurve.selected_class()(
             mkt_name        = self.mkt_conventions.funding_rate_mkt_name,
             provider_name   = provider_name,
             md_date         = today,
@@ -178,7 +178,7 @@ class FXForwardCurve(SyntheticMktDataWithoutMas):
     now_rate: float                         = RT()  // 'e.g., GBP/USD today'
 
     def funding_disc_curve_get(self) -> ZeroRateCurve:
-        zrc = ZeroRateCurve(
+        zrc = ZeroRateCurve.selected_class()(
             provider_name   = self.provider_name,
             mkt_name        = self.mkt_conventions.funding_rate_mkt_name,
             md_date         = self.md_date,
