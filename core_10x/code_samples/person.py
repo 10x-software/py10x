@@ -1,7 +1,6 @@
 from datetime import date
 
 from core_10x.named_constant import NamedConstant
-from core_10x.rc import RC
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
 
 
@@ -99,13 +98,6 @@ class Person(Traitable):
         cls = self.__class__
         if cls.s_print:
             print(f'inside {cls.__name__}.{trait_name}_get()')
-
-
-    first_name: str         = T(T.ID)
-    last_name: str          = T(T.ID)
-    dob: date               = T()
-
-    weight: float
 
     @classmethod
     def some_ppl(cls, save = False) -> list:

@@ -96,7 +96,11 @@ exclude = [
     "B011", # assert False
 ]
 "ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]
-"ui_10x/examples/price_simulator.py" = ["E711"]
+"ui_10x/examples/*" = ["I001"]
+"ui_10x/examples/price_simulator.py" = [
+    "E711",   # != None
+    "BLE001", # Do not catch blind exception: `Exception`
+]
 "ui_10x/rio/apps/examples/examples/pages/login_page.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
 ]
