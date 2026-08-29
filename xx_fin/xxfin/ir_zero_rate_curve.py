@@ -1,5 +1,6 @@
 from datetime import date
 
+from core_10x.selectable_traitable_class import SelectableTraitableClass
 from xxcommon.rdate import BIZDAY_ROLL_RULE, PROPAGATE_DATES, TENOR_FREQUENCY, RDate
 
 from xxfin.fin_calendar import FinCalendar
@@ -13,7 +14,7 @@ from xxfin.zrc_bootstrap import solve_cash_deposit, solve_swap
 
 _DBG    = False
 
-class ZeroRateCurve(TenorBasedSyntheticCurve, mas_class = IRZeroRateCurveMas):
+class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_class = IRZeroRateCurveMas):
     mkt_conventions: IRRateMktConventions   = M()
     payload: RateCurve                      = M(T.EMBEDDED)
 
