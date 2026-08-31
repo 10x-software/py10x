@@ -29,11 +29,13 @@ to them, and using them is subject to their own vendors' terms.
 
   - aadc
     Copyright (c) MatLogica Limited. Proprietary Python interface to MatLogica's
-    AADC (Adjoint Algorithmic Differentiation Compiler). Installable from PyPI
-    without restriction and ships with a time-limited trial license out of the
-    box; continued or production use requires a license key obtained from
-    MatLogica.
-    https://pypi.org/project/aadc/
+    AADC (Adjoint Algorithmic Differentiation Compiler). Installable without
+    restriction from MatLogica's own package index; the published wheels are
+    the Community Edition build, licensed for non-commercial and academic use
+    only, with no activation, key, or trial period required for that use.
+    Commercial use or advanced features (e.g. AVX-512) require a license
+    obtained by contacting MatLogica (info@matlogica.com).
+    https://matlogica.com/wheels/simple/
 
   - blpapi (optional "bbg" extra)
     Copyright (c) Bloomberg Finance L.P. Bloomberg's proprietary API, not

@@ -14,12 +14,6 @@ if __name__ == '__main__':
     XXCommonEnvVars.use_cxx_curve = False
     XXFinEnvVars.use_cxxfin = False
 
-    import aadc
-
-    aadc_license = XXFinEnvVars.aadc_license
-    if aadc_license:
-        aadc.license(aadc_license)     #-- temp license key from Matlogica
-
     from datetime import date
 
     from aadc import idouble

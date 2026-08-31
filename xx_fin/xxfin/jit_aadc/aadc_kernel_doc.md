@@ -102,18 +102,20 @@ are legitimate -- they just answer different questions:
 - **Off-graph baseline** (no `GRAPH_ON` active): a `Traitable` gets no cross-call caching at all,
   so *every* access recomputes everything from scratch -- for `CcyForward.price` that's the full
   curve bootstrap, calendar work, etc., repeated on the 1st, 2nd, and 3rd call alike (measured:
-  ~550ms-850ms per call, every call). Against that baseline, `kernel.eval()` (~350-520us) comes
-  out to roughly **1000-1600x**.
+  ~750-760ms per call, every call, on `aadc` 2.8.0). Against that baseline, `kernel.eval()`
+  (~65-80us) comes out to roughly **9300-11100x**.
 - **On-graph baseline** (`GRAPH_ON` active, one fresh computation): a single genuine
   recomputation under graph mode, with all its caching benefits already applying, measured at
-  ~28ms for `CcyForward.price`. Against that baseline, `kernel.eval()` comes out to roughly
-  **55-75x**.
+  ~24ms for `CcyForward.price` on `aadc` 2.8.0. Against that baseline, `kernel.eval()` comes out to
+  roughly **300-370x**.
 
 Which comparison is meaningful depends on whether the code path being replaced by
 `AadcKernel` would actually run on-graph or off-graph in production. Don't quote a bare
-"Nx acceleration" without saying which baseline it's against -- see
-`manual_tests/aadc_kernel_test.py`, which measures the on-graph number by wrapping the Python
-baseline in the same `GRAPH_ON` instance passed into `AadcKernel(..., graph=graph)`.
+"Nx acceleration" without saying which baseline it's against **and which `aadc` version produced
+it** -- these figures are hardware- and version-dependent, so a number without both is not
+reproducible. See `manual_tests/aadc_kernel_test.py`, which measures the on-graph number by
+wrapping the Python baseline in the same `GRAPH_ON` instance passed into
+`AadcKernel(..., graph=graph)`.
 
 ## A landmine in `AADCContext`: global builtin patching
 

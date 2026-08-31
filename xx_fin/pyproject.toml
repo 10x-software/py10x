@@ -29,7 +29,7 @@ dependencies = [
     "py10x-core (>=0.3.2rc10,<0.3.2rc11)",
     "py10x-fin-base-cxx (==0.1.2rc10)",  # co-released; same version as this package
     "quantlib-python>=1.18",
-    "aadc>=1.8.2; sys_platform != 'darwin' and (sys_platform != 'win32' or python_version != '3.13')",
+    "aadc>=2.8.0",
 ]
 
 [project.optional-dependencies]
@@ -77,6 +77,11 @@ name = "bloomberg"
 url = "https://blpapi.bloomberg.com/repository/releases/python/simple/"
 explicit = true
 
+[[tool.uv.index]]
+name = "matlogica"
+url = "https://matlogica.com/wheels/simple/"
+explicit = true
+
 [tool.uv.sources]
 # Monorepo: local core / cxx for uv sync. Does not ship in the wheel.
 # editable=true matches root's editable install so root `uv lock` (which
@@ -85,3 +90,5 @@ explicit = true
 py10x-core = { path = "..", editable = true }
 py10x-fin-base-cxx = { workspace = true }
 blpapi = { index = "bloomberg" }
+# aadc 2.x wheels are published on MatLogica's own index, not (yet) mirrored on PyPI.
+aadc = { index = "matlogica" }

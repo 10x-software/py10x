@@ -6,4 +6,4 @@ class XXFinEnvVars(_EnvVars, env_name = 'XXFIN'):
 
     #cxx_day_count_convention: bool = False
     use_cxxfin: bool = False
-    aadc_license: str = ''
+    aadc_license: str = ''  # unused for now -- reserved to help locate the AADC_NG_LICENSE file
