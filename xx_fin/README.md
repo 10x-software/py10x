@@ -2,7 +2,7 @@
 
 ## Install
 
-Install the consumer package only:
+Install the consumer package:
 
 ```bash
 pip install py10x-fin-base
@@ -76,14 +76,11 @@ any other currency.
 ## Optional JIT acceleration via AADC
 
 `xxfin/jit_aadc/` optionally records curve/valuation code into a JIT-compiled adjoint
-differentiation kernel using [MatLogica's AADC](https://pypi.org/project/aadc/) (Adjoint Algorithmic
-Differentiation Compiler), enabled via the `use_cxxfin`/`aadc_license` settings in
-`xxfin_env_vars.py`. `aadc` installs freely from PyPI where MatLogica publishes wheels; it is a
-required dependency except on macOS (no published build) and on Windows under Python 3.13 (no
-wheel yet). It ships with a
-time-limited trial license out of the box, but continued or production use requires a license key
-obtained from MatLogica. `xxfin` itself
-works fully without it — AADC only accelerates the JIT-compiled code path.
+differentiation kernel using [MatLogica's AADC](https://matlogica.com/wheels/simple/) (Adjoint
+Algorithmic Differentiation Compiler), enabled via the `use_cxxfin` setting in
+`xxfin_env_vars.py`. `xxfin` itself works fully without it -- AADC only accelerates the
+JIT-compiled code path. See `xxfin/jit_aadc/aadc_doc.md` and `xxfin/jit_aadc/aadc_kernel_doc.md`
+for how it's used.
 
 ## An easy setup to start playing with xxfin package
 - install mongodb on your machine and run without authentication (default)

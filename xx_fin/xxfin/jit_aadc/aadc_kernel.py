@@ -1,4 +1,3 @@
-import aadc
 from aadc import idouble
 from aadc.evaluate_wrappers import evaluate_kernel
 from core_10x.exec_control import BTP, GRAPH_ON
@@ -7,16 +6,16 @@ from core_10x.traitable import BoundTrait, Traitable
 
 from xxfin.jit_aadc.aadc_context import AADCContext
 from xxfin.mkt_quotable import MktDeps
-from xxfin.xxfin_env_vars import XXFinEnvVars
 
 
 class AadcKernel:
     @classmethod
     @cache
     def _init(cls):
-        aadc_license = XXFinEnvVars.aadc_license
-        if aadc_license:
-            aadc.license(aadc_license)
+        pass
+        # TODO: aadc 2.x reads its license from the AADC_NG_LICENSE env var (a file path), not
+        # aadc.license(key) (removed in 2.x -- now raises NotImplementedError). Once
+        # XXFinEnvVars.aadc_license holds that path, point AADC_NG_LICENSE at it here.
 
     def __init__(self, bound_trait: BoundTrait, graph: BTP = None):
         self._init()
@@ -30,7 +29,9 @@ class AadcKernel:
         self.deps = {}
 
 
-    def build(self):
+    def build(self, compile_kernel: bool = False):
+        """compile_kernel: extra time here for faster eval()/eval_with_adjoints() -- worth it when
+        the kernel will be replayed many times, not for a single valuation."""
         if self.graph is None:
             self.graph = GRAPH_ON()
 
@@ -56,6 +57,9 @@ class AadcKernel:
                 self.output = res_active.mark_as_output()
 
             self.deps = {self.output: list(input_handles.values())}
+
+            if compile_kernel:
+                self.kernel.compile()
 
     def _lookup_handle(self, key):
         h = self.input_handles.get(key)

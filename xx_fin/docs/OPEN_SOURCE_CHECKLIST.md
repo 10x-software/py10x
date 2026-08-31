@@ -28,7 +28,7 @@ Not legal advice; consider legal review before publishing.
 |------------|-----------------|-----------------|-------|
 | py10x-core, py10x-kernel, py10x-infra | MIT | Yes | Already public on PyPI. |
 | quantlib-python | BSD-3-Clause-style (QuantLib License) | Yes | |
-| aadc | **Proprietary/commercial** (not open source) | N/A — not distributed under an OSI license | Installable freely from PyPI (separate install, not bundled); ships a time-limited trial license, continued/production use requires a MatLogica license key. Listed in `xx_fin/NOTICE`'s commercial-dependencies section; platform-availability detail lives in `README.md`. Excluded on macOS and on Windows+Python 3.13 per `xx_fin/pyproject.toml` because MatLogica doesn't publish an aadc wheel for those targets — not because it's optional there. |
+| aadc | **Proprietary/commercial** (not open source) | N/A — not distributed under an OSI license | Installable freely from MatLogica's own package index (separate install, not bundled); the published wheel is the Community Edition build — licensed for non-commercial/academic use only, no activation/key/trial period required for that use. Commercial use or advanced features (e.g. AVX-512) require a license obtained by contacting MatLogica; an optional license file (`AADC_NG_LICENSE`), supplied out-of-band, unlocks those — `xxfin` does not depend on it. Listed in `xx_fin/NOTICE`'s commercial-dependencies section; platform-availability detail lives in `README.md`. `xx_fin/pyproject.toml` carries no platform/Python-version marker on `aadc>=2.8.0` — MatLogica's wheels cover every target `xx_fin` supports. |
 | xbbg (optional `bbg` extra) | Apache 2.0 | Yes | Open source; listed in `xx_fin/NOTICE`'s open-source section. |
 | blpapi (optional `bbg` extra) | **Proprietary/commercial** (not open source) | N/A — not distributed under an OSI license | Bloomberg's own API, distributed only via Bloomberg's dedicated, entitlement-gated package index (`[[tool.uv.index]] name = "bloomberg"` in `xx_fin/pyproject.toml`); requires a valid Bloomberg entitlement/Terminal license. Listed in `xx_fin/NOTICE`'s commercial-dependencies section, not alongside xbbg. |
 
@@ -53,18 +53,16 @@ Command (re-run before each release):
 uv run --no-sync licensecheck -r xx_fin/pyproject.toml --extras bbg,dev
 ```
 
-**Last run:** 2026-08-10 (macOS / Python 3.11 venv) — **92** compatible, **3** flagged.
+**Last run:** 2026-08-30 (macOS / Python 3.11 venv) — **92** compatible, **4** flagged.
 
 - **Compatible (✔):** Including `quantlib` / `quantlib-python` (BSD), `xbbg` (Apache-2.0 via
   `bbg`), `hatchling`, `py10x-kernel` / `py10x-infra`, and `dev` tooling transitives.
 - **Flagged (✖), expected and documented:**
+  - **aadc** — no SPDX-recognized license (`License-Expression: LicenseRef-Matlogica-EULA` in its
+    metadata); listed in `NOTICE` commercial section.
   - **blpapi** (`bbg` extra) — `OTHER_PROPRIETARY LICENSE`; listed in `NOTICE` commercial section.
   - **cxxfin**, **`..`** — local path / workspace resolution noise; `cxxfin` is MIT
     (`xx_fin/cxxfin/LICENSE`), not a third-party issue.
-- **Not in this run:** **aadc** — environment marker excludes it on macOS (also excluded on
-  Windows + Python 3.13). Still a documented MatLogica commercial dependency in `NOTICE` wherever
-  it installs; expect it to appear as proprietary if you re-run on Linux/Windows where the marker
-  allows install.
 
 ---
 
@@ -92,9 +90,9 @@ images/logos are shipped under `xx_fin/`.
   `10X CONCEPTS LLC, XXFIN LLC and contributors` (keep both in sync).
 - `xx_fin/NOTICE` — open-source third-party attribution (QuantLib, xbbg) plus a separate section
   disclosing `aadc` and `blpapi` as commercial/proprietary dependencies requiring their own license.
-- `README.md` ("Optional JIT acceleration via AADC") — implementation detail on `aadc` (the
-  `use_cxxfin`/`aadc_license` settings, platform exclusions); the licensing fact itself lives
-  in NOTICE.
+- `README.md` ("Optional JIT acceleration via AADC") — brief pointer to `xxfin/jit_aadc/` and its
+  `aadc_doc.md`/`aadc_kernel_doc.md`; the licensing and platform-availability facts live in
+  `NOTICE` and `xx_fin/pyproject.toml`, not README.
 - `THIRD_PARTY_LICENSES` — not needed, per the root checklist's reasoning
   ([`docs/OPEN_SOURCE_IP_CHECKLIST.md`](../../docs/OPEN_SOURCE_IP_CHECKLIST.md) §5): `xx_fin` only
   *declares* dependencies, no vendored/bundled third-party source or combined binary distribution.
@@ -107,7 +105,7 @@ images/logos are shipped under `xx_fin/`.
 |------|--------|--------|
 | Publish workflow | Done | Single `.github/workflows/finbase_wheel.yml`, triggered by one tag `py10x-fin-base-v*`. Builds `py10x-fin-base-cxx` wheels (cibuildwheel, 3 OSes) and the `py10x-fin-base` sdist/wheel in parallel jobs, then publishes both to PyPI in one `publish` job — trusted PyPI publishing (OIDC, no tokens). |
 | Version coordination | Done | `xx_fin/cxxfin/pyproject.toml`'s `setuptools_scm` and `xx_fin/pyproject.toml`'s `hatch-vcs` both derive their version from the *same* tag pattern (`py10x-fin-base-v*`), so a release tag always gives both packages the identical version string. Co-release `{name}-cxx==` pins are written by `xx-promote`; the publish workflow validates the committed pin against the tagged version. |
-| Upstream deps publishable | Done | `py10x-core`, `py10x-kernel`, `py10x-infra`, `aadc` already on public PyPI; `cxx10x` headers repo already public on GitHub (needed for `cxxfin`'s CMake `FetchContent`). |
+| Upstream deps publishable | Done | `py10x-core`, `py10x-kernel`, `py10x-infra` already on public PyPI; `cxx10x` headers repo already public on GitHub (needed for `cxxfin`'s CMake `FetchContent`). |
 | Prerelease-chain pins | Done for 0.3.0 | Core `0.3.0rc1` is on PyPI with rc-window sibling pins. A **0.3.0 final** of core/kernel/infra closes the old `0.2.2` gap (final core could resolve an old final kernel). Keep `xx_fin`/`cxxfin` pins promote-managed. |
 
 ---
