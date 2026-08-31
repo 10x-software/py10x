@@ -20,24 +20,19 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
 
     def quotables_by_class_get(self) -> dict:
         today           = self.md_date
-        mc              = self.mkt_conventions
-        cal             = mc.calendar
-        roll_rule       = mc.roll_rule
-        spot_date       = mc.spot_date(today)
         mkt_basis       = self.md_basis
         mao             = self.mkt_assembly_object
 
+        #-- pay_date already accounts for the '1B' start-today override (via start_date_get) and
+        #   the tenor-roll + pay-lag chain (via end_date_get/pay_date_get on the quotable itself),
+        #   so it doesn't need to be re-derived here.
         result = {}
         for quotable_class, data_definition in mao.quotable_stubs_by_class.items():
             quotable_by_date = {}
             result[quotable_class] = quotable_by_date
             for stub in mao.create_quotable_stubs(quotable_class, data_definition, today):
                 quotable = quotable_class.existing_instance(**stub, **mkt_basis)
-                tenor = quotable.tenor
-                start_date = today if tenor.symbol() == '1B' else spot_date
-                ed = tenor.apply(start_date, cal, roll_rule)
-                d  = mc.pay_date(ed)
-                quotable_by_date[d] = quotable
+                quotable_by_date[quotable.pay_date] = quotable
 
         return result
 
@@ -71,7 +66,7 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
 
         quotable: IRCashDepositQuotable
         for end_date, quotable in quotables.items():
-            start_date = today if quotable.tenor.symbol() == '1B' else spot_date
+            start_date = quotable.start_date
 
             if _DBG: print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')  # pragma: no cover
 
