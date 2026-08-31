@@ -37,7 +37,7 @@ class FinInstrument(Traitable):
 
     def disc_curve_get(self) -> ZeroRateCurve:
         pc = PricingContext.current()
-        return ZeroRateCurve(
+        return ZeroRateCurve.selected_class()(
             mkt_name        = self.denominated.discounting_mkt_name,
             provider_name   = pc.mkt_data_provider_name,
             md_date         = pc.md_date,
