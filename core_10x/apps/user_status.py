@@ -6,7 +6,7 @@ Installed by ``py10x-core`` as the ``xx-user-status`` console script (see
 
 Exit codes:
   0 — all checks passed
-  1 — one or more checks failed
+  1 — one or more checks failed (section [0] OS login is always printed)
 """
 
 from __future__ import annotations
@@ -42,6 +42,17 @@ def main() -> int:
         print(f'FAIL  {msg}')
         if hint:
             print(f'      hint: {hint}')
+
+    # ------------------------------------------------------------------
+    # 0. OS login — always shown (needed before vault account creation)
+    # ------------------------------------------------------------------
+    print('\n[0] OS login (vault account name)')
+    from core_10x.traitable import VaultUser
+
+    os_login = VaultUser.myname()
+    _ok(f'OS login = {os_login!r}')
+    print('      Use this exact string for the vault-DB login (--worker).')
+    print('      Send it to your DBA / vault admin if they do not already know it')
 
     # ------------------------------------------------------------------
     # 1. Vault URI configured
@@ -111,7 +122,7 @@ def main() -> int:
         ras = VaultResourceAccessor.load_many(f(username=me.user_id))
 
         if not ras:
-            print('      (none registered — ask an admin to run xx-admin-save-user-credentials for any additional resources)')
+            print('      (none registered — run xx-user-save-credentials, or ask an admin to run xx-admin-save-user-credentials)')
         else:
             for ra in ras:
                 label = f'{ra.resource_dt.name}  {ra.resource_uri}  (login: {ra.login})'

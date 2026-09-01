@@ -16,7 +16,7 @@ import pytest
 import uuid6
 from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
-from core_10x.trait_definition import T
+from core_10x.trait_definition import RT, T
 from core_10x.traitable import Traitable, VaultResourceAccessor
 from core_10x.ts_store import TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
@@ -101,6 +101,7 @@ def test_is_running_with_auth_local_trust_no_password(postgres_store):
     need(not TsStore.is_running_with_auth_from_uri(uri)[1], f'server at {uri} running with no auth')
     spec = TsStore.spec_from_uri(uri)
     assert PostgresStore.is_running_with_auth(spec.hostname(), spec.port()) == (True, False)
+    assert not postgres_store.can_serve_as_vault()
 
 
 def test_is_running_with_auth_unknown_role_try_vault(postgres_store):
@@ -270,6 +271,24 @@ def test_jsonb_path_index_on_blob_field(postgres_store):
         assert _pg_has_index(store, coll_name, 'idx_blob_key')
         expr = store._index_expr(coll_name, 'blob_key')
         assert expr is not None and _DATA in expr
+    finally:
+        store.delete_collection(coll_name)
+
+
+def test_ensure_columns_skips_runtime_traits(postgres_store):
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+        tmp: str = RT('')
+
+    store = postgres_store
+    coll_name = f'pg_rt_{uuid6.uuid7().hex[:8]}'
+    try:
+        coll = store.collection(coll_name, Pad.s_dir)
+        store.ensure_table(coll_name)
+        coll._ensure_columns(Pad.s_dir)
+        cols = store._collection_columns(coll_name)
+        assert 'pad' in cols
+        assert 'tmp' not in cols
     finally:
         store.delete_collection(coll_name)
 
@@ -500,3 +519,4 @@ def test_password_auth_connect():
     )
     assert store._execute('SELECT 1')[0][0] == 1
     assert store.auth_user() == 'postgres'
+    assert store.can_serve_as_vault()

@@ -77,6 +77,8 @@ def vault_env(monkeypatch):
     #    store; admin and alice's connections share the underlying
     #    "deployment" so they can read/write each other's state.
     monkeypatch.setattr(DuckDbStore, 's_with_auth', True)
+    monkeypatch.setattr(DuckDbStore, 'can_serve_as_vault', lambda self: True)
+    monkeypatch.setattr(DuckDbStore, 'is_vault_admin', lambda self: True)
     monkeypatch.setattr(
         DuckDbStore,
         's_instance_kwargs_map',

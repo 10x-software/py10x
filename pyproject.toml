@@ -110,7 +110,9 @@ xx-test-db-clean                = "dev_10x.db_clean:TestDbCleanCli.main"
 xx-user-init                    = "core_10x.apps.user_init:UserInitCli.main"
 xx-functional-account-init      = "core_10x.apps.functional_account_init:FunctionalAccountInitCli.main"
 xx-user-status                  = "core_10x.apps.user_status:main"
+xx-user-save-credentials        = "core_10x.apps.user_save_credentials:main"
 xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
+xx-vault-setup-roles            = "core_10x.apps.vault_setup_roles:VaultSetupRolesCli.main"
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright>=1.55,<1.63"]

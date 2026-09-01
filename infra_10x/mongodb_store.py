@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any
 
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
+from core_10x.rc import RC, RC_TRUE
 from core_10x.trait_definition import T
 from core_10x.ts_store import (
     TS_FIELDS_TAG,
@@ -17,6 +18,8 @@ from pymongo import MongoClient, ReturnDocument
 from pymongo.common import TIMEOUT_OPTIONS
 from pymongo.errors import ConnectionFailure, DuplicateKeyError, OperationFailure, ServerSelectionTimeoutError
 from pymongo.uri_parser import parse_uri as pymongo_parse_uri
+
+from infra_10x.namespace import ACTION
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping
@@ -284,9 +287,9 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
             }
             # fmt: on
             args.update(kwargs)
-            args.update( # rename mongo params back to short aliases
-                (short, round(value*1000) if value and real.lower() in TIMEOUT_OPTIONS else value)
-                for short, real in aliases.items() if (value:=args.pop(real,args)) is not args
+            args.update(  # rename mongo params back to short aliases
+                (short, round(value * 1000) if value and real.lower() in TIMEOUT_OPTIONS else value)
+                for short, real in aliases.items() if (value := args.pop(real, args)) is not args
             )
             return args
         except Exception as e:
@@ -302,8 +305,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         filter = dict(name={'$regex': regexp}) if regexp else None
         return self.db.list_collection_names(filter=filter)
 
-    def collection(self, collection_name: str, trait_dir: dict | None = None) -> MongoCollection:
-        return MongoCollection(self.db, collection_name, store=self)  # Mongo is schemaless; trait_dir unused
+    def collection(self, collection_name: str, trait_dir: dict | None = None, *, create_if_needed: bool = False) -> MongoCollection:
+        return MongoCollection(self.db, collection_name, store=self)  # Mongo is schemaless; trait_dir / create_if_needed unused
 
     def supports_transactions(self) -> bool:
         """True if this MongoDB deployment supports multi-document transactions (replica set or mongos)."""
@@ -354,6 +357,87 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
     def auth_user(self) -> str:
         return self.username
+
+    def can_serve_as_vault(self) -> bool:
+        try:
+            host, port = self.client.address
+        except Exception:
+            return False
+        return type(self).is_running_with_auth(host, port)[1]
+
+    def setup_vault_roles(
+        self,
+        *,
+        user_collection: str,
+        user_history: str,
+        accessor_collection: str,
+        accessor_history: str,
+        worker_role: str | None = None,
+        admin_role: str | None = None,
+    ) -> RC:
+        worker_role = worker_role or TsStore.VAULT_WORKER_ROLE
+        admin_role = admin_role or TsStore.VAULT_ADMIN_ROLE
+        admin = self.client[MongoStore.ADMIN]
+        dbname = self.db_name()
+        identity = (user_collection, user_history)
+        accessors = (accessor_collection, accessor_history)
+        worker_identity = (ACTION.FIND, ACTION.INSERT, ACTION.INDEX_LIST, ACTION.INDEX_CREATE)
+        worker_accessor = (*worker_identity, ACTION.UPDATE)
+        admin_actions = (*worker_identity, ACTION.UPDATE)
+        try:
+            privileges = [{'resource': {'db': dbname, 'collection': cname}, 'actions': list(worker_identity)} for cname in identity]
+            privileges.extend({'resource': {'db': dbname, 'collection': cname}, 'actions': list(worker_accessor)} for cname in accessors)
+            privileges.append({'resource': {'db': dbname, 'collection': ''}, 'actions': [ACTION.COLL_LIST]})
+            method = 'updateRole' if self._vault_role_exists(admin, worker_role) else 'createRole'
+            admin.command(method, worker_role, privileges=privileges, roles=[])
+            admin_privs = [{'resource': {'db': dbname, 'collection': cname}, 'actions': list(admin_actions)} for cname in (*identity, *accessors)]
+            admin_privs.append({'resource': {'db': dbname, 'collection': ''}, 'actions': [ACTION.COLL_LIST]})
+            method = 'updateRole' if self._vault_role_exists(admin, admin_role) else 'createRole'
+            admin.command(method, admin_role, privileges=admin_privs, roles=[])
+        except Exception as e:
+            return RC(False, f'Mongo vault role setup failed: {e}')
+        return RC_TRUE
+
+    def create_vault_user(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
+        return self._grant_vault_login(
+            username, password, role=worker_role or TsStore.VAULT_WORKER_ROLE, other_role=admin_role or TsStore.VAULT_ADMIN_ROLE
+        )
+
+    def create_vault_admin(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
+        return self._grant_vault_login(
+            username, password, role=admin_role or TsStore.VAULT_ADMIN_ROLE, other_role=worker_role or TsStore.VAULT_WORKER_ROLE
+        )
+
+    def is_vault_admin(self, *, admin_role: str | None = None) -> bool:
+        admin_role = admin_role or TsStore.VAULT_ADMIN_ROLE
+        try:
+            status = self.client.admin.command('connectionStatus', showPrivileges=False)
+        except Exception:
+            return False
+        roles = (status.get('authInfo') or {}).get('authenticatedUserRoles') or []
+        return any(r.get('role') == admin_role for r in roles)
+
+    @staticmethod
+    def _vault_role_exists(admin, role: str) -> bool:
+        res = admin.command('rolesInfo', {'role': role, 'db': MongoStore.ADMIN})
+        return bool(res.get('roles'))
+
+    def _grant_vault_login(self, username: str, password: str, *, role: str, other_role: str) -> RC:
+        if not password:
+            return RC(False, 'password is required to create a vault login')
+        admin = self.client[MongoStore.ADMIN]
+        vault_role = {'role': role, 'db': MongoStore.ADMIN}
+        drop = {role, other_role}
+        try:
+            users = admin.command('usersInfo', {'user': username, 'db': MongoStore.ADMIN}).get('users') or []
+            if users:
+                kept = [r for r in (users[0].get('roles') or []) if r.get('role') not in drop]
+                admin.command('updateUser', username, pwd=password, roles=[*kept, vault_role])
+            else:
+                admin.command('createUser', username, pwd=password, roles=[vault_role])
+        except Exception as e:
+            return RC(False, f'Mongo vault login {username!r} failed: {e}')
+        return RC_TRUE
 
     def db_name(self) -> str:
         return self.db.name

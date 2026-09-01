@@ -744,13 +744,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return store
 
     @classmethod
-    def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
-        return (_ensure_indices and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name)
+    def collection(cls, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None:
+        return (create_if_needed and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name, create_if_needed=create_if_needed)
 
     @classmethod
     @cache(keep_value=False)
     def _ensure_indices(cls, _coll_name: str = None) -> TsCollection | None:
-        coll = cls.collection(_coll_name)
+        coll = cls.s_storage_helper.collection(_coll_name, create_if_needed=True)
         if coll is not None:
             for idx in cls.s_indices:
                 coll.create_index(idx.name, idx.spec, **idx.kwargs)
@@ -879,7 +879,7 @@ class AbstractStorableHelper(ABC):
     traitable_class: type[Traitable]
 
     @abstractmethod
-    def collection(self, _coll_name: str = None) -> TsCollection | None: ...
+    def collection(self, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None: ...
 
     @abstractmethod
     def exists_in_store(self, id: ID) -> bool: ...
@@ -925,7 +925,7 @@ class AbstractStorableHelper(ABC):
 
 
 class NotStorableHelper(AbstractStorableHelper):
-    def collection(self, _coll_name: str = None) -> TsCollection | None:
+    def collection(self, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None:
         return None
 
     def exists_in_store(self, id: ID) -> bool:
@@ -972,10 +972,10 @@ class NotStorableHelper(AbstractStorableHelper):
 
 
 class StorableHelper(AbstractStorableHelper):
-    def collection(self, _coll_name: str = None) -> TsCollection:
+    def collection(self, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection:
         cls = self.traitable_class
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        return cls.store().collection(cname, trait_dir=cls.s_dir)
+        return cls.store().collection(cname, trait_dir=cls.s_dir, create_if_needed=create_if_needed)
 
     def exists_in_store(self, id: ID) -> bool:
         return self.traitable_class.collection(_coll_name=id.collection_name).id_exists(id.value)
@@ -1044,7 +1044,7 @@ class StorableHelper(AbstractStorableHelper):
             if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
                 return RC_TRUE
 
-            coll = self.traitable_class.collection(traitable.id().collection_name, _ensure_indices=True)
+            coll = self.traitable_class.collection(traitable.id().collection_name, create_if_needed=True)
             if not coll:
                 return RC(False, f'{self.__class__} - no store available')
 
@@ -1459,13 +1459,15 @@ class Bundle(Traitable):
         return cls.s_bundle_base is cls
 
     @classmethod
-    def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
+    def collection(cls, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None:
         if (base := cls.s_bundle_base) is None or cls.is_bundle_base():
-            return super().collection(_coll_name, _ensure_indices)
+            return super().collection(_coll_name, create_if_needed=create_if_needed)
 
-        if (coll := base.collection(_coll_name, _ensure_indices)) is not None:
-            coll.extend_trait_dir(cls.s_dir)
-
+        if (coll := base.collection(_coll_name, create_if_needed=create_if_needed)) is None:
+            return None
+        coll.extend_trait_dir(cls.s_dir)
+        if create_if_needed:
+            cls.store().collection(coll.collection_name(), trait_dir=cls.s_dir, create_if_needed=True)
         return coll
 
     def __init_subclass__(cls, members_known=False, **kwargs):
@@ -1534,12 +1536,12 @@ Bundle.s_history_base = BundleHistory
 
 
 class VaultUser(Traitable):
-    user_id: str = T(T.ID) // 'OS login'
+    user_id: str    = T(T.ID) // 'OS login'
     suspended: bool = T(False)
 
     private_key_encrypted: bytes = T()
-    public_key: bytes = T()
-    master_password_salt: bytes = T(b'')  # -- empty only for rows written before this field existed
+    public_key: bytes            = T()
+    master_password_salt: bytes  = T(b'')        # empty only for rows written before this field existed
 
     sec_keys: SecKeys = RT(T.EVAL_ONCE)
 
@@ -1547,9 +1549,8 @@ class VaultUser(Traitable):
         return self.__class__.myname()
 
     def sec_keys_get(self) -> SecKeys:
-        # -- Every resource-credential and private-key decrypt for this identity goes through
-        # this property (RT(T.EVAL_ONCE)) -- the single choke point where suspension takes effect.
-        # See docs/VAULT_SECURITY_DESIGN.md §3.2.
+        # Choke point for this identity's decrypts; RT(T.EVAL_ONCE). See
+        # docs/VAULT_SECURITY_DESIGN.md §3.2.
         if self.suspended:
             raise RuntimeError(f'VaultUser {self.user_id!r} is suspended')
         rc, master_pwd = SecKeys.retrieve_master_password()
@@ -1565,25 +1566,6 @@ class VaultUser(Traitable):
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:
         return user_id.split('-', 1)[0] == EnvVars.var.functional_account_prefix.value
-
-    @classmethod
-    def creator_login(cls, user_id: str) -> str | None:
-        """The vault-DB login that first created this row -- ``_who`` on the creation entry
-        (``_traitable_rev == 1``) of its free ``TraitableHistory`` audit trail. ``None`` if no
-        history exists. See docs/VAULT_SECURITY_DESIGN.md §3.4 -- lets a caller verify a
-        `VaultUser` row was actually registered by its own claimed identity, not pre-registered by
-        someone else. Filters directly for revision 1 rather than fetching the full (newest-first)
-        history and taking the last entry -- a single-row query either way.
-        """
-        for entry in cls.history(user_id=user_id, _filter=f(_traitable_rev=1), _at_most=1):
-            return entry.get('_who')
-        return None
-
-    @classmethod
-    def login_already_registered(cls, login: str) -> str | None:
-        for entry in cls.history(_who=login, _filter=f(_traitable_rev=1), _at_most=1):
-            return entry.get('user_id')
-        return None
 
     @classmethod
     @cache
@@ -1641,6 +1623,10 @@ class VaultResourceAccessor(Traitable):
     def save_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, password: str, login: str = None, username: str = XNone) -> RC:
         if login is None:
             login = username
+
+        if username != VaultUser.myname():
+            if not Traitable.vault_store().is_vault_admin():
+                return RC(False, f'only vault admins may save resource credentials for {username!r}')
 
         resource_uri = cls._canonical_uri(resource_dt, resource_uri)
         ra = cls(username=username, resource_dt=resource_dt, resource_uri=resource_uri)

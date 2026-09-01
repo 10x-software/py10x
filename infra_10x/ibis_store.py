@@ -578,17 +578,21 @@ class IbisStore(TsStore):
             names = [n for n in names if pattern.match(n)]
         return names
 
-    def collection(self, collection_name: str, trait_dir: dict | None = None) -> IbisCollection:
+    def collection(self, collection_name: str, trait_dir: dict | None = None, *, create_if_needed: bool = False) -> IbisCollection:
         """Return a collection handle. Physical table is created on first write / index.
 
         ``trait_dir=None`` → read-only (no storable schema); ``{}`` → writable blob-only.
-        See :meth:`IbisCollection.extend_trait_dir`.
+        ``create_if_needed=True`` (``save`` / schema setup) creates the table and lazily promotes
+        ``col_trait_dir`` columns. See :meth:`IbisCollection.extend_trait_dir`.
         """
         if (coll := self._collections.get(collection_name)) is None:
             coll = self._collections[collection_name] = IbisCollection(self, collection_name, trait_dir)
         elif trait_dir is not None:
             # Bundle members (and other late openers): union column-eligible traits.
             coll.extend_trait_dir(trait_dir)
+        if create_if_needed:
+            self.ensure_table(collection_name)
+            self._ensure_columns(collection_name, dict.fromkeys(coll.col_trait_dir), coll.col_trait_dir)
         return coll
 
     def delete_collection(self, collection_name: str) -> bool:

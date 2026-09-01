@@ -38,8 +38,8 @@ class VaultUtils:
                 return (RC(False, 'MasterPassword already exists'), None)
 
         if master_password is None:
-            mp = getpass.getpass('Please create a memorable MasterPassword: ')
-            mp2= getpass.getpass('Please re-enter your MasterPassword: ')
+            mp  = getpass.getpass('Please create a memorable MasterPassword: ')
+            mp2 = getpass.getpass('Please re-enter your MasterPassword: ')
         else:
             # -- non-interactive (e.g. functional-account bootstrap): the value already came
             # -- from a secret store, so there's no typo to guard against with a confirmation.
@@ -123,19 +123,11 @@ class VaultUtils:
         #--    picked up for any other DB on that server (resolved via the
         #--    uri_no_dbname fallback in VaultResourceAccessor.retrieve_ra).
         username = VaultUser.myname()
+        if login != username or vault.auth_user() != username:
+            return RC(False, f'vault login must equal OS user {username!r} (got login {login!r}, store user {vault.auth_user()!r})')
         with vault:
             if VaultUser.existing_instance(user_id = username, _throw = False):
                 return RC(False, f'Vault User {username} already exists. On a new machine run: xx-user-init --new-machine')
-
-            # -- Each vault-DB login may only ever register one VaultUser identity -- otherwise a
-            # single shared/reused login could be used to namesquat multiple unclaimed user_ids.
-            # See docs/VAULT_SECURITY_DESIGN.md §3.4.
-            if other_user := VaultUser.login_already_registered(vault.auth_user()):
-                return RC(
-                    False,
-                    f'Vault login {vault.auth_user()!r} already registered Vault User {other_user!r} -- '
-                    'each vault-DB login may only register one Vault User identity',
-                )
 
             rc, master_pwd = cls.create_master_password(override = True, master_password = master_password)
             if not rc:
@@ -168,22 +160,21 @@ class VaultUtils:
 
     @classmethod
     def _user_init_new_machine(cls, vault_uri: str, *, login: str = None, password: str = None, master_password: str = None) -> RC:
-        rc, vault, login, password = cls._get_and_check_vault_credentials(vault_uri, login = login, password = password)
+        rc, vault, login, password = cls._get_and_check_vault_credentials(vault_uri, login=login, password=password)
         if not rc:
             return rc
 
         username = VaultUser.myname()
+        if login != username or vault.auth_user() != username:
+            return RC(False, f'vault login must equal OS user {username!r} (got login {login!r}, store user {vault.auth_user()!r})')
         with vault:
-            me = VaultUser.existing_instance(user_id = username, _throw = False)
+            me = VaultUser.existing_instance(user_id=username, _throw=False)
             if not me:
                 return RC(
                     False,
                     f'Vault User {username} does not exist. Run: xx-user-init --new-user',
                 )
 
-            # -- A suspended identity must not be able to re-establish access on a *new* machine
-            # either -- this uses SecKeys.decrypt_private_key directly, not VaultUser.sec_keys_get(),
-            # so it needs its own gate. See docs/VAULT_SECURITY_DESIGN.md §3.4.
             if me.suspended:
                 return RC(False, f'Vault User {username} is suspended')
 
@@ -196,8 +187,8 @@ class VaultUtils:
                 return RC(False, 'MasterPassword does not unlock the vault private key')
 
         # -- prove succeeded: seed local keyring only (no vault writes)
-        SecKeys.change_master_password(master_password, override = True)
-        SecKeys.change_vault_login_password(login, password, vault_uri = vault_uri, override = True)
+        SecKeys.change_master_password(master_password, override=True)
+        SecKeys.change_vault_login_password(login, password, vault_uri=vault_uri, override=True)
         return RC_TRUE
 
     @classmethod
@@ -211,11 +202,12 @@ class VaultUtils:
             password = getpass.getpass(f'Enter password (given to you by admin) for {login} @ {vault_uri} : ')
         try:
             vault = TsStore.instance_from_uri(vault_uri, username = login, password = password, _cache = False)
+            if not vault.can_serve_as_vault():
+                return (RC(False, f'{type(vault).__name__} cannot serve as a vault'), None, None, None)
             return (RC_TRUE, vault, login, password)
 
         except Exception:
             return (RC(False, f'Failed to connect to {login} @ {vault_uri}'), None, None, None)
-
 
     @classmethod
     def vault_init(cls, vault_uri: str) -> RC:
@@ -228,13 +220,13 @@ class VaultUtils:
         if vault_uri == EnvVars.main_vault_uri:
             return cls.user_init()
 
-        rc, main_uri = SecKeys.check_vault_uri(main = True)
+        rc, main_uri = SecKeys.check_vault_uri(main=True)
         if not rc:
             return rc
 
         main_vault = cls.get_vault(main_uri)
         with main_vault:
-            user = VaultUser.existing_instance(_throw = False)
+            user = VaultUser.existing_instance(_throw=False)
 
         if not user:
             return RC(False, 'You must first run user_init utility')
@@ -243,41 +235,59 @@ class VaultUtils:
         if not rc:
             return rc
 
-        SecKeys.change_vault_login_password(login, password, vault_uri = vault_uri, override = True)
+        SecKeys.change_vault_login_password(login, password, vault_uri=vault_uri, override=True)
         return RC_TRUE
 
     @classmethod
+    def user_save_credentials(cls) -> RC:
+        """Save or rotate a resource password for the calling vault user only."""
+        rc, vault, username = cls._require_vault_user()
+        if not rc:
+            return rc
+        return cls._prompt_and_save_ra(vault, username)
+
+    @classmethod
     def admin_save_user_credentials(cls) -> RC:
+        rc, vault, _me = cls._require_vault_user()
+        if not rc:
+            return rc
+        if not vault.is_vault_admin():
+            return RC(False, 'vault admin role required to grant resource credentials for another user')
+        vault_login = input('Enter the vault login issued to this user: ')
+        with vault:
+            user = VaultUser.existing_instance(user_id=vault_login, _throw=False)
+            if not user:
+                return RC(
+                    False,
+                    f'No Vault User {vault_login!r}. Ask them to run xx-user-init with that login',
+                )
+            if user.suspended:
+                return RC(False, f'Vault User {vault_login} is suspended -- not granting new resource access')
+        return cls._prompt_and_save_ra(vault, vault_login)
+
+    @classmethod
+    def _require_vault_user(cls) -> tuple[RC, TsStore | None, str | None]:
         try:
             vault = Traitable.vault_store()
         except Exception as ex:
             rc = RC(False, 'You have no access to the vault. Run vault_init and/or user_init utility')
             rc.add_error(str(ex))
-            return rc
-
-        username = input('Enter the user ID: ')
+            return rc, None, None
+        if not vault.can_serve_as_vault():
+            return RC(False, f'{type(vault).__name__} cannot serve as a vault'), None, None
+        username = VaultUser.myname()
         with vault:
-            user = VaultUser.existing_instance(user_id = username, _throw = False)
+            user = VaultUser.existing_instance(user_id=username, _throw=False)
             if not user:
-                return RC(False, f'Vault User {username} does not exist. Ask {username} to run user_init utility')
-
+                return RC(False, f'No Vault User {username!r}. Run xx-user-init'), None, None
             if user.suspended:
-                return RC(False, f'Vault User {username} is suspended -- not granting new resource access')
+                return RC(False, f'Vault User {username} is suspended'), None, None
+        return RC_TRUE, vault, username
 
-            # -- The vault-DB login that registered this VaultUser row must be its own claimed
-            # identity -- otherwise anyone with *any* valid vault login could pre-register an
-            # unclaimed user_id and silently receive any resource credential later granted to it.
-            # See docs/VAULT_SECURITY_DESIGN.md §3.4.
-            creator = VaultUser.creator_login(username)
-            if creator != username:
-                return RC(
-                    False,
-                    f'Vault User {username!r} was registered using vault login {creator!r}, not its '
-                    'own -- refusing to grant resource access (possible pre-registration/namesquatting)',
-                )
-
+    @classmethod
+    def _prompt_and_save_ra(cls, vault: TsStore, username: str) -> RC:
         res_choices = tuple(f'{name}: {i}' for i, name in enumerate(CONCRETE_RESOURCE.all_names()))
-        res_index = int(input(f"Choose CONCRETE_RESOURCE ({', '.join(res_choices)})"))
+        res_index = int(input(f'Choose CONCRETE_RESOURCE ({", ".join(res_choices)})'))
         resource_dt = CONCRETE_RESOURCE.item(CONCRETE_RESOURCE.all_names()[res_index])
         uri = input(f'Enter URI for {resource_dt}: ')
         login = input(f'Enter login name ({username}): ')
@@ -286,15 +296,14 @@ class VaultUtils:
         password = getpass.getpass(f'Enter password for {login}: ')
 
         try:
-            resource_dt.value.instance_from_uri(uri, username = login, password = password, _cache = False)
+            resource_dt.value.instance_from_uri(uri, username=login, password=password, _cache=False)
         except Exception as ex:
             rc = RC(False, f'Failed to connect to {login} @ {uri}')
             rc.add_error(str(ex))
             return rc
 
         with vault:
-            return VaultResourceAccessor.save_ra(resource_dt, uri, password, login = login, username = username)
-
+            return VaultResourceAccessor.save_ra(resource_dt, uri, password, login=login, username=username)
 
     # @classmethod
     # def enter_resource_accessors(cls) -> RC:

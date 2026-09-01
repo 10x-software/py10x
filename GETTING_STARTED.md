@@ -2340,10 +2340,10 @@ See **[NamedResource and class associations](#namedresource-and-class-associatio
 
 | Component | What it is |
 |-----------|-----------|
-| **Vault** | A dedicated `TsStore` database (e.g. a separate MongoDB or PostgreSQL database) that stores encrypted credentials. URI set via `XX_MAIN_VAULT_URI`. |
-| **`VaultUser`** | One record per user, keyed by OS user name (`user_id`). Holds an RSA-2048 key pair: the public key in plain text, the private key encrypted with the user's **master password**. |
-| **`VaultResourceAccessor`** | One record per *(user, resource type, resource URI)* triple. Holds the login name and the resource password encrypted with that user's public key. |
-| **`SecKeys`** | Low-level helper: RSA encryption/decryption (`cryptography` library) + OS keyring integration (`keyring` library) for the master password and vault login/password. |
+| **Vault** | A dedicated authenticated `TsStore` (MongoDB, PostgreSQL, or another authenticating backend) that stores encrypted credentials. URI set via `XX_MAIN_VAULT_URI`. See [`docs/VAULT_SECURITY_DESIGN.md`](docs/VAULT_SECURITY_DESIGN.md). |
+| **`VaultUser`** | One record per user, keyed by OS user name (`user_id`). Holds an RSA-2048 key pair: the public key in plain text, the private key wrapped with PKCS8 AES using a scrypt-derived key from the user's **master password**. |
+| **`VaultResourceAccessor`** | One record per *(user, resource type, resource URI)* triple. Holds the login name and the resource password RSA-OAEP-SHA256-encrypted with that user's public key. |
+| **`SecKeys`** | Low-level helper: RSA-OAEP encryption/decryption (`cryptography` library) + OS keyring integration (`keyring` library) for the master password and vault login/password. |
 
 ### Security model
 
@@ -2351,12 +2351,12 @@ See **[NamedResource and class associations](#namedresource-and-class-associatio
 OS keyring (user's machine)          Vault database (shared server)
 ────────────────────────────         ──────────────────────────────────
 master_password                      VaultUser.public_key          (plain text)
-vault_login / vault_password         VaultUser.private_key_encrypted  (AES, master_password)
-                                     VaultResourceAccessor.password   (RSA, public_key)
+vault_login / vault_password         VaultUser.private_key_encrypted  (scrypt → PKCS8 AES, master password)
+                                     VaultResourceAccessor.password   (RSA-OAEP-SHA256, public_key)
 ```
 
 - The master password **never leaves the user's machine** — it is stored in the OS keyring and used locally to unlock the private key.
-- Admins encrypt resource passwords using the user's *public* key.  They cannot decrypt passwords belonging to other users.
+- Users encrypt their own resource passwords to their public key (`xx-user-save-credentials`). A vault admin can encrypt a secret they hold for someone else (`xx-admin-save-user-credentials`); they cannot decrypt another user's vault.
 - Vault login/password are also in the OS keyring; they are sent to the vault store for authentication.
 
 ### `NamedResource` and class associations
@@ -2432,16 +2432,18 @@ with named.resource_instance() as db:
 
 ### CLI onboarding tools
 
-Three entry points handle the admin/user setup workflow:
+Entry points for the admin/user setup workflow:
 
 | Command | Who runs it | What it does |
 |---------|-------------|--------------|
-| `xx-user-init` / `--new-user` | New user (first machine) | Prompts for vault login, temp password, and new master password; generates RSA key pair; stores credentials in vault and OS keyring |
+| `xx-vault-setup-roles` | DB superuser | Part I: collections + roles. `--vault-admin` for first admin. Part II step 2: `--worker` with exact OS login. Do not use stock `xxUser` on the vault. |
+| `xx-user-init` / `--new-user` | New user (first machine) | Prompts for vault login, vault password, and new master password; generates RSA key pair; stores credentials in vault and OS keyring |
 | `xx-user-init --new-machine` | Same user on a new machine | Proves the existing master password against the vault private key; seeds the local OS keyring only (no key rotation) |
-| `xx-user-status` | Any user | Prints a health check for every registered resource accessor |
-| `xx-admin-save-user-credentials` | Admin | Encrypts a resource password with a user's public key and stores it in the vault |
+| `xx-user-status` | Any user | Prints OS login (`[0]`) for vault account naming, then vault/keyring health checks |
+| `xx-user-save-credentials` | Any user | Saves or rotates a resource password for the caller only (out-of-band password or a self-generated token) |
+| `xx-admin-save-user-credentials` | Vault admin | Encrypts a resource password with another user's public key and stores it in the vault |
 
-See **[`docs/USER_ONBOARDING_AUTH.md`](docs/USER_ONBOARDING_AUTH.md)** for the full step-by-step procedure and an information-flow diagram.
+See **[`docs/USER_ONBOARDING_AUTH.md`](docs/USER_ONBOARDING_AUTH.md)** — Part I (vault deployment) and Part II (per-user onboarding), with an information-flow diagram.
 
 ### Relevant environment variables
 
@@ -3077,7 +3079,7 @@ with CACHE_ONLY():
 
 ### 5. Vault and Credential Management
 
-- Run `xx-user-init` once per developer and `xx-admin-save-user-credentials` once per resource — after that, `resource_instance()` resolves credentials automatically and no passwords appear in code or environment variables
+- Complete vault [Part I deployment](docs/USER_ONBOARDING_AUTH.md#part-i--vault-deployment) once (`xx-vault-setup-roles`), then [Part II](docs/USER_ONBOARDING_AUTH.md#part-ii--per-user-onboarding) per user (`xx-user-init`, `xx-user-save-credentials` / `xx-admin-save-user-credentials`). After that, `resource_instance()` resolves credentials automatically and no passwords appear in code or environment variables
 - The vault works with every `Resource` type: `TsStore`, `RelDb`, and any custom subclass; the same workflow applies to all of them
 
 ### 6. Testing
