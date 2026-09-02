@@ -7,11 +7,10 @@ from typing import TYPE_CHECKING
 from core_10x import trait_definition
 from core_10x.global_cache import cache
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
-from PyQt6.QtWidgets import QHeaderView
 
 from ui_10x.table_view import TableView
 from ui_10x.traitable_editor import TraitableEditor
-from ui_10x.utils import ux, ux_push_button, ux_success, ux_warning
+from ui_10x.utils import ux, ux_success, ux_warning
 
 if TYPE_CHECKING:
     from collections.abc import Generator
