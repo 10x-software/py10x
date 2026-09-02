@@ -8,6 +8,7 @@ from ui_10x.table_header_view import HeaderModel, HeaderView
 from ui_10x.traitable_editor import TraitableEditor
 from ui_10x.traitable_view import TraitableView
 from ui_10x.utils import UxStyleSheet, ux_text_alignment
+import ui_10x.platform_interface as i
 
 
 class Model(QAbstractTableModel):
@@ -170,7 +171,7 @@ class TableView(QTableView):
         else:
             super().mousePressEvent(mouse_event)
 
-    def render_traitable(self, row: int, entity: Traitable):
+    def render_traitable(self, row: int, entity: Traitable | None):
         last_col = len(self.model().col2name) - 1
         first_index = self.model().createIndex(row, 0)
         last_index = self.model().createIndex(row, last_col)
@@ -180,3 +181,6 @@ class TableView(QTableView):
         if self.model().extendData(data):
             self.resizeColumnsToContents()
             #self.resizeRowsToContents()
+
+i.TableView.register(TableView)
+i.HorizontalHeader.register(HeaderView)

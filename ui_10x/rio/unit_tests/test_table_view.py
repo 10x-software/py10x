@@ -11,6 +11,7 @@ from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import RT, T, Traitable, Ui
 from ui_10x.rio.browser_helpers import UI_SETTLE_S, wait_for_js_truthy
 from ui_10x.rio.widgets.table import TableView
+import ui_10x.platform_interface as i
 
 import rio
 
@@ -32,6 +33,7 @@ def test_table_view_construct_and_render() -> None:
         ]
 
         table = TableView(rows)
+        assert isinstance(table, i.TableView)
         assert table.trait_names == ['letter']
         assert table.header_labels == ['L']
         table.horizontalHeader().setStretchLastSection(False)

@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from core_10x.traitable import Traitable
 
 import rio
+import ui_10x.platform_interface as i
 from ui_10x.rio.component_builder import Widget
 from ui_10x.rio.style_sheet import StyleSheet
 from ui_10x.traitable_view import TraitableView
@@ -24,7 +25,7 @@ _Cell = tuple[str, str, str]
 _Row = tuple[_Cell, ...]
 
 
-class _HorizontalHeader:
+class _HorizontalHeader(i.HorizontalHeader):
     """Qt-compatible stub; stretch/resize are no-ops until Phase 2."""
 
     def setStretchLastSection(self, _stretch: bool) -> None:  # noqa: N802 — Qt API
@@ -99,7 +100,7 @@ class TraitableTableGrid(rio.Component):
         )
 
 
-class TableView(Widget):
+class TableView(Widget, i.TableView):
     """Rio stand-in for Qt ``QTableView`` + Traitable Model (Phase 1)."""
 
     __slots__ = ('_hv', '_rev', 'entities', 'header_labels', 'trait_names', 'view')

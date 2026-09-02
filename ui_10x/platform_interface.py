@@ -341,6 +341,27 @@ class TreeWidget(Widget):
     def open_persistent_editor(self, item, col: int): ...
 
 
+class HorizontalHeader(abc.ABC, metaclass=ABCMetaSlotted):
+    @abc.abstractmethod
+    def setStretchLastSection(self, stretch: bool) -> None: ...
+
+
+class TableView(abc.ABC, metaclass=ABCMetaSlotted):
+    """Shared TableView surface (not a Widget — Qt subclasses QTableView)."""
+
+    @abc.abstractmethod
+    def __init__(self, entities_or_class, view=None): ...
+
+    @abc.abstractmethod
+    def horizontalHeader(self) -> HorizontalHeader: ...
+
+    @abc.abstractmethod
+    def render_traitable(self, row: int, entity) -> None: ...
+
+    @abc.abstractmethod
+    def extend_data(self, data) -> None: ...
+
+
 class CalendarWidget(Widget):
     @abc.abstractmethod
     def set_grid_visible(self, grid_visible: bool): ...
