@@ -5,7 +5,6 @@ import inspect
 import operator
 import types
 import weakref
-from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import partial, reduce
@@ -61,51 +60,76 @@ CURRENT_SESSION: rio.Session | None = None
 @contextmanager
 def session_context(session: rio.Session):
     global CURRENT_SESSION
-    assert CURRENT_SESSION is None, 'Must exit from session context first! Are you using async calls in session context?'
-    CURRENT_SESSION = session
-    try:
-        user_session = session[UserSessionContext]
-    except Exception:  # noqa:BLE001 - TODO better handling?
-        user_session = None
-
-    if user_session:
-        user_session.begin_using()
-    try:
+    if CURRENT_SESSION is session:
         yield
-    finally:
+    else:
+        assert CURRENT_SESSION is None, 'Must exit from session context first! Are you using async calls in session context?'
+        CURRENT_SESSION = session
+        try:
+            user_session = session[UserSessionContext]
+        except Exception:  # noqa:BLE001 - TODO better handling?
+            user_session = None
+
         if user_session:
-            user_session.end_using()
-        CURRENT_SESSION = None
+            user_session.begin_using()
+        try:
+            yield
+        finally:
+            if user_session:
+                user_session.end_using()
+            CURRENT_SESSION = None
 
 
 class ConnectionType(NamedConstant):
-    DIRECT = lambda handler, *args: handler(args)
-    QUEUED = lambda handler, *args: asyncio.get_running_loop().call_soon(handler, *args)
-
-
-class SignalDecl:
-    def __init__(self):
-        self.handlers: dict[rio.Session, set[tuple[Callable[[...], None], ConnectionType]]] = defaultdict(set)
-
-    def connect(self, handler: Callable[[...], None], type: ConnectionType = ConnectionType.QUEUED) -> bool:
-        self.handlers[CURRENT_SESSION].add((handler, type))
-        return True
-
     @staticmethod
-    def _wrapper(ctx, handler: Callable[[...], None], *args):
-        with ctx:
+    def _dispatch_direct(session: rio.Session, handler: Callable[[...], None], *args) -> None:
+        with session_context(session), BTP.current():
             handler(*args)
 
+    @staticmethod
+    def _dispatch_queued(session: rio.Session, handler: Callable[[...], None], *args) -> None:
+        async def run(s=session, h=handler, a=args):
+            ConnectionType._dispatch_direct(s, h, *a)
+            await s._refresh()
+        session.create_task(run())
+
+    DIRECT = _dispatch_direct
+    QUEUED = _dispatch_queued
+
+
+class BoundSignal(i.BoundSignal):
+    """Per-instance signal; returned from ``instance.SIGNAL`` (``signal_decl`` descriptor).
+
+    ``CURRENT_SESSION`` is only read/written on the asyncio loop thread.
+    Off-thread ``emit`` only ``call_soon_threadsafe`` onto the loop from ``connect``.
+    """
+
+    __slots__ = ('loop', 'handlers')
+
+    def __init__(self):
+        self.loop: asyncio.AbstractEventLoop | None = None
+        self.handlers: set[tuple[rio.Session, Callable[[...], None], ConnectionType]] = set()
+
+    def connect(self, handler: Callable[[...], None], type: ConnectionType = ConnectionType.QUEUED) -> bool:
+        assert CURRENT_SESSION, 'Connect must be called in session context'
+        loop = asyncio.get_running_loop()
+        if self.loop is None:
+            self.loop = loop
+        else:
+            assert loop is self.loop, 'Only one asyncio loop is supported'
+        self.handlers.add((CURRENT_SESSION, handler, type))
+        return True
+
     def emit(self, *args) -> None:
-        for handler, conn in self.handlers[CURRENT_SESSION]:
-            # Capture BTP at emit time so QUEUED handlers re-enter the same
-            # INTERACTIVE/GRAPH context when they run. The partial is normally
-            # short-lived (call_soon). A long-lived partial that pins BTP would
-            # keep the whole owned cache (and any Traitables on it) alive after
-            # the intended session/scope ended — prefer a mutable bag if deferred
-            # work can outlive BTP teardown.
-            # TODO(gc): GC-aware BTP would make accidental pins less severe.
-            conn.value(partial(self._wrapper, BTP.current(), handler), *args)
+        def _emit(handlers=self.handlers,a=args):
+            for session, handler, conn in handlers:
+                conn.value(session, handler, *a)
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            self.loop.call_soon_threadsafe(_emit)
+        else:
+            _emit()
 
 
 class MouseEvent(i.MouseEvent):

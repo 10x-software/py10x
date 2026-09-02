@@ -26,15 +26,25 @@ BlockingQueuedConnection    = None
 # fmt: on
 
 
-class signal_decl(abc.ABC, metaclass=ABCMetaSlotted):
-    @abc.abstractmethod
-    def __init__(self, *args): ...
-
+class BoundSignal(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def connect(self, method, type=None): ...
 
     @abc.abstractmethod
     def emit(self, *args): ...
+
+
+class signal_decl(abc.ABC, metaclass=ABCMetaSlotted):
+    """Declare as a class attribute; ``instance.NAME`` yields a ``BoundSignal``."""
+
+    @abc.abstractmethod
+    def __init__(self, *args): ...
+
+    @abc.abstractmethod
+    def __set_name__(self, owner, name): ...
+
+    @abc.abstractmethod
+    def __get__(self, instance, owner): ...
 
 
 class MouseEvent(abc.ABC, metaclass=ABCMetaSlotted):

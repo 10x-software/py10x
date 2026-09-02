@@ -11,7 +11,7 @@ import pytest
 import rio.testing.browser_client
 from core_10x.exec_control import INTERACTIVE
 from ui_10x.examples import guess_word as gw
-from ui_10x.examples.guess_word import _GuessWordData
+from ui_10x.examples.guess_word import Game, _GuessWordData
 from ui_10x.rio.browser_helpers import (
     UI_SETTLE_S,
     click_client_button,
@@ -23,8 +23,9 @@ from ui_10x.rio.browser_helpers import (
     wait_for_rio_refresh,
     wait_until,
 )
-from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext
+from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, session_context
 from ui_10x.rio.widgets.table import TraitableTableGrid
+from ui_10x.utils import UxDialog
 
 import rio
 
@@ -32,7 +33,7 @@ _EXAMPLES_ROOT = Path(__file__).resolve().parents[1] / 'apps' / 'examples'
 if str(_EXAMPLES_ROOT) not in sys.path:
     sys.path.insert(0, str(_EXAMPLES_ROOT))
 
-from examples.components.guess_word import GuessWordComponent, GuessWordSession, guess_word_dialog  # noqa: E402
+from examples.components.guess_word import GuessWordComponent, GuessWordDialog  # noqa: E402
 
 from examples import on_session_start  # noqa: E402
 
@@ -57,6 +58,10 @@ def silence_message_boxes(monkeypatch):
 def _in_session(component: rio.Component, fn):
     with component.session[UserSessionContext]:
         return fn()
+
+
+def _game(dialog) -> Game:
+    return dialog.open_callback.__self__
 
 
 def _release_game(game, root) -> None:
@@ -121,8 +126,8 @@ async def test_guess_word_try_renders_letters_in_cells(silence_message_boxes) ->
     async with rio.testing.BrowserClient(app) as client:
         await asyncio.sleep(UI_SETTLE_S)
         page = client.get_component(GuessWordComponent)
-        bag = GuessWordSession.of(page.session)
-        game = bag.game
+        dialog = page.session[GuessWordDialog]
+        game = _game(dialog)
         guess, n = await _type_blur_try(client, game, page)
         try:
             assert not [c for c in silence_message_boxes if c[0] == 'warn'], silence_message_boxes
@@ -130,19 +135,23 @@ async def test_guess_word_try_renders_letters_in_cells(silence_message_boxes) ->
             assert ''.join(cell[0] for cell in grid.rows[0]) == guess
             await wait_for_js_value(client, _CELL_LETTERS_JS.format(n=n), guess)
         finally:
-            _in_session(page, lambda: _release_game(game, bag.dialog))
-            bag.game = None
-            bag.dialog = None
+            _in_session(page, lambda: _release_game(game, dialog))
+            page.session.detach(GuessWordDialog)
     gc.collect()
 
 
 async def test_guess_word_desktop_exec_shape(silence_message_boxes) -> None:
     """``guess_word.__main__``: Game under INTERACTIVE, then ``Dialog.exec``-style session."""
     with INTERACTIVE():
-        game, dialog = guess_word_dialog()
+        game = Game()
+        dialog = UxDialog(
+            game.widget(),
+            title=f'You have {game.count} attempts to guess a word',
+            open_callback=game.bind,
+        )
 
         def on_session_start(session):
-            with session[UserSessionContext]:
+            with session_context(session):
                 dialog.on_open()
 
         app = rio.App(
@@ -162,6 +171,5 @@ async def test_guess_word_desktop_exec_shape(silence_message_boxes) -> None:
                 await wait_for_js_value(client, _CELL_LETTERS_JS.format(n=n), guess)
             finally:
                 _in_session(root, lambda: _release_game(game, dialog))
-                _release_game(game, dialog)
                 root.session[UserSessionContext].interactive = None
     gc.collect()

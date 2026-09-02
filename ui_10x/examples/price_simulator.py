@@ -93,14 +93,18 @@ class MarketMonitor:
 
     def __init__(self):
         self.symbols = self.fetch_symbols()
-        UxAsync.init(self.update_mkt_data)
-        self.timer = threading.Timer(3, self.process_timer)
+        self.table = None
+        self.timer = None
         self.next_item = 0
 
     def widget(self):
         self.table = table = TableView(MarketSymbol)
-        self.timer.start()
         return table
+
+    def start(self):
+        UxAsync.init(self.update_mkt_data)
+        self.timer = threading.Timer(3, self.process_timer)
+        self.timer.start()
 
     def update_mkt_data(self):
         i = self.next_item
@@ -108,7 +112,7 @@ class MarketMonitor:
             self.table.extend_data([ self.symbols[i] ])
             self.next_item += 1
 
-        symbols = self.table.model().m_data
+        symbols = self.symbols[:self.next_item]
         for row, symbol in enumerate(symbols):
             d = random.gauss(symbol.delta_mean, symbol.std)
             if random.randint(0, 10) < 5:
@@ -126,13 +130,12 @@ class MarketMonitor:
 if __name__ == '__main__':
     from core_10x.exec_control import INTERACTIVE
 
-    from ui_10x.examples.price_simulator import MarketSymbol
     from ui_10x.utils import UxDialog
 
     ux.init()
 
     with INTERACTIVE():
         mm = MarketMonitor()
-        d = UxDialog(mm.widget(), title = 'Enjoy watching some stocks :-)')
+        d = UxDialog(mm.widget(), title='Enjoy watching some stocks :-)', open_callback=mm.start)
         d.exec()
 

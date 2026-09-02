@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from core_10x.ts_union import TsUnion
 from ui_10x.examples.style_sheet import StyleSheet
-from ui_10x.rio.component_builder import UserSessionContext
+from ui_10x.rio.component_builder import UserSessionContext, session_context
 from ui_10x.traitable_editor import TraitableEditor
 
 import rio
@@ -14,8 +14,8 @@ import rio
 )
 class StyleSheetPage(rio.Component):
     def build(self) -> rio.Component:
-        session_context = self.session[UserSessionContext]
-        if not session_context.traitable_store:
-            session_context.traitable_store = TsUnion()
-        with session_context.traitable_store:
+        user_ctx = self.session[UserSessionContext]
+        if not user_ctx.traitable_store:
+            user_ctx.traitable_store = TsUnion()
+        with session_context(self.session):
             return TraitableEditor(StyleSheet(), _confirm=True).dialog()()

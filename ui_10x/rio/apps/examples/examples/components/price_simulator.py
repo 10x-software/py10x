@@ -1,28 +1,28 @@
 from __future__ import annotations
 
-from ui_10x.examples.guess_word import Game
+from ui_10x.examples.price_simulator import MarketMonitor
 from ui_10x.rio.component_builder import session_context
 from ui_10x.utils import UxDialog
 
 import rio
 
 
-class GuessWordDialog(UxDialog): ...
+class PriceSimulatorDialog(UxDialog): ...
 
 
-class GuessWordComponent(rio.Component):
+class PriceSimulatorComponent(rio.Component):
     def build(self) -> rio.Component:
         try:
-            dialog = self.session[GuessWordDialog]
+            dialog = self.session[PriceSimulatorDialog]
         except KeyError:
             with session_context(self.session):
-                game = Game()
-                dialog = GuessWordDialog(
-                    game.widget(),
-                    title=f'You have {game.count} attempts to guess a word',
+                mm = MarketMonitor()
+                dialog = PriceSimulatorDialog(
+                    mm.widget(),
+                    title='Enjoy watching some stocks :-)',
                     ok='',
                     cancel='',
-                    open_callback=game.bind,
+                    open_callback=mm.start,
                 )
                 self.session.attach(dialog)
                 dialog.on_open()
