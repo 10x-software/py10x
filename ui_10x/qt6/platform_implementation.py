@@ -138,14 +138,26 @@ class Dialog(QDialog):
         if in_open_dialogs:
             self.s_open_dialogs.remove(self)
 
+    def on_open(self):
+        pass
+
     def show(self):
         print(f'showing {self}')
+        self.on_open()
         self.s_open_dialogs.add(self)
         self.finished.connect(self._on_finished)
         super().show()
         self.raise_()
         self.activateWindow()
         self.s_open_dialogs.add(self)
+
+    def exec(self):
+        # QDialog.exec() does not call the Python show() override.
+        print(f'showing {self}')
+        self.on_open()
+        self.s_open_dialogs.add(self)
+        self.finished.connect(self._on_finished)
+        return super().exec()
 
 
 class MessageBox(QMessageBox):

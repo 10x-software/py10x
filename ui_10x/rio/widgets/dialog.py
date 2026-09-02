@@ -127,6 +127,8 @@ class Dialog(Widget, i.Dialog):
         def on_session_start(session):
             sessions.add(session)
             print('on_session_start:', len(sessions))
+            with session[UserSessionContext]:
+                self.on_open()
 
         def on_session_close(session):
             for component in session._weak_components_by_id.values():
@@ -176,10 +178,14 @@ class Dialog(Widget, i.Dialog):
         # build() converts px → rem via / pixels_per_font_height
         self._kwargs['min_width'] = rem * ppf
 
+    def on_open(self):
+        pass
+
     def show(self):
         if not self.current_session():
             self.exec()
         else:
+            self.on_open()
             session = self.current_session()
             self._apply_default_min_width(session)
             future = session.show_custom_dialog(

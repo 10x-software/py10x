@@ -145,7 +145,7 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
     return button
 
 class UxDialog(ux.Dialog):
-    __slots__ = ('accept_callback','cancel_callback','w_message',)
+    __slots__ = ('accept_callback','cancel_callback','open_callback','w_message',)
     def _create_button(self, ok: bool, button_spec) -> ux.PushButton|None:
         if not button_spec:
             return None
@@ -175,6 +175,7 @@ class UxDialog(ux.Dialog):
             cancel              = 'Cancel',
             accept_callback     = None,
             cancel_callback     = None,
+            open_callback       = None,
             min_width           = 0,
             min_height          = 0,
             #window_flags        = None
@@ -196,6 +197,7 @@ class UxDialog(ux.Dialog):
         ##self.setWindowFlags(window_flags)
         self.accept_callback = accept_callback
         self.cancel_callback = cancel_callback if cancel_callback else self.reject
+        self.open_callback = open_callback
 
         if ok:
             ok = self._create_button(True, ok)
@@ -246,7 +248,12 @@ class UxDialog(ux.Dialog):
         # alive after the dialog has finished, even if widget is still around
         self.accept_callback = None
         self.cancel_callback = None
+        self.open_callback = None
         super().done(code)
+
+    def on_open(self):
+        if self.open_callback:
+            self.open_callback()
 
     def message(self, text: str):
         self.w_message.set_text(text)
