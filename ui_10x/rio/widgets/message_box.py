@@ -29,6 +29,9 @@ class Separator(Widget, i.Separator):
 class MessageBox(i.MessageBox):
     @classmethod
     def _dialog(cls, parent: Widget, title: str, message: str, icon: Style.StandardPixmap, on_close: Callable[[Any], None]) -> bool | None:
+        # ux_warning/ux_success omit on_close.
+        if on_close is None:
+            on_close = lambda *_: None
         style = Application.style()
         if icon == Style.StandardPixmap.SP_MESSAGEBOXQUESTION:
             buttons = [
@@ -51,7 +54,9 @@ class MessageBox(i.MessageBox):
             parent=parent, title=title, children=children, on_accept=lambda: on_close(dlg.accepted), on_reject=lambda: on_close(dlg.accepted)
         )
         dlg.set_layout(VBoxLayout())
-        return dlg.show() if on_close else dlg.exec()
+        if Widget.current_session():
+            return dlg.show()
+        return dlg.exec()
 
     @classmethod
     def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Any], None]) -> bool:

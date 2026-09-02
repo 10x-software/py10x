@@ -12,4 +12,4 @@ class CollectionEditorComponent(rio.Component):
 
     def build(self) -> rio.Component:
         with self.session[UserSessionContext]:
-            return UxDialog(CollectionEditor(coll=Collection(cls=self.collection_class)).main_widget()).build(self.session)
+            return UxDialog(CollectionEditor(coll=Collection(cls=self.collection_class)).main_widget())()

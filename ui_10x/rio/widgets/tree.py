@@ -88,12 +88,12 @@ class TreeWidget(Widget, i.TreeWidget):
         live['item'] = built
         return built
 
-    def _build_children(self, session: rio.Session):
+    def _build_children(self):
         # Same idea as Layout._build_children: materialize children for create_component.
         return [self._to_simple_tree_item(child) for child in self._get_children() if isinstance(child, TreeItem)]
 
-    def build(self, session: rio.Session) -> rio.Component:
-        tree = super().build(session)
+    def build(self) -> rio.Component:
+        tree = super().build()
         labels = self.header_labels
         if not labels:
             return tree

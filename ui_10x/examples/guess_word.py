@@ -190,6 +190,7 @@ class Game(Traitable):
 
     top_editor: TraitableEditor = RT()
     table: TableView        = RT()
+    layout: object          = RT(T.HIDDEN)
     # keyboard: Keyboard      = RT()
 
     def the_word_get(self) -> str:
@@ -262,19 +263,19 @@ class Game(Traitable):
     def widget(self):
         ux.init()
         w = ux.Widget()
-        lay = ux.VBoxLayout()
+        self.layout = lay = ux.VBoxLayout()
         w.set_layout(lay)
+        return w
 
-        top = self.top_editor.row_layout()
-        lay.add_layout(top)
+    def bind(self):
+        lay = self.layout
+        lay.add_layout(self.top_editor.row_layout())
         lay.add_widget(ux.separator())
 
         lay.add_widget(self.table)
 
         #lay.add_widget(ux.separator())
         #lay.add_widget(self.keyboard.widget())
-
-        return w
 
 
 class _GuessWordData:
@@ -349,5 +350,5 @@ if __name__ == '__main__':
         game = Game()
         w = game.widget()
 
-        d = UxDialog(w, title = f'You have {game.count} attempts to guess a word')
+        d = UxDialog(w, title = f'You have {game.count} attempts to guess a word', open_callback=game.bind)
         d.exec()

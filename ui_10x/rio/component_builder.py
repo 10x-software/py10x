@@ -165,13 +165,14 @@ class DynamicComponent(rio.Component):
 
     def build(self) -> rio.Component:
         assert self.builder, 'DynamicComponent has no builder'
-        subcomponent = self.builder.build(self.session)
-        if not self.builder.component:
-            self.builder.component = self
-            self.builder.subcomponent = subcomponent
-        else:
-            assert self.builder.component is self, 'DynamicComponent reused!'
-        return subcomponent
+        with session_context(self.session):
+            subcomponent = self.builder.build()
+            if not self.builder.component:
+                self.builder.component = self
+                self.builder.subcomponent = subcomponent
+            else:
+                assert self.builder.component is self, 'DynamicComponent reused!'
+            return subcomponent
 
 
 class ComponentBuilder:
@@ -247,7 +248,7 @@ class ComponentBuilder:
             return self
         return self.__class__(*args, **self._kwargs)
 
-    def _build_children(self, session: rio.Session):
+    def _build_children(self):
         return [child() if isinstance(child, ComponentBuilder) else child for child in self._get_children() if child is not None]
 
     @classmethod
@@ -260,12 +261,13 @@ class ComponentBuilder:
             return cls.s_component_class(*children, **kwargs)
         return None
 
-    def build(self, session: rio.Session) -> rio.Component | None:
+    def build(self) -> rio.Component | None:
+        session = self.current_session()
         kwargs = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
         for size_adjustment in self.s_size_adjustments:
             if size_adjustment in kwargs:
                 kwargs[size_adjustment] /= session.pixels_per_font_height
-        children: list = self._build_children(session)
+        children: list = self._build_children()
         return self.create_component(*children, **kwargs)
 
     def __call__(self) -> rio.Component:
@@ -413,8 +415,8 @@ class Widget(ComponentBuilder, i.Widget):
     def set_layout(self, layout: i.Layout):
         self._layout = layout
 
-    def _build_children(self, session: rio.Session):
-        return [self._layout.with_children(*self._get_children()).build(session)] if self._layout else super()._build_children(session)
+    def _build_children(self):
+        return [self._layout.with_children(*self._get_children()).build()] if self._layout else super()._build_children()
 
     def set_stretch(self, stretch):
         assert stretch in (0, 1), 'Only stretch of 0 or 1 is currently supported'
