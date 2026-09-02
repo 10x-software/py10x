@@ -49,7 +49,9 @@ class VaultSetupRolesCli(TraitableCli):
     def run(self) -> RC:
         password = getpass.getpass(f"{self.username}'s password for the vault database: ")
         try:
-            vault = TsStore.instance_from_uri(self.uri, username=self.username or None, password=password or None, _cache=False, _create_if_needed=True)
+            vault = TsStore.instance_from_uri(
+                self.uri, username=self.username or None, password=password or None, _cache=False, _create_if_needed=True
+            )
         except Exception as e:  # noqa: BLE001
             return RC(False, f'failed to connect to vault at {self.uri}: {e}')
 

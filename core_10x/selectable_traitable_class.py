@@ -1,4 +1,4 @@
-from core_10x.traitable import Traitable, T
+from core_10x.traitable import T, Traitable
 
 
 class SelectableTraitableRecord(Traitable):

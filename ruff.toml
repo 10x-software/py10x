@@ -10,6 +10,7 @@ exclude = [
     "core_10x/attic/*",
     "core_10x/jit/*",
     "core_10x/xnone.py",
+    "core_10x/selectable_traitable_class.py",
     "core_10x/__init__.py",
     "core_10x/environment_variables.py",
     "core_10x/basket.py",
@@ -219,8 +220,10 @@ exclude = [
 "xx_fin/xxfin/ir_swap_quotable.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
 ]
+"xx_fin/xxfin/*.py" = [
+    "N813", # e.g. camelcase `QuantLib` imported as lowercase `ql`
+]
 "xx_fin/xxfin/fin_calendar.py" = [
-    "N813", # Camelcase `QuantLib` imported as lowercase `ql`
     "BLE001", # Do not catch blind exception: `Exception`
 ]
 "xx_fin/xxfin/fin_instrument.py" = [

@@ -62,7 +62,9 @@ def functional_account_env(monkeypatch, tmp_path):
     )
     # Fresh per-process database (SESSION_DB). Vault-DB login must equal OS user_id
     # (docs/VAULT_SECURITY_DESIGN.md §3.4), so the fixture creates a matching PG role.
-    admin = PostgresStore.instance_from_uri(VAULT_URI, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True)
+    admin = PostgresStore.instance_from_uri(
+        VAULT_URI, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True
+    )
 
     def _ensure_login_role(user_id: str) -> None:
         VaultRoles.setup(admin, worker=user_id, worker_password=PASSWORD_AUTH_PASSWORD).throw()

@@ -241,9 +241,7 @@ def test_worker_cannot_admin_save_on_auth_postgres(monkeypatch):
     dbname = f'py10x_ag_{uuid6.uuid7().hex[:8]}'
     uri = f'postgresql://localhost:{PASSWORD_AUTH_PORT}/{dbname}'
     worker, pwd = f'vw_{uuid6.uuid7().hex[:8]}', 'VaultTest9!'
-    admin = PostgresStore.instance_from_uri(
-        uri, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True
-    )
+    admin = PostgresStore.instance_from_uri(uri, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True)
     assert admin.can_serve_as_vault()
     keyring: dict = {}
     monkeypatch.setattr(sec_keys_mod.keyring, 'get_password', lambda s, u: keyring.get((s, u)))
@@ -270,4 +268,3 @@ def test_worker_cannot_admin_save_on_auth_postgres(monkeypatch):
         maint.delete_database(dbname)
         maint._execute('SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = ?', [worker])
         maint._execute(f'DROP ROLE IF EXISTS {PostgresStore._qident(worker)}')
-
