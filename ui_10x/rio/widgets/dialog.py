@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import rio
 import ui_10x.platform_interface as i
-from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, Widget
+from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, Widget, session_context
 from ui_10x.rio.internals.app import App10x
 
 if TYPE_CHECKING:
@@ -127,7 +127,7 @@ class Dialog(Widget, i.Dialog):
         def on_session_start(session):
             sessions.add(session)
             print('on_session_start:', len(sessions))
-            with session[UserSessionContext]:
+            with session_context(session):
                 self.on_open()
 
         def on_session_close(session):
