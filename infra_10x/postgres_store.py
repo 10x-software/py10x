@@ -16,7 +16,7 @@ from core_10x.rc import RC, RC_TRUE
 from core_10x.resource import Resource
 from core_10x.ts_store import TsDuplicateKeyError, TsStore
 from psycopg import sql
-from psycopg.errors import InsufficientPrivilege, UniqueViolation
+from psycopg.errors import DuplicateObject, InsufficientPrivilege, UniqueViolation
 
 from infra_10x.ibis_store import (
     _DATA,
@@ -512,18 +512,27 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
             return '"username" = current_user' if 'username' in cols else "coalesce(_data->>'username','') = current_user"
         return "coalesce(_data->>'username','') = current_user"
 
+    def _exec_sql_fmt(self, template: str, *params) -> None:
+        with self._con.cursor() as cur:
+            cur.execute(sql.SQL(template).format(*params))
+
     def _grant_vault_login(self, username: str, password: str, *, role: str, other_role: str) -> RC:
         if not password:
             return RC(False, 'password is required to create a vault login')
         quser, qrole, qother = self._qident(username), self._qident(role), self._qident(other_role)
-        qpwd = "'" + password.replace("'", "''") + "'"
         try:
-            if not self._execute('SELECT 1 FROM pg_roles WHERE rolname = ?', [username]):
-                self._execute(f'CREATE ROLE {quser} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT IN ROLE {qrole} PASSWORD {qpwd}')
-            else:
+            try:
+                self._exec_sql_fmt(
+                    'CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT IN ROLE {} PASSWORD {}',
+                    sql.Identifier(username),
+                    sql.Identifier(role),
+                    sql.Literal(password),
+                )
+            except DuplicateObject:
+                # already exists (from a prior run, or created concurrently by another setup run) -- converge state
                 self._execute(f'GRANT {qrole} TO {quser}')
                 self._execute(f'REVOKE {qother} FROM {quser}')
-                self._execute(f'ALTER ROLE {quser} PASSWORD {qpwd}')
+                self._exec_sql_fmt('ALTER ROLE {} PASSWORD {}', sql.Identifier(username), sql.Literal(password))
             self._execute(f'GRANT CONNECT ON DATABASE {self._qident(self.dbname)} TO {quser}')
         except Exception as e:  # noqa: BLE001
             return RC(False, f'PostgreSQL vault login {username!r} failed: {e}')

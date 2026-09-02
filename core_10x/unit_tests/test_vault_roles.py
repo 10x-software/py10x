@@ -85,7 +85,7 @@ def test_postgres_worker_cannot_update_or_insert_foreign_vaultuser(live_store):
     vh = TraitableHistory.history_collection_name(vu)
     quser, qhist, qvra = store._qname(vu), store._qname(vh), store._qname(vra)
 
-    store._execute(f'SET ROLE {_q(worker)}')
+    store._execute(f'SET ROLE {PostgresStore._qident(worker)}')
     try:
         assert not store.is_vault_admin()
         store._execute(f'INSERT INTO {quser} (_id, _rev, _data) VALUES (?, 1, ?::jsonb)', [worker, '{}'])
@@ -105,14 +105,14 @@ def test_postgres_worker_cannot_update_or_insert_foreign_vaultuser(live_store):
         store._execute('RESET ROLE')
 
     store._execute(f'INSERT INTO {qvra} (_id, _rev, _data, username) VALUES (?, 1, ?::jsonb, ?)', [f'{other}|t|u', '{}', other])
-    store._execute(f'SET ROLE {_q(worker)}')
+    store._execute(f'SET ROLE {PostgresStore._qident(worker)}')
     try:
         store._execute(f'UPDATE {qvra} SET _rev = 2 WHERE _id = ?', [f'{other}|t|u'])
     finally:
         store._execute('RESET ROLE')
     assert store._execute(f'SELECT _rev FROM {qvra} WHERE _id = ?', [f'{other}|t|u']) == [(1,)]
 
-    store._execute(f'SET ROLE {_q(admin_login)}')
+    store._execute(f'SET ROLE {PostgresStore._qident(admin_login)}')
     try:
         assert store.is_vault_admin()
         store._execute(f'UPDATE {quser} SET _rev = 2 WHERE _id = ?', [worker])
@@ -122,8 +122,8 @@ def test_postgres_worker_cannot_update_or_insert_foreign_vaultuser(live_store):
         store._execute('RESET ROLE')
 
     for role in (worker, admin_login):
-        store._execute(f'DROP OWNED BY {_q(role)}')
-        store._execute(f'DROP ROLE IF EXISTS {_q(role)}')
+        store._execute(f'DROP OWNED BY {PostgresStore._qident(role)}')
+        store._execute(f'DROP ROLE IF EXISTS {PostgresStore._qident(role)}')
 
 
 def test_mongo_vault_roles_are_not_anyresource(live_store):
@@ -269,8 +269,5 @@ def test_worker_cannot_admin_save_on_auth_postgres(monkeypatch):
         )
         maint.delete_database(dbname)
         maint._execute('SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = ?', [worker])
-        maint._execute(f'DROP ROLE IF EXISTS {_q(worker)}')
+        maint._execute(f'DROP ROLE IF EXISTS {PostgresStore._qident(worker)}')
 
-
-def _q(name: str) -> str:
-    return '"' + name.replace('"', '""') + '"'

@@ -415,7 +415,7 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         except Exception:
             return False
         roles = (status.get('authInfo') or {}).get('authenticatedUserRoles') or []
-        return any(r.get('role') == admin_role for r in roles)
+        return any(r.get('role') == admin_role and r.get('db') == MongoStore.ADMIN for r in roles)
 
     @staticmethod
     def _vault_role_exists(admin, role: str) -> bool:

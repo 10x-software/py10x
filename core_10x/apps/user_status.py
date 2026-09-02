@@ -49,10 +49,14 @@ def main() -> int:
     print('\n[0] OS login (vault account name)')
     from core_10x.traitable import VaultUser
 
-    os_login = VaultUser.myname()
-    _ok(f'OS login = {os_login!r}')
-    print('      Use this exact string for the vault-DB login (--worker).')
-    print('      Send it to your DBA / vault admin if they do not already know it')
+    try:
+        os_login = VaultUser.myname()
+    except Exception as exc:
+        _fail(f'Failed to determine the OS login: {exc}', 'the process UID has no /etc/passwd entry — see docker/entrypoint.sh for the container pattern')
+    else:
+        _ok(f'OS login = {os_login!r}')
+        print('      Use this exact string for the vault-DB login (--worker).')
+        print('      Send it to your DBA / vault admin if they do not already know it')
 
     # ------------------------------------------------------------------
     # 1. Vault URI configured
