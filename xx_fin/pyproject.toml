@@ -29,11 +29,11 @@ dependencies = [
     "py10x-core (>=0.3.2rc15,<0.3.2rc16)",
     "py10x-fin-base-cxx (==0.1.2rc15)",  # co-released; same version as this package
     "quantlib-python>=1.18",
-    "aadc>=2.8.0",
 ]
 
 [project.optional-dependencies]
 bbg = ["xbbg>=1.4.5", "blpapi>=3.26.6.1"]
+aadc = ["aadc>=2.8.0"]
 dev = ["py10x-core[dev]",
     "scikit-build-core>=0.12.2", # fin-base-cxx no-isolation build backend
     "setuptools-scm>=9.2.2", # fin-base-cxx no-isolation build backend

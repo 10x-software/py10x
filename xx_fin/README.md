@@ -12,6 +12,14 @@ pip install py10x-fin-base
 That pulls **`py10x-fin-base-cxx`** transitively (import `cxxfin`). Do not depend on the cxx
 dist directly. Requires Python `>=3.11,<3.14` and a published `py10x-core` (plus its kernel/infra).
 
+To also use the AADC JIT-compiled path (see [below](#optional-jit-acceleration-via-aadc)), install
+the `aadc` extra from MatLogica's own package index -- PyPI only mirrors an older `1.x` line:
+
+```bash
+pip install "py10x-fin-base[aadc]" --extra-index-url https://matlogica.com/wheels/simple/
+# or: uv pip install "py10x-fin-base[aadc]" --extra-index-url https://matlogica.com/wheels/simple/
+```
+
 In this monorepo the packaging root is [`xx_fin/`](.). Domain developers typically use
 `uv-sync py10x-dev --all-extras --with-downstream` from the py10x repo root — see
 [`CONTRIBUTING.md`](../CONTRIBUTING.md#development-setup).
@@ -75,12 +83,12 @@ any other currency.
 
 ## Optional JIT acceleration via AADC
 
-`xxfin/jit_aadc/` optionally records curve/valuation code into a JIT-compiled adjoint
-differentiation kernel using [MatLogica's AADC](https://matlogica.com/wheels/simple/) (Adjoint
-Algorithmic Differentiation Compiler), enabled via the `use_cxxfin` setting in
-`xxfin_env_vars.py`. `xxfin` itself works fully without it -- AADC only accelerates the
-JIT-compiled code path. See `xxfin/jit_aadc/aadc_doc.md` and `xxfin/jit_aadc/aadc_kernel_doc.md`
-for how it's used.
+Install the `aadc` extra first -- see [Install](#install). `xxfin/jit_aadc/` optionally records
+curve/valuation code into a JIT-compiled adjoint differentiation kernel using
+[MatLogica's AADC](https://matlogica.com/wheels/simple/) (Adjoint Algorithmic Differentiation
+Compiler), enabled via the `use_cxxfin` setting in `xxfin_env_vars.py`. `xxfin` itself works fully
+without it -- AADC only accelerates the JIT-compiled code path. See `xxfin/jit_aadc/aadc_doc.md`
+and `xxfin/jit_aadc/aadc_kernel_doc.md` for how it's used.
 
 ## An easy setup to start playing with xxfin package
 - install mongodb on your machine and run without authentication (default)

@@ -131,8 +131,11 @@ jobs:
           FINBASE_WHL=$(ls dist-finbase/*.whl | head -n1)
           echo "cxx wheel: $CXX_WHL"
           echo "fin-base wheel: $FINBASE_WHL"
+          echo "FINBASE_WHL=$FINBASE_WHL" >> "$GITHUB_ENV"
           python -m dev_10x.xx_ci wait_pypi_release_for_wheel "$FINBASE_WHL"
           # No --pre needed: release-wheel pins already force prerelease inclusion via PEP 440.
+          # `aadc` (2.x wheels only on MatLogica's own index) is the opt-in `aadc` extra, not a
+          # base dependency, so this base install doesn't need --extra-index-url. See README.
           # Brief retry: simple-index visibility can still lag a few seconds after the wait.
           for attempt in 1 2 3 4 5; do
             if pip install --no-cache-dir "$CXX_WHL" "$FINBASE_WHL"; then
@@ -147,6 +150,18 @@ jobs:
 
       - name: Import smoke test
         run: python -c "import xxfin; import cxxfin; print(xxfin.__file__); print(cxxfin.__file__)"
+
+      # Base install above intentionally skips `aadc` (opt-in extra, MatLogica's own index) - test
+      # that path too so a broken aadc pin/index is caught here, not by a real user. Reinstalls the
+      # already-downloaded local wheel with the extra added (not a second copy from PyPI).
+      - name: Install aadc extra
+        shell: bash
+        run: |
+          set -euo pipefail
+          pip install --no-cache-dir --extra-index-url https://matlogica.com/wheels/simple/ "${FINBASE_WHL}[aadc]"
+
+      - name: AADC import smoke test
+        run: python -c "import aadc; import xxfin.jit_aadc.aadc_kernel; print(aadc.__file__)"
 
   publish:
     if: startsWith(github.ref, 'refs/tags/')
