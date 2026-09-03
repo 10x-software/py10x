@@ -33,9 +33,16 @@ def _():
     mo.md(r"""
     # py10x-core — interactive getting started
 
-    This notebook supplements the [README](https://github.com/10x-software/py10x/blob/main/README.md)
+    This is a [marimo](https://marimo.io) notebook: reactive Python cells that
+    re-run when their inputs change (not a Jupyter notebook). It supplements the
+    [README](https://github.com/10x-software/py10x/blob/main/README.md)
     and [Getting Started](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md)
-    guides. It runs entirely in memory (`CACHE_ONLY`) — no Mongo, Postgres, or UI backend.
+    guides and runs entirely in memory (`CACHE_ONLY`) — no Mongo, Postgres, or UI backend.
+
+    **Running in the browser:** open this file on [molab](https://docs.marimo.io/guides/molab/)
+    (marimo’s free hosted workspace). Create a free account to execute cells, and
+    start a **server** session — native wheels (`py10x-kernel` / `py10x-infra`) are
+    not WebAssembly-compatible.
 
     **Four laws, in practice:** identity · dependency · persistence · presentation.
     Here we exercise the first two interactively; persistence and derived UI are
@@ -239,16 +246,14 @@ def _():
 
     ### Host on molab (free)
 
+    [molab](https://docs.marimo.io/guides/molab/) is marimo’s free cloud workspace.
+    Viewers can open the GitHub-mirrored link below; a free account is required
+    to run cells. Use a **server** session (not WebAssembly) — `py10x-core` ships
+    native wheels.
+
     1. Push this file to GitHub.
-    2. Open [molab.new](https://molab.new) → **New** → paste the GitHub file URL (synced notebook).
-    3. Share the molab link, or add an open-in-molab badge from [marimo.io/github](https://marimo.io/github).
-    4. Use a **server** session (not WebAssembly) — `py10x-core` ships native wheels.
-
-    Generate a badge (replace the URL with yours):
-
-    ```markdown
-    [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py)
-    ```
+    2. Open [molab.new](https://molab.new) → **New** → paste the GitHub file URL (synced notebook), or share the open-in-molab badge.
+    3. Sign in / create a free account when prompted to execute.
     """)
     return
 
