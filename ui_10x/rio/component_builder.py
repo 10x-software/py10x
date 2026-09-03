@@ -95,6 +95,7 @@ class ConnectionType(NamedConstant):
         async def run(s=session, h=handler, a=args):
             ConnectionType._dispatch_direct(s, h, *a)
             await s._refresh()
+
         session.create_task(run())
 
     DIRECT = _dispatch_direct
@@ -125,6 +126,7 @@ class BoundSignal(i.BoundSignal):
             for session_ref, handler, conn in handlers:
                 if session := session_ref():
                     conn.value(session, handler, *a)
+
         try:
             asyncio.get_running_loop()
         except RuntimeError:

@@ -116,4 +116,3 @@ def is_ui_thread() -> bool:
     except RuntimeError:
         return False
     return True
-

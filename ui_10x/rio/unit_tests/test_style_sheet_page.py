@@ -18,8 +18,9 @@ _EXAMPLES_ROOT = Path(__file__).resolve().parents[1] / 'apps' / 'examples'
 if str(_EXAMPLES_ROOT) not in sys.path:
     sys.path.insert(0, str(_EXAMPLES_ROOT))
 
-from examples import on_session_start  # noqa: E402
 from examples.pages.style_sheet import StyleSheetPage  # noqa: E402
+
+from examples import on_session_start  # noqa: E402
 
 
 async def test_style_sheet_page_renders_wysiwyg() -> None:
@@ -29,12 +30,8 @@ async def test_style_sheet_page_renders_wysiwyg() -> None:
         await asyncio.sleep(UI_SETTLE_S)
         page = client.get_component(StyleSheetPage)
         try:
-            labels = await client.execute_js(
-                '[...document.querySelectorAll(".rio-text")].map(el => el.children[0]?.innerText || "")'
-            )
-            inputs = await client.execute_js(
-                '[...document.querySelectorAll(".rio-input-box input")].map(el => el.value)'
-            )
+            labels = await client.execute_js('[...document.querySelectorAll(".rio-text")].map(el => el.children[0]?.innerText || "")')
+            inputs = await client.execute_js('[...document.querySelectorAll(".rio-input-box input")].map(el => el.value)')
             assert 'WYSIWYG' in labels, labels
             assert 'This is how it will look...' in inputs, inputs
         finally:

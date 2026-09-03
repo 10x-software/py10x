@@ -7,6 +7,7 @@ quote-style = "single"
 exclude = [
     "README.md",
     "GETTING_STARTED.md",
+    "docs/notebooks/*.py",
     "core_10x/attic/*",
     "core_10x/jit/*",
     "core_10x/xnone.py",
@@ -29,7 +30,6 @@ exclude = [
     "ui_10x/examples/*",
     "ui_10x/py_data_browser.py",
     "ui_10x/choice.py",
-    "ui_10x/table*.py",
     "ui_10x/utils.py",
     "ui_10x/traitable_editor.py",
     "xxcommon/xxcalendar.py",
@@ -87,8 +87,9 @@ future-annotations = true # add "from __future__ import annotations" to enable m
 
 exclude = [
     "core_10x/attic/*.py",
+    "docs/notebooks/*.py",
     "core_10x/jit/*",
-    "ui_10x/table*.py",
+    "ui_10x/qt6/table*.py",
     "xx_fin/xxfin/jit_aadc/*",
 ]
 [lint.per-file-ignores]
