@@ -165,6 +165,7 @@ Compared to reactive frameworks — dependencies are tracked automatically, comp
 |------------|------|
 | Install py10x | [INSTALLATION.md](INSTALLATION.md) |
 | Learn the Traitable framework | [GETTING_STARTED.md](GETTING_STARTED.md) |
+| Try Traitables interactively (marimo / molab) | [docs/notebooks/getting_started.py](docs/notebooks/getting_started.py) [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py) |
 | Install / use the first subject domain of 10x Genaxy (`xxfin`) | [xx_fin/README.md](xx_fin/README.md) |
 | Contribute code | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | Cut a release / sync dev deps | [dev_10x/README.md](dev_10x/README.md) |
