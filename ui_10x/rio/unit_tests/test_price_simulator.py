@@ -10,13 +10,26 @@ from pathlib import Path
 import pytest
 import rio.testing.browser_client
 from core_10x.exec_control import INTERACTIVE
-from ui_10x.examples.price_simulator import MarketMonitor, MarketSymbol
+from core_10x.testlib.strict import need
 from ui_10x.rio.browser_helpers import UI_SETTLE_S, wait_for_js_truthy
 from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, session_context
 from ui_10x.rio.widgets.table import TraitableTableGrid
 from ui_10x.utils import UxAsync, UxDialog
 
 import rio
+
+
+def _yfinance_available() -> bool:
+    try:
+        import yfinance
+        return True
+    except ImportError:
+        return False
+
+
+need(_yfinance_available(), 'yfinance not installed (optional `examples` extra)', allow_module_level=True)
+
+from ui_10x.examples.price_simulator import MarketMonitor, MarketSymbol  # noqa: E402
 
 _EXAMPLES_ROOT = Path(__file__).resolve().parents[1] / 'apps' / 'examples'
 if str(_EXAMPLES_ROOT) not in sys.path:

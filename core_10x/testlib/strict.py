@@ -21,10 +21,14 @@ import pytest
 from core_10x.environment_variables import EnvVars
 
 
-def need(ok: bool, reason: str) -> None:
-    """Require a provisioning precondition: skip when unmet, or FAIL under XX_TEST_STRICT."""
+def need(ok: bool, reason: str, *, allow_module_level: bool = False) -> None:
+    """Require a provisioning precondition: skip when unmet, or FAIL under XX_TEST_STRICT.
+
+    Pass `allow_module_level=True` when calling from module scope (e.g. guarding an optional-dep
+    import before it runs at collection time) — matches `pytest.skip`'s own requirement.
+    """
     if ok:
         return
     if EnvVars.test_strict:
         pytest.fail(f'XX_TEST_STRICT set but precondition unmet: {reason}')
-    pytest.skip(reason)
+    pytest.skip(reason, allow_module_level=allow_module_level)
