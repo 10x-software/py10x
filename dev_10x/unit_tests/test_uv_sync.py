@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from core_10x.testlib.strict import need
 
 from dev_10x import uv_sync
 
@@ -126,6 +127,10 @@ class TestUvSyncExtras:
 
     @pytest.fixture
     def isolated_sync(self, monkeypatch, captured_pip_install):
+        # uv_sync() reads PROJECT_ROOT / 'pyproject.toml' (via _dev10x_cfg) unmocked below; that's
+        # only present in a py10x source checkout, not when core is installed as a wheel (sibling
+        # wheel CI runs this suite from site-packages with no source pyproject nearby).
+        need((uv_sync.PROJECT_ROOT / 'pyproject.toml').is_file(), 'py10x source checkout (no source pyproject when core is installed as a wheel)')
         pkgs = {
             uv_sync.CORE: _pkg(cxx=False, local=Path('/py10x'), git='https://example.com/py10x.git', subdir=None),
             'py10x-kernel': _pkg(cxx=True),
