@@ -36,13 +36,13 @@ The story above is personal, because it happened to me before 10x Genaxy existed
 
 ## What 10x Genaxy Is
 
-**10x** is the concept: never rebuild the same foundation twice. A **genaxy** is the kind of system that makes that possible — a **generative** core with subject domains built on top of it, rather than a domain application that reinvents the core.
+**10x** is about empowering engineers, researchers, and developers to become 10x more productive — not through better tooling at the edges, but by never rebuilding the same foundation twice. A **genaxy** is the kind of system that makes that possible — a **generative** core with subject domains built on top of it, rather than a domain application that reinvents the core.
 
 **Generative** means the running system is derived from a description of the entities rather than assembled feature by feature. You say what an entity is, what it depends on, where it is stored, and how it should be presented. From that description the rest follows.
 
 That core is the **substratum**: a small set of laws (the underlying principles) from which the rest of the system is derived. Subject domains surround it the way planets surround a star — independent, distinct, but held by the same laws. SecDb, Athena, Quartz, and Beacon were genaxies; each had a substratum, and none could leave the building.
 
-**10x Genaxy** is this genaxy. Its substratum is the reusable 80% every industry-specific platform ends up building — identity, dependency tracking, persistence, and UI — so a team only has to build the 20% that's actually theirs.
+**10x Genaxy** is this genaxy. Its substratum is the reusable 80% every industry-specific platform ends up building — identity, dependency tracking, persistence, and presentation — so a team only has to build the 20% that's actually theirs.
 
 Concretely: `py10x-core` (the substratum) is a domain-agnostic Python framework built around a single idea — objects with deterministic identity (`Traitable`s), organized in a dependency graph that computes lazily and updates automatically, persisted transparently to whatever storage a team already runs. Finance is the first domain built on top of it (`py10x-fin-base`), but nothing about the core is finance-specific. Any subject domain with derived state and shared entities can build on the same foundation instead of reinventing it.
 

@@ -9,7 +9,7 @@
 
 ## 🌌 Why Genaxy?
 
-**10x** is the concept: never rebuild the same foundation twice. A **genaxy** is the kind of system that makes that possible — built around a small core rather than assembled feature by feature. **10x Genaxy** is this one. This package (`py10x-core`) is its **substratum**.
+**10x** is about empowering engineers, researchers, and developers to become 10x more productive — not through better tooling at the edges, but by never rebuilding the same foundation twice. A **genaxy** is what makes that possible: a kind of system built around a small, generative core rather than assembled feature by feature. **10x Genaxy** is this one. This package (`py10x-core`) is its **substratum**.
 
 The **substratum** is that core: a handful of laws (principles), not a feature set. Today those are identity, dependency, persistence, and presentation; more may join them. Everything else follows from these. They aren't a checklist to memorize — they're vocabulary for describing a real-world problem, before any specific technology gets chosen.
 
