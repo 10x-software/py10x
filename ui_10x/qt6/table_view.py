@@ -5,9 +5,7 @@ from PyQt6.QtWidgets import QAbstractScrollArea, QTableView
 from core_10x.traitable import Trait, Traitable
 
 from ui_10x.table_header_view import HeaderModel, HeaderView
-from ui_10x.traitable_editor import TraitableEditor
 from ui_10x.traitable_view import TraitableView
-from ui_10x.utils import UxStyleSheet, ux_text_alignment
 import ui_10x.platform_interface as i
 
 
@@ -55,6 +53,8 @@ class Model(QAbstractTableModel):
                 text = ''
             return text
 
+        # Lazy: utils → platform → this module; avoid import-time cycle.
+        from ui_10x.utils import UxStyleSheet, ux_text_alignment
         if role == Qt.ItemDataRole.ForegroundRole:
             sh = entity.get_style_sheet(trait)
             return UxStyleSheet.fg_color(sh)
@@ -157,7 +157,9 @@ class TableView(QTableView):
         if not trait_name:
             return
 
-        editor_class: type[TraitableEditor] = TraitableEditor.find_editor_class(entity.__class__)     #-- no alternative packages, look under ui subdir only
+        # Lazy: top-level import cycles via platform → table_view → traitable_editor.
+        from ui_10x.traitable_editor import TraitableEditor
+        editor_class = TraitableEditor.find_editor_class(entity.__class__)     #-- no alternative packages, look under ui subdir only
         mouse_btn = mouse_event.button()
         if mouse_btn == Qt.MouseButton.LeftButton:
             cb = editor_class.left_mouse_callback(trait_name)

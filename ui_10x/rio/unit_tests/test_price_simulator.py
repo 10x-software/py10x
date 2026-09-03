@@ -106,7 +106,6 @@ async def test_price_simulator_timer_fills_table(fake_symbols) -> None:
             await _wait_for_first_symbol(client, mm)
         finally:
             _in_session(page, lambda: _release(mm, dialog))
-            page.session.detach(PriceSimulatorDialog)
             page.session[UserSessionContext].interactive = None
     gc.collect()
 

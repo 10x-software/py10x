@@ -82,6 +82,7 @@ def _release_game(game, root) -> None:
     table.entities.clear()
     table.component = None
     table.subcomponent = None
+    game.attempts.clear()
 
     if getattr(game, 'layout', None) is not None:
         game.layout = None
@@ -136,7 +137,7 @@ async def test_guess_word_try_renders_letters_in_cells(silence_message_boxes) ->
             await wait_for_js_value(client, _CELL_LETTERS_JS.format(n=n), guess)
         finally:
             _in_session(page, lambda: _release_game(game, dialog))
-            page.session.detach(GuessWordDialog)
+            page.session[UserSessionContext].interactive = None
     gc.collect()
 
 

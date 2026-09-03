@@ -55,16 +55,20 @@ class UserSessionContext:
 
 
 CURRENT_SESSION: rio.Session | None = None
+# One asyncio loop for the process; set on ``session_context`` entry.
+# Sessions are per-user — captured on each ``BoundSignal.connect``, not here.
+UI_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 @contextmanager
 def session_context(session: rio.Session):
-    global CURRENT_SESSION
+    global CURRENT_SESSION, UI_LOOP
     if CURRENT_SESSION is session:
         yield
     else:
         assert CURRENT_SESSION is None, 'Must exit from session context first! Are you using async calls in session context?'
         CURRENT_SESSION = session
+        UI_LOOP = asyncio.get_running_loop()
         try:
             user_session = session[UserSessionContext]
         except Exception:  # noqa:BLE001 - TODO better handling?
@@ -98,36 +102,34 @@ class ConnectionType(NamedConstant):
 
 
 class BoundSignal(i.BoundSignal):
-    """Per-instance signal; returned from ``instance.SIGNAL`` (``signal_decl`` descriptor).
+    """Per-instance signal; ``instance.SIGNAL`` from ``signal_decl``.
 
-    ``CURRENT_SESSION`` is only read/written on the asyncio loop thread.
-    Off-thread ``emit`` only ``call_soon_threadsafe`` onto the loop from ``connect``.
+    ``connect`` requires ``session_context`` so a Qt-style ``connect`` cannot
+    appear to succeed while unbound. The session is stored by weakref for
+    off-thread emit (``UxAsync`` timers). Off-thread hops use process-wide
+    ``UI_LOOP``.
     """
 
-    __slots__ = ('loop', 'handlers')
+    __slots__ = ('handlers',)
 
     def __init__(self):
-        self.loop: asyncio.AbstractEventLoop | None = None
-        self.handlers: set[tuple[rio.Session, Callable[[...], None], ConnectionType]] = set()
+        self.handlers: set[tuple[weakref.ref, Callable[[...], None], ConnectionType]] = set()
 
     def connect(self, handler: Callable[[...], None], type: ConnectionType = ConnectionType.QUEUED) -> bool:
         assert CURRENT_SESSION, 'Connect must be called in session context'
-        loop = asyncio.get_running_loop()
-        if self.loop is None:
-            self.loop = loop
-        else:
-            assert loop is self.loop, 'Only one asyncio loop is supported'
-        self.handlers.add((CURRENT_SESSION, handler, type))
+        self.handlers.add((weakref.ref(CURRENT_SESSION), handler, type))
         return True
 
     def emit(self, *args) -> None:
-        def _emit(handlers=self.handlers,a=args):
-            for session, handler, conn in handlers:
-                conn.value(session, handler, *a)
+        def _emit(handlers=self.handlers, a=args):
+            for session_ref, handler, conn in handlers:
+                if session := session_ref():
+                    conn.value(session, handler, *a)
         try:
             asyncio.get_running_loop()
         except RuntimeError:
-            self.loop.call_soon_threadsafe(_emit)
+            if UI_LOOP and not UI_LOOP.is_closed():
+                UI_LOOP.call_soon_threadsafe(_emit)
         else:
             _emit()
 

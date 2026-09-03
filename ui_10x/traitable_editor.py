@@ -200,11 +200,6 @@ class TraitableEditor:
 
     def _dialog(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[], RC]) -> UxDialog:
         ux.init()
-        if layout is not None:
-            w = self.main_w = ux.Widget()
-            w.set_layout(layout)
-        else:
-            w = self.main_widget()
 
         def accept_callback():
             self._cleanup_tp(True)
@@ -216,7 +211,29 @@ class TraitableEditor:
         def cancel_callback():
             self._cleanup_tp(False)
 
-        return UxDialog(w, title = title, accept_callback = accept_callback, cancel_callback = cancel_callback, ok = ok, min_width = min_width)
+        host = ux.Widget()
+        host_lay = ux.VBoxLayout()
+        host.set_layout(host_lay)
+
+        def open_callback():
+            if self.main_w is not None:
+                return
+            if layout is not None:
+                w = self.main_w = ux.Widget()
+                w.set_layout(layout)
+            else:
+                w = self.main_widget()
+            host_lay.add_widget(w)
+
+        return UxDialog(
+            host,
+            title=title,
+            accept_callback=accept_callback,
+            cancel_callback=cancel_callback,
+            open_callback=open_callback,
+            ok=ok,
+            min_width=min_width,
+        )
 
     def dialog(self, layout: ux.Layout = None, copy_entity: bool = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None]  = None, min_width: int = 0) -> UxDialog:
         if title is None:
