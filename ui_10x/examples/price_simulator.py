@@ -1,12 +1,11 @@
 import random
 import threading
-import yfinance as yf
 
+from core_10x.py_class import PyClass
 from core_10x.traitable import RC, RT, T, Traitable
 
 from ui_10x.table_view import TableView
 from ui_10x.utils import UxAsync, ux
-
 
 class MarketSymbol(Traitable):
     symbol: str     = RT(T.READONLY)
@@ -80,13 +79,14 @@ class MarketMonitor:
         symbol_data = cls.s_symbol_data
         trait_names = symbol_data[0]
         n = len(trait_names)
+        ticker = PyClass.find_symbol("yfinance.Ticker")
         for row in range(1, len(symbol_data)):
             sym = MarketSymbol(**{trait_names[i]: symbol_data[row][i] for i in range(n)})
-            try:
-                sym.prev_close = yf.Ticker(sym.symbol).fast_info['previous_close']
-            except Exception as e:
-                print(f'yfinance lookup failed for {sym.symbol} ({e}); using fallback price')
-
+            if ticker:
+                try:
+                    sym.prev_close = ticker(sym.symbol).fast_info['previous_close']
+                except Exception as e:
+                    print(f'yfinance lookup failed for {sym.symbol} ({e}); using fallback price')
             res.append(sym)
 
         return res
