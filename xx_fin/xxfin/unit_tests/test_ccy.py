@@ -63,3 +63,9 @@ class TestCcy:
         for ccy in [3.1415, self.ccys, CcyCross(cross = 'EUR/GBP')]:
             with pytest.raises(TypeError):
                 Ccy.verified(ccy)
+
+        strX = 'XXXXX'
+        ccyX = Ccy(name=strX, _replace = True)
+        assert Ccy.verified(strX) == Ccy(name=strX, _replace=True)
+        with pytest.raises(ValueError, match="XXXXX does not exist in Store: <infra_10x.duckdb_store.DuckDbStore object at"):
+            assert Ccy.verified(ccyX)
