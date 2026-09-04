@@ -7,11 +7,10 @@ from typing import TYPE_CHECKING
 from core_10x import trait_definition
 from core_10x.global_cache import cache
 from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable, Ui
-from PyQt6.QtWidgets import QHeaderView
 
 from ui_10x.table_view import TableView
 from ui_10x.traitable_editor import TraitableEditor
-from ui_10x.utils import ux, ux_push_button, ux_success, ux_warning
+from ui_10x.utils import ux, ux_success, ux_warning
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -190,6 +189,7 @@ class Game(Traitable):
 
     top_editor: TraitableEditor = RT()
     table: TableView        = RT()
+    layout: object          = RT(T.HIDDEN)
     # keyboard: Keyboard      = RT()
 
     def the_word_get(self) -> str:
@@ -262,19 +262,19 @@ class Game(Traitable):
     def widget(self):
         ux.init()
         w = ux.Widget()
-        lay = ux.VBoxLayout()
+        self.layout = lay = ux.VBoxLayout()
         w.set_layout(lay)
+        return w
 
-        top = self.top_editor.row_layout()
-        lay.add_layout(top)
+    def bind(self):
+        lay = self.layout
+        lay.add_layout(self.top_editor.row_layout())
         lay.add_widget(ux.separator())
 
         lay.add_widget(self.table)
 
         #lay.add_widget(ux.separator())
         #lay.add_widget(self.keyboard.widget())
-
-        return w
 
 
 class _GuessWordData:
@@ -349,5 +349,5 @@ if __name__ == '__main__':
         game = Game()
         w = game.widget()
 
-        d = UxDialog(w, title = f'You have {game.count} attempts to guess a word')
+        d = UxDialog(w, title = f'You have {game.count} attempts to guess a word', open_callback=game.bind)
         d.exec()

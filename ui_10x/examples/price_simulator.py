@@ -1,12 +1,11 @@
 import random
 import threading
-import yfinance as yf
 
+from core_10x.py_class import PyClass
 from core_10x.traitable import RC, RT, T, Traitable
 
 from ui_10x.table_view import TableView
 from ui_10x.utils import UxAsync, ux
-
 
 class MarketSymbol(Traitable):
     symbol: str     = RT(T.READONLY)
@@ -80,27 +79,32 @@ class MarketMonitor:
         symbol_data = cls.s_symbol_data
         trait_names = symbol_data[0]
         n = len(trait_names)
+        ticker = PyClass.find_symbol("yfinance.Ticker")
         for row in range(1, len(symbol_data)):
             sym = MarketSymbol(**{trait_names[i]: symbol_data[row][i] for i in range(n)})
-            try:
-                sym.prev_close = yf.Ticker(sym.symbol).fast_info['previous_close']
-            except Exception as e:
-                print(f'yfinance lookup failed for {sym.symbol} ({e}); using fallback price')
-
+            if ticker:
+                try:
+                    sym.prev_close = ticker(sym.symbol).fast_info['previous_close']
+                except Exception as e:
+                    print(f'yfinance lookup failed for {sym.symbol} ({e}); using fallback price')
             res.append(sym)
 
         return res
 
     def __init__(self):
         self.symbols = self.fetch_symbols()
-        UxAsync.init(self.update_mkt_data)
-        self.timer = threading.Timer(3, self.process_timer)
+        self.table = None
+        self.timer = None
         self.next_item = 0
 
     def widget(self):
         self.table = table = TableView(MarketSymbol)
-        self.timer.start()
         return table
+
+    def start(self):
+        UxAsync.init(self.update_mkt_data)
+        self.timer = threading.Timer(3, self.process_timer)
+        self.timer.start()
 
     def update_mkt_data(self):
         i = self.next_item
@@ -108,7 +112,7 @@ class MarketMonitor:
             self.table.extend_data([ self.symbols[i] ])
             self.next_item += 1
 
-        symbols = self.table.model().m_data
+        symbols = self.symbols[:self.next_item]
         for row, symbol in enumerate(symbols):
             d = random.gauss(symbol.delta_mean, symbol.std)
             if random.randint(0, 10) < 5:
@@ -126,13 +130,12 @@ class MarketMonitor:
 if __name__ == '__main__':
     from core_10x.exec_control import INTERACTIVE
 
-    from ui_10x.examples.price_simulator import MarketSymbol
     from ui_10x.utils import UxDialog
 
     ux.init()
 
     with INTERACTIVE():
         mm = MarketMonitor()
-        d = UxDialog(mm.widget(), title = 'Enjoy watching some stocks :-)')
+        d = UxDialog(mm.widget(), title='Enjoy watching some stocks :-)', open_callback=mm.start)
         d.exec()
 

@@ -26,15 +26,25 @@ BlockingQueuedConnection    = None
 # fmt: on
 
 
-class signal_decl(abc.ABC, metaclass=ABCMetaSlotted):
-    @abc.abstractmethod
-    def __init__(self, *args): ...
-
+class BoundSignal(abc.ABC, metaclass=ABCMetaSlotted):
     @abc.abstractmethod
     def connect(self, method, type=None): ...
 
     @abc.abstractmethod
     def emit(self, *args): ...
+
+
+class signal_decl(abc.ABC, metaclass=ABCMetaSlotted):
+    """Declare as a class attribute; ``instance.NAME`` yields a ``BoundSignal``."""
+
+    @abc.abstractmethod
+    def __init__(self, *args): ...
+
+    @abc.abstractmethod
+    def __set_name__(self, owner, name): ...
+
+    @abc.abstractmethod
+    def __get__(self, instance, owner): ...
 
 
 class MouseEvent(abc.ABC, metaclass=ABCMetaSlotted):
@@ -339,6 +349,27 @@ class TreeWidget(Widget):
 
     @abc.abstractmethod
     def open_persistent_editor(self, item, col: int): ...
+
+
+class HorizontalHeader(abc.ABC, metaclass=ABCMetaSlotted):
+    @abc.abstractmethod
+    def setStretchLastSection(self, stretch: bool) -> None: ...
+
+
+class TableView(abc.ABC, metaclass=ABCMetaSlotted):
+    """Shared TableView surface (not a Widget — Qt subclasses QTableView)."""
+
+    @abc.abstractmethod
+    def __init__(self, entities_or_class, view=None): ...
+
+    @abc.abstractmethod
+    def horizontalHeader(self) -> HorizontalHeader: ...
+
+    @abc.abstractmethod
+    def render_traitable(self, row: int, entity) -> None: ...
+
+    @abc.abstractmethod
+    def extend_data(self, data) -> None: ...
 
 
 class CalendarWidget(Widget):

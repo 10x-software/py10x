@@ -6,3 +6,5 @@ htmlcov
 uv.lock
 .dev_10x_profile
 .env
+# marimo runtime (cache / session); commit session/ only if you want static molab outputs
+**/__marimo__/

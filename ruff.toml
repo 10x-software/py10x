@@ -7,9 +7,11 @@ quote-style = "single"
 exclude = [
     "README.md",
     "GETTING_STARTED.md",
+    "docs/notebooks/*.py",
     "core_10x/attic/*",
     "core_10x/jit/*",
     "core_10x/xnone.py",
+    "core_10x/selectable_traitable_class.py",
     "core_10x/__init__.py",
     "core_10x/environment_variables.py",
     "core_10x/basket.py",
@@ -28,7 +30,6 @@ exclude = [
     "ui_10x/examples/*",
     "ui_10x/py_data_browser.py",
     "ui_10x/choice.py",
-    "ui_10x/table*.py",
     "ui_10x/utils.py",
     "ui_10x/traitable_editor.py",
     "xxcommon/xxcalendar.py",
@@ -86,8 +87,9 @@ future-annotations = true # add "from __future__ import annotations" to enable m
 
 exclude = [
     "core_10x/attic/*.py",
+    "docs/notebooks/*.py",
     "core_10x/jit/*",
-    "ui_10x/table*.py",
+    "ui_10x/qt6/table*.py",
     "xx_fin/xxfin/jit_aadc/*",
 ]
 [lint.per-file-ignores]
@@ -219,8 +221,10 @@ exclude = [
 "xx_fin/xxfin/ir_swap_quotable.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
 ]
+"xx_fin/xxfin/*.py" = [
+    "N813", # e.g. camelcase `QuantLib` imported as lowercase `ql`
+]
 "xx_fin/xxfin/fin_calendar.py" = [
-    "N813", # Camelcase `QuantLib` imported as lowercase `ql`
     "BLE001", # Do not catch blind exception: `Exception`
 ]
 "xx_fin/xxfin/fin_instrument.py" = [

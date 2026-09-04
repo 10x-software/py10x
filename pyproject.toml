@@ -9,7 +9,7 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "py10x-kernel (>=0.3.2rc2,<0.3.2rc3)",
+    "py10x-kernel (>=0.3.2rc3,<0.3.2rc4)",
     "py10x-infra (>=0.3.2rc1,<0.3.2rc2)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
@@ -109,8 +109,10 @@ xx-test-postgres-auth           = "dev_10x.postgres_local:PostgresAuthCli.main"
 xx-test-db-clean                = "dev_10x.db_clean:TestDbCleanCli.main"
 xx-user-init                    = "core_10x.apps.user_init:UserInitCli.main"
 xx-functional-account-init      = "core_10x.apps.functional_account_init:FunctionalAccountInitCli.main"
-xx-user-status                  = "core_10x.apps.user_status:main"
+xx-user-status                  = "core_10x.apps.user_status:UserStatusCli.main"
+xx-user-save-credentials        = "core_10x.apps.user_save_credentials:main"
 xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
+xx-vault-setup-roles            = "core_10x.apps.vault_setup_roles:VaultSetupRolesCli.main"
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright>=1.55,<1.63"]
@@ -159,4 +161,4 @@ raw-options = { git_describe_command = "git describe --dirty --tags --long --mat
 version-file = "dev_10x/version.py"
 
 [dependency-groups]
-test = ["py10x-fin-base>=0.1.2rc10"]
+test = ["py10x-fin-base>=0.1.2rc16"]

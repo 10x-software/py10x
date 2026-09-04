@@ -3,24 +3,24 @@
 Installed by ``py10x-core`` as the ``xx-user-status`` console script (see
 ``pyproject.toml``); also runnable directly as
 ``python -m core_10x.apps.user_status``.
-
-Exit codes:
-  0 — all checks passed
-  1 — one or more checks failed
 """
 
 from __future__ import annotations
 
+from core_10x.rc import RC, exc_to_rc
+from core_10x.sec_keys import SecKeys
+from core_10x.trait_definition import RT, T
+from core_10x.trait_filter import f
+from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
+from core_10x.traitable_cli import TraitableCli
+from core_10x.ts_store import TsStore
+
 
 def _keyring_setup_hint(vault_uri: str) -> str:
     """Best-effort hint: prefer ``--new-machine`` when a VaultUser row already exists."""
-    from core_10x.sec_keys import SecKeys
-
     rc, login, password = SecKeys.retrieve_vault_login_password(vault_uri)
     if rc:
         try:
-            from core_10x.traitable import TsStore, VaultUser
-
             vault = TsStore.instance_from_uri(vault_uri, username=login, password=password, _cache=False)
             with vault:
                 if VaultUser.existing_instance(_throw=False):
@@ -30,108 +30,110 @@ def _keyring_setup_hint(vault_uri: str) -> str:
     return 'run: xx-user-init --new-user  (first machine) or xx-user-init --new-machine  (existing account on a new machine)'
 
 
-def main() -> int:
-    ok = True
+class UserStatusCli(TraitableCli):
+    """Check vault and resource-accessor setup for the current OS user.
 
-    def _ok(msg: str) -> None:
-        print(f'  OK  {msg}')
+    Usage:
+      xx-user-status
+    """
 
-    def _fail(msg: str, hint: str = '') -> None:
-        nonlocal ok
-        ok = False
-        print(f'FAIL  {msg}')
-        if hint:
-            print(f'      hint: {hint}')
+    vault_uri: str = RT()
+    vault_user_id: str = RT(T.STICKY)
+    resource_accessors: list = RT(T.STICKY)
 
-    # ------------------------------------------------------------------
-    # 1. Vault URI configured
-    # ------------------------------------------------------------------
-    print('\n[1] Vault URI')
-    from core_10x.sec_keys import SecKeys
+    def vault_uri_get(self) -> str:
+        return SecKeys.check_vault_uri(main=True)[1]
 
-    rc, vault_uri = SecKeys.check_vault_uri(main=True)
-    if not rc:
-        _fail('XX_MAIN_VAULT_URI is not set', 'set the environment variable: export XX_MAIN_VAULT_URI=mongodb://<host>:<port>/<db>')
-        return 1  # nothing else makes sense without this
-    _ok(vault_uri)
+    def vault_user_id_get(self) -> str:
+        with Traitable.vault_store():
+            if me := VaultUser.existing_instance(_throw=False):
+                return me.user_id
+        return ''
 
-    keyring_hint = _keyring_setup_hint(vault_uri)
+    def resource_accessors_get(self) -> list:
+        with Traitable.vault_store():
+            return VaultResourceAccessor.load_many(f(username=VaultUser.myname()))
 
-    # ------------------------------------------------------------------
-    # 2. Master password in OS keyring
-    # ------------------------------------------------------------------
-    print('\n[2] Master password (OS keyring)')
-    rc, _ = SecKeys.retrieve_master_password()
-    if not rc:
-        _fail('not found in OS keyring — this machine is not set up for vault access', keyring_hint)
-    else:
-        _ok('found in OS keyring')
+    @exc_to_rc
+    def check_os_login(self) -> None:
+        os_login = VaultUser.myname()
+        print(f'[0] OS login (vault account name) = {os_login!r}')
+        print('    Use this exact string for the vault-DB login (--worker).')
+        print('    Send it to your DBA / vault admin if they do not already know it')
 
-    # ------------------------------------------------------------------
-    # 3. Vault login/password in OS keyring
-    # ------------------------------------------------------------------
-    print('\n[3] Vault login/password (OS keyring)')
-    rc, login, _ = SecKeys.retrieve_vault_login_password(vault_uri)
-    if not rc:
-        _fail('not found in OS keyring — this machine is not set up for vault access', keyring_hint)
-    else:
-        _ok(f'login = {login!r}')
+    @exc_to_rc(show_exception_info=False)
+    def check_vault_uri(self) -> None:
+        rc, vault_uri = SecKeys.check_vault_uri(main=True)
+        if not rc:
+            raise RuntimeError('[1] XX_MAIN_VAULT_URI is not set -- set: export XX_MAIN_VAULT_URI=mongodb://<host>:<port>/<db>')
+        print(f'[1] Vault URI = {vault_uri}')
 
-    if not ok:
-        return 1
-
-    # ------------------------------------------------------------------
-    # 4. Connect to the vault and check the VaultUser row
-    # ------------------------------------------------------------------
-    print('\n[4] Vault connection and user record')
-    try:
-        from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
-
-        vault = Traitable.vault_store()
-    except Exception as exc:
-        _fail(f'Cannot connect to vault ({vault_uri}): {exc}', 'check that the vault server is reachable and that the stored credentials are correct')
-        return 1
-
-    with vault:
-        me = VaultUser.existing_instance(_throw=False)
-        if not me:
-            _fail(
-                f'No user record found for {VaultUser.myname()!r} in the vault',
-                f'XX_MAIN_VAULT_URI may be pointing to the wrong vault (currently: {vault_uri})',
+    @exc_to_rc(show_exception_info=False)
+    def check_master_password(self) -> None:
+        if not SecKeys.retrieve_master_password()[0]:
+            raise RuntimeError(
+                f'[2] Master password not found in OS keyring -- this machine is not set up for vault access -- {_keyring_setup_hint(self.vault_uri)}'
             )
-            return 1
-        _ok(f'user_id = {me.user_id!r}')
+        print('[2] Master password (OS keyring): found')
 
-        # ------------------------------------------------------------------
-        # 5. List resource accessors and test-connect through each
-        # ------------------------------------------------------------------
-        print('\n[5] Resource accessors')
-        from core_10x.trait_filter import f
+    @exc_to_rc(show_exception_info=False)
+    def check_vault_login(self) -> None:
+        rc, login = SecKeys.retrieve_vault_login_password(self.vault_uri)[:2]
+        if not rc:
+            raise RuntimeError(
+                f'[3] Vault login/password not found in OS keyring -- this machine is not set up for vault access -- {_keyring_setup_hint(self.vault_uri)}'
+            )
+        print(f'[3] Vault login/password (OS keyring): login = {login!r}')
 
-        ras = VaultResourceAccessor.load_many(f(username=me.user_id))
+    @exc_to_rc
+    def check_vault_connection(self) -> None:
+        if not (vault_user_id := self.vault_user_id):
+            raise RuntimeError(
+                f'[4] No user record found for {VaultUser.myname()!r} in the vault -- '
+                f'XX_MAIN_VAULT_URI may be pointing to the wrong vault (currently: {self.vault_uri})'
+            )
+        print(f'[4] Vault connection and user record: user_id = {vault_user_id!r}')
 
-        if not ras:
-            print('      (none registered — ask an admin to run xx-admin-save-user-credentials for any additional resources)')
-        else:
-            for ra in ras:
-                label = f'{ra.resource_dt.name}  {ra.resource_uri}  (login: {ra.login})'
-                try:
-                    ra.resource  # noqa: B018 useless-expression
-                    _ok(label)
-                except Exception as exc:
-                    _fail(
-                        label,
-                        f'connection failed: {exc} — check that the server is reachable and ask an admin to verify or refresh the stored credentials',
-                    )
+    @exc_to_rc(show_exception_info=False)
+    def check_resource_accessors(self) -> None:
+        print('[5] Resource accessors')
+        if not self.resource_accessors:
+            print('    (none registered -- run xx-user-save-credentials, or ask an admin to run xx-admin-save-user-credentials)')
+            return
+        failures = []
+        for ra in self.resource_accessors:
+            label = f'{ra.resource_dt.name}  {ra.resource_uri}  (login: {ra.login})'
+            try:
+                ra.resource  # noqa: B018 useless-expression
+                print(f'    OK    {label}')
+            except Exception as exc:
+                print(f'    FAIL  {label}: {exc}')
+                failures.append(label)
+        if failures:
+            raise RuntimeError(
+                f'resource accessor(s) failed to connect: {", ".join(failures)} -- '
+                'check that the server is reachable and ask an admin to verify or refresh the stored credentials'
+            )
 
-    print()
-    if ok:
-        print('All checks passed.')
-    else:
-        print('One or more checks failed — see FAIL lines above.')
+    def run(self) -> RC:
+        rc = self.check_os_login() + self.check_vault_uri()
+        if not rc:
+            return rc  # nothing else makes sense without a vault URI
 
-    return 0 if ok else 1
+        rc += self.check_master_password() + self.check_vault_login()
+        if not rc:
+            return rc  # can't reach the vault without vault credentials
+
+        rc += self.check_vault_connection()
+        if not rc:
+            return rc  # can't get resource accessors without vault connection
+
+        rc += self.check_resource_accessors()
+
+        print()
+        print('All checks passed.' if rc else 'One or more checks failed -- see errors above.')
+        return rc
 
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    raise SystemExit(UserStatusCli.main())

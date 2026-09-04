@@ -5,7 +5,6 @@ import inspect
 import operator
 import types
 import weakref
-from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
 from functools import partial, reduce
@@ -56,56 +55,85 @@ class UserSessionContext:
 
 
 CURRENT_SESSION: rio.Session | None = None
+# One asyncio loop for the process; set on ``session_context`` entry.
+# Sessions are per-user — captured on each ``BoundSignal.connect``, not here.
+UI_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 @contextmanager
 def session_context(session: rio.Session):
-    global CURRENT_SESSION
-    assert CURRENT_SESSION is None, 'Must exit from session context first! Are you using async calls in session context?'
-    CURRENT_SESSION = session
-    try:
-        user_session = session[UserSessionContext]
-    except Exception:  # noqa:BLE001 - TODO better handling?
-        user_session = None
-
-    if user_session:
-        user_session.begin_using()
-    try:
+    global CURRENT_SESSION, UI_LOOP
+    if CURRENT_SESSION is session:
         yield
-    finally:
+    else:
+        assert CURRENT_SESSION is None, 'Must exit from session context first! Are you using async calls in session context?'
+        CURRENT_SESSION = session
+        UI_LOOP = asyncio.get_running_loop()
+        try:
+            user_session = session[UserSessionContext]
+        except Exception:  # noqa:BLE001 - TODO better handling?
+            user_session = None
+
         if user_session:
-            user_session.end_using()
-        CURRENT_SESSION = None
+            user_session.begin_using()
+        try:
+            yield
+        finally:
+            if user_session:
+                user_session.end_using()
+            CURRENT_SESSION = None
 
 
 class ConnectionType(NamedConstant):
-    DIRECT = lambda handler, *args: handler(args)
-    QUEUED = lambda handler, *args: asyncio.get_running_loop().call_soon(handler, *args)
-
-
-class SignalDecl:
-    def __init__(self):
-        self.handlers: dict[rio.Session, set[tuple[Callable[[...], None], ConnectionType]]] = defaultdict(set)
-
-    def connect(self, handler: Callable[[...], None], type: ConnectionType = ConnectionType.QUEUED) -> bool:
-        self.handlers[CURRENT_SESSION].add((handler, type))
-        return True
-
     @staticmethod
-    def _wrapper(ctx, handler: Callable[[...], None], *args):
-        with ctx:
+    def _dispatch_direct(session: rio.Session, handler: Callable[[...], None], *args) -> None:
+        with session_context(session), BTP.current():
             handler(*args)
 
+    @staticmethod
+    def _dispatch_queued(session: rio.Session, handler: Callable[[...], None], *args) -> None:
+        async def run(s=session, h=handler, a=args):
+            ConnectionType._dispatch_direct(s, h, *a)
+            await s._refresh()
+
+        session.create_task(run())
+
+    DIRECT = _dispatch_direct
+    QUEUED = _dispatch_queued
+
+
+class BoundSignal(i.BoundSignal):
+    """Per-instance signal; ``instance.SIGNAL`` from ``signal_decl``.
+
+    ``connect`` requires ``session_context`` so a Qt-style ``connect`` cannot
+    appear to succeed while unbound. The session is stored by weakref for
+    off-thread emit (``UxAsync`` timers). Off-thread hops use process-wide
+    ``UI_LOOP``.
+    """
+
+    __slots__ = ('handlers',)
+
+    def __init__(self):
+        self.handlers: set[tuple[weakref.ref, Callable[[...], None], ConnectionType]] = set()
+
+    def connect(self, handler: Callable[[...], None], type: ConnectionType = ConnectionType.QUEUED) -> bool:
+        assert CURRENT_SESSION, 'Connect must be called in session context'
+        self.handlers.add((weakref.ref(CURRENT_SESSION), handler, type))
+        return True
+
     def emit(self, *args) -> None:
-        for handler, conn in self.handlers[CURRENT_SESSION]:
-            # Capture BTP at emit time so QUEUED handlers re-enter the same
-            # INTERACTIVE/GRAPH context when they run. The partial is normally
-            # short-lived (call_soon). A long-lived partial that pins BTP would
-            # keep the whole owned cache (and any Traitables on it) alive after
-            # the intended session/scope ended — prefer a mutable bag if deferred
-            # work can outlive BTP teardown.
-            # TODO(gc): GC-aware BTP would make accidental pins less severe.
-            conn.value(partial(self._wrapper, BTP.current(), handler), *args)
+        def _emit(handlers=self.handlers, a=args):
+            for session_ref, handler, conn in handlers:
+                if session := session_ref():
+                    conn.value(session, handler, *a)
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            if UI_LOOP and not UI_LOOP.is_closed():
+                UI_LOOP.call_soon_threadsafe(_emit)
+        else:
+            _emit()
 
 
 class MouseEvent(i.MouseEvent):
@@ -165,13 +193,14 @@ class DynamicComponent(rio.Component):
 
     def build(self) -> rio.Component:
         assert self.builder, 'DynamicComponent has no builder'
-        subcomponent = self.builder.build(self.session)
-        if not self.builder.component:
-            self.builder.component = self
-            self.builder.subcomponent = subcomponent
-        else:
-            assert self.builder.component is self, 'DynamicComponent reused!'
-        return subcomponent
+        with session_context(self.session):
+            subcomponent = self.builder.build()
+            if not self.builder.component:
+                self.builder.component = self
+                self.builder.subcomponent = subcomponent
+            else:
+                assert self.builder.component is self, 'DynamicComponent reused!'
+            return subcomponent
 
 
 class ComponentBuilder:
@@ -247,7 +276,7 @@ class ComponentBuilder:
             return self
         return self.__class__(*args, **self._kwargs)
 
-    def _build_children(self, session: rio.Session):
+    def _build_children(self):
         return [child() if isinstance(child, ComponentBuilder) else child for child in self._get_children() if child is not None]
 
     @classmethod
@@ -260,12 +289,13 @@ class ComponentBuilder:
             return cls.s_component_class(*children, **kwargs)
         return None
 
-    def build(self, session: rio.Session) -> rio.Component | None:
+    def build(self) -> rio.Component | None:
+        session = self.current_session()
         kwargs = {k: v for k, v in self._kwargs.items() if k != self.s_children_attr}
         for size_adjustment in self.s_size_adjustments:
             if size_adjustment in kwargs:
                 kwargs[size_adjustment] /= session.pixels_per_font_height
-        children: list = self._build_children(session)
+        children: list = self._build_children()
         return self.create_component(*children, **kwargs)
 
     def __call__(self) -> rio.Component:
@@ -413,8 +443,8 @@ class Widget(ComponentBuilder, i.Widget):
     def set_layout(self, layout: i.Layout):
         self._layout = layout
 
-    def _build_children(self, session: rio.Session):
-        return [self._layout.with_children(*self._get_children()).build(session)] if self._layout else super()._build_children(session)
+    def _build_children(self):
+        return [self._layout.with_children(*self._get_children()).build()] if self._layout else super()._build_children()
 
     def set_stretch(self, stretch):
         assert stretch in (0, 1), 'Only stretch of 0 or 1 is currently supported'

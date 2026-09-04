@@ -9,7 +9,7 @@
 
 ## 🌌 Why Genaxy?
 
-**10x** is the concept: never rebuild the same foundation twice. A **genaxy** is the kind of system that makes that possible — built around a small core rather than assembled feature by feature. **10x Genaxy** is this one. This package (`py10x-core`) is its **substratum**.
+**10x** is about empowering engineers, researchers, and developers to become 10x more productive — not through better tooling at the edges, but by never rebuilding the same foundation twice. A **genaxy** is what makes that possible: a kind of system built around a small, generative core rather than assembled feature by feature. **10x Genaxy** is this one. This package (`py10x-core`) is its **substratum**.
 
 The **substratum** is that core: a handful of laws (principles), not a feature set. Today those are identity, dependency, persistence, and presentation; more may join them. Everything else follows from these. They aren't a checklist to memorize — they're vocabulary for describing a real-world problem, before any specific technology gets chosen.
 
@@ -161,13 +161,14 @@ Compared to reactive frameworks — dependencies are tracked automatically, comp
 
 ## Documentation map
 
-| I want to… | Read |
-|------------|------|
-| Install py10x | [INSTALLATION.md](INSTALLATION.md) |
-| Learn the Traitable framework | [GETTING_STARTED.md](GETTING_STARTED.md) |
-| Install / use the first subject domain of 10x Genaxy (`xxfin`) | [xx_fin/README.md](xx_fin/README.md) |
-| Contribute code | [CONTRIBUTING.md](CONTRIBUTING.md) |
-| Cut a release / sync dev deps | [dev_10x/README.md](dev_10x/README.md) |
+| I want to… | Read                                                                                                                                                                                                                                                                                                                                                    |
+|------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Install py10x | [INSTALLATION.md](INSTALLATION.md)                                                                                                                                                                                                                                                                                                                      |
+| Learn the Traitable framework | [GETTING_STARTED.md](GETTING_STARTED.md)                                                                                                                                                                                                                                                                                                                |
+| Try Traitables interactively | [docs/notebooks/getting_started.py](docs/notebooks/getting_started.py) — a [marimo](https://marimo.io) notebook (similar to Jupyter). [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py) (create a free account, choose a **server** session, and run) |
+| Install / use the first subject domain of 10x Genaxy (`xxfin`) | [xx_fin/README.md](xx_fin/README.md)                                                                                                                                                                                                                                                                                                                    |
+| Contribute code | [CONTRIBUTING.md](CONTRIBUTING.md)                                                                                                                                                                                                                                                                                                                      |
+| Cut a release / sync dev deps | [dev_10x/README.md](dev_10x/README.md)                                                                                                                                                                                                                                                                                                                  |
 
 ## 🤝 Contact & Support
 

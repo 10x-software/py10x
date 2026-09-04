@@ -174,6 +174,33 @@ class TsStore(Resource, resource_type=TS_STORE):
     def delete_database(self, dbname: str) -> bool:
         return False
 
+    VAULT_WORKER_ROLE = 'xxVaultWorker'
+    VAULT_ADMIN_ROLE = 'xxVaultAdmin'
+
+    def can_serve_as_vault(self) -> bool:
+        return False
+
+    def setup_vault_roles(
+        self,
+        *,
+        user_collection: str,
+        user_history: str,
+        accessor_collection: str,
+        accessor_history: str,
+        worker_role: str | None = None,
+        admin_role: str | None = None,
+    ) -> RC:
+        return RC(False, f'{type(self).__name__} cannot serve as a vault')
+
+    def create_vault_user(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
+        return RC(False, f'{type(self).__name__} cannot serve as a vault')
+
+    def create_vault_admin(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
+        return RC(False, f'{type(self).__name__} cannot serve as a vault')
+
+    def is_vault_admin(self, *, admin_role: str | None = None) -> bool:
+        return False
+
     @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
@@ -188,7 +215,7 @@ class TsStore(Resource, resource_type=TS_STORE):
     def collection_names(self, regexp: str = None) -> list: ...
 
     @abc.abstractmethod
-    def collection(self, collection_name: str, trait_dir: dict | None = None) -> TsCollection: ...
+    def collection(self, collection_name: str, trait_dir: dict | None = None, *, create_if_needed: bool = False) -> TsCollection: ...
 
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...

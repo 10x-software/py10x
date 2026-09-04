@@ -12,10 +12,11 @@ import ibis
 import ibis.expr.datatypes as ibis_dtypes
 import psycopg
 from core_10x.global_cache import cache
+from core_10x.rc import RC, RC_TRUE
 from core_10x.resource import Resource
-from core_10x.ts_store import TsDuplicateKeyError
+from core_10x.ts_store import TsDuplicateKeyError, TsStore
 from psycopg import sql
-from psycopg.errors import InsufficientPrivilege, UniqueViolation
+from psycopg.errors import DuplicateObject, InsufficientPrivilege, UniqueViolation
 
 from infra_10x.ibis_store import (
     _DATA,
@@ -29,6 +30,7 @@ _PG_PROTOCOL_3_0 = 196608
 _PG_SSL_REQUEST_CODE = 80877103
 # AuthenticationRequest codes (see Postgres protocol docs).
 _PG_AUTH_OK = 0
+
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -240,6 +242,10 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     def _auth_user_sql_params(self) -> list:
         return []
 
+    @staticmethod
+    def _qident(name: str) -> str:
+        return '"' + name.replace('"', '""') + '"'
+
     def create_index(self, collection_name: str, name: str, trait_name: str | list[tuple[str, int]], col_trait_dir: dict, **index_args) -> str:
         # Non-owners (e.g. vault users) cannot CREATE INDEX; the table owner already did. IF NOT EXISTS does not skip the ownership check.
         try:
@@ -427,6 +433,110 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
                 return False
             cur.execute(sql.SQL('CREATE DATABASE {}').format(sql.Identifier(dbname)))
         return True
+
+    def can_serve_as_vault(self) -> bool:
+        return type(self).is_running_with_auth(self.hostname, self.port)[1]
+
+    def setup_vault_roles(
+        self,
+        *,
+        user_collection: str,
+        user_history: str,
+        accessor_collection: str,
+        accessor_history: str,
+        worker_role: str | None = None,
+        admin_role: str | None = None,
+    ) -> RC:
+        worker_role = worker_role or TsStore.VAULT_WORKER_ROLE
+        admin_role = admin_role or TsStore.VAULT_ADMIN_ROLE
+        try:
+            self._ensure_pg_group(worker_role)
+            self._ensure_pg_group(admin_role)
+            qworker, qadmin = self._qident(worker_role), self._qident(admin_role)
+            self._execute(f'GRANT USAGE ON SCHEMA public TO {qworker}, {qadmin}')
+            names = (user_collection, user_history, accessor_collection, accessor_history)
+            accessor_write = {accessor_collection}
+            for cname in names:
+                qtable = self._qname(cname)
+                self._execute(f'REVOKE ALL ON TABLE {qtable} FROM PUBLIC')
+                self._execute(f'REVOKE ALL ON TABLE {qtable} FROM {qworker}, {qadmin}')
+                worker_privs = 'SELECT, INSERT, UPDATE' if cname in accessor_write else 'SELECT, INSERT'
+                self._execute(f'GRANT {worker_privs} ON TABLE {qtable} TO {qworker}')
+                self._execute(f'GRANT SELECT, INSERT, UPDATE ON TABLE {qtable} TO {qadmin}')
+                self._execute(f'ALTER TABLE {qtable} ENABLE ROW LEVEL SECURITY')
+                self._execute(f'ALTER TABLE {qtable} FORCE ROW LEVEL SECURITY')
+                own = self._vault_own_row_sql(cname, user_collection, user_history, accessor_collection)
+                self._replace_policy(qtable, 'xx_vault_worker_select', f'FOR SELECT TO {qworker} USING ({own})')
+                self._replace_policy(qtable, 'xx_vault_worker_insert', f'FOR INSERT TO {qworker} WITH CHECK ({own})')
+                if cname in accessor_write:
+                    self._replace_policy(qtable, 'xx_vault_worker_update', f'FOR UPDATE TO {qworker} USING ({own}) WITH CHECK ({own})')
+                self._replace_policy(qtable, 'xx_vault_admin_all', f'FOR ALL TO {qadmin} USING (true) WITH CHECK (true)')
+        except Exception as e:  # noqa: BLE001
+            return RC(False, f'PostgreSQL vault role setup failed: {e}')
+        return RC_TRUE
+
+    def create_vault_user(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
+        return self._grant_vault_login(
+            username, password, role=worker_role or TsStore.VAULT_WORKER_ROLE, other_role=admin_role or TsStore.VAULT_ADMIN_ROLE
+        )
+
+    def create_vault_admin(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
+        return self._grant_vault_login(
+            username, password, role=admin_role or TsStore.VAULT_ADMIN_ROLE, other_role=worker_role or TsStore.VAULT_WORKER_ROLE
+        )
+
+    def is_vault_admin(self, *, admin_role: str | None = None) -> bool:
+        admin_role = admin_role or TsStore.VAULT_ADMIN_ROLE
+        try:
+            rows = self._execute("SELECT pg_has_role(current_user, ?, 'member')", [admin_role])
+        except Exception:  # noqa: BLE001
+            return False
+        return bool(rows and rows[0][0])
+
+    def _ensure_pg_group(self, role: str) -> None:
+        if not self._execute('SELECT 1 FROM pg_roles WHERE rolname = ?', [role]):
+            self._execute(f'CREATE ROLE {self._qident(role)} NOLOGIN')
+
+    def _replace_policy(self, qtable: str, policy: str, body: str) -> None:
+        qpolicy = self._qident(policy)
+        self._execute(f'DROP POLICY IF EXISTS {qpolicy} ON {qtable}')
+        self._execute(f'CREATE POLICY {qpolicy} ON {qtable} {body}')
+
+    def _vault_own_row_sql(self, logical_name: str, user_collection: str, user_history: str, accessor_collection: str) -> str:
+        cols = self._collection_columns(logical_name)
+        if logical_name == user_collection:
+            return '_id = current_user'
+        if logical_name == user_history:
+            return '"_traitable_id" = current_user' if '_traitable_id' in cols else "coalesce(_data->>'_traitable_id','') = current_user"
+        if logical_name == accessor_collection:
+            return '"username" = current_user' if 'username' in cols else "coalesce(_data->>'username','') = current_user"
+        return "coalesce(_data->>'username','') = current_user"
+
+    def _exec_sql_fmt(self, template: str, *params) -> None:
+        with self._con.cursor() as cur:
+            cur.execute(sql.SQL(template).format(*params))
+
+    def _grant_vault_login(self, username: str, password: str, *, role: str, other_role: str) -> RC:
+        if not password:
+            return RC(False, 'password is required to create a vault login')
+        quser, qrole, qother = self._qident(username), self._qident(role), self._qident(other_role)
+        try:
+            try:
+                self._exec_sql_fmt(
+                    'CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT IN ROLE {} PASSWORD {}',
+                    sql.Identifier(username),
+                    sql.Identifier(role),
+                    sql.Literal(password),
+                )
+            except DuplicateObject:
+                # already exists (from a prior run, or created concurrently by another setup run) -- converge state
+                self._execute(f'GRANT {qrole} TO {quser}')
+                self._execute(f'REVOKE {qother} FROM {quser}')
+                self._exec_sql_fmt('ALTER ROLE {} PASSWORD {}', sql.Identifier(username), sql.Literal(password))
+            self._execute(f'GRANT CONNECT ON DATABASE {self._qident(self.dbname)} TO {quser}')
+        except Exception as e:  # noqa: BLE001
+            return RC(False, f'PostgreSQL vault login {username!r} failed: {e}')
+        return RC_TRUE
 
     def auth_user(self) -> str | None:
         # ``current_user`` is fixed for the life of the connection — query it once.

@@ -26,7 +26,7 @@ class HeaderModel(ux.StandardItemModel):
                 self._create_subtree(traits, item, subtree)
 
             if root:
-                root.append_column((item, ))
+                root.append_column((item,))
             else:
                 self.set_item(0, col, item)
 
@@ -44,7 +44,7 @@ class HeaderModel(ux.StandardItemModel):
     def leaf_index(self, section_index: int) -> ux.ModelIndex:
         current_leaf_index = -1
         for i in range(self.column_count()):
-            res, current_leaf_index = self.find_leaf(self.index( 0, i), section_index, current_leaf_index)
+            res, current_leaf_index = self.find_leaf(self.index(0, i), section_index, current_leaf_index)
             if res.is_valid():
                 return res
 
@@ -59,7 +59,7 @@ class HeaderModel(ux.StandardItemModel):
         return prev_index
 
     @staticmethod
-    def find_leaf(current_index: ux.ModelIndex, section_index: int, current_leaf_index: int) -> tuple:  #-- ( index, current_leaf_index )
+    def find_leaf(current_index: ux.ModelIndex, section_index: int, current_leaf_index: int) -> tuple:  # -- ( index, current_leaf_index )
         if current_index.is_valid():
             child_count = current_index.model().column_count(current_index)
             if child_count:
@@ -92,7 +92,7 @@ class HeaderModel(ux.StandardItemModel):
         return res
 
     @staticmethod
-    def leaves(search_index: ux.ModelIndex ) -> list:
+    def leaves(search_index: ux.ModelIndex) -> list:
         leaves = []
         if search_index.is_valid():
             child_count = search_index.model().column_count(search_index)
@@ -119,27 +119,26 @@ class HeaderModel(ux.StandardItemModel):
 
 class HeaderView(ux.HeaderView):
     def __init__(self, view: TraitableView, parent: ux.Widget = None):
-        super().__init__(ux.Horizontal, parent = parent)
+        super().__init__(ux.Horizontal, parent=parent)
         self.m_model = HeaderModel(view.ui_hints, view.header)
         self.set_model(self.m_model)
 
-        #self.setStretchLastSection(False)
+        # self.setStretchLastSection(False)
         self.setSectionResizeMode(ux.HeaderView.ResizeMode.Stretch)
 
         self.painted_cells = set()
         ##self.section_resized_connect(self.on_section_resized)
 
-    def set_foreground_brush(self, opt: ux.StyleOptionHeader, index: ux.ModelIndex ):
+    def set_foreground_brush(self, opt: ux.StyleOptionHeader, index: ux.ModelIndex):
         fgb = index.data(ux.ForegroundRole)
         if fgb:
             opt.palette.set_brush(ux.Palette.ButtonText, fgb)
 
-    def set_background_brush(self, opt: ux.StyleOptionHeader, index: ux.ModelIndex ):
+    def set_background_brush(self, opt: ux.StyleOptionHeader, index: ux.ModelIndex):
         bgb = index.data(ux.BackgroundRole)
         if bgb:
             opt.palette.set_brush(ux.Palette.Button, bgb)
             opt.palette.set_brush(ux.Palette.Window, bgb)
-
 
     # s_selected_position = (
     #     ux.StyleOptionHeader.NotAdjacent,                     # prev - 0, next 0
