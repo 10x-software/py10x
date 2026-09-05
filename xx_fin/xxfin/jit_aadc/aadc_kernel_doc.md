@@ -144,3 +144,112 @@ this re-entrant, on-graph evaluation used to trip the `write-during-read` guard 
 fixed via `UPWARD_DEPS_OFF()` in `xxcommon/py_curve.py` and `xxfin/root_solver.py` (backed by
 `UpwardDepsOff` in `cxx10x/core_10x/btraitable_processor.h`). Without that fix, `AadcKernel` would
 fail on any bound trait whose dependency chain includes curve bootstrapping.
+
+## Known limitation (unresolved): value-dependent branches can hide market dependencies
+
+`MktDeps`/`GraphDeps` discovers market dependencies from **one** priming evaluation of the bound
+trait, done *before* `AADCContext` is entered. If a getter branches on a value that is itself a
+market dependency (`if obj.some_trait < threshold: blah() else: blah2()`), only the taken
+branch's quotables get discovered, `perturb()`-ed to `idouble`, and `mark_as_input()`-ed. Since
+`AadcKernel` is meant to be **recorded once and replayed across many market scenarios**
+(`kernel.eval(market_values=...)`), a later scenario that would flip the branch gets a silently
+wrong answer: the untaken branch's quotables are frozen constants in the tape, not real inputs
+(`_lookup_handle` raises `Unknown market dependency` if you try to override one). Live risk only
+when the branch condition depends on something that can actually vary across replay scenarios; a
+branch on a static/structural value is safe. This is the general limitation any "record once,
+replay for many inputs" system hits when control flow is input-dependent (tracing JITs, other AAD
+libraries) -- not a bug specific to `MktDeps`.
+
+**`aadc.iif`/`ibool` do not solve this.** `iif(cond, a, b)` selects between values *already
+computed* in the current pass -- it can't discover a quotable the priming pass never executed.
+It only helps *after* discovery is already solved for both branches.
+
+**`aadc.branching` (`@branching_function` / `BranchScope` / `smart_assign`) is closer, but not
+sufficient by itself.** During actual recording (`is_recording()` true), `bm.if_`/`elif_`/`else_`
+return `True` for every branch, so all branches genuinely execute and `smart_assign` correctly
+masks the result via the branch's `ibool` -- this is the library's real, proper answer to
+"encode a branch decision in one reusable tape." But during eager/priming evaluation
+(`is_recording()` false), `bm.if_()` returns the real bool -- ordinary short-circuiting, one
+branch only. So `branching` fixes *recording*, not *discovery* -- the same split as `iif`, one
+level up.
+
+### Open directions (none implemented, not yet decided which to pursue)
+
+1. **Redesign discovery to run under recording semantics.** If priming itself happened inside
+   `record_kernel()` (with the full candidate universe of quotables pre-perturbed rather than
+   discovered by executing once), `BranchScope`-written getters would have every branch
+   discovered and correctly masked in a single pass -- no runtime guard needed. Bigger lift:
+   requires perturbing a declared candidate set up front (not discovering it), and rewriting
+   conditional getters to use `BranchScope` instead of plain `if`.
+2. **Guard-based staleness detection, backed by a growing family of kernels keyed by branch
+   signature** -- the current leading design, decided in shape though not yet implemented. The
+   branch *condition* is always evaluated regardless of outcome, so its inputs are already
+   correctly discovered -- only the branch bodies have the gap. Mark each condition as an extra
+   kernel output at record time (cheap, inputs already wired); this doubles as a **branch
+   signature** for the kernel. A wrapper maintains `kernels: dict[branch_signature, AadcKernel]`
+   -- one ordinary, unmodified `AadcKernel` per distinct combination of branch outcomes actually
+   encountered so far (no `BranchScope`/masked-recording redesign needed; each cached kernel is a
+   plain single-branch recording exactly as today):
+   - **Signature matches a cached kernel** -> dispatch straight to it. Fast path, no rebuild, no
+     discovery -- this is the common case once a branch has been seen once.
+   - **Signature is new** -> run the real top-level getter on-graph to discover this branch's
+     dependencies (this is where a plain on-graph fallback answer would come from, if needed
+     immediately), build a fresh `AadcKernel` for it, and **add** it to `kernels` under the new
+     signature. Nothing already cached is touched or evicted -- this is what "extend without
+     forgetting" means concretely: growing the family, never mutating or discarding an entry.
+     (Not an option regardless -- confirmed via `_aadc_core.pyi`/introspection: `Functions` has
+     only a no-arg constructor, no `.copy()`/`__copy__`/`__deepcopy__`, and no way to resume a
+     stopped recording -- copy-then-extend isn't available at any level.)
+   - **If even that discovery-and-build step fails or isn't safe to do inline** -> crash loudly
+     (refuse to return a possibly-wrong number) or fall back to a plain on-graph answer for just
+     that call (correct, no derivatives, nothing cached) -- the two remaining options, now scoped
+     as fallbacks for *this* step rather than peers of the main dispatch logic.
+   Still requires a conditional getter to explicitly expose its guard condition (cheaper ask than
+   exposing the untaken branch's full computation), and needs to compose transitively across the
+   whole dependency chain, not just the top-level getter.
+
+### `dep_branch` -- the guard-registration primitive (decided shape, not yet built)
+
+Belongs in `core_10x` (next to `GRAPH_ON`/`UPWARD_DEPS_OFF`), not in `xxfin.jit_aadc` -- this is a
+dependency-law construct (registering a branch as part of the dependency graph), and AADC is just
+its first consumer.
+
+```python
+if dep_branch(f"{__file__}:{lineno}", self.some_trait < threshold):
+    return blah()
+else:
+    return blah2()
+```
+
+`dep_branch(guard_id, condition) -> condition` -- transparent passthrough, zero eager-mode
+behavior change. Side effect: if a signature accumulator is active (only during an
+`AadcKernel`-driven pass), appends `(guard_id, bool(condition))` to it; a `frozenset` of these
+pairs is the branch signature (see prior section). `guard_id` = **file + line number of the call
+site**, not a hand-picked label -- uniqueness must be structural, not a discipline requirement
+(two `if` statements can't share a file+line); the condition's own source text can still serve as
+a purely cosmetic label for logging.
+
+**Open problem this doesn't solve on its own: a getter author can simply forget to use it**,
+silently reproducing the original discovery gap while looking covered -- needs auto-instrumentation
+via AST rewriting at class-definition time (precedent: pytest's assertion-rewriting), hooked
+through `Traitable.__init_subclass__` opt-in, same pattern as `s_cxx_mixins` wiring.
+
+**Adopted starting design: wrap every `If`, unfiltered ("trivialist," decided 2026-09-05).**
+Rather than trying to precisely classify which `if`s are market-dependent (matching `cls.s_dir`,
+plus a same-function forward taint-propagation pass to catch indirect cases like `x = self.trait;
+y = x+1; if y < threshold: ...` -- a real dataflow analysis, itself a source of bugs, deferred as
+a possible future optimization only), wrap *every* `If.test` in the getter unconditionally. This
+trades a possible performance cost for eliminating an entire category of correctness risk (bugs in
+a classifier that could itself under-cover), and the traded-away cost turns out to be smaller than
+it first looks: a guard only fragments the kernel cache if its outcome actually *differs* across
+replay scenarios. A structural check like `if x is None:` unrelated to market data comes out the
+same every time market_values vary -- it becomes a constant entry in every signature, never
+causing a mismatch. The only guards that ever cause fragmentation are the ones whose outcome
+genuinely depends on something that varies -- exactly the ones that matter. Remaining cost of the
+irrelevant ones: negligible bookkeeping (one extra call + one unchanging tuple per signature), not
+cache effectiveness. Precise `s_dir`/taint-tracking classification is now a possible *later*
+optimization, worth building only if real measurement shows fragmentation is an actual problem --
+not built up front on faith.
+
+No option preserves single-execution automatic discovery *and* guarantees completeness -- that
+combination is impossible in general when control flow is genuinely value-dependent.
