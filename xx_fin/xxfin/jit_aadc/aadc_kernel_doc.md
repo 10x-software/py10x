@@ -253,3 +253,154 @@ not built up front on faith.
 
 No option preserves single-execution automatic discovery *and* guarantees completeness -- that
 combination is impossible in general when control flow is genuinely value-dependent.
+
+### How a guard actually becomes a kernel output
+
+"Becoming an additional output" mechanically means one thing: `.mark_as_output()` gets called on
+it -- the exact same call already used for the price (`res_active.mark_as_output()`). `condition`
+in `dep_branch(guard_id, condition)` is just whatever the comparison expression evaluated to at
+that call site -- a plain `bool` during the eager priming read (nothing to mark, plain `bool` has
+no such method), an `ibool` during the actual recording read *if* the compared value was itself
+perturbed to `idouble` (this is the moment marking is meaningful).
+
+`dep_branch` itself stays AADC-agnostic -- it only appends `(guard_id, condition)` to whatever
+accumulator is currently active via a `contextvars.ContextVar` (same pattern as `aadc.branching`'s
+own `_active_func_bm`), or does nothing if none is active:
+
+```python
+_active_accumulator: contextvars.ContextVar[list | None] = contextvars.ContextVar(..., default=None)
+
+def dep_branch(guard_id: str, condition):
+    acc = _active_accumulator.get()
+    if acc is not None:
+        acc.append((guard_id, condition))
+    return condition
+```
+
+`AadcKernel` (AADC-specific, not `dep_branch`) is what installs the accumulator around its
+recording read, then drains it and calls `.mark_as_output()` on any entry that turns out to be a
+real `ibool`, remembering the handle keyed by `guard_id`. Multiple named outputs (price + each
+guard) go into one `deps` dict and one `evaluate_kernel(...)` call at replay time -- checking
+every guard costs nothing extra, it's the same replay call, guard entries just carry no
+input-handle list (no derivatives wanted for a boolean).
+
+### Getting instrumented getters in place without a discovery pass
+
+First draft of this needed 3 passes in `build()`: (1) uninstrumented priming, (2) walk that graph
+to discover which (class, getter) pairs are even reachable for this bound trait, (3) instrument
+just those and re-run. **Rejected -- too much machinery, and the reentrancy/staleness risk of
+temporarily monkey-patching specific methods in place.**
+
+**Adopted instead (2026-09-06): every *opted-in* trait gets its instrumented variant built once,
+up front -- not discovered per bound-trait** (opt-in scope refined below, not every trait on every
+class). Parallel to the existing `s_cxx_mixins` mechanism (a trait can already have more than one
+getter implementation -- a C++ mixin can stand in for the Python one), but selected *dynamically
+per call* rather than fixed once at class-definition time:
+
+**Simplified and settled (2026-09-06): only one alt-getter-code type exists per process, ever.**
+Not a dict of optimizer names -- a single slot:
+
+- `XX_ALT_GETTER_CODE_TYPE` = a full dotted class path (e.g.
+  `xxfin.jit_aadc.aadc_kernel.AadcKernel`), read **once, process-wide**, at first
+  `Traitable.__init_subclass__`. That named class is asked to instrument each trait's Python
+  getter (the trivialist AST rewrite) at class-definition time; the result is stored as a single
+  `f_alt_get` slot per trait ("if any" -- some traits won't get one: no `if` to instrument, or a
+  C++-mixin-provided getter with no Python source at all).
+- **Dispatch is in `wrapper_f_get()` itself** -- real, existing C++ (`btrait_processor.cpp`,
+  already read: `trait->wrapper_f_get(obj)`, called from both `get_value_on_graph` and
+  `get_value_off_graph`). It checks a state var to choose `f_get` vs `f_alt_get`.
+- **The state var is a single true global C++-side `bool`** (not `thread_local`, not a Python
+  `contextvar`) -- a plain flag, cheap to check on the hot dispatch path, exposed to Python via a
+  small pybind11 setter. `AadcKernel` sets it before its priming+recording reads, resets it in a
+  `finally` after. **Explicit, accepted limitation**: this gives zero cross-thread safety, not
+  just no same-thread reentrancy -- if any other thread ran `build()`, or even just normal pricing
+  on some trait, while the flag was set, it would incorrectly pick up `f_alt_get` too. Chosen
+  deliberately for simplicity, not an oversight.
+- This still makes reachability stop mattering: whatever getters actually get touched during
+  `build()`'s existing two passes (priming, recording) automatically run `f_alt_get` while the
+  flag is set -- no separate discovery pass needed, `build()` stays two-pass.
+
+### Scope: not just getters -- plain functions branch on trait values too
+
+The `FinInstrument`-vs-`SyntheticMktData` class-scoping question above turned out to be too
+narrow a framing. A getter commonly calls a **plain Python function** (a module-level helper, a
+non-Traitable utility class method) that itself conditionally touches different traits, or
+branches on a comparison whose outcome could vary across replay scenarios:
+
+```python
+def helper(obj, flag):
+    if obj.some_trait < threshold:
+        return obj.trait_a
+    else:
+        return obj.trait_b
+```
+
+Plain functions have **no equivalent of `wrapper_f_get()`** -- no single existing choke point
+every call funnels through, so the whole class-hierarchy-based opt-in mechanism above (however
+it's scoped) cannot reach them at all.
+
+**A decorator-based opt-in for plain functions was proposed and rejected** -- same objection
+already raised against relying on developer discipline for `dep_branch` itself: forgetting it is
+silent, and its mere existence creates false confidence that coverage is handled. Inconsistent
+with the whole reason discipline-based opt-in was rejected for getters in the first place.
+
+**Settled shape (2026-09-07, not fully finalized -- see caveat below): two tiers, matching risk to
+how rare the opt-in decision actually is.**
+
+1. **Tier 1 -- automatic, zero opt-in risk.** *Any* getter, method, or classmethod defined
+   directly on a Traitable subclass gets instrumented, full stop, no marker needed -- manageable
+   from `__init_subclass__` exactly like `s_cxx_mixins` wiring already is: `cls.__dict__` (a
+   class's own namespace, not inherited members) gives every callable it defines, not just
+   recognized `*_get` trait getters, so ordinary helper methods a getter calls into are covered by
+   the same mechanism, no separate handling needed. Implementation detail to remember when this
+   gets built: `classmethod`/`staticmethod` are descriptors wrapping an underlying function
+   (`.__func__`) -- instrumenting means unwrap, rewrite the inner function, re-wrap in the same
+   descriptor type.
+2. **Tier 2 -- explicit, but at module granularity, not function granularity.** Standalone
+   helper functions/classes in genuine "library" modules (`root_solver.py`, `py_curve.py`) that
+   don't themselves define any Traitable subclass are instrumented only if the *module* is
+   explicitly marked -- one flag at the top of the file, not a decorator on every function inside
+   it.
+
+**Honest residual risk, consciously accepted, not resolved away:** tier 2 is still technically
+opt-in, so the "forgetting is silent" objection isn't *eliminated* there, only moved to a much
+coarser, much rarer decision -- creating a brand-new shared library module that several
+`FinInstrument` getters call into is a rare, deliberate, architecturally-visible event, nowhere
+near as easy to overlook as a decorator on one more function among hundreds written day to day,
+but it is not an airtight structural guarantee the way tier 1 is. **Explicit judgment call: a
+100% structural guarantee isn't achievable here without either instrumenting the entire codebase
+indiscriminately or imposing real constraints on how ordinary Python gets written elsewhere, and
+neither is worth it to close an already-narrow residual risk.** Consistent with the same tradeoff
+already made for the trivialist `dep_branch` approach itself.
+
+### Where the alternative code lives for a method, classmethod, or plain function (proposed, not finalized)
+
+`wrapper_f_get()` gives trait getters a *free* choke point -- every getter call already goes
+through it, so checking a flag there costs nothing beyond what was already happening. Regular
+methods, classmethods, and plain functions in a marked module have **no such choke point at all**
+-- ordinary Python name resolution, nothing intercepts it. That means the getters' "keep both
+versions permanently present, check a flag at the one mandatory dispatch point" trick can't give
+zero overhead here without *inventing* a new dispatch point -- and a permanent wrapper around
+every such call would tax it forever, even when `AadcKernel` is never used.
+
+**Proposed: monkey-patch specifically for these two cases -- the same technique rejected for
+getters, but for a principled reason this time, not by default.** Getters got a non-monkey-patch
+design *because* a free alternative existed; it doesn't exist here, so the tradeoff is different:
+
+- **Storage**: build both versions at instrumentation time (class-definition time for
+  methods/classmethods via `__init_subclass__`, import time for plain functions in a marked
+  module) and store the alt version in a **registry**, not yet bound over the original name -- a
+  single class-level dict (`cls.s_alt_methods: dict[str, callable]`, same shape as `s_cxx_mixins`
+  being one named collection attribute) for methods/classmethods, and an analogous module-level
+  dict for plain functions in a marked module.
+- **Activation**: `AadcKernel`, at the exact moment it sets the C++-side global bool for getter
+  dispatch, *also* walks these registries and temporarily rebinds each original class/module
+  attribute to its alt version -- restoring the originals in the same `finally` that resets the
+  C++ flag. True zero overhead when inactive (the original, unwrapped function is what's bound,
+  identical to today), at the cost of the *same* single-global/no-thread-safety limitation already
+  accepted for the C++ flag -- not a new risk, the same one showing up in a second place, kept in
+  sync with it.
+
+So: two different mechanisms by design -- flag-check-inside-an-existing-choke-point for getters,
+monkey-patch-at-activation-time for everything else -- driven by which case actually has a free
+dispatch point to piggyback on, not an inconsistency.
