@@ -404,3 +404,38 @@ design *because* a free alternative existed; it doesn't exist here, so the trade
 So: two different mechanisms by design -- flag-check-inside-an-existing-choke-point for getters,
 monkey-patch-at-activation-time for everything else -- driven by which case actually has a free
 dispatch point to piggyback on, not an inconsistency.
+
+### A verification mode for the tier-2 residual risk (proposed, 2026-09-09)
+
+Tier 2's residual risk (a library module someone forgot to mark) was accepted as a rare, coarse,
+consciously-accepted gap rather than solved structurally. Idea to make that gap *detectable*
+instead of pure faith: on a getter invocation, walk the current Python call stack and check that
+every frame in it belongs to either a Traitable-subclass module (tier 1, auto-covered) or a
+module explicitly marked for tier 2 -- flag anything else as a candidate coverage gap.
+
+Refinements from discussion, before building this:
+
+- **Check against the actually-instrumented set, not just "is the module marked."** A marked
+  module can still have functions that were skipped (e.g. merely-imported names, filtered by
+  `member.__module__ == module.__name__`). `EdgeDepsTracker.s_instrumented_classes` /
+  `s_instrumented_modules` already record exactly which (class, method) / (module, function)
+  pairs were instrumented -- compare each frame's code object against that known set (plus
+  genuine trait getters via `s_dir`), which is more precise than re-deriving a coarser
+  module-level signal.
+- **Must be a separate, explicit diagnostic mode -- never on the hot path.** Stack-walking on
+  every getter call (`inspect.stack()`, or even the cheaper `sys._getframe()` chain-walk) is real
+  overhead unacceptable during normal operation or even normal AADC recording. Needs its own env
+  var, true only during a deliberate audit run (a CI job, a one-off developer check).
+- **Scope where the walk stops, or it drowns in stdlib/third-party noise.** Only inspect frames
+  under the real package scope (`py10x`/`xx-fin-domain`); stop once outside it -- otherwise every
+  audit run surfaces pytest/stdlib/numpy internals that were never expected to be instrumented.
+- **Deduplicate.** The same unmarked helper shows up in the stack of every call that reaches it --
+  collect a *set* of `(module, qualname)` pairs seen-but-not-instrumented, reported once at the
+  end of a run, not a live warning per call.
+- **Expect false positives even done well.** The trivialist design doesn't distinguish "has a
+  relevant branch" from "has any branch at all" -- a verification pass built the same way inherits
+  the same over-inclusiveness (harmless helper functions with no real branching will still get
+  flagged), just surfaced as human-reviewed noise instead of silent bookkeeping. Probably an
+  acceptable tradeoff (a short deduplicated list is cheap to skim), not a clean signal.
+
+Not designed in detail yet -- proposed shape only.
