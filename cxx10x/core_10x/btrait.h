@@ -59,6 +59,8 @@ public:
     py::object      m_default;      // XNone, may be set to a concrete instance of m_datatype from py
 
     py::object      f_get;              // value getter from py         ANY     f(obj, [*args])
+        py::object      f_get_edt;          // f_get transformed for "Edge Deps Tracking"
+
     py::object      f_set;              // value setter from py         RC      f(obj, trait, value, [*args])
     py::object      f_verify;           // value verifier from py       RC      f(obj, trait, value)
     py::object      f_from_str;         // string converter from py     RC      f(obj, trait, value: str)
@@ -81,12 +83,16 @@ protected:
         return trait_error(exc, obj, nullptr, f, value, args);
     }
 
+    static bool s_edge_deps_tracking;
 
 public:
 
     BTrait();
     BTrait(const BTrait& src) = default;
     ~BTrait()   { delete m_proc; }
+
+    static void set_edge_deps_tracking(bool track)                  { s_edge_deps_tracking = track; }
+    static bool edge_deps_tracking()                                { return s_edge_deps_tracking; }
 
     void create_proc();
 
@@ -116,19 +122,20 @@ public:
     void reset_flags(uint64_t flags_to_reset)                       { m_flags &= ~flags_to_reset; }
     void modify_flags(uint64_t to_set, uint64_t to_reset)           { m_flags = (m_flags | to_set) & ~to_reset; }
 
-    void set_f_get(const py::object &f, bool custom)               { f_get = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_GET; }
-    void set_cxx_f_get(const py::object &f, bool custom)           { set_f_get(f,custom); } // TODO: optional optimization
-    void set_f_set(const py::object &f, bool custom)               { f_set = f; }
-    void set_f_verify(const py::object &f, bool custom)            { f_verify = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_VERIFY; }
-    void set_f_from_str(const py::object &f, bool custom)          { f_from_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_STR; }
-    void set_f_from_any_xstr(const py::object &f, bool custom)     { f_from_any_xstr = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_ANY_XSTR; }
-    void set_f_to_str(const py::object &f, bool custom)            { f_to_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_STR; }
-    void set_f_serialize(const py::object &f, bool custom)         { f_serialize = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_SERIALIZE; }
+    void set_f_get(const py::object &f, bool custom)                { f_get = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_GET; }
+    void set_f_get_edt(const py::object &f)                         { f_get_edt = f; }
+    void set_cxx_f_get(const py::object &f, bool custom)            { set_f_get(f,custom); } // TODO: optional optimization
+    void set_f_set(const py::object &f, bool custom)                { f_set = f; }
+    void set_f_verify(const py::object &f, bool custom)             { f_verify = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_VERIFY; }
+    void set_f_from_str(const py::object &f, bool custom)           { f_from_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_STR; }
+    void set_f_from_any_xstr(const py::object &f, bool custom)      { f_from_any_xstr = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_FROM_ANY_XSTR; }
+    void set_f_to_str(const py::object &f, bool custom)             { f_to_str = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_STR; }
+    void set_f_serialize(const py::object &f, bool custom)          { f_serialize = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_SERIALIZE; }
     void set_f_is_acceptable_type(const py::object &f, bool custom) { f_is_acceptable_type = f; }
-    void set_f_deserialize(const py::object &f, bool custom)       { f_deserialize = f; }
-    void set_f_to_id(const py::object &f, bool custom)             { f_to_id = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_ID; }
-    void set_f_choices(const py::object &f, bool custom)           { f_choices = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_CHOICES; }
-    void set_f_style_sheet(const py::object &f, bool custom)       { f_style_sheet = f; }
+    void set_f_deserialize(const py::object &f, bool custom)        { f_deserialize = f; }
+    void set_f_to_id(const py::object &f, bool custom)              { f_to_id = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_ID; }
+    void set_f_choices(const py::object &f, bool custom)            { f_choices = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_CHOICES; }
+    void set_f_style_sheet(const py::object &f, bool custom)        { f_style_sheet = f; }
 
     //-- Trait Method wrappers
 
