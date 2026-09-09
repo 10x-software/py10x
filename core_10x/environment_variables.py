@@ -1,10 +1,12 @@
 import ast
 import os
+import sys
 
 from py10x_kernel import OsUser
 
 from core_10x.exec_control import GRAPH_OFF, GRAPH_ON
 from core_10x.global_cache import cache
+from core_10x.package_refactoring import PackageRefactoring
 from core_10x.rc import RC
 from core_10x.xdate_time import XDateTime, date, datetime
 
@@ -181,6 +183,20 @@ class EnvVars(_EnvVars, env_name = 'XX'):
     build_area: str
     parent_build_area: str          = 'dev'
     sdlc_area: str
+
+    use_edge_deps_tracker: bool     = False         #-- whether EdgeDepsTracker is active
+    edge_dep_tracker_class: type                    #-- concrete subclass of EdgeDepsTracker to use (see below)
+    edge_dep_tracker_class_name: str = 'xxfin.jit_aadc.aadc_kernel.AadcEdgeDepsTracker'
+
+    def edge_dep_tracker_class_get(self) -> type:
+        return PackageRefactoring.find_class(self.edge_dep_tracker_class_name)
+
+    def use_edge_deps_tracker_apply(self, value):
+        if not value:
+            return
+        from core_10x.edge_deps_tracker import EdgeDepsTracker  #-- deferred: avoids a module-load-time
+        # circular import (edge_deps_tracker.py itself imports EnvVars from this module)
+        sys.meta_path.insert(0, EdgeDepsTracker.IfFinder())
 
     def vault_uri_get(self) -> str:
         return self.main_vault_uri

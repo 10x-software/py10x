@@ -20,6 +20,7 @@ from typing_extensions import Self, deprecated
 
 from core_10x import concrete_traits
 from core_10x.concrete_resource import CONCRETE_RESOURCE
+from core_10x.edge_deps_tracker import EdgeDepsTracker
 from core_10x.environment_variables import EnvVars
 from core_10x.exec_control import UPWARD_DEPS_OFF
 from core_10x.global_cache import cache
@@ -448,6 +449,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         cls.s_bclass = BTraitableClass(cls)
 
         cls.build_trait_dir()  # -- build cls.s_dir from trait definitions in cls.__dict__
+
+        if EnvVars.use_edge_deps_tracker:
+            EdgeDepsTracker.instrument_class(cls)
 
         if keep_history is False:
             cls.s_history_class = None
