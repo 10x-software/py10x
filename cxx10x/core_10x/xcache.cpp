@@ -92,6 +92,9 @@ BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int
 }
 
 void XCache::export_nodes() const {
+    if (!m_parent)
+        throw py::value_error("Cannot export_nodes from a root cache (no parent)");
+
     auto dst_node_type = m_parent->default_node_type();
     for (const auto& oc_item : m_data) {
         const auto& tid = oc_item.first;

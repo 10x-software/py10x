@@ -366,6 +366,7 @@ PYBIND11_MODULE(py10x_kernel, m)
     py::class_<BTraitableProcessorSetValueTracker, BTraitableProcessor>(m, "BTraitableProcessorSetValueTracker")
             .def(py::init<>())
             .def("tracked_objects", &BTraitableProcessorSetValueTracker::tracked_objects)
+            .def("clear", &BTraitableProcessorSetValueTracker::clear)
             ;
 
     py::class_<UpwardDepsOff>(m, "UpwardDepsOff")

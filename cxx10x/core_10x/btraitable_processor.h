@@ -180,6 +180,7 @@ public:
     ExecStack* exec_stack() override { return m_parent->exec_stack(); }
 
     [[nodiscard]] py::list tracked_objects() const;
+    void clear();
 
     py::object set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) override;
     py::object set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override;

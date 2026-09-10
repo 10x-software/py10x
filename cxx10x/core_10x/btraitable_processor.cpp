@@ -479,6 +479,11 @@ py::list BTraitableProcessorSetValueTracker::tracked_objects() const {
     return result;
 }
 
+void BTraitableProcessorSetValueTracker::clear() {
+    m_objects_with_set_value_order.clear();
+    m_objects_with_set_value_seen.clear();
+}
+
 py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) {
     if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
         m_objects_with_set_value_order.push_back(py::cast(obj, py::return_value_policy::reference));

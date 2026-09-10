@@ -1127,6 +1127,14 @@ def test_create_root():
 
         assert Person(first_name='ilya', last_name = 'pevzner').weight_lbs == 205
 
+    root = BTP.create_root()
+    try:
+        root.export_nodes()
+    except ValueError as e:
+        assert "root cache" in str(e)
+    else:
+        assert False, "Expected ValueError when export_nodes on create_root"
+
 
 def test_eval_once_under_create_root():
     """create_root isolates from the process default cache; outer objects are not usable inside it."""
@@ -1328,6 +1336,13 @@ def test_tracked_objects():
     assert tracker.tracked_objects() == [X(x=1), X(x=2)]
     assert X(x=1).t == date(2000, 1, 1)
     assert X(x=2).t == date(2001, 1, 1)
+
+    tracker.clear()
+    assert tracker.tracked_objects() == []
+
+    with tracker:
+        X(x=1).t = date(2002, 1, 1)
+    assert tracker.tracked_objects() == [X(x=1)]
 
 def test_custom_collection():
     class X(Traitable,custom_collection=True):
