@@ -258,14 +258,14 @@ class UxDialog(ux.Dialog):
     def message(self, text: str):
         self.w_message.set_text(text)
 
-def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None) -> date | None:
+def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None, parent: ux.Widget = None) -> date | None:
     cal = ux.CalendarWidget()
     cal.set_grid_visible(bool(grid))
     if show_date:
         cal.set_selected_date(show_date)
 
     accept_callback = (lambda: on_accept(cal.selected_date())) if on_accept else None
-    dlg = UxDialog(cal, title = title, accept_callback = accept_callback)
+    dlg = UxDialog(cal, parent = parent, title = title, accept_callback = accept_callback)
     if on_accept:
         dlg.exec()
         return None
