@@ -8,12 +8,16 @@
 #include "btraitable.h"
 #include "btraitable_processor.h"
 
+bool BTrait::s_edge_deps_tracking = false;
+
 BTrait::BTrait() {
     m_datatype  = PyLinkage::XNone();
     m_default   = PyLinkage::XNone();
     m_getter_has_args = false;
 
     f_get           = py::none();
+        f_get_edt       = py::none();
+
     f_set           = py::none();
     f_verify        = py::none();
     f_from_str      = py::none();
@@ -39,7 +43,7 @@ py::error_already_set BTrait::trait_error(const py::error_already_set &exc, BTra
 
 py::object BTrait::wrapper_f_get(BTraitable* obj) const {
     try {
-        return f_get(obj);
+        return s_edge_deps_tracking? f_get_edt(obj) : f_get(obj);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_get, nullptr, nullptr);
     }
@@ -47,7 +51,7 @@ py::object BTrait::wrapper_f_get(BTraitable* obj) const {
 
 py::object BTrait::wrapper_f_get(BTraitable* obj, const py::args& args) const {
     try {
-        return f_get(obj, *args);
+        return s_edge_deps_tracking? f_get_edt(obj, *args) : f_get(obj, *args);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_get, nullptr, &args);
     }
