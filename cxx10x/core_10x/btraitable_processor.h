@@ -100,7 +100,7 @@ public:
     [[nodiscard]] bool      is_empty_object_allowed() const { return m_flags & EMPTY_OBJ_ALLOWED; }
     void                    allow_empty_objects(bool flag)  { flag ? m_flags |= EMPTY_OBJ_ALLOWED : m_flags &= ~EMPTY_OBJ_ALLOWED; }
 
-    ExecStack*              exec_stack()                    { return &m_stack; }
+    virtual ExecStack*      exec_stack()                    { return &m_stack; }
 
     [[nodiscard]] unsigned  flags() const                   { return m_flags; }
     void                    set_flags(unsigned flags)       { m_flags = flags; }
@@ -163,9 +163,12 @@ public:
 };
 
 /// Processor that delegates to a parent and tracks BTraitable objects on which set_value was called (ID traits excluded).
+/// begin_using()/end_using() never clear the tracked list (only construction starts it empty), so a single instance
+/// can be entered (via `with`, or begin_using()/end_using() directly) repeatedly across many separate, non-nested
+/// spans (e.g. once per trait access, across separate dispatches) while still accumulating everything ever set.
 class BTraitableProcessorSetValueTracker : public BTraitableProcessor {
     BTraitableProcessor* m_parent;
-    std::vector<BTraitable*> m_objects_with_set_value_order;
+    std::vector<py::object> m_objects_with_set_value_order;
     std::unordered_set<BTraitable*> m_objects_with_set_value_seen;
 
 public:
@@ -173,6 +176,8 @@ public:
 
     void begin_using() override;
     void end_using() const override;
+
+    ExecStack* exec_stack() override { return m_parent->exec_stack(); }
 
     [[nodiscard]] py::list tracked_objects() const;
 

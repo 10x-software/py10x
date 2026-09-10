@@ -992,7 +992,7 @@ def test_store_save():
             return Store()
 
         @classmethod
-        def collection(cls, _coll_name: str = None,_ensure_indices=False):
+        def collection(cls, _coll_name: str = None, **kwargs):
             return cls.store().collection(_coll_name)
 
         def y_get(self) -> 'X':
@@ -1072,7 +1072,7 @@ def test_new_or_replace_store():
         z: int = T(10)
 
         @classmethod
-        def collection(cls, _coll_name: str = None, _ensure_indices=False):
+        def collection(cls, *args, **kwargs):
             return cls.store().collection('__main__/test_new_or_replace_store/<locals>/X', cls.s_dir)
 
         @classmethod
@@ -1321,9 +1321,13 @@ def test_tracked_objects():
     assert len(objs) == 2, f"expected 2 objects, got {len(objs)}"
     assert p1 in objs
     assert p2 in objs
-    assert objs == [p1, p2]
-    # object that never had set_value is not in the tracked list
     assert p3 not in objs
+    del p1, p2, p3, objs
+    gc.collect()
+
+    assert tracker.tracked_objects() == [X(x=1), X(x=2)]
+    assert X(x=1).t == date(2000, 1, 1)
+    assert X(x=2).t == date(2001, 1, 1)
 
 def test_custom_collection():
     class X(Traitable,custom_collection=True):
@@ -1564,7 +1568,7 @@ def test_event():
         y: EventBase = T()
 
         @classmethod
-        def collection(cls, _coll_name: str = None, _ensure_indices=False):
+        def collection(cls, *args, **kwargs):
             return cls.store().collection('__main__/test_event/<locals>/X', cls.s_dir)
 
     store = DuckDbStore()
@@ -1632,9 +1636,30 @@ def test_self_ref_leak():
     del g
     assert not wr()
 
+
+def test_ui_node():
+    ctx1 = INTERACTIVE()
+    with ctx1:
+        ctx2 = BTraitableProcessorSetValueTracker()
+
+    fired = []
+    with ctx2:
+        with CACHE_ONLY():
+            p = Person(first_name = 'Mark', last_name = 'Rubery')
+        p.bui_class().create_ui_node(p, p.trait('weight'), lambda *a, **kw: fired.append((a, kw)))
+
+    with ctx2:
+        p.weight_lbs = 110
+
+    print(fired)
+    assert len(fired)==1
+
+
+
 if __name__ == '__main__':
     import py10x_kernel
     print(py10x_kernel.__file__)
+    test_ui_node()
     test_graph_ref_leak()
     test_ref_leak()
     test_self_ref_leak()

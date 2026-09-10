@@ -463,8 +463,6 @@ BTraitableProcessorSetValueTracker::BTraitableProcessorSetValueTracker()
 }
 
 void BTraitableProcessorSetValueTracker::begin_using() {
-    m_objects_with_set_value_order.clear();
-    m_objects_with_set_value_seen.clear();
     ThreadContext::traitable_proc_push(this);
 }
 
@@ -476,20 +474,20 @@ void BTraitableProcessorSetValueTracker::end_using() const {
 
 py::list BTraitableProcessorSetValueTracker::tracked_objects() const {
     py::list result;
-    for (BTraitable* obj : m_objects_with_set_value_order)
-        result.append(py::cast(obj, py::return_value_policy::reference));
+    for (const py::object& obj : m_objects_with_set_value_order)
+        result.append(obj);
     return result;
 }
 
 py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) {
     if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
-        m_objects_with_set_value_order.push_back(obj);
+        m_objects_with_set_value_order.push_back(py::cast(obj, py::return_value_policy::reference));
     return m_parent->set_trait_value(obj, trait, value);
 }
 
 py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) {
     if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
-        m_objects_with_set_value_order.push_back(obj);
+        m_objects_with_set_value_order.push_back(py::cast(obj, py::return_value_policy::reference));
     return m_parent->set_trait_value(obj, trait, value, args);
 }
 
