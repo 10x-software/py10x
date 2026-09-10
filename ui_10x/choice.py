@@ -118,8 +118,12 @@ class MultiChoice(Choice):
         self._set_choices_selected(choices_selected)
 
     def _set_choices_selected(self, choices_selected: tuple):
-        all_choices = self.choices
-        self.values_selected.extend(tuple(value for choice in choices_selected if (value := all_choices.get(choice) )))
+        inverted, choices = self.inverted_choices, self.choices
+        for choice in choices_selected:
+            if choice in inverted:
+                self.values_selected.append(choice)
+            elif choice in choices:
+                self.values_selected.append(choices[choice])
 
     def select_mode(self):
         return self.rb.choice() if self.rb else self.SELECT_MODE.ANY

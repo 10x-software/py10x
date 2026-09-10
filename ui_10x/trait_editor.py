@@ -133,19 +133,22 @@ class TraitEditor:
             title=f'Pick a date for {self.ui_hint.label}',
             show_date=self.traitable.get_value(self.trait),
             on_accept=lambda value: self.traitable.set_value(self.trait, value),
+            parent=self.widget,
         )
 
     def list_cb(self):
-        choices = self.traitable.get_value(self.trait)
-        mc = MultiChoice(choices=choices)
+        t = self.traitable
+        current = t.get_value(self.trait)
+        choices = t.get_choices(self.trait)
+        mc = MultiChoice(*current, choices=choices or current)
         w = mc.widget()
         if not w:
             return
-
         UxDialog(
             w,
+            parent=self.widget,
             title=f'Choose one or more values for {self.ui_hint.label}',
-            accept_callback=lambda ctx: self.traitable.set_value(self.trait, mc.values_selected),
+            accept_callback=lambda: t.set_value(self.trait, mc.values_selected),
         ).show()
 
     def dict_cb(self):
@@ -165,8 +168,9 @@ class TraitEditor:
 
         UxDialog(
             w,
+            parent=self.widget,
             title=f'Choose one or more flags for {self.ui_hint.label}',
-            accept_callback=lambda ctx: self.traitable.set_value(self.trait, mc.values_selected),
+            accept_callback=lambda: self.traitable.set_value(self.trait, mc.values_selected),
         ).show()
 
     def traitable_cb(self):
