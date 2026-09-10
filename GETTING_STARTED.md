@@ -1508,12 +1508,10 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
     with SaveIfChanged() as tracker:
         alice.age = 30           # tracked
         bob.age   = 42           # tracked
-        # both Alice and Bob are saved on exit
-
-    assert set(tracker.tracked_objects()) == {alice, bob}
+        assert set(tracker.tracked_objects()) == {alice, bob}  # both Alice and Bob are saved on exit
 ```
 
-The `tracker` exposes `tracked_objects()` — the full list of `Traitable` instances that had a trait assigned inside the block (in insertion order). Non-storable traitables are still reported by `tracked_objects()` but not saved.
+The `tracker` exposes `tracked_objects()` — the full list of `Traitable` instances that had a trait assigned inside the block (in insertion order). Non-storable traitables are still reported by `tracked_objects()` but not saved. Once `save()` (or `reload()`) succeeds and covers every currently tracked object — i.e. no `classes` filter left something untouched — `tracked_objects()` is cleared, so reusing the same tracker for a later, unrelated edit doesn't redundantly re-save what was already persisted.
 
 #### Filtering by class
 

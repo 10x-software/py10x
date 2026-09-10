@@ -13,7 +13,7 @@ from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
 from core_10x.nucleus import Nucleus
 from core_10x.py_class import PyClass
-from core_10x.rc import RC
+from core_10x.rc import RC, RC_TRUE
 from core_10x.resource import TS_STORE, Resource, ResourceSpec
 from core_10x.trait_definition import T
 from core_10x.trait_filter import f
@@ -283,26 +283,55 @@ class TsStore(Resource, resource_type=TS_STORE):
                 tx.abort()
 
 
-@contextmanager
-def SaveIfChanged(classes: Sequence[type[Traitable]] = ()):  # noqa: N802
-    if any(not cls.is_storable() for cls in classes):
-        raise RuntimeError('Classes passed to SaveIfChanged must be storable.')
+class SaveIfChanged(BTPTracker):
+    """A BTPTracker that also knows how to save() and reload() everything it
+    has tracked, optionally filtered to `classes`.
 
-    if not isinstance(classes, tuple):
-        classes = tuple(classes)
+    With `auto_save=True` (the default) tracked objects (optionally filtered by classes)
+    are saved automatically on context exit.
 
-    tracker = BTPTracker()
-    tracker.begin_using()
-    yield tracker
-    tracker.end_using()
+    With `auto_save=False`, the instance can be built once and reused,
+    and save()/reload() called explicitly whenever the caller decides.
 
-    tracked = tuple(traitable for traitable in tracker.tracked_objects() if traitable.is_storable())
+    A successful save()/reload() clears everything tracked.
+    """
 
-    with ExitStack() as tx_stack:
-        if EnvVars.use_ts_store_transactions:
-            for store in {cls.store() for cls in classes or tuple({traitable.__class__ for traitable in tracked})}:
-                tx_stack.enter_context(store.transaction())
+    def __init__(self, classes: Sequence[type[Traitable]] = (), *, auto_save: bool = True):
+        if any(not cls.is_storable() for cls in classes):
+            raise RuntimeError('Classes passed to SaveIfChanged must be storable.')
+        super().__init__()
+        self.classes = classes if isinstance(classes, tuple) else tuple(classes)
+        self.auto_save = auto_save
 
-        for traitable in tracked:
-            if not classes or isinstance(traitable, classes):
-                traitable.save().throw()
+    def __exit__(self, *args):
+        super().__exit__(*args)
+        if self.auto_save:
+            self.save().throw()
+
+    def _tracked(self) -> tuple[Traitable, ...]:
+        return (
+            traitable
+            for traitable in self.tracked_objects()
+            if traitable.is_storable() and (not self.classes or isinstance(traitable, self.classes))
+        )
+
+    def save(self) -> RC:
+        tracked = tuple(self._tracked())
+        try:
+            with ExitStack() as tx_stack:
+                if EnvVars.use_ts_store_transactions:
+                    for store in {cls.store() for cls in self.classes or tuple({t.__class__ for t in tracked})}:
+                        tx_stack.enter_context(store.transaction())
+                for traitable in tracked:
+                    traitable.save().throw()
+        except RuntimeError as e:
+            return RC(False, str(e))
+
+        self.clear()
+        return RC_TRUE
+
+    def reload(self) -> bool:
+        ok = all(traitable.reload() for traitable in self._tracked())
+        if ok:
+            self.clear()
+        return ok

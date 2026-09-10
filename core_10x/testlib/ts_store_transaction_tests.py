@@ -12,6 +12,7 @@ from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 from core_10x.ts_store import SaveIfChanged
+from xxcommon.conftest import ts_instance
 
 
 class TestTsStoreTransaction:
@@ -117,51 +118,55 @@ class TestTsStoreTransaction:
 
 
 class TestSaveIfChanged:
+
     @pytest.fixture
-    def coll_names(self, ts_instance):
-        coll_names = tuple(f'save_if_changed#{x}#{uuid7().hex}' for x in ('a', 'b'))
+    def data(self, ts_instance):
+
+        class A(Traitable, custom_collection=True):
+            i: int = T(T.ID)
+            value: int = T()
+
+        class B(Traitable, custom_collection=True):
+            i: int = T(T.ID)
+            value: int = T()
+
+            def value_verify(self,t,value) -> bool:
+                return RC(value>0, "value must be positive")
+
+        tracked = (A,B)
+        coll_names = tuple(f'save_if_changed#{cls.__name__.lower()}#{uuid7().hex}' for cls in tracked)
         assert not set(coll_names).intersection(ts_instance.collection_names())
-        yield coll_names
+
+        with ts_instance:
+            yield lambda: tuple(cls(i=i, _collection_name=coll_name) for i, (coll_name,cls) in enumerate(zip(coll_names,tracked)))
+
         for coll_name in coll_names:
             ts_instance.delete_collection(coll_name)
 
-    def test_save_if_changed_filters_by_classes(self, ts_instance, coll_names, with_transactions):  # noqa: F811
+    def test_save_if_changed_filters_by_classes(self, data, with_transactions):  # noqa: F811
+        a, b = data()
 
-        coll_a_name, coll_b_name = coll_names
+        with SaveIfChanged([a.__class__]) as tracker:
+            a.value = 10
+            b.value = 20
+            assert tracker.tracked_objects() == [a, b]
 
-        class TrackedA(Traitable, custom_collection=True):
-            i: int = T(T.ID)
-            value: int = T()
+        assert a.__class__.collection(a._collection_name).count() == 1
+        assert b.__class__.collection(b._collection_name).count() == 0
+        assert tracker.tracked_objects() == []
 
-        class TrackedB(Traitable, custom_collection=True):
-            i: int = T(T.ID)
-            value: int = T()
 
-            def save(self, save_references=True):
-                return RC(False, 'boom')
+        a.delete()
+        assert a.__class__.collection(a._collection_name).count() == 0
 
-        with ts_instance:
-            a = TrackedA(i=1, _collection_name=coll_a_name)
-            b = TrackedB(i=2, _collection_name=coll_b_name)
-            with SaveIfChanged([TrackedA]) as tracker:
-                a.value = 10
-                b.value = 20
-                assert tracker.tracked_objects() == [a, b]
+        with pytest.raises(RuntimeError, match='must be positive'):
+            with SaveIfChanged() as tracker:
+                a.value = 20
+                b.value = -1
+            assert tracker.tracked_objects() == [a, b]
 
-            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == 1
-            assert ts_instance.collection(coll_b_name, TrackedB.s_dir).count() == 0
-
-            a.delete()
-            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == 0
-
-            with pytest.raises(RuntimeError, match='boom'):
-                with SaveIfChanged() as tracker:
-                    a.value = 20
-                    b.value = 30
-                assert tracker.tracked_objects() == [a, b]
-
-            assert ts_instance.collection(coll_a_name, TrackedA.s_dir).count() == int(not with_transactions)
-            assert ts_instance.collection(coll_b_name, TrackedB.s_dir).count() == 0
+        assert a.__class__.collection(a._collection_name).count() == int(not with_transactions)
+        assert b.__class__.collection(b._collection_name).count() == 0
 
     def test_save_if_changed_requires_storable_classes(self):
         class NotStorable:
@@ -171,3 +176,71 @@ class TestSaveIfChanged:
 
         with pytest.raises(RuntimeError, match='SaveIfChanged must be storable'), SaveIfChanged([NotStorable]):
             pass
+
+    def test_save_if_changed_auto_save_false_defers_until_explicit_save(self, ts_instance, data):
+        a, _b = data()
+
+        ctx = SaveIfChanged(auto_save=False)
+
+        with ctx:
+            a.value = 10
+        # Exiting the `with` block does not save -- auto_save is False.
+        assert a.__class__.collection(a._collection_name).count() == 0
+        assert ctx.tracked_objects() == [a]
+
+        rc = ctx.save()
+        assert rc
+        assert a.__class__.collection(a._collection_name).count() == 1
+        assert ctx.tracked_objects() == []  # cleared once save() succeeds
+
+    def test_save_if_changed_reused_instance_tracks_only_new_edits_after_save(self, ts_instance, data):
+        a, b = data()
+
+        ctx = SaveIfChanged(auto_save=False)
+        with ctx:
+            a.value = 10
+        assert ctx.tracked_objects() == [a]
+        ctx.save().throw()
+        assert ctx.tracked_objects() == []
+        assert a.__class__.collection(a._collection_name).count() == 1
+
+        with ctx:
+            b.value = 20
+        assert ctx.tracked_objects() == [b]
+        ctx.save().throw()
+        assert ctx.tracked_objects() == []
+
+        assert b.__class__.collection(b._collection_name).count() == 1
+
+
+    def test_save_if_changed_reload_reverts_and_clears(self, ts_instance, data):
+        a, _b = data()
+
+        a.value = 1
+        a.save().throw()
+
+        ctx = SaveIfChanged(auto_save=False)
+        with ctx:
+            a.value = 99
+        assert ctx.tracked_objects() == [a]
+
+        ok = ctx.reload()
+        assert ok
+        assert a.value == 1        # reverted to the stored value
+        assert ctx.tracked_objects() == []   # cleared once reload() succeeds
+
+    def test_save_if_changed_failed_save_keeps_tracked_objects(self, ts_instance, data):
+        a, b = data()
+
+        ctx = SaveIfChanged(auto_save=False)
+
+        with ctx:
+            a.value = 10
+            b.value = -1
+
+        rc = ctx.save()
+        assert not rc
+        # A failed save must not clear -- the caller needs to inspect/retry.
+        assert set(ctx.tracked_objects()) == {a, b}
+        ctx.clear()
+
