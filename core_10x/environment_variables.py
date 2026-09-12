@@ -186,9 +186,14 @@ class EnvVars(_EnvVars, env_name = 'XX'):
 
     use_edge_deps_tracker: bool     = False         #-- whether EdgeDepsTracker is active
     edge_dep_tracker_class: type                    #-- concrete subclass of EdgeDepsTracker to use (see below)
-    edge_dep_tracker_class_name: str = 'xxfin.jit_aadc.aadc_kernel.AadcEdgeDepsTracker'
+    edge_dep_tracker_class_name: str = ''            #-- empty -> use the base EdgeDepsTracker;
+    # set to a subclass path (e.g. 'xxfin.jit_aadc.aadc_kernel.AadcEdgeDepsTracker') to customize
 
     def edge_dep_tracker_class_get(self) -> type:
+        if not self.edge_dep_tracker_class_name:
+            from core_10x.edge_deps_tracker import EdgeDepsTracker  #-- deferred: avoids a
+            # module-load-time circular import (edge_deps_tracker.py imports EnvVars from here)
+            return EdgeDepsTracker
         return PackageRefactoring.find_class(self.edge_dep_tracker_class_name)
 
     def use_edge_deps_tracker_apply(self, value):

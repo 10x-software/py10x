@@ -13,6 +13,7 @@ import ast
 import importlib.machinery
 import inspect
 import sys
+import textwrap
 from typing import Callable
 
 from core_10x.environment_variables import EnvVars
@@ -77,6 +78,17 @@ class EdgeDepsTracker:
         """
         Call-site entry point: `if EdgeDepsTracker.if_wrapper(guard_id, cond): ...`.
         Transparent passthrough -- no-op whenever no tracker is active.
+
+        guard_id is purely source-location-based (`file:lineno`), so a loop calling the same guarded getter/method
+        once per sub-object (e.g. one `if` per basket leg) hits this with the *same* guard_id, possibly with
+        different outcomes on different calls. That's deliberate, not a gap: execution_path() answers "did this
+        evaluation exercise any outcome for this guard that wasn't already covered before," which is a set-
+        membership question per guard, not a per-occurrence one -- two evaluations that hit a guard with outcomes
+        [True, False] vs [False, True] (say, a basket re-sorted, or legs added/removed) represent the exact same
+        thing for dependency-discovery purposes, since either way both branches' dependencies were already
+        exercised. Distinguishing occurrences by call order was tried and reverted (2026-09-14): it made
+        semantically identical scenarios look different under reordering, which is a false positive, not extra
+        precision.
         """
         tracker = cls.s_current
         if tracker is not None:
@@ -86,8 +98,11 @@ class EdgeDepsTracker:
 
     def execution_path(self) -> ExecutionPath:
         """
-        bool() coercion happens here, not at record time -- the log itself must keep raw values
-        (a real ibool during AADC recording) for a subclass to mark_as_output() later.
+        bool() coercion happens here, not at record time -- the log itself must keep raw values (a real ibool
+        during AADC recording) for a subclass to mark_as_output() later. A plain frozenset of (guard_id, outcome)
+        pairs: repeated hits on the same guard with the same outcome collapse for free via ordinary set dedup,
+        which is exactly what's wanted -- see if_wrapper's docstring for why occurrence identity is deliberately
+        not tracked.
         """
         return frozenset((guard_id, bool(condition)) for guard_id, condition in self.if_wrappers_log)
 
@@ -179,8 +194,14 @@ class EdgeDepsTracker:
         @classmethod
         def instrument_function(cls, func: Callable) -> Callable:
             filename = inspect.getsourcefile(func) or '<unknown>'
-            source = inspect.getsource(func)
+            source_lines, start_lineno = inspect.getsourcelines(func)
+            #-- getsourcelines() keeps the method's original class-body indentation (e.g. 4 spaces), which
+            # ast.parse() rejects as a module-level statement -- dedent first.
+            source = textwrap.dedent(''.join(source_lines))
             tree = ast.parse(source)
+            #-- undo dedent's effect on node.lineno (used for guard_id) by shifting back to this function's real
+            # starting line in its source file.
+            ast.increment_lineno(tree, start_lineno - 1)
             func_def = tree.body[0]
             func_def.decorator_list = []  #-- strip any decorators getsource happened to capture
             # (e.g. classmethod/staticmethod on the original) -- instrument_class re-wraps
@@ -188,8 +209,14 @@ class EdgeDepsTracker:
             cls(filename).visit(func_def)
             ast.fix_missing_locations(tree)
 
-            alt_globals = dict(func.__globals__)
-            alt_globals['EnvVars'] = EnvVars
+            #-- the LIVE module dict, not a dict(...) snapshot: instrument_class runs from __init_subclass__, i.e.
+            # while the enclosing class is still being constructed -- its own name isn't bound in the module
+            # namespace yet. A snapshot taken here would freeze that gap forever, breaking any method that
+            # self-references its own class (e.g. a `.current()`/`.default()` factory) or a class defined right
+            # after it.
+            alt_globals = func.__globals__
+            alt_globals.setdefault('EnvVars', EnvVars)  #-- setdefault, not [] = : this is the real module
+            # namespace now, not a private copy -- never clobber an existing binding
             code = compile(tree, filename, 'exec')
             exec(code, alt_globals)  # noqa: S102 -- deliberate: building an instrumented copy
             return alt_globals[func.__name__]
@@ -205,12 +232,19 @@ class EdgeDepsTracker:
         """
 
         def find_spec(self, fullname, path, target = None):
-            #-- goes through EnvVars.edge_dep_tracker_class throughout, not the hardcoded base --
-            # a configured tracker subclass may override MODULE_MARKER or IfLoader itself.
-            tracker_class = EnvVars.edge_dep_tracker_class
             spec = importlib.machinery.PathFinder.find_spec(fullname, path, target)
             if spec is None or spec.origin is None or not spec.origin.endswith('.py'):
                 return None  #-- not a plain Python source module (namespace pkg, C ext, ...)
+
+            #-- goes through EnvVars.edge_dep_tracker_class throughout, not the hardcoded base -- a configured
+            # tracker subclass may override MODULE_MARKER or IfLoader itself. A meta_path finder must never blow
+            # up an unrelated import: if the configured class doesn't resolve (e.g.
+            # EnvVars.edge_dep_tracker_class_name misconfigured), defer to normal loading instead of taking down
+            # every subsequent import in the process.
+            try:
+                tracker_class = EnvVars.edge_dep_tracker_class
+            except Exception:
+                return None
 
             with open(spec.origin, encoding = 'utf-8') as f:
                 source = f.read()
