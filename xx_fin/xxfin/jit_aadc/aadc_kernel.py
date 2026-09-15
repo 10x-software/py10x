@@ -50,6 +50,7 @@ class AadcKernel:
                     iq = idouble(value)
                     mkt_deps.perturb(cls, obj_id, trait, iq)
                     h = iq.mark_as_input()
+                    # TODO: key drops `trait` -- collides if target_class ever has >1 leaf trait
                     input_handles[(cls, obj_id)] = h
                     inputs[h] = value
 

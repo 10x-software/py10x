@@ -3,8 +3,8 @@ history and open questions this is drawn from.
 
 EdgeDepsTracker registers value-dependent branches (`if` statements whose outcome could vary
 across replay scenarios) as part of the dependency graph, so a consumer -- AADC recording is the
-first one, via a subclass -- can detect when a branch taken during one evaluation differs from
-what was recorded earlier, instead of silently trusting a stale recording.
+first one -- can detect when a branch taken during one evaluation differs from what was recorded
+earlier, instead of silently trusting a stale recording.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ import sys
 import textwrap
 from typing import Callable
 
-from core_10x.environment_variables import EnvVars
 from core_10x.trait import Trait
 
 ExecutionPath = frozenset[tuple[str, bool]]     #-- every (guard_id, outcome) pair hit in one evaluation
@@ -25,9 +24,10 @@ ExecutionPath = frozenset[tuple[str, bool]]     #-- every (guard_id, outcome) pa
 class EdgeDepsTracker:
     """
     One instance = one tracking session (e.g., the lifetime of one AadcKernel.build() call).
-    Subclass to customize what happens with a recorded branch (see AadcEdgeDepsTracker) -- there
-    is deliberately no separate provider protocol; EdgeDepsTracker itself is the base implementation,
-    per EnvVars.edge_dep_tracker_class.
+    Not meant to be subclassed: a consumer that needs to interpret a recorded branch (e.g. AADC
+    calling .mark_as_output() on whichever if_wrappers_log entries turn out to be a real ibool)
+    just reads if_wrappers_log/execution_path() after the session closes -- that's ordinary
+    downstream use of already-public data, not a hook this class needs to expose via subclassing.
     """
 
     s_current: EdgeDepsTracker = None     #-- single global "active" pointer;
@@ -95,6 +95,9 @@ class EdgeDepsTracker:
             tracker.if_wrappers_log.append((guard_id, condition))  #-- raw, not bool(condition)
 
         return condition
+
+    def clear_if_wrappers_log(self):
+        self.if_wrappers_log = []
 
     def execution_path(self) -> ExecutionPath:
         """
@@ -175,15 +178,9 @@ class EdgeDepsTracker:
         def visit_If(self, node: ast.If) -> ast.If:
             self.generic_visit(node)
             guard_id = f'{self.filename}:{node.lineno}'
-            # goes through EnvVars.edge_dep_tracker_class, not a hardcoded class name: calling
-            # a classmethod via a fixed name bypasses subclass polymorphism, silently skipping any
-            # override a configured tracker subclass (e.g. AadcEdgeDepsTracker) makes to if_wrapper.
             node.test = ast.Call(
                 func = ast.Attribute(
-                    value = ast.Attribute(
-                        value = ast.Name(id = 'EnvVars', ctx = ast.Load()),
-                        attr = 'edge_dep_tracker_class', ctx = ast.Load(),
-                    ),
+                    value = ast.Name(id = 'EdgeDepsTracker', ctx = ast.Load()),
                     attr = 'if_wrapper', ctx = ast.Load(),
                 ),
                 args = [ast.Constant(value = guard_id), node.test],
@@ -215,8 +212,8 @@ class EdgeDepsTracker:
             # self-references its own class (e.g. a `.current()`/`.default()` factory) or a class defined right
             # after it.
             alt_globals = func.__globals__
-            alt_globals.setdefault('EnvVars', EnvVars)  #-- setdefault, not [] = : this is the real module
-            # namespace now, not a private copy -- never clobber an existing binding
+            alt_globals.setdefault('EdgeDepsTracker', EdgeDepsTracker)  #-- setdefault, not [] = :
+            # this is the real module namespace now, not a private copy -- never clobber an existing binding
             code = compile(tree, filename, 'exec')
             exec(code, alt_globals)  # noqa: S102 -- deliberate: building an instrumented copy
             return alt_globals[func.__name__]
@@ -236,22 +233,12 @@ class EdgeDepsTracker:
             if spec is None or spec.origin is None or not spec.origin.endswith('.py'):
                 return None  #-- not a plain Python source module (namespace pkg, C ext, ...)
 
-            #-- goes through EnvVars.edge_dep_tracker_class throughout, not the hardcoded base -- a configured
-            # tracker subclass may override MODULE_MARKER or IfLoader itself. A meta_path finder must never blow
-            # up an unrelated import: if the configured class doesn't resolve (e.g.
-            # EnvVars.edge_dep_tracker_class_name misconfigured), defer to normal loading instead of taking down
-            # every subsequent import in the process.
-            try:
-                tracker_class = EnvVars.edge_dep_tracker_class
-            except Exception:
-                return None
-
             with open(spec.origin, encoding = 'utf-8') as f:
                 source = f.read()
-            if tracker_class.MODULE_MARKER not in source:
+            if EdgeDepsTracker.MODULE_MARKER not in source:
                 return None  #-- unmarked -- defer to the normal machinery, unmodified
 
-            spec.loader = tracker_class.IfLoader(fullname, spec.origin)
+            spec.loader = EdgeDepsTracker.IfLoader(fullname, spec.origin)
             return spec
 
     class IfLoader(importlib.machinery.SourceFileLoader):
@@ -265,15 +252,11 @@ class EdgeDepsTracker:
         def exec_module(self, module):
             super().exec_module(module)  #-- normal execution first -- side effects run exactly once
 
-            #-- goes through EnvVars.edge_dep_tracker_class, not the hardcoded base class -- same
-            # reasoning as visit_If: a literal EdgeDepsTracker reference would bypass any override
-            # a configured tracker subclass makes to IfRewriter itself.
-            tracker_class = EnvVars.edge_dep_tracker_class
             alt_funcs: dict[str, Callable] = {}
-            if_rewriter = tracker_class.IfRewriter.instrument_function
+            if_rewriter = EdgeDepsTracker.IfRewriter.instrument_function
             for name, member in vars(module).items():
                 #-- only functions actually defined in this module, not ones merely imported
                 # into it (those belong to, and get instrumented by, their own module if marked)
                 if inspect.isfunction(member) and member.__module__ == module.__name__:
                     alt_funcs[name] = if_rewriter(member)
-            tracker_class.s_instrumented_modules[module.__name__] = alt_funcs
+            EdgeDepsTracker.s_instrumented_modules[module.__name__] = alt_funcs

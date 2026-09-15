@@ -16,8 +16,7 @@ from datetime import date, timedelta
 from core_10x.environment_variables import EnvVars
 
 #-- instrument_class() only fires from Traitable.__init_subclass__ at class-definition time, so this must happen
-#   BEFORE MonarchButterfly is imported below. edge_dep_tracker_class_name defaults to '', which resolves to the
-#   base EdgeDepsTracker facility -- no AADC involved.
+#   BEFORE MonarchButterfly is imported below.
 EnvVars.use_edge_deps_tracker = True
 
 from core_10x.code_samples.monarch_butterfly import EXTERNAL_WORLD_NAME, ExternalWorld, MonarchButterfly
