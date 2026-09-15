@@ -72,7 +72,7 @@ if __name__ == '__main__':
         price_active = cf.price
         price_out = price_active.mark_as_output()
 
-    print('\nAADC Kernel recorded')
+    print(f'\nAADC Kernel recorded ({kernel.num_passive_warnings()} warnings)')
 
     #-- restore plain float quotes
     for q, fq in all_quotables.items():

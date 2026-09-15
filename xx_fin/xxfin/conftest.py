@@ -1,3 +1,9 @@
+"""Shared xxfin test fixtures.
+
+Lives at the package root, not in ``unit_tests/``, so every test suite under ``xxfin`` --
+``unit_tests/`` and ``jit_aadc/unit_tests/`` -- gets the same dev market data and pricing context.
+"""
+
 import pytest
 from core_10x.exec_control import GRAPH_ON
 from core_10x.testlib.ts_store_isolation import pin_current_ts_stores, unpin_ts_stores
