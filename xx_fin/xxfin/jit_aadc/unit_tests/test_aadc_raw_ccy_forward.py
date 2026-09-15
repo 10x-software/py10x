@@ -51,23 +51,23 @@ class TestAadcRawCcyForward:
         self.py_price    = self.ccy_forward.price
 
         self.quotes = {}
-        for quotables_by_date in ccy_forward.disc_curve.quotables_by_class.values():
+        for quotables_by_date in self.ccy_forward.disc_curve.quotables_by_class.values():
             for quotable in quotables_by_date.values():
                 self.quotes[quotable] = float(quotable.quote)
 
-        for quotable, quote in quotes.items():
+        for quotable, quote in self.quotes.items():
             quotable.quote = quote
 
         with AADCContext() as self.kernel:
             self.input_handles = {}
-            for quotable, quote in quotes.items():
+            for quotable, quote in self.quotes.items():
                 active_quote = idouble(quote)
                 quotable.quote = active_quote
                 self.input_handles[quotable] = active_quote.mark_as_input()
 
-            self.price_out = ccy_forward.price.mark_as_output()
+            self.price_out = self.ccy_forward.price.mark_as_output()
 
-        for quotable, quote in quotes.items():  # -- back to plain floats, off-kernel
+        for quotable, quote in self.quotes.items():  # -- back to plain floats, off-kernel
             quotable.quote = quote
 
         self.inputs = { h: self.quotes[q] for q, h in self.input_handles.items() }
