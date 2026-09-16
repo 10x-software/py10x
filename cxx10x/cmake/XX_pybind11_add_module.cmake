@@ -27,25 +27,32 @@ macro(xx_pybind11_add_module target)
             VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
     )
 
+    # Locate the installed py10x_kernel binary. Windows needs it for the import library below;
+    # every platform needs it as a configure dependency (see CMAKE_CONFIGURE_DEPENDS further down).
+    # The sentinels are required because importing the kernel may run its import-time incremental
+    # rebuild, which writes cmake progress to stdout around the path we are after.
+    execute_process(
+            COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel,sys; sys.stdout.write('<<<MOD:'+py10x_kernel.__file__+':MOD>>>')"
+            OUTPUT_VARIABLE _PY10X_KERNEL_OUT
+            RESULT_VARIABLE _mod_rc
+    )
+    if(NOT _mod_rc EQUAL 0)
+        message(FATAL_ERROR "Could not locate py10x_kernel.__file__. Is py10x-kernel installed?")
+    endif()
+    if(NOT _PY10X_KERNEL_OUT MATCHES "<<<MOD:(.+):MOD>>>")
+        message(FATAL_ERROR "Could not parse py10x_kernel.__file__ from output:\n${_PY10X_KERNEL_OUT}")
+    endif()
+    set(_PY10X_KERNEL_MODULE "${CMAKE_MATCH_1}")
+
+
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_PY10X_KERNEL_MODULE}")
+
     # On Windows, link against py10x_kernel's import library (.lib) so the MSVC
     # linker can resolve symbols like BTraitable that are dllimport-annotated.
     # The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
     # On Linux/macOS, consumer extensions rely on py10x_kernel being promoted to
     # RTLD_GLOBAL before load (see core_10x/__init__.py and generate_stubs.py).
     if(WIN32)
-        execute_process(
-                COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel,sys; sys.stdout.write('<<<MOD:'+py10x_kernel.__file__+':MOD>>>')"
-                OUTPUT_VARIABLE _PY10X_KERNEL_OUT
-                RESULT_VARIABLE _mod_rc
-        )
-        if(NOT _mod_rc EQUAL 0)
-            message(FATAL_ERROR "Could not locate py10x_kernel.__file__. Is py10x-kernel installed?")
-        endif()
-        if(NOT _PY10X_KERNEL_OUT MATCHES "<<<MOD:(.+):MOD>>>")
-            message(FATAL_ERROR "Could not parse py10x_kernel.__file__ from output:\n${_PY10X_KERNEL_OUT}")
-        endif()
-        set(_PY10X_KERNEL_MODULE "${CMAKE_MATCH_1}")
-
         set(_PY10X_KERNEL_PYD "${_PY10X_KERNEL_MODULE}")
         # MSVC names the import library after the CMake target name (py10x_kernel),
         # NOT the module's full output name. So the file is py10x_kernel.lib, sitting
