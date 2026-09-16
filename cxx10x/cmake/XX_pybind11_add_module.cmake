@@ -29,20 +29,21 @@ macro(xx_pybind11_add_module target)
 
     # Locate the installed py10x_kernel binary. Windows needs it for the import library below;
     # every platform needs it as a configure dependency (see CMAKE_CONFIGURE_DEPENDS further down).
-    # The sentinels are required because importing the kernel may run its import-time incremental
-    # rebuild, which writes cmake progress to stdout around the path we are after.
+    #
+    # find_spec resolves the module's path WITHOUT importing it, which matters on both counts:
+    # an ASan-instrumented kernel aborts ("ASan runtime does not come first") when dlopened from a
+    # non-preloaded python -- and the ASan lane only preloads libasan for pytest, not for the build
+    # -- while a plain import may also run the kernel's import-time incremental rebuild, whose cmake
+    # progress lands on stdout around the path we are trying to read.
     execute_process(
-            COMMAND ${Python3_EXECUTABLE} -c "import py10x_kernel,sys; sys.stdout.write('<<<MOD:'+py10x_kernel.__file__+':MOD>>>')"
-            OUTPUT_VARIABLE _PY10X_KERNEL_OUT
+            COMMAND ${Python3_EXECUTABLE} -c "import importlib.util as u; s = u.find_spec('py10x_kernel'); print(s.origin if s else '')"
+            OUTPUT_VARIABLE _PY10X_KERNEL_MODULE
+            OUTPUT_STRIP_TRAILING_WHITESPACE
             RESULT_VARIABLE _mod_rc
     )
-    if(NOT _mod_rc EQUAL 0)
-        message(FATAL_ERROR "Could not locate py10x_kernel.__file__. Is py10x-kernel installed?")
+    if(NOT _mod_rc EQUAL 0 OR NOT _PY10X_KERNEL_MODULE)
+        message(FATAL_ERROR "Could not locate the py10x_kernel module. Is py10x-kernel installed?")
     endif()
-    if(NOT _PY10X_KERNEL_OUT MATCHES "<<<MOD:(.+):MOD>>>")
-        message(FATAL_ERROR "Could not parse py10x_kernel.__file__ from output:\n${_PY10X_KERNEL_OUT}")
-    endif()
-    set(_PY10X_KERNEL_MODULE "${CMAKE_MATCH_1}")
 
 
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_PY10X_KERNEL_MODULE}")
