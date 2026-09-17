@@ -28,6 +28,7 @@ from core_10x.trait_filter import (
 from core_10x.traitable import Traitable, XNone
 from core_10x.ts_store import TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
+from py10x_kernel import BTraitableProcessor
 
 
 class Person(Traitable):
@@ -232,6 +233,58 @@ def test_empty_f_is_no_constraint():
         assert empty.prefix_notation() == {}
         ids = {p.id() for p in Person.existing_instances_by_filter(empty)}
         assert a.id() in ids and b.id() in ids
+
+
+def test_existing_instances_by_filter_prefers_in_memory_over_stale_store(ts_instance):
+    """A store match must not override the current in-memory value: once an
+    object is loaded, an unsaved edit that no longer matches the filter is
+    excluded, and one that newly matches is found -- even though the store
+    itself hasn't changed (nothing here is ever saved).
+    """
+
+    class Widget(Traitable, custom_collection=True):
+        key: str = T(T.ID)
+        tag: str = T(default='')
+
+    coll_name = f'eibf_{uuid6.uuid7().hex[:12]}'
+    with ts_instance:
+        try:
+            w = Widget(key='w1', tag='a', _collection_name=coll_name, _replace=True)
+            w.save().throw()
+
+            found = {p.id() for p in Widget.existing_instances_by_filter(f(tag='a'), _coll_name=coll_name)}
+            assert w.id() in found
+
+            # Stage an edit without saving -- the store still says tag='a'.
+            w.tag = 'b'
+
+            still_a = {p.id() for p in Widget.existing_instances_by_filter(f(tag='a'), _coll_name=coll_name)}
+            assert w.id() not in still_a, 'a stale store match for an already-loaded, now-diverged object must not be returned'
+
+            now_b = {p.id() for p in Widget.existing_instances_by_filter(f(tag='b'), _coll_name=coll_name)}
+            assert w.id() in now_b, 'a staged-but-unsaved in-memory match must be found even though the store disagrees'
+        finally:
+            Widget.delete_collection(coll_name)
+
+
+def test_existing_instances_by_filter_finds_store_only_match_not_yet_in_memory(ts_instance):
+    """An entity that exists in the store but hasn't been touched in the
+    current scope yet must still be found (the discovery path)."""
+
+    class Widget2(Traitable, custom_collection=True):
+        key: str = T(T.ID)
+        tag: str = T(default='')
+
+    coll_name = f'eibf2_{uuid6.uuid7().hex[:12]}'
+    with ts_instance:
+        try:
+            with BTraitableProcessor.create_root():
+                Widget2(key='w1', tag='a', _collection_name=coll_name, _replace=True).save().throw()
+
+            found = {p.id().value for p in Widget2.existing_instances_by_filter(f(tag='a'), _coll_name=coll_name)}
+            assert 'w1' in found
+        finally:
+            Widget2.delete_collection(coll_name)
 
 
 def test_empty_in_nin_eval():

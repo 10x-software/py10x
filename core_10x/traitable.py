@@ -556,9 +556,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         proc = BTraitableProcessor.current()
         cache = proc.default_cache() if cls.s_default_cache else proc.cache()
         ids_in_memory = cache.object_ids_by_class(cls.s_bclass)
-        ids_sought = {id for id in ids_in_memory if query.eval(cls(_id=id))}
-        ids_sought.update(ids_in_store)
-        return [cls(_id=id) for id in ids_sought]
+        ids_sought_from_memory = {id for id in ids_in_memory if query.eval(cls(_id=id))}
+        id_sought_from_store = {id for id in ids_in_store if id not in ids_in_memory}  # --exclulde matches from store that are no longer matching in-memory
+        return [cls(_id=id) for id in itertools.chain(ids_sought_from_memory, id_sought_from_store)]
 
     @classmethod
     @deprecated('Use either new_or_replace or new_or_update methods instead.')
