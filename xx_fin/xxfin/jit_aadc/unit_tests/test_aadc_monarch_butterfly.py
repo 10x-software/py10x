@@ -24,8 +24,8 @@ try:
     #-- under-provisioned strict CI job fails loudly instead of collect-erroring here.
     from aadc import idouble
     from aadc.evaluate_wrappers import evaluate_kernel
-
     from xxfin.jit_aadc.aadc_context import AADCContext
+    from xxfin.jit_aadc.idate import IDate
     AADC_INSTALLED = True
 except ImportError:
     AADC_INSTALLED = False
@@ -52,15 +52,16 @@ class TestAadcMonarchButterfly:
     def setup_method(self):
         need(AADC_INSTALLED, AADC_REASON)
 
-        self.monarch = MonarchButterfly(dob = DOB)
+        self.monarch = MonarchButterfly(name = 'specimen', dob = DOB)
         self.world   = ExternalWorld.current()
         self.py_speed = self.monarch.locomotive_speed
 
-        self.current_date = float(self.world.current_date)
-        self.leaf_mass    = float(self.world.leaf_mass_available)
+        #-- ``current_date`` is a real ``date`` on the model; only the recording swaps in an IDate.
+        self.base_date = self.world.current_date
+        self.leaf_mass = float(self.world.leaf_mass_available)
 
         with AADCContext() as kernel:
-            active_date = idouble(self.current_date)
+            active_date = IDate(self.base_date)
             active_mass = idouble(self.leaf_mass)
             self.world.current_date        = active_date
             self.world.leaf_mass_available = active_mass
@@ -71,10 +72,10 @@ class TestAadcMonarchButterfly:
             self.speed_out = self.monarch.locomotive_speed.mark_as_output()
 
         self.kernel = kernel
-        self.world.current_date        = self.current_date   #-- back to plain floats, off-kernel
+        self.world.current_date        = self.base_date      #-- back to a plain date/float, off-kernel
         self.world.leaf_mass_available = self.leaf_mass
 
-        self.inputs = { self.date_in: self.current_date, self.mass_in: self.leaf_mass }
+        self.inputs = { self.date_in: IDate.input_value(self.base_date), self.mass_in: self.leaf_mass }
 
     def teardown_method(self):
         #-- test_isolation asserts no Traitable outlives the test; drop our references explicitly.

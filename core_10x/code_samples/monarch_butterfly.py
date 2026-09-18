@@ -22,28 +22,27 @@ from 2 grams to 50 grams changes nothing about how fast it flies.
 
 from datetime import date
 
-from core_10x.traitable import Traitable, T, RT
-
+from core_10x.traitable import NamedTraitable, T, RT
 
 EXTERNAL_WORLD_NAME = 'main'
 
-class ExternalWorld(Traitable):
+class ExternalWorld(NamedTraitable):
     """
     The external world the insect has no control over.
     """
     name: str                   = T(T.ID)
-    current_date: int           = RT()
+    current_date: date          = RT()
     leaf_mass_available: float  = RT(10)      #-- grams of fresh host-plant leaf within reach
     wind_speed: float           = RT(5)      #-- m/s, signed -- positive = tailwind, negative = headwind
 
-    def current_date_get(self) -> int:
-        return date.today().toordinal()
+    def current_date_get(self) -> date:
+        return date.today()
 
     @classmethod
     def current(cls):
         return ExternalWorld(name=EXTERNAL_WORLD_NAME)
 
-class MonarchButterfly(Traitable):
+class MonarchButterfly(NamedTraitable):
     """
     A monarch's lifecycle: one persistent identity whose locomotion speed depends on completely different
     external factors before and after metamorphosis. `dob` is intrinsic to this "individual".
@@ -62,7 +61,7 @@ class MonarchButterfly(Traitable):
     def locomotive_speed_get(self) -> float:
         #-- Locomotion speed, in cm/s
         ew = ExternalWorld.current()
-        age_days = (ew.current_date - self.dob.toordinal())
+        age_days = (ew.current_date - self.dob).days
         if age_days < self.s_age_at_metamorphosis_days:
             return self._caterpillar_speed(ew)
         return self._butterfly_speed(ew)

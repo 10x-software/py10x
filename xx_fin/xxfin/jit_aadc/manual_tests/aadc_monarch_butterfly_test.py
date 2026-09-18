@@ -7,15 +7,16 @@ if __name__ == '__main__':
     print('kernel',py10x_kernel.__file__,py10x_kernel.__version__)
     print('infra',py10x_infra.__file__,py10x_infra.__version__)
 
-    from aadc import idouble, iint, AADCErrorCheck
+    from aadc import idouble
     from aadc.evaluate_wrappers import evaluate_kernel
     from core_10x.exec_control import GRAPH_ON
     from core_10x.logger import PerfTimer
     from core_10x.code_samples.monarch_butterfly import MonarchButterfly, ExternalWorld
 
     from xxfin.jit_aadc.aadc_context import AADCContext
+    from xxfin.jit_aadc.idate import IDate
 
-    mb = MonarchButterfly(dob = date.today())
+    mb = MonarchButterfly(name = 'bfly', dob = date.today())
 
     graph_on = GRAPH_ON()
     graph_on.begin_using()
@@ -41,9 +42,9 @@ if __name__ == '__main__':
     #-- AADC recording
     with AADCContext() as kernel:
         input_handles = {}
-        idt               = idouble(w.current_date)
-        w.current_date = idt
-        input_handles['date'] = idt.mark_as_input()
+        idt                     = IDate(w.current_date)
+        w.current_date          = idt
+        input_handles['date']   = idt.mark_as_input()
 
         wst               = idouble(w.leaf_mass_available)
         w.leaf_mass_available = wst
@@ -55,12 +56,11 @@ if __name__ == '__main__':
     print(f'\nAADC Kernel recorded ({kernel.num_passive_warnings()} warnings)')
 
     #-- restore plain
-    w.current_date = w.current_date.val()
+    w.current_date        = idt.val()
     w.leaf_mass_available = w.leaf_mass_available.val()
 
-
     #-- Evaluate Kernel
-    inputs = { input_handles['date']: w.current_date, input_handles['mass']: w.leaf_mass_available }
+    inputs = { input_handles['date']: IDate.input_value(w.current_date), input_handles['mass']: w.leaf_mass_available }
     deps   = { ls_out: list(input_handles.values()) }
     evaluate_kernel(kernel, deps, inputs, 1)   #-- warm up, just in case :-)
 
