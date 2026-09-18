@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import abc
 from collections import deque
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from typing import TYPE_CHECKING
 
 from py10x_kernel import BFlags
+from py10x_kernel import BTraitableProcessor
 from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
 
 from core_10x.environment_variables import EnvVars
@@ -20,7 +21,7 @@ from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Iterable, Sequence, Generator
     from datetime import datetime
 
     from core_10x.traitable import Traitable
@@ -296,19 +297,26 @@ class SaveIfChanged(BTPTracker):
     A successful save()/reload() clears everything tracked.
     """
 
-    def __init__(self, classes: Sequence[type[Traitable]] = (), *, auto_save: bool = True):
+    def __init__(self, classes: Sequence[type[Traitable]] = (), *, auto_save: bool = True, parent: BTraitableProcessor = None):
         if any(not cls.is_storable() for cls in classes):
             raise RuntimeError('Classes passed to SaveIfChanged must be storable.')
-        super().__init__()
+        self.parent = parent or nullcontext()
+        with self.parent:
+            super().__init__()
         self.classes = classes if isinstance(classes, tuple) else tuple(classes)
         self.auto_save = auto_save
 
+    def __enter__(self):
+        self.parent.__enter__()
+        return super().__enter__()
+
     def __exit__(self, *args):
         super().__exit__(*args)
+        self.parent.__exit__(*args)
         if self.auto_save:
             self.save().throw()
 
-    def _tracked(self) -> tuple[Traitable, ...]:
+    def _tracked(self) -> Generator:
         return (
             traitable
             for traitable in self.tracked_objects()
@@ -316,22 +324,24 @@ class SaveIfChanged(BTPTracker):
         )
 
     def save(self) -> RC:
-        tracked = tuple(self._tracked())
-        try:
-            with ExitStack() as tx_stack:
-                if EnvVars.use_ts_store_transactions:
-                    for store in {cls.store() for cls in self.classes or tuple({t.__class__ for t in tracked})}:
-                        tx_stack.enter_context(store.transaction())
-                for traitable in tracked:
-                    traitable.save().throw()
-        except RuntimeError as e:
-            return RC(False, str(e))
+        with self.parent:
+            tracked = tuple(self._tracked())
+            try:
+                with ExitStack() as tx_stack:
+                    if EnvVars.use_ts_store_transactions:
+                        for store in {cls.store() for cls in self.classes or tuple({t.__class__ for t in tracked})}:
+                            tx_stack.enter_context(store.transaction())
+                    for traitable in tracked:
+                        traitable.save().throw()
+            except RuntimeError as e:
+                return RC(False, str(e))
 
         self.clear()
         return RC_TRUE
 
     def reload(self) -> bool:
-        ok = all(traitable.reload() for traitable in self._tracked())
+        with self.parent:
+            ok = all(traitable.reload() for traitable in self._tracked())
         if ok:
             self.clear()
         return ok

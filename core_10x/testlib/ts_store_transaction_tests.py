@@ -244,3 +244,79 @@ class TestSaveIfChanged:
         assert set(ctx.tracked_objects()) == {a, b}
         ctx.clear()
 
+    def test_save_if_changed_parent_isolates_until_save(self, ts_instance, data):
+        from core_10x.exec_control import INTERACTIVE
+
+        a, _b = data()
+        original = a.value
+
+        # Constructed while `parent` is not current -- the constructor must
+        # still enter it itself so get/set_trait_value forwards there.
+        parent = INTERACTIVE()
+        ctx = SaveIfChanged(auto_save=False, parent=parent)
+
+        with ctx:
+            a.value = 42
+        # Outside ctx's `with` block, only ts_instance's own ambient scope is
+        # current -- the staged edit must be invisible until save().
+        assert a.value == original
+
+        rc = ctx.save()
+        assert rc
+        # a's own cache (ts_instance's scope) doesn't auto-refresh just
+        # because some other scope wrote a new value to the store -- reload()
+        # (or a fresh load) is how a caller observes it from here.
+        assert a.reload()
+        assert a.value == 42
+        assert a.__class__.collection(a._collection_name).count() == 1
+
+    def test_save_if_changed_parent_already_current_reenters_safely(self, ts_instance, data):
+        from core_10x.exec_control import INTERACTIVE
+
+        a, _b = data()
+        parent = INTERACTIVE()
+        with parent:
+            # parent is already current at construction -- SaveIfChanged always
+            # enters/exits it itself regardless, and re-entering an
+            # already-current BTraitableProcessor is safe (no special-casing
+            # needed here).
+            ctx = SaveIfChanged(auto_save=False, parent=parent)
+            with ctx:
+                a.value = 7
+            assert a.value == 7  # still current, visible immediately
+
+        rc = ctx.save()
+        assert rc
+        assert a.__class__.collection(a._collection_name).count() == 1
+
+    def test_save_if_changed_parent_reused_across_sessions(self, ts_instance, data):
+        from core_10x.exec_control import INTERACTIVE
+
+        a, b = data()
+        parent = INTERACTIVE()
+        ctx = SaveIfChanged(auto_save=False, parent=parent)
+
+        with ctx:
+            a.value = 1
+        ctx.save().throw()
+        assert ctx.tracked_objects() == []
+
+        with ctx:
+            b.value = 2
+        ctx.save().throw()
+
+        assert a.__class__.collection(a._collection_name).count() == 1
+        assert b.__class__.collection(b._collection_name).count() == 1
+
+    def test_save_if_changed_no_parent_edits_directly_visible(self, ts_instance, data):
+        # No parent passed (defaults to nullcontext()) -- no isolation, matching pre-nesting behavior.
+        a, _b = data()
+        ctx = SaveIfChanged(auto_save=False)
+
+        with ctx:
+            a.value = 5
+        assert a.value == 5  # immediately visible, no staging scope involved
+
+        ctx.save().throw()
+        assert a.__class__.collection(a._collection_name).count() == 1
+
