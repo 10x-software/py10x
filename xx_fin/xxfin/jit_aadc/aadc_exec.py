@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from aadc import idouble, ibool
+from aadc import aadc_assert, idouble, ibool, ErrorCollectionMode
 from aadc.evaluate_wrappers import evaluate_kernel
 
 from core_10x.edge_deps_tracker import EdgeDepsTracker
@@ -22,7 +22,6 @@ class AadcKernel:
         self.inputs = {}
         self.output = None
         self.deps = {}
-        self.exec_path_handles = {}
 
     def build(self, mkt_deps: MktDeps, tracker: EdgeDepsTracker, compile_kernel: bool = False):
         """compile_kernel: extra time here for faster eval()/eval_with_adjoints() -- worth it when
@@ -45,12 +44,18 @@ class AadcKernel:
             res_active = self.obj.get_trait_value(self.trait)
             self.output = res_active.mark_as_output()
 
-        self.exec_path_handles = exec_path_handles = {}
-        for (guard_id, condition) in tracker.if_wrappers_log:
-            if type(condition) is ibool:
-                key = (guard_id, bool(condition))
-                if key not in exec_path_handles:
-                    exec_path_handles[key] = condition.mark_as_output()
+            # One assert per LOGGED OCCURRENCE, not deduped by (guard_id, outcome): two
+            # occurrences of the same guard (e.g. one `if` per basket leg) are different tape
+            # nodes, and checking only one representative per outcome can miss a flip in the
+            # other, unchecked occurrence while the tape silently keeps using its stale branch
+            # body (verified empirically 2026-09-16 -- has_errors() stayed False while the
+            # replayed price was still wrong). Must run while still inside AADCContext:
+            # aadc_assert only registers a replay-time check while is_recording() is True --
+            # registering it after this block exits is a silent no-op (also verified).
+            for guard_id, condition in tracker.if_wrappers_log:
+                if type(condition) is ibool:
+                    outcome = bool(condition)
+                    aadc_assert(condition if outcome else ~condition, f'guard {guard_id} changed')
 
         self.deps = {self.output: list(input_handles.values())}
 
@@ -153,16 +158,11 @@ class AadcExec:
                 or (False, None) if the kernel's exec path does not match the recorded one (i.e., Edge Dependencies changed)
         """
         inputs = kernel._resolve_inputs(market_values)
-        exec_path_handles = list(kernel.exec_path_handles.values())
-
-        request = {kernel.output: [], **{h: [] for h in exec_path_handles}}
-        result = evaluate_kernel(kernel.kernel, request, inputs, 1)
-
-        still_valid = all(
-            bool(kernel._unwrap(result.values[h])) == outcome
-            for (guard_id, outcome), h in kernel.exec_path_handles.items()
+        result = evaluate_kernel(
+            kernel.kernel, {kernel.output: []}, inputs, 1,
+            error_mode = ErrorCollectionMode.ERRORS_ONLY,
         )
-        if not still_valid:
+        if result.errors.has_errors():
             return (False, None)
 
         return (True, kernel._unwrap(result.values[kernel.output]))
