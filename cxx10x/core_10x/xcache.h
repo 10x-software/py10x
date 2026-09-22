@@ -15,7 +15,9 @@
 #include "btraitable_processor.h"
 #include "debug.h"
 
-class BTrait;
+#include "btrait.h"
+//class BTrait;
+
 class BTraitable;
 
 //======================================================================================================================
@@ -445,6 +447,14 @@ public:
     void perturb_existing_node(BTraitableClass* cls, const py::object& id, const BTrait* trait, const py::object& value) const {
         if (const auto node = find_node(TID(cls, id), trait))
             node->set(value);
+    }
+
+    py::object read_existing_node(BTraitableClass* cls, const py::object& id, const BTrait* trait) const {
+        const auto node = find_node(TID(cls, id), trait);
+        if (!node)
+            throw py::value_error(py::str("{}/{}.{} - no such node in cache").format(cls->name(), id, trait->name()));
+
+        return node->value();
     }
 
 };
