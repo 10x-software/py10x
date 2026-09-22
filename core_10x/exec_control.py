@@ -102,6 +102,10 @@ class GraphDeps:
         trait = bound_trait.trait
         self.deps_data = gp.find_dependencies(obj, trait, target_class, *target_trait_names)
 
+    def read(self, traitable_cls, obj_id: ID, trait: Trait):
+        cache = self.gp.cache()
+        return cache.read_existing_node(traitable_cls.s_bclass, obj_id, trait)
+
     def perturb(self, traitable_cls, obj_id: ID, trait: Trait, value):
         cache = self.gp.cache()
         cache.perturb_existing_node(traitable_cls.s_bclass, obj_id, trait, value)
