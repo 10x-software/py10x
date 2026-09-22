@@ -1,6 +1,5 @@
 import ast
 import os
-import sys
 
 from py10x_kernel import OsUser
 
@@ -182,15 +181,6 @@ class EnvVars(_EnvVars, env_name = 'XX'):
     build_area: str
     parent_build_area: str          = 'dev'
     sdlc_area: str
-
-    use_edge_deps_tracker: bool     = False         #-- whether EdgeDepsTracker is active
-
-    def use_edge_deps_tracker_apply(self, value):
-        if not value:
-            return
-        from core_10x.edge_deps_tracker import EdgeDepsTracker  #-- deferred: avoids a module-load-time
-        # circular import (edge_deps_tracker.py itself imports EnvVars from this module)
-        sys.meta_path.insert(0, EdgeDepsTracker.IfFinder())
 
     def vault_uri_get(self) -> str:
         return self.main_vault_uri
