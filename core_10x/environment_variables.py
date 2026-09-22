@@ -36,9 +36,9 @@ class _EnvVarsMeta(type):
     #   Without this, reassignment would silently replace the classproperty and skip its *_apply hook forever.
     def __setattr__(cls, name, value):
         prop = cls.__dict__.get(name)
-        f_apply = getattr(prop, 'f_apply', None)
-        if isinstance(prop, classproperty) and f_apply:
-            f_apply.__get__(cls)(value)
+        if isinstance(prop, classproperty):
+            if f_apply := getattr(prop, 'f_apply', None):
+                f_apply.__get__(cls)(value)
             prop.fget.cache[cls] = value
             return
 

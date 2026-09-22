@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING
 
 from py10x_kernel import XCache
 
-from core_10x.environment_variables import EnvVars, classproperty
+from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import _clear_all_caches
 from core_10x.py_class import PyClass
 from core_10x.scenario import Scenario
@@ -53,20 +53,15 @@ from core_10x.ts_store import TsStore
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-# Each pin frame: (s_instances subset, main_or_None, vault_or_None)
-# main/vault entries are (store, uri).
-_pin_stack: list[tuple[dict, tuple | None, tuple | None]] = []
+    from core_10x.environment_variables import _EnvVars
 
-# Original EnvVars classproperties at import (before tests assign str over them).
-_ENV_CLASSPROPERTIES: dict[str, classproperty] = {name: value for name, value in EnvVars.__dict__.items() if isinstance(value, classproperty)}
+# Each pin frame: (s_instances subset, main_or_None, vault_or_None, env_vars)
+# main/vault entries are (store, uri); env_vars are snapshotted _EnvVars.Var.
+_pin_stack: list[tuple[dict, tuple | None, tuple | None, tuple[_EnvVars.Var, ...]]] = []
 
 
 def clear_traitable_store_state() -> None:
     """Drop Traitable store bindings (URIs, main/vault caches, store_per_class, s_instances)."""
-    for name, desc in _ENV_CLASSPROPERTIES.items():
-        type.__setattr__(EnvVars, name, desc)  # restore descriptor; do not run *_apply
-        desc.fget.clear()
-
     Traitable.main_store.clear()
     Traitable.vault_store.clear()
     Traitable.store_per_class.__func__.cache.clear()
@@ -94,10 +89,11 @@ def drop_new_instance_attrs(inst: object, keys_before: set[str]) -> None:
 def reset_traitable_process_state(*, assert_clean: bool = True) -> None:
     """Clear process-global Traitable/XCache state after a test.
 
-    Also clears all ``@core_10x.global_cache.cache`` memos so test-held Traitables
-    do not outlive ``XCache.clear()`` (stale origin cache). Domain singletons that
-    are not ``@cache`` (e.g. ``PricingContext.s_current_pc``) still need local
-    fixture cleanup.
+    Also clears all ``@core_10x.global_cache.cache`` memos so test-held Traitables do not
+    outlive ``XCache.clear()`` (stale origin cache). That covers ``EnvVars`` as well: an
+    assigned classproperty value lives in the getter's memo, not on the class. Domain
+    singletons that are not ``@cache`` (e.g. ``PricingContext.s_current_pc``) still need
+    local fixture cleanup.
 
     ``assert_clean`` (default True) fails if any Traitable is still reachable.
     Pass False after a failed test so stack/fixture holders do not add noise on
@@ -118,13 +114,18 @@ def reset_traitable_process_state(*, assert_clean: bool = True) -> None:
     assert not leftovers, leftovers
 
 
-def pin_current_ts_stores() -> None:
+def pin_current_ts_stores(*env_vars: _EnvVars.Var) -> None:
     """Pin main, vault, and every store named on main (NamedTsStore rows).
 
     Call **just before yield**, after fixture setup has written seed data and
     store associations. Opens main/vault when their URIs are set but cold;
     opens each associated store via ``NamedTsStore.uri`` so in-memory DuckDB
     connections are held across isolation.
+
+    ``env_vars`` (e.g. ``XXFinEnvVars.var.use_cxxfin``) snapshots those variables now and
+    re-applies them on every restore. A session/module fixture that assigns one otherwise
+    loses it at the first isolation clear: the assigned value lives in the classproperty's
+    ``@cache`` memo, which ``reset_traitable_process_state`` wipes.
     """
 
     stores = set()
@@ -135,7 +136,7 @@ def pin_current_ts_stores() -> None:
         with main_pin[0]:
             stores.update(Traitable.store_from_uri(n.uri) for n in NamedTsStore.load_many() if n.uri)
 
-    _pin_stack.append(({k: v for k, v in TsStore.s_instances.items() if v in stores}, main_pin, vault_pin))
+    _pin_stack.append(({k: v for k, v in TsStore.s_instances.items() if v in stores}, main_pin, vault_pin, env_vars))
 
 
 def unpin_ts_stores() -> None:
@@ -158,7 +159,7 @@ def restore_pinned_ts_stores() -> None:
     if not _pin_stack:
         return
 
-    frame_instances, main, vault = _pin_stack[-1]
+    frame_instances, main, vault, env_vars = _pin_stack[-1]
     TsStore.s_instances.update(frame_instances)
 
     if main:
@@ -171,11 +172,14 @@ def restore_pinned_ts_stores() -> None:
         EnvVars.main_vault_uri = uri
         Traitable.vault_store.value[0] = store
 
+    for var in env_vars:
+        setattr(var.env_var_class, var.attr_name, var.value)
+
 
 @contextmanager
-def pinned_ts_stores() -> Iterator[None]:
+def pinned_ts_stores(*env_vars: _EnvVars.Var) -> Iterator[None]:
     """Context manager: :func:`pin_current_ts_stores` on enter, :func:`unpin_ts_stores` on exit."""
-    pin_current_ts_stores()
+    pin_current_ts_stores(*env_vars)
     try:
         yield
     finally:

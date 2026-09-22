@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import pytest
 from core_10x.environment_variables import EnvVars
+from core_10x.global_cache import _clear_all_caches
 from core_10x.py_class import PyClass
 from core_10x.testlib.ts_store_isolation import (
     _pin_stack,
@@ -44,13 +45,9 @@ def _make_main(uri: str):
 
 
 def _assert_store_clean():
-    from core_10x.testlib.ts_store_isolation import _ENV_CLASSPROPERTIES
-
     assert Traitable.main_store.value[0] is XNone
     assert Traitable.vault_store.value[0] is XNone
     assert not TsStore.s_instances
-    for name, desc in _ENV_CLASSPROPERTIES.items():
-        assert EnvVars.__dict__.get(name) is desc, name
     assert not EnvVars.main_ts_store_uri
     assert not EnvVars.main_vault_uri
     assert not _pin_stack
@@ -74,6 +71,7 @@ def test_clear_traitable_store_state_wipes_bindings():
     EnvVars.use_ts_store_transactions = True  # also pollutes a non-URI classproperty
 
     clear_traitable_store_state()
+    _clear_all_caches()  # -- where clear_traitable_store_state leaves off: assigned EnvVars values live in the getter memos
 
     _assert_store_clean()
     assert EnvVars.use_ts_store_transactions is False
@@ -244,6 +242,34 @@ def test_vault_uri_is_pinned_and_store_opened_when_configured():
     finally:
         unpin_ts_stores()
     _assert_store_clean()
+
+
+def test_pinned_env_vars_are_reapplied_after_isolation():
+    # An assigned classproperty value lives in the getter's @cache memo, which isolation
+    # wipes -- a session fixture's assignment only survives if it is pinned.
+    EnvVars.use_ts_store_transactions = True
+    EnvVars.functional_account_prefix = 'pinned'
+    pin_current_ts_stores(EnvVars.var.use_ts_store_transactions, EnvVars.var.functional_account_prefix)
+    try:
+        _simulate_test_isolation()
+        assert EnvVars.use_ts_store_transactions is True
+        assert EnvVars.functional_account_prefix == 'pinned'
+    finally:
+        unpin_ts_stores()
+
+    _clear_all_caches()  # -- unpin's restore re-applied the outer frame, not the defaults
+    assert EnvVars.use_ts_store_transactions is False
+    assert EnvVars.functional_account_prefix == 'xx'
+
+
+def test_unpinned_env_vars_do_not_survive_isolation():
+    EnvVars.use_ts_store_transactions = True
+    pin_current_ts_stores()
+    try:
+        _simulate_test_isolation()
+        assert EnvVars.use_ts_store_transactions is False
+    finally:
+        unpin_ts_stores()
 
 
 # ---------------------------------------------------------------------------

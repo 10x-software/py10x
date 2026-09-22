@@ -45,9 +45,15 @@ def test_xxfin_main_store():
     XXFinEnvVars.default_pricing_context_name = 'Abu Dhabi 20251010'
     XXFinEnvVars.use_cxxfin = True
 
-    # Survive py10x_core test_isolation: re-publish all open stores (main, mkt_data, …)
-    # and main/vault URIs after each test clear. Pin only after run() has opened them.
-    pin_current_ts_stores()
+    # Survive py10x_core test_isolation: re-publish all open stores (main, mkt_data, …),
+    # main/vault URIs and the default pricing context after each test clear. Pin only after
+    # run() has opened the stores and the var is set.
+    #
+    # use_cxxfin is deliberately NOT pinned: testlib/cxx_or_py.py's ``use_cxx`` fixture drives it
+    # as a pair with XXCommonEnvVars.use_cxx_curve, and re-applying one half of that pair after
+    # every clear leaves the flags disagreeing -- the interpolator patch is gated on use_cxx_curve,
+    # so DateCurve then interpolates over unset (XNone) values.
+    pin_current_ts_stores(XXFinEnvVars.var.default_pricing_context_name)
     try:
         yield TsStore.instance_from_uri(uri=EnvVars.main_ts_store_uri)
     finally:
