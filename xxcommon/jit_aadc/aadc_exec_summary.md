@@ -8,8 +8,8 @@ handled automatically on import by `core_10x.callable_instrumentation`.
 ## Files
 
 - `core_10x/callable_instrumentation.py` -- generic, theme-agnostic instrumentation facility.
-- `core_10x/jit_aadc/aadc_context.py` -- `AADCContext`, the AADC-specific recording context.
-- `core_10x/jit_aadc/aadc_exec.py` -- the AADC theme: rewriter, kernel, exec, wiring.
+- `xxcommon/jit_aadc/aadc_context.py` -- `AADCContext`, the AADC-specific recording context.
+- `xxcommon/jit_aadc/aadc_exec.py` -- the AADC theme: rewriter, kernel, exec, wiring.
 
 ## `callable_instrumentation.py`
 

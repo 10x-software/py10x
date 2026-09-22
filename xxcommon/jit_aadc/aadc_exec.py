@@ -13,7 +13,7 @@ from core_10x.exec_control import BoundTrait, GRAPH_ON, BTP
 from core_10x.callable_instrumentation import CallableRewriter, InstrumentationRegistry
 from core_10x.traitable import Traitable, Trait
 
-from core_10x.jit_aadc.aadc_context import AADCContext
+from xxcommon.jit_aadc.aadc_context import AADCContext
 from xxfin.mkt_quotable import MktDeps
 
 
