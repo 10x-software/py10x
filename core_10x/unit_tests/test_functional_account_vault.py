@@ -38,10 +38,10 @@ import pytest
 from core_10x.concrete_resource import CONCRETE_RESOURCE
 from core_10x.environment_variables import EnvVars
 from core_10x.functional_account_keyring import FunctionalAccountKeyring
-from core_10x.global_cache import _clear_all_caches
 from core_10x.resource import Resource
 from core_10x.testlib.strict import need
 from core_10x.testlib.test_databases import SESSION_DB, SESSION_DB_IS_PINNED
+from core_10x.testlib.ts_store_isolation import clear_caches_keeping
 from core_10x.traitable import Traitable, VaultResourceAccessor, VaultUser
 from core_10x.vault_roles import VaultRoles
 from core_10x.vault_utils import VaultUtils
@@ -78,9 +78,9 @@ def functional_account_env(monkeypatch, tmp_path):
         )
         _ensure_login_role(container_account_id)
         monkeypatch.setattr(EnvVars, 'main_vault_uri', VAULT_URI)
-        _clear_all_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
         yield SimpleNamespace(user_id=container_account_id, vault_login=container_account_id, vault_password=PASSWORD_AUTH_PASSWORD)
-        _clear_all_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
         _drop_session_db()
         return
 
@@ -100,11 +100,11 @@ def functional_account_env(monkeypatch, tmp_path):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', VAULT_URI)
     _ensure_login_role(user_id)
 
-    _clear_all_caches()
+    clear_caches_keeping(EnvVars.var.main_vault_uri)
     yield SimpleNamespace(user_id=user_id, vault_login=user_id, vault_password=PASSWORD_AUTH_PASSWORD)
 
     keyring.set_keyring(original_backend)
-    _clear_all_caches()
+    clear_caches_keeping(EnvVars.var.main_vault_uri)
     _drop_session_db()
 
 
@@ -131,7 +131,7 @@ def test_functional_account_self_registers_against_real_vault(functional_account
     # SecKeys.retrieve_* are @cache'd process-globally (keyed without the username, since it
     # reads OsUser.me.name() internally); user_init's own early not-found probe cached a stale
     # negative result before registration wrote the real value. Invalidate it, same as vault_env.
-    _clear_all_caches()
+    clear_caches_keeping(EnvVars.var.main_vault_uri)
 
     # -- Prove the *real* keyring backend (not a dict monkeypatch) actually received the
     #    secrets that SecKeys.change_master_password / change_vault_login_password wrote.

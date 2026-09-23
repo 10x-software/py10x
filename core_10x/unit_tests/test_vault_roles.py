@@ -9,11 +9,11 @@ import core_10x.traitable as traitable_mod
 import pytest
 import uuid6
 from core_10x.environment_variables import EnvVars
-from core_10x.global_cache import _clear_all_caches
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.resource import Resource
 from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
+from core_10x.testlib.ts_store_isolation import clear_caches_keeping
 from core_10x.traitable import TraitableHistory, VaultResourceAccessor, VaultUser
 from core_10x.ts_store import TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
@@ -253,14 +253,14 @@ def test_worker_cannot_admin_save_on_auth_postgres(monkeypatch):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', uri)
     try:
         VaultRoles.setup(admin, worker=worker, worker_password=pwd).throw()
-        _clear_all_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
         VaultUtils.user_init(login=worker, password=pwd, master_password='MasterPwd9!').throw()
-        _clear_all_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
         rc = VaultUtils.admin_save_user_credentials()
         assert not rc
         assert 'vault admin role required' in rc.error()
     finally:
-        _clear_all_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
         TsStore.s_instances.clear()
         maint = PostgresStore.instance_from_uri(
             Resource.uri_no_dbname(uri), username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False

@@ -38,6 +38,7 @@ from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import _clear_all_caches
 from core_10x.resource import Resource
 from core_10x.sec_keys import SecKeys
+from core_10x.testlib.ts_store_isolation import clear_caches_keeping
 from core_10x.traitable import Traitable, VaultUser
 from core_10x.vault_utils import VaultUtils
 
@@ -93,12 +94,6 @@ def vault_env(monkeypatch):
     #    ``ui_10x/apps/collection_editor_app.py``).
     monkeypatch.setattr(EnvVars, 'main_vault_uri', VAULT_URI)
 
-    def clear_caches() -> None:
-        """``_clear_all_caches`` wipes the ``EnvVars`` classproperty caches too — an assigned
-        value lives there, not on the class — so the vault URI must be re-applied after a clear."""
-        _clear_all_caches()
-        EnvVars.main_vault_uri = VAULT_URI
-
     env = SimpleNamespace(
         keyring=keyring,
         text_q=text_q,
@@ -119,17 +114,17 @@ def vault_env(monkeypatch):
         what we want when switching identity.
         """
         current_os[0] = name
-        clear_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
 
     def run_user_init(*, vault_login: str, vault_pwd: str, master_pwd: str, new_machine: bool = False) -> None:
         """Run ``VaultUtils.user_init`` non-interactively (kwargs, not prompts)."""
         VaultUtils.user_init(new_machine=new_machine, login=vault_login, password=vault_pwd, master_password=master_pwd).throw()
-        clear_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
 
     def clear_local_keyring() -> None:
         """Simulate a fresh machine: wipe OS-keyring entries for the current user."""
         keyring.clear()
-        clear_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
 
     env.switch_os_user = switch_os_user
     env.run_user_init = run_user_init

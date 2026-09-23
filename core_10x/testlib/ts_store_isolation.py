@@ -60,6 +60,18 @@ if TYPE_CHECKING:
 _pin_stack: list[tuple[dict, tuple | None, tuple | None, tuple[_EnvVars.Var, ...]]] = []
 
 
+def clear_caches_keeping(*env_vars: _EnvVars.Var) -> None:
+    """``_clear_all_caches`` for a test that assigned ``EnvVars`` and must keep the assignment.
+
+    An assigned classproperty value lives in the getter's ``@cache`` memo, so a plain clear
+    reverts it to the env var / default. Pass the vars to keep (e.g. ``EnvVars.var.main_vault_uri``);
+    each is read before the clear and re-applied after it.
+    """
+    _clear_all_caches()
+    for var in env_vars:
+        setattr(var.env_var_class, var.attr_name, var.value)
+
+
 def clear_traitable_store_state() -> None:
     """Drop Traitable store bindings (URIs, main/vault caches, store_per_class, s_instances)."""
     Traitable.main_store.clear()
