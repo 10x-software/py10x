@@ -5,6 +5,7 @@ import sys
 import textwrap
 from typing import Callable
 
+from core_10x.package_refactoring import PackageRefactoring
 from core_10x.trait import TRAIT_METHOD
 from core_10x.traitable import Traitable, Trait
 
@@ -75,6 +76,7 @@ class InstrumentationRegistry:
 
         self.known_module_names: set[str]   = set()
         self.target_base_classes: set[type] = { Traitable }
+        self.exclude_classes: set[type]     = set()   #-- target_base_classes entries not instrumented themselves
 
         self.instrumented_callables: dict[tuple[object, str], tuple[Callable, Callable]] = {}  #-- (owner, attr_name) -> (original, instrumented)
         self.instrumented_getters: dict[Callable, Callable] = {}    #-- orig_getter -> instrumented_getter
@@ -94,36 +96,69 @@ class InstrumentationRegistry:
             self._finder = None
 
     def apply(self):
-        Trait.set_edge_deps_tracking(True)
+        Trait.set_use_instrumented_getters(True)
         for (owner, attr_name), (original, instrumented) in self.instrumented_callables.items():
             setattr(owner, attr_name, instrumented)
 
     def restore(self):
-        Trait.set_edge_deps_tracking(False)
+        Trait.set_use_instrumented_getters(False)
         for (owner, attr_name), (original, instrumented) in self.instrumented_callables.items():
             setattr(owner, attr_name, original)
 
     def register_modules(self, *module_names: str):
         self.known_module_names.update(module_names)
 
-    def set_target_base_classes(self, *target_base_classes):
+    def set_target_base_classes(self, *target_base_classes: type | str):
+        """
+        Replaces the current target base classes. Each entry may be an actual class object (used
+        as-is) or a dotted class name (str), resolved via PackageRefactoring.find_class() -- lets a
+        caller name a class without having to import it themselves first.
+        """
         if target_base_classes:
             base_classes = self.target_base_classes
             base_classes.clear()
+            modules_touched = set()
             for base_class in target_base_classes:
-                assert issubclass(base_class, Traitable), f'{base_class} is not a subclass of Traitable'
+                if isinstance(base_class, str):
+                    base_class = PackageRefactoring.find_class(base_class)
                 base_classes.add(base_class)
+                modules_touched.add(sys.modules[base_class.__module__])
+
+            #-- resolving a name (or just referencing an already-imported class) may have imported
+            # its module before base_classes above was complete -- re-walk it now, with the target
+            # set finally settled, so the named class AND any sibling subclasses in the same module
+            # get a fair (re-)evaluation. Safe to call even for a module already fully processed --
+            # instrument_class()/instrument_if_target_class() are idempotent per class.
+            for module in modules_touched:
+                self.instrument_module(module)
+
+    def set_exclude_classes(self, *exclude_classes: type | str):
+        """
+        Marks target_base_classes entries that should NOT be instrumented themselves -- their
+        subclasses still match normally. Same type | str acceptance as set_target_base_classes.
+        """
+        if exclude_classes:
+            classes = self.exclude_classes
+            classes.clear()
+            for cls in exclude_classes:
+                if isinstance(cls, str):
+                    cls = PackageRefactoring.find_class(cls)
+                classes.add(cls)
 
     def instrument_module(self, module):
         if module.__name__ in self.known_module_names:
             self.instrument_known_module(module)
         else:
-            for name, member in vars(module).items():
+            #-- list(...): a snapshot, not a live view -- instrumenting one of this module's own
+            # classes below can mutate this SAME module's __dict__ (CallableRewriter.instrument()
+            # binds new globals into a method's defining module), which would otherwise raise
+            # "dictionary changed size during iteration" reentrantly, one frame down.
+            for name, member in list(vars(module).items()):
                 if isinstance(member, type) and member.__module__ == module.__name__:
                     self.instrument_if_target_class(member)
 
     def instrument_known_module(self, module):
-        for name, member in vars(module).items():
+        for name, member in list(vars(module).items()):   #-- snapshot -- see instrument_module()
             if inspect.isfunction(member):
                 if member.__module__ == module.__name__:
                     self.instrument_free_function(module, member)
@@ -132,16 +167,20 @@ class InstrumentationRegistry:
                     self.instrument_class(member)
 
     def instrument_if_target_class(self, cls):
+        #-- match check comes BEFORE the cycle guard below, deliberately: set_target_base_classes()
+        # may re-walk a module whose classes were already seen once under a since-replaced target
+        # set (see its own comment) -- a class must always get a fresh match re-evaluation, even if
+        # its NESTED-class recursion (searched_classes, below) already ran once.
+        if cls not in self.exclude_classes and issubclass(cls, tuple(self.target_base_classes)):
+            self.instrument_class(cls)
+            return
+
         if cls in self.searched_classes:
             return
 
         self.searched_classes.add(cls)
 
-        if issubclass(cls, tuple(self.target_base_classes)):
-            self.instrument_class(cls)
-            return
-
-        for name, member in vars(cls).items():
+        for name, member in list(vars(cls).items()):   #-- snapshot -- see instrument_module()
             if isinstance(member, type):
                 self.instrument_if_target_class(member)   #-- not a match itself - keep looking for nested classes
 
@@ -154,7 +193,7 @@ class InstrumentationRegistry:
         getter_suffix_len = len(getter_suffix)
         is_traitable = issubclass(cls, Traitable)
         trait_dir = cls.s_dir if is_traitable else None
-        for name, member in vars(cls).items():
+        for name, member in list(vars(cls).items()):   #-- snapshot -- see instrument_module()
             if isinstance(member, classmethod) or isinstance(member, staticmethod) or inspect.isfunction(member):
                 if is_traitable and name.endswith(getter_suffix):
                     trait = trait_dir.get(name[:-getter_suffix_len])
@@ -194,7 +233,7 @@ class InstrumentationRegistry:
             instrumented_f_get = self.instrument_callable(original_f_get)
             instrumented_getters[original_f_get] = instrumented_f_get
 
-        trait.set_f_get_edt(instrumented_f_get)
+        trait.set_f_get_instrumented(instrumented_f_get)
 
     def instrument_free_function(self, module, function):
         key = (module, function.__name__)

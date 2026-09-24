@@ -32,15 +32,15 @@ class ExternalWorld(NamedTraitable):
     """
     name: str                   = T(T.ID)
     current_date: date          = RT()
-    leaf_mass_available: float  = RT(10)      #-- grams of fresh host-plant leaf within reach
-    wind_speed: float           = RT(5)      #-- m/s, signed -- positive = tailwind, negative = headwind
+    leaf_mass_available: float  = RT(10)    #-- grams of fresh host-plant leaf within reach
+    wind_speed: float           = RT(5)     #-- m/s, signed -- positive = tailwind, negative = headwind
 
     def current_date_get(self) -> date:
         return date.today()
 
     @classmethod
     def current(cls):
-        return ExternalWorld(name=EXTERNAL_WORLD_NAME)
+        return ExternalWorld(name = EXTERNAL_WORLD_NAME)
 
 class MonarchButterfly(NamedTraitable):
     """

@@ -36,7 +36,7 @@ affects modules imported *after* that point.
   - `instrument_getter(trait)`, `instrument_method(cls, method)`, `instrument_free_function(module, function)`:
     build the instrumented copy via `instrument_callable`, cache it, and register it for
     activation. Getters activate via a single global C++ flag
-    (`Trait.set_edge_deps_tracking`); methods/functions activate via `setattr` swap.
+    (`Trait.set_use_instrumented_getters`); methods/functions activate via `setattr` swap.
   - `apply()`/`restore()`: toggle activation of everything already built. Do not build
     anything themselves.
   - `enable_auto_instrumentation()`/`disable_auto_instrumentation()`: install/remove a

@@ -1,23 +1,33 @@
 from __future__ import annotations
 
 import ast
+import builtins
 import linecache
 import math
 from typing import Any
+from datetime import date
 
 import aadc
 from aadc import aadc_assert, idouble, ibool, iint, ErrorCollectionMode, record_kernel
 from aadc.evaluate_wrappers import evaluate_kernel
+from py10x_kernel import BTrait
 
 from core_10x.exec_control import BoundTrait, GraphDeps, GRAPH_ON, BTP
 from core_10x.callable_instrumentation import CallableRewriter, InstrumentationRegistry
+from core_10x.global_cache import cache
 from core_10x.traitable import Traitable, Trait
 
 from xxcommon.jit_aadc.aadc_context import AADCDomainSwap
+from xxcommon.jit_aadc.idate import IDate
 
 
-AADC_ACTIVE_TYPES = {idouble, ibool, iint}
-
+AADC_TYPE_MAP = {
+    float:      idouble,
+    int:        iint,
+    bool:       ibool,
+    date:       IDate,
+}
+AADC_ACTIVE_TYPES = frozenset(AADC_TYPE_MAP.values())
 
 class AadcCallableRewriter(CallableRewriter):
     """
@@ -59,7 +69,7 @@ class AadcCallableRewriter(CallableRewriter):
 
 
 #-- names present in both aadc.math and stdlib math -- the eligible set for call redirection
-AADC_MATH_NAMES = { n for n in vars(aadc.math) if not n.startswith('_') and hasattr(math, n) }
+AADC_MATH_NAMES = { n for n in vars(aadc.math) if not n.startswith('_') and (hasattr(math, n) or hasattr(builtins, n)) }
 
 
 class AadcKernel:
@@ -77,7 +87,9 @@ class AadcKernel:
             self.kernel = kernel
             self.input_handles = input_handles = {}
             for cls, obj_id, trait, value in deps.deps(objects = False):
-                iq = idouble(value)
+                active_type = AADC_TYPE_MAP.get(trait.data_type)
+                assert active_type, f'Cannot convert to aadc active type: {cls.__name__}.{trait.name} declared {trait.data_type}'
+                iq = active_type(value)
                 deps.perturb(cls, obj_id, trait, iq)
                 h = iq.mark_as_input()
                 input_handles[(cls, obj_id, trait)] = h
@@ -85,6 +97,17 @@ class AadcKernel:
             #-- if_guard()'s aadc_assert calls fire inline, during this call, as each instrumented
             # `if` is reached -- nothing further needed here for staleness-checking.
             res_active = self.obj.get_trait_value(self.trait)
+            if type(res_active) not in AADC_ACTIVE_TYPES:
+                raise RuntimeError(
+                    f"AADC recording produced a passive result for {type(self.obj).__name__}.{self.trait.name} "
+                    f"(got {type(res_active).__name__}, not an AADC active type) -- the recorded computation "
+                    f"never actually touched an active input.\n"
+                    f"Possible reasons:\n"
+                    f"  - inputs_spec is missing a trait this computation depends on (e.g. only some of a\n"
+                    f"    class's relevant traits were listed).\n"
+                    f"  - inputs_spec is missing an entire target class this computation depends on.\n"
+                    f"Fix: add the missing class/trait names to inputs_spec, then rebuild."
+                )
             self.output = res_active.mark_as_output()
 
     def _resolve_inputs(self) -> dict:
@@ -95,7 +118,12 @@ class AadcKernel:
         inputs = {}
         for (cls, obj_id, trait), handle in self.input_handles.items():
             value = read(cls.s_bclass, obj_id, trait)
-            inputs[handle] = value.val() if type(value) in AADC_ACTIVE_TYPES else value
+            #-- TODO: a special treatment of IDate below is temporary - need a generic aadc API (!)
+            aadc_type = type(value)
+            if aadc_type in AADC_ACTIVE_TYPES:
+                inputs[handle] = aadc_type.input_value(value) if aadc_type is IDate else value.val()
+            else:
+                inputs[handle] = value
         return inputs
 
     @staticmethod
@@ -106,17 +134,19 @@ class AadcKernel:
 class AadcExec:
     s_current_log: set | None = None   #-- class attribute, single global slot -- see if_guard()
 
-    def __init__(self, bound_trait: BoundTrait, target_class: type, *target_trait_names: str, graph: BTP = None):
+    def __init__(self, bound_trait: BoundTrait, inputs_spec: dict[type, tuple[str, ...]], graph: BTP = None):
+        """
+        inputs_spec: {target_class: (trait_name, ...), ...} -- which classes' instances, and which of their
+        traits, count as AADC inputs when discovering bound_trait's dependencies. Any number of entries.
+        """
         self.bound_trait = bound_trait
-        self.target_class = target_class
-        self.target_trait_names = target_trait_names
+        self.inputs_spec = inputs_spec
         self.graph = graph if graph is not None else GRAPH_ON()
         self.kernels: dict[frozenset, AadcKernel] = {}
 
     def __enter__(self):
-        _registry.apply()      #-- activate whatever's already been built via auto-instrumentation
-        # at import time (see module-level _registry.enable_auto_instrumentation() below) --
-        # apply()/restore() only toggle activation, they never build anything themselves.
+        self.instrumentation_registry().apply()    #-- lazily builds the registry on first use, if it
+        # doesn't exist yet; apply()/restore() themselves only toggle activation, never build anything.
         self._domain_swap = AADCDomainSwap()
         self._domain_swap.__enter__()
         self.graph.__enter__()
@@ -125,7 +155,28 @@ class AadcExec:
     def __exit__(self, *args):
         self.graph.__exit__(*args)
         self._domain_swap.__exit__(*args)
-        _registry.restore()
+        self.instrumentation_registry().restore()
+
+    @classmethod
+    @cache
+    def _get_registry(cls) -> InstrumentationRegistry:
+        registry = InstrumentationRegistry(
+            AadcCallableRewriter(if_wrapper = cls.if_guard, call_names = AADC_MATH_NAMES, call_target = aadc.math)
+        )
+        registry.enable_auto_instrumentation()
+        return registry
+
+    @classmethod
+    def instrumentation_registry(cls, target_base_classes: tuple = (), known_modules: tuple = ()) -> InstrumentationRegistry:
+        """
+        App-facing entry point to get (and, on first call, create) this theme's instrumentation
+        registry, optionally narrowing its scope -- call before anything the app wants covered
+        gets imported (see "Import order matters" in aadc_exec_summary.md).
+        """
+        registry = cls._get_registry()
+        registry.set_target_base_classes(*target_base_classes)
+        registry.register_modules(*known_modules)
+        return registry
 
     @classmethod
     def if_guard(cls, guard_id: str, condition):
@@ -151,7 +202,7 @@ class AadcExec:
 
             kernel = self.kernels.get(signature)
             if kernel is None:                            #-- 2.2: miss -> build
-                deps = GraphDeps(graph, self.bound_trait, self.target_class, *self.target_trait_names)
+                deps = GraphDeps(graph, self.bound_trait, self.inputs_spec)
                 kernel = AadcKernel(obj, trait)
                 kernel.build(deps)
 
@@ -228,13 +279,3 @@ def raise_uninstrumented_warning(w: dict):
         f"  - Foreign module not listed in the registry.\n"
         f"Fix: add the relevant class/module to the registry, then rebuild."
     )
-
-
-_registry = InstrumentationRegistry(
-    AadcCallableRewriter(
-        if_wrapper = AadcExec.if_guard,
-        call_names = AADC_MATH_NAMES,
-        call_target = aadc.math,
-    )
-)
-_registry.enable_auto_instrumentation()
