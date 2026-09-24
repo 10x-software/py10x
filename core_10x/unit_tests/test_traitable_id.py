@@ -138,3 +138,77 @@ def test_id_lt_returns_not_implemented_for_non_id():
 def test_id_eq_returns_not_implemented_for_non_id():
     result = ID('a').__eq__('x')
     assert result is NotImplemented
+
+
+# ---------------------------------------------------------------------------
+# Unshared IDs, and agreement with the kernel's TID
+# ---------------------------------------------------------------------------
+
+
+def test_unshared_ids_are_distinct():
+    """Two objects under construction are not the same entity, so their (valueless) IDs
+    must not compare equal -- otherwise a set collapses them and only one survives."""
+    a, b = ID(), ID()
+    alias = a
+    assert a == alias, 'an unshared ID is still equal to itself'
+    assert a != b
+
+
+def test_unshared_id_is_not_equal_to_a_valued_one():
+    assert ID() != ID('x')
+    assert ID('x') != ID()
+
+
+def test_id_eq_and_hash_agree_with_tid():
+    """Python's ID rule (traitable_id.py) and the kernel's TID rule (cxx10x tid.h) are two
+    separate implementations of one contract; this holds them together."""
+    from core_10x.exec_control import CACHE_ONLY, INTERACTIVE
+    from core_10x.trait_definition import T
+    from core_10x.traitable import Traitable
+
+    class Q(Traitable):
+        name: str = T(T.ID)
+
+    with CACHE_ONLY(), INTERACTIVE():
+        unshared_a, unshared_b = Q(), Q()
+        shared = Q(name='q', _replace=True)
+        same_id = Q(name='q')
+
+        for left, right in ((unshared_a, unshared_a), (unshared_a, unshared_b), (shared, same_id), (unshared_a, shared)):
+            assert (left.id() == right.id()) is left.xid()._equals(right.xid()), (left.id(), right.id())
+            if left.id() == right.id() and left.id().value is not None:
+                assert hash(left.id()) == hash(right.id())
+            # The kernel still hashes invalid TIDs -- it needs them distinct inside
+            # tracked_objects(), whose set never outlives the call.
+            assert left.xid()._hash() == right.xid()._hash() or left.id() != right.id()
+
+
+def test_unshared_traitable_cannot_be_put_in_a_set():
+    """Refused rather than silently filed under a hash share() will change.
+
+    Hashing an unshared traitable and then sharing it would leave the entry under the old
+    hash: `in`, .get() and .remove() would all miss it while it kept the object alive. The
+    kernel still hashes an invalid TID internally -- see _hash above -- because the
+    containers it uses for those never outlive the share.
+    """
+    from core_10x.exec_control import CACHE_ONLY, INTERACTIVE
+    from core_10x.trait_definition import T
+    from core_10x.traitable import Traitable
+
+    class R(Traitable):
+        name: str = T(T.ID)
+
+    with CACHE_ONLY(), INTERACTIVE():
+        pending = R()
+        with pytest.raises(TypeError, match='not hashable'):
+            set().add(pending)
+        with pytest.raises(TypeError, match='not hashable'):
+            hash(pending.id())
+
+        pending.name = 'landed'
+        assert pending.share(False)
+
+        # Hashable once the ID has landed, and stable from here on.
+        holder = {pending}
+        assert pending in holder
+        assert hash(pending) == hash(R(name='landed'))
