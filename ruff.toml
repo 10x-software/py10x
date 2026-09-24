@@ -12,6 +12,7 @@ exclude = [
     "core_10x/jit/*",
     "core_10x/xnone.py",
     "core_10x/selectable_traitable_class.py",
+    "core_10x/callable_instrumentation.py",
     "core_10x/__init__.py",
     "core_10x/environment_variables.py",
     "core_10x/basket.py",
@@ -39,6 +40,7 @@ exclude = [
     "xxcommon/manual_tests/*",
     "xxcommon/README.md",
     "xxcommon/*_curve.py",
+    "xxcommon/jit_aadc/*",
     "xx_fin/xxfin/*",
 ]
 
@@ -89,6 +91,7 @@ exclude = [
     "core_10x/attic/*.py",
     "docs/notebooks/*.py",
     "core_10x/jit/*",
+    "core_10x/callable_instrumentation.py",
     "ui_10x/qt6/table*.py",
     "xx_fin/xxfin/jit_aadc/*",
 ]
@@ -105,6 +108,11 @@ exclude = [
 ]
 "ui_10x/rio/apps/examples/examples/pages/login_page.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
+]
+"xxcommon/jit_aadc/*" = [
+    "I001", # Import sort
+    "N802", # Function names should be lowercase
+    "N815", # Variable in class scope should not be mixedCase
 ]
 "xxcommon/*rdate.py" = [
     "N802", # Function names should be lowercase

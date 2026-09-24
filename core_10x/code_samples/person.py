@@ -28,6 +28,8 @@ class Person(Traitable):
 
     older_than: bool
 
+    tags: list[str]         = T(default = [])
+
     def first_name_verify(self, t, value: str) -> RC:
         return verify_alpha(t, value)
 
