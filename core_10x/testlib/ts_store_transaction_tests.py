@@ -6,13 +6,13 @@ Use ``ts_instance`` from conftest: core_10x → DuckDbStore; infra_10x → Mongo
 import pytest
 from uuid6 import uuid7
 
+from core_10x.exec_control import INTERACTIVE
 from core_10x.rc import RC
 from core_10x.testlib.fixtures import with_transactions
 from core_10x.testlib.strict import need
 from core_10x.trait_definition import T
 from core_10x.traitable import Traitable
 from core_10x.ts_store import SaveIfChanged
-from xxcommon.conftest import ts_instance
 
 
 class TestTsStoreTransaction:
@@ -118,7 +118,6 @@ class TestTsStoreTransaction:
 
 
 class TestSaveIfChanged:
-
     @pytest.fixture
     def data(self, ts_instance):
 
@@ -130,15 +129,15 @@ class TestSaveIfChanged:
             i: int = T(T.ID)
             value: int = T()
 
-            def value_verify(self,t,value) -> bool:
-                return RC(value>0, "value must be positive")
+            def value_verify(self, t, value) -> bool:
+                return RC(value > 0, 'value must be positive')
 
-        tracked = (A,B)
+        tracked = (A, B)
         coll_names = tuple(f'save_if_changed#{cls.__name__.lower()}#{uuid7().hex}' for cls in tracked)
         assert not set(coll_names).intersection(ts_instance.collection_names())
 
         with ts_instance:
-            yield lambda: tuple(cls(i=i, _collection_name=coll_name) for i, (coll_name,cls) in enumerate(zip(coll_names,tracked)))
+            yield lambda: tuple(cls(i=i, _collection_name=coll_name) for i, (coll_name, cls) in enumerate(zip(coll_names, tracked, strict=False)))
 
         for coll_name in coll_names:
             ts_instance.delete_collection(coll_name)
@@ -154,7 +153,6 @@ class TestSaveIfChanged:
         assert a.__class__.collection(a._collection_name).count() == 1
         assert b.__class__.collection(b._collection_name).count() == 0
         assert tracker.tracked_objects() == []
-
 
         a.delete()
         assert a.__class__.collection(a._collection_name).count() == 0
@@ -212,7 +210,6 @@ class TestSaveIfChanged:
 
         assert b.__class__.collection(b._collection_name).count() == 1
 
-
     def test_save_if_changed_reload_reverts_and_clears(self, ts_instance, data):
         a, _b = data()
 
@@ -226,8 +223,8 @@ class TestSaveIfChanged:
 
         ok = ctx.reload()
         assert ok
-        assert a.value == 1        # reverted to the stored value
-        assert ctx.tracked_objects() == []   # cleared once reload() succeeds
+        assert a.value == 1  # reverted to the stored value
+        assert ctx.tracked_objects() == []  # cleared once reload() succeeds
 
     def test_save_if_changed_failed_save_keeps_tracked_objects(self, ts_instance, data):
         a, b = data()
@@ -320,3 +317,112 @@ class TestSaveIfChanged:
         ctx.save().throw()
         assert a.__class__.collection(a._collection_name).count() == 1
 
+    def test_save_if_changed_update_adopts_objects_from_an_accepted_nested_scope(self, ts_instance, data):
+        """A nested staging scope exports its *values* into the accumulator's cache, but
+        `export_nodes` writes nodes directly rather than through `set_trait_value`, so the
+        accumulator never sees the objects. update() is how they are handed over."""
+
+        a, _b = data()
+
+        accumulator = INTERACTIVE()
+        tracker = SaveIfChanged(auto_save=False, parent=accumulator)
+
+        with accumulator:
+            staging = INTERACTIVE()  # nested in the accumulator, not in the ambient scope
+        nested = SaveIfChanged(auto_save=False, parent=staging)
+        with nested:
+            a.value = 10
+
+        with accumulator:
+            staging.export_nodes()  # "accept": values move up one level, objects do not
+        assert tracker.tracked_objects() == []
+
+        tracker.update(nested)
+        assert tracker.save()
+        assert a.reload()
+        assert a.value == 10
+
+    def test_save_if_changed_update_skipped_for_a_dropped_nested_scope(self, ts_instance, data):
+        """ "Cancel" is simply not exporting and not updating -- the accumulator is untouched."""
+        a, _b = data()
+
+        accumulator = INTERACTIVE()
+        tracker = SaveIfChanged(auto_save=False, parent=accumulator)
+
+        with accumulator:
+            staging = INTERACTIVE()
+        nested = SaveIfChanged(auto_save=False, parent=staging)
+        with nested:
+            a.value = 99
+
+        assert tracker.save()  # nothing exported, nothing adopted
+        assert a.__class__.collection(a._collection_name).count() == 0
+
+    def test_save_if_changed_update_is_idempotent(self, ts_instance, data):
+        """update() skips objects this tracker already recorded, so folding the same nested
+        scope in twice is a no-op."""
+        a, b = data()
+
+        ctx = SaveIfChanged(auto_save=False)
+        with ctx:
+            a.value = 1
+
+        other = SaveIfChanged(auto_save=False)
+        with other:
+            a.value = 2  # already tracked by ctx
+            b.value = 3
+
+        ctx.update(other)
+        assert list(ctx._tracked()) == [a, b]
+
+        ctx.update(other)  # idempotent -- update() is pointer-deduped
+        assert list(ctx._tracked()) == [a, b]
+
+        ctx.save().throw()
+        assert list(ctx._tracked()) == []  # save() clears adopted objects too
+        assert a.__class__.collection(a._collection_name).count() == 1
+        assert b.__class__.collection(b._collection_name).count() == 1
+
+    def test_save_if_changed_update_dedups_instances_of_the_same_entity(self, ts_instance, data):
+        """Dedup is by ID, not by identity. The kernel's own dedup is pointer-based, so two
+        instances of one entity are tracked separately -- but they share values and revision,
+        so only one of them should ever be saved."""
+        a, _b = data()
+        same = a.__class__(i=a.i, _collection_name=a._collection_name)
+        assert same is not a and same == a
+
+        ctx = SaveIfChanged(auto_save=False)
+        with ctx:
+            a.value = 1
+
+        other = SaveIfChanged(auto_save=False)
+        with other:
+            same.value = 2
+        assert other.tracked_objects() == [same]
+
+        ctx.update(other)
+        assert ctx.tracked_objects() == [a], 'the kernel collapses them by ID on read'
+        assert list(ctx._tracked()) == [a]
+
+        ctx.save().throw()
+        assert a.__class__.collection(a._collection_name).count() == 1
+
+    def test_save_if_changed_keeps_distinct_objects_that_have_no_ids_yet(self, ts_instance, data):
+        """Two objects under construction are distinct pending entities, so ID dedup must
+        not collapse them -- both have to survive to be saved. This rests on unshared IDs
+        comparing by identity (see test_traitable_id.py::test_unshared_ids_are_distinct)."""
+
+        a, _b = data()
+        cls, coll = a.__class__, a._collection_name
+
+        with INTERACTIVE():
+            x = cls(_collection_name=coll)
+            y = cls(_collection_name=coll)
+            assert x != y, 'precondition: unshared objects are distinct entities'
+
+            ctx = SaveIfChanged(auto_save=False)
+            with ctx:
+                x.value = 1
+                y.value = 2
+
+            assert list(ctx._tracked()) == [x, y]

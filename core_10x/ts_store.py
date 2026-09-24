@@ -5,8 +5,7 @@ from collections import deque
 from contextlib import ExitStack, contextmanager, nullcontext
 from typing import TYPE_CHECKING
 
-from py10x_kernel import BFlags
-from py10x_kernel import BTraitableProcessor
+from py10x_kernel import BFlags, BTraitableProcessor
 from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
 
 from core_10x.environment_variables import EnvVars
@@ -21,7 +20,7 @@ from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence, Generator
+    from collections.abc import Generator, Iterable, Sequence
     from datetime import datetime
 
     from core_10x.traitable import Traitable
@@ -318,9 +317,7 @@ class SaveIfChanged(BTPTracker):
 
     def _tracked(self) -> Generator:
         return (
-            traitable
-            for traitable in self.tracked_objects()
-            if traitable.is_storable() and (not self.classes or isinstance(traitable, self.classes))
+            traitable for traitable in self.tracked_objects() if traitable.is_storable() and (not self.classes or isinstance(traitable, self.classes))
         )
 
     def save(self) -> RC:
