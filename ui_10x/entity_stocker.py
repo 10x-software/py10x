@@ -1,9 +1,10 @@
 from typing import Any
 
-from core_10x.traitable import RT, Traitable
+from core_10x.traitable import RT, T, Traitable
+from core_10x.ts_store import SaveIfChanged
 
 from ui_10x.traitable_editor import TraitableEditor, TraitableView
-from ui_10x.utils import ux, ux_answer, ux_push_button, ux_success, ux_warning
+from ui_10x.utils import ux, ux_answer, ux_push_button, ux_warning
 
 
 class StockerPlug(Traitable):
@@ -13,6 +14,7 @@ class StockerPlug(Traitable):
     current_entity_trait_name: str  = RT('current_entity')
     changed_entity_cb_name: str     = RT('on_changed_entity')        #-- f(ce: Traitable) - after accepting edits and reloading
     deleted_entity_cb_name: str     = RT('on_deleted_entity')        #-- f(de: Traitable)
+    track_changes_trait_name: str     = RT('track_changes')
     # fmt: on
 
     new_entity_cb: Any
@@ -21,6 +23,7 @@ class StockerPlug(Traitable):
 
     current_class: type
     current_entity: Traitable
+    track_changes: bool
 
     def _cb(self, cb_name: str):
         m = self.master
@@ -57,11 +60,27 @@ class StockerPlug(Traitable):
 
         return m.get_value(self.current_entity_trait_name)
 
+    def track_changes_get(self) -> bool:
+        m = self.master
+        if not m:
+            return None
+
+        return m.get_value(self.track_changes_trait_name)
+
 
 class EntityStocker(Traitable):
     plug: StockerPlug
     entity_viewer: TraitableEditor
     buttons_spec: dict
+    change_trackers: dict[Traitable, SaveIfChanged] = RT(T.STICKY, default={})
+
+    def _on_accept(self, rc, ce: Traitable, ed: TraitableEditor):
+        # Only tracked edits belong here. Without the guard an untracked edit stores
+        # `None` and pins `ce` in this STICKY dict for the stocker's lifetime, since
+        # entries are dropped only on save/reload.
+        if ed.change_tracker is not None:
+            self.change_trackers[ce] = ed.change_tracker
+        self.plug.changed_entity_cb(ce)
 
     def entity_viewer_get(self) -> TraitableEditor:
         ce = self.plug.current_entity
@@ -111,43 +130,41 @@ class EntityStocker(Traitable):
         ce = self.plug.current_entity
         if ce:
             ed = TraitableEditor.editor(ce)
-            if ed.popup():
-                self.plug.changed_entity_cb(ce)
+            track_changes = self.plug.track_changes
+            if track_changes and (tracker := self.change_trackers.get(ce)):
+                ed.change_tracker = tracker
+            ed.popup(track_changes=track_changes, accept_hook=lambda rc: self._on_accept(rc, ce, ed))
 
     def on_reload_entity(self):
         ce = self.plug.current_entity
-        if ce:
-            if not ce.reload():
-                ux_warning(f'Failed to reload entity {ce.__class__}/{ce.id()}', parent=None, on_close=lambda ctx: None)
-            else:
-                self.plug.changed_entity_cb(ce)
+        if not ce:
+            return
+
+        tracker = self.change_trackers.get(ce)
+        # Only reload the tracker once `ce` itself came back: a successful
+        # tracker.reload() clears everything it tracked, so running it after a failed
+        # ce.reload() would leave an empty tracker still listed in change_trackers —
+        # and the next Save would then report success having written nothing.
+        ok = ce.reload() and (tracker is None or tracker.reload())
+
+        if not ok:
+            ux_warning(f'Failed to reload entity {ce.__class__}/{ce.id()}', parent=None, on_close=lambda ctx: None)
+        else:
+            self.change_trackers.pop(ce, None)
+            self.plug.changed_entity_cb(ce)
 
     def on_save_entity(self):
         ce = self.plug.current_entity
-        if ce:
-            try:
-                rc = ce.save()
-                if not rc:
-                    ux_warning(rc.error(), parent=None, on_close=lambda ctx: None)
+        if not ce:
+            return
 
-                return
+        tracker = self.change_trackers.get(ce)
 
-            except Exception:  # -- revision conflict?
-                # -- TODO: resolve revision conflict - MergingEditor
-                ...
-
-            # -- The conflict seems to be resolved, try again
-            try:
-                rc = ce.save()
-                if not rc:
-                    ux_warning(rc.error(), parent=None, on_close=lambda ctx: None)
-                    return
-
-            except Exception:
-                ux_warning('Failed to resolve revision conflict (most probably due to continuous updates from other session(s)')
-                return
-
-            ux_success(f'Conflict resolved, {ce.__class__}/{ce.id()} has been saved', on_close=lambda ctx: None)
+        rc = tracker.save() if tracker else ce.save()
+        if rc:
+            self.change_trackers.pop(ce, None)
+        else:
+            ux_warning(rc.error(), parent=None, on_close=lambda ctx: None)
 
     def on_delete_entity(self):
         ce = self.plug.current_entity

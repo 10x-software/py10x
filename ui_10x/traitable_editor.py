@@ -9,6 +9,7 @@ from core_10x.py_class import PyClass
 from core_10x.rc import RC_TRUE
 from core_10x.trait import Ui
 from core_10x.traitable import Traitable
+from core_10x.ts_store import SaveIfChanged
 
 from ui_10x.trait_editor import TraitEditor
 from ui_10x.traitable_view import TraitableView
@@ -128,6 +129,8 @@ class TraitableEditor:
 
         self.entity = entity
         self.traitable_processor = None
+        self.change_tracker: SaveIfChanged | None = None
+        self._commit: Callable[[], None] | None = None
 
         trait_dir = entity_class.s_dir
         self.trait_hints = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
@@ -193,10 +196,12 @@ class TraitableEditor:
 
     def _cleanup_tp(self, apply: bool):
         self.main_w = None
-        if self.traitable_processor:
-            if apply:
-                self.traitable_processor.export_nodes()
-            self.traitable_processor=None
+        commit, self._commit = self._commit, None
+        self.traitable_processor = None
+        # Cancel is always just dropping the scope: whatever the dialog staged goes
+        # with it, and anything it never staged was never ours to take back.
+        if apply and commit:
+            commit()
 
     def _dialog(self, layout: ux.Layout, title: str, ok: str, min_width: int, on_accept: Callable[[], RC]) -> UxDialog:
         ux.init()
@@ -235,7 +240,7 @@ class TraitableEditor:
             min_width=min_width,
         )
 
-    def dialog(self, layout: ux.Layout = None, copy_entity: bool = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None]  = None, min_width: int = 0) -> UxDialog:
+    def dialog(self, layout: ux.Layout = None, copy_entity: bool = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None]  = None, min_width: int = 0, track_changes: bool = False) -> UxDialog:
         if title is None:
             title = ''
         elif not title:
@@ -244,20 +249,53 @@ class TraitableEditor:
         ok = 'Save' if save else 'Ok'
 
         def on_accept():
-            rc = self.entity.save() if save else RC_TRUE
+            rc = (self.change_tracker.save() if track_changes else self.entity.save()) if save else RC_TRUE
             if not rc:
                 self.warning(rc.error())
             if accept_hook:
                 accept_hook(rc)
             return rc
 
-        if copy_entity:
-            self.traitable_processor = INTERACTIVE()
+        self._commit = None  # what accepting this dialog does with its edits; see _cleanup_tp
+
+        if track_changes:
+            # One accumulator per editor: the tracker that knows what to save, over a
+            # scope holding every accepted-but-unsaved edit. With copy_entity=False
+            # there is no such scope -- edits land in the ambient one as they are made
+            # and cannot be taken back, which is exactly what copy_entity=False means;
+            # the tracker then only records what to save.
+            if self.change_tracker is None:
+                self.change_tracker = SaveIfChanged(auto_save=False, parent=INTERACTIVE() if copy_entity else None)
+
+            if copy_entity:
+                # This dialog's own staging scope, nested inside the accumulator so
+                # Cancel can drop it without touching what earlier dialogs already
+                # accepted. It needs a tracker of its own: a tracker binds its parent
+                # at construction and shares that parent's cache, so the accumulator
+                # cannot stage here.
+                with self.change_tracker.parent:
+                    staging = INTERACTIVE()
+                tracker = self.traitable_processor = SaveIfChanged(auto_save=False, parent=staging)
+
+                def commit():
+                    # The values move up one level; the objects have to be handed over
+                    # separately, since export_nodes writes cache nodes directly rather
+                    # than through set_trait_value and so is invisible to the tracker.
+                    staging.export_nodes()
+                    self.change_tracker.update(tracker)
+
+                self._commit = commit
+            else:
+                self.traitable_processor = self.change_tracker  # already ambient, already tracked
+
+        elif copy_entity:
+            self.traitable_processor = staging = INTERACTIVE()
+            self._commit = staging.export_nodes
 
         return self._dialog(layout, title, ok, min_width, on_accept=on_accept)
 
-    def popup(self, layout: ux.Layout = None, copy_entity = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0) -> None:
-        self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width).exec()
+    def popup(self, layout: ux.Layout = None, copy_entity = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0, track_changes: bool = False) -> None:
+        self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width, track_changes = track_changes).exec()
 
     def warning(self, msg: str, title: str = ''):
         ux_warning(msg, parent = self.main_w, title = title, on_close=lambda ctx: None)

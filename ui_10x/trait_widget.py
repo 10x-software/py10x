@@ -72,6 +72,14 @@ class TraitWidget:
             if not traitable.is_valid(trait):
                 self.style_sheet.update({Ui.BG_COLOR: 'lightblue'}, _system=True)
 
+    def display_text(self) -> str:
+        """Text this widget is currently showing, for content-based sizing.
+
+        Do not rename to `text` to avoid MRO issues! TraitWidget precedes the ux class in
+        every subclass, so a base `text()` would shadow e.g. LineEdit.text.
+        """
+        return ''
+
     def widget_value(self):
         return self._value()
 

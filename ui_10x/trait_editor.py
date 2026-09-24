@@ -69,6 +69,11 @@ class TraitableWrapper:
 
 
 class TraitEditor:
+    # Ceilings for `fit_width` / `fit_height`, in characters and lines. Without
+    # them one long line would size a dialog wider than any screen.
+    s_fit_width_max_chars = 100
+    s_fit_height_max_lines = 20
+
     def __init__(
         self, traitable, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None
     ):
@@ -108,14 +113,29 @@ class TraitEditor:
 
         return label
 
+    def _fit_size(self, tw: TraitWidget) -> tuple[int, int]:
+        """(longest line in chars, line count) of what `tw` shows, each clamped."""
+        lines = tw.display_text().splitlines()
+        longest = max((len(line) for line in lines), default=0)
+        return min(longest, self.s_fit_width_max_chars), min(len(lines), self.s_fit_height_max_lines)
+
     def new_widget(self, update_self=True) -> TraitWidget:
         tw: TraitWidget = TraitWidget.instance(self)
         assert tw, f'{self.traitable.traitable.__class__}.{self.trait.name} - unknown trait widget class'
 
+        fit_width = self.ui_hint.param('fit_width', False)
+        fit_height = self.ui_hint.param('fit_height', False)
+        fit_chars, fit_lines = self._fit_size(tw) if fit_width or fit_height else (0, 0)
+
         avg_char_width = tw.font_metrics().average_char_width()
         min_width = self.ui_hint.param('min_width', 0)
+        if fit_width:
+            min_width = max(min_width, fit_chars)
         if min_width > 0:
             tw.set_minimum_width(min_width * avg_char_width)
+
+        if fit_height and fit_lines > 0:
+            tw.set_minimum_height(fit_lines * tw.font_metrics().height())
 
         max_width = self.ui_hint.param('max_width', 0)
         if max_width > 0:
@@ -144,12 +164,38 @@ class TraitEditor:
         w = mc.widget()
         if not w:
             return
+        pane_width, pane_height = self._fit_choice_panes(mc)
         UxDialog(
             w,
             parent=self.widget,
             title=f'Choose one or more values for {self.ui_hint.label}',
             accept_callback=lambda: t.set_value(self.trait, mc.values_selected),
+            min_width=pane_width * 2, # needs room for two panes
+            min_height=pane_height,
         ).show()
+
+    def _fit_choice_panes(self, mc: MultiChoice) -> tuple[int, int]:
+        """Fit each choices pane to its labels; returns one pane's (width, height).
+
+        `MultiChoice.widget` lays two panes side by side and both hold the same
+        labels, so each needs the full label width -- sizing only the dialog gives
+        every pane roughly half of it and truncates them. Must run after
+        `mc.widget()`, which is what creates the panes.
+        """
+        labels = list(mc.choices) if isinstance(mc.choices, dict) else []
+        if not labels or not self.widget:
+            return 0, 0
+
+        fm = self.widget.font_metrics()
+        width = min(max(len(str(label)) for label in labels), self.s_fit_width_max_chars) * fm.average_char_width()
+        height = min(len(labels), self.s_fit_height_max_lines) * fm.height()
+
+        for pane in (mc.sw, mc.selection_list):
+            if pane is not None:
+                pane.set_minimum_width(width)
+                pane.set_minimum_height(height)
+
+        return width, height
 
     def dict_cb(self):
         data = dict(self.traitable.get_value(self.trait))
@@ -175,6 +221,9 @@ class TraitEditor:
 
     def traitable_cb(self):
         # -- EntityEditor - popup
+        # NOTE: if self.traitable_processor is a tracker,
+        # open with save=False, track_changes=True and the current tracker.
+        # otherwise, open with new tracker and save=True so changes are saved on close.
         ...
 
     def expensive_cb(self):

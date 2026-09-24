@@ -155,8 +155,20 @@ class FontMetrics(i.FontMetrics):
     def __init__(self, w: Widget):
         self._widget = w
 
-    def average_char_width(self) -> int:
-        return 1  # best guess -- rio measures sizes in char heights
+    def average_char_width(self) -> float:
+        session = ComponentBuilder.current_session()
+        assert session, 'Font metrics must be read in session context'
+        # Callers multiply a character count from a Ui hint by this to get *pixels*, which
+        # ComponentBuilder.build then divides by `pixels_per_font_height`. A proportional
+        # font averages roughly half its height per character.
+        return 0.5 * session.pixels_per_font_height
+
+    def height(self) -> float:
+        session = ComponentBuilder.current_session()
+        assert session, 'Font metrics must be read in session context'
+        # One text line is one font height -- rio's own definition of the unit, so `build`
+        # dividing by `pixels_per_font_height` turns N lines into exactly N font heights.
+        return float(session.pixels_per_font_height)
 
 
 class SizePolicy(Enum):
@@ -212,7 +224,7 @@ class ComponentBuilder:
     s_children_attr = 'children'
     s_single_child = False
     s_pass_children_in_kwargs = False
-    s_size_adjustments = ('min_width', 'min_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom', 'margin_x', 'margin_y', 'margin')
+    s_size_adjustments = ('min_width', 'min_height', 'max_width', 'max_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom', 'margin_x', 'margin_y', 'margin')
     s_layout_attrs = ('grow_x', 'grow_y', 'align_x', 'align_y')
 
     @staticmethod
@@ -475,6 +487,9 @@ class Widget(ComponentBuilder, i.Widget):
 
     def set_minimum_width(self, width: int):
         self['min_width'] = width
+
+    def set_maximum_width(self, width: int):
+        self['max_width'] = width
 
     def set_size_policy(self, x_policy: SizePolicy, y_policy: SizePolicy):
         self['grow_x'] = x_policy == SizePolicy.MINIMUM_EXPANDING
