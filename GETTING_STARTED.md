@@ -942,17 +942,16 @@ with GRAPH_ON() as gp:
     gd = GraphDeps(
         gp,                          # the active BTraitableProcessor
         aggregator.T.total,          # BoundTrait – the "root" node (obj + trait)
-        Source,                      # target class whose instances to search
-        'price',                     # zero or more trait names on Source
+        {Source: ('price',)},        # inputs_spec: target class -> traits to collect on it
     )
     assert sum(1 for _ in gd.deps()) == 2
 ```
 
 `aggregator.T.total` uses the **instance-level** `.T` accessor, which returns a `BoundTrait`.  For the full breakdown of instance vs. class `.T` accessor forms see the [ClassTrait](#classtrait--trait-as-a-named-callable) section.
 
-**Trait names are zero-or-more**: passing no trait names is valid but always returns empty results (the C++ layer short-circuits immediately).  In practice, domain-specific subclasses of `GraphDeps` supply the defaults so callers never need to repeat them (see [Subclassing GraphDeps](#subclassing-graphdeps--domain-specific-wrappers) below).
+**Trait names are per class**: each key of `inputs_spec` maps to a tuple of trait names on that class.  An empty tuple — or an empty spec — is valid but always returns empty results (the C++ layer short-circuits immediately).  In practice, domain-specific subclasses of `GraphDeps` supply the spec so callers never need to repeat it (see [Subclassing GraphDeps](#subclassing-graphdeps--domain-specific-wrappers) below).
 
-**`target_class` accepts any ancestor**: the filter is an `issubclass` check, so you can pass a shared base class to match all its subtypes at once — without listing each concrete class explicitly.  If your domain has a common base (e.g. `Quotable`) pass that; `Traitable` itself is the extreme case that matches everything.
+**Each key accepts any ancestor**: the filter is an `issubclass` check, so a key can be a shared base class that matches all its subtypes at once — without listing each concrete class explicitly.  If your domain has a common base (e.g. `Quotable`) use that; `Traitable` itself is the extreme case that matches everything.  Several keys in one spec cover the case where different families of inputs carry different traits.
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
@@ -987,8 +986,8 @@ with GRAPH_ON() as gp2:
     portfolio = Portfolio(name='p')
     _ = portfolio.value
 
-    # Instead of one GraphDeps per concrete class, one call covers all subclasses:
-    gd = GraphDeps(gp2, portfolio.T.value, Quotable, 'quote')
+    # Instead of one key per concrete class, one base-class key covers all subclasses:
+    gd = GraphDeps(gp2, portfolio.T.value, {Quotable: ('quote',)})
     results = [(cls.__name__, obj.name, val) for cls, obj, trait, val in gd.deps()]
     assert len(results) == 2
 ```
@@ -1043,7 +1042,7 @@ with GRAPH_ON() as gp:
     Equity(ticker='Y').price = 50.0
     idx = Index(name='idx')
     _ = idx.value
-    gd = GraphDeps(gp, idx.T.value, Equity, 'price')
+    gd = GraphDeps(gp, idx.T.value, {Equity: ('price',)})
 
     for cls, obj_id, trait, val in gd.deps(objects=False):
         gd.perturb(cls, obj_id, trait, val * 2.0)   # cls/obj_id/trait straight from deps()
@@ -1056,7 +1055,7 @@ with GRAPH_ON() as gp:
     Equity(ticker='Y').price = 50.0
     idx = Index(name='idx2')
     _ = idx.value
-    gd = GraphDeps(gp, idx.T.value, Equity, 'price')
+    gd = GraphDeps(gp, idx.T.value, {Equity: ('price',)})
 
     for cls, obj, trait_name, val in gd.deps(trait_names=True):
         obj.set_value(trait_name, val * 2.0)
@@ -1068,12 +1067,12 @@ with GRAPH_ON() as gp:
 
 - **Not in graph mode** (`GRAPH_OFF`): `find_dependencies` always returns an empty dict outside of graph mode.
 - **Trait not yet computed**: the dependency graph node for the root trait does not exist until the trait is evaluated at least once under `GRAPH_ON`.
-- **Zero trait names**: passing no trait name arguments is valid but the C++ layer short-circuits and returns nothing immediately.
-- **Wrong `target_class` or trait name**: the C++ layer silently skips classes that are not subclasses of `target_class` and trait names that don't exist on the target class.
+- **Empty spec**: an empty `inputs_spec`, or a class mapped to an empty tuple, is valid but the C++ layer short-circuits and returns nothing immediately.
+- **Wrong class or trait name**: the C++ layer silently skips classes that are not subclasses of any key, and trait names that don't exist on the matched class.
 
 ##### Subclassing `GraphDeps` — domain-specific wrappers
 
-In a larger system, define a **common base class** for all Traitable classes (current and future) that are leaf inputs for a given use case.  Passing that base class as `target_class` means new subclasses are automatically included without changing any call site — and `Traitable` itself is the extreme case that matches everything.  The idiomatic place to record which traits matter is a class-level `s_leaf_trait_names` tuple on that base class itself — right next to the trait definitions, where it stays in sync naturally.
+In a larger system, define a **common base class** for all Traitable classes (current and future) that are leaf inputs for a given use case.  Using that base class as the `inputs_spec` key means new subclasses are automatically included without changing any call site — and `Traitable` itself is the extreme case that matches everything.  The idiomatic place to record which traits matter is a class-level `s_leaf_trait_names` tuple on that base class itself — right next to the trait definitions, where it stays in sync naturally.
 
 Then create a **`GraphDeps` subclass** to encapsulate that specific use case — it reads `s_leaf_trait_names` from the base class in its constructor, so call sites supply neither the target class nor the trait list:
 
@@ -1100,20 +1099,20 @@ class Instrument(Traitable):
 
 
 class DomainDeps(GraphDeps):
-    def __init__(self, graph, bound_trait, *trait_names,
+    def __init__(self, graph, bound_trait, inputs_spec=None,
                  target_class=Quotable):
-        if not trait_names:
-            trait_names = target_class.s_leaf_trait_names
-        super().__init__(graph, bound_trait, target_class, *trait_names)
+        if not inputs_spec:
+            inputs_spec = {target_class: target_class.s_leaf_trait_names}
+        super().__init__(graph, bound_trait, inputs_spec)
 
 
-# Callers write just: target_class and trait names are inferred
+# Callers write just: the inputs spec is inferred
 with GRAPH_ON() as graph:
     Quotable(name='q1').quote = 10.0
     Quotable(name='q2').quote = 20.0
     instrument = Instrument(name='inst')
     _ = instrument.price                          # prime the graph
-    deps = DomainDeps(graph, instrument.T.price)  # target_class and trait names inferred
+    deps = DomainDeps(graph, instrument.T.price)  # inputs_spec inferred
     for cls, obj_id, trait, val in deps.deps(objects=False):
         deps.perturb(cls, obj_id, trait, val * 0.99)
     assert round(instrument.price, 2) == 29.70
