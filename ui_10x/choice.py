@@ -50,6 +50,11 @@ class Choice:
             self.directory = None
             try:
                 self.choices = {hint: hint for hint in choices}
+            except TypeError:
+                # An unhashable choice is a caller bug, not a value we can shrug off -- most
+                # likely a traitable that has not been shared yet (its ID is unset, so it
+                # refuses to hash). Swallowing it hands back an empty picker and hides why.
+                raise
             except Exception:
                 self.choices = {}
 
