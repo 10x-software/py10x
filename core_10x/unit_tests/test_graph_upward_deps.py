@@ -92,11 +92,11 @@ class ParentViaGetter(Traitable):
 class DepTracker:
     @staticmethod
     def _payload_deps(gp, bound_trait):
-        return list(GraphDeps(gp or BTraitableProcessor.current(), bound_trait, Leaf, 'payload').deps(trait_names=True))
+        return list(GraphDeps(gp or BTraitableProcessor.current(), bound_trait, {Leaf: ('payload',)}).deps(trait_names=True))
 
     @staticmethod
     def _rev_deps(gp, bound_trait, target_cls=Leaf):
-        return list(GraphDeps(gp or BTraitableProcessor.current(), bound_trait, target_cls, '_rev').deps(trait_names=True))
+        return list(GraphDeps(gp or BTraitableProcessor.current(), bound_trait, {target_cls: ('_rev',)}).deps(trait_names=True))
 
 
 class TestCustomSetterAndConverterReads(DepTracker):
@@ -189,7 +189,7 @@ class TestIdTraitGettersOnConstruction:
         p = ParentConstructsByIdTraits(name='hid')
 
         assert p.out == 'ok'
-        assert list(GraphDeps(BTraitableProcessor.current(), p.T.out, Shared, 'n').deps()) == []
+        assert list(GraphDeps(BTraitableProcessor.current(), p.T.out, {Shared: ('n',)}).deps()) == []
 
         n0 = ParentConstructsByIdTraits.n_gets
         Shared(name='GBP').n = 99
@@ -322,7 +322,7 @@ class TestCcyUseCase(DepTracker):
         assert fx.cross == 'GBP/USD'
         assert fx.cross == 'GBP/USD'  # stable re-read
 
-        names = {obj.name for _, obj, _, _ in GraphDeps(BTraitableProcessor.current(), fx.T.cross, Ccy, 'name').deps()}
+        names = {obj.name for _, obj, _, _ in GraphDeps(BTraitableProcessor.current(), fx.T.cross, {Ccy: ('name',)}).deps()}
         assert names == {'GBP', 'USD'}
         # Construction plumbing must not wire the parent to `_rev`.
         assert self._rev_deps(go, fx.T.cross, Ccy) == []

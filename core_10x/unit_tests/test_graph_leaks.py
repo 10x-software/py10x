@@ -92,7 +92,7 @@ def test_graph_deps_ref_leak():
         x.x = X()
         x.v = 1
         _ = x.out
-        gd = GraphDeps(g, x.T.out, X, 'v')
+        gd = GraphDeps(g, x.T.out, {X: ('v',)})
         wr_x, wr_g = weakref.ref(x.x), weakref.ref(g)
 
     del x

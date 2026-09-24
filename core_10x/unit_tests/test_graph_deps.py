@@ -65,7 +65,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0  # prime the graph
 
-        results = list(GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'price').deps())
+        results = list(GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('price',)}).deps())
 
         assert len(results) == 2
         price_trait = self.Quote.T.price.trait
@@ -82,7 +82,7 @@ class TestGraphDeps:
         """A GRAPH_OFF processor has no node cache — deps() is always empty."""
         pf = self.Portfolio.existing_instance(name='tech')
         with GRAPH_OFF() as gp_off:
-            gd = GraphDeps(gp_off, pf.T.value, self.Quote, 'price')
+            gd = GraphDeps(gp_off, pf.T.value, {self.Quote: ('price',)})
             assert list(gd.deps()) == []
 
     def test_deps_trait_names_flag(self, gp, portfolio):
@@ -90,7 +90,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'price')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('price',)})
         results = list(gd.deps(trait_names=True))
 
         assert len(results) == 2
@@ -105,7 +105,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'price')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('price',)})
         price_trait = self.Quote.T.price.trait
         results = list(gd.deps(objects=False))
 
@@ -121,7 +121,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Portfolio, 'value')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Portfolio: ('value',)})
         assert list(gd.deps()) == []
 
     def test_wrong_trait_name(self, gp, portfolio):
@@ -129,7 +129,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'nonexistent_trait')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('nonexistent_trait',)})
         assert list(gd.deps()) == []
 
     def test_zero_trait_names(self, gp, portfolio):
@@ -137,7 +137,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote)
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ()})
         assert list(gd.deps()) == []
 
     def test_perturb(self, gp, portfolio):
@@ -145,7 +145,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'price')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('price',)})
         for cls, obj, trait, val in gd.deps():
             assert cls is self.Quote
             assert isinstance(obj, self.Quote)
@@ -162,7 +162,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'price')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('price',)})
         for cls, obj, trait, val in gd.deps():
             assert cls is self.Quote
             assert isinstance(obj, self.Quote)
@@ -179,7 +179,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.QuoteBase, 'price')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.QuoteBase: ('price',)})
         results = list(gd.deps())
 
         assert len(results) == 2
@@ -191,7 +191,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'price')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('price',)})
         for cls, obj_id, trait, val in gd.deps(objects=False):
             assert not isinstance(obj_id, self.Quote)  # no instance constructed
             gd.perturb(cls, obj_id, trait, val * 2.0)
@@ -220,7 +220,7 @@ class TestGraphDeps:
             _ = q.computed  # prime graph
             setter_called.clear()
 
-            gd = GraphDeps(gp2, q.T.computed, QuoteWithSetter, 'price')
+            gd = GraphDeps(gp2, q.T.computed, {QuoteWithSetter: ('price',)})
             for cls, obj_id, trait, _val in gd.deps(objects=False):
                 gd.perturb(cls, obj_id, trait, 20.0)
 
@@ -232,7 +232,7 @@ class TestGraphDeps:
         pf = self.Portfolio.existing_instance(name='tech')
         assert pf.value == 300.0
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'price')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('price',)})
         for _cls, obj, trait_name, val in gd.deps(trait_names=True):
             obj.set_value(trait_name, val * 2.0)
 
@@ -246,7 +246,7 @@ class TestGraphDeps:
         self.Quote(symbol='AAPL').price = 110.0
         assert pf.value == 310.0  # graph re-evaluated
 
-        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, self.Quote, 'price')
+        gd = GraphDeps(BTraitableProcessor.current(), pf.T.value, {self.Quote: ('price',)})
         price_trait = self.Quote.T.price.trait
         results = list(gd.deps())
 
@@ -274,10 +274,10 @@ class TestGraphDeps:
 
         x = X(use_a=True, a=1, b=2)
         assert x.result == 1
-        deps = {name for _, _, name, _ in GraphDeps(BTraitableProcessor.current(), x.T.result, X, 'a', 'b').deps(trait_names=True)}
+        deps = {name for _, _, name, _ in GraphDeps(BTraitableProcessor.current(), x.T.result, {X: ('a', 'b')}).deps(trait_names=True)}
         assert deps == {'a'}, deps
 
         x.use_a = False
         assert x.result == 2
-        deps = {name for _, _, name, _ in GraphDeps(BTraitableProcessor.current(), x.T.result, X, 'a', 'b').deps(trait_names=True)}
+        deps = {name for _, _, name, _ in GraphDeps(BTraitableProcessor.current(), x.T.result, {X: ('a', 'b')}).deps(trait_names=True)}
         assert deps == {'b'}, deps
