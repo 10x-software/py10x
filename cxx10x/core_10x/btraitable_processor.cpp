@@ -474,9 +474,18 @@ void BTraitableProcessorSetValueTracker::end_using() const {
 
 py::list BTraitableProcessorSetValueTracker::tracked_objects() const {
     py::list result;
+    std::unordered_set<TID> seen;
+    seen.reserve(m_objects_with_set_value_order.size());
     for (const py::object& obj : m_objects_with_set_value_order)
-        result.append(obj);
+        if (seen.insert(obj.cast<BTraitable*>()->tid()).second)
+            result.append(obj);
     return result;
+}
+
+void BTraitableProcessorSetValueTracker::update(const BTraitableProcessorSetValueTracker& other) {
+    for (const py::object& obj : other.m_objects_with_set_value_order)
+        if (m_objects_with_set_value_seen.insert(obj.cast<BTraitable*>()).second)
+            m_objects_with_set_value_order.push_back(obj);
 }
 
 void BTraitableProcessorSetValueTracker::clear() {

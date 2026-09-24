@@ -181,6 +181,7 @@ public:
 
     [[nodiscard]] py::list tracked_objects() const;
     void clear();
+    void update(const BTraitableProcessorSetValueTracker& other);
 
     py::object set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) override;
     py::object set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override;

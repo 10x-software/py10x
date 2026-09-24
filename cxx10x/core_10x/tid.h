@@ -35,8 +35,8 @@ public:
     [[nodiscard]] const BTraitableClass*      cls() const           { return m_class; }
     [[nodiscard]] py::object            traitable_id() const        { return PyLinkage::traitable_id(id_value(), coll_name()); }
 
-    bool operator == (const TID& other) const {
-        return m_class == other.m_class && id_value().equal(other.id_value()) && coll_name().equal(other.coll_name());
+    bool operator ==(const TID& other) const {
+        return this == &other || is_valid() && other.is_valid() && m_class == other.m_class && id_value().equal(other.id_value()) && coll_name().equal(other.coll_name());
     }
     void serialize_id(const py::dict& res) const;
     static py::object deserialize_id(const py::dict& serialized_data, bool must_exist = true);
@@ -45,8 +45,13 @@ private:
     [[nodiscard]] std::size_t hash() const              { return m_hash; }
     static std::size_t compute_hash(const BTraitableClass* cls, const py::object& id) {
         std::size_t seed = 0;
+        auto id_value = id.attr("value");
+        if (id_value.is_none()) {
+            hash_combine(seed, id.ptr());
+            return seed;
+        }
         hash_combine(seed, cls);
-        hash_combine(seed, py::hash(id.attr("value")));
+        hash_combine(seed, py::hash(id_value));
         hash_combine(seed, py::hash(id.attr("collection_name")));
         return seed;
     }

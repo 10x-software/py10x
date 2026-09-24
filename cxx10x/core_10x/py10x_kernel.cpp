@@ -250,6 +250,8 @@ PYBIND11_MODULE(py10x_kernel, m)
     py::class_<TID>(m, "TID")
             .def("class_name",                  [](TID* tid) { return tid->cls()->name(); } )
             .def("id",                          &TID::id)
+            .def("_equals",                     [](const TID& a, const TID& b) { return a == b; }) // testing only
+            .def("_hash",                       [](const TID& t) { return std::hash<TID>{}(t); }) // testing only
             ;
 
     py::class_<BTraitableClass>(m, "BTraitableClass")
@@ -281,7 +283,11 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("id",                          &BTraitable::id)
             .def("id_value",                    &BTraitable::id_value)
             .def("_collection_name_get",        &BTraitable::custom_coll_name)
-            .def("xid",                         &BTraitable::tid, py::return_value_policy::reference)
+            //-- keep_alive: the TID is a non-owning view into the traitable, so the traitable
+            //-- must outlive it. Without this, `X(x=1).xid()` on a temporary leaves a dangling
+            //-- TID in pybind's registry and the interpreter faults on the way down.
+            .def("xid",                         &BTraitable::tid, py::return_value_policy::reference,
+                                                py::keep_alive<0, 1>())
             .def("from_any",                    &BTraitable::from_any)
             .def("value_to_str",                &BTraitable::value_to_str)
             .def("get_revision",                &BTraitable::get_revision)
@@ -368,6 +374,7 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def(py::init<>())
             .def("tracked_objects", &BTraitableProcessorSetValueTracker::tracked_objects)
             .def("clear", &BTraitableProcessorSetValueTracker::clear)
+            .def("update", &BTraitableProcessorSetValueTracker::update)
             ;
 
     py::class_<UpwardDepsOff>(m, "UpwardDepsOff")
