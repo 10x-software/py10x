@@ -8,15 +8,15 @@
 #include "btraitable.h"
 #include "btraitable_processor.h"
 
-bool BTrait::s_edge_deps_tracking = false;
+bool BTrait::s_use_instrumented_getters = false;
 
 BTrait::BTrait() {
     m_datatype  = PyLinkage::XNone();
     m_default   = PyLinkage::XNone();
     m_getter_has_args = false;
 
-    f_get           = py::none();
-        f_get_edt       = py::none();
+    f_get               = py::none();
+        f_get_instrumented  = py::none();
 
     f_set           = py::none();
     f_verify        = py::none();
@@ -43,7 +43,11 @@ py::error_already_set BTrait::trait_error(const py::error_already_set &exc, BTra
 
 py::object BTrait::wrapper_f_get(BTraitable* obj) const {
     try {
-        return s_edge_deps_tracking? f_get_edt(obj) : f_get(obj);
+        //-- f_get_instrumented may be unset (this trait was never actually instrumented) even
+        // while instrumentation is active process-wide elsewhere -- fall back to f_get rather
+        // than calling None.
+        bool use_instrumented = s_use_instrumented_getters && !f_get_instrumented.is_none();
+        return use_instrumented ? f_get_instrumented(obj) : f_get(obj);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_get, nullptr, nullptr);
     }
@@ -51,7 +55,8 @@ py::object BTrait::wrapper_f_get(BTraitable* obj) const {
 
 py::object BTrait::wrapper_f_get(BTraitable* obj, const py::args& args) const {
     try {
-        return s_edge_deps_tracking? f_get_edt(obj, *args) : f_get(obj, *args);
+        bool use_instrumented = s_use_instrumented_getters && !f_get_instrumented.is_none();
+        return use_instrumented ? f_get_instrumented(obj, *args) : f_get(obj, *args);
     } catch (py::error_already_set& exc) {
         throw trait_error(exc, obj, f_get, nullptr, &args);
     }

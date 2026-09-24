@@ -59,7 +59,7 @@ public:
     py::object      m_default;      // XNone, may be set to a concrete instance of m_datatype from py
 
     py::object      f_get;              // value getter from py         ANY     f(obj, [*args])
-        py::object      f_get_edt;          // f_get transformed for "Edge Deps Tracking"
+        py::object      f_get_instrumented; // instrumented (AST-rewritten) f_get -- may be unset
 
     py::object      f_set;              // value setter from py         RC      f(obj, trait, value, [*args])
     py::object      f_verify;           // value verifier from py       RC      f(obj, trait, value)
@@ -83,7 +83,7 @@ protected:
         return trait_error(exc, obj, nullptr, f, value, args);
     }
 
-    static bool s_edge_deps_tracking;
+    static bool s_use_instrumented_getters;
 
 public:
 
@@ -91,8 +91,8 @@ public:
     BTrait(const BTrait& src) = default;
     ~BTrait()   { delete m_proc; }
 
-    static void set_edge_deps_tracking(bool track)                  { s_edge_deps_tracking = track; }
-    static bool edge_deps_tracking()                                { return s_edge_deps_tracking; }
+    static void set_use_instrumented_getters(bool active)           { s_use_instrumented_getters = active; }
+    static bool use_instrumented_getters()                          { return s_use_instrumented_getters; }
 
     void create_proc();
 
@@ -123,7 +123,7 @@ public:
     void modify_flags(uint64_t to_set, uint64_t to_reset)           { m_flags = (m_flags | to_set) & ~to_reset; }
 
     void set_f_get(const py::object &f, bool custom)                { f_get = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_GET; }
-    void set_f_get_edt(const py::object &f)                         { f_get_edt = f; }
+    void set_f_get_instrumented(const py::object &f)                { f_get_instrumented = f; }
     void set_cxx_f_get(const py::object &f, bool custom)            { set_f_get(f,custom); } // TODO: optional optimization
     void set_f_set(const py::object &f, bool custom)                { f_set = f; }
     void set_f_verify(const py::object &f, bool custom)             { f_verify = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_VERIFY; }
