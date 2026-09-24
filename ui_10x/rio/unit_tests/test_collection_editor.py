@@ -81,9 +81,9 @@ async def test_collection_editor(mock_db_ops) -> None:
 
             await wait_for_input_values(
                 test_client,
-                weight_index=15,
+                weight_index=16,
                 weight='200.00',
-                unit_index=16,
+                unit_index=17,
                 unit='LB',
                 timeout_ms=_CE_TIMEOUT,
             )
@@ -99,9 +99,9 @@ async def test_collection_editor(mock_db_ops) -> None:
 
             await wait_for_input_values(
                 test_client,
-                weight_index=15,
+                weight_index=16,
                 weight='90,702.95',
-                unit_index=16,
+                unit_index=17,
                 unit='G',
                 timeout_ms=_CE_TIMEOUT,
             )
