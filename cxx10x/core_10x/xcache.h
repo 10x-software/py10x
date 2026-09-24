@@ -442,7 +442,7 @@ public:
 
     void export_nodes() const;
 
-    py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const;
+    py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const;
 
     void perturb_existing_node(BTraitableClass* cls, const py::object& id, const BTrait* trait, const py::object& value) const {
         if (const auto node = find_node(TID(cls, id), trait))

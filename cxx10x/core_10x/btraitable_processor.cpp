@@ -191,7 +191,7 @@ py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, 
     return raw_set_trait_value(obj, trait, converted_value, args);
 }
 
-py::dict BTraitableProcessor::find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const {
+py::dict BTraitableProcessor::find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const {
     return {};
 }
 
@@ -305,8 +305,8 @@ public:
         return trait->proc()->raw_set_value_on_graph(this, obj, trait, value, args);
     }
 
-    py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const final {
-        return cache()->find_dependencies(obj, trait, target_class, trait_names);
+    py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const final {
+        return cache()->find_dependencies(obj, trait, inputs_spec);
     }
 
 };

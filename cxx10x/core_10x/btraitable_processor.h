@@ -145,11 +145,12 @@ public:
     virtual py::object      raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const = 0;
 
     //----
-    //  For a given obj and trait (e.g., for portfolio.price node), find dependencies on all the instances of subclasses
-    //  of target_class, specifically for trait_names provided (e.g., MktQuotable, 'quote').
-    //  Returns: { cls: { id: [traits...], ... }, ... }
+    //  For a given obj and trait (e.g., for portfolio.price node), find dependencies on all the instances of
+    //  subclasses of each target class in inputs_spec, for that class's given trait names (e.g.,
+    //  {MktQuotable: ('quote',), ...}).
+    //  Returns: { cls: { id: [(trait, value), ...], ... }, ... }
     //----
-    virtual py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const;
+    virtual py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const;
 
     // No-op off-graph; active on-graph. Defined after UpwardDepsOffScope below.
     [[nodiscard]] UpwardDepsOffScope upward_deps_off() const;

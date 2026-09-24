@@ -4,6 +4,8 @@
 
 #include "xcache.h"
 
+#include <algorithm>
+
 #include "btraitable.h"
 
 XCache* XCache::s_default = new XCache();
@@ -129,16 +131,18 @@ void XCache::export_nodes() const {
 }
 
 //----
-//  For a given obj and trait (e.g., for portfolio.price node), find dependencies on all the instances of subclasses
-//  of target_class, specifically for trait_names provided (e.g., MktQuotable, 'quote').
-//  Returns: { cls: { id: [traits...], ... }, ... }
+//  For a given obj and trait (e.g., for portfolio.price node), find dependencies on all the instances of
+//  subclasses of each target class in inputs_spec, for that class's given trait names (e.g.,
+//  {MktQuotable: ('quote',), ...}). Walks m_ids_by_class exactly once, checking every cached class against
+//  every inputs_spec entry -- cheaper than walking the (potentially large) cache once per entry.
+//  Returns: { cls: { id: [(trait, value), ...], ... }, ... }
 //----
-py::dict XCache::find_dependencies(BTraitable* obj, const BTrait* trait, const py::object& target_class, const py::args& trait_names) const {
+py::dict XCache::find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const {
     py::dict results;
     if (default_node_type() < NODE_TYPE::BASIC_GRAPH)
         return results;
 
-    if (trait_names.empty())
+    if (inputs_spec.empty())
         return results;
 
     auto parent_node = find_node(obj->tid(), trait);
@@ -148,15 +152,16 @@ py::dict XCache::find_dependencies(BTraitable* obj, const BTrait* trait, const p
     auto results_get = results.attr("get");
     for (const auto& [cls, ids] : m_ids_by_class) {
         auto py_cls = cls->py_class();
-        if (!PyLinkage::issubclass(py_cls, target_class))
-            continue;
 
         std::vector<BTrait*> traits;
-        for (auto name : trait_names) {
-            auto t = cls->find_trait(name.cast<py::object>());
-            if (!t)
+        for (const auto& [target_class, trait_names] : inputs_spec) {
+            if (!PyLinkage::issubclass(py_cls, py::reinterpret_borrow<py::object>(target_class)))
                 continue;
-            traits.push_back(t);
+            for (auto name : trait_names) {
+                auto t = cls->find_trait(name.cast<py::object>());
+                if (t && std::find(traits.begin(), traits.end(), t) == traits.end())
+                    traits.push_back(t);
+            }
         }
         if (traits.empty())
             continue;
