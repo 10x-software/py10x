@@ -525,12 +525,12 @@ def test_stale_deps_after_conditional_getter():
     with GRAPH_ON() as g:
         x = X(use_a=True, a=1, b=2)
         assert x.result == 1
-        deps = {name for _, _, name, _ in GraphDeps(g, x.T.result, X, 'a', 'b').deps(trait_names=True)}
+        deps = {name for _, _, name, _ in GraphDeps(g, x.T.result, {X: ('a', 'b')}).deps(trait_names=True)}
         assert deps == {'a'}, deps
 
         x.use_a = False
         assert x.result == 2
-        deps = {name for _, _, name, _ in GraphDeps(g, x.T.result, X, 'a', 'b').deps(trait_names=True)}
+        deps = {name for _, _, name, _ in GraphDeps(g, x.T.result, {X: ('a', 'b')}).deps(trait_names=True)}
         assert deps == {'b'}, f'stale deps still linked: {deps}'
 
 
