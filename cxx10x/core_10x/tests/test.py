@@ -1434,6 +1434,44 @@ def test_deserialize_skips_runtime_keeps_eval_once():
     assert lazy.x is XNone, f'lazy load must not hydrate RUNTIME, got {lazy.x}'
 
 
+def test_tid_equals_hash():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    with INTERACTIVE():
+        shared, same = X(x=1), X(x=1)
+        other = X(x=2)
+        pending_a, pending_b = X(), X()
+
+        assert shared.xid()._equals(same.xid()), 'same id value -> same entity'
+        assert shared.xid()._hash() == same.xid()._hash()
+
+        assert not shared.xid()._equals(other.xid())
+
+        assert pending_a.xid()._equals(pending_a.xid()), 'an unshared TID equals itself'
+        assert not pending_a.xid()._equals(pending_b.xid()), 'two unshared objects are not one entity'
+        assert not pending_a.xid()._equals(shared.xid())
+        assert pending_a.xid()._hash() != pending_b.xid()._hash(), 'hashable while invalid, and distinct'
+
+        # share() lands the id, and the hash moves with it - which is why no long-lived
+        # container may be keyed on a TID that is still invalid.
+        before = pending_a.xid()._hash()
+        pending_a.x = 3
+        assert pending_a.share(False)
+        assert pending_a.xid()._hash() != before
+        # Bound to a name on purpose: xid() hands out a non-owning pointer, so calling it on a
+        # temporary leaves a dangling TID behind (crashes at interpreter shutdown).
+        landed = X(x=3)
+        assert pending_a.xid()._equals(landed.xid())
+        del landed
+
+        # pending_b is never shared, so its object cache is the INTERACTIVE's temporary one.
+        # Drop every reference before that scope exits, or the objects outlive their cache
+        # and the interpreter faults on the way down (hybrid cycles are not GC-breakable).
+        del shared, same, other, pending_a, pending_b
+        gc.collect()
+
+
 def test_ts_flags_values():
     """TS is the any-store-side mask; TS_TIME and TS_USER are exclusive kinds."""
     assert T.TS_TIME.value() == 0x1000
@@ -1728,6 +1766,7 @@ if __name__ == '__main__':
     test_deserialize_wrong_class()
     test_save_fails_error()
     test_tracked_objects()
+    test_tid_equals_hash()
     test_ts_flags_values()
     test_serialize_traits_skips_ts_fields()
     test_serialize_traits_ts_only_allows_empty_blob()
