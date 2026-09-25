@@ -1,3 +1,4 @@
+import __future__
 import ast
 import importlib.machinery
 import inspect
@@ -40,6 +41,12 @@ class CallableRewriter(ast.NodeTransformer):
         tree = ast.parse(source)
         ast.increment_lineno(tree, start_lineno - 1)
         func_def = tree.body[0]
+        if func_def.name != function.__name__:
+            #-- e.g. a @cache-wrapped function: __name__ was reassigned to the original name, but
+            # the actual source (what getsourcelines() sees) is the wrapper's own closure -- its
+            # real body (the thing we'd want to instrument) is invisible behind an opaque call.
+            # Nothing usable to rewrite here -- leave it exactly as-is.
+            return function
         func_def.decorator_list = []   #-- strip any decorator getsource happened to capture -- caller re-wraps
         self.visit(func_def)
         ast.fix_missing_locations(tree)
@@ -54,7 +61,11 @@ class CallableRewriter(ast.NodeTransformer):
         # whatever was at `name` first and put it straight back -- building must never leave a
         # trace; only apply()/restore() may actually activate anything.
         had_prior, prior_value = (name in alt_globals), alt_globals.get(name)
-        code = compile(tree, self.filename, 'exec')
+        #-- flags: re-parsing/recompiling just this function's own source loses the defining
+        # module's own `from __future__ import annotations` effect -- without this, an annotation
+        # referencing a TYPE_CHECKING-only import (never a real runtime name) would be eagerly
+        # evaluated here and raise NameError, instead of staying the lazy string PEP 563 promises.
+        code = compile(tree, self.filename, 'exec', flags = __future__.annotations.compiler_flag)
         exec(code, alt_globals)  # noqa: S102 -- deliberate: building an instrumented copy
         alt = alt_globals[name]
         if had_prior:
@@ -75,7 +86,9 @@ class InstrumentationRegistry:
         self.rewriter = rewriter
 
         self.known_module_names: set[str]   = set()
-        self.target_base_classes: set[type] = { Traitable }
+        self.target_base_classes: set[type] = set()   #-- empty: auto-discovery instruments NO class until
+        # the caller opts a base class in via set_target_base_classes() -- known_module_names coverage is
+        # unaffected either way.
         self.exclude_classes: set[type]     = set()   #-- target_base_classes entries not instrumented themselves
 
         self.instrumented_callables: dict[tuple[object, str], tuple[Callable, Callable]] = {}  #-- (owner, attr_name) -> (original, instrumented)
@@ -209,16 +222,17 @@ class InstrumentationRegistry:
                 self.instrument_class(member)
 
     def instrument_method(self, target_class, method):
-        key = (target_class, method.__name__)
+        func = method.__func__ if isinstance(method, (classmethod, staticmethod)) else method
+        key = (target_class, func.__name__)
         if key in self.instrumented_callables:
             return
 
         if isinstance(method, classmethod):
-            alt = classmethod(self.instrument_callable(method.__func__))
+            alt = classmethod(self.instrument_callable(func))
         elif isinstance(method, staticmethod):
-            alt = staticmethod(self.instrument_callable(method.__func__))
+            alt = staticmethod(self.instrument_callable(func))
         else:
-            alt = self.instrument_callable(method)
+            alt = self.instrument_callable(func)
 
         self.instrumented_callables[key] = (method, alt)
 

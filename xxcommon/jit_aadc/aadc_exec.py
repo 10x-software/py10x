@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import ast
-import builtins
 import linecache
-import math
 from datetime import date
 
 import aadc
@@ -30,19 +28,17 @@ AADC_ACTIVE_TYPES = frozenset(AADC_TYPE_MAP.values())
 
 class AadcCallableRewriter(CallableRewriter):
     """
-    aadc_exec's theme -- wraps every `if` test in a call to if_wrapper (AadcExec.if_guard), and redirects every
-    eligible math.*/abs/min/max call to call_target (aadc.math). Both trivialist, unfiltered: once a function's
-    source is being regenerated at all, there's no marginal cost to covering everything eligible in the same pass.
+    aadc_exec's theme -- wraps every `if` test in a call to if_wrapper (AadcExec.if_guard), so branch
+    outcomes get registered as aadc_assert checkpoints during recording. math.*/abs/min/max redirection
+    is NOT done here -- see AADCDomainSwap, which patches them globally for the recording pass's
+    duration instead, so coverage doesn't depend on which functions this registry happens to reach.
     """
 
-    IF_WRAPPER_NAME  = '__if_wrapper__'
-    CALL_TARGET_NAME = '__call_target__'
+    IF_WRAPPER_NAME = '__if_wrapper__'
 
-    def __init__(self, if_wrapper, call_names: set[str], call_target):
+    def __init__(self, if_wrapper):
         super().__init__()
-        self.call_names = call_names
         self.globals_to_bind[self.IF_WRAPPER_NAME] = if_wrapper
-        self.globals_to_bind[self.CALL_TARGET_NAME] = call_target
 
     def visit_If(self, node: ast.If) -> ast.If:
         self.generic_visit(node)
@@ -52,23 +48,6 @@ class AadcCallableRewriter(CallableRewriter):
             keywords = [],
         )
         return node
-
-    def visit_Call(self, node: ast.Call) -> ast.Call:
-        self.generic_visit(node)
-        func = node.func
-        if (isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name)
-                and func.value.id == 'math' and func.attr in self.call_names):
-            node.func = self._target_attr(func.attr)
-        elif isinstance(func, ast.Name) and func.id in self.call_names:
-            node.func = self._target_attr(func.id)
-        return node
-
-    def _target_attr(self, name: str) -> ast.Attribute:
-        return ast.Attribute(value = ast.Name(id = self.CALL_TARGET_NAME, ctx = ast.Load()), attr = name, ctx = ast.Load())
-
-
-#-- names present in both aadc.math and stdlib math -- the eligible set for call redirection
-AADC_MATH_NAMES = { n for n in vars(aadc.math) if not n.startswith('_') and (hasattr(math, n) or hasattr(builtins, n)) }
 
 
 class AadcKernel:
@@ -83,7 +62,7 @@ class AadcKernel:
 
     def build(self, deps: GraphDeps):
         self.deps = deps
-        with record_kernel() as kernel:
+        with AADCDomainSwap(), record_kernel() as kernel:
             self.kernel = kernel
             self.input_handles = input_handles = {}
             for cls, obj_id, trait, value in deps.deps(objects = False):
@@ -171,22 +150,17 @@ class AadcExec:
     def __enter__(self):
         self.instrumentation_registry().apply()    #-- lazily builds the registry on first use, if it
         # doesn't exist yet; apply()/restore() themselves only toggle activation, never build anything.
-        self._domain_swap = AADCDomainSwap()
-        self._domain_swap.__enter__()
         self.graph.__enter__()
         return self
 
     def __exit__(self, *args):
         self.graph.__exit__(*args)
-        self._domain_swap.__exit__(*args)
         self.instrumentation_registry().restore()
 
     @classmethod
     @cache
     def _get_registry(cls) -> InstrumentationRegistry:
-        registry = InstrumentationRegistry(
-            AadcCallableRewriter(if_wrapper = cls.if_guard, call_names = AADC_MATH_NAMES, call_target = aadc.math)
-        )
+        registry = InstrumentationRegistry(AadcCallableRewriter(if_wrapper = cls.if_guard))
         registry.enable_auto_instrumentation()
         return registry
 

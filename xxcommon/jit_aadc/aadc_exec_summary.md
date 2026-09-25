@@ -25,8 +25,8 @@ affects modules imported *after* that point.
   whatever the subclass populated in `self.globals_to_bind`. One instance per theme, reused
   across every function it instruments. `location_id(node)` gives a `file:line` string.
 - `InstrumentationRegistry` -- one instance per theme. Holds `known_module_names` (modules to
-  instrument in full) and `target_base_classes` (default `{Traitable}` -- any subclass is a
-  target regardless of its module).
+  instrument in full) and `target_base_classes` (default empty -- auto-discovery instruments NO
+  class until the caller opts a base class in via `set_target_base_classes()`).
   - `instrument_module(module)`: a known module gets every function and class instrumented
     unconditionally (nested classes included); an unknown module is searched recursively for
     classes matching `target_base_classes`, instrumenting only actual matches.

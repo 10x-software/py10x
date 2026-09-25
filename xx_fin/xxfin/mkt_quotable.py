@@ -56,7 +56,7 @@ class MktDeps(GraphDeps):
             target_class = SingleMktQuote
         if not target_trait_names:
             target_trait_names = target_class.s_leaf_trait_names
-        super().__init__(graph, bound_trait, target_class, *target_trait_names)
+        super().__init__(graph, bound_trait, {target_class: target_trait_names})
 
 
 class QuotableOverride(Bundle,MktDataBasis):
