@@ -1,4 +1,3 @@
-
 if __name__ == '__main__':
     from xxcommon.jit_aadc.aadc_exec import AadcExec, AadcKernel
     AadcExec.instrumentation_registry(
@@ -20,19 +19,31 @@ if __name__ == '__main__':
     w = ExternalWorld.current()
     mb = MonarchButterfly(name = 'John', dob = dob)
 
-    #inputs_spec = {ExternalWorld: ('current_date', 'leaf_mass_available',)}    #-- fires due to missing wind_speed
     inputs_spec = {ExternalWorld: ('current_date', 'leaf_mass_available', 'wind_speed')}
     exec = AadcExec(mb.T.locomotive_speed, inputs_spec)
     with exec:
-        kernel, py_res = exec.create_kernel()
-        is_valid, res = exec.eval_kernel(kernel)
-        assert is_valid and py_res == res
+        def result():
+            k = exec.current_kernel
+            return k._unwrap(k.eval_result.values[k.output])
+
+        exec.new_kernel()
+        kernel = exec.current_kernel
+        exec.eval_current_kernel()
+        assert mb.locomotive_speed == result()
 
         w.current_date = w.current_date + timedelta(days = 10)  #-- past metamorphosis -- must flip the branch
 
-        is_valid, res = exec.eval_kernel(kernel)
+        is_valid = exec.eval_current_kernel()
         print(f'after inputs change, same kernel: is_valid={is_valid} (expect False -- branch flipped)')
 
-        kernel2, py_res2 = exec.create_kernel()  #-- rebuild for the new (butterfly) branch signature
-        is_valid, res2 = exec.eval_kernel(kernel2)
-        print(f'after rebuild: is_valid={is_valid}, res={res2}, py_res={py_res2}')
+        exec.new_kernel()  #-- rebuild for the new (butterfly) branch signature
+        is_valid = exec.eval_current_kernel()
+        print(f'after rebuild: is_valid={is_valid}, res={result()}, py_res={mb.locomotive_speed}')
+
+        w.current_date = today  #-- back to the original (caterpillar) state -- same signature as the first kernel
+
+        exec.new_kernel()
+        print(f'after moving inputs back: same kernel as original build: {exec.current_kernel is kernel}')
+        is_valid = exec.eval_current_kernel()
+        print(f'is_valid={is_valid}, res={result()}, py_res={mb.locomotive_speed}')
+        assert exec.current_kernel is kernel and is_valid and mb.locomotive_speed == result()

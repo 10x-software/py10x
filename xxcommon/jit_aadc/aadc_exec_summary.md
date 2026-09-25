@@ -77,21 +77,21 @@ per-instrumented-function by `AadcCallableRewriter`. The actual AADC recording s
     AADC recording, decodes the condition and registers an `aadc_assert` pinning it to its
     recorded outcome (this is what makes a stale kernel detectable later via
     `evaluate_kernel(...).errors.has_errors()`); outside recording, decodes and logs into
-    `s_current_log` (a class-attribute `set`, scoped to one `create_kernel()` call) for
+    `s_current_log` (a class-attribute `set`, scoped to one `new_kernel()` call) for
     signature computation.
-  - `create_kernel()`: runs the bound trait once to build the dependency graph and the branch
+  - `new_kernel()`: runs the bound trait once to build the dependency graph and the branch
     signature (via `if_guard()`'s logging) in the same call; on a cache miss, discovers input
     deps, perturbs them, records under `record_kernel()` (triggering `if_guard()`'s inline asserts),
     checks `passive_warnings()` (calls `raise_uninstrumented_warning` on any gap), and caches
-    the kernel by signature.
-  - `eval_kernel(kernel)`: replays the kernel; `has_errors()` means a guard's outcome changed
-    since recording -- caller should call `create_kernel()` again for the current signature.
+    the kernel by signature. Sets `self.current_kernel`; returns nothing.
+  - `eval_current_kernel()`: replays `self.current_kernel`; `has_errors()` means a guard's outcome
+    changed since recording -- caller should call `new_kernel()` again for the current signature.
 - Module-level: constructs the theme's `InstrumentationRegistry(AadcCallableRewriter(...))` and
   calls `enable_auto_instrumentation()` once, at import time.
 
 ## Known open points
 
-- Whether `create_kernel()`'s post-staleness retry always records fresh or can hit an
+- Whether `new_kernel()`'s post-staleness retry always records fresh or can hit an
   already-cached kernel for the new signature.
 - Same `self.graph` is reused for `AadcExec`'s whole session, never reset between kernel
   builds.

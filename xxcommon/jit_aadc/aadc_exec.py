@@ -4,7 +4,6 @@ import ast
 import builtins
 import linecache
 import math
-from typing import Any
 from datetime import date
 
 import aadc
@@ -80,6 +79,7 @@ class AadcKernel:
         self.deps: GraphDeps = None
         self.input_handles = {}
         self.output = None
+        self.eval_result = None   #-- raw evaluate_kernel() return -- set by AadcExec.eval_kernel()
 
     def build(self, deps: GraphDeps):
         self.deps = deps
@@ -119,9 +119,11 @@ class AadcKernel:
         for (cls, obj_id, trait), handle in self.input_handles.items():
             value = read(cls.s_bclass, obj_id, trait)
             #-- TODO: a special treatment of IDate below is temporary - need a generic aadc API (!)
-            aadc_type = type(value)
-            if aadc_type in AADC_ACTIVE_TYPES:
-                inputs[handle] = aadc_type.input_value(value) if aadc_type is IDate else value.val()
+            active_type = AADC_TYPE_MAP.get(trait.data_type)
+            if active_type is IDate:
+                inputs[handle] = IDate.input_value(value)
+            elif type(value) in AADC_ACTIVE_TYPES:
+                inputs[handle] = value.val()
             else:
                 inputs[handle] = value
         return inputs
@@ -129,6 +131,27 @@ class AadcKernel:
     @staticmethod
     def _unwrap(arr):
         return arr.item() if arr.size == 1 else arr
+
+    def _check_eval_result(self):
+        if self.eval_result is None:
+            raise RuntimeError('No eval result yet -- call eval_current_kernel()/evaluate() first.')
+        if self.eval_result.errors.has_errors():
+            raise RuntimeError('Last eval was stale (has_errors) -- call new_kernel() and re-evaluate first.')
+
+    def result(self):
+        self._check_eval_result()
+        return self._unwrap(self.eval_result.values[self.output])
+
+    def derivs(self) -> dict:
+        self._check_eval_result()
+        d = self.eval_result.derivs[self.output]
+        try:
+            return {key: self._unwrap(d[handle]) for key, handle in self.input_handles.items()}
+        except KeyError:
+            raise RuntimeError(
+                'Derivatives were not requested for the last eval -- call eval_current_kernel(with_derivs=True) '
+                'or evaluate(with_derivs=True) before calling derivs().'
+            ) from None
 
 
 class AadcExec:
@@ -143,6 +166,7 @@ class AadcExec:
         self.inputs_spec = inputs_spec
         self.graph = graph if graph is not None else GRAPH_ON()
         self.kernels: dict[frozenset, AadcKernel] = {}
+        self.current_kernel: AadcKernel | None = None
 
     def __enter__(self):
         self.instrumentation_registry().apply()    #-- lazily builds the registry on first use, if it
@@ -192,11 +216,11 @@ class AadcExec:
             cls.s_current_log.add((guard_id, outcome))
         return outcome
 
-    def create_kernel(self) -> tuple[AadcKernel, Any]:
+    def new_kernel(self):
         obj, trait = self.bound_trait.obj, self.bound_trait.trait
         with self.graph as graph:
             AadcExec.s_current_log = set()
-            py_res = obj.get_trait_value(trait)          #-- 2.1: graph + signature, one call
+            obj.get_trait_value(trait)                    #-- 2.1: graph + signature, one call
             signature = frozenset(AadcExec.s_current_log)
             AadcExec.s_current_log = None
 
@@ -212,18 +236,39 @@ class AadcExec:
 
                 self.kernels[signature] = kernel
 
-            return (kernel, py_res)
+            self.current_kernel = kernel
 
-    def eval_kernel(self, kernel: AadcKernel) -> tuple[bool, Any]:
+    def eval_current_kernel(self, with_derivs: bool = False) -> bool:
+        kernel = self.current_kernel
         inputs = kernel._resolve_inputs()
-        result = evaluate_kernel(
-            kernel.kernel, {kernel.output: []}, inputs, 1,
+        request = list(kernel.input_handles.values()) if with_derivs else []
+        kernel.eval_result = evaluate_kernel(
+            kernel.kernel, {kernel.output: request}, inputs, 1,
             error_mode = ErrorCollectionMode.ERRORS_ONLY,
         )
-        if result.errors.has_errors():
-            return (False, None)                          #-- caller: go back to create_kernel()
-        return (True, kernel._unwrap(result.values[kernel.output]))
+        return not kernel.eval_result.errors.has_errors()
 
+    def evaluate(self, with_derivs: bool = False):
+        """
+        Auto-retry entry point: evaluates the last-built kernel if there is one; on staleness (or if
+        there isn't one yet), (re)builds a new kernel and evaluates the fresh kernel once. Callers
+        who want manual control still have new_kernel()/eval_current_kernel() directly.
+        """
+        if self.current_kernel and self.eval_current_kernel(with_derivs):
+            return
+
+        self.new_kernel()
+        rc = self.eval_current_kernel(with_derivs)
+        if not rc:
+            raise AssertionError('Evaluation of a newly created kernel failed')
+
+    def result(self):
+        assert self.current_kernel, 'No current kernel -- call new_kernel()/evaluate() first.'
+        return self.current_kernel.result()
+
+    def derivs(self) -> dict:
+        assert self.current_kernel, 'No current kernel -- call new_kernel()/evaluate() first.'
+        return self.current_kernel.derivs()
 
 #-- DefLocator exists SOLELY to make raise_uninstrumented_warning's message name the offending function ("...in
 # Widget.label_get") instead of a bare file:line -- purely a diagnostic-quality nicety, not load-bearing: the
