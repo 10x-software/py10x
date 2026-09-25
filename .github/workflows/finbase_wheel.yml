@@ -161,7 +161,7 @@ jobs:
           pip install --no-cache-dir --extra-index-url https://matlogica.com/wheels/simple/ "${FINBASE_WHL}[aadc]"
 
       - name: AADC import smoke test
-        run: python -c "import aadc; import xxfin.jit_aadc.aadc_kernel; print(aadc.__file__)"
+        run: python -c "import aadc; import xxcommon.jit_aadc.aadc_exec; print(aadc.__file__)"
 
   publish:
     if: startsWith(github.ref, 'refs/tags/')

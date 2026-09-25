@@ -83,12 +83,13 @@ any other currency.
 
 ## Optional JIT acceleration via AADC
 
-Install the `aadc` extra first -- see [Install](#install). `xxfin/jit_aadc/` optionally records
-curve/valuation code into a JIT-compiled adjoint differentiation kernel using
-[MatLogica's AADC](https://matlogica.com/wheels/simple/) (Adjoint Algorithmic Differentiation
-Compiler), enabled via the `use_cxxfin` setting in `xxfin_env_vars.py`. `xxfin` itself works fully
-without it -- AADC only accelerates the JIT-compiled code path. See `xxfin/jit_aadc/aadc_doc.md`
-and `xxfin/jit_aadc/aadc_kernel_doc.md` for how it's used.
+Install the `aadc` extra first -- see [Install](#install). `xxcommon/jit_aadc/` provides a generic
+facility (`AadcExec`) for recording any Traitable-based computation into a JIT-compiled adjoint
+differentiation kernel using [MatLogica's AADC](https://matlogica.com/wheels/simple/) (Adjoint
+Algorithmic Differentiation Compiler), enabled via the `use_cxxfin` setting in `xxfin_env_vars.py`
+-- xxfin's own curve/valuation code is one consumer of it, not something `jit_aadc` is specific to.
+`xxfin` itself works fully without it -- AADC only accelerates the JIT-compiled code path. See
+`xxcommon/jit_aadc/aadc_exec_summary.md` for how it's used.
 
 ## An easy setup to start playing with xxfin package
 - install mongodb on your machine and run without authentication (default)

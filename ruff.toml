@@ -93,7 +93,7 @@ exclude = [
     "core_10x/jit/*",
     "core_10x/callable_instrumentation.py",
     "ui_10x/qt6/table*.py",
-    "xx_fin/xxfin/jit_aadc/*",
+    "xx_fin/xxfin/attic/jit_aadc/*.py",
 ]
 [lint.per-file-ignores]
 "xx_fin/xxfin/manual_tests/*" = [

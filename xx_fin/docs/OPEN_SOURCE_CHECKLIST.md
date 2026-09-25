@@ -90,8 +90,8 @@ images/logos are shipped under `xx_fin/`.
   `10X CONCEPTS LLC, XXFIN LLC and contributors` (keep both in sync).
 - `xx_fin/NOTICE` — open-source third-party attribution (QuantLib, xbbg) plus a separate section
   disclosing `aadc` and `blpapi` as commercial/proprietary dependencies requiring their own license.
-- `README.md` ("Optional JIT acceleration via AADC") — brief pointer to `xxfin/jit_aadc/` and its
-  `aadc_doc.md`/`aadc_kernel_doc.md`; the licensing and platform-availability facts live in
+- `README.md` ("Optional JIT acceleration via AADC") — brief pointer to `xxcommon/jit_aadc/` and its
+  `aadc_exec_summary.md`; the licensing and platform-availability facts live in
   `NOTICE` and `xx_fin/pyproject.toml`, not README.
 - `THIRD_PARTY_LICENSES` — not needed, per the root checklist's reasoning
   ([`docs/OPEN_SOURCE_IP_CHECKLIST.md`](../../docs/OPEN_SOURCE_IP_CHECKLIST.md) §5): `xx_fin` only
