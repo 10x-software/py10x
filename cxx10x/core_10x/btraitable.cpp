@@ -10,6 +10,9 @@
 
 #include "brc.h"
 
+#include <utility>
+#include <vector>
+
 BTraitable::~BTraitable() {
     // TODO: what if it gets collected while a different cache is active? or on different thread?
     // Perhaps,
@@ -108,7 +111,8 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
         const auto proc = ThreadContext::current_traitable_proc();
 
         //-- setting trait values (not calling set_values() for performance reasons and throwing immediately on error
-        std::unordered_map<const BTrait *,py::object> non_id_traits_set;
+        //-- vector, not unordered_map: must preserve kwarg order
+        std::vector<std::pair<const BTrait *, py::object>> non_id_traits_set;
         for (auto &[trait_name, value] : trait_values) {
             if (const auto trait = cls->find_trait(trait_name.cast<py::object>())) {    // skipping unknown trait names
                 auto py_value = value.cast<py::object>();
@@ -118,7 +122,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
                 if (!trait->flags_on(BTraitFlags::ID)) {
                     if (!update_existing && !replace_existing)
                         throw py::value_error(py::str("{}.{} - non-ID trait value cannot be set during initialization").format(class_name(), trait_name));
-                    non_id_traits_set[trait] = py_value;
+                    non_id_traits_set.emplace_back(trait, py_value);
                     continue;
                 }
                 if (const BRC rc(proc->set_trait_value(this, trait, py_value)); !rc)
