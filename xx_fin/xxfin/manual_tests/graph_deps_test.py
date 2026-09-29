@@ -1,9 +1,10 @@
 if __name__ == '__main__':
     from datetime import date
 
+    from core_10x.exec_control import GRAPH_ON
     from xxfin.ccy import Ccy
     from xxfin.ccy_forward import CcyForward
-    from xxfin.mkt_quotable import GRAPH_ON, MktDeps
+    from xxfin.mkt_quotable import MktDeps
 
     end_date = date(2035, 12, 12)
     ccy      = Ccy.existing_instance(name = 'GBP')

@@ -5,7 +5,7 @@ from datetime import date
 from typing import TYPE_CHECKING
 
 import numpy
-from core_10x.exec_control import GRAPH_ON, BoundTrait, GraphDeps
+from core_10x.exec_control import BTP, BoundTrait, GraphDeps
 from core_10x.rc import RC_TRUE
 from core_10x.trait_filter import f
 from core_10x.traitable import Bundle
@@ -51,12 +51,12 @@ class SingleMktQuote(MktQuotable, leaf_traits = ('quote', )):
         return RC_TRUE
 
 class MktDeps(GraphDeps):
-    def __init__(self, graph: GRAPH_ON, bound_trait: BoundTrait, *target_trait_names, target_class: type[MktQuotable] = None):
-        if target_class is None:
-            target_class = SingleMktQuote
-        if not target_trait_names:
-            target_trait_names = target_class.s_leaf_trait_names
-        super().__init__(graph, bound_trait, {target_class: target_trait_names})
+    def __init__(self, graph: BTP, bound_trait: BoundTrait, inputs_spec: dict[type, tuple[str, ...]] = None):
+        if inputs_spec is None:
+            leaf_class = MktQuotable
+            inputs_spec = {leaf_class: tuple(leaf_class.s_leaf_trait_names)}
+
+        super().__init__(graph, bound_trait, inputs_spec)
 
 
 class QuotableOverride(Bundle,MktDataBasis):
