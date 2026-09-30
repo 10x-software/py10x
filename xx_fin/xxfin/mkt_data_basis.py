@@ -21,7 +21,7 @@ class MktDataBasis(Traitable):
     def mkt_conventions_get(self):
         mc_cls = self.T.mkt_conventions.data_type
         assert mc_cls and issubclass(mc_cls, MktConventions), 'mkt_conventions must be a subclass of MktConventions'
-        return mc_cls.existing_instance(mkt_name = self.mkt_name)
+        return mc_cls(self.mkt_name)
 
     def md_basis_get(self) -> dict:
         return dict(

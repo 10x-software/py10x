@@ -32,7 +32,7 @@ if __name__ == '__main__':
     quotes = {}
     for cross in crosses:
         print(f'collecting {cross} quotes')
-        mc = FXMktConventions.existing_instance(mkt_name=cross)
+        mc = FXMktConventions(cross)
         spotdate = mc.spot_date(md_date)
         cal = mc.calendar
         roll = mc.roll_rule

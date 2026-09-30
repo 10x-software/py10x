@@ -107,7 +107,7 @@ class FinInstrumentSingleMarket(FinInstrument):
     mkt_conventions: MktConventions = RT()
 
     def mkt_conventions_get(self):
-        return self.__class__.s_mkt_conventions_class.existing_instance(mkt_name = self.mkt_name)
+        return self.__class__.s_mkt_conventions_class(self.mkt_name)
 
     def denominated_get(self) -> Ccy:
         return self.mkt_conventions.ccy
