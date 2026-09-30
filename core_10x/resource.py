@@ -187,6 +187,8 @@ class Resource(abc.ABC):
     # fmt: on
     s_resource_type: ResourceType = None
     s_driver_name: str = None
+    s_login_label = 'login name'
+    s_secret_label = 'password'
 
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
@@ -336,5 +338,6 @@ NULL_RESOURCE = NullResource()
 # fmt: off
 TS_STORE        = ResourceType('TS_STORE')
 REL_DB          = ResourceType('REL_DB')
+OIDC            = ResourceType('OIDC')
 CLOUD_CLUSTER   = ResourceType('CLOUD_CLUSTER')
 # fmt: on

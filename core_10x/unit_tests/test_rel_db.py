@@ -23,6 +23,7 @@ def test_rel_db_spec_from_uri_parses_uri_components():
     assert spec.kwargs[RelDb.USERNAME_TAG] == 'user'
     assert spec.kwargs[RelDb.PASSWORD_TAG] == 'pass'
     assert spec.kwargs[RelDb.PORT_TAG] == 5432
+    assert spec.uri() == 'pgtest://user:pass@localhost:5432/test_db'
 
 
 @pytest.fixture

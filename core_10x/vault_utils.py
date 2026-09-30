@@ -289,14 +289,15 @@ class VaultUtils:
         res_choices = tuple(f'{name}: {i}' for i, name in enumerate(CONCRETE_RESOURCE.all_names()))
         res_index = int(input(f'Choose CONCRETE_RESOURCE ({", ".join(res_choices)})'))
         resource_dt = CONCRETE_RESOURCE.item(CONCRETE_RESOURCE.all_names()[res_index])
+        resource_cls = resource_dt.value
         uri = input(f'Enter URI for {resource_dt}: ')
-        login = input(f'Enter login name ({username}): ')
+        login = input(f'Enter {resource_cls.s_login_label} ({username}): ')
         if not login:
             login = username
-        password = getpass.getpass(f'Enter password for {login}: ')
+        password = getpass.getpass(f'Enter {resource_cls.s_secret_label} for {login}: ')
 
         try:
-            resource_dt.value.instance_from_uri(uri, username=login, password=password, _cache=False)
+            resource_cls.instance_from_uri(uri, username=login, password=password, _cache=False)
         except Exception as ex:
             rc = RC(False, f'Failed to connect to {login} @ {uri}')
             rc.add_error(str(ex))

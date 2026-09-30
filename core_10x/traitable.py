@@ -1657,10 +1657,12 @@ class VaultResourceAccessor(Traitable):
         resource_uri = cls._canonical_uri(resource_dt, resource_uri)
         ra = cls.existing_instance(resource_dt=resource_dt, username=username, resource_uri=resource_uri, _throw=False)
         if not ra:
-            uri = Resource.uri_no_dbname(resource_uri)
-            ra = cls.existing_instance(resource_dt=resource_dt, username=username, resource_uri=uri, _throw=False)
+            uri = resource_dt.value.uri_no_dbname(resource_uri)
+            if uri is not None:
+                ra = cls.existing_instance(resource_dt=resource_dt, username=username, resource_uri=uri, _throw=False)
             if not ra:
-                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt.name}({uri}/*)' not found")
+                where = f'{uri}/*' if uri is not None else resource_uri
+                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt.name}({where})' not found")
 
         fake_ra = VaultResourceAccessor(resource_dt=resource_dt, username=username, resource_uri=resource_uri)
         fake_ra.login = ra.login
@@ -1694,6 +1696,10 @@ class NamedResource(Bundle):
 
 class NamedTsStore(NamedResource):
     s_resource_dt: CONCRETE_RESOURCE = CONCRETE_RESOURCE.TS_STORE
+
+
+class NamedOidc(NamedResource):
+    s_resource_dt: CONCRETE_RESOURCE = CONCRETE_RESOURCE.OIDC
 
 
 class TsClassAssociation(Traitable):

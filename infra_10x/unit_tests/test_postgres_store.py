@@ -37,6 +37,7 @@ def test_postgresql_parse_uri_and_registry():
     assert args[PostgresStore.PORT_TAG] == 5432
     spec = PostgresStore.spec_from_uri(uri)
     assert spec.kwargs.get(PostgresStore.PROTOCOL_TAG) == 'postgresql'
+    assert spec.uri() == 'postgresql://user:pass@localhost:5432/testdb'
     # Userinfo optional — omitted username stays None (libpq supplies OS user at connect).
     no_user = PostgresStore.parse_uri('postgresql://localhost:5432/postgres')
     assert no_user[PostgresStore.USERNAME_TAG] is None
