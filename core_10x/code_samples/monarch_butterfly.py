@@ -22,11 +22,11 @@ from 2 grams to 50 grams changes nothing about how fast it flies.
 
 from datetime import date
 
-from core_10x.traitable import NamedTraitable, T, RT
+from core_10x.traitable import NamedTraitable, Traitable, T, RT
 
 EXTERNAL_WORLD_NAME = 'main'
 
-class ExternalWorld(NamedTraitable):
+class ExternalWorld(Traitable):
     """
     The external world the insect has no control over.
     """

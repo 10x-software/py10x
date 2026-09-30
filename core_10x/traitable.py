@@ -1330,14 +1330,34 @@ class AsOfContext:
         self._reset_storage_helpers()
 
 
+NAMED_TRAITABLE_NAME_TRAIT = 'name'
 class NamedTraitable(Traitable):
+    #-- subclass may rename the identity trait, e.g. `class Ccy(NamedTraitable, name_trait = 'ccy_name')`;
+    #-- the renamed trait must still be declared with T(T.ID) in the subclass body
     s_ctor_allowed = True
+    s_name_trait = NAMED_TRAITABLE_NAME_TRAIT
 
     name: str = T(T.ID)
 
+    def __init_subclass__(cls, name_trait: str = None, **kwargs):
+        if name_trait is not None:
+            cls.s_name_trait = name_trait
+        super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def _post_build_trait_dir(cls, trait_dir: dict):
+        super()._post_build_trait_dir(trait_dir)
+        name_trait = cls.s_name_trait
+        if name_trait != NAMED_TRAITABLE_NAME_TRAIT:
+            new_trait = trait_dir.get(name_trait)
+            assert new_trait, f'{cls}.{name_trait!r} does not exist; declare `{name_trait}: str = T(T.ID,...)` in the class body'
+            assert new_trait.flags_on(T.ID), f'{cls}.{name_trait!r} must be flagged T.ID'
+            trait_dir.pop(NAMED_TRAITABLE_NAME_TRAIT, None)
+
     def __init__(self, _name: str = None, **kwargs):
         if _name:
-            obj = self.existing_instance(name = _name, **kwargs)
+            obj = self.existing_instance(**{self.s_name_trait: _name}, **kwargs)
+            assert obj is not None, f'May not use _throw = False here. Call {self.__class__}.existing_instance(...) directly instead'
             super().__init__(_id = obj.id())
         else:
             super().__init__(**kwargs)
