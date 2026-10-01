@@ -28,7 +28,7 @@ Changes since **0.3.0**.
 - **Trait filters**: `AND` / `OR` / `f` are rejected as field values (Mongo has no field-level `$and` / `$or`); combine whole filters, e.g. `OR(f(x=1), f(x=2))`, or use `x=IN([...])`.
 - **Unshared `ID`**: `hash()` raises `TypeError` while its value is unset, and it compares equal only to itself. An unhashable UI choice now raises instead of showing an empty picker.
 - **Vault**: only vault admins may save resource credentials for another user.
-- **Dependencies**: `rio-ui` 0.12.3; `sqlglot` capped below 30.16 (newer emits invalid Postgres SQL).
+- **Dependencies**: `rio-ui` 0.12.3; `sqlglot` capped below 30.16 (newer emits invalid Postgres SQL); `aadc` moved from a `py10x-fin-base` dependency to core's new `aadc` extra (`py10x-fin-base[aadc]` forwards to it), 2.22.2+ (older versions replay stale `int` / `bool` inputs).
 
 ### Fixed
 - **Trait filters**: a top-level `OR()` (match nothing), alone or nested, failed on every store; an `OR` with a match-all arm such as `f()` narrowed the Mongo query instead of matching everything.

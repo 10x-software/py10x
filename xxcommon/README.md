@@ -6,7 +6,7 @@ Shared, finance-oriented building blocks layered on top of `core_10x`:
 - **`rdate`** — `RDate` tenors (e.g. `'3M'`, `'1Y'`) with business-day roll rules and date schedules.
 - **`curve`** — `Curve` / `DateCurve` with pluggable interpolation (`scipy.interpolate`).
 - **`event` / `event_processor`** — `Event`, a timestamped append-only record, and `EventProcessor`, a watermark-tracked, class-dispatched consumer of one or more `Event` subclasses.
-- **`jit_aadc`** — `AadcExec`, a generic facility for recording any Traitable computation into a JIT-compiled adjoint differentiation kernel via [MatLogica's AADC](https://matlogica.com/wheels/simple/) (optional `aadc` extra).
+- **`jit_aadc`** — `AadcExec`, a generic facility for recording any Traitable computation into a JIT-compiled adjoint differentiation kernel via [MatLogica's AADC](https://pypi.org/project/aadc/) (optional `aadc` extra).
 
 For the broader project (concepts, install, tests, style), see [`README.md`](../README.md), [`INSTALLATION.md`](../INSTALLATION.md), [`GETTING_STARTED.md`](../GETTING_STARTED.md), and [`CONTRIBUTING.md`](../CONTRIBUTING.md) at the repository root.
 
@@ -321,8 +321,8 @@ Key points:
 
 ## `jit_aadc` — optional AADC-based JIT acceleration
 
-Requires the `aadc` extra (`pip install xxcommon[aadc]` — commercial, MatLogica's own package
-index; `xxcommon` and everything else here works fully without it). `AadcExec` records a bound
+Requires the `aadc` extra (`pip install "py10x-core[aadc]"`, which pulls `aadc>=2.22.2` from PyPI;
+`xxcommon` and everything else here works fully without it). `AadcExec` records a bound
 trait's computation into a JIT-compiled adjoint differentiation kernel: build once, then re-evaluate
 (value and/or partial derivatives) far faster than re-running the plain Python getter, and detect
 automatically when a rebuild is needed (e.g. an `if` branch in the computation flips due to a changed

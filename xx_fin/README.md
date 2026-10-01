@@ -13,12 +13,7 @@ That pulls **`py10x-fin-base-cxx`** transitively (import `cxxfin`). Do not depen
 dist directly. Requires Python `>=3.11,<3.14` and a published `py10x-core` (plus its kernel/infra).
 
 To also use the AADC JIT-compiled path (see [below](#optional-jit-acceleration-via-aadc)), install
-the `aadc` extra from MatLogica's own package index -- PyPI only mirrors an older `1.x` line:
-
-```bash
-pip install "py10x-fin-base[aadc]" --extra-index-url https://matlogica.com/wheels/simple/
-# or: uv pip install "py10x-fin-base[aadc]" --extra-index-url https://matlogica.com/wheels/simple/
-```
+the `aadc` extra: `pip install "py10x-fin-base[aadc]"` (forwards to `py10x-core[aadc]`).
 
 In this monorepo the packaging root is [`xx_fin/`](.). Domain developers typically use
 `uv-sync py10x-dev --all-extras --with-downstream` from the py10x repo root — see

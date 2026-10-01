@@ -27,4 +27,4 @@ def need(ok: bool, reason: str) -> None:
         return
     if EnvVars.test_strict:
         pytest.fail(f'XX_TEST_STRICT set but precondition unmet: {reason}')
-    pytest.skip(reason)
+    pytest.skip(reason, allow_module_level=True)

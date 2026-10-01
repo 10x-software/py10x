@@ -27,16 +27,6 @@ These are not open source. They are listed here because xxfin/cxxfin can
 optionally depend on them; installing xxfin/cxxfin does not grant any rights
 to them, and using them is subject to their own vendors' terms.
 
-  - aadc
-    Copyright (c) MatLogica Limited. Proprietary Python interface to MatLogica's
-    AADC (Adjoint Algorithmic Differentiation Compiler). Installable without
-    restriction from MatLogica's own package index; the published wheels are
-    the Community Edition build, licensed for non-commercial and academic use
-    only, with no activation, key, or trial period required for that use.
-    Commercial use or advanced features (e.g. AVX-512) require a license
-    obtained by contacting MatLogica (info@matlogica.com).
-    https://matlogica.com/wheels/simple/
-
   - blpapi (optional "bbg" extra)
     Copyright (c) Bloomberg Finance L.P. Bloomberg's proprietary API, not
     open source. Distributed only via Bloomberg's own dedicated package

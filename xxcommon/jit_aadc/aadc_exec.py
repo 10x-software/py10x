@@ -241,6 +241,8 @@ class AadcExec:
         return self.current_kernel.result()
 
     def derivs(self) -> dict:
+        """{(cls, obj_id, trait): adjoint} for every input. ``int`` / ``bool`` / ``date`` inputs are listed
+        but are always 0: they are not differentiable, so AADC gives them no adjoint."""
         assert self.current_kernel, 'No current kernel -- call new_kernel()/evaluate() first.'
         return self.current_kernel.derivs()
 
