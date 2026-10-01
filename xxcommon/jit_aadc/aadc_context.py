@@ -6,7 +6,10 @@ from aadc.numpy_compat.other_functions import interpolate_1d
 from xxcommon.curve import CurveParams
 from xxcommon.xxcommon_env_vars import XXCommonEnvVars
 
-import xxfin.root_solver as _root_solver
+try:
+    import xxfin.root_solver as _root_solver #TODO: make this pluggable?
+except ImportError:
+    _root_solver = None
 
 
 class _AadcRootResult:
@@ -58,12 +61,14 @@ class AADCDomainSwap:
         if not XXCommonEnvVars.use_cxx_curve:
             self._saved_interpolator         = CurveParams.DEFAULT_INTERPOLATOR
             CurveParams.DEFAULT_INTERPOLATOR = _aadc_interp1d
-        self._saved_root_scalar          = _root_solver.root_scalar_impl
-        _root_solver.root_scalar_impl    = _aadc_root_scalar
+        if _root_solver:
+            self._saved_root_scalar          = _root_solver.root_scalar_impl
+            _root_solver.root_scalar_impl    = _aadc_root_scalar
         return self
 
     def __exit__(self, *args):
-        _root_solver.root_scalar_impl    = self._saved_root_scalar
+        if _root_solver:
+            _root_solver.root_scalar_impl    = self._saved_root_scalar
         if not XXCommonEnvVars.use_cxx_curve:
             CurveParams.DEFAULT_INTERPOLATOR = self._saved_interpolator
 
