@@ -7,8 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Changes since **0.3.0**.
+
+### Added
+- **`NOT` trait filter** (`core_10x/trait_filter.py`): `f(age=NOT(GT(5)))` negates a field operator (Mongo `$not`; matches missing / null fields on every backend). `NOT(f(...))`, `NOT(AND(...))`, `NOT(OR(...))` are rewritten via De Morgan.
+- **`NamedTraitable` `name_trait`**: a subclass may rename the identity trait, e.g. `class MktConventions(NamedTraitable, name_trait='mkt_name')`; the trait must be declared with `T(T.ID)`.
+- **`default_cache` class option**: `class X(Traitable, default_cache=True)` creates and loads instances on the processor's default cache.
+- **`SelectableTraitableClass`** (`core_10x/selectable_traitable_class.py`): mixin whose `selected_class()` returns the implementation registered in `SelectableTraitableRecord`, so call sites need not change.
+- **`SaveIfChanged`** is now a class: `parent=` processor, and `auto_save=False` for a reusable tracker with explicit `save()` / `reload()`.
+- **`GraphDeps.read(cls, obj_id, trait)`** reads an existing graph node.
+- **Vault**: `OidcSecret` / `NamedOidc` resource for OIDC client secrets; functional accounts (`xx-functional-account-init`); new CLIs `xx-vault-setup-roles` and `xx-user-save-credentials`; suspended users. The master password key is now salted scrypt (existing records still load) and is stored only in OS-native keyrings or the functional-account keyring. See `docs/VAULT_SECURITY_DESIGN.md`.
+- **MongoDB URI**: `directConnection` and short parameter aliases.
+- **UI** (`ui_10x/`): table view on both Qt and Rio; dialog `on_open` callback; optional `parent` for trait edit dialogs and the date picker; traitable editor tracks changes across editors and sizes widgets to content; choices may be selected by label or value.
+- **`examples` extra**: `yfinance` for `ui_10x/examples/price_simulator.py`.
+
 ### Changed
 - **`TraitableCli.main`** now calls ``verify()`` before ``run()``. ``VaultUtils.user_init`` takes ``new_machine: bool = False`` instead of a ``mode`` string.
+- **`GraphDeps(gp, bound_trait, inputs_spec)`** (breaking): takes a `{cls: (trait_name, ...)}` dict instead of `target_class, *trait_names`.
+- **`Traitable.collection(_coll_name, create_if_needed=False)`** (breaking): replaces `_ensure_indices`.
+- **Trait filters**: `AND` / `OR` / `f` are rejected as field values (Mongo has no field-level `$and` / `$or`); combine whole filters, e.g. `OR(f(x=1), f(x=2))`, or use `x=IN([...])`.
+- **Unshared `ID`**: `hash()` raises `TypeError` while its value is unset, and it compares equal only to itself. An unhashable UI choice now raises instead of showing an empty picker.
+- **Vault**: only vault admins may save resource credentials for another user.
+- **Dependencies**: `rio-ui` 0.12.3; `sqlglot` capped below 30.16 (newer emits invalid Postgres SQL).
+
+### Fixed
+- **Trait filters**: a top-level `OR()` (match nothing), alone or nested, failed on every store; an `OR` with a match-all arm such as `f()` narrowed the Mongo query instead of matching everything.
+- **`existing_instances_by_filter`**: no longer returns an object whose stored copy matches but whose in-memory values no longer do.
+- **`NamedTraitable(_name)`** raises for an unknown name instead of creating it.
+- **`EnvVars`**: assigning a variable runs its `*_apply` hook.
+- **Resources**: URI round-trip of non-string parameters.
+- **Postgres**: saving as a non-owner (e.g. a vault user) no longer fails on index creation.
+- **UI**: Qt multi-choice unselection, Rio multi-choice, text-edit widget type, trait UI-hint `params` lost on adjustment.
+
+### Experimental / internal-only
+- **`xxcommon.jit_aadc`** (`AadcExec`, `core_10x/callable_instrumentation.py`): AADC kernel recording / replay, moved from `xx_fin`; instruments nothing unless opted in.
 
 ## [0.3.0] - 2026-08-12
 

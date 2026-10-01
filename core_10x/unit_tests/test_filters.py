@@ -14,6 +14,7 @@ from core_10x.trait_filter import (
     AND,
     BETWEEN,
     EQ,
+    FALSE,
     GE,
     GT,
     IN,
@@ -21,8 +22,10 @@ from core_10x.trait_filter import (
     LT,
     NE,
     NIN,
+    NOT,
     NOT_EMPTY,
     OR,
+    BoolOp,
     f,
 )
 from core_10x.traitable import Traitable, XNone
@@ -60,7 +63,7 @@ def test_or():
 
     assert r4.prefix_notation() == r1.prefix_notation()
     assert r5.prefix_notation() == r2.prefix_notation()
-    assert r6.prefix_notation() == {'$in': []}
+    assert r6.prefix_notation() == {'$expr': False}
 
     assert not r1.eval(p)
     assert r2.eval(p)
@@ -70,11 +73,11 @@ def test_or():
     assert not r6.eval(p)
 
     r7 = OR(OR(), OR())
-    assert r7.prefix_notation() == {'$in': []}
+    assert r7.prefix_notation() == {'$expr': False}
     assert not r7.eval(p)
 
     r8 = OR(OR(), AND())
-    assert r7.prefix_notation() == {'$in': []}
+    assert r7.prefix_notation() == {'$expr': False}
     assert r8.eval(p)
 
 
@@ -106,7 +109,7 @@ def test_and():
     assert r7.eval(p)
 
     r8 = AND(AND(), OR())
-    assert r8.prefix_notation() == {'$in': []}
+    assert r8.prefix_notation() == {'$expr': False}
     assert not r8.eval(p)
 
 
@@ -197,8 +200,19 @@ def test_not_empty_and_bool_ops_eval_and_prefix():
     assert single_and.prefix_notation() == {'$eq': 7} or single_and.prefix_notation() == {'$eq': 7}
 
     # empty BoolOp
-    assert OR().prefix_notation() == {'$in': []}
+    assert OR().prefix_notation() == {'$expr': False}
     assert AND().prefix_notation() == {}
+
+
+def test_field_op_and_false_sentinel():
+    assert f(age=IN([])).prefix_notation() == {'age': {'$in': []}}
+    assert OR() is BoolOp.s_false
+    assert IN([]) is not FALSE()
+
+    # Mongo has no field-level $and/$or, and FALSE is a whole-query filter.
+    for bad in (OR(EQ(1), EQ(2)), AND(GT(1), LT(5)), AND(), OR(), f(age=1), NOT(OR(EQ(1), EQ(2)))):
+        with pytest.raises(AssertionError):
+            f(age=bad)
 
 
 def test_f_named_expressions_eval_and_prefix():
@@ -366,6 +380,12 @@ def test_f_pinned_trait_dir_takes_precedence():
     inner = f(age=EQ(7))
     wrapped = f(inner, PA.s_dir)
     assert wrapped.prefix_notation(trait_dir=PB.s_dir) == {'age': {'$eq': 'a:7'}}
+
+    # Field NOT forwards the field into the inner operator, so the value is still serialized.
+    assert f(trait_dir=PA.s_dir, age=NOT(EQ(5))).prefix_notation() == {'age': {'$not': {'$eq': 'a:5'}}}
+
+    # Negating a wrapper keeps its pinned trait_dir for the nested filter.
+    assert NOT(wrapped).prefix_notation(trait_dir=PB.s_dir) == {'age': {'$not': {'$eq': 'a:7'}}}
 
 
 class RefTarget(Traitable):
@@ -672,3 +692,79 @@ class TestCompoundFilters:
         res = list(coll.find(q_or))
         ids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
         assert ids == ['s1', 's2', 's3']
+
+    def test_not_find(self, prepared):
+        """NOT matches a missing field, same as Mongo ``$not``.
+
+        ``NOT(OR(...))`` lowers to an AND of field NOTs before it reaches the store.
+        """
+        store, *_ = prepared
+
+        class TextSample(Traitable, custom_collection=True, keep_history=False):
+            marker: str = T(T.ID)
+            s: str = T()
+            x: int = T()
+
+        coll_name = 'not_' + uuid6.uuid7().hex[:12]
+        trait_dir = TextSample.s_dir
+        coll = store.collection(coll_name, trait_dir)
+        try:
+            coll.save_new({'_id': 'hello', 'marker': 'hello', 's': 'hello', 'x': 10})
+            coll.save_new({'_id': 'world', 'marker': 'world', 's': 'world', 'x': 3})
+            coll.save_new({'_id': 'nulls', 'marker': 'nulls', 's': None, 'x': None})
+            coll.save_new({'_id': 'missing', 'marker': 'missing'})
+
+            def ids(query):
+                return sorted(r['_id'] for r in coll.find(query))
+
+            assert ids(f(s=NOT(EQ('hello')), trait_dir=trait_dir)) == ['missing', 'nulls', 'world']
+            assert ids(f(x=NOT(GT(5)), trait_dir=trait_dir)) == ['missing', 'nulls', 'world']
+            assert ids(f(x=NOT(NE(10)), trait_dir=trait_dir)) == ['hello']
+            assert ids(f(x=NOT(BETWEEN(1, 5)), trait_dir=trait_dir)) == ['hello', 'missing', 'nulls']
+            assert ids(NOT(OR(f(s='hello', trait_dir=trait_dir), f(x=GT(5), trait_dir=trait_dir)))) == ['missing', 'nulls', 'world']
+
+            # Top-level match-nothing, alone, nested, and as the negation of an empty AND().
+            assert ids(OR()) == []
+            assert ids(f(OR(), x=GT(5), trait_dir=trait_dir)) == []
+            assert ids(NOT(f(AND(), x=GT(5), trait_dir=trait_dir))) == ['missing', 'nulls', 'world']
+            # A match-all arm keeps the whole OR match-all.
+            assert ids(OR(f(x=GT(5), trait_dir=trait_dir), f())) == ['hello', 'missing', 'nulls', 'world']
+            assert ids(NOT(f(OR(), x=GT(5), trait_dir=trait_dir))) == ['hello', 'missing', 'nulls', 'world']
+            assert ids(NOT(f(x=IN([]), trait_dir=trait_dir))) == ['hello', 'missing', 'nulls', 'world']
+            assert ids(NOT(f(x=IN([]), s='hello', trait_dir=trait_dir))) == ['hello', 'missing', 'nulls', 'world']
+        finally:
+            store.delete_collection(coll_name)
+
+
+def test_not_eval_and_prefix():
+    sasha = Person(first_name='Sasha', last_name='Davidovich', age=40)
+    ann = Person(first_name='Ann', last_name='Davidovich', age=3)
+
+    assert NOT(GT(5)).eval(5)
+    assert not NOT(GT(5)).eval(6)
+    assert NOT(GT(5)).prefix_notation() == {'$not': {'$gt': 5}}
+    assert NOT(BETWEEN(1, 2)).prefix_notation() == {'$not': {'$gte': 1, '$lte': 2}}
+    assert NOT(NOT(GT(5))).prefix_notation() == {'$gt': 5}
+    assert NOT(IN([])).prefix_notation() == {'$not': {'$in': []}}
+
+    assert NOT(f(age=2)).eval(ann)
+    assert not NOT(f(age=3)).eval(ann)
+    assert NOT(f(age=2)).prefix_notation() == {'age': {'$not': {'$eq': 2}}}
+    both = f(age=GT(5), first_name='Ann')
+    assert NOT(both).prefix_notation() == OR(f(age=NOT(GT(5))), f(first_name=NOT(EQ('Ann')))).prefix_notation()
+    assert NOT(OR(f(age=GT(5)), f(first_name='Ann'))).prefix_notation() == AND(f(age=NOT(GT(5))), f(first_name=NOT(EQ('Ann')))).prefix_notation()
+    assert NOT(NOT(f(age=GT(5)))).prefix_notation() == f(age=GT(5)).prefix_notation()
+    assert both.eval(sasha) is False and NOT(NOT(both)).eval(sasha) is False
+    assert both.eval(Person(first_name='Ann', last_name='Davidovich', age=10))
+    assert NOT(NOT(both)).eval(Person(first_name='Ann', last_name='Davidovich', age=10))
+
+    assert NOT(OR()).prefix_notation() == {}
+    assert NOT(OR()).eval(ann)
+    assert NOT(f()).prefix_notation() == {'$expr': False}
+    assert not NOT(f()).eval(ann)
+    assert NOT(AND()).prefix_notation() == {'$expr': False}
+    assert NOT(f(x=IN([]))).prefix_notation() == {'x': {'$not': {'$in': []}}}
+    assert NOT(f(AND(), age=GT(5))).prefix_notation() == {'$or': [{'age': {'$not': {'$gt': 5}}}, {'$expr': False}]}
+    assert OR(f(age=GT(5)), f()).prefix_notation() == {}
+    assert NOT(f(OR(), age=GT(5))).prefix_notation() == {}
+    assert NOT(f(OR(), age=GT(5))).eval(sasha)
