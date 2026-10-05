@@ -12,8 +12,10 @@ if __name__=='__main__':
     from xxfin.ir_zero_rate_curve import ZeroRateCurve
     from xxfin.pricing_context import PricingContext
 
+    ## TODO: both blocks below retired along with FinInstrument.mkt_deps_for_discounting/mkt_deps_for_ccy
+    ##       (see mkt_deps_design_notes.md). OK to discard outright instead of keeping commented?
     IR_DEPS = False
-    FX_DEPS = True
+    FX_DEPS = False
 
 
     pc = PricingContext.current()

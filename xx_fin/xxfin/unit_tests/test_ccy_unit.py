@@ -13,13 +13,15 @@ class TestCcyUnit:
         for cu in self.cus:
             assert cu.price == 1.
 
-    def test_mkt_deps(self):
-        for cu in self.cus:
-            assert cu.mkt_deps == {}
-
-    def test_mkt_deps_deps_for_discounting(self):
-        for cu in self.cus:
-            assert cu.mkt_deps_for_discounting == {}
+    ## TODO: retired along with FinInstrument.mkt_deps_for_discounting (see mkt_deps_design_notes.md).
+    ##       OK to discard these tests outright instead of keeping them commented?
+    # def test_mkt_deps(self):
+    #     for cu in self.cus:
+    #         assert cu.mkt_deps == {}
+    #
+    # def test_mkt_deps_deps_for_discounting(self):
+    #     for cu in self.cus:
+    #         assert cu.mkt_deps_for_discounting == {}
 
     def test_max_date(self):
         for cu in self.cus:
