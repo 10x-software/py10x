@@ -54,7 +54,7 @@ public:
     }
 
     [[nodiscard]] bool is_valid() const         { return m_state & STATE_VALID; }
-    [[nodiscard]] bool is_set() const           { return (m_state & ~STATE_GETTER_GUARD) == STATE_VALID_AND_SET; }
+    [[nodiscard]] bool is_set() const           { return (m_state & ~(STATE_GETTER_GUARD | STATE_NOT_A_DEPENDENCY)) == STATE_VALID_AND_SET; }
     [[nodiscard]] bool is_valid_and_not_set() const { return (m_state & STATE_VALID) && ((m_state & STATE_SET) == 0x0); }
 
     [[nodiscard]] py::object value() const      { return m_value; }
