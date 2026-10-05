@@ -82,7 +82,7 @@ public:
         if (iter == end()) {
             nwa = new NodesWithArgs();
             insert({ trait, nwa });
-            auto node = BasicNode::create(node_type);
+            auto node = trait->create_node(node_type);
             nwa->insert({ args, node });
             return node;
         }
@@ -92,7 +92,7 @@ public:
         if (it != nwa->end())
             return it->second;
 
-        auto node = BasicNode::create(node_type);
+        auto node = trait->create_node(node_type);
         nwa->insert({ args, node });
         return node;
     }
@@ -135,7 +135,7 @@ public:
         if (it != end())
             return it->second;
 
-        auto node = BasicNode::create(node_type);
+        auto node = trait->create_node(node_type);
         insert({ trait, node });
         return node;
     }

@@ -59,7 +59,7 @@ BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int
     const auto oc = find_or_create_object_cache(obj);
     auto node = oc->find_node(trait);
     if (!node) {
-        node = BasicNode::create(node_type);
+        node = trait->create_node(node_type);
         oc->insert_node(trait, node);
 
         if (!import_from_parents)
@@ -78,7 +78,7 @@ BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int
     const auto oc = find_or_create_object_cache(obj);
     auto node = oc->find_node(trait, args);
     if (!node) {
-        node = BasicNode::create(node_type);
+        node = trait->create_node(node_type);
         oc->insert_node(trait, node, args);
 
         if (!import_from_parents)

@@ -64,7 +64,7 @@ py::object BTraitProcessor::get_node_value_on_graph(BTraitableProcessor* proc, B
     } else
         value = node->value();
 
-    if (parent) {
+    if (parent && !node->is_not_a_dependency()) {
         node->add_parent(parent);
         // TODO: layer -> notify_node_parent_addition(node, parent);
     }

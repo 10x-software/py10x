@@ -5,6 +5,7 @@
 #include "btraitable_processor.h"
 #include "bflags.h"
 #include "btrait_processor.h"
+#include "bnode.h"
 
 class BTraitable;
 class BTraitableProcessor;
@@ -29,8 +30,9 @@ public:
     static constexpr unsigned TS_USER       = 0x2000;
     static constexpr unsigned TS            = TS_TIME | TS_USER;
     static constexpr unsigned NOT_EMBEDDABLE = 0x4000;
+    static constexpr unsigned NOT_A_DEPENDENCY = 0x8000;
 
-    static constexpr unsigned LAST_FLAG = NOT_EMBEDDABLE; //TODO: remove?
+    static constexpr unsigned LAST_FLAG = NOT_A_DEPENDENCY; //TODO: remove?
 
     // TODO: review the below CUSTOM_F_*- they do not seem to be used anywhere..
     static constexpr uint64_t CUSTOM_F_GET           = static_cast<uint64_t>(0x1)       << 32;
@@ -115,6 +117,13 @@ public:
     [[nodiscard]] bool flags_on(const BFlags& flags) const          { return m_flags & flags.value(); }
     [[nodiscard]] bool flags_on_uint(const uint64_t flags) const    { return m_flags & flags; }
     [[nodiscard]] bool flags_on_bflags(const BFlags& flags) const   { return m_flags & flags.value(); }
+
+    [[nodiscard]] BasicNode* create_node(int node_type) const {
+        auto node = BasicNode::create(node_type);
+        if (flags_on(BTraitFlags::NOT_A_DEPENDENCY))
+            node->set_not_a_dependency(true);
+        return node;
+    }
 
     [[nodiscard]] bool has_custom_getter() const                    { return m_flags & BTraitFlags::CUSTOM_F_GET; }
 
