@@ -50,12 +50,14 @@ class TestCcyForward:
             assert ufwd.price == self.usd_zrc.discount_factor(d, self.today)
             assert gfwd.price == self.gbp_zrc.discount_factor(d, self.today)
 
-    def test_mkt_deps(self):
-        for cf in self.fwds:
-            assert cf.mkt_deps == cf.mkt_deps_for_discounting
-
-    def test_mkt_deps_deps_for_discounting(self):
-        ...
+    ## TODO: retired along with FinInstrument.mkt_deps_for_discounting (see mkt_deps_design_notes.md).
+    ##       OK to discard these tests outright instead of keeping them commented?
+    # def test_mkt_deps(self):
+    #     for cf in self.fwds:
+    #         assert cf.mkt_deps == cf.mkt_deps_for_discounting
+    #
+    # def test_mkt_deps_deps_for_discounting(self):
+    #     ...
 
     def test_max_date(self):
         for d, ufwd, gfwd in zip(self.days, self.usd_fwds, self.gbp_fwds, strict=True):

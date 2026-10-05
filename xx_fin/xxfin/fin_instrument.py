@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
-#from core_10x.basket import Basket, T, RT
+from core_10x.basket import Basket
+from core_10x.named_constant import NamedCallable
 from core_10x.traitable import RT, T, Traitable
 
 from xxfin.ccy_cross import Ccy, CcyCross
@@ -9,19 +10,56 @@ from xxfin.fx_rate import FxRate
 from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
 from xxfin.ir_zero_rate_curve import ZeroRateCurve
 from xxfin.mkt_conventions import MktConventions
-from xxfin.pre_basket import PreBasket
 from xxfin.pricing_context import PricingContext
+
+
+class FIN_AGGREGATOR(NamedCallable):
+    PRICE = lambda value_qtys: sum(value * qty for value, qty in value_qtys)
 
 
 class FinInstrument(Traitable):
     denominated: Ccy    = T()
     price: float        = RT()
 
-    disc_curve: ZeroRateCurve       = RT()
-    mkt_deps_for_discounting: dict  = RT()
+    disc_curve: ZeroRateCurve = RT()
+    leaves: Basket      = RT()
 
-    leaves: PreBasket   = RT()
-    mkt_deps: dict      = RT()  ## {quotable_class: basket of quotables}
+    ## TODO: retired in favor of runtime discovery via GraphDeps/MktDeps (see mkt_deps_design_notes.md) --
+    ##       kept commented for possible future use in simulation scenarios that need dependency shape
+    ##       without a full price evaluation. OK to discard outright instead?
+    # mkt_deps_for_discounting: dict  = RT()
+    # mkt_deps: dict      = RT()  ## {quotable_class: basket of quotables}
+
+    ## TODO: retired -- see note above
+    # def mkt_deps_for_discounting_get(self) -> dict:
+    #     return self.disc_curve.quotables_prior_to(self.max_date())
+    #
+    # def mkt_deps_for_ccy(self, ccy: Ccy) -> dict:
+    #     denom = self.denominated
+    #     if denom == ccy:
+    #         return {}
+    #
+    #     pc = PricingContext.current()
+    #     md_basis = pc.md_basis
+    #     max_date = self.max_date()
+    #     _, cross1, _, cross2 = CcyCross.resolve(base_ccy = ccy, quote_ccy = denom)
+    #     fxc = FXForwardCurveSimple(mkt_name = cross1.cross, **md_basis)
+    #     quotables = {k:v.copy() for k, v in fxc.quotables_prior_to(max_date).items()}
+    #     # quotables = dict(fxc.quotables_prior_to(max_date))
+    #     if cross2:
+    #         fxc2 = FXForwardCurveSimple(mkt_name = cross2.cross, **md_basis)
+    #         quotables2 = fxc2.quotables_prior_to(max_date)
+    #         for q_cls, objs in quotables2.items():
+    #             ex_objs = quotables.get(q_cls)
+    #             if ex_objs is None:
+    #                 quotables[q_cls] = objs
+    #             else:
+    #                 ex_objs.extend(objs)
+    #
+    #     return quotables
+    #
+    # def mkt_deps_get(self) -> dict:
+    #     raise NotImplementedError    # pragma: no cover
 
     ## TODO: why there was "t" argument??
     # def denominated_choices(self, t) -> dict:
@@ -44,12 +82,10 @@ class FinInstrument(Traitable):
             snapshot        = pc.snapshot,
         )
 
-    ## TODO: seems wrong: returns all rates quotables, not only those max_date
-    def mkt_deps_for_discounting_get(self) -> dict:
-        return self.disc_curve.quotables_prior_to(self.max_date())
-
-    def leaves_get(self) -> PreBasket:
-        return PreBasket() + {self: 1.}
+    def leaves_get(self) -> Basket:
+        basket = Basket(base_class = FinInstrument, aggregator_class = FIN_AGGREGATOR)
+        basket.add(self, 1.)
+        return basket
 
     def discount_factor(self, d: date) -> float:
         pc = PricingContext.current()
@@ -64,35 +100,8 @@ class FinInstrument(Traitable):
         #-- TODO: if so, PC would need to have a pricing_date with a default value of date.today()
         return rate_curve.discount_factor(d, today)
 
-    def mkt_deps_for_ccy(self, ccy: Ccy) -> dict:
-        denom = self.denominated
-        if denom == ccy:
-            return {}
-
-        pc = PricingContext.current()
-        md_basis = pc.md_basis
-        max_date = self.max_date()
-        _, cross1, _, cross2 = CcyCross.resolve(base_ccy = ccy, quote_ccy = denom)
-        fxc = FXForwardCurveSimple(mkt_name = cross1.cross, **md_basis)
-        quotables = {k:v.copy() for k, v in fxc.quotables_prior_to(max_date).items()}
-        # quotables = dict(fxc.quotables_prior_to(max_date))
-        if cross2:
-            fxc2 = FXForwardCurveSimple(mkt_name = cross2.cross, **md_basis)
-            quotables2 = fxc2.quotables_prior_to(max_date)
-            for q_cls, objs in quotables2.items():
-                ex_objs = quotables.get(q_cls)
-                if ex_objs is None:
-                    quotables[q_cls] = objs
-                else:
-                    ex_objs.extend(objs)
-
-        return quotables
-
     #-- Last date of the instrument, i.e., nothing may change its price after that date
     def max_date(self) -> date:
-        raise NotImplementedError    # pragma: no cover
-
-    def mkt_deps_get(self) -> dict:
         raise NotImplementedError    # pragma: no cover
 
 
