@@ -181,21 +181,29 @@ def pytest_runtest_makereport(item, call):
     setattr(item, f'rep_{rep.when}', rep)
 
 
+@pytest.fixture(scope='session', autouse=True)
+def _no_ambient_vault_env():
+    """A shell vault URI would route store_from_uri through the vault; tests set their own.
+
+    Session scope so it runs before package/module fixtures that open stores (e.g. xxfin's).
+    """
+    if not any(name in os.environ for name in _AMBIENT_VAULT_ENV_VARS):
+        yield
+        return
+
+    from core_10x.testlib.ts_store_isolation import reset_traitable_process_state
+
+    with pytest.MonkeyPatch.context() as mp:
+        for name in _AMBIENT_VAULT_ENV_VARS:
+            mp.delenv(name, raising=False)
+        reset_traitable_process_state(assert_clean=False)  # EnvVars values are memoized
+        yield
+
+
 @pytest.fixture(autouse=True)
-def test_isolation(request, monkeypatch):
+def test_isolation(request):
     global BTP
     assert BTP is BTraitableProcessor.current()
-
-    # A developer's shell vault URI would route store_from_uri through the vault and break
-    # clean-state assertions; tests that need a vault set it explicitly (e.g. vault_env).
-    if any(name in os.environ for name in _AMBIENT_VAULT_ENV_VARS):
-        for name in _AMBIENT_VAULT_ENV_VARS:
-            monkeypatch.delenv(name, raising=False)
-        from core_10x.testlib.ts_store_isolation import reset_traitable_process_state, restore_pinned_ts_stores
-
-        # EnvVars values are memoized; drop any already read from the environment.
-        reset_traitable_process_state(assert_clean=False)
-        restore_pinned_ts_stores()
 
     # Snapshot test instance keys *before* setUp so we can drop attrs stored on self
     # during tearDown
