@@ -171,6 +171,8 @@ def pytest_ignore_collect(collection_path, config):
 
 BTP = BTraitableProcessor.current()
 
+_AMBIENT_VAULT_ENV_VARS = ('XX_MAIN_VAULT_URI', 'XX_VAULT_URI')
+
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -181,9 +183,20 @@ def pytest_runtest_makereport(item, call):
 
 
 @pytest.fixture(autouse=True)
-def test_isolation(request):
+def test_isolation(request, monkeypatch):
     global BTP
     assert BTP is BTraitableProcessor.current()
+
+    # A developer's shell vault URI would route store_from_uri through the vault and break
+    # clean-state assertions; tests that need a vault set it explicitly (e.g. vault_env).
+    if any(name in os.environ for name in _AMBIENT_VAULT_ENV_VARS):
+        for name in _AMBIENT_VAULT_ENV_VARS:
+            monkeypatch.delenv(name, raising=False)
+        from core_10x.testlib.ts_store_isolation import reset_traitable_process_state, restore_pinned_ts_stores
+
+        # EnvVars values are memoized; drop any already read from the environment.
+        reset_traitable_process_state(assert_clean=False)
+        restore_pinned_ts_stores()
 
     # Snapshot test instance keys *before* setUp so we can drop attrs stored on self
     # during tearDown
