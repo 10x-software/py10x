@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING
 import pytest
 import uuid6
 
+from core_10x.environment_variables import EnvVars
 from core_10x.resource import Resource
 from core_10x.traitable import Traitable
 from core_10x.ts_store import TsStore
@@ -45,6 +46,11 @@ SESSION_DB: str = os.environ.get('XX_TEST_DB') or f'{TEST_DB_PREFIX}_{datetime.n
 
 # -- True when the name was pinned by the caller, who then owns its lifecycle.
 SESSION_DB_IS_PINNED: bool = bool(os.environ.get('XX_TEST_DB'))
+
+
+# -- Fallback vault for password-auth servers; an explicit XX_MAIN_VAULT_URI wins. Only applied once a
+# -- test server demands auth, so open servers (CI) never see it.
+DEFAULT_TEST_VAULT_URI = 'mongodb://localhost:27018/_vault_'
 
 
 def test_uri(store_protocol: str, session_db: str = SESSION_DB) -> str:
@@ -73,19 +79,26 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
     def test_store(store_protocol: str, custom_db: str = '') -> TsStore | None:
         dbname = custom_db or SESSION_DB
         if (uri := test_uri(store_protocol, dbname)) not in stores:
-            if not TsStore.is_running_with_auth_from_uri(uri)[0]:
+            is_running, with_auth = TsStore.is_running_with_auth_from_uri(uri)
+            if not is_running:
                 stores[uri] = None
             else:
+                needs_vault = with_auth and not EnvVars.vault_uri
+                if needs_vault:
+                    os.environ.setdefault(EnvVars.var_name('vault_uri'), DEFAULT_TEST_VAULT_URI) # survive isolation cache clears.
+                    EnvVars.vault_uri = DEFAULT_TEST_VAULT_URI
                 # Vault-aware: password-auth servers take credentials from the local vault;
                 # open (CI / unauthenticated mongo+postgres) servers skip it.
                 stores[uri] = Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True)
-                created.add((Resource.uri_no_dbname(uri), dbname))
+                created.add((Resource.uri_no_dbname(uri), dbname, needs_vault and DEFAULT_TEST_VAULT_URI))
         return stores[uri]
 
     yield test_store
 
-    for uri, dbname in iter(created):
+    for uri, dbname, vault in iter(created):
         if dbname == SESSION_DB and SESSION_DB_IS_PINNED:
             continue
+        if vault:
+            EnvVars.vault_uri = vault
         # From a store on the server default: a store cannot drop the database it is on.
         Traitable.store_from_uri(uri, _cache=False).delete_database(dbname)
