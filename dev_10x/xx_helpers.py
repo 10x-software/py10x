@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import subprocess
 import sys
 from pathlib import Path
@@ -842,26 +843,38 @@ class PyPIHelpers:
 
         return re.sub(r'[-_.]+', '-', name).lower()
 
+    @staticmethod
+    @functools.cache
+    def _release_json(name: str, version: str, timeout: float) -> dict:
+        """PyPI JSON for `name==version`, cached once it lists files: right after a publish, CDN
+        edges disagree, so a later re-fetch can 404 after an earlier one succeeded. Failures
+        (`HTTPError`, `LookupError` when no files yet) are not cached, so polling keeps working."""
+        import json
+        from urllib import request
+
+        with request.urlopen(f'https://pypi.org/pypi/{name}/{version}/json', timeout=timeout) as resp:
+            if resp.status != 200:
+                raise LookupError(f'{name}=={version}: HTTP {resp.status}')
+            data = json.loads(resp.read().decode('utf-8'))
+        if not (data.get('urls') or []):
+            raise LookupError(f'{name}=={version}: no files listed yet')
+        return data
+
     @classmethod
     def release_exists(cls, name: str, version: str, timeout: float = 10.0) -> bool:
         """True when the exact `name==version` is pip-installable: the JSON API lists files
         **and** the simple index lists the version (pip's resolver uses the simple API; the JSON
         API can briefly lead the CDN after a fresh publish)."""
-        import json
         from urllib import error, request
 
-        json_url = f'https://pypi.org/pypi/{name}/{version}/json'
         try:
-            with request.urlopen(json_url, timeout=timeout) as resp:
-                if resp.status != 200:
-                    return False
-                data = json.loads(resp.read().decode('utf-8'))
+            cls._release_json(name, version, timeout)
+        except LookupError:
+            return False
         except error.HTTPError as e:
             if e.code == 404:
                 return False
             raise
-        if not (data.get('urls') or []):
-            return False
 
         simple_name = cls._normalize_project(name)
         simple_url = f'https://pypi.org/simple/{simple_name}/'
@@ -880,12 +893,7 @@ class PyPIHelpers:
     @classmethod
     def release_requires_dist(cls, name: str, version: str, timeout: float = 10.0) -> list[str]:
         """`Requires-Dist` entries for an already-published `name==version`."""
-        import json
-        from urllib import request
-
-        url = f'https://pypi.org/pypi/{name}/{version}/json'
-        with request.urlopen(url, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+        data = cls._release_json(name, version, timeout)
         return list(data.get('info', {}).get('requires_dist') or [])
 
     @classmethod

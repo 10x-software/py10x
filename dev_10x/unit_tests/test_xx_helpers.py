@@ -1,9 +1,12 @@
-"""Tests for `dev_10x.xx_helpers.PyPIHelpers.wait_for_release` (no network calls: `release_exists`
-and the `time` module are monkeypatched)."""
+"""Tests for `dev_10x.xx_helpers.PyPIHelpers` (no network calls: `release_exists`, `urlopen` and the
+`time` module are monkeypatched)."""
 
 from __future__ import annotations
 
+import io
+import json
 import time
+from urllib import error, request
 
 import pytest
 
@@ -62,6 +65,32 @@ def test_wait_for_release_times_out_returns_false_without_sleeping_past_deadline
 
     assert ok is False
     assert sleeps == []
+
+
+def test_release_json_cached_after_success_so_cdn_404_cannot_break_exact_pins(monkeypatch):
+    """A fresh publish's JSON can 404 on a re-fetch right after `release_exists` saw it."""
+    PyPIHelpers._release_json.cache_clear()
+    body = {'urls': [{'filename': 'x.whl'}], 'info': {'requires_dist': ['py10x-kernel==1.2.3', 'numpy>=2']}}
+    responses = [
+        error.HTTPError('u', 404, 'Not Found', None, None),  # not published yet: not cached
+        io.BytesIO(json.dumps(body).encode()),
+        error.HTTPError('u', 404, 'Not Found', None, None),  # flaky CDN edge: must not be reached
+    ]
+
+    def fake_urlopen(url, timeout):
+        r = responses.pop(0)
+        if isinstance(r, Exception):
+            raise r
+        r.status = 200
+        return r
+
+    monkeypatch.setattr(request, 'urlopen', fake_urlopen)
+
+    with pytest.raises(error.HTTPError):
+        PyPIHelpers._release_json('py10x-core', '1.2.3', 10.0)
+    assert PyPIHelpers._release_json('py10x-core', '1.2.3', 10.0) == body
+    assert PyPIHelpers.exact_pins('py10x-core', '1.2.3', {'py10x-kernel'}) == {'py10x-kernel': '1.2.3'}
+    PyPIHelpers._release_json.cache_clear()
 
 
 if __name__ == '__main__':
