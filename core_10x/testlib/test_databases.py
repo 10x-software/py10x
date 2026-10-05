@@ -85,7 +85,7 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
             else:
                 needs_vault = with_auth and not EnvVars.vault_uri
                 if needs_vault:
-                    os.environ.setdefault(EnvVars.var_name('vault_uri'), DEFAULT_TEST_VAULT_URI) # survive isolation cache clears.
+                    os.environ.setdefault(EnvVars.var_name('main_vault_uri'), DEFAULT_TEST_VAULT_URI) # survive isolation cache clears.
                     EnvVars.vault_uri = DEFAULT_TEST_VAULT_URI
                 # Vault-aware: password-auth servers take credentials from the local vault;
                 # open (CI / unauthenticated mongo+postgres) servers skip it.
