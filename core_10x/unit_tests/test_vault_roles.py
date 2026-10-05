@@ -74,7 +74,7 @@ def test_postgres_worker_cannot_update_or_insert_foreign_vaultuser(live_store):
     need(store is not None, f'PostgreSQL not running (at {test_databases.test_uri(TS_STORE_TYPE.POSTGRESQL.name)})')
     assert isinstance(store, PostgresStore)
 
-    suffix = uuid6.uuid7().hex[:8]
+    suffix = uuid6.uuid7().hex[-8:]
     worker, admin_login, other = f'vw_{suffix}', f'va_{suffix}', f'vo_{suffix}'
     pwd = 'VaultTest9!'
     _install_vault_roles(store, worker=worker, admin_login=admin_login, pwd=pwd)
@@ -131,7 +131,7 @@ def test_mongo_vault_roles_are_not_anyresource(live_store):
     need(store is not None, f'MongoDB not running (at {test_databases.test_uri(TS_STORE_TYPE.MONGODB.name)})')
     assert isinstance(store, MongoStore)
 
-    suffix = uuid6.uuid7().hex[:8]
+    suffix = uuid6.uuid7().hex[-8:]
     worker_role, admin_role = f'xxVW_{suffix}', f'xxVA_{suffix}'
     VaultRoles.ensure_schema(store).throw()
     vu = PackageRefactoring.find_class_id(VaultUser)
@@ -174,7 +174,7 @@ def test_mongo_worker_cannot_insert_foreign_vaultuser(live_store):
     assert isinstance(store, MongoStore)
     need(store.can_serve_as_vault(), 'authenticated MongoDB required for vault worker enforcement test')
 
-    suffix = uuid6.uuid7().hex[:8]
+    suffix = uuid6.uuid7().hex[-8:]
     worker, other = f'mw_{suffix}', f'mo_{suffix}'
     pwd = 'VaultTest9!'
     worker_role, admin_role = f'xxVW_{suffix}', f'xxVA_{suffix}'
@@ -238,9 +238,9 @@ def test_worker_cannot_admin_save_on_auth_postgres(monkeypatch):
         PostgresStore.is_running_with_auth('localhost', PASSWORD_AUTH_PORT)[1],
         f'password-auth Postgres not running on localhost:{PASSWORD_AUTH_PORT}',
     )
-    dbname = f'py10x_ag_{uuid6.uuid7().hex[:8]}'
+    dbname = f'py10x_ag_{uuid6.uuid7().hex[-8:]}'
     uri = f'postgresql://localhost:{PASSWORD_AUTH_PORT}/{dbname}'
-    worker, pwd = f'vw_{uuid6.uuid7().hex[:8]}', 'VaultTest9!'
+    worker, pwd = f'vw_{uuid6.uuid7().hex[-8:]}', 'VaultTest9!'
     admin = PostgresStore.instance_from_uri(uri, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True)
     assert admin.can_serve_as_vault()
     keyring: dict = {}

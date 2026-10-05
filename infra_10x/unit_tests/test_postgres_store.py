@@ -282,7 +282,7 @@ def test_ensure_columns_skips_runtime_traits(postgres_store):
         tmp: str = RT('')
 
     store = postgres_store
-    coll_name = f'pg_rt_{uuid6.uuid7().hex[:8]}'
+    coll_name = f'pg_rt_{uuid6.uuid7().hex[-8:]}'
     try:
         coll = store.collection(coll_name, Pad.s_dir)
         store.ensure_table(coll_name)
@@ -301,7 +301,7 @@ def test_create_index_ignores_must_be_owner(postgres_store):
         pad: int = T()
 
     store = postgres_store
-    suffix = uuid6.uuid7().hex[:8]
+    suffix = uuid6.uuid7().hex[-8:]
     coll_name, role = f'pg_idx_own_{suffix}', f'idxown_{suffix}'
     try:
         coll = store.collection(coll_name, Pad.s_dir)
@@ -331,7 +331,7 @@ def test_list_databases_prefix_underscores_are_literal(postgres_store):
     # Maintenance DB — CREATE/DROP DATABASE cannot run against the target itself.
     store = _short_lived_postgres(test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name, session_db='postgres'))
     prefix = test_databases.TEST_DB_PREFIX
-    uid = uuid6.uuid7().hex[:8]
+    uid = uuid6.uuid7().hex[-8:]
     real = f'{prefix}_lit_{uid}'
     decoy = prefix.replace('_', 'X', 1) + f'_decoy_{uid}'  # matches LIKE, not startswith
     try:
