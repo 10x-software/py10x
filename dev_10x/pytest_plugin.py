@@ -13,6 +13,7 @@ from core_10x.global_cache import cache
 # not in repo-root conftest.py — CI collects from site-packages and never loads that file.
 from core_10x.testlib.test_databases import live_store
 from py10x_kernel import BTraitableProcessor
+from core_10x.testlib.ts_store_isolation import drop_new_instance_attrs, reset_traitable_process_state, restore_pinned_ts_stores
 
 PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent
 
@@ -173,7 +174,6 @@ BTP = BTraitableProcessor.current()
 
 _AMBIENT_VAULT_ENV_VARS = ('XX_MAIN_VAULT_URI', 'XX_VAULT_URI')
 
-
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """Stash per-phase reports on the item so fixtures can see call outcome."""
@@ -192,7 +192,6 @@ def test_isolation(request, monkeypatch):
     if any(name in os.environ for name in _AMBIENT_VAULT_ENV_VARS):
         for name in _AMBIENT_VAULT_ENV_VARS:
             monkeypatch.delenv(name, raising=False)
-        from core_10x.testlib.ts_store_isolation import reset_traitable_process_state, restore_pinned_ts_stores
 
         # EnvVars values are memoized; drop any already read from the environment.
         reset_traitable_process_state(assert_clean=False)
@@ -210,11 +209,6 @@ def test_isolation(request, monkeypatch):
         BTP.end_using()
         BTP = BTraitableProcessor.current()
 
-        from core_10x.testlib.ts_store_isolation import (
-            drop_new_instance_attrs,
-            reset_traitable_process_state,
-            restore_pinned_ts_stores,
-        )
 
         if keys_before is not None:
             drop_new_instance_attrs(inst, keys_before)
