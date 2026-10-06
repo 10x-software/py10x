@@ -3,6 +3,7 @@ from datetime import date, datetime
 from core_10x.basket import Basket
 from core_10x.named_constant import NamedCallable
 from core_10x.traitable import RT, T, Traitable
+from core_10x.xnone import XNone
 
 from xxfin.ccy_cross import Ccy, CcyCross
 from xxfin.fx_forward_curve import FXForwardCurveSimple
@@ -14,7 +15,16 @@ from xxfin.pricing_context import PricingContext
 
 
 class FIN_AGGREGATOR(NamedCallable):
-    PRICE = lambda value_qtys: sum(value * qty for value, qty in value_qtys)
+    PRICE       = lambda value_qtys: sum(value * qty for value, qty in value_qtys)
+    PRICE_CCY   = PRICE
+
+
+class FinBasket(Basket):
+    def base_class_get(self):
+        return FinInstrument    # forward ref: FinInstrument is below
+
+    def aggregator_class_get(self):
+        return FIN_AGGREGATOR
 
 
 class FinInstrument(Traitable):
@@ -22,7 +32,7 @@ class FinInstrument(Traitable):
     price: float        = RT()
 
     disc_curve: ZeroRateCurve = RT()
-    leaves: Basket      = RT()
+    leaves: FinBasket   = RT()
 
     ## TODO: retired in favor of runtime discovery via GraphDeps/MktDeps (see mkt_deps_design_notes.md) --
     ##       kept commented for possible future use in simulation scenarios that need dependency shape
@@ -82,8 +92,8 @@ class FinInstrument(Traitable):
             snapshot        = pc.snapshot,
         )
 
-    def leaves_get(self) -> Basket:
-        basket = Basket(base_class = FinInstrument, aggregator_class = FIN_AGGREGATOR)
+    def leaves_get(self) -> FinBasket:
+        basket = FinBasket()
         basket.add(self, 1.)
         return basket
 
@@ -103,6 +113,22 @@ class FinInstrument(Traitable):
     #-- Last date of the instrument, i.e., nothing may change its price after that date
     def max_date(self) -> date:
         raise NotImplementedError    # pragma: no cover
+
+    def next_lifecycle_date(self, after: date) -> date:
+        """
+        The next date (strictly after `after`) at which this instrument's lifecycle might fire --
+        a coupon, a maturity, an option expiry, a barrier observation. `XNone` if there is none.
+        A plain instrument has no lifecycle.
+        """
+        return XNone
+
+    def lifecycle_transform(self) -> FinBasket:
+        """
+        What one unit of this instrument becomes on today's firing -- i.e. as of PricingContext.current().md_date
+        or XNone if nothing fires (a market-dependent no-op, e.g. a barrier not yet breached).
+        A plain instrument has no lifecycle.
+        """
+        return XNone
 
 
 class PerpetualFinInstrument(FinInstrument):
