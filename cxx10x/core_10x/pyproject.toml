@@ -1,0 +1,54 @@
+[project]
+name = "py10x-kernel"
+description = "10X Platform Core Kernel"
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dynamic = ["version"]
+
+authors = [
+    { name = "10X CONCEPTS LLC", email = "py10x@10x-software.org" },
+]
+
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Development Status :: 4 - Beta",
+]
+
+dependencies = [
+    "uuid6>=2025.0.1",
+    "scikit-build-core>=0.10.7,<1.0.0", # version 1.0 breaks dependent package build on windows, so pin here until fixed
+]
+
+[project.urls]
+Homepage = "https://10x-software.org"
+
+[dependency-groups]
+test = ["py10x-core>=0.3.2"]
+
+[build-system]
+requires = [
+    "scikit-build-core>=0.10.7",
+    "setuptools-scm>=9.2.2",
+]
+build-backend = "scikit_build_core.build"
+
+[tool.scikit-build]
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+
+[tool.scikit-build.cmake.define]
+ENABLE_SANITIZERS = {env = "ENABLE_SANITIZERS", default = "OFF"}
+
+[tool.cibuildwheel.windows.config-settings]
+"cmake.args" = ["-T", "v143,version=14.44"]
+
+[tool.setuptools_scm]
+root = ".."
+git_describe_command = "git describe --dirty --tags --long --match 'py10x-kernel-*' --abbrev=40"

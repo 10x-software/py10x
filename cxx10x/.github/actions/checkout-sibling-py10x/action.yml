@@ -1,0 +1,16 @@
+name: Checkout sibling py10x
+description: Clone py10x beside this cxx10x checkout at the resolved corresponding branch
+inputs:
+  branch:
+    description: Branch to check out on py10x
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Clone py10x
+      shell: bash
+      run: |
+        dest="${{ github.workspace }}/../py10x"
+        rm -rf "$dest"
+        git clone --branch "${{ inputs.branch }}" \
+          https://github.com/10x-software/py10x.git "$dest"

@@ -1,0 +1,68 @@
+name: wheels-infra_10x
+
+on:
+  push:
+    tags:
+      - "pre/py10x-infra-v*"
+      - "prod/py10x-infra-v*"
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Pre-publish tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history + all tags so setuptools-scm versions BOTH siblings
+
+      - uses: ./.github/actions/pre-publish-tests
+        with:
+          pyproject-path: infra_10x/pyproject.toml
+
+  # Parallel with test: cibuildwheel does not need PyPI core. Upload waits for both.
+  build_wheels:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            linux-arch: x86_64
+          - os: ubuntu-24.04-arm
+            linux-arch: aarch64
+          - os: macos-latest
+            linux-arch: x86_64
+          - os: windows-2025
+            linux-arch: x86_64
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-tags: true   # release tag (not the pre/prod trigger ref) must be visible to scm
+
+      - uses: ./.github/actions/build-wheels
+        with:
+          package-dir: infra_10x
+          artifact-name: wheels-infra_10x-${{ matrix.os }}
+          linux-arch: ${{ matrix.linux-arch }}
+
+  upload:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [test, build_wheels]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+
+      - name: Flatten wheels
+        run: |
+          mkdir -p upload
+          find dist -name "*.whl" -exec cp {} upload/ \;
+
+      - name: Upload wheels to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload
