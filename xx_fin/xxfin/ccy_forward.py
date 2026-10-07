@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from xxfin.fin_instrument import RT, Ccy, FinInstrument, PricingContext, T
+from xxfin.fin_instrument import RT, Ccy, FinBasket, FinInstrument, PricingContext, T, XNone
 
 
 class CcyUnit(FinInstrument):
@@ -31,6 +31,16 @@ class CcyForward(FinInstrument):
 
     def max_date(self) -> date:
         return self.end_date
+
+    def next_lifecycle_date(self, after: date) -> date:
+        ed = self.end_date
+        return ed if after < ed else XNone
+
+    def lifecycle_transform(self) -> FinBasket:
+        if PricingContext.current().md_date < self.end_date:
+            return XNone
+
+        return FinBasket.of((CcyUnit(denominated = self.denominated), 1.0))
 
     ## TODO: retired -- see note above
     # def mkt_deps_get(self) -> dict:
