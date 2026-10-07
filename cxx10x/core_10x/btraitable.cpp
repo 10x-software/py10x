@@ -272,6 +272,32 @@ py::list  BTraitable::serialize_id_traits() {
     return serialized_id;
 }
 
+py::dict BTraitable::id_trait_values(const py::kwargs& override_id_traits) const {
+    const auto cache = ThreadContext::current_traitable_proc()->cache();   //-- one proc/cache lookup for the whole call
+    const auto my_tid = tid();
+
+    py::dict result;
+    py::object value;
+    for (const auto &[trait_name_handle, trait_value_handle] : my_class()->trait_dir()) {
+        const auto trait = trait_value_handle.cast<BTrait*>();
+        if (trait->flags_on(BTraitFlags::ID)) {
+            auto trait_name = trait_name_handle.cast<py::object>();
+            if (override_id_traits.contains(trait_name))
+                value = override_id_traits[trait_name];
+            else {
+                const auto node = cache->find_node(my_tid, trait);   //-- ID traits are always valid after construction
+                if (!node)
+                    throw py::value_error(py::str("{}.{} - ID trait not yet computed").format(class_name(), trait_name_handle.cast<py::object>()));
+                value = node->value();
+            }
+
+            result[trait_name] = value;
+        }
+    }
+
+    return result;
+}
+
 py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py::object& serialized_data) {
     py::dict id_traits;
     if (!py::isinstance<py::list>(serialized_data))
