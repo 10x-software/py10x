@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import date, datetime
 
 from core_10x.basket import Basket
@@ -25,6 +27,22 @@ class FinBasket(Basket):
 
     def aggregator_class_get(self):
         return FIN_AGGREGATOR
+
+    def fire_lifecycle(self) -> FinBasket:
+        """
+        Every member ready to fire today (per its own lifecycle_transform()) is replaced by its
+        transform basket, scaled by its weight in self; anything not ready passes through unchanged.
+        """
+        fired = FinBasket(base_class = self.base_class, aggregator_class = self.aggregator_class)
+        for inst, qty in self.members_qtys():
+            transform = inst.lifecycle_transform()
+            if transform is XNone:
+                fired.add(inst, qty)
+            else:
+                for t_inst, t_qty in transform.members_qtys():
+                    fired.add(t_inst, qty * t_qty)
+
+        return fired
 
 
 class FinInstrument(Traitable):

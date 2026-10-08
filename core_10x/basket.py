@@ -424,6 +424,13 @@ class Basket(Traitable, embeddable = True):
     def new_bucket(self) -> Bucket:
         return self.bucket_shape.value()
 
+    @classmethod
+    def of(cls, *member_qty_pairs, **kwargs) -> Basket:
+        basket = cls(**kwargs)
+        for obj, qty in member_qty_pairs:
+            basket.add(obj, qty)
+        return basket
+
     def is_acceptable(self, obj: Traitable) -> bool:
         return isinstance(obj, self.base_class) if self.subclasses_allowed else obj.__class__ is self.base_class
 
