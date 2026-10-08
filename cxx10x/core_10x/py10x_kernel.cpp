@@ -283,6 +283,8 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("id_exists",                   &BTraitable::id_exists)
             .def("id",                          &BTraitable::id)
             .def("id_value",                    &BTraitable::id_value)
+            .def("id_trait_values",             &BTraitable::id_trait_values)
+            .def("morph",                       &BTraitable::morph)
             .def("_collection_name_get",        &BTraitable::custom_coll_name)
             //-- keep_alive: the TID is a non-owning view into the traitable, so the traitable
             //-- must outlive it. Without this, `X(x=1).xid()` on a temporary leaves a dangling
