@@ -40,6 +40,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm versions kernel/infra from their older tags
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -58,12 +60,10 @@ jobs:
           asan: "false"
 
       # dev image: pushed to GHCR after the test suite. Built from source (uv_sync
-      # py10x-core-dev --all-extras, same as ci-test-suite) rather than reused from this leg's
+      # py10x-dev --all-extras, same as ci-test-suite) rather than reused from this leg's
       # .venv or PyPI: kernel/infra's published versions may not satisfy pyproject.toml's current
-      # pin (a normal mid-development state), and a coordinated core+cxx10x PR needs its own
-      # sibling source. One leg only (ubuntu-latest/py3.12), and only on an actual merge to main,
-      # not every PR run. Reuses ../cxx10x from ci-test-suite's own "Checkout kernel/infra" step
-      # above (same job, same runner) rather than cloning it again.
+      # pin (a normal mid-development state). One leg only (ubuntu-latest/py3.12), and only on an
+      # actual merge to main, not every PR run.
       - name: Log in to GHCR
         if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v4
@@ -88,14 +88,46 @@ jobs:
           context: .
           file: docker/Dockerfile
           target: dev
-          build-contexts: |
-            cxx10x=../cxx10x
           push: true
           tags: |
             ghcr.io/10x-software/py10x-core:dev
             ghcr.io/10x-software/py10x-core:main-${{ steps.short_sha.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # PR / push: the C++ harness suites under cxx10x/tests (editable kernel/infra + core, standalone
+  # Mongo), including the cross-module rebuild checks.
+  cxx10x-tests:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: cxx10x tests (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025]
+        python: ["3.11", "3.12", "3.13"]
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm versions kernel/infra from their older tags
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-suffix: ${{ matrix.python }}
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - uses: ./.github/actions/cxx10x-tests
+        with:
+          python-version: ${{ matrix.python }}
+          mongodb-version: "7.0"
 
   # PR / push, Linux only, additive to (not part of) the full-tests matrix: builds the
   # functional-account container (docker/Dockerfile + docker/entrypoint.sh) and runs the
@@ -116,34 +148,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-
-      - name: Resolve corresponding cxx10x branch
-        id: cxx10x_branch
-        run: |
-          candidates=()
-          if [ -n "${{ github.head_ref }}" ]; then
-            candidates+=("${{ github.head_ref }}")
-          fi
-          if [ -n "${{ github.base_ref }}" ]; then
-            candidates+=("${{ github.base_ref }}")
-          else
-            candidates+=("${{ github.ref_name }}")
-          fi
-          candidates+=("main")
-          branch=$("${{ github.workspace }}/.github/scripts/resolve-sibling-branch.sh" \
-            "https://github.com/10x-software/cxx10x.git" \
-            "${candidates[@]}")
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
-
-      # A full (non-shallow) clone: setuptools-scm needs real tag/history metadata to derive
-      # py10x-kernel/py10x-infra's version, which BuildKit's own git build-context fetcher can't
-      # supply (it fetches shallow, no tags) -- same reasoning as .git not being excluded from
-      # this repo's own build context in .dockerignore.
-      - name: Checkout kernel/infra
-        run: |
-          rm -rf ../cxx10x
-          git clone --branch "${{ steps.cxx10x_branch.outputs.branch }}" \
-            https://github.com/10x-software/cxx10x.git ../cxx10x
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm versions kernel/infra from their older tags
 
       - name: Setup PostgreSQL (host-side; the container reaches it via --network host)
         uses: ./.github/actions/setup-postgres
@@ -151,17 +157,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # docker/Dockerfile's `dev` target builds this checkout together with its C++ siblings from
-      # source (uv_sync py10x-core-dev --all-extras) -- the `cxx10x` build context below supplies
-      # the sibling source from the full clone above.
+      # docker/Dockerfile's `dev` target builds this checkout together with its in-tree C++
+      # siblings (cxx10x/) from source (uv_sync py10x-dev --all-extras).
       - name: Build functional-account image
         uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
           target: dev
-          build-contexts: |
-            cxx10x=../cxx10x
           tags: py10x-functional-e2e
           load: true
           cache-from: type=gha
@@ -203,6 +206,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm versions kernel/infra from their older tags
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7

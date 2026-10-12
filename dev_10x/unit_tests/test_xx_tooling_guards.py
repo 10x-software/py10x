@@ -29,8 +29,8 @@ from dev_10x.xx_helpers import GitHelpers
 requires_git = pytest.mark.skipif(shutil.which('git') is None and not EnvVars.test_strict, reason='git not available')
 requires_uv = pytest.mark.skipif(shutil.which('uv') is None and not EnvVars.test_strict, reason='uv not available')
 
-# The exact git_describe_command the cxx10x siblings configure in `[tool.setuptools_scm]`
-# (`../cxx10x/core_10x/pyproject.toml`); the `--match` glob is what scopes describe to this package.
+# The exact git_describe_command the C++ siblings configure in `[tool.setuptools_scm]`
+# (`cxx10x/core_10x/pyproject.toml`); the `--match` glob is what scopes describe to this package.
 # `test_sibling_describe_command_matches_real_config` keeps this copy honest against the real files.
 SIBLING_DESCRIBE = "git describe --dirty --tags --long --match 'py10x-kernel-*' --abbrev=40"
 
@@ -53,7 +53,7 @@ def _repo_root() -> Path | None:
 
 def _sibling_describe_commands() -> dict[str, str]:
     """{sibling name: its real `[tool.setuptools_scm].git_describe_command`} for each checked-out
-    sibling, resolved via this repo's own `[tool.dev_10x.siblings]` paths (e.g. `../cxx10x/core_10x`)."""
+    sibling, resolved via this repo's own `[tool.dev_10x.siblings]` paths (e.g. `cxx10x/core_10x`)."""
     root = _repo_root()
     if root is None:
         return {}
@@ -61,7 +61,7 @@ def _sibling_describe_commands() -> dict[str, str]:
     commands: dict[str, str] = {}
     for name, spec in siblings.items():
         pyproject = (root / spec['path']).resolve() / 'pyproject.toml'
-        if not pyproject.exists():  # cxx10x not checked out in this env
+        if not pyproject.exists():  # installed as a wheel: no source tree
             continue
         scm = tomlkit.parse(pyproject.read_text(encoding='utf-8')).get('tool', {}).get('setuptools_scm', {})
         if (cmd := scm.get('git_describe_command')) is not None:
@@ -87,12 +87,11 @@ def test_core_describe_command_matches_real_config():
 
 
 def test_sibling_describe_command_matches_real_config():
-    """`SIBLING_DESCRIBE` is a hand-copy of cxx10x's real `git_describe_command`; if the real config
-    drifts, every setuptools-scm guard below silently tests a command nobody runs. Assert the copy
-    still equals each sibling's actual command (parameterised by the `--match` glob). Skips when the
-    cxx10x siblings are not checked out (py10x-only CI)."""
+    """`SIBLING_DESCRIBE` is a hand-copy of the siblings' real `git_describe_command`; if the real
+    config drifts, every setuptools-scm guard below silently tests a command nobody runs. Assert the
+    copy still equals each sibling's actual command (parameterised by the `--match` glob)."""
     commands = _sibling_describe_commands()
-    need(bool(commands), 'cxx10x siblings checked out (their pyproject.toml present)')
+    need(bool(commands), 'py10x source checkout (sibling pyproject.toml files present)')
     for name, real in commands.items():
         expected = SIBLING_DESCRIBE.replace('py10x-kernel', name)  # only the --match glob carries it
         assert real == expected, f'{name} git_describe_command drifted from SIBLING_DESCRIBE:\n  real:     {real}\n  expected: {expected}'

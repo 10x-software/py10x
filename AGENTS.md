@@ -16,7 +16,7 @@ It points to canonical docs and records only the minimal, project-specific rules
 - **Low-level traitable implementation details**: see `core_10x/traitable.py` and existing tests in `core_10x/unit_tests/`.
 - **Finance domain package** (`xx_fin/`, published as `py10x-fin-base`): see [`xx_fin/README.md`](xx_fin/README.md); its optional C++/AADC acceleration layer (`py10x-fin-base-cxx`): see [`xx_fin/cxxfin/README.md`](xx_fin/cxxfin/README.md).
 - **Shared utilities** (`xxcommon/`): see [`xxcommon/README.md`](xxcommon/README.md).
-- **C++ backend source (cxx10x)**: lives in the sibling package `../cxx10x/` (e.g. `../cxx10x/core_10x/btraitable.{h,cpp}`, `../cxx10x/core_10x/core_10x.cpp` for pybind11 bindings). When a Python method's body is just a thin wrapper or its docstring/comment says it is provided "from c++" (e.g. the comment block in `core_10x/traitable.py` around `get_value` / `set_value` / `set_values`), consult these files to confirm the actual signature and surface area exposed to Python.
+- **C++ backend source**: lives in-tree under [`cxx10x/`](cxx10x/README.md) — `py10x-kernel` in `cxx10x/core_10x/` (e.g. `btraitable.{h,cpp}`, `py10x_kernel.cpp` for pybind11 bindings) and `py10x-infra` in `cxx10x/infra_10x/`. When a Python method's body is just a thin wrapper or its docstring/comment says it is provided "from c++" (e.g. the comment block in `core_10x/traitable.py` around `get_value` / `set_value` / `set_values`), consult these files to confirm the actual signature and surface area exposed to Python.
 
 Agents should **link to and rely on those files**, not duplicate them here.
 
@@ -27,12 +27,12 @@ Agents should **link to and rely on those files**, not duplicate them here.
 - **Use UV and the project venv**
   - Assume development happens via `uv` and a local `.venv`.
   - When suggesting or running commands, prefer (from repo root — no `source .venv` needed):
-    - `uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras` for typical setup (`py10x-core-dev` when editing `../cxx10x`) — see [`CONTRIBUTING.md`](CONTRIBUTING.md#development-setup).
+    - `uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras` for setup (builds `cxx10x/` locally; `XX_UV_INSTALL_MODE=incremental` when iterating on C++) — see [`CONTRIBUTING.md`](CONTRIBUTING.md#development-setup).
     - `uv run --no-sync pytest …` / `uv run --no-sync ruff …` after the venv is prepared.
 
 - **Respect C++ / cxx10x backend**
-  - Treat the C++ backends (from `cxx10x`) as **opaque** — do not reimplement or bypass them in Python; use the public Python APIs.
-  - The C++ source lives in the sibling package at `../cxx10x/` (sibling to this repo's checkout). Read it (don't modify it from this repo) when you need to verify what is actually exposed to Python — in particular `../cxx10x/core_10x/btraitable.h` for the `BTraitable` API surface and `../cxx10x/core_10x/core_10x.cpp` for the pybind11 bindings that determine which methods are visible from Python.
+  - Treat the C++ backends (`cxx10x/`) as **opaque** from Python — do not reimplement or bypass them in Python; use the public Python APIs.
+  - Read the C++ source when you need to verify what is actually exposed to Python — in particular `cxx10x/core_10x/btraitable.h` for the `BTraitable` API surface and `cxx10x/core_10x/py10x_kernel.cpp` for the pybind11 bindings that determine which methods are visible from Python. C++ changes are separate PyPI packages with their own release tags (`py10x-kernel-v*`, `py10x-infra-v*`); change them deliberately, not as a side effect of Python work.
 
 - **Traitable Store & UI assumptions**
   - Mongo- and Postgres-backed tests skip when the server is unreachable locally; see [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) and `INSTALLATION.md` § Optional Database Dependencies.
@@ -132,7 +132,7 @@ Rules agents must **not** violate:
   `--with-downstream` (one shared file must cover `uv-sync --with-downstream`).
 - **Sibling / downstream paths** in `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]` only — keep `uv_sync.py`, `xx_promote.py`, `constraints.py` in sync.
 - **Version ordering:** `packaging.version.Version` (`max`), never `git --sort=-v:refname` / `sort -V`.
-- **`xx-promote` sync + recovery:** start/finish with local == `origin`; atomic `git push --atomic` per repo; isolated publish-trigger pushes — see [xx-promote](dev_10x/README.md#xx-promote--release-promotion). Recovery: `resync` + idempotent re-run, not in-place reconcile.
+- **`xx-promote` sync + recovery:** start/finish with local == `origin`; one atomic `git push --atomic` for all packages; isolated publish-trigger pushes — see [xx-promote](dev_10x/README.md#xx-promote--release-promotion). Recovery: `resync` + idempotent re-run, not in-place reconcile.
 - **Publish triggers only** on `pre/`/`prod/` tags — not version tags or `.dev` markers on `main` — see [CI release gates](dev_10x/README.md#ci-release-gates).
 - **setuptools-scm:** dirty `pyproject.toml` or shallow checkout breaks versions; CI needs `fetch-depth: 0` and `fetch-tags: true`.
 - **CI install:** `uv pip install -e . --all-extras --requirements pyproject.toml`; tag triggers exclude `*_yanked`.

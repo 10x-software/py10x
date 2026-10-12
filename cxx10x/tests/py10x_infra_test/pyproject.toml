@@ -11,4 +11,4 @@ dependencies = [
 [tool.uv.sources]
 py10x-kernel = {path="../../core_10x", editable=true}
 py10x-infra = {path="../../infra_10x", editable=true}
-py10x-core = {path="../../../py10x", editable=true}
+py10x-core = {path="../../..", editable=true}

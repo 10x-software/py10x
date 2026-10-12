@@ -16,7 +16,6 @@ Subcommands:
            default core isolation — fin-base's third-party graph is not in the default freeze.
            Without --upgrade: conservative regen (keeps existing pins where still valid).
            With --upgrade: bump every pin to the latest version allowed by the ranges.
-           Needs the ../cxx10x checkout (a precondition of `uv-sync py10x-core-dev`).
   check    assert every *installed* third-party distribution is pinned in constraints.txt
 
 Kernel-free (subprocess + importlib.metadata only) so it runs before any sibling is built.
@@ -141,11 +140,7 @@ def compile_(
     compile_inputs = _compile_inputs(with_downstream, downstream_filter)
     missing = [str(p) for p in compile_inputs.values() if not p.is_file()]
     if missing:
-        sys.exit(
-            f'xx-constraints: first-party pyproject(s) not found: {", ".join(missing)}\n'
-            f'  siblings need the ../cxx10x checkout (e.g. `uv-sync py10x-core-dev`); '
-            f'downstreams need their packaging roots present (and `--with-downstream`).'
-        )
+        sys.exit(f'xx-constraints: first-party pyproject(s) not found: {", ".join(missing)}')
     # Exclude every first-party package from the emitted freeze (mirrors check()'s `_first_party()`).
     no_emit_names = sorted(_first_party())
     no_emit = [arg for name in no_emit_names for arg in ('--no-emit-package', name)]
@@ -204,7 +199,7 @@ def check() -> int:
         print('xx-constraints check FAILED - installed but not pinned in constraints.txt:')
         for n in uncovered:
             print(f'  {n}=={installed[n]}')
-        print('Regenerate with `xx-constraints compile` (in py10x-core-dev mode, with ../cxx10x up to date) and commit constraints.txt.')
+        print('Regenerate with `xx-constraints compile --with-downstream` and commit constraints.txt.')
         return 1
     print(f'xx-constraints check OK - all {len(installed) - len(exclude & set(installed))} third-party distributions are pinned.')
     return 0

@@ -8,12 +8,12 @@ is in question.
 ## Design rationale
 
 The release model is conventional GitFlow-style tooling (`pre`/`prod` branches, setuptools-scm
-tagging) plus **coordinated batch releases** across two repos. Packages keep independent version
+tagging) plus **coordinated batch releases** across packages in one repo. Packages keep independent version
 numbers (core `v1.3.0` while kernel `v1.4.0`) and unchanged packages are skipped — but a release is a
 **coordinated batch**, cut together and cross-pinned, not each package shipping on its own schedule.
 It sits between Lerna's *fixed* mode (one shared version) and *independent* mode (no coordination).
-The unusual parts trace to one constraint: coordinating a **tightly-coupled family across two repos
-with exact reproducibility for external rc consumers**.
+The unusual parts trace to one constraint: coordinating a **tightly-coupled family of independently
+versioned packages with exact reproducibility for external rc consumers**.
 
 ### Alternatives considered
 
@@ -23,8 +23,13 @@ with exact reproducibility for external rc consumers**.
   that guarantee to the published rc wheel. **If the only consumer of rc wheels is ever our own
   constraints-pinned CI, this design is not worth its cost** — ranges + constraints give ~90% of the
   benefit for far less machinery.
-- **Monorepo (changesets / Nx).** Would make coordination nearly free, but the C++/Python split keeps
-  us in two repos for unrelated reasons.
+- **Two repos (superseded).** The C++ siblings used to live in a separate `cxx10x` repo. That
+  needed per-repo sync checks and pushes (with a reachable "siblings pushed, core not" state),
+  polling for the other repo's `main` epilogue in CI, sibling clones in every workflow, and a
+  reverse `test`-group pin so sibling CI could find a matching core. Moving them in-tree (history and
+  tags preserved) removed all of that; independent versions and the batch planner stayed.
+- **One shared version (Lerna fixed mode).** Would collapse the planner further, but re-publishes
+  every package on any change; rejected for now.
 - **semantic-release / release-please.** Orthogonal — single-package version/changelog automation;
   doesn't address coordination, would layer on top rather than replace this.
 - **Per-version `release/v{T}` branches (superseded).** Replaced by the two tool-owned `pre`/`prod`
@@ -45,8 +50,8 @@ with exact reproducibility for external rc consumers**.
 - Released **source** == rc source, but the final commit is `rc-commit + pin rewrite`, not the rc
   commit itself.
 - A new sibling rc **forces a core re-cut** to refresh its exact pin — the price of exact coordination.
-- Reverse `>=` has **no upper cap**, but is **self-correcting** via the forward `==` and editable
-  sibling installs (cxx10x CI verifies PEP 610 editable).
+- Core's downstream `test`-group `>=` has **no upper cap**, but is **self-correcting** via the
+  downstream's forward `==` on core.
 - **`pre`/`prod` are tool-force-updated protected branches** — humans contribute via PR into them;
   the promote commit itself is tool-written.
 - **`pre`/`prod` are current-state pointers, not history** — past releases are tag-only. Because

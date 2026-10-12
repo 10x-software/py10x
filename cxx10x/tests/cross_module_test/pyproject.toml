@@ -24,13 +24,13 @@ editable.rebuild = true
 build-dir = "build/{wheel_tag}"
 
 [tool.setuptools_scm]
-root = "../.."  # relative to this package, points at cxx10x root for versioning if needed
+root = "../../.."  # the git root
 git_describe_command = "git describe --dirty --tags --long --match 'cross-module-test-v*' --abbrev=8"
 
 [tool.uv.sources]
 py10x-kernel = {path="../../core_10x", editable=true}
 py10x-infra = {path="../../infra_10x", editable=true}
-py10x-core = {path="../../../py10x", editable=true}
+py10x-core = {path="../../..", editable=true}
 
 [tool.uv]
 no-build-isolation = true

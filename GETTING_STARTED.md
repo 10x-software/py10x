@@ -34,7 +34,7 @@ The Traitable framework, dependency graph, storage integration, and Rio/Qt UI ba
 **Users:** `pip install py10x-core[rio]` or `pip install py10x-core[qt]` (see [INSTALLATION.md](INSTALLATION.md)).
 
 **Contributors:** see [CONTRIBUTING.md](CONTRIBUTING.md#development-setup) for `uv-sync` profiles
-(`py10x-dev` is typical; `py10x-core-dev` when editing `../cxx10x`).
+(`py10x-dev` builds core and the in-tree C++ packages under `cxx10x/`).
 
 ## Core Concepts
 

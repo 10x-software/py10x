@@ -1,7 +1,7 @@
 name: Setup Windows build
 description: >-
   MSVC dev environment via vswhere + Enter-VsDevShell, plus scikit-build cmake
-  args matching cxx10x cibuildwheel wheel builds (toolset v143 version 14.44 /
+  args matching the cxx10x/ cibuildwheel wheel builds (toolset v143 version 14.44 /
   MSVC_VERSION 1944). No-op on non-Windows runners.
 runs:
   using: composite
@@ -23,7 +23,7 @@ runs:
           }
         }
 
-    # Same pin as [tool.cibuildwheel.windows.config-settings] in cxx10x core_10x/infra_10x pyproject.toml.
+    # Same pin as [tool.cibuildwheel.windows.config-settings] in cxx10x/{core_10x,infra_10x}/pyproject.toml.
     - name: Export scikit-build Windows cmake args
       if: runner.os == 'Windows'
       shell: bash

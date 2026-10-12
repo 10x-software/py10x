@@ -2,9 +2,9 @@
 
 Minimal uv harness directory for running the real core tests against editable builds of the py10x components.
 
-## Usage (standard for cxx10x devs)
+## Usage
 
-From this directory (with `py10x` checked out next to `cxx10x`):
+From this directory:
 
 ```bash
 uv sync --upgrade
@@ -13,7 +13,7 @@ uv run python ../../infra_10x/tests/test.py
 
 The above will:
 
-- Resolve `py10x-kernel`, `py10x-core`, and `py10x-infra` as editable from the sibling checkouts.
+- Resolve `py10x-kernel`, `py10x-core`, and `py10x-infra` as editable from this repo.
 - Automatically build native extensions.
 - Execute the test suite from the source tree.
 

@@ -25,9 +25,6 @@ classifiers = [
 [project.urls]
 Homepage = "https://10x-software.org"
 
-[dependency-groups]
-test = ["py10x-core>=0.3.2"]
-
 [build-system]
 requires = [
     "scikit-build-core>=0.10.7",
@@ -45,5 +42,5 @@ ENABLE_SANITIZERS = {env = "ENABLE_SANITIZERS", default = "OFF"}
 "cmake.args" = ["-T", "v143,version=14.44"]
 
 [tool.setuptools_scm]
-root = ".."
+root = "../.."
 git_describe_command = "git describe --dirty --tags --long --match 'py10x-infra-*' --abbrev=40"

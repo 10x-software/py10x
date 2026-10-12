@@ -170,10 +170,12 @@ class TestUvSyncExtras:
             assert not _has_extras(args), args
 
     def test_py10x_dev_all_extras_with_downstream_uses_local(self, isolated_sync):
+        """Siblings are in-tree, so py10x-dev builds them locally (same as legacy py10x-core-dev)."""
         uv_sync.uv_sync('py10x-dev', '--all-extras', '--with-downstream')
-        git_siblings = [c for c in isolated_sync if any('git+' in a and ('py10x-kernel' in a or 'py10x-infra' in a) for a in c)]
-        assert git_siblings
-        for args in git_siblings:
+        assert not any('git+' in a for c in isolated_sync for a in c)
+        sibling = [c for c in isolated_sync if any(str(Path('/cxx10x/core_10x')) == a or str(Path('/cxx10x/infra_10x')) == a for a in c)]
+        assert sibling
+        for args in sibling:
             assert not _has_extras(args)
         downstream = [c for c in isolated_sync if any(str(Path('/py10x/xx_fin')) == a for a in c)]
         assert downstream

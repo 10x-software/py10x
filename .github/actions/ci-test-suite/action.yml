@@ -34,33 +34,6 @@ runs:
       if: runner.os == 'Windows'
       uses: ./.github/actions/setup-windows-build
 
-    - name: Resolve corresponding cxx10x branch
-      id: cxx10x_branch
-      shell: bash
-      run: |
-        candidates=()
-        if [ -n "${{ github.head_ref }}" ]; then
-          candidates+=("${{ github.head_ref }}")
-        fi
-        if [ -n "${{ github.base_ref }}" ]; then
-          candidates+=("${{ github.base_ref }}")
-        else
-          candidates+=("${{ github.ref_name }}")
-        fi
-        candidates+=("main")
-        branch=$("${{ github.workspace }}/.github/scripts/resolve-sibling-branch.sh" \
-          "https://github.com/10x-software/cxx10x.git" \
-          "${candidates[@]}")
-        echo "branch=$branch" >> "$GITHUB_OUTPUT"
-        echo "Using cxx10x branch: $branch"
-
-    - name: Checkout kernel/infra
-      shell: bash
-      run: |
-        rm -rf ../cxx10x
-        git clone --branch "${{ steps.cxx10x_branch.outputs.branch }}" \
-          https://github.com/10x-software/cxx10x.git ../cxx10x
-
     - name: Enable AddressSanitizer build
       if: inputs.asan == 'true'
       shell: bash
@@ -69,12 +42,10 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      env:
-        WAIT_FOR_SIBLING_BRANCH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cxx10x_branch.outputs.branch || '' }}
       run: |
         uv venv
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        python -m dev_10x.uv_sync py10x-core-dev --all-extras
+        python -m dev_10x.uv_sync py10x-dev --all-extras
 
     # uv-sync applies -c constraints.txt on every install, so the test env is frozen. Assert every
     # installed third-party dist is pinned (catches a py10x or sibling dep that escaped the freeze).
@@ -167,11 +138,9 @@ runs:
     # first"). On non-ASan builds ENABLE_SANITIZERS is unset, so cxxfin is a normal build with stubs.
     - name: Install fin-base (--with-downstream)
       shell: bash
-      env:
-        WAIT_FOR_SIBLING_BRANCH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cxx10x_branch.outputs.branch || '' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        python -m dev_10x.uv_sync py10x-core-dev --all-extras --with-downstream
+        python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
 
     # Run the fin-base tests through the same ASan harness as the core suite: importing cxxfin loads
     # the ASan-instrumented kernel, so it needs LD_PRELOAD (Linux) / cdb (Windows) too. pytest

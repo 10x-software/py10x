@@ -64,11 +64,14 @@ else()
     include(FetchContent)
     FetchContent_Declare(
             cxx10x_core_headers
-            GIT_REPOSITORY https://github.com/10x-software/cxx10x.git
+            GIT_REPOSITORY https://github.com/10x-software/py10x.git
             GIT_TAG        ${_PY10X_KERNEL_GIT_TAG}
             SOURCE_SUBDIR  _headers_only
     )
     FetchContent_MakeAvailable(cxx10x_core_headers)
+    # The C++ tree lives under cxx10x/ in the py10x repo; the editable branch above already
+    # resolves to that dir (parent of cxx10x/core_10x).
+    set(cxx10x_core_headers_SOURCE_DIR "${cxx10x_core_headers_SOURCE_DIR}/cxx10x")
 endif()
 
 include(${cxx10x_core_headers_SOURCE_DIR}/cmake/XX_pybind11_add_module.cmake)
