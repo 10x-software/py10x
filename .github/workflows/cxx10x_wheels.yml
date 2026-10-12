@@ -1,0 +1,135 @@
+name: wheels-cxx10x
+
+# py10x-kernel (cxx10x/core_10x) and py10x-infra (cxx10x/infra_10x), one workflow for both: the
+# package comes from the xx-promote publish trigger tag. PyPI trusted publishers for both projects
+# point at this file.
+on:
+  push:
+    tags:
+      - "pre/py10x-kernel-v*"
+      - "prod/py10x-kernel-v*"
+      - "pre/py10x-infra-v*"
+      - "prod/py10x-infra-v*"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Package to build (no upload outside a tag push)
+        type: choice
+        options: [py10x-kernel, py10x-infra]
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      package: ${{ steps.pkg.outputs.package }}
+      package-dir: ${{ steps.pkg.outputs.package_dir }}
+      version: ${{ steps.pkg.outputs.version }}
+    steps:
+      - id: pkg
+        shell: bash
+        run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            release="${GITHUB_REF_NAME#*/}"   # pre/py10x-kernel-v0.3.3rc1 -> py10x-kernel-v0.3.3rc1
+            package="${release%-v*}"
+            version="${release##*-v}"
+          else
+            package="${{ inputs.package }}"
+            version=""
+          fi
+          case "$package" in
+            py10x-kernel) dir=cxx10x/core_10x ;;
+            py10x-infra)  dir=cxx10x/infra_10x ;;
+            *) echo "unknown package '$package'" >&2; exit 1 ;;
+          esac
+          echo "package=$package" >> "$GITHUB_OUTPUT"
+          echo "package_dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  # Pre-publish gate: core's suite against both C++ packages built from this commit. Core's main
+  # pins at a sibling release commit still name the previous rc window, so the siblings are
+  # supplied as overrides instead of being resolved through those pins.
+  test:
+    name: Pre-publish tests
+    needs: resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm versions kernel/infra from their older tags
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/pyproject.toml"
+
+      - name: Install
+        shell: bash
+        run: |
+          uv python install 3.12
+          uv venv
+          printf 'py10x-kernel @ file://%s/cxx10x/core_10x\npy10x-infra @ file://%s/cxx10x/infra_10x\n' "$PWD" "$PWD" > "$RUNNER_TEMP/siblings.txt"
+          uv pip install -c constraints.txt --override "$RUNNER_TEMP/siblings.txt" \
+            -e . --all-extras --requirements pyproject.toml
+
+      - name: Verify the built version matches the release tag
+        if: needs.resolve.outputs.version != ''
+        shell: bash
+        run: |
+          installed=$(uv run --no-sync python -c "import importlib.metadata as m; print(m.version('${{ needs.resolve.outputs.package }}'))")
+          echo "${{ needs.resolve.outputs.package }} $installed (tag ${{ needs.resolve.outputs.version }})"
+          [ "$installed" = "${{ needs.resolve.outputs.version }}" ]
+
+      - name: Run tests
+        shell: bash
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: uv run --no-sync pytest -n auto --dist loadscope core_10x infra_10x ui_10x xxcommon dev_10x
+
+  # Parallel with test: cibuildwheel does not need the suite. Upload waits for both.
+  build_wheels:
+    needs: resolve
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            linux-arch: x86_64
+          - os: ubuntu-24.04-arm
+            linux-arch: aarch64
+          - os: macos-latest
+            linux-arch: x86_64
+          - os: windows-2025
+            linux-arch: x86_64
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm needs the release tag
+
+      - uses: ./.github/actions/build-wheels
+        with:
+          package-dir: ${{ needs.resolve.outputs.package-dir }}
+          artifact-name: wheels-${{ needs.resolve.outputs.package }}-${{ matrix.os }}
+          linux-arch: ${{ matrix.linux-arch }}
+
+  upload:
+    if: github.ref_type == 'tag'
+    needs: [test, build_wheels]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          path: dist
+
+      - name: Flatten wheels
+        run: |
+          mkdir -p upload
+          find dist -name "*.whl" -exec cp {} upload/ \;
+
+      - name: Upload wheels to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: upload
