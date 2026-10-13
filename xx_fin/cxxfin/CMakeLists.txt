@@ -28,9 +28,10 @@ find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 # progress on stdout and corrupts the captured version (FetchContent then
 # tries to checkout a tag like `py10x-kernel-vRunning cmake --build...`).
 # ---------------------------------------------------------------------------
-# An editable install records its source tree in direct_url.json (PEP 610).
+# An editable install records its source tree in direct_url.json (PEP 610). url2pathname, not a
+# `file://` slice: on Windows the URL is file:///D:/..., and the slice leaves an invalid /D:/... path.
 execute_process(
-        COMMAND ${Python3_EXECUTABLE} -c "import json,pathlib,importlib.metadata as m; du=json.loads(m.distribution('py10x-kernel').read_text('direct_url.json') or '{}'); u=du.get('url',''); print(pathlib.Path(u[7:]).parent if du.get('dir_info',{}).get('editable') and u.startswith('file://') else '')"
+        COMMAND ${Python3_EXECUTABLE} -c "import json,pathlib,urllib.parse,urllib.request,importlib.metadata as m; du=json.loads(m.distribution('py10x-kernel').read_text('direct_url.json') or '{}'); u=du.get('url',''); print(pathlib.Path(urllib.request.url2pathname(urllib.parse.urlparse(u).path)).parent.as_posix() if du.get('dir_info',{}).get('editable') and u.startswith('file://') else '')"
         OUTPUT_VARIABLE _PY10X_KERNEL_LOCAL_SRC
         OUTPUT_STRIP_TRAILING_WHITESPACE
         ERROR_QUIET
