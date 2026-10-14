@@ -80,10 +80,26 @@ jobs:
           echo "${{ needs.resolve.outputs.package }} $installed (tag ${{ needs.resolve.outputs.version }})"
           [ "$installed" = "${{ needs.resolve.outputs.version }}" ]
 
+      # Same services as build.yml's gate: the Mongo-parametrized fixtures hard-fail (not skip)
+      # without a server, and transaction tests need a replica set.
+      - name: Start MongoDB (single-node replica set)
+        uses: supercharge/mongodb-github-action@1.12.1
+        with:
+          mongodb-version: "7.0"
+          mongodb-replica-set: rs0
+          mongodb-port: 27017
+
+      - name: Setup PostgreSQL
+        uses: ./.github/actions/setup-postgres
+
+      - name: Install Playwright chromium
+        run: uv run --no-sync playwright install --with-deps chromium
+
       - name: Run tests
         shell: bash
         env:
           PYTHONUNBUFFERED: "1"
+          XX_TEST_STRICT: "1"   # fully-provisioned job: a guard that can't run is a defect, not a skip
         run: uv run --no-sync pytest -n auto --dist loadscope core_10x infra_10x ui_10x xxcommon dev_10x
 
   # Parallel with test: cibuildwheel does not need the suite. Upload waits for both.

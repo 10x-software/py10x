@@ -506,8 +506,8 @@ package comes from the tag; `workflow_dispatch` builds one package without uploa
 
 1. **test**: full-history checkout; install core editable with **both** siblings built from this
    commit, passed as `--override`s (core's `main` pins at a sibling release commit still name the
-   previous rc window); assert the built version equals the tag; run core's suite (replica-set
-   tests auto-skip).
+   previous rc window); assert the built version equals the tag; run core's suite with the same
+   services as `build.yml` (Mongo replica set, Postgres, Playwright; `XX_TEST_STRICT=1`).
 2. **build_wheels**: cibuildwheel on ubuntu x86_64 / aarch64, macOS universal2, windows-2025.
 3. **upload**: trusted PyPI publish (OIDC). The PyPI trusted publishers for `py10x-kernel` and
    `py10x-infra` point at `10x-software/py10x`, workflow `cxx10x_wheels.yml`.

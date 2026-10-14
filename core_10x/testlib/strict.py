@@ -1,13 +1,13 @@
 """Strict-mode test preconditions, shared across `core_10x` / `infra_10x` / `dev_10x` test suites.
 
 `XX_TEST_STRICT=1` (read via `EnvVars.test_strict`) is set on py10x's *fully-provisioned* CI jobs
-(`ci.yml` / `build.yml` / `refresh-constraints.yml`). There, a guard that *can't run* because a
+(`ci.yml` / `build.yml` / `cxx10x_wheels.yml` / `refresh-constraints.yml`). There, a guard that *can't run* because a
 provisioning precondition is unmet — git/uv missing, no source checkout,
 or a non-replica-set Mongo (no transactions) — is a **defect to surface**, not something to skip
 silently. So `need(...)` turns those skips into hard failures under strict.
 
-Leave `XX_TEST_STRICT` UNSET everywhere else — local dev, and the `cxx10x_wheels.yml` pre-publish
-gate, where no-Mongo makes those skips legitimate.
+Leave `XX_TEST_STRICT` UNSET everywhere else (local dev), where an unprovisioned service makes
+those skips legitimate.
 
 Use this ONLY for *provisioning* preconditions. Genuinely-conditional skips (empty doc blocks, a
 backend that owns a type, platform-specific cases) must stay plain `pytest.skip` — they should skip
