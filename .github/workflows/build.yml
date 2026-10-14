@@ -111,6 +111,17 @@ jobs:
     - name: Build distributions
       run: uv build
 
+    # Core's release commit `==`-pins the coordinated kernel/infra, which publish from their own
+    # workflow (cxx10x_wheels.yml, often slower). Never let core reach PyPI ahead of them: an rc whose
+    # pinned siblings never land is uninstallable. Kernel-free, so it runs before any C++ install.
+    - name: Wait for pinned siblings on PyPI
+      env:
+        PYPI_TIMEOUT_SEC: "3600"
+      run: |
+        uv venv
+        uv pip install -c constraints.txt packaging tomlkit
+        .venv/bin/python -m dev_10x.xx_ci wait_sibling_releases
+
     - name: Publish to PyPI
       run: uv publish
 

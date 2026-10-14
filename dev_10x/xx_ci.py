@@ -15,6 +15,8 @@ Commands (run from the py10x repo root):
                                       ==-pinned siblings (env: PYPI_TIMEOUT_SEC, PYPI_POLL_SEC)
     wait_pypi_release_for_wheel WHEEL same wait, but VERSION is read from WHEEL's own pin on this
                                       repo's package (e.g. a downstream wheel pinning py10x-core)
+    wait_sibling_releases             poll until every sibling ==-pinned in this checkout's
+                                      pyproject.toml is on PyPI (run before publishing core)
 """
 
 from __future__ import annotations
@@ -60,9 +62,7 @@ def wait_pypi_release(base: Path, version: str, *, timeout: float | None = None,
     sibling bump is picked up automatically, never hand-maintained here)."""
     name = PyProjectHelpers.project_name(base / 'pyproject.toml')
     siblings = set(_siblings_doc(base))
-    timeout = float(os.environ.get('PYPI_TIMEOUT_SEC', timeout if timeout is not None else 1800))
-    poll = float(os.environ.get('PYPI_POLL_SEC', poll if poll is not None else 90))
-    deadline = time.monotonic() + timeout
+    deadline, poll = _pypi_deadline(timeout, poll)
 
     if not PyPIHelpers.wait_for_release(name, version, deadline, poll):
         return 1
@@ -70,8 +70,29 @@ def wait_pypi_release(base: Path, version: str, *, timeout: float | None = None,
     pins = PyPIHelpers.exact_pins(name, version, siblings)
     if not pins:
         print(f'wait_pypi_release: warning: no == pins for {sorted(siblings)} on {name}=={version}', file=sys.stderr)
-    for sib_name, sib_version in pins.items():
-        if not PyPIHelpers.wait_for_release(sib_name, sib_version, deadline, poll):
+    return _wait_for_pins(pins, deadline, poll)
+
+
+def wait_sibling_releases(base: Path, *, timeout: float | None = None, poll: float | None = None) -> int:
+    """Poll until every sibling this checkout `==`-pins is on PyPI. Run on a `pre`/`prod` release
+    commit before publishing core, so core never reaches the index ahead of the siblings it pins."""
+    siblings = set(_siblings_doc(base))
+    pins = PyProjectHelpers.exact_pins_from_text((base / 'pyproject.toml').read_text(encoding='utf-8'), siblings)
+    if not pins:
+        raise SystemExit(f'no == pins for {sorted(siblings)} in {base}/pyproject.toml - not a release commit?')
+    deadline, poll = _pypi_deadline(timeout, poll)
+    return _wait_for_pins(pins, deadline, poll)
+
+
+def _pypi_deadline(timeout: float | None, poll: float | None) -> tuple[float, float]:
+    timeout = float(os.environ.get('PYPI_TIMEOUT_SEC', timeout if timeout is not None else 1800))
+    poll = float(os.environ.get('PYPI_POLL_SEC', poll if poll is not None else 90))
+    return time.monotonic() + timeout, poll
+
+
+def _wait_for_pins(pins: dict[str, str], deadline: float, poll: float) -> int:
+    for name, version in pins.items():
+        if not PyPIHelpers.wait_for_release(name, version, deadline, poll):
             return 1
     return 0
 
@@ -150,6 +171,8 @@ def main(argv: list[str] | None = None) -> int:
         return verify_sibling(base, argv[1])
     if cmd == 'wait_pypi_release' and len(argv) == 2:
         return wait_pypi_release(base, argv[1])
+    if cmd == 'wait_sibling_releases' and len(argv) == 1:
+        return wait_sibling_releases(base)
     if cmd == 'wait_pypi_release_for_wheel' and len(argv) == 2:
         return wait_pypi_release_for_wheel(base, Path(argv[1]))
     raise SystemExit(f'usage:\n{__doc__}')

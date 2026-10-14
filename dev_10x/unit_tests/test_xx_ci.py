@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from dev_10x import xx_ci
-from dev_10x.xx_helpers import GitHelpers
+from dev_10x.xx_helpers import GitHelpers, PyPIHelpers
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -54,3 +54,38 @@ def test_latest_tag_rejects_unpinned_spec(tmp_path):
     GitHelpers.git(repo, 'tag', f'{KERNEL}-v0.0.1')
     with pytest.raises(SystemExit, match='no py10x-kernel tag matches'):
         xx_ci.latest_tag(repo, KERNEL)
+
+
+def _release_pyproject(tmp_path: Path, kernel_spec: str) -> Path:
+    (tmp_path / 'pyproject.toml').write_text(
+        '[project]\n'
+        'name = "py10x-core"\n'
+        f'dependencies = ["{KERNEL} ({kernel_spec})", "{INFRA} (==0.9.0)", "numpy>=2"]\n\n'
+        '[tool.dev_10x.siblings]\n'
+        f'{KERNEL} = {{ path = "cxx10x/core_10x" }}\n'
+        f'{INFRA} = {{ path = "cxx10x/infra_10x" }}\n',
+        encoding='utf-8',
+    )
+    return tmp_path
+
+
+def test_wait_sibling_releases_waits_for_each_exact_pin(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll: seen.append((name, version)) or True)
+    assert xx_ci.wait_sibling_releases(_release_pyproject(tmp_path, '==1.4.1rc2')) == 0
+    assert sorted(seen) == [(INFRA, '0.9.0'), (KERNEL, '1.4.1rc2')]
+
+
+def test_wait_sibling_releases_fails_when_a_sibling_never_lands(tmp_path, monkeypatch):
+    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll: name != KERNEL)
+    assert xx_ci.wait_sibling_releases(_release_pyproject(tmp_path, '==1.4.1rc2')) == 1
+
+
+def test_wait_sibling_releases_rejects_a_non_release_commit(tmp_path):
+    """A `main` checkout has rc-window pins, not `==`: nothing coordinated to wait for."""
+    pyproject = _release_pyproject(tmp_path, '>=1.4.1rc2,<1.4.1rc3')
+    (pyproject / 'pyproject.toml').write_text(
+        (pyproject / 'pyproject.toml').read_text(encoding='utf-8').replace('(==0.9.0)', '(>=0.9.0)'), encoding='utf-8'
+    )
+    with pytest.raises(SystemExit, match='not a release commit'):
+        xx_ci.wait_sibling_releases(pyproject)

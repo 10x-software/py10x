@@ -497,7 +497,10 @@ On **`pre/v*`** / **`prod/v*`** publish-trigger tag push:
    (`git+file://$PWD@<tag>#subdirectory=cxx10x/…`).
 4. `uv pip install -e . --all-extras --requirements pyproject.toml -c constraints.txt`.
 5. `xx_ci verify_sibling` for kernel and infra.
-6. Full pytest suite, then publish.
+6. Full pytest suite.
+7. `uv build`, then `xx_ci wait_sibling_releases` (up to 60 min) until the kernel/infra versions core
+   `==`-pins are on PyPI — they publish from `cxx10x_wheels.yml`, so core must not reach the index
+   first (an rc whose pinned siblings never land is uninstallable) — then `uv publish`.
 
 ### `cxx10x_wheels.yml` (kernel / infra publish)
 
@@ -573,6 +576,7 @@ bootstrap via `uv run --no-project --with packaging --with tomlkit --with setupt
 ```
 python -m dev_10x.xx_ci latest_tag py10x-kernel
 python -m dev_10x.xx_ci verify_sibling py10x-kernel
+python -m dev_10x.xx_ci wait_sibling_releases   # on a pre/prod release commit
 ```
 
 ---
