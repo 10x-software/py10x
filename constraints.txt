@@ -479,7 +479,7 @@ ruff==0.16.10
     #   py10x-core
 scikit-build-core==0.12.2
     # via
-    #   py10x-kernel (../cxx10x/core_10x/pyproject.toml)
+    #   py10x-kernel (cxx10x/core_10x/pyproject.toml)
     #   py10x-fin-base (xx_fin/pyproject.toml)
     #   py10x-core (pyproject.toml)
     #   py10x-core
@@ -588,7 +588,7 @@ urllib3==2.8.0
     #   requests-cache
 uuid6==2025.0.1
     # via
-    #   py10x-kernel (../cxx10x/core_10x/pyproject.toml)
+    #   py10x-kernel (cxx10x/core_10x/pyproject.toml)
     #   py10x-core (pyproject.toml)
     #   py10x-core
     #   py10x-kernel

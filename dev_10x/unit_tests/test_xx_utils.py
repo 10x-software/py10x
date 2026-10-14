@@ -266,18 +266,18 @@ def test_pin_strings():
     assert VersionHelpers.final_pin('0.2.1') == '>=0.2.1,<0.2.2'
     assert VersionHelpers.exact_pin('0.2.1rc2') == '==0.2.1rc2'  # forward, rc
     assert VersionHelpers.exact_pin('0.2.1') == '==0.2.1'  # forward, final
-    assert VersionHelpers.test_group_pin('0.2.3') == 'py10x-core>=0.2.3'  # reverse floor, final
-    assert VersionHelpers.test_group_pin('0.2.3rc1') == 'py10x-core>=0.2.3rc1'  # reverse floor, rc
+    assert VersionHelpers.test_group_dep_pin('py10x-fin-base', '0.2.3') == 'py10x-fin-base>=0.2.3'  # test-group floor, final
+    assert VersionHelpers.test_group_dep_pin('py10x-fin-base', '0.2.3rc1') == 'py10x-fin-base>=0.2.3rc1'  # test-group floor, rc
 
 
 def test_release_branch_names():
     assert GitHelpers.release_branch('pre', 'py10x-core', is_core=True) == 'pre'
     assert GitHelpers.release_branch('prod', 'py10x-core', is_core=True) == 'prod'
-    assert GitHelpers.release_branch('pre', 'py10x-kernel', is_core=False) == 'pre/py10x-kernel'
-    assert GitHelpers.release_branch('prod', 'py10x-infra', is_core=False) == 'prod/py10x-infra'
+    assert GitHelpers.release_branch('pre', 'py10x-kernel', is_core=False) == 'pre-py10x-kernel'
+    assert GitHelpers.release_branch('prod', 'py10x-infra', is_core=False) == 'prod-py10x-infra'
     # In-repo downstreams cannot nest under bare core `pre`/`prod` (git ref collision).
-    assert GitHelpers.release_branch('pre', 'py10x-fin-base', is_core=False, is_downstream=True) == 'pre-py10x-fin-base'
-    assert GitHelpers.release_branch('prod', 'py10x-fin-base', is_core=False, is_downstream=True) == 'prod-py10x-fin-base'
+    assert GitHelpers.release_branch('pre', 'py10x-fin-base', is_core=False) == 'pre-py10x-fin-base'
+    assert GitHelpers.release_branch('prod', 'py10x-fin-base', is_core=False) == 'prod-py10x-fin-base'
 
 
 def test_forward_pin_edits_targets_only_named_and_preserves_format():
@@ -707,3 +707,14 @@ class TestPublishWorkflowState:
         state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin=True, trigger_on_origin=True)
         assert state == 'success'
         assert url == 'u-new'
+
+
+def test_pin_only_diff_ignores_unpublished_test_group():
+    """Epilogues rewrite first-party pins and `dependency-groups.test`; neither is a source change."""
+    old = '[project]\nname = "py10x-core"\ndependencies = ["py10x-kernel (==1.0)", "numpy>=2"]\n'
+    pinned = old.replace('==1.0', '>=1.1rc1,<1.1rc2')
+    tracked = pinned + '\n[dependency-groups]\ntest = ["py10x-fin-base>=0.1"]\n'
+    names = {'py10x-kernel', 'py10x-fin-base'}
+    assert PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked, names)
+    assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked.replace('numpy>=2', 'numpy>=3'), names)
+    assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked + '\n[tool.x]\ny = 1\n', names)

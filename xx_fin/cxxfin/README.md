@@ -8,7 +8,7 @@ Built with pybind11 and scikit-build-core.
 
 - `cxxfin.cpp` — pybind11 module source; `PYBIND11_MODULE` name is `cxxfin`
 - `generate_stubs.py` — post-build stub generation; promotes `py10x_kernel` to `RTLD_GLOBAL` before importing `cxxfin` so that `BTraitable` typeinfo is visible (macOS flat namespace requirement)
-- Headers fetched from `cxx10x` at the exact git commit matching the installed `py10x_kernel` binary (version string contains the hash)
+- Headers from the py10x repo's `cxx10x/` at the exact git commit matching the installed `py10x_kernel` binary (version string contains the hash), or the local tree when `py10x-kernel` is installed editable
 
 ## Subclassing py10x_kernel types
 

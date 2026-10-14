@@ -379,18 +379,12 @@ class VersionHelpers:
 
     @staticmethod
     def test_group_dep_pin(name: str, version: str) -> str:
-        """Unpublished `dependency-groups.test` pin: `{name}>={version}` (see `test_group_pin`)."""
-        return f'{name}>={version}'
+        """Unpublished `dependency-groups.test` pin (core -> downstream): `{name}>={version}`.
 
-    @staticmethod
-    def test_group_pin(core_version: str) -> str:
-        """Reverse py10x-core test dependency: `>=` the coordinated core version (dev-only, unpublished).
-
-        `>=` not `==`: the prerelease token falls out for free - `>=Trc` admits core prereleases (an
-        rc sibling tests the prerelease line), `>=T` admits only finals (a final tests the released
-        line). Uncapped but self-correcting via the forward `==` (`dev_10x/README.md`, Pin model).
+        `>=` not `==`: the prerelease token falls out for free - `>=Trc` admits prereleases, `>=T`
+        admits only finals. Uncapped but self-correcting via the downstream's forward `==` on core.
         """
-        return VersionHelpers.test_group_dep_pin('py10x-core', core_version)
+        return f'{name}>={version}'
 
 
 class GitHelpers:
@@ -510,19 +504,18 @@ class GitHelpers:
 
     @staticmethod
     def diff_pathspecs(*sibling_subdirs: str) -> tuple[str, ...]:
-        """`git diff` pathspecs for a package's release footprint: the **whole repo minus the other
-        packages' subtrees**.
+        """`git diff` pathspecs for a package's default release footprint: the **whole repo minus
+        the other packages' paths** (their subtrees and explicit `footprint` entries).
 
         Rule: a change inside a package's own dir affects that package only; anything *outside* every
-        package dir (shared CI, root build config, …) affects all of them. So a package's footprint is
-        `.` with each *sibling* subtree excluded - its own files and all shared files count, a
-        sibling's subtree does not. A package alone in its repo -> the whole repo (`.`).
+        package (shared CI, root build config, …) affects all default-footprint packages. Packages
+        with an explicit `footprint` (the C++ siblings) opt out of shared files entirely.
         """
         return ('.', *(f':(exclude){s}' for s in sibling_subdirs))
 
     @classmethod
-    def changed_files(cls, repo: Path, base: str, rev: str = 'HEAD') -> list[str]:
-        out = cls.git(repo, 'diff', '--name-only', base, rev)
+    def changed_files(cls, repo: Path, base: str, rev: str = 'HEAD', *pathspecs: str) -> list[str]:
+        out = cls.git(repo, 'diff', '--name-only', base, rev, '--', *pathspecs)
         return [line for line in out.splitlines() if line]
 
     @classmethod
@@ -579,22 +572,14 @@ class GitHelpers:
         return Path(cls.git(path, 'rev-parse', '--show-toplevel'))
 
     @staticmethod
-    def release_branch(flavor: str, name: str, is_core: bool, is_downstream: bool = False) -> str:
-        """Tool-owned release-line branch name for a package (`flavor` in {"pre", "prod"}).
+    def release_branch(flavor: str, name: str, is_core: bool) -> str:
+        """Tool-owned release-line branch name for a package (`flavor` in {"pre", "prod"}): bare
+        ``pre`` / ``prod`` for core, ``pre-{name}`` for every other package - not ``pre/{name}``, git
+        forbids ``refs/heads/pre`` and ``refs/heads/pre/...`` together.
 
-        - core (one package per repo): bare ``pre`` / ``prod``
-        - siblings sharing a repo (cxx10x kernel + infra): ``pre/{name}`` (slash namespace)
-        - in-repo downstreams (same repo as core): ``pre-{name}`` — cannot nest under bare ``pre``
-          (git forbids ``refs/heads/pre`` and ``refs/heads/pre/...`` together)
-
-        Publish-trigger *tags* stay ``pre/{release}`` / ``prod/{release}`` (``refs/tags/``). See
-        ``dev_10x/README.md`` (Branches).
+        Publish-trigger *tags* stay ``pre/{release}`` / ``prod/{release}`` (``refs/tags/``).
         """
-        if is_core:
-            return flavor
-        if is_downstream:
-            return f'{flavor}-{name}'
-        return f'{flavor}/{name}'
+        return flavor if is_core else f'{flavor}-{name}'
 
 
 class PyProjectHelpers:
@@ -656,8 +641,9 @@ class PyProjectHelpers:
         return out
 
     @staticmethod
-    def diff_is_only_forward_pin_edits(old_text: str, new_text: str, siblings: set[str]) -> bool:
-        """True when `new_text` differs from `old_text` only in forward sibling pin specifiers."""
+    def diff_is_only_forward_pin_edits(old_text: str, new_text: str, names: set[str]) -> bool:
+        """True when `new_text` differs from `old_text` only in the pin specifiers of `names` and the
+        unpublished `dependency-groups.test` (both rewritten by xx-promote epilogues)."""
         if old_text == new_text:
             return True
 
@@ -670,10 +656,15 @@ class PyProjectHelpers:
             proj = doc.get('project')
             if proj is not None and 'dependencies' in proj:
                 del proj['dependencies']
+            groups = doc.get('dependency-groups')
+            if groups is not None and 'test' in groups:
+                del groups['test']
+                if not groups:
+                    del doc['dependency-groups']
             return doc
 
         old_specs, new_specs = _dep_specs(old_text), _dep_specs(new_text)
-        if any(old_specs.get(n) != new_specs.get(n) for n in old_specs.keys() | new_specs.keys() if n not in siblings):
+        if any(old_specs.get(n) != new_specs.get(n) for n in old_specs.keys() | new_specs.keys() if n not in names):
             return False
         return _without_deps(old_text) == _without_deps(new_text)
 

@@ -11,31 +11,31 @@ See also the [documentation map in README.md](README.md#documentation-map).
 
 `uv-sync` uses **dependency profiles** to decide where `py10x-core` and the C++ siblings (`py10x-kernel` / `py10x-infra`) come from. Choose the right one for your setup:
 
-| Profile          | py10x-core     | C++ siblings (kernel/infra)         | When to use |
-|------------------|----------------|-------------------------------------|-------------|
-| `user`           | local editable | released wheels from PyPI           | No C++ compiler (or you don't want to build); you get published pre-releases only |
-| `py10x-dev`      | local editable | git `main` (compiled locally)       | Most common dev case: pick up latest sibling changes from git without a local `../cxx10x` checkout |
-| `py10x-core-dev` | local editable | local editable from `../cxx10x`     | You are making changes to the C++ packages in the sibling checkout (requires C++ toolchain) |
+| Profile          | py10x-core     | C++ siblings (kernel/infra)          | When to use |
+|------------------|----------------|--------------------------------------|-------------|
+| `user`           | local editable | released wheels from PyPI            | No C++ compiler (or you don't want to build); you get published pre-releases only |
+| `py10x-dev`      | local editable | local editable from `cxx10x/`        | Normal development (requires a C++ toolchain) |
 
-After cloning, a typical setup (middle-ground `py10x-dev` profile) looks like:
+The C++ packages live in this repo under [`cxx10x/`](cxx10x/README.md). `py10x-core-dev` is
+accepted as a legacy alias of `py10x-dev`.
+
+After cloning, a typical setup looks like:
 
 ```bash
 uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
 uv run --no-sync pytest
 ```
 
-To **pick up the latest changes** from git-based siblings after pulling or when you want a refresh, e.g. after `git pull`
-
-```bash
-uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --upgrade
-```
+Re-run the same command after `git pull`; it rebuilds the C++ packages only when their
+setuptools-scm version changed. When iterating on C++ source, `XX_UV_INSTALL_MODE=incremental`
+rebuilds them on import instead (see [`dev_10x/README.md`](dev_10x/README.md#xx_uv_install_mode)).
 
 **Important:** After the initial sync, always use `uv run --no-sync …` for commands (e.g.
 `uv run --no-sync pytest`). Plain `uv run` can re-sync against `pyproject.toml` and accidentally
 fall back to PyPI-published siblings. The installed `uv-run` / `uv-sync` scripts are equivalent
 shortcuts when the venv is activated.
 
-See [INSTALLATION.md](INSTALLATION.md#development-installation-recommended) for clone steps (including when and how to obtain the `../cxx10x` sibling) and [`dev_10x/README.md`](dev_10x/README.md) for the full profile table, reinstall rules, `XX_UV_INSTALL_MODE`, and other options.
+See [INSTALLATION.md](INSTALLATION.md#development-installation-recommended) for clone steps and [`dev_10x/README.md`](dev_10x/README.md) for the full profile table, reinstall rules, `XX_UV_INSTALL_MODE`, and other options.
 
 ## Development Workflow
 

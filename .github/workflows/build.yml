@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-tags: true
+          fetch-depth: 0   # full history (0 = unlimited): sibling tags + their commits for the git+file installs below
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -25,9 +25,6 @@ jobs:
 
       - name: Set up Python
         run: uv python install 3.12
-
-      - name: Checkout kernel/infra
-        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
 
       # One venv on PATH for every later step; xx_ci needs only packaging + tomlkit (it is
       # kernel-free, so it can resolve tags before any sibling is installed).
@@ -39,16 +36,15 @@ jobs:
 
       # Resolve each sibling to the tag its *pinned spec* admits (Form A dev pin -> latest rc on an
       # rc commit; final-only pin -> latest final on a release branch), then install that tagged
-      # source from the local clone.
+      # source from this checkout (in-tree under cxx10x/).
       - name: Resolve and install siblings at their pinned tags
         run: |
           KERNEL_TAG=$(python -m dev_10x.xx_ci latest_tag py10x-kernel)
           INFRA_TAG=$(python -m dev_10x.xx_ci latest_tag py10x-infra)
           echo "kernel -> $KERNEL_TAG ; infra -> $INFRA_TAG"
-          CXX_ABS=$(cd "../cxx10x" && pwd)
           uv pip install -c constraints.txt \
-            "py10x-kernel @ git+file://${CXX_ABS}@${KERNEL_TAG}#subdirectory=core_10x" \
-            "py10x-infra  @ git+file://${CXX_ABS}@${INFRA_TAG}#subdirectory=infra_10x"
+            "py10x-kernel @ git+file://${PWD}@${KERNEL_TAG}#subdirectory=cxx10x/core_10x" \
+            "py10x-infra  @ git+file://${PWD}@${INFRA_TAG}#subdirectory=cxx10x/infra_10x"
 
       - name: Install py10x-core + dev/test deps
         # Additive install: the siblings from the step above already satisfy py10x-core's specs, so

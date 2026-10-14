@@ -1,0 +1,253 @@
+//
+// Created by AMD on 7/2/2024.
+//
+
+#pragma once
+
+#include <deque>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
+#include <thread>
+
+#include "bnode.h"
+#include "py_linkage.h"
+#include "tid.h"
+
+class BasicNode;
+class BTraitable;
+class BTrait;
+class UpwardDepsOffScope;
+
+class ExecStack : public std::deque<BasicNode*> {
+public:
+    [[nodiscard]]
+    BasicNode*  parent() const                          { return empty() ? nullptr : back(); }
+
+    void        replace_parent(BasicNode *new_parent)   { assert(!empty()); back() = new_parent; }
+    void        push(BasicNode *parent)                 { push_back(parent); }
+    void        pop()                                   { pop_back(); }
+};
+
+class NodeGuard {
+    ExecStack* m_xstack;
+public:
+    NodeGuard(ExecStack* xstack, BasicNode* node) : m_xstack(xstack)    { xstack->push(node); }
+    NodeGuard(const NodeGuard& ng) = default;
+    ~NodeGuard()                                                        { m_xstack->pop(); }
+};
+
+class XCache;
+
+class PY10X_API BTraitableProcessor {
+protected:
+
+    static unsigned s_default_type;
+
+    XCache*     m_cache;
+    XCache*     m_default_cache = nullptr;
+    ExecStack   m_stack;
+    unsigned    m_flags;
+    bool        m_own_cache = false;
+
+    static BTraitableProcessor* create_raw(unsigned flags);
+
+public:
+
+    static constexpr unsigned   PLAIN                = 0x0;
+    static constexpr unsigned   DEBUG                = 0x1;
+    static constexpr unsigned   CONVERT_VALUES       = 0x2;
+    static constexpr unsigned   ON_GRAPH             = 0x4;
+    static constexpr unsigned   PROC_TYPE            = ON_GRAPH | CONVERT_VALUES | DEBUG;
+
+    static constexpr unsigned   EMPTY_OBJ_ALLOWED    = 0x8;
+
+    static void set_default_type(unsigned proc_type)        { s_default_type = proc_type; }
+    static unsigned default_type()                          { return s_default_type; }
+
+    static BTraitableProcessor* create_default();
+    static BTraitableProcessor* create_root();
+
+    // int param: -1 - inherit, 0 - reset, 1 - set
+    static BTraitableProcessor* create(int on_graph, int convert_values, int debug, bool use_parent_cache, bool use_default_cache);
+
+    static BTraitableProcessor* create_with_cache(XCache *cache, unsigned flags);
+
+    static BTraitableProcessor* create_interactive() {
+        const auto proc = create(1, 1, 1, false, false);
+        proc->allow_empty_objects(true);
+        return proc;
+    }
+
+    static BTraitableProcessor* change_mode(int convert_values, int debug, bool use_default_cache) {
+        return create(-1, convert_values, debug, true, use_default_cache);
+    }
+
+    static BTraitableProcessor* current();
+
+    BTraitableProcessor() : m_cache(nullptr), m_flags(PLAIN) {}
+    virtual ~BTraitableProcessor();
+
+    [[nodiscard]] XCache*   own_cache() const               { return m_own_cache ? m_cache : nullptr; }
+    void                    use_own_cache(XCache* c)        { m_cache = c; m_own_cache = true; }
+
+    [[nodiscard]] XCache*   cache() const                   { return m_cache; }
+    virtual void            use_cache(XCache* c)            { m_cache = c; }
+
+    [[nodiscard]] XCache*   default_cache() const;
+    [[nodiscard]] XCache*   own_default_cache() const       { return m_default_cache; }
+
+    [[nodiscard]] bool      is_empty_object_allowed() const { return m_flags & EMPTY_OBJ_ALLOWED; }
+    void                    allow_empty_objects(bool flag)  { flag ? m_flags |= EMPTY_OBJ_ALLOWED : m_flags &= ~EMPTY_OBJ_ALLOWED; }
+
+    virtual ExecStack*      exec_stack()                    { return &m_stack; }
+
+    [[nodiscard]] unsigned  flags() const                   { return m_flags; }
+    void                    set_flags(unsigned flags)       { m_flags = flags; }
+    [[nodiscard]] bool      flags_on(unsigned flags) const  { return m_flags & flags; }
+
+    static void             check_value(BTraitable *obj, const BTrait *trait, const py::object &value);
+
+    virtual void            begin_using();
+    virtual void            end_using() const;
+    BTraitableProcessor*    py_enter()                      { begin_using(); return this; }
+    void                    py_exit(const py::args&) const  { end_using(); }
+
+    virtual py::object      set_trait_value(BTraitable *obj, const BTrait *trait, const py::object &value);
+    virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);
+
+    virtual void            invalidate_trait_value(BTraitable* obj, const BTrait* trait) const = 0;
+    virtual void            invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const = 0;
+
+    bool                    is_valid(const BTraitable* obj, const BTrait* trait) const;
+    bool                    is_valid(const BTraitable* obj, const BTrait* trait, const py::args& args) const;
+    bool                    is_set(const BTraitable* obj, const BTrait* trait) const;
+    bool                    is_set(const BTraitable* obj, const BTrait* trait, const py::args& args) const;
+
+    // BasicNode*              get_node(BTraitable* obj, BTrait* trait) const;
+    // BasicNode*              get_node(BTraitable* obj, BTrait* trait, const py::args& args) const;
+
+    bool                    accept_existing(BTraitable* obj) const;
+
+
+    py::object              share_object(BTraitable *obj, bool accept_existing, const bool replace_existing=false) const;
+
+    void                    export_nodes() const;
+
+    virtual py::object      get_trait_value(BTraitable* obj, const BTrait* trait) = 0;
+    virtual py::object      get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) = 0;
+
+    virtual py::object      get_choices(BTraitable* obj, BTrait* trait) = 0;
+    virtual py::object      get_style_sheet(BTraitable* obj, const BTrait* trait) = 0;
+
+    virtual py::object      adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const = 0;
+    virtual py::object      raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const = 0;
+    virtual py::object      raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const = 0;
+
+    //----
+    //  For a given obj and trait (e.g., for portfolio.price node), find dependencies on all the instances of
+    //  subclasses of each target class in inputs_spec, for that class's given trait names (e.g.,
+    //  {MktQuotable: ('quote',), ...}).
+    //  Returns: { cls: { id: [(trait, value), ...], ... }, ... }
+    //----
+    virtual py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const;
+
+    // No-op off-graph; active on-graph. Defined after UpwardDepsOffScope below.
+    [[nodiscard]] UpwardDepsOffScope upward_deps_off() const;
+
+    class Use {
+        bool    m_temp;
+    public:
+        explicit Use(BTraitableProcessor* proc, bool temp = false);
+        ~Use();
+    };
+};
+
+/// Processor that delegates to a parent and tracks BTraitable objects on which set_value was called (ID traits excluded).
+/// begin_using()/end_using() never clear the tracked list (only construction starts it empty), so a single instance
+/// can be entered (via `with`, or begin_using()/end_using() directly) repeatedly across many separate, non-nested
+/// spans (e.g. once per trait access, across separate dispatches) while still accumulating everything ever set.
+class BTraitableProcessorSetValueTracker : public BTraitableProcessor {
+    BTraitableProcessor* m_parent;
+    std::vector<py::object> m_objects_with_set_value_order;
+    std::unordered_set<BTraitable*> m_objects_with_set_value_seen;
+
+public:
+    BTraitableProcessorSetValueTracker();
+
+    void begin_using() override;
+    void end_using() const override;
+
+    ExecStack* exec_stack() override { return m_parent->exec_stack(); }
+
+    [[nodiscard]] py::list tracked_objects() const;
+    void clear();
+    void update(const BTraitableProcessorSetValueTracker& other);
+
+    py::object set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) override;
+    py::object set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override;
+
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait) const override;
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const override;
+
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait) override;
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) override;
+
+    py::object get_choices(BTraitable* obj, BTrait* trait) override;
+    py::object get_style_sheet(BTraitable* obj, const BTrait* trait) override;
+
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override;
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override;
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const override;
+};
+
+// A throwaway graph node is pushed onto the current processor's exec stack as a fake parent node.
+// It effectively cuts the dependency chain upward. Always active (used from Python with-protocol).
+class PY10X_API UpwardDepsOff {
+    ExecStack*       m_stack = nullptr;
+    BasicGraphNode*  m_node  = nullptr;
+
+public:
+    UpwardDepsOff() = default;
+    UpwardDepsOff(const UpwardDepsOff&) = delete;
+    UpwardDepsOff& operator=(const UpwardDepsOff&) = delete;
+
+    void begin_using() {
+        m_stack = BTraitableProcessor::current()->exec_stack();
+        m_node  = new BasicGraphNode();
+        m_stack->push(m_node);
+    }
+
+    void end_using() {
+        if (m_stack->parent() != m_node)
+            throw std::runtime_error("Mismanaged UpwardDepsOff block");
+
+        m_stack->pop();
+        m_node->unlink();          // detach from anything that parented onto it -- avoids dangling pointers
+        delete m_node;
+    }
+
+    UpwardDepsOff* py_enter()               { begin_using(); return this; }
+    void     py_exit(const py::args&) const { const_cast<UpwardDepsOff*>(this)->end_using(); }
+};
+
+class UpwardDepsOffScope {
+    UpwardDepsOff m_off;
+    bool          m_active = false;
+public:
+    UpwardDepsOffScope() = default;
+    explicit UpwardDepsOffScope(bool active) {
+        if (active) {
+            m_off.begin_using();
+            m_active = true;
+        }
+    }
+    ~UpwardDepsOffScope() {
+        if (m_active)
+            m_off.end_using();
+    }
+};
+
+inline UpwardDepsOffScope BTraitableProcessor::upward_deps_off() const {
+    return UpwardDepsOffScope(flags_on(ON_GRAPH));
+}

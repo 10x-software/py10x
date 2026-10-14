@@ -121,9 +121,11 @@ xx-vault-setup-roles            = "core_10x.apps.vault_setup_roles:VaultSetupRol
 requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright>=1.55,<1.63"]
 build-backend = "hatchling.build"
 
+# `footprint` (git pathspecs) replaces the default "repo minus other packages' dirs" footprint:
+# the C++ packages share cxx10x/ build files but not core's Python.
 [tool.dev_10x.siblings]
-py10x-kernel = { path = "../cxx10x/core_10x" }
-py10x-infra  = { path = "../cxx10x/infra_10x" }
+py10x-kernel = { path = "cxx10x/core_10x", footprint = ["cxx10x", ":(exclude)cxx10x/infra_10x", ".github/workflows/cxx10x_wheels.yml", ".github/actions/build-wheels"] }
+py10x-infra  = { path = "cxx10x/infra_10x", footprint = ["cxx10x", ":(exclude)cxx10x/core_10x", ".github/workflows/cxx10x_wheels.yml", ".github/actions/build-wheels"] }
 
 [tool.dev_10x.downstream]
 py10x-fin-base = { path = "./xx_fin" }
@@ -151,6 +153,11 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xxcommon"]
+exclude = ["**/manual_tests"]
+
+# Without this the sdist ships every non-ignored file, incl. the cxx10x/ and xx_fin/ packages.
+[tool.hatch.build.targets.sdist]
+only-include = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xxcommon", "LICENSE", "NOTICE", "README.md", "pyproject.toml"]
 exclude = ["**/manual_tests"]
 
 [[tool.hatch.build.hooks.build-scripts.scripts]]

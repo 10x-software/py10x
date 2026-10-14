@@ -105,12 +105,6 @@ def _git_remote() -> str:
     return subprocess.check_output(['git', 'remote', 'get-url', 'origin'], cwd=PROJECT_ROOT, text=True).strip()
 
 
-def _swap_repo(remote: str, repo_dir: str) -> str:
-    """`…/py10x.git` -> `…/{repo_dir}.git`, preserving the SSH-vs-HTTPS form of `remote`."""
-    base, _self = remote.rsplit('/', 1)
-    return f'{base}/{repo_dir}.git'
-
-
 def _normalize_git_url(url: str) -> str:
     """Convert SCP-style SSH remote to ssh:// form required by `uv pip`.
 
@@ -129,43 +123,27 @@ def _normalize_git_url(url: str) -> str:
 def packages(tomlkit) -> dict[str, dict]:
     """Per-package source descriptor: local/git/subdir/cxx/downstream.
 
-    py10x-core is the current repo (`.`); siblings come from `[tool.dev_10x.siblings]` (`cxx=True`);
-    optional downstreams from `[tool.dev_10x.downstream]` (`cxx=False`, omitted from default sync).
+    py10x-core is the repo root; siblings (`[tool.dev_10x.siblings]`, `cxx=True`) and optional
+    downstreams (`[tool.dev_10x.downstream]`, `cxx=False`, omitted from default sync) are in-tree
+    subdirectories, so their git source is this repo's remote + `subdirectory=path`.
     """
     remote = _git_remote()
     pkgs: dict[str, dict] = {
         CORE: {'local': PROJECT_ROOT, 'git': remote, 'subdir': None, 'cxx': False, 'downstream': False},
     }
     cfg = _dev10x_cfg(tomlkit)
-    for name, spec in cfg.get('siblings', {}).items():
-        rel = PurePosixPath(spec['path'])
-        non_dotdot = [p for p in rel.parts if p != '..']
-        repo_dir = non_dotdot[0]
-        subdir = '/'.join(non_dotdot[1:]) or None
-        pkgs[name] = {
-            'local': (PROJECT_ROOT / spec['path']).resolve(),
-            'git': spec.get('git') or _swap_repo(remote, repo_dir),
-            'subdir': spec.get('subdirectory', subdir),
-            'cxx': True,  # siblings are the compiled C++ packages
-            'downstream': False,
-        }
-    for name, spec in cfg.get('downstream', {}).items():
-        rel = PurePosixPath(spec['path'])
-        if '..' in rel.parts:
-            non_dotdot = [p for p in rel.parts if p != '..']
-            git_url = _swap_repo(remote, non_dotdot[0])
-            subdir = '/'.join(non_dotdot[1:]) or None
-        else:
-            # Same-repo nested path (e.g. xx_fin): this repo's remote + subdirectory.
-            git_url = remote
-            subdir = None if rel.parts in ((), ('.',)) else str(rel)
-        pkgs[name] = {
-            'local': (PROJECT_ROOT / spec['path']).resolve(),
-            'git': spec.get('git') or git_url,
-            'subdir': spec.get('subdirectory', subdir),
-            'cxx': False,
-            'downstream': True,
-        }
+    for downstream, table in ((False, 'siblings'), (True, 'downstream')):
+        for name, spec in cfg.get(table, {}).items():
+            rel = PurePosixPath(spec['path'])
+            if '..' in rel.parts:
+                raise SystemExit(f'[tool.dev_10x.{table}] {name}: path {spec["path"]!r} must be inside this repo')
+            pkgs[name] = {
+                'local': (PROJECT_ROOT / spec['path']).resolve(),
+                'git': spec.get('git') or remote,
+                'subdir': spec.get('subdirectory', None if rel.parts in ((), ('.',)) else str(rel)),
+                'cxx': not downstream,  # siblings are the compiled C++ packages
+                'downstream': downstream,
+            }
     return pkgs
 
 
@@ -176,9 +154,7 @@ def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
         return {CORE: 'local', **{s: 'index' for s in others}}
     if profile == 'domain-dev':
         return {p: 'git' for p in pkg_names}
-    if profile == 'py10x-dev':
-        return {CORE: 'local', **{s: 'git' for s in others}}
-    if profile == 'py10x-core-dev':
+    if profile in ('py10x-dev', 'py10x-core-dev'):  # py10x-core-dev: legacy alias
         return {p: 'local' for p in pkg_names}
     raise ValueError(f'unknown profile {profile!r}')
 
@@ -317,7 +293,7 @@ def _pip_install(*args: str) -> None:
 
 
 def _windows_cxx_cmake_flags(name: str) -> list[str]:
-    """MSVC toolset pin for py10x-kernel/infra (matches cxx10x cibuildwheel wheel builds)."""
+    """MSVC toolset pin for py10x-kernel/infra (matches the cxx10x/ cibuildwheel wheel builds)."""
     if sys.platform != 'win32':
         return []
     return [
@@ -448,27 +424,8 @@ def install_git(name: str, pkg: dict, branch: str) -> None:
 # --------------------------------------------------------------------------------------------
 # the sync
 # --------------------------------------------------------------------------------------------
-def _maybe_wait_for_sibling_branch() -> None:
-    """Optional pre-sync poll (CI main-push race). See `dev_10x/README.md` CI gotchas."""
-    branch = os.environ.get('WAIT_FOR_SIBLING_BRANCH', '').strip()
-    if not branch:
-        return
-    from dev_10x import xx_ci
-
-    sync_base = os.environ.get('WAIT_FOR_SIBLING_BRANCH_SYNC_BASE', '').strip() == '1'
-    timeout = os.environ.get('WAIT_FOR_SIBLING_BRANCH_TIMEOUT', '120')
-    interval = os.environ.get('WAIT_FOR_SIBLING_BRANCH_INTERVAL', '5')
-    refresh = ' (refreshing py10x each attempt)' if sync_base else ''
-    print(f'uv-sync: waiting for coordinated sibling pins on branch {branch!r}{refresh} (timeout={timeout}s, interval={interval}s)...')
-    code = xx_ci.wait_sibling_branch_ready(PROJECT_ROOT, branch, sync_base=sync_base, verbose=True)
-    if code:
-        raise SystemExit(code)
-    print(f'uv-sync: sibling pins ready on branch {branch!r}')
-
-
 def uv_sync(profile: str, *uv_args: str) -> None:
     tomlkit = ensure_env_and_runtime_deps(PROJECT_ROOT)
-    _maybe_wait_for_sibling_branch()
     with_downstream, downstream_filter, uv_args_list = _parse_with_downstream(uv_args)
     uv_args = tuple(uv_args_list)
     all_pkgs = packages(tomlkit)
@@ -632,7 +589,7 @@ def main():
         return
     profile = sys.argv[1]
     uv_sync(profile, *sys.argv[2:])
-    if profile == 'py10x-core-dev':
+    if profile in ('py10x-dev', 'py10x-core-dev'):
         ensure_chromium_installed()
 
 

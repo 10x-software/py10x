@@ -41,7 +41,8 @@ class PkgInput(Traitable):
     is_downstream: bool = RT(T.STICKY)
     parsed_tags: list = RT(T.STICKY)  # selection tags (yanked excluded)
     generation_tags: list = RT(T.STICKY)  # generation floor (yanked *included* - consumed)
-    footprint_changed: bool = RT(T.STICKY)  # diff since the latest tag across diff_pathspecs
+    footprint: tuple = RT(T.STICKY)  # git pathspecs of this package's release footprint
+    footprint_changed: bool = RT(T.STICKY)  # diff since the latest tag across `footprint`
     current_forward: dict = RT(T.STICKY)  # exact == pins of `siblings` from latest tag
     version_override: str | None = RT(None)  # `--next-version`: forces a cut onto this X.Y.Z instead of next_micro
 
@@ -81,34 +82,51 @@ class PkgInput(Traitable):
     def generation_tags_get(self) -> list:
         return VersionHelpers.parse_pkg_tags(GitHelpers.list_tags(self.repo, f'{self.tag_prefix}*'), self.tag_prefix, include_yanked=True)
 
+    def footprint_get(self) -> tuple:
+        # An explicit `footprint` (pyproject `[tool.dev_10x.*]`) is used as is. Default: the whole
+        # repo minus the *other* packages' subtrees and explicit footprints (shared files count, a
+        # sibling's do not). Skip excluding `.` (core's src_dir) so a nested downstream still has a
+        # real footprint.
+        own = self._pkg().footprint
+        if own:
+            return tuple(own)
+        others = []
+        for n, p in self.packages.items():
+            if n == self.name:
+                continue
+            sub = GitHelpers.repo_relative_subtree(self.repo, p.src_dir)
+            if sub != '.':
+                others.append(sub)
+            others.extend(spec for spec in p.footprint if not spec.startswith(':'))
+        return GitHelpers.diff_pathspecs(*dict.fromkeys(others))
+
     def footprint_changed_get(self) -> bool:
         # Diff from the main commit the latest tag was cut off (merge-base with main), not the tag
         # itself: the tag sits on the pre/prod line and carries pin commit(s), which aren't source.
-        # Footprint = the whole repo minus the *other* packages' subtrees (shared files count, a
-        # sibling's subtree does not). Skip excluding `.` (core's src_dir) so a nested downstream
-        # still has a real footprint.
         latest = VersionHelpers.latest_tag(self.parsed_tags)
         if latest is None:
             return True
         fork = GitHelpers.git(self.repo, 'merge-base', latest[0], 'main')
-        other_subdirs = [
-            sub
-            for n, p in self.packages.items()
-            if n != self.name and p.repo == self.repo
-            for sub in [GitHelpers.repo_relative_subtree(self.repo, p.src_dir)]
-            if sub != '.'
-        ]
-        if not GitHelpers.tree_changed_since_tag(self.repo, fork, *GitHelpers.diff_pathspecs(*other_subdirs), rev='main'):
+        if not GitHelpers.tree_changed_since_tag(self.repo, fork, *self.footprint, rev='main'):
             return False
-        # Pin-only exemption: core (sibling pins) and downstream (core + co-released *-cxx).
-        if not self.siblings or not (self.is_core or self.is_downstream):
+        # Pin-only exemption: `main` epilogues rewrite first-party pins in pyprojects (this package's
+        # or, for a nested downstream, core's root one) - those edits alone are not a footprint change.
+        if not (self.is_core or self.is_downstream):
             return True
-        rel = (self.src_dir / 'pyproject.toml').resolve().relative_to(self.repo.resolve()).as_posix()
-        if GitHelpers.changed_files(self.repo, fork, rev='main') != [rel]:
-            return True
-        old = GitHelpers.file_at_ref(self.repo, fork, rel) or ''
-        new = GitHelpers.file_at_ref(self.repo, 'main', rel) or ''
-        return not PyProjectHelpers.diff_is_only_forward_pin_edits(old, new, self.siblings)
+        pyprojects = {
+            (p.src_dir / 'pyproject.toml').resolve().relative_to(self.repo.resolve()).as_posix()
+            for p in self.packages.values()
+            if p.repo == self.repo
+        }
+        first_party = set(self.packages) | {f'{n}-cxx' for n in self.packages}
+        for rel in GitHelpers.changed_files(self.repo, fork, 'main', *self.footprint):
+            if rel not in pyprojects:
+                return True
+            old = GitHelpers.file_at_ref(self.repo, fork, rel) or ''
+            new = GitHelpers.file_at_ref(self.repo, 'main', rel) or ''
+            if not PyProjectHelpers.diff_is_only_forward_pin_edits(old, new, first_party):
+                return True
+        return False
 
     def current_forward_get(self) -> dict:
         # Exact `==` pins of `siblings` (forward-pin targets) from the latest tag's pyproject.
@@ -178,8 +196,8 @@ class Plan:
     """One package's promote action - the **same shape** for `pre` (cut rc) and `prod` (stack final).
 
     `create_batch` is shared: it asks the subclass to **decide** each package's coordinated version
-    (the only real pre/prod difference), then builds the coordinated cross-pins (core `==` siblings,
-    each sibling `py10x-core>=` core; downstream `==` core and co-released `{name}-cxx`) + the
+    (the only real pre/prod difference), then builds the coordinated cross-pins (core `==` siblings;
+    downstream `==` core and co-released `{name}-cxx`) + the
     per-package plan + its `main` epilogue. Subclasses set `FLAVOR`/`BASE_KIND` and supply `_decide`
     (+ `_epilogue`/`_skip_reason`).
     """
@@ -191,7 +209,6 @@ class Plan:
     branch: str | None = None  # tool-owned release branch
     base_kind: str = 'main'  # PromoteStep forks from "main" HEAD or latest "rc"
     forward_pins: dict[str, str] = field(default_factory=dict)  # published [project.dependencies] pins
-    reverse_pin: str | None = None  # sibling: "py10x-core>=corever" test-group
     epilogue: tuple = ()  # MainEdit[] (main pin refresh on core / siblings / downstreams)
     skip_reason: str | None = None
 
@@ -211,27 +228,22 @@ class Plan:
                 continue
             if inp.is_core:
                 forward = {s.name: VersionHelpers.exact_pin(decided[s.name][0]) for s in siblings if decided[s.name][0] is not None}
-                reverse = None
             elif inp.is_downstream:
                 core_v = decided[core.name][0]
                 forward = {core.name: VersionHelpers.exact_pin(core_v)} if core_v is not None else {}
                 # Co-released impl dist (same tag train / version as the product package).
                 # write_forward_pins only rewrites deps that already exist — no-op if absent.
                 forward[f'{inp.name}-cxx'] = VersionHelpers.exact_pin(version)
-                reverse = None
             else:
-                core_v = decided[core.name][0]
-                forward = {}
-                reverse = VersionHelpers.test_group_pin(core_v) if core_v is not None else None
+                forward = {}  # siblings pin nothing: core is in-tree, tested at the same commit
             plans[inp.name] = cls(
                 name=inp.name,
                 act=True,
                 version=version,
                 tag=f'{inp.tag_prefix}{version}',
-                branch=GitHelpers.release_branch(cls.FLAVOR, inp.name, inp.is_core, inp.is_downstream),
+                branch=GitHelpers.release_branch(cls.FLAVOR, inp.name, inp.is_core),
                 base_kind=cls.BASE_KIND,
                 forward_pins=forward,
-                reverse_pin=reverse,
                 epilogue=cls._epilogue(inp, decided, inputs),
             )
         return plans
@@ -379,7 +391,7 @@ class ProdPlan(Plan):
                     )
                 )
             return tuple(edits)
-        return (MainEdit('track released py10x-core in test group', test_pin=VersionHelpers.test_group_pin(core_v)),) if core_v is not None else ()
+        return ()
 
     @classmethod
     def _skip_reason(cls, inp):
