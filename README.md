@@ -21,6 +21,8 @@ Most software is built domain-first: a finance system, a healthcare system, a lo
 
 10x Genaxy isn't the first genaxy — SecDb, Athena, and others came before it (See [lineage](LINEAGE.md)).
 
+**Another way to see it.** C++ took C and made objects first-class — data and behavior bundled together, without leaving C behind. 10x Genaxy does the same for Python, one level up: objects that know *who they are* (identity), *what they depend on* (dependency), *where they live* (persistence), and *how they look* (presentation). It is still Python — nothing new to compile, no new syntax — just with the four laws built in. If it helps, think of it as **Python++**.
+
 In this README:
 
 - **[Identity & sharing](#-identity-and-dependency-in-nine-lines)** — same ID traits, same entity
