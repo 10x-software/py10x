@@ -9,7 +9,6 @@
       <env name="PYTHONPATH" value="../../core_10x/cmake-build-debug:../cmake-build-debug:../../.." />
     </envs>
     <option name="SDK_HOME" value="" />
-    <option name="SDK_NAME" value="Python 3.11 (cxx10x)" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/infra_10x/tests" />
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
