@@ -373,10 +373,19 @@ source tree don't fight a second, non-editable copy in site-packages.
 
 | mode | shape | use case |
 |------|-------|----------|
-| `normal` | plain, non-editable install; no ongoing dependency on the sibling's source tree or a persistent build-dir | CI / a build-once image (`docker/Dockerfile`'s `dev` target, `ci-test-suite`) |
-| `editable` (default, i.e. unset) | editable, isolated build each invocation — slower per-install but hermetic | everyday local dev |
-| `incremental` | editable + no-build-isolation + a persistent build-dir + rebuild-check on every *import* (not just install) | iterating on C++ source locally |
-| `incremental_quiet` | same as `incremental`, with scikit-build-core's per-import rebuild-check log spam silenced (`editable.verbose=false`) | same, without the noise |
+| `normal` | plain, non-editable install; no ongoing dependency on the sibling's source tree or a persistent build-dir | a build-once image (`docker/Dockerfile`'s `dev` target) |
+| `editable` | editable, isolated build each invocation — slower per-install but hermetic | CI (`ci-test-suite`, `refresh-constraints.yml`): nothing is edited after install |
+| `incremental` | editable + no-build-isolation + a persistent build-dir + rebuild-check on every *import* (not just install) | local dev, when you want to see the rebuild output |
+| `incremental_quiet` (default, i.e. unset) | same as `incremental`, with scikit-build-core's per-import rebuild-check log spam silenced (`editable.verbose=false`) | everyday local dev |
+
+With the incremental default, C++ edits under `cxx10x/` take effect on the next `import py10x_kernel`
+/ `py10x_infra` — Ninja rebuilds only what changed — with no `uv-sync` re-run. Re-running `uv-sync`
+is only needed for dependency changes, or to refresh the installed version metadata (its
+version-drift reinstall is incremental too, so it costs seconds, not a full build).
+
+CI pins `editable`, not `normal`: cxxfin locates kernel headers through the *editable* kernel
+install. With a non-editable kernel it fetches them from GitHub by the kernel version's commit hash,
+which does not exist for a PR's merge commit.
 
 `incremental`/`incremental_quiet` add:
 

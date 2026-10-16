@@ -26,14 +26,17 @@ uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
 uv run --no-sync pytest
 ```
 
-Re-run the same command after `git pull`; it rebuilds the C++ packages only when their
-setuptools-scm version changed. When iterating on C++ source, `XX_UV_INSTALL_MODE=incremental`
-rebuilds them on import instead (see [`dev_10x/README.md`](dev_10x/README.md#xx_uv_install_mode)).
+The C++ packages install in incremental mode by default: edits under `cxx10x/` are rebuilt
+(incrementally) on the next import, with no re-sync. Re-run the sync command after dependency
+changes or `git pull`. Set `XX_UV_INSTALL_MODE=incremental` to see the rebuild output, or `editable`
+for a hermetic full build per install (see [`dev_10x/README.md`](dev_10x/README.md#xx_uv_install_mode)).
 
 **Important:** After the initial sync, always use `uv run --no-sync …` for commands (e.g.
-`uv run --no-sync pytest`). Plain `uv run` can re-sync against `pyproject.toml` and accidentally
-fall back to PyPI-published siblings. The installed `uv-run` / `uv-sync` scripts are equivalent
-shortcuts when the venv is activated.
+`uv run --no-sync pytest`). Plain `uv run` does an exact `uv sync` against `pyproject.toml`: it
+replaces the editable kernel/infra with PyPI releases (they have no `[tool.uv.sources]` entry —
+`uv-sync` installs them directly), uninstalls extras and opt-in downstreams it wasn't asked for, and
+ignores `constraints.txt`. `export UV_NO_SYNC=1` makes plain `uv run` behave like `--no-sync`. The
+installed `uv-run` / `uv-sync` scripts are equivalent shortcuts when the venv is activated.
 
 See [INSTALLATION.md](INSTALLATION.md#development-installation-recommended) for clone steps and [`dev_10x/README.md`](dev_10x/README.md) for the full profile table, reinstall rules, `XX_UV_INSTALL_MODE`, and other options.
 

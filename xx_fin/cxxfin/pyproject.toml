@@ -41,11 +41,9 @@ build-dir = "../../.venv/py10x-build/cxxfin/{build_type}/{wheel_tag}"
 [tool.scikit-build.cmake.define]
 ENABLE_SANITIZERS = {env = "ENABLE_SANITIZERS", default = "OFF"}
 
-# Same pin as core_10x/infra_10x pyproject.toml (cxx10x): forces the exact MSVC toolset
-# Py10xMsvcVersion.cmake requires (MSVC_VERSION=1944), regardless of whichever toolset the
-# runner's default VS install currently points at.
-[tool.cibuildwheel.windows.config-settings]
-"cmake.args" = ["-T", "v143,version=14.44"]
+[[tool.scikit-build.overrides]]
+if.platform-system = "^win"
+cmake.args = ["-T", "v143,version=14.44"]
 
 [tool.setuptools_scm]
 root = "../.."

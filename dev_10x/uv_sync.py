@@ -50,12 +50,11 @@ CXX_BUILD_TOOLCHAIN = ['scikit-build-core', 'setuptools-scm', 'cmake', 'ninja', 
 # XX_UV_INSTALL_MODE controls how local C++ siblings (py10x-kernel/py10x-infra) get installed:
 #   normal            plain, non-editable build+install - no ongoing dependency on the sibling's
 #                      source tree or a persistent build-dir; right for a build-once image/CI run.
-#   editable          (default) editable, isolated build each invocation - slower per-install but
-#                      hermetic; matches every existing behavior when the var is left unset.
+#   editable          editable, isolated build each invocation - slower per-install but hermetic.
 #   incremental       editable + no-build-isolation + a persistent build-dir + rebuild-on-*import*
-#                      (not just at install time) - for iterating on C++ source locally.
-#   incremental_quiet same as incremental, with scikit-build-core's per-import rebuild-check log
-#                      spam silenced (editable.verbose=false).
+#                      (not just at install time): C++ edits take effect on the next import.
+#   incremental_quiet (default) same as incremental, with scikit-build-core's per-import
+#                      rebuild-check log spam silenced (editable.verbose=false).
 # py10x-core itself always installs editable regardless of this setting (see uv_sync(), step 3) -
 # core is pure Python, and a non-editable copy in site-packages would create a second, conflicting
 # copy of the package for tests collected by path from the source tree to import against.
@@ -341,7 +340,7 @@ def _workspace_member_paths(src_dir: Path) -> dict[str, Path]:
 
 
 def install_mode() -> str:
-    raw = os.environ.get('XX_UV_INSTALL_MODE', 'editable').strip()
+    raw = os.environ.get('XX_UV_INSTALL_MODE', 'incremental_quiet').strip()
     if raw not in INSTALL_MODES:
         raise ValueError(f'XX_UV_INSTALL_MODE must be one of {INSTALL_MODES}, got {raw!r}')
     return raw

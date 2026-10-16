@@ -40,9 +40,15 @@ runs:
       run: |
         echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
 
+    # CI keeps plain editable C++ installs instead of the incremental default: nothing is edited
+    # after install, so per-import rebuild checks in every xdist worker would be pure overhead.
+    # Not `normal` either - cxxfin finds kernel headers via the editable install; a non-editable
+    # kernel makes it fetch them by commit hash, which fails for a PR's merge commit.
     - name: Install dependencies
       shell: bash
       run: |
+        echo "XX_UV_INSTALL_MODE=editable" >> "$GITHUB_ENV"
+        export XX_UV_INSTALL_MODE=editable
         uv venv
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         python -m dev_10x.uv_sync py10x-dev --all-extras

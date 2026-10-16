@@ -34,9 +34,9 @@ def _has_extras(args: list[str]) -> bool:
 
 
 class TestInstallMode:
-    def test_defaults_to_editable(self, monkeypatch):
+    def test_defaults_to_incremental_quiet(self, monkeypatch):
         monkeypatch.delenv('XX_UV_INSTALL_MODE', raising=False)
-        assert uv_sync.install_mode() == 'editable'
+        assert uv_sync.install_mode() == 'incremental_quiet'
 
     @pytest.mark.parametrize('mode', uv_sync.INSTALL_MODES)
     def test_accepts_every_declared_mode(self, monkeypatch, mode):

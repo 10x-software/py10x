@@ -27,7 +27,7 @@ Agents should **link to and rely on those files**, not duplicate them here.
 - **Use UV and the project venv**
   - Assume development happens via `uv` and a local `.venv`.
   - When suggesting or running commands, prefer (from repo root — no `source .venv` needed):
-    - `uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras` for setup (builds `cxx10x/` locally; `XX_UV_INSTALL_MODE=incremental` when iterating on C++) — see [`CONTRIBUTING.md`](CONTRIBUTING.md#development-setup).
+    - `uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras` for setup (builds `cxx10x/` locally in incremental mode by default: C++ edits rebuild on the next import) — see [`CONTRIBUTING.md`](CONTRIBUTING.md#development-setup).
     - `uv run --no-sync pytest …` / `uv run --no-sync ruff …` after the venv is prepared.
 
 - **Respect C++ / cxx10x backend**

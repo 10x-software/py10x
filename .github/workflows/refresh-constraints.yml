@@ -19,6 +19,9 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  XX_UV_INSTALL_MODE: editable   # same as ci-test-suite: no per-import rebuild checks in CI
+
 jobs:
   refresh:
     name: Recompile and test constraints.txt
