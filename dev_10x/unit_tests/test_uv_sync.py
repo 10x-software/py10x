@@ -55,34 +55,51 @@ class TestInstallLocalArgs:
         (args,) = captured_pip_install
         assert '-e' not in args
         assert str(_pkg(cxx=True)['local']) in args
-        assert not any('editable.rebuild' in a for a in args)
+        assert not any('editable.' in a for a in args)  # editable.* settings don't apply to a wheel
 
-    def test_editable_mode_is_editable_without_incremental_flags(self, captured_pip_install):
+    def test_editable_mode_turns_off_rebuild(self, captured_pip_install):
         uv_sync.install_local('py10x-kernel', _pkg(cxx=True), pin=None, mode='editable', verbose=False)
         (args,) = captured_pip_install
         assert '-e' in args
-        assert not any('--no-build-isolation-package' == a for a in args)
-        assert not any('editable.rebuild' in a for a in args)
+        assert 'py10x-kernel:editable.rebuild=false' in args
+
+    @pytest.mark.parametrize('mode', uv_sync.INSTALL_MODES)
+    def test_every_mode_builds_without_isolation_into_the_pyproject_build_dir(self, captured_pip_install, mode):
+        # The persistent build-dir comes from the package's pyproject; an isolated build would
+        # bake throwaway cmake/ninja paths into its CMakeCache.
+        uv_sync.install_local('py10x-kernel', _pkg(cxx=True), pin=None, mode=mode, verbose=False)
+        (args,) = captured_pip_install
+        assert args[args.index('--no-build-isolation-package') + 1] == 'py10x-kernel'
+        assert 'py10x-kernel:cmake.build-type=Release' in args
+        assert not any('build-dir' in a for a in args)
+
+    def test_build_type_from_env(self, captured_pip_install, monkeypatch):
+        monkeypatch.setenv('XX_UV_BUILD_TYPE', 'Debug')
+        uv_sync.install_local('py10x-kernel', _pkg(cxx=True), pin=None, mode='incremental', verbose=False)
+        (args,) = captured_pip_install
+        assert 'py10x-kernel:cmake.build-type=Debug' in args
 
     def test_incremental_mode_is_editable_and_verbose(self, captured_pip_install):
         uv_sync.install_local('py10x-kernel', _pkg(cxx=True), pin=None, mode='incremental', verbose=False)
         (args,) = captured_pip_install
         assert '-e' in args
-        assert any('editable.rebuild=true' in a for a in args)
-        assert any('editable.verbose=true' in a for a in args)
+        assert not any('editable.rebuild' in a for a in args)  # pyproject default: on
+        assert 'py10x-kernel:editable.verbose=true' in args
 
-    def test_incremental_quiet_mode_silences_verbose(self, captured_pip_install):
+    def test_incremental_quiet_mode_uses_pyproject_defaults(self, captured_pip_install):
+        # incremental_quiet == the pyproject defaults (rebuild on, verbose off): nothing to override.
         uv_sync.install_local('py10x-kernel', _pkg(cxx=True), pin=None, mode='incremental_quiet', verbose=False)
         (args,) = captured_pip_install
         assert '-e' in args
-        assert any('editable.rebuild=true' in a for a in args)
-        assert any('editable.verbose=false' in a for a in args)
+        assert not any('editable.' in a for a in args)
 
-    def test_normal_mode_pure_python_package_gets_no_incremental_flags(self, captured_pip_install):
-        # Non-cxx packages (py10x-core) never get incremental flags, regardless of mode.
-        uv_sync.install_local('py10x-core', _pkg(cxx=False), pin=None, mode='incremental', verbose=False)
+    @pytest.mark.parametrize('mode', uv_sync.INSTALL_MODES)
+    def test_pure_python_package_gets_no_cxx_flags(self, captured_pip_install, mode):
+        # Non-cxx packages (py10x-core) never get C++ build flags, regardless of mode.
+        uv_sync.install_local('py10x-core', _pkg(cxx=False), pin=None, mode=mode, verbose=False)
         (args,) = captured_pip_install
-        assert not any('editable.rebuild' in a for a in args)
+        assert not any('editable.' in a or 'cmake.' in a for a in args)
+        assert '--no-build-isolation-package' not in args
 
     def test_local_sibling_ignores_extras_args(self, captured_pip_install):
         uv_sync.install_local('py10x-kernel', _pkg(cxx=True), pin=None, mode='editable', verbose=False, extras_args=['--all-extras'])
@@ -105,7 +122,77 @@ class TestInstallLocalArgs:
         assert str(tmp_path / 'pyproject.toml') in parent
 
 
+class TestInstallDownstreamMemberArgs:
+    """Downstream workspace members (fin-base → cxxfin) follow XX_UV_INSTALL_MODE like kernel/infra."""
+
+    @pytest.fixture
+    def finbase(self, tmp_path, monkeypatch):
+        member = tmp_path / 'cxxfin'
+        monkeypatch.setattr(uv_sync, '_workspace_member_paths', lambda _: {'py10x-fin-base-cxx': member})
+        monkeypatch.setattr(uv_sync, '_no_build_isolation_packages', lambda _: ['py10x-fin-base-cxx'])
+        return member, _pkg(cxx=False, downstream=True, local=tmp_path, subdir='xx_fin')
+
+    def _install(self, captured_pip_install, finbase, mode):
+        member, pkg = finbase
+        uv_sync.install_local('py10x-fin-base', pkg, pin=None, mode=mode, verbose=False)
+        member_args, parent_args = captured_pip_install
+        assert str(member) in member_args
+        return member_args, parent_args
+
+    @pytest.mark.parametrize('mode', ['incremental', 'incremental_quiet'])
+    def test_incremental_member_keeps_pyproject_rebuild(self, captured_pip_install, finbase, mode):
+        member_args, parent_args = self._install(captured_pip_install, finbase, mode)
+        assert '-e' in member_args
+        assert 'py10x-fin-base-cxx:cmake.build-type=Release' in member_args
+        # The parent install carries the same member flags, so a transitive rebuild matches.
+        assert 'py10x-fin-base-cxx:cmake.build-type=Release' in parent_args
+        assert not any('editable.rebuild' in a or 'build-dir' in a for a in member_args + parent_args)
+
+    def test_editable_member_is_plain_editable(self, captured_pip_install, finbase):
+        member_args, parent_args = self._install(captured_pip_install, finbase, 'editable')
+        assert '-e' in member_args
+        assert '--no-build-isolation-package' in member_args
+        assert '--no-build-isolation-package' in parent_args
+        assert 'py10x-fin-base-cxx:editable.rebuild=false' in member_args
+        assert 'py10x-fin-base-cxx:editable.rebuild=false' in parent_args
+
+    def test_normal_member_is_not_editable(self, captured_pip_install, finbase):
+        member_args, _ = self._install(captured_pip_install, finbase, 'normal')
+        assert '-e' not in member_args
+        assert not any('editable.rebuild' in a for a in member_args)
+
+
+class TestModeToggle:
+    def test_toggle_reinstalls_up_to_date_downstream_with_native_members(self, monkeypatch, tmp_path):
+        installed = []
+        monkeypatch.setattr(uv_sync, 'need_install', lambda *a, **k: False)
+        monkeypatch.setattr(uv_sync, '_no_build_isolation_packages', lambda _: ['py10x-fin-base-cxx'])
+        monkeypatch.setattr(uv_sync, 'install_local', lambda name, *a, **k: installed.append(name))
+        pkgs = {'py10x-fin-base': _pkg(cxx=False, downstream=True, local=tmp_path, subdir='xx_fin')}
+        uv_sync.sync_siblings('main', 'editable', None, {'py10x-fin-base': 'local'}, pkgs, ['py10x-fin-base'], True, False)
+        assert installed == ['py10x-fin-base']
+
+
+class TestNoInjectedToolsetPin:
+    """The Windows MSVC toolset pin lives in each package's pyproject, never in uv-sync flags."""
+
+    @pytest.mark.parametrize('mode', uv_sync.INSTALL_MODES)
+    def test_local_install_passes_no_cmake_args(self, captured_pip_install, monkeypatch, mode):
+        monkeypatch.setattr(uv_sync.sys, 'platform', 'win32')
+        uv_sync.install_local('py10x-kernel', _pkg(cxx=True), pin=None, mode=mode, verbose=False)
+        (args,) = captured_pip_install
+        assert not any('cmake.args' in a for a in args)
+
+
 class TestInstallGitArgs:
+    def test_git_cxx_install_uses_throwaway_build_dir(self, captured_pip_install):
+        # Isolated build from uv's git checkout: the pyproject's persistent build-dir is cleared.
+        uv_sync.install_git('py10x-kernel', _pkg(cxx=True), 'main')
+        (args,) = captured_pip_install
+        assert 'py10x-kernel:build-dir=' in args
+        assert 'py10x-kernel:editable.rebuild=false' in args  # rebuild needs a persistent build-dir
+        assert '--no-build-isolation-package' not in args
+
     def test_git_sibling_install_has_no_extras(self, captured_pip_install):
         uv_sync.install_git('py10x-kernel', _pkg(cxx=True), 'main')
         (args,) = captured_pip_install

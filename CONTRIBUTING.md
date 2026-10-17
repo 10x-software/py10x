@@ -29,7 +29,7 @@ uv run --no-sync pytest
 The C++ packages install in incremental mode by default: edits under `cxx10x/` are rebuilt
 (incrementally) on the next import, with no re-sync. Re-run the sync command after dependency
 changes or `git pull`. Set `XX_UV_INSTALL_MODE=incremental` to see the rebuild output, or `editable`
-for a hermetic full build per install (see [`dev_10x/README.md`](dev_10x/README.md#xx_uv_install_mode)).
+to turn off the rebuild-on-import check (see [`dev_10x/README.md`](dev_10x/README.md#xx_uv_install_mode)).
 
 **Important:** After the initial sync, always use `uv run --no-sync …` for commands (e.g.
 `uv run --no-sync pytest`). Plain `uv run` does an exact `uv sync` against `pyproject.toml`: it

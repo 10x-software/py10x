@@ -367,15 +367,16 @@ as a safety net — `--with-downstream` itself forces local.
 
 ### `XX_UV_INSTALL_MODE`
 
-Controls how local C++ siblings (py10x-kernel/py10x-infra) install. py10x-core itself is
+Controls how local C++ packages (py10x-kernel/py10x-infra, and fin-base's `cxxfin` with
+`--with-downstream`) install. py10x-core itself is
 unaffected — it's pure Python and always installs editable, so tests collected by path from the
 source tree don't fight a second, non-editable copy in site-packages.
 
 | mode | shape | use case |
 |------|-------|----------|
-| `normal` | plain, non-editable install; no ongoing dependency on the sibling's source tree or a persistent build-dir | a build-once image (`docker/Dockerfile`'s `dev` target) |
-| `editable` | editable, isolated build each invocation — slower per-install but hermetic | CI (`ci-test-suite`, `refresh-constraints.yml`): nothing is edited after install |
-| `incremental` | editable + no-build-isolation + a persistent build-dir + rebuild-check on every *import* (not just install) | local dev, when you want to see the rebuild output |
+| `normal` | plain, non-editable install; no ongoing dependency on the sibling's source tree | a build-once image (`docker/Dockerfile`'s `dev` target) |
+| `editable` | editable, no rebuild-on-import (`editable.rebuild=false`); C++ edits need a re-sync | CI (`ci-test-suite`, `refresh-constraints.yml`): nothing is edited after install |
+| `incremental` | editable + rebuild-check on every *import* (not just install), with its log output (`editable.verbose=true`) | local dev, when you want to see the rebuild output |
 | `incremental_quiet` (default, i.e. unset) | same as `incremental`, with scikit-build-core's per-import rebuild-check log spam silenced (`editable.verbose=false`) | everyday local dev |
 
 With the incremental default, C++ edits under `cxx10x/` take effect on the next `import py10x_kernel`
@@ -387,15 +388,26 @@ CI pins `editable`, not `normal`: cxxfin locates kernel headers through the *edi
 install. With a non-editable kernel it fetches them from GitHub by the kernel version's commit hash,
 which does not exist for a PR's merge commit.
 
-`incremental`/`incremental_quiet` add:
+The defaults live in each C++ package's own `pyproject.toml` and equal `incremental_quiet`:
+`build-dir = "../../.venv/py10x-build/<pkg>/{build_type}/{wheel_tag}"`, `editable.rebuild = true`,
+`editable.verbose = false`. So a plain `uv pip install -e cxx10x/core_10x` behaves like the uv-sync
+default. Every mode builds without isolation (an isolated build would bake throwaway cmake/ninja
+paths into the persistent CMakeCache; the root `[tool.uv] no-build-isolation-package` covers plain
+`uv` commands), and uv-sync adds only:
 
-- `--no-build-isolation-package <pkg>`
-- `--config-settings-package <pkg>:build-dir=.venv/py10x-build/<pkg>/{wheel_tag}`
-- `--config-settings-package <pkg>:editable.rebuild=true`
+- `--config-settings-package <pkg>:cmake.build-type=<XX_UV_BUILD_TYPE, default Release>`
+- `editable`: `--config-settings-package <pkg>:editable.rebuild=false`
+- `incremental`: `--config-settings-package <pkg>:editable.verbose=true`
+
+Outside uv-sync, the same overrides work as env vars, e.g. `SKBUILD_EDITABLE_REBUILD=false`.
+cibuildwheel and git-sibling installs build in isolation, so they clear `build-dir` and set
+`editable.rebuild=false`. The Windows MSVC toolset pin is not a uv-sync flag either: it lives in
+each C++ package's `pyproject.toml`.
 
 The active mode is recorded in `.venv/.xx_uv_install_mode`; toggling it forces a local C++
 reinstall even if the version is unchanged. `uv-sync` seeds the toolchain first
-(`scikit-build-core`, `setuptools-scm`, `cmake`, `ninja`, `editables`) for the incremental modes.
+(`scikit-build-core`, `setuptools-scm`, `cmake`, `ninja`, `editables`) whenever it builds local C++
+packages, since those builds are never isolated.
 
 `normal`-mode siblings are never classified `local` by the PEP 610 source detection below (they
 aren't editable), so they reinstall on every `uv-sync` invocation — irrelevant for a build-once

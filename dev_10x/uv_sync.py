@@ -47,12 +47,14 @@ CORE = 'py10x-core'
 PROFILES = ('user', 'domain-dev', 'py10x-dev', 'py10x-core-dev')
 CXX_BUILD_TOOLCHAIN = ['scikit-build-core', 'setuptools-scm', 'cmake', 'ninja', 'editables']
 
-# XX_UV_INSTALL_MODE controls how local C++ siblings (py10x-kernel/py10x-infra) get installed:
+# XX_UV_INSTALL_MODE controls how local C++ packages (py10x-kernel/py10x-infra, and downstream
+# members like cxxfin) get installed. Every mode builds without isolation into the persistent
+# build-dir each package's pyproject sets (.venv/py10x-build/<pkg>/<build type>/<wheel tag>):
 #   normal            plain, non-editable build+install - no ongoing dependency on the sibling's
-#                      source tree or a persistent build-dir; right for a build-once image/CI run.
-#   editable          editable, isolated build each invocation - slower per-install but hermetic.
-#   incremental       editable + no-build-isolation + a persistent build-dir + rebuild-on-*import*
-#                      (not just at install time): C++ edits take effect on the next import.
+#                      source tree; right for a build-once image/CI run.
+#   editable          editable install; C++ edits need a re-install (incremental, via the cache).
+#   incremental       editable + rebuild-on-*import* (not just at install time): C++ edits take
+#                      effect on the next import.
 #   incremental_quiet (default) same as incremental, with scikit-build-core's per-import
 #                      rebuild-check log spam silenced (editable.verbose=false).
 # py10x-core itself always installs editable regardless of this setting (see uv_sync(), step 3) -
@@ -291,18 +293,6 @@ def _pip_install(*args: str) -> None:
     _run(['uv', 'pip', 'install', *args, *CONSTRAINTS])
 
 
-def _windows_cxx_cmake_flags(name: str) -> list[str]:
-    """MSVC toolset pin for py10x-kernel/infra (matches the cxx10x/ cibuildwheel wheel builds)."""
-    if sys.platform != 'win32':
-        return []
-    return [
-        '--config-settings-package',
-        f'{name}:cmake.args=-T',
-        '--config-settings-package',
-        f'{name}:cmake.args=v143,version=14.44',
-    ]
-
-
 def _no_build_isolation_packages(src_dir: Path) -> list[str]:
     """`[tool.uv] no-build-isolation-package` from a packaging root (e.g. fin-base → cxx).
 
@@ -346,32 +336,29 @@ def install_mode() -> str:
     return raw
 
 
-def _incremental_flags(name: str, venv: Path, *, verbose: bool) -> list[str]:
-    """No-isolation incremental rebuild flags for a local C++ package (mode 'incremental'/
-    'incremental_quiet'). Build type comes from XX_UV_BUILD_TYPE (default Release); each type
-    gets its own build dir so switching Debug<->Release does not force a full reconfigure/rebuild."""
+def _cxx_build_flags(name: str, mode: str) -> list[str]:
+    """Build flags for a local C++ package (sibling or downstream member) in any install mode.
+
+    The package's own pyproject sets the defaults, matching `incremental_quiet`: a persistent
+    build-dir plus quiet rebuild-on-import. So every mode builds without isolation (an isolated
+    build would bake throwaway cmake/ninja paths into that CMakeCache), and the other modes only
+    override the rebuild settings. Build type comes from XX_UV_BUILD_TYPE (default Release)."""
     build_type = os.getenv('XX_UV_BUILD_TYPE', 'Release')
-    build_dir = f'{(venv / "py10x-build" / name / build_type).as_posix()}/{{wheel_tag}}'
-    return [
-        '--no-build-isolation-package',
-        name,
-        '--config-settings-package',
-        f'{name}:build-dir={build_dir}',
-        '--config-settings-package',
-        f'{name}:cmake.build-type={build_type}',
-        '--config-settings-package',
-        f'{name}:editable.rebuild=true',
-        '--config-settings-package',
-        f'{name}:editable.verbose={str(bool(verbose)).lower()}',
-    ]
+    flags = ['--no-build-isolation-package', name, '--config-settings-package', f'{name}:cmake.build-type={build_type}']
+    if mode == 'editable':
+        flags += ['--config-settings-package', f'{name}:editable.rebuild=false']
+    elif mode == 'incremental':
+        flags += ['--config-settings-package', f'{name}:editable.verbose=true']
+    return flags
 
 
 def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: bool, extras_args: list[str] | tuple[str, ...] = ()) -> None:
     # Downstream native deps (e.g. fin-base → cxxfin): install workspace members listed in
     # `[tool.uv] no-build-isolation-package` *directly* first. Installing only via the parent
     # `-e xx_fin` leaves `editable.rebuild`'s persistent build-dir without CMakeCache.txt.
-    # (Downstream workspace members always install editable, regardless of `mode` - out of scope
-    # for XX_UV_INSTALL_MODE, which targets py10x-kernel/py10x-infra specifically.)
+    # Members follow XX_UV_INSTALL_MODE like py10x-kernel/py10x-infra.
+    editable = mode != 'normal'
+    member_flags: list[str] = []
     if pkg.get('downstream'):
         members = _workspace_member_paths(pkg['local'])
         for n in _no_build_isolation_packages(pkg['local']):
@@ -379,26 +366,24 @@ def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: boo
             if member is None:
                 print(f'  warning: {n} in no-build-isolation-package but not a workspace member of {pkg["local"]}')
                 continue
-            print(f'  {n}: editable (no-build-isolation, workspace member of {name})')
-            margs = ['-e', str(member), f'--reinstall-package={n}', '--no-build-isolation-package', n]
-            margs += _windows_cxx_cmake_flags(n)
+            print(f'  {n}: {mode} (no-build-isolation, workspace member of {name})')
+            flags = _cxx_build_flags(n, mode)
+            member_flags += flags
+            margs = (['-e', str(member)] if editable else [str(member)]) + [f'--reinstall-package={n}', *flags]
             if verbose:
                 margs.append('--verbose')
             _pip_install(*margs)
 
-    editable = mode != 'normal'
     args = ['-e', str(pkg['local'])] if editable else [str(pkg['local'])]
     if pin:
         args.append(f'{name} ({pin})')
     args.append(f'--reinstall-package={name}')
     if pkg['cxx']:
-        args += _windows_cxx_cmake_flags(name)
-    if mode in ('incremental', 'incremental_quiet') and pkg['cxx']:
-        args += _incremental_flags(name, PROJECT_ROOT / '.venv', verbose=(mode == 'incremental'))
-    # Keep no-isolation flags on the parent install too (transitive rebuilds / metadata).
+        args += _cxx_build_flags(name, mode)
+    # Keep the members' flags on the parent install too (transitive rebuilds / metadata), so a
+    # rebuild triggered via the parent uses the same build dir and rebuild settings.
     if pkg.get('downstream'):
-        for n in _no_build_isolation_packages(pkg['local']):
-            args.extend(['--no-build-isolation-package', n])
+        args.extend(member_flags)
         # `--all-extras` / `--extra` require an explicit requirements/pyproject source (same as
         # core step 2). Forward them onto the downstream pyproject so extras like fin-base `bbg`
         # are installed — bare `-e path --all-extras` is rejected by uv. Downstreams must be local.
@@ -416,7 +401,9 @@ def install_git(name: str, pkg: dict, branch: str) -> None:
         spec += f'#subdirectory={pkg["subdir"]}'
     args = [spec, f'--reinstall-package={name}']
     if pkg['cxx']:
-        args += _windows_cxx_cmake_flags(name)
+        # Isolated, non-editable build from uv's git checkout: throwaway build dir instead of the
+        # pyproject's persistent one (which would land inside uv's cache); rebuild needs the latter.
+        args += ['--config-settings-package', f'{name}:build-dir=', '--config-settings-package', f'{name}:editable.rebuild=false']
     _pip_install(*args)
 
 
@@ -453,12 +440,13 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     if toggled:
         print(f'XX_UV_INSTALL_MODE toggled ({prev_mode} -> {mode}): forcing rebuild of local C++ packages.')
 
-    # Seed the C++ toolchain for incremental siblings, or when a local downstream declares
-    # `[tool.uv] no-build-isolation-package` (fin-base → cxx) — those installs run in step 1
-    # before `--all-extras` would otherwise pull cmake/ninja via core's dev extra.
+    # Seed the C++ toolchain for local C++ siblings (non-isolated builds in every mode), or when a
+    # local downstream declares `[tool.uv] no-build-isolation-package` (fin-base → cxx) — those
+    # installs run in step 1 before `--all-extras` would otherwise pull cmake/ninja via core's dev
+    # extra.
     toolchain_reasons: list[str] = []
-    if mode in ('incremental', 'incremental_quiet') and any(kinds[s] == 'local' and pkgs[s]['cxx'] for s in siblings):
-        toolchain_reasons.append(f'XX_UV_INSTALL_MODE={mode} siblings')
+    if any(kinds[s] == 'local' and pkgs[s]['cxx'] for s in siblings):
+        toolchain_reasons.append('local C++ siblings')
     if any(pkgs[s].get('downstream') and kinds[s] == 'local' and _no_build_isolation_packages(pkgs[s]['local']) for s in siblings):
         toolchain_reasons.append('downstream no-build-isolation-package')
     if toolchain_reasons:
@@ -513,7 +501,9 @@ def sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbos
             print(f'  {s}: index (resolved with core deps in step 2{" - forcing swap" if s in index_swaps else ""})')
             continue
         do = need_install(s, kind, pkgs[s], installs=installs)
-        if not do and toggled and kind == 'local' and pkgs[s]['cxx']:
+        # A mode change also applies to a local downstream's native members (fin-base → cxxfin).
+        has_cxx = pkgs[s]['cxx'] or (pkgs[s].get('downstream') and _no_build_isolation_packages(pkgs[s]['local']))
+        if not do and toggled and kind == 'local' and has_cxx:
             print(f'  {s}: reinstall - install mode changed (XX_UV_INSTALL_MODE)')
             do = True
         downstream_extras = extras_args if pkgs[s].get('downstream') else ()

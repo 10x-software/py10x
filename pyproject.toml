@@ -138,7 +138,8 @@ py10x-fin-base = { path = "./xx_fin" }
 # in-repo tree so that group does not pull a PyPI wheel whose exact core pin
 # fights this editable project.
 [tool.uv]
-no-build-isolation-package = ["py10x-fin-base-cxx"]
+# C++ packages build without isolation: their pyprojects set a persistent build-dir.
+no-build-isolation-package = ["py10x-kernel", "py10x-infra", "py10x-fin-base-cxx"]
 
 [[tool.uv.dependency-metadata]]
 name = "py10x-fin-base-cxx"
