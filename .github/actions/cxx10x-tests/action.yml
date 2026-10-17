@@ -38,6 +38,9 @@ runs:
         uv venv --clear
         uv pip install -e "../../..[dev]"
         uv run python ../../core_10x/tests/test.py
+        # Incremental rebuild after a C++ edit: on import (no sync), then via `uv run`'s sync.
+        uv run --no-sync python ../assert_rebuilt.py py10x_kernel ../../core_10x/tid.cpp -- uv run --no-sync python ../../core_10x/tests/test.py
+        uv run --no-sync python ../assert_rebuilt.py py10x_kernel ../../core_10x/tid.cpp -- uv run python ../../core_10x/tests/test.py
 
     - name: Run infra test harness
       shell: bash
@@ -46,6 +49,9 @@ runs:
         uv venv --clear
         uv pip install -e "../../..[dev]"
         uv run python ../../infra_10x/tests/test.py
+        # Incremental rebuild after a C++ edit: on import (no sync), then via `uv run`'s sync.
+        uv run --no-sync python ../assert_rebuilt.py py10x_infra ../../infra_10x/mongo_collection_helper.cpp -- uv run --no-sync python ../../infra_10x/tests/test.py
+        uv run --no-sync python ../assert_rebuilt.py py10x_infra ../../infra_10x/mongo_collection_helper.cpp -- uv run python ../../infra_10x/tests/test.py
 
     - name: Run cross-module tests
       shell: bash
@@ -57,5 +63,6 @@ runs:
         touch pyproject.toml
         uv sync --upgrade
         uv run python test.py
-        touch cross_module_test.cpp
-        uv run python test.py
+        # Incremental rebuild after a C++ edit: on import (no sync), then via `uv run`'s sync.
+        uv run --no-sync python ../assert_rebuilt.py cross_module_test cross_module_test.cpp -- uv run --no-sync python test.py
+        uv run --no-sync python ../assert_rebuilt.py cross_module_test cross_module_test.cpp -- uv run python test.py
