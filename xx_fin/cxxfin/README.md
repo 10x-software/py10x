@@ -44,10 +44,11 @@ automatically on import.
 
 ## Debug build
 
-`cxxfin` builds `Release` by default. For a `Debug` build, set uv-sync's build type and re-run it:
+`cxxfin` builds `Release` by default (`cmake.build-type` in its `pyproject.toml`). For a `Debug`
+build, set scikit-build-core's build-type env var and re-run uv-sync (or a plain `uv pip install -e`):
 
 ```bash
-XX_UV_BUILD_TYPE=Debug uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
+SKBUILD_CMAKE_BUILD_TYPE=Debug uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
 ```
 
 The build type is fixed at sync time (baked into the editable install along with the build dir),

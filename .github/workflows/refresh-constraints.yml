@@ -21,6 +21,7 @@ permissions:
 
 env:
   XX_UV_INSTALL_MODE: editable   # same as ci-test-suite: no per-import rebuild checks in CI
+  SKBUILD_CMAKE_BUILD_TYPE: Release   # same as ci-test-suite: independent of the packages' default
 
 jobs:
   refresh:

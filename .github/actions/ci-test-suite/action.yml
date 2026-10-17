@@ -49,6 +49,9 @@ runs:
       run: |
         echo "XX_UV_INSTALL_MODE=editable" >> "$GITHUB_ENV"
         export XX_UV_INSTALL_MODE=editable
+        # Explicit, so a change to the packages' default cmake.build-type doesn't reach CI.
+        echo "SKBUILD_CMAKE_BUILD_TYPE=Release" >> "$GITHUB_ENV"
+        export SKBUILD_CMAKE_BUILD_TYPE=Release
         uv venv
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         python -m dev_10x.uv_sync py10x-dev --all-extras

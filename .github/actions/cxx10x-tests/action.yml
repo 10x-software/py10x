@@ -19,6 +19,8 @@ runs:
         # Pin every subsequent uv invocation (uv run / uv venv / uv sync) to the matrix
         # interpreter, otherwise uv is free to pick any version satisfying requires-python.
         echo "UV_PYTHON=${{ inputs.python-version }}" >> "$GITHUB_ENV"
+        # Explicit, so a change to the packages' default cmake.build-type doesn't reach CI.
+        echo "SKBUILD_CMAKE_BUILD_TYPE=Release" >> "$GITHUB_ENV"
 
     - name: Setup Windows build
       if: runner.os == 'Windows'
