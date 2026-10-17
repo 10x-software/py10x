@@ -289,3 +289,69 @@ class TestUvSyncExtras:
         assert any('--all-extras' in c and '--requirements' in c for c in downstream)
         req = self._requirements_calls(isolated_sync)
         assert req and all('--all-extras' in c for c in req)
+
+
+class TestClearedVenv:
+    """After `.venv` is cleared (e.g. `uv venv --clear`), incremental uv-sync must rebuild every local
+    package from source: the build dirs lived in the old `.venv`, so a cached wheel from uv's cache
+    would point at a deleted build dir. `--reinstall-package` (implies a refresh) prevents that."""
+
+    LOCAL = {
+        uv_sync.CORE: Path('/py10x'),
+        'py10x-kernel': Path('/py10x/cxx10x/core_10x'),
+        'py10x-infra': Path('/py10x/cxx10x/infra_10x'),
+        'py10x-fin-base': Path('/py10x/xx_fin'),
+        'py10x-fin-base-cxx': Path('/py10x/xx_fin/cxxfin'),
+    }
+
+    @pytest.fixture
+    def cleared_sync(self, monkeypatch, captured_pip_install):
+        need((uv_sync.PROJECT_ROOT / 'pyproject.toml').is_file(), 'py10x source checkout (no source pyproject when core is installed as a wheel)')
+        local = self.LOCAL
+        pkgs = {
+            uv_sync.CORE: _pkg(cxx=False, local=local[uv_sync.CORE], git='https://example.com/py10x.git', subdir=None),
+            'py10x-kernel': _pkg(cxx=True, local=local['py10x-kernel']),
+            'py10x-infra': _pkg(cxx=True, local=local['py10x-infra'], subdir='infra_10x'),
+            'py10x-fin-base': _pkg(cxx=False, downstream=True, local=local['py10x-fin-base'], subdir='xx_fin'),
+        }
+
+        calls = captured_pip_install
+
+        class ClearedVenv:  # starts empty (freshly cleared .venv), then holds what uv-sync installed
+            def installed_source(self, name):
+                src = str(local[name])
+                done = any('-e' in c and c[c.index('-e') + 1] == src and f'--reinstall-package={name}' in c for c in calls)
+                return ('local', local[name]) if done else (None, None)
+
+            def installed_version(self, name):
+                raise AssertionError(f'{name}: version check on a cleared venv - nothing should be up to date')
+
+        monkeypatch.setenv('XX_UV_INSTALL_MODE', 'incremental_quiet')
+        monkeypatch.setattr(uv_sync, 'packages', lambda tomlkit: pkgs)
+        monkeypatch.setattr(uv_sync, '_installed_source_helpers', lambda root: ClearedVenv())
+        monkeypatch.setattr(uv_sync, 'read_install_mode_state', lambda root: None)  # marker went with the venv
+        monkeypatch.setattr(uv_sync, 'persist_install_mode_state', lambda *a, **k: None)
+        monkeypatch.setattr(uv_sync, 'persist_profile', lambda *a, **k: None)
+        monkeypatch.setattr(uv_sync, '_sibling_pin', lambda name: None)
+        monkeypatch.setattr(
+            uv_sync, '_no_build_isolation_packages', lambda src: ['py10x-fin-base-cxx'] if Path(src) == local['py10x-fin-base'] else []
+        )
+        monkeypatch.setattr(uv_sync, '_workspace_member_paths', lambda src: {'py10x-fin-base-cxx': local['py10x-fin-base-cxx']})
+        uv_sync.uv_sync('py10x-dev', '--with-downstream')
+        return captured_pip_install
+
+    def _install_of(self, calls, name):
+        src = str(self.LOCAL[name])
+        matches = [c for c in calls if '-e' in c and c[c.index('-e') + 1] == src]
+        assert matches, f'{name}: no editable install from {src}'
+        return matches[0]
+
+    @pytest.mark.parametrize('name', list(LOCAL))
+    def test_every_local_package_is_rebuilt_from_source(self, cleared_sync, name):
+        assert f'--reinstall-package={name}' in self._install_of(cleared_sync, name)
+
+    @pytest.mark.parametrize('name', ['py10x-kernel', 'py10x-infra', 'py10x-fin-base-cxx'])
+    def test_cxx_packages_keep_rebuild_on_import(self, cleared_sync, name):
+        args = self._install_of(cleared_sync, name)
+        assert f'{name}:editable.rebuild=false' not in args
+        assert f'{name}:build-dir=' not in ' '.join(args)  # pyproject's persistent .venv build dir

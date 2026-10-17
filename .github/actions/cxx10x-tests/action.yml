@@ -29,22 +29,30 @@ runs:
       with:
         mongodb-version: ${{ inputs.mongodb-version }}
 
+    # Same run-once preparation as each harness README: py10x-core[dev] (C++ build toolchain) first;
+    # `uv run` then syncs the rest.
     - name: Run kernel test harness
       shell: bash
       working-directory: cxx10x/tests/py10x_kernel_test
-      run: uv run python ../../core_10x/tests/test.py
+      run: |
+        uv venv --clear
+        uv pip install -e "../../..[dev]"
+        uv run python ../../core_10x/tests/test.py
 
     - name: Run infra test harness
       shell: bash
       working-directory: cxx10x/tests/py10x_infra_test
-      run: uv run python ../../infra_10x/tests/test.py
+      run: |
+        uv venv --clear
+        uv pip install -e "../../..[dev]"
+        uv run python ../../infra_10x/tests/test.py
 
     - name: Run cross-module tests
       shell: bash
       working-directory: cxx10x/tests/cross_module_test
       run: |
-        uv venv
-        uv pip install -r pyproject.toml
+        uv venv --clear
+        uv pip install -e "../../..[dev]"
         uv run python test.py
         touch pyproject.toml
         uv sync --upgrade

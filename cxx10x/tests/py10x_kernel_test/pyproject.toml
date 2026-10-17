@@ -8,7 +8,16 @@ dependencies = [
     "py10x-infra",
 ]
 
+[tool.uv]
+required-version = ">=0.12.5"
+no-build-isolation-package = ["py10x-kernel", "py10x-infra"]
+reinstall-package = ["py10x-kernel", "py10x-infra"]
+
 [tool.uv.sources]
 py10x-kernel = {path="../../core_10x", editable=true}
 py10x-infra = {path="../../infra_10x", editable=true}
 py10x-core = {path="../../..", editable=true}
+
+[tool.uv.config-settings-package]
+py10x-kernel = { "build-dir" = "../tests/py10x_kernel_test/.venv/py10x-build/py10x-kernel/{build_type}/{wheel_tag}" }
+py10x-infra = { "build-dir" = "../tests/py10x_kernel_test/.venv/py10x-build/py10x-infra/{build_type}/{wheel_tag}" }

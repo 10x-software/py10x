@@ -7,7 +7,6 @@ dependencies = [
     "py10x-core[dev]",
     "py10x-kernel",
     "py10x-infra",
-    "hatch-vcs", # for non-isolated meta-data of py10x-core
 ]
 
 [build-system]
@@ -21,7 +20,7 @@ build-backend = "scikit_build_core.build"
 [tool.scikit-build]
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
 editable.rebuild = true
-build-dir = "build/{wheel_tag}"
+build-dir = ".venv/py10x-build/cross-module-test/{build_type}/{wheel_tag}"
 
 [tool.setuptools_scm]
 root = "../../.."  # the git root
@@ -33,4 +32,12 @@ py10x-infra = {path="../../infra_10x", editable=true}
 py10x-core = {path="../../..", editable=true}
 
 [tool.uv]
-no-build-isolation = true
+required-version = ">=0.12.5"
+no-build-isolation-package = ["py10x-kernel", "py10x-infra", "cross-module-test"]
+reinstall-package = ["py10x-kernel", "py10x-infra", "cross-module-test"]
+concurrent-builds = 1
+
+# Kernel/infra build into this venv (not py10x/.venv); paths are relative to each package's source dir.
+[tool.uv.config-settings-package]
+py10x-kernel = { "build-dir" = "../tests/cross_module_test/.venv/py10x-build/py10x-kernel/{build_type}/{wheel_tag}" }
+py10x-infra = { "build-dir" = "../tests/cross_module_test/.venv/py10x-build/py10x-infra/{build_type}/{wheel_tag}" }
