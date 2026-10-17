@@ -31,6 +31,19 @@ The C++ packages install in incremental mode by default: edits under `cxx10x/` a
 changes or `git pull`. Set `XX_UV_INSTALL_MODE=incremental` to see the rebuild output, or `editable`
 to turn off the rebuild-on-import check (see [`dev_10x/README.md`](dev_10x/README.md#xx_uv_install_mode)).
 
+**Build type:** the C++ packages build `Debug` by default, so you can step through C++ in a debugger.
+That makes C++-heavy tests noticeably slower, especially on Windows. If test speed matters more to
+you than debugging C++, build `Release` instead:
+
+```bash
+export SKBUILD_CMAKE_BUILD_TYPE=Release   # keep it set, e.g. in your shell profile
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras   # add --with-downstream for fin-base
+```
+
+uv-sync notices the build-type change and rebuilds the local C++ packages. Debug and Release keep
+separate build dirs, so switching back (unset the variable and re-sync) doesn't rebuild from scratch.
+CI, the Docker image and published wheels are always Release.
+
 **Important:** After the initial sync, always use `uv run --no-sync …` for commands (e.g.
 `uv run --no-sync pytest`). Plain `uv run` does an exact `uv sync` against `pyproject.toml`: it
 replaces the editable kernel/infra with PyPI releases (they have no `[tool.uv.sources]` entry —

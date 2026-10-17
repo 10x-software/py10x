@@ -6,6 +6,9 @@ on:
       - "prod/v*"
   workflow_dispatch:
 
+env:
+  SKBUILD_CMAKE_BUILD_TYPE: Release   # test what ships, not the packages' Debug dev default
+
 jobs:
   # Pre-publish gate: the exact tagged commit must pass the suite (incl. the xx-promote PEP 440
   # assumption guards) before anything is published.

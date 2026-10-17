@@ -389,7 +389,7 @@ install. With a non-editable kernel it fetches them from GitHub by the kernel ve
 which does not exist for a PR's merge commit.
 
 The defaults live in each C++ package's own `pyproject.toml` and equal `incremental_quiet`:
-`cmake.build-type = "Release"`, `build-dir = "../../.venv/py10x-build/<pkg>/{build_type}/{wheel_tag}"`,
+`cmake.build-type = "Debug"`, `build-dir = "../../.venv/py10x-build/<pkg>/{build_type}/{wheel_tag}"`,
 `editable.rebuild = true`, `editable.verbose = false`. So a plain `uv pip install -e cxx10x/core_10x` behaves like the uv-sync
 default. Every mode builds without isolation (an isolated build would bake throwaway cmake/ninja
 paths into the persistent CMakeCache; the root `[tool.uv] no-build-isolation-package` covers plain
@@ -398,9 +398,10 @@ paths into the persistent CMakeCache; the root `[tool.uv] no-build-isolation-pac
 - `editable`: `--config-settings-package <pkg>:editable.rebuild=false`
 - `incremental`: `--config-settings-package <pkg>:editable.verbose=true`
 
-For a different build type, set scikit-build-core's own env var — it applies the same way to
-uv-sync and to plain `uv` commands, and each type gets its own build dir:
-`SKBUILD_CMAKE_BUILD_TYPE=Debug uv run --no-sync python -m dev_10x.uv_sync py10x-dev ...`.
+Local builds are Debug by default, for development. For a different build type, set
+scikit-build-core's own env var — it applies the same way to uv-sync and to plain `uv` commands,
+and each type gets its own build dir:
+`SKBUILD_CMAKE_BUILD_TYPE=Release uv run --no-sync python -m dev_10x.uv_sync py10x-dev ...`.
 The mode overrides also work as env vars outside uv-sync, e.g. `SKBUILD_EDITABLE_REBUILD=false`.
 cibuildwheel and git-sibling installs build in isolation, so they clear `build-dir` and set
 `editable.rebuild=false`; cibuildwheel also pins `cmake.build-type=Release` for published wheels. The Windows MSVC toolset pin is not a uv-sync flag either: it lives in
@@ -408,8 +409,9 @@ each C++ package's `pyproject.toml`.
 
 The active mode and build-type override are recorded in `.venv/.xx_uv_install_mode` (e.g.
 `incremental_quiet:default`, `editable:Release`); changing either forces a local C++ reinstall
-even if the version is unchanged. CI and the Docker image set `SKBUILD_CMAKE_BUILD_TYPE=Release`
-explicitly, so changing the packages' default build type doesn't affect them. `uv-sync` seeds the toolchain first
+even if the version is unchanged. CI (ci-test-suite, cxx10x-tests, build.yml,
+refresh-constraints) and the Docker image set `SKBUILD_CMAKE_BUILD_TYPE=Release` explicitly, so they
+test what ships rather than the Debug dev default. `uv-sync` seeds the toolchain first
 (`scikit-build-core`, `setuptools-scm`, `cmake`, `ninja`, `editables`) whenever it builds local C++
 packages, since those builds are never isolated.
 

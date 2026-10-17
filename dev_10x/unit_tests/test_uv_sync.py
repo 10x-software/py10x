@@ -207,6 +207,13 @@ class TestNoBuildIsolationLists:
             assert {'build-dir', 'editable', 'cmake'} <= skb.keys(), name
             assert skb['cmake']['build-type'] and skb['editable']['rebuild'], name
 
+    def test_local_builds_are_debug_and_published_wheels_release(self):
+        # Development default is Debug; cibuildwheel (what ships to PyPI) must stay Release.
+        for name, path in self._cxx_packages().items():
+            tool = self._pyproject(path)['tool']
+            assert tool['scikit-build']['cmake']['build-type'] == 'Debug', name
+            assert tool['cibuildwheel']['config-settings']['cmake.build-type'] == 'Release', name
+
 
 class TestNativeMembers:
     def test_only_scikit_build_members(self, tmp_path):

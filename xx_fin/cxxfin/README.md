@@ -42,13 +42,14 @@ uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstr
 Normal development (edit C++ source → run) does not require this; the editable rebuild fires
 automatically on import.
 
-## Debug build
+## Build type
 
-`cxxfin` builds `Release` by default (`cmake.build-type` in its `pyproject.toml`). For a `Debug`
-build, set scikit-build-core's build-type env var and re-run uv-sync (or a plain `uv pip install -e`):
+`cxxfin` builds `Debug` by default for development (`cmake.build-type` in its `pyproject.toml`).
+For a `Release` build, set scikit-build-core's build-type env var and re-run uv-sync (or a plain
+`uv pip install -e`):
 
 ```bash
-SKBUILD_CMAKE_BUILD_TYPE=Debug uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
+SKBUILD_CMAKE_BUILD_TYPE=Release uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
 ```
 
 The build type is fixed at sync time (baked into the editable install along with the build dir),
