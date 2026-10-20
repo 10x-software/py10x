@@ -1,7 +1,8 @@
-"""Guards for `xx-constraints` first-party / compile-input inclusion of downstreams."""
+"""Guards for `xx-constraints`: first-party exclusion, uv.lock -> constraints.txt export, consistency check."""
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -44,32 +45,6 @@ def test_first_party_includes_configured_downstreams(monkeypatch):
     assert 'py10x-core' in names
 
 
-def test_compile_inputs_default_siblings_only(monkeypatch, tmp_path):
-    sib = tmp_path / 'sib' / 'pyproject.toml'
-    ds = tmp_path / 'xx_fin' / 'pyproject.toml'
-    for p in (sib, ds):
-        p.parent.mkdir(parents=True)
-        p.write_text('[project]\nname="x"\n', encoding='utf-8')
-    monkeypatch.setattr(c, '_siblings', lambda: {'py10x-kernel': sib})
-    monkeypatch.setattr(c, '_downstreams', lambda: {'py10x-fin-base': ds})
-    assert set(c._compile_inputs()) == {'py10x-kernel'}
-
-
-def test_compile_inputs_with_downstream_opt_in(monkeypatch, tmp_path):
-    sib = tmp_path / 'sib' / 'pyproject.toml'
-    ds = tmp_path / 'xx_fin' / 'pyproject.toml'
-    for p in (sib, ds):
-        p.parent.mkdir(parents=True)
-        p.write_text('[project]\nname="x"\n', encoding='utf-8')
-    monkeypatch.setattr(c, '_siblings', lambda: {'py10x-kernel': sib})
-    monkeypatch.setattr(c, '_downstreams', lambda: {'py10x-fin-base': ds})
-    assert set(c._compile_inputs(with_downstream=True)) == {'py10x-kernel', 'py10x-fin-base'}
-    assert set(c._compile_inputs(with_downstream=True, downstream_filter={'py10x-fin-base'})) == {
-        'py10x-kernel',
-        'py10x-fin-base',
-    }
-
-
 def test_workspace_members_include_nested_downstream_workspace():
     """fin-base's `[tool.uv.workspace] members = ["cxxfin"]` → no-emit `py10x-fin-base-cxx`."""
     assert 'py10x-fin-base-cxx' in c._workspace_members()
@@ -82,3 +57,65 @@ def test_no_emit_is_first_party_only():
     assert 'py10x-core' in names
     assert 'py10x-fin-base' in names
     assert 'py10x-fin-base-cxx' in names
+
+
+def test_export_excludes_every_first_party_package(monkeypatch):
+    """`uv export` gets `--no-emit-package` for each first-party name, plus all extras and groups."""
+    monkeypatch.setenv('UV', '/opt/uv')
+    cmd = c._export_cmd()
+    assert cmd[:2] == ['/opt/uv', 'export']
+    assert {'--frozen', '--all-extras', '--all-groups', '--no-hashes', '--no-header'} <= set(cmd)
+    emitted_off = {cmd[i + 1] for i, a in enumerate(cmd) if a == '--no-emit-package'}
+    assert emitted_off == c._first_party()
+    assert {'py10x-core', 'py10x-kernel', 'py10x-infra', 'py10x-fin-base', 'py10x-fin-base-cxx'} <= emitted_off
+
+
+def test_uv_falls_back_to_path_uv(monkeypatch):
+    monkeypatch.delenv('UV', raising=False)
+    assert c._uv() == 'uv'
+
+
+def test_check_export_detects_drift(monkeypatch, tmp_path, capsys):
+    target = tmp_path / 'constraints.txt'
+    monkeypatch.setattr(c, 'CONSTRAINTS', target)
+    monkeypatch.setattr(c, '_export', lambda: c.HEADER + 'six==1.0\n')
+    target.write_text(c.HEADER + 'six==1.0\n', encoding='utf-8')
+    assert c.check_export() == 0
+    target.write_text(c.HEADER + 'six==2.0\n', encoding='utf-8')
+    assert c.check_export() == 1
+    assert 'does not match uv.lock' in capsys.readouterr().out
+
+
+def test_compile_writes_export_and_lock_change_summary(monkeypatch, tmp_path):
+    target, summary = tmp_path / 'constraints.txt', tmp_path / 'changes.txt'
+    monkeypatch.setattr(c, 'CONSTRAINTS', target)
+    monkeypatch.setattr(c, '_export', lambda: c.HEADER + 'six==2.0\n')
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        stderr = 'Resolved 3 packages in 1ms\nUpdated six v1.0 -> v2.0\nAdded tomli v2.0.1\n'
+        return subprocess.CompletedProcess(cmd, 0, stdout='', stderr=stderr)
+
+    monkeypatch.setattr(c.subprocess, 'run', fake_run)
+    assert c.compile_(upgrade=True, summary_file=summary) == 0
+    assert calls[0][-2:] == ['lock', '--upgrade']
+    assert target.read_text(encoding='utf-8') == c.HEADER + 'six==2.0\n'
+    assert summary.read_text(encoding='utf-8') == 'Updated six v1.0 -> v2.0\nAdded tomli v2.0.1\n'
+
+
+def test_compile_stops_on_lock_failure(monkeypatch, tmp_path):
+    target = tmp_path / 'constraints.txt'
+    monkeypatch.setattr(c, 'CONSTRAINTS', target)
+    monkeypatch.setattr(c.subprocess, 'run', lambda cmd, **kw: subprocess.CompletedProcess(cmd, 2, stdout='', stderr='boom\n'))
+    assert c.compile_() == 2
+    assert not target.exists()
+
+
+def test_committed_constraints_match_committed_lock():
+    """The repo's constraints.txt is exactly `uv export` of its uv.lock (needs uv on PATH)."""
+    import shutil
+
+    if shutil.which('uv') is None or not (c.PROJECT_ROOT / 'uv.lock').is_file():
+        pytest.skip('uv or uv.lock not available')
+    assert c.check_export() == 0

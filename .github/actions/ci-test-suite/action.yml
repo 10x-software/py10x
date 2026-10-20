@@ -64,6 +64,14 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check
 
+    # constraints.txt is generated from the committed uv.lock (`xx-constraints compile`): fail if
+    # someone edited one without regenerating the other.
+    - name: Verify constraints.txt matches uv.lock
+      shell: bash
+      run: |
+        source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+        xx-constraints check-export
+
     # Core isolation: fin-base must not be importable until --with-downstream (after core pytest).
     - name: Assert xxfin not importable (core isolation)
       shell: bash
