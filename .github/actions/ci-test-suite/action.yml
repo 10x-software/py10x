@@ -38,7 +38,7 @@ runs:
       if: inputs.asan == 'true'
       shell: bash
       run: |
-        echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
+        echo "XX_CXX_SANITIZERS=ON" >> "$GITHUB_ENV"
 
     # CI keeps plain editable C++ installs instead of the incremental default: nothing is edited
     # after install, so per-import rebuild checks in every xdist worker would be pure overhead.
@@ -140,11 +140,11 @@ runs:
 
     # Downstream validation (same job, after core suite): install fin-base then run xx_fin tests.
     # Core isolation was asserted before the core suite; xxfin must be importable here. On ASan
-    # nightlies ENABLE_SANITIZERS stays ON so cxxfin is built WITH sanitizers, exactly like
+    # nightlies XX_CXX_SANITIZERS stays ON so cxxfin is built WITH sanitizers, exactly like
     # py10x_kernel: it then takes the kernel's _add_sanitizers branch (skips RTLD stub generation)
     # and stays loadable next to the ASan-instrumented kernel. Building it normally instead would
     # dlopen the ASan kernel under a non-preloaded python and abort ("ASan runtime does not come
-    # first"). On non-ASan builds ENABLE_SANITIZERS is unset, so cxxfin is a normal build with stubs.
+    # first"). On non-ASan builds XX_CXX_SANITIZERS is unset, so cxxfin is a normal build with stubs.
     - name: Install fin-base (--with-downstream)
       shell: bash
       run: |

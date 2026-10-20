@@ -138,6 +138,9 @@ py10x-fin-base = { path = "./xx_fin" }
 # fights this editable project.
 [tool.uv]
 required-version = ">=0.12.5"
+# Rebuild py10x-core (rather than reuse uv's cached wheel) on a new commit or tag, so its installed
+# hatch-vcs version (and dev_10x/version.py) stays current.
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 no-build-isolation-package = ["py10x-kernel", "py10x-infra", "py10x-fin-base-cxx"]
 
 [[tool.uv.dependency-metadata]]

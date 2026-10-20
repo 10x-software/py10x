@@ -1,4 +1,4 @@
-option(ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+option(XX_CXX_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -117,11 +117,11 @@ endfunction()
 
 # ---------------------------------------------------------------------------
 # finalize_pybind_module(target)
-# Applies sanitizers or stub generation depending on ENABLE_SANITIZERS.
+# Applies sanitizers or stub generation depending on XX_CXX_SANITIZERS.
 # For self-contained modules (core_10x, infra_10x style).
 # ---------------------------------------------------------------------------
 function(finalize_pybind_module target)
-    if(ENABLE_SANITIZERS)
+    if(XX_CXX_SANITIZERS)
         _add_sanitizers(${target})
     else()
         add_pybind_stubs(${target})
@@ -137,7 +137,7 @@ endfunction()
 # ---------------------------------------------------------------------------
 function(finalize_pybind_module_rtld target cxx10x_cmake_dir)
     _add_rtld_link_options(${target})
-    if(ENABLE_SANITIZERS)
+    if(XX_CXX_SANITIZERS)
         _add_sanitizers(${target})
     else()
         add_pybind_stubs_rtld(${target} ${cxx10x_cmake_dir})
