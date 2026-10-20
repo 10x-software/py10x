@@ -4,6 +4,7 @@ __pycache__
 htmlcov
 .venv
 uv.lock
+!/uv.lock
 .dev_10x_profile
 .env
 # marimo runtime (cache / session); commit session/ only if you want static molab outputs

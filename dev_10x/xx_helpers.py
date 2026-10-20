@@ -502,6 +502,10 @@ class GitHelpers:
         rel = path.resolve().relative_to(repo.resolve())
         return rel.as_posix() if rel.parts else '.'
 
+    # The dependency freeze, generated from pyproject files by `xx-constraints compile`: never a source
+    # change, so a freeze refresh alone must not re-cut a package.
+    DERIVED_FILES = ('uv.lock', 'constraints.txt')
+
     @staticmethod
     def diff_pathspecs(*sibling_subdirs: str) -> tuple[str, ...]:
         """`git diff` pathspecs for a package's default release footprint: the **whole repo minus
@@ -511,7 +515,7 @@ class GitHelpers:
         package (shared CI, root build config, …) affects all default-footprint packages. Packages
         with an explicit `footprint` (the C++ siblings) opt out of shared files entirely.
         """
-        return ('.', *(f':(exclude){s}' for s in sibling_subdirs))
+        return ('.', *(f':(exclude){s}' for s in (*sibling_subdirs, *GitHelpers.DERIVED_FILES)))
 
     @classmethod
     def changed_files(cls, repo: Path, base: str, rev: str = 'HEAD', *pathspecs: str) -> list[str]:
