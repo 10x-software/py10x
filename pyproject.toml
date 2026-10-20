@@ -61,6 +61,7 @@ dev = [
     "setuptools-scm>=9.2.2",
     "tomlkit>=0.13.0",
     "packaging>=24.0", # version/specifier logic for xx-promote
+    "uv>=0.12.5; python_version < '3.12'", # 3.11 gets licensecheck 2025.x, which depends on uv: keep it within [tool.uv] required-version
     "ibis-framework[duckdb]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
     "scikit-build-core>=0.12.2", # C++ build backend (incremental, no-isolation)
@@ -175,3 +176,6 @@ version-file = "dev_10x/version.py"
 
 [dependency-groups]
 test = ["py10x-fin-base>=0.1.3rc4"]
+# Fin-base's extras for its tests, kept out of `test` (whose pin xx-promote rewrites); the version
+# comes from `test`. Lets uv.lock / constraints.txt cover blpapi, xbbg, aadc like `--all-extras` did.
+test-extras = ["py10x-fin-base[bbg,aadc,dev]"]

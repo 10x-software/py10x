@@ -179,12 +179,12 @@ def test_repo_relative_subtree():
 
 def test_diff_pathspecs():
     # a package alone in its repo (no siblings) -> the whole repo
-    assert GitHelpers.diff_pathspecs() == ('.',)
+    assert GitHelpers.diff_pathspecs() == ('.', ':(exclude)uv.lock', ':(exclude)constraints.txt')
     # a sibling: the whole repo with the *other* package subtrees excluded (shared files still count)
-    assert GitHelpers.diff_pathspecs('infra_10x') == ('.', ':(exclude)infra_10x')
-    assert GitHelpers.diff_pathspecs('core_10x', 'infra_10x') == ('.', ':(exclude)core_10x', ':(exclude)infra_10x')
+    assert GitHelpers.diff_pathspecs('infra_10x') == ('.', ':(exclude)infra_10x', ':(exclude)uv.lock', ':(exclude)constraints.txt')
+    assert GitHelpers.diff_pathspecs('core_10x', 'infra_10x') == ('.', ':(exclude)core_10x', ':(exclude)infra_10x', ':(exclude)uv.lock', ':(exclude)constraints.txt')
     # Nested same-repo downstream (xx_fin): exclude its subtree from core's footprint.
-    assert GitHelpers.diff_pathspecs('xx_fin') == ('.', ':(exclude)xx_fin')
+    assert GitHelpers.diff_pathspecs('xx_fin') == ('.', ':(exclude)xx_fin', ':(exclude)uv.lock', ':(exclude)constraints.txt')
 
 
 def test_footprint_skips_dot_as_exclude():
@@ -194,7 +194,7 @@ def test_footprint_skips_dot_as_exclude():
     """
     other_subdirs = [s for s in ('.', 'xx_fin') if s != '.']
     specs = GitHelpers.diff_pathspecs(*other_subdirs)
-    assert specs == ('.', ':(exclude)xx_fin')
+    assert specs == ('.', ':(exclude)xx_fin', ':(exclude)uv.lock', ':(exclude)constraints.txt')
     assert ':(exclude).' not in specs
 
 
@@ -231,6 +231,8 @@ def test_tree_changed_since_tag(tmp_path):
     assert footprint_trips('pkg/a.txt') is True  # own subtree -> trips
     assert footprint_trips('.github/actions/build.yml') is True  # shared CI -> trips
     assert footprint_trips('CMakeLists.txt') is True  # shared root build config -> trips
+    assert footprint_trips('uv.lock') is False  # derived lock refresh -> never a source change
+    assert footprint_trips('constraints.txt') is False  # derived freeze refresh -> never a source change
 
     # Downstream footprint must not treat core's `.` as an exclude (would match everything).
     ds_fp = GitHelpers.diff_pathspecs()  # no excludes after filtering out `.`
