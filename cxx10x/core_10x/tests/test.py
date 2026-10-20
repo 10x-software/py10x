@@ -1711,7 +1711,8 @@ def test_ui_node():
 
 if __name__ == '__main__':
     import py10x_kernel
-    print(py10x_kernel.__file__)
+    print('file:', py10x_kernel.__file__)
+    print('version:', py10x_kernel.__version__)
     test_ui_node()
     test_graph_ref_leak()
     test_ref_leak()
