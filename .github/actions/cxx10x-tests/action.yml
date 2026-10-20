@@ -19,6 +19,8 @@ runs:
         # Pin every subsequent uv invocation (uv run / uv venv / uv sync) to the matrix
         # interpreter, otherwise uv is free to pick any version satisfying requires-python.
         echo "UV_PYTHON=${{ inputs.python-version }}" >> "$GITHUB_ENV"
+        # Explicit, so a change to the packages' default cmake.build-type doesn't reach CI.
+        echo "SKBUILD_CMAKE_BUILD_TYPE=Release" >> "$GITHUB_ENV"
 
     - name: Setup Windows build
       if: runner.os == 'Windows'
@@ -29,25 +31,40 @@ runs:
       with:
         mongodb-version: ${{ inputs.mongodb-version }}
 
+    # Same run-once preparation as each harness README: py10x-core[dev] (C++ build toolchain) first;
+    # `uv run` then syncs the rest.
     - name: Run kernel test harness
       shell: bash
       working-directory: cxx10x/tests/py10x_kernel_test
-      run: uv run python ../../core_10x/tests/test.py
+      run: |
+        uv venv --clear
+        uv pip install -e "../../..[dev]"
+        uv run python ../../core_10x/tests/test.py
+        # Incremental rebuild after a C++ edit: on import (no sync), then via `uv run`'s sync.
+        uv run --no-sync python ../assert_rebuilt.py py10x_kernel ../../core_10x/tid.cpp -- uv run --no-sync python ../../core_10x/tests/test.py
+        uv run --no-sync python ../assert_rebuilt.py py10x_kernel ../../core_10x/tid.cpp -- uv run python ../../core_10x/tests/test.py
 
     - name: Run infra test harness
       shell: bash
       working-directory: cxx10x/tests/py10x_infra_test
-      run: uv run python ../../infra_10x/tests/test.py
+      run: |
+        uv venv --clear
+        uv pip install -e "../../..[dev]"
+        uv run python ../../infra_10x/tests/test.py
+        # Incremental rebuild after a C++ edit: on import (no sync), then via `uv run`'s sync.
+        uv run --no-sync python ../assert_rebuilt.py py10x_infra ../../infra_10x/mongo_collection_helper.cpp -- uv run --no-sync python ../../infra_10x/tests/test.py
+        uv run --no-sync python ../assert_rebuilt.py py10x_infra ../../infra_10x/mongo_collection_helper.cpp -- uv run python ../../infra_10x/tests/test.py
 
     - name: Run cross-module tests
       shell: bash
       working-directory: cxx10x/tests/cross_module_test
       run: |
-        uv venv
-        uv pip install -r pyproject.toml
+        uv venv --clear
+        uv pip install -e "../../..[dev]"
         uv run python test.py
         touch pyproject.toml
         uv sync --upgrade
         uv run python test.py
-        touch cross_module_test.cpp
-        uv run python test.py
+        # Incremental rebuild after a C++ edit: on import (no sync), then via `uv run`'s sync.
+        uv run --no-sync python ../assert_rebuilt.py cross_module_test cross_module_test.cpp -- uv run --no-sync python test.py
+        uv run --no-sync python ../assert_rebuilt.py cross_module_test cross_module_test.cpp -- uv run python test.py

@@ -9,7 +9,7 @@ See also the [documentation map in README.md](README.md#documentation-map).
 ### Core Requirements
 
 - **Python 3.12 (recommended); 3.11, 3.12, and 3.13 supported** (`requires-python >=3.11,<3.14`) - Install via UV for best experience
-- **[UV](https://docs.astral.sh/uv/)** - Python installer and package manager (recommended)
+- **[UV](https://docs.astral.sh/uv/)** - Python installer and package manager (recommended; required for development)
 - **Git** - For cloning the repository
 
 ### Optional: Building Native Dependencies from Source
@@ -103,7 +103,9 @@ python --version  # Should show 3.12.x
 
 ### Development Installation (Recommended)
 
-For developers contributing to `py10x-core`:
+For developers contributing to `py10x-core`. Requires [UV](https://docs.astral.sh/uv/) installed on
+the machine (see above), not in the venv, at a version satisfying `[tool.uv] required-version` in
+`pyproject.toml` (`uv self update` to upgrade).
 
 ```bash
 git clone https://github.com/10x-software/py10x.git

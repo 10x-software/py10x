@@ -34,25 +34,28 @@ build-backend = "scikit_build_core.build"
 
 [tool.scikit-build]
 metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
-# Local-build defaults = uv-sync's default mode (incremental_quiet): persistent CMake cache and
-# rebuild-on-import, quietly. uv-sync's other XX_UV_INSTALL_MODEs (and SKBUILD_EDITABLE_* env vars)
-# override them. Requires a non-isolated build - an isolated one bakes its throwaway cmake/ninja
-# paths into CMakeCache.txt; py10x's [tool.uv] no-build-isolation-package and uv-sync cover that.
-# Consumers may override build-dir (e.g. xx-fin-domain keeps its own).
-build-dir = "../../.venv/py10x-build/py10x-infra/{build_type}/{wheel_tag}"
+build-dir = "../../build/py10x-build/py10x-infra/{build_type}/{wheel_tag}"
+cmake.build-type = "Debug"
 editable.rebuild = true
 editable.verbose = false
 
 [tool.scikit-build.cmake.define]
-ENABLE_SANITIZERS = {env = "ENABLE_SANITIZERS", default = "OFF"}
+XX_CXX_SANITIZERS = {env = "XX_CXX_SANITIZERS", default = "OFF"}
 
 [[tool.scikit-build.overrides]]
 if.platform-system = "^win"
 cmake.args = ["-T", "v143,version=14.44"]
 
 # cibuildwheel builds in isolation: throwaway build dir, no rebuild (it needs a persistent one).
+# Published wheels are always Release, whatever the local default above is.
 [tool.cibuildwheel]
-config-settings = { "build-dir" = "", "editable.rebuild" = "false" }
+config-settings = { "build-dir" = "", "editable.rebuild" = "false", "cmake.build-type" = "Release" }
+
+# uv rebuilds this package (instead of reusing its cached wheel) when any of these change: the
+# sanitizer switch, which CMake reads from the env, and a new commit or tag, which changes the
+# setuptools-scm version stamped into the installed metadata.
+[tool.uv]
+cache-keys = [{ file = "pyproject.toml" }, { env = "XX_CXX_SANITIZERS" }, { git = { commit = true, tags = true } }]
 
 [tool.setuptools_scm]
 root = "../.."

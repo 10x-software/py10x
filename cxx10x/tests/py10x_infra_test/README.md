@@ -1,22 +1,22 @@
-# py10x-kernel-test
+# py10x-infra-test
 
-Minimal uv harness directory for running the real core tests against editable builds of the py10x components.
+Minimal uv harness for running the real infra tests against editable builds of `py10x-kernel`, `py10x-infra` and `py10x-core` from this repo.
 
-## Usage
-
-From this directory:
+## First-time / fresh-start preparation (run once)
 
 ```bash
-uv sync --upgrade
-uv run python ../../infra_10x/tests/test.py
+uv venv --clear
+uv pip install -e "../../..[dev]"
 ```
 
-The above will:
+After that, `uv run` syncs the rest automatically.
 
-- Resolve `py10x-kernel`, `py10x-core`, and `py10x-infra` as editable from this repo.
-- Automatically build native extensions.
-- Execute the test suite from the source tree.
+`py10x-kernel` and `py10x-infra` build without isolation, so their toolchain (scikit-build-core,
+cmake, ninja, ...) comes first, from `py10x-core[dev]`. They build into this directory's `.venv`
+(so `--clear` also resets the builds), and are rebuilt (incrementally) on every `uv run`.
 
-The `--upgrade` flag is useful after making changes in the source trees.
+## Run
 
-This pattern gives you an isolated, correctly-configured environment for testing.
+```bash
+uv run python ../../infra_10x/tests/test.py
+```

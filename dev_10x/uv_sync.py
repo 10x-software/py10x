@@ -49,7 +49,7 @@ CXX_BUILD_TOOLCHAIN = ['scikit-build-core', 'setuptools-scm', 'cmake', 'ninja', 
 
 # XX_UV_INSTALL_MODE controls how local C++ packages (py10x-kernel/py10x-infra, and downstream
 # members like cxxfin) get installed. Every mode builds without isolation into the persistent
-# build-dir each package's pyproject sets (.venv/py10x-build/<pkg>/<build type>/<wheel tag>):
+# build-dir each package's pyproject sets (build/py10x-build/<pkg>/<build type>/<wheel tag>):
 #   normal            plain, non-editable build+install - no ongoing dependency on the sibling's
 #                      source tree; right for a build-once image/CI run.
 #   editable          editable install; C++ edits need a re-install (incremental, via the cache).
@@ -293,21 +293,6 @@ def _pip_install(*args: str) -> None:
     _run(['uv', 'pip', 'install', *args, *CONSTRAINTS])
 
 
-def _no_build_isolation_packages(src_dir: Path) -> list[str]:
-    """`[tool.uv] no-build-isolation-package` from a packaging root (e.g. fin-base → cxx).
-
-    `uv pip install` does not read this from the target pyproject the way `uv sync` does, so
-    uv-sync must forward the names as `--no-build-isolation-package` flags.
-    """
-    import tomllib
-
-    pyproject = Path(src_dir) / 'pyproject.toml'
-    if not pyproject.is_file():
-        return []
-    raw = tomllib.loads(pyproject.read_text(encoding='utf-8')).get('tool', {}).get('uv', {}).get('no-build-isolation-package', [])
-    return [str(n) for n in raw]
-
-
 def _workspace_member_paths(src_dir: Path) -> dict[str, Path]:
     """`{dist-name: path}` for each `[tool.uv.workspace]` member under a packaging root."""
     import tomllib
@@ -329,6 +314,28 @@ def _workspace_member_paths(src_dir: Path) -> dict[str, Path]:
     return out
 
 
+def _is_native(src_dir: Path) -> bool:
+    """A C++ (scikit-build-core) package, as opposed to a pure-Python one."""
+    import tomllib
+
+    pyproject = Path(src_dir) / 'pyproject.toml'
+    if not pyproject.is_file():
+        return False
+    backend = tomllib.loads(pyproject.read_text(encoding='utf-8')).get('build-system', {}).get('build-backend', '')
+    return backend.startswith('scikit_build_core')
+
+
+def _native_members(src_dir: Path) -> dict[str, Path]:
+    """`{dist-name: path}` for the C++ workspace members of a downstream (fin-base → cxxfin).
+
+    They build without isolation (their pyprojects set a persistent build-dir) via the root
+    pyproject's `[tool.uv] no-build-isolation-package`, which `uv pip install` reads from the cwd
+    (the py10x root); the downstream's own list covers a plain `uv sync` inside it. Both lists are
+    checked by test_uv_sync's TestNoBuildIsolationLists.
+    """
+    return {n: p for n, p in _workspace_member_paths(src_dir).items() if _is_native(p)}
+
+
 def install_mode() -> str:
     raw = os.environ.get('XX_UV_INSTALL_MODE', 'incremental_quiet').strip()
     if raw not in INSTALL_MODES:
@@ -340,11 +347,12 @@ def _cxx_build_flags(name: str, mode: str) -> list[str]:
     """Build flags for a local C++ package (sibling or downstream member) in any install mode.
 
     The package's own pyproject sets the defaults, matching `incremental_quiet`: a persistent
-    build-dir plus quiet rebuild-on-import. So every mode builds without isolation (an isolated
-    build would bake throwaway cmake/ninja paths into that CMakeCache), and the other modes only
-    override the rebuild settings. Build type comes from XX_UV_BUILD_TYPE (default Release)."""
-    build_type = os.getenv('XX_UV_BUILD_TYPE', 'Release')
-    flags = ['--no-build-isolation-package', name, '--config-settings-package', f'{name}:cmake.build-type={build_type}']
+    build-dir plus quiet rebuild-on-import; the other modes only override the rebuild settings.
+    Every mode builds without isolation (an isolated build would bake throwaway cmake/ninja paths
+    into that CMakeCache) via the root pyproject's `[tool.uv] no-build-isolation-package`. The build
+    type is the pyproject's `cmake.build-type`; override with SKBUILD_CMAKE_BUILD_TYPE (it reaches
+    the build through the environment, as it does for a plain `uv pip install`)."""
+    flags: list[str] = []
     if mode == 'editable':
         flags += ['--config-settings-package', f'{name}:editable.rebuild=false']
     elif mode == 'incremental':
@@ -353,20 +361,15 @@ def _cxx_build_flags(name: str, mode: str) -> list[str]:
 
 
 def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: bool, extras_args: list[str] | tuple[str, ...] = ()) -> None:
-    # Downstream native deps (e.g. fin-base → cxxfin): install workspace members listed in
-    # `[tool.uv] no-build-isolation-package` *directly* first. Installing only via the parent
+    # Downstream native deps (e.g. fin-base → cxxfin): install its C++ workspace members *directly*
+    # first. Installing only via the parent
     # `-e xx_fin` leaves `editable.rebuild`'s persistent build-dir without CMakeCache.txt.
     # Members follow XX_UV_INSTALL_MODE like py10x-kernel/py10x-infra.
     editable = mode != 'normal'
     member_flags: list[str] = []
     if pkg.get('downstream'):
-        members = _workspace_member_paths(pkg['local'])
-        for n in _no_build_isolation_packages(pkg['local']):
-            member = members.get(n)
-            if member is None:
-                print(f'  warning: {n} in no-build-isolation-package but not a workspace member of {pkg["local"]}')
-                continue
-            print(f'  {n}: {mode} (no-build-isolation, workspace member of {name})')
+        for n, member in _native_members(pkg['local']).items():
+            print(f'  {n}: {mode} (workspace member of {name})')
             flags = _cxx_build_flags(n, mode)
             member_flags += flags
             margs = (['-e', str(member)] if editable else [str(member)]) + [f'--reinstall-package={n}', *flags]
@@ -431,24 +434,25 @@ def uv_sync(profile: str, *uv_args: str) -> None:
             kinds[n] = 'local'
     siblings = [p for p in pkgs if p != CORE]
     mode = install_mode()
-    prev_mode = read_install_mode_state(PROJECT_ROOT)
-    toggled = prev_mode is not None and prev_mode != mode
+    state = install_state(mode)
+    prev_state = read_install_mode_state(PROJECT_ROOT)
+    toggled = prev_state is not None and prev_state != state
 
     installs = _installed_source_helpers(PROJECT_ROOT)
 
     print(f'uv-sync `{profile}`: ' + ', '.join(f'{p}={kinds[p]}' for p in pkgs))
     if toggled:
-        print(f'XX_UV_INSTALL_MODE toggled ({prev_mode} -> {mode}): forcing rebuild of local C++ packages.')
+        print(f'install mode / build type changed ({prev_state} -> {state}): forcing rebuild of local C++ packages.')
 
     # Seed the C++ toolchain for local C++ siblings (non-isolated builds in every mode), or when a
-    # local downstream declares `[tool.uv] no-build-isolation-package` (fin-base → cxx) — those
+    # local downstream has C++ workspace members (fin-base → cxx) — those
     # installs run in step 1 before `--all-extras` would otherwise pull cmake/ninja via core's dev
     # extra.
     toolchain_reasons: list[str] = []
     if any(kinds[s] == 'local' and pkgs[s]['cxx'] for s in siblings):
         toolchain_reasons.append('local C++ siblings')
-    if any(pkgs[s].get('downstream') and kinds[s] == 'local' and _no_build_isolation_packages(pkgs[s]['local']) for s in siblings):
-        toolchain_reasons.append('downstream no-build-isolation-package')
+    if any(pkgs[s].get('downstream') and kinds[s] == 'local' and _native_members(pkgs[s]['local']) for s in siblings):
+        toolchain_reasons.append('downstream C++ members')
     if toolchain_reasons:
         print(f'Seeding C++ build toolchain ({", ".join(toolchain_reasons)}).')
         _pip_install('--quiet', *CXX_BUILD_TOOLCHAIN)
@@ -487,7 +491,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
                 )
 
     persist_profile(PROJECT_ROOT, profile)
-    persist_install_mode_state(PROJECT_ROOT, mode)
+    persist_install_mode_state(PROJECT_ROOT, state)
     print(f'uv-sync `{profile}` done.')
 
 
@@ -502,9 +506,9 @@ def sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbos
             continue
         do = need_install(s, kind, pkgs[s], installs=installs)
         # A mode change also applies to a local downstream's native members (fin-base → cxxfin).
-        has_cxx = pkgs[s]['cxx'] or (pkgs[s].get('downstream') and _no_build_isolation_packages(pkgs[s]['local']))
+        has_cxx = pkgs[s]['cxx'] or (pkgs[s].get('downstream') and _native_members(pkgs[s]['local']))
         if not do and toggled and kind == 'local' and has_cxx:
-            print(f'  {s}: reinstall - install mode changed (XX_UV_INSTALL_MODE)')
+            print(f'  {s}: reinstall - install mode or build type changed')
             do = True
         downstream_extras = extras_args if pkgs[s].get('downstream') else ()
         if do:
@@ -545,13 +549,22 @@ def _install_mode_marker(project_root: Path) -> Path:
     return project_root / '.venv' / '.xx_uv_install_mode'
 
 
+def install_state(mode: str) -> str:
+    """`<mode>:<build type>` of the C++ packages being installed. The build type is the
+    SKBUILD_CMAKE_BUILD_TYPE override, or `default` (the packages' pyproject `cmake.build-type`)."""
+    return f'{mode}:{os.environ.get("SKBUILD_CMAKE_BUILD_TYPE", "").strip() or "default"}'
+
+
 def read_install_mode_state(project_root: Path) -> str | None:
     f = _install_mode_marker(project_root)
-    return f.read_text().strip() if f.is_file() else None
+    if not f.is_file():
+        return None
+    state = f.read_text().strip()
+    return state if ':' in state else f'{state}:default'  # marker written before build types were tracked
 
 
-def persist_install_mode_state(project_root: Path, mode: str) -> None:
-    _install_mode_marker(project_root).write_text(mode)
+def persist_install_mode_state(project_root: Path, state: str) -> None:
+    _install_mode_marker(project_root).write_text(state)
 
 
 def ensure_chromium_installed() -> None:

@@ -41,6 +41,12 @@ macro(xx_pybind11_add_module target)
             OUTPUT_STRIP_TRAILING_WHITESPACE
             RESULT_VARIABLE _mod_rc
     )
+    # SKBUILD_EDITABLE_VERBOSE prints "Running cmake --build & --install in <dir>" on this
+    # stdout before s.origin. The module path is the last line. On Windows the .lib path
+    # below is derived from it, so the banner would otherwise fail the EXISTS check.
+    if(_PY10X_KERNEL_MODULE)
+        string(REGEX MATCH "[^\r\n]+$" _PY10X_KERNEL_MODULE "${_PY10X_KERNEL_MODULE}")
+    endif()
     if(NOT _mod_rc EQUAL 0 OR NOT _PY10X_KERNEL_MODULE)
         message(FATAL_ERROR "Could not locate the py10x_kernel module. Is py10x-kernel installed?")
     endif()

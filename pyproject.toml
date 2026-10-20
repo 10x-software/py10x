@@ -61,7 +61,6 @@ dev = [
     "setuptools-scm>=9.2.2",
     "tomlkit>=0.13.0",
     "packaging>=24.0", # version/specifier logic for xx-promote
-    "uv>=0.11.20,<0.13",
     "ibis-framework[duckdb]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
     "scikit-build-core>=0.12.2", # C++ build backend (incremental, no-isolation)
@@ -138,7 +137,10 @@ py10x-fin-base = { path = "./xx_fin" }
 # in-repo tree so that group does not pull a PyPI wheel whose exact core pin
 # fights this editable project.
 [tool.uv]
-# C++ packages build without isolation: their pyprojects set a persistent build-dir.
+required-version = ">=0.12.5"
+# Rebuild py10x-core (rather than reuse uv's cached wheel) on a new commit or tag, so its installed
+# hatch-vcs version (and dev_10x/version.py) stays current.
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 no-build-isolation-package = ["py10x-kernel", "py10x-infra", "py10x-fin-base-cxx"]
 
 [[tool.uv.dependency-metadata]]
