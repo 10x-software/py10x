@@ -8,3 +8,5 @@ uv.lock
 .env
 # marimo runtime (cache / session); commit session/ only if you want static molab outputs
 **/__marimo__/
+# Local C++ build trees (py10x-kernel / py10x-infra / cxxfin build-dir)
+/build/

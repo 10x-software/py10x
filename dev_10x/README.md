@@ -389,7 +389,7 @@ install. With a non-editable kernel it fetches them from GitHub by the kernel ve
 which does not exist for a PR's merge commit.
 
 The defaults live in each C++ package's own `pyproject.toml` and equal `incremental_quiet`:
-`cmake.build-type = "Debug"`, `build-dir = "../../.venv/py10x-build/<pkg>/{build_type}/{wheel_tag}"`,
+`cmake.build-type = "Debug"`, `build-dir = "../../build/py10x-build/<pkg>/{build_type}/{wheel_tag}"`,
 `editable.rebuild = true`, `editable.verbose = false`. So a plain `uv pip install -e cxx10x/core_10x` behaves like the uv-sync
 default. Every mode builds without isolation (an isolated build would bake throwaway cmake/ninja
 paths into the persistent CMakeCache; the root `[tool.uv] no-build-isolation-package` covers plain

@@ -49,7 +49,7 @@ CXX_BUILD_TOOLCHAIN = ['scikit-build-core', 'setuptools-scm', 'cmake', 'ninja', 
 
 # XX_UV_INSTALL_MODE controls how local C++ packages (py10x-kernel/py10x-infra, and downstream
 # members like cxxfin) get installed. Every mode builds without isolation into the persistent
-# build-dir each package's pyproject sets (.venv/py10x-build/<pkg>/<build type>/<wheel tag>):
+# build-dir each package's pyproject sets (build/py10x-build/<pkg>/<build type>/<wheel tag>):
 #   normal            plain, non-editable build+install - no ongoing dependency on the sibling's
 #                      source tree; right for a build-once image/CI run.
 #   editable          editable install; C++ edits need a re-install (incremental, via the cache).

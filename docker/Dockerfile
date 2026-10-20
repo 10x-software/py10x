@@ -59,7 +59,7 @@ RUN uv venv
 # XX_UV_INSTALL_MODE=normal (dev_10x/README.md): plain, non-editable install of py10x-kernel/
 # py10x-infra -- no rebuild-on-import (unlike 'incremental' mode, which exists for iterating on
 # C++ source locally, not for a build-once image). The packages' persistent build dir
-# (.venv/py10x-build) is only a compile cache here, so it is removed in the same layer.
+# (build/py10x-build) is only a compile cache here, so it is removed in the same layer.
 # SKBUILD_CMAKE_BUILD_TYPE=Release is explicit so a change to the packages' default build type
 # doesn't reach the image. py10x-core itself is
 # unaffected by this setting and always installs editable (uv_sync forces it -- see
@@ -70,7 +70,7 @@ ENV SKBUILD_CMAKE_BUILD_TYPE=Release
 RUN --mount=type=cache,target=/root/.cache/uv \
     . .venv/bin/activate \
     && python -m dev_10x.uv_sync py10x-dev --all-extras \
-    && rm -rf .venv/py10x-build
+    && rm -rf build
 
 # pytest writes its own .pytest_cache under rootdir (/app) by default; the container runs as the
 # renamed functional account (non-root, entrypoint.sh's gosu step), so /app needs to be writable
