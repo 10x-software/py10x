@@ -61,10 +61,20 @@ runs:
 
         wait_ready() {
           local name="$1"
+          local password="${2:-}"
           local deadline=$(( $(date +%s) + 60 ))
+          local exec_env=()
+          if [ -n "$password" ]; then
+            exec_env=( -e "PGPASSWORD=$password" )
+          fi
           while true; do
-            if docker exec "$name" pg_isready -U postgres -d "$POSTGRES_DB" >/dev/null 2>&1; then
-              return 0
+            # pg_isready alone is flaky on first init: the official postgres image briefly
+            # accepts connections during initdb, then restarts for the real server.
+            if docker exec "${exec_env[@]}" "$name" psql -U postgres -d "$POSTGRES_DB" -h localhost -tc 'SELECT 1' >/dev/null 2>&1; then
+              sleep 2
+              if docker exec "${exec_env[@]}" "$name" psql -U postgres -d "$POSTGRES_DB" -h localhost -tc 'SELECT 1' >/dev/null 2>&1; then
+                return 0
+              fi
             fi
             if [ "$(date +%s)" -ge "$deadline" ]; then
               echo "PostgreSQL ($name) did not become ready within 60 seconds" >&2
@@ -75,20 +85,20 @@ runs:
           done
         }
         wait_ready py10x-postgres
-        wait_ready py10x-postgres-auth
+        wait_ready py10x-postgres-auth "$PG_AUTH_PASSWORD"
 
         # Host OS user (GHA: runner; local docker: $USER) — libpq defaults to this role when
         # URI userinfo is omitted. Each pytest session CREATEs its own py10x_test_* database.
         # Role + DB named like the OS user so libpq defaults (user=dbname=OS user) work without password.
-        docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+        docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -h localhost -v ON_ERROR_STOP=1 -c \
           "DO \$\$ BEGIN
              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${HOST_USER}') THEN
                CREATE ROLE \"${HOST_USER}\" WITH LOGIN SUPERUSER;
              END IF;
            END \$\$;"
-        docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -tc \
+        docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -h localhost -v ON_ERROR_STOP=1 -tc \
           "SELECT 1 FROM pg_database WHERE datname = '${HOST_USER}'" | grep -q 1 \
-          || docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -c \
+          || docker exec py10x-postgres psql -U postgres -d "$POSTGRES_DB" -h localhost -v ON_ERROR_STOP=1 -c \
                "CREATE DATABASE \"${HOST_USER}\" OWNER \"${HOST_USER}\";"
 
         echo "PostgreSQL trust ready on 127.0.0.1:${PG_PORT} (role/db=${HOST_USER}, auth=trust)"

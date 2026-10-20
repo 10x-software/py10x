@@ -352,10 +352,10 @@ class Basket(Traitable, embeddable = True):
     subclasses_allowed: bool                = T(True)
     reset_members_on_set_bucketizers: bool  = T(True)
     aggregator_class: type[NamedCallable]   = T()
-    bucketizers: list[Bucketizer]           = T(T.EMBEDDED|T.STICKY)
+    bucketizers: list[Bucketizer]           = T(T.EMBEDDED|T.STICKY|T.NOT_A_DEPENDENCY)
 
-    the_bucket: Bucket                      = T(T.STICKY)       #-- single bucket if there are no bucketizers
-    all_buckets: dict                       = T(T.STICKY)       #-- tagged buckets WRT bucketizers, i.e.: {(t1_i,t2_i,...): bucket_i}
+    the_bucket: Bucket                      = T(T.STICKY|T.NOT_A_DEPENDENCY)       #-- single bucket if there are no bucketizers; internal bookkeeping, never a dependency source (see mkt_deps_design_notes.md)
+    all_buckets: dict                       = T(T.STICKY|T.NOT_A_DEPENDENCY)       #-- tagged buckets WRT bucketizers, i.e.: {(t1_i,t2_i,...): bucket_i}; internal bookkeeping, never a dependency source
 
 
     def bucket_shape_get(self) -> BUCKET_SHAPE:
@@ -423,6 +423,13 @@ class Basket(Traitable, embeddable = True):
 
     def new_bucket(self) -> Bucket:
         return self.bucket_shape.value()
+
+    @classmethod
+    def of(cls, *member_qty_pairs, **kwargs) -> Basket:
+        basket = cls(**kwargs)
+        for obj, qty in member_qty_pairs:
+            basket.add(obj, qty)
+        return basket
 
     def is_acceptable(self, obj: Traitable) -> bool:
         return isinstance(obj, self.base_class) if self.subclasses_allowed else obj.__class__ is self.base_class

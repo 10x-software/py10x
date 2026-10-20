@@ -36,7 +36,7 @@ if __name__ == '__main__':
     )
 
 
-    mc = FXMktConventions.existing_instance(mkt_name = cross)
+    mc = FXMktConventions(cross)
 
     gbp = dict(
         provider_name   = 'XX_DEV',

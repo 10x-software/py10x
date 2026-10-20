@@ -16,7 +16,7 @@ import pytest
 import uuid6
 from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
-from core_10x.trait_definition import T
+from core_10x.trait_definition import RT, T
 from core_10x.traitable import Traitable, VaultResourceAccessor
 from core_10x.ts_store import TsStore
 from core_10x.ts_store_type import TS_STORE_TYPE
@@ -37,6 +37,7 @@ def test_postgresql_parse_uri_and_registry():
     assert args[PostgresStore.PORT_TAG] == 5432
     spec = PostgresStore.spec_from_uri(uri)
     assert spec.kwargs.get(PostgresStore.PROTOCOL_TAG) == 'postgresql'
+    assert spec.uri() == 'postgresql://user:pass@localhost:5432/testdb'
     # Userinfo optional — omitted username stays None (libpq supplies OS user at connect).
     no_user = PostgresStore.parse_uri('postgresql://localhost:5432/postgres')
     assert no_user[PostgresStore.USERNAME_TAG] is None
@@ -52,8 +53,9 @@ def test_postgresql_parse_uri_and_registry():
 
 def _short_lived_postgres(uri: str) -> PostgresStore:
     """Connect outside the session fixture without caching in ``s_instances``."""
-    store = TsStore.instance_from_uri(uri, _cache=False)
+    store = Traitable.store_from_uri(uri, _cache=False)
     assert isinstance(store, PostgresStore)
+    assert store.auth_user() is not None
     return store
 
 
@@ -61,7 +63,8 @@ def test_passwordless_connect_userless_uri_uses_os_user(postgres_store):
     """URI without userinfo: Resource.username is None; server role is the OS user."""
     uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
     store = _short_lived_postgres(uri)
-    assert store.username is None
+    if not TsStore.is_running_with_auth_from_uri(uri)[1]:
+        assert store.username is None
     current = store._execute('SELECT current_user')[0][0]
     assert current == getpass.getuser()
 
@@ -70,6 +73,7 @@ def test_passwordless_connect_explicit_user_matches_server(postgres_store):
     """URI with OS user@: Resource.username and current_user both equal that user."""
     os_user = getpass.getuser()
     uri = f'postgresql://{os_user}@localhost:5432/postgres'
+    need(not TsStore.is_running_with_auth_from_uri(uri)[1], f'server at {uri} is running with auth')
     store = _short_lived_postgres(uri)
     assert store.username == os_user
     current = store._execute('SELECT current_user')[0][0]
@@ -95,8 +99,10 @@ def test_is_running_with_auth_non_postgres_service_on_port():
 def test_is_running_with_auth_local_trust_no_password(postgres_store):
     """Passwordless ReadyForQuery (local trust / OS user) → (True, False)."""
     uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
+    need(not TsStore.is_running_with_auth_from_uri(uri)[1], f'server at {uri} running with no auth')
     spec = TsStore.spec_from_uri(uri)
     assert PostgresStore.is_running_with_auth(spec.hostname(), spec.port()) == (True, False)
+    assert not postgres_store.can_serve_as_vault()
 
 
 def test_is_running_with_auth_unknown_role_try_vault(postgres_store):
@@ -270,11 +276,49 @@ def test_jsonb_path_index_on_blob_field(postgres_store):
         store.delete_collection(coll_name)
 
 
-def test_instance_from_uri(postgres_store):
-    uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
-    store = TsStore.instance_from_uri(uri, _cache=False)
-    assert isinstance(store, PostgresStore)
-    assert store.auth_user() is not None
+def test_ensure_columns_skips_runtime_traits(postgres_store):
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+        tmp: str = RT('')
+
+    store = postgres_store
+    coll_name = f'pg_rt_{uuid6.uuid7().hex[-8:]}'
+    try:
+        coll = store.collection(coll_name, Pad.s_dir)
+        store.ensure_table(coll_name)
+        coll._ensure_columns(Pad.s_dir)
+        cols = store._collection_columns(coll_name)
+        assert 'pad' in cols
+        assert 'tmp' not in cols
+    finally:
+        store.delete_collection(coll_name)
+
+
+def test_create_index_ignores_must_be_owner(postgres_store):
+    """Workers cannot CREATE INDEX; IF NOT EXISTS still checks ownership, so skip that error."""
+
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+
+    store = postgres_store
+    suffix = uuid6.uuid7().hex[-8:]
+    coll_name, role = f'pg_idx_own_{suffix}', f'idxown_{suffix}'
+    try:
+        coll = store.collection(coll_name, Pad.s_dir)
+        coll.save_new({'_id': '1', 'pad': 0})
+        coll.create_index('idx_pad', 'pad')
+        if not store._execute('SELECT 1 FROM pg_roles WHERE rolname = ?', [role]):
+            store._execute(f'CREATE ROLE "{role}" LOGIN NOSUPERUSER')
+        store._execute(f'GRANT SELECT, INSERT ON TABLE {store._qname(coll_name)} TO "{role}"')
+        store._execute(f'SET ROLE "{role}"')
+        try:
+            assert coll.create_index('idx_pad', 'pad') == 'idx_pad'
+        finally:
+            store._execute('RESET ROLE')
+    finally:
+        store.delete_collection(coll_name)
+        store._execute(f'DROP OWNED BY "{role}"')
+        store._execute(f'DROP ROLE IF EXISTS "{role}"')
 
 
 def test_list_databases_prefix_underscores_are_literal(postgres_store):
@@ -287,7 +331,7 @@ def test_list_databases_prefix_underscores_are_literal(postgres_store):
     # Maintenance DB — CREATE/DROP DATABASE cannot run against the target itself.
     store = _short_lived_postgres(test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name, session_db='postgres'))
     prefix = test_databases.TEST_DB_PREFIX
-    uid = uuid6.uuid7().hex[:8]
+    uid = uuid6.uuid7().hex[-8:]
     real = f'{prefix}_lit_{uid}'
     decoy = prefix.replace('_', 'X', 1) + f'_decoy_{uid}'  # matches LIKE, not startswith
     try:
@@ -365,6 +409,7 @@ def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
         user = _FakeUser()
         resource_uri = 'postgresql://vault-pg.example:5432/postgres'
         _create_resource_if_needed = False
+        _cache = True
 
         @property
         def resource(self):
@@ -373,17 +418,19 @@ def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
                 self.resource_uri,
                 username=self.login,
                 password=self.user.sec_keys.decrypt_text(self.password),
+                _cache=self._cache,
                 _create_if_needed=self._create_resource_if_needed,
             )
 
-    def _fake_retrieve_ra(cls, resource_dt, resource_uri, username=None, *, _create_resource_if_needed=False):
+    def _fake_retrieve_ra(cls, resource_dt, resource_uri, username=None, *, _create_resource_if_needed=False, _cache=True):
         ra = _FakeRA()
         ra.resource_uri = resource_uri
         ra._create_resource_if_needed = _create_resource_if_needed
+        ra._cache = _cache
         return ra
 
     def _fake_instance_from_uri(cls, uri, username=None, password=None, _cache=True, _create_if_needed=False):
-        captured.update(uri=uri, username=username, password=password, _create_if_needed=_create_if_needed)
+        captured.update(uri=uri, username=username, password=password, _cache=_cache, _create_if_needed=_create_if_needed)
         return sentinel
 
     monkeypatch.setattr(PostgresStore, 'is_running_with_auth', classmethod(lambda cls, host_name, port=None: (True, True)))
@@ -393,10 +440,42 @@ def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
 
     uri = 'postgresql://vault-pg.example:5432/postgres'
     assert Traitable.store_from_uri(uri) is sentinel
-    assert captured == {'uri': uri, 'username': 'vault-user', 'password': 'vault-secret', '_create_if_needed': False}
+    assert captured == {
+        'uri': uri,
+        'username': 'vault-user',
+        'password': 'vault-secret',
+        '_cache': True,
+        '_create_if_needed': False,
+    }
 
     assert Traitable.store_from_uri(uri, _create_if_needed=True) is sentinel
     assert captured['_create_if_needed'] is True
+    assert captured['_cache'] is True
+
+    assert Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True) is sentinel
+    assert captured['_cache'] is False
+    assert captured['_create_if_needed'] is True
+
+
+def test_store_from_uri_skips_vault_when_open(monkeypatch):
+    """Open (unauthenticated) servers must not consult the vault; `_cache` still forwards."""
+    sentinel = object()
+    captured = {}
+
+    def _fake_instance(cls, *args, _cache=True, _create_if_needed=False, **kwargs):
+        captured.update(_cache=_cache, _create_if_needed=_create_if_needed)
+        return sentinel
+
+    def _retrieve_ra_must_not_run(cls, *args, **kwargs):
+        raise AssertionError('vault must not be consulted for an open server')
+
+    monkeypatch.setattr(PostgresStore, 'is_running_with_auth', classmethod(lambda cls, host_name, port=None: (True, False)))
+    monkeypatch.setattr(VaultResourceAccessor, 'retrieve_ra', classmethod(_retrieve_ra_must_not_run))
+    monkeypatch.setattr(PostgresStore, 'instance', classmethod(_fake_instance))
+
+    uri = 'postgresql://localhost:5432/testdb'
+    assert Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True) is sentinel
+    assert captured == {'_cache': False, '_create_if_needed': True}
 
 
 def test_resource_instance_create_if_needed_runs_before_new_instance(monkeypatch):
@@ -441,3 +520,4 @@ def test_password_auth_connect():
     )
     assert store._execute('SELECT 1')[0][0] == 1
     assert store.auth_user() == 'postgres'
+    assert store.can_serve_as_vault()

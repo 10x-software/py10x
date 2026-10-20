@@ -179,12 +179,12 @@ def test_repo_relative_subtree():
 
 def test_diff_pathspecs():
     # a package alone in its repo (no siblings) -> the whole repo
-    assert GitHelpers.diff_pathspecs() == ('.',)
+    assert GitHelpers.diff_pathspecs() == ('.', ':(exclude)uv.lock', ':(exclude)constraints.txt')
     # a sibling: the whole repo with the *other* package subtrees excluded (shared files still count)
-    assert GitHelpers.diff_pathspecs('infra_10x') == ('.', ':(exclude)infra_10x')
-    assert GitHelpers.diff_pathspecs('core_10x', 'infra_10x') == ('.', ':(exclude)core_10x', ':(exclude)infra_10x')
+    assert GitHelpers.diff_pathspecs('infra_10x') == ('.', ':(exclude)infra_10x', ':(exclude)uv.lock', ':(exclude)constraints.txt')
+    assert GitHelpers.diff_pathspecs('core_10x', 'infra_10x') == ('.', ':(exclude)core_10x', ':(exclude)infra_10x', ':(exclude)uv.lock', ':(exclude)constraints.txt')
     # Nested same-repo downstream (xx_fin): exclude its subtree from core's footprint.
-    assert GitHelpers.diff_pathspecs('xx_fin') == ('.', ':(exclude)xx_fin')
+    assert GitHelpers.diff_pathspecs('xx_fin') == ('.', ':(exclude)xx_fin', ':(exclude)uv.lock', ':(exclude)constraints.txt')
 
 
 def test_footprint_skips_dot_as_exclude():
@@ -194,7 +194,7 @@ def test_footprint_skips_dot_as_exclude():
     """
     other_subdirs = [s for s in ('.', 'xx_fin') if s != '.']
     specs = GitHelpers.diff_pathspecs(*other_subdirs)
-    assert specs == ('.', ':(exclude)xx_fin')
+    assert specs == ('.', ':(exclude)xx_fin', ':(exclude)uv.lock', ':(exclude)constraints.txt')
     assert ':(exclude).' not in specs
 
 
@@ -231,6 +231,8 @@ def test_tree_changed_since_tag(tmp_path):
     assert footprint_trips('pkg/a.txt') is True  # own subtree -> trips
     assert footprint_trips('.github/actions/build.yml') is True  # shared CI -> trips
     assert footprint_trips('CMakeLists.txt') is True  # shared root build config -> trips
+    assert footprint_trips('uv.lock') is False  # derived lock refresh -> never a source change
+    assert footprint_trips('constraints.txt') is False  # derived freeze refresh -> never a source change
 
     # Downstream footprint must not treat core's `.` as an exclude (would match everything).
     ds_fp = GitHelpers.diff_pathspecs()  # no excludes after filtering out `.`
@@ -266,18 +268,18 @@ def test_pin_strings():
     assert VersionHelpers.final_pin('0.2.1') == '>=0.2.1,<0.2.2'
     assert VersionHelpers.exact_pin('0.2.1rc2') == '==0.2.1rc2'  # forward, rc
     assert VersionHelpers.exact_pin('0.2.1') == '==0.2.1'  # forward, final
-    assert VersionHelpers.test_group_pin('0.2.3') == 'py10x-core>=0.2.3'  # reverse floor, final
-    assert VersionHelpers.test_group_pin('0.2.3rc1') == 'py10x-core>=0.2.3rc1'  # reverse floor, rc
+    assert VersionHelpers.test_group_dep_pin('py10x-fin-base', '0.2.3') == 'py10x-fin-base>=0.2.3'  # test-group floor, final
+    assert VersionHelpers.test_group_dep_pin('py10x-fin-base', '0.2.3rc1') == 'py10x-fin-base>=0.2.3rc1'  # test-group floor, rc
 
 
 def test_release_branch_names():
     assert GitHelpers.release_branch('pre', 'py10x-core', is_core=True) == 'pre'
     assert GitHelpers.release_branch('prod', 'py10x-core', is_core=True) == 'prod'
-    assert GitHelpers.release_branch('pre', 'py10x-kernel', is_core=False) == 'pre/py10x-kernel'
-    assert GitHelpers.release_branch('prod', 'py10x-infra', is_core=False) == 'prod/py10x-infra'
+    assert GitHelpers.release_branch('pre', 'py10x-kernel', is_core=False) == 'pre-py10x-kernel'
+    assert GitHelpers.release_branch('prod', 'py10x-infra', is_core=False) == 'prod-py10x-infra'
     # In-repo downstreams cannot nest under bare core `pre`/`prod` (git ref collision).
-    assert GitHelpers.release_branch('pre', 'py10x-fin-base', is_core=False, is_downstream=True) == 'pre-py10x-fin-base'
-    assert GitHelpers.release_branch('prod', 'py10x-fin-base', is_core=False, is_downstream=True) == 'prod-py10x-fin-base'
+    assert GitHelpers.release_branch('pre', 'py10x-fin-base', is_core=False) == 'pre-py10x-fin-base'
+    assert GitHelpers.release_branch('prod', 'py10x-fin-base', is_core=False) == 'prod-py10x-fin-base'
 
 
 def test_forward_pin_edits_targets_only_named_and_preserves_format():
@@ -707,3 +709,14 @@ class TestPublishWorkflowState:
         state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin=True, trigger_on_origin=True)
         assert state == 'success'
         assert url == 'u-new'
+
+
+def test_pin_only_diff_ignores_unpublished_test_group():
+    """Epilogues rewrite first-party pins and `dependency-groups.test`; neither is a source change."""
+    old = '[project]\nname = "py10x-core"\ndependencies = ["py10x-kernel (==1.0)", "numpy>=2"]\n'
+    pinned = old.replace('==1.0', '>=1.1rc1,<1.1rc2')
+    tracked = pinned + '\n[dependency-groups]\ntest = ["py10x-fin-base>=0.1"]\n'
+    names = {'py10x-kernel', 'py10x-fin-base'}
+    assert PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked, names)
+    assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked.replace('numpy>=2', 'numpy>=3'), names)
+    assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked + '\n[tool.x]\ny = 1\n', names)

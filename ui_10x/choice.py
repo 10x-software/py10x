@@ -50,6 +50,11 @@ class Choice:
             self.directory = None
             try:
                 self.choices = {hint: hint for hint in choices}
+            except TypeError:
+                # An unhashable choice is a caller bug, not a value we can shrug off -- most
+                # likely a traitable that has not been shared yet (its ID is unset, so it
+                # refuses to hash). Swallowing it hands back an empty picker and hides why.
+                raise
             except Exception:
                 self.choices = {}
 
@@ -118,8 +123,12 @@ class MultiChoice(Choice):
         self._set_choices_selected(choices_selected)
 
     def _set_choices_selected(self, choices_selected: tuple):
-        all_choices = self.choices
-        self.values_selected.extend(tuple(value for choice in choices_selected if (value := all_choices.get(choice) )))
+        inverted, choices = self.inverted_choices, self.choices
+        for choice in choices_selected:
+            if choice in inverted:
+                self.values_selected.append(choice)
+            elif choice in choices:
+                self.values_selected.append(choices[choice])
 
     def select_mode(self):
         return self.rb.choice() if self.rb else self.SELECT_MODE.ANY
@@ -136,7 +145,7 @@ class MultiChoice(Choice):
             left_lay = ux.VBoxLayout()
             left.set_layout(left_lay)
 
-            self.rb = rb = UxRadioBox(self.SELECT_MODE, horizontal = True, title = 'Selection Mode')
+            self.rb = rb = UxRadioBox(self.SELECT_MODE, 'Selection Mode', horizontal=True)
             left_lay.add_widget(rb)
             left_lay.add_widget(sw)
         else:
@@ -144,6 +153,11 @@ class MultiChoice(Choice):
             self.rb = None
 
         w.add_widget(left)
+
+        # Same chrome as UxSearchableList (GroupBox + list), without the search field.
+        right = ux.GroupBox()
+        right_lay = ux.VBoxLayout()
+        right.set_layout(right_lay)
 
         self.selection_list = selection_list = ux.ListWidget()
         labels = self.values_selected
@@ -153,7 +167,8 @@ class MultiChoice(Choice):
 
         selection_list.add_items(labels)
         selection_list.clicked_connect(self.on_selection_list_selection)
-        w.add_widget(selection_list)
+        right_lay.add_widget(selection_list)
+        w.add_widget(right)
 
         return w
 

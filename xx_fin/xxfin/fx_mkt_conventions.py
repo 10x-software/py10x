@@ -52,7 +52,7 @@ class FXMktConventions(SpotMktConventions):
         return self.funding_ccy
 
     def funding_ccy_get(self) -> Ccy:
-        funding_mc = IRRateMktConventions.existing_instance(mkt_name = self.funding_rate_mkt_name)
+        funding_mc = IRRateMktConventions(self.funding_rate_mkt_name)
         return funding_mc.ccy
 
     def non_usd_ccys(self) -> str:

@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import rio
 import ui_10x.platform_interface as i
-from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, Widget
+from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, Widget, session_context
 from ui_10x.rio.internals.app import App10x
 
 if TYPE_CHECKING:
@@ -28,10 +28,12 @@ class Dialog(Widget, i.Dialog):
     # min_width / grow on the dialog and size only to the inner layout.
     s_unwrap_single_child = False
     s_forced_kwargs = {'grow_x': False, 'grow_y': False}
-    # Fraction of the browser width used when auto-sizing (see show()).
-    # Height stays natural (content-sized).
-    s_default_width_fraction = 0.55
-    s_default_min_width_rem = 28.0
+    # Dialogs size to their content, over a floor: many trait widgets declare no
+    # min_width of their own and collapse into unreadable wrapping without one
+    # (e.g. a MultiChoice's list panes, or a text4list box whose own min_width is
+    # narrower than its actual content). Nothing caps them — an oversized dialog
+    # stays reachable through rio's overlay scroller.
+    s_min_width_rem = 28.0
 
     def _make_kwargs(self, **kwargs):
         kwargs = super()._make_kwargs(**kwargs)
@@ -127,6 +129,8 @@ class Dialog(Widget, i.Dialog):
         def on_session_start(session):
             sessions.add(session)
             print('on_session_start:', len(sessions))
+            with session_context(session):
+                self.on_open()
 
         def on_session_close(session):
             for component in session._weak_components_by_id.values():
@@ -166,22 +170,25 @@ class Dialog(Widget, i.Dialog):
         self._auto_min_width = False
         super().set_minimum_width(width)
 
-    def _apply_default_min_width(self, session: rio.Session) -> None:
-        """Size dialog width to a fraction of the live browser width (rem → px)."""
+    def _apply_min_width_floor(self, session: rio.Session) -> None:
+        """Give the dialog a sane minimum width (rem → px) unless the caller set
+        one explicitly. Purely a floor — content still grows past it freely.
+        """
         if not self._auto_min_width:
             return
-        rem_w = float(getattr(session, 'window_width', 0) or 0)
         ppf = float(getattr(session, 'pixels_per_font_height', 0) or 16)
-        rem = max(self.s_default_min_width_rem, rem_w * self.s_default_width_fraction) if rem_w > 0 else self.s_default_min_width_rem
-        # build() converts px → rem via / pixels_per_font_height
-        self._kwargs['min_width'] = rem * ppf
+        self._kwargs['min_width'] = self.s_min_width_rem * ppf
+
+    def on_open(self):
+        pass
 
     def show(self):
         if not self.current_session():
             self.exec()
         else:
+            self.on_open()
             session = self.current_session()
-            self._apply_default_min_width(session)
+            self._apply_min_width_floor(session)
             future = session.show_custom_dialog(
                 build=self,
                 on_close=self._on_user_close,

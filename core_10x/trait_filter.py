@@ -31,13 +31,17 @@ class _mongo_label:
     REGEX   = '$regex'
     AND     = '$and'
     OR      = '$or'
-    #NOT     = '$not'
+    NOT     = '$not'
 # fmt: on
 
 LABEL = _mongo_label
 
 
 class _filter(ABC):
+    s_field_op = False
+
+    @abstractmethod
+    def negate(self) -> _filter | None: ...
     @abstractmethod
     def eval(self, left_value) -> bool: ...
     @abstractmethod
@@ -48,6 +52,10 @@ class _filter(ABC):
 
 class Op(_filter, ABC):
     label = ''
+    s_field_op = True
+
+    def negate(self) -> None:
+        return None
 
     def __init_subclass__(cls, label: str = None):
         if label is None:
@@ -163,9 +171,7 @@ class IN(Op):
         It is stripped here and folded back by the caller as an explicit NULL test — which is
         also exactly what Mongo means by ``$in`` / ``$nin`` matching missing fields.
 
-        ``isin_pred`` is None when nothing concrete remains: either the list was empty
-        (``IN([])`` / ``NIN([])``) or every value was ``None``. Callers distinguish those via
-        ``has_none`` (False for empty, True for all-None).
+        ``isin_pred`` is None when every value was ``None``. Callers handle an empty list first.
         """
         trait = trait_dir.get(field_name) if trait_dir and field_name else None
         values = list(self.serialize_right_value(field_name, trait_dir))
@@ -174,10 +180,11 @@ class IN(Op):
         return col, (col.isin(right) if concrete else None), len(concrete) != len(values)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+        if not self.right_value:
+            return False  # nothing to bind; an empty IN matches no value
         col, pred, has_none = self._ibis_isin(ibis_collection, field_name, trait_dir)
         if pred is None:
-            # IN([]): match nothing. IN([None, ...]): only missing / null qualifies.
-            return col.isnull() if has_none else False
+            return col.isnull()  # IN([None, ...]): only missing / null qualifies
         return col.isnull() | pred if has_none else pred
 
 
@@ -189,10 +196,11 @@ class NIN(IN):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         # Mongo's $nin matches missing fields (same reasoning as NE.ibis) — *unless* None is
         # itself excluded, in which case missing/null are excluded along with it.
+        if not self.right_value:
+            return True
         col, pred, has_none = self._ibis_isin(ibis_collection, field_name, trait_dir)
         if pred is None:
-            # NIN([]): match everything. NIN([None, ...]): every field that is present.
-            return col.notnull() if has_none else True
+            return col.notnull()  # NIN([None, ...]): every field that is present
         return col.notnull() & ~pred if has_none else col.isnull() | ~pred
 
 
@@ -221,13 +229,33 @@ class BETWEEN(Op, label=''):
         return res
 
 
+class FALSE(_filter):
+    """The match-nothing query. Combinators absorb only ``BoolOp.s_false``; ``OR()`` is that instance."""
+
+    def eval(self, left_value) -> bool:
+        return False
+
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
+        return {'$expr': False}
+
+    def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+        return False
+
+    def negate(self) -> _filter:
+        return AND()  # match-all
+
+
 class BoolOp(Op, ABC, label=''):
-    s_false: IN = IN([])
+    s_field_op = False
+    s_false: FALSE = FALSE()
     _op = None  # operator.and_ or operator.or_, set by subclasses
     _identity = None  # reduce identity: True for AND, False for OR
 
+    @abstractmethod
+    def negate(self) -> _filter: ...
+
     @classmethod
-    def _simplify(cls, expressions: tuple, false: IN) -> list: ...
+    def _simplify(cls, expressions: tuple, false: FALSE) -> list: ...
 
     def __new__(cls, *expressions):
         expressions = cls._simplify(expressions, cls.s_false)
@@ -238,8 +266,9 @@ class BoolOp(Op, ABC, label=''):
         return obj
 
     def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
-        rvalues = [pn for e in self.right_value if (pn := e.prefix_notation(field_name, trait_dir))]
-        return {self.label: rvalues} if rvalues else {}
+        ident = self._identity
+        rvalues = [pn for e in self.right_value if (pn := e.prefix_notation(field_name, trait_dir)) or not ident]
+        return {self.label: rvalues} if rvalues and all(rvalues) else {}
 
     def eval(self, ctx):
         return reduce(self._op, (e.eval(ctx) for e in self.right_value), self._identity)
@@ -256,6 +285,9 @@ class AND(BoolOp):
     def _simplify(cls, expressions, false):
         return [false] if false in expressions else expressions
 
+    def negate(self) -> _filter:
+        return OR(*(NOT(child) for child in self.right_value))
+
 
 class OR(BoolOp):
     _op = operator.or_
@@ -266,6 +298,9 @@ class OR(BoolOp):
         expressions = [expression for expression in expressions if expression is not false]
         return [false] if not expressions else expressions
 
+    def negate(self) -> _filter:
+        return AND(*(NOT(child) for child in self.right_value))
+
 
 class f(_filter):
     def __init__(self, _f: f = None, trait_dir: dict[str, Trait] | None = None, **named_expressions):
@@ -274,6 +309,8 @@ class f(_filter):
         self.named_expressions = {
             name: expression if isinstance(expression, _filter) else EQ(expression) for name, expression in named_expressions.items()
         }
+        # Mongo has no field-level $and/$or. Combine filters, e.g. OR(f(x=1), f(x=2)), or use x=IN([...]).
+        assert not (bad := [name for name, op in self.named_expressions.items() if not op.s_field_op]), f'{bad}: AND/OR/f() are not field operators'
 
     def _apply(self, trait_dir, filter_fn, named_fn, reduce_fn, combine_fn, *, empty):
         """Iterate self.filter and self.named_expressions, apply fns, combine with operator.and_.
@@ -322,3 +359,35 @@ class f(_filter):
             combine_fn=operator.and_,
             empty=True,
         )
+
+    def negate(self) -> _filter:
+        """An ``f`` is the conjunction of its fields, so its negation is an OR."""
+        parts = [f(**{name: NOT(op)}, trait_dir=self.trait_dir) for name, op in self.named_expressions.items()]
+        if self.filter is not None:
+            parts.append(f(NOT(self.filter), trait_dir=self.trait_dir))
+        return OR(*parts) if parts else BoolOp.s_false
+
+
+class NOT(Op):
+    """``f(age=NOT(GT(5)))`` is a field ``$not``. ``NOT(f(...))`` rewrites via De Morgan."""
+
+    def __new__(cls, expression: _filter):
+        negated = expression.negate()
+        return super().__new__(cls, expression) if negated is None else negated
+
+    def negate(self) -> _filter:
+        return self.right_value
+
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
+        return {self.label: self.right_value.prefix_notation(field_name, trait_dir)}
+
+    def eval(self, left_value) -> bool:
+        return not self.right_value.eval(left_value)
+
+    def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+        # ``NOT (col > 5)`` is NULL when col is NULL, so the row would disappear. Mongo ``$not``
+        # matches a missing field. Keep the row when the inner predicate is not strictly true.
+        pred = self.right_value.ibis(ibis_collection, field_name, trait_dir)
+        if isinstance(pred, bool):
+            return not pred
+        return pred.isnull() | ~pred

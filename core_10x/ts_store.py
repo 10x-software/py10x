@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import abc
 from collections import deque
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, contextmanager, nullcontext
 from typing import TYPE_CHECKING
 
-from py10x_kernel import BFlags
+from py10x_kernel import BFlags, BTraitableProcessor
 from py10x_kernel import BTraitableProcessorSetValueTracker as BTPTracker
 
 from core_10x.environment_variables import EnvVars
@@ -13,14 +13,14 @@ from core_10x.exec_control import ProcessContext
 from core_10x.global_cache import standard_key
 from core_10x.nucleus import Nucleus
 from core_10x.py_class import PyClass
-from core_10x.rc import RC
+from core_10x.rc import RC, RC_TRUE
 from core_10x.resource import TS_STORE, Resource, ResourceSpec
 from core_10x.trait_definition import T
 from core_10x.trait_filter import f
 from core_10x.ts_store_type import TS_STORE_TYPE
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Sequence
+    from collections.abc import Generator, Iterable, Sequence
     from datetime import datetime
 
     from core_10x.traitable import Traitable
@@ -174,6 +174,33 @@ class TsStore(Resource, resource_type=TS_STORE):
     def delete_database(self, dbname: str) -> bool:
         return False
 
+    VAULT_WORKER_ROLE = 'xxVaultWorker'
+    VAULT_ADMIN_ROLE = 'xxVaultAdmin'
+
+    def can_serve_as_vault(self) -> bool:
+        return False
+
+    def setup_vault_roles(
+        self,
+        *,
+        user_collection: str,
+        user_history: str,
+        accessor_collection: str,
+        accessor_history: str,
+        worker_role: str | None = None,
+        admin_role: str | None = None,
+    ) -> RC:
+        return RC(False, f'{type(self).__name__} cannot serve as a vault')
+
+    def create_vault_user(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
+        return RC(False, f'{type(self).__name__} cannot serve as a vault')
+
+    def create_vault_admin(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
+        return RC(False, f'{type(self).__name__} cannot serve as a vault')
+
+    def is_vault_admin(self, *, admin_role: str | None = None) -> bool:
+        return False
+
     @classmethod
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
         raise NotImplementedError
@@ -188,7 +215,7 @@ class TsStore(Resource, resource_type=TS_STORE):
     def collection_names(self, regexp: str = None) -> list: ...
 
     @abc.abstractmethod
-    def collection(self, collection_name: str, trait_dir: dict | None = None) -> TsCollection: ...
+    def collection(self, collection_name: str, trait_dir: dict | None = None, *, create_if_needed: bool = False) -> TsCollection: ...
 
     @abc.abstractmethod
     def delete_collection(self, collection_name: str) -> bool: ...
@@ -256,26 +283,62 @@ class TsStore(Resource, resource_type=TS_STORE):
                 tx.abort()
 
 
-@contextmanager
-def SaveIfChanged(classes: Sequence[type[Traitable]] = ()):  # noqa: N802
-    if any(not cls.is_storable() for cls in classes):
-        raise RuntimeError('Classes passed to SaveIfChanged must be storable.')
+class SaveIfChanged(BTPTracker):
+    """A BTPTracker that also knows how to save() and reload() everything it
+    has tracked, optionally filtered to `classes`.
 
-    if not isinstance(classes, tuple):
-        classes = tuple(classes)
+    With `auto_save=True` (the default) tracked objects (optionally filtered by classes)
+    are saved automatically on context exit.
 
-    tracker = BTPTracker()
-    tracker.begin_using()
-    yield tracker
-    tracker.end_using()
+    With `auto_save=False`, the instance can be built once and reused,
+    and save()/reload() called explicitly whenever the caller decides.
 
-    tracked = tuple(traitable for traitable in tracker.tracked_objects() if traitable.is_storable())
+    A successful save()/reload() clears everything tracked.
+    """
 
-    with ExitStack() as tx_stack:
-        if EnvVars.use_ts_store_transactions:
-            for store in {cls.store() for cls in classes or tuple({traitable.__class__ for traitable in tracked})}:
-                tx_stack.enter_context(store.transaction())
+    def __init__(self, classes: Sequence[type[Traitable]] = (), *, auto_save: bool = True, parent: BTraitableProcessor = None):
+        if any(not cls.is_storable() for cls in classes):
+            raise RuntimeError('Classes passed to SaveIfChanged must be storable.')
+        self.parent = parent or nullcontext()
+        with self.parent:
+            super().__init__()
+        self.classes = classes if isinstance(classes, tuple) else tuple(classes)
+        self.auto_save = auto_save
 
-        for traitable in tracked:
-            if not classes or isinstance(traitable, classes):
-                traitable.save().throw()
+    def __enter__(self):
+        self.parent.__enter__()
+        return super().__enter__()
+
+    def __exit__(self, *args):
+        super().__exit__(*args)
+        self.parent.__exit__(*args)
+        if self.auto_save:
+            self.save().throw()
+
+    def _tracked(self) -> Generator:
+        return (
+            traitable for traitable in self.tracked_objects() if traitable.is_storable() and (not self.classes or isinstance(traitable, self.classes))
+        )
+
+    def save(self) -> RC:
+        with self.parent:
+            tracked = tuple(self._tracked())
+            try:
+                with ExitStack() as tx_stack:
+                    if EnvVars.use_ts_store_transactions:
+                        for store in {cls.store() for cls in self.classes or tuple({t.__class__ for t in tracked})}:
+                            tx_stack.enter_context(store.transaction())
+                    for traitable in tracked:
+                        traitable.save().throw()
+            except RuntimeError as e:
+                return RC(False, str(e))
+
+        self.clear()
+        return RC_TRUE
+
+    def reload(self) -> bool:
+        with self.parent:
+            ok = all(traitable.reload() for traitable in self._tracked())
+        if ok:
+            self.clear()
+        return ok

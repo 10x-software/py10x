@@ -1,0 +1,1778 @@
+import gc,weakref
+import sys
+import traceback
+from collections import Counter
+from datetime import date, datetime
+from typing import Any
+
+from typing_extensions import Self
+
+import numpy as np
+from core_10x.xnone import XNone
+from core_10x.traitable import Traitable,T,RT,M,AnonymousTraitable,RC
+from core_10x.trait_method_error import TraitMethodError
+from core_10x.code_samples.person import Person
+from core_10x.exec_control import GRAPH_ON, GRAPH_OFF, CONVERT_VALUES_ON, DEBUG_ON, CACHE_ONLY,BTP, INTERACTIVE, GraphDeps
+from core_10x.ts_union import TsUnion
+
+from core_10x.traitable_id import ID
+
+from py10x_kernel import BSaveRefs, BTraitable, BTraitableProcessor, BTraitableProcessorSetValueTracker, XCache
+
+from core_10x.environment_variables import EnvVars
+
+EnvVars.traitable_store_uri = ''
+
+def _test1():
+    p = Person(first_name = 'Sasha', last_name = 'Davidovich')
+    #p.weight_lbs = 100
+    #assert p.weight == 100
+
+    p.invalidate_trait_value(p.T.weight)
+    p.invalidate_trait_value(p.T.weight_lbs)
+
+    assert p.weight == XNone
+
+
+def test_person_xnone():
+    with TsUnion():
+        with GRAPH_ON():
+            _test1()
+            with GRAPH_OFF():
+                _test1()
+
+def test_person_set_values_dob():
+    with TsUnion():
+        p = Person(first_name = 'Sasha', last_name = 'Davidovich')
+        with CONVERT_VALUES_ON():
+            p.set_values(dob='December 1, 2000')
+        age = (date.today().toordinal() - p.dob.toordinal())/365.25
+        assert int(age) == p.age, f'Expected age around {int(age)}, got {p.age}'
+
+def test_trait_date_convert_debug():
+    class X(Traitable):
+        x:int = RT(T.ID)
+        t:date = RT()
+    p = X(x=1)
+    p.t = date(2000,1,1)
+    assert p.t == date(2000,1,1)
+
+    with DEBUG_ON():
+        try:
+            p.t = 'December 1, 2000'
+        except TypeError as e:
+            assert "invalid value" in str(e)
+        else:
+            assert False, "Expected TypeError"
+    print(p.t)
+
+    with CONVERT_VALUES_ON():
+        p.t = datetime.fromordinal(2000)
+    print(p.t)
+
+def test_custom_serialize():
+    class X(Traitable):
+        x:int = T()
+
+        @classmethod
+        def x_serialize(cls,t,v):
+            assert t is cls.trait(t.name)
+            return f'{t.name}:{v}'
+
+        @classmethod
+        def x_deserialize(cls,t,v):
+            assert t is cls.trait(t.name)
+            return int(v.split(':')[-1])+1
+
+    with TsUnion():
+        p = X(x=1)
+        s = p.serialize_object()
+        print(p,s)
+        p1 = X.deserialize_object(X.s_bclass,None,s)
+        assert p == p1
+        assert s['x']=='x:1'
+        assert p.x==2
+
+def test_nested_serialize():
+    from datetime import datetime,date
+    class X(Traitable):
+        x:int = T(T.ID)
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+    class Y(X):
+        d:date = T(date.today())
+
+    class Z(Traitable):
+        y:Y = T(T.ID)
+        t:datetime = T(datetime.now())
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+    with TsUnion():
+        y = Y(x=1)
+        print(y,y.serialize_object())
+        y = Z(y=y)
+        print(y,y.serialize_object())
+
+def test_cache_unreachable():
+    class X(Traitable):
+        s_custom_collection=True
+        x:int
+
+    x=X(x=1,_collection_name='123')
+    assert x.x==1
+
+    XCache.clear()
+
+    try:
+        assert x.x
+    except RuntimeError as e:
+        assert 'object not usable - origin cache is not reachable' in str(e)
+
+    try:
+        x.x=1
+    except RuntimeError as e:
+        assert 'object not usable - origin cache is not reachable' in str(e)
+
+
+    try:
+        x.serialize_object()
+        assert False, 'expected RuntimeError'
+    except RuntimeError as e:
+        assert 'object not usable - origin cache is not reachable' in str(e)
+
+
+def test_eval_once_uses_origin_cache_under_graph():
+    """EVAL_ONCE stores on the object's origin cache (the GRAPH_ON child), not default_cache."""
+    class X(Traitable):
+        x: int = T(T.ID)
+        v: int = T(T.EVAL_ONCE)
+        calls = 0
+
+        def v_get(self):
+            type(self).calls += 1
+            return 10
+
+
+    with CACHE_ONLY():
+        with GRAPH_ON():
+            x = X(x=1)
+            assert x.v == 10
+            assert X.calls == 1
+            assert x.v == 10
+            assert X.calls == 1
+
+        try:
+            _ = x.v
+            assert False, 'expected RuntimeError'
+        except RuntimeError as e:
+            assert 'object not usable - origin cache is not reachable' in str(e)
+
+        x = X(x=1)
+        assert x.v == 10
+        assert X.calls == 2
+        assert x.v == 10
+        assert X.calls == 2
+
+def test_deserialize_traits_override():
+    class X(Traitable):
+        s_custom_collection=True
+        x:int = T(T.ID)
+        y:int = T()
+
+        def deserialize_traits(self,trait_values:dict):
+            return super().deserialize_traits(trait_values|dict(y=trait_values['x']+1))
+
+    with CACHE_ONLY():
+        x=X(x=1,_collection_name='123')
+        x = Traitable.deserialize_object(X.s_bclass,'123',dict(_rev=1,_id='1',x=1))
+        assert x.x==1
+        assert x.y==2
+
+def test_lazy_load_nested():
+    class X(Traitable):
+        k:int = T(T.ID)
+        v:int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data',id.value)
+            return {'_id':id.value,'k':int(id.value),'v':int(id.value)*10,'_rev':1}
+
+    class Y(X):
+        c:X = T()
+
+        @classmethod
+        def load_data(cls, id):
+            return super().load_data(id) | {'c': {'_id':str(int(id.value)+1)}}
+
+    with BTP.create(1,1,1,True,True):
+        x = Y.from_id(ID('1'))
+        assert x.id().value == '1'
+        assert x.k==1
+        #assert x.v==10
+        #assert x.c.v==20
+
+
+def test_existing_instance():
+    class X(Traitable):
+        #s_custom_collection=True
+        k:str = T(T.ID)
+        v:int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return int(id.value) < 2
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data',id.value)
+            return {'_id':id.value,'k':id.value,'v':int(id.value)*10,'_rev':1}
+
+    x1 = X.existing_instance(k='1')
+    x2 = X.existing_instance(k='2',_throw=False)
+    assert x1
+    assert not x2
+
+    assert x1.v==10
+
+    x3 = X(k='3')
+    assert X.existing_instance(k='3') == x3
+
+
+def test_self_trait_lazy():
+    class X(Traitable):
+        a:int = T(T.ID)
+        b:int = T()
+        x:Self = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            raise RuntimeError()
+
+        @classmethod
+        def load_data(cls, id):
+            v = int(id.value)
+            serialized_data = {'_id':id.value,'a':v,'_rev':1,'x': {'_id':str(int(not v))}}
+            print('load_data',v, serialized_data)
+            return serialized_data
+
+        @classmethod
+        def deserialize(cls,serialized_data:dict):
+            print('deserialize',serialized_data)
+            return super().deserialize(serialized_data)
+
+
+    with  BTP.create(1,1,1,True,True):
+        x1 = X(a=1,b=1,_replace=True)
+        x = X(_id=ID("0"))
+        print(x.a)
+        #print(x,x,x,x.x.a)
+        #assert x.x.a==1
+
+
+def test_anonymous_embedded():
+    class X(AnonymousTraitable):
+        __qualname__ = 'test_anonymous_embedded.X'
+        a:int = T()
+    X.__module__ = 'test_module'
+
+    class Y(Traitable):
+        y:int = T(T.ID)
+        x:Traitable = T()
+
+        @classmethod
+        def load_data(cls, id):
+            return None
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+    class Z(Y):
+        __qualname__ = 'test_anonymous_embedded.Z'
+        x:AnonymousTraitable = M(T.EMBEDDED)
+    Z.__module__ = 'test_module'
+
+    x = X(a=1)
+    s = x.serialize(True)
+    print(s)
+
+
+    y = Y(y=0,x=x,_replace=True)
+    s = y.serialize_object()
+    print(s)
+    assert s['x']['_obj']['a']==1
+
+    z = Z(y=1,x=x,_replace=True)
+    s = z.serialize_object()
+    print(s)
+    assert s['x']['_obj']['a']==1
+
+    z = Z(y=2, x=Y(y=3),_replace=True)
+    try:
+        z.serialize_object()
+    except TraitMethodError as e:
+        assert "test_anonymous_embedded.<locals>.Y/3 - embedded instance must be 'embeddable'" in str(e)
+    else:
+        assert False
+
+
+def test_trait_inheritance():
+    class A(Traitable):
+        s_default_trait_factory = T
+        t: int
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            return None
+
+    class B(A):
+        def t_get(self):
+            return 1
+        @classmethod
+        def t_serialize(cls, trait, value):
+            return value + 1
+
+    class C(B):
+        t: str = M()
+
+        def t_get(self):
+            return 2
+
+        @classmethod
+        def t_serialize(cls, trait, value):
+            return value + 2
+
+    class D(C):
+        t: date = M()
+
+    for t, dt in zip([A, B, C, D], [int, int, str, date], strict=True):
+        assert t.trait('t').data_type is dt
+
+    for t, v in zip([A, B, C, D], [XNone, 1, 2, 2], strict=True):
+        assert t().t is v
+        assert t().serialize_object()['t'] == (v * 2 or None)
+
+def test_cache_hierarchy():
+    class X(Traitable):
+        x:int = RT(T.ID)
+        v:int = RT()
+
+    X(x=1,v=10,_replace=True)
+    assert X(x=1).v == 10
+
+    default_cache = BTP.current().cache()
+    with BTP.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False) as btp0:
+        #assert btp0.flags() & BTP.ON_GRAPH
+        X(x=2,v=20,_replace=True)
+        parent_cache = BTP.current().cache()
+        assert default_cache is not parent_cache
+        with BTP.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False) as btp:
+            #assert btp.flags() & BTP.ON_GRAPH
+            X(x=3,v=30,_replace=True)
+            child_cache = BTP.current().cache()
+            assert child_cache is not parent_cache
+            assert child_cache is not default_cache
+            assert X(x=1).v == 10
+            assert X(x=2).v == 20
+
+        with BTP.create(-1,-1,-1,use_parent_cache=True,use_default_cache=False):
+            X(x=4,v=40,_replace=True)
+            child_cache = BTP.current().cache()
+            assert child_cache is parent_cache
+        with BTP.create(0,-1,-1,use_parent_cache=False,use_default_cache=True):
+            X(x=5,v=50,_replace=True)
+            child_cache = BTP.current().cache()
+            assert child_cache is default_cache # use_default_cache only works for off-graph mode
+            assert X(x=1).v == 10
+            assert X(x=2).v is XNone
+
+        assert X(x=1).v == 10 # from parent caches
+        assert X(x=2).v == 20 # set in this cache
+        assert X(x=3).v is XNone # not set as was set in child with use_parent_cache=False
+        assert X(x=4).v == 40 # this cache, as was set in child with use_parent_cache=True
+        assert X(x=5).v == 50 # in default cache, which is our parent
+
+    assert X(x=1).v == 10
+    assert X(x=2).v is XNone
+    assert X(x=3).v is XNone
+    assert X(x=4).v is XNone
+    assert X(x=5).v == 50
+
+    #TODO assert behavior with conflicting params
+
+def test_default_trait_invalidate():
+    class X(Traitable):
+        x: int = RT(0)
+
+    x = X()
+    assert x.x == 0
+    x.x = 1
+    assert x.x == 1
+
+    with BTraitableProcessor.create(on_graph=1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+        with BTraitableProcessor.create(on_graph=-1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+            assert x.x==1
+
+    with BTraitableProcessor.create(on_graph=1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+        assert x.x == 1
+        # this node is not set and no valid, so falls back to parent
+        with BTraitableProcessor.create(on_graph=-1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+            assert x.x==1
+
+    print('in', BTraitableProcessor.current().cache())
+
+    with BTraitableProcessor.create(on_graph=1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+        print('in', BTraitableProcessor.current().cache())
+        x.invalidate_value('x')
+
+        # this node is set and not valid, so works as white-out
+        with BTraitableProcessor.create(on_graph=-1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+            print('in', BTraitableProcessor.current().cache())
+            assert x.x==0
+
+def test_existing_multi_cache():
+    class X(Traitable):
+        #s_custom_collection=True
+        k:str = T(T.ID)
+        v:int = T()
+        v1:int = T(default=0)
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return int(id.value) < 4
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data',id.value, BTraitableProcessor.current().cache())
+            return {'_id':id.value,'k':id.value,'v':int(id.value)*10,'_rev':1}
+
+    x1 = X.existing_instance(k='1')
+    x2 = X.existing_instance(k='2')
+    x3 = X.existing_instance(k='3')
+    assert x1
+    #assert x2
+    #assert x3
+    assert x1.v1==0
+    x1.v1=1
+    print('in', BTraitableProcessor.current().cache())
+    with BTraitableProcessor.create(-1,-1,-1, use_parent_cache=False,use_default_cache=False):
+        assert x1.v1==1
+        x1.invalidate_value('v1')
+        print('in', BTraitableProcessor.current().cache())
+        with BTraitableProcessor.create(on_graph=1,convert_values=-1,debug=-1,use_default_cache=False,use_parent_cache=False):
+            print('in', BTraitableProcessor.current().cache())
+            assert x1.v==10
+            assert x1.v1==0
+            assert x2.v==20
+
+    assert x1.v==10
+    assert x2.v==20
+    assert x3.v==30
+
+def test_computed_trait():
+    class X(Traitable):
+        x: int = RT()
+        #y: int = RT()
+        z: int = RT()
+        def z_get(self):
+            return self.x + 1#self.y
+
+    with GRAPH_ON() as g1:
+        print('in', g1.cache())
+        x = X(x=10,y=1)
+        print('getting z')
+        assert x.z == 11
+        with GRAPH_ON() as g2:
+            print('in', g2.cache())
+            print('getting x')
+            x.x = 20
+            print('getting z')
+            print(x.z)
+            assert x.z == 21
+
+
+def test_stale_deps_after_conditional_getter():
+    """When a getter's dependencies change, old reverse edges must be removed.
+
+    Reproduces btrait_processor.cpp get_node_value_on_graph: old_children aliases
+    m_children, clear_children() empties it, so remove_parent is never called for
+    dropped deps — GraphDeps still finds the old leaf via is_successor_of.
+    """
+    class X(Traitable):
+        use_a: bool = RT()
+        a: int = RT()
+        b: int = RT()
+        result: int = RT()
+
+        def result_get(self):
+            return self.a if self.use_a else self.b
+
+    with GRAPH_ON() as g:
+        x = X(use_a=True, a=1, b=2)
+        assert x.result == 1
+        deps = {name for _, _, name, _ in GraphDeps(g, x.T.result, {X: ('a', 'b')}).deps(trait_names=True)}
+        assert deps == {'a'}, deps
+
+        x.use_a = False
+        assert x.result == 2
+        deps = {name for _, _, name, _ in GraphDeps(g, x.T.result, {X: ('a', 'b')}).deps(trait_names=True)}
+        assert deps == {'b'}, f'stale deps still linked: {deps}'
+
+
+def test_write_during_read_ripple():
+    """A getter re-sets a leaf several levels below it; the ripple reaches the guarded ancestor."""
+    class X(Traitable):
+        base: int = RT()
+        mid: int = RT()
+        top: int = RT()
+
+        def mid_get(self):
+            return self.base + 1        # mid depends on base
+
+        def top_get(self):
+            _ = self.mid                # top depends on mid depends on base
+            self.base = 999             # re-set leaf -> ripple base -> mid -> top (guarded)
+            return self.mid
+
+    with GRAPH_ON():
+        x = X(base=10)
+        try:
+            _ = x.top
+        except TraitMethodError as e:
+            assert 'set/invalidate during get' in str(e), str(e)
+        else:
+            assert False, "Expected set/invalidate during get error"
+
+
+def test_write_during_read_self_set():
+    """A getter that sets its own trait raises write-during-read."""
+    class X(Traitable):
+        z: int = RT()
+
+        def z_get(self):
+            self.z = 5          # set the node whose own getter is running
+            return 1
+
+    with GRAPH_ON():
+        x = X()
+        try:
+            _ = x.z
+        except TraitMethodError as e:
+            assert 'set/invalidate during get' in str(e), str(e)
+        else:
+            assert False, "Expected set/invalidate during get error"
+
+
+def test_on_graph_choices_and_style_sheet():
+    """choices/style_sheet under GRAPH_ON use args-keyed nodes and track deps like getters."""
+    class X(Traitable):
+        mode: str = RT()
+        color: str = RT()
+        choice_calls = 0
+        style_calls = 0
+
+        def color_choices(self, trait):
+            type(self).choice_calls += 1
+            return ('red', 'blue') if self.mode == 'a' else ('green',)
+
+        def color_style_sheet(self):
+            type(self).style_calls += 1
+            return f'color:{self.color}'
+
+    with GRAPH_ON():
+        x = X(mode='a', color='red')
+        assert x.get_choices(x.T.color.trait) == ('red', 'blue')
+        assert X.choice_calls == 1
+        assert x.get_choices(x.T.color.trait) == ('red', 'blue')
+        assert X.choice_calls == 1
+
+        x.mode = 'b'
+        assert x.get_choices(x.T.color.trait) == ('green',)
+        assert X.choice_calls == 2
+
+        assert x.get_style_sheet(x.T.color.trait) == 'color:red'
+        assert X.style_calls == 1
+        assert x.get_style_sheet(x.T.color.trait) == 'color:red'
+        assert X.style_calls == 1
+
+        x.color = 'blue'
+        assert x.get_style_sheet(x.T.color.trait) == 'color:blue'
+        assert X.style_calls == 2
+
+
+def test_calc_values_and_aggregate():
+    class X(Traitable):
+        n: int = RT()
+        doubled: int = RT()
+
+        def doubled_get(self):
+            return self.n * 2
+
+    with GRAPH_ON():
+        xs = [X(n=i) for i in (1, 2, 3)]
+        assert BTraitable.calc_values(xs, 'doubled') == [2, 4, 6]
+        assert BTraitable.calc_and_aggregate(xs, 'doubled', sum) == 12
+        assert BTraitable.calc_values_with_args(xs, 'doubled') == [2, 4, 6]
+        assert BTraitable.calc_and_aggregate_with_args(xs, 'doubled', sum) == 12
+
+
+def test_duplicate_id():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        z: int = RT()
+
+    x = X(x=1)
+    x.z = 10
+
+    try:
+        X(x=1,z=1)
+    except ValueError:
+        pass
+    else:
+        assert False, "Expected ValueError as X is already created"
+
+    x1 = X(x=1)
+    assert x1.z == 10
+
+
+def test_lazy_load_once():
+
+    count = Counter()
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data', id.value)
+            count[id.value] += 1
+            return {'_id': id.value, 'x': int(id.value), 'y': int(id.value) * 10, '_rev': 1}
+
+
+    x = X.from_id(ID('1')) # lazy ref
+
+    # with GRAPH_ON():
+    #     assert x.y == 10 # load
+    #     assert count[x.id().value] == 1, count
+
+    assert x.y == 10
+    assert count[x.id().value] == 1
+
+def test_empty_object_share():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID)
+        z: int = RT()
+
+        @classmethod
+        def exists_in_store(self, id):
+            raise RuntimeError()
+
+    z = X(x=1, y=1, z=1,_replace=True)
+    with INTERACTIVE():
+        x = X()  # empty object allowed - OK!
+        assert z.z == 1
+
+        x.x = 1
+        x.y = 1
+        #x.z = 2
+        #assert x.z == 2
+
+        assert not x.share(False)
+
+def test_load_data_instance():
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        def load_data(self):
+            return {'_id':'1','_rev':1,'y':2}
+
+    assert X.existing_instance(x=1, y=1).y == 2
+
+
+def test_id_like_computed():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID_LIKE)
+        z: int = RT(T.ID_LIKE)
+
+        def x_get(self):
+            return self.y + self.z
+
+    assert X(y=1, z=1).x==2
+
+    assert X(x=1).x==1
+
+def test_persist_after_gc():
+    class X(Traitable):
+        x: int = T(T.ID)
+        z: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            print('exists_in_store', id.value)
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data', id.value)
+
+    x = X(x=1)
+    x.z = 1
+    assert x.z == 1
+
+    del x
+    gc.collect()
+
+    x = X(x=1)
+    assert x.z == 1
+
+def test_save_load_calls():
+    save_calls = Counter()
+    load_calls = Counter()
+
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: Self = T()
+
+        def save(self, save_references=0):
+            # Nested cascade from C++ always passes 0 (NONE) so outer mode flags apply.
+            if self.serialize_object(save_references):
+                save_calls[self.id().value] += 1
+                self.set_revision(max(self.get_revision(), 1))
+            return RC(True)
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return int(id.value)>2
+
+        @classmethod
+        def load_data(cls, id):
+            load_calls[id.value] += 1
+
+        @classmethod
+        def store(cls):
+            return XNone
+
+    y = X(x=2, y=X(x=1), _replace=True)
+    assert load_calls == {'2': 1}
+
+    x = X(x=1, y=y, _replace=True)
+    assert load_calls == {'1': 1, '2': 1}, load_calls
+
+    # NONE: root only
+    x.save(BSaveRefs.NONE)
+    assert save_calls == {'1': 1}
+    assert load_calls == {'1': 1, '2': 1}
+    x.set_revision(0)
+    x.y.set_revision(0)
+    save_calls.clear()
+
+    # NEW_ONLY: cascade never-saved refs (rev==0)
+    x.save(BSaveRefs.NEW_ONLY)
+    assert save_calls == {'1': 1, '2': 1}
+    save_calls.clear()
+
+    # NEW_ONLY again: children already have rev>0 — root only
+    x.save(BSaveRefs.NEW_ONLY)
+    assert save_calls == {'1': 1}
+    save_calls.clear()
+
+    # ALL (and legacy True): full graph again
+    x.save(BSaveRefs.ALL)
+    assert save_calls == {'1': 1, '2': 1}
+    save_calls.clear()
+    x.save(True)
+    assert save_calls == {'1': 1, '2': 1}
+    save_calls.clear()
+
+    x = X(_id=ID('4'))
+    x.save()
+    assert save_calls == {}  # lazy ref in store is noop
+
+    x = X(x=1, y=X(_id=ID('4')), _replace=True)
+    x.save(BSaveRefs.ALL)
+    assert save_calls == {'1': 1}  # lazy ref in store is noop
+    save_calls.clear()
+
+    # NEW_ONLY does not treat pure lazy (even missing) as a new object
+    x = X(x=9, y=X(_id=ID('0')), _replace=True)
+    x.save(BSaveRefs.NEW_ONLY)
+    assert save_calls == {'9': 1}
+
+
+def test_save_reference_cycles():
+    class Node(Traitable):
+        k: int = T(T.ID)
+        ref: Self = T()
+
+        def save(self, save_references=0):
+            if self.serialize_object(int(save_references)):
+                self.set_revision(max(int(self.get_revision()), 1))
+            return RC(True)
+
+    with CACHE_ONLY():
+        a = Node(k=1)
+        b = Node(k=2)
+        a.ref = b
+        b.ref = a
+        a.save(BSaveRefs.NEW_ONLY)
+
+        for mode in (BSaveRefs.NEW_ONLY, BSaveRefs.ALL, True):
+            a2 = Node(k=3)
+            b2 = Node(k=4)
+            a2.ref = b2
+            b2.ref = a2
+            root = Node(k=0)
+            root.ref = a2
+
+            root.save(mode)
+
+
+def test_embedded_serialization_cycles():
+    """Embeddable inline serialize must detect cycles (shared serialization_memo stack)."""
+
+    class Embeddable(AnonymousTraitable):
+        ref: Self = T()
+
+    with CACHE_ONLY():
+        # self-cycle
+        a = Embeddable()
+        a.ref = a
+        try:
+            a.serialize(True)
+        except TraitMethodError as e:
+            assert 'circular embedded serialization' in str(e)
+        else:
+            assert False, 'expected circular embedded serialization'
+
+        # mutual cycle
+        a = Embeddable()
+        b = Embeddable()
+        a.ref = b
+        b.ref = a
+        try:
+            a.serialize(True)
+        except TraitMethodError as e:
+            assert 'circular embedded serialization' in str(e)
+        else:
+            assert False, 'expected circular embedded serialization'
+
+        # tree (no cycle) still serializes
+        a = Embeddable()
+        b = Embeddable()
+        a.ref = b
+        assert a.serialize(True)['ref']
+
+
+def test_id_immutable():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    x = X(x=1)
+    assert x.x == 1
+    try:
+        x.x = 2
+    except ValueError:
+        pass
+    else:
+        assert False, "Expected ValueError on setting ID trait"
+
+def test_reload_rev():
+    rev = 0
+    class X(Traitable):
+        x: int = T(T.ID)
+
+        @staticmethod
+        def load_data(id):
+            nonlocal rev
+            rev += 1
+            data = {'_id': id.value, 'x': int(id.value), '_rev': rev}
+            print('load_data', id.value, data)
+            return data
+
+    # reload of lazy ref
+    x = X(_id=ID('1'))
+    x.reload()
+    assert x._rev == 1
+
+    x.reload()
+    assert x._rev == 2
+
+    x = X(_id=ID('2'))
+    with GRAPH_ON():
+        x.reload()
+        assert x._rev == 3
+        assert rev == 3
+
+    assert x._rev == 3
+    assert rev == 3
+
+def test_serialize_numpy():
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: Any = T()
+
+        @classmethod
+        def store(cls):
+            return XNone
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return False
+
+        @classmethod
+        def load_data(cls, id):
+            return None
+
+    with GRAPH_ON():
+        x = X(x=1, y=np.float64(1.1), _replace=True)
+        s = x.serialize_object()
+        print(s)
+
+    with GRAPH_ON():
+        assert s == X.deserialize_object(x.s_bclass, None, s).serialize_object()
+
+
+def test_store_save():
+    save_calls = Counter()
+    serialized = {}
+
+    class X(Traitable,keep_history=False):
+        x: int = T(T.ID)
+        y: Self = T()
+        z: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id: ID) -> bool:
+            return id.value in serialized or 100 > int(id.value) > 3
+
+        @classmethod
+        def load_data(cls, id: ID) -> dict | None:
+            return serialized.get(id.value)
+
+
+        @classmethod
+        def store(cls):
+            class Store:
+                @classmethod
+                def collection(cls, _coll_name: str = None):
+                    class Collection:
+                        def save_new(self, serialized_data,**kwargs):
+                            id_value = serialized_data['_id']
+                            save_calls[id_value] += 1
+                            serialized[id_value] = serialized_data
+                            return {'_rev':save_calls[id_value]}
+
+                    return Collection()
+            return Store()
+
+        @classmethod
+        def collection(cls, _coll_name: str = None, **kwargs):
+            return cls.store().collection(_coll_name)
+
+        def y_get(self) -> 'X':
+            i = int(self.id().value)
+            return X(_id=ID(str(i+10))) if i<10 else XNone
+
+        def z_get(self)-> int:
+            return self.y._rev if int(self.id().value) < 100 else 0
+
+    x = X(x=100)
+    assert X.serialize_object(x)
+    assert not X.exists_in_store(ID('100'))
+    x.save().throw()
+    assert save_calls == {'100': 1}
+    serialized.clear()
+    save_calls.clear()
+
+    assert not serialized
+    X(x=1,z=1,_replace=True).save().throw()
+    assert save_calls == {'1': 1}
+    assert serialized['1']['z'] == 1
+    save_calls.clear()
+
+    x = X(x=3, y=X(_id=ID('4')), _replace=True)
+    try:
+        x.save(save_references=True).throw()
+    except Exception:
+        pass
+    else:
+        assert False, "expected exception"
+    assert save_calls == {}  # lazy load forced by z_get, cause exception as ID 4 does not exist
+    save_calls.clear()
+
+    X(x=5, y=X(_id=ID('6')), z=0, _replace=True).save(save_references=True)
+    assert save_calls == {'5': 1}  # save of a lazy load is noop
+
+from core_10x.named_constant import NamedConstant
+class Status(NamedConstant):
+    DEPRECATED = 'DEPRECATED'
+    __module__ = '__test__'
+
+def test_nucleus_named_constant():
+    from core_10x.nucleus import Nucleus
+
+
+    print(Nucleus.serialize_any(Status.DEPRECATED,True))
+    print(Nucleus.deserialize_record({'_type': '_nx','_cls': f'{__name__}/Status', '_obj': 'DEPRECATED'}))
+
+
+def test_lazy_ref_replace():
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            print('load_data', id.value)
+            return {'_id': id.value, 'x': int(id.value), 'y': int(id.value) * 10, '_rev': 1}
+
+
+    x = X(_id=ID('1')) # lazy ref
+    assert x.y == 10 # load
+
+    x = X(x=2,y=10,_replace=True)
+    assert x.y == 10
+
+def test_new_or_replace_store():
+    from infra_10x.duckdb_store import DuckDbStore
+    cnt=0
+    class X(Traitable,keep_history=False,immutable=False):
+        x: int = T(T.ID)
+        y: int = T()
+        z: int = T(10)
+
+        @classmethod
+        def collection(cls, *args, **kwargs):
+            return cls.store().collection('__main__/test_new_or_replace_store/<locals>/X', cls.s_dir)
+
+        @classmethod
+        def load_data(cls, id):
+            nonlocal cnt
+            cnt += 1
+            res = super().load_data(id)
+            print('load_data', res)
+            return res
+
+    with DuckDbStore():
+        x = X.new_or_replace(x=1,y=10,z=100)
+        assert cnt == 1 # lazy load when setting non-id traits
+        assert x._rev == 0
+        assert x.y == 10
+        assert x.z == 100
+        x.save().throw()
+        assert x._rev == 1
+        assert x.y == 10
+        assert x.z == 100
+        x.reload()
+        assert cnt == 2
+        assert x._rev == 1
+        assert x.y == 10
+        assert x.z == 100
+
+        x = X.new_or_replace(x=1,y=20)
+        assert cnt == 2
+        assert x._rev == 1
+        assert x.y == 20
+        assert x.z == 10
+        x.save()
+        assert x._rev == 2
+        assert x.y == 20
+        assert x.z == 10
+        x.reload()
+        assert x._rev == 2
+        assert x.y == 20
+        assert x.z == 10
+        assert cnt == 3
+
+def test_create_root():
+    from infra_10x.duckdb_store import DuckDbStore
+    from core_10x.code_samples.person import Person
+
+    with DuckDbStore():
+        with BTP.create_root():
+            Person.new_or_replace(first_name='ilya', last_name = 'pevzner', weight_lbs=200).save()
+
+        with BTP.create_root():
+            Person.new_or_replace(first_name='ilya', last_name = 'pevzner', weight_lbs=205).save()
+
+        assert Person(first_name='ilya', last_name = 'pevzner').weight_lbs == 205
+
+    root = BTP.create_root()
+    try:
+        root.export_nodes()
+    except ValueError as e:
+        assert "root cache" in str(e)
+    else:
+        assert False, "Expected ValueError when export_nodes on create_root"
+
+
+def test_eval_once_under_create_root():
+    """create_root isolates from the process default cache; outer objects are not usable inside it."""
+    class X(Traitable):
+        x: int = T(T.ID)
+        v: int = T(T.EVAL_ONCE)
+        calls = 0
+
+        def v_get(self):
+            type(self).calls += 1
+            return 10
+
+    with CACHE_ONLY():
+        default_cache = BTP.current().cache()
+        outer = X(x=1)
+        assert outer.v == 10
+        assert X.calls == 1
+
+        with BTP.create_root() as root:
+            assert root.cache() is not default_cache
+            assert root.default_cache() is root.cache()
+            assert BTP.current().cache() is root.cache()
+            assert BTP.current().default_cache() is not default_cache
+
+            try:
+                _ = outer.v
+                assert False, 'expected RuntimeError'
+            except RuntimeError as e:
+                assert 'not usable' in str(e)
+
+            inner = X(x=2)
+            assert inner.v == 10
+            assert X.calls == 2
+
+        # outer's EVAL_ONCE value survives create_root teardown (node on process default)
+        assert outer.v == 10
+        assert X.calls == 2
+
+        try:
+            outer.v = 99
+            assert False, 'expected TypeError'
+        except TypeError as e:
+            assert 'Trying to modify EVAL_ONCE trait' in str(e)
+
+
+def test_default_cache_traitable():
+    """default_cache=True: identity lives on default_cache; later writes use the current cache."""
+    class G(Traitable, default_cache=True):
+        x: int = RT(T.ID)
+        v: int = RT()
+
+    class L(Traitable):
+        x: int = RT(T.ID)
+        v: int = RT()
+
+    assert G.s_default_cache
+    assert G.s_bclass.is_default_cache()
+    assert not L.s_default_cache
+
+    class G2(G):
+        pass
+    assert G2.s_default_cache
+
+    G(x=1, v=10, _replace=True)
+    L(x=1, v=10, _replace=True)
+
+    default_cache = BTP.current().cache()
+    assert BTP.current().default_cache() is default_cache
+
+    with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False):
+        child = BTP.current().cache()
+        assert child is not default_cache
+        assert BTP.current().default_cache() is default_cache
+
+        assert G(x=1).v == 10  # loaded from default_cache
+        G(x=1).v = 11          # isolated to current cache
+        G(x=2, v=20, _replace=True)  # initialize runs on origin (default_cache)
+        L(x=2, v=20, _replace=True)
+
+    assert G(x=1).v == 10
+    assert G(x=2).v == 20  # init kwargs landed on default_cache
+    assert L(x=2).v is XNone
+
+    with BTP.create_root() as root:
+        assert root.cache() is not default_cache
+        assert root.default_cache() is root.cache()
+        assert root.default_cache() is not default_cache
+
+        G(x=1, v=99, _replace=True)
+        assert G(x=1).v == 99
+        L(x=3, v=30, _replace=True)
+        assert L(x=3).v == 30
+
+        with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False):
+            assert BTP.current().cache() is not root.cache()
+            assert BTP.current().default_cache() is root.default_cache()
+            assert G(x=1).v == 99
+            G(x=1).v = 100
+            L(x=4, v=40, _replace=True)
+
+        assert G(x=1).v == 99
+        assert L(x=4).v is XNone
+
+    assert G(x=1).v == 10
+    assert L(x=3).v is XNone
+
+
+def test_existing_composite_id():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        y: int = RT(T.ID)
+
+    assert not X.existing_instance_by_id(ID('1|2'),_throw=False)
+    x = X(x=1,y=2)
+    print(x.x,x.y)
+    assert X.existing_instance_by_id(ID('1|2'),_throw=False) == x
+
+    s = x.serialize(False)
+    print('===',s)
+    x1 = X.deserialize_nx(X.s_bclass,s)
+    assert x1.x==1
+    assert x1.y==2
+
+
+def test_trait_method_error():
+    class X(Traitable):
+        x: int = RT()
+
+        def bombing_method(self):
+            return 1/0
+
+        def x_get(self):
+            return self.bombing_method()
+
+    try:
+        print('===',X().x)
+    except TraitMethodError as e:
+        assert "bombing_method" in traceback.format_exc()
+    else:
+        assert False, "Expected TraitMethodError when calling bombing_method through x_get"
+
+def test_deserialize_wrong_class():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    class Y(Traitable):
+        x: int = RT()
+
+    try:
+        Y.deserialize_nx(Y.s_bclass, X(x=1).serialize_nx(False))
+    except TypeError as e:
+        assert "Expected a string ID value, but found a list" in str(e)
+    else:
+        assert False, "Expected TypeError when deserializing X as Y"
+
+
+def test_save_fails_error():
+    class X(Traitable):
+        x: int = T(T.ID)
+
+        def save(self, save_references=False):
+            return RC(False, "save failed")
+
+    class Y(Traitable):
+        x: X = T()
+
+    try:
+        Y(x=X(x=1)).serialize_object(save_references=True)
+    except TraitMethodError as e:
+        assert "save failed" in str(e)
+    else:
+        assert False, "Expected TraitMethodError when serializing nested X with save_references=True"
+
+
+def test_tracked_objects():
+    """BTraitableProcessorSetValueTracker returns objects in first-set order."""
+    from datetime import date
+
+    class X(Traitable):
+        x: int = RT(T.ID)
+        t: date = RT()
+
+    with BTraitableProcessorSetValueTracker() as tracker:
+        p1 = X(x=1)
+        p1.t = date(2000, 1, 1)
+        p2 = X(x=2)
+        p2.t = date(2001, 1, 1)
+        p3 = X(x=3)
+        assert p3.t is XNone
+
+    objs = tracker.tracked_objects()
+    assert len(objs) == 2, f"expected 2 objects, got {len(objs)}"
+    assert p1 in objs
+    assert p2 in objs
+    assert p3 not in objs
+    del p1, p2, p3, objs
+    gc.collect()
+
+    assert tracker.tracked_objects() == [X(x=1), X(x=2)]
+    assert X(x=1).t == date(2000, 1, 1)
+    assert X(x=2).t == date(2001, 1, 1)
+
+    tracker.clear()
+    assert tracker.tracked_objects() == []
+
+    with tracker:
+        X(x=1).t = date(2002, 1, 1)
+    assert tracker.tracked_objects() == [X(x=1)]
+
+def test_custom_collection():
+    class X(Traitable,custom_collection=True):
+        x: int = T(T.ID)
+        v: int = T()
+
+    with CACHE_ONLY(),GRAPH_OFF():
+        X(x=1, v=10, _collection_name='collA', _replace=True)
+        x = X.from_id(ID('1', collection_name='collA'))
+        assert x._collection_name == 'collA'
+        assert x.x == 1 and x.v == 10
+
+        y = X(x=1, v=20, _collection_name='collB', _replace=True)
+        assert y._collection_name == 'collB'
+        assert y.x == 1 and y.v == 20
+
+        assert x.v == 10
+
+def test_set_eval_once():
+    class X(Traitable):
+        x: int = T(T.ID)
+        v: int = T(T.EVAL_ONCE)
+        v2: int = T(50)
+
+        def v_get(self):
+            return self.x*10
+
+        @staticmethod
+        def load_data(id):
+            data = {'_id':id.value,'x':int(id.value),'v':int(id.value)*20,'_rev':1}
+            print('load_data', id.value, data)
+            return data
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+    with CACHE_ONLY():
+        x = X(x=1)
+        assert x.v == 10
+
+        try:
+            x.v = 10
+        except TypeError as e:
+            assert 'Trying to modify EVAL_ONCE trait test_set_eval_once.<locals>.X.v' in str(e)
+        else:
+            assert False, "Expected TypeError when reloading object with EVAL_ONCE trait"
+    x = X(x=2)
+    assert x.v2 == 50 # force lazy load of v2
+    assert x.v == 40, f'Expected x.v to be 40, got {x.v}'
+
+def test_deserialize_skips_runtime_keeps_eval_once():
+    """RUNTIME is never store-backed; EVAL_ONCE still deserializes when not yet valid."""
+    class X(Traitable):
+        a: int = T(T.ID)
+        x: int = RT()
+        y: int = T(T.EVAL_ONCE)
+
+        def y_get(self):
+            return 1
+
+        @staticmethod
+        def load_data(id):
+            data = {'_id': id.value, 'x': int(id.value) * 10, '_rev': 1, 'a': int(id.value)}
+            print('load_data', id.value, data)
+            return data
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+    with CACHE_ONLY():
+        x = X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': '1', 'x': 1, 'a': 1})
+        assert x.x is XNone, f'RUNTIME trait must not be hydrated from blob, got {x.x}'
+        assert x.y == 1, f'Expected EVAL_ONCE getter default, got {x.y}'
+
+        x.x = 2
+        x1 = X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': '1', 'x': 99, 'a': 1})
+        assert x1.x == 2, f'RUNTIME must not be overwritten from blob, got {x1.x}'
+        assert x1.y == 1, f'valid EVAL_ONCE must not be re-deserialized, got {x1.y}'
+        assert x.x == 2
+
+
+        x2 = X.deserialize_object(X.s_bclass, None, {'_id': '2', '_rev': '2', 'y': 2, 'a': 2})
+        assert x2.y == 2, f'unset EVAL_ONCE should load from blob, got {x2.y}'
+        assert x2.x is XNone
+
+    # lazy load must not fill RUNTIME traits either
+    lazy = X(_id=ID('3'))
+    assert lazy.x is XNone, f'lazy load must not hydrate RUNTIME, got {lazy.x}'
+
+
+def test_tid_equals_hash():
+    class X(Traitable):
+        x: int = RT(T.ID)
+
+    with INTERACTIVE():
+        shared, same = X(x=1), X(x=1)
+        other = X(x=2)
+        pending_a, pending_b = X(), X()
+
+        assert shared.xid()._equals(same.xid()), 'same id value -> same entity'
+        assert shared.xid()._hash() == same.xid()._hash()
+
+        assert not shared.xid()._equals(other.xid())
+
+        assert pending_a.xid()._equals(pending_a.xid()), 'an unshared TID equals itself'
+        assert not pending_a.xid()._equals(pending_b.xid()), 'two unshared objects are not one entity'
+        assert not pending_a.xid()._equals(shared.xid())
+        assert pending_a.xid()._hash() != pending_b.xid()._hash(), 'hashable while invalid, and distinct'
+
+        # share() lands the id, and the hash moves with it - which is why no long-lived
+        # container may be keyed on a TID that is still invalid.
+        before = pending_a.xid()._hash()
+        pending_a.x = 3
+        assert pending_a.share(False)
+        assert pending_a.xid()._hash() != before
+        # Bound to a name on purpose: xid() hands out a non-owning pointer, so calling it on a
+        # temporary leaves a dangling TID behind (crashes at interpreter shutdown).
+        landed = X(x=3)
+        assert pending_a.xid()._equals(landed.xid())
+        del landed
+
+        # pending_b is never shared, so its object cache is the INTERACTIVE's temporary one.
+        # Drop every reference before that scope exits, or the objects outlive their cache
+        # and the interpreter faults on the way down (hybrid cycles are not GC-breakable).
+        del shared, same, other, pending_a, pending_b
+        gc.collect()
+
+
+def test_ts_flags_values():
+    """TS is the any-store-side mask; TS_TIME and TS_USER are exclusive kinds."""
+    assert T.TS_TIME.value() == 0x1000
+    assert T.TS_USER.value() == 0x2000
+    assert T.TS.value() == T.TS_TIME.value() | T.TS_USER.value()
+    assert not (T.TS_TIME.value() & T.TS_USER.value())
+
+
+def test_serialize_traits_skips_ts_fields():
+    """Client serialize_traits must omit TS_TIME/TS_USER (store-side only)."""
+    class X(Traitable, keep_history=False):
+        name: str = T(T.ID)
+        payload: int = T()
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
+
+    with CACHE_ONLY():
+        x = X(name='n1')
+        x.payload = 7
+        s = x.serialize_object()
+        assert s['name'] == 'n1'
+        assert s['payload'] == 7
+        assert 'saved_at' not in s
+        assert 'saved_by' not in s
+        assert x.trait('saved_at').flags_on(T.TS)
+        assert x.trait('saved_by').flags_on(T.TS)
+
+
+def test_serialize_traits_ts_only_allows_empty_blob():
+    """A class with only TS storable traits may serialize without client fields."""
+    class X(Traitable, keep_history=False):
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
+
+    with CACHE_ONLY():
+        x = X()
+        s = x.serialize_object()
+        assert 'saved_at' not in s
+        assert 'saved_by' not in s
+        assert '_id' in s
+        assert '_rev' in s
+
+
+def test_deserialize_traits_loads_ts_fields():
+    """TS fields are storable: deserialize_traits fills them from the store blob."""
+    class X(Traitable, keep_history=False):
+        name: str = T(T.ID)
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
+
+    with CACHE_ONLY():
+        x = X.deserialize_object(
+            X.s_bclass,
+            None,
+            {
+                '_id': 'n1',
+                '_rev': 1,
+                'name': 'n1',
+                'saved_at': datetime(2020, 1, 2, 3, 4, 5),
+                'saved_by': 'alice',
+            },
+        )
+        assert x.name == 'n1'
+        assert x.saved_at == datetime(2020, 1, 2, 3, 4, 5)
+        assert x.saved_by == 'alice'
+
+
+def test_reload_loads_ts_fields():
+    """reload() re-applies TS fields from load_data (outside CACHE_ONLY so store is visible)."""
+    class X(Traitable, keep_history=False):
+        name: str = T(T.ID)
+        saved_at: datetime = T(T.TS_TIME)
+        saved_by: str = T(T.TS_USER)
+
+        @classmethod
+        def exists_in_store(cls, id):
+            return True
+
+        @classmethod
+        def load_data(cls, id):
+            return {
+                '_id': id.value,
+                '_rev': 1,
+                'name': id.value,
+                'saved_at': datetime(2021, 2, 3, 4, 5, 6),
+                'saved_by': 'bob',
+            }
+
+    x = X(_id=ID('n1'))
+    assert x.reload()
+    assert x.name == 'n1'
+    assert x.saved_at == datetime(2021, 2, 3, 4, 5, 6)
+    assert x.saved_by == 'bob'
+
+
+def test_deserialize_object_reload_flag():
+    """reload=False skips overwrite only when already cached; cold IDs still hydrate."""
+    class X(Traitable):
+        x: int = T(T.ID)
+        y: int = T()
+
+    with CACHE_ONLY():
+        # Cold path: not in cache yet — must still apply the blob (not return a bare lazy ref).
+        cold = X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': 1, 'x': 1, 'y': 10}, reload=False)
+        assert cold.y == 10
+        assert cold.get_revision() == 1
+
+        # Warm path: keep local trait values when reload=False.
+        cold.y = 99
+        assert X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': 2, 'x': 1, 'y': 20}, reload=False).y == 99
+        assert X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': 2, 'x': 1, 'y': 20}).y == 20
+
+
+def test_history_deserialize_object_captures_rev_before_pop():
+    """TraitableHistory.deserialize_traits pops _rev; deserialize_object must read it first."""
+    class X(Traitable):
+        name: str = T(T.ID)
+        v: int = T()
+
+    H = X.s_history_class
+    # Flattened history row shape (traitable body + history fields), as stored by serialize_object.
+    data = {
+        'name': 'n1',
+        'v': 10,
+        '_id': 'h1',
+        '_rev': 3,
+        '_at': datetime(2020, 1, 1),
+        '_who': 'u',
+        '_traitable_id': 'n1',
+        '_traitable_rev': 1,
+    }
+    with CACHE_ONLY():
+        h = H.deserialize_object(H.s_bclass, None, dict(data))
+        assert h.get_revision() == 3
+        assert h.serialized_traitable['_id'] == 'n1'
+        assert h.serialized_traitable['_rev'] == 1
+        assert h.serialized_traitable['v'] == 10
+
+
+def test_event():
+    from infra_10x.duckdb_store import DuckDbStore
+    from core_10x.traitable import EventBase
+    cnt=0
+
+    class X(EventBase):
+        x: int = T()
+        y: EventBase = T()
+
+        @classmethod
+        def collection(cls, *args, **kwargs):
+            return cls.store().collection('__main__/test_event/<locals>/X', cls.s_dir)
+
+    store = DuckDbStore()
+    with store:
+        x = X()
+        assert not x.is_set(x.T.y)
+        assert x.y is XNone
+
+        assert x.serialize_object() == {'_id': x.id_value(), '_rev': 0, 'x': None, 'y': None}
+        x.save().throw()
+        assert x._at <= store.server_time()
+        assert not x.is_set(x.T.y)
+        assert x.y is XNone
+
+        x.reload()
+        assert x._at <= store.server_time()
+        assert x.is_set(x.T.y)
+        assert x.y is XNone
+
+
+def test_ref_leak():
+    class X(Traitable):
+        x: Traitable
+
+    x = X()
+    x.x = X()
+    wr_x = weakref.ref(x.x)
+
+    del x
+    assert wr_x()
+
+    XCache.clear()
+    assert not wr_x()
+
+
+def test_graph_ref_leak():
+    class X(Traitable):
+        x: Traitable
+
+    with GRAPH_ON() as g:
+        x = X()
+        x.x = X()
+        wr_x, wr_g = weakref.ref(x.x), weakref.ref(g)
+
+    del x
+    assert wr_x()
+    assert wr_g()
+
+    del g
+    assert not wr_g()
+    assert not wr_x()
+
+def test_self_ref_leak():
+    class X(Traitable):
+        x: Self
+
+    with GRAPH_ON() as g:
+        x = X()
+        x.x = x
+        wr = weakref.ref(x)
+
+    del x
+    assert wr()
+
+    del g
+    assert not wr()
+
+
+def test_ui_node():
+    ctx1 = INTERACTIVE()
+    with ctx1:
+        ctx2 = BTraitableProcessorSetValueTracker()
+
+    fired = []
+    with ctx2:
+        with CACHE_ONLY():
+            p = Person(first_name = 'Mark', last_name = 'Rubery')
+        p.bui_class().create_ui_node(p, p.trait('weight'), lambda *a, **kw: fired.append((a, kw)))
+
+    with ctx2:
+        p.weight_lbs = 110
+
+    print(fired)
+    assert len(fired)==1
+
+
+
+if __name__ == '__main__':
+    import py10x_kernel
+    print('file:', py10x_kernel.__file__)
+    print('version:', py10x_kernel.__version__)
+    test_ui_node()
+    test_graph_ref_leak()
+    test_ref_leak()
+    test_self_ref_leak()
+    test_save_reference_cycles()
+    test_embedded_serialization_cycles()
+    test_event()
+    test_deserialize_skips_runtime_keeps_eval_once()
+    test_set_eval_once()
+    test_custom_collection()
+    test_person_xnone()
+    test_person_set_values_dob()
+    test_trait_date_convert_debug()
+    test_custom_serialize()
+    test_nested_serialize()
+    test_cache_unreachable()
+    test_deserialize_traits_override()
+    test_lazy_load_nested()
+    test_existing_instance()
+    test_self_trait_lazy()
+    test_anonymous_embedded()
+    test_trait_inheritance()
+    test_cache_hierarchy()
+    test_default_trait_invalidate()
+    test_existing_multi_cache()
+    test_computed_trait()
+    test_stale_deps_after_conditional_getter()
+    test_write_during_read_ripple()
+    test_write_during_read_self_set()
+    test_on_graph_choices_and_style_sheet()
+    test_calc_values_and_aggregate()
+    test_duplicate_id()
+    test_lazy_load_once()
+    test_empty_object_share()
+    test_load_data_instance()
+    test_id_like_computed()
+    test_persist_after_gc()
+    test_save_load_calls()
+    test_id_immutable()
+    test_reload_rev()
+    test_serialize_numpy()
+    test_store_save()
+    test_nucleus_named_constant()
+    test_lazy_ref_replace()
+    test_new_or_replace_store()
+    test_create_root()
+    test_eval_once_uses_origin_cache_under_graph()
+    test_eval_once_under_create_root()
+    test_default_cache_traitable()
+    test_existing_composite_id()
+    test_trait_method_error()
+    test_deserialize_wrong_class()
+    test_save_fails_error()
+    test_tracked_objects()
+    test_tid_equals_hash()
+    test_ts_flags_values()
+    test_serialize_traits_skips_ts_fields()
+    test_serialize_traits_ts_only_allows_empty_blob()
+    test_deserialize_traits_loads_ts_fields()
+    test_reload_loads_ts_fields()
+    test_deserialize_object_reload_flag()
+    test_history_deserialize_object_captures_rev_before_pop()
+

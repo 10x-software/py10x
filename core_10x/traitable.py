@@ -552,9 +552,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         proc = BTraitableProcessor.current()
         cache = proc.default_cache() if cls.s_default_cache else proc.cache()
         ids_in_memory = cache.object_ids_by_class(cls.s_bclass)
-        ids_sought = {id for id in ids_in_memory if query.eval(cls(_id=id))}
-        ids_sought.update(ids_in_store)
-        return [cls(_id=id) for id in ids_sought]
+        ids_sought_from_memory = {id for id in ids_in_memory if query.eval(cls(_id=id))}
+        id_sought_from_store = {id for id in ids_in_store if id not in ids_in_memory}  # --exclulde matches from store that are no longer matching in-memory
+        return [cls(_id=id) for id in itertools.chain(ids_sought_from_memory, id_sought_from_store)]
 
     @classmethod
     @deprecated('Use either new_or_replace or new_or_update methods instead.')
@@ -701,7 +701,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return store_class.instance(**spec.kwargs)
 
     @staticmethod
-    def store_from_uri(uri: str, *, _create_if_needed: bool = False) -> TsStore:
+    def store_from_uri(uri: str, *, _cache: bool = True, _create_if_needed: bool = False) -> TsStore:
         spec = TsStore.spec_from_uri(uri)
         store_class: type[TsStore] = spec.resource_class
         is_running, with_auth = store_class.is_running_with_auth(spec.hostname(), spec.port())
@@ -710,10 +710,15 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         if with_auth:
             with UPWARD_DEPS_OFF(), Traitable.vault_store():
-                ra = VaultResourceAccessor.retrieve_ra(CONCRETE_RESOURCE.TS_STORE, uri, _create_resource_if_needed=_create_if_needed)
+                ra = VaultResourceAccessor.retrieve_ra(
+                    CONCRETE_RESOURCE.TS_STORE,
+                    uri,
+                    _create_resource_if_needed=_create_if_needed,
+                    _cache=_cache,
+                )
                 return ra.resource
 
-        return store_class.instance(**spec.kwargs, _create_if_needed=_create_if_needed)
+        return store_class.instance(**spec.kwargs, _cache=_cache, _create_if_needed=_create_if_needed)
 
     @staticmethod
     @cache
@@ -739,13 +744,13 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return store
 
     @classmethod
-    def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
-        return (_ensure_indices and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name)
+    def collection(cls, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None:
+        return (create_if_needed and cls._ensure_indices(_coll_name)) or cls.s_storage_helper.collection(_coll_name, create_if_needed=create_if_needed)
 
     @classmethod
     @cache(keep_value=False)
     def _ensure_indices(cls, _coll_name: str = None) -> TsCollection | None:
-        coll = cls.collection(_coll_name)
+        coll = cls.s_storage_helper.collection(_coll_name, create_if_needed=True)
         if coll is not None:
             for idx in cls.s_indices:
                 coll.create_index(idx.name, idx.spec, **idx.kwargs)
@@ -874,7 +879,7 @@ class AbstractStorableHelper(ABC):
     traitable_class: type[Traitable]
 
     @abstractmethod
-    def collection(self, _coll_name: str = None) -> TsCollection | None: ...
+    def collection(self, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None: ...
 
     @abstractmethod
     def exists_in_store(self, id: ID) -> bool: ...
@@ -920,7 +925,7 @@ class AbstractStorableHelper(ABC):
 
 
 class NotStorableHelper(AbstractStorableHelper):
-    def collection(self, _coll_name: str = None) -> TsCollection | None:
+    def collection(self, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None:
         return None
 
     def exists_in_store(self, id: ID) -> bool:
@@ -967,10 +972,10 @@ class NotStorableHelper(AbstractStorableHelper):
 
 
 class StorableHelper(AbstractStorableHelper):
-    def collection(self, _coll_name: str = None) -> TsCollection:
+    def collection(self, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection:
         cls = self.traitable_class
         cname = _coll_name or PackageRefactoring.find_class_id(cls)
-        return cls.store().collection(cname, trait_dir=cls.s_dir)
+        return cls.store().collection(cname, trait_dir=cls.s_dir, create_if_needed=create_if_needed)
 
     def exists_in_store(self, id: ID) -> bool:
         return self.traitable_class.collection(_coll_name=id.collection_name).id_exists(id.value)
@@ -1039,7 +1044,7 @@ class StorableHelper(AbstractStorableHelper):
             if not serialized_data:  # -- it's a lazy instance - no reason to load and re-save
                 return RC_TRUE
 
-            coll = self.traitable_class.collection(traitable.id().collection_name, _ensure_indices=True)
+            coll = self.traitable_class.collection(traitable.id().collection_name, create_if_needed=True)
             if not coll:
                 return RC(False, f'{self.__class__} - no store available')
 
@@ -1325,14 +1330,34 @@ class AsOfContext:
         self._reset_storage_helpers()
 
 
+NAMED_TRAITABLE_NAME_TRAIT = 'name'
 class NamedTraitable(Traitable):
+    #-- subclass may rename the identity trait, e.g. `class Ccy(NamedTraitable, name_trait = 'ccy_name')`;
+    #-- the renamed trait must still be declared with T(T.ID) in the subclass body
     s_ctor_allowed = True
+    s_name_trait = NAMED_TRAITABLE_NAME_TRAIT
 
     name: str = T(T.ID)
 
+    def __init_subclass__(cls, name_trait: str = None, **kwargs):
+        if name_trait is not None:
+            cls.s_name_trait = name_trait
+        super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def _post_build_trait_dir(cls, trait_dir: dict):
+        super()._post_build_trait_dir(trait_dir)
+        name_trait = cls.s_name_trait
+        if name_trait != NAMED_TRAITABLE_NAME_TRAIT:
+            new_trait = trait_dir.get(name_trait)
+            assert new_trait, f'{cls}.{name_trait!r} does not exist; declare `{name_trait}: str = T(T.ID,...)` in the class body'
+            assert new_trait.flags_on(T.ID), f'{cls}.{name_trait!r} must be flagged T.ID'
+            trait_dir.pop(NAMED_TRAITABLE_NAME_TRAIT, None)
+
     def __init__(self, _name: str = None, **kwargs):
         if _name:
-            obj = self.existing_instance(name = _name, **kwargs)
+            obj = self.existing_instance(**{self.s_name_trait: _name}, **kwargs)
+            assert obj is not None, f'May not use _throw = False here. Call {self.__class__}.existing_instance(...) directly instead'
             super().__init__(_id = obj.id())
         else:
             super().__init__(**kwargs)
@@ -1454,13 +1479,15 @@ class Bundle(Traitable):
         return cls.s_bundle_base is cls
 
     @classmethod
-    def collection(cls, _coll_name: str = None, _ensure_indices: bool = False) -> TsCollection | None:
+    def collection(cls, _coll_name: str = None, create_if_needed: bool = False) -> TsCollection | None:
         if (base := cls.s_bundle_base) is None or cls.is_bundle_base():
-            return super().collection(_coll_name, _ensure_indices)
+            return super().collection(_coll_name, create_if_needed=create_if_needed)
 
-        if (coll := base.collection(_coll_name, _ensure_indices)) is not None:
-            coll.extend_trait_dir(cls.s_dir)
-
+        if (coll := base.collection(_coll_name, create_if_needed=create_if_needed)) is None:
+            return None
+        coll.extend_trait_dir(cls.s_dir)
+        if create_if_needed:
+            cls.store().collection(coll.collection_name(), trait_dir=cls.s_dir, create_if_needed=True)
         return coll
 
     def __init_subclass__(cls, members_known=False, **kwargs):
@@ -1529,12 +1556,12 @@ Bundle.s_history_base = BundleHistory
 
 
 class VaultUser(Traitable):
-    user_id: str = T(T.ID) // 'OS login'
+    user_id: str    = T(T.ID) // 'OS login'
     suspended: bool = T(False)
 
     private_key_encrypted: bytes = T()
-    public_key: bytes = T()
-    master_password_salt: bytes = T(b'')  # -- empty only for rows written before this field existed
+    public_key: bytes            = T()
+    master_password_salt: bytes  = T(b'')        # empty only for rows written before this field existed
 
     sec_keys: SecKeys = RT(T.EVAL_ONCE)
 
@@ -1542,9 +1569,8 @@ class VaultUser(Traitable):
         return self.__class__.myname()
 
     def sec_keys_get(self) -> SecKeys:
-        # -- Every resource-credential and private-key decrypt for this identity goes through
-        # this property (RT(T.EVAL_ONCE)) -- the single choke point where suspension takes effect.
-        # See docs/VAULT_SECURITY_DESIGN.md §3.2.
+        # Choke point for this identity's decrypts; RT(T.EVAL_ONCE). See
+        # docs/VAULT_SECURITY_DESIGN.md §3.2.
         if self.suspended:
             raise RuntimeError(f'VaultUser {self.user_id!r} is suspended')
         rc, master_pwd = SecKeys.retrieve_master_password()
@@ -1560,25 +1586,6 @@ class VaultUser(Traitable):
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:
         return user_id.split('-', 1)[0] == EnvVars.var.functional_account_prefix.value
-
-    @classmethod
-    def creator_login(cls, user_id: str) -> str | None:
-        """The vault-DB login that first created this row -- ``_who`` on the creation entry
-        (``_traitable_rev == 1``) of its free ``TraitableHistory`` audit trail. ``None`` if no
-        history exists. See docs/VAULT_SECURITY_DESIGN.md §3.4 -- lets a caller verify a
-        `VaultUser` row was actually registered by its own claimed identity, not pre-registered by
-        someone else. Filters directly for revision 1 rather than fetching the full (newest-first)
-        history and taking the last entry -- a single-row query either way.
-        """
-        for entry in cls.history(user_id=user_id, _filter=f(_traitable_rev=1), _at_most=1):
-            return entry.get('_who')
-        return None
-
-    @classmethod
-    def login_already_registered(cls, login: str) -> str | None:
-        for entry in cls.history(_who=login, _filter=f(_traitable_rev=1), _at_most=1):
-            return entry.get('user_id')
-        return None
 
     @classmethod
     @cache
@@ -1604,6 +1611,7 @@ class VaultResourceAccessor(Traitable):
     user: VaultUser = RT(T.EVAL_ONCE)
     resource: Resource = RT(T.EVAL_ONCE)
     _create_resource_if_needed: bool = RT(False)
+    _cache: bool = RT(True)
 
     def username_get(self) -> str:
         return VaultUser.myname()
@@ -1623,6 +1631,7 @@ class VaultResourceAccessor(Traitable):
             self.resource_uri,
             username=self.login,
             password=self.user.sec_keys.decrypt_text(self.password),
+            _cache=self._cache,
             _create_if_needed=self._create_resource_if_needed,
         )
 
@@ -1634,6 +1643,10 @@ class VaultResourceAccessor(Traitable):
     def save_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, password: str, login: str = None, username: str = XNone) -> RC:
         if login is None:
             login = username
+
+        if username != VaultUser.myname():
+            if not Traitable.vault_store().is_vault_admin():
+                return RC(False, f'only vault admins may save resource credentials for {username!r}')
 
         resource_uri = cls._canonical_uri(resource_dt, resource_uri)
         ra = cls(username=username, resource_dt=resource_dt, resource_uri=resource_uri)
@@ -1649,22 +1662,33 @@ class VaultResourceAccessor(Traitable):
         return rc
 
     @classmethod
-    def retrieve_ra(cls, resource_dt: CONCRETE_RESOURCE, resource_uri: str, username: str = None, *, _create_resource_if_needed: bool = False) -> VaultResourceAccessor:
+    def retrieve_ra(
+        cls,
+        resource_dt: CONCRETE_RESOURCE,
+        resource_uri: str,
+        username: str = None,
+        *,
+        _create_resource_if_needed: bool = False,
+        _cache: bool = True,
+    ) -> VaultResourceAccessor:
         if not username:
             username = VaultUser.myname()
 
         resource_uri = cls._canonical_uri(resource_dt, resource_uri)
         ra = cls.existing_instance(resource_dt=resource_dt, username=username, resource_uri=resource_uri, _throw=False)
         if not ra:
-            uri = Resource.uri_no_dbname(resource_uri)
-            ra = cls.existing_instance(resource_dt=resource_dt, username=username, resource_uri=uri, _throw=False)
+            uri = resource_dt.value.uri_no_dbname(resource_uri)
+            if uri is not None:
+                ra = cls.existing_instance(resource_dt=resource_dt, username=username, resource_uri=uri, _throw=False)
             if not ra:
-                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt.name}({uri}/*)' not found")
+                where = f'{uri}/*' if uri is not None else resource_uri
+                raise ValueError(f"{cls.__name__} for {username}@'{resource_dt.name}({where})' not found")
 
         fake_ra = VaultResourceAccessor(resource_dt=resource_dt, username=username, resource_uri=resource_uri)
         fake_ra.login = ra.login
         fake_ra.password = ra.password
         fake_ra._create_resource_if_needed = _create_resource_if_needed
+        fake_ra._cache = _cache
         return fake_ra
 
 
@@ -1692,6 +1716,10 @@ class NamedResource(Bundle):
 
 class NamedTsStore(NamedResource):
     s_resource_dt: CONCRETE_RESOURCE = CONCRETE_RESOURCE.TS_STORE
+
+
+class NamedOidc(NamedResource):
+    s_resource_dt: CONCRETE_RESOURCE = CONCRETE_RESOURCE.OIDC
 
 
 class TsClassAssociation(Traitable):

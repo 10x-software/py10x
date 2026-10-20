@@ -20,7 +20,7 @@ def quotes(crosses, provider, md_date, snapshot):
 
     quotes = {}
     for cross in crosses:
-        mc = FXMktConventions.existing_instance(mkt_name=cross)
+        mc = FXMktConventions(cross)
         spot = mc.spot_date(md_date)
         cal = mc.calendar
         roll = mc.roll_rule

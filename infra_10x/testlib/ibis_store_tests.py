@@ -17,7 +17,7 @@ from core_10x.exec_control import CACHE_ONLY
 from core_10x.named_constant import NamedConstant
 from core_10x.testlib import test_databases
 from core_10x.testlib.strict import need
-from core_10x.trait_definition import T
+from core_10x.trait_definition import RT, T
 from core_10x.trait_filter import IN, LT, NE, f
 from core_10x.traitable import Traitable
 from core_10x.ts_store import TsDuplicateKeyError
@@ -354,6 +354,30 @@ def test_schema_evolution_lazy_alter(hybrid_store):
         assert 'i' not in coll._collection_columns()
         assert 'i' in blob_keys(store, coll_name, 'evo')
         assert coll.load('evo')['i'] == 99
+
+
+def test_create_if_needed_prepares_table_and_columns(ibis_store):
+    """``collection(..., create_if_needed=True)`` creates the table and stored columns without a row write."""
+
+    class Pad(Traitable, custom_collection=True, keep_history=False):
+        pad: int = T()
+        tmp: str = RT('')
+
+    store = ibis_store
+    coll_name = f'prep_{uuid6.uuid7().hex}'
+    try:
+        store.collection(coll_name, Pad.s_dir)
+        assert not store._collection_columns(coll_name)
+        store.collection(coll_name, Pad.s_dir, create_if_needed=True)
+        cols = sql_columns(store, coll_name)
+        assert store._collection_columns(coll_name)
+        if store.s_supports_add_column_if_not_exists:
+            assert 'pad' in cols
+            assert 'tmp' not in cols
+        else:
+            assert 'pad' not in cols
+    finally:
+        store.delete_collection(coll_name)
 
 
 def test_traitable_ref_promoted_to_sql_column(ibis_store, monkeypatch):

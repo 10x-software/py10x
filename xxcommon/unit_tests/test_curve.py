@@ -17,6 +17,8 @@ def curve_mod(curve_backend, monkeypatch):
     """Run curve tests against both Python and experimental C++ (BCurve) backends."""
     from xxcommon.xxcommon_env_vars import XXCommonEnvVars
 
+    orig = XXCommonEnvVars.use_cxx_curve
+
     monkeypatch.setenv('XXCOMMON_USE_CXX_CURVE', str(curve_backend))
     object.__getattribute__(XXCommonEnvVars, 'use_cxx_curve').fget.clear()
 
@@ -24,9 +26,10 @@ def curve_mod(curve_backend, monkeypatch):
 
     importlib.reload(curve_mod)
     yield curve_mod
+
     # Reload default (Python) backend so later tests that import xxcommon.curve
     # without this fixture are not stuck on the experimental C++ path.
-    monkeypatch.setenv('XXCOMMON_USE_CXX_CURVE', 'False')
+    monkeypatch.setenv('XXCOMMON_USE_CXX_CURVE', str(orig))
     object.__getattribute__(XXCommonEnvVars, 'use_cxx_curve').fget.clear()
     importlib.reload(curve_mod)
 

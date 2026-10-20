@@ -96,7 +96,7 @@ class TestCcyCrossResolve:
 
         with pytest.raises(AssertionError, match = 'Invalid cross GBP, must consist of 2 currencies'):
             assert CcyCross.is_same_ccy_cross(cross = 'GBP')
-        with pytest.raises(ValueError, match = 'Instance does not exist.*XXX'):
+        with pytest.raises(ValueError, match = r'Instance does not exist.*XXX'):
             assert CcyCross.is_same_ccy_cross(cross = 'XXX/GBP')
 
     def test_invert_cross(self):
@@ -195,7 +195,7 @@ class TestCcyCrossResolve:
 
         for (c1, c2), nc in test_pair_to_cross:
             assert CcyCross.normal_cross(c1, c2) == nc
-            assert CcyCross.is_normal_cross(nc) == True
+            assert CcyCross.is_normal_cross(nc)
 
         c1, c2 = ('XXX', 'ZZZ')
         assert CcyCross.normal_cross(c1, c2) is None
@@ -210,5 +210,5 @@ class TestCcyCrossResolve:
 
         for (c1, c2), nc, h in test_pair_to_cross_same_hierarchy:
             assert CcyCross.normal_cross(c1, c2) == nc
-            assert CcyCross.is_normal_cross(nc) == True
+            assert CcyCross.is_normal_cross(nc)
             assert CcyCross.normal_cross_from_ccy_hierarchy(c1, c2, h) == nc

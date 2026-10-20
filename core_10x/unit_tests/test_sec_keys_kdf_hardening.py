@@ -1,8 +1,7 @@
-"""Tests for the scrypt-wrapped master-password KDF (docs/VAULT_SECURITY_DESIGN.md §6.1).
+"""Tests for the scrypt-wrapped master-password KDF (docs/VAULT_SECURITY_DESIGN.md §3.1).
 
-`SecKeys.encrypt_private_key` always derives through scrypt now (no legacy write path) --
-`decrypt_private_key`/`SecKeys.__init__` stay dual-format on the read side, for rows written
-before `master_password_salt` existed.
+`encrypt_private_key` always derives through scrypt; `decrypt_private_key`/`SecKeys.__init__`
+stay dual-format on the read side for empty-salt rows.
 """
 
 from unittest.mock import patch

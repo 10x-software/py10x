@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from functools import partial
-
 import rio
 
 
@@ -11,22 +9,23 @@ class RadioButton(rio.Component):
     checked: bool = False
     on_select: rio.EventHandler[[]] = None
 
-    async def on_press(self, button) -> None:
-        if self.on_select:
-            self.on_select()
-        else:
-            self.checked = not self.checked
-        button.icon = self.icon_name()
-
     def icon_name(self) -> str:
         return f'radio_button_{"checked" if self.checked else "unchecked"}'
 
+    def _on_press(self, _event: rio.PointerEvent = None) -> None:
+        if self.on_select:
+            self.on_select()
+        else:
+            self.checked = True
+
     def build(self) -> rio.Component:
-        # Use an icon to visually represent the radio button state
-        icon_button = rio.IconButton(self.icon_name())
-        icon_button.on_press = partial(self.on_press, icon_button)
-        return rio.Row(
-            icon_button,
-            rio.Text(self.label),
-            spacing=0.5,  # Space between icon and label
+        # Whole row must be pressable — label-only clicks were ignored before.
+        return rio.PointerEventListener(
+            content=rio.Row(
+                rio.Icon(self.icon_name(), min_width=1.25, min_height=1.25),
+                rio.Text(self.label),
+                spacing=0.5,
+                align_y=0.5,
+            ),
+            on_press=self._on_press,
         )

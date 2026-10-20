@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import functools
 import sys
 import traceback
 from typing import TYPE_CHECKING
@@ -187,12 +188,18 @@ class _RcTrue(RC):
 RC_TRUE = _RcTrue()
 
 
-def exc_to_rc(func: Callable[[...], None], exc_class: type[Exception] = Exception, message: str = None) -> Callable[[...], RC]:
+def exc_to_rc(
+    func: Callable[[...], None] = None, *, exc_class: type[Exception] = Exception, message: str = None, show_exception_info: bool = True
+) -> Callable[[...], RC]:
+    """Also usable as ``@exc_to_rc(...)`` -- called with no ``func`` yet, it returns itself pre-bound to those kwargs."""
+    if func is None:
+        return functools.partial(exc_to_rc, exc_class=exc_class, message=message, show_exception_info=show_exception_info)
+
     def wrapper(*args, **kwargs) -> RC:
         try:
             func(*args, **kwargs)
         except exc_class:
-            return RC(False, message)
+            return RC(False, message if message or show_exception_info else str(sys.exc_info()[1]))
         return RC_TRUE
 
     return wrapper

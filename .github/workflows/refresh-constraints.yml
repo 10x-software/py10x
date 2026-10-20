@@ -1,7 +1,7 @@
 name: Refresh constraints
 
 # Weekly "xx-upgrade": recompile the third-party freeze against the latest
-# compatible PyPI graph (py10x + cxx10x siblings + in-tree downstreams). If
+# compatible PyPI graph (py10x + in-tree C++ siblings + downstreams). If
 # constraints.txt changed,
 # run the full test suite against the fresh pins and open a PR only when it
 # passes. This job never commits to main itself, so the freeze stays
@@ -19,6 +19,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  XX_UV_INSTALL_MODE: editable   # same as ci-test-suite: no per-import rebuild checks in CI
+  SKBUILD_CMAKE_BUILD_TYPE: Release   # same as ci-test-suite: independent of the packages' default
+
 jobs:
   refresh:
     name: Recompile and test constraints.txt
@@ -29,6 +33,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm versions kernel/infra from their older tags
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -40,30 +45,30 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
-      # compile freezes core + sibling (+ configured downstream) third-party
-      # graphs, so the C++ siblings must be checked out (py10x-core-dev
-      # precondition). Downstream trees (e.g. xx_fin/) are already in this repo.
-      - name: Checkout kernel/infra
-        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
-
       - name: Install dependencies
-        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
+        run: uvx --from ".[dev]" uv-sync py10x-dev --all-extras
 
-      # One committed freeze: include opt-in downstreams so `uv-sync
-      # --with-downstream` + `xx-constraints check` stay covered.
-      - name: Recompile constraints.txt
+      # One committed freeze: `uv lock --upgrade` (uv.lock covers every extra and dependency group,
+      # downstreams included), then constraints.txt regenerated from it. The lock's change summary
+      # goes into the PR description.
+      - name: Upgrade uv.lock and regenerate constraints.txt
         run: |
           source .venv/bin/activate
-          xx-constraints compile --upgrade --with-downstream
+          xx-constraints compile --upgrade --summary-file "$RUNNER_TEMP/lock-changes.txt"
 
       - name: Detect constraints change
         id: diff
         run: |
-          if git diff --quiet -- constraints.txt; then
+          if git diff --quiet -- constraints.txt uv.lock; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "constraints.txt is unchanged - nothing to test or propose."
+            echo "uv.lock and constraints.txt are unchanged - nothing to test or propose."
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
+            {
+              echo 'summary<<LOCK_CHANGES_EOF'
+              cat "$RUNNER_TEMP/lock-changes.txt"
+              echo 'LOCK_CHANGES_EOF'
+            } >> "$GITHUB_OUTPUT"
             git --no-pager diff -- constraints.txt
           fi
 
@@ -74,7 +79,7 @@ jobs:
       # testing (uv-sync applies -c constraints.txt on every install).
       - name: Re-sync against fresh constraints.txt
         if: steps.diff.outputs.changed == 'true'
-        run: uvx --from ".[dev]" uv-sync py10x-core-dev --all-extras
+        run: uvx --from ".[dev]" uv-sync py10x-dev --all-extras
 
       - name: Verify env is fully frozen against constraints.txt
         if: steps.diff.outputs.changed == 'true'
@@ -133,7 +138,9 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ steps.app-token.outputs.token }}
-          add-paths: constraints.txt
+          add-paths: |
+            constraints.txt
+            uv.lock
           branch: chore/refresh-constraints
           delete-branch: true
           commit-message: "chore: refresh constraints.txt"
@@ -141,12 +148,19 @@ jobs:
           body: |
             Automated weekly refresh of the third-party dependency freeze.
 
-            `xx-constraints compile --upgrade --with-downstream` recompiled
-            `constraints.txt` against the latest compatible PyPI graph of py10x-core,
-            its cxx10x siblings (kernel/infra from `main`), and configured in-tree
-            downstreams, and the **full test suite passed** against the fresh pins in
-            this workflow run. Only `constraints.txt` changed — first-party packages
-            are never pinned here.
+            `xx-constraints compile --upgrade` upgraded `uv.lock` to the latest
+            compatible PyPI graph of py10x-core, its in-tree C++ siblings
+            (kernel/infra) and configured in-tree downstreams, and regenerated
+            `constraints.txt` from it. The **full test suite passed** against the fresh
+            pins in this workflow run. First-party packages are never pinned here.
+
+            Review `constraints.txt` (one line per package); `uv.lock` is the same
+            freeze in uv's format.
+
+            Changes:
+            ```
+            ${{ steps.diff.outputs.summary }}
+            ```
           labels: |
             dependencies
             automated

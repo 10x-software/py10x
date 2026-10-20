@@ -13,9 +13,11 @@ Per package the desired *source* comes from the profile:
   - index : released wheel from the package index
 
 Install order (so already-correct local/git siblings are kept, not re-pulled):
-  1. siblings / opt-in downstreams (local/git) - install only if the reinstall rules say so;
-     `--all-extras` / `--extra` are forwarded onto downstream package installs;
-  2. `uv pip install --all-extras --requirements pyproject.toml` - core's deps+extras, additive;
+  1. siblings / opt-in downstreams (local/git) - install only if the reinstall rules say so.
+     `--all-extras` / `--extra` are forwarded onto *local* downstream installs only
+     (they need a pyproject source; git specs have none, and siblings are never extras).
+  2. `uv pip install --requirements pyproject.toml` (+ caller args such as `--all-extras`) -
+     current package's deps+extras, additive;
   3. py10x-core itself (local/git) - install only if needed.
 
 Reinstall rules (per package): (a) not installed; (b) installed from a different source;
@@ -45,15 +47,16 @@ CORE = 'py10x-core'
 PROFILES = ('user', 'domain-dev', 'py10x-dev', 'py10x-core-dev')
 CXX_BUILD_TOOLCHAIN = ['scikit-build-core', 'setuptools-scm', 'cmake', 'ninja', 'editables']
 
-# XX_UV_INSTALL_MODE controls how local C++ siblings (py10x-kernel/py10x-infra) get installed:
+# XX_UV_INSTALL_MODE controls how local C++ packages (py10x-kernel/py10x-infra, and downstream
+# members like cxxfin) get installed. Every mode builds without isolation into the persistent
+# build-dir each package's pyproject sets (build/py10x-build/<pkg>/<build type>/<wheel tag>):
 #   normal            plain, non-editable build+install - no ongoing dependency on the sibling's
-#                      source tree or a persistent build-dir; right for a build-once image/CI run.
-#   editable          (default) editable, isolated build each invocation - slower per-install but
-#                      hermetic; matches every existing behavior when the var is left unset.
-#   incremental       editable + no-build-isolation + a persistent build-dir + rebuild-on-*import*
-#                      (not just at install time) - for iterating on C++ source locally.
-#   incremental_quiet same as incremental, with scikit-build-core's per-import rebuild-check log
-#                      spam silenced (editable.verbose=false).
+#                      source tree; right for a build-once image/CI run.
+#   editable          editable install; C++ edits need a re-install (incremental, via the cache).
+#   incremental       editable + rebuild-on-*import* (not just at install time): C++ edits take
+#                      effect on the next import.
+#   incremental_quiet (default) same as incremental, with scikit-build-core's per-import
+#                      rebuild-check log spam silenced (editable.verbose=false).
 # py10x-core itself always installs editable regardless of this setting (see uv_sync(), step 3) -
 # core is pure Python, and a non-editable copy in site-packages would create a second, conflicting
 # copy of the package for tests collected by path from the source tree to import against.
@@ -103,12 +106,6 @@ def _git_remote() -> str:
     return subprocess.check_output(['git', 'remote', 'get-url', 'origin'], cwd=PROJECT_ROOT, text=True).strip()
 
 
-def _swap_repo(remote: str, repo_dir: str) -> str:
-    """`…/py10x.git` -> `…/{repo_dir}.git`, preserving the SSH-vs-HTTPS form of `remote`."""
-    base, _self = remote.rsplit('/', 1)
-    return f'{base}/{repo_dir}.git'
-
-
 def _normalize_git_url(url: str) -> str:
     """Convert SCP-style SSH remote to ssh:// form required by `uv pip`.
 
@@ -127,43 +124,27 @@ def _normalize_git_url(url: str) -> str:
 def packages(tomlkit) -> dict[str, dict]:
     """Per-package source descriptor: local/git/subdir/cxx/downstream.
 
-    py10x-core is the current repo (`.`); siblings come from `[tool.dev_10x.siblings]` (`cxx=True`);
-    optional downstreams from `[tool.dev_10x.downstream]` (`cxx=False`, omitted from default sync).
+    py10x-core is the repo root; siblings (`[tool.dev_10x.siblings]`, `cxx=True`) and optional
+    downstreams (`[tool.dev_10x.downstream]`, `cxx=False`, omitted from default sync) are in-tree
+    subdirectories, so their git source is this repo's remote + `subdirectory=path`.
     """
     remote = _git_remote()
     pkgs: dict[str, dict] = {
         CORE: {'local': PROJECT_ROOT, 'git': remote, 'subdir': None, 'cxx': False, 'downstream': False},
     }
     cfg = _dev10x_cfg(tomlkit)
-    for name, spec in cfg.get('siblings', {}).items():
-        rel = PurePosixPath(spec['path'])
-        non_dotdot = [p for p in rel.parts if p != '..']
-        repo_dir = non_dotdot[0]
-        subdir = '/'.join(non_dotdot[1:]) or None
-        pkgs[name] = {
-            'local': (PROJECT_ROOT / spec['path']).resolve(),
-            'git': spec.get('git') or _swap_repo(remote, repo_dir),
-            'subdir': spec.get('subdirectory', subdir),
-            'cxx': True,  # siblings are the compiled C++ packages
-            'downstream': False,
-        }
-    for name, spec in cfg.get('downstream', {}).items():
-        rel = PurePosixPath(spec['path'])
-        if '..' in rel.parts:
-            non_dotdot = [p for p in rel.parts if p != '..']
-            git_url = _swap_repo(remote, non_dotdot[0])
-            subdir = '/'.join(non_dotdot[1:]) or None
-        else:
-            # Same-repo nested path (e.g. xx_fin): this repo's remote + subdirectory.
-            git_url = remote
-            subdir = None if rel.parts in ((), ('.',)) else str(rel)
-        pkgs[name] = {
-            'local': (PROJECT_ROOT / spec['path']).resolve(),
-            'git': spec.get('git') or git_url,
-            'subdir': spec.get('subdirectory', subdir),
-            'cxx': False,
-            'downstream': True,
-        }
+    for downstream, table in ((False, 'siblings'), (True, 'downstream')):
+        for name, spec in cfg.get(table, {}).items():
+            rel = PurePosixPath(spec['path'])
+            if '..' in rel.parts:
+                raise SystemExit(f'[tool.dev_10x.{table}] {name}: path {spec["path"]!r} must be inside this repo')
+            pkgs[name] = {
+                'local': (PROJECT_ROOT / spec['path']).resolve(),
+                'git': spec.get('git') or remote,
+                'subdir': spec.get('subdirectory', None if rel.parts in ((), ('.',)) else str(rel)),
+                'cxx': not downstream,  # siblings are the compiled C++ packages
+                'downstream': downstream,
+            }
     return pkgs
 
 
@@ -174,9 +155,7 @@ def profile_kinds(profile: str, pkg_names: list[str]) -> dict[str, str]:
         return {CORE: 'local', **{s: 'index' for s in others}}
     if profile == 'domain-dev':
         return {p: 'git' for p in pkg_names}
-    if profile == 'py10x-dev':
-        return {CORE: 'local', **{s: 'git' for s in others}}
-    if profile == 'py10x-core-dev':
+    if profile in ('py10x-dev', 'py10x-core-dev'):  # py10x-core-dev: legacy alias
         return {p: 'local' for p in pkg_names}
     raise ValueError(f'unknown profile {profile!r}')
 
@@ -202,7 +181,7 @@ def _parse_with_downstream(uv_args: tuple[str, ...]) -> tuple[bool, set[str] | N
 
 
 def _pip_extras_args(uv_args: list[str] | tuple[str, ...]) -> list[str]:
-    """Extract `--all-extras` / `--extra` flags to forward onto a package install source."""
+    """Extract `--all-extras` / `--extra` flags to forward onto a local downstream install."""
     out: list[str] = []
     i = 0
     args = list(uv_args)
@@ -314,33 +293,6 @@ def _pip_install(*args: str) -> None:
     _run(['uv', 'pip', 'install', *args, *CONSTRAINTS])
 
 
-def _windows_cxx_cmake_flags(name: str) -> list[str]:
-    """MSVC toolset pin for py10x-kernel/infra (matches cxx10x cibuildwheel wheel builds)."""
-    if sys.platform != 'win32':
-        return []
-    return [
-        '--config-settings-package',
-        f'{name}:cmake.args=-T',
-        '--config-settings-package',
-        f'{name}:cmake.args=v143,version=14.44',
-    ]
-
-
-def _no_build_isolation_packages(src_dir: Path) -> list[str]:
-    """`[tool.uv] no-build-isolation-package` from a packaging root (e.g. fin-base → cxx).
-
-    `uv pip install` does not read this from the target pyproject the way `uv sync` does, so
-    uv-sync must forward the names as `--no-build-isolation-package` flags.
-    """
-    import tomllib
-
-    pyproject = Path(src_dir) / 'pyproject.toml'
-    if not pyproject.is_file():
-        return []
-    raw = tomllib.loads(pyproject.read_text(encoding='utf-8')).get('tool', {}).get('uv', {}).get('no-build-isolation-package', [])
-    return [str(n) for n in raw]
-
-
 def _workspace_member_paths(src_dir: Path) -> dict[str, Path]:
     """`{dist-name: path}` for each `[tool.uv.workspace]` member under a packaging root."""
     import tomllib
@@ -362,69 +314,82 @@ def _workspace_member_paths(src_dir: Path) -> dict[str, Path]:
     return out
 
 
+def _is_native(src_dir: Path) -> bool:
+    """A C++ (scikit-build-core) package, as opposed to a pure-Python one."""
+    import tomllib
+
+    pyproject = Path(src_dir) / 'pyproject.toml'
+    if not pyproject.is_file():
+        return False
+    backend = tomllib.loads(pyproject.read_text(encoding='utf-8')).get('build-system', {}).get('build-backend', '')
+    return backend.startswith('scikit_build_core')
+
+
+def _native_members(src_dir: Path) -> dict[str, Path]:
+    """`{dist-name: path}` for the C++ workspace members of a downstream (fin-base → cxxfin).
+
+    They build without isolation (their pyprojects set a persistent build-dir) via the root
+    pyproject's `[tool.uv] no-build-isolation-package`, which `uv pip install` reads from the cwd
+    (the py10x root); the downstream's own list covers a plain `uv sync` inside it. Both lists are
+    checked by test_uv_sync's TestNoBuildIsolationLists.
+    """
+    return {n: p for n, p in _workspace_member_paths(src_dir).items() if _is_native(p)}
+
+
 def install_mode() -> str:
-    raw = os.environ.get('XX_UV_INSTALL_MODE', 'editable').strip()
+    raw = os.environ.get('XX_UV_INSTALL_MODE', 'incremental_quiet').strip()
     if raw not in INSTALL_MODES:
         raise ValueError(f'XX_UV_INSTALL_MODE must be one of {INSTALL_MODES}, got {raw!r}')
     return raw
 
 
-def _incremental_flags(name: str, venv: Path, *, verbose: bool) -> list[str]:
-    """No-isolation incremental rebuild flags for a local C++ package (mode 'incremental'/
-    'incremental_quiet'). Build type comes from XX_UV_BUILD_TYPE (default Release); each type
-    gets its own build dir so switching Debug<->Release does not force a full reconfigure/rebuild."""
-    build_type = os.getenv('XX_UV_BUILD_TYPE', 'Release')
-    build_dir = f'{(venv / "py10x-build" / name / build_type).as_posix()}/{{wheel_tag}}'
-    return [
-        '--no-build-isolation-package',
-        name,
-        '--config-settings-package',
-        f'{name}:build-dir={build_dir}',
-        '--config-settings-package',
-        f'{name}:cmake.build-type={build_type}',
-        '--config-settings-package',
-        f'{name}:editable.rebuild=true',
-        '--config-settings-package',
-        f'{name}:editable.verbose={str(bool(verbose)).lower()}',
-    ]
+def _cxx_build_flags(name: str, mode: str) -> list[str]:
+    """Build flags for a local C++ package (sibling or downstream member) in any install mode.
+
+    The package's own pyproject sets the defaults, matching `incremental_quiet`: a persistent
+    build-dir plus quiet rebuild-on-import; the other modes only override the rebuild settings.
+    Every mode builds without isolation (an isolated build would bake throwaway cmake/ninja paths
+    into that CMakeCache) via the root pyproject's `[tool.uv] no-build-isolation-package`. The build
+    type is the pyproject's `cmake.build-type`; override with SKBUILD_CMAKE_BUILD_TYPE (it reaches
+    the build through the environment, as it does for a plain `uv pip install`)."""
+    flags: list[str] = []
+    if mode == 'editable':
+        flags += ['--config-settings-package', f'{name}:editable.rebuild=false']
+    elif mode == 'incremental':
+        flags += ['--config-settings-package', f'{name}:editable.verbose=true']
+    return flags
 
 
 def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: bool, extras_args: list[str] | tuple[str, ...] = ()) -> None:
-    # Downstream native deps (e.g. fin-base → cxxfin): install workspace members listed in
-    # `[tool.uv] no-build-isolation-package` *directly* first. Installing only via the parent
+    # Downstream native deps (e.g. fin-base → cxxfin): install its C++ workspace members *directly*
+    # first. Installing only via the parent
     # `-e xx_fin` leaves `editable.rebuild`'s persistent build-dir without CMakeCache.txt.
-    # (Downstream workspace members always install editable, regardless of `mode` - out of scope
-    # for XX_UV_INSTALL_MODE, which targets py10x-kernel/py10x-infra specifically.)
+    # Members follow XX_UV_INSTALL_MODE like py10x-kernel/py10x-infra.
+    editable = mode != 'normal'
+    member_flags: list[str] = []
     if pkg.get('downstream'):
-        members = _workspace_member_paths(pkg['local'])
-        for n in _no_build_isolation_packages(pkg['local']):
-            member = members.get(n)
-            if member is None:
-                print(f'  warning: {n} in no-build-isolation-package but not a workspace member of {pkg["local"]}')
-                continue
-            print(f'  {n}: editable (no-build-isolation, workspace member of {name})')
-            margs = ['-e', str(member), f'--reinstall-package={n}', '--no-build-isolation-package', n]
-            margs += _windows_cxx_cmake_flags(n)
+        for n, member in _native_members(pkg['local']).items():
+            print(f'  {n}: {mode} (workspace member of {name})')
+            flags = _cxx_build_flags(n, mode)
+            member_flags += flags
+            margs = (['-e', str(member)] if editable else [str(member)]) + [f'--reinstall-package={n}', *flags]
             if verbose:
                 margs.append('--verbose')
             _pip_install(*margs)
 
-    editable = mode != 'normal'
     args = ['-e', str(pkg['local'])] if editable else [str(pkg['local'])]
     if pin:
         args.append(f'{name} ({pin})')
     args.append(f'--reinstall-package={name}')
     if pkg['cxx']:
-        args += _windows_cxx_cmake_flags(name)
-    if mode in ('incremental', 'incremental_quiet') and pkg['cxx']:
-        args += _incremental_flags(name, PROJECT_ROOT / '.venv', verbose=(mode == 'incremental'))
-    # Keep no-isolation flags on the parent install too (transitive rebuilds / metadata).
+        args += _cxx_build_flags(name, mode)
+    # Keep the members' flags on the parent install too (transitive rebuilds / metadata), so a
+    # rebuild triggered via the parent uses the same build dir and rebuild settings.
     if pkg.get('downstream'):
-        for n in _no_build_isolation_packages(pkg['local']):
-            args.extend(['--no-build-isolation-package', n])
+        args.extend(member_flags)
         # `--all-extras` / `--extra` require an explicit requirements/pyproject source (same as
         # core step 2). Forward them onto the downstream pyproject so extras like fin-base `bbg`
-        # are installed — bare `-e path --all-extras` is rejected by uv.
+        # are installed — bare `-e path --all-extras` is rejected by uv. Downstreams must be local.
         if extras_args:
             args.extend([*extras_args, '--requirements', str(Path(pkg['local']) / 'pyproject.toml')])
     if verbose:
@@ -432,46 +397,24 @@ def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: boo
     _pip_install(*args)
 
 
-def install_git(name: str, pkg: dict, branch: str, extras_args: list[str] | tuple[str, ...] = ()) -> None:
+def install_git(name: str, pkg: dict, branch: str) -> None:
     git_url = _normalize_git_url(pkg['git'])
     spec = f'{name} @ git+{git_url}@{branch}'
     if pkg['subdir']:
         spec += f'#subdirectory={pkg["subdir"]}'
     args = [spec, f'--reinstall-package={name}']
     if pkg['cxx']:
-        args += _windows_cxx_cmake_flags(name)
-    if pkg.get('downstream') and extras_args:
-        raise RuntimeError(
-            f'{name}: --all-extras/--extra on a git downstream install is unsupported; '
-            f'use a local checkout so uv can read its pyproject.toml (got {list(extras_args)})'
-        )
+        # Isolated, non-editable build from uv's git checkout: throwaway build dir instead of the
+        # pyproject's persistent one (which would land inside uv's cache); rebuild needs the latter.
+        args += ['--config-settings-package', f'{name}:build-dir=', '--config-settings-package', f'{name}:editable.rebuild=false']
     _pip_install(*args)
 
 
 # --------------------------------------------------------------------------------------------
 # the sync
 # --------------------------------------------------------------------------------------------
-def _maybe_wait_for_sibling_branch() -> None:
-    """Optional pre-sync poll (CI main-push race). See `dev_10x/README.md` CI gotchas."""
-    branch = os.environ.get('WAIT_FOR_SIBLING_BRANCH', '').strip()
-    if not branch:
-        return
-    from dev_10x import xx_ci
-
-    sync_base = os.environ.get('WAIT_FOR_SIBLING_BRANCH_SYNC_BASE', '').strip() == '1'
-    timeout = os.environ.get('WAIT_FOR_SIBLING_BRANCH_TIMEOUT', '120')
-    interval = os.environ.get('WAIT_FOR_SIBLING_BRANCH_INTERVAL', '5')
-    refresh = ' (refreshing py10x each attempt)' if sync_base else ''
-    print(f'uv-sync: waiting for coordinated sibling pins on branch {branch!r}{refresh} (timeout={timeout}s, interval={interval}s)...')
-    code = xx_ci.wait_sibling_branch_ready(PROJECT_ROOT, branch, sync_base=sync_base, verbose=True)
-    if code:
-        raise SystemExit(code)
-    print(f'uv-sync: sibling pins ready on branch {branch!r}')
-
-
 def uv_sync(profile: str, *uv_args: str) -> None:
     tomlkit = ensure_env_and_runtime_deps(PROJECT_ROOT)
-    _maybe_wait_for_sibling_branch()
     with_downstream, downstream_filter, uv_args_list = _parse_with_downstream(uv_args)
     uv_args = tuple(uv_args_list)
     all_pkgs = packages(tomlkit)
@@ -484,25 +427,32 @@ def uv_sync(profile: str, *uv_args: str) -> None:
         pkgs = {n: p for n, p in all_pkgs.items() if not p.get('downstream')}
     branch = _dev10x_cfg(tomlkit).get('branch', 'main')
     kinds = profile_kinds(profile, list(pkgs))
+    # Opt-in downstreams are always the local packaging root (in-tree xx_fin, etc.).
+    # Profile git/index applies to siblings only — extras need a pyproject on disk.
+    for n, p in pkgs.items():
+        if p.get('downstream'):
+            kinds[n] = 'local'
     siblings = [p for p in pkgs if p != CORE]
     mode = install_mode()
-    prev_mode = read_install_mode_state(PROJECT_ROOT)
-    toggled = prev_mode is not None and prev_mode != mode
+    state = install_state(mode)
+    prev_state = read_install_mode_state(PROJECT_ROOT)
+    toggled = prev_state is not None and prev_state != state
 
     installs = _installed_source_helpers(PROJECT_ROOT)
 
     print(f'uv-sync `{profile}`: ' + ', '.join(f'{p}={kinds[p]}' for p in pkgs))
     if toggled:
-        print(f'XX_UV_INSTALL_MODE toggled ({prev_mode} -> {mode}): forcing rebuild of local C++ packages.')
+        print(f'install mode / build type changed ({prev_state} -> {state}): forcing rebuild of local C++ packages.')
 
-    # Seed the C++ toolchain for incremental siblings, or when a local downstream declares
-    # `[tool.uv] no-build-isolation-package` (fin-base → cxx) — those installs run in step 1
-    # before `--all-extras` would otherwise pull cmake/ninja via core's dev extra.
+    # Seed the C++ toolchain for local C++ siblings (non-isolated builds in every mode), or when a
+    # local downstream has C++ workspace members (fin-base → cxx) — those
+    # installs run in step 1 before `--all-extras` would otherwise pull cmake/ninja via core's dev
+    # extra.
     toolchain_reasons: list[str] = []
-    if mode in ('incremental', 'incremental_quiet') and any(kinds[s] == 'local' and pkgs[s]['cxx'] for s in siblings):
-        toolchain_reasons.append(f'XX_UV_INSTALL_MODE={mode} siblings')
-    if any(pkgs[s].get('downstream') and kinds[s] == 'local' and _no_build_isolation_packages(pkgs[s]['local']) for s in siblings):
-        toolchain_reasons.append('downstream no-build-isolation-package')
+    if any(kinds[s] == 'local' and pkgs[s]['cxx'] for s in siblings):
+        toolchain_reasons.append('local C++ siblings')
+    if any(pkgs[s].get('downstream') and kinds[s] == 'local' and _native_members(pkgs[s]['local']) for s in siblings):
+        toolchain_reasons.append('downstream C++ members')
     if toolchain_reasons:
         print(f'Seeding C++ build toolchain ({", ".join(toolchain_reasons)}).')
         _pip_install('--quiet', *CXX_BUILD_TOOLCHAIN)
@@ -513,9 +463,9 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     extras_args = _pip_extras_args(uv_args)
     index_swaps = sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbose, extras_args)
 
-    # 2. core's deps (additive: keeps the local/git siblings from step 1; pulls/refreshes index
-    #    siblings). Extras are NOT forced - pass `--all-extras` / `--extra X` as uv-sync args; they
-    #    bind to this `--requirements` source *and* are forwarded onto opt-in downstream installs.
+    # 2. current package deps (additive: keeps the local/git siblings from step 1; pulls/refreshes
+    #    index siblings). Extras are NOT forced - pass `--all-extras` / `--extra X` as uv-sync args;
+    #    they bind to this `--requirements` source *and* to local opt-in downstream installs.
     print('2. core deps:')
     reinstall = [f'--reinstall-package={s}' for s in index_swaps]
     _pip_install('--requirements', 'pyproject.toml', *reinstall, *uv_args)
@@ -541,7 +491,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
                 )
 
     persist_profile(PROJECT_ROOT, profile)
-    persist_install_mode_state(PROJECT_ROOT, mode)
+    persist_install_mode_state(PROJECT_ROOT, state)
     print(f'uv-sync `{profile}` done.')
 
 
@@ -555,21 +505,29 @@ def sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbos
             print(f'  {s}: index (resolved with core deps in step 2{" - forcing swap" if s in index_swaps else ""})')
             continue
         do = need_install(s, kind, pkgs[s], installs=installs)
-        if not do and toggled and kind == 'local' and pkgs[s]['cxx']:
-            print(f'  {s}: reinstall - install mode changed (XX_UV_INSTALL_MODE)')
+        # A mode change also applies to a local downstream's native members (fin-base → cxxfin).
+        has_cxx = pkgs[s]['cxx'] or (pkgs[s].get('downstream') and _native_members(pkgs[s]['local']))
+        if not do and toggled and kind == 'local' and has_cxx:
+            print(f'  {s}: reinstall - install mode or build type changed')
             do = True
+        downstream_extras = extras_args if pkgs[s].get('downstream') else ()
         if do:
             if kind == 'local':
                 # Downstream is not a core published dep — no forward pin to apply.
                 pin = None if pkgs[s].get('downstream') else _sibling_pin(s)
-                install_local(s, pkgs[s], pin=pin, mode=mode, verbose=verbose, extras_args=extras_args)
+                install_local(s, pkgs[s], pin=pin, mode=mode, verbose=verbose, extras_args=downstream_extras)
             else:  # git
-                install_git(s, pkgs[s], branch, extras_args=extras_args)
-        elif pkgs[s].get('downstream') and extras_args and kind == 'local':
+                if downstream_extras:
+                    raise RuntimeError(
+                        f'{s}: --all-extras/--extra on a git downstream install is unsupported; '
+                        f'downstreams must be local so uv can read their pyproject.toml (got {list(downstream_extras)})'
+                    )
+                install_git(s, pkgs[s], branch)
+        elif downstream_extras and kind == 'local':
             # Already installed: still apply requested extras (e.g. fin-base `bbg`) without a full reinstall.
-            print(f'  {s}: ensuring extras ({" ".join(extras_args)})')
+            print(f'  {s}: ensuring extras ({" ".join(downstream_extras)})')
             local = Path(pkgs[s]['local'])
-            _pip_install('-e', str(local), *extras_args, '--requirements', str(local / 'pyproject.toml'))
+            _pip_install('-e', str(local), *downstream_extras, '--requirements', str(local / 'pyproject.toml'))
     return index_swaps
 
 
@@ -591,13 +549,22 @@ def _install_mode_marker(project_root: Path) -> Path:
     return project_root / '.venv' / '.xx_uv_install_mode'
 
 
+def install_state(mode: str) -> str:
+    """`<mode>:<build type>` of the C++ packages being installed. The build type is the
+    SKBUILD_CMAKE_BUILD_TYPE override, or `default` (the packages' pyproject `cmake.build-type`)."""
+    return f'{mode}:{os.environ.get("SKBUILD_CMAKE_BUILD_TYPE", "").strip() or "default"}'
+
+
 def read_install_mode_state(project_root: Path) -> str | None:
     f = _install_mode_marker(project_root)
-    return f.read_text().strip() if f.is_file() else None
+    if not f.is_file():
+        return None
+    state = f.read_text().strip()
+    return state if ':' in state else f'{state}:default'  # marker written before build types were tracked
 
 
-def persist_install_mode_state(project_root: Path, mode: str) -> None:
-    _install_mode_marker(project_root).write_text(mode)
+def persist_install_mode_state(project_root: Path, state: str) -> None:
+    _install_mode_marker(project_root).write_text(state)
 
 
 def ensure_chromium_installed() -> None:
@@ -624,7 +591,7 @@ def main():
         return
     profile = sys.argv[1]
     uv_sync(profile, *sys.argv[2:])
-    if profile == 'py10x-core-dev':
+    if profile in ('py10x-dev', 'py10x-core-dev'):
         ensure_chromium_installed()
 
 

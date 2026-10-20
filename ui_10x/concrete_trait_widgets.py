@@ -20,6 +20,9 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type=Ui.WIDGET_TYPE.LINE):
         self.editing_finished_connect(self.on_editing_finished)
         self.was_edited = False
 
+    def display_text(self) -> str:
+        return self.text()
+
     def on_editing(self, text):
         self.was_edited = True
 
@@ -56,6 +59,9 @@ class LineEditWidget(TraitWidget, ux.LineEdit, widget_type=Ui.WIDGET_TYPE.LINE):
 class TextEditWidget(TraitWidget, ux.TextEdit, widget_type=Ui.WIDGET_TYPE.TEXT):
     def _create(self):
         ux.TextEdit.__init__(self)
+
+    def display_text(self) -> str:
+        return self.to_plain_text()
 
     def focus_out_event(self, event):
         value = self._value()
@@ -136,6 +142,9 @@ class ChoiceWidget(TraitWidget, ux.Widget, widget_type=Ui.WIDGET_TYPE.CHOICE):
         traitable = self.trait_editor.traitable
         trait = self.trait
         self.choice = Choice(f_choices=lambda: traitable.get_choices(trait), f_selection_callback=lambda item: self.on_selection(item))
+
+    def display_text(self) -> str:
+        return self.line_edit.text()
 
     def _value(self):
         selection = self.choice.values_selected

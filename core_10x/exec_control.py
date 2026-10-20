@@ -96,11 +96,15 @@ class CACHE_ONLY(FlagsContext):
 
 
 class GraphDeps:
-    def __init__(self, gp: BTP, bound_trait: BoundTrait, target_class, *target_trait_names):
+    def __init__(self, gp: BTP, bound_trait: BoundTrait, inputs_spec: dict[type, tuple[str, ...]]):
         self.gp = gp
         obj = bound_trait.obj
         trait = bound_trait.trait
-        self.deps_data = gp.find_dependencies(obj, trait, target_class, *target_trait_names)
+        self.deps_data = gp.find_dependencies(obj, trait, inputs_spec)
+
+    def read(self, traitable_cls, obj_id: ID, trait: Trait):
+        cache = self.gp.cache()
+        return cache.read_existing_node(traitable_cls.s_bclass, obj_id, trait)
 
     def perturb(self, traitable_cls, obj_id: ID, trait: Trait, value):
         cache = self.gp.cache()

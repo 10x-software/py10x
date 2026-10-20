@@ -67,5 +67,5 @@ class TestCcy:
         strX = 'XXXXX'
         ccyX = Ccy(name=strX, _replace = True)
         assert Ccy.verified(strX) == Ccy(name=strX, _replace=True)
-        with pytest.raises(ValueError, match="XXXXX does not exist in Store: <infra_10x.duckdb_store.DuckDbStore object at"):
+        with pytest.raises(ValueError, match=r"XXXXX does not exist in Store: <infra_10x.duckdb_store.DuckDbStore object at"):
             assert Ccy.verified(ccyX)

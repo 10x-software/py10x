@@ -28,6 +28,8 @@ class Person(Traitable):
 
     older_than: bool
 
+    tags: list[str]         = T(default = [])
+
     def first_name_verify(self, t, value: str) -> RC:
         return verify_alpha(t, value)
 
@@ -98,3 +100,41 @@ class Person(Traitable):
         cls = self.__class__
         if cls.s_print:
             print(f'inside {cls.__name__}.{trait_name}_get()')
+
+    @classmethod
+    def some_ppl(cls, save = False) -> list:
+        ppl = [
+            Person.new_or_update(
+                first_name  = 'John',
+                last_name   = 'Doe',
+                dob         = date(1980, 1, 1),
+                weight      = 180.
+            ),
+            Person.new_or_update(
+                first_name  = 'Melissa',
+                last_name   = 'Doe',
+                dob         = date(1990, 3, 4),
+                weight      = 160.
+            ),
+            Person.new_or_update(
+                first_name  = 'Mike',
+                last_name   = 'Doe',
+                dob         = date(2010, 7, 12),
+                weight      = 170.
+            ),
+            Person.new_or_update(
+                first_name  = 'Ann',
+                last_name   = 'Doe',
+                dob         = date(2015, 10, 24),
+                weight      = 130.
+            ),
+
+        ]
+        if save:
+            for p in ppl:
+                rc = p.save()
+                if not rc:
+                    print(rc.error())
+
+        return ppl
+

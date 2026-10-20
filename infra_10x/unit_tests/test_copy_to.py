@@ -45,7 +45,7 @@ class TestCopyTo:
     @pytest.fixture
     def mongo_src(self, live_store):
         need(
-            store := live_store(TEST_TS_STORE.MONGODB.name, f'{test_databases.TEST_DB_PREFIX}_copy_src_{uuid6.uuid7().hex[:8]}'),
+            store := live_store(TEST_TS_STORE.MONGODB.name, f'{test_databases.TEST_DB_PREFIX}_copy_src_{uuid6.uuid7().hex[-8:]}'),
             'MongoDB running (copy_to tests)',
         )
         name = f'mcopy_{uuid6.uuid7().hex}'
@@ -58,7 +58,7 @@ class TestCopyTo:
     def postgres_src(self, live_store):
         """Postgres source on its **own** database, so a store-wide copy has a distinct target."""
         need(
-            store := live_store(TEST_TS_STORE.POSTGRESQL.name, f'{test_databases.TEST_DB_PREFIX}_copy_src_{uuid6.uuid7().hex[:8]}'),
+            store := live_store(TEST_TS_STORE.POSTGRESQL.name, f'{test_databases.TEST_DB_PREFIX}_copy_src_{uuid6.uuid7().hex[-8:]}'),
             'PostgreSQL running (copy_to tests)',
         )
         name = f'pgcopy_{uuid6.uuid7().hex}'

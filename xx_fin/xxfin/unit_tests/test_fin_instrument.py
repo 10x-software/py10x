@@ -129,67 +129,70 @@ class TestFinInstrument:
         assert self.gbp_cf.disc_curve == self.gbp_zrc
         assert self.cad_cf.disc_curve == self.cad_zrc
 
-    def test_mkt_deps_for_discounting(self):
-        mkt_deps_cases = [
-            ((self.usd_cf_6m, self.usd_cf_6y), (self.sofr_cash_depos, self.sofr_swaps)),
-            ((self.gbp_cf_2y, self.gbp_cf_3y), (self.sonia_cash_depos, self.sonia_swaps)),
-        ]
-
-        for mdc in mkt_deps_cases:
-            secs = mdc[0]
-            cash_depos, swaps = mdc[1]
-            for cf in secs:
-                ed = cf.max_date()
-                cds = []
-                for cd in cash_depos:
-                    cds.append(cd)
-                    if cd.pay_date > ed:
-                        break
-
-                swps = []
-                if ed > cd.pay_date:  ## cf.max_date > last cd.pay_date (=max(cd.pay_date) for all cds)
-                    for swp in swaps:
-                        swps.append(swp)
-                        if swp.pay_date > ed:
-                            break
-
-                deps = {}
-                if cds:
-                    deps[IRCashDepositQuotable] = cds
-                if swps:
-                    deps[IRSwapQuotable] = swps
-                assert deps == cf.mkt_deps_for_discounting
-
-    def test_mkt_deps_for_ccy_same_ccy(self):
-        cfs = (self.usd_cf, self.gbp_cf, self.cad_cf)
-        for cf in cfs:
-            assert cf.mkt_deps_for_ccy(cf.denominated) == {}
-
-    def test_mkt_deps_for_ccy(self):
-        mkt_fx_deps_cases = [
-            ((self.usd_cf_6m, self.usd_cf_6y), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds),)),
-            ((self.gbp_cf_2y, self.gbp_cf_3y,), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds), ('CAD', self.cad_fx_spot, self.cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
-        ]
-
-        for mdc in mkt_fx_deps_cases:
-            secs = mdc[0]
-            ccys = mdc[1]
-
-            for cf in secs:
-                fxdeps = {FXForwardQuotable: [], FXSpotQuotable: []}
-
-                ed = cf.max_date()
-                for ccy_name, ccy_fx_spot, ccy_fx_fwds in ccys:  # noqa: B007
-                    fxdeps[FXSpotQuotable].append(ccy_fx_spot)
-
-                    for fxf in ccy_fx_fwds:
-                        fxf_ed = fxf.end_date
-                        fxdeps[FXForwardQuotable].append(fxf)
-                        if fxf_ed > ed:
-                            break
-
-                calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
-                assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
+    ## TODO: retired along with FinInstrument.mkt_deps_for_discounting/mkt_deps_for_ccy
+    ##       (see mkt_deps_design_notes.md). OK to discard these tests outright instead of keeping
+    ##       them commented?
+    # def test_mkt_deps_for_discounting(self):
+    #     mkt_deps_cases = [
+    #         ((self.usd_cf_6m, self.usd_cf_6y), (self.sofr_cash_depos, self.sofr_swaps)),
+    #         ((self.gbp_cf_2y, self.gbp_cf_3y), (self.sonia_cash_depos, self.sonia_swaps)),
+    #     ]
+    #
+    #     for mdc in mkt_deps_cases:
+    #         secs = mdc[0]
+    #         cash_depos, swaps = mdc[1]
+    #         for cf in secs:
+    #             ed = cf.max_date()
+    #             cds = []
+    #             for cd in cash_depos:
+    #                 cds.append(cd)
+    #                 if cd.pay_date > ed:
+    #                     break
+    #
+    #             swps = []
+    #             if ed > cd.pay_date:  ## cf.max_date > last cd.pay_date (=max(cd.pay_date) for all cds)
+    #                 for swp in swaps:
+    #                     swps.append(swp)
+    #                     if swp.pay_date > ed:
+    #                         break
+    #
+    #             deps = {}
+    #             if cds:
+    #                 deps[IRCashDepositQuotable] = cds
+    #             if swps:
+    #                 deps[IRSwapQuotable] = swps
+    #             assert deps == cf.mkt_deps_for_discounting
+    #
+    # def test_mkt_deps_for_ccy_same_ccy(self):
+    #     cfs = (self.usd_cf, self.gbp_cf, self.cad_cf)
+    #     for cf in cfs:
+    #         assert cf.mkt_deps_for_ccy(cf.denominated) == {}
+    #
+    # def test_mkt_deps_for_ccy(self):
+    #     mkt_fx_deps_cases = [
+    #         ((self.usd_cf_6m, self.usd_cf_6y), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds),)),
+    #         ((self.gbp_cf_2y, self.gbp_cf_3y,), (('GBP', self.gbp_fx_spot, self.gbp_fx_fwds), ('CAD', self.cad_fx_spot, self.cad_fx_fwds))),   ## GBP/CAD resolves into GBP/USD and USD/CAD dollar crosses
+    #     ]
+    #
+    #     for mdc in mkt_fx_deps_cases:
+    #         secs = mdc[0]
+    #         ccys = mdc[1]
+    #
+    #         for cf in secs:
+    #             fxdeps = {FXForwardQuotable: [], FXSpotQuotable: []}
+    #
+    #             ed = cf.max_date()
+    #             for ccy_name, ccy_fx_spot, ccy_fx_fwds in ccys:  # noqa: B007
+    #                 fxdeps[FXSpotQuotable].append(ccy_fx_spot)
+    #
+    #                 for fxf in ccy_fx_fwds:
+    #                     fxf_ed = fxf.end_date
+    #                     fxdeps[FXForwardQuotable].append(fxf)
+    #                     if fxf_ed > ed:
+    #                         break
+    #
+    #             calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
+    #             assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
 
     def test_discount_factor(self):
         old_d = self.pc.md_date - timedelta(days=365)

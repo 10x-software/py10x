@@ -14,17 +14,9 @@ Kubernetes, via a Secret mounted on a tmpfs volume) is expected to have already 
 never writes anything back to disk itself -- the mounted file (backed by the platform's secret
 store) remains the durable record.
 
-Wiring: set the ``PYTHON_KEYRING_BACKEND`` environment variable to
-``core_10x.functional_account_keyring.FunctionalAccountKeyring`` and
-``XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE`` to the manifest path (``docker/entrypoint.sh`` does both).
-``keyring`` checks ``PYTHON_KEYRING_BACKEND`` itself, before any config file or priority-based
-discovery (see ``keyring.core.load_env``), and constructs the backend with no arguments the
-first time anything calls ``keyring.get_password``/``set_password`` -- so this works correctly
-regardless of which process ends up making that call, with no explicit "install" step needed.
-(An explicit, eager install -- e.g. from a wrapper process that then ``exec``s the real
-workload -- does NOT work: ``exec`` replaces the process image, discarding all interpreter
-state including any previously-installed backend. Only environment variables and the
-filesystem survive that boundary, which is exactly what this mechanism relies on.)
+Wiring: ``PYTHON_KEYRING_BACKEND`` (survives ``exec``; an in-process ``set_keyring`` does
+not) and ``XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE``. ``keyring.core.load_env`` constructs the
+backend on first use.
 """
 
 from __future__ import annotations

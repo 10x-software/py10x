@@ -315,7 +315,7 @@ def test_declarative_indices():
             return name
 
     class FakeStorableHelper:
-        def collection(self, _coll_name=None):
+        def collection(self, _coll_name=None, create_if_needed=False):
             return FakeColl()
 
     # Temporarily install so that _ensure_indices hits our capture
@@ -347,7 +347,9 @@ def test_declarative_indices():
         Another.s_storage_helper = FakeStorableHelper()
         _ = Another.collection()  # read path -- should not call ensure
         assert create_calls == []
-        Another._ensure_indices()  # explicit does
+        Another.collection(create_if_needed=True)
+        assert len(create_calls) == 1
+        Another.collection(create_if_needed=True)  # cached indexes
         assert len(create_calls) == 1
     finally:
         Another.s_storage_helper = orig2
@@ -868,7 +870,7 @@ def test_serialize(monkeypatch):
                 def transaction(self):
                     return contextlib.nullcontext()
 
-                def collection(self, collection_name, trait_dir=None):
+                def collection(self, collection_name, trait_dir=None, *, create_if_needed=False):
                     class Collection:
                         def create_index(self, name, trait_name):
                             return name
@@ -975,7 +977,7 @@ def test_reference_serialization_roundtrip(monkeypatch):
                 def transaction(self):
                     return contextlib.nullcontext()
 
-                def collection(self, collection_name, trait_dir=None):
+                def collection(self, collection_name, trait_dir=None, *, create_if_needed=False):
                     class Collection:
                         def create_index(self, name, trait_name):
                             return name
@@ -1111,7 +1113,7 @@ def test_load_reload_flag(monkeypatch):
                 def transaction(self):
                     return contextlib.nullcontext()
 
-                def collection(self, collection_name, trait_dir=None):
+                def collection(self, collection_name, trait_dir=None, *, create_if_needed=False):
                     class Collection:
                         s_id_tag = '_id'
 

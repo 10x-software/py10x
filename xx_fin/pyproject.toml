@@ -26,14 +26,14 @@ classifiers = [
 dependencies = [
     # Pins below for py10x-core and py10x-fin-base-cxx are maintained by xx-promote.
     # Kernel/infra come transitively via py10x-core.
-    "py10x-core (>=0.3.2rc10,<0.3.2rc11)",
-    "py10x-fin-base-cxx (==0.1.2rc10)",  # co-released; same version as this package
+    "py10x-core (>=0.3.3rc4,<0.3.3rc5)",
+    "py10x-fin-base-cxx (==0.1.3rc4)",  # co-released; same version as this package
     "quantlib-python>=1.18",
-    "aadc>=1.8.2; sys_platform != 'darwin' and (sys_platform != 'win32' or python_version != '3.13')",
 ]
 
 [project.optional-dependencies]
 bbg = ["xbbg>=1.4.5", "blpapi>=3.26.6.1"]
+aadc = ["py10x-core[aadc]"]
 dev = ["py10x-core[dev]",
     "scikit-build-core>=0.12.2", # fin-base-cxx no-isolation build backend
     "setuptools-scm>=9.2.2", # fin-base-cxx no-isolation build backend
@@ -63,6 +63,8 @@ git_describe_command = "git describe --dirty --tags --long --match 'py10x-fin-ba
 version-file = "xxfin/_version.py"
 
 [tool.uv]
+required-version = ">=0.12.5"
+reinstall-package = ["py10x-fin-base-cxx"]
 no-build-isolation-package = ["py10x-fin-base-cxx"]
 
 [[tool.uv.dependency-metadata]]

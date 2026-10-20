@@ -272,8 +272,8 @@ def test_collection(union_store):
     mock_store2.collection.return_value = MagicMock()
     result = union_store.collection(collection_name, {})
     assert isinstance(result, TsUnionCollection)
-    mock_store1.collection.assert_called_once_with(collection_name, {})
-    mock_store2.collection.assert_called_once_with(collection_name, {})
+    mock_store1.collection.assert_called_once_with(collection_name, {}, create_if_needed=False)
+    mock_store2.collection.assert_called_once_with(collection_name, {}, create_if_needed=False)
 
 
 def test_extend_trait_dir_forwards_to_head_only(union_collection):

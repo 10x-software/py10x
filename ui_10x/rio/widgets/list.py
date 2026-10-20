@@ -31,6 +31,9 @@ class ListItem(Widget, i.ListItem):
         if self._list_widget:
             return self._list_widget.row(self)
 
+    def text(self) -> str:
+        return self['text']
+
     def set_selected(self, selected: bool):
         return self._list_widget.set_selected(self, selected)
 
@@ -44,6 +47,7 @@ class ListWidget(Widget, i.ListWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self['grow_y'] = True
+        self['align_y'] = 0  # keep items at top in tall splitter panes
 
     def add_items(self, items: list[i.ListItem | str]):
         for item in items:
@@ -82,12 +86,10 @@ class ListWidget(Widget, i.ListWidget):
             self.force_update()
 
     def set_selected(self, item: ListItem, selected: bool):
-        # TODO: this is called from on-click handler for list item, which is
-        # inefficient and duplicates rio built-in functionality
+        # Called from list-item on-click; duplicates some of rio ListView selection.
         selected_items = self.setdefault('selected_items', [])
         key = item['key']
         old_selected = key in selected_items
-        print(selected_items, selected, old_selected, key)
 
         if not old_selected and selected:
             if self['selection_mode'] == 'single':
@@ -96,7 +98,6 @@ class ListWidget(Widget, i.ListWidget):
 
         if old_selected and not selected:
             selected_items.remove(key)
-        print(selected_items)
         self['selected_items'] = selected_items
 
     def set_enabled(self, enabled: bool):

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import functools
 import subprocess
 import sys
 from pathlib import Path
@@ -378,18 +379,12 @@ class VersionHelpers:
 
     @staticmethod
     def test_group_dep_pin(name: str, version: str) -> str:
-        """Unpublished `dependency-groups.test` pin: `{name}>={version}` (see `test_group_pin`)."""
-        return f'{name}>={version}'
+        """Unpublished `dependency-groups.test` pin (core -> downstream): `{name}>={version}`.
 
-    @staticmethod
-    def test_group_pin(core_version: str) -> str:
-        """Reverse py10x-core test dependency: `>=` the coordinated core version (dev-only, unpublished).
-
-        `>=` not `==`: the prerelease token falls out for free - `>=Trc` admits core prereleases (an
-        rc sibling tests the prerelease line), `>=T` admits only finals (a final tests the released
-        line). Uncapped but self-correcting via the forward `==` (`dev_10x/README.md`, Pin model).
+        `>=` not `==`: the prerelease token falls out for free - `>=Trc` admits prereleases, `>=T`
+        admits only finals. Uncapped but self-correcting via the downstream's forward `==` on core.
         """
-        return VersionHelpers.test_group_dep_pin('py10x-core', core_version)
+        return f'{name}>={version}'
 
 
 class GitHelpers:
@@ -507,21 +502,24 @@ class GitHelpers:
         rel = path.resolve().relative_to(repo.resolve())
         return rel.as_posix() if rel.parts else '.'
 
+    # The dependency freeze, generated from pyproject files by `xx-constraints compile`: never a source
+    # change, so a freeze refresh alone must not re-cut a package.
+    DERIVED_FILES = ('uv.lock', 'constraints.txt')
+
     @staticmethod
     def diff_pathspecs(*sibling_subdirs: str) -> tuple[str, ...]:
-        """`git diff` pathspecs for a package's release footprint: the **whole repo minus the other
-        packages' subtrees**.
+        """`git diff` pathspecs for a package's default release footprint: the **whole repo minus
+        the other packages' paths** (their subtrees and explicit `footprint` entries).
 
         Rule: a change inside a package's own dir affects that package only; anything *outside* every
-        package dir (shared CI, root build config, …) affects all of them. So a package's footprint is
-        `.` with each *sibling* subtree excluded - its own files and all shared files count, a
-        sibling's subtree does not. A package alone in its repo -> the whole repo (`.`).
+        package (shared CI, root build config, …) affects all default-footprint packages. Packages
+        with an explicit `footprint` (the C++ siblings) opt out of shared files entirely.
         """
-        return ('.', *(f':(exclude){s}' for s in sibling_subdirs))
+        return ('.', *(f':(exclude){s}' for s in (*sibling_subdirs, *GitHelpers.DERIVED_FILES)))
 
     @classmethod
-    def changed_files(cls, repo: Path, base: str, rev: str = 'HEAD') -> list[str]:
-        out = cls.git(repo, 'diff', '--name-only', base, rev)
+    def changed_files(cls, repo: Path, base: str, rev: str = 'HEAD', *pathspecs: str) -> list[str]:
+        out = cls.git(repo, 'diff', '--name-only', base, rev, '--', *pathspecs)
         return [line for line in out.splitlines() if line]
 
     @classmethod
@@ -578,22 +576,14 @@ class GitHelpers:
         return Path(cls.git(path, 'rev-parse', '--show-toplevel'))
 
     @staticmethod
-    def release_branch(flavor: str, name: str, is_core: bool, is_downstream: bool = False) -> str:
-        """Tool-owned release-line branch name for a package (`flavor` in {"pre", "prod"}).
+    def release_branch(flavor: str, name: str, is_core: bool) -> str:
+        """Tool-owned release-line branch name for a package (`flavor` in {"pre", "prod"}): bare
+        ``pre`` / ``prod`` for core, ``pre-{name}`` for every other package - not ``pre/{name}``, git
+        forbids ``refs/heads/pre`` and ``refs/heads/pre/...`` together.
 
-        - core (one package per repo): bare ``pre`` / ``prod``
-        - siblings sharing a repo (cxx10x kernel + infra): ``pre/{name}`` (slash namespace)
-        - in-repo downstreams (same repo as core): ``pre-{name}`` — cannot nest under bare ``pre``
-          (git forbids ``refs/heads/pre`` and ``refs/heads/pre/...`` together)
-
-        Publish-trigger *tags* stay ``pre/{release}`` / ``prod/{release}`` (``refs/tags/``). See
-        ``dev_10x/README.md`` (Branches).
+        Publish-trigger *tags* stay ``pre/{release}`` / ``prod/{release}`` (``refs/tags/``).
         """
-        if is_core:
-            return flavor
-        if is_downstream:
-            return f'{flavor}-{name}'
-        return f'{flavor}/{name}'
+        return flavor if is_core else f'{flavor}-{name}'
 
 
 class PyProjectHelpers:
@@ -655,8 +645,9 @@ class PyProjectHelpers:
         return out
 
     @staticmethod
-    def diff_is_only_forward_pin_edits(old_text: str, new_text: str, siblings: set[str]) -> bool:
-        """True when `new_text` differs from `old_text` only in forward sibling pin specifiers."""
+    def diff_is_only_forward_pin_edits(old_text: str, new_text: str, names: set[str]) -> bool:
+        """True when `new_text` differs from `old_text` only in the pin specifiers of `names` and the
+        unpublished `dependency-groups.test` (both rewritten by xx-promote epilogues)."""
         if old_text == new_text:
             return True
 
@@ -669,10 +660,15 @@ class PyProjectHelpers:
             proj = doc.get('project')
             if proj is not None and 'dependencies' in proj:
                 del proj['dependencies']
+            groups = doc.get('dependency-groups')
+            if groups is not None and 'test' in groups:
+                del groups['test']
+                if not groups:
+                    del doc['dependency-groups']
             return doc
 
         old_specs, new_specs = _dep_specs(old_text), _dep_specs(new_text)
-        if any(old_specs.get(n) != new_specs.get(n) for n in old_specs.keys() | new_specs.keys() if n not in siblings):
+        if any(old_specs.get(n) != new_specs.get(n) for n in old_specs.keys() | new_specs.keys() if n not in names):
             return False
         return _without_deps(old_text) == _without_deps(new_text)
 
@@ -842,26 +838,38 @@ class PyPIHelpers:
 
         return re.sub(r'[-_.]+', '-', name).lower()
 
+    @staticmethod
+    @functools.cache
+    def _release_json(name: str, version: str, timeout: float) -> dict:
+        """PyPI JSON for `name==version`, cached once it lists files: right after a publish, CDN
+        edges disagree, so a later re-fetch can 404 after an earlier one succeeded. Failures
+        (`HTTPError`, `LookupError` when no files yet) are not cached, so polling keeps working."""
+        import json
+        from urllib import request
+
+        with request.urlopen(f'https://pypi.org/pypi/{name}/{version}/json', timeout=timeout) as resp:
+            if resp.status != 200:
+                raise LookupError(f'{name}=={version}: HTTP {resp.status}')
+            data = json.loads(resp.read().decode('utf-8'))
+        if not (data.get('urls') or []):
+            raise LookupError(f'{name}=={version}: no files listed yet')
+        return data
+
     @classmethod
     def release_exists(cls, name: str, version: str, timeout: float = 10.0) -> bool:
         """True when the exact `name==version` is pip-installable: the JSON API lists files
         **and** the simple index lists the version (pip's resolver uses the simple API; the JSON
         API can briefly lead the CDN after a fresh publish)."""
-        import json
         from urllib import error, request
 
-        json_url = f'https://pypi.org/pypi/{name}/{version}/json'
         try:
-            with request.urlopen(json_url, timeout=timeout) as resp:
-                if resp.status != 200:
-                    return False
-                data = json.loads(resp.read().decode('utf-8'))
+            cls._release_json(name, version, timeout)
+        except LookupError:
+            return False
         except error.HTTPError as e:
             if e.code == 404:
                 return False
             raise
-        if not (data.get('urls') or []):
-            return False
 
         simple_name = cls._normalize_project(name)
         simple_url = f'https://pypi.org/simple/{simple_name}/'
@@ -880,12 +888,7 @@ class PyPIHelpers:
     @classmethod
     def release_requires_dist(cls, name: str, version: str, timeout: float = 10.0) -> list[str]:
         """`Requires-Dist` entries for an already-published `name==version`."""
-        import json
-        from urllib import request
-
-        url = f'https://pypi.org/pypi/{name}/{version}/json'
-        with request.urlopen(url, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
+        data = cls._release_json(name, version, timeout)
         return list(data.get('info', {}).get('requires_dist') or [])
 
     @classmethod

@@ -17,6 +17,7 @@ def test_mongo_parse_uri_round_trip():
     # Aliased options are folded to the short map key for translate_kwargs.
     assert args['sst'] == 5000
     assert 'serverSelectionTimeoutMS' not in args
+    assert MongoStore.spec_from_uri(uri).uri().startswith('mongodb://user:pass@localhost:27017/testdb')
 
 
 def test_mongo_parse_uri_short_aliases():

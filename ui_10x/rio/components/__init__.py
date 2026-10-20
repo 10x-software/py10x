@@ -4,6 +4,6 @@ from .line_edit import LineEditComponent
 from .radio_button import RadioButton
 from .separator import Separator
 from .splitter import Splitter
-from .tree_view import RioTreeItem, RioTreeView
+from .tree_view import RioTreeItem
 
-__all__ = ['GroupBox', 'LabeledCheckBox', 'LineEditComponent', 'RadioButton', 'RioTreeItem', 'RioTreeView', 'Separator', 'Splitter']
+__all__ = ['GroupBox', 'LabeledCheckBox', 'LineEditComponent', 'RadioButton', 'RioTreeItem', 'Separator', 'Splitter']

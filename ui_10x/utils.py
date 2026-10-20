@@ -65,7 +65,6 @@ class UxRadioBox(ux.GroupBox):
         else:
             super().__init__()
 
-
         lay = ux.HBoxLayout() if horizontal else ux.VBoxLayout()
         self.set_layout(lay)
 
@@ -146,7 +145,7 @@ def ux_push_button(label: str, callback = None, style_icon = None, flat = False)
     return button
 
 class UxDialog(ux.Dialog):
-    __slots__ = ('accept_callback','cancel_callback','w_message',)
+    __slots__ = ('accept_callback','cancel_callback','open_callback','w_message',)
     def _create_button(self, ok: bool, button_spec) -> ux.PushButton|None:
         if not button_spec:
             return None
@@ -176,6 +175,7 @@ class UxDialog(ux.Dialog):
             cancel              = 'Cancel',
             accept_callback     = None,
             cancel_callback     = None,
+            open_callback       = None,
             min_width           = 0,
             min_height          = 0,
             #window_flags        = None
@@ -197,6 +197,7 @@ class UxDialog(ux.Dialog):
         ##self.setWindowFlags(window_flags)
         self.accept_callback = accept_callback
         self.cancel_callback = cancel_callback if cancel_callback else self.reject
+        self.open_callback = open_callback
 
         if ok:
             ok = self._create_button(True, ok)
@@ -247,21 +248,26 @@ class UxDialog(ux.Dialog):
         # alive after the dialog has finished, even if widget is still around
         self.accept_callback = None
         self.cancel_callback = None
+        self.open_callback = None
         super().done(code)
+
+    def on_open(self):
+        if self.open_callback:
+            self.open_callback()
 
     def message(self, text: str):
         self.w_message.set_text(text)
 
-def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None) -> date | None:
+def ux_pick_date(title = 'Pick a Date', show_date: date = None, grid = True, default = None, on_accept = None, parent: ux.Widget = None) -> date | None:
     cal = ux.CalendarWidget()
     cal.set_grid_visible(bool(grid))
     if show_date:
         cal.set_selected_date(show_date)
 
     accept_callback = (lambda: on_accept(cal.selected_date())) if on_accept else None
-    dlg = UxDialog(cal, title = title, accept_callback = accept_callback)
+    dlg = UxDialog(cal, parent = parent, title = title, accept_callback = accept_callback)
     if on_accept:
-        dlg.show()
+        dlg.exec()
         return None
     return cal.selected_date() if dlg.exec() else default
 
@@ -499,6 +505,7 @@ class UxSearchableList(ux.GroupBox):
         self.current_choices = []
 
 class UxTreeViewer(ux.TreeWidget):
+    __slots__ = ('dir', 'num_cols', 'select_hook')
     s_label_max_length  = 40
 
     def __init__(self, dir: Directory, select_hook = None, label_max_length = -1, expand = False, **kwargs):
@@ -537,6 +544,8 @@ class UxTreeViewer(ux.TreeWidget):
         self.set_size_policy(ux.SizePolicy.MINIMUM_EXPANDING, ux.SizePolicy.MINIMUM_EXPANDING)
 
     class TreeItem(ux.TreeItem):
+        __slots__ = ('dir',)
+
         def __init__(self, parent_node, dir: Directory):
             super().__init__(parent_node)
             self.dir = dir

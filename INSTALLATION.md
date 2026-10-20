@@ -9,7 +9,7 @@ See also the [documentation map in README.md](README.md#documentation-map).
 ### Core Requirements
 
 - **Python 3.12 (recommended); 3.11, 3.12, and 3.13 supported** (`requires-python >=3.11,<3.14`) - Install via UV for best experience
-- **[UV](https://docs.astral.sh/uv/)** - Python installer and package manager (recommended)
+- **[UV](https://docs.astral.sh/uv/)** - Python installer and package manager (recommended; required for development)
 - **Git** - For cloning the repository
 
 ### Optional: Building Native Dependencies from Source
@@ -18,7 +18,7 @@ See also the [documentation map in README.md](README.md#documentation-map).
 
 A C++20 compiler is only required if you are:
 
-1. Building `py10x-kernel` or `py10x-infra` **from source** (e.g. against a local checkout of those repos), **or**
+1. Building `py10x-kernel` or `py10x-infra` **from source** (they live in this repo under `cxx10x/`; every contributor setup does this), **or**
 2. Installing on a platform / Python-version combination for which **no prebuilt wheel is published**, in which case `pip` falls back to compiling the sdist.
 
 If either applies, install one of:
@@ -103,23 +103,24 @@ python --version  # Should show 3.12.x
 
 ### Development Installation (Recommended)
 
-For developers contributing to `py10x-core`:
+For developers contributing to `py10x-core`. Requires [UV](https://docs.astral.sh/uv/) installed on
+the machine (see above), not in the venv, at a version satisfying `[tool.uv] required-version` in
+`pyproject.toml` (`uv self update` to upgrade).
 
 ```bash
 git clone https://github.com/10x-software/py10x.git
 cd py10x
 
-# Typical setup — editable core + C++ siblings from git main (no ../cxx10x checkout)
+# Editable core + the in-tree C++ packages (cxx10x/) built locally
 uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
 uv run --no-sync pytest
 ```
 
-Use the **`py10x-core-dev`** profile when you have a local `../cxx10x` checkout and are editing the
-C++ packages. Profile table and refresh commands: [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
+Profile table and refresh commands: [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
 
 `uv-sync` drives `uv pip install` with dependency-source **profiles** (see
 [`dev_10x/README.md`](dev_10x/README.md)); it does not mutate `pyproject.toml`. Plain `uv sync` is
-not the canonical multi-repo dev path. Run it as
+not the canonical dev path. Run it as
 `uv run --no-sync python -m dev_10x.uv_sync <profile>` from repo root (no venv activation
 required). After sync, use `uv run --no-sync …` for pytest, ruff, etc.
 

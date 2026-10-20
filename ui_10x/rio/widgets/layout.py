@@ -30,5 +30,5 @@ class FormLayout(Layout, i.FormLayout):
     def add_row(self, *args):
         self.add_children(args)
 
-    def _build_children(self, session: rio.Session):
+    def _build_children(self):
         return [[child() for child in children] for children in self._get_children()]  # children are 2d array

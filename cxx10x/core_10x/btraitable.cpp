@@ -1,0 +1,537 @@
+//
+// Created by AMD on 5/21/2024.
+//
+
+#include "btraitable.h"
+#include "py_hasher.h"
+#include "bprocess_context.h"
+//#include "btraitable_ui_extension.h"
+#include "bnucleus.h"
+
+#include "brc.h"
+
+#include <utility>
+#include <vector>
+
+BTraitable::~BTraitable() {
+    // TODO: what if it gets collected while a different cache is active? or on different thread?
+    // Perhaps,
+    // 1) remember creation_thread (together with creation_cache)
+    // 2) find current cache on creation_thread
+    // 3) remove from the current cache on creation_thread its parents
+    // Q: What if nodes exist in caches on other than the creation thread?
+    //    Are traitables only usable on the thread they were created on?
+
+    if (!m_tid.is_valid()) {    //-- remove temp obj's nodes
+        const auto proc = ThreadContext::current_traitable_proc();
+        if (origin_cache_is(proc->default_cache()) || proc->cache()->is_descendent_of_origin(this))
+            m_origin_cache->remove_temp_object_cache(m_tid);
+    }
+    //TODO: class flag to indicate if objects is auto-disposable default = true
+}
+
+py::object BTraitable::lazy_load_if_needed() {
+    const auto flags = lazy_load_flags();
+
+    if (!(flags & XCache::LOAD_REQUIRED))
+        return py::none();
+
+    if (flags & XCache::MUST_EXIST_IN_STORE && !my_class()->is_storable())
+        throw runtime_error( "is an invalid lazy reference to non-storable that does not exist in memory" );
+
+    auto use = BTraitableProcessor::Use(BTraitableProcessor::create_with_cache(origin_cache(), flags), true);
+    clear_lazy_load_flags(flags);
+    const auto serialized_data = _reload(flags & XCache::LOAD_REV_ONLY);
+    set_lazy_load_flags(flags & BTraitableProcessor::DEBUG); // -- only keep the debug flag, if set
+
+    if (serialized_data.is_none() && flags & XCache::MUST_EXIST_IN_STORE) {
+        throw runtime_error( "reference not found in store" );
+    }
+    return serialized_data;
+}
+
+py::object BTraitable::exogenous_id() {
+    //return PyHasher::uuid();
+    return PyLinkage::uuid7();
+}
+
+py::object BTraitable::endogenous_id() {
+    py::list regulars;
+    auto hasher = PyHasher();
+    const auto proc = ThreadContext::current_traitable_proc();
+    const auto guard = proc->upward_deps_off();
+    for (const auto [trait_name, trait_handle] : my_class()->trait_dir()) {
+        if (const auto trait = trait_handle.cast<BTrait*>(); trait->flags_on(BTraitFlags::ID) && !trait->flags_on(BTraitFlags::FAUX)) {
+            auto value = proc->get_trait_value(this, trait);
+            BTraitableProcessor::check_value(this, trait, value);
+
+            if (value.is(PyLinkage::XNone()))   //-- TODO: we probably don't need this anymore (see above)
+                throw py::value_error(py::str("{}.{} is undefined").format(class_name(), trait_name));
+
+            auto value_for_id = trait->wrapper_f_to_id(this, value);
+            if (!trait->flags_on(BTraitFlags::HASH))
+                regulars.append(value_for_id);
+            else
+                hasher.update(value_for_id);
+        }
+    }
+
+    if (hasher.is_updated()) {
+        regulars.append(hasher.hexdigest());
+        regulars.append(py::str("00"));     //-- for possible hash collision
+    }
+
+    return py::str("|").attr("join")(regulars);
+}
+
+//======================================================================================================================
+//  Must be called right after constructing the object with **kwargs.
+//  - kwargs must only have values for traits necessary to build the object ID
+//      -- an ID trait (the usual case)
+//      -- an ID trait with custom getter may be missing
+//      -- a non-ID trait with custom setter which sets some ID traits or used in an ID trait getter may also be present
+//  - any traits set in kwargs, other than ID traits will be ignored after the ID is built
+//  - ID traits will be set, even if they are computed using getters
+//  - trait-name value pairs will be processed in the order they are given
+//      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
+//======================================================================================================================
+void BTraitable::initialize(const py::dict& trait_values, const bool replace_existing=false, const bool update_existing=false) {
+    if (const auto cls = my_class(); cls->is_id_endogenous()) {
+        const auto current = ThreadContext::current_traitable_proc();
+
+        if (trait_values.empty()) {  // kwargs empty
+            if (!current->is_empty_object_allowed()) {
+                /* The following check seems too restrictive: Traitable may have getters for ID traits */
+                //throw py::type_error(py::str("{} expects at least one ID trait value").format(class_name()));
+            } else
+                return;
+        }
+
+        auto use = BTraitableProcessor::Use(BTraitableProcessor::create_with_cache(origin_cache(), current->flags()), true);
+        const auto proc = ThreadContext::current_traitable_proc();
+
+        //-- setting trait values (not calling set_values() for performance reasons and throwing immediately on error
+        //-- vector, not unordered_map: must preserve kwarg order
+        std::vector<std::pair<const BTrait *, py::object>> non_id_traits_set;
+        for (auto &[trait_name, value] : trait_values) {
+            if (const auto trait = cls->find_trait(trait_name.cast<py::object>())) {    // skipping unknown trait names
+                auto py_value = value.cast<py::object>();
+                if (py_value.is(PyLinkage::XNone()))    //-- skipping XNone (deferring ID trait value to the getter)
+                    continue;
+
+                if (!trait->flags_on(BTraitFlags::ID)) {
+                    if (!update_existing && !replace_existing)
+                        throw py::value_error(py::str("{}.{} - non-ID trait value cannot be set during initialization").format(class_name(), trait_name));
+                    non_id_traits_set.emplace_back(trait, py_value);
+                    continue;
+                }
+                if (const BRC rc(proc->set_trait_value(this, trait, py_value)); !rc)
+                    throw py::value_error(rc.error());
+            }
+        }
+        const auto replace = (lazy_load_flags() & XCache::LOAD_REQUIRED_MUST_EXIST) ? true : replace_existing; // -- if existing is a lazy reference, replace it
+        if (const BRC rc(proc->share_object(this,!replace, replace)); !rc)
+            // -- this never happens as either accept_existing==true or replace_existing==true
+            throw py::value_error(py::str("{}/{} - already exists with potentially different non-ID trait values").format(class_name(), rc.payload()));
+
+        if (update_existing || replace_existing) {
+            //-- now we have a potentially lazy reference which might be loaded as we set any non-id traits below
+            for (auto &[trait, value] : non_id_traits_set) {
+                if (const BRC rc(proc->set_trait_value(this, trait, value)); !rc)
+                    throw py::value_error(rc.error());
+            }
+        }
+    }
+    else {        // ID exogenous
+        m_tid.set_id_value(exogenous_id());
+            clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
+        if (const BRC rc(set_values(trait_values)); !rc)
+            throw py::value_error(py::str(rc.error()));
+    }
+}
+
+bool BTraitable::id_exists() {
+    if (!tid().is_valid())
+        return false;
+
+    return ThreadContext::current_traitable_proc()->accept_existing(this);
+}
+
+bool BTraitable::accept_existing(const py::dict& trait_values) {
+    if (const auto cls = my_class(); !cls->is_id_endogenous())
+        return false;
+
+    if (BRC rc(set_values(trait_values)); !rc)
+        throw py::value_error(py::str(rc.error()));
+
+    return ThreadContext::current_traitable_proc()->accept_existing(this);
+}
+
+py::object BTraitable::from_any(const BTrait* trait, const py::object& value) {
+    if (py::isinstance(value, trait->m_datatype))
+        return value;
+
+    if (py::isinstance<py::str>(value))
+        return trait->wrapper_f_from_str(this, value);
+
+    return trait->wrapper_f_from_any_xstr(this, value);
+}
+
+py::object BTraitable::value_to_str(BTrait* trait) {
+    const auto value = get_value(trait);
+    return trait->wrapper_f_to_str(this, value);
+}
+
+py::object BTraitable::verify() {
+    const auto &RC_TRUE = PyLinkage::RC_TRUE();
+    if (lazy_load_flags() & XCache::LOAD_REQUIRED) {
+        return RC_TRUE;
+    }
+    BRC brc;
+    for (const auto trait_handle: my_class()->trait_dir() | std::views::values) {
+        const auto trait = trait_handle.cast<BTrait *>();
+        if (trait->getter_has_args())
+            continue;
+
+        if (trait->flags_on(BTraitFlags::NOT_EMPTY) && (!py::bool_(get_value(trait)))) {
+            (void)brc.add_error(py::str("trait '{}' must not be empty").format(trait->name()));
+        }
+        auto rc = verify_trait(trait);
+        (void)brc.add_error(rc);
+    }
+    if (brc) {
+        const auto rc = my_class()->py_class().attr("post_verify")(this);
+        (void)brc.add_error(rc);
+    }
+
+    if (brc)
+        return RC_TRUE;
+
+    BRC res;
+    (void)res.add_error(py::str("Verification failed for {}.{}:").format(my_class()->name(), id_value()));
+    (void)res.add_error(brc());
+    return res();
+}
+
+py::object BTraitable::verify_trait(const BTrait* trait) {
+    return trait->wrapper_f_verify(this);
+}
+
+py::object BTraitable::verify_trait_value(const BTrait* trait, const py::object& value) {
+    return trait->wrapper_f_verify(this, value);
+}
+
+py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
+    auto proc = ThreadContext::current_traitable_proc();
+    for (auto item : trait_values) {
+        const auto trait_name = item.first.cast<py::object>();
+        const auto trait = my_class()->find_trait(trait_name);
+        if (!trait) {
+            if (!ignore_unknown_traits)
+                throw py::type_error(py::str("{}.{} - unknown trait").format(class_name(), trait_name));
+
+            continue;
+        }
+
+        auto value = item.second.cast<py::object>();
+        if (BRC rc(proc->set_trait_value(this, trait, value)); !rc)
+            return rc();
+    }
+
+    return PyLinkage::RC_TRUE();
+}
+
+//======================================================================================================================
+//  Serialization/Deserialization related methods
+//======================================================================================================================
+
+py::object BTraitable::get_revision() {
+    const auto rt = my_class()->find_trait(BNucleus::REVISION_TAG());
+    const auto proc = ThreadContext::current_traitable_proc();
+    return rt ? rt->proc()->get_value_off_graph(proc, this, rt) : py::int_(0);
+}
+
+void BTraitable::set_revision(const py::object& rev) {
+    if (const auto rt = my_class()->find_trait(BNucleus::REVISION_TAG()))
+        set_value(rt, rev);
+}
+
+py::list  BTraitable::serialize_id_traits() {
+    py::list serialized_id;
+    for (const auto &[trait_name_handle, trait_value_handle] : my_class()->trait_dir()) {
+        const auto trait = trait_value_handle.cast<BTrait*>();
+        if (trait->flags_on(BTraitFlags::ID)) {
+            const auto trait_name = trait_name_handle.cast<py::object>();
+            const auto value = get_value(trait);
+            if (value.is_none())
+                throw py::value_error(py::str("{}.{} - undefined ID trait value").format(class_name(), trait_name));
+
+            serialized_id.append(trait->wrapper_f_serialize(my_class(), value));
+        }
+    }
+    return serialized_id;
+}
+
+py::dict BTraitable::id_trait_values(const py::kwargs& override_id_traits) const {
+    const auto cache = ThreadContext::current_traitable_proc()->cache();   //-- one proc/cache lookup for the whole call
+    const auto my_tid = tid();
+
+    py::dict result;
+    py::object value;
+    for (const auto &[trait_name_handle, trait_value_handle] : my_class()->trait_dir()) {
+        const auto trait = trait_value_handle.cast<BTrait*>();
+        if (trait->flags_on(BTraitFlags::ID)) {
+            auto trait_name = trait_name_handle.cast<py::object>();
+            if (override_id_traits.contains(trait_name))
+                value = override_id_traits[trait_name];
+            else {
+                const auto node = cache->find_node(my_tid, trait);   //-- ID traits are always valid after construction
+                if (!node)
+                    throw py::value_error(py::str("{}.{} - ID trait not yet computed").format(class_name(), trait_name_handle.cast<py::object>()));
+                value = node->value();
+            }
+
+            result[trait_name] = value;
+        }
+    }
+
+    return result;
+}
+
+py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py::object& serialized_data) {
+    py::dict id_traits;
+    if (!py::isinstance<py::list>(serialized_data))
+        throw py::type_error(py::str("{} - expected a list of serialized ID trait values, but found {}").format(cls->name(), serialized_data.get_type().attr("__name__")));
+    const auto id_trait_value_list = serialized_data.cast<py::list>();
+    const auto id_trait_value_list_size = id_trait_value_list.size();
+    size_t i = 0;
+    for (const auto &[trait_name_handle, trait_value_handle] : cls->trait_dir()) {
+        if (const auto trait = trait_value_handle.cast<BTrait*>(); trait->flags_on(BTraitFlags::ID)) {
+            if (i < id_trait_value_list_size)
+                id_traits[trait_name_handle.cast<py::object>()] = trait->wrapper_f_deserialize(cls, id_trait_value_list[i]);
+            ++i;
+        }
+    }
+    if (i != id_trait_value_list_size)
+        throw py::value_error(py::str("{} - mismatching number of id traits. expected {}, but found {}").format(cls->name(), i, id_trait_value_list_size));
+    return id_traits;
+}
+
+//-- Nucleus' serialize (not for top-level objects)
+py::object BTraitable::serialize_nx(const bool embed) {
+    if (!my_class()->is_embeddable()) {   //-- external reference
+        if (embed)
+            throw py::type_error(py::str("{}/{} - embedded instance must be 'embeddable'").format(class_name(), id_value()));
+
+        py::dict res;
+        m_tid.serialize_id(res);
+        if (!my_class()->is_storable()) {
+            if (my_class()->is_id_endogenous()) {
+                res[BNucleus::ID_TAG()] = serialize_id_traits();
+                return res;
+            }
+            throw py::type_error(py::str("{}/{} - cannot serialize a non-storable exogenous reference").format(class_name(), id_value()));
+        }
+        const auto mode = ThreadContext::flags();
+        const auto cascade =(mode & BSaveRefs::ALL) || ((mode & BSaveRefs::NEW_ONLY) && !(lazy_load_flags() & XCache::LOAD_REQUIRED) && get_revision().cast<int>() == 0);
+        if (cascade && ThreadContext::serialization_memo().insert(m_tid).second) {
+            auto py_traitable = my_class()->from_id(m_tid.traitable_id());
+            if (const auto rc = py_traitable.attr("save")(BSaveRefs::NONE); !py::cast<bool>(rc)) {
+                throw py::value_error(py::str("{}/{} - failed to save referenced object: {}").format(class_name(), id_value(),rc.attr("error")()));
+            }
+        }
+        return res;
+    }
+
+    ThreadContext::EmbedSerializationScope embed_scope(m_tid);
+    return serialize_traits();
+}
+
+py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict& serialized_data) {
+    auto const id_value = PyLinkage::dict_get(serialized_data, BNucleus::ID_TAG());
+
+    if (!cls->is_storable() && cls->is_id_endogenous()) {
+        const py::kwargs id_traits = deserialize_id_traits(cls, id_value);
+        return cls->py_class()(**id_traits);  //-- cls(**id_traits)
+    }
+
+    if (auto id = TID::deserialize_id(serialized_data, false); !id.is_none()) {     //-- external reference
+        auto lazy_ref = cls->from_id(id);  // lazy reference
+        if (const auto obj = lazy_ref.cast<BTraitable*>(); obj->lazy_load_flags() & BTraitableProcessor::DEBUG) {
+            obj->set_lazy_load_flags(XCache::LOAD_REQUIRED);
+            obj->lazy_load_if_needed();
+        }
+        return lazy_ref;
+    }
+
+    //-- Embedded traitable
+    auto py_traitable = cls->py_class()();      // cls() - exogenous iD!
+    py_traitable.cast<BTraitable*>()->deserialize_traits(serialized_data);
+    return py_traitable;
+}
+
+py::object BTraitable::serialize_object(const unsigned save_references) {
+    if (lazy_load_flags() & XCache::LOAD_REQUIRED) {
+        if (my_class()->instance_in_store(m_tid))
+            return py::none();                                //-- lazy reference exists in store - nothing to save
+        clear_lazy_load_flags(XCache::LOAD_REQUIRED);         //-- does not exist in store - nothing to load
+        // we continue on so we can e.g. save new objects with ID traits only
+    }
+
+    py::dict serialized_data;
+
+    serialized_data[BNucleus::ID_TAG()] = id_value();
+    serialized_data[BNucleus::REVISION_TAG()] = get_revision();
+
+    if (const auto class_id = my_class()->serialize_class_id(); !class_id.is_none())
+        serialized_data[BNucleus::CLASS_TAG()] = class_id;
+
+    ThreadContext::SerializationScope scope(save_references, m_tid);
+    serialized_data |= serialize_traits();
+
+    return serialized_data;
+}
+
+py::object BTraitable::deserialize_object(const BTraitableClass *cls, const py::object& coll_name, const py::dict& serialized_data, bool reload) {
+    if (!cls)
+        throw std::runtime_error("BTraitable class is required!");
+    if (const auto class_id = cls->get_field(serialized_data, BNucleus::CLASS_TAG(), false); !class_id.is_none())
+        cls = cls->deserialize_class_id(class_id).attr("s_bclass").cast<BTraitableClass*>();
+
+    const auto id_value = cls->get_field(serialized_data, BNucleus::ID_TAG());
+    const auto id = PyLinkage::traitable_id(id_value, coll_name);
+    if (!reload && BTraitableClass::instance_in_cache(TID(cls, id)))
+        return cls->from_id(id);
+
+    const auto py_obj = cls->from_id(id);
+    const auto rev = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+    const auto obj = py_obj.cast<BTraitable*>();
+    obj->clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
+    obj->deserialize_traits(serialized_data);
+    obj->set_revision(rev);
+
+    return py_obj;
+}
+
+py::dict BTraitable::serialize_traits() {
+    py::dict res;
+    const auto XNone = PyLinkage::XNone();
+    const auto proc = ThreadContext::current_traitable_proc();
+    bool has_ts = false;
+    for (const auto &[trait_name_handle, trait_value_handle] : my_class()->trait_dir()) {
+        const auto trait = trait_value_handle.cast<BTrait*>();
+        if (trait->flags_on(BTraitFlags::TS))
+            has_ts = true;
+        if (!trait->flags_on(BTraitFlags::RUNTIME) && !trait->flags_on(BTraitFlags::RESERVED) && !trait->flags_on(BTraitFlags::TS)) {
+            const auto trait_name = trait_name_handle.cast<py::object>();
+            const auto value = proc->get_trait_value(this, trait);
+            if (value.is_none())    //-- None is never serialized (user's decision to return or set None)
+                throw py::value_error(py::str("{}.{} - undefined value").format(class_name(), trait_name));
+
+            //-- XNone is serialized as None (undefined)
+            const auto ser_value = value.is(XNone) ? py::none() : trait->wrapper_f_serialize(my_class(), value);
+            res[trait_name] = ser_value;
+        }
+    }
+    // Allow empty client blob when TS traits exist; post_serialize fills them.
+    if (res.empty() && !has_ts)
+        throw py::value_error(py::str("{}/{} - no storable traits found").format(class_name(), id_value()));
+
+    return res;
+}
+
+void BTraitable::deserialize_traits(const py::dict& trait_values) {
+    const auto proc = ThreadContext::current_traitable_proc();
+
+    const auto XNone = PyLinkage::XNone();
+    for (const auto &[trait_name_handle, trait_handle] : my_class()->trait_dir()) {
+        const auto trait = trait_handle.cast<BTrait*>();
+        if (trait->flags_on(BTraitFlags::RESERVED)
+            || trait->flags_on(BTraitFlags::RUNTIME)
+            || (trait->flags_on(BTraitFlags::EVAL_ONCE) && is_valid(trait))
+            || (trait->flags_on(BTraitFlags::ID) && is_set(trait)))
+            continue;
+
+        const auto trait_name = trait_name_handle.cast<py::object>();
+        if (auto value = PyLinkage::dict_get(trait_values, trait_name); value.is(XNone))
+            proc->invalidate_trait_value(this, trait);      //-- TODO: should we set None instead?
+        else {
+            //-- As XNone is serialized as None, get it back, if any
+            const auto deser_value = value.is_none() ? XNone : trait->wrapper_f_deserialize(my_class(), value);
+            if (const BRC rc(set_value(trait, deser_value)); !rc)
+                throw py::value_error(rc.error());
+        }
+    }
+}
+
+py::object BTraitable::_reload(const bool rev_only) {
+    if (const auto cls = my_class(); cls->may_exist_in_store() && m_tid.is_valid()) {
+        const auto needs_lazy_load = lazy_load_flags() & XCache::LOAD_REQUIRED;
+        const auto loaded_data = needs_lazy_load ? lazy_load_if_needed() : cls->load_data(id());
+        if (loaded_data.is_none())
+            return loaded_data;
+
+        auto serialized_data = loaded_data.cast<py::dict>();
+        if (rev_only) {
+            const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+            serialized_data.clear();
+            serialized_data[BNucleus::REVISION_TAG()] = revision;
+        }
+        if (needs_lazy_load && origin_cache_is(ThreadContext::current_cache()))
+            return serialized_data; // -- already loaded in current cache
+
+        const auto revision = cls->get_field(serialized_data, BNucleus::REVISION_TAG());
+        set_revision(revision);
+        deserialize_traits(serialized_data);
+        return serialized_data;
+    }
+    return py::none();
+}
+
+py::list BTraitable::calc_values(const py::list& bucket, const py::str& trait_name) {
+    auto proc = ThreadContext::current_traitable_proc();
+    py::list res;
+    for (auto item : bucket) {
+        auto obj = item.cast<BTraitable*>();
+        const auto trait = obj->my_class()->find_trait(trait_name);
+        if (!trait)
+            throw py::type_error(py::str("{}.{} - unknown trait").format(obj->class_name(), trait_name));
+
+        auto value = proc->get_trait_value(obj, trait);
+        res.append(value);
+    }
+    return res;
+}
+
+py::list BTraitable::calc_values_with_args(const py::list& bucket, const py::str& attr_name, const py::args& args) {
+    auto proc = ThreadContext::current_traitable_proc();
+    py::list res;
+    py::object value;
+    for (auto item : bucket) {
+        auto obj = item.cast<BTraitable*>();
+        auto cls = obj->my_class();
+        const auto trait = cls->find_trait(attr_name);
+        if (!trait) {
+            auto method = py::getattr(item, attr_name, py::none());
+            if (method.is_none())
+                throw py::type_error(py::str("{}.{} - unknown attribute").format(obj->class_name(), attr_name));
+
+            value = method(*args);
+        }
+        else
+            value = proc->get_trait_value(obj, trait, args);
+
+        res.append(value);
+    }
+    return res;
+}
+
+py::object BTraitable::calc_and_aggregate(const py::list& bucket, const py::str& trait_name, const py::object& f_aggregator) {
+    auto res = calc_values(bucket, trait_name);
+    return f_aggregator(res);
+}
+
+py::object BTraitable::calc_and_aggregate_with_args(const py::list& bucket, const py::str& attr_name, const py::object& f_aggregator, const py::args& args) {
+    auto res = calc_values_with_args(bucket, attr_name, args);
+    return f_aggregator(res);
+}

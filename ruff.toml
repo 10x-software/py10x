@@ -1,15 +1,19 @@
 src = ["core_10x", "infra_10x", "ui_10x"]
 line-length = 150
 target-version = "py310"
+extend-exclude = ["cxx10x"]
 
 [format]
 quote-style = "single"
 exclude = [
     "README.md",
     "GETTING_STARTED.md",
+    "docs/notebooks/*.py",
     "core_10x/attic/*",
     "core_10x/jit/*",
     "core_10x/xnone.py",
+    "core_10x/selectable_traitable_class.py",
+    "core_10x/callable_instrumentation.py",
     "core_10x/__init__.py",
     "core_10x/environment_variables.py",
     "core_10x/basket.py",
@@ -28,7 +32,6 @@ exclude = [
     "ui_10x/examples/*",
     "ui_10x/py_data_browser.py",
     "ui_10x/choice.py",
-    "ui_10x/table*.py",
     "ui_10x/utils.py",
     "ui_10x/traitable_editor.py",
     "xxcommon/xxcalendar.py",
@@ -38,6 +41,7 @@ exclude = [
     "xxcommon/manual_tests/*",
     "xxcommon/README.md",
     "xxcommon/*_curve.py",
+    "xxcommon/jit_aadc/*",
     "xx_fin/xxfin/*",
 ]
 
@@ -86,9 +90,11 @@ future-annotations = true # add "from __future__ import annotations" to enable m
 
 exclude = [
     "core_10x/attic/*.py",
+    "docs/notebooks/*.py",
     "core_10x/jit/*",
-    "ui_10x/table*.py",
-    "xx_fin/xxfin/jit_aadc/*",
+    "core_10x/callable_instrumentation.py",
+    "ui_10x/qt6/table*.py",
+    "xx_fin/xxfin/attic/jit_aadc/*.py",
 ]
 [lint.per-file-ignores]
 "xx_fin/xxfin/manual_tests/*" = [
@@ -96,9 +102,18 @@ exclude = [
     "B011", # assert False
 ]
 "ui_10x/qt6/*" = ["B011","F401","I001","B007","UP035","E713","F541","F841","RUF023","UP006","UP037","UP04","B024","B027","E731","F402","F811","F821","RUF005","UP038","N816"]
-"ui_10x/examples/price_simulator.py" = ["E711"]
+"ui_10x/examples/*" = ["I001"]
+"ui_10x/examples/price_simulator.py" = [
+    "E711",   # != None
+    "BLE001", # Do not catch blind exception: `Exception`
+]
 "ui_10x/rio/apps/examples/examples/pages/login_page.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
+]
+"xxcommon/jit_aadc/*" = [
+    "I001", # Import sort
+    "N802", # Function names should be lowercase
+    "N815", # Variable in class scope should not be mixedCase
 ]
 "xxcommon/*rdate.py" = [
     "N802", # Function names should be lowercase
@@ -215,8 +230,10 @@ exclude = [
 "xx_fin/xxfin/ir_swap_quotable.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
 ]
+"xx_fin/xxfin/*.py" = [
+    "N813", # e.g. camelcase `QuantLib` imported as lowercase `ql`
+]
 "xx_fin/xxfin/fin_calendar.py" = [
-    "N813", # Camelcase `QuantLib` imported as lowercase `ql`
     "BLE001", # Do not catch blind exception: `Exception`
 ]
 "xx_fin/xxfin/fin_instrument.py" = [

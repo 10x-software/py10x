@@ -6,6 +6,9 @@ on:
       - "prod/v*"
   workflow_dispatch:
 
+env:
+  SKBUILD_CMAKE_BUILD_TYPE: Release   # test what ships, not the packages' Debug dev default
+
 jobs:
   # Pre-publish gate: the exact tagged commit must pass the suite (incl. the xx-promote PEP 440
   # assumption guards) before anything is published.
@@ -15,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-tags: true
+          fetch-depth: 0   # full history (0 = unlimited): sibling tags + their commits for the git+file installs below
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -25,9 +28,6 @@ jobs:
 
       - name: Set up Python
         run: uv python install 3.12
-
-      - name: Checkout kernel/infra
-        run: git clone https://github.com/10x-software/cxx10x.git ../cxx10x
 
       # One venv on PATH for every later step; xx_ci needs only packaging + tomlkit (it is
       # kernel-free, so it can resolve tags before any sibling is installed).
@@ -39,16 +39,15 @@ jobs:
 
       # Resolve each sibling to the tag its *pinned spec* admits (Form A dev pin -> latest rc on an
       # rc commit; final-only pin -> latest final on a release branch), then install that tagged
-      # source from the local clone.
+      # source from this checkout (in-tree under cxx10x/).
       - name: Resolve and install siblings at their pinned tags
         run: |
           KERNEL_TAG=$(python -m dev_10x.xx_ci latest_tag py10x-kernel)
           INFRA_TAG=$(python -m dev_10x.xx_ci latest_tag py10x-infra)
           echo "kernel -> $KERNEL_TAG ; infra -> $INFRA_TAG"
-          CXX_ABS=$(cd "../cxx10x" && pwd)
           uv pip install -c constraints.txt \
-            "py10x-kernel @ git+file://${CXX_ABS}@${KERNEL_TAG}#subdirectory=core_10x" \
-            "py10x-infra  @ git+file://${CXX_ABS}@${INFRA_TAG}#subdirectory=infra_10x"
+            "py10x-kernel @ git+file://${PWD}@${KERNEL_TAG}#subdirectory=cxx10x/core_10x" \
+            "py10x-infra  @ git+file://${PWD}@${INFRA_TAG}#subdirectory=cxx10x/infra_10x"
 
       - name: Install py10x-core + dev/test deps
         # Additive install: the siblings from the step above already satisfy py10x-core's specs, so
@@ -114,6 +113,17 @@ jobs:
 
     - name: Build distributions
       run: uv build
+
+    # Core's release commit `==`-pins the coordinated kernel/infra, which publish from their own
+    # workflow (cxx10x_wheels.yml, often slower). Never let core reach PyPI ahead of them: an rc whose
+    # pinned siblings never land is uninstallable. Kernel-free, so it runs before any C++ install.
+    - name: Wait for pinned siblings on PyPI
+      env:
+        PYPI_TIMEOUT_SEC: "3600"
+      run: |
+        uv venv
+        uv pip install -c constraints.txt packaging tomlkit
+        .venv/bin/python -m dev_10x.xx_ci wait_sibling_releases
 
     - name: Publish to PyPI
       run: uv publish
@@ -182,17 +192,17 @@ jobs:
         run: python -m dev_10x.xx_ci wait_pypi_release "${{ needs.version.outputs.version }}"
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Build and push production image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile
@@ -214,14 +224,14 @@ jobs:
       packages: write
     steps:
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Combine per-arch images into one multi-arch tag
         run: |

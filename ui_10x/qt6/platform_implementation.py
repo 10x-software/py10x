@@ -105,11 +105,13 @@ ButtonGroup.__getattr__         = missing_attr
 
 ListItem                        = QListWidgetItem
 ListItem.__getattr__            = missing_attr
+ListItem.row                    = lambda self: self.listWidget().row(self)
 
 MatchExactly                    = Qt.MatchFlag.MatchExactly
 
 ListWidget                      = QListWidget
-ListWidget.clicked_connect      = lambda self, bound_method:    self.clicked.connect(bound_method)
+# clicked → QModelIndex; itemClicked → QListWidgetItem (handlers need item.text()).
+ListWidget.clicked_connect      = lambda self, bound_method:    self.itemClicked.connect(bound_method)
 
 TreeItem                        = QTreeWidgetItem
 TreeItem.__getattr__            = missing_attr
@@ -136,14 +138,26 @@ class Dialog(QDialog):
         if in_open_dialogs:
             self.s_open_dialogs.remove(self)
 
+    def on_open(self):
+        pass
+
     def show(self):
         print(f'showing {self}')
+        self.on_open()
         self.s_open_dialogs.add(self)
         self.finished.connect(self._on_finished)
         super().show()
         self.raise_()
         self.activateWindow()
         self.s_open_dialogs.add(self)
+
+    def exec(self):
+        # QDialog.exec() does not call the Python show() override.
+        print(f'showing {self}')
+        self.on_open()
+        self.s_open_dialogs.add(self)
+        self.finished.connect(self._on_finished)
+        return super().exec()
 
 
 class MessageBox(QMessageBox):

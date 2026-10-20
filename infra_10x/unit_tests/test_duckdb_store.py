@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 import uuid6
-from core_10x.trait_definition import T
+from core_10x.trait_definition import RT, T
 from core_10x.traitable import Traitable
 from infra_10x.duckdb_store import DuckDbStore
 from infra_10x.ibis_store import _ID
@@ -40,6 +40,26 @@ def test_untyped_json_multi_key_numeric_order():
     assert coll.min('n')['n'] == 2
     assert coll.max('n')['n'] == 10
     store.delete_collection(coll_name)
+
+
+def test_traitable_writable_collection_prepares_columns():
+    """``Class.collection(create_if_needed=True)`` creates the table and stored columns, skipping RUNTIME."""
+
+    class Num(Traitable, custom_collection=True, keep_history=False):
+        name: str = T(T.ID)
+        n: int = T()
+        tmp: str = RT('')
+
+    store = DuckDbStore()
+    coll_name = f'prep_{uuid6.uuid7().hex}'
+    with store:
+        Num.collection(coll_name)
+        assert not store._collection_columns(coll_name)
+        Num.collection(coll_name, create_if_needed=True)
+        cols = store._collection_columns(coll_name)
+        assert 'n' in cols and 'name' in cols
+        assert 'tmp' not in cols
+        store.delete_collection(coll_name)
 
 
 def test_no_trait_dir_is_read_only():

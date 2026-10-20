@@ -34,47 +34,27 @@ runs:
       if: runner.os == 'Windows'
       uses: ./.github/actions/setup-windows-build
 
-    - name: Resolve corresponding cxx10x branch
-      id: cxx10x_branch
-      shell: bash
-      run: |
-        candidates=()
-        if [ -n "${{ github.head_ref }}" ]; then
-          candidates+=("${{ github.head_ref }}")
-        fi
-        if [ -n "${{ github.base_ref }}" ]; then
-          candidates+=("${{ github.base_ref }}")
-        else
-          candidates+=("${{ github.ref_name }}")
-        fi
-        candidates+=("main")
-        branch=$("${{ github.workspace }}/.github/scripts/resolve-sibling-branch.sh" \
-          "https://github.com/10x-software/cxx10x.git" \
-          "${candidates[@]}")
-        echo "branch=$branch" >> "$GITHUB_OUTPUT"
-        echo "Using cxx10x branch: $branch"
-
-    - name: Checkout kernel/infra
-      shell: bash
-      run: |
-        rm -rf ../cxx10x
-        git clone --branch "${{ steps.cxx10x_branch.outputs.branch }}" \
-          https://github.com/10x-software/cxx10x.git ../cxx10x
-
     - name: Enable AddressSanitizer build
       if: inputs.asan == 'true'
       shell: bash
       run: |
-        echo "ENABLE_SANITIZERS=ON" >> "$GITHUB_ENV"
+        echo "XX_CXX_SANITIZERS=ON" >> "$GITHUB_ENV"
 
+    # CI keeps plain editable C++ installs instead of the incremental default: nothing is edited
+    # after install, so per-import rebuild checks in every xdist worker would be pure overhead.
+    # Not `normal` either - cxxfin finds kernel headers via the editable install; a non-editable
+    # kernel makes it fetch them by commit hash, which fails for a PR's merge commit.
     - name: Install dependencies
       shell: bash
-      env:
-        WAIT_FOR_SIBLING_BRANCH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cxx10x_branch.outputs.branch || '' }}
       run: |
+        echo "XX_UV_INSTALL_MODE=editable" >> "$GITHUB_ENV"
+        export XX_UV_INSTALL_MODE=editable
+        # Explicit, so a change to the packages' default cmake.build-type doesn't reach CI.
+        echo "SKBUILD_CMAKE_BUILD_TYPE=Release" >> "$GITHUB_ENV"
+        export SKBUILD_CMAKE_BUILD_TYPE=Release
         uv venv
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        python -m dev_10x.uv_sync py10x-core-dev --all-extras
+        python -m dev_10x.uv_sync py10x-dev --all-extras
 
     # uv-sync applies -c constraints.txt on every install, so the test env is frozen. Assert every
     # installed third-party dist is pinned (catches a py10x or sibling dep that escaped the freeze).
@@ -83,6 +63,14 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check
+
+    # constraints.txt is generated from the committed uv.lock (`xx-constraints compile`): fail if
+    # someone edited one without regenerating the other.
+    - name: Verify constraints.txt matches uv.lock
+      shell: bash
+      run: |
+        source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+        xx-constraints check-export
 
     # Core isolation: fin-base must not be importable until --with-downstream (after core pytest).
     - name: Assert xxfin not importable (core isolation)
@@ -160,18 +148,16 @@ runs:
 
     # Downstream validation (same job, after core suite): install fin-base then run xx_fin tests.
     # Core isolation was asserted before the core suite; xxfin must be importable here. On ASan
-    # nightlies ENABLE_SANITIZERS stays ON so cxxfin is built WITH sanitizers, exactly like
+    # nightlies XX_CXX_SANITIZERS stays ON so cxxfin is built WITH sanitizers, exactly like
     # py10x_kernel: it then takes the kernel's _add_sanitizers branch (skips RTLD stub generation)
     # and stays loadable next to the ASan-instrumented kernel. Building it normally instead would
     # dlopen the ASan kernel under a non-preloaded python and abort ("ASan runtime does not come
-    # first"). On non-ASan builds ENABLE_SANITIZERS is unset, so cxxfin is a normal build with stubs.
+    # first"). On non-ASan builds XX_CXX_SANITIZERS is unset, so cxxfin is a normal build with stubs.
     - name: Install fin-base (--with-downstream)
       shell: bash
-      env:
-        WAIT_FOR_SIBLING_BRANCH: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.cxx10x_branch.outputs.branch || '' }}
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        python -m dev_10x.uv_sync py10x-core-dev --all-extras --with-downstream
+        python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
 
     # Run the fin-base tests through the same ASan harness as the core suite: importing cxxfin loads
     # the ASan-instrumented kernel, so it needs LD_PRELOAD (Linux) / cdb (Windows) too. pytest

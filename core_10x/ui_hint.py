@@ -58,6 +58,9 @@ class UiHint:
         if self.widget_type is None:
             self.widget_type = trait.s_ui_hint.widget_type
 
+        for key, value in trait.s_ui_hint.params.items():
+            self.params.setdefault(key, value)
+
         trait_flags = trait.flags
         if trait_flags & T.HIDDEN.value():
             self.flags |= self.HIDDEN

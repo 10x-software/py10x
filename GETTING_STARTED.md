@@ -34,7 +34,7 @@ The Traitable framework, dependency graph, storage integration, and Rio/Qt UI ba
 **Users:** `pip install py10x-core[rio]` or `pip install py10x-core[qt]` (see [INSTALLATION.md](INSTALLATION.md)).
 
 **Contributors:** see [CONTRIBUTING.md](CONTRIBUTING.md#development-setup) for `uv-sync` profiles
-(`py10x-dev` is typical; `py10x-core-dev` when editing `../cxx10x`).
+(`py10x-dev` builds core and the in-tree C++ packages under `cxx10x/`).
 
 ## Core Concepts
 
@@ -942,17 +942,16 @@ with GRAPH_ON() as gp:
     gd = GraphDeps(
         gp,                          # the active BTraitableProcessor
         aggregator.T.total,          # BoundTrait – the "root" node (obj + trait)
-        Source,                      # target class whose instances to search
-        'price',                     # zero or more trait names on Source
+        {Source: ('price',)},        # inputs_spec: target class -> traits to collect on it
     )
     assert sum(1 for _ in gd.deps()) == 2
 ```
 
 `aggregator.T.total` uses the **instance-level** `.T` accessor, which returns a `BoundTrait`.  For the full breakdown of instance vs. class `.T` accessor forms see the [ClassTrait](#classtrait--trait-as-a-named-callable) section.
 
-**Trait names are zero-or-more**: passing no trait names is valid but always returns empty results (the C++ layer short-circuits immediately).  In practice, domain-specific subclasses of `GraphDeps` supply the defaults so callers never need to repeat them (see [Subclassing GraphDeps](#subclassing-graphdeps--domain-specific-wrappers) below).
+**Trait names are per class**: each key of `inputs_spec` maps to a tuple of trait names on that class.  An empty tuple — or an empty spec — is valid but always returns empty results (the C++ layer short-circuits immediately).  In practice, domain-specific subclasses of `GraphDeps` supply the spec so callers never need to repeat it (see [Subclassing GraphDeps](#subclassing-graphdeps--domain-specific-wrappers) below).
 
-**`target_class` accepts any ancestor**: the filter is an `issubclass` check, so you can pass a shared base class to match all its subtypes at once — without listing each concrete class explicitly.  If your domain has a common base (e.g. `Quotable`) pass that; `Traitable` itself is the extreme case that matches everything.
+**Each key accepts any ancestor**: the filter is an `issubclass` check, so a key can be a shared base class that matches all its subtypes at once — without listing each concrete class explicitly.  If your domain has a common base (e.g. `Quotable`) use that; `Traitable` itself is the extreme case that matches everything.  Several keys in one spec cover the case where different families of inputs carry different traits.
 
 ```python
 from core_10x.exec_control import GRAPH_ON, GraphDeps
@@ -987,8 +986,8 @@ with GRAPH_ON() as gp2:
     portfolio = Portfolio(name='p')
     _ = portfolio.value
 
-    # Instead of one GraphDeps per concrete class, one call covers all subclasses:
-    gd = GraphDeps(gp2, portfolio.T.value, Quotable, 'quote')
+    # Instead of one key per concrete class, one base-class key covers all subclasses:
+    gd = GraphDeps(gp2, portfolio.T.value, {Quotable: ('quote',)})
     results = [(cls.__name__, obj.name, val) for cls, obj, trait, val in gd.deps()]
     assert len(results) == 2
 ```
@@ -1043,7 +1042,7 @@ with GRAPH_ON() as gp:
     Equity(ticker='Y').price = 50.0
     idx = Index(name='idx')
     _ = idx.value
-    gd = GraphDeps(gp, idx.T.value, Equity, 'price')
+    gd = GraphDeps(gp, idx.T.value, {Equity: ('price',)})
 
     for cls, obj_id, trait, val in gd.deps(objects=False):
         gd.perturb(cls, obj_id, trait, val * 2.0)   # cls/obj_id/trait straight from deps()
@@ -1056,7 +1055,7 @@ with GRAPH_ON() as gp:
     Equity(ticker='Y').price = 50.0
     idx = Index(name='idx2')
     _ = idx.value
-    gd = GraphDeps(gp, idx.T.value, Equity, 'price')
+    gd = GraphDeps(gp, idx.T.value, {Equity: ('price',)})
 
     for cls, obj, trait_name, val in gd.deps(trait_names=True):
         obj.set_value(trait_name, val * 2.0)
@@ -1068,12 +1067,12 @@ with GRAPH_ON() as gp:
 
 - **Not in graph mode** (`GRAPH_OFF`): `find_dependencies` always returns an empty dict outside of graph mode.
 - **Trait not yet computed**: the dependency graph node for the root trait does not exist until the trait is evaluated at least once under `GRAPH_ON`.
-- **Zero trait names**: passing no trait name arguments is valid but the C++ layer short-circuits and returns nothing immediately.
-- **Wrong `target_class` or trait name**: the C++ layer silently skips classes that are not subclasses of `target_class` and trait names that don't exist on the target class.
+- **Empty spec**: an empty `inputs_spec`, or a class mapped to an empty tuple, is valid but the C++ layer short-circuits and returns nothing immediately.
+- **Wrong class or trait name**: the C++ layer silently skips classes that are not subclasses of any key, and trait names that don't exist on the matched class.
 
 ##### Subclassing `GraphDeps` — domain-specific wrappers
 
-In a larger system, define a **common base class** for all Traitable classes (current and future) that are leaf inputs for a given use case.  Passing that base class as `target_class` means new subclasses are automatically included without changing any call site — and `Traitable` itself is the extreme case that matches everything.  The idiomatic place to record which traits matter is a class-level `s_leaf_trait_names` tuple on that base class itself — right next to the trait definitions, where it stays in sync naturally.
+In a larger system, define a **common base class** for all Traitable classes (current and future) that are leaf inputs for a given use case.  Using that base class as the `inputs_spec` key means new subclasses are automatically included without changing any call site — and `Traitable` itself is the extreme case that matches everything.  The idiomatic place to record which traits matter is a class-level `s_leaf_trait_names` tuple on that base class itself — right next to the trait definitions, where it stays in sync naturally.
 
 Then create a **`GraphDeps` subclass** to encapsulate that specific use case — it reads `s_leaf_trait_names` from the base class in its constructor, so call sites supply neither the target class nor the trait list:
 
@@ -1100,20 +1099,20 @@ class Instrument(Traitable):
 
 
 class DomainDeps(GraphDeps):
-    def __init__(self, graph, bound_trait, *trait_names,
+    def __init__(self, graph, bound_trait, inputs_spec=None,
                  target_class=Quotable):
-        if not trait_names:
-            trait_names = target_class.s_leaf_trait_names
-        super().__init__(graph, bound_trait, target_class, *trait_names)
+        if not inputs_spec:
+            inputs_spec = {target_class: target_class.s_leaf_trait_names}
+        super().__init__(graph, bound_trait, inputs_spec)
 
 
-# Callers write just: target_class and trait names are inferred
+# Callers write just: the inputs spec is inferred
 with GRAPH_ON() as graph:
     Quotable(name='q1').quote = 10.0
     Quotable(name='q2').quote = 20.0
     instrument = Instrument(name='inst')
     _ = instrument.price                          # prime the graph
-    deps = DomainDeps(graph, instrument.T.price)  # target_class and trait names inferred
+    deps = DomainDeps(graph, instrument.T.price)  # inputs_spec inferred
     for cls, obj_id, trait, val in deps.deps(objects=False):
         deps.perturb(cls, obj_id, trait, val * 0.99)
     assert round(instrument.price, 2) == 29.70
@@ -1508,12 +1507,10 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
     with SaveIfChanged() as tracker:
         alice.age = 30           # tracked
         bob.age   = 42           # tracked
-        # both Alice and Bob are saved on exit
-
-    assert set(tracker.tracked_objects()) == {alice, bob}
+        assert set(tracker.tracked_objects()) == {alice, bob}  # both Alice and Bob are saved on exit
 ```
 
-The `tracker` exposes `tracked_objects()` — the full list of `Traitable` instances that had a trait assigned inside the block (in insertion order). Non-storable traitables are still reported by `tracked_objects()` but not saved.
+The `tracker` exposes `tracked_objects()` — the full list of `Traitable` instances that had a trait assigned inside the block (in insertion order). Non-storable traitables are still reported by `tracked_objects()` but not saved. Once `save()` (or `reload()`) succeeds and covers every currently tracked object — i.e. no `classes` filter left something untouched — `tracked_objects()` is cleared, so reusing the same tracker for a later, unrelated edit doesn't redundantly re-save what was already persisted.
 
 #### Filtering by class
 
@@ -2340,10 +2337,10 @@ See **[NamedResource and class associations](#namedresource-and-class-associatio
 
 | Component | What it is |
 |-----------|-----------|
-| **Vault** | A dedicated `TsStore` database (e.g. a separate MongoDB or PostgreSQL database) that stores encrypted credentials. URI set via `XX_MAIN_VAULT_URI`. |
-| **`VaultUser`** | One record per user, keyed by OS user name (`user_id`). Holds an RSA-2048 key pair: the public key in plain text, the private key encrypted with the user's **master password**. |
-| **`VaultResourceAccessor`** | One record per *(user, resource type, resource URI)* triple. Holds the login name and the resource password encrypted with that user's public key. |
-| **`SecKeys`** | Low-level helper: RSA encryption/decryption (`cryptography` library) + OS keyring integration (`keyring` library) for the master password and vault login/password. |
+| **Vault** | A dedicated authenticated `TsStore` (MongoDB, PostgreSQL, or another authenticating backend) that stores encrypted credentials. URI set via `XX_MAIN_VAULT_URI`. See [`docs/VAULT_SECURITY_DESIGN.md`](docs/VAULT_SECURITY_DESIGN.md). |
+| **`VaultUser`** | One record per user, keyed by OS user name (`user_id`). Holds an RSA-2048 key pair: the public key in plain text, the private key wrapped with PKCS8 AES using a scrypt-derived key from the user's **master password**. |
+| **`VaultResourceAccessor`** | One record per *(user, resource type, resource URI)* triple. Holds the login name and the resource password RSA-OAEP-SHA256-encrypted with that user's public key. |
+| **`SecKeys`** | Low-level helper: RSA-OAEP encryption/decryption (`cryptography` library) + OS keyring integration (`keyring` library) for the master password and vault login/password. |
 
 ### Security model
 
@@ -2351,12 +2348,12 @@ See **[NamedResource and class associations](#namedresource-and-class-associatio
 OS keyring (user's machine)          Vault database (shared server)
 ────────────────────────────         ──────────────────────────────────
 master_password                      VaultUser.public_key          (plain text)
-vault_login / vault_password         VaultUser.private_key_encrypted  (AES, master_password)
-                                     VaultResourceAccessor.password   (RSA, public_key)
+vault_login / vault_password         VaultUser.private_key_encrypted  (scrypt → PKCS8 AES, master password)
+                                     VaultResourceAccessor.password   (RSA-OAEP-SHA256, public_key)
 ```
 
 - The master password **never leaves the user's machine** — it is stored in the OS keyring and used locally to unlock the private key.
-- Admins encrypt resource passwords using the user's *public* key.  They cannot decrypt passwords belonging to other users.
+- Users encrypt their own resource passwords to their public key (`xx-user-save-credentials`). A vault admin can encrypt a secret they hold for someone else (`xx-admin-save-user-credentials`); they cannot decrypt another user's vault.
 - Vault login/password are also in the OS keyring; they are sent to the vault store for authentication.
 
 ### `NamedResource` and class associations
@@ -2432,16 +2429,18 @@ with named.resource_instance() as db:
 
 ### CLI onboarding tools
 
-Three entry points handle the admin/user setup workflow:
+Entry points for the admin/user setup workflow:
 
 | Command | Who runs it | What it does |
 |---------|-------------|--------------|
-| `xx-user-init` / `--new-user` | New user (first machine) | Prompts for vault login, temp password, and new master password; generates RSA key pair; stores credentials in vault and OS keyring |
+| `xx-vault-setup-roles` | DB superuser | Part I: collections + roles. `--vault-admin` for first admin. Part II step 2: `--worker` with exact OS login. Do not use stock `xxUser` on the vault. |
+| `xx-user-init` / `--new-user` | New user (first machine) | Prompts for vault login, vault password, and new master password; generates RSA key pair; stores credentials in vault and OS keyring |
 | `xx-user-init --new-machine` | Same user on a new machine | Proves the existing master password against the vault private key; seeds the local OS keyring only (no key rotation) |
-| `xx-user-status` | Any user | Prints a health check for every registered resource accessor |
-| `xx-admin-save-user-credentials` | Admin | Encrypts a resource password with a user's public key and stores it in the vault |
+| `xx-user-status` | Any user | Prints OS login (`[0]`) for vault account naming, then vault/keyring health checks |
+| `xx-user-save-credentials` | Any user | Saves or rotates a resource password for the caller only (out-of-band password or a self-generated token) |
+| `xx-admin-save-user-credentials` | Vault admin | Encrypts a resource password with another user's public key and stores it in the vault |
 
-See **[`docs/USER_ONBOARDING_AUTH.md`](docs/USER_ONBOARDING_AUTH.md)** for the full step-by-step procedure and an information-flow diagram.
+See **[`docs/USER_ONBOARDING_AUTH.md`](docs/USER_ONBOARDING_AUTH.md)** — Part I (vault deployment) and Part II (per-user onboarding), with an information-flow diagram.
 
 ### Relevant environment variables
 
@@ -3077,7 +3076,7 @@ with CACHE_ONLY():
 
 ### 5. Vault and Credential Management
 
-- Run `xx-user-init` once per developer and `xx-admin-save-user-credentials` once per resource — after that, `resource_instance()` resolves credentials automatically and no passwords appear in code or environment variables
+- Complete vault [Part I deployment](docs/USER_ONBOARDING_AUTH.md#part-i--vault-deployment) once (`xx-vault-setup-roles`), then [Part II](docs/USER_ONBOARDING_AUTH.md#part-ii--per-user-onboarding) per user (`xx-user-init`, `xx-user-save-credentials` / `xx-admin-save-user-credentials`). After that, `resource_instance()` resolves credentials automatically and no passwords appear in code or environment variables
 - The vault works with every `Resource` type: `TsStore`, `RelDb`, and any custom subclass; the same workflow applies to all of them
 
 ### 6. Testing
@@ -3093,6 +3092,11 @@ For running the full test suite (mongo tests skip when unreachable), see [CONTRI
 
 ### 1. Explore Examples
 
+- Interactive tour: [`docs/notebooks/getting_started.py`](docs/notebooks/getting_started.py)
+  [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py)
+  — a [marimo](https://marimo.io) notebook (reactive Python cells that re-run when their inputs change; similar to Jupyter).
+  Open the badge on [molab](https://docs.marimo.io/guides/molab/), create a free account, choose a **server** session, and run —
+  or run locally with `uvx marimo edit --sandbox docs/notebooks/getting_started.py`
 - Check out `core_10x/code_samples/` for more examples
 - Look at `ui_10x/examples/` for UI integration examples
 - Review `core_10x/manual_tests/` for advanced usage patterns

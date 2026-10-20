@@ -1,14 +1,15 @@
-"""`xx-promote` - release promotion for the three 10x packages.
+"""`xx-promote` - release promotion for the 10x packages.
 
-The three packages version *independently* and live in two git repos:
+The packages version *independently* and all live in this repo:
 
-    py10x-core   -> repo `py10x`   (this repo),     tags  `vX.Y.Z[rcN]`
-    py10x-kernel -> repo `cxx10x`/core_10x,         tags  `py10x-kernel-vX.Y.Z[rcN]`
-    py10x-infra  -> repo `cxx10x`/infra_10x,        tags  `py10x-infra-vX.Y.Z[rcN]`
+    py10x-core     -> `.`                  tags  `vX.Y.Z[rcN]`
+    py10x-kernel   -> `cxx10x/core_10x`    tags  `py10x-kernel-vX.Y.Z[rcN]`
+    py10x-infra    -> `cxx10x/infra_10x`   tags  `py10x-infra-vX.Y.Z[rcN]`
+    py10x-fin-base -> `xx_fin` (downstream) tags `py10x-fin-base-vX.Y.Z[rcN]`
 
 `main` carries *dev* pins (prerelease-admitting) that admit a sibling's next pre-release without
 `--prerelease=allow`; releases are cut by tagging and (for prod) committing strict pins on a
-per-version release branch. See `dev_10x/README.md` for the full model.
+tool-owned release branch. See `dev_10x/README.md` for the full model.
 
 It is a `core_10x.traitable_cli.TraitableCli` tree: positional words pick the command, and
 options use the `--option value` form (dashes in names map to underscores; boolean options also
@@ -61,6 +62,7 @@ class Package(Traitable):
     src_dir: Path
     is_core: bool = RT(T.STICKY)
     is_downstream: bool = RT(T.STICKY)  # depends on core; core must not publish-pin it
+    footprint: tuple = RT(())  # explicit release-footprint git pathspecs; empty = derived (see PkgInput)
 
     repo: Path = RT(T.STICKY)  # git repo root - STICKY: `git_root` is immutable, don't re-shell per access
     tag_prefix: str = RT(T.STICKY)  # tag namespace, e.g. "py10x-kernel-v" (core is just "v")
@@ -124,9 +126,7 @@ class PromoteStep(PkgStep):
         plan = self.plan
         if not plan.act:
             return f'{self.pkg.name}: {plan.skip_reason} - skip'
-        pins = {**plan.forward_pins}
-        if plan.reverse_pin:
-            pins['test'] = plan.reverse_pin
+        pins = plan.forward_pins
         verb = 'promote' if plan.base_kind == 'rc' else 'cut'
         return f'{self.pkg.name}: {verb} {plan.tag} on {plan.branch} off {self.base[:10]} with pins {pins}'
 
@@ -143,16 +143,13 @@ class PromoteStep(PkgStep):
         if not plan.act:
             return
         GitHelpers.git(self.repo, 'checkout', '-q', '-B', plan.branch, self.base)
-        if plan.forward_pins or plan.reverse_pin:
-            if plan.forward_pins:
-                PyProjectHelpers.write_forward_pins(self.pkg.pyproject, plan.forward_pins)
-            if plan.reverse_pin:
-                PyProjectHelpers.write_test_group(self.pkg.pyproject, plan.reverse_pin)
-            # --allow-empty: a re-cut whose pins didn't change still puts a commit on the branch.
-            GitHelpers.git(self.repo, 'commit', '-aqm', f'promote: {plan.tag}', '--allow-empty')
-            GitHelpers.git(self.repo, 'tag', plan.tag)
-        else:
-            GitHelpers.git(self.repo, 'tag', plan.tag)  # no pin delta: released == base verbatim
+        if plan.forward_pins:
+            PyProjectHelpers.write_forward_pins(self.pkg.pyproject, plan.forward_pins)
+        # --allow-empty: every release tag gets its own commit, even with no pins (siblings). With two
+        # lightweight tags on one commit `git describe` picks by tag *name*, not version (rc9 vs rc10.dev
+        # -> rc10.dev), so setuptools-scm could stamp a wheel with the wrong version.
+        GitHelpers.git(self.repo, 'commit', '-aqm', f'promote: {plan.tag}', '--allow-empty')
+        GitHelpers.git(self.repo, 'tag', plan.tag)
         GitHelpers.git(self.repo, 'checkout', '-q', 'main')
 
 
@@ -459,9 +456,12 @@ class XxPromoteCli(TraitableCli):
         tool = doc.get('tool', {}).get('dev_10x', {})
         siblings = tool.get('siblings', {})
         downstreams = tool.get('downstream', {})
-        result = {name: Package(name=name, src_dir=(base / spec['path']).resolve()) for name, spec in siblings.items()}
+        result = {
+            name: Package(name=name, src_dir=(base / spec['path']).resolve(), footprint=tuple(spec.get('footprint', ())))
+            for name, spec in siblings.items()
+        }
         for name, spec in downstreams.items():
-            result[name] = Package(name=name, src_dir=(base / spec['path']).resolve(), is_downstream=True)
+            result[name] = Package(name=name, src_dir=(base / spec['path']).resolve(), is_downstream=True, footprint=tuple(spec.get('footprint', ())))
         result[core_name] = Package(name=core_name, src_dir=base, is_core=True)
         return result
 
@@ -779,7 +779,7 @@ class Yank(XxPromoteCli, _command='yank'):
         remaining = [(t, v) for t, v in self.parsed if v != Version(self.version)]
         prev_tag = VersionHelpers.latest_final_tag(remaining) if self.is_prod else VersionHelpers.latest_rc_tag_overall(remaining)
         if prev_tag is not None:
-            branch = GitHelpers.release_branch(self.branch_name, self.pkg, self.package.is_core, self.package.is_downstream)
+            branch = GitHelpers.release_branch(self.branch_name, self.pkg, self.package.is_core)
             steps.append(RollbackStep(repo=repo, branch=branch, to_tag=prev_tag, to_commit=GitHelpers.tag_commit(repo, prev_tag)))
 
         # Roll back main pins for the yanked release line (role-aware).
@@ -936,8 +936,8 @@ class Resync(XxPromoteCli, _command='resync'):
         for name, pkg in self.packages.items():
             repo_branches.setdefault(pkg.repo, {'main'}).update(
                 (
-                    GitHelpers.release_branch('pre', name, pkg.is_core, pkg.is_downstream),
-                    GitHelpers.release_branch('prod', name, pkg.is_core, pkg.is_downstream),
+                    GitHelpers.release_branch('pre', name, pkg.is_core),
+                    GitHelpers.release_branch('prod', name, pkg.is_core),
                 )
             )
             repo_globs.setdefault(pkg.repo, []).append(f'{pkg.tag_prefix}*')

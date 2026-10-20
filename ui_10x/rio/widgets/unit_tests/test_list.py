@@ -37,11 +37,11 @@ async def test_list_comprehensive() -> None:
         # Verify client shows selection
         await wait_for_list_selection(test_client, 'Item 1')
 
-        # Test clicking second item
-        await test_client.click(10, test_client.window_height_in_pixels - 1)
+        # Test clicking second item (list is top-aligned; use item text, not window bottom).
+        await test_client.playwright_page.get_by_text('Item 3', exact=True).click()
         await asyncio.sleep(0.5)
         assert len(clicked_calls) == 2
-        assert clicked_calls[1]['text'] == 'Item 3'  # Last item
+        assert clicked_calls[1]['text'] == 'Item 3'
         assert widget['selected_items'] == [clicked_calls[1]['key']]
         await wait_for_list_selection(test_client, 'Item 3')
 

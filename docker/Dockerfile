@@ -2,22 +2,20 @@
 # Two independent targets, both defaulting to the functional-account entrypoint
 # (see docker/entrypoint.sh, core_10x/functional_account_keyring.py).
 #
-#   dev        Builds this exact checkout together with its C++ siblings from source (the same
-#              `dev_10x.uv_sync py10x-core-dev --all-extras` command ci-test-suite uses, with
+#   dev        Builds this exact checkout together with its in-tree C++ siblings (cxx10x/) from
+#              source (the same `dev_10x.uv_sync py10x-dev --all-extras` command ci-test-suite uses, with
 #              XX_UV_INSTALL_MODE=normal -- see dev_10x/README.md) -- NOT from PyPI: kernel/infra's
 #              *published* versions may not satisfy the pin currently in pyproject.toml (a normal
-#              state mid-development, not an error), and a PR that coordinates core + cxx10x
-#              changes together needs its own sibling source, not a stale release. Requires an
-#              extra build context named `cxx10x` (a checkout of 10x-software/cxx10x at the
-#              matching branch/tag -- see .github/workflows/ci.yml for how callers supply it). The
+#              state mid-development, not an error), and a PR that changes core + C++ together
+#              needs its own sibling source, not a stale release. The
 #              venv is created fresh *inside* this build (`uv venv` here, not copied in from the
 #              host) so it's fully self-contained -- a host-built .venv copied in via `COPY`
 #              breaks: its bin/python symlink points at the *host's* absolute interpreter path,
 #              which doesn't exist in this image. Built by CI right after the test suite, and by
 #              the PR-time functional-account-e2e job to verify unreleased changes for real.
-#              Siblings install non-editable ('normal' mode) -- /cxx10x is only needed *during*
-#              the build, not afterward (still copied into this stage for now; dropping it via a
-#              multi-stage split is a deferred follow-up, not done yet).
+#              Siblings install non-editable ('normal' mode) -- /app/cxx10x is only needed
+#              *during* the build, not afterward (dropping it via a multi-stage split is a
+#              deferred follow-up, not done yet).
 #
 #   production Plain `pip`-equivalent install of a *released* py10x-core version from PyPI --
 #              no repo checkout baked in at all. What actually ships; default target for a bare
@@ -55,29 +53,29 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . /app
-# `/cxx10x` must sit next to `/app` (i.e. resolve as `/app/../cxx10x`) -- [tool.dev_10x.siblings]
-# in pyproject.toml declares sibling paths relative to the py10x repo root, same as a real
-# `../cxx10x` local checkout.
-COPY --from=cxx10x . /cxx10x
 
 RUN uv venv
 
 # XX_UV_INSTALL_MODE=normal (dev_10x/README.md): plain, non-editable install of py10x-kernel/
-# py10x-infra -- no persistent build-dir, no rebuild-on-import (unlike 'incremental' mode, which
-# exists for iterating on C++ source locally, not for a build-once image). py10x-core itself is
+# py10x-infra -- no rebuild-on-import (unlike 'incremental' mode, which exists for iterating on
+# C++ source locally, not for a build-once image). The packages' persistent build dir
+# (build/py10x-build) is only a compile cache here, so it is removed in the same layer.
+# SKBUILD_CMAKE_BUILD_TYPE=Release is explicit so a change to the packages' default build type
+# doesn't reach the image. py10x-core itself is
 # unaffected by this setting and always installs editable (uv_sync forces it -- see
-# dev_10x/uv_sync.py's INSTALL_MODES docstring), which is why /app (not /cxx10x) still needs to
+# dev_10x/uv_sync.py's INSTALL_MODES docstring), which is why /app still needs to
 # be present and writable at runtime below.
 ENV XX_UV_INSTALL_MODE=normal
+ENV SKBUILD_CMAKE_BUILD_TYPE=Release
 RUN --mount=type=cache,target=/root/.cache/uv \
     . .venv/bin/activate \
-    && python -m dev_10x.uv_sync py10x-core-dev --all-extras
+    && python -m dev_10x.uv_sync py10x-dev --all-extras \
+    && rm -rf build
 
 # pytest writes its own .pytest_cache under rootdir (/app) by default; the container runs as the
 # renamed functional account (non-root, entrypoint.sh's gosu step), so /app needs to be writable
 # by it. `usermod -l` only renames the login, so chowning to the placeholder account's uid here
-# still matches after the rename. /cxx10x doesn't need this: 'normal' mode never touches it again
-# after this build step.
+# still matches after the rename.
 RUN chown -R appuser:appuser /app
 
 ENV PATH="/app/.venv/bin:${PATH}"

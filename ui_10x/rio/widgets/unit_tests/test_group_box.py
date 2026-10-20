@@ -22,6 +22,19 @@ async def test_group_box() -> None:
         assert widget['title'] == 'Updated Group'
 
 
+async def test_group_box_positional_title_string() -> None:
+    """Qt-style GroupBox(title) must set the title (UxRadioBox uses this)."""
+    widget = GroupBox('Selection Mode')
+    assert widget['title'] == 'Selection Mode'
+
+
+async def test_group_box_positional_parent_only() -> None:
+    """Qt-style GroupBox(parent) ignores parent and leaves title empty."""
+    parent = Label('parent')
+    widget = GroupBox(parent)
+    assert widget['title'] == ''
+
+
 async def test_group_box_with_children() -> None:
     """Test GroupBox widget with child widgets."""
     label = Label('Label inside group')
@@ -137,11 +150,12 @@ async def test_group_box_client_interaction() -> None:
         await check_title(widget, test_client)
         await check_label(label, test_client)
 
-        # Test empty title
+        # Test empty title — heading Text is omitted; only content label remains.
         widget.set_title('')
         await test_client.wait_for_refresh()
         assert widget['title'] == ''
-        await check_title(widget, test_client)
+        await wait_for_group_box_counts(test_client, text_count=1, button_count=0)
+        await wait_for_group_box_column_text(test_client, 0, label['text'])
 
 
 async def check_label(label, test_client):

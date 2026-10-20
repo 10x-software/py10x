@@ -1,0 +1,85 @@
+include_guard(GLOBAL)
+
+include(${CMAKE_CURRENT_LIST_DIR}/FetchPybind11Deps.cmake)
+include(${CMAKE_CURRENT_LIST_DIR}/PybindStubs.cmake)
+
+# xx_pybind11_add_module(<target> <source>...)
+#
+# Convenience macro for pybind11 extension modules in the xx ecosystem that
+# depend on py10x_kernel types. Handles:
+#   - fetching pybind11, pybind11_stubgen, backward (via FetchPybind11Deps)
+#   - adding include dirs for core_10x headers and backward
+#   - setting VERSION_INFO from scikit-build-core
+#   - RTLD link options (-undefined dynamic_lookup / --allow-shlib-undefined)
+#   - sanitizer or stub generation (via finalize_pybind_module_rtld)
+#
+# Requires cxx10x_core_headers_SOURCE_DIR to be set (via FetchContent) before
+# calling this macro. Install rules are left to the caller.
+macro(xx_pybind11_add_module target)
+    pybind11_add_module(${target} ${ARGN})
+
+    target_include_directories(${target} PRIVATE
+            ${cxx10x_core_headers_SOURCE_DIR}/core_10x
+            ${backward_SOURCE_DIR}
+    )
+
+    target_compile_definitions(${target} PRIVATE
+            VERSION_INFO="${SKBUILD_PROJECT_VERSION_FULL}"
+    )
+
+    # Locate the installed py10x_kernel binary. Windows needs it for the import library below;
+    # every platform needs it as a configure dependency (see CMAKE_CONFIGURE_DEPENDS further down).
+    #
+    # find_spec resolves the module's path WITHOUT importing it, which matters on both counts:
+    # an ASan-instrumented kernel aborts ("ASan runtime does not come first") when dlopened from a
+    # non-preloaded python -- and the ASan lane only preloads libasan for pytest, not for the build
+    # -- while a plain import may also run the kernel's import-time incremental rebuild, whose cmake
+    # progress lands on stdout around the path we are trying to read.
+    execute_process(
+            COMMAND ${Python3_EXECUTABLE} -c "import importlib.util as u; s = u.find_spec('py10x_kernel'); print(s.origin if s else '')"
+            OUTPUT_VARIABLE _PY10X_KERNEL_MODULE
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            RESULT_VARIABLE _mod_rc
+    )
+    # SKBUILD_EDITABLE_VERBOSE prints "Running cmake --build & --install in <dir>" on this
+    # stdout before s.origin. The module path is the last line. On Windows the .lib path
+    # below is derived from it, so the banner would otherwise fail the EXISTS check.
+    if(_PY10X_KERNEL_MODULE)
+        string(REGEX MATCH "[^\r\n]+$" _PY10X_KERNEL_MODULE "${_PY10X_KERNEL_MODULE}")
+    endif()
+    if(NOT _mod_rc EQUAL 0 OR NOT _PY10X_KERNEL_MODULE)
+        message(FATAL_ERROR "Could not locate the py10x_kernel module. Is py10x-kernel installed?")
+    endif()
+
+
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_PY10X_KERNEL_MODULE}")
+
+    # On Windows, link against py10x_kernel's import library (.lib) so the MSVC
+    # linker can resolve symbols like BTraitable that are dllimport-annotated.
+    # The .lib is installed alongside py10x_kernel.pyd by core_10x/CMakeLists.txt.
+    # On Linux/macOS, consumer extensions rely on py10x_kernel being promoted to
+    # RTLD_GLOBAL before load (see core_10x/__init__.py and generate_stubs.py).
+    if(WIN32)
+        set(_PY10X_KERNEL_PYD "${_PY10X_KERNEL_MODULE}")
+        # MSVC names the import library after the CMake target name (py10x_kernel),
+        # NOT the module's full output name. So the file is py10x_kernel.lib, sitting
+        # next to py10x_kernel.cp312-win_amd64.pyd. Strip the full extension chain
+        # (.cp312-win_amd64.pyd) down to the base module name, then append .lib.
+        get_filename_component(_pyd_dir "${_PY10X_KERNEL_PYD}" DIRECTORY)
+        get_filename_component(_pyd_name "${_PY10X_KERNEL_PYD}" NAME)
+        string(REGEX REPLACE "\\..*$" "" _kernel_base "${_pyd_name}")  # py10x_kernel
+        set(_PY10X_KERNEL_LIB "${_pyd_dir}/${_kernel_base}.lib")
+        if(NOT EXISTS "${_PY10X_KERNEL_LIB}")
+            message(FATAL_ERROR
+                "py10x_kernel import library not found at ${_PY10X_KERNEL_LIB}.\n"
+                "Rebuild and reinstall py10x-kernel to generate the .lib.")
+        endif()
+        add_library(py10x_kernel_import SHARED IMPORTED)
+        set_target_properties(py10x_kernel_import PROPERTIES
+                IMPORTED_IMPLIB "${_PY10X_KERNEL_LIB}"
+        )
+        target_link_libraries(${target} PRIVATE py10x_kernel_import)
+    endif()
+
+    finalize_pybind_module_rtld(${target} ${cxx10x_core_headers_SOURCE_DIR}/cmake)
+endmacro()

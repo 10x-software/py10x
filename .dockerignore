@@ -14,3 +14,8 @@ htmlcov/
 .pytest_cache/
 **/.pytest_cache/
 .ruff_cache/
+# Host C++ build trees (cxx10x/.gitignore); the image builds its own.
+/build/
+cxx10x/**/cmake-build*/
+cxx10x/**/build/
+cxx10x/_deps/

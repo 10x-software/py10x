@@ -2,7 +2,7 @@
 
 ## Install
 
-Install the consumer package only:
+Install the consumer package:
 
 ```bash
 pip install py10x-fin-base
@@ -11,6 +11,9 @@ pip install py10x-fin-base
 
 That pulls **`py10x-fin-base-cxx`** transitively (import `cxxfin`). Do not depend on the cxx
 dist directly. Requires Python `>=3.11,<3.14` and a published `py10x-core` (plus its kernel/infra).
+
+To also use the AADC JIT-compiled path (see [below](#optional-jit-acceleration-via-aadc)), install
+the `aadc` extra: `pip install "py10x-fin-base[aadc]"` (forwards to `py10x-core[aadc]`).
 
 In this monorepo the packaging root is [`xx_fin/`](.). Domain developers typically use
 `uv-sync py10x-dev --all-extras --with-downstream` from the py10x repo root — see
@@ -22,10 +25,13 @@ import cxxfin  # native extension from py10x-fin-base-cxx
 ```
 
 ## About
-The xxfin package of the 10x project serves a dual purpose:
 
-- to illustrate the capabilities of the 10x system by implementing a sufficiently rich example solving an important
-  problem in an important subject domain
+`xxfin` (`py10x-fin-base`) is the first **subject domain** of [10x Genaxy](../README.md).
+
+The package serves a dual purpose:
+
+- to illustrate how a subject domain might use the capabilities of the substratum of 10x Genaxy (`py10x-core`) by implementing
+  a sufficiently rich example solving an important problem in an important subject domain
 - to provide a complete working implementation of the most foundational valuation problem in the financial domain:
   calculating today's price of a fixed amount of a future cash flow denominated in any currency.
 
@@ -72,15 +78,11 @@ any other currency.
 
 ## Optional JIT acceleration via AADC
 
-`xxfin/jit_aadc/` optionally records curve/valuation code into a JIT-compiled adjoint
-differentiation kernel using [MatLogica's AADC](https://pypi.org/project/aadc/) (Adjoint Algorithmic
-Differentiation Compiler), enabled via the `use_cxxfin`/`aadc_license` settings in
-`xxfin_env_vars.py`. `aadc` installs freely from PyPI where MatLogica publishes wheels; it is a
-required dependency except on macOS (no published build) and on Windows under Python 3.13 (no
-wheel yet). It ships with a
-time-limited trial license out of the box, but continued or production use requires a license key
-obtained from MatLogica. `xxfin` itself
-works fully without it — AADC only accelerates the JIT-compiled code path.
+Install the `aadc` extra first -- see [Install](#install). `xxfin`'s curve/valuation code is one
+consumer of `xxcommon`'s generic `AadcExec` JIT-recording facility -- see
+[`xxcommon/README.md`](../xxcommon/README.md#jit_aadc--optional-aadc-based-jit-acceleration) for
+what it is and how it's used. `xxfin` itself works fully without it -- AADC only accelerates the
+JIT-compiled code path, enabled via the `use_cxxfin` setting in `xxfin_env_vars.py`.
 
 ## An easy setup to start playing with xxfin package
 - install mongodb on your machine and run without authentication (default)

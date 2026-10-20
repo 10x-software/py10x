@@ -17,7 +17,7 @@ class StyleSheet(Traitable):
         style = dict(value)
         kw = {}
         if bg_color := style.pop('color', None):
-            kw['fill'] = rio.Color.from_hex(colors.to_hex(bg_color))
+            kw['fill'] = self.parse_color(bg_color)
 
         if font := style.pop('font-family', None):
             kw['font'] = rio.Font.from_google_fonts(font)
@@ -32,6 +32,10 @@ class StyleSheet(Traitable):
             self.text_style = rio.TextStyle(**kw)
 
         return self.rc(style)
+
+    @staticmethod
+    def parse_color(color) -> rio.Color:
+        return rio.Color.from_hex(colors.to_hex(color))
 
     def sheet_get(self):
         style = {}

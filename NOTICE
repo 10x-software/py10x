@@ -83,6 +83,16 @@ Their respective copyright notices and licenses apply to those components only.
     Copyright (c) The Qt Company; Riverbank Computing. GPL v3 / Commercial.
     https://www.riverbankcomputing.com/software/pyqt/
 
+  - aadc (optional "aadc" extra; proprietary, not open source)
+    Copyright (c) MatLogica Limited. Proprietary Python interface to MatLogica's
+    AADC (Adjoint Algorithmic Differentiation Compiler). Installable without
+    restriction from PyPI; the published wheels are
+    the Community Edition build, licensed for non-commercial and academic use
+    only, with no activation, key, or trial period required for that use.
+    Commercial use or advanced features (e.g. AVX-512) require a license
+    obtained by contacting MatLogica (info@matlogica.com).
+    https://pypi.org/project/aadc/
+
   - pytest, ruff, and other dev/optional dependencies
     See their respective projects for copyright and license information.
 

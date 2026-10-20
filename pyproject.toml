@@ -9,8 +9,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "py10x-kernel (>=0.3.2rc2,<0.3.2rc3)",
-    "py10x-infra (>=0.3.2rc1,<0.3.2rc2)",
+    "py10x-kernel (>=0.3.3rc3,<0.3.3rc4)",
+    "py10x-infra (>=0.3.3rc3,<0.3.3rc4)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -61,7 +61,7 @@ dev = [
     "setuptools-scm>=9.2.2",
     "tomlkit>=0.13.0",
     "packaging>=24.0", # version/specifier logic for xx-promote
-    "uv>=0.11.20,<0.13",
+    "uv>=0.12.5; python_version < '3.12'", # 3.11 gets licensecheck 2025.x, which depends on uv: keep it within [tool.uv] required-version
     "ibis-framework[duckdb]>=12.0.0",
     "adbc-driver-manager>=1.10.0",
     "scikit-build-core>=0.12.2", # C++ build backend (incremental, no-isolation)
@@ -70,7 +70,7 @@ dev = [
     "editables>=0.6", # editable install support
 ]
 rio = [
-    "rio-ui==0.12.2",
+    "rio-ui==0.12.3",
     "matplotlib>=3.10.6,<3.12.0",
     "webview-proc>=0.1.0rc6",
     "aiofiles>=24.1",
@@ -85,6 +85,13 @@ jit = [
     "numba>=0.65.1",
     "cython>=3.2.4",
     "tccbox>=2025.10.27",
+]
+aadc = [
+    "aadc>=2.22.2",
+]
+examples = [
+    "yfinance>=1.7.0", # ui_10x/examples/price_simulator.py only
+    "pandas!=3.0.4",   # crashes with yfinance
 ]
 
 [project.urls]
@@ -105,16 +112,20 @@ xx-test-postgres-auth           = "dev_10x.postgres_local:PostgresAuthCli.main"
 xx-test-db-clean                = "dev_10x.db_clean:TestDbCleanCli.main"
 xx-user-init                    = "core_10x.apps.user_init:UserInitCli.main"
 xx-functional-account-init      = "core_10x.apps.functional_account_init:FunctionalAccountInitCli.main"
-xx-user-status                  = "core_10x.apps.user_status:main"
+xx-user-status                  = "core_10x.apps.user_status:UserStatusCli.main"
+xx-user-save-credentials        = "core_10x.apps.user_save_credentials:main"
 xx-admin-save-user-credentials  = "core_10x.apps.admin_save_user_credentials:main"
+xx-vault-setup-roles            = "core_10x.apps.vault_setup_roles:VaultSetupRolesCli.main"
 
 [build-system]
 requires = ["hatchling>=1.17.0","hatch-vcs","hatch-build-scripts","playwright>=1.55,<1.63"]
 build-backend = "hatchling.build"
 
+# `footprint` (git pathspecs) replaces the default "repo minus other packages' dirs" footprint:
+# the C++ packages share cxx10x/ build files but not core's Python.
 [tool.dev_10x.siblings]
-py10x-kernel = { path = "../cxx10x/core_10x" }
-py10x-infra  = { path = "../cxx10x/infra_10x" }
+py10x-kernel = { path = "cxx10x/core_10x", footprint = ["cxx10x", ":(exclude)cxx10x/infra_10x", ".github/workflows/cxx10x_wheels.yml", ".github/actions/build-wheels"] }
+py10x-infra  = { path = "cxx10x/infra_10x", footprint = ["cxx10x", ":(exclude)cxx10x/core_10x", ".github/workflows/cxx10x_wheels.yml", ".github/actions/build-wheels"] }
 
 [tool.dev_10x.downstream]
 py10x-fin-base = { path = "./xx_fin" }
@@ -127,7 +138,11 @@ py10x-fin-base = { path = "./xx_fin" }
 # in-repo tree so that group does not pull a PyPI wheel whose exact core pin
 # fights this editable project.
 [tool.uv]
-no-build-isolation-package = ["py10x-fin-base-cxx"]
+required-version = ">=0.12.5"
+# Rebuild py10x-core (rather than reuse uv's cached wheel) on a new commit or tag, so its installed
+# hatch-vcs version (and dev_10x/version.py) stays current.
+cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
+no-build-isolation-package = ["py10x-kernel", "py10x-infra", "py10x-fin-base-cxx"]
 
 [[tool.uv.dependency-metadata]]
 name = "py10x-fin-base-cxx"
@@ -144,6 +159,11 @@ allow-direct-references = true
 packages = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xxcommon"]
 exclude = ["**/manual_tests"]
 
+# Without this the sdist ships every non-ignored file, incl. the cxx10x/ and xx_fin/ packages.
+[tool.hatch.build.targets.sdist]
+only-include = ["core_10x", "dev_10x", "infra_10x", "ui_10x", "xxcommon", "LICENSE", "NOTICE", "README.md", "pyproject.toml"]
+exclude = ["**/manual_tests"]
+
 [[tool.hatch.build.hooks.build-scripts.scripts]]
 commands = [ "playwright install chromium" ]
 
@@ -155,4 +175,7 @@ raw-options = { git_describe_command = "git describe --dirty --tags --long --mat
 version-file = "dev_10x/version.py"
 
 [dependency-groups]
-test = ["py10x-fin-base>=0.1.2rc10"]
+test = ["py10x-fin-base>=0.1.3rc4"]
+# Fin-base's extras for its tests, kept out of `test` (whose pin xx-promote rewrites); the version
+# comes from `test`. Lets uv.lock / constraints.txt cover blpapi, xbbg, aadc like `--all-extras` did.
+test-extras = ["py10x-fin-base[bbg,aadc,dev]"]

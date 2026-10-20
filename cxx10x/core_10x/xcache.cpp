@@ -1,0 +1,194 @@
+//
+// Created by AMD on 3/7/2025.
+//
+
+#include "xcache.h"
+
+#include <algorithm>
+
+#include "btraitable.h"
+
+XCache* XCache::s_default = new XCache();
+std::uint64_t XCache::s_next_generation = 0;
+
+XCache::XCache(XCache* parent)
+    : m_parent(parent)
+    , m_generation(++s_next_generation)
+{}
+
+XCache *XCache::find_origin_cache(const TID &tid) {
+    auto parent = this;
+    while(parent) {
+        if (parent->find_object_cache(tid))
+            return parent;
+        parent = parent->m_parent;
+    }
+    return nullptr;
+}
+
+bool XCache::is_descendent_of_origin(const BTraitable* obj) const {
+    for (auto parent = this; parent; parent = parent->m_parent)
+        if (obj->origin_cache_is(parent))
+            return true;
+    return false;
+}
+
+py::set XCache::object_ids_by_class(const BTraitableClass* cls) const {
+    auto it = m_ids_by_class.find(cls);
+    py::set result;
+    if (it != m_ids_by_class.end())
+        result = it->second;
+
+    if (m_parent) {
+        auto p_result = m_parent->object_ids_by_class(cls);
+        result.attr("update")(p_result);
+    }
+    return result;
+}
+
+ObjectCache * XCache::find_or_create_object_cache(BTraitable *obj) {
+    if (!is_descendent_of_origin(obj))
+        throw obj->runtime_error("not usable - origin cache is not reachable");
+
+    obj->lazy_load_if_needed();
+
+    return _find_or_create_object_cache(obj->tid());
+}
+
+BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int node_type, const bool import_from_parents) {
+    const auto oc = find_or_create_object_cache(obj);
+    auto node = oc->find_node(trait);
+    if (!node) {
+        node = trait->create_node(node_type);
+        oc->insert_node(trait, node);
+
+        if (!import_from_parents)
+            return node;
+
+        const auto parent_node = find_set_or_invalid_node_in_parents(obj->tid(), trait);
+        if (!parent_node || !parent_node->is_valid())
+            return node;
+
+        node->set_imported(parent_node->value());
+    }
+    return node;
+}
+
+BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int node_type, const py::args& args, const bool import_from_parents) {
+    const auto oc = find_or_create_object_cache(obj);
+    auto node = oc->find_node(trait, args);
+    if (!node) {
+        node = trait->create_node(node_type);
+        oc->insert_node(trait, node, args);
+
+        if (!import_from_parents)
+            return node;
+
+        const auto parent_node = find_set_or_invalid_node_in_parents(obj->tid(), trait, args);
+        if (!parent_node || !parent_node->is_valid())
+            return node;
+
+        node->set_imported(parent_node->value());
+    }
+    return node;
+}
+
+void XCache::export_nodes() const {
+    if (!m_parent)
+        throw py::value_error("Cannot export_nodes from a root cache (no parent)");
+
+    auto dst_node_type = m_parent->default_node_type();
+    for (const auto& oc_item : m_data) {
+        const auto& tid = oc_item.first;
+        auto oc = oc_item.second;
+
+        auto dst_oc = m_parent->_find_or_create_object_cache(tid);
+        //-- argsless nodes
+        for (auto item : oc->argless_nodes()) {
+            auto trait = item.first;
+            auto node = item.second;
+            if (node->node_type() != NODE_TYPE::BASIC_GRAPH || !node->is_set())
+                continue;
+
+            auto dst_node = dst_oc->find_or_create_node(trait, dst_node_type);
+            dst_node->set(node->value());
+        }
+
+        //-- nodes with args
+        for (auto item : oc->nodes_with_args()) {
+            auto trait = item.first;
+            for (const auto& i: *item.second) {
+                auto args = i.first;
+                auto node = i.second;
+                if (node->node_type() != NODE_TYPE::BASIC_GRAPH || !node->is_set())
+                    continue;
+
+                auto dst_node = dst_oc->find_or_create_node(trait, dst_node_type, args);
+                dst_node->set(node->value());
+            }
+        }
+    }
+}
+
+//----
+//  For a given obj and trait (e.g., for portfolio.price node), find dependencies on all the instances of
+//  subclasses of each target class in inputs_spec, for that class's given trait names (e.g.,
+//  {MktQuotable: ('quote',), ...}). Walks m_ids_by_class exactly once, checking every cached class against
+//  every inputs_spec entry -- cheaper than walking the (potentially large) cache once per entry.
+//  Returns: { cls: { id: [(trait, value), ...], ... }, ... }
+//----
+py::dict XCache::find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const {
+    py::dict results;
+    if (default_node_type() < NODE_TYPE::BASIC_GRAPH)
+        return results;
+
+    if (inputs_spec.empty())
+        return results;
+
+    auto parent_node = find_node(obj->tid(), trait);
+    if (!parent_node)
+        return results;
+
+    auto results_get = results.attr("get");
+    for (const auto& [cls, ids] : m_ids_by_class) {
+        auto py_cls = cls->py_class();
+
+        std::vector<BTrait*> traits;
+        for (const auto& [target_class, trait_names] : inputs_spec) {
+            if (!PyLinkage::issubclass(py_cls, py::reinterpret_borrow<py::object>(target_class)))
+                continue;
+            for (auto name : trait_names) {
+                auto t = cls->find_trait(name.cast<py::object>());
+                if (t && std::find(traits.begin(), traits.end(), t) == traits.end())
+                    traits.push_back(t);
+            }
+        }
+        if (traits.empty())
+            continue;
+
+        for (const auto& id : ids) {
+            auto child_id = id.cast<py::object>();
+            auto tid = TID(cls, child_id);
+            auto oc = find_object_cache(tid);
+            assert(oc);
+            for (auto t : traits) {
+                auto node = (BasicGraphNode*)oc->find_node(t);
+                if (node and node->is_successor_of(parent_node)) {
+                    auto objs_by_cls = results_get(py_cls);
+                    if (objs_by_cls.is_none()) {
+                        objs_by_cls = py::dict();
+                        results[py_cls] = objs_by_cls;
+                    }
+                    py::object t_list = objs_by_cls.attr("get")(child_id);
+                    if (t_list.is_none()) {
+                        t_list = py::list();
+                        objs_by_cls[child_id] = t_list;
+                    }
+                    t_list.attr("append")(py::make_tuple(t, node->value()));
+                }
+            }
+        }
+    }
+
+    return results;
+}

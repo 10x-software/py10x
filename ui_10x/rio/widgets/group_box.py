@@ -11,11 +11,16 @@ class GroupBox(Widget, i.GroupBox):
     s_unwrap_single_child = False
 
     def __init__(self, *args, **kwargs):
-        _parent = None
         title = kwargs.pop('title', '')
         children = ()
         if len(args) == 1:
-            _parent = args[0]
+            # Qt-style GroupBox(title) passes a string; GroupBox(parent) passes a widget.
+            if isinstance(args[0], str):
+                assert not title, 'title specified twice'
+                title = args[0]
+            else:
+                # Rio has no QObject parent ownership; accept and ignore.
+                _parent = args[0]
         elif len(args) >= 2:
             assert not title, 'title specified twice'
             _parent, title = args[:2]

@@ -38,6 +38,7 @@ from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import _clear_all_caches
 from core_10x.resource import Resource
 from core_10x.sec_keys import SecKeys
+from core_10x.testlib.ts_store_isolation import clear_caches_keeping
 from core_10x.traitable import Traitable, VaultUser
 from core_10x.vault_utils import VaultUtils
 
@@ -77,6 +78,8 @@ def vault_env(monkeypatch):
     #    store; admin and alice's connections share the underlying
     #    "deployment" so they can read/write each other's state.
     monkeypatch.setattr(DuckDbStore, 's_with_auth', True)
+    monkeypatch.setattr(DuckDbStore, 'can_serve_as_vault', lambda self: True)
+    monkeypatch.setattr(DuckDbStore, 'is_vault_admin', lambda self: True)
     monkeypatch.setattr(
         DuckDbStore,
         's_instance_kwargs_map',
@@ -111,17 +114,17 @@ def vault_env(monkeypatch):
         what we want when switching identity.
         """
         current_os[0] = name
-        _clear_all_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
 
     def run_user_init(*, vault_login: str, vault_pwd: str, master_pwd: str, new_machine: bool = False) -> None:
         """Run ``VaultUtils.user_init`` non-interactively (kwargs, not prompts)."""
         VaultUtils.user_init(new_machine=new_machine, login=vault_login, password=vault_pwd, master_password=master_pwd).throw()
-        _clear_all_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
 
     def clear_local_keyring() -> None:
         """Simulate a fresh machine: wipe OS-keyring entries for the current user."""
         keyring.clear()
-        _clear_all_caches()
+        clear_caches_keeping(EnvVars.var.main_vault_uri)
 
     env.switch_os_user = switch_os_user
     env.run_user_init = run_user_init

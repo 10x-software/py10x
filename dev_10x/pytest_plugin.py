@@ -171,6 +171,7 @@ def pytest_ignore_collect(collection_path, config):
 
 BTP = BTraitableProcessor.current()
 
+_AMBIENT_VAULT_ENV_VARS = ('XX_MAIN_VAULT_URI', 'XX_VAULT_URI')
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
@@ -178,6 +179,25 @@ def pytest_runtest_makereport(item, call):
     outcome = yield
     rep = outcome.get_result()
     setattr(item, f'rep_{rep.when}', rep)
+
+
+@pytest.fixture(scope='session', autouse=True)
+def _no_ambient_vault_env():
+    """A shell vault URI would route store_from_uri through the vault; tests set their own.
+
+    Session scope so it runs before package/module fixtures that open stores (e.g. xxfin's).
+    """
+    if not any(name in os.environ for name in _AMBIENT_VAULT_ENV_VARS):
+        yield
+        return
+
+    from core_10x.testlib.ts_store_isolation import reset_traitable_process_state
+
+    with pytest.MonkeyPatch.context() as mp:
+        for name in _AMBIENT_VAULT_ENV_VARS:
+            mp.delenv(name, raising=False)
+        reset_traitable_process_state(assert_clean=False)  # EnvVars values are memoized
+        yield
 
 
 @pytest.fixture(autouse=True)

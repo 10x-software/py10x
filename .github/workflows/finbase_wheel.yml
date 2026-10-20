@@ -3,7 +3,7 @@ name: wheels-py10x-fin-base
 on:
   push:
     tags:
-      # xx-promote publish triggers (same shape as cxx10x kernel/infra wheels).
+      # xx-promote publish triggers (same shape as cxx10x_wheels.yml).
       - "pre/py10x-fin-base-v*"
       - "prod/py10x-fin-base-v*"
   workflow_dispatch:
@@ -14,8 +14,8 @@ jobs:
     strategy:
       fail-fast: true # repo is still private; cut wasted CI minutes on the other OSes once one fails
       matrix:
-        # windows-2025 (not windows-latest): matches cxx10x's own core_10x_wheels.yml /
-        # infra_10x_wheels.yml, which build the exact py10x-kernel wheel cxxfin links against.
+        # windows-2025 (not windows-latest): matches cxx10x_wheels.yml, which builds the exact
+        # py10x-kernel wheel cxxfin links against.
         # windows-latest moved to VS2026/MSVC 19.5x in June 2026, ahead of the v143/14.44 toolset
         # Py10xMsvcVersion.cmake requires (see the matching cmake.args pin in cxxfin/pyproject.toml).
         os: [ubuntu-latest, macos-latest, windows-2025]
@@ -31,7 +31,7 @@ jobs:
           package-dir: xx_fin/cxxfin
           output-dir: xx_fin/cxxfin/wheelhouse
         env:
-          CIBW_BUILD: "cp311-* cp312-*"
+          CIBW_BUILD: "cp311-* cp312-* cp313-*"
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
           CIBW_ARCHS_MACOS: "universal2"
@@ -131,6 +131,7 @@ jobs:
           FINBASE_WHL=$(ls dist-finbase/*.whl | head -n1)
           echo "cxx wheel: $CXX_WHL"
           echo "fin-base wheel: $FINBASE_WHL"
+          echo "FINBASE_WHL=$FINBASE_WHL" >> "$GITHUB_ENV"
           python -m dev_10x.xx_ci wait_pypi_release_for_wheel "$FINBASE_WHL"
           # No --pre needed: release-wheel pins already force prerelease inclusion via PEP 440.
           # Brief retry: simple-index visibility can still lag a few seconds after the wait.

@@ -14,7 +14,9 @@ class Splitter(rio.Component):
     # Props
     children: list[rio.Component] = []
     direction: t.Literal['horizontal', 'vertical'] = 'vertical'
-    handle_size: float = 0.25  # Width of the splitter handle
+    handle_size: float = 0.25  # Width of the *visible* splitter bar
+    # 0.25rem (≈4px) is too thin to grab, and the listener only watches its child's box.
+    handle_hit_size: float = 0.75
     min_size_percent: float = 10.0  # Minimum width for each child (%)
     child_proportions: t.Literal['homogeneous'] | t.Sequence[float] = 'homogeneous'
     _component_width: float = 0.0
@@ -62,58 +64,65 @@ class Splitter(rio.Component):
         self.child_proportions = self.child_proportions  # force refresh
 
     def build(self) -> rio.Component:
-        # If no children, return an empty component
         if not self.children:
             return rio.Rectangle()
 
-        # Build the layout with children and splitters
-        components = []
+        # Panes and handles are plain siblings with explicit sizes, not Stack-wrapped children
+        # under the container's `proportions=`: a Stack pins its children to min-content, so
+        # proportions could never grow a pane past its natural width, and `proportions` has no
+        # way to express a fixed-size handle — at proportion 0 rio's max(natural / proportion)
+        # min-size pass divides by zero, and the resulting `Infinitypx` is dropped by the CSS
+        # parser, silently costing the container its content-derived minimum.
         horizontal = self.direction == 'horizontal'
+        size_attr = 'min_width' if horizontal else 'min_height'
+        hit_size = max(self.handle_size, self.handle_hit_size)
+
+        # Handles are fixed and sit outside the split, so their width comes off the top before
+        # the rest is shared out. Empty until the first on_resize; panes grow evenly until then.
+        measured = self._component_width if horizontal else self._component_height
+        available = measured - max(len(self.children) - 1, 0) * hit_size - 2 * len(self.children)
+        total_proportion = sum(self.child_proportions)
+        pane_sizes = (
+            [available * p / total_proportion for p in self.child_proportions] if available > 0 and total_proportion > 0 else []
+        )
+
+        components: list[rio.Component] = []
         for i, child in enumerate(self.children):
-            # Wrap child in ScrollArea
-            scrollable_content = rio.ScrollContainer(
-                content=child,
-                # scroll_x='never' if horizontal else 'auto',
-                # scroll_y='auto' if horizontal else 'never',
-            )
-            # Create the pane
             pane = rio.Rectangle(
-                content=scrollable_content,
-                **{'grow_x' if horizontal else 'grow_y': True},  # Stretch to fill proportional space
-                margin=1,  # Spacing around the child content
+                content=rio.ScrollContainer(content=child),
+                # Growing on top of an exact share would let a pane with wide content steal its
+                # neighbor's space, so grow along the split axis only while sizes are unknown.
+                # Across the other axis always, so panes fill height the dialog gains.
+                grow_x=(not pane_sizes) if horizontal else True,
+                grow_y=True if horizontal else (not pane_sizes),
+                margin=1,  # counted in `available` above
+                **({size_attr: pane_sizes[i]} if pane_sizes else {}),
             )
-            # Add a splitter handle to the right of all but the last pane
+            components.append(pane)
+
             if i < len(self.children) - 1:
-                splitter = rio.PointerEventListener(
-                    content=rio.Rectangle(
-                        **{'grow_x' if horizontal else 'grow_y': False, 'min_width' if horizontal else 'min_height': self.handle_size},
-                        fill=rio.Color.from_hex('#808080'),
-                        cursor='move',  # Valid CursorStyle for dragging
+                handle = rio.PointerEventListener(
+                    content=rio.Stack(
+                        # PointerEventListener's hit region is exactly its child's rendered box,
+                        # so the grabbable area is this invisible one, not the thin bar over it.
+                        rio.Rectangle(
+                            **{size_attr: hit_size},
+                            fill=rio.Color.TRANSPARENT,
+                            cursor='move',
+                        ),
+                        rio.Rectangle(
+                            **{size_attr: self.handle_size},
+                            fill=rio.Color.from_hex('#808080'),
+                            align_x=0.5 if horizontal else None,
+                            align_y=None if horizontal else 0.5,
+                        ),
                     ),
                     on_drag_move=lambda event, idx=i: self.on_drag(idx, event),
-                    **{
-                        'align_x' if horizontal else 'align_y': 1.0,  # Position at the right edge
-                        'margin_right' if horizontal else 'margin_bottom': -self.handle_size / 2,  # Extend slightly into the next pane
-                    },
                 )
-                # Combine pane and splitter in a Stack
-                components.append(
-                    rio.Stack(
-                        pane,
-                        splitter,
-                        **{'grow_x' if horizontal else 'grow_y': True},  # Ensure the Stack follows the proportion
-                    )
-                )
-            else:
-                # Last pane has no splitter
-                components.append(pane)
+                components.append(handle)
 
-        container = rio.Row if self.direction == 'horizontal' else rio.Column
-        return container(
-            *components,
-            spacing=0,
-            proportions=self.bind().child_proportions,  # Dynamically control pane sizes
-        )
+        container = rio.Row if horizontal else rio.Column
+        return container(*components, spacing=0)
 
     @rio.event.on_resize
     def _on_resize(self, event: rio.event.ComponentResizeEvent) -> None:

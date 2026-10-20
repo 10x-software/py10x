@@ -60,6 +60,9 @@ cap=".reload /f py10x_kernel*.pyd; .echo ===EXCEPTION===; .exr -1; .echo ===STAC
   # which dies without a second chance, and made ASan init crash deterministically.)
   echo "sxi av"
   echo "sxi eh"
+  # ch (0xC0000008) is a debugger-only NtClose notification for a bad handle. Nothing
+  # catches it, so a second-chance break still stops the run; it is not a crash signal.
+  echo "sxi ch"
   echo "sxe -c \"${cap}; .echo ===pass to app===; sxi sov; gN\" sov"
   echo "sxe -c \"${cap}; .kill; qq\" bpe"
   echo "g"

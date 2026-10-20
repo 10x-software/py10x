@@ -1,7 +1,7 @@
 """End-to-end execution tests for `xx-promote` against real git repos under `tmp_path`.
 
-A 2-repo / 3-package fixture mirrors production: a `py10x` repo (py10x-core) and a `cxx10x` repo
-holding `core_10x` (py10x-kernel) and `infra_10x` (py10x-infra) with the right tag prefixes. The
+A one-repo / 3-package fixture mirrors production: py10x-core at the root, py10x-kernel and
+py10x-infra in-tree under `cxx10x/` with the production `footprint` config and tag prefixes. The
 plan-level combinatorics live in test_xx_plan.py; here we assert *real git state* after execution -
 branch HEADs, tags, commit parentage, and the pyproject pins recorded at the tag.
 
@@ -41,21 +41,33 @@ def _write(path, text):
     path.write_text(text, encoding='utf-8')
 
 
+KERNEL_DIR = 'cxx10x/core_10x'
+INFRA_DIR = 'cxx10x/infra_10x'
+SIBLINGS = (('py10x-kernel', KERNEL_DIR), ('py10x-infra', INFRA_DIR))
+
+
+def _siblings_toml() -> str:
+    def entry(name, path, other):
+        return f'{name} = {{ path = "{path}", footprint = ["cxx10x", ":(exclude){other}"] }}\n'
+
+    return '[tool.dev_10x.siblings]\n' + entry('py10x-kernel', KERNEL_DIR, INFRA_DIR) + entry('py10x-infra', INFRA_DIR, KERNEL_DIR)
+
+
+def _commit_all(repo, msg):
+    GitHelpers.git(repo, 'add', '.')
+    GitHelpers.git(repo, 'commit', '-qm', msg)
+
+
 @pytest.fixture
-def repos(tmp_path):
-    """Sibling `py10x` + `cxx10x` checkouts, each committed on `main`. Returns (py10x, cxx10x)."""
-    cxx = tmp_path / 'cxx10x'
-    py = tmp_path / 'py10x'
-
-    _init(cxx)
-    _write(cxx / 'core_10x' / 'pyproject.toml', '[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n')
-    _write(cxx / 'infra_10x' / 'pyproject.toml', '[project]\nname = "py10x-infra"\ndependencies = ["uuid6>=2025.0.1"]\n')
-    GitHelpers.git(cxx, 'add', '.')
-    GitHelpers.git(cxx, 'commit', '-qm', 'init cxx10x')
-
-    _init(py)
+def repo(tmp_path):
+    """One `py10x` checkout committed on `main`: core at the root, both siblings under `cxx10x/`."""
+    repo = tmp_path / 'py10x'
+    _init(repo)
+    _write(repo / KERNEL_DIR / 'pyproject.toml', '[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n')
+    _write(repo / INFRA_DIR / 'pyproject.toml', '[project]\nname = "py10x-infra"\ndependencies = ["uuid6>=2025.0.1"]\n')
+    _write(repo / 'cxx10x' / 'cmake' / 'shared.cmake', '# shared C++ build config\n')
     _write(
-        py / 'pyproject.toml',
+        repo / 'pyproject.toml',
         tomlkit.dumps(
             tomlkit.parse(
                 '[project]\n'
@@ -64,16 +76,28 @@ def repos(tmp_path):
                 f'    "py10x-kernel ({DEV_PIN})",\n'
                 f'    "py10x-infra ({DEV_PIN})",\n'
                 '    "numpy>=2.2.2,<2.5.0",\n'
-                ']\n\n'
-                '[tool.dev_10x.siblings]\n'
-                'py10x-kernel = { path = "../cxx10x/core_10x" }\n'
-                'py10x-infra = { path = "../cxx10x/infra_10x" }\n'
+                ']\n\n' + _siblings_toml()
             )
         ),
     )
-    GitHelpers.git(py, 'add', '.')
-    GitHelpers.git(py, 'commit', '-qm', 'init py10x')
-    return py, cxx
+    _commit_all(repo, 'init py10x')
+    return repo
+
+
+@pytest.fixture
+def repo_with_downstream(repo):
+    """`repo` plus an in-tree downstream (`xx_fin`, py10x-fin-base) pinning core."""
+    _write(
+        repo / 'xx_fin' / 'pyproject.toml',
+        f'[project]\nname = "py10x-fin-base"\ndependencies = ["py10x-core ({DEV_PIN})", "uuid6>=2025.0.1"]\n',
+    )
+    doc = tomlkit.parse((repo / 'pyproject.toml').read_text(encoding='utf-8'))
+    doc['tool']['dev_10x']['downstream'] = tomlkit.table()
+    doc['tool']['dev_10x']['downstream']['py10x-fin-base'] = tomlkit.inline_table()
+    doc['tool']['dev_10x']['downstream']['py10x-fin-base']['path'] = 'xx_fin'
+    _write(repo / 'pyproject.toml', tomlkit.dumps(doc))
+    _commit_all(repo, 'add fin-base')
+    return repo
 
 
 def _run_argv(argv):
@@ -99,10 +123,13 @@ def _run_prod(py_repo, *flags):
     _run('prod', py_repo, *flags)
 
 
-def _change_kernel_source(cxx, name):
-    _write(cxx / 'core_10x' / name, 'x = 1\n')
-    GitHelpers.git(cxx, 'add', '.')
-    GitHelpers.git(cxx, 'commit', '-qm', f'kernel {name}')
+def _change(repo, rel_path):
+    _write(repo / rel_path, 'x = 1\n')
+    _commit_all(repo, f'change {rel_path}')
+
+
+def _change_kernel_source(repo, name):
+    _change(repo, f'{KERNEL_DIR}/{name}')
 
 
 def _dep_specs_at(repo, ref, rel_path):
@@ -116,116 +143,210 @@ def _test_group_at(repo, ref, rel_path):
     return list(doc.get('dependency-groups', {}).get('test', []))
 
 
-def test_pre_from_main_cuts_coordinated_first_rc(repos):
-    py, cxx = repos
-    _run_pre(py)
+def test_pre_from_main_cuts_coordinated_first_rc(repo):
+    _run_pre(repo)
 
     # --- core: pre branch + tag, with exact forward == pins on both siblings ---
-    assert set(GitHelpers.list_tags(py, 'v*')) == {'v0.0.1rc1', 'v0.0.1rc2.dev'}
-    assert GitHelpers.git(py, 'rev-parse', 'pre') == GitHelpers.tag_commit(py, 'v0.0.1rc1')
-    assert GitHelpers.tag_commit(py, 'v0.0.1rc2.dev') == GitHelpers.git(py, 'rev-parse', 'main')
-    core_deps = _dep_specs_at(py, 'v0.0.1rc1', 'pyproject.toml')
+    assert set(GitHelpers.list_tags(repo, 'v*')) == {'v0.0.1rc1', 'v0.0.1rc2.dev'}
+    assert GitHelpers.git(repo, 'rev-parse', 'pre') == GitHelpers.tag_commit(repo, 'v0.0.1rc1')
+    main = GitHelpers.git(repo, 'rev-parse', 'main')
+    assert GitHelpers.tag_commit(repo, 'v0.0.1rc2.dev') == main
+    core_deps = _dep_specs_at(repo, 'v0.0.1rc1', 'pyproject.toml')
     assert core_deps['py10x-kernel'] == '==0.0.1rc1'
     assert core_deps['py10x-infra'] == '==0.0.1rc1'
     assert core_deps['numpy'] == '<2.5.0,>=2.2.2'  # untouched third-party dep
 
-    # --- siblings: per-package pre branch + tag, with reverse >= test group on core ---
-    for name, sub in (('py10x-kernel', 'core_10x'), ('py10x-infra', 'infra_10x')):
+    # --- siblings: `pre-{name}` branch + tag on a release commit of its own; no reverse pin ---
+    for name, sub in SIBLINGS:
         tag = f'{name}-v0.0.1rc1'
-        dev = f'{name}-v0.0.1rc2.dev'
-        assert tag in GitHelpers.list_tags(cxx, f'{name}-v*')
-        assert dev in GitHelpers.list_tags(cxx, f'{name}-v*')
-        assert GitHelpers.git(cxx, 'rev-parse', f'pre/{name}') == GitHelpers.tag_commit(cxx, tag)
-        assert GitHelpers.tag_commit(cxx, dev) == GitHelpers.git(cxx, 'merge-base', tag, 'main')
-        assert _test_group_at(cxx, tag, f'{sub}/pyproject.toml') == ['py10x-core>=0.0.1rc1']
+        assert set(GitHelpers.list_tags(repo, f'{name}-v*')) == {tag, f'{name}-v0.0.1rc2.dev'}
+        assert GitHelpers.git(repo, 'rev-parse', f'pre-{name}') == GitHelpers.tag_commit(repo, tag)
+        assert GitHelpers.tag_commit(repo, f'{name}-v0.0.1rc2.dev') == main
+        # its own commit (never shared with another tag of the same train), forked off main
+        assert GitHelpers.is_ancestor(repo, f'{tag}^', 'main')
+        assert _test_group_at(repo, tag, f'{sub}/pyproject.toml') == []
 
     # --- the cut forks from main and leaves main + the working tree untouched ---
-    for repo in (py, cxx):
-        assert GitHelpers.git(repo, 'rev-parse', '--abbrev-ref', 'HEAD') == 'main'
-        assert GitHelpers.git(repo, 'status', '--porcelain') == ''
-    # pre forked from an earlier main commit; main then advanced with the rc-window epilogue
-    fork = GitHelpers.git(py, 'merge-base', 'main', 'pre')
-    assert GitHelpers.is_ancestor(py, fork, 'pre')
+    assert GitHelpers.git(repo, 'rev-parse', '--abbrev-ref', 'HEAD') == 'main'
+    assert GitHelpers.git(repo, 'status', '--porcelain') == ''
+    fork = GitHelpers.git(repo, 'merge-base', 'main', 'pre')
+    assert GitHelpers.is_ancestor(repo, fork, 'pre')
     # main epilogue: rc-window pins for the coordinated rc
-    main_core = _dep_specs_at(py, 'main', 'pyproject.toml')
+    main_core = _dep_specs_at(repo, 'main', 'pyproject.toml')
     assert SpecifierSet(main_core['py10x-kernel']) == SpecifierSet(VersionHelpers.rc_window_pin('0.0.1rc1'))
     assert SpecifierSet(main_core['py10x-infra']) == SpecifierSet(VersionHelpers.rc_window_pin('0.0.1rc1'))
 
 
-def test_pre_dry_run_is_side_effect_free(repos):
+def test_pre_dry_run_is_side_effect_free(repo):
     """`--dry-run` must mutate nothing - in particular no getter (evaluated on the verify path)
     may switch branches. Run from a non-`main` branch and assert HEAD and tags are untouched."""
-    py, cxx = repos
-    for repo in (py, cxx):
-        GitHelpers.git(repo, 'checkout', '-q', '-b', 'feature')  # start off main
-    _run_pre(py, '--dry-run')
-    for repo in (py, cxx):
-        assert GitHelpers.git(repo, 'rev-parse', '--abbrev-ref', 'HEAD') == 'feature'
-        assert GitHelpers.list_tags(repo, '*') == []  # nothing cut
-        assert GitHelpers.git(repo, 'branch', '--list', 'pre/*') == ''
-        assert GitHelpers.git(repo, 'status', '--porcelain') == ''
+    GitHelpers.git(repo, 'checkout', '-q', '-b', 'feature')  # start off main
+    _run_pre(repo, '--dry-run')
+    assert GitHelpers.git(repo, 'rev-parse', '--abbrev-ref', 'HEAD') == 'feature'
+    assert GitHelpers.list_tags(repo, '*') == []  # nothing cut
+    assert GitHelpers.git(repo, 'branch', '--list', 'pre*') == ''
+    assert GitHelpers.git(repo, 'status', '--porcelain') == ''
 
 
-def test_pre_unchanged_packages_are_skipped(repos, capsys):
+def test_pre_unchanged_packages_are_skipped(repo, capsys):
     """A second `pre` with no source changes re-cuts nothing and mints no new tags."""
-    py, cxx = repos
-    _run_pre(py)
+    _run_pre(repo)
     capsys.readouterr()  # discard first-run completion hints
-    tags_py, tags_cxx = GitHelpers.list_tags(py, '*'), GitHelpers.list_tags(cxx, '*')
-    _run_pre(py)  # nothing changed since the rc
-    assert GitHelpers.list_tags(py, '*') == tags_py
-    assert GitHelpers.list_tags(cxx, '*') == tags_cxx
+    tags = GitHelpers.list_tags(repo, '*')
+    _run_pre(repo)  # nothing changed since the rc (only the epilogue touched main)
+    assert GitHelpers.list_tags(repo, '*') == tags
     assert 'Local changes applied' not in capsys.readouterr().out
 
 
-def test_prod_stacks_final_on_rc_and_floors_main(repos):
+def test_core_only_change_does_not_recut_siblings(repo):
+    """Core's Python and shared CI are outside the siblings' explicit footprints."""
+    _run_pre(repo)
+    _change(repo, 'core_10x/feature.py')
+    _change(repo, '.github/workflows/ci.yml')
+    _run_pre(repo)
+    assert 'v0.0.1rc2' in GitHelpers.list_tags(repo, 'v*')
+    for name, _sub in SIBLINGS:
+        assert f'{name}-v0.0.1rc2' not in GitHelpers.list_tags(repo, f'{name}-v*')
+    core_deps = _dep_specs_at(repo, 'v0.0.1rc2', 'pyproject.toml')
+    assert core_deps['py10x-kernel'] == '==0.0.1rc1' and core_deps['py10x-infra'] == '==0.0.1rc1'
+
+
+def test_shared_cxx_change_recuts_both_siblings(repo):
+    """`cxx10x/cmake` is in both siblings' footprints but not core's: core re-cuts only via pin lag."""
+    _run_pre(repo)
+    _change(repo, 'cxx10x/cmake/shared.cmake')
+    _run_pre(repo)
+    for name, _sub in SIBLINGS:
+        assert f'{name}-v0.0.1rc2' in GitHelpers.list_tags(repo, f'{name}-v*')
+    core_deps = _dep_specs_at(repo, 'v0.0.1rc2', 'pyproject.toml')
+    assert core_deps['py10x-kernel'] == '==0.0.1rc2' and core_deps['py10x-infra'] == '==0.0.1rc2'
+
+
+def test_prod_stacks_final_on_rc_and_floors_main(repo):
     """prod promotes each rc: final stacked on the rc commit, exact `==` pins, main re-floored to dev."""
-    py, cxx = repos
-    _run_pre(py)  # rc1 across the board
-    _run_prod(py)
+    _run_pre(repo)  # rc1 across the board
+    _run_prod(repo)
 
     # --- core: prod branch + final tag, exact == on the released sibling finals ---
-    assert 'v0.0.1' in GitHelpers.list_tags(py, 'v*')
-    assert GitHelpers.git(py, 'rev-parse', 'prod') == GitHelpers.tag_commit(py, 'v0.0.1')
-    core_final = _dep_specs_at(py, 'v0.0.1', 'pyproject.toml')
+    assert 'v0.0.1' in GitHelpers.list_tags(repo, 'v*')
+    assert GitHelpers.git(repo, 'rev-parse', 'prod') == GitHelpers.tag_commit(repo, 'v0.0.1')
+    core_final = _dep_specs_at(repo, 'v0.0.1', 'pyproject.toml')
     assert core_final['py10x-kernel'] == '==0.0.1'
     assert core_final['py10x-infra'] == '==0.0.1'
     # released source == rc source: the final commit is stacked directly on the rc commit
-    assert GitHelpers.git(py, 'rev-parse', 'v0.0.1^') == GitHelpers.tag_commit(py, 'v0.0.1rc1')
+    assert GitHelpers.git(repo, 'rev-parse', 'v0.0.1^') == GitHelpers.tag_commit(repo, 'v0.0.1rc1')
 
-    # --- siblings: prod branch + final tag, reverse >= on the released core ---
-    for name, sub in (('py10x-kernel', 'core_10x'), ('py10x-infra', 'infra_10x')):
-        assert f'{name}-v0.0.1' in GitHelpers.list_tags(cxx, f'{name}-v*')
-        assert GitHelpers.git(cxx, 'rev-parse', f'prod/{name}') == GitHelpers.tag_commit(cxx, f'{name}-v0.0.1')
-        assert _test_group_at(cxx, f'{name}-v0.0.1', f'{sub}/pyproject.toml') == ['py10x-core>=0.0.1']
+    # --- siblings: `prod-{name}` branch + final tag stacked on (not sharing) the rc commit ---
+    for name, _sub in SIBLINGS:
+        final = f'{name}-v0.0.1'
+        assert final in GitHelpers.list_tags(repo, f'{name}-v*')
+        assert GitHelpers.git(repo, 'rev-parse', f'prod-{name}') == GitHelpers.tag_commit(repo, final)
+        assert GitHelpers.git(repo, 'rev-parse', f'{final}^') == GitHelpers.tag_commit(repo, f'{name}-v0.0.1rc1')
 
-    # --- main epilogue: post-final window pins; reverse groups -> released core ---
-    main_core = _dep_specs_at(py, 'main', 'pyproject.toml')
+    # --- main epilogue: post-final window pins ---
+    main_core = _dep_specs_at(repo, 'main', 'pyproject.toml')
     assert SpecifierSet(main_core['py10x-kernel']) == SpecifierSet(VersionHelpers.post_final_window_pin('0.0.1'))
-    assert _test_group_at(cxx, 'main', 'core_10x/pyproject.toml') == ['py10x-core>=0.0.1']
-    for repo in (py, cxx):
-        assert GitHelpers.git(repo, 'rev-parse', '--abbrev-ref', 'HEAD') == 'main'
-        assert GitHelpers.git(repo, 'status', '--porcelain') == ''
+    assert GitHelpers.git(repo, 'rev-parse', '--abbrev-ref', 'HEAD') == 'main'
+    assert GitHelpers.git(repo, 'status', '--porcelain') == ''
 
     # --- main dev markers: rc-line replaced with post-final `{next_micro}rc0.dev` above the release ---
-    assert GitHelpers.list_tags(py, 'v*') == ['v0.0.1', 'v0.0.1rc1', 'v0.0.2rc0.dev']
-    assert GitHelpers.list_tags(py, 'pre/*') == ['pre/v0.0.1rc1']
-    assert GitHelpers.list_tags(py, 'prod/*') == ['prod/v0.0.1']
-    for name in ('py10x-kernel', 'py10x-infra'):
-        tags = GitHelpers.list_tags(cxx, f'{name}-v*')
-        assert f'{name}-v0.0.1' in tags and f'{name}-v0.0.1rc1' in tags
-        assert f'{name}-v0.0.2rc0.dev' in tags
-        assert f'{name}-v0.0.1rc2.dev' not in tags
-    assert set(GitHelpers.list_tags(cxx, 'pre/*')) == {'pre/py10x-kernel-v0.0.1rc1', 'pre/py10x-infra-v0.0.1rc1'}
-    assert set(GitHelpers.list_tags(cxx, 'prod/*')) == {'prod/py10x-kernel-v0.0.1', 'prod/py10x-infra-v0.0.1'}
+    assert GitHelpers.list_tags(repo, 'v*') == ['v0.0.1', 'v0.0.1rc1', 'v0.0.2rc0.dev']
+    for name, _sub in SIBLINGS:
+        assert GitHelpers.list_tags(repo, f'{name}-v*') == [f'{name}-v0.0.1', f'{name}-v0.0.1rc1', f'{name}-v0.0.2rc0.dev']
+    assert set(GitHelpers.list_tags(repo, 'pre/*')) == {'pre/v0.0.1rc1', 'pre/py10x-kernel-v0.0.1rc1', 'pre/py10x-infra-v0.0.1rc1'}
+    assert set(GitHelpers.list_tags(repo, 'prod/*')) == {'prod/v0.0.1', 'prod/py10x-kernel-v0.0.1', 'prod/py10x-infra-v0.0.1'}
+
+
+def test_downstream_epilogues_do_not_trigger_recuts(repo_with_downstream, capsys):
+    """Epilogue pin edits (core's test group, fin-base's core window) are not footprint changes."""
+    repo = repo_with_downstream
+    _run_pre(repo)
+    assert 'py10x-fin-base-v0.0.1rc1' in GitHelpers.list_tags(repo, 'py10x-fin-base-v*')
+    assert GitHelpers.git(repo, 'rev-parse', 'pre-py10x-fin-base') == GitHelpers.tag_commit(repo, 'py10x-fin-base-v0.0.1rc1')
+    capsys.readouterr()
+    tags = GitHelpers.list_tags(repo, '*')
+    _run_pre(repo)
+    assert GitHelpers.list_tags(repo, '*') == tags
+    assert 'Local changes applied' not in capsys.readouterr().out
+
+
+def test_pre_iterate_after_sibling_source_change_recoordinates(repo):
+    """A kernel source change bumps kernel's rc and forces a core re-cut (pin lag); infra stays put."""
+    _run_pre(repo)  # rc1 across the board
+
+    _change_kernel_source(repo, 'feature.py')  # real kernel source change on main
+    _run_pre(repo)
+
+    assert 'py10x-kernel-v0.0.1rc2' in GitHelpers.list_tags(repo, 'py10x-kernel-v*')
+    assert 'py10x-infra-v0.0.1rc2' not in GitHelpers.list_tags(repo, 'py10x-infra-v*')  # unchanged
+    assert 'v0.0.1rc2' in GitHelpers.list_tags(repo, 'v*')  # core forced to re-cut by the stale pin
+
+    core_deps = _dep_specs_at(repo, 'v0.0.1rc2', 'pyproject.toml')
+    assert core_deps['py10x-kernel'] == '==0.0.1rc2'  # refreshed to the new kernel rc
+    assert core_deps['py10x-infra'] == '==0.0.1rc1'  # infra unchanged -> its existing rc1
+    # the new core rc forks from main, and the superseded rc1 survives only as its tag
+    assert GitHelpers.git(repo, 'rev-parse', 'pre') == GitHelpers.tag_commit(repo, 'v0.0.1rc2')
+    assert GitHelpers.tag_commit(repo, 'v0.0.1rc1') != GitHelpers.tag_commit(repo, 'v0.0.1rc2')
+
+
+def _run_yank(py_repo, pkg, version, *flags):
+    _run('yank', py_repo, '--pkg', pkg, '--version', version, *flags)
+
+
+def test_yank_latest_rc_rolls_pre_back_and_consumes_the_number(repo):
+    """Yank the latest kernel rc: tag renamed, pre rolled back to the prior rc, number not reused."""
+    _run_pre(repo)  # rc1
+    _change_kernel_source(repo, 'feature.py')
+    _run_pre(repo)  # kernel rc2 (+ core rc2)
+    rc1_commit = GitHelpers.tag_commit(repo, 'py10x-kernel-v0.0.1rc1')
+
+    _run_yank(repo, 'py10x-kernel', '0.0.1rc2')
+
+    live = GitHelpers.list_tags(repo, 'py10x-kernel-v0.0.1rc2')  # plain tag gone
+    assert 'py10x-kernel-v0.0.1rc2' not in [t for t in live if not t.endswith('_yanked')]
+    assert 'py10x-kernel-v0.0.1rc3.dev' in GitHelpers.list_tags(repo, 'py10x-kernel-v*')  # dev marker kept
+    assert 'py10x-kernel-v0.0.1rc2_yanked' in GitHelpers.list_tags(repo, '*')
+    # pointer rollback: pre-py10x-kernel reconciled to the previous (live) rc
+    assert GitHelpers.git(repo, 'rev-parse', 'pre-py10x-kernel') == rc1_commit
+    main_pins = _dep_specs_at(repo, 'main', 'pyproject.toml')
+    assert SpecifierSet(main_pins['py10x-kernel']) == SpecifierSet(VersionHelpers.rc_window_pin('0.0.1rc1'))
+
+    _change_kernel_source(repo, 'feature2.py')
+    _run_pre(repo)
+    # the yanked rc2 number is consumed: the next kernel rc is rc3, never a reused rc2
+    assert 'py10x-kernel-v0.0.1rc3' in GitHelpers.list_tags(repo, 'py10x-kernel-v*')
+
+
+def test_yank_non_latest_is_rejected_without_cascade(repo):
+    """Stage 1 yanks the latest only; an older release is refused (cascade is Stage 2)."""
+    _run_pre(repo)
+    _change_kernel_source(repo, 'feature.py')
+    _run_pre(repo)  # kernel now at rc2
+    # post_verify refuses an older release, returning a falsy RC (no throw).
+    out = _run_argv(['yank', '--pkg', 'py10x-kernel', '--version', '0.0.1rc1', '--base', str(repo)])
+    assert not out and 'not the latest' in (out.error() or '')
+
+
+@pytest.fixture
+def remotes(tmp_path, repo):
+    """Add a bare `origin` remote and seed `main`. Returns (repo, remote)."""
+    remote = tmp_path / 'py10x.git'
+    GitHelpers.git(tmp_path, 'init', '--bare', '-q', str(remote))
+    GitHelpers.git(repo, 'remote', 'add', 'origin', str(remote))
+    GitHelpers.git(repo, 'push', '-q', 'origin', 'main')
+    return repo, remote
+
+
+def _remote_tags(remote) -> set[str]:
+    return set(GitHelpers.git(remote, 'tag', '--list').split())
 
 
 def test_resync_does_not_print_promote_completion_hints(remotes, capsys):
     """resync resets local refs to origin — not an unpushed promote; no promote-style footer."""
-    py, _cxx, _py_remote, _cxx_remote = remotes
-    _run_pre(py)  # local-only cut gives resync something to reset
+    repo, _remote = remotes
+    _run_pre(repo)  # local-only cut gives resync something to reset
     capsys.readouterr()  # discard pre's promote footer
-    _run_argv(['resync', '--base', str(py)])
+    _run_argv(['resync', '--base', str(repo)])
     out = capsys.readouterr().out
     assert 'reset-local' in out
     assert 'Local changes applied' not in out
@@ -235,171 +356,73 @@ def test_resync_does_not_print_promote_completion_hints(remotes, capsys):
 def test_local_promote_work_requires_resync(remotes):
     """A promote run (even without --push) mutates main via the epilogue (pins + dev marker).
     A follow-up promote therefore fails require_synced on main (not just tags).
-    Explicit resync is still the way to discard local work and get back to origin.
-    (Pure tag-behind cases with matching main are now auto-reconciled by require_synced.)"""
-    py, cxx, py_remote, _cxx_remote = remotes
-    _run_pre(py)  # cut rc1 LOCALLY (no --push)
-    assert 'v0.0.1rc1' in GitHelpers.list_tags(py, 'v*')
-    assert GitHelpers.git(py_remote, 'tag', '--list') == ''
+    Explicit resync is still the way to discard local work and get back to origin."""
+    repo, remote = remotes
+    _run_pre(repo)  # cut rc1 LOCALLY (no --push)
+    assert 'v0.0.1rc1' in GitHelpers.list_tags(repo, 'v*')
+    assert GitHelpers.git(remote, 'tag', '--list') == ''
 
-    out = _run_argv(['pre', '--base', str(py), '--push'])
+    out = _run_argv(['pre', '--base', str(repo), '--push'])
     assert not out and 'origin/main' in (out.error() or '')  # main was advanced locally by the first promote
 
-    _run('resync', py)  # discard local work (main + tags + branches)
-    assert GitHelpers.list_tags(py, 'v*') == [] and GitHelpers.list_tags(cxx, 'py10x-kernel-v*') == []
-    assert GitHelpers.git(py, 'rev-parse', '--verify', '--quiet', 'pre', check=False) == ''
+    _run('resync', repo)  # discard local work (main + tags + branches)
+    assert GitHelpers.list_tags(repo, 'v*') == [] and GitHelpers.list_tags(repo, 'py10x-kernel-v*') == []
+    for branch in ('pre', 'pre-py10x-kernel', 'pre-py10x-infra'):
+        assert GitHelpers.git(repo, 'rev-parse', '--verify', '--quiet', branch, check=False) == ''
 
-    _run_pre(py, '--push')  # now clean; succeeds and pushes
-    assert 'v0.0.1rc1' in GitHelpers.git(py_remote, 'tag', '--list').split()
-
-
-def test_partial_push_recovery_still_uses_resync(remotes):
-    """Crash with siblings pushed but core not: the lagging repo has local main changes from the
-    promote epilogue, so require_synced refuses on main. resync + re-run still works to resume
-    (core re-cut to coordinate). Pure tag-only lag (main revs match) is handled by auto-reconcile
-    inside require_synced."""
-    py, cxx, py_remote, _cxx_remote = remotes
-    _run_pre(py)  # cut rc1 everywhere, locally
-    # simulate a crash mid-push: the siblings repo (cxx) got its atomic push, core (py) did not.
-    GitHelpers.git(cxx, 'push', '--atomic', 'origin', '+pre/py10x-kernel', 'py10x-kernel-v0.0.1rc1', '+pre/py10x-infra', 'py10x-infra-v0.0.1rc1')
-
-    out = _run_argv(['pre', '--base', str(py), '--push'])
-    assert not out and 'origin/main' in (out.error() or '')
-
-    _run('resync', py)  # py back to origin (local promote work discarded)
-    assert GitHelpers.list_tags(py, 'v*') == []
-    assert 'py10x-kernel-v0.0.1rc1' in GitHelpers.list_tags(cxx, 'py10x-kernel-v*')  # siblings intact
-
-    _run_pre(py, '--push')  # resumes: siblings skip, core re-cut + coordinated
-    assert 'v0.0.1rc1' in GitHelpers.git(py_remote, 'tag', '--list').split()
-    assert _dep_specs_at(py, 'v0.0.1rc1', 'pyproject.toml')['py10x-kernel'] == '==0.0.1rc1'
-    assert GitHelpers.list_tags(py, 'v*') == ['v0.0.1rc1', 'v0.0.1rc2.dev']
+    _run_pre(repo, '--push')  # now clean; succeeds and pushes
+    assert 'v0.0.1rc1' in _remote_tags(remote)
 
 
-def test_pre_iterate_after_sibling_source_change_recoordinates(repos):
-    """A kernel source change bumps kernel's rc and forces a core re-cut (pin lag); infra stays put."""
-    py, cxx = repos
-    _run_pre(py)  # rc1 across the board
+def test_pre_push_is_one_atomic_push_plus_triggers(remotes, monkeypatch):
+    """One repo: every package's branch/tag/marker and the main epilogue land in a single atomic
+    push - a partial cross-package push is unreachable. Publish triggers are pushed one at a time."""
+    repo, _remote = remotes
+    pushes: list[list[str]] = []
+    orig_git = GitHelpers.git
 
-    _change_kernel_source(cxx, 'feature.py')  # real kernel source change on main
-    _run_pre(py)
+    def tracking_git(r, *args, check=True):
+        if args and args[0] == 'push' and '--atomic' in args:
+            pushes.append([a for a in args if a not in ('push', '--atomic', 'origin', '-q')])
+        return orig_git(r, *args, check=check)
 
-    assert 'py10x-kernel-v0.0.1rc2' in GitHelpers.list_tags(cxx, 'py10x-kernel-v*')
-    assert 'py10x-infra-v0.0.1rc2' not in GitHelpers.list_tags(cxx, 'py10x-infra-v*')  # unchanged
-    assert 'v0.0.1rc2' in GitHelpers.list_tags(py, 'v*')  # core forced to re-cut by the stale pin
+    monkeypatch.setattr(GitHelpers, 'git', staticmethod(tracking_git))
+    _run_pre(repo, '--push')
 
-    core_deps = _dep_specs_at(py, 'v0.0.1rc2', 'pyproject.toml')
-    assert core_deps['py10x-kernel'] == '==0.0.1rc2'  # refreshed to the new kernel rc
-    assert core_deps['py10x-infra'] == '==0.0.1rc1'  # infra unchanged -> its existing rc1
-    # the new core rc forks from main, and the superseded rc1 survives only as its tag
-    assert GitHelpers.git(py, 'rev-parse', 'pre') == GitHelpers.tag_commit(py, 'v0.0.1rc2')
-    assert GitHelpers.tag_commit(py, 'v0.0.1rc1') != GitHelpers.tag_commit(py, 'v0.0.1rc2')
-
-
-def _run_yank(py_repo, pkg, version, *flags):
-    _run('yank', py_repo, '--pkg', pkg, '--version', version, *flags)
-
-
-def test_yank_latest_rc_rolls_pre_back_and_consumes_the_number(repos):
-    """Yank the latest kernel rc: tag renamed, pre rolled back to the prior rc, number not reused."""
-    py, cxx = repos
-    _run_pre(py)  # rc1
-    _change_kernel_source(cxx, 'feature.py')
-    _run_pre(py)  # kernel rc2 (+ core rc2)
-    rc1_commit = GitHelpers.tag_commit(cxx, 'py10x-kernel-v0.0.1rc1')
-
-    _run_yank(py, 'py10x-kernel', '0.0.1rc2')
-
-    live = GitHelpers.list_tags(cxx, 'py10x-kernel-v0.0.1rc2')  # plain tag gone
-    assert 'py10x-kernel-v0.0.1rc2' not in [t for t in live if not t.endswith('_yanked')]
-    assert 'py10x-kernel-v0.0.1rc3.dev' in GitHelpers.list_tags(cxx, 'py10x-kernel-v*')  # dev marker kept
-    assert 'py10x-kernel-v0.0.1rc2_yanked' in GitHelpers.list_tags(cxx, '*')
-    # pointer rollback: pre/py10x-kernel reconciled to the previous (live) rc
-    assert GitHelpers.git(cxx, 'rev-parse', 'pre/py10x-kernel') == rc1_commit
-    main_pins = _dep_specs_at(py, 'main', 'pyproject.toml')
-    assert SpecifierSet(main_pins['py10x-kernel']) == SpecifierSet(VersionHelpers.rc_window_pin('0.0.1rc1'))
-
-    _change_kernel_source(cxx, 'feature2.py')
-    _run_pre(py)
-    # the yanked rc2 number is consumed: the next kernel rc is rc3, never a reused rc2
-    assert 'py10x-kernel-v0.0.1rc3' in GitHelpers.list_tags(cxx, 'py10x-kernel-v*')
+    triggers = [p for p in pushes if any(r.startswith(('pre/', 'prod/')) for r in p)]
+    refs = [p for p in pushes if p not in triggers]
+    assert len(triggers) == 3  # core + kernel + infra, one push each
+    assert all(sum(r.startswith(('pre/', 'prod/')) for r in p) == 1 for p in triggers)
+    assert not any(r.startswith(':refs/') for p in triggers for r in p)
+    assert len(refs) == 1
+    assert {'+pre', '+pre-py10x-kernel', '+pre-py10x-infra', 'v0.0.1rc1', 'py10x-kernel-v0.0.1rc1', 'py10x-infra-v0.0.1rc1'} <= set(refs[0])
 
 
-def test_yank_non_latest_is_rejected_without_cascade(repos):
-    """Stage 1 yanks the latest only; an older release is refused (cascade is Stage 2)."""
-    py, cxx = repos
-    _run_pre(py)
-    _change_kernel_source(cxx, 'feature.py')
-    _run_pre(py)  # kernel now at rc2
-    # post_verify refuses an older release, returning a falsy RC (no throw).
-    out = _run_argv(['yank', '--pkg', 'py10x-kernel', '--version', '0.0.1rc1', '--base', str(py)])
-    assert not out and 'not the latest' in (out.error() or '')
+def test_pre_push_lands_tags_and_force_resets_branches_on_remote(remotes):
+    repo, remote = remotes
 
+    _run_pre(repo, '--push')
 
-@pytest.fixture
-def remotes(tmp_path, repos):
-    """Add bare `origin` remotes to both repos and seed `main`. Returns (py, cxx, py_remote, cxx_remote)."""
-    py, cxx = repos
-    py_remote, cxx_remote = tmp_path / 'py10x.git', tmp_path / 'cxx10x.git'
-    for repo, remote in ((py, py_remote), (cxx, cxx_remote)):
-        GitHelpers.git(tmp_path, 'init', '--bare', '-q', str(remote))
-        GitHelpers.git(repo, 'remote', 'add', 'origin', str(remote))
-        GitHelpers.git(repo, 'push', '-q', 'origin', 'main')
-    return py, cxx, py_remote, cxx_remote
-
-
-def test_pre_push_lands_tags_and_force_resets_branches_on_remotes(remotes):
-    py, _cxx, py_remote, cxx_remote = remotes
-
-    _run_pre(py, '--push')
-
-    # tags + branches landed on the bare remotes; publish triggers in separate pushes per package
-    assert set(GitHelpers.git(py_remote, 'tag', '--list').split()) == {'v0.0.1rc1', 'v0.0.1rc2.dev', 'pre/v0.0.1rc1'}
-    assert sorted(GitHelpers.git(py_remote, 'branch', '--list', '--format=%(refname:short)').split()) == ['main', 'pre']
-    assert set(GitHelpers.git(cxx_remote, 'branch', '--list', '--format=%(refname:short)').split()) == {'main', 'pre/py10x-kernel', 'pre/py10x-infra'}
-    assert GitHelpers.git(py_remote, 'rev-parse', 'pre') == GitHelpers.tag_commit(py, 'v0.0.1rc1')
+    assert {'v0.0.1rc1', 'v0.0.1rc2.dev', 'pre/v0.0.1rc1', 'pre/py10x-kernel-v0.0.1rc1'} <= _remote_tags(remote)
+    assert sorted(GitHelpers.git(remote, 'branch', '--list', '--format=%(refname:short)').split()) == [
+        'main',
+        'pre',
+        'pre-py10x-infra',
+        'pre-py10x-kernel',
+    ]
+    assert GitHelpers.git(remote, 'rev-parse', 'pre') == GitHelpers.tag_commit(repo, 'v0.0.1rc1')
 
     # a second cut force-resets the remote pre branch (non-ff) to the new rc. main must be pushed
     # first (the start invariant: local==remote), then the cut finishes with local==remote again.
-    _write(py / 'src.py', 'x = 1\n')
-    GitHelpers.git(py, 'add', '.')
-    GitHelpers.git(py, 'commit', '-qm', 'core change')
-    GitHelpers.git(py, 'push', '-q', 'origin', 'main')
-    _run_pre(py, '--push')
-    assert 'v0.0.1rc2' in GitHelpers.git(py_remote, 'tag', '--list').split()
-    assert 'pre/v0.0.1rc2' in GitHelpers.git(py_remote, 'tag', '--list').split()
-    assert 'pre/v0.0.1rc1' not in GitHelpers.git(py_remote, 'tag', '--list').split()
-    assert GitHelpers.git(py_remote, 'rev-parse', 'pre') == GitHelpers.tag_commit(py, 'v0.0.1rc2')
+    _change(repo, 'src.py')
+    GitHelpers.git(repo, 'push', '-q', 'origin', 'main')
+    _run_pre(repo, '--push')
+    tags = _remote_tags(remote)
+    assert 'v0.0.1rc2' in tags and 'pre/v0.0.1rc2' in tags and 'pre/v0.0.1rc1' not in tags
+    assert GitHelpers.git(remote, 'rev-parse', 'pre') == GitHelpers.tag_commit(repo, 'v0.0.1rc2')
     # finish invariant: local == remote (tags + pre branch)
-    assert set(GitHelpers.git(py, 'tag', '--list').split()) == set(GitHelpers.git(py_remote, 'tag', '--list').split())
-    assert GitHelpers.git(py, 'rev-parse', 'pre') == GitHelpers.git(py_remote, 'rev-parse', 'pre')
-
-
-def test_pre_pushes_each_publish_trigger_in_own_atomic_push(remotes, monkeypatch):
-    """Publish-trigger creates are one push each; deletes never share a push with creates."""
-    py, cxx, _py_remote, _cxx_remote = remotes
-    trigger_create_pushes: list[tuple[Path, list[str]]] = []
-    trigger_delete_pushes: list[tuple[Path, list[str]]] = []
-    orig_git = GitHelpers.git
-
-    def tracking_git(repo, *args, check=True):
-        if args and args[0] == 'push' and '--atomic' in args:
-            refspecs = [a for a in args if a not in ('push', '--atomic', 'origin', '-q')]
-            if any(r.startswith(('pre/', 'prod/')) for r in refspecs):
-                trigger_create_pushes.append((repo, refspecs))
-            elif any('refs/tags/pre/' in r or 'refs/tags/prod/' in r for r in refspecs):
-                trigger_delete_pushes.append((repo, refspecs))
-        return orig_git(repo, *args, check=check)
-
-    monkeypatch.setattr(GitHelpers, 'git', staticmethod(tracking_git))
-    _run_pre(py, '--push')
-
-    assert not trigger_delete_pushes  # first cut: no prior publish triggers
-    assert len(trigger_create_pushes) == 3  # core + kernel + infra
-    assert len([specs for repo, specs in trigger_create_pushes if repo == cxx]) == 2
-    for _repo, refspecs in trigger_create_pushes:
-        assert sum(r.startswith(('pre/', 'prod/')) for r in refspecs) == 1
-        assert not any(r.startswith(':refs/') for r in refspecs)
+    assert set(GitHelpers.git(repo, 'tag', '--list').split()) == tags
+    assert GitHelpers.git(repo, 'rev-parse', 'pre') == GitHelpers.git(remote, 'rev-parse', 'pre')
 
 
 def _delete_remote_triggers(repo, flavor: str):
@@ -409,63 +432,57 @@ def _delete_remote_triggers(repo, flavor: str):
 
 def test_pre_publish_recreates_triggers_after_resync(remotes):
     """Crash recovery: resync drops local-only triggers, then `pre --publish-only --push` recreates them."""
-    py, cxx, py_remote, cxx_remote = remotes
-    _run_pre(py, '--push')
-    for repo in (py, cxx):
-        _delete_remote_triggers(repo, 'pre')
-    _run('resync', py)
-    out = _run_argv(['pre', '--publish-only', '--base', str(py), '--push'])
+    repo, remote = remotes
+    _run_pre(repo, '--push')
+    _delete_remote_triggers(repo, 'pre')
+    _run('resync', repo)
+    out = _run_argv(['pre', '--publish-only', '--base', str(repo), '--push'])
     assert out, out.error() if not out else ''
-    for remote in (py_remote, cxx_remote):
-        triggers = [t for t in GitHelpers.git(remote, 'tag', '--list').split() if t.startswith('pre/')]
-        assert triggers
+    assert {'pre/v0.0.1rc1', 'pre/py10x-kernel-v0.0.1rc1', 'pre/py10x-infra-v0.0.1rc1'} <= _remote_tags(remote)
 
 
 def test_pre_publish_refuses_existing_triggers(remotes, capsys):
-    py, _cxx, _py_remote, _cxx_remote = remotes
-    _run_pre(py, '--push')
-    out = _run_argv(['pre', '--publish-only', '--base', str(py), '--push'])
+    repo, _remote = remotes
+    _run_pre(repo, '--push')
+    out = _run_argv(['pre', '--publish-only', '--base', str(repo), '--push'])
     assert out, out.error() if not out else ''
     assert 'already present' in capsys.readouterr().out
 
 
 def test_pre_no_publish_then_publish_only(remotes):
     """Cut and push without triggers, then attach triggers in a second step."""
-    py, _cxx, py_remote, _cxx_remote = remotes
-    _run_pre(py, '--push', '--no-publish')
-    assert not any(t.startswith('pre/') for t in GitHelpers.git(py_remote, 'tag', '--list').split())
-    assert 'v0.0.1rc1' in GitHelpers.git(py_remote, 'tag', '--list').split()
-    _run_argv(['pre', '--publish-only', '--base', str(py), '--push'])
-    assert 'pre/v0.0.1rc1' in GitHelpers.git(py_remote, 'tag', '--list').split()
+    repo, remote = remotes
+    _run_pre(repo, '--push', '--no-publish')
+    assert not any(t.startswith('pre/') for t in _remote_tags(remote))
+    assert 'v0.0.1rc1' in _remote_tags(remote)
+    _run_argv(['pre', '--publish-only', '--base', str(repo), '--push'])
+    assert 'pre/v0.0.1rc1' in _remote_tags(remote)
 
 
 def test_promote_refuses_unsynced_main(remotes):
     """Start invariant: an un-pushed `main` is refused (local != origin/main) and nothing is cut."""
-    py, _cxx, py_remote, _cxx_remote = remotes
-    _write(py / 'src.py', 'x = 1\n')
-    GitHelpers.git(py, 'add', '.')
-    GitHelpers.git(py, 'commit', '-qm', 'unpushed core change')  # NOT pushed to origin
-    rc = _run_argv(['pre', '--base', str(py), '--push'])  # post_verify refuses (returns RC)
+    repo, remote = remotes
+    _change(repo, 'src.py')  # NOT pushed to origin
+    rc = _run_argv(['pre', '--base', str(repo), '--push'])  # post_verify refuses (returns RC)
     assert not rc and 'origin/main' in (rc.error() or '')
-    assert GitHelpers.git(py_remote, 'tag', '--list') == ''  # nothing cut/pushed
+    assert GitHelpers.git(remote, 'tag', '--list') == ''  # nothing cut/pushed
 
 
 def test_yank_push_rolls_remote_pre_back(remotes):
-    """yank --push: the remote tag is renamed and the remote `pre` branch is rolled back (local==remote)."""
-    py, cxx, _py_remote, _cxx_remote = remotes
-    _run_pre(py, '--push')  # rc1
-    _change_kernel_source(cxx, 'feature.py')
-    GitHelpers.git(cxx, 'push', '-q', 'origin', 'main')
-    _run_pre(py, '--push')  # kernel rc2
-    rc1_commit = GitHelpers.tag_commit(cxx, 'py10x-kernel-v0.0.1rc1')
+    """yank --push: the remote tag is renamed and the remote `pre-{name}` branch rolled back (local==remote)."""
+    repo, _remote = remotes
+    _run_pre(repo, '--push')  # rc1
+    _change_kernel_source(repo, 'feature.py')
+    GitHelpers.git(repo, 'push', '-q', 'origin', 'main')
+    _run_pre(repo, '--push')  # kernel rc2
+    rc1_commit = GitHelpers.tag_commit(repo, 'py10x-kernel-v0.0.1rc1')
 
-    _run_yank(py, 'py10x-kernel', '0.0.1rc2', '--push')
+    _run_yank(repo, 'py10x-kernel', '0.0.1rc2', '--push')
 
-    live = GitHelpers.ls_remote_tags(cxx, 'py10x-kernel-v*')
+    live = GitHelpers.ls_remote_tags(repo, 'py10x-kernel-v*')
     assert 'py10x-kernel-v0.0.1rc2' not in live and 'py10x-kernel-v0.0.1rc2_yanked' in live
-    # remote pre rolled back to the previous rc; local == remote
-    assert GitHelpers.ls_remote_ref(cxx, 'refs/heads/pre/py10x-kernel') == rc1_commit
-    assert GitHelpers.git(cxx, 'rev-parse', 'pre/py10x-kernel') == rc1_commit
+    assert GitHelpers.ls_remote_ref(repo, 'refs/heads/pre-py10x-kernel') == rc1_commit
+    assert GitHelpers.git(repo, 'rev-parse', 'pre-py10x-kernel') == rc1_commit
 
 
 def test_someone_else_promoted_stale_dev_new_tags_pyproject_change(remotes, capsys):
@@ -478,7 +495,7 @@ def test_someone_else_promoted_stale_dev_new_tags_pyproject_change(remotes, caps
 
     This is the realistic "someone else promoted while you were behind" scenario.
     """
-    py, _cxx, _py_remote, _cxx_remote = remotes
+    py, _remote = remotes
 
     # Pre-create a dev marker tag that the promote will treat as stale (will be deleted during promote)
     stale_dev = 'v0.0.1rc0.dev'

@@ -1,0 +1,543 @@
+//
+// Created by AMD on 7/2/2024.
+//
+
+#include "btraitable_processor.h"
+
+#include <filesystem>
+
+#include "bnode.h"
+#include "bprocess_context.h"
+#include "btrait.h"
+#include "btraitable.h"
+#include "xcache.h"
+#include "brc.h"
+
+
+unsigned BTraitableProcessor::s_default_type = PLAIN;   // = OffGraphNoConvertNoDebug;
+
+BTraitableProcessor::~BTraitableProcessor() {
+    if (m_own_cache)
+        delete m_cache;
+}
+
+BTraitableProcessor* BTraitableProcessor::create_default() {
+    const auto proc = create_raw(s_default_type);
+    proc->use_cache(XCache::default_cache());
+    return proc;
+}
+
+
+bool BTraitableProcessor::accept_existing(BTraitable *obj) const {
+    // returns true if the object existed in cache or storage
+    const auto id_value = obj->tid().is_valid() ? obj->id_value() : obj->endogenous_id();
+    const auto cls = obj->my_class();
+    const auto tid = TID(cls, PyLinkage::traitable_id(id_value, obj->tid().coll_name()));
+    const auto cache = obj->origin_cache();
+    if (const auto origin_cache = cache->find_origin_cache(tid)) {
+        if (origin_cache->lazy_load_flags(tid) & XCache::MUST_EXIST_IN_STORE && !cls->instance_in_store(tid)) {
+            // e.g. created with existing_object_by_id
+            origin_cache->set_lazy_load_flags(tid, XCache::REPLACE_EXISTING);
+            return false;
+        }
+        obj->set_id_value(id_value);
+        obj->set_origin_cache(origin_cache);
+        return true;
+    }
+    if (cls->instance_in_store(tid)) {
+        cache->remove_temp_object_cache(obj->tid());
+        obj->set_id_value(id_value);
+        obj->set_origin_cache(cache);
+        obj->set_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST| flags() & DEBUG);
+        return true;
+    }
+    return false;
+}
+
+py::object BTraitableProcessor::share_object(BTraitable* obj, const bool accept_existing, const bool replace_existing) const {
+    if (accept_existing && replace_existing)
+        throw py::value_error("Cannot use both accept_existing and replace_existing");
+
+    if (obj->tid().is_valid())
+        return PyLinkage::RC_TRUE();
+
+    const auto id_value = obj->endogenous_id(); //-- raises if any id trait is undefined
+    const auto &tid = obj->tid();
+    const auto &cls = tid.cls();
+    const auto valid_tid = TID(cls, PyLinkage::traitable_id(id_value, tid.coll_name()));
+    const auto cache = obj->origin_cache();
+    if (const auto origin_cache = cache->find_origin_cache(valid_tid)) {
+        if (! (origin_cache->lazy_load_flags(valid_tid) & XCache::REPLACE_EXISTING)) {
+            // -- possible conflict with existing instance!
+            if (accept_existing) {
+                cache->remove_temp_object_cache(tid);
+                obj->set_id_value(id_value);
+                obj->set_origin_cache(origin_cache);
+                return PyLinkage::RC_TRUE();
+            }
+            if (!replace_existing) {
+                BRC rc;
+                rc.add_data(id_value);
+                return rc();
+            }
+        }
+        // -- replacing existing instance
+        if (cache!=origin_cache)
+            throw py::value_error("Cannot only replace the existing instance in origin cache");
+        BTraitable existing_obj(cls, valid_tid.traitable_id());
+        existing_obj.clear_lazy_load_flags(existing_obj.lazy_load_flags()); // don't load existing object - we will lazy load revision later, as needed
+        // copy _rev from existing object and invalidate all set traits
+        obj->set_revision(existing_obj.get_revision());
+        // invalidate all set traits to maintain dependencies
+        for (const auto &trait_value_handle: cls->trait_dir() | std::views::values) {
+            const auto trait = trait_value_handle.cast<BTrait*>();
+            if (is_set(&existing_obj, trait))
+                invalidate_trait_value(&existing_obj, trait);
+        }
+        // discard object cache to prepare for make_permanent
+        cache->remove_object_cache(valid_tid, true);
+    }
+
+    // -- object does not exist in any cache
+    obj->set_id_value(id_value);
+    obj->set_origin_cache(cache);
+    cache->make_permanent(tid);
+    if ((accept_existing || replace_existing) && cls->may_exist_in_store() && obj->get_revision().cast<int>()==0) {
+        auto lazy_load_flags = XCache::LOAD_REQUIRED | flags() & DEBUG;
+        if (replace_existing)
+            lazy_load_flags |= XCache::LOAD_REV_ONLY;
+        obj->set_lazy_load_flags(lazy_load_flags);
+    }
+    return PyLinkage::RC_TRUE();
+}
+
+void BTraitableProcessor::export_nodes() const {
+    m_cache->export_nodes();
+}
+
+void BTraitableProcessor::begin_using() {
+    if (const auto cache = own_cache())
+        ThreadContext::cache_push(cache);
+
+    ThreadContext::traitable_proc_push(this);
+}
+
+void BTraitableProcessor::end_using() const {
+    auto tp = ThreadContext::traitable_proc_pop();
+    if (tp != this)
+        throw py::value_error(py::str("Mismanaged XControl block"));
+
+    if (own_cache())
+        ThreadContext::cache_pop();
+}
+
+bool BTraitableProcessor::is_valid(const BTraitable* obj, const BTrait* trait) const {
+    const auto node = cache()->find_node(obj->tid(), trait);
+    return node != nullptr && node->is_valid();
+}
+
+bool BTraitableProcessor::is_valid(const BTraitable* obj, const BTrait* trait, const py::args& args) const {
+    const auto node = cache()->find_node(obj->tid(), trait, args);
+    return node != nullptr && node->is_valid();
+}
+
+bool BTraitableProcessor::is_set(const BTraitable* obj, const BTrait* trait) const {
+    const auto node = cache()->find_node(obj->tid(), trait);
+    return node != nullptr && node->is_set();
+}
+
+bool BTraitableProcessor::is_set(const BTraitable* obj, const BTrait* trait, const py::args& args) const {
+    const auto node = cache()->find_node(obj->tid(), trait, args);
+    return node != nullptr && node->is_set();
+}
+
+// BasicNode* BTraitableProcessor::get_node(BTraitable *obj, BTrait *trait) const {
+//     return cache()->find_node(obj->tid(), trait);
+// }
+//
+// BasicNode* BTraitableProcessor::get_node(BTraitable *obj, BTrait *trait, const py::args& args) const {
+//     return cache()->find_node(obj->tid(), trait, args);
+// }
+
+//---- Setting a value
+
+void BTraitableProcessor::check_value(BTraitable *obj, const BTrait *trait, const py::object& value) {
+    const auto value_type = PyLinkage::type(value);
+    if (const auto rc = trait->wrapper_f_is_acceptable_type(obj, value_type); !rc)
+        throw py::type_error(py::str("{}.{} ({}) - invalid value '{}'").format(obj->class_name(), trait->name(), trait->data_type(), value));
+}
+
+py::object BTraitableProcessor::set_trait_value(BTraitable *obj, const BTrait *trait, const py::object& value) {
+    if (trait->flags_on(BTraitFlags::ID) && obj->tid().is_valid() && obj->is_set(trait)) {
+        const auto trait_value=get_trait_value(obj, trait);
+        const auto trait_type = trait->flags_on(BTraitFlags::FAUX) ? "ID_LIKE" : "ID";
+        throw py::value_error(py::str("{}.{} ({}) - cannot change {} trait value from '{}' to '{}'").format(obj->class_name(), trait->name(), trait->data_type(), trait_type, trait_value,value));
+    }
+    const auto converted_value = adjust_set_value(obj, trait, value);
+    if (!trait->f_set.is_none()) {     // custom setter is defined
+        const auto guard = upward_deps_off();
+        return trait->wrapper_f_set(obj, converted_value);
+    }
+    return raw_set_trait_value(obj, trait, converted_value);
+}
+
+py::object BTraitableProcessor::set_trait_value(BTraitable *obj, BTrait *trait, const py::object& value, const py::args& args) {
+    const auto converted_value = adjust_set_value(obj, trait, value);
+    if (!trait->f_set.is_none()) {    // custom setter is defined
+        const auto guard = upward_deps_off();
+        return trait->wrapper_f_set(obj, converted_value, args);
+    }
+
+    return raw_set_trait_value(obj, trait, converted_value, args);
+}
+
+py::dict BTraitableProcessor::find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const {
+    return {};
+}
+
+class OffGraphNoConvertNoDebug : public BTraitableProcessor {
+public:
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait) const final {
+        trait->proc()->invalidate_value_off_graph(this, obj, trait);
+    }
+
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const final {
+        trait->proc()->invalidate_value_off_graph(this, obj, trait, args);
+    }
+
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait) final {
+        return trait->proc()->get_value_off_graph(this, obj, trait);
+    }
+
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) final {
+        return trait->proc()->get_value_off_graph(this, obj, trait, args);
+    }
+
+    py::object get_choices(BTraitable* obj, BTrait* trait) final {
+        return trait->proc()->get_choices_off_graph(this, obj, trait);
+    }
+
+    py::object get_style_sheet(BTraitable* obj, const BTrait* trait) final {
+        return trait->proc()->get_style_sheet_off_graph(this, obj, trait);
+    }
+
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override {
+        return value;
+    }
+
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
+        return trait->proc()->raw_set_value_off_graph(this, obj, trait, value);
+    }
+
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const final {
+        return trait->proc()->raw_set_value_off_graph(this, obj, trait, value, args);
+    }
+
+};
+
+class OffGraphNoConvertDebug : public OffGraphNoConvertNoDebug {
+public:
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
+        check_value(obj, trait, value);
+        return value;
+    }
+};
+
+class OffGraphConvertNoDebug : public OffGraphNoConvertNoDebug {
+public:
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
+        return obj->from_any(trait, value);
+    }
+};
+
+class OffGraphConvertDebug : public OffGraphNoConvertNoDebug {
+public:
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+        auto converted_value = obj->from_any(trait, value);
+        check_value(obj, trait, converted_value);
+        return converted_value;
+    }
+};
+
+class OnGraphNoConvertNoDebug : public BTraitableProcessor {
+public:
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait) const final {
+        trait->proc()->invalidate_value_on_graph(this, obj, trait);
+    }
+
+    void invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const final {
+        trait->proc()->invalidate_value_on_graph(this, obj, trait, args);
+    }
+
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait) final {
+        return trait->proc()->get_value_on_graph(this, obj, trait);
+    }
+
+    py::object get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) final {
+        return trait->proc()->get_value_on_graph(this, obj, trait, args);
+    }
+
+    py::object get_choices(BTraitable* obj, BTrait* trait) final {
+        return trait->proc()->get_choices_on_graph(this, obj, trait);
+    }
+
+    py::object get_style_sheet(BTraitable* obj, const BTrait* trait) final {
+        return trait->proc()->get_style_sheet_on_graph(this, obj, trait);
+    }
+
+    py::object adjust_set_value(BTraitable *obj, const BTrait* trait, const py::object& value) const override {
+        return value;
+    }
+
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const override {
+        return trait->proc()->raw_set_value_on_graph(this, obj, trait, value);
+    }
+
+    py::object raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const override {
+        return trait->proc()->raw_set_value_on_graph(this, obj, trait, value, args);
+    }
+
+    py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const final {
+        return cache()->find_dependencies(obj, trait, inputs_spec);
+    }
+
+};
+
+class OnGraphNoConvertDebug : public OnGraphNoConvertNoDebug {
+public:
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
+        if (value.is_none() || value.is(PyLinkage::XNone()))
+            return value;
+
+        check_value(obj, trait, value);
+        return value;
+    }
+};
+
+class OnGraphConvertNoDebug : public OnGraphNoConvertNoDebug {
+public:
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
+        if (value.is_none() || value.is(PyLinkage::XNone()) || py::isinstance(value, trait->m_datatype))
+            return value;
+
+        const auto guard = upward_deps_off();
+        return obj->from_any(trait, value);
+    }
+};
+
+class OnGraphConvertDebug : public OnGraphNoConvertNoDebug {
+public:
+    py::object adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const final {
+        if (value.is_none() || value.is(PyLinkage::XNone()) || py::isinstance(value, trait->m_datatype))
+            return value;
+
+        const auto guard = upward_deps_off();
+        auto converted_value = obj->from_any(trait, value);
+        check_value(obj, trait, converted_value);
+        return converted_value;
+    }
+};
+
+BTraitableProcessor* BTraitableProcessor::create_raw(const unsigned int flags) {
+    BTraitableProcessor *proc;
+    switch(flags & PROC_TYPE) {
+        case PLAIN:                         proc = new OffGraphNoConvertNoDebug();  break;
+        case DEBUG:                         proc = new OffGraphNoConvertDebug();    break;
+        case CONVERT_VALUES:                proc = new OffGraphConvertNoDebug();    break;
+        case CONVERT_VALUES | DEBUG:        proc = new OffGraphConvertDebug();      break;
+
+        case ON_GRAPH:                      proc = new OnGraphNoConvertNoDebug();   break;
+        case ON_GRAPH|DEBUG:                proc = new OnGraphNoConvertDebug();     break;
+        case ON_GRAPH|CONVERT_VALUES:       proc = new OnGraphConvertNoDebug();     break;
+        case ON_GRAPH|CONVERT_VALUES|DEBUG: proc = new OnGraphConvertDebug();       break;
+
+        default:
+            throw std::runtime_error("Unrecognized flags");
+    }
+
+    proc->set_flags(flags);
+    return proc;
+}
+
+BTraitableProcessor* BTraitableProcessor::create_root() {
+    // create a processor with no parent cache
+    const auto parent = current();
+    const auto flags = parent->flags();
+    const auto proc = create_raw(flags);
+    const auto cache = new XCache();
+    if (flags & ON_GRAPH)
+        cache->set_default_node_type(NODE_TYPE::BASIC_GRAPH);
+    proc->use_own_cache(cache);
+    proc->m_default_cache = cache;
+    return proc;
+}
+
+BTraitableProcessor* BTraitableProcessor::create(const int on_graph, const int convert_values, const int debug, const bool use_parent_cache, const bool use_default_cache) {
+    auto parent = current();
+    auto parent_flags = parent->flags();
+
+    auto flags = parent_flags;
+    if (on_graph >= 0)
+        flags = on_graph == 1 ? flags | ON_GRAPH : flags & ~ON_GRAPH;
+
+    if (convert_values >= 0)
+        flags = convert_values == 1 ? flags | CONVERT_VALUES : flags & ~CONVERT_VALUES;
+
+    if (debug >= 0)
+        flags = debug == 1? flags | DEBUG : flags & ~DEBUG;
+
+    auto proc = create_raw(flags);
+    proc->m_default_cache = parent->m_default_cache;
+
+    // 1. use_parent_cache uses parent's cache as its own *only* when parent and new proc are either ON_GRAPH or OFF_GRAPH
+    // 2. use_default_cache forces using the default cache *only* when the new processor is OFF_GRAPH
+    // 3. when both use_parent_cache and use_default_cache are true, use_default_cache takes precedence for OFF_GRAPH processors
+    // TODO: should we throw exceptions when parameters are ignored?
+
+    if (flags & ON_GRAPH) {
+        if (!use_parent_cache || !(parent_flags & ON_GRAPH)) {
+            auto cache = new XCache(parent->cache());
+            cache->set_default_node_type(NODE_TYPE::BASIC_GRAPH);
+            proc->use_own_cache(cache);
+        }
+        else
+            proc->use_cache(parent->cache());
+    }
+    else {  //-- OFF_GRAPH
+        if (use_default_cache)
+            proc->use_cache(parent->default_cache());
+
+        else {
+            if (!use_parent_cache || parent_flags & ON_GRAPH) {
+                auto cache = new XCache(parent->cache());
+                proc->use_own_cache(cache);
+            } else
+                proc->use_cache(parent->cache());
+        }
+    }
+
+    return proc;
+}
+
+BTraitableProcessor * BTraitableProcessor::create_with_cache(XCache *cache, const unsigned flags) {
+    const auto proc_type = cache->default_node_type() == NODE_TYPE::BASIC_GRAPH ? ON_GRAPH : PLAIN;
+    const auto proc = create_raw(proc_type | (flags & PROC_TYPE & ~ON_GRAPH));
+    proc->m_default_cache = current()->m_default_cache;
+    proc->use_cache(cache);
+    return proc;
+}
+
+BTraitableProcessor* BTraitableProcessor::current() {
+    return ThreadContext::current_traitable_proc();
+}
+
+XCache* BTraitableProcessor::default_cache() const {
+    return m_default_cache ? m_default_cache : XCache::default_cache();
+}
+
+BTraitableProcessor::Use::Use(BTraitableProcessor *proc, bool temp) : m_temp(temp) {
+    ThreadContext::traitable_proc_push(proc);
+}
+
+BTraitableProcessor::Use::~Use() {
+    auto tp = ThreadContext::traitable_proc_pop();
+    if (m_temp)
+        delete tp;
+}
+
+//---- BTraitableProcessorSetValueTracker
+BTraitableProcessorSetValueTracker::BTraitableProcessorSetValueTracker()
+    : m_parent(BTraitableProcessor::current())
+{
+    BTraitableProcessor::use_cache(m_parent->cache());
+    m_default_cache = m_parent->own_default_cache();
+    set_flags(m_parent->flags());
+}
+
+void BTraitableProcessorSetValueTracker::begin_using() {
+    ThreadContext::traitable_proc_push(this);
+}
+
+void BTraitableProcessorSetValueTracker::end_using() const {
+    auto tp = ThreadContext::traitable_proc_pop();
+    if (tp != this)
+        throw py::value_error(py::str("Mismanaged XControl block"));
+}
+
+py::list BTraitableProcessorSetValueTracker::tracked_objects() const {
+    py::list result;
+    std::unordered_set<TID> seen;
+    seen.reserve(m_objects_with_set_value_order.size());
+    for (const py::object& obj : m_objects_with_set_value_order)
+        if (seen.insert(obj.cast<BTraitable*>()->tid()).second)
+            result.append(obj);
+    return result;
+}
+
+void BTraitableProcessorSetValueTracker::update(const BTraitableProcessorSetValueTracker& other) {
+    for (const py::object& obj : other.m_objects_with_set_value_order)
+        if (m_objects_with_set_value_seen.insert(obj.cast<BTraitable*>()).second)
+            m_objects_with_set_value_order.push_back(obj);
+}
+
+void BTraitableProcessorSetValueTracker::clear() {
+    m_objects_with_set_value_order.clear();
+    m_objects_with_set_value_seen.clear();
+}
+
+py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) {
+    if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
+        m_objects_with_set_value_order.push_back(py::cast(obj, py::return_value_policy::reference));
+    return m_parent->set_trait_value(obj, trait, value);
+}
+
+py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) {
+    if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
+        m_objects_with_set_value_order.push_back(py::cast(obj, py::return_value_policy::reference));
+    return m_parent->set_trait_value(obj, trait, value, args);
+}
+
+void BTraitableProcessorSetValueTracker::invalidate_trait_value(BTraitable* obj, const BTrait* trait) const {
+    m_parent->invalidate_trait_value(obj, trait);
+}
+
+void BTraitableProcessorSetValueTracker::invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const {
+    m_parent->invalidate_trait_value(obj, trait, args);
+}
+
+py::object BTraitableProcessorSetValueTracker::get_trait_value(BTraitable* obj, const BTrait* trait) {
+    return m_parent->get_trait_value(obj, trait);
+}
+
+py::object BTraitableProcessorSetValueTracker::get_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) {
+    return m_parent->get_trait_value(obj, trait, args);
+}
+
+py::object BTraitableProcessorSetValueTracker::get_choices(BTraitable* obj, BTrait* trait) {
+    return m_parent->get_choices(obj, trait);
+}
+
+py::object BTraitableProcessorSetValueTracker::get_style_sheet(BTraitable* obj, const BTrait* trait) {
+    return m_parent->get_style_sheet(obj, trait);
+}
+
+py::object BTraitableProcessorSetValueTracker::adjust_set_value(BTraitable* obj, const BTrait* trait, const py::object& value) const {
+    return m_parent->adjust_set_value(obj, trait, value);
+}
+
+py::object BTraitableProcessorSetValueTracker::raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) const {
+    return m_parent->raw_set_trait_value(obj, trait, value);
+}
+
+py::object BTraitableProcessorSetValueTracker::raw_set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value, const py::args& args) const {
+    return m_parent->raw_set_trait_value(obj, trait, value, args);
+}
+

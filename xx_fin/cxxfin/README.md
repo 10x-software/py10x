@@ -8,7 +8,7 @@ Built with pybind11 and scikit-build-core.
 
 - `cxxfin.cpp` — pybind11 module source; `PYBIND11_MODULE` name is `cxxfin`
 - `generate_stubs.py` — post-build stub generation; promotes `py10x_kernel` to `RTLD_GLOBAL` before importing `cxxfin` so that `BTraitable` typeinfo is visible (macOS flat namespace requirement)
-- Headers fetched from `cxx10x` at the exact git commit matching the installed `py10x_kernel` binary (version string contains the hash)
+- Headers from the py10x repo's `cxx10x/` at the exact git commit matching the installed `py10x_kernel` binary (version string contains the hash), or the local tree when `py10x-kernel` is installed editable
 
 ## Subclassing py10x_kernel types
 
@@ -16,7 +16,12 @@ Built with pybind11 and scikit-build-core.
 
 ## Incremental, automatic rebuild
 
-`cxxfin` is automatically rebuilt on `import cxxfin` whenever the sources changed. 
+`cxxfin` follows uv-sync's `XX_UV_INSTALL_MODE`, like `py10x-kernel` / `py10x-infra`. In the
+default `incremental_quiet` mode (and `incremental`), it is installed editable with a persistent
+build dir under `build/py10x-build/cxxfin/<Debug|Release>/` and is automatically rebuilt on
+`import cxxfin` whenever the sources changed. In `editable` mode (what CI uses) it is a plain
+editable install with no rebuild-on-import check; `normal` installs it non-editable. See
+`dev_10x/README.md` for the modes.
 
 ## Clean rebuild
 
@@ -24,30 +29,29 @@ Needed when changing build structure, e.g. adding source files, editing `CMakeLi
 
 ```bash
 uv pip uninstall py10x-fin-base-cxx
-rm -rf .venv/py10x-build/cxxfin
-uv sync --reinstall-package py10x-fin-base-cxx
+rm -rf build/py10x-build/cxxfin
+uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
 ```
 
 - `uv pip uninstall py10x-fin-base-cxx` — removes the editable finder from site-packages, which
   otherwise intercepts `import cxxfin` during stub generation and causes a circular rebuild
   failure
-- `rm -rf .venv/py10x-build/cxxfin` — wipes the stale CMake cache
-- `uv sync --reinstall-package py10x-fin-base-cxx` — rebuilds and reinstalls from scratch
+- `rm -rf build/py10x-build/cxxfin` — wipes the stale CMake cache
+- the uv-sync re-run rebuilds and reinstalls from scratch
 
 Normal development (edit C++ source → run) does not require this; the editable rebuild fires
 automatically on import.
 
-## Debug build
+## Build type
 
-`cxxfin` builds `Release` by default. For `Debug` build, set the build type via
-scikit-build-core's env override and re-run uv sync, for example:
+`cxxfin` builds `Debug` by default for development (`cmake.build-type` in its `pyproject.toml`).
+For a `Release` build, set scikit-build-core's build-type env var and re-run uv-sync (or a plain
+`uv pip install -e`):
 
 ```bash
-SKBUILD_CMAKE_BUILD_TYPE=Debug uv sync --reinstall-package py10x-fin-base-cxx
+SKBUILD_CMAKE_BUILD_TYPE=Release uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
 ```
 
-The build type is fixed at sync time (baked into the editable install along with the
-build-dir), so switching is just another sync — `SKBUILD_CMAKE_BUILD_TYPE=Debug uv sync --reinstall-package py10x-fin-base-cxx`
-for Debug, plain `uv sync --reinstall-package py10x-fin-base-cxx` for Release. Because each type has its own
-tree under `.venv/py10x-build/cxxfin/<Debug|Release>/`, switching does not rebuild from
-scratch.
+The build type is fixed at sync time (baked into the editable install along with the build dir),
+so switching is just another sync. Because each type has its own tree under
+`build/py10x-build/cxxfin/<Debug|Release>/`, switching does not rebuild from scratch.

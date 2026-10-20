@@ -43,6 +43,7 @@ class CollectionEditor(Traitable):
 
     current_editor: Any
     current_entity: Traitable
+    track_changes: bool = RT(False)
 
     def current_class_get(self):
         return self.coll.cls

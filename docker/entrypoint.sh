@@ -1,22 +1,13 @@
 #!/usr/bin/env bash
 # Container entrypoint for functional (unattended service) accounts. Runs as root, then drops
-# privileges. See docs/USER_ONBOARDING_AUTH.md and core_10x/functional_account_keyring.py for
-# the vault side of this.
+# privileges. See docs/USER_ONBOARDING_AUTH.md and core_10x/functional_account_keyring.py.
 #
-# core_10x.traitable.VaultUser.myname() reads OsUser.me.name() -- the real OS login name --
-# with no override hook, so the functional account's identity has to be real at the OS level
-# *before* any Python runs. This script renames the image's generic placeholder account to the
-# pod's functional-account id (matching a Kubernetes container-start pattern used elsewhere),
-# then execs the real workload directly as that renamed, non-root user -- the app itself never
-# runs as root.
+# VaultUser.myname() is OsUser.me.name() with no override, so identity must be real at the
+# OS level before any Python runs. Renames the placeholder account, then execs the workload
+# as that non-root user.
 #
-# The keyring side is wired via two environment variables (PYTHON_KEYRING_BACKEND,
-# XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE), not an eager "install" step: env vars (unlike Python
-# interpreter state) survive `exec`, so `keyring` lazily picks up our backend and reads the
-# mounted secrets file the first time the real workload calls keyring.get_password/set_password
-# -- in whichever process that turns out to be. An eager install-then-exec approach was tried
-# and does NOT work: exec() replaces the process image, discarding any previously-installed
-# backend along with the rest of that process's interpreter state.
+# Keyring is wired via PYTHON_KEYRING_BACKEND and XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE --
+# env vars survive `exec`; an in-process keyring.set_keyring() would not.
 set -euo pipefail
 
 : "${FUNCTIONAL_ACCOUNT_ID:?FUNCTIONAL_ACCOUNT_ID must be set (e.g. by the pod spec) -- not a secret, just the vault user_id for this account}"

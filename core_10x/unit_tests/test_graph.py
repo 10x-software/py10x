@@ -71,7 +71,7 @@ def reset_person():
             p.invalidate_trait_value(trait)
             if not trait.flags_on(T.ID):  # id traits may be set in base layer
                 if trait.f_get.__name__ == 'default_value':  # TODO: replace with flags
-                    assert p.get_trait_value(trait) is trait.default, trait.name
+                    assert p.get_trait_value(trait) == trait.default, trait.name
                 elif trait.f_get.__name__.endswith('_get'):
                     assert p.get_trait_value(trait) == getattr(p, f'{trait.name}_get')()
                 else:

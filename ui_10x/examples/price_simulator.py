@@ -1,11 +1,11 @@
 import random
 import threading
 
-from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
+from core_10x.py_class import PyClass
+from core_10x.traitable import RC, RT, T, Traitable
 
 from ui_10x.table_view import TableView
 from ui_10x.utils import UxAsync, ux
-
 
 class MarketSymbol(Traitable):
     symbol: str     = RT(T.READONLY)
@@ -60,36 +60,59 @@ class MarketSymbol(Traitable):
         return mm
 
 class MarketMonitor:
-    s_symbols = [
-        {'symbol': 'MSFT',  'prev_close': 398.04,     'std': 0.9 },
-        {'symbol': 'MS',    'prev_close': 172.70,     'std': 0.5 },
-        {'symbol': 'JPM',   'prev_close': 307.32,     'std': 0.7 },
-        {'symbol': 'IBM',   'prev_close': 258.29,     'std': 0.15 },
-        {'symbol': 'GS',    'prev_close': 918.30,     'std': 0.2 },
-        {'symbol': 'GOOG',  'prev_close': 302.90,     'std': 0.3 },
-        {'symbol': 'NVDA',  'prev_close': 188.50,     'std': 10.0 },
-        {'symbol': 'BAC',   'prev_close': 52.74,      'std': 0.9 },
-        {'symbol': 'AMZN',  'prev_close': 202.93,     'std': 0.8 },
-        {'symbol': 'AAPL',  'prev_close': 263.47,     'std': 0.7 },
+    s_symbol_data = [
+        ['symbol',  'prev_close',   'std'],
+        ['MSFT',    398.04,         0.9],
+        ['MS',      172.70,         0.5],
+        ['JPM',     307.32,         0.7],
+        ['IBM',     258.29,         0.15],
+        ['GS',      918.30,         0.2],
+        ['GOOG',    302.90,         0.3],
+        ['NVDA',    188.50,         10.0 ],
+        ['BAC',     52.74,          0.9],
+        ['AMZN',    202.93,         0.8],
+        ['AAPL',    263.47,         0.7],
     ]
+    @classmethod
+    def fetch_symbols(cls) -> list:
+        res = []
+        symbol_data = cls.s_symbol_data
+        trait_names = symbol_data[0]
+        n = len(trait_names)
+        ticker = PyClass.find_symbol("yfinance.Ticker")
+        for row in range(1, len(symbol_data)):
+            sym = MarketSymbol(**{trait_names[i]: symbol_data[row][i] for i in range(n)})
+            if ticker:
+                try:
+                    sym.prev_close = ticker(sym.symbol).fast_info['previous_close']
+                except Exception as e:
+                    print(f'yfinance lookup failed for {sym.symbol} ({e}); using fallback price')
+            res.append(sym)
+
+        return res
 
     def __init__(self):
-        UxAsync.init(self.update_mkt_data)
-        self.timer = threading.Timer(3, self.process_timer)
+        self.symbols = self.fetch_symbols()
+        self.table = None
+        self.timer = None
         self.next_item = 0
 
     def widget(self):
         self.table = table = TableView(MarketSymbol)
-        self.timer.start()
         return table
+
+    def start(self):
+        UxAsync.init(self.update_mkt_data)
+        self.timer = threading.Timer(3, self.process_timer)
+        self.timer.start()
 
     def update_mkt_data(self):
         i = self.next_item
-        if i < len(self.s_symbols):
-            self.table.extend_data([ MarketSymbol(**self.s_symbols[i]) ])
+        if i < len(self.symbols):
+            self.table.extend_data([ self.symbols[i] ])
             self.next_item += 1
 
-        symbols = self.table.model().m_data
+        symbols = self.symbols[:self.next_item]
         for row, symbol in enumerate(symbols):
             d = random.gauss(symbol.delta_mean, symbol.std)
             if random.randint(0, 10) < 5:
@@ -107,13 +130,12 @@ class MarketMonitor:
 if __name__ == '__main__':
     from core_10x.exec_control import INTERACTIVE
 
-    from ui_10x.examples.price_simulator import MarketSymbol
     from ui_10x.utils import UxDialog
 
     ux.init()
 
     with INTERACTIVE():
         mm = MarketMonitor()
-        d = UxDialog(mm.widget(), title = 'Enjoy watching some stocks :-)')
+        d = UxDialog(mm.widget(), title='Enjoy watching some stocks :-)', open_callback=mm.start)
         d.exec()
 
