@@ -329,6 +329,19 @@ class TestUvSyncExtras:
     def _non_requirements_calls(calls: list[list[str]]) -> list[list[str]]:
         return [c for c in calls if not ('--requirements' in c and 'pyproject.toml' in c)]
 
+    def test_root_sources_off_for_siblings_only_where_core_deps_resolve(self, isolated_sync):
+        """The root's editable kernel/infra sources must not override uv-sync's choice of source
+        (e.g. XX_UV_INSTALL_MODE=normal); the flag stays off the downstream install (uv quirk)."""
+        uv_sync.uv_sync('py10x-dev', '--all-extras', '--with-downstream')
+
+        def no_sources(args):
+            return {args[i + 1] for i, a in enumerate(args) if a == '--no-sources-package'}
+
+        core_deps = [c for c in isolated_sync if 'pyproject.toml' in c or ('-e' in c and str(Path('/py10x')) in c)]
+        assert len(core_deps) == 2
+        assert all(no_sources(c) == {'py10x-kernel', 'py10x-infra'} for c in core_deps)
+        assert all(not no_sources(c) for c in isolated_sync if c not in core_deps)
+
     def test_py10x_dev_all_extras_stays_off_siblings(self, isolated_sync):
         uv_sync.uv_sync('py10x-dev', '--all-extras')
         req = self._requirements_calls(isolated_sync)

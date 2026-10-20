@@ -288,6 +288,19 @@ def _run(args: list[str]) -> None:
     subprocess.run(args, cwd=PROJECT_ROOT, check=True)
 
 
+def _no_root_sources() -> list[str]:
+    """`--no-sources-package` for each sibling, for the installs that resolve py10x-core's own deps
+    (`--requirements pyproject.toml`, `-e .`): uv-sync picks a sibling's source itself (profile +
+    XX_UV_INSTALL_MODE), so the root's editable `[tool.uv.sources]` for it must not apply there.
+    Not on every install: with any `--no-sources-package`, uv rejects xx_fin's workspace source for
+    py10x-fin-base-cxx ("not a workspace member") when installing the fin-base downstream."""
+    import tomllib
+
+    doc = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    siblings = doc.get('tool', {}).get('dev_10x', {}).get('siblings', {})
+    return [arg for name in siblings for arg in ('--no-sources-package', name)]
+
+
 def _pip_install(*args: str) -> None:
     """`uv pip install` with the mandatory constraints freeze applied."""
     _run(['uv', 'pip', 'install', *args, *CONSTRAINTS])
@@ -383,6 +396,8 @@ def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: boo
     args.append(f'--reinstall-package={name}')
     if pkg['cxx']:
         args += _cxx_build_flags(name, mode)
+    if name == CORE:
+        args += _no_root_sources()
     # Keep the members' flags on the parent install too (transitive rebuilds / metadata), so a
     # rebuild triggered via the parent uses the same build dir and rebuild settings.
     if pkg.get('downstream'):
@@ -468,7 +483,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     #    they bind to this `--requirements` source *and* to local opt-in downstream installs.
     print('2. core deps:')
     reinstall = [f'--reinstall-package={s}' for s in index_swaps]
-    _pip_install('--requirements', 'pyproject.toml', *reinstall, *uv_args)
+    _pip_install('--requirements', 'pyproject.toml', *reinstall, *_no_root_sources(), *uv_args)
 
     # 3. py10x-core itself. Always editable (see XX_UV_INSTALL_MODE's docstring above) - `mode`
     #    only governs the C++ siblings.
