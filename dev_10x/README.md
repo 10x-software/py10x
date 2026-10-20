@@ -282,6 +282,38 @@ xx-promote prod --push
 
 ---
 
+## `xx-build` and plain `uv` — development environment
+
+From the repo root (bash; Git Bash on Windows):
+
+```bash
+./xx-build init           # fresh clone
+./xx-build init --clean   # start over (also after `uv venv --clear` or deleting build/)
+uv sync                   # from then on: keep the env current
+uv run pytest -q
+```
+
+Plain `uv sync` installs the default dependency groups (`dev`, `extras`, `test`, `test-extras`):
+py10x-core with all its extras, plus py10x-kernel / py10x-infra / py10x-fin-base / py10x-fin-base-cxx
+editable from this tree. The C++ packages build without isolation into `build/py10x-build/` (next to
+`.venv`, so it survives `uv venv --clear`) and rebuild incrementally on import. On Windows, that
+import fails while another process still holds the old extension, and works again once it exits.
+
+`init` exists because a fresh environment needs an order uv cannot express on its own: the C++
+toolchain (the `build` group, from `uv.lock`) first, since the C++ packages build without isolation;
+then py10x-kernel / py10x-infra, since py10x-fin-base-cxx's build needs an installed kernel; then
+everything else. It refuses to run over an existing `.venv` or `build/`; `--clean` deletes both
+first. Extra arguments go to its `uv sync` calls (e.g. `--locked`). `./xx-build` is a script at the
+repo root rather than a `[project.scripts]` command because it runs before the venv exists
+(implementation: `dev_10x/xx_build.py`).
+
+`uv.lock` is committed: change it only as described under
+[constraints](#constraintstxt--reproducibility), never with `uv sync --upgrade` / `uv lock --upgrade`.
+
+`uv-sync` (below) is still what CI and Docker use, until they switch to `./xx-build init`.
+
+---
+
 ## `uv-sync` / `uv-run` — local dependency profiles
 
 ### Design
@@ -472,7 +504,8 @@ xx-constraints check-export         # assert constraints.txt == `uv export` of u
 - **`check`** asserts every *installed* third-party dist (minus the first-party packages) is
   pinned in `constraints.txt`. Runs in `ci.yml` and `build.yml` — the enforcement point when a
   sibling adds a dep without a regen.
-- **`check-export`** asserts `constraints.txt` is exactly the export of `uv.lock`. Runs in `ci.yml`.
+- **`check-export`** asserts `constraints.txt` is exactly the export of `uv.lock`. Runs in `ci.yml`,
+  next to `uv lock --check` (fails when `uv.lock` is stale against a pyproject edit).
 
 **Known tradeoff:** a sibling needing a version outside the pin hits a hard conflict → regenerate
 (`xx-constraints compile`) and commit both files.

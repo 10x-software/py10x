@@ -24,10 +24,6 @@ resolution-markers = [
     "python_full_version < '3.11.5' and sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'linux' and sys_platform != 'win32'",
 ]
 
-[[manifest.dependency-metadata]]
-name = "py10x-fin-base-cxx"
-version = "0+dummy"
-
 [[package]]
 name = "aadc"
 version = "2.22.2"
@@ -2368,6 +2364,7 @@ wheels = [
 [[package]]
 name = "py10x-core"
 source = { editable = "." }
+default-groups = ["dev", "extras", "test", "test-extras"]
 dependencies = [
     { name = "adbc-driver-manager" },
     { name = "cryptography" },
@@ -2443,6 +2440,19 @@ rio = [
 ]
 
 [package.dev-dependencies]
+build = [
+    { name = "cmake" },
+    { name = "editables" },
+    { name = "ninja" },
+    { name = "scikit-build-core" },
+    { name = "setuptools-scm" },
+]
+dev = [
+    { name = "py10x-core", extra = ["dev"] },
+]
+extras = [
+    { name = "py10x-core", extra = ["aadc", "examples", "jit", "qt", "rio"] },
+]
 test = [
     { name = "py10x-fin-base" },
 ]
@@ -2481,8 +2491,8 @@ requires-dist = [
     { name = "playwright", marker = "extra == 'dev'", specifier = ">=1.55,<1.63" },
     { name = "polars", specifier = ">=1.38.1" },
     { name = "psutil", specifier = ">=5.9.7" },
-    { name = "py10x-infra", specifier = ">=0.3.3rc3,<0.3.3rc4" },
-    { name = "py10x-kernel", specifier = ">=0.3.3rc3,<0.3.3rc4" },
+    { name = "py10x-infra", editable = "cxx10x/infra_10x" },
+    { name = "py10x-kernel", editable = "cxx10x/core_10x" },
     { name = "pymongo", specifier = ">=4.7.3" },
     { name = "pyqt6", marker = "extra == 'qt'", specifier = "==6.8.1" },
     { name = "pyqt6-qt6", marker = "extra == 'qt'", specifier = "==6.8.2" },
@@ -2510,12 +2520,21 @@ requires-dist = [
 provides-extras = ["aadc", "dev", "examples", "jit", "qt", "rio"]
 
 [package.metadata.requires-dev]
-test = [{ name = "py10x-fin-base", directory = "xx_fin" }]
-test-extras = [{ name = "py10x-fin-base", extras = ["bbg", "aadc", "dev"], directory = "xx_fin" }]
+build = [
+    { name = "cmake", specifier = ">=3.27" },
+    { name = "editables", specifier = ">=0.6" },
+    { name = "ninja", specifier = ">=1.11" },
+    { name = "scikit-build-core", specifier = ">=0.12.2,<1.0.0" },
+    { name = "setuptools-scm", specifier = ">=9.2.2" },
+]
+dev = [{ name = "py10x-core", extras = ["dev"] }]
+extras = [{ name = "py10x-core", extras = ["rio", "qt", "jit", "aadc", "examples"] }]
+test = [{ name = "py10x-fin-base", editable = "xx_fin" }]
+test-extras = [{ name = "py10x-fin-base", extras = ["bbg", "aadc", "dev"], editable = "xx_fin" }]
 
 [[package]]
 name = "py10x-fin-base"
-source = { directory = "xx_fin" }
+source = { editable = "xx_fin" }
 dependencies = [
     { name = "py10x-core" },
     { name = "py10x-fin-base-cxx" },
@@ -2556,49 +2575,24 @@ provides-extras = ["aadc", "bbg", "dev"]
 
 [[package]]
 name = "py10x-fin-base-cxx"
-version = "0+dummy"
 source = { editable = "xx_fin/cxxfin" }
 
 [[package]]
 name = "py10x-infra"
-version = "0.3.3rc3"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6b/23/1d959de0685e55893cc936cdd18d9270f2c204d4bef6de3548b932fff832/py10x_infra-0.3.3rc3-cp311-cp311-macosx_13_0_universal2.whl", hash = "sha256:48823c5496f9d1e5fe631ec01af3d1bbefac8d90ad19e73756b079584ec4d4e1", size = 124470, upload-time = "2026-10-14T03:54:12.403Z" },
-    { url = "https://files.pythonhosted.org/packages/72/3b/9748c35ed50d4225f7bdd4c880ca8090e4b9c5661e4710a4d6dc63aa0914/py10x_infra-0.3.3rc3-cp311-cp311-manylinux_2_34_aarch64.whl", hash = "sha256:963845b74471f47b221099210262a7763864137de6bd7840a3b7a2afcc6a5e4a", size = 68439, upload-time = "2026-10-14T03:54:14.007Z" },
-    { url = "https://files.pythonhosted.org/packages/60/04/51dfaf48099ffe6e9a03c13f4ef808c3b4299a69542fa3387e60548c3981/py10x_infra-0.3.3rc3-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:41dceaec5fd6d7a3b306ac96547184693aa417a62878a17df148d089aae822b2", size = 76149, upload-time = "2026-10-14T03:54:15.393Z" },
-    { url = "https://files.pythonhosted.org/packages/10/a3/b830076b0893d09d780abb207dbc3dfadb17098db10b1ce703c37b3358c2/py10x_infra-0.3.3rc3-cp311-cp311-win_amd64.whl", hash = "sha256:8312815b08b529433f86e23c3899fb10bb74a94d13eb097c2319b37aca516ab5", size = 71768, upload-time = "2026-10-14T03:54:16.817Z" },
-    { url = "https://files.pythonhosted.org/packages/62/44/8c652d7c8b7a9421c8133ea38229b692fd8dad9f250e8c86cf1e2274d5c2/py10x_infra-0.3.3rc3-cp312-cp312-macosx_13_0_universal2.whl", hash = "sha256:d886f5c4401cf0efc8e63072ccac20b12982a160b92932edd1778eeccee0595e", size = 124155, upload-time = "2026-10-14T03:54:18.107Z" },
-    { url = "https://files.pythonhosted.org/packages/9b/6b/20a8f2564ba61f77db4bd0199dc3d30350b06ccb029575a80a3a6c774d4a/py10x_infra-0.3.3rc3-cp312-cp312-manylinux_2_34_aarch64.whl", hash = "sha256:443aafeff28d4475faeaffae1d80370922b5797fc56f24c233e7664389028bf3", size = 67894, upload-time = "2026-10-14T03:54:19.312Z" },
-    { url = "https://files.pythonhosted.org/packages/cd/64/a4cede53af7f63edd15080f2fb1a21e48505d06b30c0ec6f7382dd8088e4/py10x_infra-0.3.3rc3-cp312-cp312-manylinux_2_34_x86_64.whl", hash = "sha256:8f1625d3a3d6330899bf6e50b0735b87b47e9b80012edbf1bed18e21bbf3369a", size = 76439, upload-time = "2026-10-14T03:54:20.472Z" },
-    { url = "https://files.pythonhosted.org/packages/52/8f/acb2824d269b4e941a388a60ccc3a682d7d5f4b197db7a4dd3cdb6ca85c5/py10x_infra-0.3.3rc3-cp312-cp312-win_amd64.whl", hash = "sha256:3ce27c6fa2157cb921721894a2b4c3b880042e34a2c13a31c492fdefc1926cc1", size = 72105, upload-time = "2026-10-14T03:54:21.66Z" },
-    { url = "https://files.pythonhosted.org/packages/61/b1/19d7852dc8377bbbe09d0b74cbe21a63f508d62b65cde04555f90a080619/py10x_infra-0.3.3rc3-cp313-cp313-macosx_13_0_universal2.whl", hash = "sha256:edc56e85e96927793b52790f7fd8ffbd474068581b6576c6a19d28bd10a2f67e", size = 124288, upload-time = "2026-10-14T03:54:23.114Z" },
-    { url = "https://files.pythonhosted.org/packages/d9/86/5008dd35b6c809c094e359c77e5843ed9221019ee9ae07582d36c60fa70c/py10x_infra-0.3.3rc3-cp313-cp313-manylinux_2_34_aarch64.whl", hash = "sha256:ba2e6517c4df37133ac8739acbbef97d31ea7c01343018512f0c8fa36b7766e7", size = 68903, upload-time = "2026-10-14T03:54:24.334Z" },
-    { url = "https://files.pythonhosted.org/packages/05/62/284eec9d1f7960d043400f30ba8986380df78eb1f2323e722ee77462c8d7/py10x_infra-0.3.3rc3-cp313-cp313-manylinux_2_34_x86_64.whl", hash = "sha256:40b2b72aafe52997d2ee6dbd3b58b440e281786acf63882480340ae26e975f3f", size = 76314, upload-time = "2026-10-14T03:54:25.46Z" },
-    { url = "https://files.pythonhosted.org/packages/75/49/1cb34d157630bb28230dd92ea53cdf79e113bd4df768ecfd35aaabfc44a2/py10x_infra-0.3.3rc3-cp313-cp313-win_amd64.whl", hash = "sha256:579145cde252a60b01269095fff65ae14524d2d322ee04710fb69a9f592a2806", size = 72097, upload-time = "2026-10-14T03:54:26.825Z" },
-]
+source = { editable = "cxx10x/infra_10x" }
 
 [[package]]
 name = "py10x-kernel"
-version = "0.3.3rc3"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "cxx10x/core_10x" }
 dependencies = [
     { name = "scikit-build-core" },
     { name = "uuid6" },
 ]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/fa/6e/173f9e73f8ac678602acb1d4bb241449da22653381f6bfe3968a9349fb8c/py10x_kernel-0.3.3rc3-cp311-cp311-macosx_13_0_universal2.whl", hash = "sha256:da68ffe462f1fbff8bffe5f476a124b7d3fca98ed5defc0713b79cd6c53b9360", size = 712738, upload-time = "2026-10-14T03:54:31.912Z" },
-    { url = "https://files.pythonhosted.org/packages/51/02/98420427d5efd58160197513ded030014ee2c6ccff034f8ef022fb688a2f/py10x_kernel-0.3.3rc3-cp311-cp311-manylinux_2_34_aarch64.whl", hash = "sha256:bc3e072ea06ea202f3a9f4900999e01d725b76327b0d909034566be35ab00f13", size = 372729, upload-time = "2026-10-14T03:54:33.786Z" },
-    { url = "https://files.pythonhosted.org/packages/44/60/e5744846e5b7723fef90d329812175055a562374e40441493d4ce2189dd7/py10x_kernel-0.3.3rc3-cp311-cp311-manylinux_2_34_x86_64.whl", hash = "sha256:ee1366b63d46ddee7cf59064cafb81d232981916e4e73bc4d179d9d2399be6e4", size = 476291, upload-time = "2026-10-14T03:54:35.163Z" },
-    { url = "https://files.pythonhosted.org/packages/82/03/f0d909937eac9dee76fd5ba4118baaad78cf055ea777aec35e8e297e0e48/py10x_kernel-0.3.3rc3-cp311-cp311-win_amd64.whl", hash = "sha256:1be24cccc0e016fcb22f7d84995ccebc888e2452e9aaa81bd4426d7c7784ce4b", size = 431716, upload-time = "2026-10-14T03:54:36.746Z" },
-    { url = "https://files.pythonhosted.org/packages/b9/86/167b0853756ec673becf85c9e5e46bf4b812031e88d2f11e85ef494a2a82/py10x_kernel-0.3.3rc3-cp312-cp312-macosx_13_0_universal2.whl", hash = "sha256:17e7016985c411e264783d8755d281273abd63170cc92274997f1bae6b5ab48f", size = 721509, upload-time = "2026-10-14T03:54:38.241Z" },
-    { url = "https://files.pythonhosted.org/packages/34/2e/a9f2bf76bf54b454c74866360e77bfe09907852b5e6712b28f9f8c2b72bb/py10x_kernel-0.3.3rc3-cp312-cp312-manylinux_2_34_aarch64.whl", hash = "sha256:4b73fec2ea2fb7649398bfbab5883e2292331647272e7d47ae684be552f8ca5e", size = 369241, upload-time = "2026-10-14T03:54:39.631Z" },
-    { url = "https://files.pythonhosted.org/packages/c1/fd/e19d180ce88b110ab235e8ec16b9547df6efbef092c60c4a1d4d2ee67b93/py10x_kernel-0.3.3rc3-cp312-cp312-manylinux_2_34_x86_64.whl", hash = "sha256:437f4353fac3ad0a575090bcfb52f65fcf03b6bdc16d01bda9690b8ec91b483b", size = 473532, upload-time = "2026-10-14T03:54:40.941Z" },
-    { url = "https://files.pythonhosted.org/packages/d2/12/b6d9f0291937a3b7179e3cf9cb094071dca4d608285959cfd87f7337f808/py10x_kernel-0.3.3rc3-cp312-cp312-win_amd64.whl", hash = "sha256:efaf1fa548c3be3a8882d26ba61ed25ad2dc7100b1bc9272af2c1a716b77a23e", size = 432891, upload-time = "2026-10-14T03:54:42.225Z" },
-    { url = "https://files.pythonhosted.org/packages/63/f4/9077829d82e17be6ce801becfe92a5d11f2c096bd9b4cee3ba1a5689351f/py10x_kernel-0.3.3rc3-cp313-cp313-macosx_13_0_universal2.whl", hash = "sha256:a8a328243659369f3a3c6e8aa1eebc51a56abef05a53376fd20f1bfda4dd7481", size = 721589, upload-time = "2026-10-14T03:54:43.656Z" },
-    { url = "https://files.pythonhosted.org/packages/42/f8/079d78104efdaef91bd48f303430a00f042023c08ebcbbf975dbacc7d6b1/py10x_kernel-0.3.3rc3-cp313-cp313-manylinux_2_34_aarch64.whl", hash = "sha256:9c06eb57ae32227bf40b497727de5b458356310962073205f5b73a7a4c84030a", size = 369456, upload-time = "2026-10-14T03:54:45.229Z" },
-    { url = "https://files.pythonhosted.org/packages/c3/d8/27c6e5a2a89b2bf4ff1eeed5fbb62d7f2de4b6091595918b5769d8f9c780/py10x_kernel-0.3.3rc3-cp313-cp313-manylinux_2_34_x86_64.whl", hash = "sha256:3a0ed5ae3d225eec61ba1e297c9eb81a69dd6cd737e44fd7a542cb29c88fb36f", size = 473386, upload-time = "2026-10-14T03:54:46.816Z" },
-    { url = "https://files.pythonhosted.org/packages/03/c8/4726210b645a4bc0316b7029fbf0c4b5b0717b20a3bcb562002564abe23c/py10x_kernel-0.3.3rc3-cp313-cp313-win_amd64.whl", hash = "sha256:a66490919e01b24e171003e818aab4dea471b54c178cbf412afb5b84c26e62b8", size = 432857, upload-time = "2026-10-14T03:54:48.374Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "scikit-build-core", specifier = ">=0.10.7,<1.0.0" },
+    { name = "uuid6", specifier = ">=2025.0.1" },
 ]
 
 [[package]]

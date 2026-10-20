@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -584,6 +585,25 @@ class GitHelpers:
         Publish-trigger *tags* stay ``pre/{release}`` / ``prod/{release}`` (``refs/tags/``).
         """
         return flavor if is_core else f'{flavor}-{name}'
+
+
+class UvHelpers:
+    @staticmethod
+    def uv() -> str:
+        """The uv that ran us (`$UV` inside `uv run`), not whatever `uv` is first on PATH."""
+        return os.environ.get('UV') or 'uv'
+
+    @classmethod
+    def lock_if_tracked(cls, repo: Path) -> bool:
+        """Re-lock after pin edits so the same commit carries a current uv.lock (no lock churn).
+
+        Only when the repo tracks a root uv.lock. Local path sources (kernel/infra/fin-base) are
+        taken as-is, so this resolves even while a pinned rc is not yet on PyPI.
+        """
+        if not (repo / 'uv.lock').is_file() or not GitHelpers.git(repo, 'ls-files', 'uv.lock').strip():
+            return False
+        subprocess.run([cls.uv(), 'lock'], cwd=repo, check=True)
+        return True
 
 
 class PyProjectHelpers:

@@ -130,27 +130,24 @@ py10x-infra  = { path = "cxx10x/infra_10x", footprint = ["cxx10x", ":(exclude)cx
 [tool.dev_10x.downstream]
 py10x-fin-base = { path = "./xx_fin" }
 
-# Fin-base owns its uv workspace under xx_fin/ (`members = ["cxxfin"]`; core is
-# a path dep there). Do not put fin-base in a root `[tool.uv.workspace]` —
-# editable install is via `uv-sync … --with-downstream` (or `--group test`).
-#
-# uv still *resolves* dependency-groups.test when locking. Point fin-base at the
-# in-repo tree so that group does not pull a PyPI wheel whose exact core pin
-# fights this editable project.
 [tool.uv]
 required-version = ">=0.12.5"
 # Rebuild py10x-core (rather than reuse uv's cached wheel) on a new commit or tag, so its installed
 # hatch-vcs version (and dev_10x/version.py) stays current.
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 no-build-isolation-package = ["py10x-kernel", "py10x-infra", "py10x-fin-base-cxx"]
+# Plain `uv sync` installs the full dev environment (fresh clone: `./xx-build init` first).
+default-groups = ["dev", "extras", "test", "test-extras"]
 
-[[tool.uv.dependency-metadata]]
-name = "py10x-fin-base-cxx"
-version = "0+dummy"
-
+# The in-tree packages, editable: plain `uv sync` / `uv run` install kernel/infra (C++: incremental,
+# rebuild-on-import) and fin-base (the `test` groups) from this tree; fin-base-cxx comes editable via
+# xx_fin's own workspace source. uv takes path sources as-is, regardless of version pins on them; the
+# release workflows install tagged / non-editable builds with `--override`, which wins over these.
+# Sources rather than a workspace: xx_fin/ has its own workspace, and uv does not nest workspaces.
 [tool.uv.sources]
-py10x-fin-base = { path = "xx_fin" }
-py10x-fin-base-cxx = { path = "xx_fin/cxxfin" }
+py10x-kernel = { path = "cxx10x/core_10x", editable = true }
+py10x-infra = { path = "cxx10x/infra_10x", editable = true }
+py10x-fin-base = { path = "xx_fin", editable = true }
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -175,6 +172,18 @@ raw-options = { git_describe_command = "git describe --dirty --tags --long --mat
 version-file = "dev_10x/version.py"
 
 [dependency-groups]
+# C++ build toolchain for the non-isolated kernel/infra/cxxfin builds. `./xx-build init` installs it
+# (from uv.lock) before anything is built: uv does not order a no-isolation build after its
+# toolchain. Same packages as in `dev`; scikit-build-core capped like py10x-kernel's runtime dep.
+build = [
+    "scikit-build-core>=0.12.2,<1.0.0",
+    "setuptools-scm>=9.2.2",
+    "cmake>=3.27",
+    "ninja>=1.11",
+    "editables>=0.6",
+]
+dev = ["py10x-core[dev]"]
+extras = ["py10x-core[rio,qt,jit,aadc,examples]"]
 test = ["py10x-fin-base>=0.1.3rc4"]
 # Fin-base's extras for its tests, kept out of `test` (whose pin xx-promote rewrites); the version
 # comes from `test`. Lets uv.lock / constraints.txt cover blpapi, xbbg, aadc like `--all-extras` did.

@@ -12,14 +12,17 @@ This is the canonical test for the PY10X_API + shared-build cross-module story.
 
 ```bash
 uv venv --clear
+uv pip install --group ../../../pyproject.toml:build
 uv pip install -e "../../..[dev]"
 ```
 
 After that, `uv run` syncs the rest automatically.
 
 The C++ packages build without isolation, so their toolchain (scikit-build-core, cmake, ninja, ...)
-comes first, from `py10x-core[dev]`. `py10x-kernel`, `py10x-infra` and this extension build into this directory's
-`.venv`, so `--clear` also resets the builds.
+comes first, from py10x's `build` dependency group. Then py10x-core[dev], which builds the kernel:
+this extension's build needs an installed kernel, and `uv run` cannot order that on its own.
+`py10x-kernel`, `py10x-infra` and this extension build into this directory's `.venv`, so `--clear`
+also resets the builds.
 
 ## Run
 
