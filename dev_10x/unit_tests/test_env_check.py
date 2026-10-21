@@ -8,7 +8,7 @@ import pytest
 
 from dev_10x import env_check
 
-SRC = Path('/repo/cxx10x/core_10x')
+SRC = Path('/repo/cxx10x/core_10x').resolve()  # absolute on Windows too (drive letter), for as_uri()
 
 
 def _loader(tmp_path: Path, path: str | None, rebuild: bool, verbose: bool) -> Path:
