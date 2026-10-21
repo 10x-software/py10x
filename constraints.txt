@@ -534,7 +534,7 @@ uuid6==2025.0.1
     # via
     #   py10x-core
     #   py10x-kernel
-uv==0.13.3 ; python_full_version < '3.12'
+uv==0.13.4 ; python_full_version < '3.12'
     # via
     #   licensecheck
     #   py10x-core
