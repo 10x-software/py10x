@@ -164,7 +164,9 @@ def check(mode: str, downstream: bool, root: Path = PROJECT_ROOT) -> tuple[list[
 def import_modules(downstream: bool, root: Path = PROJECT_ROOT) -> list[str]:
     """Import the compiled modules (in-place rebuild included, if the mode has one)."""
     siblings, _, members = first_party(root)
-    modules = [n.replace('-', '_') for n in siblings]
+    # core_10x first, as real code does: it promotes py10x_kernel to RTLD_GLOBAL, which consumers like
+    # cxxfin need on Linux (undefined BTraitable typeinfo otherwise).
+    modules = ['core_10x', *(n.replace('-', '_') for n in siblings)]
     if downstream:
         modules += [MEMBER_MODULES.get(n, n.replace('-', '_')) for n in members]
     problems = []

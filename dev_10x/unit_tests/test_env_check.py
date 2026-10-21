@@ -98,3 +98,13 @@ class TestModes:
         monkeypatch.setattr(env_check, 'check', lambda mode, downstream: (seen.update(mode=mode), ([], []))[1])
         assert env_check.main(['--no-import']) == 0
         assert seen == {'mode': 'editable'}
+
+
+class TestImportModules:
+    def test_core_10x_first_then_compiled_modules(self, monkeypatch):
+        """core_10x promotes the kernel to RTLD_GLOBAL; importing cxxfin before it fails on Linux."""
+        imported = []
+        monkeypatch.setattr(env_check.importlib, 'import_module', imported.append)
+        monkeypatch.setattr(env_check, 'first_party', lambda root: ({'py10x-kernel': SRC}, {}, {'py10x-fin-base-cxx': SRC}))
+        assert env_check.import_modules(downstream=True) == []
+        assert imported == ['core_10x', 'py10x_kernel', 'cxxfin']
