@@ -129,6 +129,76 @@ jobs:
           python-version: ${{ matrix.python }}
           mongodb-version: "7.0"
 
+  # PR / push: every way of installing the dev environment, verified by its result
+  # (dev_10x/env_check.py: source tree, editable, rebuild-on-import, build type, imports) rather than
+  # by exit codes - uv can quietly install something else than asked (e.g. the root's editable
+  # sources overriding an install mode). One venv walks the modes, so each switch's reinstall is
+  # exercised too. No database needed, hence macOS as well.
+  install-modes:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: Install modes (${{ matrix.os }}, py3.12)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025, macos-latest]
+    env:
+      UV_PYTHON: "3.12"
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm versions kernel/infra from their older tags
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-suffix: install-modes
+          cache-dependency-glob: "**/pyproject.toml"
+
+      # No `uv python install`: UV_PYTHON (above) pins every uv call to 3.12, downloaded on first use.
+      - uses: ./.github/actions/setup-windows-build
+
+      # Fresh clone: `./xx-build init`, then plain `uv sync` keeps it as is (dev = incremental_quiet,
+      # each package's default build type).
+      - name: "dev: ./xx-build init, then plain uv sync"
+        run: |
+          ./xx-build init
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+          uv sync
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
+      - name: "uv-sync: editable, incremental, incremental_quiet (--with-downstream)"
+        run: |
+          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+          for mode in editable incremental incremental_quiet; do
+            echo "::group::XX_UV_INSTALL_MODE=$mode"
+            XX_UV_INSTALL_MODE=$mode python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
+            XX_UV_INSTALL_MODE=$mode python -m dev_10x.env_check --downstream
+            echo "::endgroup::"
+          done
+
+      # Docker's mode. Without --with-downstream: cxxfin needs the editable kernel (ci-test-suite).
+      - name: "uv-sync: normal (non-editable; imports without build/)"
+        run: |
+          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
+          XX_UV_INSTALL_MODE=normal python -m dev_10x.uv_sync py10x-dev --all-extras
+          mv build build.moved
+          XX_UV_INSTALL_MODE=normal python -m dev_10x.env_check
+          mv build.moved build
+
+      - name: "dev again: plain uv sync after uv-sync modes"
+        run: |
+          uv sync
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
   # PR / push, Linux only, additive to (not part of) the full-tests matrix: builds the
   # functional-account container (docker/Dockerfile + docker/entrypoint.sh) and runs the
   # functional-account vault E2E test (core_10x/unit_tests/test_functional_account_vault.py)

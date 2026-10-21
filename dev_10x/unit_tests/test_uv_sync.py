@@ -10,6 +10,12 @@ from core_10x.testlib.strict import need
 from dev_10x import uv_sync
 
 
+@pytest.fixture(autouse=True)
+def _installed_in_mode(monkeypatch):
+    """By default the installed C++ packages match the requested mode (no real venv is inspected)."""
+    monkeypatch.setattr(uv_sync, '_mode_mismatch', lambda *a, **k: [])
+
+
 @pytest.fixture
 def captured_pip_install(monkeypatch):
     calls: list[list[str]] = []
@@ -235,6 +241,31 @@ class TestModeToggle:
         assert installed == ['py10x-fin-base']
 
 
+class TestModeMismatch:
+    def test_installed_for_another_mode_reinstalls_in_order(self, monkeypatch, tmp_path):
+        """Up to date by version, but installed for another mode (e.g. by `./xx-build init`): siblings are
+        reinstalled one by one before the downstream, never all in the downstream's install."""
+        installed = []
+        monkeypatch.setattr(uv_sync, 'need_install', lambda *a, **k: False)
+        monkeypatch.setattr(uv_sync, '_native_members', lambda src: {'py10x-fin-base-cxx': tmp_path / 'cxxfin'} if Path(src) == tmp_path else {})
+        monkeypatch.setattr(uv_sync, '_mode_mismatch', lambda name, pkg, mode: [f'{name}: expected rebuild=False, got True'])
+        monkeypatch.setattr(uv_sync, 'install_local', lambda name, *a, **k: installed.append(name))
+        pkgs = {
+            'py10x-kernel': _pkg(cxx=True),
+            'py10x-fin-base': _pkg(cxx=False, downstream=True, local=tmp_path, subdir='xx_fin'),
+        }
+        kinds = dict.fromkeys(pkgs, 'local')
+        uv_sync.sync_siblings('main', 'editable', None, kinds, pkgs, list(pkgs), False, False)
+        assert installed == ['py10x-kernel', 'py10x-fin-base']
+
+    def test_matching_mode_is_left_alone(self, monkeypatch):
+        installed = []
+        monkeypatch.setattr(uv_sync, 'need_install', lambda *a, **k: False)
+        monkeypatch.setattr(uv_sync, 'install_local', lambda name, *a, **k: installed.append(name))
+        uv_sync.sync_siblings('main', 'editable', None, {'py10x-kernel': 'local'}, {'py10x-kernel': _pkg(cxx=True)}, ['py10x-kernel'], False, False)
+        assert installed == []
+
+
 class TestInstallState:
     def test_tracks_build_type_override(self, monkeypatch):
         monkeypatch.delenv('SKBUILD_CMAKE_BUILD_TYPE', raising=False)
@@ -341,6 +372,31 @@ class TestUvSyncExtras:
         assert len(core_deps) == 2
         assert all(no_sources(c) == {'py10x-kernel', 'py10x-infra'} for c in core_deps)
         assert all(not no_sources(c) for c in isolated_sync if c not in core_deps)
+
+    @pytest.mark.parametrize(
+        ('mode', 'expected'), [('editable', 'editable.rebuild=false'), ('normal', 'editable.rebuild=false'), ('incremental', 'editable.verbose=true')]
+    )
+    def test_downstream_install_carries_the_siblings_mode_flags(self, isolated_sync, monkeypatch, mode, expected):
+        """The downstream install rebuilds the siblings through the root's editable sources (uv); they must
+        keep their mode's settings, e.g. no rebuild-on-import in 'editable' mode (Windows xdist race)."""
+        monkeypatch.setenv('XX_UV_INSTALL_MODE', mode)
+        uv_sync.uv_sync('py10x-dev', '--all-extras', '--with-downstream')
+        (downstream,) = [c for c in isolated_sync if str(Path('/py10x/xx_fin')) in c]
+        settings = {downstream[i + 1] for i, a in enumerate(downstream) if a == '--config-settings-package'}
+        assert settings == {f'py10x-kernel:{expected}', f'py10x-infra:{expected}'}
+
+    def test_already_installed_downstream_still_gets_its_members_mode_flags(self, isolated_sync, monkeypatch):
+        """Nothing to reinstall (e.g. a venv from `./xx-build init`): the extras-only downstream install must
+        still carry cxxfin's (and the siblings') mode flags, or cxxfin keeps the previous mode's settings."""
+        monkeypatch.setenv('XX_UV_INSTALL_MODE', 'editable')
+        monkeypatch.setattr(uv_sync, 'need_install', lambda *a, **k: False)
+        monkeypatch.setattr(
+            uv_sync, '_native_members', lambda src: {'py10x-fin-base-cxx': Path(src) / 'cxxfin'} if Path(src).name == 'xx_fin' else {}
+        )
+        uv_sync.uv_sync('py10x-dev', '--all-extras', '--with-downstream')
+        (downstream,) = [c for c in isolated_sync if str(Path('/py10x/xx_fin')) in c]
+        settings = {downstream[i + 1] for i, a in enumerate(downstream) if a == '--config-settings-package'}
+        assert settings == {f'{n}:editable.rebuild=false' for n in ('py10x-fin-base-cxx', 'py10x-kernel', 'py10x-infra')}
 
     def test_py10x_dev_all_extras_stays_off_siblings(self, isolated_sync):
         uv_sync.uv_sync('py10x-dev', '--all-extras')
