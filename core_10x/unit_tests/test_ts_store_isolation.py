@@ -9,6 +9,8 @@ Lifecycle:
 
 from __future__ import annotations
 
+import os
+
 import pytest
 from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import _clear_all_caches
@@ -48,9 +50,14 @@ def _assert_store_clean():
     assert Traitable.main_store.value[0] is XNone
     assert Traitable.vault_store.value[0] is XNone
     assert not TsStore.s_instances
-    assert not EnvVars.main_ts_store_uri
-    assert not EnvVars.main_vault_uri
+    # -- clears revert to the env var, which the host (or live_store, for the vault) may set for the whole session
+    assert EnvVars.main_ts_store_uri == _from_env('main_ts_store_uri')
+    assert EnvVars.main_vault_uri == _from_env('main_vault_uri')
     assert not _pin_stack
+
+
+def _from_env(attr_name: str) -> str:
+    return os.getenv(EnvVars.var_name(attr_name)) or ''
 
 
 def _simulate_test_isolation():
@@ -98,7 +105,8 @@ def test_pin_survives_isolation_clear_and_restore():
     _assert_store_clean()
 
 
-def test_unpin_leaves_process_store_clean():
+def test_unpin_leaves_process_store_clean(monkeypatch):
+    monkeypatch.delenv(EnvVars.var_name('main_ts_store_uri'), raising=False)  # -- a host-set main store would satisfy main_store()
     store = _make_main('duckdb://localhost/iso_unpin')
     pin_current_ts_stores()
     assert Traitable.main_store.value[0] is store
