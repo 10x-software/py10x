@@ -185,7 +185,7 @@ build = [
 ]
 dev = ["py10x-core[dev]"]
 extras = ["py10x-core[rio,qt,jit,aadc,examples]"]
-test = ["py10x-fin-base>=0.1.3rc4"]
+test = ["py10x-fin-base>=0.1.3rc5"]
 # Fin-base's extras for its tests, kept out of `test` (whose pin xx-promote rewrites); the version
 # comes from `test`. Lets uv.lock / constraints.txt cover blpapi, xbbg, aadc like `--all-extras` did.
 test-extras = ["py10x-fin-base[bbg,aadc,dev]"]
