@@ -199,6 +199,15 @@ jobs:
           uv sync
           uv run --no-sync python -m dev_10x.env_check dev --downstream
 
+      # now test we can start over clean with no issues
+      - name: "./xx-build init --clean over an existing build/"
+        run: |
+          ./xx-build init --clean 2>&1 | tee "$RUNNER_TEMP/init-clean.log"
+          if grep -q "does not match the project environment path" "$RUNNER_TEMP/init-clean.log"; then
+            echo "::error::xx-build passed its own VIRTUAL_ENV to the inner uv calls"; exit 1
+          fi
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
   # PR / push, Linux only, additive to (not part of) the full-tests matrix: builds the
   # functional-account container (docker/Dockerfile + docker/entrypoint.sh) and runs the
   # functional-account vault E2E test (core_10x/unit_tests/test_functional_account_vault.py)
