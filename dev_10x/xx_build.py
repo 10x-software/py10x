@@ -23,8 +23,8 @@ that point at a deleted build/ dir. Extra arguments (e.g. `--locked`, `--config-
 existing environment; `--clean` deletes both first.
 
 Standard library only: it runs before the venv exists, via `./xx-build` ->
-`uv run --no-project --isolated -m dev_10x.xx_build`. uv is invoked as `$UV` (set by `uv run`), so a
-venv-installed uv never replaces the uv that started it.
+`uv run --no-project --isolated -m dev_10x.xx_build`. Its uv calls are plain `uv`, looked up on PATH per
+call - not `$UV`, which with .venv activated points at .venv's own copy that `--clean` deletes.
 """
 
 from __future__ import annotations
@@ -40,10 +40,6 @@ ROOT = Path.cwd()
 KERNEL_PACKAGES = ('py10x-kernel', 'py10x-infra')
 DOWNSTREAM_CXX_PACKAGES = ('py10x-fin-base-cxx',)
 USAGE = 'Usage: ./xx-build init [--clean] [uv sync args...]'
-
-
-def _uv() -> str:
-    return os.environ.get('UV') or 'uv'
 
 
 def _reinstall(names: tuple[str, ...]) -> list[str]:
@@ -72,12 +68,11 @@ def _uv_env() -> dict[str, str]:
 
 def init_commands(sync_args: list[str]) -> list[list[str]]:
     """The uv calls `init` runs, in order."""
-    uv = _uv()
     return [
-        [uv, 'venv'],
-        [uv, 'sync', '--frozen', '--only-group', 'build'],
-        [uv, 'sync', '--no-default-groups', '--group', 'build', *_reinstall(KERNEL_PACKAGES), *sync_args],
-        [uv, 'sync', *_reinstall(DOWNSTREAM_CXX_PACKAGES), *sync_args],
+        ['uv', 'venv'],
+        ['uv', 'sync', '--frozen', '--only-group', 'build'],
+        ['uv', 'sync', '--no-default-groups', '--group', 'build', *_reinstall(KERNEL_PACKAGES), *sync_args],
+        ['uv', 'sync', *_reinstall(DOWNSTREAM_CXX_PACKAGES), *sync_args],
     ]
 
 

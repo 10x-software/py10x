@@ -27,7 +27,6 @@ def uv_calls(monkeypatch) -> SimpleNamespace:
         return subprocess.CompletedProcess(cmd, 0)
 
     monkeypatch.setattr(xx_build.subprocess, 'run', fake_run)
-    monkeypatch.setenv('UV', '/opt/uv')
     return calls
 
 
@@ -42,13 +41,13 @@ def test_imports_only_the_standard_library():
 def test_init_orders_toolchain_then_kernel_then_everything(tmp_path, uv_calls):
     assert xx_build.init(clean=False, sync_args=['--locked'], root=tmp_path) == 0
     assert uv_calls.cmds == [
-        ['/opt/uv', 'venv'],
-        ['/opt/uv', 'sync', '--frozen', '--only-group', 'build'],
+        ['uv', 'venv'],
+        ['uv', 'sync', '--frozen', '--only-group', 'build'],
         [
-            '/opt/uv', 'sync', '--no-default-groups', '--group', 'build',
+            'uv', 'sync', '--no-default-groups', '--group', 'build',
             '--reinstall-package', 'py10x-kernel', '--reinstall-package', 'py10x-infra', '--locked',
         ],
-        ['/opt/uv', 'sync', '--reinstall-package', 'py10x-fin-base-cxx', '--locked'],
+        ['uv', 'sync', '--reinstall-package', 'py10x-fin-base-cxx', '--locked'],
     ]  # fmt: skip
 
 
@@ -104,7 +103,6 @@ def test_inner_uv_calls_drop_the_wrappers_virtual_env(tmp_path, uv_calls, monkey
     monkeypatch.setenv('VIRTUAL_ENV', str(tmp_path / 'uv-cache-env'))
     assert xx_build.init(clean=False, sync_args=[], root=tmp_path) == 0
     assert uv_calls.envs and all(env is not None and 'VIRTUAL_ENV' not in env for env in uv_calls.envs)
-    assert all(env['UV'] == '/opt/uv' for env in uv_calls.envs)
 
 
 def test_clean_removes_read_only_files(tmp_path, uv_calls):
