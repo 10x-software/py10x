@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -35,7 +36,8 @@ def _debug_build_type(monkeypatch):
 class TestLoaderSettings:
     def test_reads_rebuild_verbose_and_build_type(self, tmp_path):
         loader = _loader(tmp_path, '/repo/build/py10x-build/py10x-kernel/Release/cp312-cp312-linux_x86_64', False, True)
-        assert env_check.loader_settings(loader) == {'rebuild': False, 'verbose': True, 'build_type': 'Release'}
+        build_dir = '/repo/build/py10x-build/py10x-kernel/Release/cp312-cp312-linux_x86_64'
+        assert env_check.loader_settings(loader) == {'rebuild': False, 'verbose': True, 'build_type': 'Release', 'build_dir': build_dir}
 
     def test_windows_build_dir(self, tmp_path):
         loader = _loader(tmp_path, r'D:\a\py10x\build\py10x-build\py10x-infra\Debug\cp313-cp313-win_amd64', True, False)
@@ -108,3 +110,35 @@ class TestImportModules:
         monkeypatch.setattr(env_check, 'first_party', lambda root: ({'py10x-kernel': SRC}, {}, {'py10x-fin-base-cxx': SRC}))
         assert env_check.import_modules(downstream=True) == []
         assert imported == ['core_10x', 'py10x_kernel', 'cxxfin']
+
+
+class TestSkipEditableRebuilds:
+    """dev_10x.pytest_plugin: rebuild once in the main process, then workers/subprocesses skip the check."""
+
+    def test_imports_rebuild_on_import_packages_then_lists_their_build_dirs(self, monkeypatch):
+        from dev_10x import pytest_plugin
+
+        imported = []
+        states = {
+            'py10x-kernel': {'rebuild': True, 'build_dir': '/b/kernel'},
+            'py10x-infra': {'rebuild': False, 'build_dir': '/b/infra'},  # 'editable' mode: nothing to skip
+            'py10x-fin-base-cxx': {'rebuild': True, 'build_dir': '/b/cxxfin'},
+        }
+        monkeypatch.setattr(env_check, 'first_party', lambda root: ({'py10x-kernel': SRC, 'py10x-infra': SRC}, {}, {'py10x-fin-base-cxx': SRC}))
+        monkeypatch.setattr(env_check, 'installed', states.get)
+        monkeypatch.setattr('importlib.import_module', imported.append)
+        monkeypatch.setenv('SKBUILD_EDITABLE_SKIP', '/already')
+        pytest_plugin._skip_editable_rebuilds()
+        assert imported == ['py10x_kernel', 'cxxfin']
+        assert os.environ['SKBUILD_EDITABLE_SKIP'].split(os.pathsep) == ['/already', '/b/kernel', '/b/cxxfin']
+
+    def test_outside_a_source_checkout_does_nothing(self, monkeypatch):
+        from dev_10x import pytest_plugin
+
+        def no_checkout(root):
+            raise FileNotFoundError(root)
+
+        monkeypatch.setattr(env_check, 'first_party', no_checkout)
+        monkeypatch.delenv('SKBUILD_EDITABLE_SKIP', raising=False)
+        pytest_plugin._skip_editable_rebuilds()
+        assert 'SKBUILD_EDITABLE_SKIP' not in os.environ

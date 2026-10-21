@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -47,6 +48,26 @@ def _uv() -> str:
 
 def _reinstall(names: tuple[str, ...]) -> list[str]:
     return [arg for name in names for arg in ('--reinstall-package', name)]
+
+
+def _rmtree(path: Path) -> None:
+    """`shutil.rmtree` that also removes read-only files: on Windows it cannot delete the read-only git
+    pack files CMake FetchContent leaves under build/.../_deps/*/.git."""
+
+    def make_writable_and_retry(func, p, _exc):
+        os.chmod(p, stat.S_IWRITE)
+        func(p)
+
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=make_writable_and_retry)
+    else:
+        shutil.rmtree(path, onerror=make_writable_and_retry)
+
+
+def _uv_env() -> dict[str, str]:
+    """The environment for the inner uv calls, minus the VIRTUAL_ENV of `./xx-build`'s own isolated
+    `uv run` environment (uv would warn on every call that it does not match the project's .venv)."""
+    return {k: v for k, v in os.environ.items() if k != 'VIRTUAL_ENV'}
 
 
 def init_commands(sync_args: list[str]) -> list[list[str]]:
@@ -68,10 +89,11 @@ def init(clean: bool, sync_args: list[str], root: Path = ROOT) -> int:
         return 1
     for path in existing:
         print(f'xx-build init: removing {path.name}/', flush=True)
-        shutil.rmtree(path)
+        _rmtree(path)
+    env = _uv_env()
     for cmd in init_commands(sync_args):
         print('$', ' '.join(cmd), flush=True)
-        result = subprocess.run(cmd, cwd=root, check=False)
+        result = subprocess.run(cmd, cwd=root, env=env, check=False)
         if result.returncode:
             return result.returncode
     return 0

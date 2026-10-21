@@ -72,6 +72,7 @@ def loader_settings(loader: Path) -> dict:
                 'verbose': bool(args[4]) if len(args) > 4 else False,
                 # build/py10x-build/<pkg>/<build type>/<wheel tag>
                 'build_type': PureWindowsPath(path).parent.name if path else None,
+                'build_dir': path,
             }
     raise ValueError(f'{loader}: no install(...) call found')
 
