@@ -64,12 +64,7 @@ version-file = "xxfin/_version.py"
 
 [tool.uv]
 required-version = ">=0.12.5"
-reinstall-package = ["py10x-fin-base-cxx"]
 no-build-isolation-package = ["py10x-fin-base-cxx"]
-
-[[tool.uv.dependency-metadata]]
-name = "py10x-fin-base-cxx"
-version = "0+dummy"
 
 [tool.uv.workspace]
 members = ["cxxfin"]

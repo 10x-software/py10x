@@ -288,6 +288,20 @@ def _run(args: list[str]) -> None:
     subprocess.run(args, cwd=PROJECT_ROOT, check=True)
 
 
+def _no_root_sources() -> list[str]:
+    """`--no-sources-package` for each sibling, for the installs that resolve py10x-core's own deps
+    (`--requirements pyproject.toml`, `-e .`): uv-sync picks a sibling's source itself (profile +
+    XX_UV_INSTALL_MODE), so the root's editable `[tool.uv.sources]` for it must not apply there.
+    Not on every install: with any `--no-sources-package`, uv rejects xx_fin's workspace source for
+    py10x-fin-base-cxx ("not a workspace member") when installing the fin-base downstream, which gets
+    the siblings' install-mode flags instead (_downstream_sibling_flags)."""
+    import tomllib
+
+    doc = tomllib.loads((PROJECT_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+    siblings = doc.get('tool', {}).get('dev_10x', {}).get('siblings', {})
+    return [arg for name in siblings for arg in ('--no-sources-package', name)]
+
+
 def _pip_install(*args: str) -> None:
     """`uv pip install` with the mandatory constraints freeze applied."""
     _run(['uv', 'pip', 'install', *args, *CONSTRAINTS])
@@ -360,7 +374,15 @@ def _cxx_build_flags(name: str, mode: str) -> list[str]:
     return flags
 
 
-def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: bool, extras_args: list[str] | tuple[str, ...] = ()) -> None:
+def install_local(
+    name: str,
+    pkg: dict,
+    pin: str | None,
+    mode: str,
+    verbose: bool,
+    extras_args: list[str] | tuple[str, ...] = (),
+    sibling_flags: list[str] | tuple[str, ...] = (),
+) -> None:
     # Downstream native deps (e.g. fin-base → cxxfin): install its C++ workspace members *directly*
     # first. Installing only via the parent
     # `-e xx_fin` leaves `editable.rebuild`'s persistent build-dir without CMakeCache.txt.
@@ -383,10 +405,13 @@ def install_local(name: str, pkg: dict, pin: str | None, mode: str, verbose: boo
     args.append(f'--reinstall-package={name}')
     if pkg['cxx']:
         args += _cxx_build_flags(name, mode)
+    if name == CORE:
+        args += _no_root_sources()
     # Keep the members' flags on the parent install too (transitive rebuilds / metadata), so a
     # rebuild triggered via the parent uses the same build dir and rebuild settings.
     if pkg.get('downstream'):
         args.extend(member_flags)
+        args.extend(sibling_flags)
         # `--all-extras` / `--extra` require an explicit requirements/pyproject source (same as
         # core step 2). Forward them onto the downstream pyproject so extras like fin-base `bbg`
         # are installed — bare `-e path --all-extras` is rejected by uv. Downstreams must be local.
@@ -468,7 +493,7 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     #    they bind to this `--requirements` source *and* to local opt-in downstream installs.
     print('2. core deps:')
     reinstall = [f'--reinstall-package={s}' for s in index_swaps]
-    _pip_install('--requirements', 'pyproject.toml', *reinstall, *uv_args)
+    _pip_install('--requirements', 'pyproject.toml', *reinstall, *_no_root_sources(), *uv_args)
 
     # 3. py10x-core itself. Always editable (see XX_UV_INSTALL_MODE's docstring above) - `mode`
     #    only governs the C++ siblings.
@@ -495,8 +520,29 @@ def uv_sync(profile: str, *uv_args: str) -> None:
     print(f'uv-sync `{profile}` done.')
 
 
+def _mode_mismatch(name: str, pkg: dict, mode: str) -> list[str]:
+    """How the installed C++ package (a sibling, or a downstream's C++ members) differs from `mode`, read
+    from the venv (dev_10x.env_check) rather than from the recorded install state: plain `uv sync` and
+    `./xx-build` install without updating that record."""
+    from dev_10x import env_check
+
+    expect = env_check.MODES[mode]
+    targets = {name: Path(pkg['local'])} if pkg['cxx'] else _native_members(pkg['local'])
+    return [p for n, src in targets.items() for p in env_check.check_cxx(n, env_check.installed(n), Path(src), expect)]
+
+
+def _downstream_sibling_flags(kinds: dict, pkgs: dict, siblings: list[str], mode: str) -> list[str]:
+    """Install-mode flags of the local C++ siblings, for a downstream install. The downstream resolves
+    py10x-core from this tree, whose editable `[tool.uv.sources]` makes uv rebuild the siblings there
+    (editable, whatever the mode; `--no-sources-package` is not an option - see _no_root_sources), so
+    they need their mode's flags, and rebuild-on-import off in 'normal' mode."""
+    flag_mode = 'editable' if mode == 'normal' else mode
+    return [f for s in siblings if kinds[s] == 'local' and pkgs[s]['cxx'] for f in _cxx_build_flags(s, flag_mode)]
+
+
 def sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbose, extras_args: list[str] | tuple[str, ...] = ()):
     index_swaps: list[str] = []
+    sibling_flags = _downstream_sibling_flags(kinds, pkgs, siblings, mode)
     for s in siblings:
         kind = kinds[s]
         if kind == 'index':
@@ -510,12 +556,25 @@ def sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbos
         if not do and toggled and kind == 'local' and has_cxx:
             print(f'  {s}: reinstall - install mode or build type changed')
             do = True
+        if not do and kind == 'local' and has_cxx and (mismatch := _mode_mismatch(s, pkgs[s], mode)):
+            # Reinstall in order (siblings, then the downstream's members, then the downstream) instead of
+            # letting a later install rebuild them all at once: cxxfin's build imports the kernel.
+            print(f'  {s}: reinstall - installed for another mode ({mismatch[0]})')
+            do = True
         downstream_extras = extras_args if pkgs[s].get('downstream') else ()
         if do:
             if kind == 'local':
                 # Downstream is not a core published dep — no forward pin to apply.
                 pin = None if pkgs[s].get('downstream') else _sibling_pin(s)
-                install_local(s, pkgs[s], pin=pin, mode=mode, verbose=verbose, extras_args=downstream_extras)
+                install_local(
+                    s,
+                    pkgs[s],
+                    pin=pin,
+                    mode=mode,
+                    verbose=verbose,
+                    extras_args=downstream_extras,
+                    sibling_flags=sibling_flags if pkgs[s].get('downstream') else (),
+                )
             else:  # git
                 if downstream_extras:
                     raise RuntimeError(
@@ -527,7 +586,9 @@ def sync_siblings(branch, mode, installs, kinds, pkgs, siblings, toggled, verbos
             # Already installed: still apply requested extras (e.g. fin-base `bbg`) without a full reinstall.
             print(f'  {s}: ensuring extras ({" ".join(downstream_extras)})')
             local = Path(pkgs[s]['local'])
-            _pip_install('-e', str(local), *downstream_extras, '--requirements', str(local / 'pyproject.toml'))
+            # Its C++ members' and the siblings' mode flags too: uv re-installs any whose settings differ.
+            member_flags = [f for n in _native_members(local) for f in _cxx_build_flags(n, mode)]
+            _pip_install('-e', str(local), *downstream_extras, '--requirements', str(local / 'pyproject.toml'), *member_flags, *sibling_flags)
     return index_swaps
 
 

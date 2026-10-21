@@ -31,14 +31,15 @@ runs:
       with:
         mongodb-version: ${{ inputs.mongodb-version }}
 
-    # Same run-once preparation as each harness README: py10x-core[dev] (C++ build toolchain) first;
-    # `uv run` then syncs the rest.
+    # Same run-once preparation as each harness README: py10x's `build` group (C++ build toolchain)
+    # first; `uv run` then syncs the rest. cross_module_test also installs py10x-core[dev] (and with it
+    # the kernel) up front: its own extension's build needs an installed kernel.
     - name: Run kernel test harness
       shell: bash
       working-directory: cxx10x/tests/py10x_kernel_test
       run: |
         uv venv --clear
-        uv pip install -e "../../..[dev]"
+        uv pip install --group ../../../pyproject.toml:build
         uv run python ../../core_10x/tests/test.py
         # Incremental rebuild after a C++ edit: on import (no sync), then via `uv run`'s sync.
         uv run --no-sync python ../assert_rebuilt.py py10x_kernel ../../core_10x/tid.cpp -- uv run --no-sync python ../../core_10x/tests/test.py
@@ -49,7 +50,7 @@ runs:
       working-directory: cxx10x/tests/py10x_infra_test
       run: |
         uv venv --clear
-        uv pip install -e "../../..[dev]"
+        uv pip install --group ../../../pyproject.toml:build
         uv run python ../../infra_10x/tests/test.py
         # Incremental rebuild after a C++ edit: on import (no sync), then via `uv run`'s sync.
         uv run --no-sync python ../assert_rebuilt.py py10x_infra ../../infra_10x/mongo_collection_helper.cpp -- uv run --no-sync python ../../infra_10x/tests/test.py
@@ -60,6 +61,7 @@ runs:
       working-directory: cxx10x/tests/cross_module_test
       run: |
         uv venv --clear
+        uv pip install --group ../../../pyproject.toml:build
         uv pip install -e "../../..[dev]"
         uv run python test.py
         touch pyproject.toml

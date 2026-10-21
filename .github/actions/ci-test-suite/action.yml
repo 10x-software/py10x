@@ -55,6 +55,10 @@ runs:
         uv venv
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         python -m dev_10x.uv_sync py10x-dev --all-extras
+        # Assert the result, not just the exit code: kernel/infra editable from this tree, no
+        # rebuild-on-import, Release (uv can quietly install something else - see dev_10x/env_check.py).
+        # No import under ASan: an instrumented module only loads under the ASan harness (see below).
+        python -m dev_10x.env_check ${{ inputs.asan == 'true' && '--no-import' || '' }}
 
     # uv-sync applies -c constraints.txt on every install, so the test env is frozen. Assert every
     # installed third-party dist is pinned (catches a py10x or sibling dep that escaped the freeze).
@@ -71,6 +75,12 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check-export
+
+    # uv.lock must be current with every pyproject (pin bumps lock in the same commit: xx-promote and
+    # `xx-constraints compile` both run `uv lock`). Read-only: fails instead of rewriting the lock.
+    - name: Verify uv.lock is up to date
+      shell: bash
+      run: uv lock --check
 
     # Core isolation: fin-base must not be importable until --with-downstream (after core pytest).
     - name: Assert xxfin not importable (core isolation)
@@ -158,6 +168,7 @@ runs:
       run: |
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
+        python -m dev_10x.env_check --downstream ${{ inputs.asan == 'true' && '--no-import' || '' }}
 
     # Run the fin-base tests through the same ASan harness as the core suite: importing cxxfin loads
     # the ASan-instrumented kernel, so it needs LD_PRELOAD (Linux) / cdb (Windows) too. pytest

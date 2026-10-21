@@ -182,7 +182,13 @@ def test_diff_pathspecs():
     assert GitHelpers.diff_pathspecs() == ('.', ':(exclude)uv.lock', ':(exclude)constraints.txt')
     # a sibling: the whole repo with the *other* package subtrees excluded (shared files still count)
     assert GitHelpers.diff_pathspecs('infra_10x') == ('.', ':(exclude)infra_10x', ':(exclude)uv.lock', ':(exclude)constraints.txt')
-    assert GitHelpers.diff_pathspecs('core_10x', 'infra_10x') == ('.', ':(exclude)core_10x', ':(exclude)infra_10x', ':(exclude)uv.lock', ':(exclude)constraints.txt')
+    assert GitHelpers.diff_pathspecs('core_10x', 'infra_10x') == (
+        '.',
+        ':(exclude)core_10x',
+        ':(exclude)infra_10x',
+        ':(exclude)uv.lock',
+        ':(exclude)constraints.txt',
+    )
     # Nested same-repo downstream (xx_fin): exclude its subtree from core's footprint.
     assert GitHelpers.diff_pathspecs('xx_fin') == ('.', ':(exclude)xx_fin', ':(exclude)uv.lock', ':(exclude)constraints.txt')
 
@@ -720,3 +726,35 @@ def test_pin_only_diff_ignores_unpublished_test_group():
     assert PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked, names)
     assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked.replace('numpy>=2', 'numpy>=3'), names)
     assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked + '\n[tool.x]\ny = 1\n', names)
+
+
+def test_uv_lock_only_when_the_repo_tracks_a_lock(tmp_path, monkeypatch):
+    """xx-promote re-locks in pin commits only when the repo tracks a root uv.lock."""
+    from dev_10x import xx_helpers
+    from dev_10x.xx_helpers import UvHelpers
+
+    calls = []
+    real_run = xx_helpers.subprocess.run
+
+    def fake_run(cmd, *args, **kwargs):
+        if cmd[0] == '/opt/uv':
+            calls.append(cmd)
+            return None
+        return real_run(cmd, *args, **kwargs)
+
+    monkeypatch.setattr(xx_helpers.subprocess, 'run', fake_run)
+    monkeypatch.setenv('UV', '/opt/uv')
+    repo = tmp_path
+    GitHelpers.git(repo, 'init', '-q')
+    GitHelpers.git(repo, 'config', 'user.email', 'test@example.com')
+    GitHelpers.git(repo, 'config', 'user.name', 'Test')
+    (repo / 'pyproject.toml').write_text('[project]\nname="x"\n', encoding='utf-8')
+    GitHelpers.git(repo, 'add', '.')
+    GitHelpers.git(repo, 'commit', '-qm', 'init')
+    assert UvHelpers.lock_if_tracked(repo) is False  # no uv.lock at all
+    (repo / 'uv.lock').write_text('version = 1\n', encoding='utf-8')
+    assert UvHelpers.lock_if_tracked(repo) is False  # present but untracked
+    GitHelpers.git(repo, 'add', 'uv.lock')
+    GitHelpers.git(repo, 'commit', '-qm', 'track lock')
+    assert UvHelpers.lock_if_tracked(repo) is True
+    assert calls == [['/opt/uv', 'lock']]

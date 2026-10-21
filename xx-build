@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# Set up / start over this checkout's dev environment: ./xx-build init [--clean]. See dev_10x/xx_build.py.
+exec uv run --no-project --isolated -m dev_10x.xx_build "$@"
