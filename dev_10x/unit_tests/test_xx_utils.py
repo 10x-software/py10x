@@ -726,35 +726,3 @@ def test_pin_only_diff_ignores_unpublished_test_group():
     assert PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked, names)
     assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked.replace('numpy>=2', 'numpy>=3'), names)
     assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked + '\n[tool.x]\ny = 1\n', names)
-
-
-def test_uv_lock_only_when_the_repo_tracks_a_lock(tmp_path, monkeypatch):
-    """xx-promote re-locks in pin commits only when the repo tracks a root uv.lock."""
-    from dev_10x import xx_helpers
-    from dev_10x.xx_helpers import UvHelpers
-
-    calls = []
-    real_run = xx_helpers.subprocess.run
-
-    def fake_run(cmd, *args, **kwargs):
-        if cmd[0] == '/opt/uv':
-            calls.append(cmd)
-            return None
-        return real_run(cmd, *args, **kwargs)
-
-    monkeypatch.setattr(xx_helpers.subprocess, 'run', fake_run)
-    monkeypatch.setenv('UV', '/opt/uv')
-    repo = tmp_path
-    GitHelpers.git(repo, 'init', '-q')
-    GitHelpers.git(repo, 'config', 'user.email', 'test@example.com')
-    GitHelpers.git(repo, 'config', 'user.name', 'Test')
-    (repo / 'pyproject.toml').write_text('[project]\nname="x"\n', encoding='utf-8')
-    GitHelpers.git(repo, 'add', '.')
-    GitHelpers.git(repo, 'commit', '-qm', 'init')
-    assert UvHelpers.lock_if_tracked(repo) is False  # no uv.lock at all
-    (repo / 'uv.lock').write_text('version = 1\n', encoding='utf-8')
-    assert UvHelpers.lock_if_tracked(repo) is False  # present but untracked
-    GitHelpers.git(repo, 'add', 'uv.lock')
-    GitHelpers.git(repo, 'commit', '-qm', 'track lock')
-    assert UvHelpers.lock_if_tracked(repo) is True
-    assert calls == [['/opt/uv', 'lock']]

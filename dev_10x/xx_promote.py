@@ -52,7 +52,6 @@ from dev_10x.xx_helpers import (
     GitHubHelpers,
     PyPIHelpers,
     PyProjectHelpers,
-    UvHelpers,
     VersionHelpers,
 )
 from dev_10x.xx_plan import PkgInput, Plan, PrePlan, ProdPlan
@@ -146,7 +145,6 @@ class PromoteStep(PkgStep):
         GitHelpers.git(self.repo, 'checkout', '-q', '-B', plan.branch, self.base)
         if plan.forward_pins:
             PyProjectHelpers.write_forward_pins(self.pkg.pyproject, plan.forward_pins)
-            UvHelpers.lock_if_tracked(self.repo)  # the release commit carries the matching uv.lock
         # --allow-empty: every release tag gets its own commit, even with no pins (siblings). With two
         # lightweight tags on one commit `git describe` picks by tag *name*, not version (rc9 vs rc10.dev
         # -> rc10.dev), so setuptools-scm could stamp a wheel with the wrong version.
@@ -307,7 +305,6 @@ class MainEditStep(PkgStep):
         if (self.forward_pins and PyProjectHelpers.write_forward_pins(self.pkg.pyproject, self.forward_pins)) or (
             self.test_pin and PyProjectHelpers.write_test_group(self.pkg.pyproject, self.test_pin)
         ):
-            UvHelpers.lock_if_tracked(self.repo)  # pin edits and the matching uv.lock in one commit
             GitHelpers.git(self.repo, 'commit', '-am', self.description)
 
 

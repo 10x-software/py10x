@@ -76,8 +76,9 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check-export
 
-    # uv.lock must be current with every pyproject (pin bumps lock in the same commit: xx-promote and
-    # `xx-constraints compile` both run `uv lock`). Read-only: fails instead of rewriting the lock.
+    # uv.lock must be current with every pyproject (`xx-constraints compile` runs `uv lock`; xx-promote's
+    # pin bumps don't change it - first-party packages are path sources, locked without versions).
+    # Read-only: fails instead of rewriting the lock.
     - name: Verify uv.lock is up to date
       shell: bash
       run: uv lock --check
