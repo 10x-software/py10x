@@ -101,7 +101,9 @@ depgather==0.5.0 ; python_full_version >= '3.12'
 dnspython==2.9.0
     # via pymongo
 duckdb==1.5.6
-    # via ibis-framework
+    # via
+    #   ibis-framework
+    #   py10x-core
 editables==0.6
     # via py10x-core
 encutils==1.0.0
