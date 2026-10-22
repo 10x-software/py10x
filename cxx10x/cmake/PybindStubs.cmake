@@ -70,21 +70,15 @@ endfunction()
 
 # ---------------------------------------------------------------------------
 # add_pybind_stubs(target)
-# Post-build stub generation for self-contained pybind11 modules.
+# Post-build stub generation for self-contained pybind11 modules. pybind11-stubgen comes from the build
+# environment (each package's build-system.requires; the `build` group / dev extra for editable rebuilds).
 # ---------------------------------------------------------------------------
 function(add_pybind_stubs target)
     _resolve_lib_output_dir()
 
-    if(WIN32)
-        set(_path_sep ";")
-    else()
-        set(_path_sep ":")
-    endif()
-    set(_stubgen_pythonpath "${pybind11_stubgen_SOURCE_DIR}${_path_sep}${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-
     add_custom_command(
             TARGET ${target} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${_stubgen_pythonpath}"
+            COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}"
                     ${Python3_EXECUTABLE} -m pybind11_stubgen ${target} -o ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
             COMMENT "Generating type stubs for ${target}"
@@ -105,7 +99,6 @@ function(add_pybind_stubs_rtld target cxx10x_cmake_dir)
             TARGET ${target} POST_BUILD
             COMMAND ${Python3_EXECUTABLE} ${cxx10x_cmake_dir}/generate_stubs.py
                     ${target}
-                    ${pybind11_stubgen_SOURCE_DIR}
                     ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
                     ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
             WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}

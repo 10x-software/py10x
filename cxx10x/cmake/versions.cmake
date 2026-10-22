@@ -1,5 +1,4 @@
 set(PYBIND11_VERSION        "v3.1.0")
-set(PYBIND11_STUBGEN_VERSION "v2.5.5")
 
 # MSVC toolset version required for ABI compatibility between py10x-kernel and
 # extension modules that link against it (must match across all py10x builds).

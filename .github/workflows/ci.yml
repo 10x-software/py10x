@@ -132,7 +132,7 @@ jobs:
   # PR / push: every way of installing the dev environment, verified by its result
   # (dev_10x/env_check.py: source tree, editable, rebuild-on-import, build type, imports) rather than
   # by exit codes - uv can quietly install something else than asked (e.g. the root's editable
-  # sources overriding an install mode). One venv walks the modes, so each switch's reinstall is
+  # sources overriding a build mode's settings). One venv walks the modes, so each switch's reinstall is
   # exercised too. No database needed, hence macOS as well.
   install-modes:
     if: github.event_name == 'pull_request' || github.event_name == 'push'
@@ -196,8 +196,8 @@ jobs:
           uv run --no-sync python -m dev_10x.env_check ci-release --downstream
           mv build.moved build
 
-      # uv-sync (CI's entry point until it calls ./xx-build directly): install mode -> build mode, and
-      # without --with-downstream no fin-base (core isolation).
+      # The uv-sync compatibility wrapper (dev_10x/uv_sync.py), until it is retired: XX_UV_INSTALL_MODE ->
+      # build mode, and without --with-downstream no fin-base.
       - name: "uv-sync wrapper"
         run: |
           source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate

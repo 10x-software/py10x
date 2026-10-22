@@ -69,6 +69,7 @@ dev = [
     "cmake>=3.27", # persistent toolchain for import-time incremental rebuilds
     "ninja>=1.11", # persistent toolchain for import-time incremental rebuilds (Linux/macOS)
     "editables>=0.6", # editable install support
+    "pybind11-stubgen==2.5.5", # .pyi generation in import-time incremental rebuilds
 ]
 rio = [
     "rio-ui==0.12.3",
@@ -197,6 +198,7 @@ build = [
     "cmake>=3.27",
     "ninja>=1.11",
     "editables>=0.6",
+    "pybind11-stubgen==2.5.5",
 ]
 dev = ["py10x-core[dev]"]
 extras = ["py10x-core[rio,qt,jit,aadc,examples]"]

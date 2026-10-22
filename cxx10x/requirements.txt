@@ -1,3 +1,6 @@
+# for builds: post-build .pyi generation (cmake/PybindStubs.cmake), same pin as the packages' build-system.requires
+pybind11-stubgen==2.5.5
+
 # for core
 importlib-resources>=6.4.0
 numpy~=2.2.2

@@ -7,7 +7,7 @@ include(${CMAKE_CURRENT_LIST_DIR}/PybindStubs.cmake)
 #
 # Convenience macro for pybind11 extension modules in the xx ecosystem that
 # depend on py10x_kernel types. Handles:
-#   - fetching pybind11, pybind11_stubgen, backward (via FetchPybind11Deps)
+#   - fetching pybind11, backward (via FetchPybind11Deps)
 #   - adding include dirs for core_10x headers and backward
 #   - setting VERSION_INFO from scikit-build-core
 #   - RTLD link options (-undefined dynamic_lookup / --allow-shlib-undefined)
