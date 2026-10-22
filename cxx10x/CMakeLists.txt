@@ -12,6 +12,16 @@ set(CMAKE_CXX_STANDARD 20)
 # re-configures when uv.lock changes.
 set(PY10X_ROOT ${CMAKE_SOURCE_DIR}/..)
 set(CLION_VENV ${CMAKE_SOURCE_DIR}/.venv)
+# setuptools-scm (py10x-core's editable build in the venv sync, the module versions below) runs a plain `git` from
+# PATH, which CLion's Windows configure need not have (Git Bash's PATH is not the system one): put the git
+# find_package found first on PATH for every command this configure runs.
+find_package(Git REQUIRED)
+get_filename_component(_git_dir ${GIT_EXECUTABLE} DIRECTORY)
+if(WIN32)
+    set(ENV{PATH} "${_git_dir};$ENV{PATH}")
+else()
+    set(ENV{PATH} "${_git_dir}:$ENV{PATH}")
+endif()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PY10X_ROOT}/uv.lock)
 find_program(UV_EXECUTABLE uv REQUIRED)
 set(_clion_venv_requirements ${CMAKE_BINARY_DIR}/clion-venv-requirements.txt)
@@ -38,7 +48,6 @@ if(WIN32)
 else()
     set(CLION_PYTHON ${CLION_VENV}/bin/python)
 endif()
-find_package(Git REQUIRED)
 execute_process(
         COMMAND ${GIT_EXECUTABLE} rev-parse --path-format=absolute --git-path logs/HEAD
         WORKING_DIRECTORY ${PY10X_ROOT}
@@ -47,23 +56,18 @@ execute_process(
 if(EXISTS ${_git_head_log})
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_git_head_log})
 endif()
-# setuptools-scm runs a plain `git` from PATH, which CLion's Windows configure need not have (Git Bash's PATH is not
-# the system one): put the git find_package found first on its PATH.
-get_filename_component(_git_dir ${GIT_EXECUTABLE} DIRECTORY)
 function(py10x_scm_version package out_var)
     execute_process(
-            COMMAND ${CMAKE_COMMAND} -E env --modify PATH=path_list_prepend:${_git_dir}
-                    ${CLION_PYTHON} -m setuptools_scm --config ${CMAKE_SOURCE_DIR}/${package}/pyproject.toml
+            COMMAND ${CLION_PYTHON} -m setuptools_scm --config ${CMAKE_SOURCE_DIR}/${package}/pyproject.toml
             OUTPUT_VARIABLE _version OUTPUT_STRIP_TRAILING_WHITESPACE
             COMMAND_ERROR_IS_FATAL ANY)
     set(${out_var} ${_version} PARENT_SCOPE)
 endfunction()
 
-# Map CLion's Python_EXECUTABLE to standard variables
-if(DEFINED Python_EXECUTABLE)
-    message("Python_EXECUTABLE from CLion: ${Python_EXECUTABLE}")
-    set(PYTHON_EXECUTABLE "${Python_EXECUTABLE}")  # For pybind11 or FindPythonInterp
-endif()
+# Build against cxx10x/.venv's Python (set here, not in the preset, whose one profile serves every OS).
+set(Python_EXECUTABLE ${CLION_PYTHON} CACHE FILEPATH "cxx10x/.venv Python" FORCE)
+set(Python3_EXECUTABLE ${CLION_PYTHON} CACHE FILEPATH "cxx10x/.venv Python" FORCE)
+set(PYTHON_EXECUTABLE ${CLION_PYTHON})  # For pybind11 or FindPythonInterp
 
 # Ensure core_10x and infra_10x output to their own cmake-build-debug directories
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/core_10x/cmake-build-debug)
