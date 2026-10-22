@@ -2,3 +2,5 @@
 uv.lock linguist-generated=true
 # Bash wrapper must keep LF line endings on Windows (Git Bash), or bash fails on the \r.
 xx-build text eol=lf
+# CLion writes its project files with LF and no final newline on every OS; keep them LF in the working tree too.
+cxx10x/.idea/** text eol=lf

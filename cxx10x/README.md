@@ -23,6 +23,10 @@ Open `cxx10x/` as the CLion project; everything it needs is shared through git:
   `infra_10x/cmake-build-debug`, on their `PYTHONPATH`).
 - `.idea/runConfigurations/`: run `core_10x/tests/test.py` / `infra_10x/tests/test.py` with that venv.
 
+On Windows, the configure needs Git for Windows at its default location, `C:\Program Files\Git` (see
+[INSTALLATION.md](../INSTALLATION.md#windows)): CMake finds git there even when it is not on PATH and puts it on
+setuptools-scm's PATH. Otherwise setuptools-scm fails with `ERROR: no version found for`.
+
 ## Test harnesses
 
 Minimal uv harness directories under `tests/` (run the real core tests with editable builds of the

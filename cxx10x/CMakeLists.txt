@@ -47,9 +47,13 @@ execute_process(
 if(EXISTS ${_git_head_log})
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_git_head_log})
 endif()
+# setuptools-scm runs a plain `git` from PATH, which CLion's Windows configure need not have (Git Bash's PATH is not
+# the system one): put the git find_package found first on its PATH.
+get_filename_component(_git_dir ${GIT_EXECUTABLE} DIRECTORY)
 function(py10x_scm_version package out_var)
     execute_process(
-            COMMAND ${CLION_PYTHON} -m setuptools_scm --config ${CMAKE_SOURCE_DIR}/${package}/pyproject.toml
+            COMMAND ${CMAKE_COMMAND} -E env --modify PATH=path_list_prepend:${_git_dir}
+                    ${CLION_PYTHON} -m setuptools_scm --config ${CMAKE_SOURCE_DIR}/${package}/pyproject.toml
             OUTPUT_VARIABLE _version OUTPUT_STRIP_TRAILING_WHITESPACE
             COMMAND_ERROR_IS_FATAL ANY)
     set(${out_var} ${_version} PARENT_SCOPE)
