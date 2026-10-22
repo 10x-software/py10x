@@ -131,6 +131,21 @@ py10x-infra  = { path = "cxx10x/infra_10x", footprint = ["cxx10x", ":(exclude)cx
 [tool.dev_10x.downstream]
 py10x-fin-base = { path = "./xx_fin" }
 
+# Build modes for `./xx-build set-mode <mode>` (dev_10x/xx_build.py). `dev`, the default, is [tool.uv]
+# below as is: Debug, editable, rebuild-on-import. Each mode here is merged into a copy of [tool.uv]
+# written to a gitignored uv.toml. Build dirs are per build type, so switching back reuses the build.
+[tool.dev_10x.modes.dev-release.config-settings-package]
+py10x-kernel = { "cmake.build-type" = "Release" }
+py10x-infra = { "cmake.build-type" = "Release" }
+py10x-fin-base-cxx = { "cmake.build-type" = "Release" }
+
+# CI and Docker: built once, so no rebuild check on import (per-import overhead, and the build dir may
+# be gone - the Docker image deletes it).
+[tool.dev_10x.modes.ci-release.config-settings-package]
+py10x-kernel = { "cmake.build-type" = "Release", "editable.rebuild" = "false" }
+py10x-infra = { "cmake.build-type" = "Release", "editable.rebuild" = "false" }
+py10x-fin-base-cxx = { "cmake.build-type" = "Release", "editable.rebuild" = "false" }
+
 [tool.uv]
 required-version = ">=0.12.5"
 # Rebuild py10x-core (rather than reuse uv's cached wheel) on a new commit or tag, so its installed

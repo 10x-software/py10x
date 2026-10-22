@@ -16,6 +16,8 @@ htmlcov/
 .ruff_cache/
 # Host C++ build trees (cxx10x/.gitignore); the image builds its own.
 /build/
+# A host's build mode (`./xx-build set-mode`); the image sets its own.
+/uv.toml
 cxx10x/**/cmake-build*/
 cxx10x/**/build/
 cxx10x/_deps/

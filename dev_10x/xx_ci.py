@@ -5,7 +5,7 @@ Deliberately imports only `dev_10x.xx_helpers` (which needs just `packaging` + `
 whole point of the gate is to run *before* a sibling is installed, to decide which sibling tag to
 install. So `xx-promote` (built on `core_10x.traitable_cli`) cannot bootstrap py10x-core's own CI;
 this module can. Bootstrap via `uv run --no-project --with packaging --with tomlkit --with setuptools-scm`,
-or run `python -m dev_10x.uv_sync` first (it creates the venv via `ensure_env_and_runtime_deps`).
+or set up the dev env first (`./xx-build init`).
 
 Commands (run from the py10x repo root):
     latest_tag <sibling>              sibling git tag matching its pinned spec in pyproject.toml

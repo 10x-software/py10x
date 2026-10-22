@@ -59,8 +59,8 @@ jobs:
           runner-os: ${{ runner.os }}
           asan: "false"
 
-      # dev image: pushed to GHCR after the test suite. Built from source (uv_sync
-      # py10x-dev --all-extras, same as ci-test-suite) rather than reused from this leg's
+      # dev image: pushed to GHCR after the test suite. Built from source (`./xx-build init --mode
+      # ci-release`, the build mode ci-test-suite uses) rather than reused from this leg's
       # .venv or PyPI: kernel/infra's published versions may not satisfy pyproject.toml's current
       # pin (a normal mid-development state). One leg only (ubuntu-latest/py3.12), and only on an
       # actual merge to main, not every PR run.
@@ -166,37 +166,55 @@ jobs:
       # No `uv python install`: UV_PYTHON (above) pins every uv call to 3.12, downloaded on first use.
       - uses: ./.github/actions/setup-windows-build
 
-      # Fresh clone: `./xx-build init`, then plain `uv sync` keeps it as is (dev = incremental_quiet,
-      # each package's default build type).
+      # Fresh clone: `./xx-build init`, then plain `uv sync` keeps it as is (dev: Debug, rebuild-on-import).
       - name: "dev: ./xx-build init, then plain uv sync"
         run: |
           ./xx-build init
+          ./xx-build show-mode
           uv run --no-sync python -m dev_10x.env_check dev --downstream
           uv sync
           uv run --no-sync python -m dev_10x.env_check dev --downstream
 
-      - name: "uv-sync: editable, incremental, incremental_quiet (--with-downstream)"
+      # Each mode: set-mode rebuilds in order; plain `uv sync` then stays in the mode (env_check's default
+      # mode is the one in uv.toml).
+      - name: "./xx-build set-mode: dev-release, ci-release"
+        run: |
+          for mode in dev-release ci-release; do
+            echo "::group::$mode"
+            ./xx-build set-mode $mode
+            ./xx-build show-mode
+            uv run --no-sync python -m dev_10x.env_check --downstream
+            uv sync
+            uv run --no-sync python -m dev_10x.env_check $mode --downstream
+            echo "::endgroup::"
+          done
+
+      # Docker's mode: built once, so its build dir can go.
+      - name: "ci-release: imports without build/"
+        run: |
+          mv build build.moved
+          uv run --no-sync python -m dev_10x.env_check ci-release --downstream
+          mv build.moved build
+
+      # uv-sync (CI's entry point until it calls ./xx-build directly): install mode -> build mode, and
+      # without --with-downstream no fin-base (core isolation).
+      - name: "uv-sync wrapper"
         run: |
           source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-          for mode in editable incremental incremental_quiet; do
+          for mode in editable incremental_quiet; do
             echo "::group::XX_UV_INSTALL_MODE=$mode"
             XX_UV_INSTALL_MODE=$mode python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
             XX_UV_INSTALL_MODE=$mode python -m dev_10x.env_check --downstream
             echo "::endgroup::"
           done
+          XX_UV_INSTALL_MODE=editable python -m dev_10x.uv_sync py10x-dev --all-extras
+          XX_UV_INSTALL_MODE=editable python -m dev_10x.env_check
+          python -c "import importlib.util as u; assert u.find_spec('xxfin') is None, 'xxfin installed without --with-downstream'"
 
-      # Docker's mode. Without --with-downstream: cxxfin needs the editable kernel (ci-test-suite).
-      - name: "uv-sync: normal (non-editable; imports without build/)"
+      - name: "dev again: ./xx-build set-mode dev"
         run: |
-          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-          XX_UV_INSTALL_MODE=normal python -m dev_10x.uv_sync py10x-dev --all-extras
-          mv build build.moved
-          XX_UV_INSTALL_MODE=normal python -m dev_10x.env_check
-          mv build.moved build
-
-      - name: "dev again: plain uv sync after uv-sync modes"
-        run: |
-          uv sync
+          ./xx-build set-mode dev
+          ./xx-build show-mode
           uv run --no-sync python -m dev_10x.env_check dev --downstream
 
       # now test we can start over clean with no issues
@@ -237,7 +255,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       # docker/Dockerfile's `dev` target builds this checkout together with its in-tree C++
-      # siblings (cxx10x/) from source (uv_sync py10x-dev --all-extras).
+      # siblings (cxx10x/) from source (`./xx-build init --mode ci-release`).
       - name: Build functional-account image
         uses: docker/build-push-action@v7
         with:
