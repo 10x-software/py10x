@@ -6,7 +6,6 @@
     <option name="PARENT_ENVS" value="true" />
     <envs>
       <env name="PYTHONUNBUFFERED" value="1" />
-      <env name="PYTHONPATH" value="../../core_10x/cmake-build-debug:../cmake-build-debug" />
     </envs>
     <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/infra_10x/tests" />

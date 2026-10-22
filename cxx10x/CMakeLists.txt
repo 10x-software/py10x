@@ -40,14 +40,28 @@ execute_process(
         WORKING_DIRECTORY ${PY10X_ROOT}
         COMMAND_ERROR_IS_FATAL ANY)
 
-# The modules' __version__, as their scikit-build-core builds stamp it (SKBUILD_PROJECT_VERSION_FULL, which
-# CLion's build does not set): setuptools-scm with each package's own tag pattern. Computed at configure,
-# so CLion re-configures on the next build after a commit or checkout (git's HEAD log changes).
 if(WIN32)
     set(CLION_PYTHON ${CLION_VENV}/Scripts/python.exe)
 else()
     set(CLION_PYTHON ${CLION_VENV}/bin/python)
 endif()
+# One set of run configurations for every OS: they run .venv/Scripts/python (the Windows venv layout; a link
+# to bin/python elsewhere) and find CLion's module builds through a .pth file in the venv, not a PYTHONPATH,
+# whose separator differs by OS.
+if(NOT WIN32)
+    file(MAKE_DIRECTORY ${CLION_VENV}/Scripts)
+    file(CREATE_LINK ../bin/python ${CLION_VENV}/Scripts/python SYMBOLIC)
+endif()
+execute_process(
+        COMMAND ${CLION_PYTHON} -c "import sysconfig; print(sysconfig.get_path('purelib'))"
+        OUTPUT_VARIABLE _clion_site_packages OUTPUT_STRIP_TRAILING_WHITESPACE
+        COMMAND_ERROR_IS_FATAL ANY)
+file(WRITE ${_clion_site_packages}/py10x_clion_modules.pth
+        "${CMAKE_SOURCE_DIR}/core_10x/cmake-build-debug\n${CMAKE_SOURCE_DIR}/infra_10x/cmake-build-debug\n")
+
+# The modules' __version__, as their scikit-build-core builds stamp it (SKBUILD_PROJECT_VERSION_FULL, which
+# CLion's build does not set): setuptools-scm with each package's own tag pattern. Computed at configure,
+# so CLion re-configures on the next build after a commit or checkout (git's HEAD log changes).
 execute_process(
         COMMAND ${GIT_EXECUTABLE} rev-parse --path-format=absolute --git-path logs/HEAD
         WORKING_DIRECTORY ${PY10X_ROOT}

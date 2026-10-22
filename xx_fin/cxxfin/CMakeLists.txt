@@ -4,6 +4,57 @@ project(cxxfin)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
+# CLion's build (no scikit-build-core) uses xx_fin/cxxfin/.venv: py10x-fin-base (editable) and its locked
+# dependencies from py10x's root uv.lock, plus the dev extra - WITHOUT py10x-fin-base-cxx, so that CLion's
+# own cxxfin build is what gets imported (by its stub generation too). Created if missing and synced
+# exactly on every configure - a no-op when nothing changed - and CLion re-configures when uv.lock changes.
+if(NOT SKBUILD)
+    set(PY10X_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/../..)
+    set(CLION_VENV ${CMAKE_CURRENT_SOURCE_DIR}/.venv)
+    # setuptools-scm / hatch-vcs (the editable builds in the venv sync) run a plain `git` from PATH, which
+    # CLion's Windows configure need not have: put the git find_package found first on PATH.
+    find_package(Git REQUIRED)
+    get_filename_component(_git_dir ${GIT_EXECUTABLE} DIRECTORY)
+    if(WIN32)
+        set(ENV{PATH} "${_git_dir};$ENV{PATH}")
+    else()
+        set(ENV{PATH} "${_git_dir}:$ENV{PATH}")
+    endif()
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PY10X_ROOT}/uv.lock)
+    find_program(UV_EXECUTABLE uv REQUIRED)
+    set(_clion_venv_build_requirements ${CMAKE_BINARY_DIR}/clion-venv-build-requirements.txt)
+    set(_clion_venv_requirements ${CMAKE_BINARY_DIR}/clion-venv-requirements.txt)
+    execute_process(
+            COMMAND ${UV_EXECUTABLE} export --quiet --frozen --no-hashes --no-header --only-group build
+                    --format requirements-txt --output-file ${_clion_venv_build_requirements}
+            WORKING_DIRECTORY ${PY10X_ROOT}
+            COMMAND_ERROR_IS_FATAL ANY)
+    execute_process(
+            COMMAND ${UV_EXECUTABLE} export --quiet --frozen --no-hashes --no-header --no-default-groups --extra dev
+                    --group test --no-emit-package py10x-fin-base-cxx
+                    --format requirements-txt --output-file ${_clion_venv_requirements}
+            WORKING_DIRECTORY ${PY10X_ROOT}
+            COMMAND_ERROR_IS_FATAL ANY)
+    if(NOT EXISTS ${CLION_VENV}/pyvenv.cfg)
+        # From the repo root, so uv picks a Python within py10x's requires-python.
+        execute_process(COMMAND ${UV_EXECUTABLE} venv ${CLION_VENV} WORKING_DIRECTORY ${PY10X_ROOT} COMMAND_ERROR_IS_FATAL ANY)
+    endif()
+    # The C++ build toolchain first: kernel/infra build without isolation, and uv does not order their
+    # builds after it (as in `./xx-build init`).
+    execute_process(
+            COMMAND ${UV_EXECUTABLE} pip install --quiet --python ${CLION_VENV} -r ${_clion_venv_build_requirements}
+            WORKING_DIRECTORY ${PY10X_ROOT}
+            COMMAND_ERROR_IS_FATAL ANY)
+    execute_process(
+            COMMAND ${UV_EXECUTABLE} pip sync --python ${CLION_VENV} ${_clion_venv_requirements}
+            WORKING_DIRECTORY ${PY10X_ROOT}
+            COMMAND_ERROR_IS_FATAL ANY)
+    if(WIN32)
+        set(Python3_EXECUTABLE ${CLION_VENV}/Scripts/python.exe)
+    else()
+        set(Python3_EXECUTABLE ${CLION_VENV}/bin/python)
+    endif()
+endif()
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 
 # ---------------------------------------------------------------------------
