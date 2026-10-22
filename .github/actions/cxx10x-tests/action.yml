@@ -21,6 +21,9 @@ runs:
         echo "UV_PYTHON=${{ inputs.python-version }}" >> "$GITHUB_ENV"
         # Explicit, so a change to the packages' default cmake.build-type doesn't reach CI.
         echo "SKBUILD_CMAKE_BUILD_TYPE=Release" >> "$GITHUB_ENV"
+        # A native crash otherwise loses buffered stdout and leaves no trace of where it happened.
+        echo "PYTHONUNBUFFERED=1" >> "$GITHUB_ENV"
+        echo "PYTHONFAULTHANDLER=1" >> "$GITHUB_ENV"
 
     - name: Setup Windows build
       if: runner.os == 'Windows'
