@@ -175,7 +175,7 @@ For a sibling at coordinated rc `rcN` or released final `T`:
 ```
 xx-promote pre                                # cut the next coordinated rc onto the `pre` branch
 xx-promote pre --next-version 0.3.0           # force core+siblings onto 0.3.0rc1 (coordinated bump)
-xx-promote pre --next-version X=2.0.0         # same, targeting only package X
+xx-promote pre --next-version 0.3.0,X=2.0.0   # group at 0.3.0, package X at 2.0.0
 xx-promote pre --next-version X=2.0.0,Y=1.5.0 # independently targeting X and Y
 xx-promote pre --no-publish                   # cut without publish triggers (attach later)
 xx-promote pre --publish-only                 # create missing publish triggers only (idempotent)
@@ -225,14 +225,14 @@ crash re-derives the plan from current tags and resumes.
   Unchanged packages are skipped; a latest tag that is still an rc is offered for `--push`.
   On `main`, the epilogue writes **rc-window** pins (`>=rcN,<rc(N+1)`) for each sibling from the
   batch's coordinated versions.
-  **`--next-version X.Y.Z`** overrides the auto `next_micro(latest_final)` target for **core and
-  every sibling** with an explicit release — e.g. to force a coordinated minor/major bump
-  (`0.2.3rcN` → `--next-version 0.3.0` cuts `0.3.0rc1`) ahead of the next micro.
-  **`--next-version name=X.Y.Z[,name=X.Y.Z...]`** targets only the named package(s) instead (one
-  sibling alone, or a downstream). Each overridden package re-cuts even with an unchanged footprint;
-  the rest of the batch still coordinates by the normal rules (a forced re-cut can still pull others
-  forward via pin-lag). Every version must be a plain `X.Y.Z` release (no rc/dev/post) strictly
-  greater than its package's latest tag.
+  **`--next-version`** replaces the auto `next_micro(latest_final)` target. A bare `X.Y.Z` sets
+  **core and every sibling** (coordinated bump: `0.2.3rcN` → `--next-version 0.3.0` cuts `0.3.0rc1`).
+  `name=X.Y.Z` sets one package (a sibling, or a downstream). Comma-separate them; a later entry wins
+  for the same name, and a bare token rewrites the whole group, so put it first
+  (`0.4.0,py10x-kernel=0.5.0`, or `0.4.0,py10x-fin-base=0.2.0` for a downstream outside the group).
+  Each overridden package re-cuts even with an unchanged footprint; the rest of the batch still
+  coordinates by the normal rules (a forced re-cut can still pull others forward via pin-lag). Every
+  version must be a plain `X.Y.Z` release (no rc/dev/post) strictly greater than its package's latest tag.
 - **`prod`** (per package whose **latest** tag is an rc): force-updates
   the `prod` branch onto that rc commit, **stacks** a final-pin commit there (core → siblings
   exact `==X.Y` of the rc's base — `0.3.0rc1` → `0.3.0`, not `next_micro(latest_final)`; siblings

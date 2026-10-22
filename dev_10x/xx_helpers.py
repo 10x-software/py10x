@@ -161,19 +161,24 @@ class VersionHelpers:
     def parse_next_version_overrides(cls, spec: str, default_names: list[str]) -> dict[str, str]:
         """Parse a `--next-version` spec into `{pkg name: X.Y.Z}`.
 
-        Two forms: a bare `X.Y.Z` applies to every name in `default_names` (core + siblings - the
-        coordinated group); `name=X.Y.Z[,name=X.Y.Z...]` overrides only the named package(s) instead
-        (e.g. one sibling, or a downstream). Raises `ValueError` on a malformed entry or a
-        non-final version; does not check `name` against the real package registry - the caller does.
+        Comma-separated entries mix. A bare `X.Y.Z` sets every name in `default_names` (core +
+        siblings, the coordinated group). `name=X.Y.Z` sets that one package (a sibling, or a
+        downstream outside the group). A later entry replaces an earlier one for the same name, and
+        a bare token rewrites the whole group, so an exception for a group member comes after it
+        (`0.4.0,py10x-kernel=0.5.0`). `0.4.0,py10x-fin-base=0.2.0` sets the group to 0.4.0 and that
+        downstream to 0.2.0. Raises `ValueError` on a malformed entry or a non-final version; does
+        not check `name` against the real package registry - the caller does.
         """
-        if '=' not in spec:
-            version = cls.validate_next_version_override(spec)
-            return {name: version for name in default_names}
         overrides: dict[str, str] = {}
-        for part in spec.split(','):
-            name, sep, version = part.strip().partition('=')
+        for raw in spec.split(','):
+            part = raw.strip()
+            if '=' not in part:
+                version = cls.validate_next_version_override(part)
+                overrides.update({name: version for name in default_names})
+                continue
+            name, sep, version = part.partition('=')
             if not sep or not name:
-                raise ValueError(f'--next-version: malformed entry {part.strip()!r}; expected name=X.Y.Z')
+                raise ValueError(f'--next-version: malformed entry {part!r}; expected name=X.Y.Z')
             overrides[name] = cls.validate_next_version_override(version.strip())
         return overrides
 

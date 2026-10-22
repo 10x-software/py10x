@@ -96,8 +96,27 @@ def test_parse_next_version_overrides_named_targets_only_those_packages():
     }
 
 
+def test_parse_next_version_overrides_mixes_bare_group_with_named():
+    group = ['py10x-core', 'py10x-kernel', 'py10x-infra']
+    assert VersionHelpers.parse_next_version_overrides('0.4.0, py10x-fin-base=0.2.0', group) == {
+        'py10x-core': '0.4.0',
+        'py10x-kernel': '0.4.0',
+        'py10x-infra': '0.4.0',
+        'py10x-fin-base': '0.2.0',
+    }
+    assert VersionHelpers.parse_next_version_overrides('0.4.0,py10x-kernel=0.5.0', group) == {
+        'py10x-core': '0.4.0',
+        'py10x-kernel': '0.5.0',
+        'py10x-infra': '0.4.0',
+    }
+    # a bare token rewrites the group, so it clobbers an earlier named member of that group
+    assert VersionHelpers.parse_next_version_overrides('py10x-kernel=0.5.0,0.4.0', group)['py10x-kernel'] == '0.4.0'
+    # a downstream is outside the group, so the bare token does not clobber it
+    assert VersionHelpers.parse_next_version_overrides('py10x-fin-base=0.2.0,0.4.0', group)['py10x-fin-base'] == '0.2.0'
+
+
 def test_parse_next_version_overrides_rejects_malformed_entries():
-    with pytest.raises(ValueError, match='malformed'):
+    with pytest.raises(ValueError, match='released'):
         VersionHelpers.parse_next_version_overrides('py10x-core=0.3.0,bogus', [])
     with pytest.raises(ValueError, match='malformed'):
         VersionHelpers.parse_next_version_overrides('=0.3.0', [])
