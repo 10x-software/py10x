@@ -17,6 +17,10 @@ Commands (run from the py10x repo root):
                                       repo's package (e.g. a downstream wheel pinning py10x-core)
     wait_sibling_releases             poll until every sibling ==-pinned in this checkout's
                                       pyproject.toml is on PyPI (run before publishing core)
+    downstream_build_constraints PYPROJECT OUT
+                                      wait_pypi_release for the core version a downstream
+                                      release commit's PYPROJECT ==-pins, then write that core's
+                                      sibling pins to OUT as pip constraints
 """
 
 from __future__ import annotations
@@ -128,6 +132,25 @@ def wait_pypi_release_for_wheel(base: Path, wheel: Path, *, timeout: float | Non
     return wait_pypi_release(base, version, timeout=timeout, poll=poll)
 
 
+def downstream_build_constraints(base: Path, pyproject: Path, out: Path, *, timeout: float | None = None, poll: float | None = None) -> int:
+    """Write the siblings coordinated with a downstream release (e.g. `py10x-kernel==X`) to `out` as
+    pip constraints, once they are on PyPI. A downstream C++ extension (cxxfin) builds in isolation
+    against whatever kernel pip resolves; it must be the coordinated one, as pybind11 types do not
+    cross kernels built with different pybind11 internals."""
+    name = PyProjectHelpers.project_name(base / 'pyproject.toml')
+    version = PyProjectHelpers.exact_pins_from_text(pyproject.read_text(encoding='utf-8'), {name}).get(name)
+    if version is None:
+        raise SystemExit(f'no {name}== pin in {pyproject} - not a release commit?')
+    if rc := wait_pypi_release(base, version, timeout=timeout, poll=poll):
+        return rc
+    pins = PyPIHelpers.exact_pins(name, version, set(_siblings_doc(base)))
+    if not pins:
+        raise SystemExit(f'no == sibling pins on {name}=={version}')
+    out.write_text(''.join(f'{n}=={v}\n' for n, v in sorted(pins.items())), encoding='utf-8')
+    print(f'{out}: {", ".join(f"{n}=={v}" for n, v in sorted(pins.items()))}', flush=True)
+    return 0
+
+
 def latest_tag(base: Path, name: str) -> str:
     """The sibling tag whose version satisfies the spec currently pinned for it in pyproject.toml.
 
@@ -175,6 +198,8 @@ def main(argv: list[str] | None = None) -> int:
         return wait_sibling_releases(base)
     if cmd == 'wait_pypi_release_for_wheel' and len(argv) == 2:
         return wait_pypi_release_for_wheel(base, Path(argv[1]))
+    if cmd == 'downstream_build_constraints' and len(argv) == 3:
+        return downstream_build_constraints(base, Path(argv[1]), Path(argv[2]))
     raise SystemExit(f'usage:\n{__doc__}')
 
 

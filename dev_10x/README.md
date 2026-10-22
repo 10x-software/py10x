@@ -594,9 +594,14 @@ On **`pre/py10x-fin-base-v*`** / **`prod/py10x-fin-base-v*`** publish-trigger ta
 shape as the former domain `finbase_wheel.yml`):
 
 1. cibuildwheel `xx_fin/cxxfin` on ubuntu / macos / windows-2025 → `py10x-fin-base-cxx` wheels.
+   The isolated build is constrained (`PIP_CONSTRAINT`) to the siblings coordinated with this
+   release (`xx_ci downstream_build_constraints`, which waits for them on PyPI): cxxfin's own
+   build requirement is just `py10x-kernel>=0.0.0rc0`, and a cxxfin built against a kernel with
+   different pybind11 internals cannot take its types.
 2. Validate committed co-release pin (`py10x-fin-base-cxx (==<version>)`, written by xx-promote);
    `uv build --directory xx_fin` → `py10x-fin-base` sdist + wheel.
-3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`.
+3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`, then pass a
+   kernel `BDateCurve` into cxxfin (a kernel mismatch still imports, but fails that call).
    Before install, polls PyPI (up to 30 min) for the fin-base wheel’s exact `py10x-core==…`
    **and** that core’s forward-pinned siblings (`py10x-kernel` / `py10x-infra`) — see
    `.github/scripts/wait_finbase_pypi_deps.py`.
@@ -634,6 +639,7 @@ bootstrap via `uv run --no-project --with packaging --with tomlkit --with setupt
 python -m dev_10x.xx_ci latest_tag py10x-kernel
 python -m dev_10x.xx_ci verify_sibling py10x-kernel
 python -m dev_10x.xx_ci wait_sibling_releases   # on a pre/prod release commit
+python -m dev_10x.xx_ci downstream_build_constraints xx_fin/pyproject.toml cibw-constraints.txt
 ```
 
 ---
