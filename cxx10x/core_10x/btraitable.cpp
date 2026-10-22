@@ -301,7 +301,7 @@ py::dict BTraitable::id_trait_values(const py::kwargs& override_id_traits) const
 py::dict BTraitable::deserialize_id_traits(const BTraitableClass *cls, const py::object& serialized_data) {
     py::dict id_traits;
     if (!py::isinstance<py::list>(serialized_data))
-        throw py::type_error(py::str("{} - expected a list of serialized ID trait values, but found {}").format(cls->name(), serialized_data.get_type().attr("__name__")));
+        throw py::type_error(py::str("{} - expected a list of serialized ID trait values, but found {}").format(cls->name(), py::type::handle_of(serialized_data).attr("__name__")));
     const auto id_trait_value_list = serialized_data.cast<py::list>();
     const auto id_trait_value_list_size = id_trait_value_list.size();
     size_t i = 0;

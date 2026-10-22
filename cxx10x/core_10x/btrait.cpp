@@ -37,7 +37,7 @@ void BTrait::create_proc() {
 
 py::error_already_set BTrait::trait_error(const py::error_already_set &exc, BTraitable *obj, const BTraitableClass *cls, const py::object& f, const py::object* value, const py::args* args) const {
     auto py_exc = PyLinkage::create_trait_method_error(obj, cls, name(), f.attr("__name__"), value, args, &exc);
-    PyErr_SetObject(py_exc.get_type().ptr(), py_exc.ptr());
+    PyErr_SetObject(py::type::handle_of(py_exc).ptr(), py_exc.ptr());
     return {};
 }
 

@@ -20,8 +20,7 @@ permissions:
   contents: read
 
 env:
-  XX_UV_INSTALL_MODE: editable   # same as ci-test-suite: no per-import rebuild checks in CI
-  SKBUILD_CMAKE_BUILD_TYPE: Release   # same as ci-test-suite: independent of the packages' default
+  XX_UV_INSTALL_MODE: editable   # uv-sync's ci-release build mode (Release, no rebuild on import), same as ci-test-suite
 
 jobs:
   refresh:
@@ -78,8 +77,7 @@ jobs:
       # The remaining steps only run when the freeze actually moved; otherwise
       # the env is identical to what is already committed and tested.
 
-      # Re-sync so the venv matches the freshly compiled constraints.txt before
-      # testing (uv-sync applies -c constraints.txt on every install).
+      # Re-sync so the venv matches the freshly upgraded uv.lock before testing.
       - name: Re-sync against fresh constraints.txt
         if: steps.diff.outputs.changed == 'true'
         run: |

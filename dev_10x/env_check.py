@@ -9,8 +9,9 @@ and, for the editable C++ packages, the arguments scikit-build-core baked into t
 `_<name>_editable.py` loader (rebuild-on-import, verbose, build dir -> build type). Then it imports
 the compiled modules, which also proves they load without a rebuild failing (e.g. `build/` gone).
 
-MODE defaults to $XX_UV_INSTALL_MODE, else `incremental_quiet`; `dev` (plain `uv sync` after
-`./xx-build init`) is an alias of `incremental_quiet`. The expected build type is
+MODE is an `./xx-build` build mode (dev, dev-release, ci-release) or one of uv-sync's
+$XX_UV_INSTALL_MODE names, which map onto them. It defaults to $XX_UV_INSTALL_MODE, else the mode
+`./xx-build set-mode` left in uv.toml (dev without one). `dev`'s build type is
 $SKBUILD_CMAKE_BUILD_TYPE, else each package's `cmake.build-type`. `--downstream` also requires and
 checks the downstreams (py10x-fin-base and its C++ members); without it they are ignored.
 """
@@ -35,29 +36,52 @@ CORE = 'py10x-core'
 # Import name of each downstream C++ member (siblings import as their distribution name).
 MEMBER_MODULES = {'py10x-fin-base-cxx': 'cxxfin'}
 
-# What each install mode leaves behind for a local C++ package. rebuild / verbose only apply to
-# editable installs (None = not checked).
+# What each build mode ([tool.dev_10x.modes] + the default `dev`) leaves behind for a local C++
+# package. rebuild / verbose only apply to editable installs; None = not checked (build_type None:
+# the package's own default, see _build_type).
 MODES: dict[str, dict] = {
-    'normal': {'editable': False, 'rebuild': None, 'verbose': None},
-    'editable': {'editable': True, 'rebuild': False, 'verbose': None},
-    'incremental': {'editable': True, 'rebuild': True, 'verbose': True},
-    'incremental_quiet': {'editable': True, 'rebuild': True, 'verbose': False},
+    'dev': {'editable': True, 'rebuild': True, 'verbose': False, 'build_type': None},
+    'dev-release': {'editable': True, 'rebuild': True, 'verbose': False, 'build_type': 'Release'},
+    'ci-release': {'editable': True, 'rebuild': False, 'verbose': None, 'build_type': 'Release'},
 }
-ALIASES = {'dev': 'incremental_quiet'}
+# uv-sync's XX_UV_INSTALL_MODE names -> the build mode uv-sync uses for them.
+ALIASES = {'incremental_quiet': 'dev', 'incremental': 'dev', 'editable': 'ci-release', 'normal': 'ci-release'}
 
 
 def _pyproject(path: Path) -> dict:
     return tomllib.loads((path / 'pyproject.toml').read_text(encoding='utf-8'))
 
 
+def _workspace_members(src_dir: Path) -> dict[str, Path]:
+    """`{dist-name: path}` for each `[tool.uv.workspace]` member under a packaging root."""
+    pyproject = Path(src_dir) / 'pyproject.toml'
+    if not pyproject.is_file():
+        return {}
+    out: dict[str, Path] = {}
+    for pattern in _pyproject(Path(src_dir)).get('tool', {}).get('uv', {}).get('workspace', {}).get('members', []):
+        for path in sorted(Path(src_dir).glob(pattern)):
+            if (path / 'pyproject.toml').is_file() and (name := _pyproject(path).get('project', {}).get('name')):
+                out[str(name)] = path.resolve()
+    return out
+
+
+def is_native(src_dir: Path) -> bool:
+    """A C++ (scikit-build-core) package, as opposed to a pure-Python one."""
+    pyproject = Path(src_dir) / 'pyproject.toml'
+    return pyproject.is_file() and _pyproject(Path(src_dir)).get('build-system', {}).get('build-backend', '').startswith('scikit_build_core')
+
+
+def native_members(src_dir: Path) -> dict[str, Path]:
+    """`{dist-name: path}` for the C++ workspace members of a downstream (fin-base -> cxxfin)."""
+    return {name: path for name, path in _workspace_members(src_dir).items() if is_native(path)}
+
+
 def first_party(root: Path = PROJECT_ROOT) -> tuple[dict[str, Path], dict[str, Path], dict[str, Path]]:
     """(C++ siblings, downstreams, downstream C++ members) as {distribution name: source dir}."""
-    from dev_10x.uv_sync import _native_members
-
     cfg = _pyproject(root).get('tool', {}).get('dev_10x', {})
     siblings = {name: (root / spec['path']).resolve() for name, spec in cfg.get('siblings', {}).items()}
     downstreams = {name: (root / spec['path']).resolve() for name, spec in cfg.get('downstream', {}).items()}
-    members = {name: path.resolve() for src in downstreams.values() for name, path in _native_members(src).items()}
+    members = {name: path.resolve() for src in downstreams.values() for name, path in native_members(src).items()}
     return siblings, downstreams, members
 
 
@@ -120,7 +144,7 @@ def check_cxx(name: str, state: dict | None, src: Path, expect: dict) -> list[st
         for key in ('rebuild', 'verbose'):
             if expect[key] is not None and state.get(key) != expect[key]:
                 problems.append(f'{name}: expected {key}={expect[key]}, got {state.get(key)}')
-        build_type = _build_type(src)
+        build_type = expect.get('build_type') or _build_type(src)
         if state.get('build_type') and state['build_type'] != build_type:
             problems.append(f'{name}: expected build type {build_type}, got {state["build_type"]}')
     return problems
@@ -179,9 +203,16 @@ def import_modules(downstream: bool, root: Path = PROJECT_ROOT) -> list[str]:
     return problems
 
 
+def default_mode(root: Path = PROJECT_ROOT) -> str:
+    """$XX_UV_INSTALL_MODE (uv-sync), else the mode `./xx-build set-mode` left in uv.toml."""
+    from dev_10x.xx_build import DEFAULT_MODE, active_mode
+
+    return os.environ.get('XX_UV_INSTALL_MODE') or active_mode(root) or DEFAULT_MODE
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog='python -m dev_10x.env_check', description=__doc__.splitlines()[0])
-    parser.add_argument('mode', nargs='?', default=os.environ.get('XX_UV_INSTALL_MODE') or 'incremental_quiet', choices=[*MODES, *ALIASES])
+    parser.add_argument('mode', nargs='?', default=default_mode(), choices=[*MODES, *ALIASES])
     parser.add_argument('--downstream', action='store_true', help='also require and check the downstreams (fin-base, cxxfin)')
     parser.add_argument('--no-import', action='store_true', help='skip importing the compiled modules')
     args = parser.parse_args(argv)

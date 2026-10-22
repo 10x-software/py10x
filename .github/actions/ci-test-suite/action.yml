@@ -40,18 +40,14 @@ runs:
       run: |
         echo "XX_CXX_SANITIZERS=ON" >> "$GITHUB_ENV"
 
-    # CI keeps plain editable C++ installs instead of the incremental default: nothing is edited
-    # after install, so per-import rebuild checks in every xdist worker would be pure overhead.
-    # Not `normal` either - cxxfin finds kernel headers via the editable install; a non-editable
-    # kernel makes it fetch them by commit hash, which fails for a PR's merge commit.
+    # XX_UV_INSTALL_MODE=editable -> uv-sync's ci-release build mode (dev_10x/README.md): Release, and no
+    # rebuild-on-import - nothing is edited after install, so per-import rebuild checks in every xdist
+    # worker would be pure overhead. Editable: cxxfin finds kernel headers via the editable install.
     - name: Install dependencies
       shell: bash
       run: |
         echo "XX_UV_INSTALL_MODE=editable" >> "$GITHUB_ENV"
         export XX_UV_INSTALL_MODE=editable
-        # Explicit, so a change to the packages' default cmake.build-type doesn't reach CI.
-        echo "SKBUILD_CMAKE_BUILD_TYPE=Release" >> "$GITHUB_ENV"
-        export SKBUILD_CMAKE_BUILD_TYPE=Release
         uv venv
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         python -m dev_10x.uv_sync py10x-dev --all-extras
@@ -60,7 +56,7 @@ runs:
         # No import under ASan: an instrumented module only loads under the ASan harness (see below).
         python -m dev_10x.env_check ${{ inputs.asan == 'true' && '--no-import' || '' }}
 
-    # uv-sync applies -c constraints.txt on every install, so the test env is frozen. Assert every
+    # The env is uv.lock (uv sync installs exactly it), which constraints.txt exports. Assert every
     # installed third-party dist is pinned (catches a py10x or sibling dep that escaped the freeze).
     - name: Verify env is fully frozen against constraints.txt
       shell: bash
@@ -76,8 +72,9 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check-export
 
-    # uv.lock must be current with every pyproject (pin bumps lock in the same commit: xx-promote and
-    # `xx-constraints compile` both run `uv lock`). Read-only: fails instead of rewriting the lock.
+    # uv.lock must be current with every pyproject (`xx-constraints compile` runs `uv lock`; xx-promote's
+    # pin bumps don't change it - first-party packages are path sources, locked without versions).
+    # Read-only: fails instead of rewriting the lock.
     - name: Verify uv.lock is up to date
       shell: bash
       run: uv lock --check

@@ -139,7 +139,7 @@ public:
 
     explicit PyLinkage(const py::dict& package_names);
 
-    static py::object type(const py::object& v) { return py::reinterpret_borrow<py::object>(v.get_type()); }
+    static py::object type(const py::object& v) { return py::type::of(v); }
 
     static py::object type_class()              { return s_py_linkage->m_type_cls; }
     static py::object bool_class()              { return s_py_linkage->m_bool_cls; }

@@ -51,11 +51,10 @@ class TestCheckCxx:
     @pytest.mark.parametrize(
         ('mode', 'state'),
         [
-            ('normal', _state(editable=False)),
-            ('editable', _state(rebuild=False)),
-            ('editable', _state(rebuild=False, verbose=True)),  # verbose is not part of 'editable'
-            ('incremental', _state(rebuild=True, verbose=True)),
-            ('incremental_quiet', _state(rebuild=True, verbose=False)),
+            ('dev', _state(rebuild=True, verbose=False)),
+            ('dev-release', _state(rebuild=True, verbose=False, build_type='Release')),
+            ('ci-release', _state(rebuild=False, build_type='Release')),
+            ('ci-release', _state(rebuild=False, verbose=True, build_type='Release')),  # verbose is not part of ci-release
         ],
     )
     def test_expected_state_passes(self, mode, state):
@@ -64,13 +63,15 @@ class TestCheckCxx:
     @pytest.mark.parametrize(
         ('mode', 'state', 'problem'),
         [
-            # The 3a regressions: root sources made kernel/infra editable in 'normal' mode (Docker), and
-            # the downstream install turned rebuild-on-import back on in 'editable' mode (Windows CI).
-            ('normal', _state(editable=True, rebuild=True), 'expected non-editable'),
-            ('editable', _state(rebuild=True), 'expected rebuild=False'),
-            ('incremental_quiet', _state(rebuild=True, verbose=True), 'expected verbose=False'),
-            ('incremental_quiet', _state(build_type='Release'), 'expected build type Debug'),
-            ('editable', _state(rebuild=False, url='file:///elsewhere/core_10x'), 'expected an install from'),
+            # The 3a regressions: root sources overriding the install mode (Docker: a rebuild-on-import
+            # install with its build dir gone), and the downstream install turning rebuild-on-import back
+            # on in CI (the Windows xdist race).
+            ('ci-release', _state(rebuild=True, build_type='Release'), 'expected rebuild=False'),
+            ('ci-release', _state(editable=False), 'expected editable'),
+            ('dev', _state(rebuild=True, verbose=True), 'expected verbose=False'),
+            ('dev', _state(build_type='Release'), 'expected build type Debug'),
+            ('dev-release', _state(build_type='Debug'), 'expected build type Release'),
+            ('ci-release', _state(rebuild=False, build_type='Release', url='file:///elsewhere/core_10x'), 'expected an install from'),
         ],
     )
     def test_wrong_state_is_reported(self, mode, state, problem):
@@ -78,23 +79,35 @@ class TestCheckCxx:
         assert len(problems) == 1 and problem in problems[0]
 
     def test_index_install_is_reported(self):
-        state = {'url': None, 'editable': False, 'local': False}
-        assert 'the index' in env_check.check_cxx('py10x-kernel', state, SRC, env_check.MODES['normal'])[0]
+        state = {'url': None, 'editable': True, 'local': False}
+        assert 'the index' in env_check.check_cxx('py10x-kernel', state, SRC, env_check.MODES['dev'])[0]
 
     def test_missing_package_is_reported(self):
-        assert env_check.check_cxx('py10x-kernel', None, SRC, env_check.MODES['editable']) == ['py10x-kernel: not installed']
+        assert env_check.check_cxx('py10x-kernel', None, SRC, env_check.MODES['dev']) == ['py10x-kernel: not installed']
 
 
 class TestModes:
-    def test_dev_is_the_plain_uv_sync_default(self):
-        assert env_check.ALIASES['dev'] == 'incremental_quiet'
-
-    def test_covers_every_uv_sync_install_mode(self):
+    def test_uv_sync_install_modes_map_like_uv_sync(self):
         from dev_10x import uv_sync
 
-        assert set(env_check.MODES) == set(uv_sync.INSTALL_MODES)
+        assert env_check.ALIASES == uv_sync.MODES
 
-    def test_mode_defaults_to_xx_uv_install_mode(self, monkeypatch):
+    @pytest.mark.parametrize(
+        ('env', 'uv_toml_mode', 'expected'), [('editable', 'dev-release', 'editable'), (None, 'dev-release', 'dev-release'), (None, None, 'dev')]
+    )
+    def test_default_mode(self, monkeypatch, tmp_path, env, uv_toml_mode, expected):
+        """$XX_UV_INSTALL_MODE (uv-sync), else the mode `./xx-build set-mode` left in uv.toml, else dev."""
+        from dev_10x import xx_build
+
+        if env:
+            monkeypatch.setenv('XX_UV_INSTALL_MODE', env)
+        else:
+            monkeypatch.delenv('XX_UV_INSTALL_MODE', raising=False)
+        if uv_toml_mode:
+            (tmp_path / 'uv.toml').write_text(xx_build.HEADER.format(mode=uv_toml_mode), encoding='utf-8')
+        assert env_check.default_mode(tmp_path) == expected
+
+    def test_main_checks_the_default_mode(self, monkeypatch):
         seen = {}
         monkeypatch.setenv('XX_UV_INSTALL_MODE', 'editable')
         monkeypatch.setattr(env_check, 'check', lambda mode, downstream: (seen.update(mode=mode), ([], []))[1])

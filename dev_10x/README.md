@@ -11,7 +11,7 @@ Declared in `[project.scripts]`:
 
 | command              | purpose                                                                 |
 |----------------------|-------------------------------------------------------------------------|
-| `uv-sync`            | prepare the venv for a chosen *dependency-source profile*               |
+| `uv-sync`            | compatibility wrapper over `./xx-build` (install mode -> build mode)    |
 | `uv-run`             | run a command in the prepared venv without `uv run` re-syncing          |
 | `xx-promote`         | cut release candidates / final releases and yank them                     |
 | `xx-constraints`     | regenerate or verify the committed third-party dependency freeze        |
@@ -80,9 +80,9 @@ default core CI job (`--all-extras` does **not** pull `dependency-groups.test`).
 | downstream | own footprint **or core** pin lag | branch/tags + refresh **core’s test-group** pin; do **not** edit published core deps |
 
 Layout: `[tool.dev_10x.siblings]` and optional `[tool.dev_10x.downstream]` (same `{name = {path=…}}`
-shape; paths are in-repo). `xx_promote` / `uv_sync` / `constraints` all read both. Downstream
-install is **opt-in**: `uv-sync <profile> --with-downstream [name…]` (`cxx=False`; not on the C++
-rebuild path). Git installs use `origin` + `subdirectory=path`. Tag prefix defaults to `{name}-v`.
+shape; paths are in-repo). `xx_promote` / `env_check` / `constraints` all read both. Downstreams
+are installed through the `test` / `test-extras` dependency groups (default in plain `uv sync`;
+`uv-sync` leaves them out unless `--with-downstream`). Tag prefix defaults to `{name}-v`.
 
 **Footprint.** A package re-cuts when its *footprint* changed since its last tag. By default that is
 the whole repo minus the other packages' paths — shared files (CI, root config) count for core and
@@ -100,7 +100,7 @@ Explicit footprints are also excluded from every default footprint (core ignores
 
 - **Dirty tree → wrong version.** Any transient edit to `pyproject.toml` during an editable build
   makes scm stamp `X.Y.Z.devN+g<hash>.d<date>` instead of the tag version. Avoid editing pyproject
-  during installs (a core reason for the `uv-sync` pip-install redesign).
+  during installs.
 - **`0.1.dev1+g…` = NO tag found** (absolute fallback) — almost always a *shallow* checkout. CI that
   versions a co-dependency sibling needs `actions/checkout` `fetch-depth: 0`; the triggering tag is
   present even when shallow, other tags are not.
@@ -287,173 +287,86 @@ xx-promote prod --push
 From the repo root (bash; Git Bash on Windows):
 
 ```bash
-./xx-build init           # fresh clone
-./xx-build init --clean   # start over (also after `uv venv --clear` or deleting build/)
-uv sync                   # from then on: keep the env current
+./xx-build init                    # fresh clone (build mode: dev)
+./xx-build init --mode ci-release  # ... in another build mode
+./xx-build init --clean            # start over (also after `uv venv --clear` or deleting build/)
+./xx-build set-mode dev-release    # switch build mode, rebuild
+./xx-build show-mode               # active mode; fails if uv.toml is out of date
+uv sync                            # from then on: keep the env current, in the active mode
 uv run pytest -q
 ```
 
 Plain `uv sync` installs the default dependency groups (`dev`, `extras`, `test`, `test-extras`):
 py10x-core with all its extras, plus py10x-kernel / py10x-infra / py10x-fin-base / py10x-fin-base-cxx
 editable from this tree. The C++ packages build without isolation into `build/py10x-build/` (next to
-`.venv`, so it survives `uv venv --clear`) and rebuild incrementally on import. On Windows, that
-import fails while another process still holds the old extension, and works again once it exits.
+`.venv`, so it survives `uv venv --clear`), one build dir per build type.
 
 `init` exists because a fresh environment needs an order uv cannot express on its own: the C++
 toolchain (the `build` group, from `uv.lock`) first, since the C++ packages build without isolation;
 then py10x-kernel / py10x-infra, since py10x-fin-base-cxx's build needs an installed kernel; then
 everything else. It refuses to run over an existing `.venv` or `build/`; `--clean` deletes both
-first. Extra arguments go to its `uv sync` calls (e.g. `--locked`). `./xx-build` is a script at the
-repo root rather than a `[project.scripts]` command because it runs before the venv exists
-(implementation: `dev_10x/xx_build.py`).
+first. Extra arguments go to its `uv sync` calls (e.g. `--locked`, `--no-group test`). `./xx-build`
+is a script at the repo root rather than a `[project.scripts]` command because it runs before the
+venv exists (implementation: `dev_10x/xx_build.py`).
 
 `uv.lock` is committed: change it only as described under
 [constraints](#constraintstxt--reproducibility), never with `uv sync --upgrade` / `uv lock --upgrade`.
 
-`uv-sync` (below) is still what CI and Docker use, until they switch to `./xx-build init`.
+### Build modes
+
+| mode | C++ packages | use |
+|------|--------------|-----|
+| `dev` (default) | Debug, editable, rebuild-on-import | everyday development: C++ edits take effect on the next import |
+| `dev-release` | Release, editable, rebuild-on-import | developing against optimized builds |
+| `ci-release` | Release, editable, no rebuild on import | CI and the Docker image: built once, so no per-import rebuild check (and the build dir may go) |
+
+`dev` is `[tool.uv]` in `pyproject.toml` as is (each C++ package's own defaults: Debug,
+`editable.rebuild = true`). The other modes are tables under `[tool.dev_10x.modes]`:
+`./xx-build set-mode <mode>` writes a gitignored `uv.toml` = a copy of `[tool.uv]` (minus `sources`,
+`default-groups` and the other fields uv reads only from `pyproject.toml`) with the mode's
+`config-settings-package` merged in, then rebuilds in `init`'s order. uv takes `uv.toml` in place of
+`[tool.uv]` - and says so in a warning on every command while a non-default mode is active.
+`./xx-build set-mode dev` deletes `uv.toml`; build dirs are per build type, so switching back reuses
+the Debug build.
+
+`uv.toml` is a copy: after editing `[tool.uv]` or a mode, re-run `./xx-build set-mode <mode>`.
+`./xx-build show-mode` prints the active mode and fails, naming that command, when `uv.toml` no
+longer matches what `set-mode` would write.
+
+Sanitizers are a separate switch: `XX_CXX_SANITIZERS=ON` (an env var and a C++ cache key, in any
+mode). The Windows MSVC toolset pin is not part of any mode either: it lives in each C++ package's
+`pyproject.toml`. cibuildwheel (published wheels) builds in isolation with its own settings: a
+throwaway build dir, no rebuild, Release.
+
+On Windows, an import that rebuilds fails while another process still holds the old extension, and
+works again once that process exits. Under pytest, `dev_10x/pytest_plugin.py` rebuilds once in the
+main process and has xdist workers skip the check (`SKBUILD_EDITABLE_SKIP`).
+
+`python -m dev_10x.env_check [MODE] [--downstream]` asserts the venv holds what a mode installs
+(source tree, editable, rebuild-on-import, build type) and imports the C++ modules; with no MODE it
+checks the active one. CI runs it after every install (`ci.yml`'s install-modes job walks all modes).
 
 ---
 
-## `uv-sync` / `uv-run` — local dependency profiles
+## `uv-sync` / `uv-run` — compatibility wrappers
 
-### Design
+`uv-sync py10x-dev [--all-extras] [--with-downstream] [uv sync args...]` (`dev_10x/uv_sync.py`) is a
+thin wrapper over `./xx-build`, kept for CI (`ci-test-suite`, `refresh-constraints.yml`) and existing
+habits. `$XX_UV_INSTALL_MODE` picks the build mode:
 
-`uv-sync` drives **`uv pip install` directly** instead of transiently rewriting
-`pyproject.toml` `[tool.uv.sources]` and running `uv sync`. Nothing edits pyproject, so the tree
-stays clean → setuptools-scm never stamps a dirty guess-next-dev version → py10x-core (and the slow
-`playwright install` hook) is rebuilt only when its source version actually changes.
+| `XX_UV_INSTALL_MODE` | build mode |
+|----------------------|------------|
+| `incremental_quiet` (default), `incremental` | `dev` |
+| `editable`, `normal` | `ci-release` |
 
-Every `uv pip install` passes **`-c constraints.txt`** (see [constraints](#constraintstxt--reproducibility)
-below).
+and the arguments pick the dependency groups: without `--all-extras` it adds `--no-group extras`,
+without `--with-downstream` `--no-group test --no-group test-extras` (so xxfin is not importable -
+core CI's isolation check). It then runs `./xx-build set-mode <mode>` (`init --mode <mode>` without a
+`.venv`), passing other arguments on to `uv sync`. `--upgrade` is dropped (uv.lock changes only
+through `xx-constraints compile`); the `user` / `domain-dev` profiles are gone - a domain repo syncs
+against py10x with its own `uv sync`.
 
-`uv-run <command> [args…]` is a thin wrapper around `uv run --no-sync …`. The venv is prepared by
-`uv-sync` (`uv run --no-sync python -m dev_10x.uv_sync <profile>`). From repo root you do **not**
-need `source .venv/bin/activate` — `uv run --no-sync` uses the project venv automatically. The
-installed `uv-sync` / `uv-run` scripts are equivalent shortcuts when the venv is on `PATH`.
-
-The active profile is recorded in `.dev_10x_profile` (informational).
-
-### Profiles
-
-| profile          | py10x-core      | py10x-kernel / py10x-infra |
-|------------------|-----------------|----------------------------|
-| `user`           | local editable  | released wheels (index)    |
-| `domain-dev`     | git `main`      | git `main`                 |
-| `py10x-dev`      | local editable  | local editable (`cxx10x/`) |
-
-`py10x-core-dev` is a legacy alias of `py10x-dev` (before the move, `py10x-dev` built the siblings
-from cxx10x git `main`).
-
-```
-# typical — editable core + editable in-tree C++ siblings
-uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
-uv run --no-sync pytest -q
-
-# opt-in downstreams from [tool.dev_10x.downstream] (omitted by default; cxx=False).
-# Always the local packaging root (not git/index), so extras can be applied.
-uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
-uv run --no-sync python -m dev_10x.uv_sync py10x-dev --with-downstream py10x-fin-base
-```
-
-### Install order
-
-1. **Siblings** (+ opt-in downstreams) (local or git) — install only when [reinstall rules](#reinstall-rules) say so.
-   For **local** siblings, `uv pip install -e <path> "<name> (<pin from pyproject>)"` on one command
-   so a lagged editable below the rc-window floor fails resolve instead of silently pulling the index.
-   Index siblings are resolved in step 2; `--reinstall-package` forces a swap if currently editable/git.
-2. **`uv pip install --requirements pyproject.toml`** (+ caller args such as `--all-extras`) —
-   core's deps and extras, additive (keeps step-1 siblings). Rc-window pins block index rc upgrades.
-3. **py10x-core itself** (local editable, or git for `domain-dev`) — install only if needed.
-
-### Reinstall rules
-
-Applied per package (`need_install` in `dev_10x/uv_sync.py`):
-
-| condition | action |
-|-----------|--------|
-| not installed | reinstall |
-| git source profile | always reinstall |
-| switching to index from non-index | reinstall (via `--reinstall-package` in step 2) |
-| local editable path changed | reinstall |
-| local editable: installed version ≠ setuptools-scm of source | reinstall |
-| `XX_UV_INSTALL_MODE` toggled | force reinstall of local C++ siblings |
-
-**Source detection** uses PEP 610 `direct_url.json`: absent → index; `dir_info.editable` → local
-(compare path); otherwise → git/other. The version-skip optimization matters for editable installs
-(expensive C++/playwright); index and git wheels are cheap to reinstall.
-
-After install, a **PEP 610 editable guard** raises if a profile expects a local sibling but the
-installed dist came back non-editable (pin pulled an index build).
-
-Git URLs are derived from the sibling `path` and `origin` (`_swap_repo` preserves SSH vs HTTPS).
-Branch from `[tool.dev_10x] branch` (default `main`).
-
-Extras are **not** forced — pass `--all-extras` / `--extra X` as `uv-sync` args. They bind to the
-current package (step 2 `--requirements pyproject.toml`) **and** to opt-in downstreams, which
-always install from the **local** packaging root (in-tree `xx_fin`, etc.) as
-`-e <path> --all-extras --requirements <path>/pyproject.toml` (uv rejects bare `-e path --all-extras`).
-Siblings never get extras: git specs have no pyproject source. A git downstream + extras raises
-as a safety net — `--with-downstream` itself forces local.
-
-`py10x-dev` also runs `playwright install chromium` when needed.
-
-### `XX_UV_INSTALL_MODE`
-
-Controls how local C++ packages (py10x-kernel/py10x-infra, and fin-base's `cxxfin` with
-`--with-downstream`) install. py10x-core itself is
-unaffected — it's pure Python and always installs editable, so tests collected by path from the
-source tree don't fight a second, non-editable copy in site-packages.
-
-| mode | shape | use case |
-|------|-------|----------|
-| `normal` | plain, non-editable install; no ongoing dependency on the sibling's source tree | a build-once image (`docker/Dockerfile`'s `dev` target) |
-| `editable` | editable, no rebuild-on-import (`editable.rebuild=false`); C++ edits need a re-sync | CI (`ci-test-suite`, `refresh-constraints.yml`): nothing is edited after install |
-| `incremental` | editable + rebuild-check on every *import* (not just install), with its log output (`editable.verbose=true`) | local dev, when you want to see the rebuild output |
-| `incremental_quiet` (default, i.e. unset) | same as `incremental`, with scikit-build-core's per-import rebuild-check log spam silenced (`editable.verbose=false`) | everyday local dev |
-
-With the incremental default, C++ edits under `cxx10x/` take effect on the next `import py10x_kernel`
-/ `py10x_infra` — Ninja rebuilds only what changed — with no `uv-sync` re-run. Re-running `uv-sync`
-is only needed for dependency changes, or to refresh the installed version metadata (its
-version-drift reinstall is incremental too, so it costs seconds, not a full build).
-
-CI pins `editable`, not `normal`: cxxfin locates kernel headers through the *editable* kernel
-install. With a non-editable kernel it fetches them from GitHub by the kernel version's commit hash,
-which does not exist for a PR's merge commit.
-
-The defaults live in each C++ package's own `pyproject.toml` and equal `incremental_quiet`:
-`cmake.build-type = "Debug"`, `build-dir = "../../build/py10x-build/<pkg>/{build_type}/{wheel_tag}"`,
-`editable.rebuild = true`, `editable.verbose = false`. So a plain `uv pip install -e cxx10x/core_10x` behaves like the uv-sync
-default. Every mode builds without isolation (an isolated build would bake throwaway cmake/ninja
-paths into the persistent CMakeCache; the root `[tool.uv] no-build-isolation-package` covers plain
-`uv` commands), and uv-sync adds only:
-
-- `editable`: `--config-settings-package <pkg>:editable.rebuild=false`
-- `incremental`: `--config-settings-package <pkg>:editable.verbose=true`
-
-Local builds are Debug by default, for development. For a different build type, set
-scikit-build-core's own env var — it applies the same way to uv-sync and to plain `uv` commands,
-and each type gets its own build dir:
-`SKBUILD_CMAKE_BUILD_TYPE=Release uv run --no-sync python -m dev_10x.uv_sync py10x-dev ...`.
-The mode overrides also work as env vars outside uv-sync, e.g. `SKBUILD_EDITABLE_REBUILD=false`.
-cibuildwheel and git-sibling installs build in isolation, so they clear `build-dir` and set
-`editable.rebuild=false`; cibuildwheel also pins `cmake.build-type=Release` for published wheels. The Windows MSVC toolset pin is not a uv-sync flag either: it lives in
-each C++ package's `pyproject.toml`.
-
-The active mode and build-type override are recorded in `.venv/.xx_uv_install_mode` (e.g.
-`incremental_quiet:default`, `editable:Release`); changing either forces a local C++ reinstall
-even if the version is unchanged. CI (ci-test-suite, cxx10x-tests, build.yml,
-refresh-constraints) and the Docker image set `SKBUILD_CMAKE_BUILD_TYPE=Release` explicitly, so they
-test what ships rather than the Debug dev default. `uv-sync` seeds the toolchain first
-(`scikit-build-core`, `setuptools-scm`, `cmake`, `ninja`, `editables`) whenever it builds local C++
-packages, since those builds are never isolated.
-
-`normal`-mode siblings are never classified `local` by the PEP 610 source detection below (they
-aren't editable), so they reinstall on every `uv-sync` invocation — irrelevant for a build-once
-CI/image run, a minor cost if invoked repeatedly in that mode locally.
-
-`normal` mode's non-editable install means the sibling's source tree (`cxx10x/`) is
-only needed *during* the install, not afterward — a container build can drop it from later
-layers/stages once the compiled package is installed.
+`uv-run <command>` is `uv run --no-sync <command>`.
 
 ---
 
@@ -466,9 +379,9 @@ metadata.
 **The freeze is the committed `uv.lock`** (universal: every supported Python and platform, all
 extras and dependency groups, downstreams included through the `test` / `test-extras` groups).
 **`constraints.txt` is generated from it** with `uv export`: the same pins as a reviewable
-`name==version` list. It is applied via `uv pip install -c constraints.txt` on **every** install (dev
-+ all CI): `dev_10x/uv_sync.py` appends `-c` to every pip install; `ci.yml` inherits it through
-`uv-sync`; `build.yml` and `cxx10x_wheels.yml` pass `-c` explicitly. Never edit either file by hand.
+`name==version` list. `uv sync` (dev, and CI through `uv-sync`) installs exactly `uv.lock`;
+`build.yml` and `cxx10x_wheels.yml`, which use `uv pip install`, pass `-c constraints.txt`. Never edit
+either file by hand.
 
 Lock changes come only from pyproject edits (`xx-constraints compile`) or the weekly refresh
 workflow. **Never run `uv sync --upgrade` / `uv lock --upgrade` locally** to update the freeze; it
@@ -581,7 +494,7 @@ Same CI job as the core suite ([`.github/actions/ci-test-suite`](../.github/acti
 | Step | Env | Check |
 |------|-----|--------|
 | **Core isolation** | siblings + core; **no** `--with-downstream` | `find_spec('xxfin') is None`, then core / ui / infra / dev / xxcommon pytest |
-| **Downstream** | same venv + `uv-sync … --with-downstream` | `import xxfin; import cxxfin`, then `pytest xx_fin/` |
+| **Downstream** | same venv + `uv-sync py10x-dev --all-extras --with-downstream` | `import xxfin; import cxxfin`, then `pytest xx_fin/` |
 
 Do not install fin-base before the core suite — that would break isolation. Default `pytest`
 ignores in-repo downstream trees (`xx_fin/`, from `[tool.dev_10x.downstream]`) unless that dist
@@ -594,9 +507,14 @@ On **`pre/py10x-fin-base-v*`** / **`prod/py10x-fin-base-v*`** publish-trigger ta
 shape as the former domain `finbase_wheel.yml`):
 
 1. cibuildwheel `xx_fin/cxxfin` on ubuntu / macos / windows-2025 → `py10x-fin-base-cxx` wheels.
+   The isolated build is constrained (`PIP_CONSTRAINT`) to the siblings coordinated with this
+   release (`xx_ci downstream_build_constraints`, which waits for them on PyPI): cxxfin's own
+   build requirement is just `py10x-kernel>=0.0.0rc0`, and a cxxfin built against a kernel with
+   different pybind11 internals cannot take its types.
 2. Validate committed co-release pin (`py10x-fin-base-cxx (==<version>)`, written by xx-promote);
    `uv build --directory xx_fin` → `py10x-fin-base` sdist + wheel.
-3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`.
+3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`, then pass a
+   kernel `BDateCurve` into cxxfin (a kernel mismatch still imports, but fails that call).
    Before install, polls PyPI (up to 30 min) for the fin-base wheel’s exact `py10x-core==…`
    **and** that core’s forward-pinned siblings (`py10x-kernel` / `py10x-infra`) — see
    `.github/scripts/wait_finbase_pypi_deps.py`.
@@ -610,9 +528,9 @@ removed.
 
 - Every checkout that builds kernel/infra needs `fetch-depth: 0`: their setuptools-scm versions
   come from this repo's `py10x-{kernel,infra}-v*` tags.
-- Use `python -m dev_10x.uv_sync` in CI (not `uvx --from ".[dev]" uv-sync`): `uvx` resolves
-  `pyproject.toml` sibling deps from PyPI when installing the tool, which fails while `main` pins
-  are ahead of the index; `uv-sync` installs local siblings first, then applies pins.
+- Use `python -m dev_10x.uv_sync` (or `./xx-build`) in CI, not `uvx --from ".[dev]" uv-sync`: `uvx`
+  resolves `pyproject.toml` sibling deps from PyPI when installing the tool, which fails while `main`
+  pins are ahead of the index.
 - `uv pip install --all-extras` needs an explicit source:
   `-e . --all-extras --requirements pyproject.toml` (unlike `uv sync`).
 - Tag triggers: **`pre/py10x-kernel-v*`** / **`prod/…`** (and core **`pre/v*`** / **`prod/v*`**).
@@ -627,13 +545,14 @@ removed.
 `core_10x/__init__.py` imports `py10x_kernel`, so **anything that imports `core_10x` needs the
 compiled kernel.** Tag resolution and sibling verification in publish CI must run *before* siblings
 are installed — hence `dev_10x/xx_ci.py` uses only `packaging` and `tomlkit`. For local/ad-hoc use,
-bootstrap via `uv run --no-project --with packaging --with tomlkit --with setuptools-scm`, or let
-`python -m dev_10x.uv_sync` create the venv first (`ensure_env_and_runtime_deps`).
+bootstrap via `uv run --no-project --with packaging --with tomlkit --with setuptools-scm`, or set up
+the dev env first (`./xx-build init`).
 
 ```
 python -m dev_10x.xx_ci latest_tag py10x-kernel
 python -m dev_10x.xx_ci verify_sibling py10x-kernel
 python -m dev_10x.xx_ci wait_sibling_releases   # on a pre/prod release commit
+python -m dev_10x.xx_ci downstream_build_constraints xx_fin/pyproject.toml cibw-constraints.txt
 ```
 
 ---
