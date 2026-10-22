@@ -16,7 +16,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${PY10X_ROOT}/uv.
 find_program(UV_EXECUTABLE uv REQUIRED)
 set(_clion_venv_requirements ${CMAKE_BINARY_DIR}/clion-venv-requirements.txt)
 execute_process(
-        COMMAND ${UV_EXECUTABLE} export --frozen --no-hashes --no-header --no-default-groups --extra dev
+        COMMAND ${UV_EXECUTABLE} export --quiet --frozen --no-hashes --no-header --no-default-groups --extra dev
                 --no-emit-package py10x-kernel --no-emit-package py10x-infra
                 --format requirements-txt --output-file ${_clion_venv_requirements}
         WORKING_DIRECTORY ${PY10X_ROOT}
