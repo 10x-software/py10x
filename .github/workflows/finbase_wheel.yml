@@ -25,12 +25,39 @@ jobs:
           fetch-depth: 0
           fetch-tags: true
 
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # cxxfin builds in isolation against whatever py10x-kernel pip resolves (build-system requires
+      # py10x-kernel>=0.0.0rc0), i.e. the newest on PyPI - while this release's own kernel may still
+      # be publishing. It must be that kernel: pybind11 types do not cross kernels built with
+      # different pybind11 internals. So wait for it and constrain the build to it.
+      # Untracked, so the setuptools-scm version stays clean.
+      - name: Resolve coordinated py10x-kernel
+        shell: bash
+        env:
+          PYPI_TIMEOUT_SEC: "1800"
+          PYPI_POLL_SEC: "90"
+        run: |
+          set -euo pipefail
+          : > cibw-constraints.txt
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            python -m pip install -c constraints.txt packaging tomlkit
+            python -m dev_10x.xx_ci downstream_build_constraints xx_fin/pyproject.toml cibw-constraints.txt
+          fi
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
         with:
           package-dir: xx_fin/cxxfin
           output-dir: xx_fin/cxxfin/wheelhouse
         env:
+          # The `build` frontend installs the isolated build env with pip, which reads PIP_CONSTRAINT:
+          # host env on macOS / Windows; the project is copied to /project in the manylinux container.
+          CIBW_BUILD_FRONTEND: "build"
+          PIP_CONSTRAINT: ${{ github.workspace }}/cibw-constraints.txt
+          CIBW_ENVIRONMENT_LINUX: "PIP_CONSTRAINT=/project/cibw-constraints.txt"
           CIBW_BUILD: "cp311-* cp312-* cp313-*"
           CIBW_SKIP: "*-musllinux_*"
           CIBW_ARCHS_LINUX: "x86_64"
@@ -146,8 +173,25 @@ jobs:
             sleep 30
           done
 
-      - name: Import smoke test
-        run: python -c "import xxfin; import cxxfin; print(xxfin.__file__); print(cxxfin.__file__)"
+      # Passes a kernel BDateCurve into cxxfin: a cxxfin built against a kernel with different pybind11
+      # internals still imports, but fails here with "incompatible function arguments".
+      - name: Smoke test
+        shell: bash
+        run: |
+          python - <<'EOF'
+          import types
+
+          import xxfin  # promotes py10x_kernel to RTLD_GLOBAL before cxxfin loads
+          import cxxfin
+          import py10x_kernel
+
+          print(xxfin.__file__, cxxfin.__file__, py10x_kernel.__file__, sep='\n')
+          simple = types.SimpleNamespace(name='SIMPLE')
+          curve = py10x_kernel.BDateCurve()
+          cxxfin.bootstrap_cash_deposit(curve, 0, 30, 1.0, 30 / 365, 30 / 360, simple, simple, 0.05, -1.0, 1.0, 1e-14)
+          assert curve.times == [0, 30] and abs(curve.values[-1] - 0.05 * 365 / 360) < 1e-10, (curve.times, curve.values)
+          print('cxxfin <-> py10x_kernel OK')
+          EOF
 
   publish:
     if: startsWith(github.ref, 'refs/tags/')

@@ -32,7 +32,7 @@ py::object TID::deserialize_id(const py::dict& serialized_data, bool must_exist)
         return py::none();
     }
     if (!py::isinstance<py::str>(id_value))
-        throw py::type_error(py::str("Expected a string ID value, but found a {}").format(id_value.get_type().attr("__name__")));
+        throw py::type_error(py::str("Expected a string ID value, but found a {}").format(py::type::handle_of(id_value).attr("__name__")));
 
     auto cname = PyLinkage::dict_get(serialized_data, BNucleus::COLLECTION_TAG());
     if (cname.is(XNone))
