@@ -331,7 +331,9 @@ the Debug build.
 
 `uv.toml` is a copy: after editing `[tool.uv]` or a mode, re-run `./xx-build set-mode <mode>`.
 `./xx-build show-mode` prints the active mode and fails, naming that command, when `uv.toml` no
-longer matches what `set-mode` would write.
+longer matches what `set-mode` would write - or when the last switch did not finish (e.g. on Windows,
+a process still holding a C++ extension; `set-mode` says so too). A switch only adds and rebuilds what
+it needs until its final, exact `uv sync`, so an interrupted one leaves the rest of the venv installed.
 
 Sanitizers are a separate switch: `XX_CXX_SANITIZERS=ON` (an env var and a C++ cache key, in any
 mode). The Windows MSVC toolset pin is not part of any mode either: it lives in each C++ package's

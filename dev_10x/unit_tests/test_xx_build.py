@@ -48,9 +48,9 @@ def test_init_orders_toolchain_then_kernel_then_everything(tmp_path, uv_calls):
     assert xx_build.init(clean=False, sync_args=['--locked'], root=tmp_path) == 0
     assert uv_calls.cmds == [
         ['uv', 'venv'],
-        ['uv', 'sync', '--frozen', '--only-group', 'build'],
+        ['uv', 'sync', '--inexact', '--frozen', '--only-group', 'build'],
         [
-            'uv', 'sync', '--no-default-groups', '--group', 'build',
+            'uv', 'sync', '--inexact', '--no-default-groups', '--group', 'build',
             '--reinstall-package', 'py10x-kernel', '--reinstall-package', 'py10x-infra', '--locked',
         ],
         ['uv', 'sync', '--reinstall-package', 'py10x-fin-base-cxx', '--locked'],
@@ -249,3 +249,26 @@ def test_init_clean_keeps_the_mode(repo, uv_calls):
     (repo / '.venv').mkdir()
     assert xx_build.init(clean=True, sync_args=[], root=repo) == 0
     assert xx_build.active_mode(repo) == 'dev-release'
+
+
+def test_a_completed_switch_is_recorded(repo, uv_calls):
+    (repo / '.venv').mkdir()
+    assert xx_build.set_mode('dev-release', [], repo) == 0
+    assert (repo / xx_build.SYNCED_MODE).read_text(encoding='utf-8').strip() == 'dev-release'
+    assert xx_build.show_mode(repo) == 0
+
+
+def test_an_interrupted_switch_is_reported(repo, monkeypatch, capsys):
+    """Windows: a process holding a .pyd makes the sync fail mid-switch; uv.toml already names the new mode."""
+    (repo / '.venv').mkdir()
+    monkeypatch.setattr(xx_build.subprocess, 'run', lambda cmd, **kw: subprocess.CompletedProcess(cmd, 2))
+    assert xx_build.set_mode('dev-release', [], repo) == 2
+    assert 'run `./xx-build set-mode dev-release`' in capsys.readouterr().err
+    assert xx_build.show_mode(repo) == 1
+    assert 'not fully in build mode dev-release' in capsys.readouterr().err
+
+
+def test_partial_sync_steps_leave_the_rest_of_the_venv_installed():
+    """An exact partial sync would uninstall everything else first; only the final full sync is exact."""
+    first, second, last = xx_build.sync_commands([])
+    assert '--inexact' in first and '--inexact' in second and '--inexact' not in last
