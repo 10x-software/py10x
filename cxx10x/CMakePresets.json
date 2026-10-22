@@ -1,0 +1,34 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "debug",
+      "displayName": "Debug",
+      "description": "macOS / Linux: the default toolchain; Python from cxx10x/.venv",
+      "condition": { "type": "notEquals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "Python_EXECUTABLE": "${sourceDir}/.venv/bin/python",
+        "Python3_EXECUTABLE": "${sourceDir}/.venv/bin/python"
+      }
+    },
+    {
+      "name": "debug-windows",
+      "displayName": "Debug",
+      "description": "Windows: CLion's Visual Studio toolchain at MSVC 14.44 (cmake/Py10xMsvcVersion.cmake); Python from cxx10x/.venv",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-debug",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "v143,version=14.44", "strategy": "external" },
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "Python_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe",
+        "Python3_EXECUTABLE": "${sourceDir}/.venv/Scripts/python.exe"
+      },
+      "vendor": { "jetbrains.com/clion": { "toolchain": "Visual Studio" } }
+    }
+  ]
+}

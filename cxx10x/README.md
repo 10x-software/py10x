@@ -10,6 +10,19 @@ see [`dev_10x/README.md`](../dev_10x/README.md) for releases and dev setup.
 `CMakeLists.txt` at this level is an IDE-only wrapper (CLion); the package builds use each
 package's own `pyproject.toml` / `CMakeLists.txt` plus the shared `cmake/` dir.
 
+## CLion
+
+Open `cxx10x/` as the CLion project; everything it needs is shared through git:
+
+- `CMakePresets.json`: the `Debug` profile (CLion loads presets disabled - enable it once under
+  Settings > Build, Execution, Deployment > CMake). On Windows it selects CLion's `Visual Studio`
+  toolchain at MSVC 14.44, the toolset py10x requires.
+- `CMakeLists.txt` creates and syncs `cxx10x/.venv` on every configure (needs `uv` on PATH): py10x-core
+  (editable) and its locked dependencies from the root `uv.lock` plus its `dev` extra, but not
+  py10x-kernel / py10x-infra, so the run configurations import CLion's own builds (`core_10x/` and
+  `infra_10x/cmake-build-debug`, on their `PYTHONPATH`).
+- `.idea/runConfigurations/`: run `core_10x/tests/test.py` / `infra_10x/tests/test.py` with that venv.
+
 ## Test harnesses
 
 Minimal uv harness directories under `tests/` (run the real core tests with editable builds of the
