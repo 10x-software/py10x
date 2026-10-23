@@ -42,6 +42,7 @@ exclude = [
     "xxcommon/README.md",
     "xxcommon/*_curve.py",
     "xxcommon/jit_aadc/*",
+    "xxcommon/unit_tests/test_aadc_exec.py",
     "xx_fin/xxfin/*",
 ]
 
@@ -206,6 +207,7 @@ exclude = [
     "B008", # Do not perform function call `weakref.ref` in argument defaults
 ]
 "xx_fin/*.py" = [
+    "I001", # Import sort
     "N802", # Function name should be lowercase
     "N806", # Variable in function should be lowercase
     "C408", # Unnecessary `dict()` call (rewrite as a literal)

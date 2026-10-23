@@ -182,7 +182,7 @@ class TestFinInstrument:
     #             fxdeps = {FXForwardQuotable: [], FXSpotQuotable: []}
     #
     #             ed = cf.max_date()
-    #             for ccy_name, ccy_fx_spot, ccy_fx_fwds in ccys:  # noqa: B007
+    #             for ccy_name, ccy_fx_spot, ccy_fx_fwds in ccys:
     #                 fxdeps[FXSpotQuotable].append(ccy_fx_spot)
     #
     #                 for fxf in ccy_fx_fwds:
