@@ -36,6 +36,19 @@ def test_mongo_direct_alias_uri_round_trip():
     assert VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, uri) == uri
 
 
+def test_mongo_ms_timeout_uri_round_trip():
+    """Millisecond timeouts must survive a second canonical pass, including unlimited socketTimeoutMS=0."""
+    uri = 'mongodb://127.0.0.1:27017/db?connectTimeoutMS=10000&socketTimeoutMS=0&sst=5000&direct=true'
+    canonical = MongoStore.spec_from_uri(uri).uri()
+    query = canonical.split('?', 1)[1]
+    assert 'connectTimeoutMS=10000' in query
+    assert 'socketTimeoutMS=0' in query
+    assert 'sst=5000' in query
+    assert 'direct=true' in query
+    assert 'null' not in query
+    assert MongoStore.spec_from_uri(canonical).uri() == canonical
+
+
 def test_mongo_string_query_param_not_json_quoted():
     """json.dumps would wrap replicaSet as %22rs0%22; keyring URIs must stay unquoted strings."""
     uri = 'mongodb://127.0.0.1:27017/db?direct=true&replicaSet=rs0'
