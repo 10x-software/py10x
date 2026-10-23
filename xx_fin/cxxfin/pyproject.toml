@@ -57,7 +57,7 @@ config-settings = { "build-dir" = "", "editable.rebuild" = "false", "cmake.build
 # switch, which CMake reads from the env, changes. Not on a new commit or tag: a pull would then
 # rebuild every C++ package at once, racing (py10x-fin-base-cxx's build imports the kernel, which
 # rebuilds on import in the build dir uv is reconfiguring). Source edits rebuild on import anyway;
-# the setuptools-scm version stays at the last `./xx-build init` / `set-mode`.
+# the setuptools-scm version stays at the last `./xx-build init` / `set-mode` / `rebuild`.
 [tool.uv]
 cache-keys = [{ file = "pyproject.toml" }, { env = "XX_CXX_SANITIZERS" }]
 
