@@ -1,5 +1,6 @@
 import __future__
 import ast
+import contextvars
 import importlib.machinery
 import inspect
 import sys
@@ -10,6 +11,9 @@ from core_10x.package_refactoring import PackageRefactoring
 from core_10x.trait import TRAIT_METHOD
 from core_10x.traitable import Traitable, Trait
 
+# Per instrument() call. One rewriter is reused across threads; an instance attribute races.
+_call_filename: contextvars.ContextVar[str] = contextvars.ContextVar('callable_rewriter_filename')
+
 
 class CallableRewriter(ast.NodeTransformer):
     """
@@ -19,8 +23,8 @@ class CallableRewriter(ast.NodeTransformer):
     target function's __globals__ to actually run.
 
     One instance is constructed once per theme and reused across every function it instruments -- instrument()
-    derives filename fresh from each function itself (inspect.getsourcefile), so there's no need to construct a
-    new rewriter per function.
+    keeps that call's filename in a context variable (location_id reads it), not on the instance, so concurrent
+    instrument() calls cannot clobber each other's guard ids.
 
     instrument() owns the ENTIRE per-function pipeline -- source extraction, parsing, line-number correction,
     decorator stripping, visiting, recompiling, and re-executing against the function's own globals -- so a theme
@@ -28,51 +32,54 @@ class CallableRewriter(ast.NodeTransformer):
     """
 
     def __init__(self):
-        self.filename: str = None
         self.globals_to_bind: dict[str, object] = {}
 
     def location_id(self, node: ast.stmt | ast.expr) -> str:
-        return f'{self.filename}:{node.lineno}'
+        return f'{_call_filename.get()}:{node.lineno}'
 
     def instrument(self, function: Callable) -> Callable:
-        self.filename = inspect.getsourcefile(function) or '<unknown>'
-        source_lines, start_lineno = inspect.getsourcelines(function)
-        source = textwrap.dedent(''.join(source_lines))
-        tree = ast.parse(source)
-        ast.increment_lineno(tree, start_lineno - 1)
-        func_def = tree.body[0]
-        if func_def.name != function.__name__:
-            #-- e.g. a @cache-wrapped function: __name__ was reassigned to the original name, but
-            # the actual source (what getsourcelines() sees) is the wrapper's own closure -- its
-            # real body (the thing we'd want to instrument) is invisible behind an opaque call.
-            # Nothing usable to rewrite here -- leave it exactly as-is.
-            return function
-        func_def.decorator_list = []   #-- strip any decorator getsource happened to capture -- caller re-wraps
-        self.visit(func_def)
-        ast.fix_missing_locations(tree)
+        filename = inspect.getsourcefile(function) or '<unknown>'
+        token = _call_filename.set(filename)
+        try:
+            source_lines, start_lineno = inspect.getsourcelines(function)
+            source = textwrap.dedent(''.join(source_lines))
+            tree = ast.parse(source)
+            ast.increment_lineno(tree, start_lineno - 1)
+            func_def = tree.body[0]
+            if func_def.name != function.__name__:
+                #-- e.g. a @cache-wrapped function: __name__ was reassigned to the original name, but
+                # the actual source (what getsourcelines() sees) is the wrapper's own closure -- its
+                # real body (the thing we'd want to instrument) is invisible behind an opaque call.
+                # Nothing usable to rewrite here -- leave it exactly as-is.
+                return function
+            func_def.decorator_list = []   #-- strip any decorator getsource happened to capture -- caller re-wraps
+            self.visit(func_def)
+            ast.fix_missing_locations(tree)
 
-        alt_globals = function.__globals__
-        alt_globals.update(self.globals_to_bind)
-        name = function.__name__
-        #-- alt_globals IS function.__globals__ -- the DEFINING module's own __dict__, for both a
-        # module-level function and a class method alike. exec() below would otherwise rebind (or,
-        # for a method, spuriously introduce) `name` there as a side effect -- silently activating
-        # a free function early, or leaking a stray module-level name for a method. Capture
-        # whatever was at `name` first and put it straight back -- building must never leave a
-        # trace; only apply()/restore() may actually activate anything.
-        had_prior, prior_value = (name in alt_globals), alt_globals.get(name)
-        #-- flags: re-parsing/recompiling just this function's own source loses the defining
-        # module's own `from __future__ import annotations` effect -- without this, an annotation
-        # referencing a TYPE_CHECKING-only import (never a real runtime name) would be eagerly
-        # evaluated here and raise NameError, instead of staying the lazy string PEP 563 promises.
-        code = compile(tree, self.filename, 'exec', flags = __future__.annotations.compiler_flag)
-        exec(code, alt_globals)  # noqa: S102 -- deliberate: building an instrumented copy
-        alt = alt_globals[name]
-        if had_prior:
-            alt_globals[name] = prior_value
-        else:
-            del alt_globals[name]
-        return alt
+            alt_globals = function.__globals__
+            alt_globals.update(self.globals_to_bind)
+            name = function.__name__
+            #-- alt_globals IS function.__globals__ -- the DEFINING module's own __dict__, for both a
+            # module-level function and a class method alike. exec() below would otherwise rebind (or,
+            # for a method, spuriously introduce) `name` there as a side effect -- silently activating
+            # a free function early, or leaking a stray module-level name for a method. Capture
+            # whatever was at `name` first and put it straight back -- building must never leave a
+            # trace; only apply()/restore() may actually activate anything.
+            had_prior, prior_value = (name in alt_globals), alt_globals.get(name)
+            #-- flags: re-parsing/recompiling just this function's own source loses the defining
+            # module's own `from __future__ import annotations` effect -- without this, an annotation
+            # referencing a TYPE_CHECKING-only import (never a real runtime name) would be eagerly
+            # evaluated here and raise NameError, instead of staying the lazy string PEP 563 promises.
+            code = compile(tree, filename, 'exec', flags = __future__.annotations.compiler_flag)
+            exec(code, alt_globals)  # noqa: S102 -- deliberate: building an instrumented copy
+            alt = alt_globals[name]
+            if had_prior:
+                alt_globals[name] = prior_value
+            else:
+                del alt_globals[name]
+            return alt
+        finally:
+            _call_filename.reset(token)
 
 
 class InstrumentationRegistry:
@@ -128,17 +135,21 @@ class InstrumentationRegistry:
         caller name a class without having to import it themselves first.
         """
         if target_base_classes:
-            base_classes = self.target_base_classes
-            base_classes.clear()
+            #-- Resolve every name before replacing the live set. Clearing first would make
+            # find_class()'s import observe an empty or half-built tuple; issubclass must not see
+            # that. The re-walk below runs only once the set is complete.
+            resolved: list[type] = []
             modules_touched = set()
             for base_class in target_base_classes:
                 if isinstance(base_class, str):
                     base_class = PackageRefactoring.find_class(base_class)
-                base_classes.add(base_class)
+                resolved.append(base_class)
                 modules_touched.add(sys.modules[base_class.__module__])
 
+            self.target_base_classes = set(resolved)
+
             #-- resolving a name (or just referencing an already-imported class) may have imported
-            # its module before base_classes above was complete -- re-walk it now, with the target
+            # its module before the target set above was installed -- re-walk it now, with the target
             # set finally settled, so the named class AND any sibling subclasses in the same module
             # get a fair (re-)evaluation. Safe to call even for a module already fully processed --
             # instrument_class()/instrument_if_target_class() are idempotent per class.
@@ -184,7 +195,10 @@ class InstrumentationRegistry:
         # may re-walk a module whose classes were already seen once under a since-replaced target
         # set (see its own comment) -- a class must always get a fresh match re-evaluation, even if
         # its NESTED-class recursion (searched_classes, below) already ran once.
-        if cls not in self.exclude_classes and issubclass(cls, tuple(self.target_base_classes)):
+        # Empty set: instrument nothing, but still walk nested classes. Do not call issubclass --
+        # an empty tuple is not a target list, and the finder is installed before any base is opted in.
+        targets = self.target_base_classes
+        if targets and cls not in self.exclude_classes and issubclass(cls, tuple(targets)):
             self.instrument_class(cls)
             return
 
