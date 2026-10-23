@@ -12,6 +12,7 @@ from ui_10x.concrete_trait_widgets import TextEditForListWidget
 from ui_10x.rio.browser_helpers import UI_SETTLE_S, wait_for_js_value
 from ui_10x.rio.component_builder import DynamicComponent, UserSessionContext, session_context
 from ui_10x.traitable_editor import TraitableEditor
+from ui_10x.utils import ux
 
 import rio
 
@@ -92,3 +93,21 @@ async def test_text4list_trait_editor_list_only_and_empty_clears() -> None:
                 ed.widget = None
         editor.trait_editors.clear()
         del editor, tw, root, note
+
+
+def test_focus_out_empty_text4list_stores_empty_list() -> None:
+    """Clearing the field and leaving it stores [], it does not invalidate."""
+    # TraitWidget.__init__ needs a trait editor and a session. Focus-out only reads the text.
+    widget = TextEditForListWidget.__new__(TextEditForListWidget)
+    ux.TextEdit.__init__(widget)
+    widget.set_plain_text('')
+
+    calls: list[tuple[tuple, dict]] = []
+
+    def update_trait_value(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    widget.update_trait_value = update_trait_value
+    widget.focus_out_event(None)
+
+    assert calls == [((), {'value': []})]
