@@ -96,6 +96,26 @@ class TestModes:
             (tmp_path / 'uv.toml').write_text(xx_build.HEADER.format(mode=uv_toml_mode), encoding='utf-8')
         assert env_check.default_mode(tmp_path) == expected
 
+    def test_a_foreign_uv_toml_is_not_reported_as_dev(self, tmp_path, monkeypatch, capsys):
+        """show-mode fails a uv.toml xx-build did not write; default_mode must not turn that into dev."""
+        from dev_10x import xx_build
+
+        (tmp_path / 'uv.toml').write_text('cache-dir = "/x"\n', encoding='utf-8')
+        assert xx_build.show_mode(tmp_path) == 1
+        message = capsys.readouterr().out.strip()
+        with pytest.raises(ValueError) as exc:
+            env_check.default_mode(tmp_path)
+        assert str(exc.value) == message
+
+        monkeypatch.setattr(xx_build, 'active_mode', lambda root=None: None)
+        checked = []
+        monkeypatch.setattr(env_check, 'check', lambda mode, downstream: checked.append(mode) or ([], []))
+        assert env_check.main(['--no-import']) == 1
+        assert checked == []
+        captured = capsys.readouterr()
+        assert message in captured.err
+        assert 'env_check dev' not in captured.out
+
     def test_main_checks_the_default_mode(self, monkeypatch):
         seen = {}
         monkeypatch.setattr(env_check, 'default_mode', lambda: 'dev-release')
