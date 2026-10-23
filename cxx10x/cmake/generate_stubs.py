@@ -22,6 +22,9 @@ module_name, so_dir, stub_out_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 
 sys.path.insert(0, so_dir)
 
+# An editable py10x_kernel rebuilds on import, running ninja: it must not join the jobserver of the ninja
+# running this script (CLion's), whose pipe it cannot use ("Could not initialize jobserver").
+os.environ.pop("MAKEFLAGS", None)
 import py10x_kernel
 if sys.platform == "win32":
     os.add_dll_directory(os.path.dirname(py10x_kernel.__file__))

@@ -57,6 +57,9 @@ Open `xx_fin/cxxfin/` as the CLion project; everything it needs is shared throug
   extra, but not py10x-fin-base-cxx, so CLion's own `cxxfin` build is the one its stub generation
   imports. py10x-kernel / py10x-infra are built there editable, sharing their build dir with the root
   `.venv`. Package builds (scikit-build-core) skip all of this.
+- `.idea/runConfigurations/`: `build cxxfin` builds it, then prints the module CLion built, with that
+  venv, on every OS: it runs `.venv/Scripts/python`, which `CMakeLists.txt` links to `bin/python` outside
+  Windows, and finds the build through a `.pth` file it writes into the venv.
 
 ## Build type
 

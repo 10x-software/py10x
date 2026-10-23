@@ -54,6 +54,18 @@ if(NOT SKBUILD)
     else()
         set(Python3_EXECUTABLE ${CLION_VENV}/bin/python)
     endif()
+    # One run configuration for every OS, as in cxx10x: it runs .venv/Scripts/python (the Windows venv layout;
+    # a link to bin/python elsewhere) and finds CLion's cxxfin build through a .pth file in the venv.
+    if(NOT WIN32)
+        file(MAKE_DIRECTORY ${CLION_VENV}/Scripts)
+        file(CREATE_LINK ../bin/python ${CLION_VENV}/Scripts/python SYMBOLIC)
+    endif()
+    execute_process(
+            COMMAND ${Python3_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_path('purelib'))"
+            OUTPUT_VARIABLE _clion_site_packages OUTPUT_STRIP_TRAILING_WHITESPACE
+            COMMAND_ERROR_IS_FATAL ANY)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+    file(WRITE ${_clion_site_packages}/cxxfin_clion.pth "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}\n")
 endif()
 find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 
