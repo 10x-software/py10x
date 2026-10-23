@@ -3,6 +3,7 @@ import secrets
 import string
 import subprocess
 from getpass import getpass
+from itertools import chain
 
 import keyring
 import requests
@@ -63,12 +64,12 @@ def git_token():
 
 
 @cache
-def all_git_users():
+def all_git_users(login=True):
     git_org = re.search(r'github\.com[/:]([\w\-\.]+)/', subprocess.check_output(['git', 'remote', 'get-url', 'origin'], text=True).strip()).group(1)
     return [
         uname.lower()
         for user in requests.get(f'https://api.github.com/orgs/{git_org}/members', headers={'Authorization': f'token {git_token()}'}).json()
-        if (uname := git_user(user['id']))
+        if (uname := git_user(user['id'], login=login))
     ]
 
 
@@ -99,10 +100,9 @@ def clear_vault():
 
 def drop_users(hostname):
     admin = MongodbAdmin(hostname=hostname, **get_credentials('xxadmin', hostname))
-    me = git_user()
-    for xx_user in all_git_users():
+    for xx_user in chain(all_git_users(), all_git_users(login=False)):
         xx_admin = get_xx_admin(xx_user)
-        if xx_user != me and xx_admin != admin.username:  # -- do not break own or current admin account!
+        if xx_admin != admin.username:  # -- do not break current working account!
             admin.delete_user(xx_admin)
         admin.delete_user(xx_user)
 

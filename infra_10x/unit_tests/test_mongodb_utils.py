@@ -121,7 +121,7 @@ def test_mixed_case_github_login_uses_one_keyring_name(git_keyring, monkeypatch)
     monkeypatch.setattr(mu, 'MongodbAdmin', _recording_admin(created))
     mu.drop_users('mongo.example')
     assert created[0].username == 'alice-admin'
-    assert created[0].deleted == ['alice']
+    assert created[0].deleted == ['alice', 'alice smith-admin', 'alice smith']
 
 
 def test_get_credentials_falls_back_to_lowercased_display_name(git_keyring, monkeypatch):
@@ -143,4 +143,4 @@ def test_get_credentials_falls_back_to_lowercased_display_name(git_keyring, monk
     monkeypatch.setattr(mu, 'MongodbAdmin', _recording_admin(created))
     mu.drop_users('mongo.example')
     assert created[0].username == 'alice smith-admin'
-    assert created[0].deleted == ['alice']
+    assert created[0].deleted == ['alice-admin', 'alice', 'alice smith']
