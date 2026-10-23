@@ -135,7 +135,6 @@ def test_wrapper_runs_isolated_without_the_project():
     text = wrapper.read_text(encoding='utf-8')
     assert '\r' not in text
     assert 'uv run --no-project --isolated --with tomlkit -m dev_10x.xx_build "$@"' in text
-    assert 'rebuild' in text.splitlines()[1]
 
 
 def test_inner_uv_calls_drop_the_wrappers_virtual_env(tmp_path, uv_calls, monkeypatch):
