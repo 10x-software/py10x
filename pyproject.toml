@@ -107,7 +107,6 @@ py10x_core = "dev_10x.pytest_plugin"
 
 [project.scripts]
 uv-sync                         = "dev_10x.uv_sync:main"
-uv-run                          = "dev_10x.uv_run:main"
 xx-constraints                  = "dev_10x.constraints:main"
 xx-promote                      = "dev_10x.xx_promote:XxPromoteCli.main"
 xx-test-postgres-auth           = "dev_10x.postgres_local:PostgresAuthCli.main"
