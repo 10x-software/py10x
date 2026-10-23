@@ -1,0 +1,16 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "Debug",
+      "description": "Windows only: CLion's Visual Studio toolchain at MSVC 14.44 (cmake/Py10xMsvcVersion.cmake). Elsewhere the condition hides it and CLion uses its own default profile, also named Debug, so the shared run configurations name one profile on every OS. Python: cxx10x/.venv (set in CMakeLists.txt).",
+      "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" },
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/cmake-build-debug",
+      "architecture": { "value": "x64", "strategy": "external" },
+      "toolset": { "value": "v143,version=14.44", "strategy": "external" },
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" },
+      "vendor": { "jetbrains.com/clion": { "toolchain": "Visual Studio" } }
+    }
+  ]
+}

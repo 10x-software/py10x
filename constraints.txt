@@ -313,6 +313,8 @@ pyarrow==26.0.0
     # via ibis-framework
 pyarrow-hotfix==0.7
     # via ibis-framework
+pybind11-stubgen==2.5.5
+    # via py10x-core
 pycparser==3.11 ; implementation_name != 'PyPy'
     # via cffi
 pydantic==2.14.1

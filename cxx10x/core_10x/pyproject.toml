@@ -34,6 +34,7 @@ Homepage = "https://10x-software.org"
 requires = [
     "scikit-build-core>=0.10.7",
     "setuptools-scm>=9.2.2",
+    "pybind11-stubgen==2.5.5",  # post-build .pyi generation (cxx10x/cmake/PybindStubs.cmake)
 ]
 build-backend = "scikit_build_core.build"
 

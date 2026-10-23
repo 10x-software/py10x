@@ -13,6 +13,7 @@ dependencies = [
 requires = [
     "scikit-build-core>=0.10.7",
     "setuptools-scm>=9.2.2",
+    "pybind11-stubgen==2.5.5",
     "py10x-kernel"
 ]
 build-backend = "scikit_build_core.build"

@@ -26,6 +26,7 @@ classifiers = [
 requires = [
     "scikit-build-core>=0.10.7",
     "setuptools-scm>=9.2.2",
+    "pybind11-stubgen==2.5.5",  # post-build .pyi generation (cxx10x/cmake/PybindStubs.cmake)
     # Direct build dep: CMake imports py10x_kernel for version → FetchContent headers.
     # >=0.0.0rc0 admits current kernel prereleases (PEP 440). Not promote-managed.
     "py10x-kernel>=0.0.0rc0"

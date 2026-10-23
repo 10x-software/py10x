@@ -42,6 +42,25 @@ uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstr
 Normal development (edit C++ source → run) does not require this; the editable rebuild fires
 automatically on import.
 
+## CLion
+
+Open `xx_fin/cxxfin/` as the CLion project; everything it needs is shared through git:
+
+- `CMakePresets.json`: a Windows-only `Debug` preset, selecting CLion's `Visual Studio` toolchain at
+  MSVC 14.44. Elsewhere it does not exist (a `condition`), and CLion uses its own default profile, also
+  named `Debug` - nothing to set up. On Windows, once: on first open CLion creates that default `Debug`
+  profile too (default toolchain, whose configure fails), which hides the preset of the same name. Under
+  Settings > Build, Execution, Deployment > CMake, delete that profile, enable the `Debug` preset, then
+  Tools > CMake > Reset Cache and Reload Project.
+- `CMakeLists.txt` creates and syncs `xx_fin/cxxfin/.venv` on every CLion configure (needs `uv` on
+  PATH): py10x-fin-base (editable) and its locked dependencies from py10x's root `uv.lock` plus the `dev`
+  extra, but not py10x-fin-base-cxx, so CLion's own `cxxfin` build is the one its stub generation
+  imports. py10x-kernel / py10x-infra are built there editable, sharing their build dir with the root
+  `.venv`. Package builds (scikit-build-core) skip all of this.
+- `.idea/runConfigurations/`: `build cxxfin` builds it, then prints the module CLion built, with that
+  venv, on every OS: it runs `.venv/Scripts/python`, which `CMakeLists.txt` links to `bin/python` outside
+  Windows, and finds the build through a `.pth` file it writes into the venv.
+
 ## Build type
 
 `cxxfin` builds `Debug` by default for development (`cmake.build-type` in its `pyproject.toml`).

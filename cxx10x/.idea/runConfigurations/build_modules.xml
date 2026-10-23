@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="build py10x_modules" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="-c &quot;import sys; import core_10x, py10x_kernel, py10x_infra; [print(m.__name__, m.__version__ or '(no version)', m.__file__) for m in (py10x_kernel, py10x_infra)]&quot;" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="10x_i" TARGET_NAME="py10x_modules" CONFIG_NAME="Debug" RUN_PATH=".venv/Scripts/python">
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>

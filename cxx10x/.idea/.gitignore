@@ -10,3 +10,6 @@
 /copilot.data.migration.agent.xml
 /copilot.data.migration.ask2agent.xml
 /editor.xml
+# CMake profiles stay per machine: Windows enables the Debug preset (CMakePresets.json), elsewhere CLion
+# uses its own default Debug profile. CLion rewrites this file on every settings save.
+/cmake.xml

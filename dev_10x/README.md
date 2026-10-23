@@ -353,8 +353,8 @@ checks the active one. CI runs it after every install (`ci.yml`'s install-modes 
 ## `uv-sync` / `uv-run` — compatibility wrappers
 
 `uv-sync py10x-dev [--all-extras] [--with-downstream] [uv sync args...]` (`dev_10x/uv_sync.py`) is a
-thin wrapper over `./xx-build`, kept for CI (`ci-test-suite`, `refresh-constraints.yml`) and existing
-habits. `$XX_UV_INSTALL_MODE` picks the build mode:
+thin wrapper over `./xx-build`, kept for existing habits (CI calls `./xx-build` and `uv sync`
+directly). `$XX_UV_INSTALL_MODE` picks the build mode:
 
 | `XX_UV_INSTALL_MODE` | build mode |
 |----------------------|------------|
@@ -381,7 +381,7 @@ metadata.
 **The freeze is the committed `uv.lock`** (universal: every supported Python and platform, all
 extras and dependency groups, downstreams included through the `test` / `test-extras` groups).
 **`constraints.txt` is generated from it** with `uv export`: the same pins as a reviewable
-`name==version` list. `uv sync` (dev, and CI through `uv-sync`) installs exactly `uv.lock`;
+`name==version` list. `uv sync` (dev and CI) installs exactly `uv.lock`;
 `build.yml` and `cxx10x_wheels.yml`, which use `uv pip install`, pass `-c constraints.txt`. Never edit
 either file by hand.
 
@@ -417,10 +417,11 @@ xx-constraints check-export         # assert constraints.txt == `uv export` of u
   - uv runs as `$UV` when set (inside `uv run`), so a venv-installed uv — licensecheck pulls one on
     Python 3.11 — never replaces the uv that ran the command.
 - **`check`** asserts every *installed* third-party dist (minus the first-party packages) is
-  pinned in `constraints.txt`. Runs in `ci.yml` and `build.yml` — the enforcement point when a
-  sibling adds a dep without a regen.
+  pinned in `constraints.txt`. Runs in `build.yml`, whose `uv pip install`s apply constraints.txt
+  rather than the lock — the enforcement point when a sibling adds a dep without a regen.
 - **`check-export`** asserts `constraints.txt` is exactly the export of `uv.lock`. Runs in `ci.yml`,
-  next to `uv lock --check` (fails when `uv.lock` is stale against a pyproject edit).
+  next to `uv sync --locked --check` (the env is exactly `uv.lock`, and `uv.lock` is current with
+  every pyproject).
 
 **Known tradeoff:** a sibling needing a version outside the pin hits a hard conflict → regenerate
 (`xx-constraints compile`) and commit both files.
@@ -437,7 +438,7 @@ dependabot keeps pins fresh — orthogonal to reproducibility (update vs freeze)
    `constraints.txt` regenerated from the lock.
 2. If neither `uv.lock` nor `constraints.txt` changed → stop (no tests, no PR).
 3. If they changed → re-sync against the fresh pins (compile rewrites the files but does not
-   reinstall), `xx-constraints check`, then the **full test suite** (CI-provisioned MongoDB replica
+   reinstall), `uv sync --locked --check`, then the **full test suite** (CI-provisioned MongoDB replica
    set + Playwright), mirroring `ci.yml`.
 4. Only on green → open/update PR `chore: refresh constraints.txt` with `uv.lock` and
    `constraints.txt`, and uv's list of updated packages in the description. The PR is review-gated
@@ -495,8 +496,8 @@ Same CI job as the core suite ([`.github/actions/ci-test-suite`](../.github/acti
 
 | Step | Env | Check |
 |------|-----|--------|
-| **Core isolation** | siblings + core; **no** `--with-downstream` | `find_spec('xxfin') is None`, then core / ui / infra / dev / xxcommon pytest |
-| **Downstream** | same venv + `uv-sync py10x-dev --all-extras --with-downstream` | `import xxfin; import cxxfin`, then `pytest xx_fin/` |
+| **Core isolation** | `./xx-build init --mode ci-release --no-group test --no-group test-extras` | `find_spec('xxfin') is None`, then core / ui / infra / dev / xxcommon pytest |
+| **Downstream** | same venv + plain `uv sync` (adds the fin-base groups) | `import xxfin; import cxxfin`, then `pytest xx_fin/` |
 
 Do not install fin-base before the core suite — that would break isolation. Default `pytest`
 ignores in-repo downstream trees (`xx_fin/`, from `[tool.dev_10x.downstream]`) unless that dist
@@ -530,9 +531,8 @@ removed.
 
 - Every checkout that builds kernel/infra needs `fetch-depth: 0`: their setuptools-scm versions
   come from this repo's `py10x-{kernel,infra}-v*` tags.
-- Use `python -m dev_10x.uv_sync` (or `./xx-build`) in CI, not `uvx --from ".[dev]" uv-sync`: `uvx`
-  resolves `pyproject.toml` sibling deps from PyPI when installing the tool, which fails while `main`
-  pins are ahead of the index.
+- Set up CI envs with `./xx-build`, not `uvx --from ".[dev]" …`: `uvx` resolves `pyproject.toml`
+  sibling deps from PyPI when installing the tool, which fails while `main` pins are ahead of the index.
 - `uv pip install --all-extras` needs an explicit source:
   `-e . --all-extras --requirements pyproject.toml` (unlike `uv sync`).
 - Tag triggers: **`pre/py10x-kernel-v*`** / **`prod/…`** (and core **`pre/v*`** / **`prod/v*`**).

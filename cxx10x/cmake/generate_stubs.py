@@ -6,22 +6,25 @@ that BTraitable (and other exported symbols) are visible in the flat namespace
 on macOS/Linux.
 
 Usage (from CMake):
-    python generate_stubs.py <module_name> <stubgen_src_dir> <so_dir> <stub_out_dir>
+    python generate_stubs.py <module_name> <so_dir> <stub_out_dir>
 
   module_name    : name of the pybind11 module to generate stubs for
-  stubgen_src_dir: FetchContent source dir of pybind11_stubgen
   so_dir         : directory containing <module_name>.so
   stub_out_dir   : directory to write the generated .pyi file
+
+pybind11_stubgen is imported from the build environment (build-system.requires).
 """
 import os
 import sys
 import ctypes
 
-module_name, stubgen_src_dir, so_dir, stub_out_dir = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
+module_name, so_dir, stub_out_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 
-sys.path.insert(0, stubgen_src_dir)
 sys.path.insert(0, so_dir)
 
+# An editable py10x_kernel rebuilds on import, running ninja: it must not join the jobserver of the ninja
+# running this script (CLion's), whose pipe it cannot use ("Could not initialize jobserver").
+os.environ.pop("MAKEFLAGS", None)
 import py10x_kernel
 if sys.platform == "win32":
     os.add_dll_directory(os.path.dirname(py10x_kernel.__file__))
