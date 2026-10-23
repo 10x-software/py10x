@@ -283,6 +283,9 @@ jobs:
             -v "$secrets_dir:/secrets:ro" \
             py10x-functional-e2e
 
+      - name: Provisioning FIFO handoff (container uid can write, cannot read)
+        run: python3 docker/fifo_handoff_e2e.py py10x-functional-e2e
+
   # Nightly / manual: same matrix, built and run under AddressSanitizer for memory-error diagnostics.
   asan-tests:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

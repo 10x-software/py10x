@@ -357,7 +357,7 @@ def _stub_bin(tmp_path):
     return bindir
 
 
-def _run_entrypoint(tmp_path, provisioning_dir: str | None):
+def _run_entrypoint(tmp_path, args: list[str] | None = None, *, expect_ok: bool = True):
     log_path = tmp_path / 'stub.log'
     log_path.write_text('')
     env = os.environ.copy()
@@ -365,31 +365,50 @@ def _run_entrypoint(tmp_path, provisioning_dir: str | None):
     env['STUB_LOG'] = str(log_path)
     env['FUNCTIONAL_ACCOUNT_ID'] = 'xx-myservice'
     env.pop('XX_SECRETS_DIR', None)
-    if provisioning_dir is None:
-        env.pop('XX_PROVISIONING_OUTPUT_DIR', None)
-        missing = tmp_path / 'no-such-provisioning-dir'
-        env['XX_PROVISIONING_OUTPUT_DIR'] = str(missing)
-    else:
-        env['XX_PROVISIONING_OUTPUT_DIR'] = provisioning_dir
-    completed = subprocess.run(['bash', _entrypoint_path()], env=env, capture_output=True, text=True, check=False)
+    completed = subprocess.run(
+        ['bash', _entrypoint_path(), *(args or [])],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     log = log_path.read_text()
-    assert completed.returncode == 0, completed.stderr
-    return log
+    if expect_ok:
+        assert completed.returncode == 0, completed.stderr
+    return completed, log
 
 
-def test_entrypoint_chowns_provisioning_fifo_before_gosu(tmp_path):
+def test_entrypoint_chowns_only_the_output_file_before_gosu(tmp_path):
     provisioning = tmp_path / 'out'
     provisioning.mkdir()
-    os.mkfifo(provisioning / 'xx-myservice.fifo', 0o200)
-    log = _run_entrypoint(tmp_path, str(provisioning))
-    chown_at = log.index('chown ')
-    gosu_at = log.index('gosu ')
-    assert chown_at < gosu_at
-    assert f'chown 10001:10001 {provisioning / "xx-myservice.fifo"}' in log
+    target = provisioning / 'xx-myservice.fifo'
+    other = provisioning / 'other.fifo'
+    os.mkfifo(target, 0o200)
+    os.mkfifo(other, 0o200)
+    _completed, log = _run_entrypoint(
+        tmp_path,
+        ['xx-user-init', '--functional-account', '--output-file', str(target)],
+    )
+    assert log.index('chown ') < log.index('gosu ')
+    assert f'chown 10001:10001 -- {target}' in log
+    assert str(other) not in log
     assert 'gosu xx-myservice' in log
 
 
-def test_entrypoint_skips_chown_without_provisioning_dir(tmp_path):
-    log = _run_entrypoint(tmp_path, None)
+def test_entrypoint_skips_chown_without_output_file(tmp_path):
+    _completed, log = _run_entrypoint(tmp_path, ['python', '-m', 'pytest'])
     assert 'chown ' not in log
     assert 'gosu xx-myservice' in log
+
+
+def test_entrypoint_rejects_output_file_that_is_not_a_fifo(tmp_path):
+    regular = tmp_path / 'not-a-fifo'
+    regular.write_text('x')
+    completed, log = _run_entrypoint(
+        tmp_path,
+        ['xx-user-init', '--output-file', str(regular)],
+        expect_ok=False,
+    )
+    assert completed.returncode != 0
+    assert 'not a FIFO' in completed.stderr
+    assert 'chown ' not in log

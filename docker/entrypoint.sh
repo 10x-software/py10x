@@ -32,11 +32,24 @@ export LOGNAME="$FUNCTIONAL_ACCOUNT_ID"
 export PYTHON_KEYRING_BACKEND=core_10x.functional_account_keyring.FunctionalAccountKeyring
 export XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE="$XX_SECRETS_DIR/keyring.json"
 
-# Host holds the read fd and has left the pipe mode 0200. Own it before gosu so this
-# uid can open the write end and cannot open a read end. Absent outside provisioning.
-: "${XX_PROVISIONING_OUTPUT_DIR:=/var/run/xx-provisioning-output}"
-if [[ -d $XX_PROVISIONING_OUTPUT_DIR ]]; then
-  chown "$(id -u "$FUNCTIONAL_ACCOUNT_ID"):$(id -g "$FUNCTIONAL_ACCOUNT_ID")" "$XX_PROVISIONING_OUTPUT_DIR"/*.fifo
+# Host holds the read fd and left that one pipe mode 0200. Own only the --output-file
+# path before gosu. A directory glob would hand the functional-account uid every FIFO
+# mounted there, including ones this process is not about to open.
+output_file=""
+previous=""
+for arg in "$@"; do
+  if [[ $previous == --output-file ]]; then
+    output_file=$arg
+    break
+  fi
+  previous=$arg
+done
+if [[ -n $output_file ]]; then
+  if [[ ! -p $output_file ]]; then
+    echo "entrypoint.sh: --output-file is not a FIFO: $output_file" >&2
+    exit 1
+  fi
+  chown "$(id -u "$FUNCTIONAL_ACCOUNT_ID"):$(id -g "$FUNCTIONAL_ACCOUNT_ID")" -- "$output_file"
 fi
 
 exec gosu "$FUNCTIONAL_ACCOUNT_ID" "$@"

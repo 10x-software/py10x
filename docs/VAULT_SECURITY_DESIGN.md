@@ -154,7 +154,7 @@ where `FunctionalAccountKeyring` reads it; either alone is insufficient.
 **Weaknesses.**
 - Provisioning delivers the manifest over a FIFO, not a file. The host opens the
   read end, then sets the pipe to `0200` and the directory to `0711`. The container
-  entrypoint `chown`s the pipe to uid `10001` before `gosu`, so that uid can open the
+  entrypoint `chown`s that `--output-file` pipe to uid `10001` before `gosu`, so that uid can open the
   write end and cannot open a read end. Root still ignores the mode bits. Any other
   process running as uid `10001` that can name the path can write into the stream.
   The directory name is visible under `/tmp`. Per-account filenames only prevent
