@@ -53,7 +53,7 @@ class OidcSecret(Resource, resource_type=OIDC):
 
     @classmethod
     def standard_key(cls, *args, **kwargs) -> tuple:
-        # Base key omits password; the secret is the value being cached.
+        # Include the client secret so a rotation is a different instance, unlike Resource.standard_key.
         return make_standard_key(args, kwargs)
 
     def on_enter(self):
