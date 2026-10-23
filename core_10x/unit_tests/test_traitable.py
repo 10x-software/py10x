@@ -20,7 +20,7 @@ from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Index, Traitable, TraitableFwdRef, TraitAccessor
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Index, NamedTraitable, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
 from infra_10x.duckdb_store import DuckDbStore
@@ -2102,3 +2102,39 @@ class TestCycles:
         ser = a.serialize_object(save_references=int(mode))
         assert isinstance(ser, dict)
         assert ser.get('ref') is not None
+
+
+def test_renamed_name_trait_hides_name():
+    """When name_trait is not 'name', .name is not a trait and name= is not ignored."""
+
+    class Mkt(NamedTraitable, name_trait='mkt_name', keep_history=False):
+        mkt_name: str = T(T.ID)
+
+    class Spot(Mkt):
+        offset: int = T(0)
+
+    class Cal(NamedTraitable, keep_history=False):
+        pass
+
+    # Storable endogenous ids lazy-load unless the cache is the only store.
+    with CACHE_ONLY():
+        mkt = Mkt(mkt_name='SOFR')
+        assert mkt.mkt_name == 'SOFR'
+        with pytest.raises(AttributeError):
+            _ = mkt.name
+        with pytest.raises(AttributeError):
+            mkt.name = 'OTHER'
+
+        spot = Spot(mkt_name='SONIA')
+        assert spot.mkt_name == 'SONIA'
+        with pytest.raises(AttributeError):
+            _ = spot.name
+
+        # name= must not be dropped while mkt_name is set; that used to construct anyway.
+        with pytest.raises(TypeError, match='name'):
+            Mkt(mkt_name='EUR', name='OTHER')
+        with pytest.raises(TypeError, match='name'):
+            Mkt(name='ONLY')
+
+        cal = Cal(name='UK')
+        assert cal.name == 'UK'
