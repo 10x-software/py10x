@@ -1,6 +1,6 @@
 # `dev_10x` — developer tooling for the 10x packages
 
-Canonical documentation for release engineering and local dependency profiles.
+Canonical documentation for release engineering and the development environment.
 
 - **Contributor workflow:** [`CONTRIBUTING.md`](../CONTRIBUTING.md)
 - **Design rationale / Stage 2 roadmap:** [`DESIGN.md`](DESIGN.md)
@@ -11,14 +11,13 @@ Declared in `[project.scripts]`:
 
 | command              | purpose                                                                 |
 |----------------------|-------------------------------------------------------------------------|
-| `uv-sync`            | compatibility wrapper over `./xx-build` (install mode -> build mode)    |
-| `uv-run`             | run a command in the prepared venv without `uv run` re-syncing          |
+| `uv-sync`            | retired: prints the `./xx-build` / `uv` commands that replace it        |
 | `xx-promote`         | cut release candidates / final releases and yank them                     |
 | `xx-constraints`     | regenerate or verify the committed third-party dependency freeze        |
 | `xx-test-postgres-auth` | start/stop/status a local **password-auth** Postgres on port 5433 (Docker, falling back to Homebrew) |
 | `xx-test-db-clean`   | drop `py10x_test*` databases left by killed test sessions |
 
-Implementation: `dev_10x/uv_sync.py`, `dev_10x/uv_run.py`, `dev_10x/xx_promote.py`,
+Implementation: `dev_10x/uv_sync.py`, `dev_10x/xx_promote.py`,
 `dev_10x/xx_helpers.py`, `dev_10x/xx_ci.py`, `dev_10x/constraints.py`,
 `dev_10x/postgres_local.py`, `dev_10x/db_clean.py`.
 
@@ -37,10 +36,10 @@ crash, a CI timeout — leaves its database behind. Dropping is a separate comma
 not reversible:
 
 ```bash
-uv run --no-sync xx-test-db-clean list             # what is there
-uv run --no-sync xx-test-db-clean drop             # drop it
-uv run --no-sync xx-test-db-clean legacy           # test data predating per-session databases
-uv run --no-sync xx-test-db-clean legacy --drop    # ... and remove it
+uv run xx-test-db-clean list             # what is there
+uv run xx-test-db-clean drop             # drop it
+uv run xx-test-db-clean legacy           # test data predating per-session databases
+uv run xx-test-db-clean legacy --drop    # ... and remove it
 ```
 
 Only names starting with `py10x_test` are candidates, so nothing of your own is at risk — but
@@ -82,7 +81,7 @@ default core CI job (`--all-extras` does **not** pull `dependency-groups.test`).
 Layout: `[tool.dev_10x.siblings]` and optional `[tool.dev_10x.downstream]` (same `{name = {path=…}}`
 shape; paths are in-repo). `xx_promote` / `env_check` / `constraints` all read both. Downstreams
 are installed through the `test` / `test-extras` dependency groups (default in plain `uv sync`;
-`uv-sync` leaves them out unless `--with-downstream`). Tag prefix defaults to `{name}-v`.
+`--no-group test --no-group test-extras` leaves them out). Tag prefix defaults to `{name}-v`.
 
 **Footprint.** A package re-cuts when its *footprint* changed since its last tag. By default that is
 the whole repo minus the other packages' paths — shared files (CI, root config) count for core and
@@ -291,6 +290,7 @@ From the repo root (bash; Git Bash on Windows):
 ./xx-build init --mode ci-release  # ... in another build mode
 ./xx-build init --clean            # start over (also after `uv venv --clear` or deleting build/)
 ./xx-build set-mode dev-release    # switch build mode, rebuild
+./xx-build rebuild                 # rebuild in the active mode (set-mode with the active mode)
 ./xx-build show-mode               # active mode; fails if uv.toml is out of date
 uv sync                            # from then on: keep the env current, in the active mode
 uv run pytest -q
@@ -300,6 +300,15 @@ Plain `uv sync` installs the default dependency groups (`dev`, `extras`, `test`,
 py10x-core with all its extras, plus py10x-kernel / py10x-infra / py10x-fin-base / py10x-fin-base-cxx
 editable from this tree. The C++ packages build without isolation into `build/py10x-build/` (next to
 `.venv`, so it survives `uv venv --clear`), one build dir per build type.
+
+After a pull, plain `uv sync` leaves the C++ packages' builds alone: their uv `cache-keys` are their
+own `pyproject.toml` and `XX_CXX_SANITIZERS` only, with no git commit / tag key. With one, every new
+commit made uv rebuild all of them at once, which races: py10x-fin-base-cxx's build imports the kernel,
+whose rebuild-on-import then runs in the build dir uv is reconfiguring. C++ source edits rebuild on
+import anyway; what lags is the setuptools-scm version (`__version__` and the installed metadata),
+which stays at the last `./xx-build init` / `set-mode` / `rebuild`. After changing several C++
+packages' `pyproject.toml` at once, or `XX_CXX_SANITIZERS`, run `./xx-build rebuild`: it rebuilds them
+in order, in the active mode (and refreshes their versions).
 
 `init` exists because a fresh environment needs an order uv cannot express on its own: the C++
 toolchain (the `build` group, from `uv.lock`) first, since the C++ packages build without isolation;
@@ -329,8 +338,8 @@ venv exists (implementation: `dev_10x/xx_build.py`).
 `./xx-build set-mode dev` deletes `uv.toml`; build dirs are per build type, so switching back reuses
 the Debug build.
 
-`uv.toml` is a copy: after editing `[tool.uv]` or a mode, re-run `./xx-build set-mode <mode>`.
-`./xx-build show-mode` prints the active mode and fails, naming that command, when `uv.toml` no
+`uv.toml` is a copy: after editing `[tool.uv]` or a mode, run `./xx-build rebuild`.
+`./xx-build show-mode` prints the active mode and fails, naming `./xx-build rebuild`, when `uv.toml` no
 longer matches what `set-mode` would write - or when the last switch did not finish (e.g. on Windows,
 a process still holding a C++ extension; `set-mode` says so too). A switch only adds and rebuilds what
 it needs until its final, exact `uv sync`, so an interrupted one leaves the rest of the venv installed.
@@ -350,25 +359,22 @@ checks the active one. CI runs it after every install (`ci.yml`'s install-modes 
 
 ---
 
-## `uv-sync` / `uv-run` — compatibility wrappers
+## `uv-sync` / `uv-run` — retired
 
-`uv-sync py10x-dev [--all-extras] [--with-downstream] [uv sync args...]` (`dev_10x/uv_sync.py`) is a
-thin wrapper over `./xx-build`, kept for existing habits (CI calls `./xx-build` and `uv sync`
-directly). `$XX_UV_INSTALL_MODE` picks the build mode:
+`uv-sync` (`dev_10x/uv_sync.py`) only prints the commands that replace it and exits 2; `uv-run` is
+gone. The old invocations map onto them as follows:
 
-| `XX_UV_INSTALL_MODE` | build mode |
-|----------------------|------------|
-| `incremental_quiet` (default), `incremental` | `dev` |
-| `editable`, `normal` | `ci-release` |
+| was | now |
+|-----|-----|
+| `uv-sync py10x-dev --all-extras --with-downstream` | `./xx-build init` on a fresh clone, then `uv sync` |
+| ... without `--with-downstream` | add `--no-group test --no-group test-extras` |
+| ... without `--all-extras` | add `--no-group extras` |
+| `XX_UV_INSTALL_MODE=editable` / `normal` | `./xx-build set-mode ci-release` |
+| `XX_UV_INSTALL_MODE=incremental_quiet` / `incremental` | `./xx-build set-mode dev` (the default) |
+| `SKBUILD_CMAKE_BUILD_TYPE=Release uv-sync ...` | `./xx-build set-mode dev-release` |
+| `uv-run <command>`, `uv run --no-sync <command>` | `uv run <command>` |
 
-and the arguments pick the dependency groups: without `--all-extras` it adds `--no-group extras`,
-without `--with-downstream` `--no-group test --no-group test-extras` (so xxfin is not importable -
-core CI's isolation check). It then runs `./xx-build set-mode <mode>` (`init --mode <mode>` without a
-`.venv`), passing other arguments on to `uv sync`. `--upgrade` is dropped (uv.lock changes only
-through `xx-constraints compile`); the `user` / `domain-dev` profiles are gone - a domain repo syncs
-against py10x with its own `uv sync`.
-
-`uv-run <command>` is `uv run --no-sync <command>`.
+`uv run` re-syncs first, which is now what you want: the env is `uv.lock` plus the active build mode.
 
 ---
 
@@ -413,7 +419,6 @@ xx-constraints check-export         # assert constraints.txt == `uv export` of u
   - **`--upgrade`**: re-resolves every pin to the latest version allowed by the ranges. Used by
     `refresh-constraints.yml`.
   - **`--summary-file PATH`** writes uv's `Updated X v1 -> v2` lines (the refresh PR description).
-  - `--with-downstream [name…]` is still accepted and ignored: the lock always covers downstreams.
   - uv runs as `$UV` when set (inside `uv run`), so a venv-installed uv — licensecheck pulls one on
     Python 3.11 — never replaces the uv that ran the command.
 - **`check`** asserts every *installed* third-party dist (minus the first-party packages) is

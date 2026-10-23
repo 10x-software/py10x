@@ -1,6 +1,6 @@
 """`python -m dev_10x.env_check [MODE] [--downstream]` - assert the venv holds what MODE should install.
 
-Checks the *result* of an install, not how it was produced, so it guards uv-sync / xx-build against
+Checks the *result* of an install, not how it was produced, so it guards xx-build against
 uv quietly installing something else (e.g. the root's editable `[tool.uv.sources]` overriding an
 install mode). Run from the repo root, in the venv under test.
 
@@ -9,8 +9,7 @@ and, for the editable C++ packages, the arguments scikit-build-core baked into t
 `_<name>_editable.py` loader (rebuild-on-import, verbose, build dir -> build type). Then it imports
 the compiled modules, which also proves they load without a rebuild failing (e.g. `build/` gone).
 
-MODE is an `./xx-build` build mode (dev, dev-release, ci-release) or one of uv-sync's
-$XX_UV_INSTALL_MODE names, which map onto them. It defaults to $XX_UV_INSTALL_MODE, else the mode
+MODE is an `./xx-build` build mode (dev, dev-release, ci-release). It defaults to the mode
 `./xx-build set-mode` left in uv.toml (dev without one). `dev`'s build type is
 $SKBUILD_CMAKE_BUILD_TYPE, else each package's `cmake.build-type`. `--downstream` also requires and
 checks the downstreams (py10x-fin-base and its C++ members); without it they are ignored.
@@ -44,8 +43,6 @@ MODES: dict[str, dict] = {
     'dev-release': {'editable': True, 'rebuild': True, 'verbose': False, 'build_type': 'Release'},
     'ci-release': {'editable': True, 'rebuild': False, 'verbose': None, 'build_type': 'Release'},
 }
-# uv-sync's XX_UV_INSTALL_MODE names -> the build mode uv-sync uses for them.
-ALIASES = {'incremental_quiet': 'dev', 'incremental': 'dev', 'editable': 'ci-release', 'normal': 'ci-release'}
 
 
 def _pyproject(path: Path) -> dict:
@@ -152,7 +149,7 @@ def check_cxx(name: str, state: dict | None, src: Path, expect: dict) -> list[st
 
 def check(mode: str, downstream: bool, root: Path = PROJECT_ROOT) -> tuple[list[str], list[str]]:
     """(problems, report lines) for the active venv."""
-    expect = MODES[ALIASES.get(mode, mode)]
+    expect = MODES[mode]
     siblings, downstreams, members = first_party(root)
     problems: list[str] = []
     report: list[str] = []
@@ -204,15 +201,15 @@ def import_modules(downstream: bool, root: Path = PROJECT_ROOT) -> list[str]:
 
 
 def default_mode(root: Path = PROJECT_ROOT) -> str:
-    """$XX_UV_INSTALL_MODE (uv-sync), else the mode `./xx-build set-mode` left in uv.toml."""
+    """The mode `./xx-build set-mode` left in uv.toml, else dev."""
     from dev_10x.xx_build import DEFAULT_MODE, active_mode
 
-    return os.environ.get('XX_UV_INSTALL_MODE') or active_mode(root) or DEFAULT_MODE
+    return active_mode(root) or DEFAULT_MODE
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog='python -m dev_10x.env_check', description=__doc__.splitlines()[0])
-    parser.add_argument('mode', nargs='?', default=default_mode(), choices=[*MODES, *ALIASES])
+    parser.add_argument('mode', nargs='?', default=default_mode(), choices=MODES)
     parser.add_argument('--downstream', action='store_true', help='also require and check the downstreams (fin-base, cxxfin)')
     parser.add_argument('--no-import', action='store_true', help='skip importing the compiled modules')
     args = parser.parse_args(argv)
