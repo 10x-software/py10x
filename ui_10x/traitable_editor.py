@@ -207,6 +207,19 @@ class TraitableEditor:
         ux.init()
 
         def accept_callback():
+            # track_changes + copy_entity keeps this dialog's edits in a nested
+            # scope, not the ambient cache. Verify there and export only after
+            # it succeeds, so a failed OK leaves the scope for a later OK.
+            # The other paths still export (or edit in place) before verify.
+            staged = self.traitable_processor
+            if self.change_tracker is not None and staged is not None and staged is not self.change_tracker:
+                with staged:
+                    rc = self.entity.verify()
+                if not rc:
+                    return rc
+                self._cleanup_tp(True)
+                return on_accept()
+
             self._cleanup_tp(True)
             rc = self.entity.verify()
             if rc:
