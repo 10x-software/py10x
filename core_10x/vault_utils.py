@@ -80,6 +80,9 @@ class VaultUtils:
 
         ``new_machine=False`` (default): first-time self-registration — create
         ``VaultUser`` + keys + server-wide RA, then write OS keyring entries.
+        Already seeded only when both the master password and the vault login
+        are in the OS keyring. A vault login without the master password is an
+        error that points at ``xx-user-init --new-machine``.
 
         ``new_machine=True``: same OS user on a new host — prove the existing
         master password against the vault private key, then write OS keyring
@@ -93,9 +96,11 @@ class VaultUtils:
         rc_vl, existing_login, existing_password = SecKeys.retrieve_vault_login_password(vault_uri)
 
         if not new_machine:
-            # -- already seeded on this machine
-            if rc_vl:
+            # -- a vault login alone is not a seed: the master password opens the private key
+            if rc_mp and rc_vl:
                 return rc_vl
+            if rc_vl:
+                return RC(False, 'Vault login is in the OS keyring but the master password is not. Run: xx-user-init --new-machine')
             return cls._user_init_new_user(vault_uri, login = login, password = password, master_password = master_password)
 
         # -- new-machine: full no-op only when both keyring entries are present
@@ -131,7 +136,7 @@ class VaultUtils:
 
             rc, master_pwd = cls.create_master_password(override = True, master_password = master_password)
             if not rc:
-                raise OSError(rc.error())
+                return rc
 
             me = VaultUser()
             private_key_pem, public_key_pem = SecKeys.generate_keys()
