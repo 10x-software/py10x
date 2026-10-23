@@ -2,7 +2,7 @@ from collections import namedtuple
 
 import numpy
 from core_10x.traitable import RT, M
-from xxcommon.rdate import FREQUENCY_TABLE, TENOR_PARAMS, RDate
+from xxcommon.rdate import PROPAGATE_DATES, RDate
 
 from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable
 from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
@@ -37,21 +37,14 @@ class IRSwapQuotable(IRCashDepositQuotable):
         ]
 
     def end_dates_get(self) -> list:
+        # Annuity accrues the fixed leg. Stepping while the previous date is still
+        # before maturity appends one full period past a non-integral tenor.
         mc = self.mkt_conventions
-        cal = mc.calendar
-        roll_rule = mc.roll_rule
-        swap_freq = mc.tenor_frequency
-
-        freq_method = FREQUENCY_TABLE[swap_freq][TENOR_PARAMS.RDATE_FUNC]
-        freq_step   = 1
-        raw_ed = rolled_ed = self.start_date
-        swap_end_date = self.end_date
-        end_dates = []
-        while rolled_ed < swap_end_date:
-            raw_ed = freq_method(raw_ed, freq_step)
-            rolled_ed = RDate.roll_to_bizday(raw_ed, cal, roll_rule)
-            end_dates.append(rolled_ed)
-
+        fixed_freq = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
+        _, end_dates, _ = fixed_freq.period_dates_for_tenor(
+            self.start_date, self.tenor, mc.calendar, mc.roll_rule,
+            PROPAGATE_DATES.FORWARD, True,
+        )
         return end_dates
 
     def pay_dates_get(self) -> list:
