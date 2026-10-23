@@ -188,6 +188,9 @@ def check() -> int:
     return 0
 
 
+USAGE = 'Usage: xx-constraints [compile [--upgrade] [--summary-file PATH]|check|check-export]'
+
+
 def main() -> None:
     args = sys.argv[1:]
     if not args:
@@ -197,13 +200,16 @@ def main() -> None:
         summary_file = None
         if '--summary-file' in rest:
             k = rest.index('--summary-file')
+            if k + 1 >= len(rest):
+                print(USAGE, file=sys.stderr)
+                sys.exit(2)
             summary_file = Path(rest[k + 1])
         sys.exit(compile_(upgrade='--upgrade' in rest, summary_file=summary_file))
     if cmd == 'check':
         sys.exit(check())
     if cmd == 'check-export':
         sys.exit(check_export())
-    sys.exit('Usage: xx-constraints [compile [--upgrade] [--summary-file PATH]|check|check-export]')
+    sys.exit(USAGE)
 
 
 if __name__ == '__main__':
