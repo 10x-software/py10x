@@ -162,6 +162,9 @@ class FunctionalAccountInitCli(TraitableCli):
             container_fifo_path,
         ]
         try:
+            # 0622 widens a same-user injection window; the random mkdtemp name plus 0711 (no list) contains it.
+            os.chmod(tmp_dir, 0o711)
+            os.chmod(fifo_path, 0o622)
             # No stdio overrides: inherits this process's own terminal, so the container's
             # getpass prompts are masked exactly as if a human ran `docker run -it` directly.
             result = subprocess.run(docker_argv, check=False)

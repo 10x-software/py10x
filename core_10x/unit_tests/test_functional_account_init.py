@@ -26,14 +26,33 @@ def _run(monkeypatch, argv):
     return FunctionalAccountInitCli.main()
 
 
+def _fifo_paths(argv: list[str]) -> tuple[str, str]:
+    mount = argv[argv.index('-v') + 1]
+    host_dir, _sep, _container_dir = mount.partition(':')
+    output = argv[argv.index('--output-file') + 1]
+    return host_dir, os.path.join(host_dir, os.path.basename(output))
+
+
+def _assert_container_can_write_fifo(argv: list[str]) -> None:
+    """`docker run` is invoked only after the host reader is attached. The container uid is not
+    the owner: the directory must be traversable by other, and the FIFO writable by other while
+    the owner keeps read (0711 / 0622). 0700/0600 fails this."""
+    host_dir, fifo_path = _fifo_paths(argv)
+    dir_mode = os.stat(host_dir).st_mode & 0o777
+    fifo_mode = os.stat(fifo_path).st_mode & 0o777
+    assert (dir_mode & 0o001) and not (dir_mode & 0o004), f'directory not traverse-only for other: {oct(dir_mode)}'
+    assert fifo_mode & 0o002, f'FIFO not writable by other: {oct(fifo_mode)}'
+    assert fifo_mode & 0o400, f'FIFO not readable by owner: {oct(fifo_mode)}'
+    assert not (fifo_mode & 0o004), f'FIFO readable by other: {oct(fifo_mode)}'
+
+
 def _write_fifo_from_fake_docker(argv: list[str], payload: str) -> None:
     """Simulate the container side of a `docker run ... xx-user-init --functional-account
     --output-file <path>` invocation: find the bind mount from `-v host:container` and write
     directly to the host-side path, exactly what the real container would produce via the mount."""
-    mount = argv[argv.index('-v') + 1]
-    host_dir, _sep, _container_dir = mount.partition(':')
-    output = argv[argv.index('--output-file') + 1]
-    with open(os.path.join(host_dir, os.path.basename(output)), 'w') as f:
+    _assert_container_can_write_fifo(argv)
+    _host_dir, fifo_path = _fifo_paths(argv)
+    with open(fifo_path, 'w') as f:
         f.write(payload)
 
 
@@ -202,7 +221,8 @@ def test_run_reports_docker_failure_and_cleans_up(monkeypatch):
 
     def fake_run(argv, **kwargs):
         if argv[:2] == ['docker', 'run']:
-            # container fails before ever writing the fifo
+            # container fails before ever writing the fifo; perms are already those it would have seen
+            _assert_container_can_write_fifo(argv)
             return subprocess.CompletedProcess(argv, 1)
         raise AssertionError('provisioning command must not run when docker run fails')
 
