@@ -32,4 +32,11 @@ export LOGNAME="$FUNCTIONAL_ACCOUNT_ID"
 export PYTHON_KEYRING_BACKEND=core_10x.functional_account_keyring.FunctionalAccountKeyring
 export XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE="$XX_SECRETS_DIR/keyring.json"
 
+# Host holds the read fd and has left the pipe mode 0200. Own it before gosu so this
+# uid can open the write end and cannot open a read end. Absent outside provisioning.
+: "${XX_PROVISIONING_OUTPUT_DIR:=/var/run/xx-provisioning-output}"
+if [[ -d $XX_PROVISIONING_OUTPUT_DIR ]]; then
+  chown "$(id -u "$FUNCTIONAL_ACCOUNT_ID"):$(id -g "$FUNCTIONAL_ACCOUNT_ID")" "$XX_PROVISIONING_OUTPUT_DIR"/*.fifo
+fi
+
 exec gosu "$FUNCTIONAL_ACCOUNT_ID" "$@"

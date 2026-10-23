@@ -37,6 +37,46 @@ from core_10x.traitable_cli import TraitableCli
 _IMAGE_REPO = 'ghcr.io/10x-software/py10x-core'
 _CONTAINER_MOUNT_DIR = '/var/run/xx-provisioning-output'
 _LOOPBACK_HOSTS = {'localhost', '127.0.0.1', '::1'}
+# Owner read while this process opens the pipe, then owner write and no read bit.
+# The container uid is not the owner until entrypoint.sh chowns, so the directory
+# must be traversable by other. 0711 does not grant read or write of the pipe.
+_FIFO_OWNER_READ = 0o400
+_FIFO_OWNER_WRITE = 0o200
+_PROVISIONING_DIR_MODE = 0o711
+
+
+def _drain_provisioning_fifo(fd: int, writer_finished: threading.Event, holder: dict) -> None:
+    """Read the manifest while the container writes.
+
+    A nonblocking read returns ``b''`` both before any writer has opened the pipe
+    and when the last writer closes. ``b''`` is end of stream only after ``docker run``
+    has returned (``writer_finished``). Pipe capacity is a host setting (default 16
+    pages, one page after ``pipe-user-pages-soft``), so this drains during the write.
+    """
+    chunks: list[bytes] = []
+    try:
+        while not writer_finished.is_set():
+            try:
+                chunk = os.read(fd, 65536)
+            except BlockingIOError:
+                writer_finished.wait(0.01)
+                continue
+            if chunk:
+                chunks.append(chunk)
+            else:
+                writer_finished.wait(0.01)
+        while True:
+            try:
+                chunk = os.read(fd, 65536)
+            except BlockingIOError:
+                break
+            if not chunk:
+                break
+            chunks.append(chunk)
+        if chunks:
+            holder['payload'] = b''.join(chunks).decode()
+    except (OSError, UnicodeError) as ex:
+        holder['error'] = ex
 
 
 class FunctionalAccountInitCli(TraitableCli):
@@ -127,51 +167,54 @@ class FunctionalAccountInitCli(TraitableCli):
         os.chmod(tmp_dir, 0o700)
         fifo_name = self.functional_account_id.replace('/', '_').replace('\0', '_') + '.fifo'
         fifo_path = os.path.join(tmp_dir, fifo_name)
-        os.mkfifo(fifo_path, 0o600)
+        os.mkfifo(fifo_path, _FIFO_OWNER_READ)
+        os.chmod(fifo_path, _FIFO_OWNER_READ)  # mkfifo applies umask
         container_fifo_path = f'{_CONTAINER_MOUNT_DIR}/{fifo_name}'
 
         holder: dict = {}
-
-        def _reader() -> None:
-            try:
-                with open(fifo_path) as f:
-                    holder['payload'] = f.read()
-            except OSError as ex:
-                holder['error'] = ex
-
-        # Attach before docker run so this process is first on the FIFO. Daemon: a container
-        # that never writes leaves this thread blocked in open(); abandoning it is better
-        # than hanging process exit.
-        reader_thread = threading.Thread(target=_reader, daemon=True)
-        reader_thread.start()
-
-        docker_argv = [
-            'docker',
-            'run',
-            '--rm',
-            '-it',
-            '-e',
-            f'FUNCTIONAL_ACCOUNT_ID={self.functional_account_id}',
-            '-v',
-            f'{tmp_dir}:{_CONTAINER_MOUNT_DIR}',
-            *docker_args,
-            image,
-            'xx-user-init',
-            '--functional-account',
-            '--output-file',
-            container_fifo_path,
-        ]
+        read_fd: int | None = None
+        reader_thread: threading.Thread | None = None
+        writer_finished = threading.Event()
         try:
-            # 0622 widens a same-user injection window; the random mkdtemp name plus 0711 (no list) contains it.
-            os.chmod(tmp_dir, 0o711)
-            os.chmod(fifo_path, 0o622)
+            # Permission is checked at open. Hold the read fd, then drop the read bit
+            # so a later open — including one by uid 10001 after the entrypoint chowns —
+            # cannot take the stream. chmod of the directory lets that uid walk to the pipe.
+            read_fd = os.open(fifo_path, os.O_RDONLY | os.O_NONBLOCK)
+            os.chmod(fifo_path, _FIFO_OWNER_WRITE)
+            os.chmod(tmp_dir, _PROVISIONING_DIR_MODE)
+            reader_thread = threading.Thread(
+                target=_drain_provisioning_fifo,
+                args=(read_fd, writer_finished, holder),
+                daemon=True,
+                name='xx-functional-account-fifo',
+            )
+            reader_thread.start()
+
+            docker_argv = [
+                'docker',
+                'run',
+                '--rm',
+                '-it',
+                '-e',
+                f'FUNCTIONAL_ACCOUNT_ID={self.functional_account_id}',
+                '-v',
+                f'{tmp_dir}:{_CONTAINER_MOUNT_DIR}',
+                *docker_args,
+                image,
+                'xx-user-init',
+                '--functional-account',
+                '--output-file',
+                container_fifo_path,
+            ]
             # No stdio overrides: inherits this process's own terminal, so the container's
             # getpass prompts are masked exactly as if a human ran `docker run -it` directly.
             result = subprocess.run(docker_argv, check=False)
+            writer_finished.set()
+            reader_thread.join(timeout=10)
             if result.returncode != 0:
                 return RC(False, f'docker run failed with exit code {result.returncode}')
-
-            reader_thread.join(timeout=10)
+            if reader_thread.is_alive():
+                return RC(False, 'timed out reading the provisioning manifest')
             if 'error' in holder:
                 return RC(False, f'failed to read manifest: {holder["error"]}')
             if 'payload' not in holder:
@@ -187,6 +230,11 @@ class FunctionalAccountInitCli(TraitableCli):
 
             return RC_TRUE
         finally:
+            writer_finished.set()
+            if reader_thread is not None and reader_thread.is_alive():
+                reader_thread.join(timeout=10)
+            if read_fd is not None:
+                os.close(read_fd)
             try:
                 os.remove(fifo_path)
             except OSError:

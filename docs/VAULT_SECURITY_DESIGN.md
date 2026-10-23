@@ -152,12 +152,13 @@ At runtime, impersonating a functional account requires both `FUNCTIONAL_ACCOUNT
 where `FunctionalAccountKeyring` reads it; either alone is insufficient.
 
 **Weaknesses.**
-- Provisioning delivers the manifest over a FIFO, not a file. A named pipe has no
-  exclusive reader: a second opener on the same path shares the byte stream and can
-  corrupt or intercept the manifest — e.g. two `xx-functional-account-init` runs for
-  the same account in parallel, or another process as the same OS user (or root)
-  opening the per-run path under the `0700` temp directory. Per-account filenames
-  only prevent **cross-account** mix-ups, not that.
+- Provisioning delivers the manifest over a FIFO, not a file. The host opens the
+  read end, then sets the pipe to `0200` and the directory to `0711`. The container
+  entrypoint `chown`s the pipe to uid `10001` before `gosu`, so that uid can open the
+  write end and cannot open a read end. Root still ignores the mode bits. Any other
+  process running as uid `10001` that can name the path can write into the stream.
+  The directory name is visible under `/tmp`. Per-account filenames only prevent
+  **cross-account** mix-ups.
 - Image resolution prefers the GHCR tag matching the installed `py10x-core` version;
   `--image-tag` is trusted as-is, with no digest pinning. `--image-tag` is only needed
   when that version has no matching published image (local unreleased build).
