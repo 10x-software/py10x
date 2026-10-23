@@ -175,6 +175,25 @@ jobs:
           uv sync
           uv run --no-sync python -m dev_10x.env_check dev --downstream
 
+      # A pull (a new commit) must not make plain `uv sync` rebuild the C++ packages: uv would build them
+      # all at once, and py10x-fin-base-cxx's build imports the kernel while uv reconfigures its build dir.
+      - name: "dev: plain uv sync after a new commit leaves the C++ builds alone"
+        run: |
+          git -c user.name=ci -c user.email=ci@localhost commit --allow-empty -q -m "stand-in for a pull"
+          uv sync 2>&1 | tee "$RUNNER_TEMP/sync-after-commit.log"
+          if grep -E "Building (py10x-kernel|py10x-infra|py10x-fin-base-cxx) " "$RUNNER_TEMP/sync-after-commit.log"; then
+            echo "::error::plain uv sync rebuilt C++ packages after a new commit"; exit 1
+          fi
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
+      # ... `./xx-build rebuild` does, in order, which also refreshes their setuptools-scm versions.
+      - name: "dev: ./xx-build rebuild refreshes the C++ versions"
+        run: |
+          ./xx-build rebuild
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+          expected=$(uv run --no-sync python -m setuptools_scm --config cxx10x/core_10x/pyproject.toml)
+          uv run --no-sync python -c "import sys, core_10x, py10x_kernel; assert py10x_kernel.__version__ == sys.argv[1], (py10x_kernel.__version__, sys.argv[1])" "$expected"
+
       # Each mode: set-mode rebuilds in order; plain `uv sync` then stays in the mode (env_check's default
       # mode is the one in uv.toml).
       - name: "./xx-build set-mode: dev-release, ci-release"
@@ -195,21 +214,6 @@ jobs:
           mv build build.moved
           uv run --no-sync python -m dev_10x.env_check ci-release --downstream
           mv build.moved build
-
-      # The uv-sync compatibility wrapper (dev_10x/uv_sync.py), until it is retired: XX_UV_INSTALL_MODE ->
-      # build mode, and without --with-downstream no fin-base.
-      - name: "uv-sync wrapper"
-        run: |
-          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-          for mode in editable incremental_quiet; do
-            echo "::group::XX_UV_INSTALL_MODE=$mode"
-            XX_UV_INSTALL_MODE=$mode python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
-            XX_UV_INSTALL_MODE=$mode python -m dev_10x.env_check --downstream
-            echo "::endgroup::"
-          done
-          XX_UV_INSTALL_MODE=editable python -m dev_10x.uv_sync py10x-dev --all-extras
-          XX_UV_INSTALL_MODE=editable python -m dev_10x.env_check
-          python -c "import importlib.util as u; assert u.find_spec('xxfin') is None, 'xxfin installed without --with-downstream'"
 
       - name: "dev again: ./xx-build set-mode dev"
         run: |

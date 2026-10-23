@@ -74,6 +74,16 @@ def test_init_clean_deletes_venv_and_build_then_runs(tmp_path, uv_calls):
     assert len(uv_calls.cmds) == 4
 
 
+def test_init_clean_unknown_mode_keeps_the_environment(repo, uv_calls):
+    """`init --clean --mode <typo>` must fail before .venv and build/ are removed (main exits 2)."""
+    for name in ('.venv', 'build'):
+        (repo / name).mkdir()
+    with pytest.raises(ValueError, match="unknown build mode 'not-a-mode'"):
+        xx_build.init(clean=True, sync_args=[], root=repo, mode='not-a-mode')
+    assert (repo / '.venv').is_dir() and (repo / 'build').is_dir()
+    assert uv_calls.cmds == []
+
+
 def test_init_stops_at_the_first_failing_step(tmp_path, monkeypatch):
     calls = []
 
@@ -103,6 +113,18 @@ def test_main_parses_set_mode_and_show_mode(monkeypatch):
     assert xx_build.main(['show-mode']) == 0
     assert seen == [('dev-release', ['--locked']), 'show']
     assert xx_build.main(['set-mode']) == 2
+
+
+def test_main_rebuild_is_set_mode_with_the_active_mode(monkeypatch, capsys):
+    seen = []
+    monkeypatch.setattr(xx_build, 'set_mode', lambda mode, sync_args: seen.append((mode, sync_args)) or 0)
+    monkeypatch.setattr(xx_build, 'active_mode', lambda: 'dev-release')
+    assert xx_build.main(['rebuild', '--locked']) == 0
+    assert seen == [('dev-release', ['--locked'])]
+    monkeypatch.setattr(xx_build, 'active_mode', lambda: None)  # a uv.toml xx-build did not write
+    assert xx_build.main(['rebuild']) == 2
+    assert 'not written by xx-build' in capsys.readouterr().err
+    assert len(seen) == 1
 
 
 def test_wrapper_runs_isolated_without_the_project():
@@ -209,6 +231,21 @@ def test_a_foreign_uv_toml_is_left_alone(repo):
     assert (repo / 'uv.toml').exists()
 
 
+def test_init_refuses_a_foreign_uv_toml_before_creating_a_venv(repo, uv_calls):
+    """Without --mode, init must not keep a foreign uv.toml and print 'build mode None'."""
+    text = 'cache-dir = "/x"\n'
+    (repo / 'uv.toml').write_text(text, encoding='utf-8')
+    with pytest.raises(ValueError, match='not written by xx-build'):
+        xx_build.init(clean=False, sync_args=[], root=repo)
+    for name in ('.venv', 'build'):
+        (repo / name).mkdir()
+    with pytest.raises(ValueError, match='not written by xx-build'):
+        xx_build.init(clean=True, sync_args=[], root=repo)
+    assert (repo / '.venv').is_dir() and (repo / 'build').is_dir()
+    assert (repo / 'uv.toml').read_text(encoding='utf-8') == text
+    assert uv_calls.cmds == []
+
+
 def test_show_mode_flags_a_stale_uv_toml(repo, capsys):
     assert xx_build.show_mode(repo) == 0
     xx_build.write_mode('dev-release', repo)
@@ -216,7 +253,7 @@ def test_show_mode_flags_a_stale_uv_toml(repo, capsys):
     assert 'build mode: dev-release' in capsys.readouterr().out
     (repo / 'pyproject.toml').write_text(PYPROJECT.replace('["k"]', '["k", "j"]'), encoding='utf-8')
     assert xx_build.show_mode(repo) == 1
-    assert 'run `./xx-build set-mode dev-release`' in capsys.readouterr().err
+    assert 'run `./xx-build rebuild`' in capsys.readouterr().err
 
 
 def test_set_mode_writes_uv_toml_then_syncs_in_order(repo, uv_calls):
@@ -263,7 +300,7 @@ def test_an_interrupted_switch_is_reported(repo, monkeypatch, capsys):
     (repo / '.venv').mkdir()
     monkeypatch.setattr(xx_build.subprocess, 'run', lambda cmd, **kw: subprocess.CompletedProcess(cmd, 2))
     assert xx_build.set_mode('dev-release', [], repo) == 2
-    assert 'run `./xx-build set-mode dev-release`' in capsys.readouterr().err
+    assert 'run `./xx-build rebuild`' in capsys.readouterr().err
     assert xx_build.show_mode(repo) == 1
     assert 'not fully in build mode dev-release' in capsys.readouterr().err
 

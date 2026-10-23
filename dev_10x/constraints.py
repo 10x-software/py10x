@@ -2,8 +2,8 @@
 
 The source of truth is the committed `uv.lock` (universal: every supported Python / platform, all
 extras and dependency groups). `constraints.txt` is generated from it with `uv export`: the same pins
-as a reviewable `name==version` list, used as `uv pip install -c constraints.txt` by uv-sync and the
-CI workflows. Never edit either by hand; change pyproject ranges and run `compile`, or let the weekly
+as a reviewable `name==version` list, used as `uv pip install -c constraints.txt` by the release
+workflows. Never edit either by hand; change pyproject ranges and run `compile`, or let the weekly
 refresh workflow upgrade them.
 
 First-party packages are deliberately NOT exported (`_first_party()`: root, siblings, downstreams, and
@@ -16,8 +16,6 @@ Subcommands:
            `uv lock` (keeps existing pins where still valid), or `uv lock --upgrade` (bump every pin
            to the latest version the ranges allow), then regenerate constraints.txt from uv.lock.
            --summary-file writes uv's "Updated X v1 -> v2" lines (for the refresh PR description).
-           `--with-downstream [name…]` is accepted for compatibility and ignored: uv.lock always
-           covers the downstreams through the `test` / `test-extras` dependency groups.
   check    assert every *installed* third-party distribution is pinned in constraints.txt
   check-export
            assert constraints.txt is exactly what `uv export` produces from uv.lock
@@ -38,8 +36,6 @@ import sys
 from pathlib import Path
 
 import tomllib
-
-from dev_10x.uv_sync import _parse_with_downstream
 
 PROJECT_ROOT = Path.cwd()
 CONSTRAINTS = PROJECT_ROOT / 'constraints.txt'
@@ -192,23 +188,28 @@ def check() -> int:
     return 0
 
 
+USAGE = 'Usage: xx-constraints [compile [--upgrade] [--summary-file PATH]|check|check-export]'
+
+
 def main() -> None:
     args = sys.argv[1:]
     if not args:
         sys.exit(compile_())
     cmd, rest = args[0], args[1:]
     if cmd == 'compile':
-        _, _, rest = _parse_with_downstream(tuple(rest))  # accepted for compatibility; the lock covers downstreams
         summary_file = None
         if '--summary-file' in rest:
             k = rest.index('--summary-file')
+            if k + 1 >= len(rest):
+                print(USAGE, file=sys.stderr)
+                sys.exit(2)
             summary_file = Path(rest[k + 1])
         sys.exit(compile_(upgrade='--upgrade' in rest, summary_file=summary_file))
     if cmd == 'check':
         sys.exit(check())
     if cmd == 'check-export':
         sys.exit(check_export())
-    sys.exit('Usage: xx-constraints [compile [--upgrade] [--summary-file PATH]|check|check-export]')
+    sys.exit(USAGE)
 
 
 if __name__ == '__main__':
