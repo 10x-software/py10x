@@ -54,10 +54,7 @@ def get_xx_admin(user: str):
 def git_user(uid='', login=True):
     uid = f'/{uid}' if uid else ''
     user = requests.get(f'https://api.github.com/user{uid}', headers={'Authorization': f'token {git_token()}'}).json()
-    if user['name'] and not login:
-        return user['name'].lower()
-    # Keyring names are lowercased; a mixed-case GitHub login misses them.
-    return (user['login'] or input(f'Username{uid}:')).lower()
+    return (user['name'] if user['name'] and not login else user['login'] or input(f'Username{uid}:')).lower()
 
 
 @cache
