@@ -74,6 +74,16 @@ def test_init_clean_deletes_venv_and_build_then_runs(tmp_path, uv_calls):
     assert len(uv_calls.cmds) == 4
 
 
+def test_init_clean_unknown_mode_keeps_the_environment(repo, uv_calls):
+    """`init --clean --mode <typo>` must fail before .venv and build/ are removed (main exits 2)."""
+    for name in ('.venv', 'build'):
+        (repo / name).mkdir()
+    with pytest.raises(ValueError, match="unknown build mode 'not-a-mode'"):
+        xx_build.init(clean=True, sync_args=[], root=repo, mode='not-a-mode')
+    assert (repo / '.venv').is_dir() and (repo / 'build').is_dir()
+    assert uv_calls.cmds == []
+
+
 def test_init_stops_at_the_first_failing_step(tmp_path, monkeypatch):
     calls = []
 
@@ -125,6 +135,7 @@ def test_wrapper_runs_isolated_without_the_project():
     text = wrapper.read_text(encoding='utf-8')
     assert '\r' not in text
     assert 'uv run --no-project --isolated --with tomlkit -m dev_10x.xx_build "$@"' in text
+    assert 'rebuild' in text.splitlines()[1]
 
 
 def test_inner_uv_calls_drop_the_wrappers_virtual_env(tmp_path, uv_calls, monkeypatch):
@@ -219,6 +230,21 @@ def test_a_foreign_uv_toml_is_left_alone(repo):
     with pytest.raises(ValueError, match='not written by xx-build'):
         xx_build.write_mode('dev', repo)
     assert (repo / 'uv.toml').exists()
+
+
+def test_init_refuses_a_foreign_uv_toml_before_creating_a_venv(repo, uv_calls):
+    """Without --mode, init must not keep a foreign uv.toml and print 'build mode None'."""
+    text = 'cache-dir = "/x"\n'
+    (repo / 'uv.toml').write_text(text, encoding='utf-8')
+    with pytest.raises(ValueError, match='not written by xx-build'):
+        xx_build.init(clean=False, sync_args=[], root=repo)
+    for name in ('.venv', 'build'):
+        (repo / name).mkdir()
+    with pytest.raises(ValueError, match='not written by xx-build'):
+        xx_build.init(clean=True, sync_args=[], root=repo)
+    assert (repo / '.venv').is_dir() and (repo / 'build').is_dir()
+    assert (repo / 'uv.toml').read_text(encoding='utf-8') == text
+    assert uv_calls.cmds == []
 
 
 def test_show_mode_flags_a_stale_uv_toml(repo, capsys):

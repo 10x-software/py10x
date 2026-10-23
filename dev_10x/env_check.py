@@ -10,7 +10,8 @@ and, for the editable C++ packages, the arguments scikit-build-core baked into t
 the compiled modules, which also proves they load without a rebuild failing (e.g. `build/` gone).
 
 MODE is an `./xx-build` build mode (dev, dev-release, ci-release). It defaults to the mode
-`./xx-build set-mode` left in uv.toml (dev without one). `dev`'s build type is
+`./xx-build set-mode` left in uv.toml (dev without one). A uv.toml xx-build did not write is an
+error (the same message as `./xx-build show-mode`), not a silent dev. `dev`'s build type is
 $SKBUILD_CMAKE_BUILD_TYPE, else each package's `cmake.build-type`. `--downstream` also requires and
 checks the downstreams (py10x-fin-base and its C++ members); without it they are ignored.
 """
@@ -201,23 +202,35 @@ def import_modules(downstream: bool, root: Path = PROJECT_ROOT) -> list[str]:
 
 
 def default_mode(root: Path = PROJECT_ROOT) -> str:
-    """The mode `./xx-build set-mode` left in uv.toml, else dev."""
-    from dev_10x.xx_build import DEFAULT_MODE, active_mode
+    """The mode `./xx-build set-mode` left in uv.toml, else dev.
 
-    return active_mode(root) or DEFAULT_MODE
+    A uv.toml xx-build did not write raises `show-mode`'s message instead of defaulting to dev:
+    uv is applying that file, so a dev check would be about a different install.
+    """
+    from dev_10x.xx_build import FOREIGN_MODE_MESSAGE, active_mode
+
+    mode = active_mode(root)
+    if mode is None:
+        raise ValueError(FOREIGN_MODE_MESSAGE)
+    return mode
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog='python -m dev_10x.env_check', description=__doc__.splitlines()[0])
-    parser.add_argument('mode', nargs='?', default=default_mode(), choices=MODES)
+    parser.add_argument('mode', nargs='?', choices=MODES)
     parser.add_argument('--downstream', action='store_true', help='also require and check the downstreams (fin-base, cxxfin)')
     parser.add_argument('--no-import', action='store_true', help='skip importing the compiled modules')
     args = parser.parse_args(argv)
+    try:
+        mode = args.mode if args.mode is not None else default_mode()
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
 
-    problems, report = check(args.mode, args.downstream)
+    problems, report = check(mode, args.downstream)
     if not args.no_import:
         problems += import_modules(args.downstream)
-    print(f'env_check {args.mode}{" --downstream" if args.downstream else ""}:')
+    print(f'env_check {mode}{" --downstream" if args.downstream else ""}:')
     print('\n'.join(report), flush=True)
     if problems:
         print('FAILED:\n' + '\n'.join(f'  - {p}' for p in problems), file=sys.stderr)
