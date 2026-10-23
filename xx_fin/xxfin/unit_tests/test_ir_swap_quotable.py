@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 
 import pytest
-from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
+from xxcommon.rdate import BIZDAY_ROLL_RULE, PROPAGATE_DATES, RDate
 from xxfin.fin_calendar import FinCalendar
 from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
 from xxfin.ir_swap_quotable import IRSwapQuotable
@@ -70,6 +70,19 @@ class TestIRSwapQuotable:
                 end_dates.append(rolled_ed)
 
             assert end_dates == swap.end_dates
+
+    def test_end_dates_non_integral_tenor(self):
+        # 18M vs the annual fixed leg must stub at maturity, not step a full period past it.
+        tenor = RDate('18M')
+        for irate in self.irates:
+            mc = irate['mc']
+            swap = IRSwapQuotable(mkt_name=irate['irate'], tenor=tenor, **self.md_basis)
+            fixed_freq = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
+            _, end_dates, _ = fixed_freq.period_dates_for_tenor(
+                swap.start_date, tenor, mc.calendar, mc.roll_rule, PROPAGATE_DATES.FORWARD, True,
+            )
+            assert end_dates == swap.end_dates
+            assert swap.end_dates[-1] == swap.end_date
 
     def test_pay_dates(self):
         for irate in self.irates:
