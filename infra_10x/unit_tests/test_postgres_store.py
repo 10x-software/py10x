@@ -24,6 +24,7 @@ from dev_10x.postgres_local import PASSWORD_AUTH_PASSWORD, PASSWORD_AUTH_PORT
 from infra_10x.ibis_store import _DATA, _ID, _REV
 from infra_10x.postgres_store import _PG_AUTH_OK, PostgresStore
 from infra_10x.unit_tests.conftest import TEST_TS_STORE
+from psycopg.errors import InsufficientPrivilege
 
 
 def test_postgresql_parse_uri_and_registry():
@@ -292,6 +293,77 @@ def test_ensure_columns_skips_runtime_traits(postgres_store):
         assert 'tmp' not in cols
     finally:
         store.delete_collection(coll_name)
+
+
+class _IndexCursor:
+    """CREATE INDEX raises; a catalog lookup returns a row only for known index names."""
+
+    def __init__(self, conn):
+        self._conn = conn
+        self.description = None
+        self._rows: list[tuple] = []
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def execute(self, sql, params=None):
+        bound = list(params or ())
+        self._conn.queries.append((sql, bound))
+        if 'CREATE' in sql.upper() and 'INDEX' in sql.upper():
+            raise InsufficientPrivilege(self._conn.error_text)
+        self.description = ('?column?',)
+        self._rows = [(1,)] if set(bound) & self._conn.indexes else []
+
+    def fetchall(self):
+        return list(self._rows)
+
+
+class _IndexConn:
+    def __init__(self, indexes: set[str], error_text: str = 'must be owner of table pad'):
+        self.indexes = indexes
+        self.error_text = error_text
+        self.queries: list[tuple[str, list]] = []
+
+    def cursor(self):
+        return _IndexCursor(self)
+
+
+def _store_with_index_conn(indexes: set[str], error_text: str = 'must be owner of table pad') -> tuple[PostgresStore, _IndexConn]:
+    """PostgresStore that never connects; index DDL hits the fake cursor."""
+    store = PostgresStore.__new__(PostgresStore)
+    conn = _IndexConn(indexes, error_text)
+    store._con = conn
+    store.ensure_table = lambda collection_name: None
+    store._ensure_columns = lambda collection_name, keys, col_trait_dir: None
+    store._collection_columns = lambda collection_name: {_ID: str, _REV: int, _DATA: dict, 'pad': int}
+    return store, conn
+
+
+def test_create_index_owner_error_requires_existing_index():
+    """A non-owner 'must be owner of table' is success only when pg_indexes already has the index.
+
+    No live Postgres: CREATE INDEX raises from a fake cursor, and the catalog lookup reads that
+    same cursor. A missing row must propagate — swallowing it reports the index name and leaves
+    a later unique index unenforced.
+    """
+    coll = 'pad_coll'
+    missing, _conn = _store_with_index_conn(set())
+    with pytest.raises(InsufficientPrivilege, match='must be owner of table'):
+        missing.create_index(coll, 'idx_pad', 'pad', {})
+
+    present, conn = _store_with_index_conn(set())
+    phys_idx = present._physical_index_name(coll, 'idx_pad')
+    conn.indexes.add(phys_idx)
+    assert present.create_index(coll, 'idx_pad', 'pad', {}) == 'idx_pad'
+    assert any('pg_indexes' in sql or 'pg_class' in sql for sql, _params in conn.queries)
+
+    # Same sqlstate, different driver text: not the ownership check, even if the index row exists.
+    denied, _denied_conn = _store_with_index_conn({phys_idx}, error_text='permission denied for table pad')
+    with pytest.raises(InsufficientPrivilege, match='permission denied'):
+        denied.create_index(coll, 'idx_pad', 'pad', {})
 
 
 def test_create_index_ignores_must_be_owner(postgres_store):

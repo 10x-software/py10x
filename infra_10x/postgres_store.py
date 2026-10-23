@@ -247,13 +247,33 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         return '"' + name.replace('"', '""') + '"'
 
     def create_index(self, collection_name: str, name: str, trait_name: str | list[tuple[str, int]], col_trait_dir: dict, **index_args) -> str:
-        # Non-owners (e.g. vault users) cannot CREATE INDEX; the table owner already did. IF NOT EXISTS does not skip the ownership check.
+        # IF NOT EXISTS still checks ownership (sqlstate 42501, driver text "must be owner of table").
+        # That is success only when the physical index is already in the catalog. Treating a missing
+        # index as success reports the name and leaves a later unique index unenforced.
         try:
             return super().create_index(collection_name, name, trait_name, col_trait_dir, **index_args)
         except InsufficientPrivilege as e:
-            if 'must be owner of table' not in str(e):
+            if not self._is_table_owner_index_error(e) or not self._index_in_catalog(collection_name, name):
                 raise
             return name
+
+    @staticmethod
+    def _is_table_owner_index_error(exc: InsufficientPrivilege) -> bool:
+        # 42501 is shared with other privilege failures; the driver still surfaces the English text.
+        if getattr(exc, 'sqlstate', None) != '42501':
+            return False
+        text = str(exc)
+        primary = getattr(getattr(exc, 'diag', None), 'message_primary', None)
+        if primary and primary not in text:
+            text = f'{text}\n{primary}'
+        return 'must be owner of table' in text
+
+    def _index_in_catalog(self, collection_name: str, name: str) -> bool:
+        rows = self._execute(
+            'SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND tablename = ? AND indexname = ?',
+            [self._physical_table_name(collection_name), self._physical_index_name(collection_name, name)],
+        )
+        return bool(rows)
 
     def _json_ts_merge_sql(self, obj_parts: list[str]) -> str:
         merge = f'jsonb_build_object({", ".join(obj_parts)})'
