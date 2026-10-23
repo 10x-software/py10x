@@ -127,7 +127,7 @@ def test_post_verify_allows_unchanged_legacy_empty_salt():
         assert reloaded.master_password_salt == b''
         assert reloaded.private_key_encrypted == blob
 
-        loaded.set_values(private_key_encrypted=b'replaced-encrypted-blob')
+        loaded.set_values(suspended=False)
         rc_replaced = loaded.save()
         assert not rc_replaced
         assert 'master_password_salt' in rc_replaced.error()

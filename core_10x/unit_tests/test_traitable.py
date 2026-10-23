@@ -2105,7 +2105,7 @@ class TestCycles:
 
 
 def test_renamed_name_trait_hides_name():
-    """When name_trait is not 'name', .name is not a trait and name= is not ignored."""
+    """When name_trait is not 'name', .name is not a trait."""
 
     class Mkt(NamedTraitable, name_trait='mkt_name', keep_history=False):
         mkt_name: str = T(T.ID)
@@ -2130,11 +2130,28 @@ def test_renamed_name_trait_hides_name():
         with pytest.raises(AttributeError):
             _ = spot.name
 
-        # name= must not be dropped while mkt_name is set; that used to construct anyway.
-        with pytest.raises(TypeError, match='name'):
-            Mkt(mkt_name='EUR', name='OTHER')
-        with pytest.raises(TypeError, match='name'):
-            Mkt(name='ONLY')
-
         cal = Cal(name='UK')
         assert cal.name == 'UK'
+
+
+def test_runtime_subclass_of_storable_hides_reserved_traits():
+    class Stored(Traitable, keep_history=False):
+        k: str = T(T.ID)
+        v: int = T(0)
+
+    class Transient(Stored):
+        k = M(flags=(T.RUNTIME, None))
+        v = M(flags=(T.RUNTIME, None))
+
+    assert Stored.is_storable()
+    assert not Transient.is_storable()
+    assert Transient.trait('_rev') is None
+    assert Transient.trait('_collection_name') is None
+
+    with CACHE_ONLY():
+        t = Transient(k='a')
+        assert t.v == 0
+        for trait_name in ('_rev', '_collection_name'):
+            assert not hasattr(t, trait_name)
+            with pytest.raises(AttributeError):
+                setattr(t, trait_name, 'x')

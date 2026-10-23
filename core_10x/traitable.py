@@ -115,6 +115,16 @@ class UnboundTraitAccessor:
 COLL_NAME_TAG = '_collection_name'
 
 
+class deleted_trait(property):
+    """Shadows an inherited trait that a subclass dropped from its s_dir, so obj.<name> can't reach the base's trait."""
+
+    def __init__(self, trait_name: str):
+        def reject(obj, *_):
+            raise AttributeError(f'{type(obj).__name__}.{trait_name} - trait is deleted in this class')
+
+        super().__init__(reject, reject)
+
+
 class StorageHelperDescriptor:
     """Resolves s_storage_helper via __mro__ when in AsOf context; otherwise returns real helper."""
 
@@ -170,6 +180,19 @@ class TraitableMetaclass(type(BTraitable)):
                 raise TypeError(f'Overriding __init__ is not allowed in {name}. Use __post_init__ instead.')
 
         return super().__new__(cls, name, bases, class_dict | {'__slots__': ()}, **kwargs)
+
+class TraitDir(dict):
+    def __init__(self):
+        self.m_deleted_traits = set()
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self.m_deleted_traits.add(key)
+
+    def pop(self, key, *default):
+        if key in self:
+            self.m_deleted_traits.add(key)
+        return super().pop(key, *default)
 
 
 class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
@@ -444,7 +467,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
         cls.s_indices = list((functools.reduce(operator.or_, cls._inherited_indices(), {}) | cls._own_indices()).values())
 
-        cls.s_dir = {}
+        cls.s_dir = TraitDir()
         cls.s_bclass = BTraitableClass(cls)
 
         cls.build_trait_dir()  # -- build cls.s_dir from trait definitions in cls.__dict__
@@ -466,6 +489,11 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             trait.set_trait_funcs(cls, rc)
             trait.check_integrity(cls, rc)
             setattr(cls, trait_name, trait)
+
+        for trait_name in cls.s_dir.m_deleted_traits:
+            if hasattr(cls, trait_name):  # -- only shadow what the MRO would otherwise find
+                setattr(cls, trait_name, deleted_trait(trait_name))
+
         cls.check_integrity(root_class, rc)
         cls.resolve_pending_forward_refs(rc)
         rc.throw()
@@ -1333,17 +1361,6 @@ class AsOfContext:
 NAMED_TRAITABLE_NAME_TRAIT = 'name'
 
 
-def _reject_renamed_name(self, *_args):
-    # NamedTraitable.name stays on the MRO after the trait is popped. A data descriptor
-    # here is what stops instance access from reading or writing that foreign node.
-    raise AttributeError(
-        f'{type(self).__name__} has no attribute {NAMED_TRAITABLE_NAME_TRAIT!r}; identity trait is {type(self).s_name_trait!r}'
-    )
-
-
-_REJECTED_NAME = property(_reject_renamed_name, _reject_renamed_name)
-
-
 class NamedTraitable(Traitable):
     #-- subclass may rename the identity trait, e.g. `class Ccy(NamedTraitable, name_trait = 'ccy_name')`;
     #-- the renamed trait must still be declared with T(T.ID) in the subclass body
@@ -1366,14 +1383,8 @@ class NamedTraitable(Traitable):
             assert new_trait, f'{cls}.{name_trait!r} does not exist; declare `{name_trait}: str = T(T.ID,...)` in the class body'
             assert new_trait.flags_on(T.ID), f'{cls}.{name_trait!r} must be flagged T.ID'
             trait_dir.pop(NAMED_TRAITABLE_NAME_TRAIT, None)
-            setattr(cls, NAMED_TRAITABLE_NAME_TRAIT, _REJECTED_NAME)
 
     def __init__(self, _name: str = None, **kwargs):
-        # initialize() skips unknown trait names, so name= would not fill the renamed id.
-        if self.s_name_trait != NAMED_TRAITABLE_NAME_TRAIT and NAMED_TRAITABLE_NAME_TRAIT in kwargs:
-            raise TypeError(
-                f'{type(self).__name__}() got an unexpected keyword argument {NAMED_TRAITABLE_NAME_TRAIT!r}; use {self.s_name_trait!r}'
-            )
         if _name:
             obj = self.existing_instance(**{self.s_name_trait: _name}, **kwargs)
             assert obj is not None, f'May not use _throw = False here. Call {self.__class__}.existing_instance(...) directly instead'
@@ -1598,35 +1609,9 @@ class VaultUser(Traitable):
 
     def post_verify(self) -> RC:
         rc = super().post_verify()
-        # Empty salt is only legal for a ciphertext already stored that way. A new salt
-        # without re-wrapping will not decrypt, and an admin has no master password to re-wrap.
-        if self.private_key_encrypted and not self.master_password_salt and not self._stored_key_and_salt_unchanged():
+        if self.private_key_encrypted and not self.master_password_salt and not self.suspended:
             return rc + RC(False, 'master_password_salt is required when saving an encrypted private key')
         return rc
-
-    def _stored_key_and_salt_unchanged(self) -> bool:
-        """True when this ciphertext and salt already match the stored row (missing salt is b'')."""
-        cls = type(self)
-        try:
-            tid = self.id()
-            if not cls.exists_in_store(tid):
-                return False
-            stored = cls.load_data(tid)
-        except OSError:
-            return False
-        if not stored:
-            return False
-
-        def stored_value(trait_name: str):
-            trait = cls.trait(trait_name)
-            raw = stored.get(trait_name, XNone)
-            if raw is XNone:  # -- field absent on a pre-salt row; readers see the default
-                return trait.default
-            if raw is None:
-                return XNone
-            return trait.deserialize(raw)
-
-        return stored_value('private_key_encrypted') == self.private_key_encrypted and stored_value('master_password_salt') == self.master_password_salt
 
     @classmethod
     def is_functional_account(cls, user_id: str) -> bool:
