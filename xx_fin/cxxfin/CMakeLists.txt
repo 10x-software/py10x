@@ -2,7 +2,11 @@ cmake_minimum_required(VERSION 3.27...3.30)
 project(cxxfin)
 
 set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+if(MSVC)
+    set(CMAKE_CXX_FLAGS_DEBUG "/Zi /Od")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
+endif()
 
 # CLion's build (no scikit-build-core) uses xx_fin/cxxfin/.venv: py10x-fin-base (editable) and its locked
 # dependencies from py10x's root uv.lock, plus the dev extra - WITHOUT py10x-fin-base-cxx, so that CLion's
