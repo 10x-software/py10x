@@ -123,3 +123,28 @@ class TestBuildModes:
 
     def test_env_check_knows_every_mode(self):
         assert set(env_check.MODES) == {'dev', *self._modes()}
+
+
+class TestCxxCacheKeyComment:
+    """The setuptools-scm version stays put until `./xx-build` restamps it. That sentence must name
+    `rebuild` with `init` and `set-mode`: `rebuild` is what CI and the README use to refresh it."""
+
+    ROOT = Path(env_check.__file__).resolve().parents[1]
+    _PYPROJECTS = (
+        'cxx10x/core_10x/pyproject.toml',
+        'cxx10x/infra_10x/pyproject.toml',
+        'xx_fin/cxxfin/pyproject.toml',
+    )
+
+    def test_version_sentence_names_rebuild(self):
+        need((self.ROOT / 'pyproject.toml').is_file(), 'py10x source checkout')
+        marker = 'the setuptools-scm version stays at the last'
+        for rel in self._PYPROJECTS:
+            text = (self.ROOT / rel).read_text(encoding='utf-8')
+            start = text.find(marker)
+            assert start != -1, rel
+            cache_keys = text.find('\ncache-keys', start)
+            assert cache_keys != -1, rel
+            sentence = text[start:cache_keys].split('\n', 1)[0]
+            assert '`./xx-build init`' in sentence and '`set-mode`' in sentence, sentence
+            assert '`rebuild`' in sentence, f'{rel}: name rebuild alongside init and set-mode ({sentence})'
