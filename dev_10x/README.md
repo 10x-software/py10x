@@ -438,7 +438,8 @@ dependabot keeps pins fresh — orthogonal to reproducibility (update vs freeze)
 `.github/workflows/refresh-constraints.yml` automates the *update* side on a **weekly** cron
 (Mon 04:00 UTC, plus `workflow_dispatch`) **without** eroding the freeze:
 
-1. Sync `py10x-dev`, then `xx-constraints compile --upgrade`: `uv lock --upgrade` against the
+1. `./xx-build init --mode ci-release --no-group test --no-group test-extras`, then
+   `xx-constraints compile --upgrade`: `uv lock --upgrade` against the
    latest compatible PyPI graph (siblings + in-tree downstream packaging roots), and
    `constraints.txt` regenerated from the lock.
 2. If neither `uv.lock` nor `constraints.txt` changed → stop (no tests, no PR).
@@ -524,8 +525,8 @@ shape as the former domain `finbase_wheel.yml`):
 3. Per-OS clean-venv smoke: install both artifacts → `import xxfin; import cxxfin`, then pass a
    kernel `BDateCurve` into cxxfin (a kernel mismatch still imports, but fails that call).
    Before install, polls PyPI (up to 30 min) for the fin-base wheel’s exact `py10x-core==…`
-   **and** that core’s forward-pinned siblings (`py10x-kernel` / `py10x-infra`) — see
-   `.github/scripts/wait_finbase_pypi_deps.py`.
+   **and** that core’s forward-pinned siblings (`py10x-kernel` / `py10x-infra`) via
+   `python -m dev_10x.xx_ci wait_pypi_release_for_wheel`.
 4. Trusted PyPI publish (OIDC) of all artifacts.
 
 PyPI trusted publishers for `py10x-fin-base` and `py10x-fin-base-cxx` point at this repo
