@@ -80,6 +80,10 @@ class TextEditWidget(TraitWidget, ux.TextEdit, widget_type=Ui.WIDGET_TYPE.TEXT):
 
 
 class TextEditForListWidget(TextEditWidget, widget_type=Ui.WIDGET_TYPE.TEXT4LIST):
+    def focus_out_event(self, event):
+        # [] is falsy, so the text widget's "empty means invalidate" rule would drop a cleared list.
+        self.update_trait_value(value=self._value())
+
     def _value(self) -> list:
         text = self.to_plain_text()
         return text.split('\n') if text else []
