@@ -54,7 +54,10 @@ def get_xx_admin(user: str):
 def git_user(uid='', login=True):
     uid = f'/{uid}' if uid else ''
     user = requests.get(f'https://api.github.com/user{uid}', headers={'Authorization': f'token {git_token()}'}).json()
-    return user['name'].lower() if user['name'] and not login else user['login'] or input(f'Username{uid}:')
+    if user['name'] and not login:
+        return user['name'].lower()
+    # Keyring names are lowercased; a mixed-case GitHub login misses them.
+    return (user['login'] or input(f'Username{uid}:')).lower()
 
 
 @cache
@@ -99,9 +102,10 @@ def clear_vault():
 
 def drop_users(hostname):
     admin = MongodbAdmin(hostname=hostname, **get_credentials('xxadmin', hostname))
+    me = git_user()
     for xx_user in all_git_users():
         xx_admin = get_xx_admin(xx_user)
-        if xx_admin != admin.username:  # -- do not break current working account!
+        if xx_user != me and xx_admin != admin.username:  # -- do not break own or current admin account!
             admin.delete_user(xx_admin)
         admin.delete_user(xx_user)
 
@@ -113,6 +117,16 @@ def get_credentials(service, hostname):
     if service == 'xxadmin':
         username = get_xx_admin(username)
     password = keyring.get_password(service, username)
+    if not password:
+        # Entries written when git_user returned the display name.
+        legacy = git_user(login=False)
+        if service == 'xxadmin':
+            legacy = get_xx_admin(legacy)
+        if legacy != username:
+            legacy_password = keyring.get_password(service, legacy)
+            if legacy_password:
+                username = legacy
+                password = legacy_password
     if not password:
         password = getpass(f"{username}'s password for `{service}`:")
         keyring.set_password(service, username, password)
