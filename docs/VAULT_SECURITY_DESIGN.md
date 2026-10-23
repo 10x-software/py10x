@@ -157,8 +157,8 @@ where `FunctionalAccountKeyring` reads it; either alone is insufficient.
   entrypoint `chown`s that `--output-file` pipe to uid `10001` before `gosu`, so that uid can open the
   write end and cannot open a read end. Root still ignores the mode bits. Any other
   process running as uid `10001` that can name the path can write into the stream.
-  The directory name is visible under `/tmp`. Per-account filenames only prevent
-  **cross-account** mix-ups.
+  Each run's directory comes from `mkdtemp()`, so runs do not share a pipe. The
+  directory name is still visible under `/tmp`.
 - Image resolution prefers the GHCR tag matching the installed `py10x-core` version;
   `--image-tag` is trusted as-is, with no digest pinning. `--image-tag` is only needed
   when that version has no matching published image (local unreleased build).
