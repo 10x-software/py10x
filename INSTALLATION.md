@@ -249,16 +249,17 @@ winget install --id OpenJS.NodeJS.LTS `
   --accept-package-agreements --accept-source-agreements --silent
 ```
 
-**Git for Windows must be installed at its default location, `C:\Program Files\Git`** (the installer and WinGet
-default). CLion's CMake configure of `cxx10x/` stamps module versions with `setuptools-scm`, which runs `git`, and
-CLion does not run it from Git Bash: `cxx10x/CMakeLists.txt` finds git there (CMake's `FindGit` checks the default
-location even when git is not on PATH) and hands it to `setuptools-scm`.
+**For CLion, git must be on CLion's PATH or where CMake's `FindGit` finds it**, such as Git for Windows' default
+`C:\Program Files\Git` (the installer and WinGet default); otherwise set `GIT_EXECUTABLE` in CLion's CMake options.
+CLion's CMake configure of `cxx10x/` stamps module versions with `setuptools-scm`, which runs `git`, and CLion does
+not run it from Git Bash, so `cxx10x/CMakeLists.txt` puts the git `FindGit` found on its PATH. See
+[cxx10x/README.md](cxx10x/README.md) for the exact locations searched.
 
 If you need the C++ workload and already have the full Visual Studio 2022 IDE installed, add the workload to it instead of installing Build Tools — open *Visual Studio Installer* → *Modify* → check **Desktop development with C++**.
 
 #### Manual Installation
 1. Download and install [Git for Windows](https://git-scm.com/download/win) (provides `git` and bundles Git Bash).
-   Keep the default install location, `C:\Program Files\Git` (see the note above).
+   Keep the default install location, `C:\Program Files\Git`, unless git is on PATH (see the note above).
 2. *Optional* — only if building native deps from source: download and install the [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) and select the **Desktop development with C++** workload (or use the full [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) IDE with the same workload).
 3. Download and install [MongoDB Community Server](https://www.mongodb.com/try/download/community) (for testing and examples) - optional
 4. Download and install [Node.js](https://nodejs.org/) (for Rio UI) - optional

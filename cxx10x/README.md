@@ -28,9 +28,13 @@ Open `cxx10x/` as the CLion project; everything it needs is shared through git:
   `infra_10x/tests/test.py` with that venv, one set for every OS: they run `.venv/Scripts/python`, which
   `CMakeLists.txt` links to `bin/python` outside Windows.
 
-On Windows, the configure needs Git for Windows at its default location, `C:\Program Files\Git` (see
-[INSTALLATION.md](../INSTALLATION.md#windows)): CMake finds git there even when it is not on PATH and puts it on
-setuptools-scm's PATH. Otherwise setuptools-scm fails with `ERROR: no version found for`.
+On Windows, CLion's configure need not have git on PATH, but setuptools-scm runs a plain `git` (without one it fails
+with `ERROR: no version found for`), so the configure puts the git CMake's `FindGit` finds first on PATH. Git must be
+on the PATH CLion sees or where `FindGit` looks on its own: `Git\cmd` or `Git\bin` under `C:\Program Files` or
+`C:\Program Files (x86)` (Git for Windows' default; its per-user `%LOCALAPPDATA%\Programs\Git` is not searched),
+`%LOCALAPPDATA%\GitHub\PortableGit*`, or SourceTree's `%LOCALAPPDATA%\Atlassian\SourceTree\git_local\bin`. Otherwise
+set `-DGIT_EXECUTABLE=<path to git.exe>` in CLion's CMake options; without any of these the configure stops with
+`Could NOT find Git`. See [INSTALLATION.md](../INSTALLATION.md#windows).
 
 ## Test harnesses
 
