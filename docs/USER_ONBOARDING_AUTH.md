@@ -388,15 +388,8 @@ xx-functional-account-init \
 
 `XX_MAIN_VAULT_URI` must already be set in your shell (same as any other
 `xx-*` command) — it's forwarded into the container automatically, along
-with `--network host` when the vault host is a loopback address. On Docker
-Desktop or Colima the daemon is a Linux VM: `--network host` is that VM, so a
-vault listening on the Mac is not `localhost` from the container. The pipe is
-created where this command runs, and the container `chown`s it to uid 10001.
-A macOS directory bind-mounted into the VM keeps the Mac owner, and that
-`chown` fails. Run the command on a host whose files are the daemon's (a
-Linux machine, or inside the VM).
-
-The account id must carry the `xx-` prefix (`EnvVars.functional_account_prefix`) —
+with `--network host` when the vault host is a loopback address. The account
+id must carry the `xx-` prefix (`EnvVars.functional_account_prefix`) —
 `xx-functional-account-init` refuses to run otherwise. If the
 currently-installed `py10x-core` version has no matching published image
 (e.g. a local, unreleased dev build), pass `--image-tag dev|pre|prod|<tag>`

@@ -33,9 +33,10 @@ plaintext metadata (`VaultUser.public_key`, `VaultResourceAccessor.login` / `res
 
 **Adversaries.** Anyone who obtains a copy of the vault store (backup leak, stolen DB
 credentials, insider); anyone with code execution on a developer's machine or a
-functional-account container; anyone who can create DB roles matching a victim OS
-user; a Mongo worker who can `INSERT` a `VaultUser` for another `user_id`; anyone
-with `UPDATE` on live `VaultUser` / history rows.
+functional-account container; local root, or another uid `10001`, on the host
+while `xx-functional-account-init` is running; anyone who can create DB roles
+matching a victim OS user; a Mongo worker who can `INSERT` a `VaultUser` for
+another `user_id`; anyone with `UPDATE` on live `VaultUser` / history rows.
 
 **Assumptions.**
 - Vault-DB logins are admin-issued, one per person or service, and **must equal**
@@ -144,7 +145,10 @@ or on-disk store. Provisioning and the running service select it via
 
 `xx-functional-account-init` runs `xx-user-init --functional-account` inside a real
 container and delivers the manifest to a host-side provisioning command over a
-bind-mounted FIFO named for the account, not a plain file. `--command` typically
+bind-mounted FIFO named for the account, not a plain file. The host opens the read
+end, then sets the pipe to `0200` and the directory to `0711`. The entrypoint
+`chown`s that `--output-file` pipe to uid `10001` before `gosu`, so that uid can
+write the manifest and cannot open a read end. `--command` typically
 creates a namespace-scoped Kubernetes Secret or a Swarm secret (see
 [`USER_ONBOARDING_AUTH.md`](USER_ONBOARDING_AUTH.md#functional-unattended-service-accounts)).
 At runtime, impersonating a functional account requires both `FUNCTIONAL_ACCOUNT_ID`
@@ -152,20 +156,33 @@ At runtime, impersonating a functional account requires both `FUNCTIONAL_ACCOUNT
 where `FunctionalAccountKeyring` reads it; either alone is insufficient.
 
 **Weaknesses.**
-- Provisioning delivers the manifest over a FIFO, not a file. The host opens the
-  read end, then sets the pipe to `0200` and the directory to `0711`. The container
-  entrypoint `chown`s that `--output-file` pipe to uid `10001` before `gosu`, so that uid can open the
-  write end and cannot open a read end. Root still ignores the mode bits. Any other
-  process running as uid `10001` that can name the path can write into the stream.
-  Each run's directory comes from `mkdtemp()`, so runs do not share a pipe. The
-  directory name is still visible under `/tmp`.
+- Local root on the provisioning host can open a second read end. Mode bits do not
+  apply to root, and a FIFO gives each write to one reader. The manifest is one
+  short write: the master password and the vault login password. If root's read
+  wins, root has both secrets and `--command` receives nothing. Registration has
+  already created the vault user. The master password exists only in that
+  manifest, and a retry finds the account present and does not write another one.
+  Root can then impersonate the functional account, and the operator has no copy
+  of the master password.
+- Any other process running as uid `10001` can open the write end for as long as
+  the pipe exists. `/tmp` lists the `mkdtemp()` directory, mode `0711` allows
+  lookup by name, and the FIFO name is the account id. That uid is a host account
+  numbered `10001`, or another container when the daemon uses the host user
+  namespace. The writer does not learn the manifest. Its bytes are handed to
+  `--command` along with the document the container wrote, so the secret store
+  keeps a payload that is not that document, while the vault already holds the
+  real credentials. Holding the write end open also withholds EOF, so the read
+  can time out after the account has already been registered.
 - Image resolution prefers the GHCR tag matching the installed `py10x-core` version;
   `--image-tag` is trusted as-is, with no digest pinning. `--image-tag` is only needed
   when that version has no matching published image (local unreleased build).
 
 **Operator mitigations.**
 - Treat Docker access and `xx-functional-account-init` as equivalent to holding the
-  account's credentials.
+  account's credentials. For the life of that command, root on the host can read
+  the manifest from the pipe, and any other uid `10001` can write into it. The
+  command does not set a user namespace, so container uid `10001` is the host uid
+  unless the daemon maps it.
 - For production, use the `:prod` image tag.
 - Deliver the manifest into a **namespace-scoped** Secret (Kubernetes) or a Swarm
   secret whose name is derived from the account id
