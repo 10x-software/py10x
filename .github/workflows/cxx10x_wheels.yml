@@ -68,9 +68,9 @@ jobs:
         run: |
           uv python install 3.12
           uv venv
+          uv pip install -c constraints.txt --group build
           printf 'py10x-kernel @ file://%s/cxx10x/core_10x\npy10x-infra @ file://%s/cxx10x/infra_10x\n' "$PWD" "$PWD" > "$RUNNER_TEMP/siblings.txt"
-          uv pip install -c constraints.txt --override "$RUNNER_TEMP/siblings.txt" \
-            -e . --all-extras --requirements pyproject.toml
+          uv pip install -c constraints.txt --override "$RUNNER_TEMP/siblings.txt" -e . --all-extras --requirements pyproject.toml
 
       - name: Verify the built version matches the release tag
         if: needs.resolve.outputs.version != ''

@@ -18,7 +18,7 @@ accept the `--option` / `--no-option` shortcuts).
 Subcommands:
     xx-promote pre                                  cut the next rc when the package tree changed
     xx-promote pre --next-version 0.3.0             force core+siblings onto 0.3.0rc1 (a coordinated bump)
-    xx-promote pre --next-version X=2.0.0           same, targeting only package X
+    xx-promote pre --next-version 0.3.0,X=2.0.0     group at 0.3.0, package X at 2.0.0
     xx-promote pre --next-version X=2.0.0,Y=1.5.0   independently targeting X and Y
     xx-promote pre --no-publish                     cut without creating publish triggers
     xx-promote pre --publish-only                   push publish triggers for the latest rc tags
@@ -411,6 +411,7 @@ class XxPromoteCli(TraitableCli):
     xx-promote pre                                cut the next rc when the package tree changed
     xx-promote pre --next-version 0.3.0           force core+siblings onto 0.3.0rc1 (coordinated bump)
     xx-promote pre --next-version X=2.0.0         same, targeting only package X (or X=.., Y=.. for several)
+    xx-promote pre --next-version 0.3.0,X=2.0.0   group at 0.3.0, package X at 2.0.0
     xx-promote pre --no-publish                   cut without creating publish triggers
     xx-promote pre --publish-only                 push publish triggers for the latest rc tags
     xx-promote prod                               promote packages whose latest tag is pre
@@ -657,16 +658,18 @@ class XxPromote(XxPromoteCli, _abstract=True):
 class Pre(XxPromote, _command='pre'):
     """xx-promote pre  (cut the next coordinated rc onto the tool-owned `pre` branch).
 
-    `--next-version X.Y.Z` forces core and every sibling to cut onto that target instead of the
-    automatic `next_micro(latest_final)` - e.g. a coordinated manual minor/major bump ahead of the
-    next micro. `--next-version name=X.Y.Z[,name=X.Y.Z...]` overrides only the named package(s)
-    instead (a single sibling, or a downstream). Each override forces its package to re-cut even
-    with an unchanged footprint; the rest of the batch still coordinates by the normal rules (a
-    re-cut package can still pull others forward via the usual pin-lag rule). Every version must be
-    a plain released X.Y.Z (no rc/dev/post) strictly greater than its package's latest tag.
+    `--next-version` forces a cut onto an explicit released `X.Y.Z` instead of the automatic
+    `next_micro(latest_final)`. A bare `X.Y.Z` sets core and every sibling. `name=X.Y.Z` sets that
+    one package (a sibling, or a downstream). Entries are comma-separated and mix; a later entry
+    replaces an earlier one for the same name, and a bare token rewrites the whole coordinated
+    group, so put it first (`0.4.0,py10x-fin-base=0.2.0` bumps the group to 0.4.0 and that
+    downstream to 0.2.0). Each entry forces its package to re-cut even with an unchanged footprint;
+    the rest of the batch still coordinates by the normal rules (a re-cut package can still pull
+    others forward via the usual pin-lag rule). Every version must be a plain released X.Y.Z (no
+    rc/dev/post) strictly greater than its package's latest tag.
     """
 
-    next_version: str | None = RT(None)  # X.Y.Z (core+siblings), or name=X.Y.Z[,name=X.Y.Z...]
+    next_version: str | None = RT(None)  # bare X.Y.Z (core+siblings) and/or name=X.Y.Z; later entry wins
 
     def _version_overrides(self) -> dict[str, str]:
         if self.next_version is None:

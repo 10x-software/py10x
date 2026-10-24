@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import json
+import threading
 import time
 from urllib import error, request
 
@@ -14,13 +15,20 @@ from dev_10x.xx_helpers import PyPIHelpers
 
 
 def _fake_clock(monkeypatch, sleeps: list[float]) -> None:
-    """Fake `time.monotonic`/`time.sleep` sharing one clock: sleep(s) advances it by `s`."""
+    """Fake `time.monotonic`/`time.sleep` sharing one clock: sleep(s) advances it by `s`.
+
+    Only for the test's own thread: `time` is patched process-wide, and a background thread left over
+    from another test in this xdist worker would otherwise spin through a no-op sleep into `sleeps`."""
     now = [0.0]
+    test_thread = threading.current_thread()
+    real_monotonic, real_sleep = time.monotonic, time.sleep
 
     def fake_monotonic():
-        return now[0]
+        return now[0] if threading.current_thread() is test_thread else real_monotonic()
 
     def fake_sleep(seconds):
+        if threading.current_thread() is not test_thread:
+            return real_sleep(seconds)
         sleeps.append(seconds)
         now[0] += seconds
 
@@ -54,6 +62,17 @@ def test_wait_for_release_uses_quick_poll_then_backs_off(monkeypatch):
     assert ok is True
     # elapsed at 1st check: 0 (< 5 window -> quick 10s); elapsed at 2nd check: 10 (>= 5 -> full poll)
     assert sleeps == [10.0, 90.0]
+
+
+def test_fake_clock_leaves_other_threads_real(monkeypatch):
+    """A background thread sleeping meanwhile neither spins nor lands in `sleeps` (was a Windows CI flake)."""
+    sleeps: list[float] = []
+    _fake_clock(monkeypatch, sleeps)
+    worker = threading.Thread(target=lambda: [time.sleep(0.01) for _ in range(3)])
+    worker.start()
+    worker.join(timeout=5)
+    assert not worker.is_alive()
+    assert sleeps == []
 
 
 def test_wait_for_release_times_out_returns_false_without_sleeping_past_deadline(monkeypatch):

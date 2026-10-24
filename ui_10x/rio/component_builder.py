@@ -224,7 +224,19 @@ class ComponentBuilder:
     s_children_attr = 'children'
     s_single_child = False
     s_pass_children_in_kwargs = False
-    s_size_adjustments = ('min_width', 'min_height', 'max_width', 'max_height', 'margin_left', 'margin_top', 'margin_right', 'margin_bottom', 'margin_x', 'margin_y', 'margin')
+    s_size_adjustments = (
+        'min_width',
+        'min_height',
+        'max_width',
+        'max_height',
+        'margin_left',
+        'margin_top',
+        'margin_right',
+        'margin_bottom',
+        'margin_x',
+        'margin_y',
+        'margin',
+    )
     s_layout_attrs = ('grow_x', 'grow_y', 'align_x', 'align_y')
 
     @staticmethod

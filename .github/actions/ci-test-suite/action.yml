@@ -1,12 +1,12 @@
 name: CI test suite
 description: >-
   Install cxx siblings, verify constraints, assert core isolation (xxfin absent),
-  MongoDB, Playwright, run core pytest, then install fin-base (--with-downstream)
-  and run xx_fin tests. With asan=true, build the cxx10x backend - kernel and the
-  downstream fin-base/cxxfin - under AddressSanitizer and run both the core suite
-  and the xx_fin tests under it (nightly memory-error diagnostics), capturing a
-  symbolized C++ report on any fault. With asan=false (default), build/test the
-  standard release configuration.
+  MongoDB, Playwright, run core pytest, then install downstreams (fin-base) via test 
+  and test-extra group and run xx_fin tests. With asan=true, build the cxx10x backend - 
+  kernel and the downstream fin-base/cxxfin - under AddressSanitizer and run both the 
+  core suite and the xx_fin tests under it (nightly memory-error diagnostics), capturing a
+  symbolized C++ report on any fault. With asan=false (default), build/test the standard 
+  release configuration.
 inputs:
   python-version:
     description: Python version to install via uv
@@ -40,29 +40,25 @@ runs:
       run: |
         echo "XX_CXX_SANITIZERS=ON" >> "$GITHUB_ENV"
 
-    # CI keeps plain editable C++ installs instead of the incremental default: nothing is edited
-    # after install, so per-import rebuild checks in every xdist worker would be pure overhead.
-    # Not `normal` either - cxxfin finds kernel headers via the editable install; a non-editable
-    # kernel makes it fetch them by commit hash, which fails for a PR's merge commit.
+    # Build mode ci-release (dev_10x/README.md): Release, and no rebuild-on-import - nothing is edited
+    # after install, so per-import rebuild checks in every xdist worker would be pure overhead. Without
+    # the fin-base groups (core isolation); the downstream step below adds them. --locked: fail rather
+    # than re-lock when uv.lock is stale against a pyproject.
     - name: Install dependencies
       shell: bash
       run: |
-        echo "XX_UV_INSTALL_MODE=editable" >> "$GITHUB_ENV"
-        export XX_UV_INSTALL_MODE=editable
-        # Explicit, so a change to the packages' default cmake.build-type doesn't reach CI.
-        echo "SKBUILD_CMAKE_BUILD_TYPE=Release" >> "$GITHUB_ENV"
-        export SKBUILD_CMAKE_BUILD_TYPE=Release
-        uv venv
+        ./xx-build init --mode ci-release --locked --no-group test --no-group test-extras
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        python -m dev_10x.uv_sync py10x-dev --all-extras
+        # Assert the result, not just the exit code: kernel/infra editable from this tree, no
+        # rebuild-on-import, Release (uv can quietly install something else - see dev_10x/env_check.py).
+        # No import under ASan: an instrumented module only loads under the ASan harness (see below).
+        python -m dev_10x.env_check ${{ inputs.asan == 'true' && '--no-import' || '' }}
 
-    # uv-sync applies -c constraints.txt on every install, so the test env is frozen. Assert every
-    # installed third-party dist is pinned (catches a py10x or sibling dep that escaped the freeze).
-    - name: Verify env is fully frozen against constraints.txt
+    # The env is exactly uv.lock, and uv.lock is current with every pyproject (`xx-constraints compile`
+    # runs `uv lock`; xx-promote's pin bumps don't change it). Read-only: fails instead of changing either.
+    - name: Verify env matches uv.lock
       shell: bash
-      run: |
-        source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        xx-constraints check
+      run: uv sync --locked --check --no-group test --no-group test-extras
 
     # constraints.txt is generated from the committed uv.lock (`xx-constraints compile`): fail if
     # someone edited one without regenerating the other.
@@ -72,7 +68,7 @@ runs:
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
         xx-constraints check-export
 
-    # Core isolation: fin-base must not be importable until --with-downstream (after core pytest).
+    # Core isolation: fin-base must not be importable until its groups are synced (after core pytest).
     - name: Assert xxfin not importable (core isolation)
       shell: bash
       run: |
@@ -153,11 +149,13 @@ runs:
     # and stays loadable next to the ASan-instrumented kernel. Building it normally instead would
     # dlopen the ASan kernel under a non-preloaded python and abort ("ASan runtime does not come
     # first"). On non-ASan builds XX_CXX_SANITIZERS is unset, so cxxfin is a normal build with stubs.
-    - name: Install fin-base (--with-downstream)
+    # Plain `uv sync` (all default groups): adds fin-base and builds cxxfin against the installed kernel.
+    - name: Install fin-base
       shell: bash
       run: |
+        uv sync --locked
         source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-        python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
+        python -m dev_10x.env_check --downstream ${{ inputs.asan == 'true' && '--no-import' || '' }}
 
     # Run the fin-base tests through the same ASan harness as the core suite: importing cxxfin loads
     # the ASan-instrumented kernel, so it needs LD_PRELOAD (Linux) / cdb (Windows) too. pytest

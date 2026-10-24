@@ -120,7 +120,33 @@ def _downstream_allowed_tops() -> set[str]:
     return allowed
 
 
+def _skip_editable_rebuilds() -> None:
+    """Rebuild the editable C++ packages once, in this (main) process, then have every later import skip
+    it: xdist workers and test subprocesses inherit SKBUILD_EDITABLE_SKIP (scikit-build-core's own skip
+    list of build dirs). Otherwise each process re-runs `cmake --build` / `--install` on import - seconds
+    per package on Windows - and concurrent installs race there (scikit-build-core locks on Unix only)."""
+    import importlib
+
+    from dev_10x import env_check
+
+    try:
+        siblings, _, members = env_check.first_party(Path.cwd())
+    except FileNotFoundError:  # not a py10x source checkout: nothing is editable
+        return
+    skip = [p for p in os.environ.get('SKBUILD_EDITABLE_SKIP', '').split(os.pathsep) if p]
+    for name in [*siblings, *members]:
+        state = env_check.installed(name)
+        if state and state.get('rebuild') and state.get('build_dir'):
+            importlib.import_module(env_check.MEMBER_MODULES.get(name, name.replace('-', '_')))  # rebuilds if stale
+            skip.append(state['build_dir'])
+    if skip:
+        os.environ['SKBUILD_EDITABLE_SKIP'] = os.pathsep.join(skip)
+
+
 def pytest_configure(config):
+
+    if not hasattr(config, 'workerinput'):  # main process only; workers inherit the env var
+        _skip_editable_rebuilds()
 
     if 'USER' not in os.environ:
         import getpass
@@ -172,6 +198,7 @@ def pytest_ignore_collect(collection_path, config):
 BTP = BTraitableProcessor.current()
 
 _AMBIENT_VAULT_ENV_VARS = ('XX_MAIN_VAULT_URI', 'XX_VAULT_URI')
+
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):

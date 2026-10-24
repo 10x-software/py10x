@@ -1,9 +1,8 @@
 # Keep the docker/Dockerfile build context small and free of host-specific artifacts. The `dev`
 # target creates its own venv and installs into it inside the container, so a host-built .venv
 # (with absolute paths baked into its symlinks, which won't resolve inside the container) must
-# never be copied in. .git/ is NOT excluded: the `dev` target's version comes from
-# setuptools-scm/hatch-vcs (and uv_sync reads `git remote get-url origin`), which needs real git
-# metadata -- a shallow/absent .git breaks both.
+# never be copied in. .git/ is NOT excluded: the `dev` target's versions come from
+# setuptools-scm/hatch-vcs, which need real git metadata -- a shallow/absent .git breaks them.
 .venv/
 **/.venv/
 **/__pycache__/
@@ -16,6 +15,8 @@ htmlcov/
 .ruff_cache/
 # Host C++ build trees (cxx10x/.gitignore); the image builds its own.
 /build/
+# A host's build mode (`./xx-build set-mode`); the image sets its own.
+/uv.toml
 cxx10x/**/cmake-build*/
 cxx10x/**/build/
 cxx10x/_deps/

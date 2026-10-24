@@ -11,6 +11,7 @@
       <excludeFolder url="file://$MODULE_DIR$/cxx10x/tests/cross_module_test/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/cxx10x/tests/py10x_infra_test/.venv" />
       <excludeFolder url="file://$MODULE_DIR$/cxx10x/tests/py10x_kernel_test/.venv" />
+      <excludeFolder url="file://$MODULE_DIR$/xx_fin/cxxfin/.venv" />
     </content>
     <content url="file://$MODULE_DIR$/cxx10x/core_10x/cmake-build-debug" />
     <content url="file://$MODULE_DIR$/cxx10x/infra_10x/cmake-build-debug" />

@@ -19,10 +19,6 @@ concurrency:
 permissions:
   contents: read
 
-env:
-  XX_UV_INSTALL_MODE: editable   # same as ci-test-suite: no per-import rebuild checks in CI
-  SKBUILD_CMAKE_BUILD_TYPE: Release   # same as ci-test-suite: independent of the packages' default
-
 jobs:
   refresh:
     name: Recompile and test constraints.txt
@@ -45,8 +41,9 @@ jobs:
       - name: Set up Python
         run: uv python install 3.12
 
+      # Same env as ci-test-suite's core suite: build mode ci-release, without the fin-base groups.
       - name: Install dependencies
-        run: uvx --from ".[dev]" uv-sync py10x-dev --all-extras
+        run: ./xx-build init --mode ci-release --no-group test --no-group test-extras
 
       # One committed freeze: `uv lock --upgrade` (uv.lock covers every extra and dependency group,
       # downstreams included), then constraints.txt regenerated from it. The lock's change summary
@@ -75,17 +72,14 @@ jobs:
       # The remaining steps only run when the freeze actually moved; otherwise
       # the env is identical to what is already committed and tested.
 
-      # Re-sync so the venv matches the freshly compiled constraints.txt before
-      # testing (uv-sync applies -c constraints.txt on every install).
-      - name: Re-sync against fresh constraints.txt
+      # Re-sync so the venv matches the freshly upgraded uv.lock before testing.
+      - name: Re-sync against the upgraded uv.lock
         if: steps.diff.outputs.changed == 'true'
-        run: uvx --from ".[dev]" uv-sync py10x-dev --all-extras
+        run: uv sync --locked --no-group test --no-group test-extras
 
-      - name: Verify env is fully frozen against constraints.txt
+      - name: Verify env matches uv.lock
         if: steps.diff.outputs.changed == 'true'
-        run: |
-          source .venv/bin/activate
-          xx-constraints check
+        run: uv sync --locked --check --no-group test --no-group test-extras
 
       - name: Start MongoDB (single-node replica set)
         if: steps.diff.outputs.changed == 'true'

@@ -9,8 +9,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "py10x-kernel (>=0.3.3rc3,<0.3.3rc4)",
-    "py10x-infra (>=0.3.3rc3,<0.3.3rc4)",
+    "py10x-kernel (>=0.3.3rc5,<0.3.3rc6)",
+    "py10x-infra (>=0.3.3rc5,<0.3.3rc6)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -61,13 +61,15 @@ dev = [
     "setuptools-scm>=9.2.2",
     "tomlkit>=0.13.0",
     "packaging>=24.0", # version/specifier logic for xx-promote
-    "uv>=0.12.5; python_version < '3.12'", # 3.11 gets licensecheck 2025.x, which depends on uv: keep it within [tool.uv] required-version
+    "uv>=0.13.4; python_version < '3.12'", # 3.11 gets licensecheck 2025.x, which depends on uv: keep it within [tool.uv] required-version
     "ibis-framework[duckdb]>=12.0.0",
+    "duckdb<2", # 2.0 raises ResourceInUseException ("unfinished result from execute()") in IbisStore
     "adbc-driver-manager>=1.10.0",
     "scikit-build-core>=0.12.2", # C++ build backend (incremental, no-isolation)
     "cmake>=3.27", # persistent toolchain for import-time incremental rebuilds
     "ninja>=1.11", # persistent toolchain for import-time incremental rebuilds (Linux/macOS)
     "editables>=0.6", # editable install support
+    "pybind11-stubgen==2.5.5", # .pyi generation in import-time incremental rebuilds
 ]
 rio = [
     "rio-ui==0.12.3",
@@ -105,7 +107,6 @@ py10x_core = "dev_10x.pytest_plugin"
 
 [project.scripts]
 uv-sync                         = "dev_10x.uv_sync:main"
-uv-run                          = "dev_10x.uv_run:main"
 xx-constraints                  = "dev_10x.constraints:main"
 xx-promote                      = "dev_10x.xx_promote:XxPromoteCli.main"
 xx-test-postgres-auth           = "dev_10x.postgres_local:PostgresAuthCli.main"
@@ -130,27 +131,39 @@ py10x-infra  = { path = "cxx10x/infra_10x", footprint = ["cxx10x", ":(exclude)cx
 [tool.dev_10x.downstream]
 py10x-fin-base = { path = "./xx_fin" }
 
-# Fin-base owns its uv workspace under xx_fin/ (`members = ["cxxfin"]`; core is
-# a path dep there). Do not put fin-base in a root `[tool.uv.workspace]` —
-# editable install is via `uv-sync … --with-downstream` (or `--group test`).
-#
-# uv still *resolves* dependency-groups.test when locking. Point fin-base at the
-# in-repo tree so that group does not pull a PyPI wheel whose exact core pin
-# fights this editable project.
+# Build modes for `./xx-build set-mode <mode>` (dev_10x/xx_build.py). `dev`, the default, is [tool.uv]
+# below as is: Debug, editable, rebuild-on-import. Each mode here is merged into a copy of [tool.uv]
+# written to a gitignored uv.toml. Build dirs are per build type, so switching back reuses the build.
+[tool.dev_10x.modes.dev-release.config-settings-package]
+py10x-kernel = { "cmake.build-type" = "Release" }
+py10x-infra = { "cmake.build-type" = "Release" }
+py10x-fin-base-cxx = { "cmake.build-type" = "Release" }
+
+# CI and Docker: built once, so no rebuild check on import (per-import overhead, and the build dir may
+# be gone - the Docker image deletes it).
+[tool.dev_10x.modes.ci-release.config-settings-package]
+py10x-kernel = { "cmake.build-type" = "Release", "editable.rebuild" = "false" }
+py10x-infra = { "cmake.build-type" = "Release", "editable.rebuild" = "false" }
+py10x-fin-base-cxx = { "cmake.build-type" = "Release", "editable.rebuild" = "false" }
+
 [tool.uv]
 required-version = ">=0.12.5"
 # Rebuild py10x-core (rather than reuse uv's cached wheel) on a new commit or tag, so its installed
 # hatch-vcs version (and dev_10x/version.py) stays current.
 cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true } }]
 no-build-isolation-package = ["py10x-kernel", "py10x-infra", "py10x-fin-base-cxx"]
+# Plain `uv sync` installs the full dev environment (fresh clone: `./xx-build init` first).
+default-groups = ["dev", "extras", "test", "test-extras"]
 
-[[tool.uv.dependency-metadata]]
-name = "py10x-fin-base-cxx"
-version = "0+dummy"
-
+# The in-tree packages, editable: plain `uv sync` / `uv run` install kernel/infra (C++: incremental,
+# rebuild-on-import) and fin-base (the `test` groups) from this tree; fin-base-cxx comes editable via
+# xx_fin's own workspace source. uv takes path sources as-is, regardless of version pins on them; the
+# release workflows install tagged / non-editable builds with `--override`, which wins over these.
+# Sources rather than a workspace: xx_fin/ has its own workspace, and uv does not nest workspaces.
 [tool.uv.sources]
-py10x-fin-base = { path = "xx_fin" }
-py10x-fin-base-cxx = { path = "xx_fin/cxxfin" }
+py10x-kernel = { path = "cxx10x/core_10x", editable = true }
+py10x-infra = { path = "cxx10x/infra_10x", editable = true }
+py10x-fin-base = { path = "xx_fin", editable = true }
 
 [tool.hatch.metadata]
 allow-direct-references = true
@@ -175,7 +188,20 @@ raw-options = { git_describe_command = "git describe --dirty --tags --long --mat
 version-file = "dev_10x/version.py"
 
 [dependency-groups]
-test = ["py10x-fin-base>=0.1.3rc4"]
+# C++ build toolchain for the non-isolated kernel/infra/cxxfin builds. `./xx-build init` installs it
+# (from uv.lock) before anything is built: uv does not order a no-isolation build after its
+# toolchain. Same packages as in `dev`; scikit-build-core capped like py10x-kernel's runtime dep.
+build = [
+    "scikit-build-core>=0.12.2,<1.0.0",
+    "setuptools-scm>=9.2.2",
+    "cmake>=3.27",
+    "ninja>=1.11",
+    "editables>=0.6",
+    "pybind11-stubgen==2.5.5",
+]
+dev = ["py10x-core[dev]"]
+extras = ["py10x-core[rio,qt,jit,aadc,examples]"]
+test = ["py10x-fin-base>=0.1.3rc6"]
 # Fin-base's extras for its tests, kept out of `test` (whose pin xx-promote rewrites); the version
 # comes from `test`. Lets uv.lock / constraints.txt cover blpapi, xbbg, aadc like `--all-extras` did.
 test-extras = ["py10x-fin-base[bbg,aadc,dev]"]

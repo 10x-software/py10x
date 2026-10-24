@@ -34,6 +34,7 @@ Homepage = "https://10x-software.org"
 requires = [
     "scikit-build-core>=0.10.7",
     "setuptools-scm>=9.2.2",
+    "pybind11-stubgen==2.5.5",  # post-build .pyi generation (cxx10x/cmake/PybindStubs.cmake)
 ]
 build-backend = "scikit_build_core.build"
 
@@ -56,11 +57,13 @@ cmake.args = ["-T", "v143,version=14.44"]
 [tool.cibuildwheel]
 config-settings = { "build-dir" = "", "editable.rebuild" = "false", "cmake.build-type" = "Release" }
 
-# uv rebuilds this package (instead of reusing its cached wheel) when any of these change: the
-# sanitizer switch, which CMake reads from the env, and a new commit or tag, which changes the
-# setuptools-scm version stamped into the installed metadata.
+# uv rebuilds this package (instead of reusing its cached wheel) when this file or the sanitizer
+# switch, which CMake reads from the env, changes. Not on a new commit or tag: a pull would then
+# rebuild every C++ package at once, racing (py10x-fin-base-cxx's build imports the kernel, which
+# rebuilds on import in the build dir uv is reconfiguring). Source edits rebuild on import anyway;
+# the setuptools-scm version stays at the last `./xx-build init` / `set-mode` / `rebuild`.
 [tool.uv]
-cache-keys = [{ file = "pyproject.toml" }, { env = "XX_CXX_SANITIZERS" }, { git = { commit = true, tags = true } }]
+cache-keys = [{ file = "pyproject.toml" }, { env = "XX_CXX_SANITIZERS" }]
 
 [tool.setuptools_scm]
 root = "../.."

@@ -42,6 +42,7 @@ exclude = [
     "xxcommon/README.md",
     "xxcommon/*_curve.py",
     "xxcommon/jit_aadc/*",
+    "xxcommon/unit_tests/test_aadc_exec.py",
     "xx_fin/xxfin/*",
 ]
 
@@ -109,6 +110,22 @@ exclude = [
 ]
 "ui_10x/rio/apps/examples/examples/pages/login_page.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
+]
+# code samples keep hand-ordered imports (also format-excluded)
+"core_10x/code_samples/*" = [
+    "I001", # Import sort
+]
+# AST NodeVisitor hooks use visit_* CapWords
+"core_10x/manual_tests/*" = [
+    "N802", # Function name should be lowercase
+]
+# Qt-shaped ABC surface (setStretchLastSection / horizontalHeader)
+"ui_10x/platform_interface.py" = [
+    "N802", # Function name should be lowercase
+]
+# del of closed-over names at teardown confuses F821 on earlier nested uses
+"ui_10x/rio/unit_tests/test_text4list.py" = [
+    "F821", # Undefined name
 ]
 "xxcommon/jit_aadc/*" = [
     "I001", # Import sort
@@ -206,6 +223,7 @@ exclude = [
     "B008", # Do not perform function call `weakref.ref` in argument defaults
 ]
 "xx_fin/*.py" = [
+    "I001", # Import sort
     "N802", # Function name should be lowercase
     "N806", # Variable in function should be lowercase
     "C408", # Unnecessary `dict()` call (rewrite as a literal)

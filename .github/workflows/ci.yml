@@ -59,8 +59,8 @@ jobs:
           runner-os: ${{ runner.os }}
           asan: "false"
 
-      # dev image: pushed to GHCR after the test suite. Built from source (uv_sync
-      # py10x-dev --all-extras, same as ci-test-suite) rather than reused from this leg's
+      # dev image: pushed to GHCR after the test suite. Built from source (`./xx-build init --mode
+      # ci-release`, the build mode ci-test-suite uses) rather than reused from this leg's
       # .venv or PyPI: kernel/infra's published versions may not satisfy pyproject.toml's current
       # pin (a normal mid-development state). One leg only (ubuntu-latest/py3.12), and only on an
       # actual merge to main, not every PR run.
@@ -129,6 +129,107 @@ jobs:
           python-version: ${{ matrix.python }}
           mongodb-version: "7.0"
 
+  # PR / push: every way of installing the dev environment, verified by its result
+  # (dev_10x/env_check.py: source tree, editable, rebuild-on-import, build type, imports) rather than
+  # by exit codes - uv can quietly install something else than asked (e.g. the root's editable
+  # sources overriding a build mode's settings). One venv walks the modes, so each switch's reinstall is
+  # exercised too. No database needed, hence macOS as well.
+  install-modes:
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    name: Install modes (${{ matrix.os }}, py3.12)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2025, macos-latest]
+    env:
+      UV_PYTHON: "3.12"
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # full history (0 = unlimited; default 1 is shallow): setuptools-scm versions kernel/infra from their older tags
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-suffix: install-modes
+          cache-dependency-glob: "**/pyproject.toml"
+
+      # No `uv python install`: UV_PYTHON (above) pins every uv call to 3.12, downloaded on first use.
+      - uses: ./.github/actions/setup-windows-build
+
+      # Fresh clone: `./xx-build init`, then plain `uv sync` keeps it as is (dev: Debug, rebuild-on-import).
+      - name: "dev: ./xx-build init, then plain uv sync"
+        run: |
+          ./xx-build init
+          ./xx-build show-mode
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+          uv sync
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
+      # A pull (a new commit) must not make plain `uv sync` rebuild the C++ packages: uv would build them
+      # all at once, and py10x-fin-base-cxx's build imports the kernel while uv reconfigures its build dir.
+      - name: "dev: plain uv sync after a new commit leaves the C++ builds alone"
+        run: |
+          git -c user.name=ci -c user.email=ci@localhost commit --allow-empty -q -m "stand-in for a pull"
+          uv sync 2>&1 | tee "$RUNNER_TEMP/sync-after-commit.log"
+          if grep -E "Building (py10x-kernel|py10x-infra|py10x-fin-base-cxx) " "$RUNNER_TEMP/sync-after-commit.log"; then
+            echo "::error::plain uv sync rebuilt C++ packages after a new commit"; exit 1
+          fi
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
+      # ... `./xx-build rebuild` does, in order, which also refreshes their setuptools-scm versions.
+      - name: "dev: ./xx-build rebuild refreshes the C++ versions"
+        run: |
+          ./xx-build rebuild
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+          expected=$(uv run --no-sync python -m setuptools_scm --config cxx10x/core_10x/pyproject.toml)
+          uv run --no-sync python -c "import sys, core_10x, py10x_kernel; assert py10x_kernel.__version__ == sys.argv[1], (py10x_kernel.__version__, sys.argv[1])" "$expected"
+
+      # Each mode: set-mode rebuilds in order; plain `uv sync` then stays in the mode (env_check's default
+      # mode is the one in uv.toml).
+      - name: "./xx-build set-mode: dev-release, ci-release"
+        run: |
+          for mode in dev-release ci-release; do
+            echo "::group::$mode"
+            ./xx-build set-mode $mode
+            ./xx-build show-mode
+            uv run --no-sync python -m dev_10x.env_check --downstream
+            uv sync
+            uv run --no-sync python -m dev_10x.env_check $mode --downstream
+            echo "::endgroup::"
+          done
+
+      # Docker's mode: built once, so its build dir can go.
+      - name: "ci-release: imports without build/"
+        run: |
+          mv build build.moved
+          uv run --no-sync python -m dev_10x.env_check ci-release --downstream
+          mv build.moved build
+
+      - name: "dev again: ./xx-build set-mode dev"
+        run: |
+          ./xx-build set-mode dev
+          ./xx-build show-mode
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
+      # now test we can start over clean with no issues
+      - name: "./xx-build init --clean over an existing build/"
+        run: |
+          ./xx-build init --clean 2>&1 | tee "$RUNNER_TEMP/init-clean.log"
+          if grep -q "does not match the project environment path" "$RUNNER_TEMP/init-clean.log"; then
+            echo "::error::xx-build passed its own VIRTUAL_ENV to the inner uv calls"; exit 1
+          fi
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
   # PR / push, Linux only, additive to (not part of) the full-tests matrix: builds the
   # functional-account container (docker/Dockerfile + docker/entrypoint.sh) and runs the
   # functional-account vault E2E test (core_10x/unit_tests/test_functional_account_vault.py)
@@ -158,7 +259,7 @@ jobs:
         uses: docker/setup-buildx-action@v4
 
       # docker/Dockerfile's `dev` target builds this checkout together with its in-tree C++
-      # siblings (cxx10x/) from source (uv_sync py10x-dev --all-extras).
+      # siblings (cxx10x/) from source (`./xx-build init --mode ci-release`).
       - name: Build functional-account image
         uses: docker/build-push-action@v7
         with:

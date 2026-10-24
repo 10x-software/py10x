@@ -14,7 +14,7 @@ from ui_10x.rio.components.splitter import Splitter
 import rio
 
 # One entry per Row: its width, and the width of each child (panes and handles alternate).
-_MEASURE = '''(() => {
+_MEASURE = """(() => {
     const rows = [...document.querySelectorAll('.rio-linear-container.rio-row')];
     return rows.map(r => {
         const helper = r.firstElementChild;
@@ -22,7 +22,7 @@ _MEASURE = '''(() => {
         return {row: Math.round(r.getBoundingClientRect().width),
                 kids: kids.map(c => Math.round(c.getBoundingClientRect().width))};
     });
-})()'''
+})()"""
 
 # Each pane carries margin=1 on both sides, which is outside its measured share.
 _PANE_MARGIN_PX = 32

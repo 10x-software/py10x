@@ -3,8 +3,8 @@
 # (see docker/entrypoint.sh, core_10x/functional_account_keyring.py).
 #
 #   dev        Builds this exact checkout together with its in-tree C++ siblings (cxx10x/) from
-#              source (the same `dev_10x.uv_sync py10x-dev --all-extras` command ci-test-suite uses, with
-#              XX_UV_INSTALL_MODE=normal -- see dev_10x/README.md) -- NOT from PyPI: kernel/infra's
+#              source (`./xx-build init --mode ci-release`, the build mode CI uses -- see
+#              dev_10x/README.md) -- NOT from PyPI: kernel/infra's
 #              *published* versions may not satisfy the pin currently in pyproject.toml (a normal
 #              state mid-development, not an error), and a PR that changes core + C++ together
 #              needs its own sibling source, not a stale release. The
@@ -13,9 +13,8 @@
 #              breaks: its bin/python symlink points at the *host's* absolute interpreter path,
 #              which doesn't exist in this image. Built by CI right after the test suite, and by
 #              the PR-time functional-account-e2e job to verify unreleased changes for real.
-#              Siblings install non-editable ('normal' mode) -- /app/cxx10x is only needed
-#              *during* the build, not afterward (dropping it via a multi-stage split is a
-#              deferred follow-up, not done yet).
+#              Siblings install editable but without rebuild-on-import (ci-release), so their
+#              build dir is not needed afterward; /app itself stays (editable installs).
 #
 #   production Plain `pip`-equivalent install of a *released* py10x-core version from PyPI --
 #              no repo checkout baked in at all. What actually ships; default target for a bare
@@ -44,8 +43,8 @@ ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
 # ---- dev: build this checkout + its C++ siblings from source (CI-only; not a portable artifact) --
 FROM base AS dev
-# git: hatch-vcs shells out to `git describe` for py10x-core's version, and uv_sync reads
-# `git remote get-url origin`; production doesn't need it (installs an already-versioned release).
+# git: hatch-vcs shells out to `git describe` for py10x-core's version; production doesn't need it
+# (installs an already-versioned release).
 # libpq5: psycopg (infra_10x/postgres_store.py) loads it at import time via ctypes; there's no
 # psycopg[binary]/[c] extra pinned, so the plain package needs the system client library present.
 RUN apt-get update \
@@ -54,23 +53,15 @@ RUN apt-get update \
 WORKDIR /app
 COPY . /app
 
-RUN uv venv
-
-# XX_UV_INSTALL_MODE=normal (dev_10x/README.md): plain, non-editable install of py10x-kernel/
-# py10x-infra -- no rebuild-on-import (unlike 'incremental' mode, which exists for iterating on
-# C++ source locally, not for a build-once image). The packages' persistent build dir
-# (build/py10x-build) is only a compile cache here, so it is removed in the same layer.
-# SKBUILD_CMAKE_BUILD_TYPE=Release is explicit so a change to the packages' default build type
-# doesn't reach the image. py10x-core itself is
-# unaffected by this setting and always installs editable (uv_sync forces it -- see
-# dev_10x/uv_sync.py's INSTALL_MODES docstring), which is why /app still needs to
-# be present and writable at runtime below.
-ENV XX_UV_INSTALL_MODE=normal
-ENV SKBUILD_CMAKE_BUILD_TYPE=Release
+# ci-release (dev_10x/README.md): Release, editable, no rebuild-on-import - a build-once image. The
+# C++ packages' build dir (build/py10x-build) is then only a compile cache, so it is removed in the
+# same layer; env_check asserts the mode and imports the C++ modules without it. No fin-base
+# (`--no-group test --no-group test-extras`): the image is py10x-core's. Everything installs
+# editable, which is why /app still needs to be present and writable at runtime below.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    . .venv/bin/activate \
-    && python -m dev_10x.uv_sync py10x-dev --all-extras \
-    && rm -rf build
+    ./xx-build init --mode ci-release --no-group test --no-group test-extras \
+    && rm -rf build \
+    && .venv/bin/python -m dev_10x.env_check ci-release
 
 # pytest writes its own .pytest_cache under rootdir (/app) by default; the container runs as the
 # renamed functional account (non-root, entrypoint.sh's gosu step), so /app needs to be writable

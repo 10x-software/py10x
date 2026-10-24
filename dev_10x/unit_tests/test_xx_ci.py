@@ -89,3 +89,37 @@ def test_wait_sibling_releases_rejects_a_non_release_commit(tmp_path):
     )
     with pytest.raises(SystemExit, match='not a release commit'):
         xx_ci.wait_sibling_releases(pyproject)
+
+
+def _downstream_pyproject(tmp_path: Path, core_spec: str) -> Path:
+    path = tmp_path / 'xx_fin' / 'pyproject.toml'
+    path.parent.mkdir()
+    path.write_text(
+        f'[project]\nname = "py10x-fin-base"\ndependencies = ["py10x-core ({core_spec})", "py10x-fin-base-cxx (==0.2.0rc1)"]\n', encoding='utf-8'
+    )
+    return path
+
+
+def test_downstream_build_constraints_writes_coordinated_sibling_pins(tmp_path, monkeypatch):
+    seen = []
+    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll: seen.append((name, version)) or True)
+    monkeypatch.setattr(PyPIHelpers, 'exact_pins', lambda name, version, candidates: {KERNEL: '0.4.0rc1', INFRA: '0.4.0rc1'})
+    base = _release_pyproject(tmp_path, '==1.4.1rc2')
+    out = tmp_path / 'constraints.txt'
+    assert xx_ci.downstream_build_constraints(base, _downstream_pyproject(tmp_path, '==0.4.0rc1'), out) == 0
+    assert seen[0] == ('py10x-core', '0.4.0rc1')
+    assert out.read_text(encoding='utf-8') == f'{INFRA}==0.4.0rc1\n{KERNEL}==0.4.0rc1\n'
+
+
+def test_downstream_build_constraints_fails_when_core_never_lands(tmp_path, monkeypatch):
+    monkeypatch.setattr(PyPIHelpers, 'wait_for_release', lambda name, version, deadline, poll: False)
+    out = tmp_path / 'constraints.txt'
+    assert xx_ci.downstream_build_constraints(_release_pyproject(tmp_path, '==1.4.1rc2'), _downstream_pyproject(tmp_path, '==0.4.0rc1'), out) == 1
+    assert not out.exists()
+
+
+def test_downstream_build_constraints_rejects_a_non_release_commit(tmp_path):
+    with pytest.raises(SystemExit, match='not a release commit'):
+        xx_ci.downstream_build_constraints(
+            _release_pyproject(tmp_path, '==1.4.1rc2'), _downstream_pyproject(tmp_path, '>=0.4.0rc1,<0.4.0rc2'), tmp_path / 'c.txt'
+        )

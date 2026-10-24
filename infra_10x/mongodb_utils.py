@@ -3,6 +3,7 @@ import secrets
 import string
 import subprocess
 from getpass import getpass
+from itertools import chain
 
 import keyring
 import requests
@@ -54,7 +55,7 @@ def get_xx_admin(user: str):
 def git_user(uid='', login=True):
     uid = f'/{uid}' if uid else ''
     user = requests.get(f'https://api.github.com/user{uid}', headers={'Authorization': f'token {git_token()}'}).json()
-    return user['name'].lower() if user['name'] and not login else user['login'] or input(f'Username{uid}:')
+    return (user['name'] if user['name'] and not login else user['login'] or input(f'Username{uid}:')).lower()
 
 
 @cache
@@ -63,12 +64,12 @@ def git_token():
 
 
 @cache
-def all_git_users():
+def all_git_users(login=True):
     git_org = re.search(r'github\.com[/:]([\w\-\.]+)/', subprocess.check_output(['git', 'remote', 'get-url', 'origin'], text=True).strip()).group(1)
     return [
         uname.lower()
         for user in requests.get(f'https://api.github.com/orgs/{git_org}/members', headers={'Authorization': f'token {git_token()}'}).json()
-        if (uname := git_user(user['id']))
+        if (uname := git_user(user['id'], login=login))
     ]
 
 
@@ -99,7 +100,7 @@ def clear_vault():
 
 def drop_users(hostname):
     admin = MongodbAdmin(hostname=hostname, **get_credentials('xxadmin', hostname))
-    for xx_user in all_git_users():
+    for xx_user in chain(all_git_users(), all_git_users(login=False)):
         xx_admin = get_xx_admin(xx_user)
         if xx_admin != admin.username:  # -- do not break current working account!
             admin.delete_user(xx_admin)
@@ -113,6 +114,16 @@ def get_credentials(service, hostname):
     if service == 'xxadmin':
         username = get_xx_admin(username)
     password = keyring.get_password(service, username)
+    if not password:
+        # Entries written when git_user returned the display name.
+        legacy = git_user(login=False)
+        if service == 'xxadmin':
+            legacy = get_xx_admin(legacy)
+        if legacy != username:
+            legacy_password = keyring.get_password(service, legacy)
+            if legacy_password:
+                username = legacy
+                password = legacy_password
     if not password:
         password = getpass(f"{username}'s password for `{service}`:")
         keyring.set_password(service, username, password)
