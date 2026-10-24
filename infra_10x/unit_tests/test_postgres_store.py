@@ -360,7 +360,7 @@ def test_create_index_owner_error_requires_existing_index():
     assert present.create_index(coll, 'idx_pad', 'pad', {}) == 'idx_pad'
     assert any('pg_indexes' in sql or 'pg_class' in sql for sql, _params in conn.queries)
 
-    # Same sqlstate, different driver text: not the ownership check, even if the index row exists.
+    # Different driver text: not the ownership check, even if the index row exists.
     denied, _denied_conn = _store_with_index_conn({phys_idx}, error_text='permission denied for table pad')
     with pytest.raises(InsufficientPrivilege, match='permission denied'):
         denied.create_index(coll, 'idx_pad', 'pad', {})
