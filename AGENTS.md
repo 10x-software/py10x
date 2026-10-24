@@ -75,10 +75,13 @@ Before changing anything under `core_10x/traitable.py` or traitable-heavy code, 
   - Core logic tests belong in `core_10x/unit_tests/`.
   - UI tests belong in `ui_10x/unit_tests/` or backend-specific test folders.
   - Infra/storage tests belong in `infra_10x/unit_tests/`.
+  - **`manual_tests/` are not a pytest suite** — run them as scripts / `python -m …`. See
+    [CONTRIBUTING.md § Manual Tests](CONTRIBUTING.md#manual-tests). Do not invoke them under
+    `pytest` (the py10x plugin strips ambient vault env for unit isolation).
 
 - **How to run tests / lints**
   - Prefer:
-    - `uv run pytest` (or narrower paths) for tests.
+    - `uv run pytest` (or narrower paths) for **unit** tests.
     - `uv run ruff check .` and `uv run ruff format .` for linting/formatting.
 
 When adding new functionality, agents should **add or update tests** in the appropriate suite following nearby examples, rather than inventing new test patterns.
