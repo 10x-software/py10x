@@ -125,10 +125,11 @@ class MultiChoice(Choice):
     def _set_choices_selected(self, choices_selected: tuple):
         inverted, choices = self.inverted_choices, self.choices
         for choice in choices_selected:
-            if choice in inverted:
-                self.values_selected.append(choice)
-            elif choice in choices:
+            # A label that equals another entry's value must win; values-first stores that other entry.
+            if choice in choices:
                 self.values_selected.append(choices[choice])
+            elif choice in inverted:
+                self.values_selected.append(choice)
 
     def select_mode(self):
         return self.rb.choice() if self.rb else self.SELECT_MODE.ANY
