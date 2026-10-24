@@ -247,9 +247,11 @@ The UI framework focuses on traitable editing and management:
 
 ### Manual Tests
 
-- Use `manual_tests/` for debugging and development
-- These are Python scripts run directly (not via pytest)
-- Intended for future incorporation into unit tests
+- Use `manual_tests/` for debugging, demos, and live-environment checks
+- Run them directly (`python path/to/script.py` or `python -m pkg.manual_tests.…`) — **not** under
+  `pytest`. The py10x pytest plugin strips ambient `XX_*_VAULT_URI` so unit tests cannot inherit a
+  shell vault; that makes pytest unsuitable for these scripts. A plain `pytest` run also does not
+  collect `manual_tests/`.
 - Document expected behavior and setup instructions
 
 ## Documentation

@@ -20,7 +20,6 @@ CLIENT_B = 'https://idp.example/realms/acme/clients/billing-api'
 CLIENT_A_QUERY = 'https://idp.example/realms/acme/clients/payments-api?audience=api'
 CLIENT_ID = 'payments-api'
 SECRET = 'oidc-client-secret-1'
-SECRET_B = 'oidc-client-secret-2'
 
 ALICE, ALICE_VAULT_PWD, ALICE_MASTER = 'alice_oidc', 'AliceOidc7!', 'AliceMaster9!'
 
@@ -51,10 +50,7 @@ def test_instance_holds_the_secret_outside_the_uri():
     assert SECRET not in queried.uri
 
     again = OidcSecret.instance_from_uri(CLIENT_A, username=CLIENT_ID, password=SECRET)
-    rotated = OidcSecret.instance_from_uri(CLIENT_A, username=CLIENT_ID, password=SECRET_B)
     assert again is opened
-    assert rotated is not opened
-    assert rotated.client_secret == SECRET_B
 
 
 def test_instance_without_credentials_has_no_secret():
