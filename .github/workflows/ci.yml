@@ -283,15 +283,9 @@ jobs:
             -v "$secrets_dir:/secrets:ro" \
             py10x-functional-e2e
 
-      # Same commands as docs/USER_ONBOARDING_AUTH.md: issue the vault login, then
-      # xx-functional-account-init. The job has no host py10x install (the image
-      # build is that install), so both CLIs run from the image. The CLI calls
-      # docker, so this container gets the daemon socket and a docker client.
-      # TMPDIR has to be a directory the daemon can chown: on Linux that is a
-      # normal mktemp dir; on a Mac (Colima / Docker Desktop) a macOS bind mount
-      # keeps the Mac owner and rejects chown to uid 10001, so the directory is
-      # created on the daemon's own filesystem instead. --image-tag e2e is how an
-      # admin points the CLI at an unreleased local image.
+      # No py10x install on the runner. The image is that install, and
+      # xx-functional-account-init calls docker, so it runs there with the
+      # daemon socket and a docker client. --image-tag e2e selects this build.
       - name: Provision a functional account with xx-functional-account-init
         env:
           ACCOUNT: xx-e2e-provision
@@ -305,22 +299,7 @@ jobs:
             sudo apt-get install -y -qq expect
           fi
           docker tag py10x-functional-e2e ghcr.io/10x-software/py10x-core:e2e
-          image=py10x-functional-e2e
-          # Bind the socket the daemon itself uses. On Colima / Docker Desktop the
-          # client socket lives on the Mac (~/.colima or ~/.docker) and the daemon
-          # cannot mount that path. /var/run/docker.sock is the daemon-side socket
-          # on Linux CI and inside those VMs.
-          # Probe whether a fifo created on this machine can be chowned to 10001
-          # from a container. That fails for a macOS directory shared into Colima.
-          hostdir=$(mktemp -d)
-          probe='mkfifo /probe/t.fifo && chown 10001:10001 /probe/t.fifo && test "$(stat -c %u /probe/t.fifo)" = 10001 && rm -f /probe/t.fifo'
-          if docker run --rm -v "$hostdir:/probe" --entrypoint bash "$image" -c "$probe"; then
-            workdir=$hostdir
-          else
-            rm -rf "$hostdir"
-            workdir="/tmp/xx-func-e2e-$$"
-            docker run --rm -v "$workdir:/probe" --entrypoint bash "$image" -c "$probe"
-          fi
+          workdir=$(mktemp -d)
           export WORKDIR=$workdir
 
           expect <<'EOF'
@@ -371,19 +350,16 @@ jobs:
           if {$oserr != 0 || $value != 0} { exit 1 }
           EOF
 
-          docker run --rm -v "$WORKDIR:/work:ro" \
-            -e ACCOUNT -e VAULT_URI -e WORKER_PASSWORD \
-            --entrypoint python "$image" -c '
+          python3 - <<'PY'
           import json, os
-          manifest = json.load(open("/work/manifest.json", encoding="utf-8"))
+          manifest = json.load(open(os.path.join(os.environ["WORKDIR"], "manifest.json"), encoding="utf-8"))
           account = os.environ["ACCOUNT"]
           vault_uri = os.environ["VAULT_URI"]
           assert [row["service"] for row in manifest] == ["XX_MASTER_PASSWORD", vault_uri], manifest
           assert manifest[0]["username"] == account and manifest[0]["password"]
           assert manifest[1]["username"] == account
           assert manifest[1]["password"] == account + "\x1f" + os.environ["WORKER_PASSWORD"]
-          print("manifest ok", [row["service"] for row in manifest])
-          '
+          PY
 
   # Nightly / manual: same matrix, built and run under AddressSanitizer for memory-error diagnostics.
   asan-tests:

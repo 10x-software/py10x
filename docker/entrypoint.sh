@@ -32,9 +32,7 @@ export LOGNAME="$FUNCTIONAL_ACCOUNT_ID"
 export PYTHON_KEYRING_BACKEND=core_10x.functional_account_keyring.FunctionalAccountKeyring
 export XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE="$XX_SECRETS_DIR/keyring.json"
 
-# Host holds the read fd and left that one pipe mode 0200. Own only the --output-file
-# path before gosu. A directory glob would hand the functional-account uid every FIFO
-# mounted there, including ones this process is not about to open.
+# Owner-write only. gosu runs as this uid, so that uid has to own the pipe.
 output_file=""
 previous=""
 for arg in "$@"; do
