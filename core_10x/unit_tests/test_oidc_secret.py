@@ -55,6 +55,9 @@ def test_instance_holds_the_secret_outside_the_uri():
     assert again is opened
     assert rotated is not opened
     assert rotated.client_secret == SECRET_B
+    # Password stays in the key. Dropping it, as Resource.standard_key does, would collapse these slots.
+    assert any(('password', SECRET) in key and OidcSecret.s_instances[key] is opened for key in OidcSecret.s_instances)
+    assert any(('password', SECRET_B) in key and OidcSecret.s_instances[key] is rotated for key in OidcSecret.s_instances)
 
 
 def test_instance_without_credentials_has_no_secret():
