@@ -287,6 +287,84 @@ jobs:
             -v "$secrets_dir:/secrets:ro" \
             py10x-functional-e2e
 
+      # No py10x install on the runner. The image is that install, and
+      # xx-functional-account-init calls docker, so it runs there with the
+      # daemon socket and a docker client. --image-tag e2e selects this build.
+      - name: Provision a functional account with xx-functional-account-init
+        env:
+          ACCOUNT: xx-e2e-provision
+          PG_PASSWORD: py10x_pg_auth
+          WORKER_PASSWORD: py10x_pg_auth
+          VAULT_URI: postgresql://localhost:5433/xx_func_provision
+        run: |
+          set -euo pipefail
+          if ! command -v expect >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq expect
+          fi
+          docker tag py10x-functional-e2e ghcr.io/10x-software/py10x-core:e2e
+          workdir=$(mktemp -d)
+          export WORKDIR=$workdir
+
+          expect <<'EOF'
+          set timeout 180
+          set account $env(ACCOUNT)
+          set pgpass $env(PG_PASSWORD)
+          set workerpass $env(WORKER_PASSWORD)
+          set uri $env(VAULT_URI)
+          spawn -noecho docker run --rm -it --network host -e XX_MAIN_VAULT_URI=$uri --entrypoint /app/.venv/bin/xx-vault-setup-roles py10x-functional-e2e --uri $uri --username postgres --worker $account
+          expect {
+            "password for the vault database" {}
+            timeout { puts "timed out waiting for the vault admin password prompt"; exit 1 }
+            eof { puts "xx-vault-setup-roles exited before prompting"; exit 1 }
+          }
+          send "$pgpass\r"
+          expect {
+            "password for worker" {}
+            timeout { puts "timed out waiting for the worker password prompt"; exit 1 }
+            eof { puts "xx-vault-setup-roles exited before the worker password prompt"; exit 1 }
+          }
+          send "$workerpass\r"
+          expect eof
+          foreach {_pid _spawnid oserr value} [wait] break
+          if {$oserr != 0 || $value != 0} { exit 1 }
+          EOF
+
+          expect <<'EOF'
+          set timeout 600
+          set account $env(ACCOUNT)
+          set workerpass $env(WORKER_PASSWORD)
+          set uri $env(VAULT_URI)
+          set workdir $env(WORKDIR)
+          spawn -noecho docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v $workdir:$workdir -e TMPDIR=$workdir -e XX_MAIN_VAULT_URI=$uri -e DEBIAN_FRONTEND=noninteractive --entrypoint bash py10x-functional-e2e -c "set -e; apt-get update -qq; if ! apt-get install -y -qq --no-install-recommends docker-cli; then apt-get install -y -qq --no-install-recommends docker.io; fi; exec /app/.venv/bin/xx-functional-account-init --functional-account-id $account --image-tag e2e --command \"tee $workdir/manifest.json\""
+          expect {
+            "Enter login name" {}
+            timeout { puts "timed out waiting for the vault login prompt"; exit 1 }
+            eof { puts "xx-functional-account-init exited before the login prompt"; exit 1 }
+          }
+          send "$account\r"
+          expect {
+            "Enter password" {}
+            timeout { puts "timed out waiting for the vault password prompt"; exit 1 }
+            eof { puts "xx-functional-account-init exited before the password prompt"; exit 1 }
+          }
+          send "$workerpass\r"
+          expect eof
+          foreach {_pid _spawnid oserr value} [wait] break
+          if {$oserr != 0 || $value != 0} { exit 1 }
+          EOF
+
+          python3 - <<'PY'
+          import json, os
+          manifest = json.load(open(os.path.join(os.environ["WORKDIR"], "manifest.json"), encoding="utf-8"))
+          account = os.environ["ACCOUNT"]
+          vault_uri = os.environ["VAULT_URI"]
+          assert [row["service"] for row in manifest] == ["XX_MASTER_PASSWORD", vault_uri], manifest
+          assert manifest[0]["username"] == account and manifest[0]["password"]
+          assert manifest[1]["username"] == account
+          assert manifest[1]["password"] == account + "\x1f" + os.environ["WORKER_PASSWORD"]
+          PY
+
   # Nightly / manual: same matrix, built and run under AddressSanitizer for memory-error diagnostics.
   asan-tests:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
