@@ -15,7 +15,13 @@ from core_10x.ts_store import (
 )
 from py10x_infra import MongoCollectionHelper
 from pymongo import MongoClient, ReturnDocument
-from pymongo.common import TIMEOUT_OPTIONS
+from pymongo.common import (
+    URI_OPTIONS_VALIDATOR_MAP,
+    validate_timeout_or_none,
+    validate_timeout_or_none_or_zero,
+    validate_timeout_or_zero,
+    validate_timeoutms,
+)
 from pymongo.errors import ConnectionFailure, DuplicateKeyError, OperationFailure, ServerSelectionTimeoutError
 from pymongo.uri_parser import parse_uri as pymongo_parse_uri
 
@@ -32,6 +38,14 @@ if TYPE_CHECKING:
 _REV = Nucleus.REVISION_TAG()
 _TS_TIME = T.TS_TIME.value()
 _TS_USER = T.TS_USER.value()
+
+# These divide a URI millisecond count by 1000. maxStalenessSeconds is not one of them.
+_MS_TIMEOUT_VALIDATORS = frozenset((
+    validate_timeout_or_none,
+    validate_timeout_or_none_or_zero,
+    validate_timeout_or_zero,
+    validate_timeoutms,
+))
 
 
 class MongoCollection(TsCollection):
@@ -286,9 +300,14 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
                 cls.PASSWORD_TAG:   params['password'],
             }
             # fmt: on
+            # pymongo_parse_uri converts *MS timeouts to seconds. MongoClient expects
+            # milliseconds, and a URI round-trip requires them, so convert back.
+            for key, value in list(kwargs.items()):
+                if URI_OPTIONS_VALIDATOR_MAP.get(key.lower()) in _MS_TIMEOUT_VALIDATORS:
+                    kwargs[key] = 0 if value is None or value == 0 else round(value * 1000)
             args.update(kwargs)
             args.update(  # rename mongo params back to short aliases
-                (short, round(value * 1000) if value and real.lower() in TIMEOUT_OPTIONS else value)
+                (short, value)
                 for short, real in aliases.items() if (value := args.pop(real, args)) is not args
             )
             return args
