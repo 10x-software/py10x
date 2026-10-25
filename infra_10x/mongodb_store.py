@@ -300,7 +300,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
                 cls.PASSWORD_TAG:   params['password'],
             }
             # fmt: on
-            # pymongo stores *MS timeouts in seconds and unlimited as None; the query must use milliseconds and 0.
+            # pymongo_parse_uri converts *MS timeouts to seconds. MongoClient expects
+            # milliseconds, and a URI round-trip requires them, so convert back.
             for key, value in list(kwargs.items()):
                 if URI_OPTIONS_VALIDATOR_MAP.get(key.lower()) in _MS_TIMEOUT_VALIDATORS:
                     kwargs[key] = 0 if value is None or value == 0 else round(value * 1000)
