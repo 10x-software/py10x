@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import weakref
 from typing import TYPE_CHECKING
 
@@ -207,24 +208,14 @@ class TraitableEditor:
         ux.init()
 
         def accept_callback():
-            # track_changes + copy_entity keeps this dialog's edits in a nested
-            # scope, not the ambient cache. Verify there and export only after
-            # it succeeds, so a failed OK leaves the scope for a later OK.
-            # The other paths still export (or edit in place) before verify.
-            staged = self.traitable_processor
-            if self.change_tracker is not None and staged is not None and staged is not self.change_tracker:
-                with staged:
-                    rc = self.entity.verify()
-                if not rc:
-                    return rc
-                self._cleanup_tp(True)
-                return on_accept()
-
+            # Verify in the dialog's own scope and commit only on success, so a
+            # failed OK keeps the edits staged for a corrected OK.
+            with self.traitable_processor or contextlib.nullcontext():
+                rc = self.entity.verify()
+            if not rc:
+                return rc
             self._cleanup_tp(True)
-            rc = self.entity.verify()
-            if rc:
-                return on_accept()
-            return rc
+            return on_accept()
 
         def cancel_callback():
             self._cleanup_tp(False)

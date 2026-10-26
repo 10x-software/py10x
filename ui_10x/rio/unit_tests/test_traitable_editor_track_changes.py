@@ -61,6 +61,35 @@ def test_dialog_cancel_discards_staged_edit(ts_instance):  # noqa: F811
         assert t.tags == ['a']  # never exported
 
 
+def test_dialog_copy_entity_invalid_edit_is_not_exported(ts_instance):  # noqa: F811
+    """Without track_changes, a staged edit that fails verify stays in the
+    staging scope; a later valid OK exports the corrected values."""
+    with ts_instance, INTERACTIVE():
+        t = _person(ts_instance, ['a'])
+        ed = TraitableEditor.editor(t)
+        d = ed.dialog()
+
+        # age > 60 and weight_lbs > 200 fails Person.post_verify.
+        with ed.traitable_processor:
+            t.dob = date(1950, 1, 1)
+            t.weight_lbs = 250.0
+
+        rc = d.accept_callback()
+        assert not rc and 'overweight' in rc.error()
+        assert ed._commit is not None
+        assert ed.traitable_processor is not None
+        assert not t.is_set(t.T.weight_lbs)
+        assert not t.is_set(t.T.dob)
+
+        with ed.traitable_processor:
+            t.weight_lbs = 150.0
+
+        rc = d.accept_callback()
+        assert rc
+        assert t.weight_lbs == 150.0
+        assert t.dob == date(1950, 1, 1)
+
+
 def test_dialog_track_changes_stages_and_saves_via_tracker(ts_instance):  # noqa: F811
     with ts_instance, INTERACTIVE():
         t = _person(ts_instance, ['a'])
