@@ -865,6 +865,7 @@ class PyPIHelpers:
         """True when the exact `name==version` is pip-installable: the JSON API lists files
         **and** the simple index lists the version (pip's resolver uses the simple API; the JSON
         API can briefly lead the CDN after a fresh publish)."""
+        import json
         from urllib import error, request
 
         try:
@@ -877,10 +878,20 @@ class PyPIHelpers:
             raise
 
         simple_name = cls._normalize_project(name)
-        simple_url = f'https://pypi.org/simple/{simple_name}/'
+        # Request the simple page as pip does: the CDN caches its JSON and HTML forms separately, so
+        # checking only the HTML one can pass while pip still gets a JSON copy without the new release.
+        simple = request.Request(
+            f'https://pypi.org/simple/{simple_name}/',
+            headers={
+                'Accept': 'application/vnd.pypi.simple.v1+json, application/vnd.pypi.simple.v1+html; q=0.1, text/html; q=0.01',
+                'Cache-Control': 'max-age=0',
+            },
+        )
         try:
-            with request.urlopen(simple_url, timeout=timeout) as resp:
-                html = resp.read().decode('utf-8', errors='replace')
+            with request.urlopen(simple, timeout=timeout) as resp:
+                listing = resp.read().decode('utf-8', errors='replace')
+                if resp.headers.get_content_type() == 'application/vnd.pypi.simple.v1+json':
+                    listing = '\n'.join(f['filename'] for f in json.loads(listing)['files'])
         except error.HTTPError as e:
             if e.code == 404:
                 return False
@@ -888,7 +899,7 @@ class PyPIHelpers:
         # Filenames use underscores; accept either spelling in the listing.
         needle = f'{simple_name.replace("-", "_")}-{version}'
         alt = f'{simple_name}-{version}'
-        return needle in html or alt in html
+        return needle in listing or alt in listing
 
     @classmethod
     def release_requires_dist(cls, name: str, version: str, timeout: float = 10.0) -> list[str]:

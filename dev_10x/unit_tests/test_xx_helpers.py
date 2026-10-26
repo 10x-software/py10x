@@ -112,5 +112,40 @@ def test_release_json_cached_after_success_so_cdn_404_cannot_break_exact_pins(mo
     PyPIHelpers._release_json.cache_clear()
 
 
+@pytest.mark.parametrize(
+    ('content_type', 'body', 'expected'),
+    [
+        ('application/vnd.pypi.simple.v1+json', {'files': [{'filename': 'py10x_kernel-1.2.3-cp312-cp312-win_amd64.whl'}]}, True),
+        # The JSON copy can lag the HTML one on the CDN: a JSON listing without the release is decisive.
+        ('application/vnd.pypi.simple.v1+json', {'files': [{'filename': 'py10x_kernel-1.2.2-cp312-cp312-win_amd64.whl'}]}, False),
+        ('text/html', '<a href="py10x_kernel-1.2.3-cp312-cp312-win_amd64.whl">', True),
+    ],
+)
+def test_release_exists_reads_the_simple_index_as_pip_does(monkeypatch, content_type, body, expected):
+    """pip asks for the simple page JSON first; `release_exists` must check the same representation."""
+    from email.message import Message
+
+    PyPIHelpers._release_json.cache_clear()
+    simple_requests: list[request.Request] = []
+
+    def fake_urlopen(url, timeout):
+        if isinstance(url, request.Request):  # the simple index
+            simple_requests.append(url)
+            r = io.BytesIO((body if isinstance(body, str) else json.dumps(body)).encode())
+            r.headers = Message()
+            r.headers['Content-Type'] = content_type
+        else:  # the release's JSON API
+            r = io.BytesIO(json.dumps({'urls': [{'filename': 'x.whl'}]}).encode())
+        r.status = 200
+        return r
+
+    monkeypatch.setattr(request, 'urlopen', fake_urlopen)
+
+    assert PyPIHelpers.release_exists('py10x-kernel', '1.2.3') is expected
+    assert simple_requests[0].full_url == 'https://pypi.org/simple/py10x-kernel/'
+    assert simple_requests[0].get_header('Accept').startswith('application/vnd.pypi.simple.v1+json')
+    PyPIHelpers._release_json.cache_clear()
+
+
 if __name__ == '__main__':
     raise SystemExit(pytest.main([__file__, '-v']))
