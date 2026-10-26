@@ -13,6 +13,7 @@ const unsigned STATE_SET            = 0x2;
 const unsigned STATE_IMPORTED       = 0x4;
 const unsigned STATE_GETTER_GUARD   = 0x8;      // transient: this node's getter is evaluating
 const unsigned STATE_NOT_A_DEPENDENCY = 0x10;   // permanent: set at node creation from BTraitFlags::NOT_A_DEPENDENCY
+const unsigned STATE_INVALIDATED    = 0x20;     // invalidated under INTERACTIVE: export_nodes invalidates the parent's node; cleared by set()
 const unsigned STATE_VALID_AND_SET  = STATE_VALID | STATE_SET;
 
 class NODE_TYPE {
@@ -42,6 +43,9 @@ public:
 
     [[nodiscard]] bool is_not_a_dependency() const  { return m_state & STATE_NOT_A_DEPENDENCY; }
     void set_not_a_dependency(bool on)              { on ? m_state |= STATE_NOT_A_DEPENDENCY : m_state &= ~STATE_NOT_A_DEPENDENCY; }
+
+    [[nodiscard]] bool is_invalidated() const       { return m_state & STATE_INVALIDATED; }
+    void set_invalidated(bool on)                   { on ? m_state |= STATE_INVALIDATED : m_state &= ~STATE_INVALIDATED; }
 
     // throw if a set()/invalidate() reaches a node whose own getter is still evaluating
     void throw_if_getter_guarded() const {
@@ -125,7 +129,7 @@ public:
         throw_if_getter_guarded();      // must precede the is_valid() early return
         if (is_valid()) {
             m_value = PyLinkage::XNone();
-            m_state &= (STATE_GETTER_GUARD | STATE_NOT_A_DEPENDENCY);      // clear all but the guard and not-a-dependency bits
+            m_state &= (STATE_GETTER_GUARD | STATE_NOT_A_DEPENDENCY | STATE_INVALIDATED);    // a cascade must not drop a pending export of an invalidation
             invalidate_parents();
         }
     }

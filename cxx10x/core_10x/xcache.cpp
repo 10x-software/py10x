@@ -93,6 +93,39 @@ BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int
     return node;
 }
 
+void XCache::_export_invalidation(const TID &tid, ObjectCache* dst_oc, const BTrait* trait) const{
+    auto dst_node = dst_oc->find_node(trait);
+
+    if (!dst_node) {
+        auto parent_node = m_parent->find_set_or_invalid_node_in_parents(tid, trait);
+        if (parent_node && parent_node->is_valid())
+            dst_node = dst_oc->find_or_create_node(trait, m_parent->default_node_type());
+    }
+
+    if (!dst_node)
+        return;
+
+    dst_node->invalidate();
+    dst_node->set_invalidated(true);
+}
+
+
+void XCache::_export_invalidation(const TID &tid, ObjectCache* dst_oc, const BTrait* trait, const py::args& args) const {
+    auto dst_node = dst_oc->find_node(trait, args);
+
+    if (!dst_node) {
+        auto parent_node = m_parent->find_set_or_invalid_node_in_parents(tid, trait, args);
+        if (parent_node && parent_node->is_valid())
+            dst_node = dst_oc->find_or_create_node(trait, m_parent->default_node_type(), args);
+    }
+
+    if (!dst_node)
+        return;
+
+    dst_node->invalidate();
+    dst_node->set_invalidated(true);
+}
+
 void XCache::export_nodes() const {
     if (!m_parent)
         throw py::value_error("Cannot export_nodes from a root cache (no parent)");
@@ -105,13 +138,15 @@ void XCache::export_nodes() const {
         auto dst_oc = m_parent->_find_or_create_object_cache(tid);
         //-- argsless nodes
         for (auto item : oc->argless_nodes()) {
-            auto trait = item.first;
-            auto node = item.second;
-            if (node->node_type() != NODE_TYPE::BASIC_GRAPH || !node->is_set())
+            auto const trait = item.first;
+            auto const node = item.second;
+            if (node->node_type() != NODE_TYPE::BASIC_GRAPH)
                 continue;
 
-            auto dst_node = dst_oc->find_or_create_node(trait, dst_node_type);
-            dst_node->set(node->value());
+            if (node->is_set())
+                dst_oc->find_or_create_node(trait, dst_node_type)->set(node->value());
+            else if (node->is_invalidated())
+                _export_invalidation(tid, dst_oc, trait);
         }
 
         //-- nodes with args
@@ -120,11 +155,13 @@ void XCache::export_nodes() const {
             for (const auto& i: *item.second) {
                 auto args = i.first;
                 auto node = i.second;
-                if (node->node_type() != NODE_TYPE::BASIC_GRAPH || !node->is_set())
+                if (node->node_type() != NODE_TYPE::BASIC_GRAPH)
                     continue;
 
-                auto dst_node = dst_oc->find_or_create_node(trait, dst_node_type, args);
-                dst_node->set(node->value());
+                if (node->is_set())
+                    dst_oc->find_or_create_node(trait, dst_node_type, args)->set(node->value());
+                else if (node->is_invalidated())
+                    _export_invalidation(tid, dst_oc, trait, args);
             }
         }
     }

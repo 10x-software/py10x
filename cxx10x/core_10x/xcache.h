@@ -236,6 +236,9 @@ protected:
         m_tmp_data.insert({tid.ptr(), oc});
         return oc;
     }
+    void _export_invalidation(const TID &tid, ObjectCache* dst_oc, const BTrait* trait) const;
+    void _export_invalidation(const TID &tid, ObjectCache* dst_oc, const BTrait* trait, const py::args& args) const;
+
 public:
     // lazy load flags flags
     static constexpr unsigned   LOAD_REQUIRED                = 64;
