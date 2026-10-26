@@ -25,7 +25,6 @@ class DateCurve(AnonymousTraitable):
     params: CurveParams     = RT()
     bcurve: BDateCurve      = RT(T.STICKY)
     dates: list             = RT()
-    params_applied: bool    = RT(T.STICKY)  #-- params_get pushed into bcurve once; set_curve_params() pushes and marks it itself
 
     times: list             = T()
     values: list            = T()
@@ -55,20 +54,6 @@ class DateCurve(AnonymousTraitable):
     def params_get(self) -> CurveParams:
         return CurveParams()
 
-    #-- a subclass may define its params via params_get (e.g., FuturesCurve: IP_KIND.NEXT), so they must reach bcurve
-    #-- before it is evaluated, not only via set_curve_params() -- otherwise bcurve stays on its default (linear)
-    def params_applied_get(self) -> bool:
-        self._apply_params(self.params)
-        return True
-
-    def _apply_params(self, params: CurveParams):
-        self.bcurve.set_ip_kind(params.ip_kind)
-        fill = params.fill_value
-        if isinstance(fill, tuple):
-            self.bcurve.set_flat(fill[0], fill[1])
-        else:
-            self.bcurve.set_linear()
-
     def dates_get(self) -> list:
         return self.bcurve.dates
 
@@ -97,7 +82,6 @@ class DateCurve(AnonymousTraitable):
         self.invalidate_value('dates')
 
     def value(self, d: date) -> float:
-        _ = self.params_applied
         return self.bcurve.value(d)
 
     def remove(self, d: date, reset = True):
@@ -122,8 +106,12 @@ class DateCurve(AnonymousTraitable):
         params = self.params
         rc = params.set_values(**param_values)
         if rc:
-            self._apply_params(params)
-            self.params_applied = True      #-- params is not cached with GRAPH_OFF, so a later params_get must not overwrite this
+            self.bcurve.set_ip_kind(params.ip_kind)
+            fill = params.fill_value
+            if isinstance(fill, tuple):
+                self.bcurve.set_flat(fill[0], fill[1])
+            else:
+                self.bcurve.set_linear()
 
         self.reset()
         return rc
