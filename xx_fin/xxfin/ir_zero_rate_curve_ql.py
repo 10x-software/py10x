@@ -23,37 +23,44 @@ class ZeroRateCurveQL(ZeroRateCurve):
     def payload_get(self) -> RateCurve:
         today = self.md_date
         mc = self.mkt_conventions
-        ql_today = QL.to_date(today)
-        ql.Settings.instance().evaluationDate = ql_today
+        #-- evaluationDate is process-global. Restore it if the bootstrap raises so a later
+        #   helper in this process does not build off this as-of date.
+        settings = ql.Settings.instance()
+        saved_eval_date = settings.evaluationDate
+        try:
+            ql_today = QL.to_date(today)
+            settings.evaluationDate = ql_today
 
-        deposit_quotables = self.quotables_by_class.get(IRCashDepositQuotable, {})
-        helpers = [QL.deposit_helper(q, mc) for q in deposit_quotables.values()]
+            deposit_quotables = self.quotables_by_class.get(IRCashDepositQuotable, {})
+            helpers = [QL.deposit_helper(q, mc, today) for q in deposit_quotables.values()]
 
-        swap_quotables = self.quotables_by_class.get(IRSwapQuotable, {})
-        forecast_curve = None
-        if swap_quotables:
-            forecast_curve = ql.RelinkableYieldTermStructureHandle()
-            index = QL.overnight_index(mc, forecast_curve)
-            helpers += [QL.swap_helper(q, mc, index) for q in swap_quotables.values()]
+            swap_quotables = self.quotables_by_class.get(IRSwapQuotable, {})
+            forecast_curve = None
+            if swap_quotables:
+                forecast_curve = ql.RelinkableYieldTermStructureHandle()
+                index = QL.overnight_index(mc, forecast_curve)
+                helpers += [QL.swap_helper(q, mc, index) for q in swap_quotables.values()]
 
-        res = RateCurve(beginning_of_time = today, quoting_dc_convention = mc.dc_convention, quoting_compounding = mc.compounding)
+            res = RateCurve(beginning_of_time = today, quoting_dc_convention = mc.dc_convention, quoting_compounding = mc.compounding)
 
-        #-- RateCurve's own internal storage convention (dc_convention/compounding), read directly
-        #   off the object being built rather than duplicated as a separate constant
-        day_counter = QL.day_counter(res.dc_convention)
-        compounding, frequency = QL.compounding(res.compounding)
+            #-- RateCurve's own internal storage convention (dc_convention/compounding), read directly
+            #   off the object being built rather than duplicated as a separate constant
+            day_counter = QL.day_counter(res.dc_convention)
+            compounding, frequency = QL.compounding(res.compounding)
 
-        ql_curve = ql.PiecewiseLinearZero(ql_today, helpers, day_counter)
-        if forecast_curve is not None:
-            #-- self-referential: the OIS helpers forecast off the very curve being bootstrapped
-            #   here, via the handle they were built against -- must link before the first query
-            #   below triggers the (lazy) bootstrap solve
-            forecast_curve.linkTo(ql_curve)
-        ql_curve.enableExtrapolation()
+            ql_curve = ql.PiecewiseLinearZero(ql_today, helpers, day_counter)
+            if forecast_curve is not None:
+                #-- self-referential: the OIS helpers forecast off the very curve being bootstrapped
+                #   here, via the handle they were built against -- must link before the first query
+                #   below triggers the (lazy) bootstrap solve
+                forecast_curve.linkTo(ql_curve)
+            ql_curve.enableExtrapolation()
 
-        for d in ql_curve.dates():
-            zero_rate = ql_curve.zeroRate(d, day_counter, compounding, frequency).rate()
-            res.update(d.to_date(), zero_rate)
+            for d in ql_curve.dates():
+                zero_rate = ql_curve.zeroRate(d, day_counter, compounding, frequency).rate()
+                res.update(d.to_date(), zero_rate)
 
-        res.set_curve_params_to_flat_extrapolate()
-        return res
+            res.set_curve_params_to_flat_extrapolate()
+            return res
+        finally:
+            settings.evaluationDate = saved_eval_date
