@@ -124,51 +124,60 @@ inline void bootstrap_cash_deposit(
 //==
 //   bootstrap_swap
 //
-//   Solves:  swap_rate_simple(curve[last_pay_ord]=x) == quote
+//   Solves the delayed-payment par rate at curve[last_pay_ord] = x:
+//     sum_i df(pay_i) * (df(start_i) / df(end_i) - 1) / annuity == quote
+//   annuity = sum_i dc_frac_i * df(pay_i)
 //
-//   No curve I/O inside the hot loop.
-//   Caller precomputes:
-//     t_today_last  = dc_int(today, last_pay)
-//     annuity_const = sum(dc_frac[i] * df(pay_i, today)) for periods whose pay date
-//                     is already determined by fixed (already-bootstrapped) knots
-//     last_dc_frac  = fixed-leg dc frac for last period
-//     df_spot       = discount_factor(spot_date, today)
+//   Accrual stops at end_i. pay_i is later, so this does not telescope to
+//   df(spot) - df(last_pay).
 //
-//   Any intermediate period whose pay date falls beyond the last fixed knot (and
-//   before last_pay) has a discount factor that depends on x through the curve's
-//   own LINEAR interior interpolation between that fixed knot and the point being
-//   solved — same reasoning as bootstrap_cash_deposit's gap_frac. These periods
-//   cannot be folded into annuity_const and are passed as parallel vectors:
-//     gap_dc_fracs[i], gap_t_todays[i]  — this period's dc frac and dc_int(today, pay_i)
-//     gap_fracs[i]                      — interpolation fraction toward x
-//     r_fixed                           — rate at the last fixed knot (shared by all gap periods)
+//   No curve I/O inside the hot loop. For each period date the caller passes either
+//   a constant discount factor (gap_frac < 0; the date is on or before the last
+//   bootstrapped knot) or a linear interpolation toward x:
+//     r = r_fixed + gap_frac * (x - r_fixed),   gap_frac in (0, 1]
+//   gap_frac == 1 is the knot being solved (last_pay).
 //==
+inline double _bootstrap_df(
+    double df_const, double t, double gap_frac,
+    double x, double r_fixed, int comp
+) {
+    if (gap_frac < 0.0)
+        return df_const;
+    double r   = r_fixed + gap_frac * (x - r_fixed);
+    double acc = compounding_apply(comp, BCompoundTransform::RATE_TO_ACCRUAL, t, r);
+    return 1.0 / acc;
+}
+
 inline void bootstrap_swap(
     BDateCurve& curve,
     int    bot_ord,
     int    last_pay_ord,
-    double t_today_last,
-    double annuity_const,
-    double last_dc_frac,
-    double df_spot,
     int    comp,
     double quote,
     double lo, double hi, double xtol,
-    const std::vector<double>& gap_dc_fracs = {},
-    const std::vector<double>& gap_t_todays = {},
-    const std::vector<double>& gap_fracs    = {},
-    double r_fixed = 0.0
+    const std::vector<double>& dc_fracs,
+    const std::vector<double>& df_starts, const std::vector<double>& t_starts, const std::vector<double>& g_starts,
+    const std::vector<double>& df_ends,   const std::vector<double>& t_ends,   const std::vector<double>& g_ends,
+    const std::vector<double>& df_pays,   const std::vector<double>& t_pays,   const std::vector<double>& g_pays,
+    double r_fixed
 ) {
+    const size_t n = dc_fracs.size();
+    if (df_starts.size() != n || t_starts.size() != n || g_starts.size() != n ||
+        df_ends.size()   != n || t_ends.size()   != n || g_ends.size()   != n ||
+        df_pays.size()   != n || t_pays.size()   != n || g_pays.size()   != n)
+        throw std::runtime_error("bootstrap_swap: period argument lengths differ");
+
     auto f = [&](double x) -> double {
-        double acc_last  = compounding_apply(comp, BCompoundTransform::RATE_TO_ACCRUAL, t_today_last, x);
-        double df_last   = 1.0 / acc_last;
-        double annuity   = annuity_const + last_dc_frac * df_last;
-        for (size_t i = 0; i < gap_dc_fracs.size(); ++i) {
-            double r_i   = r_fixed + gap_fracs[i] * (x - r_fixed);
-            double acc_i = compounding_apply(comp, BCompoundTransform::RATE_TO_ACCRUAL, gap_t_todays[i], r_i);
-            annuity     += gap_dc_fracs[i] / acc_i;
+        double float_pv = 0.0;
+        double annuity  = 0.0;
+        for (size_t i = 0; i < n; ++i) {
+            double df_s = _bootstrap_df(df_starts[i], t_starts[i], g_starts[i], x, r_fixed, comp);
+            double df_e = _bootstrap_df(df_ends[i],   t_ends[i],   g_ends[i],   x, r_fixed, comp);
+            double df_p = _bootstrap_df(df_pays[i],   t_pays[i],   g_pays[i],   x, r_fixed, comp);
+            annuity  += dc_fracs[i] * df_p;
+            float_pv += df_p * (df_s / df_e - 1.0);
         }
-        return (df_spot - df_last) / annuity - quote;
+        return float_pv / annuity - quote;
     };
     double root = brent_solve(f, lo, hi, xtol);
     bcurve_update(curve, last_pay_ord, root);

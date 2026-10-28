@@ -97,22 +97,29 @@ PYBIND11_MODULE(cxxfin, m)
 
     m.def("bootstrap_swap",
           [comp_to_int](BDateCurve& curve, int bot_ord, int last_pay_ord,
-             double t_today_last, double annuity_const, double last_dc_frac, double df_spot,
              py::object comp,
              double quote, double lo, double hi, double xtol,
-             std::vector<double> gap_dc_fracs, std::vector<double> gap_t_todays,
-             std::vector<double> gap_fracs, double r_fixed) {
+             const std::vector<double>& dc_fracs,
+             const std::vector<double>& df_starts, const std::vector<double>& t_starts, const std::vector<double>& g_starts,
+             const std::vector<double>& df_ends,   const std::vector<double>& t_ends,   const std::vector<double>& g_ends,
+             const std::vector<double>& df_pays,   const std::vector<double>& t_pays,   const std::vector<double>& g_pays,
+             double r_fixed) {
               bootstrap_swap(curve, bot_ord, last_pay_ord,
-                             t_today_last, annuity_const, last_dc_frac, df_spot,
                              comp_to_int(comp), quote, lo, hi, xtol,
-                             gap_dc_fracs, gap_t_todays, gap_fracs, r_fixed);
+                             dc_fracs,
+                             df_starts, t_starts, g_starts,
+                             df_ends, t_ends, g_ends,
+                             df_pays, t_pays, g_pays,
+                             r_fixed);
           },
           py::arg("curve"), py::arg("bot_ord"), py::arg("last_pay_ord"),
-          py::arg("t_today_last"), py::arg("annuity_const"), py::arg("last_dc_frac"), py::arg("df_spot"),
           py::arg("comp"),
           py::arg("quote"), py::arg("lo"), py::arg("hi"), py::arg("xtol"),
-          py::arg("gap_dc_fracs") = std::vector<double>{}, py::arg("gap_t_todays") = std::vector<double>{},
-          py::arg("gap_fracs") = std::vector<double>{}, py::arg("r_fixed") = 0.0);
+          py::arg("dc_fracs"),
+          py::arg("df_starts"), py::arg("t_starts"), py::arg("g_starts"),
+          py::arg("df_ends"), py::arg("t_ends"), py::arg("g_ends"),
+          py::arg("df_pays"), py::arg("t_pays"), py::arg("g_pays"),
+          py::arg("r_fixed"));
 
     py::class_<BRateCurve>(m, "BRateCurve")
         .def_static("accrual",             &BRateCurve::accrual,

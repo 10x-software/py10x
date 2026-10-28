@@ -31,4 +31,5 @@ class IRCashDepositQuotable(SingleMktQuote):
         return self.tenor.apply(self.start_date, mc.calendar, mc.roll_rule)
 
     def pay_date_get(self) -> date:
-        return self.mkt_conventions.pay_date(self.end_date)
+        # Interest is paid at maturity. The market settlement lag is the swap payment delay.
+        return self.end_date

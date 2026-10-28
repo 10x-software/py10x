@@ -1,4 +1,5 @@
 from collections import namedtuple
+from datetime import date
 
 import numpy
 from core_10x.traitable import RT, M
@@ -12,6 +13,10 @@ SwapsDatesAndFracs = namedtuple('swap_dates_and_dc_fractions', 'start_dates, end
 
 class IRSwapQuotable(IRCashDepositQuotable):
     mkt_conventions: IRRateMktConventions = M()
+
+    def pay_date_get(self) -> date:
+        # The deposit subclass pays on its maturity. A swap payment is still delayed by the settlement lag.
+        return self.mkt_conventions.pay_date(self.end_date)
 
     ## TODO: check if the below is used
     ## TODO: move to QuoteTemplate if used

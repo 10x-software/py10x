@@ -23,9 +23,8 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
         mkt_basis       = self.md_basis
         mao             = self.mkt_assembly_object
 
-        #-- pay_date already accounts for the '1B' start-today override (via start_date_get) and
-        #   the tenor-roll + pay-lag chain (via end_date_get/pay_date_get on the quotable itself),
-        #   so it doesn't need to be re-derived here.
+        #-- pay_date is the pillar. A deposit's is its end_date; a swap's includes the settlement
+        #   lag. The 1B start is already in start_date_get.
         result = {}
         for quotable_class, data_definition in mao.quotable_stubs_by_class.items():
             quotable_by_date = {}

@@ -265,5 +265,5 @@ class TestRateCurve:
         self.rc.values = save_values
 
     def test_swap_rate_simple(self):
-        ## TODO: comp no-arb calc to the actual float leg /  annuity (i.e., float leg = 1-df_last)
+        ## TODO: a zero pay delay telescopes to DF(spot) - DF(last end). A delay discounts each finished coupon from its pay date.
         ...

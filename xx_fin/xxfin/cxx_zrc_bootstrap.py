@@ -70,35 +70,46 @@ def solve_swap(zrc, spot_date, swap_tenor, quote, mc, today):
     last_pay = pay_offset.apply(end_date, pay_calendar, pay_roll_rule)
     # last_pay == pay_dates[-1] for standard (non-stub) swaps
 
-    t_today_last   = int_dc(today, last_pay)
-    df_spot        = zrc.discount_factor(spot_date, today)
     last_pay_ord   = last_pay.toordinal()
     last_fixed_ord = zrc.bcurve.times[-1]
     r_fixed        = zrc.bcurve.values[-1]
+    span           = last_pay_ord - last_fixed_ord
 
-    annuity_const = 0.0
-    gap_dc_fracs, gap_t_todays, gap_fracs = [], [], []
-    for i in range(len(pay_dates) - 1):
-        pay_ord = pay_dates[i].toordinal()
-        if pay_ord > last_fixed_ord:
-            #-- this period's pay date isn't known yet: it interpolates (via the curve's
-            #-- own linear interior interpolation) between the last fixed knot and
-            #-- last_pay, the point currently being solved, so its discount factor is a
-            #-- function of x, not a constant that can be folded into annuity_const.
-            gap_dc_fracs.append(dc_fracs[i])
-            gap_t_todays.append(int_dc(today, pay_dates[i]))
-            gap_fracs.append((pay_ord - last_fixed_ord) / (last_pay_ord - last_fixed_ord))
-        else:
-            annuity_const += dc_fracs[i] * zrc.discount_factor(pay_dates[i], today)
+    def knot(d):
+        # gap_frac < 0: discount factor is already fixed. Otherwise it interpolates
+        # linearly from the last bootstrapped knot to the knot being solved.
+        ord_ = d.toordinal()
+        if ord_ == last_pay_ord:
+            return 0.0, int_dc(today, d), 1.0
+        if ord_ <= last_fixed_ord:
+            return zrc.discount_factor(d, today), 0.0, -1.0
+        if span <= 0 or ord_ > last_pay_ord:
+            raise ValueError(f'{mc.mkt_name} swap {swap_tenor.symbol()}: period date {d} is not on the solved pillar')
+        return 0.0, int_dc(today, d), (ord_ - last_fixed_ord) / span
 
-    last_dc_frac  = dc_fracs[-1]
-    bracket       = (quote / 2., min(1., quote * 2.))
+    df_starts, t_starts, g_starts = [], [], []
+    df_ends, t_ends, g_ends = [], [], []
+    df_pays, t_pays, g_pays = [], [], []
+    for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True):
+        for d, dfs, ts, gs in (
+            (start, df_starts, t_starts, g_starts),
+            (end, df_ends, t_ends, g_ends),
+            (pay, df_pays, t_pays, g_pays),
+        ):
+            df, t, g = knot(d)
+            dfs.append(df)
+            ts.append(t)
+            gs.append(g)
 
+    bracket = (quote / 2., min(1., quote * 2.))
     _bootstrap_sw(
         zrc.bcurve,
         today.toordinal(), last_pay_ord,
-        t_today_last, annuity_const, last_dc_frac, df_spot,
         int_comp,
         quote, bracket[0], bracket[1], xtol,
-        gap_dc_fracs, gap_t_todays, gap_fracs, r_fixed,
+        dc_fracs,
+        df_starts, t_starts, g_starts,
+        df_ends, t_ends, g_ends,
+        df_pays, t_pays, g_pays,
+        r_fixed,
     )
