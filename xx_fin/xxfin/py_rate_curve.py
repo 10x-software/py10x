@@ -135,7 +135,6 @@ class RateCurve(DateCurve):
     ) -> float:
         start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor, period_freq, period_calendar, period_roll_rule, pay_delay, pay_calendar, pay_roll_rule, date_propagation, allow_stub)
 
-        # return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
         return self.annuity_for_period_dates(dc_conv, start_dates, end_dates, pay_dates, today)
 
     ## If rate compounding is SIMPLE then each swaplet payout is (fixed_rate - float_rate) * dc_fraction * disc_factor
@@ -150,7 +149,6 @@ class RateCurve(DateCurve):
         date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
     ) -> float:
 
-
         if not pay_delay.count:
             end_date = tenor.apply(start_date, swap_calendar, swap_roll_rule)
             last_pay = pay_delay.apply(end_date, pay_calendar, pay_roll_rule)
@@ -158,25 +156,21 @@ class RateCurve(DateCurve):
             df_last = self.discount_factor(last_pay,   today)
             df_spot = self.discount_factor(start_date, today)
 
-            swap_float_leg = (df_spot - df_last)
+            return (df_spot - df_last)
 
-        else:
-            start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor,
-                                                                  swap_freq, swap_calendar,
-                                                                  swap_roll_rule,
-                                                                  pay_delay, pay_calendar,
-                                                                  pay_roll_rule, date_propagation, allow_stub)
+        start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor,
+                                                              swap_freq, swap_calendar,
+                                                              swap_roll_rule,
+                                                              pay_delay, pay_calendar,
+                                                              pay_roll_rule, date_propagation, allow_stub)
 
-
-            ## re-do start_(i+1) = end_i do avoid disc factor re-calc on each step
-            swap_float_leg = sum(
-                    ( self.discount_factor(start, today)
-                    / self.discount_factor(end,   today)-1)
-                    * self.discount_factor(pay,   today)
-                    for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True)
-            )
-
-        return swap_float_leg
+        ## use start_(i+1) = end_i to avoid 1 disc factor re-calc for each period
+        return sum(
+                ( self.discount_factor(start, today)
+                / self.discount_factor(end,   today)-1)
+                * self.discount_factor(pay,   today)
+                for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True)
+        )
 
     def swap_rate_simple_compounding(
         self,
@@ -186,8 +180,6 @@ class RateCurve(DateCurve):
         pay_delay:  RDate, pay_calendar: FinCalendar,  pay_roll_rule: BIZDAY_ROLL_RULE,
         date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
     ) -> float:
-
-        # df_spot = self.discount_factor(spot_date, today)
 
         spot_annuity = self.annuity(
             fixed_dc_convention, spot_date, tenor,
@@ -204,8 +196,7 @@ class RateCurve(DateCurve):
             date_propagation, allow_stub, today
         )
 
-        swap_rate = swap_float_leg / spot_annuity
-        return swap_rate
+        return swap_float_leg / spot_annuity
 
     @classmethod
     def rate_convert(

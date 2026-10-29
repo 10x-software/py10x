@@ -78,9 +78,9 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
                 quote_acc  = zrc.fixed_rate_accrual(quotable.quote, start_date, end_date, dc_convention, compounding)
                 zrc_acc    = zrc.accrual_fwd(start_date, end_date, today)
                 float_rate = zrc.rate_fwd(start_date, end_date, dc_convention, compounding, today)
-                print(f'quote acc = {quote_acc:.18f};    float acc  = {zrc_acc:.18f};    diff acc   = {zrc_acc - quote_acc}')
-                print(f'quote df  = {1./quote_acc:.18f}; float df   = {1./zrc_acc:.18f}; diff df    = {1./zrc_acc - 1./quote_acc}')
-                print(f'quote     = {quotable.quote:.18f};        float rate = {float_rate:.18f}; diff rates = {float_rate - quotable.quote}\n')
+                print(f'quote acc = {quote_acc:.18f};       float acc  = {zrc_acc:.18f};    diff acc   = {zrc_acc - quote_acc}')
+                print(f'quote df  = {1./quote_acc:.18f};    float df   = {1./zrc_acc:.18f}; diff df    = {1./zrc_acc - 1./quote_acc}')
+                print(f'quote     = {quotable.quote:.18f};  float rate = {float_rate:.18f}; diff rates = {float_rate - quotable.quote}\n')
 
     def process_swaps(self, zrc: RateCurve):
         quotables = self.quotables_by_class.get(IRSwapQuotable)
@@ -97,7 +97,6 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
 
         today     = self.md_date
         spot_date = mc.spot_date(today)
-
 
         if _DBG:    # pragma: no cover
             swap_freq: RDate    = RDate(freq=mc.tenor_frequency, count=1)
@@ -122,11 +121,6 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
             solve_swap(zrc, spot_date, tenor, quotable.quote, mc, today)
 
             if _DBG:    # pragma: no cover
-                # fixed_dc_convention = mc.fixed_leg_swap_dc_convention
-                # fixed_freq          = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
-                # pay_offset          = mc.settle_offset
-                # pay_calendar        = mc.settlement_calendar
-                # pay_roll_rule       = mc.roll_rule_to_settle
                 swap_rate = zrc.swap_rate_simple_compounding(
                     spot_date, tenor,
                     fixed_freq, fixed_dc_convention,
