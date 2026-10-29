@@ -429,7 +429,7 @@ rich==15.0.0
     # via
     #   ibis-framework
     #   licensecheck
-rio-ui==0.12.3
+rio-ui==0.12.4
     # via py10x-core
 ruff==0.16.10
     # via py10x-core

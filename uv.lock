@@ -2462,7 +2462,7 @@ requires-dist = [
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.6,<4.0" },
     { name = "python-dateutil", specifier = ">=2.9.0,<2.10.0" },
     { name = "requests", specifier = ">=2.32.5" },
-    { name = "rio-ui", marker = "extra == 'rio'", specifier = "==0.12.3" },
+    { name = "rio-ui", marker = "extra == 'rio'", specifier = "==0.12.4" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.13,<0.17" },
     { name = "scikit-build-core", marker = "extra == 'dev'", specifier = ">=0.12.2" },
     { name = "scipy", specifier = ">=1.15.3" },
@@ -3263,7 +3263,7 @@ wheels = [
 
 [[package]]
 name = "rio-ui"
-version = "0.12.3"
+version = "0.12.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "crawlerdetect" },
@@ -3294,7 +3294,7 @@ dependencies = [
     { name = "yarl" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/92/e8/911c2b8403791089c20be6964170c69ed72fc29fa88fff1bf70fce96ffad/rio_ui-0.12.3-py3-none-any.whl", hash = "sha256:6f01cadfb53f21682e762e19509b205c4ff695c12053b4aff42fb8c83c481277", size = 5403974, upload-time = "2026-08-30T12:54:49.219Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/a7/8489c16458702e10235c3cb678ec9def5521865a2812255d926cc4c2cc1d/rio_ui-0.12.4-py3-none-any.whl", hash = "sha256:156e60bed4cc36a97586839c6bf4b81e2b97c2ac2e2b5e2a571b7eec0641dfcd", size = 5069280, upload-time = "2026-10-29T21:07:43.046Z" },
 ]
 
 [[package]]
