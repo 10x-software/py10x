@@ -85,7 +85,7 @@ class TestIRSwapQuotable:
             incr_dcfs = [irate['dc_conv'](sd, ed) for sd, ed in zip(swap.start_dates, swap.end_dates, strict=True)]
             assert incr_dcfs == swap.incremental_dc_fractions
 
-    def test_anuity_calc(self):
+    def test_annuity_calc(self):
         for irate in self.irates:
             zrc = irate['zrc']
             swap = irate['sq']

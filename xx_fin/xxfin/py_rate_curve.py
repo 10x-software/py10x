@@ -114,15 +114,26 @@ class RateCurve(DateCurve):
         assert len(start_dates) == len(end_dates) == len(pay_dates), f'start, end, pay date lists must have the same length: starts/ends/pays: {len(start_dates), len(end_dates), len(pay_dates)}'
         return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
 
+    def period_dates(
+        self,
+        start_date: date, tenor: RDate, period_freq: RDate, period_calendar: FinCalendar, period_roll_rule: BIZDAY_ROLL_RULE,
+        pay_delay: RDate, pay_calendar: FinCalendar, pay_roll_rule: BIZDAY_ROLL_RULE,
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True
+    ) -> tuple:
+        start_dates, end_dates, _ = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
+        pay_dates = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
+
+        return start_dates, end_dates, pay_dates
+
     def annuity(
         self,
         dc_conv: DAY_COUNT_CONVENTION,
         start_date: date, tenor: RDate, period_freq: RDate, period_calendar: FinCalendar, period_roll_rule: BIZDAY_ROLL_RULE,
         pay_delay: RDate, pay_calendar: FinCalendar, pay_roll_rule: BIZDAY_ROLL_RULE,
-        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True,
+        today: date = None
     ) -> float:
-        start_dates, end_dates, _ = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
-        pay_dates = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
+        start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor, period_freq, period_calendar, period_roll_rule, pay_delay, pay_calendar, pay_roll_rule, date_propagation, allow_stub)
 
         # return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
         return self.annuity_for_period_dates(dc_conv, start_dates, end_dates, pay_dates, today)
@@ -130,29 +141,70 @@ class RateCurve(DateCurve):
     ## If rate compounding is SIMPLE then each swaplet payout is (fixed_rate - float_rate) * dc_fraction * disc_factor
     ## otherwise (never happens!) the payout would've been (fixed_rate_accrual - floating_rate_accrual) * disc_factor
     ## and the swap par rate formula wouldn't telescope to the neat beauty we all have learned in pre-K
-    def swap_rate_simple_compounding(
+    def swap_float_leg_simple_compounding(
         self,
-        spot_date: date, tenor: RDate,
-        fixed_freq: RDate, fixed_dc_convention: DAY_COUNT_CONVENTION, swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
+        start_date: date, tenor: RDate,
+        swap_freq: RDate,
+        swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
         pay_delay:  RDate, pay_calendar: FinCalendar,  pay_roll_rule: BIZDAY_ROLL_RULE,
         date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
     ) -> float:
 
-        df_spot = self.discount_factor(spot_date, today)
+
+        if not pay_delay.count:
+            end_date = tenor.apply(start_date, swap_calendar, swap_roll_rule)
+            last_pay = pay_delay.apply(end_date, pay_calendar, pay_roll_rule)
+
+            df_last = self.discount_factor(last_pay,   today)
+            df_spot = self.discount_factor(start_date, today)
+
+            swap_float_leg = (df_spot - df_last)
+
+        else:
+            start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor,
+                                                                  swap_freq, swap_calendar,
+                                                                  swap_roll_rule,
+                                                                  pay_delay, pay_calendar,
+                                                                  pay_roll_rule, date_propagation, allow_stub)
+
+
+            ## re-do start_(i+1) = end_i do avoid disc factor re-calc on each step
+            swap_float_leg = sum(
+                    ( self.discount_factor(start, today)
+                    / self.discount_factor(end,   today)-1)
+                    * self.discount_factor(pay,   today)
+                    for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True)
+            )
+
+        return swap_float_leg
+
+    def swap_rate_simple_compounding(
+        self,
+        spot_date: date, tenor: RDate,
+        fixed_freq: RDate, fixed_dc_convention: DAY_COUNT_CONVENTION,
+        swap_freq: RDate, swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
+        pay_delay:  RDate, pay_calendar: FinCalendar,  pay_roll_rule: BIZDAY_ROLL_RULE,
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
+    ) -> float:
+
+        # df_spot = self.discount_factor(spot_date, today)
 
         spot_annuity = self.annuity(
             fixed_dc_convention, spot_date, tenor,
             fixed_freq, swap_calendar, swap_roll_rule,
             pay_delay,  pay_calendar,  pay_roll_rule,
             date_propagation, allow_stub, today
-        ) / df_spot
+        )
 
-        end_date = tenor.apply(spot_date, swap_calendar, swap_roll_rule)
-        last_pay = pay_delay.apply(end_date, pay_calendar, pay_roll_rule)
+        swap_float_leg = self.swap_float_leg_simple_compounding(
+            spot_date, tenor,
+            swap_freq,
+            swap_calendar, swap_roll_rule,
+            pay_delay, pay_calendar, pay_roll_rule,
+            date_propagation, allow_stub, today
+        )
 
-        df_last_to_spot = self.discount_factor(last_pay, today) / df_spot
-
-        swap_rate = (1. - df_last_to_spot) / spot_annuity
+        swap_rate = swap_float_leg / spot_annuity
         return swap_rate
 
     @classmethod

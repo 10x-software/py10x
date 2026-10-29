@@ -98,13 +98,17 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
         today     = self.md_date
         spot_date = mc.spot_date(today)
 
+
         if _DBG:    # pragma: no cover
+            swap_freq: RDate    = RDate(freq=mc.tenor_frequency, count=1)
+            fixed_freq: RDate   = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
             fixed_dc_convention = mc.fixed_leg_swap_dc_convention
             pay_calendar        = mc.settlement_calendar
             pay_roll_rule       = mc.roll_rule_to_settle
             pay_offset: RDate   = mc.settle_offset
-            print(f'swap params: today = {today}/{today.strftime("%A")}, spot_date = {spot_date}/{spot_date.strftime("%A")}, fixed_dc_convention = {fixed_dc_convention.name}, '
-                  f'swap_cal = {mc.calendar.name}, swap_roll = {mc.roll_rule.name},\n '
+            print(f'swap params: today = {today}/{today.strftime("%A")}, spot_date = {spot_date}/{spot_date.strftime("%A")},\n '
+                  f'fixed_dc_convention = {fixed_dc_convention.name}, fixed_freq = {fixed_freq.symbol()},\n'
+                  f'swap_freq = {mc.tenor_frequency}, swap_cal = {mc.calendar.name}, swap_roll = {mc.roll_rule.name},\n '
                   f'pay_calendar = {pay_calendar.name}, pay_roll_rule = {pay_roll_rule.name}, pay_delay = {pay_offset.symbol()}, \n')
 
         quotable: IRSwapQuotable
@@ -112,21 +116,21 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
             tenor = quotable.tenor
 
             if _DBG:    # pragma: no cover
-                fixed_freq: RDate = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
                 end_date_dbg = tenor.apply(spot_date, mc.calendar, mc.roll_rule)
                 print(f'swap tenor/freq = {tenor.symbol()}/{fixed_freq.symbol()}, start_date = {spot_date}/{spot_date.strftime("%A")}, end_date = {end_date_dbg}/{end_date_dbg.strftime("%A")}, swap quote = {quotable.quote}, ')
 
             solve_swap(zrc, spot_date, tenor, quotable.quote, mc, today)
 
             if _DBG:    # pragma: no cover
-                fixed_dc_convention = mc.fixed_leg_swap_dc_convention
-                fixed_freq          = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
-                pay_offset          = mc.settle_offset
-                pay_calendar        = mc.settlement_calendar
-                pay_roll_rule       = mc.roll_rule_to_settle
+                # fixed_dc_convention = mc.fixed_leg_swap_dc_convention
+                # fixed_freq          = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
+                # pay_offset          = mc.settle_offset
+                # pay_calendar        = mc.settlement_calendar
+                # pay_roll_rule       = mc.roll_rule_to_settle
                 swap_rate = zrc.swap_rate_simple_compounding(
                     spot_date, tenor,
-                    fixed_freq, fixed_dc_convention, mc.calendar, mc.roll_rule,
+                    fixed_freq, fixed_dc_convention,
+                    swap_freq,mc.calendar, mc.roll_rule,
                     pay_offset, pay_calendar, pay_roll_rule,
                     PROPAGATE_DATES.FORWARD, False,
                 )
