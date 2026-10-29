@@ -139,6 +139,12 @@ Rules agents must **not** violate:
 - **CI install:** test jobs use `./xx-build init --mode ci-release --locked`; release workflows `uv pip install -e . --all-extras --requirements pyproject.toml`; tag triggers exclude `*_yanked`.
 - **Promotion tests:** `test_xx_utils.py`, `test_xx_plan.py`, `test_xx_promote.py`, `test_xx_promote_e2e.py`, `test_xx_tooling_guards.py`.
 
+## Claude Code cloud specific instructions
+
+When `as-dev` is on `PATH`, the environment was set up by [`scripts/cloud_setup.sh`](scripts/cloud_setup.sh): the
+checkout and venv belong to the non-root `ubuntu` user while the session runs as root. Run `uv` / `pytest` / `xx-build`
+through it (`as-dev uv run pytest …`); running them as root leaves root-owned files in `.venv` and `build/`.
+
 ## Cursor Cloud specific instructions
 
 ### Services overview
