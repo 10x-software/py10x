@@ -62,10 +62,13 @@ class TestIRSwapQuotable:
             roll_rule = irate['roll_rule']
             swap      = irate['sq']
 
+            #-- each period end is n periods from the start date (not chained from the previous period end)
             end_dates = []
-            non_rolled_ed = rolled_ed = swap.start_date
+            rolled_ed = swap.start_date
+            num_periods = 0
             while rolled_ed < swap.end_date:
-                non_rolled_ed = swap_freq.apply_no_roll(non_rolled_ed)
+                num_periods += 1
+                non_rolled_ed = RDate(freq = swap_freq.freq, count = num_periods).apply_no_roll(swap.start_date)
                 rolled_ed = RDate.roll_to_bizday(non_rolled_ed, cal, roll_rule)
                 end_dates.append(rolled_ed)
 
@@ -85,7 +88,7 @@ class TestIRSwapQuotable:
             incr_dcfs = [irate['dc_conv'](sd, ed) for sd, ed in zip(swap.start_dates, swap.end_dates, strict=True)]
             assert incr_dcfs == swap.incremental_dc_fractions
 
-    def test_anuity_calc(self):
+    def test_annuity_calc(self):
         for irate in self.irates:
             zrc = irate['zrc']
             swap = irate['sq']
