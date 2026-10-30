@@ -13,7 +13,7 @@ DAY_COUNT_CONVENTION = None
 RateCurve = None
 
 @pytest.fixture(autouse=True)
-def rebind_globals(cxx_or_py_rates_curve):
+def rebind_globals(cxx_or_py_curve_consumers):
     global COMPOUNDING, COMPOUND_TRANSFORM, compounding_apply, DAY_COUNT_CONVENTION, RateCurve
     from xxfin.day_count_convention import DAY_COUNT_CONVENTION
     from xxfin.ir_compounding import COMPOUND_TRANSFORM, COMPOUNDING, compounding_apply

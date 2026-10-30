@@ -44,7 +44,7 @@ class TestCcyForward:
             snapshot        = self.pc.snapshot,
         )
 
-    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    @pytest.mark.usefixtures('cxx_or_py_curve_consumers')
     def test_price(self):
         for d, ufwd, gfwd in zip(self.days, self.usd_fwds, self.gbp_fwds, strict=True):
             assert ufwd.price == self.usd_zrc.payload.discount_factor(d, self.today)

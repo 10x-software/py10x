@@ -4,9 +4,13 @@ import pytest
 import xxcommon.curve
 
 import xxfin.cxx_rate_curve
+import xxfin.cxx_zrc_bootstrap
 import xxfin.day_count_convention
+import xxfin.fx_forward_curve
 import xxfin.ir_compounding
+import xxfin.ir_swap_quotable
 import xxfin.ir_zero_rate_curve
+import xxfin.mkt_quotable
 import xxfin.py_rate_curve
 import xxfin.rate_curve
 import xxfin.zrc_bootstrap
@@ -16,7 +20,7 @@ import xxfin.zrc_bootstrap
 #-- resolve against the *current* flags, and this suite runs with use_cxxfin deliberately True
 #-- while day_count_convention / ir_compounding are still bound to the py implementations they
 #-- imported before the conftest flipped it. Restoring the snapshot also keeps the original class
-#-- objects alive, so modules that captured them at import (e.g. ir_zero_rate_curve_ql) stay coherent.
+#-- objects alive for the modules that captured them at import.
 _SWAPPED_MODULES = (
     xxcommon.curve,
     xxfin.day_count_convention,
@@ -24,9 +28,30 @@ _SWAPPED_MODULES = (
     xxfin.py_rate_curve,
     xxfin.cxx_rate_curve,
     xxfin.rate_curve,
-    xxfin.zrc_bootstrap,
-    xxfin.ir_zero_rate_curve,
 )
+
+#-- Modules that import from the selectors above: each keeps what it imported, so all are re-imported after a switch,
+#-- in dependency order. Names of optional ones (QuantLib, aadc) are skipped when they don't import.
+_CURVE_CONSUMERS = (
+    'xxfin.cxx_zrc_bootstrap',
+    'xxfin.zrc_bootstrap',
+    'xxfin.mkt_quotable',
+    'xxfin.ir_swap_quotable',
+    'xxfin.ir_zero_rate_curve',
+    'xxfin.ir_zero_rate_curve_ql',
+    'xxfin.fx_forward_curve',
+    'xxcommon.jit_aadc.aadc_context',
+)
+
+
+def _curve_consumers() -> list:
+    modules = []
+    for name in _CURVE_CONSUMERS:
+        try:
+            modules.append(importlib.import_module(name))
+        except ImportError:
+            pass
+    return modules
 
 
 @pytest.fixture
@@ -41,11 +66,9 @@ def cxx_or_py_rates_curve(use_cxx, cxx_or_py_cxx_rate_curve):
 
 
 @pytest.fixture
-def cxx_or_py_zero_rate_curve(use_cxx, cxx_or_py_rates_curve):
-    #-- ZeroRateCurve methods read RateCurve and solve_* from the module globals, so the class object
-    #-- other modules imported before this reload picks up the swap as well
-    importlib.reload(xxfin.zrc_bootstrap)
-    importlib.reload(xxfin.ir_zero_rate_curve)
+def cxx_or_py_curve_consumers(use_cxx, cxx_or_py_rates_curve):
+    for module in _curve_consumers():
+        importlib.reload(module)
     from xxfin import cxx_zrc_bootstrap, py_zrc_bootstrap
 
     assert xxfin.ir_zero_rate_curve.RateCurve is xxfin.rate_curve.RateCurve
@@ -105,7 +128,7 @@ def use_cxx(request):
     from xxfin.xxfin_env_vars import XXFinEnvVars
 
     saved_flags = (XXCommonEnvVars.use_cxx_curve, XXFinEnvVars.use_cxxfin)
-    saved_namespaces = [(module, dict(module.__dict__)) for module in _SWAPPED_MODULES]
+    saved_namespaces = [(module, dict(module.__dict__)) for module in (*_SWAPPED_MODULES, *_curve_consumers())]
 
     use_cxx = XXCommonEnvVars.use_cxx_curve = XXFinEnvVars.use_cxxfin = request.param
     try:

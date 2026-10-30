@@ -59,14 +59,14 @@ class TestFxRate:
         cls.md_date  = pc.md_date
         cls.snapshot = pc.snapshot
 
-    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    @pytest.mark.usefixtures('cxx_or_py_curve_consumers')
     def test_quoted_cross_rate(self):
         for cross, (dates, rates) in quotes(crosses, self.provider, self.md_date, self.snapshot).items():
             for d, r in zip(dates, rates, strict=False):
                 calc = FxRate.quoted_cross_rate(CcyCross.existing_instance(cross = cross), d, self.provider, self.md_date, self.snapshot)
                 assert r == pytest.approx(calc)
 
-    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    @pytest.mark.usefixtures('cxx_or_py_curve_consumers')
     def test_rate_q(self):
         for cross, (dates, rates) in quotes(crosses, self.provider, self.md_date, self.snapshot).items():
             fxr_obj = FxRate(cross_name=cross)
@@ -75,7 +75,7 @@ class TestFxRate:
                 calc = fxr_obj.rate(d)
                 assert r == pytest.approx(calc)
 
-    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    @pytest.mark.usefixtures('cxx_or_py_curve_consumers')
     def test_rate_non_q(self):
         d = date(2030,1,1)
         split = [

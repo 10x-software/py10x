@@ -113,7 +113,7 @@ class TestFinInstrument:
         assert self.usd_cu.denominated_choices() == all_ccys
         assert self.gbp_cf.denominated_choices() == all_ccys
 
-    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    @pytest.mark.usefixtures('cxx_or_py_curve_consumers')
     def test_price_ccy(self):
         gbp_fx_now = self.gbp_fxc.now_rate
         assert self.usd_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / gbp_fx_now, abs=1e-15)
@@ -135,7 +135,7 @@ class TestFinInstrument:
         assert swap.pay_date != swap.end_date
 
     @pytest.mark.parametrize('mkt', ['SOFR', 'SONIA', 'CORRA'])
-    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    @pytest.mark.usefixtures('cxx_or_py_curve_consumers')
     def test_native_pillars_match_quantlib(self, mkt):
         # Deposit pillars are maturity dates. Swap pillars discount a coupon that stops
         # accruing at the period end and is paid on the settlement lag. Both must agree
@@ -216,7 +216,7 @@ class TestFinInstrument:
     #             calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
     #             assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
 
-    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    @pytest.mark.usefixtures('cxx_or_py_curve_consumers')
     def test_discount_factor(self):
         old_d = self.pc.md_date - timedelta(days=365)
         for cf, zrc in zip(
