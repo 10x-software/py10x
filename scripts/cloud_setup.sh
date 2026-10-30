@@ -69,5 +69,37 @@ chmod 755 /usr/local/bin/as-dev
 # The dev environment (see dev_10x/README.md): build mode dev, so C++ edits rebuild on the next import.
 as-dev ./xx-build init
 
-# Pre-pull the MongoDB image so the per-session start (see scripts/cloud_mongo.sh) is fast.
-docker pull mongo:8 || true
+# Test databases, started per session by scripts/cloud_services.sh. Postgres follows CI's
+# .github/actions/setup-postgres: trust on 5432 with SUPERUSER roles for the OS users, and a
+# password-auth cluster on 5433 with dev_10x/postgres_local.py's default password.
+command -v pg_ctlcluster >/dev/null 2>&1 || apt-get install -y --no-install-recommends postgresql
+# Explicit locale: without LANG the cluster defaults to SQL_ASCII, which the driver sends text as bytea to.
+pg_lsclusters -h | grep -q '^16 auth ' || pg_createcluster --locale C.UTF-8 16 auth -p 5433
+cat > /etc/postgresql/16/main/pg_hba.conf <<'EOF'
+local all all trust
+host  all all 127.0.0.1/32 trust
+host  all all ::1/128      trust
+EOF
+cat > /etc/postgresql/16/auth/pg_hba.conf <<'EOF'
+local all postgres peer
+host  all all 127.0.0.1/32 scram-sha-256
+host  all all ::1/128      scram-sha-256
+EOF
+for cluster in main auth; do
+  pg_ctlcluster 16 "$cluster" stop 2>/dev/null || true
+  pg_ctlcluster 16 "$cluster" start
+done
+for role in "$DEV" root; do
+  runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = '$role'" | grep -q 1 ||
+    runuser -u postgres -- psql -qc "CREATE ROLE $role SUPERUSER LOGIN"
+done
+runuser -u postgres -- psql -p 5433 -qc "ALTER ROLE postgres PASSWORD 'py10x_pg_auth'"
+pg_ctlcluster 16 main stop
+pg_ctlcluster 16 auth stop
+
+# Pre-pull the MongoDB image so the per-session start is fast; dockerd only runs for the pull.
+(dockerd >/var/log/dockerd.log 2>&1 &)
+timeout 60 bash -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
+docker pull mirror.gcr.io/library/mongo:8 || true
+pkill -x dockerd
+timeout 30 bash -c 'while pgrep -x dockerd >/dev/null; do sleep 1; done'

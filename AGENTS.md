@@ -144,6 +144,9 @@ Rules agents must **not** violate:
 When `as-dev` is on `PATH`, the environment was set up by [`scripts/cloud_setup.sh`](scripts/cloud_setup.sh): the
 checkout and venv belong to the non-root `ubuntu` user while the session runs as root. Run `uv` / `pytest` / `xx-build`
 through it (`as-dev uv run pytest …`); running them as root leaves root-owned files in `.venv` and `build/`.
+The SessionStart hook [`scripts/cloud_services.sh`](scripts/cloud_services.sh) starts Postgres (5432 trust, 5433
+password-auth) and the Mongo replica set (27017), so `infra_10x` and store tests run instead of skipping; do not run
+`xx-test-postgres-auth start` there (5433 is already taken by a native cluster).
 
 ## Cursor Cloud specific instructions
 
