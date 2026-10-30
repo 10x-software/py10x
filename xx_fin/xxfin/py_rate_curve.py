@@ -164,6 +164,45 @@ class RateCurve(DateCurve):
                                                               pay_delay, pay_calendar,
                                                               pay_roll_rule, date_propagation, allow_stub)
 
+        ## the below general formula maybe decomposed into 2 parts:
+        ## the sum of period payments/coupons discounted from the **end_date** (!= pay_date in general)
+        ## minus the term = sum of coupon * accrual over the end_date-to-pay_date period discounted from the pay_date
+        ## in other words, the coupons payments value is reduced by (the lender's funding of) the non-payment/"free" period from end_date to pay_date
+        ## denote c_i = (df_start_i/df_end_date - 1)*df_end_date_i
+        ## the floating leg = sum(coupon_i) - sum(coupon_i * (df_end_i/df_pay_i - 1)*df_pay_i)
+        ## and sum(coupon_i) telesopes to df_start_0 - df_end_last as in the good old libor swap...
+        ## so the no arb argument is as follows:
+        ## -- borrower gets the notional day1 (pv = df_start_0),
+        ## -- pays the stream of period payments (the annuity)
+        ## -- returns the notional at the end (pv = df_end)
+        ## -- gets the benefit of the free carry of the period coupons over end_date-to-pay_date period
+
+        ## full payment
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(pay, today)
+        # =
+        ## non-delayed coupon
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(end, today)
+        # -
+        ## the coupon accrual over end_to_pay period
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #   * ( self.discount_factor(end, today)
+        #     / self.discount_factor(pay, today) - 1)
+        ## paid on pay date
+        #     * self.discount_factor(pay, today)
+        #
+        ## the non-delayed coupon:
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(end, today)
+        # =   ( self.discount_factor(start, today) - self.discount_factor(end, today)
+        ## hence the telescoping sum = self.discount_factor(start_0, today) - self.discount_factor(end_last, today)
+        ## and the "simple" no arb description
+
         ## use start_(i+1) = end_i to avoid 1 disc factor re-calc for each period
         return sum(
                 ( self.discount_factor(start, today)

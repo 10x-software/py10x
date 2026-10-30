@@ -66,15 +66,17 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
 
         quotable: IRCashDepositQuotable
         for end_date, quotable in quotables.items():
-            start_date = quotable.start_date
 
-            if _DBG: print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')  # pragma: no cover
+            if _DBG:    # pragma: no cover
+                start_date = quotable.start_date
+                print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')  # pragma: no cover
 
-            solve_cash_deposit(zrc, start_date, end_date, quotable.quote, mc, today)
+            solve_cash_deposit(zrc, quotable.start_date, end_date, quotable.quote, mc, today)
 
             if _DBG:    # pragma: no cover
                 dc_convention = mc.dc_convention
                 compounding   = mc.compounding
+                start_date = quotable.start_date
                 quote_acc  = zrc.fixed_rate_accrual(quotable.quote, start_date, end_date, dc_convention, compounding)
                 zrc_acc    = zrc.accrual_fwd(start_date, end_date, today)
                 float_rate = zrc.rate_fwd(start_date, end_date, dc_convention, compounding, today)

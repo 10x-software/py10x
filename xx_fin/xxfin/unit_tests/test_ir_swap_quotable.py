@@ -62,10 +62,13 @@ class TestIRSwapQuotable:
             roll_rule = irate['roll_rule']
             swap      = irate['sq']
 
+            #-- each period end is n periods from the start date (not chained from the previous period end)
             end_dates = []
-            non_rolled_ed = rolled_ed = swap.start_date
+            rolled_ed = swap.start_date
+            num_periods = 0
             while rolled_ed < swap.end_date:
-                non_rolled_ed = swap_freq.apply_no_roll(non_rolled_ed)
+                num_periods += 1
+                non_rolled_ed = RDate(freq = swap_freq.freq, count = num_periods).apply_no_roll(swap.start_date)
                 rolled_ed = RDate.roll_to_bizday(non_rolled_ed, cal, roll_rule)
                 end_dates.append(rolled_ed)
 
