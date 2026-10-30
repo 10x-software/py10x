@@ -106,6 +106,7 @@ class TestFxForwardCurve:
         with pytest.raises(TraitMethodError, match='USD/CAD >>> 1B <<< forward specification conflicts with spot rate'):
             _ = fxc_object.payload
 
+    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_FxForwardCurve(self):
         for cross, (dates, rates) in self.quotes.items():
             fxc_object = FXForwardCurve(mkt_name = cross, **self.md_basis)
