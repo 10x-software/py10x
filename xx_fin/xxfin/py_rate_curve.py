@@ -114,46 +114,128 @@ class RateCurve(DateCurve):
         assert len(start_dates) == len(end_dates) == len(pay_dates), f'start, end, pay date lists must have the same length: starts/ends/pays: {len(start_dates), len(end_dates), len(pay_dates)}'
         return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
 
+    def period_dates(
+        self,
+        start_date: date, tenor: RDate, period_freq: RDate, period_calendar: FinCalendar, period_roll_rule: BIZDAY_ROLL_RULE,
+        pay_delay: RDate, pay_calendar: FinCalendar, pay_roll_rule: BIZDAY_ROLL_RULE,
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True
+    ) -> tuple:
+        start_dates, end_dates, _ = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
+        pay_dates = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
+
+        return start_dates, end_dates, pay_dates
+
     def annuity(
         self,
         dc_conv: DAY_COUNT_CONVENTION,
         start_date: date, tenor: RDate, period_freq: RDate, period_calendar: FinCalendar, period_roll_rule: BIZDAY_ROLL_RULE,
         pay_delay: RDate, pay_calendar: FinCalendar, pay_roll_rule: BIZDAY_ROLL_RULE,
-        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True,
+        today: date = None
     ) -> float:
-        start_dates, end_dates, _ = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
-        pay_dates = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
+        start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor, period_freq, period_calendar, period_roll_rule, pay_delay, pay_calendar, pay_roll_rule, date_propagation, allow_stub)
 
-        # return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
         return self.annuity_for_period_dates(dc_conv, start_dates, end_dates, pay_dates, today)
 
     ## If rate compounding is SIMPLE then each swaplet payout is (fixed_rate - float_rate) * dc_fraction * disc_factor
     ## otherwise (never happens!) the payout would've been (fixed_rate_accrual - floating_rate_accrual) * disc_factor
     ## and the swap par rate formula wouldn't telescope to the neat beauty we all have learned in pre-K
-    def swap_rate_simple_compounding(
+    def swap_float_leg_simple_compounding(
         self,
-        spot_date: date, tenor: RDate,
-        fixed_freq: RDate, fixed_dc_convention: DAY_COUNT_CONVENTION, swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
+        start_date: date, tenor: RDate,
+        swap_freq: RDate,
+        swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
         pay_delay:  RDate, pay_calendar: FinCalendar,  pay_roll_rule: BIZDAY_ROLL_RULE,
         date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
     ) -> float:
 
-        df_spot = self.discount_factor(spot_date, today)
+        if not pay_delay.count:
+            end_date = tenor.apply(start_date, swap_calendar, swap_roll_rule)
+            last_pay = pay_delay.apply(end_date, pay_calendar, pay_roll_rule)
+
+            df_last = self.discount_factor(last_pay,   today)
+            df_spot = self.discount_factor(start_date, today)
+
+            return (df_spot - df_last)
+
+        start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor,
+                                                              swap_freq, swap_calendar,
+                                                              swap_roll_rule,
+                                                              pay_delay, pay_calendar,
+                                                              pay_roll_rule, date_propagation, allow_stub)
+
+        ## the below general formula maybe decomposed into 2 parts:
+        ## the sum of period payments/coupons discounted from the **end_date** (!= pay_date in general)
+        ## minus the term = sum of coupon * accrual over the end_date-to-pay_date period discounted from the pay_date
+        ## in other words, the coupons payments value is reduced by (the lender's funding of) the non-payment/"free" period from end_date to pay_date
+        ## denote c_i = (df_start_i/df_end_date - 1)*df_end_date_i
+        ## the floating leg = sum(coupon_i) - sum(coupon_i * (df_end_i/df_pay_i - 1)*df_pay_i)
+        ## and sum(coupon_i) telesopes to df_start_0 - df_end_last as in the good old libor swap...
+        ## so the no arb argument is as follows:
+        ## -- borrower gets the notional day1 (pv = df_start_0),
+        ## -- pays the stream of period payments (the annuity)
+        ## -- returns the notional at the end (pv = df_end)
+        ## -- gets the benefit of the free carry of the period coupons over end_date-to-pay_date period
+
+        ## full payment
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(pay, today)
+        # =
+        ## non-delayed coupon
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(end, today)
+        # -
+        ## the coupon accrual over end_to_pay period
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #   * ( self.discount_factor(end, today)
+        #     / self.discount_factor(pay, today) - 1)
+        ## paid on pay date
+        #     * self.discount_factor(pay, today)
+        #
+        ## the non-delayed coupon:
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(end, today)
+        # =   ( self.discount_factor(start, today) - self.discount_factor(end, today)
+        ## hence the telescoping sum = self.discount_factor(start_0, today) - self.discount_factor(end_last, today)
+        ## and the "simple" no arb description
+
+        ## use start_(i+1) = end_i to avoid 1 disc factor re-calc for each period
+        return sum(
+                ( self.discount_factor(start, today)
+                / self.discount_factor(end,   today)-1)
+                * self.discount_factor(pay,   today)
+                for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True)
+        )
+
+    def swap_rate_simple_compounding(
+        self,
+        spot_date: date, tenor: RDate,
+        fixed_freq: RDate, fixed_dc_convention: DAY_COUNT_CONVENTION,
+        swap_freq: RDate, swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
+        pay_delay:  RDate, pay_calendar: FinCalendar,  pay_roll_rule: BIZDAY_ROLL_RULE,
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
+    ) -> float:
 
         spot_annuity = self.annuity(
             fixed_dc_convention, spot_date, tenor,
             fixed_freq, swap_calendar, swap_roll_rule,
             pay_delay,  pay_calendar,  pay_roll_rule,
             date_propagation, allow_stub, today
-        ) / df_spot
+        )
 
-        end_date = tenor.apply(spot_date, swap_calendar, swap_roll_rule)
-        last_pay = pay_delay.apply(end_date, pay_calendar, pay_roll_rule)
+        swap_float_leg = self.swap_float_leg_simple_compounding(
+            spot_date, tenor,
+            swap_freq,
+            swap_calendar, swap_roll_rule,
+            pay_delay, pay_calendar, pay_roll_rule,
+            date_propagation, allow_stub, today
+        )
 
-        df_last_to_spot = self.discount_factor(last_pay, today) / df_spot
-
-        swap_rate = (1. - df_last_to_spot) / spot_annuity
-        return swap_rate
+        return swap_float_leg / spot_annuity
 
     @classmethod
     def rate_convert(

@@ -1,7 +1,7 @@
 # Generated from uv.lock by `xx-constraints compile` (uv export). Do not edit by hand.
 aadc==2.25.2
     # via py10x-core
-adbc-driver-manager==1.12.0
+adbc-driver-manager==1.13.0
     # via py10x-core
 aiofiles==25.1.0
     # via py10x-core
@@ -48,7 +48,7 @@ cattrs==24.1.3 ; python_full_version < '3.12'
     # via requests-cache
 cattrs==26.2.1 ; python_full_version >= '3.12'
     # via requests-cache
-certifi==2026.10.19
+certifi==2026.10.23
     # via
     #   curl-cffi
     #   requests
@@ -80,7 +80,7 @@ contourpy==1.3.3 ; python_full_version < '3.12'
     # via matplotlib
 contourpy==1.4.0 ; python_full_version >= '3.12'
     # via matplotlib
-coverage==7.16.2
+coverage==7.17.0
     # via pytest-cov
 crawlerdetect==0.4.2
     # via rio-ui
@@ -90,7 +90,7 @@ cryptography==50.0.2
     #   secretstorage
 cssutils==2.15.0
     # via rio-ui
-curl-cffi==0.16.3
+curl-cffi==0.17.0
     # via yfinance
 cycler==0.12.1
     # via matplotlib
@@ -98,7 +98,7 @@ cython==3.3.0
     # via py10x-core
 depgather==0.5.0 ; python_full_version >= '3.12'
     # via licensecheck
-dnspython==2.9.0
+dnspython==2.9.1
     # via pymongo
 duckdb==1.5.6
     # via
@@ -110,11 +110,11 @@ encutils==1.0.0
     # via cssutils
 execnet==2.1.2
     # via pytest-xdist
-fastapi==0.141.1
+fastapi==0.161.1
     # via rio-ui
 fhconfparser==2024.1 ; python_full_version < '3.12'
     # via licensecheck
-fonttools==4.67.0
+fonttools==4.68.0
     # via matplotlib
 gitignore-parser==0.1.13
     # via rio-ui
@@ -124,7 +124,7 @@ h11==0.16.0
     # via uvicorn
 hatch-build-scripts==1.0.0
     # via py10x-core
-hatchling==1.32.4
+hatchling==1.33.0
     # via
     #   hatch-build-scripts
     #   py10x-core
@@ -140,7 +140,7 @@ idna==3.20
     #   requests
     #   url-normalize
     #   yarl
-importlib-metadata==9.0.1 ; python_full_version < '3.12'
+importlib-metadata==10.1.0 ; python_full_version < '3.12'
     # via keyring
 importlib-resources==6.5.2
     # via py10x-core
@@ -154,7 +154,7 @@ introspection==1.14.4
     # via
     #   imy
     #   rio-ui
-isort==8.0.1
+isort==9.0.2
     # via rio-ui
 jaraco-classes==3.4.0
     # via keyring
@@ -164,11 +164,11 @@ jaraco-functools==4.6.0
     # via keyring
 jax==0.10.2 ; python_full_version < '3.12'
     # via py10x-core
-jax==0.12.0 ; python_full_version >= '3.12'
+jax==0.12.0.1 ; python_full_version >= '3.12'
     # via py10x-core
 jaxlib==0.10.2 ; python_full_version < '3.12'
     # via jax
-jaxlib==0.12.0 ; python_full_version >= '3.12'
+jaxlib==0.12.0.1 ; python_full_version >= '3.12'
     # via jax
 jeepney==0.9.0 ; sys_platform == 'linux'
     # via
@@ -213,13 +213,15 @@ more-itertools==11.2.1
     #   cssutils
     #   jaraco-classes
     #   jaraco-functools
-multidict==7.1.0
+multidict==7.2.1
     # via yarl
 multipart==2.0.1
     # via rio-ui
 multitasking==0.0.13
     # via yfinance
-narwhals==2.27.1
+mypy-extensions==1.1.0
+    # via isort
+narwhals==2.28.0
     # via
     #   rio-ui
     #   xbbg
@@ -227,7 +229,7 @@ ninja==1.13.2
     # via
     #   py10x-core
     #   py10x-fin-base
-numba==0.68.0
+numba==0.68.1
     # via py10x-core
 numpy==2.4.6
     # via
@@ -243,6 +245,8 @@ numpy==2.4.6
     #   py10x-core
     #   scipy
     #   yfinance
+opentelemetry-api==1.45.2
+    # via fastapi
 opt-einsum==3.4.0
     # via jax
 ordered-set==4.1.0
@@ -262,7 +266,7 @@ packaging==26.3
     #   scikit-build-core
     #   setuptools-scm
     #   vcs-versioning
-pandas==3.0.6
+pandas==3.1.0
     # via
     #   ibis-framework
     #   py10x-core
@@ -278,11 +282,11 @@ pathspec==1.1.1
     #   scikit-build-core
 peewee==4.5.3
     # via yfinance
-pillow==12.3.0
+pillow==13.0.0
     # via
     #   matplotlib
     #   rio-ui
-platformdirs==4.13.5
+platformdirs==4.14.0
     # via
     #   licensecheck
     #   requests-cache
@@ -295,9 +299,9 @@ pluggy==1.7.0
     #   hatchling
     #   pytest
     #   pytest-cov
-polars==2.0.0
+polars==2.1.0
     # via py10x-core
-polars-runtime-32==2.0.0
+polars-runtime-32==2.1.0
     # via polars
 propcache==0.5.4
     # via yarl
@@ -315,14 +319,14 @@ pyarrow-hotfix==0.7
     # via ibis-framework
 pybind11-stubgen==2.5.5
     # via py10x-core
-pycparser==3.11 ; implementation_name != 'PyPy'
+pycparser==3.12 ; implementation_name != 'PyPy'
     # via cffi
-pydantic==2.14.1
+pydantic==2.14.2
     # via
     #   depgather
     #   fastapi
     #   licensecheck
-pydantic-core==2.50.1
+pydantic-core==2.50.2
     # via pydantic
 pyee==13.0.1
     # via playwright
@@ -367,7 +371,7 @@ pyqt6-sip==13.10.0
     # via
     #   py10x-core
     #   pyqt6
-pytest==9.1.1
+pytest==9.2.0
     # via
     #   alt-pytest-asyncio
     #   py10x-core
@@ -391,7 +395,7 @@ python-dotenv==1.2.4
     # via uvicorn
 pythonnet==3.2.1 ; sys_platform == 'win32'
     # via pywebview
-pytz==2026.5
+pytz==2026.6
     # via
     #   rio-ui
     #   yfinance
@@ -429,7 +433,7 @@ rich==15.0.0
     # via
     #   ibis-framework
     #   licensecheck
-rio-ui==0.12.3
+rio-ui==0.12.4
     # via py10x-core
 ruff==0.16.10
     # via py10x-core
@@ -464,13 +468,13 @@ six==1.17.0
     # via python-dateutil
 soupsieve==2.10 ; python_full_version < '3.11.5'
     # via beautifulsoup4
-soupsieve==3.0.3 ; python_full_version >= '3.11.5'
+soupsieve==3.0.4 ; python_full_version >= '3.11.5'
     # via beautifulsoup4
 sqlglot==30.15.0
     # via
     #   ibis-framework
     #   py10x-core
-starlette==1.9.0
+starlette==1.10.0
     # via fastapi
 tccbox==2025.10.27
     # via py10x-core
@@ -478,7 +482,6 @@ timer-dict==1.0.0
     # via rio-ui
 tomli==2.5.0
     # via
-    #   coverage
     #   depgather
     #   fhconfparser
     #   licensecheck
@@ -501,6 +504,7 @@ typing-extensions==4.16.0
     #   ibis-framework
     #   identity-containers
     #   introspection
+    #   opentelemetry-api
     #   psycopg
     #   py10x-core
     #   pydantic
@@ -516,7 +520,7 @@ typing-inspection==0.4.4
     # via
     #   fastapi
     #   pydantic
-tzdata==2026.5
+tzdata==2026.6
     # via
     #   ibis-framework
     #   pandas
@@ -528,7 +532,7 @@ uniserde==0.4.1
     #   imy
     #   rio-ui
     #   unicall
-url-normalize==3.0.1
+url-normalize==3.1.0
     # via requests-cache
 urllib3==2.8.0
     # via
@@ -538,11 +542,11 @@ uuid6==2025.0.1
     # via
     #   py10x-core
     #   py10x-kernel
-uv==0.13.4 ; python_full_version < '3.12'
+uv==0.13.6 ; python_full_version < '3.12'
     # via
     #   licensecheck
     #   py10x-core
-uvicorn==0.52.4
+uvicorn==0.54.0
     # via rio-ui
 uvloop==0.23.0 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'
     # via uvicorn
@@ -552,7 +556,7 @@ watchfiles==1.3.0
     # via
     #   rio-ui
     #   uvicorn
-wcwidth==0.9.3
+wcwidth==0.9.4
     # via blessed
 websockets==17.3
     # via
@@ -560,9 +564,9 @@ websockets==17.3
     #   yfinance
 webview-proc==0.1.0rc7
     # via py10x-core
-win32-setctime==1.2.0 ; sys_platform == 'win32'
+win32-setctime==1.2.1 ; sys_platform == 'win32'
     # via loguru
-xbbg==1.5.1
+xbbg==1.7.0
     # via py10x-fin-base
 yarl==1.25.1
     # via rio-ui

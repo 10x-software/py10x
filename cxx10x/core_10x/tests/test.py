@@ -1135,6 +1135,26 @@ def test_create_root():
     else:
         assert False, "Expected ValueError when export_nodes on create_root"
 
+def test_export_interactive_invalidation():
+    class X(Traitable):
+        x: int = RT(T.ID)
+        v: int = RT(default=0)
+
+    outer = X(x=1)
+    outer.v = 5
+
+    with GRAPH_ON() as g:
+        X(x=1).invalidate_value('v')
+    g.export_nodes()
+    assert outer.v == 5, 'only INTERACTIVE invalidations are exported'
+
+    with INTERACTIVE() as i:
+        X(x=1).invalidate_value('v')
+        assert X(x=1).v == 0
+    assert outer.v == 5
+    i.export_nodes()
+    assert outer.v == 0
+
 
 def test_eval_once_under_create_root():
     """create_root isolates from the process default cache; outer objects are not usable inside it."""
@@ -1759,6 +1779,7 @@ if __name__ == '__main__':
     test_lazy_ref_replace()
     test_new_or_replace_store()
     test_create_root()
+    test_export_interactive_invalidation()
     test_eval_once_uses_origin_cache_under_graph()
     test_eval_once_under_create_root()
     test_default_cache_traitable()

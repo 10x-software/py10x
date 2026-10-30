@@ -22,7 +22,7 @@ class Curve(AnonymousTraitable, BCurve):
 
 #class DateCurve(AnonymousTraitable, BDateCurve):
 class DateCurve(AnonymousTraitable):
-    params: CurveParams     = RT()
+    params: CurveParams     = RT(T.STICKY)
     bcurve: BDateCurve      = RT(T.STICKY)
     dates: list             = RT()
 
@@ -41,18 +41,26 @@ class DateCurve(AnonymousTraitable):
 
     def times_set(self, t, times) -> RC:
         self.bcurve.set_times(times)
+        self.apply_curve_params()
         return RC_TRUE
 
     def values_set(self, t, values) -> RC:
         self.bcurve.set_values(values)
+        self.apply_curve_params()
         return RC_TRUE
 
     def dates_set(self, t, dates) -> RC:
         self.bcurve.set_dates(dates)
+        self.apply_curve_params()
         return RC_TRUE
 
     def params_get(self) -> CurveParams:
         return CurveParams()
+
+    def params_set(self,t,params: CurveParams) -> RC:
+        self.raw_set_trait_value(t, params)
+        self.apply_curve_params()
+        return RC_TRUE
 
     def dates_get(self) -> list:
         return self.bcurve.dates
@@ -80,6 +88,7 @@ class DateCurve(AnonymousTraitable):
 
     def reset(self):
         self.invalidate_value('dates')
+        self.apply_curve_params()
 
     def value(self, d: date) -> float:
         return self.bcurve.value(d)
@@ -102,18 +111,22 @@ class DateCurve(AnonymousTraitable):
         if reset:
             self.reset()
 
+    def apply_curve_params(self):
+        curve = self.bcurve
+        params = self.params
+        curve.set_ip_kind(params.ip_kind)
+        fill = params.fill_value
+        if isinstance(fill, tuple):
+            curve.set_flat(fill[0], fill[1])
+        else:
+            curve.set_linear()
+
     def set_curve_params(self, **param_values) -> RC:
         params = self.params
         rc = params.set_values(**param_values)
         if rc:
-            self.bcurve.set_ip_kind(params.ip_kind)
-            fill = params.fill_value
-            if isinstance(fill, tuple):
-                self.bcurve.set_flat(fill[0], fill[1])
-            else:
-                self.bcurve.set_linear()
+            self.apply_curve_params()
 
-        self.reset()
         return rc
 
     def set_curve_params_to_extrapolate(self) -> RC:

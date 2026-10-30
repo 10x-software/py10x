@@ -12,7 +12,7 @@ It points to canonical docs and records only the minimal, project-specific rules
 - **Concepts, traitables, getters/setters, storage, execution modes**: see [`GETTING_STARTED.md`](GETTING_STARTED.md).
 - **Contribution workflow, code style, test layout**: see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - **Security, changelog, community**: see `SECURITY.md`, `CHANGELOG.md`, `CODE_OF_CONDUCT.md`.
-- **Release engineering & dev tooling** (`uv-sync`, `xx-promote`, `constraints.txt`, CI gates): see [`dev_10x/README.md`](dev_10x/README.md). Agent guardrails: §7 below.
+- **Release engineering & dev tooling** (`xx-build`, `xx-promote`, `constraints.txt`, CI gates): see [`dev_10x/README.md`](dev_10x/README.md). Agent guardrails: §7 below.
 - **Low-level traitable implementation details**: see `core_10x/traitable.py` and existing tests in `core_10x/unit_tests/`.
 - **Finance domain package** (`xx_fin/`, published as `py10x-fin-base`): see [`xx_fin/README.md`](xx_fin/README.md); its optional C++/AADC acceleration layer (`py10x-fin-base-cxx`): see [`xx_fin/cxxfin/README.md`](xx_fin/cxxfin/README.md).
 - **Shared utilities** (`xxcommon/`): see [`xxcommon/README.md`](xxcommon/README.md).
@@ -27,8 +27,8 @@ Agents should **link to and rely on those files**, not duplicate them here.
 - **Use UV and the project venv**
   - Assume development happens via `uv` and a local `.venv`.
   - When suggesting or running commands, prefer (from repo root — no `source .venv` needed):
-    - `uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras` for setup (builds `cxx10x/` locally in incremental mode by default: C++ edits rebuild on the next import) — see [`CONTRIBUTING.md`](CONTRIBUTING.md#development-setup).
-    - `uv run --no-sync pytest …` / `uv run --no-sync ruff …` after the venv is prepared.
+    - `./xx-build init` for setup on a fresh clone (builds `cxx10x/` locally in the `dev` build mode: Debug, C++ edits rebuild on the next import), then plain `uv sync` to keep it current — see [`CONTRIBUTING.md`](CONTRIBUTING.md#development-setup).
+    - `uv run pytest …` / `uv run ruff …` after the venv is prepared.
 
 - **Respect C++ / cxx10x backend**
   - Treat the C++ backends (`cxx10x/`) as **opaque** from Python — do not reimplement or bypass them in Python; use the public Python APIs.
@@ -75,11 +75,14 @@ Before changing anything under `core_10x/traitable.py` or traitable-heavy code, 
   - Core logic tests belong in `core_10x/unit_tests/`.
   - UI tests belong in `ui_10x/unit_tests/` or backend-specific test folders.
   - Infra/storage tests belong in `infra_10x/unit_tests/`.
+  - **`manual_tests/` are not a pytest suite** — run them as scripts / `python -m …`. See
+    [CONTRIBUTING.md § Manual Tests](CONTRIBUTING.md#manual-tests). Do not invoke them under
+    `pytest` (the py10x plugin strips ambient vault env for unit isolation).
 
 - **How to run tests / lints**
   - Prefer:
-    - `uv run --no-sync pytest` (or narrower paths) for tests.
-    - `uv run --no-sync ruff check .` and `uv run --no-sync ruff format .` for linting/formatting.
+    - `uv run pytest` (or narrower paths) for **unit** tests.
+    - `uv run ruff check .` and `uv run ruff format .` for linting/formatting.
 
 When adding new functionality, agents should **add or update tests** in the appropriate suite following nearby examples, rather than inventing new test patterns.
 
@@ -126,17 +129,24 @@ Rules agents must **not** violate:
 - **Third-party deps:** never `==`-pin `[project.dependencies]` in published metadata — use ranges + [`constraints.txt`](dev_10x/README.md#constraintstxt--reproducibility). First-party siblings are `==`-pinned on `pre`/`prod` only — see [Pin model](dev_10x/README.md#pin-model-three-places).
 - **Downstream ≠ sibling:** packages in `[tool.dev_10x.downstream]` depend on core; core does **not** publish a pin to them (unpublished `dependency-groups.test` only). Do not treat `not is_core` as sibling — see [dev_10x/README.md](dev_10x/README.md#the-packages-siblings-core-downstreams).
 - **`xx_ci.py` kernel-free** — no `core_10x` imports before siblings install.
-- **`uv-sync` pip-install based** — no transient `[tool.uv.sources]` edits to `pyproject.toml`. Downstream install is opt-in (`--with-downstream`); default sync is siblings + core only.
-- **`-c constraints.txt`** on every pip install; run `xx-constraints compile` after dep changes.
-  Local CLI defaults to siblings only; commit/refresh the freeze with
-  `--with-downstream` (one shared file must cover `uv-sync --with-downstream`).
-- **Sibling / downstream paths** in `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]` only — keep `uv_sync.py`, `xx_promote.py`, `constraints.py` in sync.
+- **Dev env = `./xx-build` + plain `uv sync`** — `[tool.uv.sources]` in `pyproject.toml` is permanent (siblings and downstreams editable from this tree); build modes come from `[tool.dev_10x.modes]` via `./xx-build set-mode`, never hand-edited `uv.toml`. Never `uv sync --upgrade` / `uv lock --upgrade`.
+- **`uv.lock` is the freeze; `constraints.txt` is generated from it** — run `xx-constraints compile` after dep changes and commit `pyproject.toml`, `uv.lock` and `constraints.txt` together; `-c constraints.txt` on every `uv pip install` (release workflows).
+- **Sibling / downstream paths** in `[tool.dev_10x.siblings]` / `[tool.dev_10x.downstream]` only — keep `xx_promote.py`, `constraints.py`, `env_check.py` in sync.
 - **Version ordering:** `packaging.version.Version` (`max`), never `git --sort=-v:refname` / `sort -V`.
 - **`xx-promote` sync + recovery:** start/finish with local == `origin`; one atomic `git push --atomic` for all packages; isolated publish-trigger pushes — see [xx-promote](dev_10x/README.md#xx-promote--release-promotion). Recovery: `resync` + idempotent re-run, not in-place reconcile.
 - **Publish triggers only** on `pre/`/`prod/` tags — not version tags or `.dev` markers on `main` — see [CI release gates](dev_10x/README.md#ci-release-gates).
 - **setuptools-scm:** dirty `pyproject.toml` or shallow checkout breaks versions; CI needs `fetch-depth: 0` and `fetch-tags: true`.
-- **CI install:** `uv pip install -e . --all-extras --requirements pyproject.toml`; tag triggers exclude `*_yanked`.
+- **CI install:** test jobs use `./xx-build init --mode ci-release --locked`; release workflows `uv pip install -e . --all-extras --requirements pyproject.toml`; tag triggers exclude `*_yanked`.
 - **Promotion tests:** `test_xx_utils.py`, `test_xx_plan.py`, `test_xx_promote.py`, `test_xx_promote_e2e.py`, `test_xx_tooling_guards.py`.
+
+## Claude Code cloud specific instructions
+
+When `as-dev` is on `PATH`, the environment was set up by [`scripts/cloud_setup.sh`](scripts/cloud_setup.sh): the
+checkout and venv belong to the non-root `ubuntu` user while the session runs as root. Run `uv` / `pytest` / `xx-build`
+through it (`as-dev uv run pytest …`); running them as root leaves root-owned files in `.venv` and `build/`.
+The SessionStart hook [`scripts/cloud_services.sh`](scripts/cloud_services.sh) starts Postgres (5432 trust, 5433
+password-auth) and the Mongo replica set (27017), so `infra_10x` and store tests run instead of skipping; do not run
+`xx-test-postgres-auth start` there (5433 is already taken by a native cluster).
 
 ## Cursor Cloud specific instructions
 
@@ -171,13 +181,13 @@ docker exec mongo-rs mongosh --quiet --eval "db.hello().isWritablePrimary"
 
 Local Postgres should accept passwordless OS-user login on port 5432
 (each pytest session creates and drops its own `py10x_test_*` database). For with-auth smoke tests on 5433:
-`uv run --no-sync xx-test-postgres-auth start` (prefers Docker, falls back to Homebrew — see
+`uv run xx-test-postgres-auth start` (prefers Docker, falls back to Homebrew — see
 [`dev_10x/README.md`](dev_10x/README.md)).
 CI uses `.github/actions/setup-postgres` for both.
 
 ### Running tests, lint, and build
 
-See [CONTRIBUTING.md](CONTRIBUTING.md#development-workflow) (`uv run --no-sync pytest`, `uv run --no-sync ruff`, `uv build`).
+See [CONTRIBUTING.md](CONTRIBUTING.md#development-workflow) (`uv run pytest`, `uv run ruff`, `uv build`).
 
 ### Non-obvious caveats
 

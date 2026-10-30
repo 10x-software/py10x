@@ -39,7 +39,7 @@ class TestIRSwapQuotable:
         for irate in self.irates:
             irate['tenor']  = RDate(irate['tenor_sym'])
             irate['mc']     = IRRateMktConventions(mkt_name = irate['irate'])
-            irate['zrc']    = ZeroRateCurve(mkt_name = irate['irate'], **self.md_basis).payload
+            irate['zrc']    = ZeroRateCurve(mkt_name = irate['irate'], **self.md_basis)
             irate['sq']     = IRSwapQuotable(mkt_name = irate['irate'], tenor=irate['tenor'], **self.md_basis)
 
     def test_start_end_dates(self):
@@ -62,10 +62,13 @@ class TestIRSwapQuotable:
             roll_rule = irate['roll_rule']
             swap      = irate['sq']
 
+            #-- each period end is n periods from the start date (not chained from the previous period end)
             end_dates = []
-            non_rolled_ed = rolled_ed = swap.start_date
+            rolled_ed = swap.start_date
+            num_periods = 0
             while rolled_ed < swap.end_date:
-                non_rolled_ed = swap_freq.apply_no_roll(non_rolled_ed)
+                num_periods += 1
+                non_rolled_ed = RDate(freq = swap_freq.freq, count = num_periods).apply_no_roll(swap.start_date)
                 rolled_ed = RDate.roll_to_bizday(non_rolled_ed, cal, roll_rule)
                 end_dates.append(rolled_ed)
 
@@ -85,9 +88,10 @@ class TestIRSwapQuotable:
             incr_dcfs = [irate['dc_conv'](sd, ed) for sd, ed in zip(swap.start_dates, swap.end_dates, strict=True)]
             assert incr_dcfs == swap.incremental_dc_fractions
 
-    def test_anuity_calc(self):
+    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    def test_annuity_calc(self):
         for irate in self.irates:
-            zrc = irate['zrc']
+            zrc = irate['zrc'].payload
             swap = irate['sq']
             num_periods = len(swap.pay_dates)
             assert swap.annuity_calc(zrc) == swap.annuity_calc(zrc, num_periods), 'annuity default num periods is off'

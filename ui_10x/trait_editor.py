@@ -170,7 +170,7 @@ class TraitEditor:
             parent=self.widget,
             title=f'Choose one or more values for {self.ui_hint.label}',
             accept_callback=lambda: t.set_value(self.trait, mc.values_selected),
-            min_width=pane_width * 2, # needs room for two panes
+            min_width=pane_width * 2,  # needs room for two panes
             min_height=pane_height,
         ).show()
 

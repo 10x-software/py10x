@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import weakref
 from typing import TYPE_CHECKING
 
@@ -207,11 +208,14 @@ class TraitableEditor:
         ux.init()
 
         def accept_callback():
+            # Verify in the dialog's own scope and commit only on success, so a
+            # failed OK keeps the edits staged for a corrected OK.
+            with self.traitable_processor or contextlib.nullcontext():
+                rc = self.entity.verify()
+            if not rc:
+                return rc
             self._cleanup_tp(True)
-            rc = self.entity.verify()
-            if rc:
-                return on_accept()
-            return rc
+            return on_accept()
 
         def cancel_callback():
             self._cleanup_tp(False)

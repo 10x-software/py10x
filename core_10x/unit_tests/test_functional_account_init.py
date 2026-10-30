@@ -8,7 +8,11 @@ from __future__ import annotations
 
 import json
 import os
+import stat
+import subprocess
 import sys
+import textwrap
+import threading
 
 import pytest
 from core_10x.apps.functional_account_init import FunctionalAccountInitCli
@@ -26,14 +30,37 @@ def _run(monkeypatch, argv):
     return FunctionalAccountInitCli.main()
 
 
-def _write_fifo_from_fake_docker(argv: list[str], payload: str) -> None:
-    """Simulate the container side of a `docker run ... xx-user-init --functional-account
-    --output-file <path>` invocation: find the bind mount from `-v host:container` and write
-    directly to the host-side path, exactly what the real container would produce via the mount."""
+def _fifo_paths(argv: list[str]) -> tuple[str, str]:
     mount = argv[argv.index('-v') + 1]
     host_dir, _sep, _container_dir = mount.partition(':')
     output = argv[argv.index('--output-file') + 1]
-    with open(os.path.join(host_dir, os.path.basename(output)), 'w') as f:
+    return host_dir, os.path.join(host_dir, os.path.basename(output))
+
+
+def _assert_fifo_is_owner_write_only(argv: list[str]) -> None:
+    """By `docker run` the host holds the read fd. The pipe is owner-write only, so a new
+    open for reading fails even for the owner. The directory is traversable by the container
+    uid and not listable or writable by other. 0600/0700 and 0622 both fail this."""
+    host_dir, fifo_path = _fifo_paths(argv)
+    assert os.stat(host_dir).st_mode & 0o777 == 0o711
+    assert stat.S_ISFIFO(os.stat(fifo_path).st_mode)
+    assert os.stat(fifo_path).st_mode & 0o777 == 0o200
+    with pytest.raises(PermissionError):
+        os.open(fifo_path, os.O_RDONLY | os.O_NONBLOCK)
+
+
+def _write_fifo_from_fake_docker(argv: list[str], payload: str, *, delay_s: float = 0) -> None:
+    """Simulate the container side of a `docker run ... xx-user-init --functional-account
+    --output-file <path>` invocation: find the bind mount from `-v host:container` and write
+    directly to the host-side path, exactly what the real container would produce via the mount."""
+    _assert_fifo_is_owner_write_only(argv)
+    _host_dir, fifo_path = _fifo_paths(argv)
+    if delay_s:
+        import time
+
+        time.sleep(delay_s)
+    # 'w' is O_WRONLY|O_CREAT|O_TRUNC. Mode 0200 allows the owner write and refuses a read.
+    with open(fifo_path, 'w') as f:
         f.write(payload)
 
 
@@ -202,7 +229,8 @@ def test_run_reports_docker_failure_and_cleans_up(monkeypatch):
 
     def fake_run(argv, **kwargs):
         if argv[:2] == ['docker', 'run']:
-            # container fails before ever writing the fifo
+            # container fails before ever writing the fifo; perms are already those it would have seen
+            _assert_fifo_is_owner_write_only(argv)
             return subprocess.CompletedProcess(argv, 1)
         raise AssertionError('provisioning command must not run when docker run fails')
 
@@ -245,3 +273,142 @@ def test_run_reports_provisioning_command_failure_and_cleans_up(monkeypatch):
     assert not result
     assert '--command failed' in result.error()
     assert tmp_dirs and not os.path.exists(tmp_dirs[0])
+
+
+def test_run_reads_manifest_when_the_container_writes_late(monkeypatch):
+    """A nonblocking read returns b'' before any writer opens. That must not end the read."""
+    monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host.example.com:5432/vaultdb')
+    monkeypatch.setattr(FunctionalAccountInitCli, '_resolve_image', lambda self: (RC_TRUE, 'fake-image:dev'))
+    payload = json.dumps([{'service': 's', 'username': 'u', 'password': 'p'}])
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        if argv[:2] == ['docker', 'run']:
+            _write_fifo_from_fake_docker(argv, payload, delay_s=0.3)
+            return subprocess.CompletedProcess(argv, 0)
+        seen['provisioning_input'] = kwargs.get('input')
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
+    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
+    result = inst.run()
+    assert result, result.error()
+    assert seen['provisioning_input'] == payload
+
+
+def test_run_drains_fifo_while_the_container_writes(monkeypatch):
+    """Pipe capacity is configurable and can be one page. The reader has to drain during the write."""
+    monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host.example.com:5432/vaultdb')
+    monkeypatch.setattr(FunctionalAccountInitCli, '_resolve_image', lambda self: (RC_TRUE, 'fake-image:dev'))
+    payload = 'x' * (1024 * 1024)
+    seen = {}
+    wrote = threading.Event()
+
+    def fake_run(argv, **kwargs):
+        if argv[:2] == ['docker', 'run']:
+            _assert_fifo_is_owner_write_only(argv)
+
+            def _write():
+                _host_dir, fifo_path = _fifo_paths(argv)
+                with open(fifo_path, 'w') as f:
+                    f.write(payload)
+                wrote.set()
+
+            threading.Thread(target=_write, daemon=True).start()
+            assert wrote.wait(5), 'reader did not drain the FIFO; a full pipe would stall docker run'
+            return subprocess.CompletedProcess(argv, 0)
+        seen['provisioning_input'] = kwargs.get('input')
+        return subprocess.CompletedProcess(argv, 0)
+
+    monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
+    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
+    result = inst.run()
+    assert result, result.error()
+    assert seen['provisioning_input'] == payload
+
+
+def _entrypoint_path() -> str:
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'docker', 'entrypoint.sh'))
+
+
+def _stub_bin(tmp_path):
+    bindir = tmp_path / 'bin'
+    bindir.mkdir()
+    for name, body in {
+        'id': textwrap.dedent(
+            """\
+            #!/bin/sh
+            printf '%s\\n' "id $*" >> "$STUB_LOG"
+            case "$1" in
+              -u) echo 10001 ;;
+              -g) echo 10001 ;;
+            esac
+            exit 0
+            """
+        ),
+        'usermod': '#!/bin/sh\nprintf \'%s\\n\' "usermod $*" >> "$STUB_LOG"\nexit 0\n',
+        'groupmod': '#!/bin/sh\nprintf \'%s\\n\' "groupmod $*" >> "$STUB_LOG"\nexit 0\n',
+        'chown': '#!/bin/sh\nprintf \'%s\\n\' "chown $*" >> "$STUB_LOG"\nexit 0\n',
+        'gosu': '#!/bin/sh\nprintf \'%s\\n\' "gosu $*" >> "$STUB_LOG"\nexit 0\n',
+    }.items():
+        path = bindir / name
+        path.write_text(body)
+        path.chmod(0o755)
+    return bindir
+
+
+def _run_entrypoint(tmp_path, args: list[str] | None = None, *, expect_ok: bool = True):
+    log_path = tmp_path / 'stub.log'
+    log_path.write_text('')
+    env = os.environ.copy()
+    env['PATH'] = f'{_stub_bin(tmp_path)}:{env["PATH"]}'
+    env['STUB_LOG'] = str(log_path)
+    env['FUNCTIONAL_ACCOUNT_ID'] = 'xx-myservice'
+    env.pop('XX_SECRETS_DIR', None)
+    completed = subprocess.run(
+        ['bash', _entrypoint_path(), *(args or [])],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    log = log_path.read_text()
+    if expect_ok:
+        assert completed.returncode == 0, completed.stderr
+    return completed, log
+
+
+def test_entrypoint_chowns_only_the_output_file_before_gosu(tmp_path):
+    provisioning = tmp_path / 'out'
+    provisioning.mkdir()
+    target = provisioning / 'xx-myservice.fifo'
+    other = provisioning / 'other.fifo'
+    os.mkfifo(target, 0o200)
+    os.mkfifo(other, 0o200)
+    _completed, log = _run_entrypoint(
+        tmp_path,
+        ['xx-user-init', '--functional-account', '--output-file', str(target)],
+    )
+    assert log.index('chown ') < log.index('gosu ')
+    assert f'chown 10001:10001 -- {target}' in log
+    assert str(other) not in log
+    assert 'gosu xx-myservice' in log
+
+
+def test_entrypoint_skips_chown_without_output_file(tmp_path):
+    _completed, log = _run_entrypoint(tmp_path, ['python', '-m', 'pytest'])
+    assert 'chown ' not in log
+    assert 'gosu xx-myservice' in log
+
+
+def test_entrypoint_rejects_output_file_that_is_not_a_fifo(tmp_path):
+    regular = tmp_path / 'not-a-fifo'
+    regular.write_text('x')
+    completed, log = _run_entrypoint(
+        tmp_path,
+        ['xx-user-init', '--output-file', str(regular)],
+        expect_ok=False,
+    )
+    assert completed.returncode != 0
+    assert 'not a FIFO' in completed.stderr
+    assert 'chown ' not in log
