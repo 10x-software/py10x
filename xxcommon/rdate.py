@@ -310,16 +310,17 @@ class RDate(Nucleus):
             exceed = lambda x, y: x > y
             ex_or_eq = lambda x, y: x >= y
 
-        step = self * dir
-
         prev_rolled_date = begin
         rolled_date = begin
-        non_rolled_date = begin
+        num_steps = 0
 
         all_dates = []
         while ex_or_eq(finish, rolled_date):
             all_dates.append(rolled_date)
-            non_rolled_date = step.apply(non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)
+            #-- step from begin, not from the previous date: chained month steps drift at month ends,
+            #   e.g., Nov 30 -> Feb 28 -> May 28 instead of Nov 30 -> Feb 28 -> May 30
+            num_steps += 1
+            non_rolled_date = (self * (dir * num_steps)).apply(begin, calendar, BIZDAY_ROLL_RULE.NO_ROLL)
             rolled_date = roll_rule(non_rolled_date, calendar)
             if not exceed(rolled_date, prev_rolled_date):
                 raise ValueError(f'infinite loop: next date {rolled_date} vs previous date {prev_rolled_date} for date_propagation = {date_propagation.name}')

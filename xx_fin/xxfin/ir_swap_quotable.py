@@ -1,4 +1,5 @@
 from collections import namedtuple
+from datetime import date
 
 import numpy
 from core_10x.traitable import RT, M
@@ -43,13 +44,15 @@ class IRSwapQuotable(IRCashDepositQuotable):
         swap_freq = mc.tenor_frequency
 
         freq_method = FREQUENCY_TABLE[swap_freq][TENOR_PARAMS.RDATE_FUNC]
-        freq_step   = 1
-        raw_ed = rolled_ed = self.start_date
+        start_date = rolled_ed = self.start_date
         swap_end_date = self.end_date
         end_dates = []
+        num_periods = 0
         while rolled_ed < swap_end_date:
-            raw_ed = freq_method(raw_ed, freq_step)
-            rolled_ed = RDate.roll_to_bizday(raw_ed, cal, roll_rule)
+            num_periods += 1
+            #-- step from the start date, not from the previous period end: chained month steps drift at month ends,
+            #   e.g., Nov 30 -> Feb 28 -> May 28 instead of Nov 30 -> Feb 28 -> May 30
+            rolled_ed = RDate.roll_to_bizday(freq_method(start_date, num_periods), cal, roll_rule)
             end_dates.append(rolled_ed)
 
         return end_dates
@@ -58,6 +61,9 @@ class IRSwapQuotable(IRCashDepositQuotable):
         end_dates = self.end_dates
         mc = self.mkt_conventions
         return [mc.pay_date(ed) for ed in end_dates]
+
+    def pay_date_get(self) -> date:
+        return self.pay_dates[-1]
 
     def start_dates_get(self) -> list:
         """

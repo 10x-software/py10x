@@ -66,21 +66,23 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
 
         quotable: IRCashDepositQuotable
         for end_date, quotable in quotables.items():
-            start_date = quotable.start_date
 
-            if _DBG: print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')  # pragma: no cover
+            if _DBG:    # pragma: no cover
+                start_date = quotable.start_date
+                print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')  # pragma: no cover
 
-            solve_cash_deposit(zrc, start_date, end_date, quotable.quote, mc, today)
+            solve_cash_deposit(zrc, quotable.start_date, end_date, quotable.quote, mc, today)
 
             if _DBG:    # pragma: no cover
                 dc_convention = mc.dc_convention
                 compounding   = mc.compounding
+                start_date = quotable.start_date
                 quote_acc  = zrc.fixed_rate_accrual(quotable.quote, start_date, end_date, dc_convention, compounding)
                 zrc_acc    = zrc.accrual_fwd(start_date, end_date, today)
                 float_rate = zrc.rate_fwd(start_date, end_date, dc_convention, compounding, today)
-                print(f'quote acc = {quote_acc:.18f};    float acc  = {zrc_acc:.18f};    diff acc   = {zrc_acc - quote_acc}')
-                print(f'quote df  = {1./quote_acc:.18f}; float df   = {1./zrc_acc:.18f}; diff df    = {1./zrc_acc - 1./quote_acc}')
-                print(f'quote     = {quotable.quote:.18f};        float rate = {float_rate:.18f}; diff rates = {float_rate - quotable.quote}\n')
+                print(f'quote acc = {quote_acc:.18f};       float acc  = {zrc_acc:.18f};    diff acc   = {zrc_acc - quote_acc}')
+                print(f'quote df  = {1./quote_acc:.18f};    float df   = {1./zrc_acc:.18f}; diff df    = {1./zrc_acc - 1./quote_acc}')
+                print(f'quote     = {quotable.quote:.18f};  float rate = {float_rate:.18f}; diff rates = {float_rate - quotable.quote}\n')
 
     def process_swaps(self, zrc: RateCurve):
         quotables = self.quotables_by_class.get(IRSwapQuotable)
@@ -99,12 +101,15 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
         spot_date = mc.spot_date(today)
 
         if _DBG:    # pragma: no cover
+            swap_freq: RDate    = RDate(freq=mc.tenor_frequency, count=1)
+            fixed_freq: RDate   = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
             fixed_dc_convention = mc.fixed_leg_swap_dc_convention
             pay_calendar        = mc.settlement_calendar
             pay_roll_rule       = mc.roll_rule_to_settle
             pay_offset: RDate   = mc.settle_offset
-            print(f'swap params: today = {today}/{today.strftime("%A")}, spot_date = {spot_date}/{spot_date.strftime("%A")}, fixed_dc_convention = {fixed_dc_convention.name}, '
-                  f'swap_cal = {mc.calendar.name}, swap_roll = {mc.roll_rule.name},\n '
+            print(f'swap params: today = {today}/{today.strftime("%A")}, spot_date = {spot_date}/{spot_date.strftime("%A")},\n '
+                  f'fixed_dc_convention = {fixed_dc_convention.name}, fixed_freq = {fixed_freq.symbol()},\n'
+                  f'swap_freq = {mc.tenor_frequency}, swap_cal = {mc.calendar.name}, swap_roll = {mc.roll_rule.name},\n '
                   f'pay_calendar = {pay_calendar.name}, pay_roll_rule = {pay_roll_rule.name}, pay_delay = {pay_offset.symbol()}, \n')
 
         quotable: IRSwapQuotable
@@ -112,21 +117,16 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
             tenor = quotable.tenor
 
             if _DBG:    # pragma: no cover
-                fixed_freq: RDate = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
                 end_date_dbg = tenor.apply(spot_date, mc.calendar, mc.roll_rule)
                 print(f'swap tenor/freq = {tenor.symbol()}/{fixed_freq.symbol()}, start_date = {spot_date}/{spot_date.strftime("%A")}, end_date = {end_date_dbg}/{end_date_dbg.strftime("%A")}, swap quote = {quotable.quote}, ')
 
             solve_swap(zrc, spot_date, tenor, quotable.quote, mc, today)
 
             if _DBG:    # pragma: no cover
-                fixed_dc_convention = mc.fixed_leg_swap_dc_convention
-                fixed_freq          = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
-                pay_offset          = mc.settle_offset
-                pay_calendar        = mc.settlement_calendar
-                pay_roll_rule       = mc.roll_rule_to_settle
                 swap_rate = zrc.swap_rate_simple_compounding(
                     spot_date, tenor,
-                    fixed_freq, fixed_dc_convention, mc.calendar, mc.roll_rule,
+                    fixed_freq, fixed_dc_convention,
+                    swap_freq,mc.calendar, mc.roll_rule,
                     pay_offset, pay_calendar, pay_roll_rule,
                     PROPAGATE_DATES.FORWARD, False,
                 )

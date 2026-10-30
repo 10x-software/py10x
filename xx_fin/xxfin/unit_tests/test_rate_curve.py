@@ -1,8 +1,9 @@
-from datetime import date
+from datetime import date, timedelta
 from math import exp, log
+from types import SimpleNamespace
 
 import pytest
-from xxcommon.rdate import BIZDAY_ROLL_RULE, RDate
+from xxcommon.rdate import BIZDAY_ROLL_RULE, PROPAGATE_DATES, TENOR_FREQUENCY, RDate
 from xxfin.fin_calendar import FinCalendar
 
 COMPOUNDING = None
@@ -265,5 +266,101 @@ class TestRateCurve:
         self.rc.values = save_values
 
     def test_swap_rate_simple(self):
-        ## TODO: comp no-arb calc to the actual float leg /  annuity (i.e., float leg = 1-df_last)
-        ...
+        rc          = self.rc
+        cal         = FinCalendar.none
+        roll_rule   = BIZDAY_ROLL_RULE.NO_ROLL
+        prop        = PROPAGATE_DATES.FORWARD
+        spot        = date(2019, 12, 3)
+        fixed_freq  = RDate('1Y')
+        fixed_dc    = DAY_COUNT_CONVENTION.ACT360
+        float_dc    = DAY_COUNT_CONVENTION.ACT360
+
+        for tenor in [RDate('1Y'), RDate('2Y'), RDate('3Y'), RDate('5Y')]:
+            for swap_freq in [RDate('1Q'), RDate('1S'), RDate('1Y')]:
+                for pay_delay in [RDate('0C'), RDate('2C'), RDate('5C')]:
+                    float_leg = rc.swap_float_leg_simple_compounding(spot, tenor, swap_freq, cal, roll_rule, pay_delay, cal, roll_rule, prop, False)
+                    annuity   = rc.annuity(fixed_dc, spot, tenor, fixed_freq, cal, roll_rule, pay_delay, cal, roll_rule, prop, False)
+                    swap_rate = rc.swap_rate_simple_compounding(spot, tenor, fixed_freq, fixed_dc, swap_freq, cal, roll_rule, pay_delay, cal, roll_rule, prop, False)
+
+                    #-- the float leg is the sum of the simple forward rates' payouts, each discounted from its own pay date
+                    starts, ends, pays = rc.period_dates(spot, tenor, swap_freq, cal, roll_rule, pay_delay, cal, roll_rule, prop, False)
+                    float_leg_explicit = sum(
+                        rc.rate_fwd(s, e, float_dc, COMPOUNDING.SIMPLE) * float_dc(s, e) * rc.discount_factor(p)
+                        for s, e, p in zip(starts, ends, pays, strict=True)
+                    )
+                    assert float_leg == pytest.approx(float_leg_explicit, abs=1.e-14)
+                    assert swap_rate * annuity == pytest.approx(float_leg, abs=1.e-14)
+
+                    if not pay_delay.count:
+                        #-- w/o the pay delay the float leg telescopes to df(spot) - df(end)
+                        end = tenor.apply(spot, cal, roll_rule)
+                        assert float_leg == pytest.approx(rc.discount_factor(spot) - rc.discount_factor(end), abs=1.e-14)
+
+    @staticmethod
+    def _swap_mkt_conventions(swap_freq: TENOR_FREQUENCY, pay_delay: RDate) -> SimpleNamespace:
+        return SimpleNamespace(
+            fixed_leg_swap_dc_convention    = DAY_COUNT_CONVENTION.ACT360,
+            fixed_leg_swap_tenor_frequency  = TENOR_FREQUENCY.YEAR,
+            tenor_frequency                 = swap_freq,
+            calendar                        = FinCalendar.none,
+            roll_rule                       = BIZDAY_ROLL_RULE.NO_ROLL,
+            settlement_calendar             = FinCalendar.none,
+            roll_rule_to_settle             = BIZDAY_ROLL_RULE.NO_ROLL,
+            settle_offset                   = pay_delay,
+        )
+
+    s_bootstrap_today   = date(2025, 10, 10)
+    s_bootstrap_swaps   = [('1Y', 0.0410), ('2Y', 0.0395), ('3Y', 0.0402), ('5Y', 0.0425), ('7Y', 0.0441)]
+
+    def _bootstrap_curve(self, solve_swap, mc):
+        today = self.s_bootstrap_today
+        zrc = RateCurve(
+            dates   = [today, today + timedelta(days = 91), today + timedelta(days = 182)],
+            values  = [0.0420, 0.0418, 0.0414],
+        )
+        zrc.beginning_of_time = today
+        spot = today + timedelta(days = 2)
+        for tenor, quote in self.s_bootstrap_swaps:
+            solve_swap(zrc, spot, RDate(tenor), quote, mc, today)
+        return zrc
+
+    @pytest.mark.parametrize('swap_freq', [TENOR_FREQUENCY.QUARTER, TENOR_FREQUENCY.YEAR], ids=['Q', 'Y'])
+    @pytest.mark.parametrize('pay_delay', ['0C', '2C', '5C'])
+    def test_swap_bootstrap_reprices(self, use_cxx, swap_freq, pay_delay):
+        if use_cxx:
+            from xxfin.cxx_zrc_bootstrap import solve_swap
+        else:
+            from xxfin.py_zrc_bootstrap import solve_swap
+
+        pay_delay = RDate(pay_delay)
+        mc = self._swap_mkt_conventions(swap_freq, pay_delay)
+        zrc = self._bootstrap_curve(solve_swap, mc)
+
+        today = self.s_bootstrap_today
+        spot  = today + timedelta(days = 2)
+        for tenor, quote in self.s_bootstrap_swaps:
+            swap_rate = zrc.swap_rate_simple_compounding(
+                spot, RDate(tenor),
+                RDate(freq = mc.fixed_leg_swap_tenor_frequency, count = 1), mc.fixed_leg_swap_dc_convention,
+                RDate(freq = swap_freq, count = 1), mc.calendar, mc.roll_rule,
+                pay_delay, mc.settlement_calendar, mc.roll_rule_to_settle,
+                PROPAGATE_DATES.FORWARD, False, today,
+            )
+            assert swap_rate == pytest.approx(quote, abs = 1.e-10), tenor
+
+    @pytest.mark.parametrize('swap_freq', [TENOR_FREQUENCY.QUARTER, TENOR_FREQUENCY.YEAR], ids=['Q', 'Y'])
+    @pytest.mark.parametrize('pay_delay', ['0C', '2C', '5C'])
+    def test_swap_bootstrap_cxx_vs_py(self, use_cxx, swap_freq, pay_delay):
+        if not use_cxx:
+            pytest.skip('compares the cxx bootstrap to py on the same (cxx) curve class')
+
+        from xxfin.cxx_zrc_bootstrap import solve_swap as cxx_solve_swap
+        from xxfin.py_zrc_bootstrap import solve_swap as py_solve_swap
+
+        mc = self._swap_mkt_conventions(swap_freq, RDate(pay_delay))
+        py_dates_values  = self._bootstrap_curve(py_solve_swap,  mc).dates_values()
+        cxx_dates_values = self._bootstrap_curve(cxx_solve_swap, mc).dates_values()
+
+        assert [d for d, _ in cxx_dates_values] == [d for d, _ in py_dates_values]
+        for (d, cxx_v), (_, py_v) in zip(cxx_dates_values, py_dates_values, strict=True):
+            assert cxx_v == pytest.approx(py_v, abs = 1.e-11), d

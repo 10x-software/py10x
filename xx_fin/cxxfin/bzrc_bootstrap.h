@@ -124,51 +124,84 @@ inline void bootstrap_cash_deposit(
 //==
 //   bootstrap_swap
 //
-//   Solves:  swap_rate_simple(curve[last_pay_ord]=x) == quote
+//   Solves:  swap_rate_simple(curve[last_pay_ord]=x) == quote, i.e. the same as
+//   RateCurve.swap_rate_simple_compounding():
+//     float_leg / annuity == quote
+//     annuity   = sum(fixed_dc_frac[i] * df(fixed_pay_i))
+//     float_leg = sum((df(start_j) / df(end_j) - 1) * df(pay_j))     over the float periods
+//               = df(spot) - df(last_pay)                            (telescoped, if no pay delay)
 //
 //   No curve I/O inside the hot loop.
-//   Caller precomputes:
-//     t_today_last  = dc_int(today, last_pay)
-//     annuity_const = sum(dc_frac[i] * df(pay_i, today)) for periods whose pay date
-//                     is already determined by fixed (already-bootstrapped) knots
-//     last_dc_frac  = fixed-leg dc frac for last period
-//     df_spot       = discount_factor(spot_date, today)
+//   Terms whose dates are all on or before the last fixed (already-bootstrapped) knot
+//   don't depend on x and are pre-summed by the caller:
+//     annuity_const, float_const
 //
-//   Any intermediate period whose pay date falls beyond the last fixed knot (and
-//   before last_pay) has a discount factor that depends on x through the curve's
-//   own LINEAR interior interpolation between that fixed knot and the point being
-//   solved — same reasoning as bootstrap_cash_deposit's gap_frac. These periods
-//   cannot be folded into annuity_const and are passed as parallel vectors:
-//     gap_dc_fracs[i], gap_t_todays[i]  — this period's dc frac and dc_int(today, pay_i)
-//     gap_fracs[i]                      — interpolation fraction toward x
-//     r_fixed                           — rate at the last fixed knot (shared by all gap periods)
+//   The remaining terms refer to "nodes": the dates whose discount factors are needed
+//   by them. A node beyond the last fixed knot (and up to last_pay) has a discount
+//   factor that depends on x through the curve's own LINEAR interior interpolation
+//   between that fixed knot and the point being solved — same reasoning as
+//   bootstrap_cash_deposit's gap_frac. Per node j (parallel vectors):
+//     node_fracs[j] < 0  — fixed: the df is the constant node_dfs[j]
+//     node_fracs[j] >= 0 — interpolation fraction toward x (1 for last_pay itself):
+//                            r_j(x) = r_fixed + node_fracs[j] * (x - r_fixed),
+//                            df_j   = 1 / accrual(node_t_todays[j], r_j)
+//     r_fixed            — rate at the last fixed knot (shared by all such nodes)
+//   Terms (parallel vectors of node indices):
+//     fixed_dc_fracs[i], fixed_pay_nodes[i]                     — dc_frac * df(pay)
+//     float_start_nodes[j], float_end_nodes[j], float_pay_nodes[j] — (df(start) / df(end) - 1) * df(pay)
 //==
 inline void bootstrap_swap(
     BDateCurve& curve,
     int    bot_ord,
     int    last_pay_ord,
-    double t_today_last,
     double annuity_const,
-    double last_dc_frac,
-    double df_spot,
+    double float_const,
     int    comp,
     double quote,
     double lo, double hi, double xtol,
-    const std::vector<double>& gap_dc_fracs = {},
-    const std::vector<double>& gap_t_todays = {},
-    const std::vector<double>& gap_fracs    = {},
-    double r_fixed = 0.0
+    const std::vector<double>& node_t_todays,
+    const std::vector<double>& node_fracs,
+    const std::vector<double>& node_dfs,
+    double r_fixed,
+    const std::vector<double>& fixed_dc_fracs,
+    const std::vector<int>&    fixed_pay_nodes,
+    const std::vector<int>&    float_start_nodes,
+    const std::vector<int>&    float_end_nodes,
+    const std::vector<int>&    float_pay_nodes
 ) {
+    const size_t num_nodes = node_fracs.size();
+    if (node_t_todays.size() != num_nodes || node_dfs.size() != num_nodes)
+        throw std::invalid_argument("bootstrap_swap: node_t_todays, node_fracs, node_dfs must have the same length");
+    if (fixed_pay_nodes.size() != fixed_dc_fracs.size())
+        throw std::invalid_argument("bootstrap_swap: fixed_dc_fracs, fixed_pay_nodes must have the same length");
+    if (float_end_nodes.size() != float_start_nodes.size() || float_pay_nodes.size() != float_start_nodes.size())
+        throw std::invalid_argument("bootstrap_swap: float_start_nodes, float_end_nodes, float_pay_nodes must have the same length");
+    auto check_nodes = [num_nodes](const std::vector<int>& nodes) {
+        for (int j : nodes)
+            if (j < 0 || static_cast<size_t>(j) >= num_nodes)
+                throw std::out_of_range("bootstrap_swap: node index out of range");
+    };
+    check_nodes(fixed_pay_nodes);
+    check_nodes(float_start_nodes);
+    check_nodes(float_end_nodes);
+    check_nodes(float_pay_nodes);
+
+    std::vector<double> dfs(node_dfs);
     auto f = [&](double x) -> double {
-        double acc_last  = compounding_apply(comp, BCompoundTransform::RATE_TO_ACCRUAL, t_today_last, x);
-        double df_last   = 1.0 / acc_last;
-        double annuity   = annuity_const + last_dc_frac * df_last;
-        for (size_t i = 0; i < gap_dc_fracs.size(); ++i) {
-            double r_i   = r_fixed + gap_fracs[i] * (x - r_fixed);
-            double acc_i = compounding_apply(comp, BCompoundTransform::RATE_TO_ACCRUAL, gap_t_todays[i], r_i);
-            annuity     += gap_dc_fracs[i] / acc_i;
+        for (size_t j = 0; j < num_nodes; ++j) {
+            const double frac = node_fracs[j];
+            if (frac < 0.0)
+                continue;
+            const double r_j = frac == 1.0 ? x : r_fixed + frac * (x - r_fixed);
+            dfs[j] = 1.0 / compounding_apply(comp, BCompoundTransform::RATE_TO_ACCRUAL, node_t_todays[j], r_j);
         }
-        return (df_spot - df_last) / annuity - quote;
+        double annuity = annuity_const;
+        for (size_t i = 0; i < fixed_dc_fracs.size(); ++i)
+            annuity += fixed_dc_fracs[i] * dfs[fixed_pay_nodes[i]];
+        double float_leg = float_const;
+        for (size_t i = 0; i < float_start_nodes.size(); ++i)
+            float_leg += (dfs[float_start_nodes[i]] / dfs[float_end_nodes[i]] - 1.0) * dfs[float_pay_nodes[i]];
+        return float_leg / annuity - quote;
     };
     double root = brent_solve(f, lo, hi, xtol);
     bcurve_update(curve, last_pay_ord, root);

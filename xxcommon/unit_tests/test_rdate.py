@@ -441,6 +441,30 @@ class TestRDate:
         expected = [date(2023, 1, 15), date(2023, 4, 15), date(2023, 7, 15)]
         assert dates == expected
 
+    def test_dates_schedule_month_end_no_drift(self):
+        """Each date is n steps from the start (end), not chained from the previous date, so month ends don't drift."""
+        rd = RDate('3M')
+
+        class MockCalendar:
+            def is_bizday(self, d):
+                return True
+
+            def next_bizday(self, d):
+                return d
+
+            def prev_bizday(self, d):
+                return d
+
+        cal = MockCalendar()
+
+        # Forward: chained steps would give Nov 30 -> Feb 29 -> May 29 -> Aug 29 -> Nov 29
+        dates = rd.dates_schedule(date(2023, 11, 30), date(2024, 11, 30), cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.FORWARD, allow_stub=False)
+        assert dates == [date(2023, 11, 30), date(2024, 2, 29), date(2024, 5, 30), date(2024, 8, 30), date(2024, 11, 30)]
+
+        # Backward: chained steps would give Aug 31 -> May 31 -> Feb 29 -> Nov 29 -> Aug 29
+        dates = rd.dates_schedule(date(2023, 8, 31), date(2024, 8, 31), cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.BACKWARD, allow_stub=False)
+        assert dates == [date(2023, 8, 31), date(2023, 11, 30), date(2024, 2, 29), date(2024, 5, 31), date(2024, 8, 31)]
+
     def test_period_dates(self):
         """Test period_dates method."""
         rd = RDate('3M')
