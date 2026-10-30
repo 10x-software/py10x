@@ -133,16 +133,16 @@ class TestFinInstrument:
         assert swap.pay_dates[-1] == swap.mkt_conventions.pay_date(swap.end_dates[-1])
         assert swap.pay_date != swap.end_date
 
-    def test_native_pillars_match_quantlib(self):
+    @pytest.mark.parametrize('mkt', ['SOFR', 'SONIA', 'CORRA'])
+    def test_native_pillars_match_quantlib(self, mkt):
         # Deposit pillars are maturity dates. Swap pillars discount a coupon that stops
         # accruing at the period end and is paid on the settlement lag. Both must agree
         # with QuantLib's DepositRateHelper and OISRateHelper on the dev quotes.
-        for mkt, native in (('SOFR', self.usd_zrc), ('SONIA', self.gbp_zrc), ('CORRA', self.cad_zrc)):
-            ql_curve = ZeroRateCurveQL(mkt_name=mkt, **self.md_basis).payload
-            native_curve = native.payload
-            assert list(native_curve.dates) == list(ql_curve.dates), mkt
-            for d in native_curve.dates:
-                assert native_curve.value(d) == pytest.approx(ql_curve.value(d), abs=1e-8), (mkt, d)
+        ql_curve = ZeroRateCurveQL(mkt_name=mkt, **self.md_basis).payload
+        native_curve = ZeroRateCurve(mkt_name=mkt, **self.md_basis).payload
+        assert list(native_curve.dates) == list(ql_curve.dates)
+        for d in native_curve.dates:
+            assert native_curve.value(d) == pytest.approx(ql_curve.value(d), abs=1e-8), d
 
     def test_disc_curve(self):
         assert self.usd_cf.disc_curve == self.usd_zrc
