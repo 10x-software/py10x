@@ -37,6 +37,21 @@ def cxx_or_py_rates_curve(use_cxx, cxx_or_py_cxx_rate_curve):
 
 
 @pytest.fixture
+def cxx_or_py_zero_rate_curve(use_cxx, cxx_or_py_rates_curve, monkeypatch):
+    #-- ir_zero_rate_curve binds RateCurve and the bootstrap at import, during the conftest's dev-data build
+    #-- (before it sets use_cxxfin), so without this every leg runs the py bootstrap on a py curve
+    import xxfin.ir_zero_rate_curve
+
+    from xxfin import cxx_zrc_bootstrap, py_zrc_bootstrap
+
+    bootstrap = cxx_zrc_bootstrap if use_cxx else py_zrc_bootstrap
+    monkeypatch.setattr(xxfin.ir_zero_rate_curve, 'RateCurve', xxfin.rate_curve.RateCurve)
+    monkeypatch.setattr(xxfin.ir_zero_rate_curve, 'solve_cash_deposit', bootstrap.solve_cash_deposit)
+    monkeypatch.setattr(xxfin.ir_zero_rate_curve, 'solve_swap', bootstrap.solve_swap)
+    yield
+
+
+@pytest.fixture
 def cxx_or_py_cxx_rate_curve(cxx_or_py_py_rate_curve):
     importlib.reload(xxfin.cxx_rate_curve)
     yield

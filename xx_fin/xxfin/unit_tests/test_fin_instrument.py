@@ -134,7 +134,7 @@ class TestFinInstrument:
         assert swap.pay_date != swap.end_date
 
     @pytest.mark.parametrize('mkt', ['SOFR', 'SONIA', 'CORRA'])
-    def test_native_pillars_match_quantlib(self, mkt):
+    def test_native_pillars_match_quantlib(self, mkt, cxx_or_py_zero_rate_curve):
         # Deposit pillars are maturity dates. Swap pillars discount a coupon that stops
         # accruing at the period end and is paid on the settlement lag. Both must agree
         # with QuantLib's DepositRateHelper and OISRateHelper on the dev quotes.
