@@ -139,16 +139,7 @@ class QL:
 
     @classmethod
     def deposit_helper(cls, quotable: IRCashDepositQuotable, mc: IRRateMktConventions, md_date: date) -> ql.DepositRateHelper:
-        #-- Spot deposits (every tenor but '1B') start on the spot date rolled on the currency
-        #   bank calendar, not mc.calendar. The helper then advances fixingDays on the calendar
-        #   it is given, so that calendar has to be the one that produced start_date or the
-        #   start misses it. USD bank calendar FD and the SOFR curve calendar US differ inside
-        #   T+2. '1B' starts today and its end rolls on mc.calendar; keep that calendar so the
-        #   overnight business-day advance does not move onto the bank calendar.
-        if quotable.tenor.symbol() == '1B':
-            calendar = mc.calendar.ql_calendar
-        else:
-            calendar = mc.ccy.bank_calendar.ql_calendar
+        calendar    = mc.calendar.ql_calendar
         fixing_days = calendar.businessDaysBetween(cls.to_date(md_date), cls.to_date(quotable.start_date))
 
         return ql.DepositRateHelper(
@@ -171,15 +162,13 @@ class QL:
         if mc.fixed_leg_swap_dc_convention is not mc.dc_convention:
             raise NotImplementedError(f'{mc.mkt_name}: OISRateHelper cannot express a fixed-leg day count ({mc.fixed_leg_swap_dc_convention}) different from the index day count ({mc.dc_convention})')
 
-        #-- settlementDays is a business-day spot lag. A week or month count is not that lag.
-        if mc.spot_offset.freq is not TENOR_FREQUENCY.BIZDAY:
-            raise ValueError(f'{mc.mkt_name}: OIS spot lag must be business days, got {mc.spot_offset.symbol()}')
-
         payment_frequency = cls.frequency(mc.fixed_leg_swap_tenor_frequency)
 
-        return ql.OISRateHelper(
-            mc.spot_offset.count,
-            cls.period(quotable.tenor),
+        #-- dated, not spot lag + tenor: native spot rolls on the ccy bank calendar while the
+        #   schedule rolls on mc.calendar, and a lag-based helper would roll both on one calendar
+        return ql.OISRateHelper.forDates(
+            cls.to_date(quotable.start_date),
+            cls.to_date(quotable.end_date),
             quotable.quote,
             index,
             paymentLag           = mc.settle_offset.count,
