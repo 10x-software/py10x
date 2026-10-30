@@ -408,8 +408,6 @@ pyyaml==6.0.3
 qtpy==2.4.3 ; sys_platform == 'openbsd6'
     # via pywebview
 quantlib==1.44
-    # via quantlib-python
-quantlib-python==1.18
     # via py10x-fin-base
 rapidfuzz==3.14.6
     # via rio-ui

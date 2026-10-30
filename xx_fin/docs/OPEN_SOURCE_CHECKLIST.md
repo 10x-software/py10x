@@ -27,7 +27,7 @@ Not legal advice; consider legal review before publishing.
 | Dependency | Typical license | MIT compatible | Notes |
 |------------|-----------------|-----------------|-------|
 | py10x-core, py10x-kernel, py10x-infra | MIT | Yes | Already public on PyPI. |
-| quantlib-python | BSD-3-Clause-style (QuantLib License) | Yes | |
+| quantlib | BSD-3-Clause-style (QuantLib License) | Yes | |
 | aadc | **Proprietary/commercial** (not open source) | N/A — not distributed under an OSI license | Installable freely from MatLogica's own package index (separate install, not bundled); the published wheel is the Community Edition build — licensed for non-commercial/academic use only, no activation/key/trial period required for that use. Commercial use or advanced features (e.g. AVX-512) require a license obtained by contacting MatLogica; an optional license file (`AADC_NG_LICENSE`), supplied out-of-band, unlocks those — `xxfin` does not depend on it. Listed in `xx_fin/NOTICE`'s commercial-dependencies section; platform-availability detail lives in `README.md`. `xx_fin/pyproject.toml` carries no platform/Python-version marker on `aadc>=2.8.0` — MatLogica's wheels cover every target `xx_fin` supports. |
 | xbbg (optional `bbg` extra) | Apache 2.0 | Yes | Open source; listed in `xx_fin/NOTICE`'s open-source section. |
 | blpapi (optional `bbg` extra) | **Proprietary/commercial** (not open source) | N/A — not distributed under an OSI license | Bloomberg's own API, distributed only via Bloomberg's dedicated, entitlement-gated package index (`[[tool.uv.index]] name = "bloomberg"` in `xx_fin/pyproject.toml`); requires a valid Bloomberg entitlement/Terminal license. Listed in `xx_fin/NOTICE`'s commercial-dependencies section, not alongside xbbg. |
@@ -124,7 +124,7 @@ images/logos are shipped under `xx_fin/`.
   (CI `smoke_test` job).
 - [x] Dependency license check with optional extras (§2):
   `uv run licensecheck -r xx_fin/pyproject.toml --extras bbg,dev` —
-  `quantlib-python` / `xbbg` MIT-compatible; `blpapi` / `aadc` documented commercial exceptions.
+  `quantlib` / `xbbg` MIT-compatible; `blpapi` / `aadc` documented commercial exceptions.
 
 Known, accepted-risk items — explicit calls for the `0.1rc1` pre-release, not oversights:
 

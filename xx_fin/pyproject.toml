@@ -28,7 +28,7 @@ dependencies = [
     # Kernel/infra come transitively via py10x-core.
     "py10x-core (>=0.4.0rc1,<0.4.0rc2)",
     "py10x-fin-base-cxx (==0.2.0rc1)",  # co-released; same version as this package
-    "quantlib-python>=1.18",
+    "quantlib>=1.40",
 ]
 
 [project.optional-dependencies]
