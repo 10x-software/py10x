@@ -39,7 +39,7 @@ class TestIRSwapQuotable:
         for irate in self.irates:
             irate['tenor']  = RDate(irate['tenor_sym'])
             irate['mc']     = IRRateMktConventions(mkt_name = irate['irate'])
-            irate['zrc']    = ZeroRateCurve(mkt_name = irate['irate'], **self.md_basis).payload
+            irate['zrc']    = ZeroRateCurve(mkt_name = irate['irate'], **self.md_basis)
             irate['sq']     = IRSwapQuotable(mkt_name = irate['irate'], tenor=irate['tenor'], **self.md_basis)
 
     def test_start_end_dates(self):
@@ -88,9 +88,10 @@ class TestIRSwapQuotable:
             incr_dcfs = [irate['dc_conv'](sd, ed) for sd, ed in zip(swap.start_dates, swap.end_dates, strict=True)]
             assert incr_dcfs == swap.incremental_dc_fractions
 
+    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_annuity_calc(self):
         for irate in self.irates:
-            zrc = irate['zrc']
+            zrc = irate['zrc'].payload
             swap = irate['sq']
             num_periods = len(swap.pay_dates)
             assert swap.annuity_calc(zrc) == swap.annuity_calc(zrc, num_periods), 'annuity default num periods is off'

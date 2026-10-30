@@ -6,15 +6,17 @@ import xxcommon.curve
 import xxfin.cxx_rate_curve
 import xxfin.day_count_convention
 import xxfin.ir_compounding
+import xxfin.ir_zero_rate_curve
 import xxfin.py_rate_curve
 import xxfin.rate_curve
+import xxfin.zrc_bootstrap
 
 #-- Every module the fixtures below re-import. Their namespaces are snapshotted and put back
 #-- verbatim on exit (see use_cxx) rather than re-imported: re-running the module bodies would
 #-- resolve against the *current* flags, and this suite runs with use_cxxfin deliberately True
 #-- while day_count_convention / ir_compounding are still bound to the py implementations they
 #-- imported before the conftest flipped it. Restoring the snapshot also keeps the original class
-#-- objects alive, so modules that captured them at import (e.g. ir_zero_rate_curve) stay coherent.
+#-- objects alive, so modules that captured them at import (e.g. ir_zero_rate_curve_ql) stay coherent.
 _SWAPPED_MODULES = (
     xxcommon.curve,
     xxfin.day_count_convention,
@@ -22,6 +24,8 @@ _SWAPPED_MODULES = (
     xxfin.py_rate_curve,
     xxfin.cxx_rate_curve,
     xxfin.rate_curve,
+    xxfin.zrc_bootstrap,
+    xxfin.ir_zero_rate_curve,
 )
 
 
@@ -37,17 +41,15 @@ def cxx_or_py_rates_curve(use_cxx, cxx_or_py_cxx_rate_curve):
 
 
 @pytest.fixture
-def cxx_or_py_zero_rate_curve(use_cxx, cxx_or_py_rates_curve, monkeypatch):
-    #-- ir_zero_rate_curve binds RateCurve and the bootstrap at import, during the conftest's dev-data build
-    #-- (before it sets use_cxxfin), so without this every leg runs the py bootstrap on a py curve
-    import xxfin.ir_zero_rate_curve
-
+def cxx_or_py_zero_rate_curve(use_cxx, cxx_or_py_rates_curve):
+    #-- ZeroRateCurve methods read RateCurve and solve_* from the module globals, so the class object
+    #-- other modules imported before this reload picks up the swap as well
+    importlib.reload(xxfin.zrc_bootstrap)
+    importlib.reload(xxfin.ir_zero_rate_curve)
     from xxfin import cxx_zrc_bootstrap, py_zrc_bootstrap
 
-    bootstrap = cxx_zrc_bootstrap if use_cxx else py_zrc_bootstrap
-    monkeypatch.setattr(xxfin.ir_zero_rate_curve, 'RateCurve', xxfin.rate_curve.RateCurve)
-    monkeypatch.setattr(xxfin.ir_zero_rate_curve, 'solve_cash_deposit', bootstrap.solve_cash_deposit)
-    monkeypatch.setattr(xxfin.ir_zero_rate_curve, 'solve_swap', bootstrap.solve_swap)
+    assert xxfin.ir_zero_rate_curve.RateCurve is xxfin.rate_curve.RateCurve
+    assert xxfin.ir_zero_rate_curve.solve_swap is (cxx_zrc_bootstrap if use_cxx else py_zrc_bootstrap).solve_swap
     yield
 
 
