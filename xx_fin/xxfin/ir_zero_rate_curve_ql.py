@@ -16,9 +16,10 @@ class ZeroRateCurveQL(ZeroRateCurve):
     rescaling of its time axis (verified empirically).
 
     Swaps are OIS (fixed vs. compounded-overnight, single curve for both forecasting and
-    discounting -- confirmed by RateCurve.swap_rate_simple_compounding()'s telescoping-annuity
-    formula), calibrated via ql.OISRateHelper against ql.OvernightIndex whose forecast curve
-    is a RelinkableYieldTermStructureHandle linked back to the curve being built here.
+    discounting). Each floating coupon compounds to its accrual end and is discounted from
+    the delayed payment date, matching RateCurve.swap_rate_simple_compounding(). Calibrated
+    via ql.OISRateHelper against ql.OvernightIndex whose forecast curve is a
+    RelinkableYieldTermStructureHandle linked back to the curve being built here.
     """
     def payload_get(self) -> RateCurve:
         today = self.md_date

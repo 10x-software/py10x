@@ -41,8 +41,8 @@ class PackageRefactoring:
 
         self.package_name = top_package_name
         try:
-            module = importlib.import_module(self.s_module_name, top_package_name)
-        except Exception:
+            module = importlib.import_module(f'.{self.s_module_name}', top_package_name)
+        except ModuleNotFoundError:
             self.cid_to_path = {}
             self.path_to_cid = {}
             return
@@ -70,7 +70,7 @@ class PackageRefactoring:
     def _save(self):
         text = [f'{self.__class__.s_records_name} = {{']
         for cid, path in self.cid_to_path.items():
-            text.append(f'\t{cid}:\t\t"{path}"')
+            text.append(f'\t{cid!r}:\t\t{path!r},')
         text.append('}')
         s = '\n'.join(text)
         with open(self.file_name, mode='w') as f:
@@ -127,8 +127,8 @@ class PackageRefactoring:
         if cid is None:
             raise ValueError(f'Unknown canonical class name {canonical_class_name}')
 
-        del pkg_refactor.cid_to_path[canonical_class_name]
-        del pkg_refactor.path_to_cid[cid]
+        del pkg_refactor.cid_to_path[cid]
+        del pkg_refactor.path_to_cid[canonical_class_name]
 
         if save:
             pkg_refactor._save()
