@@ -7,7 +7,7 @@
 #     #!/bin/bash
 #     bash /home/user/py10x/scripts/cloud_setup.sh
 #
-# It runs as root, before the session starts, from the default branch's checkout. The result is
+# or paste this file's body there. It runs as root, before the session starts, from the default branch's checkout. The result is
 # snapshot-cached (~7 days) only when it finishes within ~5 minutes; editing this file does not
 # invalidate the cache - editing the environment's script or allowed hosts does.
 #
@@ -19,7 +19,10 @@
 # Bloomberg's index). No browser download is needed - see the playwright step below.
 set -euxo pipefail
 
-REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# A pasted body runs as a copy under /tmp, so its own location says nothing about the checkout.
+for REPO in "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" "$PWD" /home/user/py10x; do
+  [ -f "$REPO/uv.lock" ] && [ -x "$REPO/xx-build" ] && break
+done
 DEV=ubuntu
 id -u "$DEV" >/dev/null 2>&1 || useradd -m "$DEV"
 
