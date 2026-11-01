@@ -1,7 +1,7 @@
 from datetime import date
 
 from core_10x.selectable_traitable_class import SelectableTraitableClass
-from xxcommon.rdate import BIZDAY_ROLL_RULE, PROPAGATE_DATES, TENOR_FREQUENCY, RDate
+from xxcommon.rdate import BIZDAY_ROLL_RULE, TENOR_FREQUENCY, RDate
 
 from xxfin.fin_calendar import FinCalendar
 from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable, IRRateMktConventions
@@ -23,9 +23,8 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
         mkt_basis       = self.md_basis
         mao             = self.mkt_assembly_object
 
-        #-- pay_date already accounts for the '1B' start-today override (via start_date_get) and
-        #   the tenor-roll + pay-lag chain (via end_date_get/pay_date_get on the quotable itself),
-        #   so it doesn't need to be re-derived here.
+        #-- keyed by the date of the curve point each quotable solves for (its pay_date): a deposit's end date
+        #   (its start already accounts for the '1B' start-today override) or a swap's last pay date
         result = {}
         for quotable_class, data_definition in mao.quotable_stubs_by_class.items():
             quotable_by_date = {}
@@ -69,7 +68,7 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
 
             if _DBG:    # pragma: no cover
                 start_date = quotable.start_date
-                print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')  # pragma: no cover
+                print(f'cash depo tenor = {quotable.tenor.symbol()}, start_date = {start_date}/{start_date.strftime("%A")}, end_date = {end_date}/{end_date.strftime("%A")}, quote = {quotable.quote}, ')
 
             solve_cash_deposit(zrc, quotable.start_date, end_date, quotable.quote, mc, today)
 
@@ -101,7 +100,6 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
         spot_date = mc.spot_date(today)
 
         if _DBG:    # pragma: no cover
-            swap_freq: RDate    = RDate(freq=mc.tenor_frequency, count=1)
             fixed_freq: RDate   = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
             fixed_dc_convention = mc.fixed_leg_swap_dc_convention
             pay_calendar        = mc.settlement_calendar
@@ -114,21 +112,16 @@ class ZeroRateCurve(TenorBasedSyntheticCurve, SelectableTraitableClass, mas_clas
 
         quotable: IRSwapQuotable
         for quotable in quotables.values():
-            tenor = quotable.tenor
+            #-- the solver takes the swap schedules from the quotable, which starts at spot
+            assert quotable.start_date == spot_date, f'{quotable.tenor.symbol()} swap start date {quotable.start_date} != spot date {spot_date}'
 
             if _DBG:    # pragma: no cover
-                end_date_dbg = tenor.apply(spot_date, mc.calendar, mc.roll_rule)
-                print(f'swap tenor/freq = {tenor.symbol()}/{fixed_freq.symbol()}, start_date = {spot_date}/{spot_date.strftime("%A")}, end_date = {end_date_dbg}/{end_date_dbg.strftime("%A")}, swap quote = {quotable.quote}, ')
+                end_date_dbg = quotable.end_date
+                print(f'swap tenor/freq = {quotable.tenor.symbol()}/{fixed_freq.symbol()}, start_date = {spot_date}/{spot_date.strftime("%A")}, end_date = {end_date_dbg}/{end_date_dbg.strftime("%A")}, swap quote = {quotable.quote}, ')
 
-            solve_swap(zrc, spot_date, tenor, quotable.quote, mc, today)
+            solve_swap(zrc, quotable, mc, today)
 
             if _DBG:    # pragma: no cover
-                swap_rate = zrc.swap_rate_simple_compounding(
-                    spot_date, tenor,
-                    fixed_freq, fixed_dc_convention,
-                    swap_freq,mc.calendar, mc.roll_rule,
-                    pay_offset, pay_calendar, pay_roll_rule,
-                    PROPAGATE_DATES.FORWARD, False,
-                )
+                swap_rate = quotable.swap_rate_calc(zrc, today)
                 print(f'quote = {quotable.quote}, swap_rate = {swap_rate}, swap_rate - quote = {swap_rate - quotable.quote}\n')
 

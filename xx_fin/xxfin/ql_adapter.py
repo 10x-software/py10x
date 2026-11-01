@@ -137,17 +137,8 @@ class QL:
 
     @classmethod
     def deposit_helper(cls, quotable: IRCashDepositQuotable, mc: IRRateMktConventions) -> ql.DepositRateHelper:
-        #-- ql.DepositRateHelper has no dates-based constructor (verified: all 5 overloads are
-        #   tenor+calendar-driven) and RateHelper has no Python director support either (its
-        #   __init__ only exposes the bare Observable constructor), so there's no way to make it
-        #   land exactly on quotable.pay_date -- that date includes a settle/pay lag applied
-        #   *after* the tenor-rolled end date, and calendar.advance() can only do one tenor-roll
-        #   per call, not roll-then-lag (confirmed: ql.Period(n, ql.Days) advances n BUSINESS days,
-        #   not n calendar days, so it can't be used to hop straight to a precomputed date either).
-        #   This calibrates against the un-lagged tenor-end date (quotable.end_date) instead, which
-        #   introduces a small (~1-2bp, growing mildly with tenor) discrepancy vs. the native
-        #   curve's pay-lagged pillar -- a structural limitation of stock QuantLib RateHelpers in
-        #   Python, not a bug to chase further.
+        #-- ql.DepositRateHelper is tenor+calendar-driven (no dates-based constructor), so its pillar is
+        #   the tenor-rolled end date -- the same as the native curve's point for a deposit (pay_date == end_date)
         calendar = mc.calendar.ql_calendar
         today    = ql.Settings.instance().evaluationDate
         start    = cls.to_date(quotable.start_date)

@@ -296,6 +296,44 @@ class TestRateCurve:
                         end = tenor.apply(spot, cal, roll_rule)
                         assert float_leg == pytest.approx(rc.discount_factor(spot) - rc.discount_factor(end), abs=1.e-14)
 
+    def test_swap_legs_for_period_dates(self):
+        rc          = self.rc
+        cal         = FinCalendar.none
+        roll_rule   = BIZDAY_ROLL_RULE.NO_ROLL
+        spot        = date(2019, 12, 3)
+        fixed_freq  = RDate('1Y')
+        swap_freq   = RDate('1Q')
+        fixed_dc    = DAY_COUNT_CONVENTION.ACT360
+
+        for tenor in [RDate('1Y'), RDate('18M'), RDate('5Y')]:
+            for pay_delay in [RDate('0C'), RDate('2C')]:
+                fixed_starts, fixed_ends, fixed_pays = rc.period_dates(spot, tenor, fixed_freq, cal, roll_rule, pay_delay, cal, roll_rule)
+                float_starts, float_ends, float_pays = rc.period_dates(spot, tenor, swap_freq,  cal, roll_rule, pay_delay, cal, roll_rule)
+                fixed_dc_fractions = [fixed_dc(s, e) for s, e in zip(fixed_starts, fixed_ends, strict=True)]
+
+                annuity = rc.annuity_for_dc_fractions(fixed_dc_fractions, fixed_pays)
+                assert annuity == rc.annuity_for_period_dates(fixed_dc, fixed_starts, fixed_ends, fixed_pays)
+                assert annuity == rc.annuity(fixed_dc, spot, tenor, fixed_freq, cal, roll_rule, pay_delay, cal, roll_rule)
+
+                #-- w/o the pay delay the float leg telescopes, otherwise it's the explicit sum
+                float_leg = rc.swap_float_leg_for_period_dates(float_starts, float_ends, float_pays)
+                float_leg_explicit = sum(
+                    (rc.discount_factor(s) / rc.discount_factor(e) - 1.) * rc.discount_factor(p)
+                    for s, e, p in zip(float_starts, float_ends, float_pays, strict=True)
+                )
+                assert float_leg == pytest.approx(float_leg_explicit, abs = 1.e-15)
+
+                #-- the shared discount factors give the same legs
+                dfs = rc.discount_factors_by_date(fixed_pays, float_starts, float_ends, float_pays)
+                assert rc.annuity_for_dc_fractions(fixed_dc_fractions, fixed_pays, dfs = dfs) == annuity
+                assert rc.swap_float_leg_for_period_dates(float_starts, float_ends, float_pays, dfs = dfs) == float_leg
+
+                swap_rate = rc.swap_rate_for_period_dates(fixed_dc_fractions, fixed_pays, float_starts, float_ends, float_pays)
+                assert swap_rate == float_leg / annuity
+                assert swap_rate == rc.swap_rate_simple_compounding(spot, tenor, fixed_freq, fixed_dc, swap_freq, cal, roll_rule, pay_delay, cal, roll_rule)
+
+        assert rc.swap_float_leg_for_period_dates([], [], []) == rc.annuity_for_dc_fractions([], []) == 0.
+
     @staticmethod
     def _swap_mkt_conventions(swap_freq: TENOR_FREQUENCY, pay_delay: RDate) -> SimpleNamespace:
         return SimpleNamespace(
@@ -309,24 +347,49 @@ class TestRateCurve:
             settle_offset                   = pay_delay,
         )
 
-    s_bootstrap_today   = date(2025, 10, 10)
-    s_bootstrap_swaps   = [('1Y', 0.0410), ('2Y', 0.0395), ('3Y', 0.0402), ('5Y', 0.0425), ('7Y', 0.0441)]
-
-    def _bootstrap_curve(self, solve_swap, mc):
-        today = self.s_bootstrap_today
-        zrc = RateCurve(
-            dates   = [today, today + timedelta(days = 91), today + timedelta(days = 182)],
-            values  = [0.0420, 0.0418, 0.0414],
+    @staticmethod
+    def _swap_quotable(rc, spot: date, tenor: RDate, quote: float, mc: SimpleNamespace) -> SimpleNamespace:
+        """
+        A stand-in for IRSwapQuotable: what the swap bootstraps take from it (the legs' schedules come from the same RateCurve.period_dates())
+        """
+        pay_args = (mc.settle_offset, mc.settlement_calendar, mc.roll_rule_to_settle)
+        fixed_starts, fixed_ends, fixed_pays = rc.period_dates(spot, tenor, RDate(freq = mc.fixed_leg_swap_tenor_frequency, count = 1), mc.calendar, mc.roll_rule, *pay_args)
+        float_starts, float_ends, float_pays = rc.period_dates(spot, tenor, RDate(freq = mc.tenor_frequency,                count = 1), mc.calendar, mc.roll_rule, *pay_args)
+        return SimpleNamespace(
+            tenor               = tenor,
+            quote               = quote,
+            start_date          = spot,
+            pay_date            = float_pays[-1],
+            start_dates         = float_starts,
+            end_dates           = float_ends,
+            pay_dates           = float_pays,
+            fixed_pay_dates     = fixed_pays,
+            fixed_dc_fractions  = [mc.fixed_leg_swap_dc_convention(s, e) for s, e in zip(fixed_starts, fixed_ends, strict=True)],
         )
-        zrc.beginning_of_time = today
+
+    s_bootstrap_today   = date(2025, 10, 10)
+    s_bootstrap_swaps   = [('1Y', 0.0410), ('18M', 0.0400), ('2Y', 0.0395), ('3Y', 0.0402), ('5Y', 0.0425), ('7Y', 0.0441)]
+
+    def _bootstrap_curve(self, solve_swap, mc, swaps_only = False):
+        today = self.s_bootstrap_today
+        if swaps_only:
+            #-- the 1st swap anchors the beginning of time at its own zero rate
+            zrc = RateCurve(beginning_of_time = today)
+        else:
+            zrc = RateCurve(
+                dates   = [today, today + timedelta(days = 91), today + timedelta(days = 182)],
+                values  = [0.0420, 0.0418, 0.0414],
+            )
+            zrc.beginning_of_time = today
         spot = today + timedelta(days = 2)
         for tenor, quote in self.s_bootstrap_swaps:
-            solve_swap(zrc, spot, RDate(tenor), quote, mc, today)
+            solve_swap(zrc, self._swap_quotable(zrc, spot, RDate(tenor), quote, mc), mc, today)
         return zrc
 
     @pytest.mark.parametrize('swap_freq', [TENOR_FREQUENCY.QUARTER, TENOR_FREQUENCY.YEAR], ids=['Q', 'Y'])
     @pytest.mark.parametrize('pay_delay', ['0C', '2C', '5C'])
-    def test_swap_bootstrap_reprices(self, use_cxx, swap_freq, pay_delay):
+    @pytest.mark.parametrize('swaps_only', [False, True], ids=['knots', 'swaps_only'])
+    def test_swap_bootstrap_reprices(self, use_cxx, swap_freq, pay_delay, swaps_only):
         if use_cxx:
             from xxfin.cxx_zrc_bootstrap import solve_swap
         else:
@@ -334,7 +397,7 @@ class TestRateCurve:
 
         pay_delay = RDate(pay_delay)
         mc = self._swap_mkt_conventions(swap_freq, pay_delay)
-        zrc = self._bootstrap_curve(solve_swap, mc)
+        zrc = self._bootstrap_curve(solve_swap, mc, swaps_only)
 
         today = self.s_bootstrap_today
         spot  = today + timedelta(days = 2)
@@ -344,13 +407,17 @@ class TestRateCurve:
                 RDate(freq = mc.fixed_leg_swap_tenor_frequency, count = 1), mc.fixed_leg_swap_dc_convention,
                 RDate(freq = swap_freq, count = 1), mc.calendar, mc.roll_rule,
                 pay_delay, mc.settlement_calendar, mc.roll_rule_to_settle,
-                PROPAGATE_DATES.FORWARD, False, today,
+                today = today,
             )
             assert swap_rate == pytest.approx(quote, abs = 1.e-10), tenor
 
+        if swaps_only:
+            assert zrc.value(today) == zrc.value(zrc.dates[1]), 'the beginning of time is anchored at the 1st swap zero rate'
+
     @pytest.mark.parametrize('swap_freq', [TENOR_FREQUENCY.QUARTER, TENOR_FREQUENCY.YEAR], ids=['Q', 'Y'])
     @pytest.mark.parametrize('pay_delay', ['0C', '2C', '5C'])
-    def test_swap_bootstrap_cxx_vs_py(self, use_cxx, swap_freq, pay_delay):
+    @pytest.mark.parametrize('swaps_only', [False, True], ids=['knots', 'swaps_only'])
+    def test_swap_bootstrap_cxx_vs_py(self, use_cxx, swap_freq, pay_delay, swaps_only):
         if not use_cxx:
             pytest.skip('compares the cxx bootstrap to py on the same (cxx) curve class')
 
@@ -358,9 +425,27 @@ class TestRateCurve:
         from xxfin.py_zrc_bootstrap import solve_swap as py_solve_swap
 
         mc = self._swap_mkt_conventions(swap_freq, RDate(pay_delay))
-        py_dates_values  = self._bootstrap_curve(py_solve_swap,  mc).dates_values()
-        cxx_dates_values = self._bootstrap_curve(cxx_solve_swap, mc).dates_values()
+        py_dates_values  = self._bootstrap_curve(py_solve_swap,  mc, swaps_only).dates_values()
+        cxx_dates_values = self._bootstrap_curve(cxx_solve_swap, mc, swaps_only).dates_values()
 
         assert [d for d, _ in cxx_dates_values] == [d for d, _ in py_dates_values]
         for (d, cxx_v), (_, py_v) in zip(cxx_dates_values, py_dates_values, strict=True):
             assert cxx_v == pytest.approx(py_v, abs = 1.e-11), d
+
+    def test_swap_bootstrap_wide_bracket_fallback(self, use_cxx, monkeypatch):
+        from xxfin import root_solver
+        if use_cxx:
+            from xxfin.cxx_zrc_bootstrap import solve_swap
+        else:
+            from xxfin.py_zrc_bootstrap import solve_swap
+
+        mc = self._swap_mkt_conventions(TENOR_FREQUENCY.YEAR, RDate('2C'))
+        expected = self._bootstrap_curve(solve_swap, mc).dates_values()
+
+        #-- too narrow to straddle any root, so every swap falls back to the wide bracket
+        monkeypatch.setattr(root_solver, 'near_half_width', 1.e-9)
+        fallback = self._bootstrap_curve(solve_swap, mc).dates_values()
+
+        assert [d for d, _ in fallback] == [d for d, _ in expected]
+        for (d, v), (_, expected_v) in zip(fallback, expected, strict=True):
+            assert v == pytest.approx(expected_v, abs = 1.e-11), d
