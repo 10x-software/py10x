@@ -10,9 +10,9 @@
 # or paste this file's body there. It runs as root, before the session starts, from the default branch's checkout. The result is
 # snapshot-cached (~7 days); editing this file does not invalidate the cache - editing the
 # environment's script or allowed hosts does. The script is killed after ~5 minutes and the session
-# then starts from the partial result, uncached: the quick steps go first, and the SessionStart hook
-# (scripts/cloud_services.sh) finishes the dev env in the background if it was cut off. A cold dev
-# env takes ~3 minutes on a fast network, much longer on a slow one.
+# then starts from the partial result, uncached: the quick steps go first, and an async SessionStart
+# hook (scripts/cloud_dev_env_hook.sh) finishes the dev env if it was cut off. A cold dev env takes
+# ~3 minutes on a fast network, much longer on a slow one.
 #
 # The dev env is built as the non-root `ubuntu` user, who owns the checkout (tests that expect
 # PermissionError cannot pass as root). The session itself still runs as root: run uv / pytest in
@@ -87,11 +87,15 @@ runuser -u postgres -- psql -p 5433 -qc "ALTER ROLE postgres PASSWORD 'py10x_pg_
 pg_ctlcluster 16 main stop
 pg_ctlcluster 16 auth stop
 
+# Pre-pull the MongoDB image so the per-session start is fast; dockerd only runs for the pull. The pull
+# is network-bound and the dev env build mostly CPU-bound, so they overlap; neither is worth failing for.
+(
+  (dockerd >/var/log/dockerd.log 2>&1 &)
+  timeout 60 bash -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
+  docker pull mirror.gcr.io/library/mongo:8 || true
+  pkill -x dockerd
+  timeout 30 bash -c 'while pgrep -x dockerd >/dev/null; do sleep 1; done'
+) &
+MONGO_PULL=$!
 as-dev scripts/cloud_dev_env.sh
-
-# Pre-pull the MongoDB image so the per-session start is fast; dockerd only runs for the pull.
-(dockerd >/var/log/dockerd.log 2>&1 &)
-timeout 60 bash -c 'until docker info >/dev/null 2>&1; do sleep 1; done'
-docker pull mirror.gcr.io/library/mongo:8 || true
-pkill -x dockerd
-timeout 30 bash -c 'while pgrep -x dockerd >/dev/null; do sleep 1; done'
+wait "$MONGO_PULL" || true

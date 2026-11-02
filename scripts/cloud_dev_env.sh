@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build the cloud dev environment, as the dev user: `as-dev scripts/cloud_dev_env.sh`. Called by
-# cloud_setup.sh, and by cloud_services.sh when the setup script was cut off before finishing it.
+# cloud_setup.sh, and by cloud_dev_env_hook.sh when the setup script was cut off before finishing it.
 # A no-op once .venv is fully synced; an interrupted venv is rebuilt from scratch.
 set -euxo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
