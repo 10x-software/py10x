@@ -1,14 +1,31 @@
 import __future__
 import ast
+import functools
 import importlib.machinery
 import inspect
 import sys
 import textwrap
+import threading
 from typing import Callable
 
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.trait import TRAIT_METHOD
 from core_10x.traitable import Traitable, Trait
+
+#-- ONE lock for every rewriter and registry: they share state across instances (instrument() execs into the
+# defining module's globals; a registry's tables are read by apply()/restore() while imports add to them).
+# Never import while holding it: the loader calls instrument_module() under the importing module's own import
+# lock, so a thread that holds this lock and waits on that import deadlocks against it -- resolve names first.
+_instrumentation_lock = threading.RLock()
+
+
+def _serialized(method):
+    @functools.wraps(method)
+    def wrapper(*args, **kwargs):
+        with _instrumentation_lock:
+            return method(*args, **kwargs)
+
+    return wrapper
 
 
 class CallableRewriter(ast.NodeTransformer):
@@ -20,7 +37,8 @@ class CallableRewriter(ast.NodeTransformer):
 
     One instance is constructed once per theme and reused across every function it instruments -- instrument()
     derives filename fresh from each function itself (inspect.getsourcefile), so there's no need to construct a
-    new rewriter per function.
+    new rewriter per function. instrument() is serialized (see _instrumentation_lock), so per-call state such as
+    filename may live on the instance.
 
     instrument() owns the ENTIRE per-function pipeline -- source extraction, parsing, line-number correction,
     decorator stripping, visiting, recompiling, and re-executing against the function's own globals -- so a theme
@@ -34,6 +52,7 @@ class CallableRewriter(ast.NodeTransformer):
     def location_id(self, node: ast.stmt | ast.expr) -> str:
         return f'{self.filename}:{node.lineno}'
 
+    @_serialized
     def instrument(self, function: Callable) -> Callable:
         self.filename = inspect.getsourcefile(function) or '<unknown>'
         source_lines, start_lineno = inspect.getsourcelines(function)
@@ -108,16 +127,19 @@ class InstrumentationRegistry:
             sys.meta_path.remove(self._finder)
             self._finder = None
 
+    @_serialized
     def apply(self):
         Trait.set_use_instrumented_getters(True)
         for (owner, attr_name), (original, instrumented) in self.instrumented_callables.items():
             setattr(owner, attr_name, instrumented)
 
+    @_serialized
     def restore(self):
         Trait.set_use_instrumented_getters(False)
         for (owner, attr_name), (original, instrumented) in self.instrumented_callables.items():
             setattr(owner, attr_name, original)
 
+    @_serialized
     def register_modules(self, *module_names: str):
         self.known_module_names.update(module_names)
 
@@ -128,24 +150,22 @@ class InstrumentationRegistry:
         caller name a class without having to import it themselves first.
         """
         if target_base_classes:
-            base_classes = self.target_base_classes
-            base_classes.clear()
             modules_before = set(sys.modules.values())
-            modules_touched = set()
-            for base_class in target_base_classes:
-                if isinstance(base_class, str):
-                    base_class = PackageRefactoring.find_class(base_class)
-                base_classes.add(base_class)
-                modules_touched.add(sys.modules[base_class.__module__])
+            resolved = _resolve_classes(target_base_classes)   #-- may import: outside the lock
+            with _instrumentation_lock:
+                base_classes = self.target_base_classes
+                base_classes.clear()
+                base_classes.update(resolved)
 
-            #-- resolving a name may import modules (the target's own, and whatever IT imports) while
-            # base_classes above is still incomplete -- e.g. a subclass of a later target, imported by an
-            # earlier one. Re-walk the targets' modules AND every module that import pulled in, now that
-            # the set is settled. Safe to re-walk a module already fully processed --
-            # instrument_class()/instrument_if_target_class() are idempotent per class.
-            modules_touched.update(set(sys.modules.values()) - modules_before)
-            for module in modules_touched:
-                self.instrument_module(module)
+                #-- resolving a name may import modules (the target's own, and whatever IT imports) before
+                # the new set is installed -- e.g. a subclass of one target, imported while resolving another.
+                # Re-walk the targets' modules AND every module that import pulled in, now that the set is
+                # settled. Safe to re-walk a module already fully processed --
+                # instrument_class()/instrument_if_target_class() are idempotent per class.
+                modules_touched = {sys.modules[base_class.__module__] for base_class in resolved}
+                modules_touched.update(set(sys.modules.values()) - modules_before)
+                for module in modules_touched:
+                    self.instrument_module(module)
 
     def set_exclude_classes(self, *exclude_classes: type | str):
         """
@@ -153,13 +173,13 @@ class InstrumentationRegistry:
         subclasses still match normally. Same type | str acceptance as set_target_base_classes.
         """
         if exclude_classes:
-            classes = self.exclude_classes
-            classes.clear()
-            for cls in exclude_classes:
-                if isinstance(cls, str):
-                    cls = PackageRefactoring.find_class(cls)
-                classes.add(cls)
+            resolved = _resolve_classes(exclude_classes)   #-- may import: outside the lock
+            with _instrumentation_lock:
+                classes = self.exclude_classes
+                classes.clear()
+                classes.update(resolved)
 
+    @_serialized
     def instrument_module(self, module):
         if module.__name__ in self.known_module_names:
             self.instrument_known_module(module)
@@ -172,6 +192,7 @@ class InstrumentationRegistry:
                 if isinstance(member, type) and member.__module__ == module.__name__:
                     self.instrument_if_target_class(member)
 
+    @_serialized
     def instrument_known_module(self, module):
         for name, member in list(vars(module).items()):   #-- snapshot -- see instrument_module()
             if inspect.isfunction(member):
@@ -181,6 +202,7 @@ class InstrumentationRegistry:
                 if member.__module__ == module.__name__:
                     self.instrument_class(member)
 
+    @_serialized
     def instrument_if_target_class(self, cls):
         #-- match check comes BEFORE the cycle guard below, deliberately: set_target_base_classes()
         # may re-walk a module whose classes were already seen once under a since-replaced target
@@ -199,6 +221,7 @@ class InstrumentationRegistry:
             if isinstance(member, type):
                 self.instrument_if_target_class(member)   #-- not a match itself - keep looking for nested classes
 
+    @_serialized
     def instrument_class(self, cls):
         if cls in self.instrumented_classes:
             return
@@ -223,6 +246,7 @@ class InstrumentationRegistry:
             elif isinstance(member, type):      #-- deal with nested classes
                 self.instrument_class(member)
 
+    @_serialized
     def instrument_method(self, target_class, method):
         func = method.__func__ if isinstance(method, (classmethod, staticmethod)) else method
         key = (target_class, func.__name__)
@@ -238,6 +262,7 @@ class InstrumentationRegistry:
 
         self.instrumented_callables[key] = (method, alt)
 
+    @_serialized
     def instrument_getter(self, trait: Trait):
         if not trait.has_custom_getter():
             return
@@ -251,6 +276,7 @@ class InstrumentationRegistry:
 
         trait.set_f_get_instrumented(instrumented_f_get)
 
+    @_serialized
     def instrument_free_function(self, module, function):
         key = (module, function.__name__)
         if key not in self.instrumented_callables:
@@ -259,6 +285,10 @@ class InstrumentationRegistry:
 
     def instrument_callable(self, function) -> Callable:
         return self.rewriter.instrument(function)
+
+
+def _resolve_classes(classes) -> list[type]:
+    return [PackageRefactoring.find_class(cls) if isinstance(cls, str) else cls for cls in classes]
 
 
 class InstrumentationLoader(importlib.machinery.SourceFileLoader):
