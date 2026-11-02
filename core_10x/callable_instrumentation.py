@@ -130,6 +130,7 @@ class InstrumentationRegistry:
         if target_base_classes:
             base_classes = self.target_base_classes
             base_classes.clear()
+            modules_before = set(sys.modules)
             modules_touched = set()
             for base_class in target_base_classes:
                 if isinstance(base_class, str):
@@ -137,11 +138,17 @@ class InstrumentationRegistry:
                 base_classes.add(base_class)
                 modules_touched.add(sys.modules[base_class.__module__])
 
-            #-- resolving a name (or just referencing an already-imported class) may have imported
-            # its module before base_classes above was complete -- re-walk it now, with the target
-            # set finally settled, so the named class AND any sibling subclasses in the same module
-            # get a fair (re-)evaluation. Safe to call even for a module already fully processed --
+            #-- resolving a name may import modules (the target's own, and whatever IT imports) while
+            # base_classes above is still incomplete -- e.g. a subclass of a later target, imported by an
+            # earlier one. Re-walk the targets' modules AND every module that import pulled in, now that
+            # the set is settled. Modules still initializing (another thread's import) are skipped: their
+            # loader walks them on completion. Safe to re-walk a module already fully processed --
             # instrument_class()/instrument_if_target_class() are idempotent per class.
+            for name in set(sys.modules) - modules_before:
+                module = sys.modules.get(name)
+                if module is not None and not getattr(getattr(module, '__spec__', None), '_initializing', False):
+                    modules_touched.add(module)
+
             for module in modules_touched:
                 self.instrument_module(module)
 
