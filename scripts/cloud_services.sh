@@ -18,6 +18,17 @@ set -euo pipefail
 
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
 
+# The setup script was cut off before the dev env was complete: finish it in the background, detached
+# so this hook does not wait on it (a cold build takes minutes).
+DEV_ENV_LOG=/tmp/cloud_dev_env.log
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if command -v as-dev >/dev/null 2>&1 && ! grep -qsv incomplete "$REPO/.venv/xx-build-mode"; then
+  setsid nohup bash -c 'as-dev "$0"; echo "cloud_dev_env.sh exit $?"' "$REPO/scripts/cloud_dev_env.sh" \
+    >"$DEV_ENV_LOG" 2>&1 </dev/null &
+  echo "The dev env is being built in the background: wait until the last line of $DEV_ENV_LOG reads" \
+    "'cloud_dev_env.sh exit N' (0 = success) before running as-dev uv / pytest."
+fi
+
 # Mirror of Docker Hub's mongo:8: anonymous Docker Hub pulls from the cloud egress get 429.
 MONGO_IMAGE=mirror.gcr.io/library/mongo:8
 

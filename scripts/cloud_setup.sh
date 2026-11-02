@@ -8,15 +8,18 @@
 #     bash /home/user/py10x/scripts/cloud_setup.sh
 #
 # or paste this file's body there. It runs as root, before the session starts, from the default branch's checkout. The result is
-# snapshot-cached (~7 days) only when it finishes within ~5 minutes; editing this file does not
-# invalidate the cache - editing the environment's script or allowed hosts does.
+# snapshot-cached (~7 days); editing this file does not invalidate the cache - editing the
+# environment's script or allowed hosts does. The script is killed after ~5 minutes and the session
+# then starts from the partial result, uncached: the quick steps go first, and the SessionStart hook
+# (scripts/cloud_services.sh) finishes the dev env in the background if it was cut off. A cold dev
+# env takes ~3 minutes on a fast network, much longer on a slow one.
 #
 # The dev env is built as the non-root `ubuntu` user, who owns the checkout (tests that expect
 # PermissionError cannot pass as root). The session itself still runs as root: run uv / pytest in
 # the checkout through `as-dev`, e.g. `as-dev uv run pytest`.
 #
 # Network: "Trusted" plus blpapi.bloomberg.com under Allowed domains (blpapi is only published on
-# Bloomberg's index). No browser download is needed - see the playwright step below.
+# Bloomberg's index). No browser download is needed - see the playwright step in cloud_dev_env.sh.
 set -euxo pipefail
 
 # A pasted body runs as a copy under /tmp, so its own location says nothing about the checkout.
@@ -37,21 +40,9 @@ pip install --quiet --upgrade uv
 ln -sf /usr/local/bin/uv /root/.local/bin/uv
 ln -sf /usr/local/bin/uvx /root/.local/bin/uvx
 
-# The build hook runs `playwright install chromium` for the locked playwright. Satisfy it from a
-# dev-owned browsers dir (install takes a lock there) whose entries for the locked revisions link
-# to the image's pre-installed browsers, so nothing is downloaded.
 cd "$REPO"
 PW_BROWSERS=/home/$DEV/.cache/ms-playwright
-PW_VERSION=$(awk '$0 == "name = \"playwright\"" { getline; gsub(/"/, "", $3); print $3 }' uv.lock)
-mkdir -p "$PW_BROWSERS"
-PLAYWRIGHT_BROWSERS_PATH=$PW_BROWSERS uvx --from "playwright==$PW_VERSION" playwright install --dry-run chromium |
-  awk '/Install location:/ { print $3 }' |
-  while read -r want; do
-    name=$(basename "$want")
-    have=/opt/pw-browsers/$name
-    [ -d "$have" ] || have=$(find /opt/pw-browsers -maxdepth 1 -type d -name "${name%-*}-*" | sort -t- -k2 -n | tail -1)
-    ln -sfn "$have" "$want"
-  done
+mkdir -p "/home/$DEV/.cache"
 chown -R "$DEV:$DEV" "/home/$DEV/.cache"
 
 # The dev user gets the system bundle: the session adds the proxy CA to it, while the proxy's own
@@ -67,9 +58,6 @@ exec runuser -u $DEV -- env HOME=/home/$DEV USER=$DEV PLAYWRIGHT_BROWSERS_PATH=$
   GIT_SSL_CAINFO="\$CA" NODE_EXTRA_CA_CERTS="\$CA" "\$@"
 EOF
 chmod 755 /usr/local/bin/as-dev
-
-# The dev environment (see dev_10x/README.md): build mode dev, so C++ edits rebuild on the next import.
-as-dev ./xx-build init
 
 # Test databases, started per session by scripts/cloud_services.sh. Postgres follows CI's
 # .github/actions/setup-postgres: trust on 5432 with SUPERUSER roles for the OS users, and a
@@ -98,6 +86,8 @@ done
 runuser -u postgres -- psql -p 5433 -qc "ALTER ROLE postgres PASSWORD 'py10x_pg_auth'"
 pg_ctlcluster 16 main stop
 pg_ctlcluster 16 auth stop
+
+as-dev scripts/cloud_dev_env.sh
 
 # Pre-pull the MongoDB image so the per-session start is fast; dockerd only runs for the pull.
 (dockerd >/var/log/dockerd.log 2>&1 &)

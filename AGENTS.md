@@ -146,7 +146,9 @@ checkout and venv belong to the non-root `ubuntu` user while the session runs as
 through it (`as-dev uv run pytest …`); running them as root leaves root-owned files in `.venv` and `build/`.
 The SessionStart hook [`scripts/cloud_services.sh`](scripts/cloud_services.sh) starts Postgres (5432 trust, 5433
 password-auth) and the Mongo replica set (27017), so `infra_10x` and store tests run instead of skipping; do not run
-`xx-test-postgres-auth start` there (5433 is already taken by a native cluster).
+`xx-test-postgres-auth start` there (5433 is already taken by a native cluster). If the setup script ran out of time,
+the hook finishes the venv in the background ([`scripts/cloud_dev_env.sh`](scripts/cloud_dev_env.sh)) and says so at
+session start: wait for its log to end with `cloud_dev_env.sh exit 0` before running anything through `as-dev`.
 
 ## Cursor Cloud specific instructions
 
