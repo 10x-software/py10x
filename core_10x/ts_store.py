@@ -288,7 +288,8 @@ class SaveIfChanged(BTPTracker):
     has tracked, optionally filtered to `classes`.
 
     With `auto_save=True` (the default) tracked objects (optionally filtered by classes)
-    are saved automatically on context exit.
+    are saved when the block exits without raising. A raised body is left tracked
+    but not persisted; call save() to persist after handling the error.
 
     With `auto_save=False`, the instance can be built once and reused,
     and save()/reload() called explicitly whenever the caller decides.
@@ -307,12 +308,20 @@ class SaveIfChanged(BTPTracker):
 
     def __enter__(self):
         self.parent.__enter__()
-        return super().__enter__()
+        try:
+            return super().__enter__()
+        except BaseException as exc:
+            # Parent is already current; drop it if the tracker fails to enter.
+            self.parent.__exit__(type(exc), exc, exc.__traceback__)
+            raise
 
-    def __exit__(self, *args):
-        super().__exit__(*args)
-        self.parent.__exit__(*args)
-        if self.auto_save:
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        try:
+            super().__exit__(exc_type, exc_val, exc_tb)
+        finally:
+            self.parent.__exit__(exc_type, exc_val, exc_tb)
+        # A raised body must not be committed, and save().throw() must not replace it.
+        if self.auto_save and exc_type is None:
             self.save().throw()
 
     def _tracked(self) -> Generator:

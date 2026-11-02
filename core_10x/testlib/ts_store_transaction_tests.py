@@ -157,13 +157,33 @@ class TestSaveIfChanged:
         a.delete()
         assert a.__class__.collection(a._collection_name).count() == 0
 
-        with pytest.raises(RuntimeError, match='must be positive'):
-            with SaveIfChanged() as tracker:
-                a.value = 20
-                b.value = -1
-            assert tracker.tracked_objects() == [a, b]
+        with pytest.raises(RuntimeError, match='must be positive'), SaveIfChanged() as tracker:
+            a.value = 20
+            b.value = -1
+
+        # The `with` raises on the failed save, so retention has to be checked after it is caught.
+        assert tracker.tracked_objects() == [a, b]
 
         assert a.__class__.collection(a._collection_name).count() == int(not with_transactions)
+        assert b.__class__.collection(b._collection_name).count() == 0
+
+    def test_save_if_changed_does_not_persist_when_body_raises(self, data):
+        a, b = data()
+        a.value = 1
+        a.save().throw()
+
+        with pytest.raises(RuntimeError, match=r'^body failed$'), SaveIfChanged():
+            a.value = 7
+            raise RuntimeError('body failed')
+
+        assert a.reload()
+        assert a.value == 1, a.value
+
+        # b fails verify on save(); that error must not replace the body exception, or be persisted.
+        with pytest.raises(RuntimeError, match=r'^body failed$'), SaveIfChanged():
+            b.value = -1
+            raise RuntimeError('body failed')
+
         assert b.__class__.collection(b._collection_name).count() == 0
 
     def test_save_if_changed_requires_storable_classes(self):

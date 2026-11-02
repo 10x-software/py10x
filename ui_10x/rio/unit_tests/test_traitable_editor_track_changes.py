@@ -7,6 +7,7 @@ than .popup()/.exec(), since .exec() blocks waiting for real UI interaction.
 
 import random
 import string
+from datetime import date
 
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import INTERACTIVE
@@ -58,6 +59,35 @@ def test_dialog_cancel_discards_staged_edit(ts_instance):  # noqa: F811
             t.tags = ['discarded']
         d.cancel_callback()
         assert t.tags == ['a']  # never exported
+
+
+def test_dialog_copy_entity_invalid_edit_is_not_exported(ts_instance):  # noqa: F811
+    """Without track_changes, a staged edit that fails verify stays in the
+    staging scope; a later valid OK exports the corrected values."""
+    with ts_instance, INTERACTIVE():
+        t = _person(ts_instance, ['a'])
+        ed = TraitableEditor.editor(t)
+        d = ed.dialog()
+
+        # age > 60 and weight_lbs > 200 fails Person.post_verify.
+        with ed.traitable_processor:
+            t.dob = date(1950, 1, 1)
+            t.weight_lbs = 250.0
+
+        rc = d.accept_callback()
+        assert not rc and 'overweight' in rc.error()
+        assert ed._commit is not None
+        assert ed.traitable_processor is not None
+        assert not t.is_set(t.T.weight_lbs)
+        assert not t.is_set(t.T.dob)
+
+        with ed.traitable_processor:
+            t.weight_lbs = 150.0
+
+        rc = d.accept_callback()
+        assert rc
+        assert t.weight_lbs == 150.0
+        assert t.dob == date(1950, 1, 1)
 
 
 def test_dialog_track_changes_stages_and_saves_via_tracker(ts_instance):  # noqa: F811
@@ -184,3 +214,44 @@ def test_dialog_track_changes_cancel_on_first_dialog_saves_nothing(ts_instance):
         assert ed.change_tracker.save()
         assert t.reload()
         assert t.tags == ['orig']
+
+
+def test_dialog_track_changes_invalid_edit_is_not_exported(ts_instance):  # noqa: F811
+    """A staged edit that fails verify is not exported or saved, and the staging
+    scope stays so a later valid OK can commit the corrected values."""
+    with ts_instance, INTERACTIVE():
+        t = _person(ts_instance, ['a'])
+        t.save().throw()
+        ed = TraitableEditor.editor(t)
+        d = ed.dialog(track_changes=True)
+
+        # age > 60 and weight_lbs > 200 fails Person.post_verify. Ambient values
+        # stay valid, so verify-after-export would accept this.
+        with ed.traitable_processor:
+            t.dob = date(1950, 1, 1)
+            t.weight_lbs = 250.0
+
+        rc = d.accept_callback()
+        assert not rc and 'overweight' in rc.error()
+        assert ed._commit is not None
+        assert ed.traitable_processor is not None
+        assert ed.change_tracker.tracked_objects() == []
+        with ed.change_tracker.parent:
+            assert not t.is_set(t.T.weight_lbs)
+
+        assert ed.change_tracker.save()
+        assert t.reload()
+        assert t.tags == ['a']
+        assert t.weight_lbs != 250.0
+        assert t.dob != date(1950, 1, 1)
+
+        with ed.traitable_processor:
+            t.weight_lbs = 150.0
+
+        rc = d.accept_callback()
+        assert rc
+        assert ed.change_tracker.save()
+        assert t.reload()
+        assert t.weight_lbs == 150.0
+        assert t.dob == date(1950, 1, 1)
+        assert t.tags == ['a']

@@ -288,54 +288,47 @@ class RDate(Nucleus):
         tenors = tenors_str.split(delim)
         return [RDate(tenor.strip()) for tenor in tenors]
 
+    ## the dates are generated unadjusted, each n steps from the unadjusted start (FORWARD) or end (BACKWARD), and rolled after that,
+    ## so FORWARD and BACKWARD give the same schedule for a whole number of periods, unless the anchor's day of the month is cut short
+    ## in some month, e.g., 6M quarterly from Aug 30: FORWARD gives Nov 30, BACKWARD from Feb 28 gives Nov 28
     def dates_schedule(self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub = True) -> list:
-        rolled_start = roll_rule(start, calendar)
-        if rolled_start < start:
-            raise ValueError(f'rolled start date {rolled_start} is before non-working start date {start} according to calendar {calendar.name} and roll rule {roll_rule.name}')
+        if end < start:
+            raise ValueError(f'end date {end} is before start date {start}')
 
-        rolled_end = roll_rule(end, calendar)
-        if rolled_end > end:
-            raise ValueError(f'rolled end date {rolled_end} is after non-working end date {end} according to calendar {calendar.name} and roll rule {roll_rule.name}')
+        if end == start:
+            return [roll_rule(start, calendar)]
 
         if date_propagation == PROPAGATE_DATES.BACKWARD:
-            begin = rolled_end
-            finish = rolled_start
+            begin = end
+            finish = start
             dir = -1
-            exceed = lambda x, y: x < y
-            ex_or_eq = lambda x, y: x <= y
+            precedes = lambda x, y: x > y   #-- x comes before y in the direction of propagation
         else:
-            begin = rolled_start
-            finish = rolled_end
+            begin = start
+            finish = end
             dir = 1
-            exceed = lambda x, y: x > y
-            ex_or_eq = lambda x, y: x >= y
+            precedes = lambda x, y: x < y
 
-        step = self * dir
-
-        prev_rolled_date = begin
-        rolled_date = begin
-        non_rolled_date = begin
-
-        all_dates = []
-        while ex_or_eq(finish, rolled_date):
-            all_dates.append(rolled_date)
-            non_rolled_date = step.apply(non_rolled_date, calendar, BIZDAY_ROLL_RULE.NO_ROLL)
-            rolled_date = roll_rule(non_rolled_date, calendar)
-            if not exceed(rolled_date, prev_rolled_date):
-                raise ValueError(f'infinite loop: next date {rolled_date} vs previous date {prev_rolled_date} for date_propagation = {date_propagation.name}')
-            if exceed(rolled_date, finish):
+        unadjusted = [begin]
+        num_steps = 0
+        while True:
+            #-- step from begin, not from the previous date: chained month steps drift at month ends,
+            #   e.g., Nov 30 -> Feb 28 -> May 28 instead of Nov 30 -> Feb 28 -> May 30
+            num_steps += 1
+            next_date = (self * (dir * num_steps)).apply(begin, calendar, BIZDAY_ROLL_RULE.NO_ROLL)
+            if not precedes(unadjusted[-1], next_date):
+                raise ValueError(f'infinite loop: next date {next_date} vs previous date {unadjusted[-1]} for date_propagation = {date_propagation.name}')
+            if not precedes(next_date, finish):
                 break
-            prev_rolled_date = rolled_date
+            unadjusted.append(next_date)
 
-        if not allow_stub:
-            if prev_rolled_date != finish:
-                raise ValueError(f'the date sequence has a stub period bound by {prev_rolled_date} and {finish}')
-        else:
-            if finish not in all_dates:
-                all_dates.append(finish)
+        if next_date != finish and not allow_stub:
+            raise ValueError(f'the date sequence has a stub period bound by {unadjusted[-1]} and {finish}')
 
-        all_dates.sort()
-        return all_dates
+        unadjusted.append(finish)
+
+        #-- a stub too short to survive the roll collapses into its neighbor
+        return sorted({roll_rule(d, calendar) for d in unadjusted})
 
     def period_dates(self, start: date, end: date, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub = True) -> tuple:
         all_dates = self.dates_schedule(start, end, calendar, roll_rule, date_propagation, allow_stub)
@@ -348,8 +341,7 @@ class RDate(Nucleus):
     ## then there would be a period "shorter than the frequency" (e.g., half-year in the 30-month annual swap)
     ## call such a period a STUB. it maybe in the front (1st period) for BACKWARD propagation or in the back (last period) for FORWARD
     def period_dates_for_tenor(self, start: date, tenor: RDate, calendar: Calendar, roll_rule: BIZDAY_ROLL_RULE, date_propagation: PROPAGATE_DATES, allow_stub = True) -> tuple:
-        start = roll_rule(start, calendar)
-        end = tenor.apply(start, calendar, roll_rule)
+        end = tenor.apply(start, calendar, BIZDAY_ROLL_RULE.NO_ROLL)    #-- unadjusted: the schedule rolls its own dates
         return self.period_dates(start, end, calendar, roll_rule, date_propagation, allow_stub)
 
     @classmethod

@@ -1,5 +1,6 @@
 from datetime import date
 
+import pytest
 from xxfin.ccy_forward import Ccy, CcyForward, PricingContext
 from xxfin.ir_zero_rate_curve import ZeroRateCurve
 
@@ -29,26 +30,25 @@ class TestCcyForward:
         self.pc  = PricingContext.current()
         self.today = self.pc.md_date
 
-        usd_zrc_obj = ZeroRateCurve(
+        self.usd_zrc = ZeroRateCurve(
             mkt_name        = 'SOFR',
             provider_name   = self.pc.mkt_data_provider_name,
             md_date         = self.today,
             snapshot        = self.pc.snapshot,
         )
-        self.usd_zrc = usd_zrc_obj.payload
 
-        gbp_zrc_obj = ZeroRateCurve(
+        self.gbp_zrc = ZeroRateCurve(
             mkt_name        = 'SONIA',
             provider_name   = self.pc.mkt_data_provider_name,
             md_date         = self.today,
             snapshot        = self.pc.snapshot,
         )
-        self.gbp_zrc = gbp_zrc_obj.payload
 
+    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_price(self):
         for d, ufwd, gfwd in zip(self.days, self.usd_fwds, self.gbp_fwds, strict=True):
-            assert ufwd.price == self.usd_zrc.discount_factor(d, self.today)
-            assert gfwd.price == self.gbp_zrc.discount_factor(d, self.today)
+            assert ufwd.price == self.usd_zrc.payload.discount_factor(d, self.today)
+            assert gfwd.price == self.gbp_zrc.payload.discount_factor(d, self.today)
 
     ## TODO: retired along with FinInstrument.mkt_deps_for_discounting (see mkt_deps_design_notes.md).
     ##       OK to discard these tests outright instead of keeping them commented?

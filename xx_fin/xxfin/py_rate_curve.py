@@ -110,50 +110,176 @@ class RateCurve(DateCurve):
     def discount_factor_fwd(self, d1, d2, today: date = None) -> float:
         return self.discount_factor(d2, today) / self.discount_factor(d1, today)
 
-    def annuity_for_period_dates(self, dc_conv: DAY_COUNT_CONVENTION, start_dates: list[date], end_dates: list[date], pay_dates: list[date], today: date = None ):
+    def discount_factors_by_date(self, *date_lists: list[date], today: date = None) -> dict:
+        """
+        One discount factor per distinct date of all the date lists, e.g., dates shared by the swap legs (or by a period end
+        and the next period start) are discounted once
+        """
+        dates = list(dict.fromkeys(d for dates in date_lists for d in dates))
+        return dict(zip(dates, self.discount_factors(dates, today), strict=True))
+
+    def annuity_for_dc_fractions(self, dc_fractions: list[float], pay_dates: list[date], today: date = None, dfs: dict = None) -> float:
+        """
+        sum(dc_fraction_i * df_pay_i) for precomputed day count fractions; dfs (by date) may be shared with the other swap leg
+        """
+        if dfs is None:
+            dfs = self.discount_factors_by_date(pay_dates, today = today)
+        return sum(dc_frac * dfs[pay] for dc_frac, pay in zip(dc_fractions, pay_dates, strict=True))
+
+    def annuity_for_period_dates(self, dc_conv: DAY_COUNT_CONVENTION, start_dates: list[date], end_dates: list[date], pay_dates: list[date], today: date = None, dfs: dict = None) -> float:
         assert len(start_dates) == len(end_dates) == len(pay_dates), f'start, end, pay date lists must have the same length: starts/ends/pays: {len(start_dates), len(end_dates), len(pay_dates)}'
-        return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
+        dc_fractions = [dc_conv(start, end) for start, end in zip(start_dates, end_dates, strict=True)]
+        return self.annuity_for_dc_fractions(dc_fractions, pay_dates, today, dfs)
+
+    def swap_float_leg_for_period_dates(self, start_dates: list[date], end_dates: list[date], pay_dates: list[date], today: date = None, dfs: dict = None) -> float:
+        """
+        Simple compounding floating leg: sum((df_start_i/df_end_i - 1) * df_pay_i), see swap_float_leg_simple_compounding();
+        dfs (by date) may be shared with the other swap leg
+        """
+        assert len(start_dates) == len(end_dates) == len(pay_dates), f'start, end, pay date lists must have the same length: starts/ends/pays: {len(start_dates), len(end_dates), len(pay_dates)}'
+        if not end_dates:
+            return 0.
+
+        if dfs is None:
+            #-- the periods are contiguous (start_(i+1) = end_i), so start_dates[1:] are already among end_dates
+            dfs = self.discount_factors_by_date(start_dates, end_dates, pay_dates, today = today)
+
+        if pay_dates == end_dates:
+            #-- no pay delay: the sum telescopes to df_start_0 - df_end_last
+            return dfs[start_dates[0]] - dfs[end_dates[-1]]
+
+        return sum((dfs[start] / dfs[end] - 1.) * dfs[pay] for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
+
+    def period_dates(
+        self,
+        start_date: date, tenor: RDate, period_freq: RDate, period_calendar: FinCalendar, period_roll_rule: BIZDAY_ROLL_RULE,
+        pay_delay: RDate, pay_calendar: FinCalendar, pay_roll_rule: BIZDAY_ROLL_RULE,
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True
+    ) -> tuple:
+        start_dates, end_dates, _ = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
+        pay_dates = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
+
+        return start_dates, end_dates, pay_dates
 
     def annuity(
         self,
         dc_conv: DAY_COUNT_CONVENTION,
         start_date: date, tenor: RDate, period_freq: RDate, period_calendar: FinCalendar, period_roll_rule: BIZDAY_ROLL_RULE,
         pay_delay: RDate, pay_calendar: FinCalendar, pay_roll_rule: BIZDAY_ROLL_RULE,
-        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True,
+        today: date = None
     ) -> float:
-        start_dates, end_dates, _ = period_freq.period_dates_for_tenor(start_date, tenor, period_calendar, period_roll_rule, date_propagation, allow_stub)
-        pay_dates = [pay_delay.apply(ed, pay_calendar, pay_roll_rule) for ed in end_dates]
+        start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor, period_freq, period_calendar, period_roll_rule, pay_delay, pay_calendar, pay_roll_rule, date_propagation, allow_stub)
 
-        # return sum(dc_conv(start, end) * self.discount_factor(pay, today) for start, end, pay in zip(start_dates, end_dates, pay_dates, strict=True))
         return self.annuity_for_period_dates(dc_conv, start_dates, end_dates, pay_dates, today)
 
     ## If rate compounding is SIMPLE then each swaplet payout is (fixed_rate - float_rate) * dc_fraction * disc_factor
     ## otherwise (never happens!) the payout would've been (fixed_rate_accrual - floating_rate_accrual) * disc_factor
     ## and the swap par rate formula wouldn't telescope to the neat beauty we all have learned in pre-K
-    def swap_rate_simple_compounding(
+    def swap_float_leg_simple_compounding(
         self,
-        spot_date: date, tenor: RDate,
-        fixed_freq: RDate, fixed_dc_convention: DAY_COUNT_CONVENTION, swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
+        start_date: date, tenor: RDate,
+        swap_freq: RDate,
+        swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
         pay_delay:  RDate, pay_calendar: FinCalendar,  pay_roll_rule: BIZDAY_ROLL_RULE,
         date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
     ) -> float:
 
-        df_spot = self.discount_factor(spot_date, today)
+        if not pay_delay.count:
+            end_date = tenor.apply(start_date, swap_calendar, swap_roll_rule)
+            last_pay = pay_delay.apply(end_date, pay_calendar, pay_roll_rule)
 
-        spot_annuity = self.annuity(
-            fixed_dc_convention, spot_date, tenor,
-            fixed_freq, swap_calendar, swap_roll_rule,
-            pay_delay,  pay_calendar,  pay_roll_rule,
-            date_propagation, allow_stub, today
-        ) / df_spot
+            df_last = self.discount_factor(last_pay,   today)
+            df_spot = self.discount_factor(start_date, today)
 
-        end_date = tenor.apply(spot_date, swap_calendar, swap_roll_rule)
-        last_pay = pay_delay.apply(end_date, pay_calendar, pay_roll_rule)
+            return (df_spot - df_last)
 
-        df_last_to_spot = self.discount_factor(last_pay, today) / df_spot
+        start_dates, end_dates, pay_dates = self.period_dates(start_date, tenor,
+                                                              swap_freq, swap_calendar,
+                                                              swap_roll_rule,
+                                                              pay_delay, pay_calendar,
+                                                              pay_roll_rule, date_propagation, allow_stub)
 
-        swap_rate = (1. - df_last_to_spot) / spot_annuity
-        return swap_rate
+        ## the general formula below may be decomposed into 2 parts.
+        ## denote the (undiscounted) coupon of period i: c_i = df_start_i/df_end_i - 1  (= float_rate_i * dc_fraction_i)
+        ## the floating leg = sum(c_i * df_pay_i)
+        ##                  = sum(c_i * df_end_i) - sum(c_i * (df_end_i/df_pay_i - 1) * df_pay_i)
+        ## i.e., the coupons discounted from the **end_date** (!= pay_date in general)
+        ## minus the coupons' accrual over the end_date-to-pay_date period, discounted from the pay_date.
+        ## in other words, the coupons' value is reduced by (the lender's funding of) the non-payment/"free" period from end_date to pay_date
+        ## and sum(c_i * df_end_i) = sum(df_start_i - df_end_i) telescopes to df_start_0 - df_end_last as in the good old libor swap...
+        ## so the no arb argument is as follows:
+        ## -- borrower gets the notional day1 (pv = df_start_0),
+        ## -- pays the stream of the period coupons
+        ## -- returns the notional at the end (pv = df_end_last)
+        ## -- gets the benefit of the free carry of the period coupons over end_date-to-pay_date period
+
+        ## full payment
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(pay, today)
+        # =
+        ## non-delayed coupon
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(end, today)
+        # -
+        ## the coupon accrual over end_to_pay period
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #   * ( self.discount_factor(end, today)
+        #     / self.discount_factor(pay, today) - 1)
+        ## paid on pay date
+        #     * self.discount_factor(pay, today)
+        #
+        ## the non-delayed coupon:
+        #     ( self.discount_factor(start, today)
+        #     / self.discount_factor(end, today) - 1)
+        #     * self.discount_factor(end, today)
+        # =   ( self.discount_factor(start, today) - self.discount_factor(end, today)
+        ## hence the telescoping sum = self.discount_factor(start_0, today) - self.discount_factor(end_last, today)
+        ## and the "simple" no arb description
+
+        return self.swap_float_leg_for_period_dates(start_dates, end_dates, pay_dates, today)
+
+    def swap_rate_simple_compounding(
+        self,
+        spot_date: date, tenor: RDate,
+        fixed_freq: RDate, fixed_dc_convention: DAY_COUNT_CONVENTION,
+        swap_freq: RDate, swap_calendar: FinCalendar, swap_roll_rule: BIZDAY_ROLL_RULE,
+        pay_delay:  RDate, pay_calendar: FinCalendar,  pay_roll_rule: BIZDAY_ROLL_RULE,
+        date_propagation: PROPAGATE_DATES = PROPAGATE_DATES.BACKWARD, allow_stub: bool = True, today: date = None
+    ) -> float:
+
+        fixed_starts, fixed_ends, fixed_pays = self.period_dates(
+            spot_date, tenor, fixed_freq, swap_calendar, swap_roll_rule,
+            pay_delay, pay_calendar, pay_roll_rule,
+            date_propagation, allow_stub,
+        )
+        float_starts, float_ends, float_pays = self.period_dates(
+            spot_date, tenor, swap_freq, swap_calendar, swap_roll_rule,
+            pay_delay, pay_calendar, pay_roll_rule,
+            date_propagation, allow_stub,
+        )
+        fixed_dc_fractions = [fixed_dc_convention(start, end) for start, end in zip(fixed_starts, fixed_ends, strict=True)]
+
+        return self.swap_rate_for_period_dates(fixed_dc_fractions, fixed_pays, float_starts, float_ends, float_pays, today)
+
+    def swap_rate_for_period_dates(
+        self,
+        fixed_dc_fractions: list[float], fixed_pay_dates: list[date],
+        float_start_dates: list[date], float_end_dates: list[date], float_pay_dates: list[date],
+        today: date = None
+    ) -> float:
+        """
+        Simple compounding swap par rate for the given (precomputed) leg schedules: float_leg / fixed_leg_annuity
+        """
+        #-- one discount factor per date: the legs share most of the dates (all of them if the fixed and floating frequencies are the same)
+        dfs = self.discount_factors_by_date(fixed_pay_dates, float_start_dates, float_end_dates, float_pay_dates, today = today)
+
+        float_leg = self.swap_float_leg_for_period_dates(float_start_dates, float_end_dates, float_pay_dates, today, dfs)
+        annuity   = self.annuity_for_dc_fractions(fixed_dc_fractions, fixed_pay_dates, today, dfs)
+        return float_leg / annuity
 
     @classmethod
     def rate_convert(

@@ -82,9 +82,7 @@ class Splitter(rio.Component):
         measured = self._component_width if horizontal else self._component_height
         available = measured - max(len(self.children) - 1, 0) * hit_size - 2 * len(self.children)
         total_proportion = sum(self.child_proportions)
-        pane_sizes = (
-            [available * p / total_proportion for p in self.child_proportions] if available > 0 and total_proportion > 0 else []
-        )
+        pane_sizes = [available * p / total_proportion for p in self.child_proportions] if available > 0 and total_proportion > 0 else []
 
         components: list[rio.Component] = []
         for i, child in enumerate(self.children):

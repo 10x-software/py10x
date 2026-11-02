@@ -45,7 +45,7 @@ exceptions:
 
 ```bash
 # From the py10x repo root (requires the project venv / `licensecheck` from the `dev` extra):
-uv run --no-sync licensecheck -r pyproject.toml --extras rio,qt,dev
+uv run licensecheck -r pyproject.toml --extras rio,qt,dev
 ```
 
 Add any **attribution or notice** required by your dependencies to a `NOTICE` or `THIRD_PARTY_LICENSES` file (see §5).
@@ -55,7 +55,7 @@ Add any **attribution or notice** required by your dependencies to a `NOTICE` or
 Command (re-run before each release):
 
 ```bash
-uv run --no-sync licensecheck -r pyproject.toml --extras rio,qt,dev
+uv run licensecheck -r pyproject.toml --extras rio,qt,dev
 ```
 
 **Last run:** 2026-08-12 (macOS / Python 3.11 venv) — **150** compatible, **6** flagged.

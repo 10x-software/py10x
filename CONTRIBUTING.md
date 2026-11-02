@@ -7,51 +7,44 @@ See also the [documentation map in README.md](README.md#documentation-map).
 ## Development Setup
 
 **Prerequisites and platform-specific install commands:** [INSTALLATION.md](INSTALLATION.md).  
-**Dev dependency profiles (`uv-sync`), constraints freeze, and releases:** [dev_10x/README.md](dev_10x/README.md).
+**Build modes, constraints freeze, and releases:** [dev_10x/README.md](dev_10x/README.md).
 
-`uv-sync` uses **dependency profiles** to decide where `py10x-core` and the C++ siblings (`py10x-kernel` / `py10x-infra`) come from. Choose the right one for your setup:
-
-| Profile          | py10x-core     | C++ siblings (kernel/infra)          | When to use |
-|------------------|----------------|--------------------------------------|-------------|
-| `user`           | local editable | released wheels from PyPI            | No C++ compiler (or you don't want to build); you get published pre-releases only |
-| `py10x-dev`      | local editable | local editable from `cxx10x/`        | Normal development (requires a C++ toolchain) |
-
-The C++ packages live in this repo under [`cxx10x/`](cxx10x/README.md). `py10x-core-dev` is
-accepted as a legacy alias of `py10x-dev`.
-
-After cloning, a typical setup looks like:
+A development checkout installs `py10x-core` editable together with the C++ packages built from this
+repo ([`cxx10x/`](cxx10x/README.md): `py10x-kernel`, `py10x-infra`) and the in-repo downstream
+fin-base (`xx_fin/`), so it needs a C++ toolchain. After cloning, from the repo root (bash; Git Bash on
+Windows):
 
 ```bash
-uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
-uv run --no-sync pytest
+./xx-build init     # once: builds the C++ packages in order, then syncs everything from uv.lock
+uv run pytest
 ```
 
-The C++ packages install in incremental mode by default: edits under `cxx10x/` are rebuilt
-(incrementally) on the next import, with no re-sync. Re-run the sync command after dependency
-changes or `git pull`. Set `XX_UV_INSTALL_MODE=incremental` to see the rebuild output, or `editable`
-to turn off the rebuild-on-import check (see [`dev_10x/README.md`](dev_10x/README.md#xx_uv_install_mode)).
+From then on plain `uv sync` keeps the environment current (after a `git pull` or a dependency
+change), and `uv run <command>` syncs before it runs. The C++ packages are editable and rebuild on
+import: edits under `cxx10x/` take effect on the next import, with no re-sync.
+`./xx-build init --clean` starts over.
 
-**Build type:** the C++ packages build `Debug` by default, so you can step through C++ in a debugger.
-That makes C++-heavy tests noticeably slower, especially on Windows. If test speed matters more to
-you than debugging C++, build `Release` instead:
+**Build modes:** the default mode, `dev`, builds the C++ packages `Debug`, so you can step through
+C++ in a debugger. That makes C++-heavy tests noticeably slower, especially on Windows. If test speed
+matters more to you than debugging C++, switch to `Release`:
 
 ```bash
-export SKBUILD_CMAKE_BUILD_TYPE=Release   # keep it set, e.g. in your shell profile
-uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras   # add --with-downstream for fin-base
+./xx-build set-mode dev-release   # Release, still rebuild-on-import
+./xx-build show-mode              # the active mode
+./xx-build set-mode dev           # back to Debug (its build dir is kept, so no rebuild from scratch)
+./xx-build rebuild                # rebuild in the active mode, e.g. after toggling XX_CXX_SANITIZERS
 ```
 
-uv-sync notices the build-type change and rebuilds the local C++ packages. Debug and Release keep
-separate build dirs, so switching back (unset the variable and re-sync) doesn't rebuild from scratch.
-CI, the Docker image and published wheels are always Release.
+CI, the Docker image and published wheels are Release (`ci-release`, and cibuildwheel).
 
-**Important:** After the initial sync, always use `uv run --no-sync …` for commands (e.g.
-`uv run --no-sync pytest`). Plain `uv run` does an exact `uv sync` against `pyproject.toml`: it
-replaces the editable kernel/infra with PyPI releases (they have no `[tool.uv.sources]` entry —
-`uv-sync` installs them directly), uninstalls extras and opt-in downstreams it wasn't asked for, and
-ignores `constraints.txt`. `export UV_NO_SYNC=1` makes plain `uv run` behave like `--no-sync`. The
-installed `uv-run` / `uv-sync` scripts are equivalent shortcuts when the venv is activated.
+**Leaving things out:** plain `uv sync` installs every default dependency group: core's extras
+(`extras`) and fin-base (`test`, `test-extras`). Pass `--no-group extras` or
+`--no-group test --no-group test-extras` to leave them out (core CI does the latter, so `xxfin` is not
+importable there). Never run `uv sync --upgrade` / `uv lock --upgrade`: `uv.lock` changes only
+through `xx-constraints compile` or the weekly refresh workflow.
 
-See [INSTALLATION.md](INSTALLATION.md#development-installation-recommended) for clone steps and [`dev_10x/README.md`](dev_10x/README.md) for the full profile table, reinstall rules, `XX_UV_INSTALL_MODE`, and other options.
+`uv-sync` and `uv-run` are retired; see [`dev_10x/README.md`](dev_10x/README.md#uv-sync--uv-run--retired)
+for what replaces each old invocation, and for the build modes and other options.
 
 ## Development Workflow
 
@@ -61,20 +54,20 @@ The project uses `ruff` for linting and formatting:
 
 ```bash
 # Check for issues
-uv run --no-sync ruff check .
+uv run ruff check .
 
 # Auto-fix issues where possible
-uv run --no-sync ruff check --fix .
+uv run ruff check --fix .
 
 # Format code
-uv run --no-sync ruff format .
+uv run ruff format .
 ```
 
 ### Testing
 
 #### Running Tests
 
-`uv run --no-sync pytest` does **not** require a local MongoDB or PostgreSQL. Tests that need a
+`uv run pytest` does **not** require a local MongoDB or PostgreSQL. Tests that need a
 live store skip automatically when the server is unreachable (see `core_10x/testlib/strict.py` —
 `need()` skips locally; under `XX_TEST_STRICT=1`, as in Linux CI, an unmet precondition fails
 instead). Install Mongo and/or Postgres only if you want those tests to run locally — see
@@ -88,15 +81,15 @@ its database behind; [`xx-test-db-clean`](dev_10x/README.md) sweeps those.
 
 ```bash
 # Run all unit tests (xdist: -n auto --dist loadscope via pytest.ini)
-uv run --no-sync pytest
+uv run pytest
 
 # Run specific test suites
-uv run --no-sync pytest core_10x/unit_tests/
-uv run --no-sync pytest ui_10x/unit_tests/
-uv run --no-sync pytest infra_10x/unit_tests/  # postgres soft-skips if down; mongo matrix hard-fails if down
+uv run pytest core_10x/unit_tests/
+uv run pytest ui_10x/unit_tests/
+uv run pytest infra_10x/unit_tests/  # postgres soft-skips if down; mongo matrix hard-fails if down
 
 # Serial / pdb (disable xdist)
-uv run --no-sync pytest -n0 path/to/test_foo.py::test_bar
+uv run pytest -n0 path/to/test_foo.py::test_bar
 
 # Manual tests are debugging scripts (run directly)
 python core_10x/manual_tests/trivial_graph_test.py
@@ -161,7 +154,7 @@ py10x/
 │   ├── unit_tests/         # live Mongo/Postgres stores (Postgres soft-skip; Mongo hard if listed)
 │   └── testlib/
 ├── dev_10x/                # Developer tooling and release engineering
-│   ├── uv_sync.py, uv_run.py   # Dependency profile management
+│   ├── xx_build.py             # ./xx-build: dev environment setup and build modes
 │   ├── xx_promote.py           # Coordinated rc/prod releases + yanks
 │   ├── constraints.py, xx_ci.py, xx_plan.py, ...
 │   ├── pytest_plugin.py
@@ -170,14 +163,14 @@ py10x/
 │   └── unit_tests/, manual_tests/
 ├── scripts/                # Helper scripts (e.g. cloud Mongo setup)
 ├── docs/                   # Supplementary docs (IP checklist, onboarding)
-├── pyproject.toml          # Metadata, extras, scripts (uv-sync etc.), dev_10x config
+├── pyproject.toml          # Metadata, extras, scripts, uv sources/groups, dev_10x config
 ├── constraints.txt         # Committed third-party dependency freeze
 ├── ruff.toml, pytest.ini,
 └── ...
 ```
 
 See also:
-- [`dev_10x/README.md`](dev_10x/README.md) — dev profiles, `uv-sync`, `xx-promote`, CI gates
+- [`dev_10x/README.md`](dev_10x/README.md) — `xx-build` and build modes, `xx-promote`, CI gates
 - Individual `*/unit_tests/` and package READMEs
 
 ## Submitting Changes
@@ -188,8 +181,8 @@ See also:
 2. **Create** a feature branch: `git checkout -b feature/your-feature-name`
 3. **Make** your changes following the coding standards
 4. **Add** tests for new functionality
-5. **Run** the test suite: `uv run --no-sync pytest`
-6. **Check** code style: `uv run --no-sync ruff check .`
+5. **Run** the test suite: `uv run pytest`
+6. **Check** code style: `uv run ruff check .`
 7. **Commit** with descriptive messages
 8. **Push** to your fork
 9. **Create** a Pull Request
@@ -254,9 +247,11 @@ The UI framework focuses on traitable editing and management:
 
 ### Manual Tests
 
-- Use `manual_tests/` for debugging and development
-- These are Python scripts run directly (not via pytest)
-- Intended for future incorporation into unit tests
+- Use `manual_tests/` for debugging, demos, and live-environment checks
+- Run them directly (`python path/to/script.py` or `python -m pkg.manual_tests.…`) — **not** under
+  `pytest`. The py10x pytest plugin strips ambient `XX_*_VAULT_URI` so unit tests cannot inherit a
+  shell vault; that makes pytest unsuitable for these scripts. A plain `pytest` run also does not
+  collect `manual_tests/`.
 - Document expected behavior and setup instructions
 
 ## Documentation

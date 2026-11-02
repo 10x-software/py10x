@@ -5,20 +5,20 @@ from abc import ABC, abstractmethod
 from functools import reduce
 from typing import TYPE_CHECKING
 
+from core_10x.xnone import XNone
+
 if TYPE_CHECKING:
     from core_10x.trait import Trait
     from core_10x.traitable import Traitable
 
-# ===================================================================================================================================
+#=======================================================================================================================
 #
 #   age = LT(value)
 #   name = 'Sasha'      #-- name = EQ('Sasha')
 #   weight = BETWEEN(170, 180, bounds = (True, False)
-#   weight =
-# ===================================================================================================================================
+#
+#=======================================================================================================================
 
-
-# fmt: off
 class _mongo_label:
     EQ      = '$eq'
     NE      = '$ne'
@@ -32,7 +32,6 @@ class _mongo_label:
     AND     = '$and'
     OR      = '$or'
     NOT     = '$not'
-# fmt: on
 
 LABEL = _mongo_label
 
@@ -42,19 +41,36 @@ class _filter(ABC):
 
     @abstractmethod
     def negate(self) -> _filter | None: ...
+
     @abstractmethod
     def eval(self, left_value) -> bool: ...
+
     @abstractmethod
     def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict: ...
+
     @abstractmethod
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None): ...
 
+
+def _serialize_filter_value(trait: Trait, value):
+    #-- A scalar against a list/set trait means "contains": serialize it as a list element;
+    #-- Mongo, for example, matches $eq/$in against array elements. The stored form is [class_id, *items].
+    #-- Known gap: heterogeneous lists store non-primitive items typed (e.g. a date as {_type, _cls, _obj}), so those won't match.
+    if issubclass(trait.data_type, (list, set)) and not isinstance(value, (list, tuple, set)):
+        return None if value is None or value is XNone else trait.serialize_value([value])[1]
+
+    return trait.serialize_value(value, replace_xnone = True)
+
+def _list_trait_match(left: list | set, right) -> bool:
+    #-- In-memory twin of the above: a scalar matches an item, a collection matches the whole list/set.
+    #-- type(left)(right) makes a tuple filter value equal to a stored list, as it is in Mongo.
+    return type(left)(right) == left if isinstance(right, (list, tuple, set)) else right in left
 
 class Op(_filter, ABC):
     label = ''
     s_field_op = True
 
-    def negate(self) -> None:
+    def negate(self):
         return None
 
     def __init_subclass__(cls, label: str = None):
@@ -62,13 +78,13 @@ class Op(_filter, ABC):
             label = getattr(LABEL, cls.__name__)
         cls.label = label
 
-    def __new__(cls, expression=None):
+    def __new__(cls, expression = None):
         obj = super().__new__(cls)
         obj.right_value = expression
         return obj
 
     def serialize_right_value(self, field_name: str, trait_dir: dict[str, Trait] | None):
-        return trait.serialize_value(self.right_value, replace_xnone=True) if trait_dir and (trait := trait_dir.get(field_name)) else self.right_value
+        return _serialize_filter_value(trait, self.right_value) if trait_dir and (trait := trait_dir.get(field_name)) else self.right_value
 
     def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         # noinspection PyTypeChecker
@@ -86,8 +102,7 @@ class Op(_filter, ABC):
         col, (right,) = ibis_collection.ibis_compare_pair(field_name, trait, [self.serialize_right_value(field_name, trait_dir)])
         return self._eval(col, right)
 
-
-class NOT_EMPTY(Op, label=''):
+class NOT_EMPTY(Op, label = ''):
     def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         raise NotImplementedError
 
@@ -98,17 +113,22 @@ class NOT_EMPTY(Op, label=''):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         raise NotImplementedError
 
-
 class EQ(Op):
     @staticmethod
     def _eval(left, right) -> bool:
         return left == right
 
+    #-- overrides eval(), not _eval(): ibis() also calls _eval() with column expressions
+    def eval(self, left_value) -> bool:
+        return _list_trait_match(left_value, self.right_value) if isinstance(left_value, (list, set)) else super().eval(left_value)
 
 class NE(Op):
     @staticmethod
     def _eval(left, right) -> bool:
         return left != right
+
+    def eval(self, left_value) -> bool:
+        return not _list_trait_match(left_value, self.right_value) if isinstance(left_value, (list, set)) else super().eval(left_value)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         # A missing blob key unwraps to SQL NULL, and `NULL != x` is NULL (row excluded) under
@@ -122,30 +142,25 @@ class NE(Op):
         cmp = col != right
         return cmp if serialized is None else col.isnull() | cmp
 
-
 class GT(Op):
     @staticmethod
     def _eval(left, right) -> bool:
         return left > right
-
 
 class GE(Op):
     @staticmethod
     def _eval(left, right) -> bool:
         return left >= right
 
-
 class LT(Op):
     @staticmethod
     def _eval(left, right) -> bool:
         return left < right
 
-
 class LE(Op):
     @staticmethod
     def _eval(left, right) -> bool:
         return left <= right
-
 
 class IN(Op):
     def __new__(cls, values: list | tuple | set):
@@ -154,7 +169,7 @@ class IN(Op):
 
     def serialize_right_value(self, field_name: str, trait_dir: dict[str, Trait] | None):
         return (
-            [trait.serialize_value(value, replace_xnone=True) for value in self.right_value]
+            [_serialize_filter_value(trait, value) for value in self.right_value]
             if trait_dir and (trait := trait_dir.get(field_name))
             else self.right_value
         )
@@ -162,6 +177,12 @@ class IN(Op):
     @staticmethod
     def _eval(left, right) -> bool:
         return left in right
+
+    #-- a list/set left value matches if any filter value matches it (as Mongo's $in on arrays)
+    def eval(self, left_value) -> bool:
+        if isinstance(left_value, (list, set)):
+            return any(_list_trait_match(left_value, v) for v in self.right_value)
+        return super().eval(left_value)
 
     def _ibis_isin(self, ibis_collection, field_name: str, trait_dir: dict[str, Trait] | None) -> tuple:
         """``(col, isin_pred_or_None, has_none)`` with ``None`` kept out of the SQL ``IN`` list.
@@ -187,11 +208,13 @@ class IN(Op):
             return col.isnull()  # IN([None, ...]): only missing / null qualifies
         return col.isnull() | pred if has_none else pred
 
-
 class NIN(IN):
     @staticmethod
     def _eval(left, right) -> bool:
         return left not in right
+
+    def eval(self, left_value) -> bool:
+        return not IN.eval(self, left_value) if isinstance(left_value, (list, set)) else super().eval(left_value)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         # Mongo's $nin matches missing fields (same reasoning as NE.ibis) — *unless* None is
@@ -203,12 +226,10 @@ class NIN(IN):
             return col.notnull()  # NIN([None, ...]): every field that is present
         return col.notnull() & ~pred if has_none else col.isnull() | ~pred
 
-
 # class REGEX(Op):
 
-
-class BETWEEN(Op, label=''):
-    def __new__(cls, a, b, bounds=(True, True)):
+class BETWEEN(Op, label = ''):
+    def __new__(cls, a, b, bounds = (True, True)):
         obj = super().__new__(cls)
         assert isinstance(bounds, tuple) and len(bounds) == 2, f'{cls.__name__} - (bool, bool) is expected for bounds'
 
@@ -227,7 +248,6 @@ class BETWEEN(Op, label=''):
         res = self.left.prefix_notation(field_name, trait_dir)
         res.update(self.right.prefix_notation(field_name, trait_dir))
         return res
-
 
 class FALSE(_filter):
     """The match-nothing query. Combinators absorb only ``BoolOp.s_false``; ``OR()`` is that instance."""
@@ -276,7 +296,6 @@ class BoolOp(Op, ABC, label=''):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         return reduce(self._op, (e.ibis(ibis_collection, field_name, trait_dir) for e in self.right_value), self._identity)
 
-
 class AND(BoolOp):
     _op = operator.and_
     _identity = True
@@ -287,7 +306,6 @@ class AND(BoolOp):
 
     def negate(self) -> _filter:
         return OR(*(NOT(child) for child in self.right_value))
-
 
 class OR(BoolOp):
     _op = operator.or_
@@ -300,7 +318,6 @@ class OR(BoolOp):
 
     def negate(self) -> _filter:
         return AND(*(NOT(child) for child in self.right_value))
-
 
 class f(_filter):
     def __init__(self, _f: f = None, trait_dir: dict[str, Trait] | None = None, **named_expressions):
@@ -333,21 +350,21 @@ class f(_filter):
     def eval(self, traitable_instance: Traitable) -> bool:
         return self._apply(
             None,
-            filter_fn=lambda filter_instance, td: filter_instance.eval(traitable_instance),
-            named_fn=lambda trait_name, op, td: op.eval(traitable_instance[trait_name]),
-            reduce_fn=lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
-            combine_fn=operator.and_,
-            empty=True,
+            filter_fn   = lambda filter_instance, td: filter_instance.eval(traitable_instance),
+            named_fn    = lambda trait_name, op, td: op.eval(traitable_instance[trait_name]),
+            reduce_fn   = lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
+            combine_fn  = operator.and_,
+            empty       = True,
         )
 
     def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
         return self._apply(
             trait_dir,
-            filter_fn=lambda filt, td: filt.prefix_notation(trait_dir=td),
-            named_fn=lambda name, op, td: op.prefix_notation(field_name=name, trait_dir=td),
-            reduce_fn=lambda parts: dict(parts) if parts else None,
-            combine_fn=lambda a, b: {AND.label: [a, b]},
-            empty={},
+            filter_fn   = lambda filt, td: filt.prefix_notation(trait_dir=td),
+            named_fn    = lambda name, op, td: op.prefix_notation(field_name=name, trait_dir=td),
+            reduce_fn   = lambda parts: dict(parts) if parts else None,
+            combine_fn  = lambda a, b: {AND.label: [a, b]},
+            empty       = {},
         )
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
@@ -366,7 +383,6 @@ class f(_filter):
         if self.filter is not None:
             parts.append(f(NOT(self.filter), trait_dir=self.trait_dir))
         return OR(*parts) if parts else BoolOp.s_false
-
 
 class NOT(Op):
     """``f(age=NOT(GT(5)))`` is a field ``$not``. ``NOT(f(...))`` rewrites via De Morgan."""

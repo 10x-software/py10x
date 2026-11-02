@@ -51,13 +51,13 @@ if __name__ == '__main__':
 
     kernel = exec_.current_kernel
     print(f'\nAADC Kernel recorded -- {len(kernel.input_handles)} market dependencies discovered')
-    for (cls, quotable_id, trait), h in kernel.input_handles.items():
+    for cls, quotable_id, trait in kernel.input_handles:
         print(f'  {cls.__name__:<30}  id = {quotable_id}  trait = {trait.name}')
 
     exec_.eval_current_kernel(with_derivs = True)
     aadc_price = exec_.result()
     print('\nAdjoints d(price)/d(quote_i):')
-    for (cls, quotable_id, trait), adj in exec_.derivs().items():
+    for (cls, quotable_id, _trait), adj in exec_.derivs().items():
         print(f'  {cls.__name__:<30}  id = {quotable_id}  dP/dQ = {adj:.6e}')
 
     #-- Reprice under a bumped quote, without rebuilding the kernel -- no more market_values

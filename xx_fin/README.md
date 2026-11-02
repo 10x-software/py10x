@@ -15,8 +15,9 @@ dist directly. Requires Python `>=3.11,<3.14` and a published `py10x-core` (plus
 To also use the AADC JIT-compiled path (see [below](#optional-jit-acceleration-via-aadc)), install
 the `aadc` extra: `pip install "py10x-fin-base[aadc]"` (forwards to `py10x-core[aadc]`).
 
-In this monorepo the packaging root is [`xx_fin/`](.). Domain developers typically use
-`uv-sync py10x-dev --all-extras --with-downstream` from the py10x repo root — see
+In this monorepo the packaging root is [`xx_fin/`](.). Domain developers use the py10x development
+install (`./xx-build init`, then plain `uv sync`, from the repo root: fin-base and cxxfin come
+editable from this tree) — see
 [`CONTRIBUTING.md`](../CONTRIBUTING.md#development-setup).
 
 ```python

@@ -114,16 +114,16 @@ public:
         auto t0  = static_cast<double>(m_times[0]);
         auto tn  = static_cast<double>(m_times[n - 1]);
 
-        //-- Left extrapolation
+        //-- Left extrapolation (flat fill wins over ip_kind endpoint defaults)
         if (td < t0) {
+            if (m_extrap == Extrap::FLAT)
+                return m_left_fill;
             switch (m_ip_kind) {
                 case IPKind::PREVIOUS: case IPKind::ZERO:
                 case IPKind::NEXT:     case IPKind::NEAREST: case IPKind::NEAREST_UP:
                     return m_values[0];
                 default: break;
             }
-            if (m_extrap == Extrap::FLAT)
-                return m_left_fill;
             
             auto dt = static_cast<double>(m_times[1]) - t0;
             if (dt == 0.0) 
@@ -134,14 +134,14 @@ public:
 
         //-- Right extrapolation
         if (td > tn) {
+            if (m_extrap == Extrap::FLAT)
+                return m_right_fill;
             switch (m_ip_kind) {
                 case IPKind::PREVIOUS: case IPKind::ZERO:
                 case IPKind::NEXT:     case IPKind::NEAREST: case IPKind::NEAREST_UP:
                     return m_values[n - 1];
                 default: break;
             }
-            if (m_extrap == Extrap::FLAT)
-                return m_right_fill;
             
             auto dt = tn - static_cast<double>(m_times[n - 2]);
             if (dt == 0.0) 

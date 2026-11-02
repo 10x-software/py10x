@@ -46,6 +46,7 @@ from py10x_kernel import XCache
 from core_10x.environment_variables import EnvVars
 from core_10x.global_cache import _clear_all_caches
 from core_10x.py_class import PyClass
+from core_10x.resource import Resource
 from core_10x.scenario import Scenario
 from core_10x.traitable import NamedTsStore, Traitable, TsClassAssociation
 from core_10x.ts_store import TsStore
@@ -68,18 +69,19 @@ def clear_caches_keeping(*env_vars: _EnvVars.Var) -> None:
     each is read before the clear and re-applied after it.
     """
     _clear_all_caches()
+    Resource.clear_all_instances()
     for var in env_vars:
         setattr(var.env_var_class, var.attr_name, var.value)
 
 
 def clear_traitable_store_state() -> None:
-    """Drop Traitable store bindings (URIs, main/vault caches, store_per_class, s_instances)."""
+    """Drop Traitable store bindings (URIs, main/vault caches, store_per_class, Resource.s_instances)."""
     Traitable.main_store.clear()
     Traitable.vault_store.clear()
     Traitable.store_per_class.__func__.cache.clear()
     TsClassAssociation.store_per_class.__func__.cache.clear()
-
-    TsStore.s_instances.clear()
+    # Every Resource type (TsStore, RelDb, OidcSecret, …), not only TsStore.
+    Resource.clear_all_instances()
 
 
 def drop_new_instance_attrs(inst: object, keys_before: set[str]) -> None:

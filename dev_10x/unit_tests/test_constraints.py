@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -102,6 +103,16 @@ def test_compile_writes_export_and_lock_change_summary(monkeypatch, tmp_path):
     assert calls[0][-2:] == ['lock', '--upgrade']
     assert target.read_text(encoding='utf-8') == c.HEADER + 'six==2.0\n'
     assert summary.read_text(encoding='utf-8') == 'Updated six v1.0 -> v2.0\nAdded tomli v2.0.1\n'
+
+
+def test_compile_summary_file_without_path_exits_with_usage(monkeypatch, capsys):
+    """A bare --summary-file must exit with the usage string, not IndexError."""
+    monkeypatch.setattr(sys, 'argv', ['xx-constraints', 'compile', '--summary-file'])
+    with pytest.raises(SystemExit) as caught:
+        c.main()
+    assert caught.value.code not in (0, None)
+    captured = capsys.readouterr()
+    assert '--summary-file PATH' in captured.out + captured.err
 
 
 def test_compile_stops_on_lock_failure(monkeypatch, tmp_path):

@@ -1,3 +1,6 @@
+import importlib
+import sys
+
 import pytest
 from core_10x.package_refactoring import CLASS_ID_DELIMITER, PackageRefactoring
 from core_10x.py_class import PyClass
@@ -119,3 +122,51 @@ def test_register_unknown_package_raises_os_error():
 def test_find_or_create_instance_invalid_name_raises():
     with pytest.raises(ValueError):
         PackageRefactoring._find_or_create_instance('NoPackageSeparator')
+
+
+# ----------------------------------------------------------------------------
+#   move_class / remove_class — records persisted via _save and re-read
+# ----------------------------------------------------------------------------
+
+
+@pytest.fixture
+def refact_pkg(tmp_path, monkeypatch):
+    pkg_name = '_xx_refact_test_pkg'
+    (tmp_path / pkg_name).mkdir()
+    (tmp_path / pkg_name / '__init__.py').write_text('')
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    before = dict(PackageRefactoring.s_instances)
+    PackageRefactoring.s_instances.clear()
+    yield pkg_name
+    PackageRefactoring.s_instances.clear()
+    PackageRefactoring.s_instances.update(before)
+    for mod in [m for m in sys.modules if m == pkg_name or m.startswith(f'{pkg_name}.')]:
+        del sys.modules[mod]
+
+
+def _reloaded(pkg_name: str) -> PackageRefactoring:
+    sys.modules.pop(f'{pkg_name}._refactoring', None)
+    importlib.invalidate_caches()
+    return PackageRefactoring(pkg_name)
+
+
+def test_move_class_saves_importable_records(refact_pkg):
+    old_path = f'{refact_pkg}.old_mod.Foo'
+    new_path = f'{refact_pkg}.new_mod.Foo'
+    PackageRefactoring.move_class(old_path, new_path)
+
+    cid = PackageRefactoring.default_class_id(canonical_class_name=old_path)
+    assert _reloaded(refact_pkg).cid_to_path == {cid: new_path}
+
+
+def test_remove_class_drops_record(refact_pkg):
+    new_path = f'{refact_pkg}.new_mod.Foo'
+    PackageRefactoring.move_class(f'{refact_pkg}.old_mod.Foo', new_path)
+
+    PackageRefactoring.remove_class(new_path)
+
+    pkg_refact = PackageRefactoring.s_instances[refact_pkg]
+    assert pkg_refact.cid_to_path == {}
+    assert pkg_refact.path_to_cid == {}
+    assert _reloaded(refact_pkg).cid_to_path == {}

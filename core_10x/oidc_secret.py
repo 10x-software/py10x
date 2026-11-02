@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing_extensions import Self
 
-from core_10x.global_cache import standard_key as make_standard_key
 from core_10x.resource import OIDC, Resource, ResourceSpec
 
 
@@ -50,11 +49,6 @@ class OidcSecret(Resource, resource_type=OIDC):
         client_id = kwargs.pop(cls.USERNAME_TAG, None)
         client_secret = kwargs.pop(cls.PASSWORD_TAG, None)
         return cls(ResourceSpec(cls, kwargs).uri(), client_id, client_secret)
-
-    @classmethod
-    def standard_key(cls, *args, **kwargs) -> tuple:
-        # Base key omits password; the secret is the value being cached.
-        return make_standard_key(args, kwargs)
 
     def on_enter(self):
         pass

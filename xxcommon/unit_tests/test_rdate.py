@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -10,6 +10,25 @@ from xxcommon.rdate import (
     TENOR_FREQUENCY,
     RDate,
 )
+
+
+class _WeekendCalendar:
+    name = 'weekends'
+
+    def is_bizday(self, d):
+        return d.weekday() < 5
+
+    def next_bizday(self, d):
+        d += timedelta(days=1)
+        while not self.is_bizday(d):
+            d += timedelta(days=1)
+        return d
+
+    def prev_bizday(self, d):
+        d -= timedelta(days=1)
+        while not self.is_bizday(d):
+            d -= timedelta(days=1)
+        return d
 
 
 class TestRDate:
@@ -440,6 +459,81 @@ class TestRDate:
         # Should generate dates: Jul 15, Apr 15, Jan 15 (backward from end)
         expected = [date(2023, 1, 15), date(2023, 4, 15), date(2023, 7, 15)]
         assert dates == expected
+
+    def test_dates_schedule_month_end_no_drift(self):
+        """Each date is n steps from the start (end), not chained from the previous date, so month ends don't drift."""
+        rd = RDate('3M')
+
+        class MockCalendar:
+            def is_bizday(self, d):
+                return True
+
+            def next_bizday(self, d):
+                return d
+
+            def prev_bizday(self, d):
+                return d
+
+        cal = MockCalendar()
+
+        # Forward: chained steps would give Nov 30 -> Feb 29 -> May 29 -> Aug 29 -> Nov 29
+        dates = rd.dates_schedule(date(2023, 11, 30), date(2024, 11, 30), cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.FORWARD, allow_stub=False)
+        assert dates == [date(2023, 11, 30), date(2024, 2, 29), date(2024, 5, 30), date(2024, 8, 30), date(2024, 11, 30)]
+
+        # Backward: chained steps would give Aug 31 -> May 31 -> Feb 29 -> Nov 29 -> Aug 29
+        dates = rd.dates_schedule(date(2023, 8, 31), date(2024, 8, 31), cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.BACKWARD, allow_stub=False)
+        assert dates == [date(2023, 8, 31), date(2023, 11, 30), date(2024, 2, 29), date(2024, 5, 31), date(2024, 8, 31)]
+
+    def test_dates_schedule_rolls_after_stepping(self):
+        """Dates step from the unadjusted anchor and are rolled after, so FORWARD == BACKWARD for a whole number of periods."""
+        rd = RDate('1Y')
+        cal = _WeekendCalendar()
+        start = date(2025, 10, 13)  # Mon; the unadjusted 5Y end 2030-10-13 is a Sun, rolled to Mon 2030-10-14
+        expected = [date(2025, 10, 13), date(2026, 10, 13), date(2027, 10, 13), date(2028, 10, 13), date(2029, 10, 15), date(2030, 10, 14)]
+        for prop in (PROPAGATE_DATES.FORWARD, PROPAGATE_DATES.BACKWARD):
+            _, _, all_dates = rd.period_dates_for_tenor(start, RDate('5Y'), cal, BIZDAY_ROLL_RULE.MOD_FOLLOWING, prop, allow_stub=False)
+            # stepping BACKWARD from the rolled end (Mon 2030-10-14) would give Mon 2028-10-16 instead of Fri 2028-10-13
+            assert all_dates == expected, prop.name
+
+    def test_dates_schedule_stub(self):
+        """A tenor that isn't a whole number of periods has a front stub BACKWARD, a back stub FORWARD, and fails w/o stubs."""
+        rd = RDate('1Y')
+        cal = _WeekendCalendar()
+        start = date(2025, 10, 13)
+        tenor = RDate('18M')
+        roll_rule = BIZDAY_ROLL_RULE.MOD_FOLLOWING
+
+        _, _, all_dates = rd.period_dates_for_tenor(start, tenor, cal, roll_rule, PROPAGATE_DATES.BACKWARD)
+        assert all_dates == [date(2025, 10, 13), date(2026, 4, 13), date(2027, 4, 13)]
+
+        _, _, all_dates = rd.period_dates_for_tenor(start, tenor, cal, roll_rule, PROPAGATE_DATES.FORWARD)
+        assert all_dates == [date(2025, 10, 13), date(2026, 10, 13), date(2027, 4, 13)]
+
+        for prop in (PROPAGATE_DATES.FORWARD, PROPAGATE_DATES.BACKWARD):
+            with pytest.raises(ValueError, match='stub'):
+                rd.period_dates_for_tenor(start, tenor, cal, roll_rule, prop, allow_stub=False)
+
+    def test_dates_schedule_cut_short_anchor(self):
+        """FORWARD and BACKWARD differ when the anchor's day of the month is cut short, e.g., the end date is Feb 28."""
+        rd = RDate('3M')
+        cal = _WeekendCalendar()
+        start = date(2024, 8, 30)
+        end = date(2025, 2, 28)  # 6M from Aug 30
+
+        assert rd.dates_schedule(start, end, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.FORWARD, allow_stub=False) == [start, date(2024, 11, 30), end]
+        assert rd.dates_schedule(start, end, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.BACKWARD) == [start, date(2024, 11, 28), end]
+        with pytest.raises(ValueError, match='stub'):
+            rd.dates_schedule(start, end, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.BACKWARD, allow_stub=False)
+
+    def test_dates_schedule_empty_period(self):
+        rd = RDate('1Y')
+        cal = _WeekendCalendar()
+        d = date(2025, 10, 13)
+        for prop in (PROPAGATE_DATES.FORWARD, PROPAGATE_DATES.BACKWARD):
+            assert rd.dates_schedule(d, d, cal, BIZDAY_ROLL_RULE.MOD_FOLLOWING, prop, allow_stub=False) == [d]
+
+        with pytest.raises(ValueError, match='before start date'):
+            rd.dates_schedule(d, d - timedelta(days=1), cal, BIZDAY_ROLL_RULE.MOD_FOLLOWING, PROPAGATE_DATES.FORWARD)
 
     def test_period_dates(self):
         """Test period_dates method."""

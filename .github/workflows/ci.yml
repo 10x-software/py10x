@@ -175,6 +175,25 @@ jobs:
           uv sync
           uv run --no-sync python -m dev_10x.env_check dev --downstream
 
+      # A pull (a new commit) must not make plain `uv sync` rebuild the C++ packages: uv would build them
+      # all at once, and py10x-fin-base-cxx's build imports the kernel while uv reconfigures its build dir.
+      - name: "dev: plain uv sync after a new commit leaves the C++ builds alone"
+        run: |
+          git -c user.name=ci -c user.email=ci@localhost commit --allow-empty -q -m "stand-in for a pull"
+          uv sync 2>&1 | tee "$RUNNER_TEMP/sync-after-commit.log"
+          if grep -E "Building (py10x-kernel|py10x-infra|py10x-fin-base-cxx) " "$RUNNER_TEMP/sync-after-commit.log"; then
+            echo "::error::plain uv sync rebuilt C++ packages after a new commit"; exit 1
+          fi
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+
+      # ... `./xx-build rebuild` does, in order, which also refreshes their setuptools-scm versions.
+      - name: "dev: ./xx-build rebuild refreshes the C++ versions"
+        run: |
+          ./xx-build rebuild
+          uv run --no-sync python -m dev_10x.env_check dev --downstream
+          expected=$(uv run --no-sync python -m setuptools_scm --config cxx10x/core_10x/pyproject.toml)
+          uv run --no-sync python -c "import sys, core_10x, py10x_kernel; assert py10x_kernel.__version__ == sys.argv[1], (py10x_kernel.__version__, sys.argv[1])" "$expected"
+
       # Each mode: set-mode rebuilds in order; plain `uv sync` then stays in the mode (env_check's default
       # mode is the one in uv.toml).
       - name: "./xx-build set-mode: dev-release, ci-release"
@@ -195,21 +214,6 @@ jobs:
           mv build build.moved
           uv run --no-sync python -m dev_10x.env_check ci-release --downstream
           mv build.moved build
-
-      # The uv-sync compatibility wrapper (dev_10x/uv_sync.py), until it is retired: XX_UV_INSTALL_MODE ->
-      # build mode, and without --with-downstream no fin-base.
-      - name: "uv-sync wrapper"
-        run: |
-          source .venv/bin/activate 2>/dev/null || source .venv/Scripts/activate
-          for mode in editable incremental_quiet; do
-            echo "::group::XX_UV_INSTALL_MODE=$mode"
-            XX_UV_INSTALL_MODE=$mode python -m dev_10x.uv_sync py10x-dev --all-extras --with-downstream
-            XX_UV_INSTALL_MODE=$mode python -m dev_10x.env_check --downstream
-            echo "::endgroup::"
-          done
-          XX_UV_INSTALL_MODE=editable python -m dev_10x.uv_sync py10x-dev --all-extras
-          XX_UV_INSTALL_MODE=editable python -m dev_10x.env_check
-          python -c "import importlib.util as u; assert u.find_spec('xxfin') is None, 'xxfin installed without --with-downstream'"
 
       - name: "dev again: ./xx-build set-mode dev"
         run: |
@@ -282,6 +286,84 @@ jobs:
             -e XX_SECRETS_DIR=/secrets \
             -v "$secrets_dir:/secrets:ro" \
             py10x-functional-e2e
+
+      # No py10x install on the runner. The image is that install, and
+      # xx-functional-account-init calls docker, so it runs there with the
+      # daemon socket and a docker client. --image-tag e2e selects this build.
+      - name: Provision a functional account with xx-functional-account-init
+        env:
+          ACCOUNT: xx-e2e-provision
+          PG_PASSWORD: py10x_pg_auth
+          WORKER_PASSWORD: py10x_pg_auth
+          VAULT_URI: postgresql://localhost:5433/xx_func_provision
+        run: |
+          set -euo pipefail
+          if ! command -v expect >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq expect
+          fi
+          docker tag py10x-functional-e2e ghcr.io/10x-software/py10x-core:e2e
+          workdir=$(mktemp -d)
+          export WORKDIR=$workdir
+
+          expect <<'EOF'
+          set timeout 180
+          set account $env(ACCOUNT)
+          set pgpass $env(PG_PASSWORD)
+          set workerpass $env(WORKER_PASSWORD)
+          set uri $env(VAULT_URI)
+          spawn -noecho docker run --rm -it --network host -e XX_MAIN_VAULT_URI=$uri --entrypoint /app/.venv/bin/xx-vault-setup-roles py10x-functional-e2e --uri $uri --username postgres --worker $account
+          expect {
+            "password for the vault database" {}
+            timeout { puts "timed out waiting for the vault admin password prompt"; exit 1 }
+            eof { puts "xx-vault-setup-roles exited before prompting"; exit 1 }
+          }
+          send "$pgpass\r"
+          expect {
+            "password for worker" {}
+            timeout { puts "timed out waiting for the worker password prompt"; exit 1 }
+            eof { puts "xx-vault-setup-roles exited before the worker password prompt"; exit 1 }
+          }
+          send "$workerpass\r"
+          expect eof
+          foreach {_pid _spawnid oserr value} [wait] break
+          if {$oserr != 0 || $value != 0} { exit 1 }
+          EOF
+
+          expect <<'EOF'
+          set timeout 600
+          set account $env(ACCOUNT)
+          set workerpass $env(WORKER_PASSWORD)
+          set uri $env(VAULT_URI)
+          set workdir $env(WORKDIR)
+          spawn -noecho docker run --rm -it -v /var/run/docker.sock:/var/run/docker.sock -v $workdir:$workdir -e TMPDIR=$workdir -e XX_MAIN_VAULT_URI=$uri -e DEBIAN_FRONTEND=noninteractive --entrypoint bash py10x-functional-e2e -c "set -e; apt-get update -qq; if ! apt-get install -y -qq --no-install-recommends docker-cli; then apt-get install -y -qq --no-install-recommends docker.io; fi; exec /app/.venv/bin/xx-functional-account-init --functional-account-id $account --image-tag e2e --command \"tee $workdir/manifest.json\""
+          expect {
+            "Enter login name" {}
+            timeout { puts "timed out waiting for the vault login prompt"; exit 1 }
+            eof { puts "xx-functional-account-init exited before the login prompt"; exit 1 }
+          }
+          send "$account\r"
+          expect {
+            "Enter password" {}
+            timeout { puts "timed out waiting for the vault password prompt"; exit 1 }
+            eof { puts "xx-functional-account-init exited before the password prompt"; exit 1 }
+          }
+          send "$workerpass\r"
+          expect eof
+          foreach {_pid _spawnid oserr value} [wait] break
+          if {$oserr != 0 || $value != 0} { exit 1 }
+          EOF
+
+          python3 - <<'PY'
+          import json, os
+          manifest = json.load(open(os.path.join(os.environ["WORKDIR"], "manifest.json"), encoding="utf-8"))
+          account = os.environ["ACCOUNT"]
+          vault_uri = os.environ["VAULT_URI"]
+          assert [row["service"] for row in manifest] == ["XX_MASTER_PASSWORD", vault_uri], manifest
+          assert manifest[0]["username"] == account and manifest[0]["password"]
+          assert manifest[1]["username"] == account
+          assert manifest[1]["password"] == account + "\x1f" + os.environ["WORKER_PASSWORD"]
+          PY
 
   # Nightly / manual: same matrix, built and run under AddressSanitizer for memory-error diagnostics.
   asan-tests:

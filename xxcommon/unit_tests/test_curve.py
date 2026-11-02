@@ -237,6 +237,70 @@ class TestDateCurve:
         mid_date = d1 + (d2 - d1) / 2
         assert math.isnan(dc.value(mid_date))
 
+    def test_non_default_params_applied_on_value(self, curve_mod, curve_backend):
+        """Assigning params (no set_curve_params) must still affect value()."""
+        DateCurve = curve_mod.DateCurve
+        CurveParams, IP_KIND = curve_mod.CurveParams, curve_mod.IP_KIND
+        dc = DateCurve()
+
+        d1 = date(2023, 1, 1)
+        d2 = date(2023, 1, 11)
+        dc.update(d1, 10.0, reset=False)
+        dc.update(d2, 20.0, reset=True)
+
+        params = CurveParams()
+        params.ip_kind = IP_KIND.NO_INTERP
+        dc.params = params
+
+        assert dc.value(d1) == pytest.approx(10.0)
+        assert dc.value(d2) == pytest.approx(20.0)
+
+        mid_date = d1 + (d2 - d1) / 2
+        assert math.isnan(dc.value(mid_date))
+
+    def test_params_get_next_with_nan_right_fill(self, curve_mod, curve_backend):
+        """FuturesCurve-style params_get (NEXT + (left, nan)) must apply without set_curve_params."""
+        DateCurve = curve_mod.DateCurve
+        CurveParams, IP_KIND = curve_mod.CurveParams, curve_mod.IP_KIND
+
+        class FuturesLikeCurve(DateCurve):
+            def params_get(self) -> CurveParams:
+                kwargs = dict(
+                    ip_kind=IP_KIND.NEXT,
+                    fill_value=(self.values[0], math.nan),
+                )
+                if not curve_backend:
+                    kwargs['bounds_error'] = False
+                return CurveParams(**kwargs)
+
+        c = FuturesLikeCurve(beginning_of_time=date(2025, 10, 10))
+        for d, v in (
+            (date(2025, 11, 20), 60.0),
+            (date(2025, 12, 19), 62.0),
+            (date(2026, 1, 20), 64.0),
+        ):
+            c.update(d, v)
+
+        assert c.params.ip_kind == IP_KIND.NEXT
+        left, right = c.params.fill_value
+        assert left == pytest.approx(60.0)
+        assert math.isnan(right)
+
+        expected = {
+            date(2025, 10, 15): 60.0,   # left of first node -> left fill
+            date(2025, 12, 5): 62.0,    # between nodes -> NEXT
+            date(2025, 12, 19): 62.0,   # exact node
+            date(2026, 1, 5): 64.0,     # between nodes -> NEXT
+            date(2026, 2, 15): math.nan,  # past last -> right fill
+            date(2026, 6, 1): math.nan,
+        }
+        for d, exp in expected.items():
+            got = c.value(d)
+            if math.isnan(exp):
+                assert math.isnan(got), f'{d}: expected nan, got {got}'
+            else:
+                assert got == pytest.approx(exp), f'{d}: expected {exp}, got {got}'
+
     def test_epoch_number_helpers(self, curve_mod, curve_backend):
         if curve_backend:
             pytest.xfail('cxx DateCurve has no _to_number/_from_number helpers')

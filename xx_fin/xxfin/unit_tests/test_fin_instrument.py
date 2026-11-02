@@ -9,6 +9,7 @@ from xxfin.fx_forward_curve import FXForwardCurveSimple, FXForwardQuotable, FXSp
 from xxfin.ir_cash_deposit_quotable import IRCashDepositQuotable
 from xxfin.ir_swap_quotable import IRSwapQuotable
 from xxfin.ir_zero_rate_curve import ZeroRateCurve
+from xxfin.ir_zero_rate_curve_ql import ZeroRateCurveQL
 from xxfin.pricing_context import PricingContext
 
 
@@ -112,6 +113,7 @@ class TestFinInstrument:
         assert self.usd_cu.denominated_choices() == all_ccys
         assert self.gbp_cf.denominated_choices() == all_ccys
 
+    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_price_ccy(self):
         gbp_fx_now = self.gbp_fxc.now_rate
         assert self.usd_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / gbp_fx_now, abs=1e-15)
@@ -123,6 +125,26 @@ class TestFinInstrument:
 
         assert self.cad_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / cad_fx_now / gbp_fx_now, abs=1e-15)
         assert self.cad_cu.price_ccy(Ccy('GBP')) == pytest.approx(self.cad_cu.price / cad_fx_now / gbp_fx_now, abs=1e-15)
+
+    def test_cash_deposit_pays_on_maturity(self):
+        for depo in (*self.sofr_cash_depos, *self.sonia_cash_depos):
+            assert depo.pay_date == depo.end_date
+        swap = self.sofr_swaps[0]
+        assert swap.pay_date == swap.mkt_conventions.pay_date(swap.end_date)
+        assert swap.pay_dates[-1] == swap.mkt_conventions.pay_date(swap.end_dates[-1])
+        assert swap.pay_date != swap.end_date
+
+    @pytest.mark.parametrize('mkt', ['SOFR', 'SONIA', 'CORRA'])
+    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    def test_native_pillars_match_quantlib(self, mkt):
+        # Deposit pillars are maturity dates. Swap pillars discount a coupon that stops
+        # accruing at the period end and is paid on the settlement lag. Both must agree
+        # with QuantLib's DepositRateHelper and OISRateHelper on the dev quotes.
+        ql_curve = ZeroRateCurveQL(mkt_name=mkt, **self.md_basis).payload
+        native_curve = ZeroRateCurve(mkt_name=mkt, **self.md_basis).payload
+        assert list(native_curve.dates) == list(ql_curve.dates)
+        for d in native_curve.dates:
+            assert native_curve.value(d) == pytest.approx(ql_curve.value(d), abs=1e-8), d
 
     def test_disc_curve(self):
         assert self.usd_cf.disc_curve == self.usd_zrc
@@ -182,7 +204,7 @@ class TestFinInstrument:
     #             fxdeps = {FXForwardQuotable: [], FXSpotQuotable: []}
     #
     #             ed = cf.max_date()
-    #             for ccy_name, ccy_fx_spot, ccy_fx_fwds in ccys:  # noqa: B007
+    #             for ccy_name, ccy_fx_spot, ccy_fx_fwds in ccys:
     #                 fxdeps[FXSpotQuotable].append(ccy_fx_spot)
     #
     #                 for fxf in ccy_fx_fwds:
@@ -194,6 +216,7 @@ class TestFinInstrument:
     #             calc_fxdeps = cf.mkt_deps_for_ccy(Ccy(ccy_name))
     #             assert fxdeps == calc_fxdeps ##this ccy_name is the "last" in the list
 
+    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_discount_factor(self):
         old_d = self.pc.md_date - timedelta(days=365)
         for cf, zrc in zip(

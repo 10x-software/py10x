@@ -247,6 +247,23 @@ class Resource(abc.ABC):
                 cls.s_resource_type.register_driver(resource_name, cls)
                 cls.s_driver_name = resource_name
 
+    @classmethod
+    def is_type_root(cls) -> bool:
+        """True for ``TsStore`` / ``RelDb`` / ``OidcSecret`` — not drivers under them."""
+        return cls.s_resource_type is not None and cls.__base__.s_resource_type is None
+
+    @classmethod
+    def clear_all_instances(cls) -> None:
+        """Clear process-global ``s_instances`` for every Resource type root. Tests only."""
+
+        def walk(c: type) -> None:
+            for sub in c.__subclasses__():
+                if sub.is_type_root():
+                    sub.s_instances.clear()
+                walk(sub)
+
+        walk(cls)
+
     def __enter__(self):
         return self.begin_using()
 

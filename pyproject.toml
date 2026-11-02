@@ -9,8 +9,8 @@ license = {text = "MIT"}
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
 dependencies = [
-    "py10x-kernel (>=0.3.3rc5,<0.3.3rc6)",
-    "py10x-infra (>=0.3.3rc5,<0.3.3rc6)",
+    "py10x-kernel (>=0.4.0rc1,<0.4.0rc2)",
+    "py10x-infra (>=0.4.0rc1,<0.4.0rc2)",
     "importlib-resources (>=6.5.2,<6.6.0)",
     "numpy>=2.2.2,<2.5.0",
     "python-dateutil (>=2.9.0,<2.10.0)",
@@ -72,7 +72,7 @@ dev = [
     "pybind11-stubgen==2.5.5", # .pyi generation in import-time incremental rebuilds
 ]
 rio = [
-    "rio-ui==0.12.3",
+    "rio-ui==0.12.4",
     "matplotlib>=3.10.6,<3.12.0",
     "webview-proc>=0.1.0rc6",
     "aiofiles>=24.1",
@@ -107,7 +107,6 @@ py10x_core = "dev_10x.pytest_plugin"
 
 [project.scripts]
 uv-sync                         = "dev_10x.uv_sync:main"
-uv-run                          = "dev_10x.uv_run:main"
 xx-constraints                  = "dev_10x.constraints:main"
 xx-promote                      = "dev_10x.xx_promote:XxPromoteCli.main"
 xx-test-postgres-auth           = "dev_10x.postgres_local:PostgresAuthCli.main"
@@ -202,7 +201,7 @@ build = [
 ]
 dev = ["py10x-core[dev]"]
 extras = ["py10x-core[rio,qt,jit,aadc,examples]"]
-test = ["py10x-fin-base>=0.1.3rc6"]
+test = ["py10x-fin-base>=0.2.0rc1"]
 # Fin-base's extras for its tests, kept out of `test` (whose pin xx-promote rewrites); the version
 # comes from `test`. Lets uv.lock / constraints.txt cover blpapi, xbbg, aadc like `--all-extras` did.
 test-extras = ["py10x-fin-base[bbg,aadc,dev]"]

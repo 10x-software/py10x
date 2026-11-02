@@ -33,8 +33,8 @@ The Traitable framework, dependency graph, storage integration, and Rio/Qt UI ba
 
 **Users:** `pip install py10x-core[rio]` or `pip install py10x-core[qt]` (see [INSTALLATION.md](INSTALLATION.md)).
 
-**Contributors:** see [CONTRIBUTING.md](CONTRIBUTING.md#development-setup) for `uv-sync` profiles
-(`py10x-dev` builds core and the in-tree C++ packages under `cxx10x/`).
+**Contributors:** see [CONTRIBUTING.md](CONTRIBUTING.md#development-setup): `./xx-build init` builds
+core and the in-tree C++ packages under `cxx10x/`, then plain `uv sync` / `uv run`.
 
 ## Core Concepts
 
@@ -3103,7 +3103,7 @@ For running the full test suite (mongo tests skip when unreachable), see [CONTRI
 
 ### 2. Run Tests
 
-See [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) for commands (`uv run --no-sync pytest`, suite paths).
+See [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) for commands (`uv run pytest`, suite paths).
 
 ### 3. Build Your Application
 
@@ -3125,7 +3125,7 @@ See [CONTRIBUTING.md § Testing](CONTRIBUTING.md#testing) for commands (`uv run 
 - **Companion packages**:
   - [`xxcommon/README.md`](https://github.com/10x-software/py10x/blob/main/xxcommon/README.md) — finance-oriented helpers built on `core_10x`: `Calendar`, `RDate` (tenors / business-day rolls), and `Curve` / `DateCurve`.
 - **Contributing**: [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md)
-- **Release engineering**: [dev_10x/README.md](dev_10x/README.md) (`uv-sync`, `xx-promote`)
+- **Release engineering**: [dev_10x/README.md](dev_10x/README.md) (`xx-build`, `xx-promote`)
 - **Changelog**: [CHANGELOG.md](https://github.com/10x-software/py10x/blob/main/CHANGELOG.md)
 - **Security**: [SECURITY.md](https://github.com/10x-software/py10x/blob/main/SECURITY.md)
 - **Code of Conduct**: [CODE_OF_CONDUCT.md](https://github.com/10x-software/py10x/blob/main/CODE_OF_CONDUCT.md)

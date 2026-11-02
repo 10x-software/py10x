@@ -95,3 +95,47 @@ def test_post_verify_allows_encrypted_private_key_with_salt():
         rc = u.save()
 
     assert rc
+
+
+def test_post_verify_allows_unchanged_legacy_empty_salt():
+    """A stored ciphertext with an empty salt can be saved, including suspended=True.
+
+    The row is inserted directly, the way a pre-salt document exists: no salt field.
+    A new encrypted key, or a replaced one, with an empty salt still fails.
+    """
+    blob = b'legacy-encrypted-blob'
+    with patch.object(VaultUser, 'myname', classmethod(lambda cls: 'kdf-legacy-salt-user')), DuckDbStore.instance():
+        user = VaultUser()
+        user.set_values(private_key_encrypted=blob, public_key=b'legacy-pub')
+        doc = dict(user.serialize_object())
+        doc.pop('master_password_salt', None)
+        VaultUser.collection(create_if_needed=True).save_new(doc)
+
+        loaded = VaultUser.load(user.id(), reload=True)
+        assert loaded.private_key_encrypted == blob
+        assert loaded.master_password_salt == b''
+
+        loaded.set_values(suspended=True)
+        rc = loaded.save()
+        assert rc, rc.error()
+        assert loaded.suspended is True
+        assert loaded.master_password_salt == b''
+        assert loaded.private_key_encrypted == blob
+
+        reloaded = VaultUser.load(loaded.id(), reload=True)
+        assert reloaded.suspended is True
+        assert reloaded.master_password_salt == b''
+        assert reloaded.private_key_encrypted == blob
+
+        loaded.set_values(suspended=False)
+        rc_replaced = loaded.save()
+        assert not rc_replaced
+        assert 'master_password_salt' in rc_replaced.error()
+
+    with patch.object(VaultUser, 'myname', classmethod(lambda cls: 'kdf-new-empty-salt-user')), DuckDbStore.instance():
+        fresh = VaultUser()
+        fresh.set_values(private_key_encrypted=b'new-encrypted-blob', public_key=b'new-pub')
+        rc_new = fresh.save()
+
+    assert not rc_new
+    assert 'master_password_salt' in rc_new.error()

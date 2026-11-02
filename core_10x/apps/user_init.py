@@ -76,7 +76,11 @@ class UserInitCli(TraitableCli):
         # prompted interactively same as the human flow. Identity (VaultUser.myname()) comes from
         # the real OS account -- docker/entrypoint.sh has already renamed it to
         # FUNCTIONAL_ACCOUNT_ID by the time this runs.
-        rc = VaultUtils.user_init(master_password=SecKeys.generate_password())
+        # token_urlsafe is not guaranteed to contain an upper-case letter and a digit.
+        master_password = SecKeys.generate_password()
+        while not VaultUtils.verify_new_password(master_password, master_password):
+            master_password = SecKeys.generate_password()
+        rc = VaultUtils.user_init(master_password=master_password)
         if not rc:
             return rc
 

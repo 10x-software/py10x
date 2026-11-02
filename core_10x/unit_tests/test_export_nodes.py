@@ -168,3 +168,91 @@ def test_staged_object_adopting_a_taken_id_drops_its_own_values():
     i.export_nodes()
 
     assert (P(name='adopted').value, P(name='adopted').other) == (2, 3)
+
+
+class D(Traitable):
+    name: str = RT(T.ID)
+    base: int = RT(default=1)
+    derived: int = RT()
+
+    def derived_get(self) -> int:
+        return self.base * 10
+
+
+class A(Traitable):
+    name: str = RT(T.ID)
+    scaled: int = RT()
+
+    def scaled_get(self, k) -> int:
+        return k
+
+
+def test_interactive_invalidate_with_args_is_exported():
+    """The parent has no node of its own here -- the set value is one level further up --
+    so export must hide it with an invalid node for those same args."""
+    outer = A(name='args', _replace=True)
+    outer.set_trait_value_with_args(A.trait('scaled'), 50, 5)
+
+    with INTERACTIVE():
+        with INTERACTIVE() as i:
+            A(name='args').invalidate_value_with_args('scaled', 5)
+            assert A(name='args').scaled(5) == 5
+        i.export_nodes()
+        assert A(name='args').scaled(5) == 5
+
+    assert outer.scaled(5) == 50, 'the invalidation went one level up, not two'
+
+
+def test_interactive_invalidate_is_exported():
+    """An invalidation is an edit too: accepting it drops the parent's value."""
+    outer = P(name='inv', _replace=True)
+    outer.value = 5
+
+    with INTERACTIVE() as i:
+        P(name='inv').invalidate_value('value')
+        assert P(name='inv').value == 0
+
+    assert outer.value == 5, 'nothing leaves the scope before export'
+    i.export_nodes()
+    assert outer.value == 0
+
+
+def test_set_after_interactive_invalidate_exports_the_value():
+    outer = P(name='reset', _replace=True)
+    outer.value = 5
+
+    with INTERACTIVE() as i:
+        P(name='reset').invalidate_value('value')
+        P(name='reset').value = 7
+
+    i.export_nodes()
+    assert outer.value == 7
+
+
+def test_interactive_invalidation_survives_a_dependency_cascade():
+    """Recomputed after the invalidation, then invalidated again by a dependency: still exported."""
+    outer = D(name='cascade', _replace=True)
+    outer.derived = 99
+
+    with INTERACTIVE() as i:
+        d = D(name='cascade')
+        d.invalidate_value('derived')
+        assert d.derived == 10
+        d.base = 2
+
+    i.export_nodes()
+    assert outer.derived == 20
+
+
+def test_interactive_invalidation_passes_through_nested_scopes():
+    outer = P(name='nested', _replace=True)
+    outer.value = 5
+
+    with INTERACTIVE() as accumulator:
+        with INTERACTIVE() as staging:
+            P(name='nested').invalidate_value('value')
+        staging.export_nodes()
+
+    assert outer.value == 5
+    accumulator.export_nodes()
+    assert outer.value == 0

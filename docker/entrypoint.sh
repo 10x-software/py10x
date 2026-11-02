@@ -32,4 +32,22 @@ export LOGNAME="$FUNCTIONAL_ACCOUNT_ID"
 export PYTHON_KEYRING_BACKEND=core_10x.functional_account_keyring.FunctionalAccountKeyring
 export XX_FUNCTIONAL_ACCOUNT_SECRETS_FILE="$XX_SECRETS_DIR/keyring.json"
 
+# Owner-write only. gosu runs as this uid, so that uid has to own the pipe.
+output_file=""
+previous=""
+for arg in "$@"; do
+  if [[ $previous == --output-file ]]; then
+    output_file=$arg
+    break
+  fi
+  previous=$arg
+done
+if [[ -n $output_file ]]; then
+  if [[ ! -p $output_file ]]; then
+    echo "entrypoint.sh: --output-file is not a FIFO: $output_file" >&2
+    exit 1
+  fi
+  chown "$(id -u "$FUNCTIONAL_ACCOUNT_ID"):$(id -g "$FUNCTIONAL_ACCOUNT_ID")" -- "$output_file"
+fi
+
 exec gosu "$FUNCTIONAL_ACCOUNT_ID" "$@"

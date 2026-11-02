@@ -126,22 +126,30 @@ void BTraitProcessor::invalidate_value_on_graph(const BTraitableProcessor* proc,
     const auto cache = proc->cache();
     const auto &tid = obj->tid();
     cache->find_or_create_object_cache(obj); // handle lazy load
-    if (const auto node = cache->find_node(tid, trait))
+    auto node = cache->find_node(tid, trait);
+    if (node)
         node->invalidate();
     else if (const auto parent_node = cache->find_set_or_invalid_node_in_parents(tid, trait))
         if (parent_node->is_valid())
-            cache->find_or_create_node(obj, trait, false); // create invalid node
+            node = cache->find_or_create_node(obj, trait, false); // create invalid node
+
+    if (node && proc->is_empty_object_allowed())    // INTERACTIVE: remember it, so export_nodes can invalidate the parent too
+        node->set_invalidated(true);
 }
 
 void BTraitProcessor::invalidate_value_on_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::args& args) {
     const auto cache = proc->cache();
     const auto &tid = obj->tid();
     cache->find_or_create_object_cache(obj); // handle lazy load
-    if (const auto node = cache->find_node(tid, trait, args))
+    auto node = cache->find_node(tid, trait, args);
+    if (node)
         node->invalidate();
     else if (const auto parent_node = cache->find_set_or_invalid_node_in_parents(tid, trait, args))
         if (parent_node->is_valid())
-            cache->find_or_create_node(obj, trait, args, false); // create invalid node
+            node = cache->find_or_create_node(obj, trait, args, false); // create invalid node
+
+    if (node && proc->is_empty_object_allowed())    // INTERACTIVE: remember it, so export_nodes can invalidate the parent too
+        node->set_invalidated(true);
 }
 
 //---- Setting (raw) trait value

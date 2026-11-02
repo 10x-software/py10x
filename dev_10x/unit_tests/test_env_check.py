@@ -87,32 +87,41 @@ class TestCheckCxx:
 
 
 class TestModes:
-    def test_uv_sync_install_modes_map_like_uv_sync(self):
-        from dev_10x import uv_sync
-
-        assert env_check.ALIASES == uv_sync.MODES
-
-    @pytest.mark.parametrize(
-        ('env', 'uv_toml_mode', 'expected'), [('editable', 'dev-release', 'editable'), (None, 'dev-release', 'dev-release'), (None, None, 'dev')]
-    )
-    def test_default_mode(self, monkeypatch, tmp_path, env, uv_toml_mode, expected):
-        """$XX_UV_INSTALL_MODE (uv-sync), else the mode `./xx-build set-mode` left in uv.toml, else dev."""
+    @pytest.mark.parametrize(('uv_toml_mode', 'expected'), [('dev-release', 'dev-release'), (None, 'dev')])
+    def test_default_mode(self, tmp_path, uv_toml_mode, expected):
+        """The mode `./xx-build set-mode` left in uv.toml, else dev."""
         from dev_10x import xx_build
 
-        if env:
-            monkeypatch.setenv('XX_UV_INSTALL_MODE', env)
-        else:
-            monkeypatch.delenv('XX_UV_INSTALL_MODE', raising=False)
         if uv_toml_mode:
             (tmp_path / 'uv.toml').write_text(xx_build.HEADER.format(mode=uv_toml_mode), encoding='utf-8')
         assert env_check.default_mode(tmp_path) == expected
 
+    def test_a_foreign_uv_toml_is_not_reported_as_dev(self, tmp_path, monkeypatch, capsys):
+        """show-mode fails a uv.toml xx-build did not write; default_mode must not turn that into dev."""
+        from dev_10x import xx_build
+
+        (tmp_path / 'uv.toml').write_text('cache-dir = "/x"\n', encoding='utf-8')
+        assert xx_build.show_mode(tmp_path) == 1
+        message = capsys.readouterr().out.strip()
+        with pytest.raises(ValueError) as exc:
+            env_check.default_mode(tmp_path)
+        assert str(exc.value) == message
+
+        monkeypatch.setattr(xx_build, 'active_mode', lambda root=None: None)
+        checked = []
+        monkeypatch.setattr(env_check, 'check', lambda mode, downstream: checked.append(mode) or ([], []))
+        assert env_check.main(['--no-import']) == 1
+        assert checked == []
+        captured = capsys.readouterr()
+        assert message in captured.err
+        assert 'env_check dev' not in captured.out
+
     def test_main_checks_the_default_mode(self, monkeypatch):
         seen = {}
-        monkeypatch.setenv('XX_UV_INSTALL_MODE', 'editable')
+        monkeypatch.setattr(env_check, 'default_mode', lambda: 'dev-release')
         monkeypatch.setattr(env_check, 'check', lambda mode, downstream: (seen.update(mode=mode), ([], []))[1])
         assert env_check.main(['--no-import']) == 0
-        assert seen == {'mode': 'editable'}
+        assert seen == {'mode': 'dev-release'}
 
 
 class TestImportModules:

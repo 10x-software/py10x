@@ -20,7 +20,7 @@ from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
-from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Index, Traitable, TraitableFwdRef, TraitAccessor
+from core_10x.traitable import THIS_CLASS, AnonymousTraitable, EventBase, Index, NamedTraitable, Traitable, TraitableFwdRef, TraitAccessor
 from core_10x.traitable_id import ID
 from core_10x.xnone import XNone
 from infra_10x.duckdb_store import DuckDbStore
@@ -2102,3 +2102,56 @@ class TestCycles:
         ser = a.serialize_object(save_references=int(mode))
         assert isinstance(ser, dict)
         assert ser.get('ref') is not None
+
+
+def test_renamed_name_trait_hides_name():
+    """When name_trait is not 'name', .name is not a trait."""
+
+    class Mkt(NamedTraitable, name_trait='mkt_name', keep_history=False):
+        mkt_name: str = T(T.ID)
+
+    class Spot(Mkt):
+        offset: int = T(0)
+
+    class Cal(NamedTraitable, keep_history=False):
+        pass
+
+    # Storable endogenous ids lazy-load unless the cache is the only store.
+    with CACHE_ONLY():
+        mkt = Mkt(mkt_name='SOFR')
+        assert mkt.mkt_name == 'SOFR'
+        with pytest.raises(AttributeError):
+            _ = mkt.name
+        with pytest.raises(AttributeError):
+            mkt.name = 'OTHER'
+
+        spot = Spot(mkt_name='SONIA')
+        assert spot.mkt_name == 'SONIA'
+        with pytest.raises(AttributeError):
+            _ = spot.name
+
+        cal = Cal(name='UK')
+        assert cal.name == 'UK'
+
+
+def test_runtime_subclass_of_storable_hides_reserved_traits():
+    class Stored(Traitable, keep_history=False):
+        k: str = T(T.ID)
+        v: int = T(0)
+
+    class Transient(Stored):
+        k = M(flags=(T.RUNTIME, None))
+        v = M(flags=(T.RUNTIME, None))
+
+    assert Stored.is_storable()
+    assert not Transient.is_storable()
+    assert Transient.trait('_rev') is None
+    assert Transient.trait('_collection_name') is None
+
+    with CACHE_ONLY():
+        t = Transient(k='a')
+        assert t.v == 0
+        for trait_name in ('_rev', '_collection_name'):
+            assert not hasattr(t, trait_name)
+            with pytest.raises(AttributeError):
+                setattr(t, trait_name, 'x')

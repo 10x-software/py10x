@@ -39,7 +39,7 @@ command shape as the core checklist
 
 ```bash
 # From the py10x repo root:
-uv run --no-sync licensecheck -r xx_fin/pyproject.toml --extras bbg,dev
+uv run licensecheck -r xx_fin/pyproject.toml --extras bbg,dev
 ```
 
 Treat `aadc`'s and `blpapi`'s commercial-license requirements as documented exceptions (§5)
@@ -50,7 +50,7 @@ rather than failures.
 Command (re-run before each release):
 
 ```bash
-uv run --no-sync licensecheck -r xx_fin/pyproject.toml --extras bbg,dev
+uv run licensecheck -r xx_fin/pyproject.toml --extras bbg,dev
 ```
 
 **Last run:** 2026-08-30 (macOS / Python 3.11 venv) — **92** compatible, **4** flagged.
@@ -123,7 +123,7 @@ images/logos are shipped under `xx_fin/`.
 - [x] Clean-venv smoke test: install from build artifacts → `import xxfin; import cxxfin`
   (CI `smoke_test` job).
 - [x] Dependency license check with optional extras (§2):
-  `uv run --no-sync licensecheck -r xx_fin/pyproject.toml --extras bbg,dev` —
+  `uv run licensecheck -r xx_fin/pyproject.toml --extras bbg,dev` —
   `quantlib-python` / `xbbg` MIT-compatible; `blpapi` / `aadc` documented commercial exceptions.
 
 Known, accepted-risk items — explicit calls for the `0.1rc1` pre-release, not oversights:
@@ -145,7 +145,7 @@ Known, intentionally out-of-scope items tracked elsewhere (not blocking this che
 ## 8. Ongoing
 
 - Run a license check when adding dependencies under `xx_fin/` — include optional extras:
-  `uv run --no-sync licensecheck -r xx_fin/pyproject.toml --extras bbg,dev`.
+  `uv run licensecheck -r xx_fin/pyproject.toml --extras bbg,dev`.
 - Keep NOTICE updated as `xx_fin`'s direct third-party dependencies change.
 - Keep this checklist aligned with the core
   [`docs/OPEN_SOURCE_IP_CHECKLIST.md`](../../docs/OPEN_SOURCE_IP_CHECKLIST.md) when the

@@ -263,7 +263,7 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def("is_id_endogenous",            &BTraitableClass::is_id_endogenous)
             .def("is_custom_collection",        &BTraitableClass::is_custom_collection)
             .def("is_default_cache",            &BTraitableClass::is_default_cache)
-            .def("find_trait",                  &BTraitableClass::find_trait)
+            //.def("find_trait",                  &BTraitableClass::find_trait)
             .def("load",                        &BTraitableClass::load,
                         "id"_a, "reload"_a=true
                 )

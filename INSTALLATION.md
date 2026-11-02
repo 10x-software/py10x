@@ -50,9 +50,9 @@ If either applies, install one of:
     libpq defaults to the OS user when omitted). Each pytest **session creates its own
     `py10x_test_*` database** and drops it at the end, so a run never touches your own data
     and two concurrent sessions cannot collide. A session killed
-    before teardown leaves its database behind — `uv run --no-sync xx-test-db-clean drop` sweeps
+    before teardown leaves its database behind — `uv run xx-test-db-clean drop` sweeps
     those (see [`dev_10x/README.md`](dev_10x/README.md)). CI also starts a **password-auth** companion on
-    **port 5433** for with-auth smoke tests. Locally: `uv run --no-sync xx-test-postgres-auth start` (prefers Docker; falls back to
+    **port 5433** for with-auth smoke tests. Locally: `uv run xx-test-postgres-auth start` (prefers Docker; falls back to
     Homebrew — see [`dev_10x/README.md`](dev_10x/README.md)).
     Authenticated hosts use the vault
 
@@ -111,21 +111,14 @@ the machine (see above), not in the venv, at a version satisfying `[tool.uv] req
 git clone https://github.com/10x-software/py10x.git
 cd py10x
 
-# Editable core + the in-tree C++ packages (cxx10x/) built locally
-uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras
-uv run --no-sync pytest
+# Editable core + the in-tree C++ packages (cxx10x/) built locally (bash; Git Bash on Windows)
+./xx-build init
+uv run pytest
 ```
 
-Profile table and refresh commands: [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
-
-`uv-sync` drives `uv pip install` with dependency-source **profiles** (see
-[`dev_10x/README.md`](dev_10x/README.md)); it does not mutate `pyproject.toml`. Plain `uv sync` is
-not the canonical dev path. Run it as
-`uv run --no-sync python -m dev_10x.uv_sync <profile>` from repo root (no venv activation
-required). After sync, use `uv run --no-sync …` for pytest, ruff, etc.
-
-For user installs, lighter profiles, and release promotion (`xx-promote`), see
-[`dev_10x/README.md`](dev_10x/README.md).
+After that, plain `uv sync` keeps the environment current and `uv run …` runs pytest, ruff, etc.
+Build modes, what to leave out, and refreshing: [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
+Release promotion (`xx-promote`) and the dependency freeze: [`dev_10x/README.md`](dev_10x/README.md).
 
 ### User Installation
 
@@ -256,16 +249,17 @@ winget install --id OpenJS.NodeJS.LTS `
   --accept-package-agreements --accept-source-agreements --silent
 ```
 
-**Git for Windows must be installed at its default location, `C:\Program Files\Git`** (the installer and WinGet
-default). CLion's CMake configure of `cxx10x/` stamps module versions with `setuptools-scm`, which runs `git`, and
-CLion does not run it from Git Bash: `cxx10x/CMakeLists.txt` finds git there (CMake's `FindGit` checks the default
-location even when git is not on PATH) and hands it to `setuptools-scm`.
+**For CLion, git must be on CLion's PATH or where CMake's `FindGit` finds it**, such as Git for Windows' default
+`C:\Program Files\Git` (the installer and WinGet default); otherwise set `GIT_EXECUTABLE` in CLion's CMake options.
+CLion's CMake configure of `cxx10x/` stamps module versions with `setuptools-scm`, which runs `git`, and CLion does
+not run it from Git Bash, so `cxx10x/CMakeLists.txt` puts the git `FindGit` found on its PATH. See
+[cxx10x/README.md](cxx10x/README.md) for the exact locations searched.
 
 If you need the C++ workload and already have the full Visual Studio 2022 IDE installed, add the workload to it instead of installing Build Tools — open *Visual Studio Installer* → *Modify* → check **Desktop development with C++**.
 
 #### Manual Installation
 1. Download and install [Git for Windows](https://git-scm.com/download/win) (provides `git` and bundles Git Bash).
-   Keep the default install location, `C:\Program Files\Git` (see the note above).
+   Keep the default install location, `C:\Program Files\Git`, unless git is on PATH (see the note above).
 2. *Optional* — only if building native deps from source: download and install the [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) and select the **Desktop development with C++** workload (or use the full [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) IDE with the same workload).
 3. Download and install [MongoDB Community Server](https://www.mongodb.com/try/download/community) (for testing and examples) - optional
 4. Download and install [Node.js](https://nodejs.org/) (for Rio UI) - optional
@@ -280,11 +274,10 @@ If you need the C++ workload and already have the full Visual Studio 2022 IDE in
 
 ### UI Backend Selection
 
-For **contributors** using `uv-sync` profiles, pass UI extras to the sync command (e.g.
-`py10x-dev --all-extras` already includes Rio/Qt). After sync, use `uv run --no-sync …` — see
-[CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
+**Contributors:** the development install already includes Rio and Qt (the `extras` dependency
+group) — see [CONTRIBUTING.md](CONTRIBUTING.md#development-setup).
 
-For **user** installs without `uv-sync`, you can override backend selection with:
+For **user** installs, you can override backend selection with:
 
 ```bash
 # Force Rio UI backend
@@ -353,8 +346,7 @@ If you encounter C++ compilation errors:
 
 If UI components fail to import:
 
-1. **Contributors:** re-sync with the right extras, e.g.
-   `uv run --no-sync python -m dev_10x.uv_sync py10x-dev --all-extras` (see
+1. **Contributors:** re-sync with plain `uv sync`, without `--no-group extras` (see
    [CONTRIBUTING.md](CONTRIBUTING.md#development-setup)).
 2. **Rio UI (user install):** Install Node.js and npm, then reinstall with Rio extras
    ```bash
@@ -385,6 +377,6 @@ If you encounter permission errors during installation:
 
 - Check the [README.md](https://github.com/10x-software/py10x/blob/main/README.md) for overview and examples
 - See [CONTRIBUTING.md](https://github.com/10x-software/py10x/blob/main/CONTRIBUTING.md) for development workflow
-- See [dev_10x/README.md](dev_10x/README.md) for release engineering and dev dependency profiles
+- See [dev_10x/README.md](dev_10x/README.md) for release engineering and the development environment (`xx-build`, build modes)
 - Join our [Discord community](https://discord.gg/m7AQSXfFwf) for support
 - Report issues on [GitHub](https://github.com/10x-software/py10x/issues)
