@@ -72,7 +72,7 @@ class _QLBase:
 
 
 class _QLType(type):
-    """Class factory so `ql.DateGeneration.Forward` and trait annotations both work."""
+    """Class factory so `ql.DateGeneration.Backward` and trait annotations both work."""
 
     def __getattr__(cls, item):
         child = _QLType(item, (_QLBase,), {})
@@ -236,7 +236,7 @@ def test_sofr_fd_holiday_inside_the_spot_window():
     assert args[3].isBusinessDay(probe)
 
 
-def test_ois_helper_spot_lag_forward_and_not_end_of_month():
+def test_ois_helper_spot_lag_backward_and_not_end_of_month():
     mc, _bank, _curve = _conventions(RDate('2B'))
     quotable = SimpleNamespace(tenor = RDate('5Y'), quote = 0.03)
     recorded = _Recorder()
@@ -244,7 +244,7 @@ def test_ois_helper_spot_lag_forward_and_not_end_of_month():
         ql_adapter.QL.swap_helper(quotable, mc, index = object())
     args, kwargs = recorded.calls[0]
     assert args[0] == mc.spot_offset.count
-    assert kwargs['rule'] == ql.DateGeneration.Forward
+    assert kwargs['rule'] == ql.DateGeneration.Backward
     assert kwargs['endOfMonth'] is False
 
 

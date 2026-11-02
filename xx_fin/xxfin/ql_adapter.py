@@ -139,18 +139,9 @@ class QL:
 
     @classmethod
     def deposit_helper(cls, quotable: IRCashDepositQuotable, mc: IRRateMktConventions, md_date: date) -> ql.DepositRateHelper:
-        #-- ql.DepositRateHelper has no dates-based constructor (verified: all 5 overloads are
-        #   tenor+calendar-driven) and RateHelper has no Python director support either (its
-        #   __init__ only exposes the bare Observable constructor), so there's no way to make it
-        #   land exactly on quotable.pay_date -- that date includes a settle/pay lag applied
-        #   *after* the tenor-rolled end date, and calendar.advance() can only do one tenor-roll
-        #   per call, not roll-then-lag (ql.Period(n, ql.Days) advances n business days, not n
-        #   calendar days, so it can't hop straight to a precomputed date either).
-        #   This calibrates against the un-lagged tenor-end date (quotable.end_date) instead, which
-        #   introduces a small (~1-2bp, growing mildly with tenor) discrepancy vs. the native
-        #   curve's pay-lagged pillar -- a structural limitation of stock QuantLib RateHelpers in
-        #   Python, not a bug to chase further.
-        #-- Spot deposits (every tenor but '1B') start on the spot date rolled on the currency
+        #-- ql.DepositRateHelper is tenor+calendar-driven (no dates-based constructor), so its pillar is
+        #   the tenor-rolled end date -- the same as the native curve's point for a deposit (pay_date == end_date).
+        #   Spot deposits (every tenor but '1B') start on the spot date rolled on the currency
         #   bank calendar, not mc.calendar. The helper then advances fixingDays on the calendar
         #   it is given, so that calendar has to be the one that produced start_date or the
         #   start misses it. USD bank calendar FD and the SOFR curve calendar US differ inside
@@ -201,9 +192,9 @@ class QL:
             fixedPaymentFrequency = payment_frequency,
             fixedCalendar        = mc.calendar.ql_calendar,
             convention           = cls.business_day_convention(mc.roll_rule),
-            #-- native solve_swap propagates FORWARD with no end-of-month rule. The helper
-            #   default is Backward, and an omitted endOfMonth turns on at month-end starts.
-            rule                 = ql.DateGeneration.Forward,
+            #-- native swap schedules are generated backward, with no end-of-month pin.
+            #   An omitted endOfMonth turns on at month-end starts.
+            rule                 = ql.DateGeneration.Backward,
             endOfMonth           = False,
         )
 
