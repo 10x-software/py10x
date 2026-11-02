@@ -1,6 +1,4 @@
-from xxcommon.rdate import PROPAGATE_DATES, RDate
-
-from xxfin.root_solver import ir_add_curve_point, xtol
+from xxfin.root_solver import ir_add_curve_point, ir_add_curve_point_near, xtol
 
 
 def solve_cash_deposit(zrc, start_date, end_date, quote, mc, today):
@@ -19,31 +17,23 @@ def solve_cash_deposit(zrc, start_date, end_date, quote, mc, today):
         raise ValueError(f'Failed to bootstrap cash deposit [{start_date} -> {end_date}]; {rc.error}')
 
 
-def solve_swap(zrc, spot_date, swap_tenor, quote, mc, today):
-    fixed_dc_convention = mc.fixed_leg_swap_dc_convention
-    fixed_freq          = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
-    swap_freq           = RDate(freq=mc.tenor_frequency,                count=1)
-    swap_calendar       = mc.calendar
-    swap_roll_rule      = mc.roll_rule
-    pay_calendar        = mc.settlement_calendar
-    pay_roll_rule       = mc.roll_rule_to_settle
-    pay_offset          = mc.settle_offset
-
-    end_date = swap_tenor.apply(spot_date, swap_calendar, swap_roll_rule)
-    last_pay = pay_offset.apply(end_date, pay_calendar, pay_roll_rule)
-    bracket  = (quote / 2., min(1., quote * 2.))
+def solve_swap(zrc, quotable, mc, today):
+    #-- the schedules don't depend on the root x: take them from the quotable (computed once, not per iteration)
+    fixed_dc_fractions = quotable.fixed_dc_fractions
+    fixed_pays         = quotable.fixed_pay_dates
+    float_starts       = quotable.start_dates
+    float_ends         = quotable.end_dates
+    float_pays         = quotable.pay_dates
+    last_pay           = quotable.pay_date
+    quote              = quotable.quote
 
     def f(x):
         zrc.update(last_pay, x)
         if len(zrc.dates) < 3:
             zrc.update(zrc.beginning_of_time_as_date(), x)
-        return zrc.swap_rate_simple_compounding(
-            spot_date, swap_tenor,
-            fixed_freq, fixed_dc_convention, swap_freq, swap_calendar, swap_roll_rule,
-            pay_offset, pay_calendar, pay_roll_rule,
-            PROPAGATE_DATES.FORWARD, False, today
-        ) - quote
+        return zrc.swap_rate_for_period_dates(fixed_dc_fractions, fixed_pays, float_starts, float_ends, float_pays, today) - quote
 
-    rc = ir_add_curve_point(f, bracket, xtol)
+    #-- the zero rate x at the swap's last pay date is close to the swap rate quote
+    rc = ir_add_curve_point_near(f, quote, xtol)
     if not rc:
-        raise ValueError(f'Failed to bootstrap swap tenor={swap_tenor.symbol()}; {rc.error}')
+        raise ValueError(f'Failed to bootstrap swap tenor={quotable.tenor.symbol()}; {rc.error}')

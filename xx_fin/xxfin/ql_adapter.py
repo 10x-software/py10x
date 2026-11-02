@@ -137,6 +137,8 @@ class QL:
 
     @classmethod
     def deposit_helper(cls, quotable: IRCashDepositQuotable, mc: IRRateMktConventions) -> ql.DepositRateHelper:
+        #-- ql.DepositRateHelper is tenor+calendar-driven (no dates-based constructor), so its pillar is
+        #   the tenor-rolled end date -- the same as the native curve's point for a deposit (pay_date == end_date)
         calendar = mc.calendar.ql_calendar
         today    = ql.Settings.instance().evaluationDate
         start    = cls.to_date(quotable.start_date)

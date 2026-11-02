@@ -16,6 +16,8 @@ bracket = (-1. + eps, 1. - eps)   ## TODO: set bracket by quotable class
 method  = 'toms748'
 xtol    = 1.e-12
 
+near_half_width = 0.02  ## the half width of the narrow bracket tried 1st around a guess of the root (see ir_add_curve_point_near)
+
 def _default_root_scalar(f, bracket, xtol, method):
     return _scipy_root_scalar(f, bracket=bracket, xtol=xtol, method=method)
 
@@ -41,3 +43,14 @@ def ir_add_curve_point(f: Callable, bracket: tuple = bracket, xtol: float = xtol
         return RC(False, f'No convergence for xtol = {xtol}')
     except Exception as e:
         return RC(False, str(e))
+
+def ir_add_curve_point_near(f: Callable, guess: float, xtol: float = xtol, method: str = method) -> RC:
+    """
+    Tries the narrow bracket [guess - near_half_width, guess + near_half_width] 1st (fewer iterations),
+    and the wide default bracket only if the narrow one doesn't straddle the root
+    """
+    rc = ir_add_curve_point(f, (guess - near_half_width, guess + near_half_width), xtol, method)
+    if rc:
+        return rc
+
+    return ir_add_curve_point(f, bracket, xtol, method)
