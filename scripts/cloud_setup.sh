@@ -54,16 +54,13 @@ PLAYWRIGHT_BROWSERS_PATH=$PW_BROWSERS uvx --from "playwright==$PW_VERSION" playw
   done
 chown -R "$DEV:$DEV" "/home/$DEV/.cache"
 
-# The proxy CA sits under /root (0700), so `as-dev` hands the dev user a readable copy, refreshed
-# on every call since the proxy can rotate it. It does not exist yet while the environment is built.
+# The dev user gets the system bundle: the session adds the proxy CA to it, while the proxy's own
+# /root/.ccr/ca-bundle.crt is unreadable to the dev user and absent while the environment is built.
 chown -R "$DEV:$DEV" "$REPO"
 git config --global --add safe.directory "$REPO"
 cat > /usr/local/bin/as-dev <<EOF
 #!/bin/sh
-CA=/usr/local/share/ccr-ca.crt
-SRC=/root/.ccr/ca-bundle.crt
-[ -r "\$SRC" ] || SRC=\${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
-install -m 644 "\$SRC" "\$CA"
+CA=/etc/ssl/certs/ca-certificates.crt
 exec runuser -u $DEV -- env HOME=/home/$DEV USER=$DEV PLAYWRIGHT_BROWSERS_PATH=$PW_BROWSERS \\
   PATH="\$(echo "\$PATH" | tr : '\n' | grep -v '^/root' | paste -sd:)" \\
   SSL_CERT_FILE="\$CA" REQUESTS_CA_BUNDLE="\$CA" CURL_CA_BUNDLE="\$CA" PIP_CERT="\$CA" \\
