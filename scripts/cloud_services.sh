@@ -18,6 +18,14 @@ set -euo pipefail
 
 [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || exit 0
 
+# The async hook cloud_dev_env_hook.sh builds an incomplete dev env; say so up front, as its own
+# report only arrives when it is done.
+REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+if command -v as-dev >/dev/null 2>&1 && ! grep -qsv incomplete "$REPO/.venv/xx-build-mode"; then
+  echo "The dev env is being built in the background (log: /tmp/cloud_dev_env.log); you will be told when it" \
+    "finishes. Do not run as-dev uv / pytest until then."
+fi
+
 # Mirror of Docker Hub's mongo:8: anonymous Docker Hub pulls from the cloud egress get 429.
 MONGO_IMAGE=mirror.gcr.io/library/mongo:8
 
