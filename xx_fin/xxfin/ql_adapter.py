@@ -10,8 +10,7 @@ from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
 from xxfin.ir_swap_quotable import IRSwapQuotable
 
 
-class QL:
-    """
+
     Adapter converting native 10x/xxfin conventions into their QuantLib equivalents.
     """
 
@@ -141,16 +140,8 @@ class QL:
     def deposit_helper(cls, quotable: IRCashDepositQuotable, mc: IRRateMktConventions, md_date: date) -> ql.DepositRateHelper:
         #-- ql.DepositRateHelper is tenor+calendar-driven (no dates-based constructor), so its pillar is
         #   the tenor-rolled end date -- the same as the native curve's point for a deposit (pay_date == end_date).
-        #   Spot deposits (every tenor but '1B') start on the spot date rolled on the currency
-        #   bank calendar, not mc.calendar. The helper then advances fixingDays on the calendar
-        #   it is given, so that calendar has to be the one that produced start_date or the
-        #   start misses it. USD bank calendar FD and the SOFR curve calendar US differ inside
-        #   T+2. '1B' starts today and its end rolls on mc.calendar; keep that calendar so the
-        #   overnight business-day advance does not move onto the bank calendar.
-        if quotable.tenor.symbol() == '1B':
-            calendar = mc.calendar.ql_calendar
-        else:
-            calendar = mc.ccy.bank_calendar.ql_calendar
+        #   It rolls start and end on one calendar, so it takes mc.calendar, which rolls the native end.
+        calendar = mc.calendar.ql_calendar
         fixing_days = calendar.businessDaysBetween(cls.to_date(md_date), cls.to_date(quotable.start_date))
 
         return ql.DepositRateHelper(
@@ -173,23 +164,20 @@ class QL:
         if mc.fixed_leg_swap_dc_convention is not mc.dc_convention:
             raise NotImplementedError(f'{mc.mkt_name}: OISRateHelper cannot express a fixed-leg day count ({mc.fixed_leg_swap_dc_convention}) different from the index day count ({mc.dc_convention})')
 
-        #-- settlementDays is a business-day spot lag. A week or month count is not that lag.
-        if mc.spot_offset.freq is not TENOR_FREQUENCY.BIZDAY:
-            raise ValueError(f'{mc.mkt_name}: OIS spot lag must be business days, got {mc.spot_offset.symbol()}')
-
-        payment_frequency = cls.frequency(mc.fixed_leg_swap_tenor_frequency)
-
-        return ql.OISRateHelper(
-            mc.spot_offset.count,
-            cls.period(quotable.tenor),
+        #-- dated, not spot lag + tenor: native spot rolls on the ccy bank calendar but the schedule on
+        #   mc.calendar. The end is unadjusted, as in RDate.period_dates_for_tenor(), since the backward
+        #   schedule is generated from it.
+        return ql.OISRateHelper.forDates(
+            cls.to_date(quotable.start_date),
+            cls.to_date(quotable.tenor.apply(quotable.start_date, mc.calendar, BIZDAY_ROLL_RULE.NO_ROLL)),
             quotable.quote,
             index,
             paymentLag           = mc.settle_offset.count,
             paymentConvention    = cls.business_day_convention(mc.roll_rule_to_settle),
-            paymentFrequency     = payment_frequency,
+            paymentFrequency     = cls.frequency(mc.tenor_frequency),
             paymentCalendar      = mc.settlement_calendar.ql_calendar,
             averagingMethod      = ql.RateAveraging.Compound,
-            fixedPaymentFrequency = payment_frequency,
+            fixedPaymentFrequency = cls.frequency(mc.fixed_leg_swap_tenor_frequency),
             fixedCalendar        = mc.calendar.ql_calendar,
             convention           = cls.business_day_convention(mc.roll_rule),
             #-- native swap schedules are generated backward, with no end-of-month pin.
