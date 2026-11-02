@@ -2544,7 +2544,7 @@ source = { editable = "xx_fin" }
 dependencies = [
     { name = "py10x-core" },
     { name = "py10x-fin-base-cxx" },
-    { name = "quantlib-python" },
+    { name = "quantlib" },
 ]
 
 [package.optional-dependencies]
@@ -2572,7 +2572,7 @@ requires-dist = [
     { name = "py10x-core", extras = ["aadc"], marker = "extra == 'aadc'", editable = "." },
     { name = "py10x-core", extras = ["dev"], marker = "extra == 'dev'", editable = "." },
     { name = "py10x-fin-base-cxx", editable = "xx_fin/cxxfin" },
-    { name = "quantlib-python", specifier = ">=1.18" },
+    { name = "quantlib", specifier = ">=1.40" },
     { name = "scikit-build-core", marker = "extra == 'dev'", specifier = ">=0.12.2" },
     { name = "setuptools-scm", marker = "extra == 'dev'", specifier = ">=9.2.2" },
     { name = "xbbg", marker = "extra == 'bbg'", specifier = ">=1.4.5" },
@@ -3157,17 +3157,6 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a3/b0/d6546bdbdf5db5f478affaad82b2018fb972467939e2b930cf8bdb7a84c7/quantlib-1.44-pp311-pypy311_pp73-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:a203d1a495fccd120859d0a52082bd93840f65797ce2190eb3622b29c205c57d", size = 19657811, upload-time = "2026-10-13T10:31:37.058Z" },
     { url = "https://files.pythonhosted.org/packages/f1/0e/90d5150c82e567168e1f9b7b4e5df416c5df33aa9ac29d356a611c753965/quantlib-1.44-pp311-pypy311_pp73-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:8208b20e55c44102bad224db5d2536ed4b3167fed5483bacd722d3b327dd9c81", size = 20971630, upload-time = "2026-10-13T10:31:39.424Z" },
     { url = "https://files.pythonhosted.org/packages/13/36/25b92a4ce1da7529145494ee62e84fd74b5bdfc3f942ee40a37f8834d07e/quantlib-1.44-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:14747cf77bc3d41863e65ef31248d08f479c672d31bec0a8b2bbec7e7b57cfa3", size = 13102067, upload-time = "2026-10-13T10:31:41.589Z" },
-]
-
-[[package]]
-name = "quantlib-python"
-version = "1.18"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "quantlib" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7e/a9/4c6fac9c3c9b1625ab573531bbe9666d2f7cd6bc0a5eeb1f5792b947d9b2/QuantLib_Python-1.18-py2.py3-none-any.whl", hash = "sha256:8ea08b1d2247ee66eaab2442cff84b37ca97260f17fb7d2118100cb8111850df", size = 1420, upload-time = "2020-03-23T09:26:14.507Z" },
 ]
 
 [[package]]
