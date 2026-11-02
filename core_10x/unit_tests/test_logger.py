@@ -9,14 +9,19 @@ TestLoggerEndToEnd  - subprocess lifecycle using Logger directly;
                       full message-processing requires a TsStore (infra_10x tests)
 TestLOGStub         - functional tests of the LOG interface using a stub Logger
                       (``stub_log_logger`` fixture — avoids subprocess / TsStore)
+TestLoggerHooks     - subclass hooks (s_log_message_class, log_store, collection_name);
+                      mp.Process is faked, logger_process runs in-process
 """
 
 import multiprocessing as mp
+import os
+import queue
 import time
 
 import core_10x.logger as log_module
 import pytest
 from core_10x.logger import LOG, Logger, PerfTimer
+from core_10x.resource import NULL_RESOURCE
 from core_10x.testlib.stub_logger import stub_log_module_logger
 
 # ---------------------------------------------------------------------------
@@ -245,3 +250,101 @@ class TestLOGStub:
             LOG.BRIEF('after restart')
             assert len(stub2.received) == 1
             assert stub2.received[0]['payload'] == 'after restart'
+
+
+# ---------------------------------------------------------------------------
+# Subclass hooks: s_log_message_class, log_store(), collection_name()
+# ---------------------------------------------------------------------------
+
+
+class _RecordingMessage:
+    """Stand-in for LogMessage: records construction and save(); no TsStore needed."""
+
+    created: list = []
+
+    def __init__(self, _replace=False, _collection_name=None, **data):
+        self.collection_name = _collection_name
+        self.ns = data['ns']
+        self.data = data
+        self.saved = False
+        _RecordingMessage.created.append(self)
+
+    def save(self):
+        self.saved = True
+
+
+class _FakeProcess:
+    """Replaces mp.Process: captures target/args instead of spawning."""
+
+    started: list = []
+
+    def __init__(self, target, args):
+        self.target = target
+        self.args = args
+        self.daemon = False
+
+    def start(self):
+        _FakeProcess.started.append(self)
+
+
+class TestLoggerHooks:
+    @pytest.fixture(autouse=True)
+    def fake_process(self, monkeypatch):
+        _FakeProcess.started.clear()
+        _RecordingMessage.created.clear()
+        monkeypatch.setattr(log_module.mp, 'Process', _FakeProcess)
+
+    def test_child_target_is_subclass_logger_process(self):
+        class Sub(Logger):
+            pass
+
+        Sub('hooks_target', LOG.BRIEF.value, do_print=False)
+        (proc,) = _FakeProcess.started
+        assert proc.target == Sub.logger_process
+
+    def test_default_collection_name_is_per_run(self):
+        Logger('hooks_default_coll', LOG.BRIEF.value, do_print=False)
+        coll_name = _FakeProcess.started[0].args[1]
+        assert coll_name.startswith('hooks_default_coll/')
+        assert coll_name.endswith(f'/{os.getpid()}')
+
+    def test_collection_name_override(self):
+        class Sub(Logger):
+            @classmethod
+            def collection_name(cls, app_name, started_at, pid):
+                return app_name
+
+        Sub('hooks_fixed_coll', LOG.BRIEF.value, do_print=False)
+        assert _FakeProcess.started[0].args[1] == 'hooks_fixed_coll'
+
+    def test_log_store_failure_raises_in_parent_before_child_starts(self):
+        class Sub(Logger):
+            @classmethod
+            def log_store(cls):
+                raise RuntimeError('no log store')
+
+        with pytest.raises(RuntimeError, match='no log store'):
+            Sub('hooks_no_store', LOG.BRIEF.value, do_print=False)
+        assert not _FakeProcess.started
+
+    def test_logger_process_uses_message_class_and_log_store(self):
+        stores = []
+
+        class Sub(Logger):
+            s_log_message_class = _RecordingMessage
+
+            @classmethod
+            def log_store(cls):
+                stores.append(NULL_RESOURCE)
+                return NULL_RESOURCE
+
+        q = queue.Queue()
+        for i in range(3):
+            q.put({'ns': i, 'payload': f'm{i}'})
+        q.put(None)
+
+        Sub.logger_process(q, 'hooks_coll', False)
+
+        assert len(stores) == 1
+        assert [m.data for m in _RecordingMessage.created] == [{'ns': i, 'payload': f'm{i}'} for i in range(3)]
+        assert all(m.collection_name == 'hooks_coll' and m.saved for m in _RecordingMessage.created)
