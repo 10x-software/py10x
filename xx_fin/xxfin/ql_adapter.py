@@ -1,3 +1,4 @@
+import functools
 from datetime import date
 
 import QuantLib as ql
@@ -10,7 +11,19 @@ from xxfin.ir_rate_mkt_conventions import IRRateMktConventions
 from xxfin.ir_swap_quotable import IRSwapQuotable
 
 
+def as_of_md_date(method):
+    #-- QuantLib's process-global "today" has to be md_date while it prices (fixings before it must be
+    #   stored history). Restored on return, so any QuantLib object built inside must not be queried after.
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        with ql.SavedSettings():
+            ql.Settings.instance().evaluationDate = QL.to_date(self.md_date)
+            return method(self, *args, **kwargs)
+    return wrapper
 
+
+class QL:
+    """
     Adapter converting native 10x/xxfin conventions into their QuantLib equivalents.
     """
 
