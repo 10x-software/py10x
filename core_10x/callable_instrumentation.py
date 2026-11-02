@@ -4,6 +4,7 @@ import importlib.machinery
 import inspect
 import sys
 import textwrap
+import types
 from typing import Callable
 
 from core_10x.package_refactoring import PackageRefactoring
@@ -23,7 +24,7 @@ class CallableRewriter(ast.NodeTransformer):
     new rewriter per function.
 
     instrument() owns the ENTIRE per-function pipeline -- source extraction, parsing, line-number correction,
-    decorator stripping, visiting, recompiling, and re-executing against the function's own globals -- so a theme
+    decorator stripping, visiting, recompiling, and rebuilding the function object (see _rebuild()) -- so a theme
     only ever supplies the AST transformation itself, never the surrounding machinery.
     """
 
@@ -49,30 +50,87 @@ class CallableRewriter(ast.NodeTransformer):
             return function
         func_def.decorator_list = []   #-- strip any decorator getsource happened to capture -- caller re-wraps
         self.visit(func_def)
-        ast.fix_missing_locations(tree)
 
-        alt_globals = function.__globals__
-        alt_globals.update(self.globals_to_bind)
-        name = function.__name__
-        #-- alt_globals IS function.__globals__ -- the DEFINING module's own __dict__, for both a
-        # module-level function and a class method alike. exec() below would otherwise rebind (or,
-        # for a method, spuriously introduce) `name` there as a side effect -- silently activating
-        # a free function early, or leaking a stray module-level name for a method. Capture
-        # whatever was at `name` first and put it straight back -- building must never leave a
-        # trace; only apply()/restore() may actually activate anything.
-        had_prior, prior_value = (name in alt_globals), alt_globals.get(name)
-        #-- flags: re-parsing/recompiling just this function's own source loses the defining
-        # module's own `from __future__ import annotations` effect -- without this, an annotation
-        # referencing a TYPE_CHECKING-only import (never a real runtime name) would be eagerly
-        # evaluated here and raise NameError, instead of staying the lazy string PEP 563 promises.
-        code = compile(tree, self.filename, 'exec', flags = __future__.annotations.compiler_flag)
-        exec(code, alt_globals)  # noqa: S102 -- deliberate: building an instrumented copy
-        alt = alt_globals[name]
-        if had_prior:
-            alt_globals[name] = prior_value
-        else:
-            del alt_globals[name]
-        return alt
+        function.__globals__.update(self.globals_to_bind)
+        return _rebuild(function, func_def, self.filename)
+
+
+_TYPE_PARAMS = {'type_params': []} if 'type_params' in ast.FunctionDef._fields else {}   #-- 3.12+ field
+
+
+def _rebuild(function: Callable, func_def: ast.FunctionDef | ast.AsyncFunctionDef, filename: str) -> Callable:
+    """
+    A copy of `function` running func_def's (rewritten) code, built WITHOUT executing any def: nothing is written
+    to the defining module's globals and no default expression is re-evaluated -- the copy shares the original's
+    defaults and closure cells. func_def is compiled inside a stand-in for the scopes it was defined in, so
+    zero-arg super(), closure variables and private-name mangling resolve exactly as in the original:
+
+        def __xx_outer__(<function's free variables>):    # becomes their enclosing scope
+            global <Owner>                                 # Owner stays a global name inside the body
+            class <Owner>:                                 # innermost enclosing class: __class__ + mangling
+                <func_def>
+
+    Returns `function` unchanged if the rebuilt code needs other free variables than the original's.
+    """
+    freevars = function.__code__.co_freevars
+    owner = _enclosing_class_name(function.__qualname__)
+    body: list[ast.stmt] = [func_def]
+    if owner:
+        body = [ast.ClassDef(name = owner, bases = [], keywords = [], body = body, decorator_list = [], **_TYPE_PARAMS)]
+        if owner not in freevars:      #-- else the class itself is a closure variable -- a parameter below
+            body.insert(0, ast.Global(names = [owner]))
+    params = ast.arguments(posonlyargs = [], args = [ast.arg(arg = name) for name in freevars if name != '__class__'],
+                           kwonlyargs = [], kw_defaults = [], defaults = [])
+    outer = ast.FunctionDef(name = '__xx_outer__', args = params, body = body, decorator_list = [], **_TYPE_PARAMS)
+    module = ast.Module(body = [outer], type_ignores = [])
+    ast.fix_missing_locations(module)
+    #-- flags: recompiling just this function's own source loses the defining module's own `from __future__
+    # import annotations` -- without it, an annotation in a NESTED def referencing a TYPE_CHECKING-only import
+    # would be evaluated when that def runs and raise NameError, instead of staying a lazy PEP 563 string.
+    container = _child_code(compile(module, filename, 'exec', flags = __future__.annotations.compiler_flag), outer.name)
+    if owner:
+        container = _child_code(container, owner)
+    code = _find_code(container, func_def.name)
+
+    cells = dict(zip(freevars, function.__closure__ or (), strict = True))
+    if code is None or set(code.co_freevars) != set(cells):
+        return function
+
+    alt = types.FunctionType(code, function.__globals__, function.__name__, function.__defaults__,
+                             tuple(cells[name] for name in code.co_freevars) or None)
+    alt.__kwdefaults__ = dict(function.__kwdefaults__) if function.__kwdefaults__ else None
+    alt.__qualname__ = function.__qualname__
+    alt.__module__ = function.__module__
+    alt.__doc__ = function.__doc__
+    alt.__annotations__ = dict(function.__annotations__)
+    if hasattr(function, '__type_params__'):
+        alt.__type_params__ = function.__type_params__
+    alt.__dict__.update(function.__dict__)
+    return alt
+
+
+def _enclosing_class_name(qualname: str) -> str | None:
+    #-- qualname components: one followed by '<locals>' is a function, any other is a class
+    parts = qualname.split('.')[:-1]
+    for i in range(len(parts) - 1, -1, -1):
+        if parts[i] != '<locals>' and (i + 1 == len(parts) or parts[i + 1] != '<locals>'):
+            return parts[i]
+    return None
+
+
+def _child_code(code: types.CodeType, name: str) -> types.CodeType:
+    return next(c for c in code.co_consts if isinstance(c, types.CodeType) and c.co_name == name)
+
+
+def _find_code(code: types.CodeType, name: str) -> types.CodeType | None:
+    #-- depth-first: the def itself may sit one level down, inside a 3.12+ '<generic parameters of ...>' scope
+    for const in code.co_consts:
+        if isinstance(const, types.CodeType):
+            if const.co_name == name:
+                return const
+            if (found := _find_code(const, name)) is not None:
+                return found
+    return None
 
 
 class InstrumentationRegistry:
