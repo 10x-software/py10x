@@ -224,7 +224,11 @@ crash re-derives the plan from current tags and resumes.
   Unchanged packages are skipped; a latest tag that is still an rc is offered for `--push`.
   On `main`, the epilogue writes **rc-window** pins (`>=rcN,<rc(N+1)`) for each sibling from the
   batch's coordinated versions.
-  **`--next-version`** replaces the auto `next_micro(latest_final)` target. A bare `X.Y.Z` sets
+  **Versions only go up:** the auto target `T` comes from the package's **highest** tag (yanked
+  included) — an rc continues its own line (`0.3.0rc1` → `0.3.0rc2`), a final starts
+  `next_micro(final)`. So after `--next-version 0.3.0`, a plain `pre` stays on `0.3.0`, never drops
+  back to `next_micro(latest_final)` (`0.2.3`).
+  **`--next-version`** replaces that auto target. A bare `X.Y.Z` sets
   **core and every sibling** (coordinated bump: `0.2.3rcN` → `--next-version 0.3.0` cuts `0.3.0rc1`).
   `name=X.Y.Z` sets one package (a sibling, or a downstream). Comma-separate them; a later entry wins
   for the same name, and a bare token rewrites the whole group, so put it first

@@ -659,7 +659,7 @@ class Pre(XxPromote, _command='pre'):
     """xx-promote pre  (cut the next coordinated rc onto the tool-owned `pre` branch).
 
     `--next-version` forces a cut onto an explicit released `X.Y.Z` instead of the automatic
-    `next_micro(latest_final)`. A bare `X.Y.Z` sets core and every sibling. `name=X.Y.Z` sets that
+    target (`VersionHelpers.target_version`). A bare `X.Y.Z` sets core and every sibling. `name=X.Y.Z` sets that
     one package (a sibling, or a downstream). Entries are comma-separated and mix; a later entry
     replaces an earlier one for the same name, and a bare token rewrites the whole coordinated
     group, so put it first (`0.4.0,py10x-fin-base=0.2.0` bumps the group to 0.4.0 and that

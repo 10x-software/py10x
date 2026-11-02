@@ -67,6 +67,13 @@ def test_target_version_keeps_rc_base_when_no_final():
     assert VersionHelpers.target_version([]) == '0.0.1'
 
 
+def test_target_version_never_drops_below_highest_rc():
+    """After `--next-version 0.3.0` cut `0.3.0rc1`, the auto target continues 0.3.0, not next_micro(0.2.2)."""
+    tags = VersionHelpers.parse_pkg_tags([f'{KERNEL}0.2.2', f'{KERNEL}0.2.3rc4', f'{KERNEL}0.3.0rc1'], KERNEL)
+    assert VersionHelpers.target_version(tags) == '0.3.0'
+    assert VersionHelpers.next_rc(tags, '0.3.0') == 2
+
+
 def test_next_rc_numbering():
     assert VersionHelpers.next_rc(parsed(), '0.2.1') == 3  # rc1, rc2 -> 3
     assert VersionHelpers.next_rc(parsed(), '0.3.0') == 1  # none yet -> 1

@@ -147,7 +147,7 @@ class VersionHelpers:
         """Normalize a `--next-version` override to `X.Y.Z`; raises `ValueError` on anything else.
 
         Used to let a caller pin the target `pre` cuts (e.g. a manual minor/major bump) instead of
-        the automatic `next_micro(latest_final)`; must be a plain released version, not an rc/dev/post.
+        the automatic `target_version`; must be a plain released version, not an rc/dev/post.
         """
         try:
             v = Version(version_string)
@@ -219,20 +219,18 @@ class VersionHelpers:
 
     @classmethod
     def target_version(cls, parsed: list[tuple[str, Version]]) -> str:
-        """The in-development target `T` for the next `pre` cut.
+        """The in-development target `T` for the next `pre` cut, keyed off the **highest** tag so versions only go up.
 
-        - Latest **final** `F` → `next_micro(F)` (start / continue the next micro's rc train).
-        - No final, but tags exist (typically an rc) → keep that tag's base so the rc line continues
-          (`0.1.0rc1` → `T=0.1.0` → next `0.1.0rc2`), rather than inventing `0.0.1`.
+        - Highest tag is a **final** `F` → `next_micro(F)` (start the next micro's rc train).
+        - Highest tag is an **rc** → keep its base so that rc line continues (`0.3.0rc1` → `T=0.3.0`
+          → next `0.3.0rc2`) - even above `next_micro(latest_final)`, e.g. after `--next-version 0.3.0`.
         - Never tagged → `0.0.1`.
         """
-        lf = cls.latest_final(parsed)
-        if lf is not None:
-            return cls.next_micro(cls.base_version(lf))
         latest = cls.latest_tag(parsed)
-        if latest is not None:
-            return cls.base_version(latest[1])
-        return '0.0.1'
+        if latest is None:
+            return '0.0.1'
+        base = cls.base_version(latest[1])
+        return cls.next_micro(base) if cls.is_final(latest[1]) else base
 
     @classmethod
     def next_rc(cls, parsed: list[tuple[str, Version]], target: str) -> int:

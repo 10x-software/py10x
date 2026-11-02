@@ -190,6 +190,18 @@ def test_version_override_iterates_rc_number_within_its_own_line():
     assert plans['py10x-core'].version == '0.3.0rc2'
 
 
+def test_pre_after_version_override_continues_its_line_without_the_flag():
+    """A plain `pre` after `--next-version 0.3.0` cuts 0.3.0rc2 - versions never drop back to 0.2.3."""
+    plans = PrePlan.create_batch(
+        [
+            _inp('py10x-core', True, CORE, ['v0.2.2', 'v0.2.3rc5', 'v0.3.0rc1'], True, current_forward={'py10x-kernel': '0.3.0rc1'}),
+            _inp('py10x-kernel', False, KERNEL, [f'{KERNEL}0.2.2', f'{KERNEL}0.3.0rc1'], True),
+        ]
+    )
+    assert plans['py10x-core'].version == '0.3.0rc2'
+    assert plans['py10x-kernel'].version == '0.3.0rc2'
+
+
 def test_version_override_on_sibling_forces_its_recut_without_forcing_core():
     """Overriding a sibling forces only that sibling; core still re-cuts (pin lag) to follow it."""
     plans = PrePlan.create_batch(
