@@ -2,10 +2,22 @@ from datetime import date
 
 from cxxfin import bootstrap_cash_deposit as _bootstrap_cd
 from cxxfin import bootstrap_swap as _bootstrap_sw
-from xxcommon.rdate import PROPAGATE_DATES, RDate
 
 from xxfin.ir_compounding import COMPOUND_TRANSFORM, compounding_apply
+from xxfin import root_solver
 from xxfin.root_solver import xtol
+
+
+def _last_fixed_knot(zrc, today: date) -> tuple:
+    """
+    (ordinal, rate) of the last already-bootstrapped knot.
+    An empty curve has none yet: the beginning of time (today) is the knot to interpolate from,
+    and the C++ solver anchors its rate at the trial value x (r_fixed is ignored then)
+    """
+    bcurve = zrc.bcurve
+    if not bcurve.size:
+        return today.toordinal(), 0.
+    return bcurve.times[-1], bcurve.values[-1]
 
 
 def solve_cash_deposit(zrc, start_date, end_date, quote, mc, today):
@@ -24,7 +36,7 @@ def solve_cash_deposit(zrc, start_date, end_date, quote, mc, today):
         acc_start = 1.0
     else:
         t_today_start  = int_dc(today, start_date)
-        last_fixed_ord = zrc.bcurve.times[-1]
+        last_fixed_ord, r_fixed = _last_fixed_knot(zrc, today)
         start_ord      = start_date.toordinal()
 
         if start_ord > last_fixed_ord:
@@ -32,7 +44,6 @@ def solve_cash_deposit(zrc, start_date, end_date, quote, mc, today):
             #-- interior interpolation) between the last fixed knot and end_date, the
             #-- point currently being solved, so acc_start is a function of x, not a constant.
             end_ord   = end_date.toordinal()
-            r_fixed   = zrc.bcurve.values[-1]
             gap_frac  = (start_ord - last_fixed_ord) / (end_ord - last_fixed_ord)
             acc_start = 0.0
         else:
@@ -49,42 +60,25 @@ def solve_cash_deposit(zrc, start_date, end_date, quote, mc, today):
     )
 
 
-def solve_swap(zrc, spot_date, swap_tenor, quote, mc, today):
+def solve_swap(zrc, quotable, mc, today):
     int_dc   = zrc.dc_convention
     int_comp = zrc.compounding
+    quote    = quotable.quote
 
-    fixed_dc_convention = mc.fixed_leg_swap_dc_convention
-    fixed_freq          = RDate(freq=mc.fixed_leg_swap_tenor_frequency, count=1)
-    swap_freq           = RDate(freq=mc.tenor_frequency,                count=1)
-    swap_calendar       = mc.calendar
-    swap_roll_rule      = mc.roll_rule
-    pay_calendar        = mc.settlement_calendar
-    pay_roll_rule       = mc.roll_rule_to_settle
-    pay_offset          = mc.settle_offset
+    #-- the swap legs' schedules: the same periods as RateCurve.swap_rate_for_period_dates()
+    fixed_dc_fractions = quotable.fixed_dc_fractions
+    fixed_pays         = quotable.fixed_pay_dates
+    float_starts       = quotable.start_dates
+    float_ends         = quotable.end_dates
+    float_pays         = quotable.pay_dates
+    last_pay           = quotable.pay_date     # == fixed_pays[-1] == float_pays[-1]
 
-    end_date = swap_tenor.apply(spot_date, swap_calendar, swap_roll_rule)
-    last_pay = pay_offset.apply(end_date, pay_calendar, pay_roll_rule)
-    # last_pay == fixed_pays[-1] for standard (non-stub) swaps
-
-    #-- same periods as RateCurve.swap_rate_simple_compounding() / swap_float_leg_simple_compounding()
-    fixed_starts, fixed_ends, fixed_pays = zrc.period_dates(
-        spot_date, swap_tenor, fixed_freq, swap_calendar, swap_roll_rule,
-        pay_offset, pay_calendar, pay_roll_rule,
-        PROPAGATE_DATES.FORWARD, False,
-    )
-    if pay_offset.count:
-        float_starts, float_ends, float_pays = zrc.period_dates(
-            spot_date, swap_tenor, swap_freq, swap_calendar, swap_roll_rule,
-            pay_offset, pay_calendar, pay_roll_rule,
-            PROPAGATE_DATES.FORWARD, False,
-        )
-    else:
-        #-- telescoped float leg df(spot) - df(last_pay), as one period: (df(spot) / df(last_pay) - 1) * df(last_pay)
-        float_starts, float_ends, float_pays = [spot_date], [last_pay], [last_pay]
+    if float_pays == float_ends:
+        #-- no pay delay: telescoped float leg df(spot) - df(last_pay), as one period: (df(spot) / df(last_pay) - 1) * df(last_pay)
+        float_starts, float_ends, float_pays = [quotable.start_date], [last_pay], [last_pay]
 
     last_pay_ord   = last_pay.toordinal()
-    last_fixed_ord = zrc.bcurve.times[-1]
-    r_fixed        = zrc.bcurve.values[-1]
+    last_fixed_ord, r_fixed = _last_fixed_knot(zrc, today)
 
     def depends_on_x(d: date) -> bool:
         return d.toordinal() > last_fixed_ord or d == last_pay
@@ -118,8 +112,7 @@ def solve_swap(zrc, spot_date, swap_tenor, quote, mc, today):
 
     annuity_const = 0.0
     fixed_dc_fracs, fixed_pay_nodes = [], []
-    for start, end, pay in zip(fixed_starts, fixed_ends, fixed_pays, strict=True):
-        dc_frac = fixed_dc_convention(start, end)
+    for dc_frac, pay in zip(fixed_dc_fractions, fixed_pays, strict=True):
         if depends_on_x(pay):
             fixed_dc_fracs.append(dc_frac)
             fixed_pay_nodes.append(node(pay))
@@ -136,15 +129,21 @@ def solve_swap(zrc, spot_date, swap_tenor, quote, mc, today):
         else:
             float_const += (zrc.discount_factor(start, today) / zrc.discount_factor(end, today) - 1.) * zrc.discount_factor(pay, today)
 
-    bracket = (quote / 2., min(1., quote * 2.))
+    def bootstrap(lo: float, hi: float):
+        _bootstrap_sw(
+            zrc.bcurve,
+            today.toordinal(), last_pay_ord,
+            annuity_const, float_const,
+            int_comp,
+            quote, lo, hi, xtol,
+            node_t_todays, node_fracs, node_dfs, r_fixed,
+            fixed_dc_fracs, fixed_pay_nodes,
+            float_start_nodes, float_end_nodes, float_pay_nodes,
+        )
 
-    _bootstrap_sw(
-        zrc.bcurve,
-        today.toordinal(), last_pay_ord,
-        annuity_const, float_const,
-        int_comp,
-        quote, bracket[0], bracket[1], xtol,
-        node_t_todays, node_fracs, node_dfs, r_fixed,
-        fixed_dc_fracs, fixed_pay_nodes,
-        float_start_nodes, float_end_nodes, float_pay_nodes,
-    )
+    #-- same as root_solver.ir_add_curve_point_near(): the narrow bracket around the quote 1st,
+    #   the wide one only if the narrow one doesn't straddle the root (brent_solve throws then)
+    try:
+        bootstrap(quote - root_solver.near_half_width, quote + root_solver.near_half_width)
+    except RuntimeError:
+        bootstrap(-1., 1.)

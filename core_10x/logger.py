@@ -31,40 +31,47 @@ class LogMessage(Traitable, custom_collection = True, keep_history = False):
     num_threads: int    = T()
     payload: Any        = T()
 
-def logger_process(
-        queue: mp.Queue,
-        coll_name: str,
-        do_print: bool
-):
-    uri = EnvVars.log_ts_store_uri
-    log_store = TsStore.instance_from_uri(uri) if uri else NULL_RESOURCE
+class Logger:
+    s_log_message_class = LogMessage
 
-    data = queue.get()
-    if data is None:
-        return
+    @classmethod
+    def collection_name(cls, app_name: str, started_at: datetime, pid: int) -> str:
+        return f'{app_name}/{OsUser.me.name()}/{socket.gethostname()}/{XDateTime.datetime_to_str(started_at, False)}/{pid}'
 
-    with log_store:
-        first_msg = LogMessage(_replace = True, _collection_name = coll_name, **data)
-        #start: datetime = first_msg.payload
-        t1 = first_msg.ns
-        first_msg.save()
+    @classmethod
+    def log_store(cls):
+        uri = EnvVars.log_ts_store_uri
+        return TsStore.instance_from_uri(uri) if uri else NULL_RESOURCE
 
-    while True:
+    @classmethod
+    def logger_process(cls, queue: mp.Queue, coll_name: str, do_print: bool):
+        log_store = cls.log_store()
+
         data = queue.get()
         if data is None:
-            break
+            return
 
         with log_store:
-            msg = LogMessage(_replace = True, _collection_name = coll_name, **data)
-            msg.save()
+            first_msg = cls.s_log_message_class(_replace = True, _collection_name = coll_name, **data)
+            #start: datetime = first_msg.payload
+            t1 = first_msg.ns
+            first_msg.save()
 
-        if do_print:
-            t2 = msg.ns
-            dt = t2 - t1
-            t1 = t2
-            print(f'{(dt) / 1.e9}: {msg.payload}')
+        while True:
+            data = queue.get()
+            if data is None:
+                break
 
-class Logger:
+            with log_store:
+                msg = cls.s_log_message_class(_replace = True, _collection_name = coll_name, **data)
+                msg.save()
+
+            if do_print:
+                t2 = msg.ns
+                dt = t2 - t1
+                t1 = t2
+                print(f'{(dt) / 1.e9}: {msg.payload}')
+
     def __init__(
         self,
         app_name: str,
@@ -75,14 +82,16 @@ class Logger:
         self.app_name = app_name
         self.log_level = log_level
         if started_at is None:
-            started_at = datetime.now(tz=timezone.utc)
+            started_at = datetime.now(tz = timezone.utc)
         self.started_at = started_at
         pid = os.getpid()
-        full_name = f'{app_name}/{OsUser.me.name()}/{socket.gethostname()}/{XDateTime.datetime_to_str(started_at, False)}/{pid}'
         self.ps = psutil.Process(pid)
 
+        cls = self.__class__
+        full_name = cls.collection_name(app_name, started_at, pid)
+        cls.log_store()     #-- fail early, in the parent, if needed: an error in the child would go unnoticed
         self.queue = mp.Queue()
-        self.proc = mp.Process(target = logger_process, args = (self.queue, full_name, do_print))
+        self.proc = mp.Process(target = cls.logger_process, args = (self.queue, full_name, do_print))
         self.proc.daemon = True
         self.proc.start()
 

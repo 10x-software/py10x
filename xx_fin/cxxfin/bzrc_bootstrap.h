@@ -86,6 +86,10 @@ inline double bcurve_value(const BDateCurve& curve, int ord) {
 //     r_start(x) = r_fixed + gap_frac * (x - r_fixed)
 //   gap_frac < 0 means start is fully determined by already-fixed knots, and
 //   acc_start is the true precomputed constant.
+//
+//   While the curve has fewer than 2 knots (i.e., at most the beginning of time), the
+//   beginning of time is anchored at x as well (same as py_zrc_bootstrap), so it is the
+//   last fixed knot and r_fixed is x, not the value passed in.
 //==
 inline void bootstrap_cash_deposit(
     BDateCurve& curve,
@@ -102,10 +106,12 @@ inline void bootstrap_cash_deposit(
     double gap_frac      = -1.0,
     double r_fixed       = 0.0
 ) {
+    const bool anchor_bot = curve.size() < 2;
     auto f = [&](double x) -> double {
         double acc_s;
         if (gap_frac >= 0.0) {
-            double r_start = r_fixed + gap_frac * (x - r_fixed);
+            const double r0      = anchor_bot ? x : r_fixed;
+            double       r_start = r0 + gap_frac * (x - r0);
             acc_s = compounding_apply(comp, BCompoundTransform::RATE_TO_ACCRUAL, t_today_start, r_start);
         } else {
             acc_s = acc_start;
@@ -117,7 +123,7 @@ inline void bootstrap_cash_deposit(
     };
     double root = brent_solve(f, lo, hi, xtol);
     bcurve_update(curve, end_ord, root);
-    if (curve.size() < 3)
+    if (anchor_bot)
         bcurve_update(curve, bot_ord, root);
 }
 
@@ -145,7 +151,8 @@ inline void bootstrap_cash_deposit(
 //     node_fracs[j] >= 0 — interpolation fraction toward x (1 for last_pay itself):
 //                            r_j(x) = r_fixed + node_fracs[j] * (x - r_fixed),
 //                            df_j   = 1 / accrual(node_t_todays[j], r_j)
-//     r_fixed            — rate at the last fixed knot (shared by all such nodes)
+//     r_fixed            — rate at the last fixed knot (shared by all such nodes);
+//                          x itself while the beginning of time is anchored (see bootstrap_cash_deposit)
 //   Terms (parallel vectors of node indices):
 //     fixed_dc_fracs[i], fixed_pay_nodes[i]                     — dc_frac * df(pay)
 //     float_start_nodes[j], float_end_nodes[j], float_pay_nodes[j] — (df(start) / df(end) - 1) * df(pay)
@@ -186,13 +193,15 @@ inline void bootstrap_swap(
     check_nodes(float_end_nodes);
     check_nodes(float_pay_nodes);
 
+    const bool anchor_bot = curve.size() < 2;
     std::vector<double> dfs(node_dfs);
     auto f = [&](double x) -> double {
+        const double r0 = anchor_bot ? x : r_fixed;
         for (size_t j = 0; j < num_nodes; ++j) {
             const double frac = node_fracs[j];
             if (frac < 0.0)
                 continue;
-            const double r_j = frac == 1.0 ? x : r_fixed + frac * (x - r_fixed);
+            const double r_j = frac == 1.0 ? x : r0 + frac * (x - r0);
             dfs[j] = 1.0 / compounding_apply(comp, BCompoundTransform::RATE_TO_ACCRUAL, node_t_todays[j], r_j);
         }
         double annuity = annuity_const;
@@ -205,6 +214,6 @@ inline void bootstrap_swap(
     };
     double root = brent_solve(f, lo, hi, xtol);
     bcurve_update(curve, last_pay_ord, root);
-    if (curve.size() < 3)
+    if (anchor_bot)
         bcurve_update(curve, bot_ord, root);
 }

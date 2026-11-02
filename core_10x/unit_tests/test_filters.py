@@ -162,6 +162,35 @@ def test_in_nin():
         IN(42)
 
 
+def test_list_trait_item_match_eval_and_prefix():
+    # a scalar against a list trait matches an item; a collection matches the whole list
+    td = Sample.s_dir
+    assert f(lst=10, trait_dir=td).prefix_notation() == {'lst': {'$eq': 10}}
+    assert f(lst=NE(10), trait_dir=td).prefix_notation() == {'lst': {'$ne': 10}}
+    assert f(lst=IN([10, 99]), trait_dir=td).prefix_notation() == {'lst': {'$in': [10, 99]}}
+    assert f(lst=NIN([10]), trait_dir=td).prefix_notation() == {'lst': {'$nin': [10]}}
+    assert f(lst=[10, 20], trait_dir=td).prefix_notation() == {'lst': {'$eq': ['builtins/int', 10, 20]}}
+    assert f(lst=(10, 20), trait_dir=td).prefix_notation() == {'lst': {'$eq': ['builtins/int', 10, 20]}}
+    assert f(lst=XNone, trait_dir=td).prefix_notation() == {'lst': {'$eq': None}}
+
+    for left in ([10, 20], {10, 20}):
+        assert EQ(10).eval(left)
+        assert not EQ(99).eval(left)
+        assert NE(99).eval(left)
+        assert not NE(10).eval(left)
+        assert IN([99, 20]).eval(left)
+        assert not IN([99]).eval(left)
+        assert NIN([99]).eval(left)
+        assert not NIN([99, 10]).eval(left)
+
+    # whole-list match, incl. a tuple (serialized as a list, as Mongo sees it)
+    assert EQ([10, 20]).eval([10, 20])
+    assert EQ((10, 20)).eval([10, 20])
+    assert not EQ([10]).eval([10, 20])
+    assert IN([(10, 20)]).eval([10, 20])
+    assert NE((10,)).eval([10, 20])
+
+
 def test_between_bounds_and_prefix():
     b = BETWEEN(1, 5)
     assert b.eval(3)
@@ -661,6 +690,18 @@ class TestCompoundFilters:
             assert sorted(r['_id'] for r in coll.find(f(v=op))) == expected
         finally:
             store.delete_collection(coll_name)
+
+    def test_list_item_match_find(self, prepared):
+        store, coll, _data, _overrides, _coll_name, trait_dir = prepared
+        if type(store).__name__ != 'MongoStore':
+            pytest.skip('list item matching is not implemented for ibis-based stores yet')
+        # lst: s1, s3 = [10, 20]; s2 = [99]
+        ids = lambda q: sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(q, trait_dir)))
+        assert ids(f(lst=10, trait_dir=trait_dir)) == ['s1', 's3']
+        assert ids(f(lst=NE(10), trait_dir=trait_dir)) == ['s2']
+        assert ids(f(lst=IN([20, 99]), trait_dir=trait_dir)) == ['s1', 's2', 's3']
+        assert ids(f(lst=NIN([99]), trait_dir=trait_dir)) == ['s1', 's3']
+        assert ids(f(lst=(10, 20), trait_dir=trait_dir)) == ['s1', 's3']
 
     def test_in_and_nin(self, prepared):
         _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
