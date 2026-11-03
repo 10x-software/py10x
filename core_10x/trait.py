@@ -7,7 +7,6 @@ import inspect
 import locale
 import platform
 import sys
-from datetime import datetime
 from inspect import Parameter
 from types import GenericAlias
 from typing import get_origin, get_type_hints
@@ -18,7 +17,7 @@ from core_10x.named_constant import NamedCallable, NamedConstant
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.rc import RC
 from core_10x.trait_definition import T, TraitDefinition, Ui
-from core_10x.xnone import XNone
+from core_10x.xnone import XNone, XNoneType
 
 
 class TraitMetaclass(type(BTrait)):
@@ -28,7 +27,7 @@ class TraitMetaclass(type(BTrait)):
         return super().__new__(cls, name, bases, class_dict, **kwargs)
 
 
-class Trait(BTrait, metaclass=TraitMetaclass):
+class Trait(BTrait, metaclass = TraitMetaclass):
     __slots__ = ('fmt', 'getter_params', 't_def', 'ui_hint')
     s_datatype_traitclass_map = {}
     s_ui_hint = None
@@ -259,15 +258,13 @@ class Trait(BTrait, metaclass=TraitMetaclass):
     def create_f_plain(self, f, attr_name: str, rc: RC):
         return f
 
-    # =======================================================================================================================
+    #===================================================================================================================
     #   Formatting
-    # =======================================================================================================================
-    # fmt: off
+    #===================================================================================================================
     s_locales = {
         'Windows':      'USA',
         'Linux':        'en_US',
     }
-    # fmt: on
 
     def locale_change(self, old_value, value):
         if value:
@@ -293,9 +290,9 @@ class Trait(BTrait, metaclass=TraitMetaclass):
             return value
         return self._format(fmt).format(value)
 
-    # ===================================================================================================================
+    #===================================================================================================================
     #   Trait Interface
-    # ===================================================================================================================
+    #===================================================================================================================
 
     def post_ctor(self): ...
 
@@ -358,11 +355,36 @@ class Trait(BTrait, metaclass=TraitMetaclass):
     def serialize_to_types(self) -> type | tuple(type):
         return self.s_serialize_to_type or self.data_type
 
-    # ===================================================================================================================
+    #-- Introspection method
+
+    s_flag_bits = {name: getattr(T, name).value() for name in dir(T) if name.isupper() and name != 'OFFGRAPH_SET'}   #-- OFFGRAPH_SET = STICKY
+
+    def describe(self, **kwargs) -> dict:
+        #-- a plain, JSON-compatible dict
+        dt = self.data_type
+        flags = self.flags
+        fbits = self.s_flag_bits
+        #-- all bits must be on: flags_on() matches any bit
+        on = [name for name, bits in fbits.items() if bits & flags == bits]
+        #-- most specific names only: e.g. ID_LIKE includes the ID bit, but an ID_LIKE trait is not an ID trait
+        flags_on = [n for n in on if not any(m != n and fbits[n] & fbits[m] == fbits[n] for m in on)]
+        res = {
+            'name':     self.name,
+            'type':     'any' if dt is XNoneType else dt.__name__,
+            'flags':    flags_on,
+            'tip':      self.ui_hint.tip,
+        }
+        if self.has_custom_getter():
+            res['getter'] = True
+        elif self.default is not XNone:
+            res['default'] = self.serialize_value(self.default)
+
+        return res
+
+    #===================================================================================================================
 
 
-# ---- Methods Associated with a trait
-# fmt: off
+#---- Methods Associated with a trait
 class TRAIT_METHOD(NamedConstant):
     GET                 = Trait.create_f_get
     SET                 = Trait.create_f_set
@@ -376,10 +398,8 @@ class TRAIT_METHOD(NamedConstant):
     TO_ID               = Trait.create_f_common_trait_with_value
     CHOICES             = Trait.create_f_choices
     STYLE_SHEET         = Trait.create_f_plain
-# fmt: on
 
-
-class generic_trait(Trait, register=False):
+class generic_trait(Trait, register = False):
     s_ui_hint = Ui.NONE
 
     def post_ctor(self):

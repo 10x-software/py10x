@@ -15,6 +15,7 @@ from core_10x import trait_definition
 from core_10x.code_samples.person import Person
 from core_10x.exec_control import BTP, CACHE_ONLY, CONVERT_VALUES_OFF, CONVERT_VALUES_ON, DEBUG_OFF, DEBUG_ON, GRAPH_ON, INTERACTIVE
 from core_10x.named_constant import NamedCallable
+from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
 from core_10x.trait import ClassTrait, Trait
@@ -2155,3 +2156,48 @@ def test_runtime_subclass_of_storable_hides_reserved_traits():
             assert not hasattr(t, trait_name)
             with pytest.raises(AttributeError):
                 setattr(t, trait_name, 'x')
+
+
+# ---------------------------------------------------------------------------
+#   describe_class
+# ---------------------------------------------------------------------------
+
+
+class _DescribeBase(Traitable):
+    """A base."""
+
+    k: str = T(T.ID)
+    a: int = T(1)
+    b: int = T(2)
+
+
+class _DescribeChild(_DescribeBase):
+    b: int = M(default=5)
+    c: str = T()
+
+
+class _DescribeEmbeddable(Traitable, embeddable=True):
+    x: int = T()
+
+
+def test_describe_class_header_and_class_facts():
+    d = _DescribeChild.describe_class()
+    assert {k: d[k] for k in ('name', 'class_id', 'bases', 'storable', 'embeddable')} == {
+        'name': '_DescribeChild',
+        'class_id': PackageRefactoring.find_class_id(_DescribeChild),
+        'bases': ['_DescribeBase'],
+        'storable': True,
+        'embeddable': False,
+    }
+    assert _DescribeBase.describe_class()['doc'] == 'A base.'
+    assert _DescribeEmbeddable.describe_class()['embeddable'] is True
+
+
+def test_describe_class_traits_and_inherited_from():
+    traits = {t['name']: t for t in _DescribeChild.describe_class()['traits']}
+    assert traits['k']['inherited_from'] == '_DescribeBase'
+    assert traits['a']['inherited_from'] == '_DescribeBase'
+    assert 'inherited_from' not in traits['b']  # modified via M(): a new Trait object, so it counts as own
+    assert traits['b']['default'] == 5
+    assert 'inherited_from' not in traits['c']
+    assert 'RESERVED' in traits['_rev']['flags']  # reserved traits are included; filtering is up to the consumer

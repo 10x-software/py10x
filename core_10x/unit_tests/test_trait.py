@@ -7,14 +7,18 @@ Exercises the pure-Python surface of Trait:
 - Trait.real_trait_class — registry dispatch
 - Trait.use_format_str / _format — string formatting helpers
 - Trait.register_by_datatype / register_by_baseclass — error on duplicate
+- Trait.describe — plain dict: name, type, flags, tip, getter / default
 """
 
 import sys
 import types
+from datetime import date
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 from core_10x.exec_control import CACHE_ONLY
+from core_10x.named_constant import Enum
 from core_10x.trait import (
     BoundTrait,
     ClassTrait,
@@ -23,7 +27,7 @@ from core_10x.trait import (
     trait_value,
 )
 from core_10x.trait_definition import T
-from core_10x.traitable import Traitable
+from core_10x.traitable import RT, Traitable
 
 # ----------------------------------------------------------------------------
 #   trait_value
@@ -206,3 +210,47 @@ def test_class_trait_serialize_roundtrip():
         restored = ClassTrait.deserialize(serialized)
         assert restored.trait.name == 'name'
         assert restored.cls is _TestTraitable
+
+
+# ----------------------------------------------------------------------------
+#   Trait.describe
+# ----------------------------------------------------------------------------
+
+
+class _DescribeColor(Enum):
+    RED = ()
+    BLUE = ()
+
+
+class _DescribeTraitable(Traitable):
+    a: str = T(T.ID) // 'the a'
+    b: str = T(T.ID_LIKE)
+    c: _DescribeColor = T(_DescribeColor.BLUE)
+    d: list = T([], T.STICKY | T.HIDDEN)
+    e: int = RT()
+    f: Any = RT()
+    g: date = T(date(2026, 12, 5))
+
+    def e_get(self):
+        return 1
+
+
+@pytest.mark.parametrize(
+    'name, expected',
+    [
+        ('a', {'name': 'a', 'type': 'str', 'flags': ['ID'], 'tip': 'the a'}),  # no default, no getter: neither key
+        ('b', {'name': 'b', 'type': 'str', 'flags': ['ID_LIKE'], 'tip': 'B'}),  # ID_LIKE includes the ID bit, but isn't an ID trait
+        ('c', {'name': 'c', 'type': '_DescribeColor', 'flags': [], 'tip': 'C', 'default': 'BLUE'}),
+        ('d', {'name': 'd', 'type': 'list', 'flags': ['HIDDEN', 'STICKY'], 'tip': 'D', 'default': []}),  # STICKY, not its alias OFFGRAPH_SET
+        ('e', {'name': 'e', 'type': 'int', 'flags': ['RUNTIME'], 'tip': 'E', 'getter': True}),
+        ('f', {'name': 'f', 'type': 'any', 'flags': ['RUNTIME'], 'tip': 'F'}),
+        ('g', {'name': 'g', 'type': 'date', 'flags': [], 'tip': 'G', 'default': '20261205'}),  # default is serialized
+    ],
+)
+def test_describe(name, expected):
+    assert _DescribeTraitable.trait(name).describe() == expected
+
+
+def test_describe_flags_need_all_bits():
+    # flags_on() matches any bit: a plain ID trait must not be reported as ID_LIKE
+    assert 'ID_LIKE' not in _DescribeTraitable.trait('a').describe()['flags']

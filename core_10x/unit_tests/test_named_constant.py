@@ -1,5 +1,6 @@
 import pytest
 from core_10x.named_constant import Enum, EnumBits, ErrorCode, NamedCallable, NamedConstant, NamedConstantTable, NamedConstantValue
+from core_10x.package_refactoring import PackageRefactoring
 from core_10x.traitable import T, Traitable
 
 
@@ -187,3 +188,46 @@ def test_named_callable_just_func():
     assert double(5) == 10
     assert double(0) == 0
     assert double(-3) == -6
+
+
+# ---------------------------------------------------------------------------
+#   describe_class
+# ---------------------------------------------------------------------------
+
+
+class _DescribeEnum(Enum):
+    """Some states."""
+
+    FIRST = ()
+    SECOND = 'Second one'
+
+
+class _DescribeBits(EnumBits):
+    READ = ()
+    WRITE = ()
+
+
+class _DescribeCallables(NamedCallable):
+    SUM = sum
+
+
+def test_describe_class_enum():
+    assert _DescribeEnum.describe_class() == {
+        'name': '_DescribeEnum',
+        'class_id': PackageRefactoring.find_class_id(_DescribeEnum),
+        'doc': 'Some states.',
+        'members': ['FIRST', 'SECOND'],
+        'labels': {'SECOND': 'Second one'},  # only labels that differ from member names
+    }
+
+
+def test_describe_class_enum_bits_is_combinable():
+    d = _DescribeBits.describe_class()
+    assert d['members'] == ['READ', 'WRITE']
+    assert d['combinable'] is True
+    assert 'labels' not in d
+
+
+def test_describe_class_leaves_values_out():
+    # NamedCallable values are functions: not JSON, so members are names only
+    assert _DescribeCallables.describe_class()['members'] == ['SUM']

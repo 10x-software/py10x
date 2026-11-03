@@ -411,6 +411,24 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
     def is_storable(cls) -> bool:
         return cls.s_bclass.is_storable()
 
+    #-- Class Introspection
+    @classmethod
+    def describe_class(cls, **kwargs) -> dict:
+        bases = [b for b in cls.__bases__ if issubclass(b, Traitable)]
+        traits = []
+        for name, trait in cls.s_dir.items():
+            d = trait.describe(**kwargs)
+            if owner := next((b for b in bases if b.s_dir.get(name) is trait), None):
+                d['inherited_from'] = owner.__name__        #-- the same Trait object as in a base => not (re)defined here
+            traits.append(d)
+
+        return cls._class_header() | dict(
+            bases       = [b.__name__ for b in bases],
+            storable    = cls.is_storable(),
+            embeddable  = cls.s_embeddable,
+            traits      = traits,
+        )
+
     # @staticmethod
     # def find_storable_class(class_id: str):
     #     traitable_class = PackageRefactoring.find_class(class_id)

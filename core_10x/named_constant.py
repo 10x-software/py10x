@@ -233,6 +233,15 @@ class NamedConstant(Nucleus):
     def all_names(cls) -> tuple:
         return tuple(cls.s_dir.keys())
 
+    @classmethod
+    def describe_class(cls, **kwargs) -> dict:
+        #-- members by name (= their serialized form); values are left out: auto ints/bits are meaningless, callables aren't JSON
+        res = cls._class_header() | {'members': list(cls.s_dir)}
+        if labels := {name: c.label for name, c in cls.s_dir.items() if c.label != name}:
+            res['labels'] = labels          #-- only the labels that differ from member names
+            
+        return res
+
 class NamedCallable(NamedConstant):
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -308,6 +317,10 @@ class EnumBits(NamedConstant):
     @classmethod
     def names_from_value(cls, value: int) -> tuple:
         return tuple(name for name, cdef in cls.s_dir.items() if cdef.value & value)
+
+    @classmethod
+    def describe_class(cls, **kwargs) -> dict:
+        return super().describe_class(**kwargs) | {'combinable': True}     #-- members can be OR-ed: A | B
 
     def __or__(self, other):
         the_value = self.value

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import inspect
+
 from py10x_kernel import BNucleus
+
+from core_10x.package_refactoring import PackageRefactoring
 
 
 class Nucleus:
@@ -81,3 +85,14 @@ class Nucleus:
     @classmethod
     def choose_from(cls):
         return {}
+
+    #-- Introspection methods
+
+    @classmethod
+    def _class_header(cls) -> dict:
+        #-- common to all describe_class() implementations
+        return {'name': cls.__name__, 'class_id': PackageRefactoring.find_class_id(cls), 'doc': inspect.getdoc(cls) or ''}
+
+    @classmethod
+    def describe_class(cls, **kwargs) -> dict:
+        raise NotImplementedError
