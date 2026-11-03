@@ -4,19 +4,13 @@ Known follow-up work that is not scheduled yet. Each item is a short summary; th
 
 ## Callable instrumentation
 
-Fixes for both bugs are implemented on branches but not merged. Do the first before the second: after it, no user
-code runs while instrumentation holds the lock.
-
 - **Instrumented callables lose their original scopes** — added 2026-11-03,
-  [#163](https://github.com/10x-software/py10x/issues/163), branch
-  [`claude/instrument-without-exec`](https://github.com/10x-software/py10x/compare/main...claude/instrument-without-exec).
-  The instrumented copy of a method breaks `super()`, closures and private names, and building it re-runs default
-  expressions (a class-attribute default even fails the import).
+  [#163](https://github.com/10x-software/py10x/issues/163). The instrumented copy of a method breaks `super()`,
+  closures and private names, and building it re-runs default expressions (a class-attribute default even fails the
+  import). Postponed: the candidate fix, which avoids `exec`, needs more review.
 - **Instrumentation is not thread-safe under concurrent imports** — added 2026-11-03,
-  [#164](https://github.com/10x-software/py10x/issues/164), branch
-  [`claude/instrumentation-lock`](https://github.com/10x-software/py10x/compare/main...claude/instrumentation-lock).
-  Concurrent imports race on the shared rewriter and registry; fix is one lock, which must never be held while
-  importing.
+  [#164](https://github.com/10x-software/py10x/issues/164). Concurrent imports race on the shared rewriter and
+  registry state. Postponed: the candidate fix, a global lock, was not accepted; a better approach is needed.
 - **AADC session state is shared across threads** — added 2026-11-03,
   [#165](https://github.com/10x-software/py10x/issues/165). The guard log, the instrumentation switch and the math
   patching are process-wide, so concurrent sessions interfere.
