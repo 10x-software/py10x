@@ -91,7 +91,8 @@ class Nucleus:
     @classmethod
     def _class_header(cls) -> dict:
         #-- common to all describe_class() implementations
-        return {'name': cls.__name__, 'class_id': PackageRefactoring.find_class_id(cls), 'doc': inspect.getdoc(cls) or ''}
+        #-- own docstring only: inspect.getdoc() falls back to a base's doc (e.g. Enum's implementation notes)
+        return {'name': cls.__name__, 'class_id': PackageRefactoring.find_class_id(cls), 'doc': inspect.cleandoc(cls.__dict__.get('__doc__') or '')}
 
     @classmethod
     def describe_class(cls, **kwargs) -> dict:

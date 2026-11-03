@@ -226,6 +226,7 @@ def test_describe_class_enum_bits_is_combinable():
     assert d['members'] == ['READ', 'WRITE']
     assert d['combinable'] is True
     assert 'labels' not in d
+    assert d['doc'] == ''  # own docstring only, not the one inherited from EnumBits/NamedConstant
 
 
 def test_describe_class_leaves_values_out():
