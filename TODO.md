@@ -24,7 +24,7 @@ code runs while instrumentation holds the lock.
   [#166](https://github.com/10x-software/py10x/issues/166). `set_target_base_classes()` may walk a module another
   thread is still importing and keep a stale method copy.
 
-## From `ROADMAP.md`
+## Core
 
 - **Finish `runme_1st_app`** — added 2026-11-03, [#167](https://github.com/10x-software/py10x/issues/167). The
   first-run app stops short when authentication is needed and isn't installed as a command.
