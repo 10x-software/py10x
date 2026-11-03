@@ -22,8 +22,5 @@ Known follow-up work that is not scheduled yet. Each item is a short summary; th
 
 - **Finish `runme_1st_app`** — added 2026-11-03, [#167](https://github.com/10x-software/py10x/issues/167). The
   first-run app stops short when authentication is needed and isn't installed as a command.
-- **Replace `T.EMBEDDED` with the `embeddable` class flag** — added 2026-11-03,
-  [#168](https://github.com/10x-software/py10x/issues/168). Embedding should be decided by the class, not a per-trait
-  flag; touches serialization, `xx_fin` and the C++ kernel.
 - **Use Basketable for parallelization** — added 2026-11-03,
   [#169](https://github.com/10x-software/py10x/issues/169). Planned, not started.
