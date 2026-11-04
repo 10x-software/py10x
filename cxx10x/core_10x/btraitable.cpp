@@ -274,7 +274,7 @@ py::list  BTraitable::serialize_id_traits() {
 
 py::dict BTraitable::id_trait_values(const py::kwargs& override_id_traits) const {
     const auto cache = ThreadContext::current_traitable_proc()->cache();   //-- one proc/cache lookup for the whole call
-    const auto my_tid = tid();
+    const auto& my_tid = tid();
 
     py::dict result;
     py::object value;
@@ -334,7 +334,7 @@ py::object BTraitable::serialize_nx(const bool embed) {
         }
         const auto mode = ThreadContext::flags();
         const auto cascade =(mode & BSaveRefs::ALL) || ((mode & BSaveRefs::NEW_ONLY) && !(lazy_load_flags() & XCache::LOAD_REQUIRED) && get_revision().cast<int>() == 0);
-        if (cascade && ThreadContext::serialization_memo().insert(m_tid).second) {
+        if (cascade && ThreadContext::serialization_memo().insert(m_tid.copy_valid()).second) {
             auto py_traitable = my_class()->from_id(m_tid.traitable_id());
             if (const auto rc = py_traitable.attr("save")(BSaveRefs::NONE); !py::cast<bool>(rc)) {
                 throw py::value_error(py::str("{}/{} - failed to save referenced object: {}").format(class_name(), id_value(),rc.attr("error")()));
@@ -371,13 +371,15 @@ py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict
 }
 
 py::object BTraitable::serialize_object(const unsigned save_references) {
+    if (!m_tid.is_valid())
+        return py::none(); // can't serialize without ID - maybe throw here?
+
     if (lazy_load_flags() & XCache::LOAD_REQUIRED) {
         if (my_class()->instance_in_store(m_tid))
             return py::none();                                //-- lazy reference exists in store - nothing to save
         clear_lazy_load_flags(XCache::LOAD_REQUIRED);         //-- does not exist in store - nothing to load
         // we continue on so we can e.g. save new objects with ID traits only
     }
-
     py::dict serialized_data;
 
     serialized_data[BNucleus::ID_TAG()] = id_value();

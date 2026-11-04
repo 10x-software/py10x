@@ -48,7 +48,7 @@ public:
             : m_mode(mode), m_original_flags(flags()) {
             if (m_mode) {
                 set_flags(m_mode);
-                serialization_memo().insert(tid);
+                serialization_memo().insert(tid.copy_valid());
             }
         }
 
@@ -61,12 +61,12 @@ public:
     };
 
     class EmbedSerializationScope {
-        TID  m_tid;
+        const TID& m_tid;
         bool m_inserted = false;
 
     public:
         explicit EmbedSerializationScope(const TID& tid) : m_tid(tid) {
-            if (!serialization_memo().insert(m_tid).second)
+            if (!serialization_memo().insert(m_tid.copy_valid()).second)
                 throw py::value_error(
                     py::str("{}/{} - circular embedded serialization")
                         .format(m_tid.cls()->name(), m_tid.id_value()));

@@ -17,6 +17,12 @@ TID::TID(const BTraitableClass* cls, const py::object& id) : m_class(cls) {
     m_hash = compute_hash(m_class, m_id);
 }
 
+TID TID::copy_valid() const {
+    if (!is_valid())
+        throw py::value_error(py::str("{} - cannot copy the TID of an unshared endogenous traitable").format(m_class->name()));
+    return *this; // copy through private constructor
+}
+
 void TID::serialize_id(const py::dict& res) const {
     res[BNucleus::ID_TAG()] = id_value();
     if (auto cname = coll_name(); !cname.is_none())

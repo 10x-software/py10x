@@ -222,7 +222,7 @@ protected:
 
             if (!oc)
                 oc = new ObjectCache();
-            m_data.insert({tid, oc});
+            m_data.emplace(tid.copy_valid(), oc);
             _add_object_id(tid);
             return oc;
         }
@@ -275,6 +275,8 @@ public:
 
     static XCache* default_cache()      { return s_default; }
 
+    XCache(const XCache&) = delete;     //-- owns its ObjectCaches; pybind would otherwise instantiate a copy for XCache*
+    XCache& operator=(const XCache&) = delete;
     explicit XCache(XCache* parent = nullptr);
     ~XCache() {
         for (auto &oc: m_data | std::views::values) delete oc;
@@ -288,7 +290,7 @@ public:
     ObjectCache* new_object_cache(const TID& tid) {
         auto oc = new ObjectCache();
         if (tid.is_valid()) {
-            m_data.insert({tid, oc});
+            m_data.emplace(tid.copy_valid(), oc);
             _add_object_id(tid);
         }
         else
@@ -374,7 +376,7 @@ public:
         if (it == m_tmp_data.end())
             throw std::runtime_error("Can't find this ID");
 
-        m_data.insert({tid, it->second});
+        m_data.emplace(tid.copy_valid(), it->second);
         _add_object_id(tid);
         m_tmp_data.erase(it);
 

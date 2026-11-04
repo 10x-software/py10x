@@ -16,9 +16,15 @@ class PY10X_API TID {
     py::object          m_id;       //-- python's Traitable.ID instance
     mutable std::size_t m_hash;
 
+    //-- an invalid TID is identified by its address (XCache::TmpData, operator==), so a copy would be a different entity: use copy_valid()
+    TID(const TID&) = default;
+
 public:
     TID(const BTraitableClass* cls, const py::object& id);
-    TID(const TID& tid) = default;
+    TID& operator=(const TID&) = delete;
+    TID(TID&&) = default;
+
+    [[nodiscard]] TID copy_valid() const;
 
     static bool is_valid(const py::object& id)                      { return !id.attr("value").is_none(); }
 

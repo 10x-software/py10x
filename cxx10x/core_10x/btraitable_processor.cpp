@@ -476,9 +476,11 @@ py::list BTraitableProcessorSetValueTracker::tracked_objects() const {
     py::list result;
     std::unordered_set<TID> seen;
     seen.reserve(m_objects_with_set_value_order.size());
-    for (const py::object& obj : m_objects_with_set_value_order)
-        if (seen.insert(obj.cast<BTraitable*>()->tid()).second)
+    for (const py::object& obj : m_objects_with_set_value_order) {
+        const auto& tid = obj.cast<BTraitable*>()->tid();
+        if (!tid.is_valid() || seen.insert(tid.copy_valid()).second)
             result.append(obj);
+    }
     return result;
 }
 
