@@ -12,6 +12,8 @@ exclude = [
     "core_10x/attic/*",
     "core_10x/jit/*",
     "core_10x/xnone.py",
+    "core_10x/trait.py",
+    "core_10x/trait_filter.py",
     "core_10x/selectable_traitable_class.py",
     "core_10x/callable_instrumentation.py",
     "core_10x/__init__.py",
@@ -180,6 +182,7 @@ exclude = [
 ]
 "core_10x/traitable.py" = [
     "BLE001", # Do not catch blind exception: `Exception`
+    "C408",   # Unnecessary `dict()` call (rewrite as a literal)
     "SIM102", # nested ifs kept for clarity in traitable hot paths
 ]
 "core_10x/traitable_cli.py" = ["BLE001"]

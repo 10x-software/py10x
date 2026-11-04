@@ -520,7 +520,11 @@ class TestRDate:
         start = date(2024, 8, 30)
         end = date(2025, 2, 28)  # 6M from Aug 30
 
-        assert rd.dates_schedule(start, end, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.FORWARD, allow_stub=False) == [start, date(2024, 11, 30), end]
+        assert rd.dates_schedule(start, end, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.FORWARD, allow_stub=False) == [
+            start,
+            date(2024, 11, 30),
+            end,
+        ]
         assert rd.dates_schedule(start, end, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.BACKWARD) == [start, date(2024, 11, 28), end]
         with pytest.raises(ValueError, match='stub'):
             rd.dates_schedule(start, end, cal, BIZDAY_ROLL_RULE.NO_ROLL, PROPAGATE_DATES.BACKWARD, allow_stub=False)

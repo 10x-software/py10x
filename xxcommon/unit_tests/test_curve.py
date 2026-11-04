@@ -265,10 +265,10 @@ class TestDateCurve:
 
         class FuturesLikeCurve(DateCurve):
             def params_get(self) -> CurveParams:
-                kwargs = dict(
-                    ip_kind=IP_KIND.NEXT,
-                    fill_value=(self.values[0], math.nan),
-                )
+                kwargs = {
+                    'ip_kind': IP_KIND.NEXT,
+                    'fill_value': (self.values[0], math.nan),
+                }
                 if not curve_backend:
                     kwargs['bounds_error'] = False
                 return CurveParams(**kwargs)
