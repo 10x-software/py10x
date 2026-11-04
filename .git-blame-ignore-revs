@@ -1,2 +1,4 @@
 # Normalize line endings to LF
 e9a79adef1009631517617d62ad11178ba0d1e63
+# Fix stray indentation in btrait and btraitable
+50be9dd7d62ca44db40275109b78fe361ffb92c6
