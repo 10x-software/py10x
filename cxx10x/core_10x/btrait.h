@@ -61,7 +61,7 @@ public:
     py::object      m_default;      // XNone, may be set to a concrete instance of m_datatype from py
 
     py::object      f_get;              // value getter from py         ANY     f(obj, [*args])
-        py::object      f_get_instrumented; // instrumented (AST-rewritten) f_get -- may be unset
+    py::object      f_get_instrumented; // instrumented (AST-rewritten) f_get -- may be unset
 
     py::object      f_set;              // value setter from py         RC      f(obj, trait, value, [*args])
     py::object      f_verify;           // value verifier from py       RC      f(obj, trait, value)

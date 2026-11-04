@@ -144,7 +144,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
     }
     else {        // ID exogenous
         m_tid.set_id_value(exogenous_id());
-            clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
+        clear_lazy_load_flags(XCache::LOAD_REQUIRED_MUST_EXIST);
         if (const BRC rc(set_values(trait_values)); !rc)
             throw py::value_error(py::str(rc.error()));
     }

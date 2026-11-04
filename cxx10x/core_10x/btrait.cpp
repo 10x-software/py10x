@@ -16,7 +16,7 @@ BTrait::BTrait() {
     m_getter_has_args = false;
 
     f_get               = py::none();
-        f_get_instrumented  = py::none();
+    f_get_instrumented  = py::none();
 
     f_set           = py::none();
     f_verify        = py::none();
