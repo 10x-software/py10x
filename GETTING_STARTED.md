@@ -2218,6 +2218,54 @@ with pytest.raises(RuntimeError, match='is not storable'):
 
 The bundle *base* itself is exempt from this check, which lets you define an abstract base that contributes no traits and have storable members supply the concrete ID.
 
+### TraitableHeir — Inheriting Trait Values from a Grantor
+
+`TraitableHeir` (`core_10x.traitable_heir`) lets one instance take its trait values from another — its **grantor**, held in the `_grantor` trait — while overriding just the values that differ. Typical use: market conventions where a venue-specific entry repeats a parent market's settings except for a few fields.
+
+The rules:
+
+- **Heir traits** are the traits with neither a custom getter nor a default value (listed in `cls.s_grantor_traits`). Traits with a getter or a default are computed or defaulted as usual and are never inherited.
+- An heir trait that is **not set** on the heir returns the grantor's value of the **same-named** trait; it is `XNone` when there is no grantor or the grantor's class has no such trait. The grantor may be any `Traitable`, including another heir (chains work).
+- Setting the trait on the heir **overrides** the grantor; `invalidate_value(name)` drops the override.
+- Reads track the grantor, so changing the grantor (or reassigning `_grantor`) is reflected immediately.
+- `serialize_object()` **omits unset heir traits**, so a saved heir stores only its own overrides plus a reference to its grantor, and keeps following the grantor after reload.
+
+```python
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import T, XNone
+from core_10x.traitable_heir import TraitableHeir
+
+class Conventions(TraitableHeir):
+    mkt_name: str       = T(T.ID)
+    days_to_settle: int = T()       # heir trait
+    calendar: str       = T()       # heir trait
+    currency: str       = T('USD')  # has a default - not inherited
+
+with CACHE_ONLY():
+    nymex = Conventions(mkt_name='WTI NYMEX', days_to_settle=2, calendar='NYM', currency='EUR', _replace=True)
+    ice   = Conventions(mkt_name='WTI ICE', _grantor=nymex, calendar='ICE', _replace=True)
+
+    assert ice.days_to_settle == 2      # inherited
+    assert ice.calendar == 'ICE'        # own override
+    assert ice.currency == 'USD'        # own default, not the grantor's 'EUR'
+
+    nymex.days_to_settle = 3
+    assert ice.days_to_settle == 3      # follows the grantor
+
+    ice.days_to_settle = 1
+    assert ice.days_to_settle == 1      # override...
+    ice.invalidate_value('days_to_settle')
+    assert ice.days_to_settle == 3      # ...until invalidated
+
+    # Only own values are serialized; inherited ones are resolved through `_grantor` on read.
+    data = ice.serialize_object()
+    assert 'days_to_settle' not in data and data['calendar'] == 'ICE'
+
+    assert Conventions(mkt_name='orphan').days_to_settle is XNone
+```
+
+To opt a trait out of inheritance, give it a default or a getter.
+
 ### Logger and Performance Timing
 
 #### PerfTimer

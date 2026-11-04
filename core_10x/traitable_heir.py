@@ -4,6 +4,13 @@ from core_10x.traitable import RC, RT, T, Trait, Traitable, XNone
 
 
 class TraitableHeir(Traitable):
+    """Traitable whose unset traits fall back to the same-named traits of ``_grantor``.
+
+    Heir traits are those with neither a custom getter nor a default (``s_grantor_traits``); a trait the
+    grantor's class lacks reads as ``XNone``. Unset heir traits are left out of ``serialize_object``, so a
+    stored heir keeps following its grantor. See GETTING_STARTED.md § TraitableHeir.
+    """
+
     _grantor: Traitable = T()
 
     s_grantor_traits = {}
@@ -32,6 +39,6 @@ class TraitableHeir(Traitable):
         serialized_data = super().serialize_object(save_references=save_references)
         for name, trait in self.__class__.s_grantor_traits.items():
             if not self.is_set(trait):
-                del serialized_data[name]
+                serialized_data.pop(name, None)  # -- runtime heir traits are never serialized
 
         return serialized_data

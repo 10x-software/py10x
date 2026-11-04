@@ -37,6 +37,7 @@ Changes since **0.3.0**.
 - **Trait filters**: a top-level `OR()` (match nothing), alone or nested, failed on every store; an `OR` with a match-all arm such as `f()` narrowed the Mongo query instead of matching everything.
 - **`existing_instances_by_filter`**: no longer returns an object whose stored copy matches but whose in-memory values no longer do.
 - **`NamedTraitable(_name)`** raises for an unknown name instead of creating it.
+- **`TraitableHeir.serialize_object`** no longer raises `KeyError` when the class has an unset `RT` heir trait (one with neither getter nor default).
 - **`EnvVars`**: assigning a variable runs its `*_apply` hook.
 - **Resources**: URI round-trip of non-string parameters.
 - **Postgres**: saving as a non-owner (e.g. a vault user) no longer fails on index creation.
