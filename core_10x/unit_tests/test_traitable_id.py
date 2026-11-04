@@ -1,5 +1,9 @@
 import pytest
+from core_10x.exec_control import INTERACTIVE
+from core_10x.traitable import RT, T, Traitable
 from core_10x.traitable_id import ID
+from core_10x.ts_store import TsStore
+from py10x_kernel import BSaveRefs
 
 # ----------------------------------------------------------------------------
 #   Construction & basic attributes
@@ -212,3 +216,47 @@ def test_unshared_traitable_cannot_be_put_in_a_set():
         holder = {pending}
         assert pending in holder
         assert hash(pending) == hash(R(name='landed'))
+
+
+class _PendingId(Traitable):
+    a: int = RT(T.ID)
+    b: int = RT(T.ID)
+
+
+def test_id_trait_values_of_unshared_endogenous():
+    with INTERACTIVE():
+        obj = _PendingId()
+        obj.a = 1
+        assert obj.id().value is None
+        obj.b = 2
+        assert obj.id().value is None
+        assert obj.id_trait_values() == {'a': 1, 'b': 2}
+        assert obj.id_trait_values(b=3) == {'a': 1, 'b': 3}
+        assert obj.morph(b=3).id().value == '1|3'
+
+
+class _PendingRef(Traitable, keep_history=False):
+    a: int = T(T.ID)
+    b: int = T(T.ID)
+    peer: Traitable = T()
+
+
+class _Embedded(Traitable, embeddable=True):
+    nxt: Traitable = T()
+
+
+def test_saving_reference_to_unshared_endogenous_names_the_problem():
+    with TsStore.instance_from_uri('duckdb://'), INTERACTIVE():
+        pending = _PendingRef()
+        pending.a = 1
+        holder = _PendingRef(a=2, b=2)  # -- serialize_object() returns None without an ID value, so go through a holder
+        holder.peer = pending
+        with pytest.raises(Exception, match='cannot copy the TID of an unshared endogenous traitable'):
+            holder.serialize_object(BSaveRefs.ALL)
+
+
+def test_circular_embedded_serialization_is_still_detected():
+    obj = _Embedded()
+    obj.nxt = obj
+    with pytest.raises(Exception, match='circular embedded serialization'):
+        obj.serialize_nx(True)

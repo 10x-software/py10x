@@ -1289,7 +1289,8 @@ class TraitableHistory(EventBase):
         return self.serialized_traitable['_id']
 
     def serialize_object(self, save_references: int = BSaveRefs.NONE):
-        return {**self.serialized_traitable, **super().serialize_object(save_references)}
+        serialized_data = super().serialize_object(save_references)
+        return None if serialized_data is None else {**self.serialized_traitable, **serialized_data}
 
     def traitable_get(self):
         return Traitable.deserialize_object(
