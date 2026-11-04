@@ -181,15 +181,12 @@ def pytest_ignore_collect(collection_path, config):
     if not parts:
         return False
 
-    if any('.venv' in part for part in parts):
-        return True
-
     tops = _owned_top_levels()
     if tops and parts[0] not in tops and parts[0] not in _downstream_allowed_tops():
         return True
 
     if p.is_dir():
-        return False
+        return None
 
     # Do not ignore tests located in a unit_tests parent directory.
     return not (len(parts) > 1 and parts[-2] == 'unit_tests')

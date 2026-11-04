@@ -76,7 +76,7 @@ def test_allow_installed_xxfin_when_py10x_dist_owns_it(monkeypatch, tmp_path):
     monkeypatch.setattr(pp, '_tops_from_dist', lambda name: {'xxfin'} if name == 'py10x-fin-base' else set())
 
     assert pp.pytest_ignore_collect(test_py, config=None) is False
-    assert pp.pytest_ignore_collect(site / 'xxfin' / 'unit_tests', config=None) is False
+    assert pp.pytest_ignore_collect(site / 'xxfin' / 'unit_tests', config=None) is None
 
 
 def test_ignore_installed_xxfin_when_no_py10x_dist_owns_it(monkeypatch, tmp_path):
