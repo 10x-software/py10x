@@ -98,7 +98,7 @@ class FinInstrument(Traitable):
         pc = PricingContext.current()
         cross = CcyCross(quote_ccy = ccy, base_ccy = self.denominated)
         fx_rate_object = FxRate(cross_name = cross.cross)
-        fx_rate = fx_rate_object.rate(pc.md_date)
+        fx_rate = fx_rate_object.rate(pc.pricing_date)
         return self.price * fx_rate
 
     def disc_curve_get(self) -> ZeroRateCurve:
@@ -115,18 +115,22 @@ class FinInstrument(Traitable):
         basket.add(self, 1.)
         return basket
 
-    def discount_factor(self, d: date) -> float:
+    def discount_factor(self, d: date) -> float:    ## to the pricing date
         pc = PricingContext.current()
-        today = pc.md_date
-        if d <= today:
+        pd = pc.pricing_date
+        if d <= pd:
             return 1.
 
         ## denom (USD) -> rate (SOFR) -> Disc Curve -> disc_fact(pay_date)
         zrc = self.disc_curve
         rate_curve = zrc.payload
-        #-- TODO: it most probably should be "pricing date", not the md_date (?).
-        #-- TODO: if so, PC would need to have a pricing_date with a default value of date.today()
-        return rate_curve.discount_factor(d, today)
+        today = pc.md_date
+        if pd == today:
+            return rate_curve.discount_factor(d, today)
+
+        ## "riding" the md_date curve: the fwd discount factor pd -> d, i.e., DF(md_date, d) / DF(md_date, pd);
+        ## not discount_factor(d, pd), which would re-apply the md_date zero rate to d over the shorter time from pd
+        return rate_curve.discount_factor_fwd(pd, d, today)
 
     #-- Last date of the instrument, i.e., nothing may change its price after that date
     def max_date(self) -> date:

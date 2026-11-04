@@ -47,7 +47,7 @@ class RateCurve(DateCurve):
         if d == today:
             return 1.
 
-        r = self.value(d)
+        r = self.value(d)   ## this is NOT a fwd rate from today to d, that's why the accrual is not "between" today and d; for that use rate_fwd and accrual_fwd
         t = self.dc_convention(today, d)
         return compounding_apply(self.compounding, COMPOUND_TRANSFORM.RATE_TO_ACCRUAL, t, r)
 

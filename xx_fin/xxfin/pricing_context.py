@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date
 
 from core_10x.named_constant import Enum
+from core_10x.rc import RC
 from core_10x.traitable import RT, T, Traitable
 
 from xxfin.snapshot import SNAPSHOT
@@ -23,8 +24,17 @@ class SimplePricingContext(Traitable):
     mkt_data_provider_name: str = T(T.NOT_EMPTY)       // 'Mkt Data Provider Name, e.g., BBG'
     md_date: date               = T(T.NOT_EMPTY)       // 'Mkt Data Date'
     snapshot: SNAPSHOT          = T(SNAPSHOT.CLOSE)    // 'Mkt Data Date time snapshot, most often symbolic'
+    pricing_date: date          = RT()                 // 'the date present values are taken to; md_date by default (not part of md_basis: the mkt data is the same)'
 
     md_basis: dict              = RT()  #-- TODO: EVAL_ONCE | READ_ONLY ?
+
+    def pricing_date_get(self) -> date:
+        return self.md_date
+
+    def pricing_date_set(self, trait, d: date) -> RC:
+        if d < self.md_date:
+            return RC(False, f'pricing_date {d} must not be before md_date {self.md_date}')
+        return self.raw_set_trait_value(trait, d)
 
     def md_basis_get(self) -> dict:
         return dict(

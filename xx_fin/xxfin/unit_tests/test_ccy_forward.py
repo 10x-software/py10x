@@ -50,6 +50,25 @@ class TestCcyForward:
             assert ufwd.price == self.usd_zrc.payload.discount_factor(d, self.today)
             assert gfwd.price == self.gbp_zrc.payload.discount_factor(d, self.today)
 
+    @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
+    def test_price_to_pricing_date(self):
+        pd = date(2026, 7, 10)      ## after inday, before the others
+        self.pc.pricing_date = pd
+        for d, usf, gbf in zip(self.days, self.usd_fwds, self.gbp_fwds, strict=True):
+            for fwd, zrc in ((usf, self.usd_zrc), (gbf, self.gbp_zrc)):
+                if d <= pd:
+                    assert fwd.price == 1.
+                    continue
+                ## riding the md_date curve: DF(md_date, d) / DF(md_date, pd)
+                rc = zrc.payload
+                assert fwd.price == pytest.approx(rc.discount_factor(d, self.today) / rc.discount_factor(pd, self.today), rel=1e-15)
+                assert fwd.price != rc.discount_factor(d, self.today)     ## pd matters (the dev data has negative rates too, so no sign check)
+
+    def test_pricing_date(self):
+        assert self.pc.pricing_date == self.today
+        with pytest.raises(Exception, match='must not be before md_date'):
+            self.pc.pricing_date = date(2025, 10, 9)
+
     ## TODO: retired along with FinInstrument.mkt_deps_for_discounting (see mkt_deps_design_notes.md).
     ##       OK to discard these tests outright instead of keeping them commented?
     # def test_mkt_deps(self):

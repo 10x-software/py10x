@@ -20,7 +20,7 @@ class CcyUnit(FinInstrument):
         return 1.
 
     def max_date(self) -> date:
-        return PricingContext.current().md_date
+        return PricingContext.current().pricing_date
 
 class CcyForward(FinInstrument):
     denominated: Ccy    = RT(T.ID)   #-- became non-storable ID
