@@ -2220,7 +2220,7 @@ The bundle *base* itself is exempt from this check, which lets you define an abs
 
 ### TraitableHeir — Inheriting Trait Values from a Grantor
 
-`TraitableHeir` (`core_10x.traitable_heir`) lets one instance take its trait values from another — its **grantor**, held in the `_grantor` trait — while overriding just the values that differ. Typical use: market conventions where a venue-specific entry repeats a parent market's settings except for a few fields.
+`TraitableHeir` (`core_10x.traitable_heir`) lets one instance take its trait values from another — its **grantor**, held in the `_grantor` trait — while overriding just the values that differ. For example, ICE Futures Europe lists a WTI crude contract that copies the NYMEX contract's size, currency and tick, but is cash-settled against the NYMEX price instead of delivered physically at Cushing.
 
 The rules:
 
@@ -2235,33 +2235,32 @@ from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import T, XNone
 from core_10x.traitable_heir import TraitableHeir
 
-class Conventions(TraitableHeir):
+class FuturesConventions(TraitableHeir):
     mkt_name: str       = T(T.ID)
-    days_to_settle: int = T()       # heir trait
-    calendar: str       = T()       # heir trait
-    currency: str       = T('USD')  # has a default - not inherited
+    exchange: str       = T()        # heir trait
+    currency: str       = T()        # heir trait
+    contract_size: int  = T()        # heir trait, barrels
+    tick_size: float    = T()        # heir trait, currency per barrel
+    settlement: str     = T('CASH')  # has a default - not inherited
 
 with CACHE_ONLY():
-    nymex = Conventions(mkt_name='WTI NYMEX', days_to_settle=2, calendar='NYM', currency='EUR', _replace=True)
-    ice   = Conventions(mkt_name='WTI ICE', _grantor=nymex, calendar='ICE', _replace=True)
+    nymex = FuturesConventions(
+        mkt_name='WTI NYMEX', exchange='NYMEX', currency='USD', contract_size=1000, settlement='PHYSICAL', _replace=True
+    )
+    ice = FuturesConventions(mkt_name='WTI ICE', _grantor=nymex, exchange='ICE Futures Europe', _replace=True)
 
-    assert ice.days_to_settle == 2      # inherited
-    assert ice.calendar == 'ICE'        # own override
-    assert ice.currency == 'USD'        # own default, not the grantor's 'EUR'
+    assert (ice.currency, ice.contract_size) == ('USD', 1000)   # inherited
+    assert ice.exchange == 'ICE Futures Europe'                  # own override
+    assert ice.settlement == 'CASH'                              # own default, not the grantor's 'PHYSICAL'
 
-    nymex.days_to_settle = 3
-    assert ice.days_to_settle == 3      # follows the grantor
-
-    ice.days_to_settle = 1
-    assert ice.days_to_settle == 1      # override...
-    ice.invalidate_value('days_to_settle')
-    assert ice.days_to_settle == 3      # ...until invalidated
+    nymex.tick_size = 0.01
+    assert ice.tick_size == 0.01                                 # follows the grantor
 
     # Only own values are serialized; inherited ones are resolved through `_grantor` on read.
     data = ice.serialize_object()
-    assert 'days_to_settle' not in data and data['calendar'] == 'ICE'
+    assert 'contract_size' not in data and data['exchange'] == 'ICE Futures Europe'
 
-    assert Conventions(mkt_name='orphan').days_to_settle is XNone
+    assert FuturesConventions(mkt_name='Brent ICE').contract_size is XNone   # no grantor yet
 ```
 
 To opt a trait out of inheritance, give it a default or a getter.

@@ -18,7 +18,7 @@ class Conventions(TraitableHeir):
 
     days_to_settle: int = T()  # -- heir trait
     calendar: str = RT()  # -- runtime heir trait
-    currency: str = T('USD')  # -- has a default: not inherited
+    settlement: str = T('CASH')  # -- has a default: not inherited
     lot_size: float = T()  # -- has a getter: not inherited
 
     def lot_size_get(self):
@@ -47,14 +47,14 @@ def cache_only(request):
 
 
 def make_grantor(mkt_name='WTI NYMEX', **values) -> Conventions:
-    values = {'days_to_settle': 2, 'calendar': 'NYM', 'currency': 'EUR'} | values
+    values = {'days_to_settle': 2, 'calendar': 'CME', 'settlement': 'PHYSICAL'} | values
     return Conventions(mkt_name=mkt_name, **values, _replace=True)
 
 
 class TestHeirTraits:
     def test_only_traits_without_getter_or_default_are_heir_traits(self):
         assert {'days_to_settle', 'calendar'} <= set(Conventions.s_grantor_traits)
-        assert not {'_grantor', 'currency', 'lot_size'} & set(Conventions.s_grantor_traits)
+        assert not {'_grantor', 'settlement', 'lot_size'} & set(Conventions.s_grantor_traits)
 
     def test_subclass_recomputes_heir_traits(self):
         assert {'days_to_settle', 'calendar', 'tick_size'} <= set(XConventions.s_grantor_traits)
@@ -68,14 +68,14 @@ class TestInheritance:
         heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
 
         assert heir.days_to_settle == 2
-        assert heir.calendar == 'NYM'
+        assert heir.calendar == 'CME'
 
     def test_traits_with_default_or_getter_are_not_inherited(self, cache_only):
         grantor = make_grantor()
         heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
 
-        assert grantor.currency == 'EUR'
-        assert heir.currency == 'USD'
+        assert grantor.settlement == 'PHYSICAL'
+        assert heir.settlement == 'CASH'
         assert heir.lot_size == 1000.0
 
     def test_heir_follows_grantor_changes(self, cache_only):
@@ -104,12 +104,12 @@ class TestInheritance:
 
     def test_regranting(self, cache_only):
         nymex = make_grantor()
-        ice = make_grantor('ICE', calendar='ICE')
+        ice = make_grantor('ICE', calendar='ICE_EU')
         heir = Conventions(mkt_name='WTI ICE', _grantor=nymex, _replace=True)
-        assert heir.calendar == 'NYM'
+        assert heir.calendar == 'CME'
 
         heir._grantor = ice
-        assert heir.calendar == 'ICE'
+        assert heir.calendar == 'ICE_EU'
 
     def test_chain_of_grantors(self, cache_only):
         root = make_grantor()
@@ -145,7 +145,7 @@ class TestSerialization:
         data = heir.serialize_object()
         assert 'days_to_settle' not in data
         assert 'calendar' not in data  # -- runtime trait: never serialized
-        assert data['currency'] == 'USD'
+        assert data['settlement'] == 'CASH'
         assert data['_grantor']
 
     def test_own_values_are_serialized(self, cache_only):
