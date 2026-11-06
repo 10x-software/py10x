@@ -96,6 +96,15 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         # VARCHAR JSON text cell → dict for the shared _decode_row path.
         return json.loads(val) if val else {}
 
+    def _json_value_forms(self, values: list) -> list:
+        # DuckDB compares JSON as text, so 10 would not match a stored 10.0, as it does in Mongo and in jsonb.
+        whole = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool) and float(v).is_integer()
+        return [form for v in values for form in ((int(v), float(v)) if whole(v) else (v,))]
+
+    def _json_array_has_null(self, elements):
+        # DuckDB reads a JSON null element as SQL NULL, which contains() cannot find.
+        return elements.filter(lambda element: element.isnull()).length() > 0
+
     @classmethod
     def standard_key(cls, *args, username=None, **kwargs) -> tuple:
         return super().standard_key(*args, **kwargs)

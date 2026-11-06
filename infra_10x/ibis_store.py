@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 import ibis
 import ibis.expr.datatypes as ibis_dtypes
 import ibis.expr.operations as ibis_ops
+from core_10x.concrete_traits import any_trait
 from core_10x.global_cache import cache
 from core_10x.nucleus import Nucleus
 from core_10x.resource import Resource
@@ -107,10 +108,18 @@ class IbisCollection(TsCollection):
         raw_str = col.cast('string')
         return ibis.ifelse(raw_str == 'null', ibis.null(), ibis_ops.UnwrapJSONString(col).to_expr().coalesce(raw_str))
 
+    def ibis_json_scalar(self, field_name: str, value):
+        """The blob field as ``value``'s scalar type, NULL if it holds anything else (an array included); None if there is no such type."""
+        caster = self._store.json_caster_map.get(float if type(value) is int else type(value))
+        if caster is None or field_name in self._collection_columns():
+            return None
+        return ibis.null() if (t := self._ibis_table_or_none()) is None else caster(t[_DATA].cast('json')[field_name])
+
     def ibis_compare_pair(self, field_name: str, trait, values: list) -> tuple:
+        json_values = (dict, list, int, float) if isinstance(trait, any_trait) else (dict, list)
         if (
             field_name in self._collection_columns()
-            or not any(isinstance(v, (dict, list)) for v in values)
+            or not any(isinstance(v, json_values) for v in values)
             or (t := self._ibis_table_or_none()) is None
         ):
             return self._ibis_col(field_name, trait), [self._right_value(v, field_name=field_name) for v in values]
@@ -119,8 +128,20 @@ class IbisCollection(TsCollection):
         # JSON ``null`` must read as SQL NULL, as the scalar path does - else whether a null
         # field matches would depend on some *other* list element being a structure.
         lhs = ibis.ifelse(col.cast('string') == 'null', ibis.null().cast(json_type), col)
-        rhs = [ibis.literal(json.dumps(v, separators=(',', ':'), default=self._json_encode_value)).cast(json_type) for v in values]
-        return lhs, rhs
+        return lhs, [self._json_literal(v) for v in self._store._json_value_forms(values)]
+
+    def ibis_list_contains(self, field_name: str, items: list):
+        """True if the stored ``[class_id, *elements]`` has any of ``items`` as an element; never NULL, so a missing or non-list value is False."""
+        if (t := self._ibis_table_or_none()) is None:
+            return ibis.literal(False)
+        elements = t[_DATA].cast(self._store.s_json_type)[field_name].array[1:]
+        matches = [elements.contains(self._json_literal(v)) for v in self._store._json_value_forms([v for v in items if v is not None])]
+        if None in items:
+            matches.append(self._store._json_array_has_null(elements))
+        return ibis.or_(*matches).fill_null(False)
+
+    def _json_literal(self, value):
+        return ibis.literal(json.dumps(value, separators=(',', ':'), default=self._json_encode_value)).cast(self._store.s_json_type)
 
     def _ibis_order_cols(self, name: str, trait=None) -> tuple:
         """Sort key(s) for ``name``. Typed/physical: one col. Untyped JSON: float, bool, str unwraps (null off-type)."""
@@ -564,6 +585,13 @@ class IbisStore(TsStore):
 
     def _catalog_collection_names(self) -> Iterable[str]:
         return [n for n in self._ibis_con.list_tables() if _MARKER_COLUMNS <= self._collection_columns(n).keys()]
+
+    def _json_value_forms(self, values: list) -> list:
+        """The forms of ``values`` to compare with a stored JSON value."""
+        return values
+
+    def _json_array_has_null(self, elements):
+        return elements.contains(ibis.literal('null').cast(self.s_json_type))
 
     def collection_names(self, regexp: str = None) -> list:
         """Collections that have a physical table, from the catalog (Mongo parity).

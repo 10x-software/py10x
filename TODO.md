@@ -8,6 +8,23 @@ Known follow-up work that is not scheduled yet. Each item is a short summary; th
   first-run app stops short when authentication is needed and isn't installed as a command.
 - **Use Basketable for parallelization** — added 2026-11-03,
   [#169](https://github.com/10x-software/py10x/issues/169). Planned, not started.
+- **Keyring allowlist refuses `ChainerBackend`** — added 2026-11-03,
+  [#171](https://github.com/10x-software/py10x/issues/171). `xx-user-init` fails on a Linux desktop where two native
+  keyring backends are viable.
+- **`None` is accepted as a filter value** — added 2026-11-04,
+  [#172](https://github.com/10x-software/py10x/issues/172). `f(n=None)` matches an unset trait on a store but not
+  in memory. Proposed fix: make
+  `Trait.serialize_value(value, replace_xnone=True)` raise on `None`, mimicking the `undefined value` error that
+  `BTraitable::serialize_traits` raises when saving. Searching a list or set trait for a `None` item is unaffected,
+  because it serializes `[None]`.
+- **String filter on an `Any` trait matches a stored number** — added 2026-11-04,
+  [#173](https://github.com/10x-software/py10x/issues/173). `f(v='10')` matches a stored `10` on DuckDB and Postgres
+  but not on Mongo; it probably should not match on any store. Proposed fix: require `Any` traits
+  to be runtime (`RT`), so they are never stored or filtered on a store.
+- **Non-ASCII filter values never match on DuckDB** — added 2026-11-04,
+  [#174](https://github.com/10x-software/py10x/issues/174). List item, whole-list, dict and `Any` filters with a
+  non-ASCII value find nothing, because the filter's JSON literal is ASCII-escaped. Proposed fix: `ensure_ascii=False`
+  in `IbisCollection._json_literal`, which made all four match in a trial patch.
 
 ## Callable instrumentation
 

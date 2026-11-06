@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from functools import reduce
 from typing import TYPE_CHECKING
 
+from core_10x.concrete_traits import any_trait, list_trait
 from core_10x.xnone import XNone
 
 if TYPE_CHECKING:
@@ -32,6 +33,7 @@ class _mongo_label:
     AND     = '$and'
     OR      = '$or'
     NOT     = '$not'
+    NOR     = '$nor'
 
 LABEL = _mongo_label
 
@@ -52,19 +54,68 @@ class _filter(ABC):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None): ...
 
 
+_ARRAY_TRAITS = (list_trait, any_trait)
+_NOT_ARRAY = {LABEL.NOT: {'$type': 'array'}}
+
+def _trait_of(field_name: str | None, trait_dir: dict[str, Trait] | None) -> Trait | None:
+    return trait_dir.get(field_name) if trait_dir and field_name else None
+
+def _is_collection(value) -> bool:
+    return isinstance(value, (list, tuple, set))
+
+def _is_list_item(trait: Trait | None, value) -> bool:
+    return isinstance(trait, list_trait) and not _is_collection(value) and value is not XNone
+
 def _serialize_filter_value(trait: Trait, value):
     #-- A scalar against a list/set trait means "contains": serialize it as a list element;
     #-- Mongo, for example, matches $eq/$in against array elements. The stored form is [class_id, *items].
     #-- Known gap: heterogeneous lists store non-primitive items typed (e.g. a date as {_type, _cls, _obj}), so those won't match.
-    if issubclass(trait.data_type, (list, set)) and not isinstance(value, (list, tuple, set)):
-        return None if value is None or value is XNone else trait.serialize_value([value])[1]
+    if _is_list_item(trait, value):
+        return trait.serialize_value([value])[1]
 
     return trait.serialize_value(value, replace_xnone = True)
 
+def _whole_value_match(left: list | set, right) -> bool:
+    #-- type(left)(right) makes a tuple filter value equal to a stored list, as it is in Mongo.
+    return _is_collection(right) and type(left)(right) == left
+
 def _list_trait_match(left: list | set, right) -> bool:
     #-- In-memory twin of the above: a scalar matches an item, a collection matches the whole list/set.
-    #-- type(left)(right) makes a tuple filter value equal to a stored list, as it is in Mongo.
-    return type(left)(right) == left if isinstance(right, (list, tuple, set)) else right in left
+    return _whole_value_match(left, right) if _is_collection(right) else right in left
+
+def _ibis_via_in(trait: Trait | None, value) -> bool:
+    #-- IN handles what a single SQL comparison can't: list items, and a number against an any-typed field.
+    return _is_list_item(trait, value) or (isinstance(value, (int, float)) and isinstance(trait, any_trait))
+
+def _mongo_items_expr(field_name: str, values, serialized: list, exposed: list) -> dict:
+    #-- Skips the class id. XNone serializes to None too, but means "unset" rather than a None item.
+    path = f'${field_name}'
+    items = {'$cond': [{'$isArray': path}, {'$slice': [path, 1, 2**31 - 1]}, []]}
+    unset = {'$eq': [{'$ifNull': [path, None]}, None]}
+    return {LABEL.OR: [
+        unset if v is XNone else {'$in': [{'$literal': serial}, items]}
+        for v, serial in zip(values, serialized, strict = True) if serial in exposed
+    ]}
+
+def _mongo_match(field_name: str, trait_dir: dict[str, Trait] | None, values) -> dict | None:
+    """The query for ``values`` if plain Mongo array matching would give the wrong answer for this trait; else None.
+
+    Mongo tests every array element. An any-typed trait has no item matching, and in a list's ``[class_id, *items]``
+    the class id is a str, or None for a heterogeneous list. The field condition stays next to ``$expr``, which cannot use an index.
+    """
+    trait = _trait_of(field_name, trait_dir)
+    if not isinstance(trait, _ARRAY_TRAITS):
+        return None
+    serialized = [_serialize_filter_value(trait, v) for v in values]
+    is_any = isinstance(trait, any_trait)
+    exposed = [v for v in serialized if (not isinstance(v, (list, tuple)) if is_any else v is None or isinstance(v, str))]
+    if not exposed:
+        return None
+    match = {field_name: {LABEL.IN: exposed, **_NOT_ARRAY}} if is_any else (
+        {field_name: {LABEL.IN: exposed}, '$expr': _mongo_items_expr(field_name, values, serialized, exposed)}
+    )
+    others = [v for v in serialized if v not in exposed]
+    return {LABEL.OR: [{field_name: {LABEL.IN: others}}, match]} if others else match
 
 class Op(_filter, ABC):
     label = ''
@@ -84,26 +135,28 @@ class Op(_filter, ABC):
         return obj
 
     def serialize_right_value(self, field_name: str, trait_dir: dict[str, Trait] | None):
-        return _serialize_filter_value(trait, self.right_value) if trait_dir and (trait := trait_dir.get(field_name)) else self.right_value
+        return _serialize_filter_value(trait, self.right_value) if (trait := _trait_of(field_name, trait_dir)) else self.right_value
 
-    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None, mongo_doc: bool = False) -> dict:
+        """With ``mongo_doc``, a whole query document for the field, which may need more than the field's own key."""
         # noinspection PyTypeChecker
-        return {self.label: self.serialize_right_value(field_name, trait_dir)}
+        condition = {self.label: self.serialize_right_value(field_name, trait_dir)}
+        return {field_name: condition} if mongo_doc else condition
 
     @staticmethod
     def _eval(left, right) -> bool:
         raise NotImplementedError
 
-    def eval(self, left_value) -> bool:
+    def eval(self, left_value, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> bool:
         return self._eval(left_value, self.right_value)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
-        trait = trait_dir.get(field_name) if trait_dir and field_name else None
+        trait = _trait_of(field_name, trait_dir)
         col, (right,) = ibis_collection.ibis_compare_pair(field_name, trait, [self.serialize_right_value(field_name, trait_dir)])
         return self._eval(col, right)
 
 class NOT_EMPTY(Op, label = ''):
-    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None, mongo_doc: bool = False) -> dict:
         raise NotImplementedError
 
     @staticmethod
@@ -113,22 +166,40 @@ class NOT_EMPTY(Op, label = ''):
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         raise NotImplementedError
 
-class EQ(Op):
+class _ValueOp(Op, label = ''):
+    """Tests for one of the _values(), or for none of them if negated."""
+    s_negated = False
+
+    def _values(self):
+        return [self.right_value]
+
+    def eval(self, left_value, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> bool:
+        if not isinstance(left_value, (list, set)):
+            return super().eval(left_value)
+        match = _list_trait_match if isinstance(_trait_of(field_name, trait_dir), list_trait) else _whole_value_match
+        return any(match(left_value, v) for v in self._values()) != self.s_negated
+
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None, mongo_doc: bool = False) -> dict:
+        match = _mongo_match(field_name, trait_dir, self._values()) if mongo_doc else None
+        if not match:
+            return super().prefix_notation(field_name, trait_dir, mongo_doc)
+        return {LABEL.NOR: [match]} if self.s_negated else match
+
+class EQ(_ValueOp):
     @staticmethod
     def _eval(left, right) -> bool:
         return left == right
 
-    #-- overrides eval(), not _eval(): ibis() also calls _eval() with column expressions
-    def eval(self, left_value) -> bool:
-        return _list_trait_match(left_value, self.right_value) if isinstance(left_value, (list, set)) else super().eval(left_value)
+    def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+        use_in = _ibis_via_in(_trait_of(field_name, trait_dir), self.right_value)
+        return IN([self.right_value]).ibis(ibis_collection, field_name, trait_dir) if use_in else super().ibis(ibis_collection, field_name, trait_dir)
 
-class NE(Op):
+class NE(_ValueOp):
+    s_negated = True
+
     @staticmethod
     def _eval(left, right) -> bool:
         return left != right
-
-    def eval(self, left_value) -> bool:
-        return not _list_trait_match(left_value, self.right_value) if isinstance(left_value, (list, set)) else super().eval(left_value)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         # A missing blob key unwraps to SQL NULL, and `NULL != x` is NULL (row excluded) under
@@ -136,53 +207,76 @@ class NE(Op):
         # not when the right-hand side is itself None/XNone: NE(XNone) means "field IS NOT
         # NULL" (col != None already compiles to that), and ORing isnull() there would make it
         # tautologically true instead.
-        trait = trait_dir.get(field_name) if trait_dir and field_name else None
+        trait = _trait_of(field_name, trait_dir)
+        if _ibis_via_in(trait, self.right_value):
+            return NIN([self.right_value]).ibis(ibis_collection, field_name, trait_dir)
         serialized = self.serialize_right_value(field_name, trait_dir)
         col, (right,) = ibis_collection.ibis_compare_pair(field_name, trait, [serialized])
         cmp = col != right
         return cmp if serialized is None else col.isnull() | cmp
 
-class GT(Op):
+class _Ordered(Op, label = ''):
+    """A comparison with a scalar never looks inside an array, whatever the trait: stored arrays just don't match."""
+
+    def _may_see_array(self, field_name: str, trait_dir: dict[str, Trait] | None) -> bool:
+        return not _is_collection(self.right_value) and isinstance(_trait_of(field_name, trait_dir), _ARRAY_TRAITS)
+
+    def eval(self, left_value, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> bool:
+        if isinstance(left_value, (list, set)) and not _is_collection(self.right_value):
+            return False
+        return super().eval(left_value)
+
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None, mongo_doc: bool = False) -> dict:
+        condition = super().prefix_notation(field_name, trait_dir)
+        if self._may_see_array(field_name, trait_dir):
+            condition |= _NOT_ARRAY
+        return {field_name: condition} if mongo_doc else condition
+
+    def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
+        if self._may_see_array(field_name, trait_dir):
+            serialized = self.serialize_right_value(field_name, trait_dir)
+            if (col := ibis_collection.ibis_json_scalar(field_name, serialized)) is not None:
+                return self._eval(col, serialized)
+        return super().ibis(ibis_collection, field_name, trait_dir)
+
+class GT(_Ordered):
     @staticmethod
     def _eval(left, right) -> bool:
         return left > right
 
-class GE(Op):
+class GE(_Ordered):
     @staticmethod
     def _eval(left, right) -> bool:
         return left >= right
 
-class LT(Op):
+class LT(_Ordered):
     @staticmethod
     def _eval(left, right) -> bool:
         return left < right
 
-class LE(Op):
+class LE(_Ordered):
     @staticmethod
     def _eval(left, right) -> bool:
         return left <= right
 
-class IN(Op):
+class IN(_ValueOp):
     def __new__(cls, values: list | tuple | set):
-        assert isinstance(values, (list, tuple, set)), f'{cls.__name__}() requires a list, tuple, or set'
+        assert _is_collection(values), f'{cls.__name__}() requires a list, tuple, or set'
         return super().__new__(cls, values)
+
+    def _values(self):
+        return self.right_value
 
     def serialize_right_value(self, field_name: str, trait_dir: dict[str, Trait] | None):
         return (
             [_serialize_filter_value(trait, value) for value in self.right_value]
-            if trait_dir and (trait := trait_dir.get(field_name))
+            if (trait := _trait_of(field_name, trait_dir))
             else self.right_value
         )
 
     @staticmethod
     def _eval(left, right) -> bool:
         return left in right
-
-    #-- a list/set left value matches if any filter value matches it (as Mongo's $in on arrays)
-    def eval(self, left_value) -> bool:
-        if isinstance(left_value, (list, set)):
-            return any(_list_trait_match(left_value, v) for v in self.right_value)
-        return super().eval(left_value)
 
     def _ibis_isin(self, ibis_collection, field_name: str, trait_dir: dict[str, Trait] | None) -> tuple:
         """``(col, isin_pred_or_None, has_none)`` with ``None`` kept out of the SQL ``IN`` list.
@@ -194,11 +288,17 @@ class IN(Op):
 
         ``isin_pred`` is None when every value was ``None``. Callers handle an empty list first.
         """
-        trait = trait_dir.get(field_name) if trait_dir and field_name else None
-        values = list(self.serialize_right_value(field_name, trait_dir))
+        trait = _trait_of(field_name, trait_dir)
+        items, values = [], []
+        for value, serialized in zip(self.right_value, self.serialize_right_value(field_name, trait_dir), strict = True):
+            (items if _is_list_item(trait, value) else values).append(serialized)
         concrete = [v for v in values if v is not None]
         col, right = ibis_collection.ibis_compare_pair(field_name, trait, concrete)
-        return col, (col.isin(right) if concrete else None), len(concrete) != len(values)
+        pred = col.isin(right) if concrete else None
+        if items:
+            contains = ibis_collection.ibis_list_contains(field_name, items)
+            pred = contains if pred is None else pred | contains
+        return col, pred, len(concrete) != len(values)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         if not self.right_value:
@@ -209,12 +309,11 @@ class IN(Op):
         return col.isnull() | pred if has_none else pred
 
 class NIN(IN):
+    s_negated = True
+
     @staticmethod
     def _eval(left, right) -> bool:
         return left not in right
-
-    def eval(self, left_value) -> bool:
-        return not IN.eval(self, left_value) if isinstance(left_value, (list, set)) else super().eval(left_value)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         # Mongo's $nin matches missing fields (same reasoning as NE.ibis) — *unless* None is
@@ -238,16 +337,16 @@ class BETWEEN(Op, label = ''):
         obj.right = LE(b) if bound_b else LT(b)
         return obj
 
-    def eval(self, x) -> bool:
-        return self.left.eval(x) & self.right.eval(x)
+    def eval(self, x, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> bool:
+        return self.left.eval(x, field_name, trait_dir) & self.right.eval(x, field_name, trait_dir)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         return self.left.ibis(ibis_collection, field_name, trait_dir) & self.right.ibis(ibis_collection, field_name, trait_dir)
 
-    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None, mongo_doc: bool = False) -> dict:
         res = self.left.prefix_notation(field_name, trait_dir)
         res.update(self.right.prefix_notation(field_name, trait_dir))
-        return res
+        return {field_name: res} if mongo_doc else res
 
 class FALSE(_filter):
     """The match-nothing query. Combinators absorb only ``BoolOp.s_false``; ``OR()`` is that instance."""
@@ -349,9 +448,9 @@ class f(_filter):
 
     def eval(self, traitable_instance: Traitable) -> bool:
         return self._apply(
-            None,
+            type(traitable_instance).s_dir,
             filter_fn   = lambda filter_instance, td: filter_instance.eval(traitable_instance),
-            named_fn    = lambda trait_name, op, td: op.eval(traitable_instance[trait_name]),
+            named_fn    = lambda trait_name, op, td: op.eval(traitable_instance[trait_name], trait_name, td),
             reduce_fn   = lambda parts: reduce(operator.and_, map(operator.itemgetter(1), parts)) if parts else True,
             combine_fn  = operator.and_,
             empty       = True,
@@ -361,8 +460,8 @@ class f(_filter):
         return self._apply(
             trait_dir,
             filter_fn   = lambda filt, td: filt.prefix_notation(trait_dir=td),
-            named_fn    = lambda name, op, td: op.prefix_notation(field_name=name, trait_dir=td),
-            reduce_fn   = lambda parts: dict(parts) if parts else None,
+            named_fn    = lambda name, op, td: op.prefix_notation(name, td, mongo_doc = True),
+            reduce_fn   = lambda parts: parts[0][1] if len(parts) == 1 else {AND.label: [document for _, document in parts]},
             combine_fn  = lambda a, b: {AND.label: [a, b]},
             empty       = {},
         )
@@ -385,7 +484,7 @@ class f(_filter):
         return OR(*parts) if parts else BoolOp.s_false
 
 class NOT(Op):
-    """``f(age=NOT(GT(5)))`` is a field ``$not``. ``NOT(f(...))`` rewrites via De Morgan."""
+    """``f(age=NOT(GT(5)))`` is a ``$nor`` on the field. ``NOT(f(...))`` rewrites via De Morgan."""
 
     def __new__(cls, expression: _filter):
         negated = expression.negate()
@@ -394,11 +493,12 @@ class NOT(Op):
     def negate(self) -> _filter:
         return self.right_value
 
-    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> dict:
-        return {self.label: self.right_value.prefix_notation(field_name, trait_dir)}
+    def prefix_notation(self, field_name: str = None, trait_dir: dict[str, Trait] | None = None, mongo_doc: bool = False) -> dict:
+        rv_notation = self.right_value.prefix_notation(field_name, trait_dir, mongo_doc = mongo_doc)
+        return {LABEL.NOR: [rv_notation]} if mongo_doc else {self.label: rv_notation}
 
-    def eval(self, left_value) -> bool:
-        return not self.right_value.eval(left_value)
+    def eval(self, left_value, field_name: str = None, trait_dir: dict[str, Trait] | None = None) -> bool:
+        return not self.right_value.eval(left_value, field_name, trait_dir)
 
     def ibis(self, ibis_collection, field_name: str = None, trait_dir: dict[str, Trait] | None = None):
         # ``NOT (col > 5)`` is NULL when col is NULL, so the row would disappear. Mongo ``$not``
