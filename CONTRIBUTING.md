@@ -273,7 +273,7 @@ The UI framework focuses on traitable editing and management:
 
 Versions come from git tags via setuptools-scm; releases are cut with `xx-promote`, not by hand-editing
 `pyproject.toml`. See [dev_10x/README.md](dev_10x/README.md) (`xx-promote`, CI release gates) and
-update [CHANGELOG.md](CHANGELOG.md) as part of the release.
+update [CHANGELOG.md](CHANGELOG.md) (or [xx_fin/CHANGELOG.md](xx_fin/CHANGELOG.md) for `py10x-fin-base`) as part of the release.
 
 ## Getting Help
 

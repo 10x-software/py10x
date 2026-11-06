@@ -5,13 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+`py10x-fin-base` / `py10x-fin-base-cxx` version independently and have their own changelog: [`xx_fin/CHANGELOG.md`](xx_fin/CHANGELOG.md).
+
 ## [Unreleased]
 
 Changes since **0.3.0**.
 
 ### Added
-- **`NOT` trait filter** (`core_10x/trait_filter.py`): `f(age=NOT(GT(5)))` negates a field operator (Mongo `$not`; matches missing / null fields on every backend). `NOT(f(...))`, `NOT(AND(...))`, `NOT(OR(...))` are rewritten via De Morgan.
-- **`NamedTraitable` `name_trait`**: a subclass may rename the identity trait, e.g. `class MktConventions(NamedTraitable, name_trait='mkt_name')`; the trait must be declared with `T(T.ID)`.
+- **`NOT` trait filter** (`core_10x/trait_filter.py`): `f(age=NOT(GT(5)))` negates a field operator (Mongo `$nor`; matches missing / null fields on every backend). `NOT(f(...))`, `NOT(AND(...))`, `NOT(OR(...))` are rewritten via De Morgan.
+- **`NamedTraitable` `name_trait`**: a subclass may rename the identity trait, e.g. `class MktConventions(NamedTraitable, name_trait='mkt_name')`; the trait must be declared with `T(T.ID)`. The inherited `name` is then inaccessible on that subclass (`AttributeError`).
+- **`T.NOT_A_DEPENDENCY`** (py10x-kernel + core): a trait whose value no other trait's getter depends on, for internal bookkeeping such as `Basket.bucketizers` / `the_bucket` / `all_buckets`.
+- **Introspection**: `Trait.describe()`, `Traitable.describe_class()` and `NamedConstant.describe_class()` / `EnumBits.describe_class()` return plain JSON-compatible dicts (name, class id, doc, traits with flags / defaults / owning base, constant members and labels).
+- **`BTraitable.morph(**id_overrides)` / `id_trait_values(**id_overrides)`** (py10x-kernel): build a sibling instance whose ID traits differ only in the overridden ones.
+- **`Basket.of(*(obj, qty), **kwargs)`**; **`RDate.apply_no_roll(d)`**.
+- **`exc_to_rc`** also works as a decorator, `@exc_to_rc(message=...)`; `show_exception_info=False` reports the exception text as the error.
+- **`Logger` subclass hooks**: `s_log_message_class`, `log_store()` and `collection_name(app_name, started_at, pid)`; the child process uses the subclass's overrides too.
 - **`default_cache` class option**: `class X(Traitable, default_cache=True)` creates and loads instances on the processor's default cache.
 - **`SelectableTraitableClass`** (`core_10x/selectable_traitable_class.py`): mixin whose `selected_class()` returns the implementation registered in `SelectableTraitableRecord`, so call sites need not change.
 - **`SaveIfChanged`** is now a class: `parent=` processor, and `auto_save=False` for a reusable tracker with explicit `save()` / `reload()`.
@@ -27,6 +35,11 @@ Changes since **0.3.0**.
 - **`Traitable.collection(_coll_name, create_if_needed=False)`** (breaking): replaces `_ensure_indices`.
 - **Trait filters**: `AND` / `OR` / `f` are rejected as field values (Mongo has no field-level `$and` / `$or`); combine whole filters, e.g. `OR(f(x=1), f(x=2))`, or use `x=IN([...])`.
 - **Unshared `ID`**: `hash()` raises `TypeError` while its value is unset, and it compares equal only to itself. An unhashable UI choice now raises instead of showing an empty picker.
+- **`OsUser`** (py10x-kernel): on Linux / macOS the user name comes from `getpwuid(geteuid())`, no longer from `$USER` / `$LOGNAME`.
+- **Construction**: non-ID trait values passed to a constructor are set in keyword order, so setters that read other traits see a predictable state.
+- **`RDate.dates_schedule`**: each date is now `n` periods from the unadjusted anchor and rolled afterwards; the rolled start / end may fall outside `[start, end]` instead of raising, and `end < start` raises. Rolled dates that coincide are merged.
+- **List-trait filters**: a scalar matches an item of a list / set trait (`f(tags='x')`, `IN`, `NIN`, `NE`) and a list or tuple matches the whole value, in memory and on every store. The stored class id is never treated as an item. Any other trait compares the whole value, so a list held by an `Any` trait does not match on its items. `GT` / `GE` / `LT` / `LE` / `BETWEEN` with a scalar never look inside an array of a list, set or `Any` trait. These rules need the trait, which the `Traitable` query methods always pass. `XNone` means unset; `None` matches a `None` item of a list or set trait, and on any other trait is left to its serializer.
+- **UI**: the traitable editor verifies edits before committing them; when a choice label equals another choice's value, the label wins.
 - **Vault**: only vault admins may save resource credentials for another user.
 - **Repository layout**: the C++ packages `py10x-kernel` / `py10x-infra` moved into this repo under `cxx10x/` (from the former `cxx10x` repo, with history and tags) and publish from `.github/workflows/cxx10x_wheels.yml`. Contributors no longer need a `../cxx10x` checkout. The `py10x-core` sdist now ships only core's own packages (it previously included `xx_fin/`).
 - **Development environment** (`dev_10x/`, `pyproject.toml`): plain `uv sync` / `uv run` now give the full dev environment (default dependency groups; py10x-kernel / py10x-infra / py10x-fin-base editable from this tree). On a fresh clone, run `./xx-build init` first (`--clean` to start over). The C++ build dirs moved from `.venv` to `build/` at the repo root, and the sanitizer switch is now `XX_CXX_SANITIZERS`. `uv.lock` is committed and `constraints.txt` is generated from it. Build modes: `./xx-build set-mode dev|dev-release|ci-release` (Debug or Release; `ci-release` without rebuild-on-import, for CI and the Docker image), `./xx-build rebuild`, and `./xx-build show-mode`; `python -m dev_10x.env_check` verifies what an install produced. `uv-sync` is retired: it only prints the `./xx-build` / `uv` commands that replace it, and `uv-run` is removed (use `uv run`); `XX_UV_INSTALL_MODE` and the `user` / `domain-dev` profiles are gone. CI, the Docker image and the cloud setup script use `./xx-build` and plain `uv sync` directly; CI checks the env with `uv sync --locked --check`. See [`dev_10x/README.md`](dev_10x/README.md).
@@ -40,10 +53,15 @@ Changes since **0.3.0**.
 - **`EnvVars`**: assigning a variable runs its `*_apply` hook.
 - **Resources**: URI round-trip of non-string parameters.
 - **Postgres**: saving as a non-owner (e.g. a vault user) no longer fails on index creation.
-- **UI**: Qt multi-choice unselection, Rio multi-choice, text-edit widget type, trait UI-hint `params` lost on adjustment.
+- **UI**: Qt multi-choice unselection, Rio multi-choice, text-edit widget type, trait UI-hint `params` lost on adjustment; an invalidation under `INTERACTIVE` now reaches the parent on `export_nodes`.
+- **`PackageRefactoring`**: the records module is imported relative to its package (it was never found, so moved-class records were ignored); saved records are valid Python; removing a record deletes the right keys.
+- **`RDate.dates_schedule`**: month-end drift, e.g. Nov 30 → Feb 28 → May 28 instead of May 30.
+- **`SaveIfChanged`**: a `with` block that raises no longer leaves the tracker installed.
+- **py10x-kernel**: `xid()` on a temporary no longer leaves a dangling `TID` (interpreter crash at exit); exporting nodes from the root processor raises instead of crashing.
 
 ### Experimental / internal-only
-- **`xxcommon.jit_aadc`** (`AadcExec`, `core_10x/callable_instrumentation.py`): AADC kernel recording / replay, moved from `xx_fin`; instruments nothing unless opted in.
+- **`xxcommon.jit_aadc`** (`AadcExec`, `core_10x/callable_instrumentation.py`): AADC kernel recording / replay, moved from `xx_fin`; instruments nothing unless opted in. The kernel side is `BTrait.set_use_instrumented_getters()` / `set_f_get_instrumented()`.
+- **`XX_USE_CXX_CURVE`**: `DateCurve` applies curve params set through `params` or a `params_get` override, not only through `set_curve_params()`.
 
 ## [0.3.0] - 2026-08-12
 
