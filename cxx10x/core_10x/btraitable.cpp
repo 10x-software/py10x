@@ -96,6 +96,7 @@ py::object BTraitable::endogenous_id() {
 //      -- if setters/getters are used for ID traits, different orders may result in unexpected behavior
 //======================================================================================================================
 void BTraitable::initialize(const py::dict& trait_values, const bool replace_existing=false, const bool update_existing=false) {
+    bool non_id_values_set = false;
     if (const auto cls = my_class(); cls->is_id_endogenous()) {
         const auto current = ThreadContext::current_traitable_proc();
 
@@ -140,6 +141,7 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
                 if (const BRC rc(proc->set_trait_value(this, trait, value)); !rc)
                     throw py::value_error(rc.error());
             }
+            non_id_values_set = !non_id_traits_set.empty();
         }
     }
     else {        // ID exogenous
@@ -148,6 +150,9 @@ void BTraitable::initialize(const py::dict& trait_values, const bool replace_exi
         if (const BRC rc(set_values(trait_values)); !rc)
             throw py::value_error(py::str(rc.error()));
     }
+
+    //-- after Use is gone: reaches the processor current before initialize()
+    ThreadContext::current_traitable_proc()->post_initialize(this, non_id_values_set);
 }
 
 bool BTraitable::id_exists() {

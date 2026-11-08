@@ -495,16 +495,28 @@ void BTraitableProcessorSetValueTracker::clear() {
     m_objects_with_set_value_seen.clear();
 }
 
-py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) {
-    if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
+void BTraitableProcessorSetValueTracker::track(BTraitable* obj) {
+    if (m_objects_with_set_value_seen.insert(obj).second)
         m_objects_with_set_value_order.push_back(py::cast(obj, py::return_value_policy::reference));
+}
+
+py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) {
+    if (!trait->flags_on(BTraitFlags::ID))
+        track(obj);
     return m_parent->set_trait_value(obj, trait, value);
 }
 
 py::object BTraitableProcessorSetValueTracker::set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) {
-    if (!trait->flags_on(BTraitFlags::ID) && m_objects_with_set_value_seen.insert(obj).second)
-        m_objects_with_set_value_order.push_back(py::cast(obj, py::return_value_policy::reference));
+    if (!trait->flags_on(BTraitFlags::ID))
+        track(obj);
     return m_parent->set_trait_value(obj, trait, value, args);
+}
+
+void BTraitableProcessorSetValueTracker::post_initialize(BTraitable* obj, bool non_id_values_set) {
+    //-- changed (as via set_trait_value) or new (_rev == 0: may cost a store read, so checked last)
+    if (non_id_values_set || (obj->my_class()->may_exist_in_store() && obj->get_revision().equal(py::int_(0))))
+        track(obj);
+    m_parent->post_initialize(obj, non_id_values_set);  //-- for nested trackers
 }
 
 void BTraitableProcessorSetValueTracker::invalidate_trait_value(BTraitable* obj, const BTrait* trait) const {

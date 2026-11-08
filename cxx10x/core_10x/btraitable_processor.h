@@ -119,6 +119,9 @@ public:
     virtual void            invalidate_trait_value(BTraitable* obj, const BTrait* trait) const = 0;
     virtual void            invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const = 0;
 
+    //-- end of BTraitable::initialize(), which sets values via its own temporary processor, unseen here
+    virtual void            post_initialize(BTraitable* obj, bool non_id_values_set)    {}
+
     bool                    is_valid(const BTraitable* obj, const BTrait* trait) const;
     bool                    is_valid(const BTraitable* obj, const BTrait* trait, const py::args& args) const;
     bool                    is_set(const BTraitable* obj, const BTrait* trait) const;
@@ -163,7 +166,8 @@ public:
     };
 };
 
-/// Processor that delegates to a parent and tracks BTraitable objects on which set_value was called (ID traits excluded).
+/// Processor that delegates to a parent and tracks BTraitable objects on which set_value was called (ID traits excluded),
+/// and objects constructed in its context that are new (_rev == 0) or got non-ID values.
 /// begin_using()/end_using() never clear the tracked list (only construction starts it empty), so a single instance
 /// can be entered (via `with`, or begin_using()/end_using() directly) repeatedly across many separate, non-nested
 /// spans (e.g. once per trait access, across separate dispatches) while still accumulating everything ever set.
@@ -171,6 +175,8 @@ class BTraitableProcessorSetValueTracker : public BTraitableProcessor {
     BTraitableProcessor* m_parent;
     std::vector<py::object> m_objects_with_set_value_order;
     std::unordered_set<BTraitable*> m_objects_with_set_value_seen;
+
+    void track(BTraitable* obj);    //-- once per object, in first-seen order
 
 public:
     BTraitableProcessorSetValueTracker();
@@ -186,6 +192,8 @@ public:
 
     py::object set_trait_value(BTraitable* obj, const BTrait* trait, const py::object& value) override;
     py::object set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args) override;
+
+    void post_initialize(BTraitable* obj, bool non_id_values_set) override;
 
     void invalidate_trait_value(BTraitable* obj, const BTrait* trait) const override;
     void invalidate_trait_value(BTraitable* obj, const BTrait* trait, const py::args& args) const override;

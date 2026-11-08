@@ -6,7 +6,7 @@ Use ``ts_instance`` from conftest: core_10x → DuckDbStore; infra_10x → Mongo
 import pytest
 from uuid6 import uuid7
 
-from core_10x.exec_control import INTERACTIVE
+from core_10x.exec_control import CACHE_ONLY, INTERACTIVE
 from core_10x.rc import RC
 from core_10x.testlib.fixtures import with_transactions
 from core_10x.testlib.strict import need
@@ -446,3 +446,118 @@ class TestSaveIfChanged:
                 y.value = 2
 
             assert list(ctx._tracked()) == [x, y]
+
+    # -- new objects constructed inside the tracker's context (BTraitableProcessor::post_initialize)
+
+    @pytest.fixture
+    def fresh(self, ts_instance):
+        """Classes, each with its own collection; objects are constructed by the tests themselves."""
+
+        class A(Traitable, custom_collection = True):
+            i: int = T(T.ID)
+            value: int = T()
+
+        class B(Traitable, custom_collection = True):
+            i: int = T(T.ID)
+            value: int = T()
+
+        class X(Traitable, custom_collection = True):  # ID exogenous
+            value: int = T()
+
+        class E(Traitable, embeddable = True):
+            value: int = T()
+
+        classes = (A, B, X)
+        colls = {cls: f'save_if_changed#{cls.__name__.lower()}#{uuid7().hex}' for cls in classes}
+        assert not set(colls.values()).intersection(ts_instance.collection_names())
+
+        with ts_instance:
+            yield A, B, X, E, colls
+
+        for coll_name in colls.values():
+            ts_instance.delete_collection(coll_name)
+
+    def test_save_if_changed_saves_new_object_from_plain_ctor(self, fresh):
+        A, _B, _X, _E, colls = fresh
+        with SaveIfChanged() as tracker:
+            a = A(i = 1, _collection_name = colls[A])
+            assert tracker.tracked_objects() == [a]
+
+        assert A.collection(colls[A]).count() == 1
+
+    def test_save_if_changed_saves_new_object_with_id_traits_only(self, fresh):
+        A, _B, _X, _E, colls = fresh
+        with SaveIfChanged() as tracker:
+            a = A.new_or_update(i = 1, _collection_name = colls[A])
+            r = A.new_or_replace(i = 2, _collection_name = colls[A])
+            assert tracker.tracked_objects() == [a, r]
+
+        assert A.collection(colls[A]).count() == 2
+
+    def test_save_if_changed_skips_existing_object_from_plain_ctor(self, fresh):
+        A, _B, _X, _E, colls = fresh
+        A(i = 1, _collection_name = colls[A]).save().throw()
+
+        with SaveIfChanged() as tracker:
+            a = A(i = 1, _collection_name = colls[A])
+            assert tracker.tracked_objects() == []
+
+        assert a._rev == 1
+
+    def test_save_if_changed_still_saves_changed_existing_object(self, fresh):
+        A, _B, _X, _E, colls = fresh
+        A.new_or_update(i = 1, value = 1, _collection_name = colls[A]).save().throw()
+
+        with SaveIfChanged() as tracker:
+            a = A.new_or_update(i = 1, value = 2, _collection_name = colls[A])
+            assert tracker.tracked_objects() == [a]
+
+        assert a._rev == 2
+        assert a.reload()
+        assert a.value == 2
+
+    def test_save_if_changed_same_values_tracked_but_rev_unchanged(self, fresh):
+        A, _B, _X, _E, colls = fresh
+        A.new_or_update(i = 1, value = 1, _collection_name = colls[A]).save().throw()
+
+        with SaveIfChanged() as tracker:
+            a = A.new_or_update(i = 1, value = 1, _collection_name = colls[A])
+            assert tracker.tracked_objects() == [a]  # values were set, as with a setter
+
+        assert a._rev == 1  # saving an unchanged object is a no-op
+
+    def test_save_if_changed_saves_new_exogenous_object_without_values(self, fresh):
+        _A, _B, X, _E, colls = fresh
+        with SaveIfChanged() as tracker:
+            x = X(_collection_name = colls[X])
+            assert tracker.tracked_objects() == [x]
+
+        assert X.collection(colls[X]).count() == 1
+
+    def test_save_if_changed_skips_embeddable_and_cache_only(self, fresh):
+        A, _B, _X, E, colls = fresh
+        with SaveIfChanged() as tracker:
+            E()  # no values: setting one would be tracked by set_trait_value, as before
+            assert tracker.tracked_objects() == []
+
+        with CACHE_ONLY(), SaveIfChanged() as tracker:
+            A(i = 1, _collection_name = colls[A])
+            assert tracker.tracked_objects() == []
+
+        assert A.collection(colls[A]).count() == 0
+
+    def test_save_if_changed_nested_trackers_both_see_new_object(self, fresh):
+        A, _B, _X, _E, colls = fresh
+        with SaveIfChanged(auto_save = False) as outer:
+            with SaveIfChanged(auto_save = False) as inner:
+                a = A(i = 1, _collection_name = colls[A])
+            assert inner.tracked_objects() == [a]
+            assert outer.tracked_objects() == [a]
+
+    def test_save_if_changed_class_filter_applies_to_new_objects(self, fresh):
+        A, B, _X, _E, colls = fresh
+        with SaveIfChanged([B]) as tracker:
+            a = A(i = 1, _collection_name = colls[A])
+            assert tracker.tracked_objects() == [a]  # tracked by the kernel ...
+
+        assert A.collection(colls[A]).count() == 0  # ... but filtered out by save()
