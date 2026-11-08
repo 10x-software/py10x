@@ -47,7 +47,10 @@ If either applies, install one of:
     `PostgresStore` requires anything newer). CI tests exactly this floor
     (`.github/actions/setup-postgres` defaults to `postgres:15`).
     Passwordless trust instance on **port 5432**, login as the **OS user** (optional `user@`;
-    libpq defaults to the OS user when omitted). Each pytest **session creates its own
+    libpq defaults to the OS user when omitted). The driver, `psycopg`, is the pure-Python one
+    and needs the system **libpq** (it comes with any PostgreSQL install; on Windows its `bin`
+    must be on PATH, see [Windows](#windows)). Without libpq, `import psycopg` fails and
+    Postgres-backed tests **error** rather than skip. Each pytest **session creates its own
     `py10x_test_*` database** and drops it at the end, so a run never touches your own data
     and two concurrent sessions cannot collide. A session killed
     before teardown leaves its database behind — `uv run xx-test-db-clean drop` sweeps
@@ -162,6 +165,11 @@ sudo apt install -y mongodb-org
 sudo systemctl start mongod
 sudo systemctl enable mongod
 
+# Install PostgreSQL (for Postgres-backed tests; the distro's version, 15+ on current releases) - optional
+sudo apt install -y postgresql
+# A role for your OS user; then trust auth, see "Optional Database Dependencies"
+sudo -u postgres createuser --superuser "$USER"
+
 # Install Node.js (for Rio UI) - optional
 curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
 sudo apt-get install -y nodejs
@@ -192,6 +200,14 @@ sudo dnf install -y mongodb-org
 sudo systemctl start mongod
 sudo systemctl enable mongod
 
+# Install PostgreSQL (for Postgres-backed tests; 15+) - optional
+sudo dnf install -y postgresql-server
+sudo postgresql-setup --initdb
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
+# A role for your OS user; then trust auth, see "Optional Database Dependencies"
+sudo -u postgres createuser --superuser "$USER"
+
 # Install Node.js (for Rio UI) - optional
 sudo dnf install nodejs npm
 ```
@@ -214,6 +230,11 @@ brew tap mongodb/brew
 brew install mongodb-community
 # Start MongoDB service
 brew services start mongodb-community
+
+# Install PostgreSQL 15 (for Postgres-backed tests) - optional.
+# Homebrew's cluster already has your OS user as a superuser with trust auth, as the tests expect.
+brew install postgresql@15
+brew services start postgresql@15
 
 # Install Node.js (for Rio UI) - optional
 brew install node
@@ -244,6 +265,12 @@ winget install --id Microsoft.VisualStudio.2022.BuildTools `
 winget install --id MongoDB.Server `
   --accept-package-agreements --accept-source-agreements --silent
 
+# Install PostgreSQL 15 (CI's floor; for Postgres-backed tests) - optional, then see "PostgreSQL setup" below.
+# --override runs EDB's installer unattended; the superuser password is only needed for the setup.
+winget install --id PostgreSQL.PostgreSQL.15 `
+  --accept-package-agreements --accept-source-agreements --silent `
+  --override "--mode unattended --unattendedmodeui none --superpassword postgres --serverport 5432 --disable-components stackbuilder,pgAdmin"
+
 # Install Node.js LTS (for Rio UI) - optional
 winget install --id OpenJS.NodeJS.LTS `
   --accept-package-agreements --accept-source-agreements --silent
@@ -257,12 +284,27 @@ not run it from Git Bash, so `cxx10x/CMakeLists.txt` puts the git `FindGit` foun
 
 If you need the C++ workload and already have the full Visual Studio 2022 IDE installed, add the workload to it instead of installing Build Tools — open *Visual Studio Installer* → *Modify* → check **Desktop development with C++**.
 
+**PostgreSQL setup** (once, after installing it; the `postgresql-x64-15` service starts automatically). The tests
+expect the trust instance described in [Optional Database Dependencies](#optional-database-dependencies):
+1. **A login role named exactly like your Windows user, same case**: libpq logs in as `%USERNAME%`, and role names
+   are case-sensitive. Run `psql -h localhost -U postgres -d postgres` (the `--superpassword` above), then
+   `CREATE ROLE "<YourUser>" LOGIN SUPERUSER;`. Not via PowerShell's `psql -c "... ""<YourUser>"" ..."`: the inner
+   quotes get lost and the role comes out lowercase.
+2. **Trust auth**: in `C:\Program Files\PostgreSQL\15\data\pg_hba.conf` (needs an elevated editor), change the method
+   of the local / localhost rules from `scram-sha-256` to `trust`, then `SELECT pg_reload_conf();` in `psql`.
+3. **`C:\Program Files\PostgreSQL\15\bin` on PATH** (user PATH is enough): `psycopg` is the pure-Python one
+   (`uv.lock` has no `psycopg-binary`) and loads `libpq.dll` from PATH. Without it `import psycopg` fails, and
+   Postgres tests error out instead of skipping. Restart terminals and IDEs afterwards.
+
+Check: `psql -h localhost -d postgres -c "SELECT current_user"` prints your user without asking for a password.
+
 #### Manual Installation
 1. Download and install [Git for Windows](https://git-scm.com/download/win) (provides `git` and bundles Git Bash).
    Keep the default install location, `C:\Program Files\Git`, unless git is on PATH (see the note above).
 2. *Optional* — only if building native deps from source: download and install the [Visual Studio 2022 Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022) and select the **Desktop development with C++** workload (or use the full [Visual Studio 2022](https://visualstudio.microsoft.com/downloads/) IDE with the same workload).
 3. Download and install [MongoDB Community Server](https://www.mongodb.com/try/download/community) (for testing and examples) - optional
 4. Download and install [Node.js](https://nodejs.org/) (for Rio UI) - optional
+5. Download and install [PostgreSQL](https://www.postgresql.org/download/windows/) 15+ (for Postgres-backed tests) - optional; then the PostgreSQL setup above
 
 ## Build System
 
