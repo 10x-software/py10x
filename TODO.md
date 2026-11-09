@@ -11,12 +11,13 @@ Known follow-up work that is not scheduled yet. Each item is a short summary; th
 - **Keyring allowlist refuses `ChainerBackend`** — added 2026-11-03,
   [#171](https://github.com/10x-software/py10x/issues/171). `xx-user-init` fails on a Linux desktop where two native
   keyring backends are viable.
-- **`None` is accepted as a filter value** — added 2026-11-04,
-  [#172](https://github.com/10x-software/py10x/issues/172). `f(n=None)` matches an unset trait on a store but not
-  in memory. Proposed fix: make
-  `Trait.serialize_value(value, replace_xnone=True)` raise on `None`, mimicking the `undefined value` error that
-  `BTraitable::serialize_traits` raises when saving. Searching a list or set trait for a `None` item is unaffected,
-  because it serializes `[None]`.
+- **A store query for `None` returns `XNone` rows** — added 2026-11-04,
+  [#172](https://github.com/10x-software/py10x/issues/172). `None` is a value a getter returns and can't be saved;
+  `XNone` is written as null, so a stored null is never `None`. Memory tells them apart, but both filters produce the
+  same store query. Proposed fix: make `Trait.serialize_value(value, replace_xnone=True)` raise on `None`, mimicking
+  the `undefined value` error that `BTraitable::serialize_traits` raises when saving. In-memory `eval` and searching
+  a list or set trait for a `None` item are unaffected. To decide: raise, or match nothing on the store, where
+  `existing_instances_by_filter` also checks objects in memory.
 - **String filter on an `Any` trait matches a stored number** — added 2026-11-04,
   [#173](https://github.com/10x-software/py10x/issues/173). `f(v='10')` matches a stored `10` on DuckDB and Postgres
   but not on Mongo; it probably should not match on any store. Proposed fix: require `Any` traits

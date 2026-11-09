@@ -47,10 +47,12 @@ If either applies, install one of:
     `PostgresStore` requires anything newer). CI tests exactly this floor
     (`.github/actions/setup-postgres` defaults to `postgres:15`).
     Passwordless trust instance on **port 5432**, login as the **OS user** (optional `user@`;
-    libpq defaults to the OS user when omitted). The driver, `psycopg`, is the pure-Python one
-    and needs the system **libpq** (it comes with any PostgreSQL install; on Windows its `bin`
-    must be on PATH, see [Windows](#windows)). Without libpq, `import psycopg` fails and
-    Postgres-backed tests **error** rather than skip. Each pytest **session creates its own
+    libpq defaults to the OS user when omitted). The driver, `psycopg`, needs **libpq** to
+    import: the system one (`apt install libpq5`, `brew install libpq`, or any PostgreSQL
+    install with its `bin` on PATH), or the one `psycopg[binary]` bundles, which the
+    `postgres` extra installs. Use `py10x-core[postgres]` on Windows, and on Linux/macOS
+    without a system libpq. The dev environment includes it, so Postgres tests skip, not
+    fail to import, where no PostgreSQL is installed. Each pytest **session creates its own
     `py10x_test_*` database** and drops it at the end, so a run never touches your own data
     and two concurrent sessions cannot collide. A session killed
     before teardown leaves its database behind — `uv run xx-test-db-clean drop` sweeps
@@ -132,6 +134,7 @@ For users who just want to use `py10x-core`:
 pip install py10x-core[rio]    # With Rio UI backend
 pip install py10x-core[qt]     # With Qt6 UI backend
 pip install py10x-core[rio,qt] # With both UI backends
+pip install py10x-core[postgres] # PostgresStore without a system libpq (Windows; Linux/macOS without libpq5 / brew libpq)
 
 # Or install from source
 git clone https://github.com/10x-software/py10x.git
@@ -243,7 +246,7 @@ brew install node
 ### Windows
 
 WinGet ships with Windows 10 1809+ and Windows 11, so no extra package manager bootstrap is needed.
-Run the commands below from an **elevated PowerShell** (Run as Administrator) when installing system-wide packages — Git for Windows, Visual Studio Build Tools, MongoDB, and Node.js all install machine-scope.
+Run the commands below from an **elevated PowerShell** (Run as Administrator) when installing system-wide packages — Git for Windows, Visual Studio Build Tools, MongoDB, PostgreSQL, and Node.js all install machine-scope.
 
 The `--accept-package-agreements`, `--accept-source-agreements`, and `--silent` flags pre-answer every WinGet prompt so the install runs unattended; drop `--silent` if you want to watch progress. For Visual Studio Build Tools, the `--quiet --wait` part inside `--override` is forwarded to the VS bootstrapper so it also installs without prompting. Add `--disable-interactivity` for fully scripted runs (aborts rather than prompts on any unexpected question).
 
@@ -292,9 +295,8 @@ expect the trust instance described in [Optional Database Dependencies](#optiona
    quotes get lost and the role comes out lowercase.
 2. **Trust auth**: in `C:\Program Files\PostgreSQL\15\data\pg_hba.conf` (needs an elevated editor), change the method
    of the local / localhost rules from `scram-sha-256` to `trust`, then `SELECT pg_reload_conf();` in `psql`.
-3. **`C:\Program Files\PostgreSQL\15\bin` on PATH** (user PATH is enough): `psycopg` is the pure-Python one
-   (`uv.lock` has no `psycopg-binary`) and loads `libpq.dll` from PATH. Without it `import psycopg` fails, and
-   Postgres tests error out instead of skipping. Restart terminals and IDEs afterwards.
+3. **`C:\Program Files\PostgreSQL\15\bin` on PATH** (user PATH is enough) for the `psql` used above and below, or
+   call it by full path. `psycopg` does not need it: the dev environment's (or the `postgres` extra's) `psycopg-binary` bundles libpq. Restart terminals afterwards.
 
 Check: `psql -h localhost -d postgres -c "SELECT current_user"` prints your user without asking for a password.
 

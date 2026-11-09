@@ -63,6 +63,7 @@ dev = [
     "packaging>=24.0", # version/specifier logic for xx-promote
     "uv>=0.13.4; python_version < '3.12'", # 3.11 gets licensecheck 2025.x, which depends on uv: keep it within [tool.uv] required-version
     "ibis-framework[duckdb]>=12.0.0",
+    "psycopg[binary]>=3.2", # same as the postgres extra: Postgres tests skip, not fail to import, without a system libpq
     "duckdb<2", # 2.0 raises ResourceInUseException ("unfinished result from execute()") in IbisStore
     "adbc-driver-manager>=1.10.0",
     "scikit-build-core>=0.12.2", # C++ build backend (incremental, no-isolation)
@@ -90,6 +91,9 @@ jit = [
 ]
 aadc = [
     "aadc>=2.22.2",
+]
+postgres = [
+    "psycopg[binary]>=3.2", # bundled libpq, for machines without one (Windows; Linux/macOS without libpq5 / brew libpq)
 ]
 examples = [
     "yfinance>=1.7.0", # ui_10x/examples/price_simulator.py only
@@ -200,7 +204,7 @@ build = [
     "pybind11-stubgen==2.5.5",
 ]
 dev = ["py10x-core[dev]"]
-extras = ["py10x-core[rio,qt,jit,aadc,examples]"]
+extras = ["py10x-core[rio,qt,jit,aadc,examples,postgres]"]
 test = ["py10x-fin-base>=0.2.0rc2"]
 # Fin-base's extras for its tests, kept out of `test` (whose pin xx-promote rewrites); the version
 # comes from `test`. Lets uv.lock / constraints.txt cover blpapi, xbbg, aadc like `--all-extras` did.

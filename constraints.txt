@@ -312,7 +312,11 @@ proxy-tools==0.1.0
 psutil==7.2.2
     # via py10x-core
 psycopg==3.3.7
-    # via ibis-framework
+    # via
+    #   ibis-framework
+    #   py10x-core
+psycopg-binary==3.3.7 ; implementation_name != 'pypy'
+    # via psycopg
 pyarrow==26.0.1
     # via ibis-framework
 pyarrow-hotfix==0.7
