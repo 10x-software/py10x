@@ -61,7 +61,7 @@ chardet==7.7.0
     # via encutils
 charset-normalizer==3.5.2
     # via requests
-click==8.5.0
+click==8.5.1
     # via uvicorn
 clr-loader==0.3.1 ; sys_platform == 'win32'
     # via pythonnet
@@ -80,7 +80,7 @@ contourpy==1.3.3 ; python_full_version < '3.12'
     # via matplotlib
 contourpy==1.4.0 ; python_full_version >= '3.12'
     # via matplotlib
-coverage==7.17.1
+coverage==7.17.2
     # via pytest-cov
 crawlerdetect==0.4.2
     # via rio-ui
@@ -98,7 +98,7 @@ cython==3.3.1
     # via py10x-core
 depgather==0.5.0 ; python_full_version >= '3.12'
     # via licensecheck
-dnspython==2.9.1
+dnspython==2.9.2
     # via pymongo
 duckdb==1.5.6
     # via
@@ -196,7 +196,7 @@ loguru==0.7.3
     #   licensecheck
 lxml==6.1.3
     # via yfinance
-markdown==3.11.2
+markdown==3.11.3
     # via licensecheck
 markdown-it-py==4.2.0
     # via rich
@@ -219,7 +219,7 @@ multipart==2.0.1
     # via rio-ui
 multitasking==0.0.13
     # via yfinance
-mypy-extensions==1.1.0
+mypy-extensions==1.2.0
     # via isort
 narwhals==2.28.0
     # via
@@ -266,7 +266,7 @@ packaging==26.3
     #   scikit-build-core
     #   setuptools-scm
     #   vcs-versioning
-pandas==3.1.0
+pandas==3.1.1
     # via
     #   ibis-framework
     #   py10x-core
@@ -286,7 +286,7 @@ pillow==13.0.0
     # via
     #   matplotlib
     #   rio-ui
-platformdirs==4.14.3
+platformdirs==4.14.5
     # via
     #   licensecheck
     #   requests-cache
@@ -311,11 +311,11 @@ proxy-tools==0.1.0
     # via pywebview
 psutil==7.2.2
     # via py10x-core
-psycopg==3.3.7
+psycopg==3.3.8
     # via
     #   ibis-framework
     #   py10x-core
-psycopg-binary==3.3.7 ; implementation_name != 'pypy'
+psycopg-binary==3.3.8 ; implementation_name != 'pypy'
     # via psycopg
 pyarrow==26.0.1
     # via ibis-framework
@@ -325,12 +325,12 @@ pybind11-stubgen==2.5.5
     # via py10x-core
 pycparser==3.12 ; implementation_name != 'PyPy'
     # via cffi
-pydantic==2.14.2
+pydantic==2.14.3
     # via
     #   depgather
     #   fastapi
     #   licensecheck
-pydantic-core==2.50.2
+pydantic-core==2.50.4
     # via pydantic
 pyee==13.0.1
     # via playwright
@@ -472,7 +472,7 @@ six==1.17.0
     # via python-dateutil
 soupsieve==2.10 ; python_full_version < '3.11.5'
     # via beautifulsoup4
-soupsieve==3.0.4 ; python_full_version >= '3.11.5'
+soupsieve==4.0.1 ; python_full_version >= '3.11.5'
     # via beautifulsoup4
 sqlglot==30.15.0
     # via
@@ -520,7 +520,7 @@ typing-extensions==4.16.0
     #   starlette
     #   typing-inspection
     #   uniserde
-typing-inspection==0.4.4
+typing-inspection==0.4.5
     # via
     #   fastapi
     #   pydantic
@@ -570,11 +570,11 @@ webview-proc==0.1.0rc7
     # via py10x-core
 win32-setctime==1.2.1 ; sys_platform == 'win32'
     # via loguru
-xbbg==1.7.0
+xbbg==1.8.1
     # via py10x-fin-base
 yarl==1.25.1
     # via rio-ui
-yfinance==1.7.0
+yfinance==1.8.0
     # via py10x-core
 zipp==4.1.2 ; python_full_version < '3.12'
     # via importlib-metadata
