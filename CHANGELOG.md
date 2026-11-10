@@ -52,7 +52,7 @@ Changes since **0.3.0**.
 - **`NamedTraitable(_name)`** raises for an unknown name instead of creating it.
 - **`EnvVars`**: assigning a variable runs its `*_apply` hook.
 - **Resources**: URI round-trip of non-string parameters.
-- **Postgres**: saving as a non-owner (e.g. a vault user) no longer fails on index creation.
+- **Postgres**: saving as a non-owner (e.g. a vault user) no longer fails on index creation. New `postgres` extra (`psycopg[binary]`, which bundles libpq): `PostgresStore` failed to import without a system libpq, which Windows lacks even with PostgreSQL installed unless its `bin` is on `PATH`. The `dev` extra includes it, so Postgres tests skip rather than error where no PostgreSQL is installed.
 - **UI**: Qt multi-choice unselection, Rio multi-choice, text-edit widget type, trait UI-hint `params` lost on adjustment; an invalidation under `INTERACTIVE` now reaches the parent on `export_nodes`.
 - **`PackageRefactoring`**: the records module is imported relative to its package (it was never found, so moved-class records were ignored); saved records are valid Python; removing a record deletes the right keys.
 - **`RDate.dates_schedule`**: month-end drift, e.g. Nov 30 → Feb 28 → May 28 instead of May 30.
