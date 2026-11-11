@@ -30,6 +30,7 @@ Changes since **0.3.0**.
 - **`examples` extra**: `yfinance` for `ui_10x/examples/price_simulator.py`.
 
 ### Changed
+- **`ExecControl`** (`core_10x/exec_control.py`): the execution-control functions are now static methods of one class (`ExecControl.graph_on()`, ...); `GRAPH_ON`, `GRAPH_OFF`, `DEBUG_ON` and the other ALL_CAPS names remain as aliases. A class gives the family one `PackageRefactoring` class id, which free functions cannot have.
 - **`TraitableCli.main`** now calls ``verify()`` before ``run()``. ``VaultUtils.user_init`` takes ``new_machine: bool = False`` instead of a ``mode`` string.
 - **`GraphDeps(gp, bound_trait, inputs_spec)`** (breaking): takes a `{cls: (trait_name, ...)}` dict instead of `target_class, *trait_names`.
 - **`Traitable.collection(_coll_name, create_if_needed=False)`** (breaking): replaces `_ensure_indices`.

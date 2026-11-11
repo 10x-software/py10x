@@ -9,47 +9,64 @@ from core_10x.traitable_id import ID
 # TODO: consider making CONVERT/TYPE_CHECK mode default.
 
 
-def CHANGE_MODE(debug: bool = -1, convert_values: bool = -1):
-    return BTP.create(-1, convert_values, debug, True, False)
+class ExecControl:
+    # -- a class, so the whole family has one class id: PackageRefactoring tracks classes, not free functions
+    @staticmethod
+    def change_mode(debug: bool = -1, convert_values: bool = -1):
+        return BTP.create(-1, convert_values, debug, True, False)
+
+    @staticmethod
+    def default_cache(debug: bool = -1, convert_values: bool = -1):
+        return BTP.create(0, convert_values, debug, False, True)
+
+    @staticmethod
+    def graph_on(debug: bool = -1, convert_values: bool = -1):
+        return BTP.create(1, convert_values, debug, False, False)
+
+    @staticmethod
+    def graph_off(debug: bool = -1, convert_values: bool = -1):
+        return BTP.create(0, convert_values, debug, False, False)
+
+    @staticmethod
+    def upward_deps_off():
+        """
+        Stays on-graph, but effectively cuts off dependency chain upwards
+        """
+        return _UpwardDepsOff()
+
+    @staticmethod
+    def debug_on(convert_values: bool = -1):
+        return BTP.create(-1, convert_values, 1, True, False)
+
+    @staticmethod
+    def debug_off(convert_values: bool = -1):
+        return BTP.create(-1, convert_values, 0, True, False)
+
+    @staticmethod
+    def convert_values_on(debug: bool = -1):
+        return BTP.create(-1, 1, debug, True, False)
+
+    @staticmethod
+    def convert_values_off(debug: bool = -1):
+        return BTP.create(-1, 0, debug, True, False)
+
+    @staticmethod
+    def interactive():
+        return BTP.create_interactive()
 
 
-def DEFAULT_CACHE(debug: bool = -1, convert_values: bool = -1):
-    return BTP.create(0, convert_values, debug, False, True)
-
-
-def GRAPH_ON(debug: bool = -1, convert_values: bool = -1):
-    return BTP.create(1, convert_values, debug, False, False)
-
-
-def GRAPH_OFF(debug: bool = -1, convert_values: bool = -1):
-    return BTP.create(0, convert_values, debug, False, False)
-
-
-def UPWARD_DEPS_OFF():
-    """
-    Stays on-graph, but effectively cuts off dependency chain upwards
-    """
-    return _UpwardDepsOff()
-
-
-def DEBUG_ON(convert_values: bool = -1):
-    return BTP.create(-1, convert_values, 1, True, False)
-
-
-def DEBUG_OFF(convert_values: bool = -1):
-    return BTP.create(-1, convert_values, 0, True, False)
-
-
-def CONVERT_VALUES_ON(debug: bool = -1):
-    return BTP.create(-1, 1, debug, True, False)
-
-
-def CONVERT_VALUES_OFF(debug: bool = -1):
-    return BTP.create(-1, 0, debug, True, False)
-
-
-def INTERACTIVE():
-    return BTP.create_interactive()
+# fmt: off
+CHANGE_MODE         = ExecControl.change_mode
+DEFAULT_CACHE       = ExecControl.default_cache
+GRAPH_ON            = ExecControl.graph_on
+GRAPH_OFF           = ExecControl.graph_off
+UPWARD_DEPS_OFF     = ExecControl.upward_deps_off
+DEBUG_ON            = ExecControl.debug_on
+DEBUG_OFF           = ExecControl.debug_off
+CONVERT_VALUES_ON   = ExecControl.convert_values_on
+CONVERT_VALUES_OFF  = ExecControl.convert_values_off
+INTERACTIVE         = ExecControl.interactive
+# fmt: on
 
 
 # noinspection PyMethodOverriding
