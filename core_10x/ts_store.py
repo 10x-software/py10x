@@ -325,9 +325,15 @@ class SaveIfChanged(BTPTracker):
             self.save().throw()
 
     def _tracked(self) -> Generator:
-        return (
-            traitable for traitable in self.tracked_objects() if traitable.is_storable() and (not self.classes or isinstance(traitable, self.classes))
-        )
+        tracked = self.tracked_objects()
+        embedded = [traitable for traitable in tracked if traitable.s_embeddable]
+        if embedded:  #-- an embedded object is stored inside whoever holds it: those are saved, never the embedded object itself
+            tracked = [traitable for traitable in tracked if not traitable.s_embeddable]
+            known = {(traitable.__class__, traitable.id().value) for traitable in tracked}
+            holders = BTraitableProcessor.current().cache().find_holders(embedded)
+            tracked += [holder for holder in holders if (holder.__class__, holder.id().value) not in known]
+
+        return (traitable for traitable in tracked if traitable.is_storable() and (not self.classes or isinstance(traitable, self.classes)))
 
     def save(self) -> RC:
         with self.parent:

@@ -449,6 +449,9 @@ public:
 
     py::dict find_dependencies(BTraitable* obj, const BTrait* trait, const py::dict& inputs_spec) const;
 
+    //-- an embedded object is stored inside its holder: the ordinary objects of THIS cache holding any of objs, directly or through other embedded ones
+    py::list find_holders(const py::list& objs) const;
+
     void perturb_existing_node(BTraitableClass* cls, const py::object& id, const BTrait* trait, const py::object& value) const {
         if (const auto node = find_node(TID(cls, id), trait))
             node->set(value);

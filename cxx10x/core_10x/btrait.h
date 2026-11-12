@@ -75,6 +75,7 @@ public:
 
     py::object      f_is_acceptable_type;   //                      bool    f(obj, trait, value_or_type)
     py::object      f_style_sheet;      // style sheet from py          dict    f(obj, trait)
+    py::object      f_shallow_copy;     // a value's own copy           ANY     f(trait, value); unset: the value can't change in place
 
 protected:
     py::error_already_set trait_error(const py::error_already_set& exc, BTraitable* obj, const BTraitableClass* cls, const py::object& f, const py::object* value, const py::args* args) const;
@@ -145,6 +146,10 @@ public:
     void set_f_to_id(const py::object &f, bool custom)              { f_to_id = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_TO_ID; }
     void set_f_choices(const py::object &f, bool custom)            { f_choices = f; if (custom) m_flags |= BTraitFlags::CUSTOM_F_CHOICES; }
     void set_f_style_sheet(const py::object &f, bool custom)        { f_style_sheet = f; }
+    void set_f_shallow_copy(const py::object &f)                    { f_shallow_copy = f; }
+
+    //-- a value on its way into another scope: that scope must own what it holds, or changing it in place reaches the scope it came from
+    [[nodiscard]] py::object shallow_copy(const py::object& value) const;
 
     //-- Trait Method wrappers
 

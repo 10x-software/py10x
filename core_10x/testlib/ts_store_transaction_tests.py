@@ -117,6 +117,15 @@ class TestTsStoreTransaction:
         assert coll.count() == 1
 
 
+class _Leaf(Traitable, embeddable = True):
+    value: int = T()
+
+
+class _Part(Traitable, embeddable = True):
+    value: int = T()
+    leaf: _Leaf = T()
+
+
 class TestSaveIfChanged:
     @pytest.fixture
     def data(self, ts_instance):
@@ -561,3 +570,73 @@ class TestSaveIfChanged:
             assert tracker.tracked_objects() == [a]  # tracked by the kernel ...
 
         assert A.collection(colls[A]).count() == 0  # ... but filtered out by save()
+
+    @pytest.fixture
+    def owner(self, ts_instance):
+        """A factory (the leak check forbids yielding a Traitable) for an object holding embedded ones, saved with part.value == 1."""
+
+        class Owner(Traitable, custom_collection = True):
+            i: int = T(T.ID)
+            part: _Part = T()
+            parts: list = T(T.EMBEDDED)
+
+        coll_name = f'save_if_changed#owner#{uuid7().hex}'
+        with ts_instance:
+            o = Owner(i = 0, _collection_name = coll_name)
+            o.part = _Part(value = 1)
+            o.parts = []
+            o.save().throw()
+            del o
+            yield lambda: Owner(i = 0, _collection_name = coll_name)
+
+        ts_instance.delete_collection(coll_name)
+
+    @pytest.mark.parametrize('filtered', [False, True])
+    def test_save_if_changed_saves_the_holder_of_an_embedded_object_changed_in_place(self, owner, filtered):
+        owner = owner()
+        ctx = SaveIfChanged([owner.__class__] if filtered else (), auto_save = False)
+        with ctx:
+            owner.part.value = 2
+        assert ctx.tracked_objects() == [owner.part]  # the owner itself was not touched
+
+        ctx.save().throw()
+        assert owner.reload()
+        assert owner.part.value == 2
+
+    @pytest.mark.parametrize('filtered', [False, True])
+    def test_save_if_changed_never_saves_an_embedded_object_by_itself(self, owner, filtered):
+        owner = owner()
+        ctx = SaveIfChanged([owner.__class__] if filtered else (), auto_save = False)
+        with ctx:
+            owner.part = _Part(value = 3)
+            _Part(value = 99)  # held by nobody: nothing to save, and no error
+
+        ctx.save().throw()
+        assert owner.reload()
+        assert owner.part.value == 3
+
+    def test_save_if_changed_finds_the_holder_through_embedded_objects_and_lists(self, owner):
+        owner = owner()
+        owner.part.leaf = _Leaf(value = 1)
+        item = _Part(value = 1)
+        owner.parts = [item, item]
+        owner.save().throw()
+
+        ctx = SaveIfChanged(auto_save = False)
+        with ctx:
+            owner.part.leaf.value = 2  # embedded in embedded
+            item.value = 2  # twice in a list
+        ctx.save().throw()
+
+        assert owner.reload()
+        assert owner.part.leaf.value == 2
+        assert [p.value for p in owner.parts] == [2, 2]
+
+    def test_save_if_changed_reload_reverts_an_embedded_object_changed_in_place(self, owner):
+        owner = owner()
+        ctx = SaveIfChanged(auto_save = False)
+        with ctx:
+            owner.part.value = 2
+
+        assert ctx.reload()
+        assert owner.part.value == 1

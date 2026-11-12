@@ -1547,6 +1547,14 @@ If you need an exact-class match, pass every concrete class explicitly and avoid
 
 Every class passed to `SaveIfChanged` must be storable; otherwise it raises `RuntimeError('Classes passed to SaveIfChanged must be storable.')`.
 
+#### Embedded objects
+
+An embeddable Traitable is stored inside the object that holds it, so it is never saved by itself. When a trait of an embedded object is set inside the block, `SaveIfChanged` saves the object that holds it instead: directly, inside a `list`, `tuple`, `set` or `dict`, or through other embedded objects. It looks for the holder in the current scope only.
+
+#### Saving from inside an inner scope
+
+A `save()` made inside a `Scenario` (or any other inner scope) writes what that scope sees: this is how the result of a scenario is saved. The outer scopes are not told. They still hold the old values and the old revision, so they have to `reload()` the object before they go on with it; a `save()` from an outer scope without a reload fails on the revision.
+
 #### Transactions
 
 When `EnvVars.use_ts_store_transactions` is enabled (set `XX_USE_TS_STORE_TRANSACTIONS=1` — see [Configuration](#configuration)), `SaveIfChanged` opens one transaction per distinct store touched by the saved objects. If any individual `save()` fails (the context manager calls `.throw()` on the returned `RC`), **all** saves in the block are rolled back as a single unit:

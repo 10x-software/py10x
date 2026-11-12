@@ -517,7 +517,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         rc.throw()
 
     @classmethod
-    def _embedded_collection(cls, _coll_name):
+    def _embedded_collection(cls, *args, **kwargs):  #-- whatever collection() is asked with, the answer is the same
         raise AssertionError(f"{cls} - 'embeddable' traitable may not have a collection")
 
     @classmethod

@@ -9,6 +9,7 @@ import pytest
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.scenario import Scenario
 from core_10x.traitable import RT, T, Traitable
+from core_10x.xnone import XNone
 
 
 class TestScenarioIdentity:
@@ -192,3 +193,97 @@ class TestScenarioEndToEnd:
             # After inner exits, outer scope is restored
             assert p.raw == 100.0
             assert p.adjusted == pytest.approx(outer_adj)
+
+
+# ---------------------------------------------------------------------------
+# A Scenario owns the containers it takes from the outer scope
+# ---------------------------------------------------------------------------
+
+
+class TestScenarioOwnsItsContainers:
+    """
+    A list, set or dict set in the outer scope is copied when an inner Scenario first reads it,
+    so changing it in place inside the Scenario cannot reach the outer scope.
+    """
+
+    class Bag(Traitable):
+        name: str = T(T.ID)
+        items: list = RT([])
+        tags: set = RT()
+        attrs: dict = RT()
+        label: tuple = RT()
+        total: int = RT()
+
+        def total_get(self) -> int:
+            return sum(self.items)
+
+    def test_in_place_change_stays_inside(self):
+        with CACHE_ONLY(), Scenario('own_outer_A'):
+            b = self.Bag(name = 'own_A')
+            b.items, b.tags, b.attrs = [1, 2], {'a'}, {'k': 1}
+            assert b.total == 3
+
+            with Scenario():
+                b.items.append(3)
+                b.tags.add('b')
+                b.attrs['k'] = 2
+                assert (b.items, b.tags, b.attrs) == ([1, 2, 3], {'a', 'b'}, {'k': 2})
+
+            assert (b.items, b.tags, b.attrs) == ([1, 2], {'a'}, {'k': 1})
+            assert b.total == 3
+
+    def test_set_back_inside_does_not_reach_outside(self):
+        """Changed in place and set back on the trait: the Scenario sees it, the outer scope does not."""
+        with CACHE_ONLY(), Scenario('own_outer_B'):
+            b = self.Bag(name = 'own_B')
+            b.items = [1, 2]
+            assert b.total == 3
+
+            with Scenario():
+                v = b.items
+                v.append(3)
+                b.items = v
+                assert b.total == 6
+
+            assert b.items == [1, 2]
+            assert b.total == 3
+
+    def test_one_copy_per_scope(self):
+        with CACHE_ONLY(), Scenario('own_outer_C'):
+            b = self.Bag(name = 'own_C')
+            b.items = [1, 2]
+            outer = b.items
+
+            with Scenario():
+                inner = b.items
+                assert inner == outer
+                assert inner is not outer
+                assert b.items is inner
+
+            assert b.items is outer
+
+    def test_other_values_pass_as_they_are(self):
+        """XNone, a value of another type, and a value that cannot change in place are not copied."""
+        with CACHE_ONLY(), Scenario('own_outer_D'):
+            b = self.Bag(name = 'own_D')
+            mistyped = (1, 2)
+            b.items = mistyped
+            b.tags = XNone
+            b.label = ('x', 'y')
+            outer_label = b.label
+
+            with Scenario():
+                assert b.items is mistyped
+                assert b.tags is XNone
+                assert b.label is outer_label
+
+    def test_shallow_copy_of_the_trait_classes(self):
+        bag = self.Bag
+        for name, value in (('items', [1, [2]]), ('tags', {1, 2}), ('attrs', {'k': [1]})):
+            copied = bag.trait(name).shallow_copy(value)
+            assert copied == value
+            assert copied is not value
+        inner = [2]
+        assert bag.trait('items').shallow_copy([1, inner])[1] is inner  # one level only
+        label = ('x',)
+        assert bag.trait('label').shallow_copy(label) is label

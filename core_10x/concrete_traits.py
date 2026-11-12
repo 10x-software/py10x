@@ -267,6 +267,9 @@ class list_trait(Trait, data_type=list):
     def default_value(self) -> list:
         return list(self.default)
 
+    def shallow_copy(self, value: list) -> list:
+        return list(value)
+
     def serialize(self, value: list):
         return Nucleus.serialize_list(value, self.flags_on(T.EMBEDDED))
 
@@ -279,6 +282,9 @@ class set_trait(list_trait, data_type=set):
 
     def default_value(self) -> set:
         return set(self.default)
+
+    def shallow_copy(self, value: set) -> set:
+        return set(value)
 
     def serialize(self, value: set):
         return Nucleus.serialize_list(value, self.flags_on(T.EMBEDDED))
@@ -301,6 +307,9 @@ class dict_trait(Trait, data_type=dict):
 
     def default_value(self) -> dict:
         return dict(self.default)
+
+    def shallow_copy(self, value: dict) -> dict:
+        return dict(value)
 
     def serialize(self, value: dict):
         return Nucleus.serialize_dict(value, self.flags_on(T.EMBEDDED))

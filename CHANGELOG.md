@@ -48,6 +48,9 @@ Changes since **0.3.0**.
 - **Dependencies**: `rio-ui` 0.12.3; `sqlglot` capped below 30.16 (newer emits invalid Postgres SQL); `aadc` moved from a `py10x-fin-base` dependency to core's new `aadc` extra (`py10x-fin-base[aadc]` forwards to it), 2.22.2+ (older versions replay stale `int` / `bool` inputs).
 
 ### Fixed
+- **A Scenario owns the containers it takes from the outer scope** (py10x-kernel + core): an inner scope imported a `list`, `set` or `dict` set in an outer scope as the very same object, so changing it in place inside a `Scenario` changed the outer scope's value and left its dependents stale. The import now takes a shallow copy, through the new **`Trait.shallow_copy(value)`** (overridden by the list, set and dict trait classes). One level only: containers inside a container are still shared.
+- **`SaveIfChanged` and embedded objects** (py10x-kernel + core): a trait of an embedded object set inside the block made the save fail (no class filter) or was lost without an error (with one), because the embedded object was recorded and its holder was not. `SaveIfChanged` now saves the holder, found in the current scope by the new `XCache.find_holders()`, and never the embedded object itself.
+- **Saving an embeddable Traitable by itself** now fails with the real reason, `'embeddable' traitable may not have a collection`, instead of `_embedded_collection() got an unexpected keyword argument 'create_if_needed'`.
 - **Trait filters**: a top-level `OR()` (match nothing), alone or nested, failed on every store; an `OR` with a match-all arm such as `f()` narrowed the Mongo query instead of matching everything.
 - **`existing_instances_by_filter`**: no longer returns an object whose stored copy matches but whose in-memory values no longer do.
 - **`NamedTraitable(_name)`** raises for an unknown name instead of creating it.

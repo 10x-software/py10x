@@ -10,7 +10,7 @@ from core_10x.traitable_id import ID
 
 
 class ExecControl:
-    # -- a class, so the whole family has one class id: PackageRefactoring tracks classes, not free functions
+    #-- a class, so the whole family has one class id: PackageRefactoring tracks classes, not free functions
     @staticmethod
     def change_mode(debug: bool = -1, convert_values: bool = -1):
         return BTP.create(-1, convert_values, debug, True, False)

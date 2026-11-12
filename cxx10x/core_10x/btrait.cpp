@@ -171,6 +171,18 @@ py::object BTrait::wrapper_f_choices(BTraitable *obj) const {
     }
 }
 
+py::object BTrait::shallow_copy(const py::object& value) const {
+    //-- only a value of the trait's own data type is copied: XNone, None and a mistyped value pass as they are
+    if (!f_shallow_copy || !py::isinstance(value, m_datatype))
+        return value;
+
+    try {
+        return f_shallow_copy(this, value);
+    } catch (py::error_already_set& exc) {
+        throw trait_error(exc, nullptr, nullptr, f_shallow_copy, &value, nullptr);
+    }
+}
+
 py::object BTrait::wrapper_f_style_sheet(BTraitable *obj) const {
     if (!f_style_sheet)
         return PyLinkage::XNone();

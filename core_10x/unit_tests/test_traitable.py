@@ -2201,3 +2201,14 @@ def test_describe_class_traits_and_inherited_from():
     assert traits['b']['default'] == 5
     assert 'inherited_from' not in traits['c']
     assert 'RESERVED' in traits['_rev']['flags']  # reserved traits are included; filtering is up to the consumer
+
+
+def test_embeddable_save_says_it_has_no_collection():
+    """A bare save() of an embeddable instance fails with the real reason, however collection() is asked."""
+    with CACHE_ONLY():
+        rc = _DescribeEmbeddable(x = 1).save()
+    assert not rc
+    assert "'embeddable' traitable may not have a collection" in str(rc.error())
+
+    with pytest.raises(AssertionError, match = 'may not have a collection'):
+        _DescribeEmbeddable.collection(None, create_if_needed = True)

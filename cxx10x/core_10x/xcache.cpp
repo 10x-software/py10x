@@ -5,6 +5,9 @@
 #include "xcache.h"
 
 #include <algorithm>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 #include "btraitable.h"
 
@@ -69,7 +72,7 @@ BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int
         if (!parent_node || !parent_node->is_valid())
             return node;
 
-        node->set_imported(parent_node->value());
+        node->set_imported(trait->shallow_copy(parent_node->value()));     //-- this cache's own object, not the parent's
     }
     return node;
 }
@@ -88,7 +91,7 @@ BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int
         if (!parent_node || !parent_node->is_valid())
             return node;
 
-        node->set_imported(parent_node->value());
+        node->set_imported(trait->shallow_copy(parent_node->value()));     //-- this cache's own object, not the parent's
     }
     return node;
 }
@@ -228,4 +231,100 @@ py::dict XCache::find_dependencies(BTraitable* obj, const BTrait* trait, const p
     }
 
     return results;
+}
+
+namespace {
+    using TIDs = std::unordered_set<TID>;
+
+    //-- a number, a string or a date can never be, or hold, an object: only these trait data types are worth a look
+    bool may_hold_object(const py::object& data_type, const PyTypeObject* traitable_type) {
+        const auto p = data_type.ptr();
+        if (!PyType_Check(p) || p == reinterpret_cast<PyObject*>(&PyBaseObject_Type))
+            return true;    //-- untyped: anything may be in there
+
+        const auto type = reinterpret_cast<PyTypeObject*>(p);
+        for (const auto holder : { traitable_type, const_cast<const PyTypeObject*>(&PyList_Type), const_cast<const PyTypeObject*>(&PyTuple_Type),
+                                   const_cast<const PyTypeObject*>(&PyDict_Type), const_cast<const PyTypeObject*>(&PySet_Type), const_cast<const PyTypeObject*>(&PyFrozenSet_Type) })
+            if (PyType_IsSubtype(type, const_cast<PyTypeObject*>(holder)))
+                return true;
+        return false;
+    }
+
+    //-- is one of the wanted objects this value, or an item of it? (a few levels deep, which also stops a container that holds itself)
+    bool holds(PyObject* value, const TIDs& wanted, PyTypeObject* traitable_type, const int depth = 0) {
+        const auto type = Py_TYPE(value);
+        if (type == &PyFloat_Type || type == &PyLong_Type || type == &PyUnicode_Type || type == &PyBool_Type || value == Py_None)
+            return false;   //-- the bulk of what a big list holds: no further checks
+
+        if (PyObject_TypeCheck(value, traitable_type)) {
+            const auto& tid = py::handle(value).cast<const BTraitable*>()->tid();
+            return tid.is_valid() && wanted.contains(tid);
+        }
+        if (depth > 3)
+            return false;
+
+        if (PyList_Check(value)) {
+            for (Py_ssize_t i = 0, n = PyList_GET_SIZE(value); i < n; ++i)
+                if (holds(PyList_GET_ITEM(value, i), wanted, traitable_type, depth + 1))
+                    return true;
+        } else if (PyTuple_Check(value)) {
+            for (Py_ssize_t i = 0, n = PyTuple_GET_SIZE(value); i < n; ++i)
+                if (holds(PyTuple_GET_ITEM(value, i), wanted, traitable_type, depth + 1))
+                    return true;
+        } else if (PyDict_Check(value)) {
+            PyObject* item;
+            for (Py_ssize_t pos = 0; PyDict_Next(value, &pos, nullptr, &item); )
+                if (holds(item, wanted, traitable_type, depth + 1))
+                    return true;
+        } else if (PyAnySet_Check(value)) {
+            for (const auto& item : py::handle(value))
+                if (holds(item.ptr(), wanted, traitable_type, depth + 1))
+                    return true;
+        }
+        return false;
+    }
+}
+
+py::list XCache::find_holders(const py::list& objs) const {
+    TIDs wanted, found;
+    for (const auto& obj : objs)
+        if (const auto& tid = obj.cast<const BTraitable*>()->tid(); tid.is_valid())
+            wanted.insert(tid.copy_valid());
+
+    const auto traitable_type = reinterpret_cast<PyTypeObject*>(py::type::of<BTraitable>().ptr());
+    std::unordered_map<const BTraitableClass*, std::vector<const BTrait*>> traits_by_class;    //-- per class: its stored traits that may hold an object
+    const auto traits_of = [&](const BTraitableClass* cls) -> const std::vector<const BTrait*>& {
+        auto [it, is_new] = traits_by_class.try_emplace(cls);
+        if (is_new)
+            for (const auto& trait_handle : cls->trait_dir() | std::views::values)
+                if (const auto trait = trait_handle.cast<const BTrait*>(); !trait->flags_on(BTraitFlags::RUNTIME) && may_hold_object(trait->data_type(), traitable_type))
+                    it->second.push_back(trait);
+        return it->second;
+    };
+
+    for (bool more = !wanted.empty(); more; ) {     //-- again whenever an embedded holder joins the wanted: it has holders of its own
+        more = false;
+        for (const auto& [tid, oc] : m_data) {
+            if (wanted.contains(tid) || found.contains(tid))
+                continue;
+
+            for (const auto trait : traits_of(tid.cls())) {
+                const auto node = oc->find_node(trait);
+                if (!node || !holds(node->value().ptr(), wanted, traitable_type))
+                    continue;
+
+                if (tid.cls()->is_embeddable()) {
+                    wanted.insert(tid.copy_valid());
+                    more = true;
+                } else
+                    found.insert(tid.copy_valid());
+                break;
+            }
+        }
+    }
+
+    py::list result;
+    for (const auto& tid : found)
+        result.append(tid.cls()->py_class()(py::arg("_id") = tid.id()));
+    return result;
 }
