@@ -426,9 +426,9 @@ def test_write_forward_pins_idempotent(tmp_path):
 def test_write_test_group_idempotent(tmp_path):
     p = tmp_path / 'pyproject.toml'
     p.write_text('[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n', encoding='utf-8')
-    PyProjectHelpers.write_test_group(p, 'py10x-core>=0.2.3')
+    assert PyProjectHelpers.write_test_group(p, 'py10x-core>=0.2.3')
     once = p.read_text()
-    PyProjectHelpers.write_test_group(p, 'py10x-core>=0.2.3')
+    assert PyProjectHelpers.write_test_group(p, 'py10x-core>=0.2.3') == ''  # no change -> MainEditStep must not commit
     assert p.read_text() == once
 
 

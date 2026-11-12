@@ -693,7 +693,8 @@ class PyProjectHelpers:
         """Merge `pins` into `[dependency-groups] test` by requirement name; rewrite the group.
 
         Accepts a single pin string (sibling → core) or a list (core → downstreams). Existing test
-        entries for other distribution names are preserved.
+        entries for other distribution names are preserved. Returns `old -> new`, or '' when the
+        group already holds these pins (the file is left untouched).
         """
         from packaging.requirements import Requirement
 
@@ -708,6 +709,8 @@ class PyProjectHelpers:
         for p in pin_list:
             by_name[Requirement(p).name] = p
         new = list(by_name.values())
+        if new == old:
+            return ''
         arr = tomlkit.array()
         for p in new:
             arr.append(p)

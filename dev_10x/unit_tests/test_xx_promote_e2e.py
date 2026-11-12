@@ -374,6 +374,18 @@ def test_local_promote_work_requires_resync(remotes):
     assert 'v0.0.1rc1' in _remote_tags(remote)
 
 
+def test_rerun_after_epilogue_pushed_without_tags(repo_with_downstream, remotes):
+    """A `--no-push` run whose `main` was then pushed by hand: origin has the epilogue (pins, test
+    group) but no tags. resync + re-run cuts the same versions; the already-applied epilogue edits
+    are no-ops (no empty commit) and everything lands."""
+    repo, remote = remotes  # `remotes` after `repo_with_downstream`, so origin/main includes fin-base
+    _run_pre(repo, '--no-push')
+    GitHelpers.git(repo, 'push', '-q', 'origin', 'main')  # main only - no tags, no pre branches
+    _run('resync', repo)
+    _run_pre(repo)
+    assert {'v0.0.1rc1', 'py10x-fin-base-v0.0.1rc1'} <= _remote_tags(remote)
+
+
 def test_pre_push_is_one_atomic_push_plus_triggers(remotes, monkeypatch):
     """One repo: every package's branch/tag/marker and the main epilogue land in a single atomic
     push - a partial cross-package push is unreachable. Publish triggers are pushed one at a time."""
