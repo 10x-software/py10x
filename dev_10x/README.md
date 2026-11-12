@@ -188,7 +188,7 @@ Re-cut decisions are **declarative** (a pure planner, `xx_plan.plan_pre_batch` /
 they compare persistent state (tags + current pins), so a run is **idempotent** — re-running after a
 crash re-derives the plan from current tags and resumes.
 
-**`local == remote` invariant + atomic recovery.** A real run **starts** synced and (with `--push`)
+**`local == remote` invariant + atomic recovery.** A real run **starts** synced and (unless `--no-push`)
 **finishes** synced; crash recovery is "discard local, resync, re-run", not in-place repair:
 
 - *Start (precondition):* `GitHelpers.require_synced` requires **local == origin** before a real
@@ -196,7 +196,7 @@ crash re-derives the plan from current tags and resumes.
   It **refuses** on un-pushed `main`,
   divergent tags, or dirty tracked files — a release is never cut from un-synced state. (No
   `origin` → local-only dev; the remote half is skipped.)
-- *Finish:* with `--push`, promote refs (branches, release tags, dev-marker drop+create, `main`) are
+- *Finish:* by default, promote refs (branches, release tags, dev-marker drop+create, `main`) are
   pushed in **one atomic push** (all packages share the repo, so a partial cross-package push is
   unreachable). **Publish triggers** use `isolated_tags_to_push` — one
   refspec per `git push` — so CI tag-create webhooks always fire. Release tags are never deleted
@@ -204,12 +204,13 @@ crash re-derives the plan from current tags and resumes.
 - *Recovery:* after a crash, `require_synced` refuses until local == remote. Run **`xx-promote
   resync`** — it forces `main`, every `pre`/`prod` release branch, and managed tags back to `origin`
   (discarding local-only work) — then re-run. If release tags landed but publish triggers did not,
-  use **`xx-promote pre --publish-only --push`** (or `prod --publish-only`) to create any missing
+  use **`xx-promote pre --publish-only`** (or `prod --publish-only`) to create any missing
   publish triggers (non-force `git tag`; **idempotent** — exits successfully with
   "All publish triggers already present" when nothing is missing). There is **no in-place
   reconcile** — the atomic push makes the states it used to repair unreachable.
-- *Without `--push`:* local diverges from `origin` by design — **push manually** (`git push`) to
-  re-sync, or re-run with `push=true`.
+- *With `--no-push`:* local diverges from `origin` by design. **Never `git push` it by hand:** a
+  plain push of `main` publishes the epilogue pins without the release tags and branches they point
+  at. Run `xx-promote resync`, then re-run without `--no-push`.
 
 - **`pre`** (`--from=main`) cuts the next coordinated rc. A package is re-cut when its footprint
   changed since its last tag ([footprint](#the-packages-siblings-core-downstreams); epilogue pin and
@@ -269,18 +270,17 @@ crash re-derives the plan from current tags and resumes.
 | flag         | effect                                                                       |
 |--------------|------------------------------------------------------------------------------|
 | `--dry-run`  | print the full plan; change **nothing** (local or remote)                    |
-| *(default)*  | apply **local** changes only — inspect with `git log`/`status`, reset to undo |
-| `--push`     | apply locally, then push to remotes **last**, only after all local steps pass |
+| *(default)*  | apply locally, then push to remotes **last**, only after all local steps pass (no `origin`: local only) |
+| `--no-push`  | apply **local** changes only — inspect with `git log`/`status`, `xx-promote resync` to undo |
 
 `dry_run` always wins. Before any real change the repos must be **synced with `origin`**
 (committed and pushed: `main` and managed tags match remote, untracked files are OK — see
-the `local == remote` invariant above); `--push` re-syncs the
-remote at the end, otherwise push manually. `--base <path>` overrides the py10x repo root (default:
-cwd). Always preview first:
+the `local == remote` invariant above); a run re-syncs the remote at the end. `--base <path>`
+overrides the py10x repo root (default: cwd). Always preview first:
 
 ```
 xx-promote prod --dry-run
-xx-promote prod --push
+xx-promote prod
 ```
 
 ---

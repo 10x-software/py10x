@@ -1016,12 +1016,12 @@ class GitHubHelpers:
         """Workflow state for a pending release, or why CI was never triggered.
 
         Publish CI listens on `origin` for the `pre/` / `prod/` trigger tag — a local-only promote
-        (default, no `--push`) never fires it.
+        (`--no-push`) never fires it.
         """
         if not release_on_origin:
             return 'not pushed to origin', ''
         if not trigger_on_origin:
-            return 'publish trigger not on origin (re-run with --push)', ''
+            return 'publish trigger not on origin (re-run with --publish-only)', ''
         run = cls.select_run_for_tag(runs, trigger)
         return cls.run_state(run), run.get('html_url', '') if run else ''
 

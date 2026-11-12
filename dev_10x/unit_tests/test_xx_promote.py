@@ -14,15 +14,16 @@ from dev_10x import xx_promote as xp
 @pytest.mark.parametrize(
     'argv,cls,dry_run,push,publish,publish_only',
     [
-        (['pre'], 'Pre', False, False, True, False),
-        (['pre', '--dry-run'], 'Pre', True, False, True, False),
-        (['pre', '--dry-run', 'true'], 'Pre', True, False, True, False),
-        (['pre', '--no-publish'], 'Pre', False, False, False, False),
-        (['pre', '--publish-only'], 'Pre', False, False, True, True),
-        (['prod', '--push', '1'], 'Prod', False, True, True, False),
-        (['prod', '--publish-only', '--push'], 'Prod', False, True, True, True),
-        (['prod', '--no-dry-run'], 'Prod', False, False, True, False),
-        (['status'], 'Status', False, False, True, False),
+        (['pre'], 'Pre', False, True, True, False),
+        (['pre', '--dry-run'], 'Pre', True, True, True, False),
+        (['pre', '--dry-run', 'true'], 'Pre', True, True, True, False),
+        (['pre', '--no-publish'], 'Pre', False, True, False, False),
+        (['pre', '--publish-only'], 'Pre', False, True, True, True),
+        (['pre', '--no-push'], 'Pre', False, False, True, False),
+        (['prod', '--push', '0'], 'Prod', False, False, True, False),
+        (['prod', '--publish-only', '--no-push'], 'Prod', False, False, True, True),
+        (['prod', '--no-dry-run'], 'Prod', False, True, True, False),
+        (['status'], 'Status', False, True, True, False),
     ],
 )
 def test_cli_routes_commands_and_flags(argv, cls, dry_run, push, publish, publish_only):

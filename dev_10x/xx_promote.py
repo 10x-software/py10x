@@ -28,9 +28,9 @@ Subcommands:
     xx-promote status                               show pending promotions (tagged but not on PyPI)
 
 Safety levels (every subcommand), as `--option` flags:
-    (default)        perform local changes only (git log/status to inspect, reset to undo)
     --dry-run        print the full plan, change nothing (local or remote)
-    --push           perform local changes, then push to remotes last
+    (default)        perform local changes, then push to remotes last (no `origin`: local only)
+    --no-push        perform local changes only (git log/status to inspect, `xx-promote resync` to undo)
 
 `dry_run` always wins over `push`. Example: `xx-promote prod --dry-run`.
 """
@@ -419,14 +419,16 @@ class XxPromoteCli(TraitableCli):
         xx-promote yank --pkg <name> --version <ver>  yank a tag (rc or final)
         xx-promote status                             list tagged-but-unpublished versions + CI state
         xx-promote resync                             recovery: force local managed refs to origin
-    Flags: --dry-run (preview), --push (push to remotes), --publish / --no-publish (create publish
+    Flags: --dry-run (preview), --no-push (local only; pushing is the default), --publish / --no-publish (create publish
     triggers during pre/prod; default on), --publish-only (triggers only, no cut/promote). --base
     <path> overrides the py10x repo root (default: cwd). Boolean flags also accept the explicit
     `--flag true|false` form.
     """
 
     dry_run: bool = RT(False)
-    push: bool = RT(False)
+    # Push by default: a local-only run leaves epilogue commits on `main`, and a later plain `git push`
+    # publishes those pins without the release tags they point at.
+    push: bool = RT(True)
 
     base: str = RT('.')
     packages: dict[str, Package] = RT(T.STICKY)
@@ -472,7 +474,7 @@ class XxPromoteCli(TraitableCli):
 
     def followup_commands_get(self) -> list[str]:
         if not self.push and self.completion_command:
-            return ['xx-promote resync', f'{self.completion_command} --push']
+            return ['xx-promote resync', self.completion_command]
         return []
 
     def _push_review_hints(self) -> list[str]:
@@ -525,7 +527,7 @@ class XxPromoteCli(TraitableCli):
     @staticmethod
     def _atomic_push(repo: Path, refspecs: list[str], label: str = '') -> None:
         refspecs = list(dict.fromkeys(refspecs))
-        if not refspecs:
+        if not refspecs or not GitHelpers.has_origin(repo):  # no `origin` -> local-only dev, as in require_synced
             return
         print(f'  push --atomic {label}{refspecs} -> {repo}')
         GitHelpers.git(repo, 'push', '--atomic', 'origin', *refspecs)
@@ -646,7 +648,7 @@ class XxPromote(XxPromoteCli, _abstract=True):
             return []
         if not any(isinstance(s, PromoteStep) and s.plan.act for s in self.steps):
             return []
-        return [f'xx-promote {self.s_command} --publish-only --push']
+        return [f'xx-promote {self.s_command} --publish-only']
 
     def post_verify(self) -> RC:
         rc = super().post_verify()
@@ -927,7 +929,6 @@ class Resync(XxPromoteCli, _command='resync'):
     `origin`. (CLI command words must be identifiers, so this is `resync`, not `reset-local`.)
     """
 
-    push = M(True)
     followup_commands = M([])
 
     def post_verify(self) -> RC:

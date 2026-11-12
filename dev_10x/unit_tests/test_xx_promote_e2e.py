@@ -344,7 +344,7 @@ def _remote_tags(remote) -> set[str]:
 def test_resync_does_not_print_promote_completion_hints(remotes, capsys):
     """resync resets local refs to origin — not an unpushed promote; no promote-style footer."""
     repo, _remote = remotes
-    _run_pre(repo)  # local-only cut gives resync something to reset
+    _run_pre(repo, '--no-push')  # local-only cut gives resync something to reset
     capsys.readouterr()  # discard pre's promote footer
     _run_argv(['resync', '--base', str(repo)])
     out = capsys.readouterr().out
@@ -354,11 +354,11 @@ def test_resync_does_not_print_promote_completion_hints(remotes, capsys):
 
 
 def test_local_promote_work_requires_resync(remotes):
-    """A promote run (even without --push) mutates main via the epilogue (pins + dev marker).
+    """A promote run (even with --no-push) mutates main via the epilogue (pins + dev marker).
     A follow-up promote therefore fails require_synced on main (not just tags).
     Explicit resync is still the way to discard local work and get back to origin."""
     repo, remote = remotes
-    _run_pre(repo)  # cut rc1 LOCALLY (no --push)
+    _run_pre(repo, '--no-push')  # cut rc1 LOCALLY
     assert 'v0.0.1rc1' in GitHelpers.list_tags(repo, 'v*')
     assert GitHelpers.git(remote, 'tag', '--list') == ''
 

@@ -734,7 +734,7 @@ class TestPublishWorkflowState:
 
     def test_release_on_origin_but_trigger_local(self):
         state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin=True, trigger_on_origin=False)
-        assert state == 'publish trigger not on origin (re-run with --push)'
+        assert state == 'publish trigger not on origin (re-run with --publish-only)'
         assert url == ''
 
     def test_both_on_origin_reports_workflow(self):
