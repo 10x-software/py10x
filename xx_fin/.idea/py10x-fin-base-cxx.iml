@@ -3,6 +3,7 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$/cxxfin">
       <excludeFolder url="file://$MODULE_DIR$/cxxfin/.venv" />
+      <excludePattern pattern="cmake-build-*" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.12 (xx_fin)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
