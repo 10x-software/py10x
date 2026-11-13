@@ -270,6 +270,9 @@ class list_trait(Trait, data_type=list):
     def shallow_copy(self, value: list) -> list:
         return list(value)
 
+    def deep_copy(self, value: list) -> list:
+        return Trait.copy_containers(value if type(value) is list else list(value))
+
     def serialize(self, value: list):
         return Nucleus.serialize_list(value, self.flags_on(T.EMBEDDED))
 
@@ -285,6 +288,9 @@ class set_trait(list_trait, data_type=set):
 
     def shallow_copy(self, value: set) -> set:
         return set(value)
+
+    def deep_copy(self, value: set) -> set:
+        return set(value)  #-- what a set holds is hashable: nothing in it can change in place
 
     def serialize(self, value: set):
         return Nucleus.serialize_list(value, self.flags_on(T.EMBEDDED))
@@ -310,6 +316,9 @@ class dict_trait(Trait, data_type=dict):
 
     def shallow_copy(self, value: dict) -> dict:
         return dict(value)
+
+    def deep_copy(self, value: dict) -> dict:
+        return Trait.copy_containers(value if type(value) is dict else dict(value))
 
     def serialize(self, value: dict):
         return Nucleus.serialize_dict(value, self.flags_on(T.EMBEDDED))

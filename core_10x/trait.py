@@ -89,6 +89,8 @@ class Trait(BTrait, metaclass = TraitMetaclass):
         self.getter_params = ()
         if type(self).shallow_copy is not Trait.shallow_copy:  #-- the kernel calls it only where there is something to copy
             self.set_f_shallow_copy(type(self).shallow_copy)
+        if type(self).deep_copy is not Trait.deep_copy:
+            self.set_f_deep_copy(type(self).deep_copy)
 
     def __get__(self, instance, owner):
         if instance is None:
@@ -311,6 +313,10 @@ class Trait(BTrait, metaclass = TraitMetaclass):
 
     def shallow_copy(self, value):
         #-- a scope's own copy of a value it takes from an outer scope; override where a value can be changed in place
+        return value
+
+    def deep_copy(self, value):
+        #-- the same, all the way down: what an inner scope imports; override where a value, or what it holds, can be changed in place
         return value
 
     def same_values(self, value1, value2) -> bool:

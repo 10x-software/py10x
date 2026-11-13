@@ -183,6 +183,110 @@ py::object BTrait::shallow_copy(const py::object& value) const {
     }
 }
 
+py::object BTrait::deep_copy(const py::object& value) const {
+    //-- as shallow_copy: only a value of the trait's own data type is copied
+    if (!f_deep_copy || !py::isinstance(value, m_datatype))
+        return value;
+
+    try {
+        return f_deep_copy(this, value);
+    } catch (py::error_already_set& exc) {
+        throw trait_error(exc, nullptr, nullptr, f_deep_copy, &value, nullptr);
+    }
+}
+
+namespace {
+    bool is_container(PyObject* value) {
+        const auto type = Py_TYPE(value);   //-- the built-in types only: a subclass may hold more than its items
+        return type == &PyList_Type || type == &PyDict_Type || type == &PySet_Type || type == &PyTuple_Type;
+    }
+
+    //-- a new reference, or nullptr with the Python error set
+    PyObject* copy_of(PyObject* value) {
+        const auto type = Py_TYPE(value);
+        if (type == &PySet_Type)
+            return PySet_New(value);    //-- what a set holds is hashable: nothing in it can change in place
+
+        if (Py_EnterRecursiveCall(" while copying a container"))    //-- a container that holds itself ends here, not in a stack overflow
+            return nullptr;
+
+        //-- the level is copied first, in one C call, and only the copy is walked: nothing can change it underneath
+        PyObject* res = nullptr;
+        bool ok = true;
+        if (type == &PyList_Type) {
+            res = PyList_GetSlice(value, 0, PyList_GET_SIZE(value));
+            for (Py_ssize_t i = 0, n = res ? PyList_GET_SIZE(res) : 0; ok && i < n; ++i) {
+                const auto item = PyList_GET_ITEM(res, i);
+                if (!is_container(item))
+                    continue;
+
+                const auto copied = copy_of(item);
+                ok = copied && PyList_SetItem(res, i, copied) == 0;     //-- takes over copied, lets go of item
+            }
+        } else if (type == &PyDict_Type) {
+            res = PyDict_Copy(value);
+            PyObject *key, *item;
+            for (Py_ssize_t pos = 0; ok && res && PyDict_Next(res, &pos, &key, &item); ) {
+                if (!is_container(item))
+                    continue;
+
+                const auto copied = copy_of(item);
+                ok = copied && PyDict_SetItem(res, key, copied) == 0;   //-- a value of an existing key: allowed while iterating
+                Py_XDECREF(copied);
+            }
+        } else {    //-- a tuple cannot change, but a list in it can: a new tuple only if something in it was copied
+            const auto n = PyTuple_GET_SIZE(value);
+            for (Py_ssize_t i = 0; ok && i < n; ++i) {
+                const auto item = PyTuple_GET_ITEM(value, i);
+                if (!is_container(item))
+                    continue;
+
+                const auto copied = copy_of(item);
+                if (!copied || copied == item) {
+                    ok = copied != nullptr;
+                    Py_XDECREF(copied);
+                    continue;
+                }
+                if (!res) {
+                    res = PyTuple_New(n);
+                    for (Py_ssize_t j = 0; res && j < n; ++j) {
+                        const auto same = PyTuple_GET_ITEM(value, j);
+                        Py_INCREF(same);
+                        PyTuple_SET_ITEM(res, j, same);
+                    }
+                }
+                if (res)
+                    ok = PyTuple_SetItem(res, i, copied) == 0;          //-- takes over copied, even when it fails
+                else {
+                    Py_DECREF(copied);
+                    ok = false;
+                }
+            }
+            if (ok && !res) {
+                Py_INCREF(value);
+                res = value;
+            }
+        }
+        Py_LeaveRecursiveCall();
+
+        if (ok && res)
+            return res;
+
+        Py_XDECREF(res);
+        return nullptr;
+    }
+}
+
+py::object BTrait::copy_containers(const py::object& value) {
+    if (!is_container(value.ptr()))
+        return value;
+
+    const auto res = copy_of(value.ptr());
+    if (!res)
+        throw py::error_already_set();
+    return py::reinterpret_steal<py::object>(res);
+}
+
 py::object BTrait::wrapper_f_style_sheet(BTraitable *obj) const {
     if (!f_style_sheet)
         return PyLinkage::XNone();

@@ -72,7 +72,8 @@ BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int
         if (!parent_node || !parent_node->is_valid())
             return node;
 
-        node->set_imported(trait->shallow_copy(parent_node->value()));     //-- this cache's own object, not the parent's
+        //-- TODO: a cow-wrapper in place of the copy: the copy is only needed once the value is changed in place
+        node->set_imported(trait->deep_copy(parent_node->value()));     //-- this cache's own object, not the parent's
     }
     return node;
 }
@@ -91,7 +92,8 @@ BasicNode* XCache::find_or_create_node(BTraitable *obj, const BTrait* trait, int
         if (!parent_node || !parent_node->is_valid())
             return node;
 
-        node->set_imported(trait->shallow_copy(parent_node->value()));     //-- this cache's own object, not the parent's
+        //-- TODO: a cow-wrapper in place of the copy: the copy is only needed once the value is changed in place
+        node->set_imported(trait->deep_copy(parent_node->value()));     //-- this cache's own object, not the parent's
     }
     return node;
 }
