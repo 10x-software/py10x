@@ -439,6 +439,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
 
     s_bclass: BTraitableClass = None
     s_embeddable = False
+    s_scenario_result = False  #-- True for ScenarioResult and its subclasses
     s_custom_collection = False
     s_default_cache = False  # -- if True, instances are created/loaded on the processor's default_cache; later writes use the current cache
     s_history_class = XNone  # -- will be set in __init__subclass__ for storable traitables unless keep_history = False. affects storage only.
@@ -831,12 +832,16 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return cls.s_storage_helper.delete_collection(_coll_name, drop_history)
 
     def save(self, save_references: bool | BFlags | int = BSaveRefs.NEW_ONLY) -> RC:
+        if not self.s_scenario_result and BTraitableProcessor.current().cache().in_scenario():
+            return RC(False, f'{self.__class__} - only a ScenarioResult may be saved inside a Scenario')
+
         return self.__class__.s_storage_helper.save(self, save_references=int(save_references))
 
     def serialize_object(self, save_references: int = BSaveRefs.NONE):
         return super().serialize_object(int(save_references))
 
     def delete(self) -> RC:
+        #-- TODO: inside a Scenario, should delete() follow the rule of save() (only a ScenarioResult)?
         return self.__class__.s_storage_helper.delete(self)
 
     def post_verify(self) -> RC:
@@ -1317,6 +1322,7 @@ class TraitableHistory(EventBase):
         ns = {
             's_traitable_class': traitable_class,
             's_custom_collection': traitable_class.s_custom_collection,
+            's_scenario_result': traitable_class.s_scenario_result,  #-- the history record of a ScenarioResult is saved with it
             '__module__': traitable_class.__module__,
         }
         history_class = types.new_class(

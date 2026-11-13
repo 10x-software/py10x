@@ -1,4 +1,5 @@
 from core_10x.exec_control import BTP, GRAPH_ON
+from core_10x.traitable import Traitable
 
 
 class Scenario:
@@ -12,6 +13,7 @@ class Scenario:
                 cls.s_instances[name] = s
             s.name = name
             s.btp = GRAPH_ON(debug=debug, convert_values=convert_values)
+            s.btp.cache().mark_as_scenario()
 
         return s
 
@@ -23,3 +25,12 @@ class Scenario:
         self.btp.end_using()
         if not self.name:
             self.btp = None
+
+
+class ScenarioResult(Traitable, root_class = True):
+    """
+    What an app takes out of a Scenario: created outside, filled inside by setting its traits or changing them in place.
+    Inside a Scenario it is read and written in its own scope, and it is the only kind of object that may be saved there.
+    """
+
+    s_scenario_result = True

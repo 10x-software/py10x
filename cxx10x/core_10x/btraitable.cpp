@@ -30,6 +30,16 @@ BTraitable::~BTraitable() {
     //TODO: class flag to indicate if objects is auto-disposable default = true
 }
 
+OriginScope::OriginScope(const BTraitable* obj) {
+    if (!obj->my_class()->is_scenario_result())
+        return;     //-- all that any other object pays
+
+    const auto proc = ThreadContext::current_traitable_proc();
+    const auto origin = obj->origin_cache();
+    if (origin != proc->cache() && proc->cache()->in_scenario())
+        m_use.emplace(BTraitableProcessor::create_with_cache(origin, proc->flags()), true);
+}
+
 py::object BTraitable::lazy_load_if_needed() {
     const auto flags = lazy_load_flags();
 
@@ -227,6 +237,7 @@ py::object BTraitable::verify_trait_value(const BTrait* trait, const py::object&
 }
 
 py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unknown_traits) {
+    const OriginScope scope(this);
     auto proc = ThreadContext::current_traitable_proc();
     for (auto item : trait_values) {
         const auto trait_name = item.first.cast<py::object>();
@@ -252,6 +263,7 @@ py::object BTraitable::set_values(const py::dict& trait_values, bool ignore_unkn
 
 py::object BTraitable::get_revision() {
     const auto rt = my_class()->find_trait(BNucleus::REVISION_TAG());
+    const OriginScope scope(this);
     const auto proc = ThreadContext::current_traitable_proc();
     return rt ? rt->proc()->get_value_off_graph(proc, this, rt) : py::int_(0);
 }
@@ -423,6 +435,7 @@ py::object BTraitable::deserialize_object(const BTraitableClass *cls, const py::
 py::dict BTraitable::serialize_traits() {
     py::dict res;
     const auto XNone = PyLinkage::XNone();
+    const OriginScope scope(this);
     const auto proc = ThreadContext::current_traitable_proc();
     bool has_ts = false;
     for (const auto &[trait_name_handle, trait_value_handle] : my_class()->trait_dir()) {
@@ -448,6 +461,7 @@ py::dict BTraitable::serialize_traits() {
 }
 
 void BTraitable::deserialize_traits(const py::dict& trait_values) {
+    const OriginScope scope(this);
     const auto proc = ThreadContext::current_traitable_proc();
 
     const auto XNone = PyLinkage::XNone();

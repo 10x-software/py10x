@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <format>
+#include <optional>
 #include "py_linkage.h"
 
 #include "tid.h"
@@ -63,6 +64,16 @@
       - Load in current cache (same as creation cache)
       - If not found, it's an error
  */
+class BTraitable;
+
+//-- inside a Scenario, a ScenarioResult lives in its origin cache only: an operation on it runs there
+class OriginScope {
+    std::optional<BTraitableProcessor::Use> m_use;
+
+public:
+    PY10X_API explicit OriginScope(const BTraitable* obj);
+};
+
 class PY10X_API BTraitable {
 protected:
     TID     m_tid;
@@ -148,6 +159,7 @@ public:
     }
 
     [[nodiscard]] bool is_valid(const BTrait* trait) {
+        const OriginScope scope(this);
         const auto proc = ThreadContext::current_traitable_proc();
         return proc->is_valid(this, trait);
     }
@@ -161,6 +173,7 @@ public:
     }
 
     [[nodiscard]] bool is_set(const BTrait* trait) const {
+        const OriginScope scope(this);
         const auto proc = ThreadContext::current_traitable_proc();
         return proc->is_set(this, trait);
     }
@@ -174,11 +187,13 @@ public:
     }
 
     void invalidate_value(BTrait* trait) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         proc->invalidate_trait_value(this, trait);
     }
 
     void invalidate_value(BTrait* trait, const py::args& args) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         proc->invalidate_trait_value(this, trait, args);
     }
@@ -208,11 +223,13 @@ public:
     }
 
     py::object get_value(const BTrait* trait) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait);
     }
 
     py::object get_value(const BTrait* trait, const py::args& args) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_trait_value(this, trait, args);
     }
@@ -234,6 +251,7 @@ public:
     }
 
     py::object get_choices(BTrait* trait) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_choices(this, trait);
     }
@@ -242,6 +260,7 @@ public:
         if (trait->custom_f_style_sheet().is_none())
             return PyLinkage::XNone();
 
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         return proc->get_style_sheet(this, trait);
     }
@@ -255,11 +274,13 @@ public:
     }
 
     py::object set_value(BTrait* trait, const py::object& value) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         return proc->set_trait_value(this, trait, value);
     }
 
     py::object set_value(BTrait* trait, const py::object& value, const py::args& args) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         return proc->set_trait_value(this, trait, value, args);
     }
@@ -295,11 +316,13 @@ public:
     }
 
     py::object raw_set_value(BTrait* trait, const py::object& value) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         return proc->raw_set_trait_value(this, trait, value);
     }
 
     py::object raw_set_value(BTrait* trait, const py::object& value, const py::args& args) {
+        const OriginScope scope(this);
         auto proc = ThreadContext::current_traitable_proc();
         return proc->raw_set_trait_value(this, trait, value, args);
     }

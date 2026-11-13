@@ -28,8 +28,10 @@ Changes since **0.3.0**.
 - **MongoDB URI**: `directConnection` and short parameter aliases.
 - **UI** (`ui_10x/`): table view on both Qt and Rio; dialog `on_open` callback; optional `parent` for trait edit dialogs and the date picker; traitable editor tracks changes across editors and sizes widgets to content; choices may be selected by label or value.
 - **`examples` extra**: `yfinance` for `ui_10x/examples/price_simulator.py`.
+- **`ScenarioResult`** (`core_10x/scenario.py`; py10x-kernel + core): the base class for what an app takes out of a `Scenario`. Inside a Scenario, a `ScenarioResult` created outside is read and written in its own scope, so there is one copy of it: what is set on it inside, or changed in place, is there after the exit. Under any other inner scope it is scoped like any object.
 
 ### Changed
+- **`save()` inside a `Scenario`** returns a failed `RC` for any object that is not a `ScenarioResult`, so a what-if value cannot reach the store. A bare `GRAPH_ON()` and the other inner scopes are not affected.
 - **`ExecControl`** (`core_10x/exec_control.py`): the execution-control functions are now static methods of one class (`ExecControl.graph_on()`, ...); `GRAPH_ON`, `GRAPH_OFF`, `DEBUG_ON` and the other ALL_CAPS names remain as aliases. A class gives the family one `PackageRefactoring` class id, which free functions cannot have.
 - **`TraitableCli.main`** now calls ``verify()`` before ``run()``. ``VaultUtils.user_init`` takes ``new_machine: bool = False`` instead of a ``mode`` string.
 - **`GraphDeps(gp, bound_trait, inputs_spec)`** (breaking): takes a `{cls: (trait_name, ...)}` dict instead of `target_class, *trait_names`.

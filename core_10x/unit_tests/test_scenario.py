@@ -6,10 +6,11 @@ import functools
 from weakref import WeakKeyDictionary
 
 import pytest
-from core_10x.exec_control import CACHE_ONLY
-from core_10x.scenario import Scenario
+from core_10x.exec_control import CACHE_ONLY, GRAPH_ON
+from core_10x.scenario import Scenario, ScenarioResult
 from core_10x.traitable import RT, T, Traitable
 from core_10x.xnone import XNone
+from infra_10x.duckdb_store import DuckDbStore
 
 
 class TestScenarioIdentity:
@@ -202,7 +203,7 @@ class TestScenarioEndToEnd:
 
 class TestScenarioOwnsItsContainers:
     """
-    A list, set or dict set in the outer scope is copied when an inner Scenario first reads it,
+    A list, set or dict set in the outer scope is copied, all the way down, when an inner Scenario first reads it,
     so changing it in place inside the Scenario cannot reach the outer scope.
     """
 
@@ -287,3 +288,214 @@ class TestScenarioOwnsItsContainers:
         assert bag.trait('items').shallow_copy([1, inner])[1] is inner  # one level only
         label = ('x',)
         assert bag.trait('label').shallow_copy(label) is label
+
+    def test_in_place_change_of_a_nested_container_stays_inside(self):
+        with CACHE_ONLY(), Scenario('own_outer_E'):
+            b = self.Bag(name = 'own_E')
+            b.items, b.attrs = [1, [2], (3, [4])], {'k': [1], 'd': {'x': {5}}}
+
+            with Scenario():
+                b.items[1].append(9)
+                b.items[2][1].append(9)
+                b.attrs['k'].append(9)
+                b.attrs['d']['x'].add(9)
+                assert b.items == [1, [2, 9], (3, [4, 9])]
+                assert b.attrs == {'k': [1, 9], 'd': {'x': {5, 9}}}
+
+            assert b.items == [1, [2], (3, [4])]
+            assert b.attrs == {'k': [1], 'd': {'x': {5}}}
+
+    def test_deep_copy_of_the_trait_classes(self):
+        bag = self.Bag
+        with CACHE_ONLY():
+            other = bag(name = 'own_F')
+        inner, pair, plain = [2], (3, [4]), ('x', 'y')
+        value = [1, inner, pair, other, plain]
+        copied = bag.trait('items').deep_copy(value)
+        assert copied == value
+        assert copied is not value
+        assert copied[1] is not inner
+        assert copied[2] is not pair  # a tuple that holds a list is built anew ...
+        assert copied[2][1] is not pair[1]
+        assert copied[4] is plain  # ... one that holds none is shared
+        assert copied[3] is other  # and so is a Traitable
+
+        attrs = {'k': [1], 'd': {'x': {5}}}
+        copied = bag.trait('attrs').deep_copy(attrs)
+        assert copied == attrs
+        assert copied['k'] is not attrs['k']
+        assert copied['d'] is not attrs['d']
+        assert copied['d']['x'] is not attrs['d']['x']
+
+        tags = {1, 2}
+        copied = bag.trait('tags').deep_copy(tags)
+        assert copied == tags
+        assert copied is not tags
+        assert bag.trait('label').deep_copy(plain) is plain
+
+    def test_deep_copy_of_a_subclass_and_of_a_container_holding_itself(self):
+        class Tally(dict): ...
+
+        bag = self.Bag
+        tally = Tally(k = [1])
+        copied = bag.trait('attrs').deep_copy(tally)  # a subclass comes out as the built-in type, as with shallow_copy
+        assert type(copied) is dict
+        assert copied == {'k': [1]}
+        assert copied['k'] is not tally['k']
+        assert bag.trait('items').deep_copy([tally])[0] is tally  # inside a container it is shared: only the built-in types are walked
+
+        loop = [1]
+        loop.append(loop)
+        with pytest.raises(RecursionError):
+            bag.trait('items').deep_copy(loop)
+
+
+# ---------------------------------------------------------------------------
+# A ScenarioResult takes values out of a Scenario
+# ---------------------------------------------------------------------------
+
+
+class TestScenarioResult:
+    """
+    Inside a Scenario, a ScenarioResult created outside is read and written in its own scope, not in the Scenario's:
+    there is one copy of it. It is also the only kind of object that may be saved inside a Scenario.
+    """
+
+    class Report(ScenarioResult):
+        name: str = T(T.ID)
+        pnl: float = RT()
+        deltas: dict = RT()
+        rows: list = RT()
+        total: float = RT()
+
+        def total_get(self) -> float:
+            return sum(self.deltas.values())
+
+    class Quote(Traitable):
+        name: str = T(T.ID)
+        value: float = RT()
+
+    class StoredReport(ScenarioResult):
+        name: str = T(T.ID)
+        pnl: float = T()
+
+    class StoredQuote(Traitable):
+        name: str = T(T.ID)
+        value: float = T()
+
+    def test_what_is_set_inside_is_seen_outside(self):
+        with CACHE_ONLY(), Scenario('res_outer_A'):
+            report, quote = self.Report(name = 'res_A'), self.Quote(name = 'res_A')
+            quote.value = 1.0
+
+            with Scenario():
+                quote.value = 2.0
+                report.pnl = quote.value
+                assert report.pnl == 2.0
+
+            assert quote.value == 1.0  # the what-if stayed inside
+            assert report.pnl == 2.0
+
+    def test_a_result_of_the_root_scope(self):
+        """The root scope is off graph and the Scenario is on it: the result is still handled by its own scope."""
+        with CACHE_ONLY():
+            report = self.Report(name = 'res_root')
+            report.deltas = {}
+
+            with Scenario():
+                report.pnl = 5.0
+                report.deltas['a'] = 1.0
+                assert report.total == 1.0
+
+            assert (report.pnl, report.deltas, report.total) == (5.0, {'a': 1.0}, 1.0)
+
+    def test_in_place_change_inside_is_seen_outside(self):
+        with CACHE_ONLY(), Scenario('res_outer_B'):
+            report = self.Report(name = 'res_B')
+            report.deltas, report.rows = {}, []
+            outer_deltas = report.deltas
+
+            with Scenario():
+                assert report.deltas is outer_deltas  # one copy: nothing is imported
+                report.deltas['a'] = 1.0
+                report.rows.append('x')
+
+            assert (report.deltas, report.rows) == ({'a': 1.0}, ['x'])
+
+    def test_what_was_collected_before_an_exception_stays(self):
+        with CACHE_ONLY(), Scenario('res_outer_C'):
+            report = self.Report(name = 'res_C')
+
+            with pytest.raises(ValueError, match = 'boom'), Scenario():
+                report.pnl = 3.0
+                raise ValueError('boom')
+
+            assert report.pnl == 3.0
+
+    def test_a_named_scenario_keeps_no_copy(self):
+        with CACHE_ONLY(), Scenario('res_outer_D'):
+            report = self.Report(name = 'res_D')
+
+            with Scenario('res_inner_D'):
+                report.pnl = 5.0
+            report.pnl = 7.0
+
+            with Scenario('res_inner_D'):
+                assert report.pnl == 7.0
+            assert report.pnl == 7.0
+
+    def test_a_getter_of_a_result_reads_its_own_traits(self):
+        with CACHE_ONLY(), Scenario('res_outer_E'):
+            report = self.Report(name = 'res_E')
+
+            with Scenario():
+                report.deltas = {'a': 1.0, 'b': 2.0}
+                assert report.total == 3.0
+
+            assert report.total == 3.0
+
+    def test_a_result_created_inside_stays_inside(self):
+        with CACHE_ONLY(), Scenario('res_outer_F'):
+            with Scenario('res_inner_F'):
+                self.Report(name = 'res_F').pnl = 1.0
+
+            assert self.Report(name = 'res_F').pnl is XNone
+
+            with Scenario('res_inner_F'):
+                assert self.Report(name = 'res_F').pnl == 1.0
+
+    def test_outside_a_scenario_a_result_is_layered(self):
+        """Under a bare GRAPH_ON() a result is scoped like any other object."""
+        with CACHE_ONLY(), GRAPH_ON():
+            report = self.Report(name = 'res_G')
+            report.pnl = 1.0
+
+            with GRAPH_ON():
+                report.pnl = 9.0
+                assert report.pnl == 9.0
+
+            assert report.pnl == 1.0
+
+    def test_only_a_result_is_saved_inside_a_scenario(self):
+        with DuckDbStore():
+            report, quote = self.StoredReport(name = 'res_H'), self.StoredQuote(name = 'res_H')
+
+            with Scenario():
+                quote.value = 2.0
+                report.pnl = quote.value
+
+                rc = quote.save()
+                assert not rc
+                assert 'only a ScenarioResult may be saved inside a Scenario' in str(rc.error())
+
+                report.save().throw()
+
+            assert report.pnl == 2.0
+            assert len(self.StoredReport.history()) == 1  # its history record was saved with it
+            assert self.StoredQuote.load_ids() == []
+
+    def test_save_inside_a_bare_graph_on_is_not_refused(self):
+        with DuckDbStore(), GRAPH_ON():
+            quote = self.StoredQuote(name = 'res_I')
+            quote.value = 1.0
+            quote.save().throw()

@@ -197,6 +197,7 @@ protected:
     Data            m_data;
     TmpData         m_tmp_data;
     int             m_default_node_type = NODE_TYPE::BASIC;
+    bool            m_scenario = false;     //-- this cache is the scope of a Scenario
 
     void _add_object_id(const TID& tid) {
         auto it = m_ids_by_class.find(tid.cls());
@@ -286,6 +287,16 @@ public:
     [[nodiscard]] uint64_t generation() const          { return m_generation; }
     [[nodiscard]] int default_node_type() const             { return m_default_node_type; }
     void set_default_node_type(int node_type)               { m_default_node_type = node_type; }
+
+    void mark_as_scenario()                                 { m_scenario = true; }
+
+    //-- inside a Scenario at any depth: this cache, or one above it, is the scope of one
+    [[nodiscard]] bool in_scenario() const {
+        for (auto cache = this; cache; cache = cache->m_parent)
+            if (cache->m_scenario)
+                return true;
+        return false;
+    }
 
     ObjectCache* new_object_cache(const TID& tid) {
         auto oc = new ObjectCache();

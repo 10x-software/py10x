@@ -23,6 +23,7 @@ protected:
     bool            m_custom_collection;
     bool            m_embeddable;
     bool            m_default_cache;
+    bool            m_scenario_result;
 
     mutable BUiClass*       m_ui_class = nullptr;
 
@@ -48,6 +49,7 @@ public:
         m_custom_collection = m_py_class.attr("s_custom_collection").cast<bool>();
         m_embeddable = m_py_class.attr("s_embeddable").cast<bool>();
         m_default_cache = m_py_class.attr("s_default_cache").cast<bool>();
+        m_scenario_result = m_py_class.attr("s_scenario_result").cast<bool>();
     }
 
     //~BTraitableClass();
@@ -85,6 +87,10 @@ public:
 
     bool is_default_cache() const {
         return m_default_cache;
+    }
+
+    bool is_scenario_result() const {
+        return m_scenario_result;
     }
 
     const py::dict& trait_dir() const {

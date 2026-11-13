@@ -1310,6 +1310,42 @@ with Scenario():
 # scope gone; next Scenario() would start fresh again
 ```
 
+#### Taking results out of a Scenario
+
+A `ScenarioResult` is how an app takes values out of a `Scenario`: create it outside, fill it inside.
+
+```python
+from core_10x.scenario import Scenario, ScenarioResult
+from core_10x.traitable import Traitable, RT, T
+
+class Instrument(Traitable):
+    ticker:     str   = RT(T.ID)
+    price:      float = RT()
+    fair_value: float = RT()
+
+    def fair_value_get(self) -> float:
+        return self.price * 1.05
+
+class BumpReport(ScenarioResult):
+    name:   str  = RT(T.ID)
+    values: dict = RT()
+
+msft = Instrument(ticker = 'MSFT')
+
+report = BumpReport(name = 'msft')
+report.values = {}
+
+with Scenario():
+    msft.price = 80.0                               # what-if: stays inside
+    report.values['stressed'] = msft.fair_value     # result: there after the exit
+
+report.values                                       # {'stressed': 84.0}
+```
+
+Inside a Scenario, a `ScenarioResult` created outside is read and written in its own scope, not in the Scenario's. There is one copy of it, so setting a trait and changing a `list` or `dict` in place both work, and what was collected before an exception stays collected. A getter of a `ScenarioResult` should read only its own traits. A `ScenarioResult` created inside a Scenario lives and ends with it.
+
+Inside a Scenario only a `ScenarioResult` may be saved. `save()` of any other object returns a failed `RC`, so a what-if value cannot reach the store.
+
 ## Traitable Store
 
 Traitable Store is essential for persistence and data management. 
@@ -1553,7 +1589,7 @@ An embeddable Traitable is stored inside the object that holds it, so it is neve
 
 #### Saving from inside an inner scope
 
-A `save()` made inside a `Scenario` (or any other inner scope) writes what that scope sees: this is how the result of a scenario is saved. The outer scopes are not told. They still hold the old values and the old revision, so they have to `reload()` the object before they go on with it; a `save()` from an outer scope without a reload fails on the revision.
+Inside a `Scenario` only a `ScenarioResult` may be saved (see [Taking results out of a Scenario](#taking-results-out-of-a-scenario)). A `save()` made inside any other inner scope, such as a bare `GRAPH_ON()`, writes what that scope sees. The outer scopes are not told. They still hold the old values and the old revision, so they have to `reload()` the object before they go on with it; a `save()` from an outer scope without a reload fails on the revision.
 
 #### Transactions
 
