@@ -7,7 +7,7 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11.5,<3.14"
 dependencies = [
     "py10x-kernel (>=0.4.0rc4,<0.4.0rc5)",
     "py10x-infra (>=0.4.0rc3,<0.4.0rc4)",
