@@ -2,7 +2,7 @@
 # requires-python = ">=3.11,<3.14"
 # dependencies = [
 #     "marimo",
-#     "py10x-core>=0.3.1",
+#     "py10x-core>=0.4.0rc4",
 # ]
 # ///
 """Interactive companion to README.md and GETTING_STARTED.md.
