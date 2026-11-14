@@ -2,7 +2,7 @@
 # requires-python = ">=3.11,<3.14"
 # dependencies = [
 #     "marimo",
-#     "py10x-core>=0.3.1",
+#     "py10x-core>=0.4.0rc4",
 # ]
 # ///
 """Interactive companion to README.md and GETTING_STARTED.md.
@@ -10,9 +10,8 @@
 Run locally:
     uvx marimo edit --sandbox docs/notebooks/getting_started.py
 
-Host on molab (free): push this file, then on https://molab.new use
-"New → From GitHub" and paste the raw GitHub URL. Prefer a *server*
-preview — native wheels (py10x-kernel / py10x-infra) are not WASM-compatible.
+Run on molab (it prompts you to sign in or create a free account):
+    https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py/server
 """
 
 import marimo
@@ -39,10 +38,8 @@ def _():
     and [Getting Started](https://github.com/10x-software/py10x/blob/main/GETTING_STARTED.md)
     guides and runs entirely in memory (`CACHE_ONLY`) — no Mongo, Postgres, or UI backend.
 
-    **Running in the browser:** open this file on [molab](https://docs.marimo.io/guides/molab/)
-    (marimo’s free hosted workspace). Create a free account to execute cells, and
-    start a **server** session — native wheels (`py10x-kernel` / `py10x-infra`) are
-    not WebAssembly-compatible.
+    **Running online:** [open this notebook on molab](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py/server)
+    (marimo's hosted service; sign in or create a free account to run cells).
 
     **Four laws, in practice:** identity · dependency · persistence · presentation.
     Here we exercise the first two interactively; persistence and derived UI are
@@ -239,21 +236,13 @@ def _():
 
     ### Run this notebook
 
+    [Open on molab](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py/server)
+    (marimo's hosted service; it prompts you to sign in or create a free account), or locally,
+    with sandboxed deps from the PEP 723 header:
+
     ```bash
-    # local (sandboxed deps from the PEP 723 header)
     uvx marimo edit --sandbox docs/notebooks/getting_started.py
     ```
-
-    ### Host on molab (free)
-
-    [molab](https://docs.marimo.io/guides/molab/) is marimo’s free cloud workspace.
-    Viewers can open the GitHub-mirrored link below; a free account is required
-    to run cells. Use a **server** session (not WebAssembly) — `py10x-core` ships
-    native wheels.
-
-    1. Push this file to GitHub.
-    2. Open [molab.new](https://molab.new) → **New** → paste the GitHub file URL (synced notebook), or share the open-in-molab badge.
-    3. Sign in / create a free account when prompted to execute.
     """)
     return
 

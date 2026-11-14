@@ -3139,9 +3139,9 @@ For running the full test suite (mongo tests skip when unreachable), see [CONTRI
 ### 1. Explore Examples
 
 - Interactive tour: [`docs/notebooks/getting_started.py`](docs/notebooks/getting_started.py)
-  [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py)
+  [![Open in molab](https://marimo.io/molab-shield.svg)](https://molab.marimo.io/github/10x-software/py10x/blob/main/docs/notebooks/getting_started.py/server)
   — a [marimo](https://marimo.io) notebook (reactive Python cells that re-run when their inputs change; similar to Jupyter).
-  Open the badge on [molab](https://docs.marimo.io/guides/molab/), create a free account, choose a **server** session, and run —
+  The badge opens it on [molab](https://docs.marimo.io/guides/molab/), which prompts you to sign in or create a free account —
   or run locally with `uvx marimo edit --sandbox docs/notebooks/getting_started.py`
 - Check out `core_10x/code_samples/` for more examples
 - Look at `ui_10x/examples/` for UI integration examples
