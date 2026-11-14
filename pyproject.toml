@@ -7,7 +7,7 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.11.5,<3.14"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "py10x-kernel (>=0.4.0rc4,<0.4.0rc5)",
     "py10x-infra (>=0.4.0rc3,<0.4.0rc4)",
@@ -158,6 +158,11 @@ cache-keys = [{ file = "pyproject.toml" }, { git = { commit = true, tags = true 
 no-build-isolation-package = ["py10x-kernel", "py10x-infra", "py10x-fin-base-cxx"]
 # Plain `uv sync` installs the full dev environment (fresh clone: `./xx-build init` first).
 default-groups = ["dev", "extras", "test", "test-extras"]
+# Lock-only floor: soupsieve>=4 (CVE fix) needs 3.11.5, and without this the lock forks to the vulnerable
+# 2.x for 3.11.0-3.11.4. Kept out of requires-python so published metadata doesn't force it on users.
+# Emscripten is excluded: with environments set, uv rejects tccbox (no emscripten wheel or sdist) in the
+# emscripten split, and py10x can't run there anyway (no kernel wheels).
+environments = ["python_full_version >= '3.11.5' and sys_platform != 'emscripten'"]
 
 # The in-tree packages, editable: plain `uv sync` / `uv run` install kernel/infra (C++: incremental,
 # rebuild-on-import) and fin-base (the `test` groups) from this tree; fin-base-cxx comes editable via
