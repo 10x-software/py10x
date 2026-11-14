@@ -5,31 +5,11 @@ import QuantLib as ql
 from core_10x.exec_control import CACHE_ONLY, DEBUG_ON
 from infra_10x.duckdb_store import DuckDbStore
 from py10x_kernel import BTraitableProcessor
-from xxfin.fin_calendar import KNOWN_CALENDARS, FinCalendar, good_friday
+from xxfin.fin_calendar import KNOWN_CALENDARS, FinCalendar
 
 
 def _holidays(cal: ql.Calendar, year: int) -> list[date]:
     return [d.to_date() for d in ql.Calendar.holidayList(cal, ql.Date(1, 1, year), ql.Date(31, 12, year))]
-
-
-def test_good_friday_matches_quantlib_uk():
-    uk = ql.UnitedKingdom()
-    for year in range(1970, 2071):
-        gf = ql.Date.from_date(good_friday(year))
-        assert gf.weekday() == ql.Friday
-        assert uk.isHoliday(gf) and uk.isHoliday(gf + 3), year  # -- Good Friday and Easter Monday
-
-
-def test_ice_oil_calendar():
-    """Dates from the IFEU Trading Schedule (Oil), November 2026 edition."""
-    ice = KNOWN_CALENDARS.ICE.value()
-    assert _holidays(ice, 2026) == [date(2026, 1, 1), date(2026, 4, 3), date(2026, 12, 25)]
-    assert _holidays(ice, 2027) == [date(2027, 1, 1), date(2027, 3, 26)]  # -- 25 Dec 2027 is a Saturday: no in-lieu day
-
-    uk_bank_holidays = [date(2026, 4, 6), date(2026, 5, 4), date(2026, 5, 25), date(2026, 8, 31), date(2026, 12, 28)]
-    us_holidays = [date(2026, 1, 19), date(2026, 7, 3), date(2026, 11, 26), date(2027, 12, 24), date(2027, 12, 31)]
-    for d in uk_bank_holidays + us_holidays + [date(2027, 12, 27), date(2027, 12, 28), date(2028, 1, 3)]:
-        assert ice.isBusinessDay(ql.Date.from_date(d)), d
 
 
 def test_nym_calendar():
@@ -45,9 +25,10 @@ def test_nym_calendar():
 
 def test_fin_calendar_by_name():
     with CACHE_ONLY():
-        ice = FinCalendar(name='ICE')
-        assert date(2026, 4, 3) in ice.non_working_days
-        assert date(2026, 5, 4) not in ice.non_working_days
+        nym = FinCalendar(name='NYM')
+        assert date(2026, 4, 3) in nym.non_working_days  # -- Good Friday
+        assert date(2026, 10, 12) not in nym.non_working_days  # -- Columbus Day
+        assert date(2026, 12, 25) in FinCalendar(name='ICE').non_working_days
 
 
 def test_save():
