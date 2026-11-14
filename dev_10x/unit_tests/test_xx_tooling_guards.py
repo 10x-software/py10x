@@ -24,6 +24,7 @@ from core_10x.environment_variables import EnvVars
 from core_10x.testlib.strict import need
 from packaging.version import Version
 
+from dev_10x import xx_build
 from dev_10x.xx_helpers import GitHelpers
 
 requires_git = pytest.mark.skipif(shutil.which('git') is None and not EnvVars.test_strict, reason='git not available')
@@ -348,3 +349,19 @@ def test_editable_below_rc_window_floor_does_not_fallback_to_index(tmp_path):
     )
 
     assert proc.returncode != 0, 'lagged editable below the rc-window floor must not silently fall back to an index wheel'
+
+
+@requires_uv
+def test_rendered_uv_toml_parses_for_every_mode(tmp_path):
+    """uv rejects some `[tool.uv]` fields in uv.toml; each must be in `xx_build.PROJECT_ONLY_FIELDS`, or
+    every non-dev mode (CI's ci-release included) fails to parse its uv.toml."""
+    root = _repo_root()
+    need(root is not None, 'py10x source checkout (no source pyproject when core is installed as a wheel)')
+    (tmp_path / 'pyproject.toml').write_text('[project]\nname = "x"\nversion = "0"\n', encoding='utf-8')
+    for mode in xx_build.mode_names(root):
+        if mode == xx_build.DEFAULT_MODE:
+            continue
+        config = tmp_path / f'{mode}.toml'
+        config.write_text(xx_build.render(mode, root), encoding='utf-8')
+        proc = subprocess.run(['uv', '--config-file', str(config), 'lock', '--offline'], cwd=tmp_path, capture_output=True, text=True, check=False)
+        assert proc.returncode == 0, f'{mode}: {proc.stderr}'

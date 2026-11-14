@@ -313,7 +313,7 @@ def test_anonymous_embedded():
     print(s)
     assert s['x']['_obj']['a']==1
 
-    z = Z(y=1,x=x,_replace=True)
+    z = Z(y=1,x=X(a=1),_replace=True)  # its own X: an embedded object has one holder
     s = z.serialize_object()
     print(s)
     assert s['x']['_obj']['a']==1
