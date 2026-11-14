@@ -2273,6 +2273,7 @@ The rules:
 - **Heir traits** are the traits with neither a custom getter nor a default value (listed in `cls.s_grantor_traits`). Traits with a getter or a default are computed or defaulted as usual and are never inherited.
 - An heir trait that is **not set** on the heir returns the grantor's value of the **same-named** trait; it is `XNone` when there is no grantor or the grantor's class has no such trait. The grantor may be any `Traitable`, including another heir (chains work).
 - Setting the trait on the heir **overrides** the grantor; `invalidate_value(name)` drops the override.
+- To keep heirs from ever storing their own value of a trait the grantor stores, redeclare it as runtime in the heir's class (`days_to_settle: int = M(T.RUNTIME)`): an override then lives only in memory, and a reloaded heir follows the grantor again.
 - Reads track the grantor, so changing the grantor (or reassigning `_grantor`) is reflected immediately.
 - `serialize_object()` **omits unset heir traits**, so a saved heir stores only its own overrides plus a reference to its grantor, and keeps following the grantor after reload.
 

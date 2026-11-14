@@ -9,15 +9,16 @@ from __future__ import annotations
 
 import pytest
 from core_10x.exec_control import CACHE_ONLY, GRAPH_OFF, GRAPH_ON, INTERACTIVE
-from core_10x.traitable import Traitable, XNone
+from core_10x.traitable import M, Traitable, XNone
 from core_10x.traitable_heir import RT, T, TraitableHeir
+from py10x_kernel import BTraitableProcessor
 
 
 class Conventions(TraitableHeir):
     mkt_name: str = T(T.ID)
 
     days_to_settle: int = T()  # -- heir trait
-    calendar: str = RT()  # -- runtime heir trait
+    exchange: str = T()  # -- heir trait
     settlement: str = T('CASH')  # -- has a default: not inherited
     lot_size: float = T()  # -- has a getter: not inherited
 
@@ -31,6 +32,10 @@ class XConventions(Conventions):
 
     def days_to_settle_twice_get(self):
         return 2 * self.days_to_settle
+
+
+class PinnedConventions(Conventions):
+    days_to_settle: int = M(T.RUNTIME)  # -- stored on the grantor, runtime here: the heir can never save its own
 
 
 class Venue(Traitable):
@@ -47,17 +52,17 @@ def cache_only(request):
 
 
 def make_grantor(mkt_name='WTI NYMEX', **values) -> Conventions:
-    values = {'days_to_settle': 2, 'calendar': 'NYM', 'settlement': 'PHYSICAL'} | values
+    values = {'days_to_settle': 2, 'exchange': 'NYMEX', 'settlement': 'PHYSICAL'} | values
     return Conventions(mkt_name=mkt_name, **values, _replace=True)
 
 
 class TestHeirTraits:
     def test_only_traits_without_getter_or_default_are_heir_traits(self):
-        assert {'days_to_settle', 'calendar'} <= set(Conventions.s_grantor_traits)
+        assert {'days_to_settle', 'exchange'} <= set(Conventions.s_grantor_traits)
         assert not {'_grantor', 'settlement', 'lot_size'} & set(Conventions.s_grantor_traits)
 
     def test_subclass_recomputes_heir_traits(self):
-        assert {'days_to_settle', 'calendar', 'tick_size'} <= set(XConventions.s_grantor_traits)
+        assert {'days_to_settle', 'exchange', 'tick_size'} <= set(XConventions.s_grantor_traits)
         assert 'days_to_settle_twice' not in XConventions.s_grantor_traits
         assert 'tick_size' not in Conventions.s_grantor_traits
 
@@ -68,7 +73,7 @@ class TestInheritance:
         heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
 
         assert heir.days_to_settle == 2
-        assert heir.calendar == 'NYM'
+        assert heir.exchange == 'NYMEX'
 
     def test_traits_with_default_or_getter_are_not_inherited(self, cache_only):
         grantor = make_grantor()
@@ -104,19 +109,19 @@ class TestInheritance:
 
     def test_regranting(self, cache_only):
         nymex = make_grantor()
-        ice = make_grantor('ICE', calendar='ICE')
+        ice = make_grantor('ICE', exchange='ICE Futures Europe')
         heir = Conventions(mkt_name='WTI ICE', _grantor=nymex, _replace=True)
-        assert heir.calendar == 'NYM'
+        assert heir.exchange == 'NYMEX'
 
         heir._grantor = ice
-        assert heir.calendar == 'ICE'
+        assert heir.exchange == 'ICE Futures Europe'
 
     def test_chain_of_grantors(self, cache_only):
         root = make_grantor()
-        middle = Conventions(mkt_name='middle', _grantor=root, calendar='MID', _replace=True)
+        middle = Conventions(mkt_name='middle', _grantor=root, exchange='MID', _replace=True)
         leaf = Conventions(mkt_name='leaf', _grantor=middle, _replace=True)
 
-        assert leaf.calendar == 'MID'
+        assert leaf.exchange == 'MID'
         assert leaf.days_to_settle == 2
 
         root.days_to_settle = 4
@@ -127,7 +132,7 @@ class TestInheritance:
         heir = Conventions(mkt_name='WTI CME', _grantor=venue, _replace=True)
 
         assert heir.days_to_settle == 7
-        assert heir.calendar is XNone  # -- Venue has no `calendar` trait
+        assert heir.exchange is XNone  # -- Venue has no `exchange` trait
 
     def test_subclass_heir_from_base_class_grantor(self, cache_only):
         grantor = make_grantor()
@@ -143,8 +148,7 @@ class TestSerialization:
         heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
 
         data = heir.serialize_object()
-        assert 'days_to_settle' not in data
-        assert 'calendar' not in data  # -- runtime trait: never serialized
+        assert 'days_to_settle' not in data and 'exchange' not in data
         assert data['settlement'] == 'CASH'
         assert data['_grantor']
 
@@ -159,6 +163,24 @@ class TestSerialization:
         data = Conventions(mkt_name='orphan').serialize_object()
         assert data['_grantor'] is None
         assert 'days_to_settle' not in data
+
+
+class TestRuntimeHeirTrait:
+    """A trait the grantor stores, redeclared as runtime on the heir, always comes from the grantor once stored."""
+
+    def test_is_an_heir_trait(self):
+        assert PinnedConventions.trait('days_to_settle').flags_on(T.RUNTIME)
+        assert 'days_to_settle' in PinnedConventions.s_grantor_traits
+
+    def test_inherited_and_never_serialized(self, cache_only):
+        grantor = make_grantor()
+        heir = PinnedConventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        assert heir.days_to_settle == 2
+        assert 'days_to_settle' not in heir.serialize_object()
+
+        heir.days_to_settle = 5  # -- an in-memory override only
+        assert heir.days_to_settle == 5
+        assert 'days_to_settle' not in heir.serialize_object()
 
 
 class HeirSample(TraitableHeir):
@@ -209,3 +231,18 @@ class TestStore:
 
         loaded = Conventions.load(heir.id())
         assert loaded.days_to_settle == 5
+
+    def test_runtime_heir_trait_is_not_saved(self, store):
+        grantor = Conventions(mkt_name='WTI NYMEX', days_to_settle=2, _replace=True)
+        grantor.save().throw()
+        heir = PinnedConventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir.days_to_settle = 5
+        heir.save().throw()
+
+        record = next(doc for doc in PinnedConventions.collection().find() if doc['_id'] == heir.id().value)
+        assert 'days_to_settle' not in record
+
+        grantor.days_to_settle = 3
+        grantor.save().throw()
+        with BTraitableProcessor.create_root():
+            assert PinnedConventions.load(heir.id()).days_to_settle == 3

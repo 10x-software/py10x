@@ -13,8 +13,6 @@ class KNOWN_CALENDARS(NamedConstant, data_type=Callable):
     # fmt: off
     US      = lambda: ql.UnitedStates(ql.UnitedStates.SOFR)
     FD      = lambda: ql.UnitedStates(ql.UnitedStates.FederalReserve)
-    NYM     = lambda: ql.UnitedStates(ql.UnitedStates.NYSE)     ## NYMEX energy: no-settlement days match NYSE's; not US (SOFR), which closes on Columbus/Veterans Day
-    ICE     = lambda: ql.UnitedKingdom(ql.UnitedKingdom.Exchange)  ## ICE Futures Europe oil - TODO: adjust, it trades on certain UK bank holidays
     GB      = ql.UnitedKingdom
     EUTA    = ql.TARGET
     SZ      = ql.Switzerland    ## changed from SW to bbg code
