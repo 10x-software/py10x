@@ -131,6 +131,25 @@ public:
         throw runtime_error("not usable - origin cache is not reachable");
     }
 
+    //-- where an embedded object is stored, as the current scope knows it
+    struct Holder {
+        const BTraitableClass*  cls = nullptr;
+        py::object              id;
+        const BTrait*           trait = nullptr;
+
+        explicit operator bool() const  { return cls != nullptr; }
+        [[nodiscard]] bool is(const BTraitable* holder, const BTrait* holder_trait) const;
+        [[nodiscard]] py::str place() const;    //-- Class/id.trait
+    };
+
+    [[nodiscard]] Holder    holder() const;
+    void                    set_holder(const BTraitable* holder, const BTrait* trait);
+    [[nodiscard]] bool      is_held_by(const Holder& holder) const;     //-- a move through a container leaves the record behind: still there?
+    void                    take_place(BTraitable* holder, const BTrait* trait, bool met_before);
+
+    //-- the embedded object a value is, or nullptr
+    static BTraitable*      embeddable_of(const py::handle& value);
+
     [[nodiscard]] const BTraitableClass*  my_class() const            { return m_tid.cls(); }
     [[nodiscard]] BUiClass*         bui_class() const           { return my_class()->bui_class(); }
     [[nodiscard]] py::str           class_name() const          { return my_class()->name(); }

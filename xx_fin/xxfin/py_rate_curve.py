@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from core_10x.traitable import T
+from core_10x.traitable import RT, T
 from xxcommon.curve import DateCurve
 from xxcommon.rdate import BIZDAY_ROLL_RULE, PROPAGATE_DATES, TENOR_FREQUENCY, RDate
 
@@ -288,7 +288,10 @@ class RateCurve(DateCurve):
         d1: date, d2: date,
         dc_convention_init: DAY_COUNT_CONVENTION, compounding_init: COMPOUNDING,
         dc_convention_conv: DAY_COUNT_CONVENTION, compounding_conv: COMPOUNDING
-    ) -> tuple:  #-- (coverted rate, converted dc_fraction)
+    ) -> tuple:
+        """
+        Returns (converted rate, converted dc_fraction)
+        """
         t_init = dc_convention_init(d1, d2)
         t_conv = dc_convention_conv(d1, d2)
         acc    = compounding_apply(compounding_init, COMPOUND_TRANSFORM.RATE_TO_ACCRUAL, t_init, r_init)
@@ -298,9 +301,9 @@ class RateCurve(DateCurve):
 
 ## Baaaad name
 class AccrualRatioCurve(DateCurve):
-    over_curve: RateCurve   = T(T.EMBEDDED)
-    under_curve: RateCurve  = T(T.EMBEDDED)
-    scale: float            = T()
+    over_curve: RateCurve   = RT()
+    under_curve: RateCurve  = RT()
+    scale: float            = RT()
 
     def value(self, d: date) -> float:
         over_accrual = self.over_curve.accrual(d)

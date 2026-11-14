@@ -18,6 +18,7 @@ from core_10x.named_constant import NamedCallable
 from core_10x.package_refactoring import PackageRefactoring
 from core_10x.py_class import PyClass
 from core_10x.rc import RC, RC_TRUE
+from core_10x.scenario import Scenario
 from core_10x.trait import ClassTrait, Trait
 from core_10x.trait_definition import RT, M, T, TraitDefinition, TraitModification
 from core_10x.trait_method_error import TraitMethodError
@@ -624,7 +625,7 @@ def test_anonymous_traitable(monkeypatch):
     s = y.serialize_object()
     assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X'}
 
-    z = Z(y=1, x=x, _replace=True)
+    z = Z(y = 1, x = X(a = 1), _replace = True)  # its own X: an embedded object has one holder
     s = z.serialize_object()
     assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X'}
 
@@ -645,7 +646,7 @@ def test_anonymous_traitable(monkeypatch):
         def load_data(cls, id):
             return None
 
-    wide = Wide(w=1, embedded=x, _replace=True)
+    wide = Wide(w = 1, embedded = X(a = 1), _replace = True)
     assert wide.serialize_object()['embedded'] == {
         '_obj': {'a': 1},
         '_type': '_nx',
@@ -656,7 +657,7 @@ def test_anonymous_traitable(monkeypatch):
     ref_only = _T3(x=Y(y=9), _replace=True)
     assert isinstance(ref_only.serialize_object()['x'], str)
     with pytest.raises(TraitMethodError, match=r'NOT_EMBEDDABLE trait cannot hold embeddable'):
-        _T3(x=x, _replace=True).serialize_object()
+        _T3(x = X(a = 1), _replace = True).serialize_object()
 
 
 class TestSerializeEmbedded:
@@ -2073,6 +2074,11 @@ class TestCycles:
         a.ref = b
         b.ref = a
         root = node(k=uuid6.uuid7().hex)
+        if node is self.Embeddable:  # a is held by b: an embedded object has one holder
+            with pytest.raises(ValueError, match = 'is held by'):
+                root.ref = a
+            return
+
         root.ref = a
         with self._serialization_context(node):
             root.serialize_object(save_references=int(mode))
@@ -2099,7 +2105,7 @@ class TestCycles:
         a = node()
         b = node()
         a.ref = b
-        a.lref = [b]
+        a.lref = [b] if node is self.Ref else [node()]  # an embedded object is stored in one place: the list gets its own
         ser = a.serialize_object(save_references=int(mode))
         assert isinstance(ser, dict)
         assert ser.get('ref') is not None
@@ -2212,3 +2218,158 @@ def test_embeddable_save_says_it_has_no_collection():
 
     with pytest.raises(AssertionError, match = 'may not have a collection'):
         _DescribeEmbeddable.collection(None, create_if_needed = True)
+
+
+class _HeldLeaf(Traitable, embeddable = True):
+    v: int = T()
+
+
+class _HeldPart(Traitable, embeddable = True):
+    x: int = T()
+    leaf: _HeldLeaf = T()
+
+
+class _Holder(Traitable):
+    name: str = T(T.ID)
+    part: _HeldPart = T()
+    parts: list = T()
+    preview: _HeldPart = RT()
+
+
+class TestEmbeddedSingleHolder:
+    """
+    An embedded object is stored in one place: one stored trait of one holder, or one container in it.
+    A stored trait refuses a second holder at the assignment; a container is checked when its holder is serialized.
+    """
+
+    def test_a_second_holder_is_refused_at_the_assignment(self):
+        with CACHE_ONLY():
+            a, b, p = _Holder(name = 'sh_a1'), _Holder(name = 'sh_b1'), _HeldPart(x = 1)
+            a.part = p
+
+            with pytest.raises(ValueError, match = r'_HeldPart/\w+ is held by _Holder/sh_a1\.part: it cannot also be held by _Holder/sh_b1\.part'):
+                b.part = p
+            assert b.part is XNone
+
+    def test_a_move_needs_a_release(self):
+        with CACHE_ONLY():
+            a, b, p = _Holder(name = 'sh_a2'), _Holder(name = 'sh_b2'), _HeldPart(x = 1)
+            a.part = p
+            a.part = XNone
+            b.part = p
+            assert b.part is p
+
+            with pytest.raises(ValueError, match = r'is held by _Holder/sh_b2\.part'):
+                a.part = p
+
+    def test_set_again_where_it_is(self):
+        with CACHE_ONLY():
+            a, p = _Holder(name = 'sh_a3'), _HeldPart(x = 1)
+            a.part = p
+            a.part = p
+            assert a.part is p
+
+    def test_a_runtime_trait_is_not_a_holder(self):
+        with CACHE_ONLY():
+            a, b, p = _Holder(name = 'sh_a4'), _Holder(name = 'sh_b4'), _HeldPart(x = 1)
+            a.preview = p
+            b.preview = p
+            b.part = p
+            a.preview = p
+            assert (a.preview, b.preview, b.part) == (p, p, p)
+
+    def test_twice_in_one_container(self):
+        with CACHE_ONLY():
+            a, p = _Holder(name = 'sh_a5'), _HeldPart(x = 1)
+            a.parts = []
+            a.parts.append(p)
+            a.parts.append(p)  # nothing sees either append
+
+            with pytest.raises(TraitMethodError, match = r'is stored twice: in _Holder/sh_a5\.parts and in _Holder/sh_a5\.parts'):
+                a.serialize_object()
+
+    def test_a_trait_and_a_container_of_one_holder(self):
+        with CACHE_ONLY():
+            a, q = _Holder(name = 'sh_a6'), _HeldPart(x = 1)
+            a.part = q
+            a.parts = [q]
+
+            with pytest.raises(TraitMethodError, match = r'is stored twice: in _Holder/sh_a6\.part and in _Holder/sh_a6\.parts'):
+                a.serialize_object()
+
+    def test_two_holders_through_containers(self):
+        with CACHE_ONLY():
+            a, b, r = _Holder(name = 'sh_a7'), _Holder(name = 'sh_b7'), _HeldPart(x = 1)
+            a.parts, b.parts = [r], [r]
+            a.serialize_object()  # the first to be serialized takes it
+
+            with pytest.raises(TraitMethodError, match = r'is held by _Holder/sh_a7\.parts: it cannot also be held by _Holder/sh_b7\.parts'):
+                b.serialize_object()
+
+    def test_a_move_through_a_container(self):
+        """Taking it out of the container is the release: nothing has to be told."""
+        with CACHE_ONLY():
+            a, b, p = _Holder(name = 'sh_a8'), _Holder(name = 'sh_b8'), _HeldPart(x = 1)
+            a.parts = [p]
+            a.serialize_object()
+
+            a.parts.remove(p)
+            b.parts = [p]
+            assert b.serialize_object()['parts'][1] == {'x': 1, 'leaf': None}
+            a.serialize_object()
+
+            c = _Holder(name = 'sh_c8')
+            b.parts.remove(p)
+            c.part = p  # the same through a trait
+
+    def test_nested_embedding_records_the_direct_holder(self):
+        with CACHE_ONLY():
+            a, p, other, leaf = _Holder(name = 'sh_a9'), _HeldPart(x = 1), _HeldPart(x = 2), _HeldLeaf(v = 1)
+            p.leaf = leaf
+            a.part = p
+            a.serialize_object()
+
+            with pytest.raises(ValueError, match = r'_HeldLeaf/\w+ is held by _HeldPart/\w+\.leaf'):
+                other.leaf = leaf
+
+    def test_loading_records_the_holder(self):
+        with DuckDbStore():
+            a, b = _Holder(name = 'sh_a10'), _Holder(name = 'sh_b10')
+            a.part = _HeldPart(x = 1)
+            a.save().throw()
+            assert a.reload()  # builds a new embedded object from the store
+
+            with pytest.raises(ValueError, match = r'is held by _Holder/sh_a10\.part'):
+                b.part = a.part
+
+    def test_the_record_is_per_scope(self):
+        with CACHE_ONLY():
+            a, b, p = _Holder(name = 'sh_a11'), _Holder(name = 'sh_b11'), _HeldPart(x = 1)
+            a.part = p
+
+            with Scenario():
+                a.part = XNone
+                b.part = p  # a move inside the Scenario
+
+            with pytest.raises(ValueError, match = r'is held by _Holder/sh_a11\.part'):
+                b.part = p  # outside, a still holds it
+
+    def test_an_embeddable_serialized_on_its_own_is_not_checked(self):
+        with CACHE_ONLY():
+            a, p = _Holder(name = 'sh_a12'), _HeldPart(x = 1)
+            assert p.serialize(True) == {'x': 1, 'leaf': None}
+            a.part = p
+            assert p.serialize(True) == {'x': 1, 'leaf': None}
+
+    def test_find_holders_with_and_without_a_record(self):
+        with CACHE_ONLY():
+            a, p, q, leaf = _Holder(name = 'sh_a13'), _HeldPart(x = 1), _HeldPart(x = 2), _HeldLeaf(v = 1)
+            p.leaf = leaf
+            a.part = p  # recorded at the assignment
+            a.parts = []
+            a.parts.append(q)  # no record: found by the scan
+
+            cache = BTP.current().cache()
+            for obj in (p, q, leaf):
+                holders = cache.find_holders([obj])
+                assert [(type(holder), holder.id().value) for holder in holders] == [(_Holder, 'sh_a13')]

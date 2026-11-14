@@ -26,6 +26,7 @@ public:
     static py::object TYPE_TAG()            { return py::str("_type"); };
     static py::object CLASS_TAG()           { return py::str("_cls"); }
     static py::object REVISION_TAG()        { return py::str("_rev"); }
+    static py::object HOLDER_TAG()          { return py::str("_holder"); }
     static py::object OBJECT_TAG()          { return py::str("_obj"); }
     static py::object COLLECTION_TAG()      { return py::str("_coll"); }
     static py::object ID_TAG()              { return py::str("_id"); }

@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from core_10x.ts_store import TsCollection
 
 _REV = Nucleus.REVISION_TAG()
+_HOLDER = Nucleus.HOLDER_TAG()
 
 class Index:
     """Declarative definition of a collection index for a Traitable subclass.
@@ -225,6 +226,15 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             T(T.RESERVED | T.RUNTIME, data_type=str),
         )
 
+    @classmethod
+    @cache
+    def holder_trait(cls) -> Trait:
+        #-- kept by the kernel on an embedded object: (holder class, holder id, trait name)
+        return Trait.create(
+            _HOLDER,
+            RT(T.RESERVED, data_type = tuple),
+        )
+
     def _collection_name_set(self, trait, value) -> RC:
         # Getter in C++ (BTraitable.collection_name); setter stays in Python — setters are not performance-critical.
         self.id().collection_name = value
@@ -382,6 +392,9 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
             trait_dir[trait_name] = Trait.create(trait_name, trait_def)
 
         cls._post_build_trait_dir(trait_dir)
+
+        if cls.s_embeddable:
+            trait_dir[_HOLDER] = cls.holder_trait()  #-- where the object is stored: one place only
 
         if not cls.is_storable():
             for trait_name in reserved_storable_traits:

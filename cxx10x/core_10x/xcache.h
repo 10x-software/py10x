@@ -463,6 +463,17 @@ public:
     //-- an embedded object is stored inside its holder: the ordinary objects of THIS cache holding any of objs, directly or through other embedded ones
     py::list find_holders(const py::list& objs) const;
 
+    //-- is the object this value, or an item of it? (a list, tuple, set or dict, a few levels deep)
+    static bool holds(const py::object& value, const TID& tid);
+
+    //-- the value of a trait as this cache sees it, with nothing computed: the nearest node decides
+    [[nodiscard]] BasicNode* find_valid_node(const TID& tid, const BTrait* trait) const {
+        for (auto cache = this; cache; cache = cache->m_parent)
+            if (const auto node = cache->find_node(tid, trait))
+                return node->is_valid() ? node : nullptr;
+        return nullptr;
+    }
+
     void perturb_existing_node(BTraitableClass* cls, const py::object& id, const BTrait* trait, const py::object& value) const {
         if (const auto node = find_node(TID(cls, id), trait))
             node->set(value);

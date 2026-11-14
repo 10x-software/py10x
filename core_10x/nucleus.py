@@ -12,6 +12,7 @@ class Nucleus:
     TYPE_TAG            = BNucleus.TYPE_TAG
     CLASS_TAG           = BNucleus.CLASS_TAG
     REVISION_TAG        = BNucleus.REVISION_TAG
+    HOLDER_TAG          = BNucleus.HOLDER_TAG
     OBJECT_TAG          = BNucleus.OBJECT_TAG
     COLLECTION_TAG      = BNucleus.COLLECTION_TAG
     ID_TAG              = BNucleus.ID_TAG
