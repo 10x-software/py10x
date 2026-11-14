@@ -14,6 +14,7 @@ Changes since **0.1.2**. The next release is 0.2.0.
 - **`IRSwapQuotable` leg schedules**: `fixed_start_dates` / `fixed_end_dates` / `fixed_pay_dates` / `fixed_dc_fractions`, `pay_date` (the last payment) and `swap_rate_calc(rate_curve, today)`. The py and C++ bootstraps read their schedules from the quotable.
 - **`RateCurve` schedule helpers** (`xxfin/py_rate_curve.py`): `period_dates`, `discount_factors_by_date`, `annuity_for_dc_fractions`, `swap_float_leg_for_period_dates`, `swap_float_leg_simple_compounding`, `swap_rate_for_period_dates`; a date shared by both legs is discounted once.
 - **`SNAPSHOT.MANUAL`**: snapshot type for manual market-data overrides, e.g. of a fixing.
+- **Exchange calendars** (`xxfin/fin_calendar.py`, `KNOWN_CALENDARS`): `NYM` (NYMEX energy, QuantLib NYSE calendar) and `ICE` (ICE Futures Europe, provisionally the QuantLib UK exchange calendar; ICE trades on some UK bank holidays).
 
 ### Changed
 - **Static market dependencies retired** (breaking): `FinInstrument.mkt_deps`, `mkt_deps_for_discounting` and `mkt_deps_for_ccy` are gone; discover dependencies at run time with `MktDeps`.
