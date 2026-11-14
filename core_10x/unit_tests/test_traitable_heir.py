@@ -47,7 +47,7 @@ def cache_only(request):
 
 
 def make_grantor(mkt_name='WTI NYMEX', **values) -> Conventions:
-    values = {'days_to_settle': 2, 'calendar': 'CME', 'settlement': 'PHYSICAL'} | values
+    values = {'days_to_settle': 2, 'calendar': 'NYM', 'settlement': 'PHYSICAL'} | values
     return Conventions(mkt_name=mkt_name, **values, _replace=True)
 
 
@@ -68,7 +68,7 @@ class TestInheritance:
         heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
 
         assert heir.days_to_settle == 2
-        assert heir.calendar == 'CME'
+        assert heir.calendar == 'NYM'
 
     def test_traits_with_default_or_getter_are_not_inherited(self, cache_only):
         grantor = make_grantor()
@@ -104,12 +104,12 @@ class TestInheritance:
 
     def test_regranting(self, cache_only):
         nymex = make_grantor()
-        ice = make_grantor('ICE', calendar='ICE_EU')
+        ice = make_grantor('ICE', calendar='ICE')
         heir = Conventions(mkt_name='WTI ICE', _grantor=nymex, _replace=True)
-        assert heir.calendar == 'CME'
+        assert heir.calendar == 'NYM'
 
         heir._grantor = ice
-        assert heir.calendar == 'ICE_EU'
+        assert heir.calendar == 'ICE'
 
     def test_chain_of_grantors(self, cache_only):
         root = make_grantor()
