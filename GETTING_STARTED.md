@@ -786,6 +786,8 @@ with CACHE_ONLY():
     assert person.serialize_object()['address'] == {'street': '123 Main St', 'city': 'Anytown', 'zip_code': '12345'}
 ```
 
+**One holder.** An embedded object is stored in one place. Setting it on a stored trait of a second object raises `ValueError`; to move it, release it first (`first.address = XNone`). Inside a `list`, `set`, `dict` or `tuple` the rule is checked when the holder is serialized or saved: the same embedded object twice in one holder, or in two holders, raises there. Taking it out of a container is the release. A runtime trait may refer to an embedded object freely.
+
 ### Forward References to Sibling Traitable Classes
 
 When two `Traitable` classes reference each other — or when a class is defined after the one that references it — you can use a **bare string annotation** to defer resolution until the referenced class has been registered:

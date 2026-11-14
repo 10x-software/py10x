@@ -40,6 +40,84 @@ OriginScope::OriginScope(const BTraitable* obj) {
         m_use.emplace(BTraitableProcessor::create_with_cache(origin, proc->flags()), true);
 }
 
+//======================================================================================================================
+//  An embedded object is stored in one place: it remembers its holder and the holder's trait, one record per scope
+//======================================================================================================================
+
+bool BTraitable::Holder::is(const BTraitable* holder, const BTrait* holder_trait) const {
+    return cls == holder->my_class() && trait == holder_trait && holder->tid().is_valid() && TID(cls, id) == holder->tid();
+}
+
+py::str BTraitable::Holder::place() const {
+    return py::str("{}/{}.{}").format(cls->name(), id.attr("value"), trait->name());
+}
+
+BTraitable::Holder BTraitable::holder() const {
+    Holder res;
+    const auto record_trait = my_class()->find_trait(BNucleus::HOLDER_TAG());
+    if (!record_trait || !m_tid.is_valid())
+        return res;
+
+    //-- the node is read as it is: no getter, no lazy load
+    const auto node = ThreadContext::current_traitable_proc()->cache()->find_valid_node(m_tid, record_trait);
+    if (!node)
+        return res;
+
+    const auto value = node->value();
+    if (!py::isinstance<py::tuple>(value))
+        return res;
+
+    const auto record = value.cast<py::tuple>();
+    const auto cls = record[0].attr("s_bclass").cast<BTraitableClass*>();
+    if (const auto trait = cls->find_trait(py::object(record[2]))) {
+        res.cls = cls;
+        res.id = py::object(record[1]);
+        res.trait = trait;
+    }
+    return res;
+}
+
+void BTraitable::set_holder(const BTraitable* holder, const BTrait* trait) {
+    const auto record_trait = my_class()->find_trait(BNucleus::HOLDER_TAG());
+    if (!record_trait || !holder->tid().is_valid())     //-- a holder with no ID yet is recorded once it is serialized
+        return;
+
+    //-- the raw set: a tracker must not take it for a change of the embedded object
+    raw_set_value(record_trait, py::make_tuple(holder->my_class()->py_class(), holder->id(), trait->name()));
+}
+
+bool BTraitable::is_held_by(const Holder& holder) const {
+    const auto cache = ThreadContext::current_traitable_proc()->cache();
+    const auto node = cache->find_valid_node(TID(holder.cls, holder.id), holder.trait);
+    return node && XCache::holds(node->value(), m_tid);
+}
+
+//-- asked at every set of a stored trait, so the type is looked up once
+BTraitable* BTraitable::embeddable_of(const py::handle& value) {
+    static const auto traitable_type = reinterpret_cast<PyTypeObject*>(py::type::of<BTraitable>().ptr());
+    if (!PyObject_TypeCheck(value.ptr(), traitable_type))
+        return nullptr;
+
+    const auto obj = value.cast<BTraitable*>();
+    return obj->my_class()->is_embeddable() ? obj : nullptr;
+}
+
+//-- an embedded object met while its holder is serialized: it must sit there, and only once
+void BTraitable::take_place(BTraitable* holder, const BTrait* trait, const bool met_before) {
+    const auto held = this->holder();
+    const auto here = py::str("{}/{}.{}").format(holder->class_name(), holder->id_value(), trait->name());
+    if (met_before)
+        throw py::value_error(py::str("{}/{} is stored twice: in {} and in {}").format(class_name(), id_value(), held ? held.place() : here, here));
+
+    if (held.is(holder, trait))
+        return;
+
+    if (held && is_held_by(held))
+        throw py::value_error(py::str("{}/{} is held by {}: it cannot also be held by {}").format(class_name(), id_value(), held.place(), here));
+
+    set_holder(holder, trait);
+}
+
 py::object BTraitable::lazy_load_if_needed() {
     const auto flags = lazy_load_flags();
 
@@ -360,7 +438,10 @@ py::object BTraitable::serialize_nx(const bool embed) {
         return res;
     }
 
-    ThreadContext::EmbedSerializationScope embed_scope(m_tid);
+    ThreadContext::EmbedSerializationScope embed_scope(m_tid);      //-- first: a loop must be reported as a loop
+    if (const auto place = ThreadContext::holding(); place && place->trait)
+        take_place(place->holder, place->trait, ThreadContext::met_before(m_tid));
+
     return serialize_traits();
 }
 
@@ -383,7 +464,10 @@ py::object BTraitable::deserialize_nx(const BTraitableClass *cls, const py::dict
 
     //-- Embedded traitable
     auto py_traitable = cls->py_class()();      // cls() - exogenous iD!
-    py_traitable.cast<BTraitable*>()->deserialize_traits(serialized_data);
+    const auto embedded = py_traitable.cast<BTraitable*>();
+    if (const auto place = ThreadContext::holding(); place && place->trait)
+        embedded->set_holder(place->holder, place->trait);      //-- loaded from inside its holder: that is where it sits
+    embedded->deserialize_traits(serialized_data);
     return py_traitable;
 }
 
@@ -436,6 +520,7 @@ py::dict BTraitable::serialize_traits() {
     py::dict res;
     const auto XNone = PyLinkage::XNone();
     const OriginScope scope(this);
+    const ThreadContext::HoldingScope pass(this, nullptr);      //-- no trait yet: it only keeps the pass open from the first trait to the last
     const auto proc = ThreadContext::current_traitable_proc();
     bool has_ts = false;
     for (const auto &[trait_name_handle, trait_value_handle] : my_class()->trait_dir()) {
@@ -449,6 +534,7 @@ py::dict BTraitable::serialize_traits() {
                 throw py::value_error(py::str("{}.{} - undefined value").format(class_name(), trait_name));
 
             //-- XNone is serialized as None (undefined)
+            const ThreadContext::HoldingScope holding(this, trait);
             const auto ser_value = value.is(XNone) ? py::none() : trait->wrapper_f_serialize(my_class(), value);
             res[trait_name] = ser_value;
         }
@@ -478,6 +564,7 @@ void BTraitable::deserialize_traits(const py::dict& trait_values) {
             proc->invalidate_trait_value(this, trait);      //-- TODO: should we set None instead?
         else {
             //-- As XNone is serialized as None, get it back, if any
+            const ThreadContext::HoldingScope holding(this, trait);
             const auto deser_value = value.is_none() ? XNone : trait->wrapper_f_deserialize(my_class(), value);
             if (const BRC rc(set_value(trait, deser_value)); !rc)
                 throw py::value_error(rc.error());

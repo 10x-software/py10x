@@ -619,18 +619,18 @@ class TestSaveIfChanged:
         owner = owner()
         owner.part.leaf = _Leaf(value = 1)
         item = _Part(value = 1)
-        owner.parts = [item, item]
+        owner.parts = [item]
         owner.save().throw()
 
         ctx = SaveIfChanged(auto_save = False)
         with ctx:
             owner.part.leaf.value = 2  # embedded in embedded
-            item.value = 2  # twice in a list
+            item.value = 2  # in a list
         ctx.save().throw()
 
         assert owner.reload()
         assert owner.part.leaf.value == 2
-        assert [p.value for p in owner.parts] == [2, 2]
+        assert [p.value for p in owner.parts] == [2]
 
     def test_save_if_changed_reload_reverts_an_embedded_object_changed_in_place(self, owner):
         owner = owner()

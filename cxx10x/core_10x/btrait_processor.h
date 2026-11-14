@@ -41,6 +41,9 @@ public:
 
     //---- Setting (raw) trait value
 
+    //-- an embeddable is stored in one place: a stored trait that is set to one takes it, unless another holder has it
+    static void hold_embedded(BTraitable* obj, const BTrait* trait, const py::object& value);
+
     virtual py::object raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value) const;
     virtual py::object raw_set_value_off_graph(const BTraitableProcessor *proc, BTraitable *obj, const BTrait *trait, const py::object &value, const py::args &args) const;
 

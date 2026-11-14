@@ -287,11 +287,44 @@ namespace {
     }
 }
 
+bool XCache::holds(const py::object& value, const TID& tid) {
+    TIDs wanted;
+    wanted.insert(tid.copy_valid());
+    return ::holds(value.ptr(), wanted, reinterpret_cast<PyTypeObject*>(py::type::of<BTraitable>().ptr()));
+}
+
+namespace {
+    //-- the record leads straight to the holder, through embedded holders too: true once an ordinary holder in this cache is found
+    bool follow_record(const XCache* cache, const BTraitable* embedded, TIDs& found) {
+        py::object on_the_way;      //-- keeps an embedded holder alive while its own record is read
+        for (int depth = 0; depth < 16; ++depth) {      //-- an object that holds itself must not loop here
+            const auto holder = embedded->holder();
+            if (!holder)
+                return false;
+
+            const TID holder_tid(holder.cls, holder.id);
+            const auto node = cache->find_node(holder_tid, holder.trait);       //-- this cache only, as the scan does
+            if (!node || !node->is_valid() || !XCache::holds(node->value(), embedded->tid()))
+                return false;       //-- a stale record
+
+            if (!holder.cls->is_embeddable()) {
+                found.insert(holder_tid.copy_valid());
+                return true;
+            }
+            on_the_way = holder.cls->from_id(holder.id);
+            embedded = on_the_way.cast<const BTraitable*>();
+        }
+        return false;
+    }
+}
+
 py::list XCache::find_holders(const py::list& objs) const {
     TIDs wanted, found;
-    for (const auto& obj : objs)
-        if (const auto& tid = obj.cast<const BTraitable*>()->tid(); tid.is_valid())
-            wanted.insert(tid.copy_valid());
+    for (const auto& obj : objs) {
+        const auto embedded = obj.cast<const BTraitable*>();
+        if (const auto& tid = embedded->tid(); tid.is_valid() && !follow_record(this, embedded, found))
+            wanted.insert(tid.copy_valid());        //-- no record, or a stale one: left to the scan
+    }
 
     const auto traitable_type = reinterpret_cast<PyTypeObject*>(py::type::of<BTraitable>().ptr());
     std::unordered_map<const BTraitableClass*, std::vector<const BTrait*>> traits_by_class;    //-- per class: its stored traits that may hold an object
@@ -312,7 +345,7 @@ py::list XCache::find_holders(const py::list& objs) const {
 
             for (const auto trait : traits_of(tid.cls())) {
                 const auto node = oc->find_node(trait);
-                if (!node || !holds(node->value().ptr(), wanted, traitable_type))
+                if (!node || !::holds(node->value().ptr(), wanted, traitable_type))     //-- the walk above, not XCache::holds
                     continue;
 
                 if (tid.cls()->is_embeddable()) {

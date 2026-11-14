@@ -154,9 +154,29 @@ void BTraitProcessor::invalidate_value_on_graph(const BTraitableProcessor* proc,
 
 //---- Setting (raw) trait value
 
+void BTraitProcessor::hold_embedded(BTraitable* obj, const BTrait* trait, const py::object& value) {
+    if (trait->flags_on(BTraitFlags::RUNTIME))
+        return;     //-- a runtime trait is a reference, not a holder
+
+    const auto embedded = BTraitable::embeddable_of(value);
+    if (!embedded)
+        return;
+
+    const auto held = embedded->holder();
+    if (held.is(obj, trait))
+        return;     //-- set again where it already is
+
+    if (held && embedded->is_held_by(held))
+        throw py::value_error(py::str("{}/{} is held by {}: it cannot also be held by {}/{}.{}")
+            .format(embedded->class_name(), embedded->id_value(), held.place(), obj->class_name(), obj->id_value(), trait->name()));
+
+    embedded->set_holder(obj, trait);
+}
+
 py::object BTraitProcessor::raw_set_value_off_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::object& value) const {
     auto cache = proc->cache();
     auto node = cache->find_or_create_node(obj, trait, false);
+    hold_embedded(obj, trait, value);
     node->set(value);
     return PyLinkage::RC_TRUE();
 }
@@ -171,6 +191,7 @@ py::object BTraitProcessor::raw_set_value_off_graph(const BTraitableProcessor* p
 py::object BTraitProcessor::raw_set_value_on_graph(const BTraitableProcessor* proc, BTraitable* obj, const BTrait* trait, const py::object& value) const {
     auto cache = proc->cache();
     auto node = cache->find_or_create_node(obj, trait, false);   // TODO: make sure an existing BASIC node, if any, is converted to GRAPH
+    hold_embedded(obj, trait, value);
     node->set(value);
     return PyLinkage::RC_TRUE();
 }
