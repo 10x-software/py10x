@@ -652,7 +652,7 @@ class Traitable(BTraitable, Nucleus, metaclass=TraitableMetaclass):
         return self.get_value(item)
 
     def __setitem__(self, key, value):
-        return self.set_value(key, value)
+        self.set_value(key, value).throw()
 
     # ===================================================================================================================
     #   The following methods are available from c++
@@ -1462,7 +1462,7 @@ class traitable_trait(concrete_traits.nucleus_trait, data_type=Traitable, base_c
             return def_value
 
         if isinstance(def_value, str):  # -- id
-            return self.data_type.instance_by_id(def_value)
+            return self.data_type.existing_instance_by_id(_id_value=def_value)
 
         if isinstance(def_value, dict):  # -- trait values
             return self.data_type(**def_value)

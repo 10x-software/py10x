@@ -78,6 +78,8 @@ Understanding traitable creation is key to using the framework effectively:
    - If no existing instance found: Creates new instance with default trait values
    - If existing instance found: Creates new instance but shares trait values from existing instance
 
+Never override `__init__` on a traitable (doing so raises `TypeError`); put construction-time logic in `__post_init__(self)`. It runs on every construction — including one that shares an existing ID — so keep it idempotent.
+
 ### Why Storage Context is Required
 
 ```python
@@ -143,22 +145,24 @@ Any trait can be computed on-demand by defining a getter method:
 
 ```python
 from core_10x.exec_control import CACHE_ONLY
+from core_10x.trait import trait_value
 from core_10x.traitable import Traitable, T, RT
 from datetime import date
 
 class Person(Traitable):
-    first_name: str = T(T.ID)  # ID trait
-    last_name: str = T(T.ID)   # ID trait
-    dob: date = T()
-    
+    first_name: str  = T(T.ID)  // 'given name'
+    last_name: str   = T(T.ID)  // 'family name'
+    dob: date        = T()      // 'date of birth'
+
     # Computed traits using getters
-    full_name: str = RT()  # Runtime trait
-    age: int = T()         # Regular trait that can be computed
-    
+    full_name: str   = RT()     // 'first and last name'
+    age: int         = T()      // 'full years, from dob'
+    older_than: bool = RT()     // 'older than the given number of years'
+
     def full_name_get(self) -> str:
         """Getter method - computes full name on-demand."""
         return f"{self.first_name} {self.last_name}"
-    
+
     def age_get(self) -> int:
         """Getter method - computes age from date of birth."""
         if not self.dob:
@@ -169,11 +173,48 @@ class Person(Traitable):
             years -= 1
         return years
 
+    def older_than_get(self, years: int) -> bool:
+        """A getter with parameters: the trait is read as a call."""
+        return self.age > years
+
 # Usage
 with CACHE_ONLY():
     person = Person(first_name="Alice", last_name="Smith", dob=date(1990, 5, 15), _replace=True)
     assert person.full_name == "Alice Smith"  # Computed
     assert person.age == date.today().year - 1990 - (1 if (date.today().month, date.today().day) < (5, 15) else 0)
+    assert person.older_than(30) and not person.older_than(90)
+
+    # Each argument set has its own value; set one with trait_value(value, *args)
+    person.older_than = trait_value(True, 90)
+    assert person.older_than(90)
+
+assert Person.trait('dob').ui_hint.tip == 'date of birth'
+assert Person.trait('dob').ui_hint.label == 'Dob'   # the label still comes from the name
+```
+
+`// 'text'` attaches a description to a trait: it is the trait's tooltip in the UI and its `tip` in [class introspection](#class-introspection). Without one, the tip is the label, which is built from the trait name.
+
+A trait marked `T.EVAL_ONCE` runs its getter on first read and keeps that value; assigning to it afterwards raises `TypeError`:
+
+```python
+from datetime import datetime
+from core_10x.traitable import Traitable, T, RT
+
+class Session(Traitable):
+    user: str         = RT(T.ID)
+    started: datetime = RT(T.EVAL_ONCE)  // 'computed on first read, then frozen'
+
+    def started_get(self) -> datetime:
+        return datetime.now()
+
+s = Session(user='alice')
+assert s.started == s.started
+try:
+    s.started = datetime.now()
+except TypeError as e:
+    assert 'EVAL_ONCE' in str(e)
+else:
+    assert False, 'EVAL_ONCE trait must not be modified'
 ```
 
 ### Setters (Validation and Transformation)
@@ -215,6 +256,8 @@ except RuntimeError as e:
 
 person.email = 'alice@example.com'  # Valid email - succeeds
 person.age = 25  # Valid age - succeeds
+person['age'] = 26  # By name - same as person.age = 26, setter included
+assert person['age'] == 26
 
 # Programmatic setting with accumulated RC
 result = person.set_values(age=30, email='bob@example.com')
@@ -224,13 +267,14 @@ if not result:
 
 ### Verifiers (Validation on verify() and save())
 
-Verifiers are validation methods that run only when `entity.verify()` is called or when the entity is saved (because `save()` calls `verify()` first). Unlike setters, they are **not** run on assignment. Use verifiers for checks that do not need to block assignment (e.g. cross-field or deferred validation).
+Verifiers are validation methods that run only when `entity.verify()` is called or when the entity is saved (because `save()` calls `verify()` first). Unlike setters, they are **not** run on assignment. Use verifiers for checks that do not need to block assignment. A `*_verify` method checks one trait; put checks across traits in `post_verify(self)`, which runs only after every trait has passed its own checks. `T.NOT_EMPTY` makes a trait required without writing a verifier.
 
 ```python
-from core_10x.traitable import Traitable, RT, RC, RC_TRUE
+from core_10x.traitable import Traitable, T, RT, RC, RC_TRUE
 
 class Example(Traitable):
-    code: str = RT()
+    code: str  = RT(T.NOT_EMPTY)  // 'required: verify() fails while empty'
+    floor: int = RT(0)
     limit: int = RT(0)
 
     def code_verify(self, t, value: str) -> RC:
@@ -244,8 +288,16 @@ class Example(Traitable):
             return RC(False, "limit must be <= 100")
         return RC_TRUE
 
-# Invalid values can be set; verification fails when requested
+    def post_verify(self) -> RC:
+        """Cross-trait check; runs only after every trait passed its own checks."""
+        if self.floor > self.limit:
+            return RC(False, f"floor {self.floor} exceeds limit {self.limit}")
+        return RC_TRUE
+
 e = Example()
+assert "must not be empty" in e.verify().error()  # NOT_EMPTY
+
+# Invalid values can be set; verification fails when requested
 e.code = "invalid-code"
 e.limit = 150
 assert e.code == "invalid-code"
@@ -257,6 +309,10 @@ assert not rc  # fails due to code_verify and limit_verify
 # Fix and verify
 e.code = "valid"
 e.limit = 50
+e.floor = 60
+assert "exceeds limit" in e.verify().error()  # post_verify
+
+e.floor = 10
 e.verify().throw()  # success
 ```
 
@@ -406,6 +462,24 @@ assert person1.initials == person2.initials    # "AS"
 assert person1 == person2  # Equal due to same ID
 assert person1.id() == person2.id()  # Same ID
 # Note: person1 is person2 would be False - they're different objects
+
+assert person1.id_trait_values() == {'first_name': 'Alice', 'last_name': 'Smith'}
+bob = person1.morph(first_name="Bob")  # same class, some ID traits replaced
+assert bob.full_name == "Bob Smith"
+```
+
+For an ID trait with long values, add `T.HASH`: its value enters the ID as an MD5 digest.
+
+```python
+from core_10x.traitable import Traitable, T, RT
+
+class Document(Traitable):
+    kind: str = RT(T.ID)
+    body: str = RT(T.ID | T.HASH)  // 'long ID part: hashed into the ID'
+
+doc = Document(kind='memo', body='x' * 10_000)
+kind, digest, _ = doc.id().value.split('|')
+assert kind == 'memo' and len(digest) == 32
 ```
 
 #### Setting Non-ID Traits at Construction: `_replace` and `_update`
@@ -486,6 +560,23 @@ Here `base_ccy` and `quote_ccy` are ID_LIKE traits; changing them changes the `c
 
 When identity is built under `GRAPH_ON`, reads performed only to compute that identity (ID-trait getters inside `endogenous_id`) do not attach as upward deps of the constructing caller. See [What is (and is not) tracked as an upward dependency](#what-is-and-is-not-tracked-as-an-upward-dependency).
 
+#### NamedTraitable
+
+For entities identified by a single name, derive from `NamedTraitable`, which already has `name: str = T(T.ID)`. The name can be passed positionally:
+
+```python
+from core_10x.exec_control import CACHE_ONLY
+from core_10x.traitable import NamedTraitable, T
+
+class Ccy(NamedTraitable):
+    digits: int = T(2) // 'minor-unit digits'
+
+with CACHE_ONLY():
+    Ccy.new_or_replace(name='JPY', digits=0)
+    assert Ccy('JPY').digits == 0  # positional name: an existing instance or ValueError
+    assert Ccy(name='USD').digits == 2
+```
+
 ### Exogenous Traitables (Auto-generated UUID)
 
 ```python
@@ -559,6 +650,21 @@ calc = Calculator(x=5, y=3)
 assert calc.id() is not None  # Has ID but never persisted
 ```
 
+`Cls.runtime()` makes a runtime subclass of a storable class — the same traits, all `RUNTIME` — for what-if work that must never touch a store:
+
+```python
+from core_10x.traitable import Traitable, T
+
+class Trade(Traitable):
+    trade_id: str = T(T.ID)
+    notional: float = T()
+
+WhatIfTrade = Trade.runtime()
+t = WhatIfTrade(trade_id='T1')  # no storage context needed
+t.notional = 1e6
+assert not WhatIfTrade.is_storable() and isinstance(t, Trade)
+```
+
 ## Storage and Regular Traits
 
 Now let's introduce storage and regular (stored) traits:
@@ -577,7 +683,7 @@ class Person(Traitable):
     
     # Regular traits - stored and searchable
     dob: date = T()
-    weight_lbs: float = T()
+    weight_lbs: float = T(fmt=',.1f')  // 'weight in pounds'
     
     # Runtime traits - not stored
     age: int
@@ -608,12 +714,17 @@ class Person(Traitable):
         self.dob = date(birth_year, dob.month, dob.day)
         return RC_TRUE
 
+    def weight_lbs_to_str(self, trait, value) -> str:
+        """Display text; trait.to_str applies fmt."""
+        return f'{trait.to_str(value)} lbs'
+
 # Regular traits require storage context
 with CACHE_ONLY():  # No traitable store, in-memory caching only
     person = Person(first_name="Alice", last_name="Smith")
     person.dob = date(1990, 5, 15)
     person.weight_lbs = 130.0
-    
+    assert person.value_to_str(Person.trait('weight_lbs')) == '130.0 lbs'
+
     # Access computed traits
     assert person.age == date.today().year - 1990  # Computed from dob
     assert person.full_name == "Alice Smith"        # Computed from first_name + last_name
@@ -622,6 +733,8 @@ with CACHE_ONLY():  # No traitable store, in-memory caching only
     person.age = 25  # Updates dob automatically
     assert person.dob == date(date.today().year - 25, 5, 15)  # Updated DOB
 ```
+
+`fmt` is a Python format spec applied when a value is shown as text (in the UI, or by `value_to_str`); a `*_to_str` method replaces that text altogether.
 
 ### Traitable Store and persistence
 
@@ -743,7 +856,7 @@ class Company(Traitable):
 class Employee(Traitable):
     first_name: str = T(T.ID)
     last_name: str = T(T.ID)
-    company: Company = T()  # Reference to another traitable
+    company: Company = T({'name': 'Acme Corp'})  # Reference to another traitable; default: Company(**dict), or T('Acme Corp') for the existing one by ID
 
 # Create company and employee
 with CACHE_ONLY():
@@ -752,6 +865,8 @@ with CACHE_ONLY():
     
     # The company is stored by reference
     assert employee.serialize_object()['company'] == 'Acme Corp'
+
+    assert Employee(first_name="Bob", last_name="Jones").company == company  # the default
 ```
 
 ### Embedded Traits (Stored Embedded)
@@ -805,6 +920,23 @@ class Customer(Traitable):
 ```
 
 `py10x-core` resolves bare string annotations (simple identifiers only) lazily: as each `Traitable` class is registered, any pending forward references that match its name are patched automatically. No manual `update_forward_refs()` call is needed.
+
+A trait that refers to its own class is annotated `Self`. Every trait needs an annotation (a bare `x = T()` raises `TypeError`), so use `Any` for a trait that takes any value:
+
+```python
+from typing import Any, Self
+from core_10x.traitable import Traitable, T, RT
+
+class Node(Traitable):
+    name: str    = RT(T.ID)
+    parent: Self = RT()  // 'a Node, too'
+    payload: Any = RT()
+
+child = Node(name='child')
+child.parent = Node(name='root')
+child.payload = {'k': [1, 2]}
+assert child.parent.name == 'root'
+```
 
 If a bare name never resolves (missing import such as `date`, or a sibling Traitable that is never defined), the trait keeps an internal placeholder type. **Using** that trait — assignment, conversion, or constructing the placeholder — raises a clear error such as `` `xxfin.mkt_data_basis.date` is not defined `` rather than a misleading type-mismatch against the placeholder.
 
@@ -904,6 +1036,30 @@ with GRAPH_ON():
 throwaway parent so upward edges stop there. Prefer the automatic kernel cuts
 when they already cover the path; reach for the explicit scope only for
 application-level plumbing that is not a setter, converter, or identity build.
+
+To take one trait out of tracking everywhere, mark it `T.NOT_A_DEPENDENCY`:
+getters may read it, but changing it never invalidates them.
+
+```python
+from core_10x.exec_control import GRAPH_ON
+from core_10x.traitable import Traitable, T, RT
+
+class Quote(Traitable):
+    price: float = RT(100.0)
+    seq: int     = RT(0, T.NOT_A_DEPENDENCY)  // 'bookkeeping: read, but never invalidates readers'
+    label: str   = RT()
+
+    def label_get(self) -> str:
+        return f'#{self.seq}: {self.price}'
+
+with GRAPH_ON():
+    q = Quote()
+    assert q.label == '#0: 100.0'
+    q.seq = 1
+    assert q.label == '#0: 100.0'  # seq is not a dependency: label stays cached
+    q.price = 101.0
+    assert q.label == '#1: 101.0'
+```
 
 See unit tests in `core_10x/unit_tests/test_graph_upward_deps.py` for the
 contracts above (GraphDeps + recompute checks, plus a Ccy/CcyCross-shaped
@@ -1504,24 +1660,26 @@ with MongoStore.instance(hostname="localhost", dbname="myapp"):
 
 #### Find Existing Instance
 
-The `existing_instance` method is similar to the constructor but returns `None` if no existing instance is found:
+The `existing_instance` method takes the same ID traits as the constructor but only finds: it raises `ValueError` when no instance with that ID exists, or returns `None` with `_throw=False`:
 
 ```python
-from infra_10x.mongodb_store import MongoStore
+from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import Traitable, T
 
 class Person(Traitable):
     first_name: str = T(T.ID)
     last_name: str = T(T.ID)
 
-# Try to find existing person, return None if not found
-with MongoStore.instance(hostname="localhost", dbname="myapp"):
-    person = Person.existing_instance(first_name="Alice", last_name="Smith")
-    if person:
-        assert person.first_name == "Alice"
-        assert person.last_name == "Smith"
+with CACHE_ONLY():  # or MongoStore.instance(...)
+    Person(first_name="Alice", last_name="Smith").save()
+    assert Person.existing_instance(first_name="Alice", last_name="Smith").first_name == "Alice"
+    assert Person.existing_instance(first_name="Nobody", last_name="Smith", _throw=False) is None
+    try:
+        Person.existing_instance(first_name="Nobody", last_name="Smith")
+    except ValueError:
+        pass
     else:
-        assert False, "Person not found"
+        assert False, "existing_instance raises by default"
 ```
 
 ### SaveIfChanged — Auto-save Modified Traitables
@@ -1836,6 +1994,30 @@ with MongoStore.instance(hostname='localhost', dbname='test'):
     result = editor.dialog(save=True).exec()
 ```
 
+The editor builds its form from UI hints declared with each trait: the `// 'text'` tooltip, a `Ui(...)` widget and label, the `T.READONLY` / `T.HIDDEN` flags, a `*_choices` method for a pick list, and a `*_style_sheet` method for colors that follow the value:
+
+```python
+from core_10x.traitable import Traitable, T, RT, Ui
+
+class Order(Traitable):
+    order_id: str = RT(T.ID | T.READONLY)  // 'shown, not editable'
+    side: str     = RT('BUY', Ui.choice('Buy/Sell'))
+    qty: int      = RT(0)
+    audit: str    = RT(T.HIDDEN)  // 'not shown in editors'
+
+    def side_choices(self, trait) -> tuple:
+        return ('BUY', 'SELL')
+
+    def qty_style_sheet(self) -> dict:
+        return {Ui.FG_COLOR: 'red' if self.qty < 0 else 'green'}
+
+o = Order(order_id='o1')
+o.qty = -5
+assert Order.trait('side').ui_hint.label == 'Buy/Sell'
+assert o.get_choices(Order.trait('side')) == ('BUY', 'SELL')
+assert o.get_style_sheet(Order.trait('qty')) == {Ui.FG_COLOR: 'red'}
+```
+
 ### Collection Editor
 
 Edit collections of traitables with full CRUD operations:
@@ -1899,6 +2081,18 @@ status = Status.ACTIVE
 assert status.label == "Active"
 assert status.value == 'active'
 assert Status.INACTIVE.value == 'inact'
+```
+
+A tuple gives both the label and the value:
+
+```python
+from core_10x.named_constant import NamedConstant
+
+class WeightUnit(NamedConstant):
+    LB = ('lb', 1.0)  # (label, value)
+    KG = ('kg', 2.205)
+
+assert WeightUnit.KG.label == 'kg' and WeightUnit.KG.value == 2.205
 ```
 
 #### Enums
@@ -2147,26 +2341,65 @@ with MongoStore.instance(
 
 ```
 
+### Class Introspection
+
+A traitable class describes itself: `Cls.trait(name)` returns one trait (`None` if unknown), `Cls.traits(flags_on=..., flags_off=...)` iterates traits filtered by flags (`flags_on` matches any of the bits), and `Cls.describe_class()` returns a JSON-compatible summary, one `Trait.describe()` dict per trait. Reserved traits such as `_rev` are included unless filtered out with `T.RESERVED`.
+
+```python
+from datetime import date
+from core_10x.traitable import Traitable, T, RT
+
+class Person(Traitable):
+    first_name: str = T(T.ID)  // 'given name'
+    last_name: str  = T(T.ID)  // 'family name'
+    dob: date       = T()      // 'date of birth'
+    full_name: str  = RT()
+
+    def full_name_get(self) -> str:
+        return f'{self.first_name} {self.last_name}'
+
+assert Person.is_storable() and Person.is_id_endogenous()
+assert [t.name for t in Person.traits(flags_on=T.ID)] == ['first_name', 'last_name']
+assert [t.name for t in Person.traits(flags_off=T.RESERVED | T.RUNTIME)] == ['first_name', 'last_name', 'dob']
+
+dob = Person.trait('dob')
+assert dob.data_type is date and dob.ui_hint.tip == 'date of birth'
+assert Person.trait('full_name').has_custom_getter()
+
+traits = {d['name']: d for d in Person.describe_class()['traits']}
+assert traits['dob'] == {'name': 'dob', 'type': 'date', 'flags': [], 'tip': 'date of birth'}
+assert traits['full_name']['flags'] == ['RUNTIME'] and traits['full_name']['getter']
+```
+
+`describe_class()` needs a stable class id, so it fails for a class defined in a script's `__main__`; define the class in an importable module.
+
 ### Trait Modifications
 
-`M(flag)` re-declares an inherited trait with a different flag without replacing the trait entirely. The most common use is promoting a non-ID trait to an ID trait in a subclass — making identity more specific — or the reverse. The subclass gets a distinct ID space from its parent while still inheriting its other traits.
+`M(flag)` re-declares an inherited trait with a different flag without replacing the trait entirely. The most common use is promoting a non-ID trait to an ID trait in a subclass — making identity more specific — or the reverse. The subclass gets a distinct ID space from its parent while still inheriting its other traits. `M()` also takes a new description (`// '...'`) or a new default; a default in a subclass overrides an inherited getter (a default and a getter in the same class is an error).
 
 ```python
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.traitable import Traitable, T, M
 
 class Person(Traitable,keep_history=False):
-    name: str = T()
+    name: str = T()  // 'name'
     age: int = T()
+    retirement_age: int = T()
+
+    def retirement_age_get(self) -> int:
+        return 67
 
 class IdentifiedPerson(Person):
-    # Promote name to an ID trait in this subclass
-    name: str = M(T.ID)
+    # Promote name to an ID trait in this subclass, and re-describe it
+    name: str = M(T.ID) // 'unique name'
+    retirement_age: int = M(default=60)
 
 with CACHE_ONLY():
     person = Person(name='John', age=10, _replace=True)
     person2 = IdentifiedPerson(name='John', age=11, _replace=True)
     assert person.id()!=person2.id()
+    assert (person.retirement_age, person2.retirement_age) == (67, 60)
+    assert IdentifiedPerson.trait('name').ui_hint.tip == 'unique name'
 ```
 
 ### Bundles — Subclasses Sharing a Collection
@@ -3146,7 +3379,8 @@ with CACHE_ONLY():
 - Use `T()` for traits that need persistence and searching; `RT()` (or a bare annotation) for in-memory-only traits
 - Use `T(T.ID)` for the minimum set of fields that uniquely identify an entity — ID traits determine global sharing
 - Implement `_get` methods for computed/derived values; avoid storing values that can be derived
-- Use `_set` methods to validate on assignment; use `_verify` methods for deferred or cross-field validation (runs at `verify()` / `save()` time)
+- Use `_set` methods to validate on assignment; use `_verify` methods for deferred per-trait validation and `post_verify()` for cross-trait checks (both run at `verify()` / `save()` time); mark required traits `T.NOT_EMPTY`
+- Describe each trait with `// 'text'` — it is the UI tooltip and the `tip` in `describe_class()`
 - Use converters (`_from_str`, `_from_any_xstr`) for transparent type coercion rather than manual casting at every call site
 
 ### 2. Object Identification
@@ -3165,7 +3399,7 @@ with CACHE_ONLY():
 ### 4. Relational Database
 
 - Prefer `RelDb.instance_from_uri(uri)` for one-off queries and `NamedRelDb` (a `NamedResource` subclass) for production code where the URI should not appear in application code
-- Use `db.query(table)` for lazy ibis expressions; materialise with `.execute()` only when the result is needed
+- Use `db.query(table)` for lazy ibis expressions; materialize with `.execute()` only when the result is needed
 - Use `db.insert(table, df)` with a Polars `DataFrame` for efficient bulk loads via ADBC
 
 ### 5. Vault and Credential Management

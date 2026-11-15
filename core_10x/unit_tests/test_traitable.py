@@ -145,6 +145,44 @@ def test_set_values():
     assert rc
 
 
+def test_item_access_raises_like_attribute():
+    class X(Traitable):
+        age: int
+
+        def age_set(self, trait, value: int) -> RC:
+            if value < 0:
+                return RC(False, 'age must be >= 0')
+            return self.raw_set_trait_value(trait, value)
+
+    x = X()
+    x['age'] = 5
+    assert x['age'] == x.age == 5
+
+    with pytest.raises(RuntimeError, match='age must be >= 0'):
+        x['age'] = -1
+    assert x.age == 5
+
+
+def test_traitable_trait_default_by_id():
+    class Company(Traitable):
+        name: str = T(T.ID)
+        city: str = T()
+
+    class Employee(Traitable):
+        name: str = T(T.ID)
+        employer: Company = T('Acme')
+        former: Company = T('Nobody')
+
+    with CACHE_ONLY():
+        acme = Company(name='Acme', city='NYC', _replace=True)
+        e = Employee(name='e1')
+        assert e.employer == acme
+        assert e.employer.city == 'NYC'
+
+        with pytest.raises(TraitMethodError, match='Instance does not exist'):
+            _ = e.former
+
+
 def test_dynamic_traits():
     class X(Traitable):
         s_own_trait_definitions = {'x': RT(data_type=int, default=10)}
