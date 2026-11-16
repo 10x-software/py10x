@@ -763,6 +763,8 @@ with traitable_store:
     person.dob = date(1990, 5, 15)
     person.save()  # Persists to traitable store backed by Mongo
 ```
+A store context (`with store:`) is low level; applications should connect to stores through [resources](#namedresource-and-class-associations). It is process-wide: every thread sees it while it is active.
+
 By default `save()` also persists **new** storable references (`_rev == 0`) via `BSaveRefs.NEW_ONLY`. For a full graph save use `person.save(save_references=BSaveRefs.ALL)` (or `True`); for the root only, `BSaveRefs.NONE` (or `False`).
 
 ### Connecting to stores
@@ -1425,6 +1427,8 @@ with CACHE_ONLY():
     assert person.full_name == "Alice Smith"  # Computed and cached in memory
 ```
 
+`CACHE_ONLY` is low level, meant for tests and scripts; applications should connect to stores through [resources](#namedresource-and-class-associations). Unlike the execution-control blocks, which belong to the current thread, it is process-wide: every thread sees it while it is active.
+
 ### Scenario — Named Scopes
 
 A `Scenario` is a scope in which trait values (both set and computed) are cached and isolated from other scenarios.  Computed traits are dependency-tracked within the scope.  Scenarios can be named or anonymous:
@@ -1503,6 +1507,73 @@ report.values                                       # {'stressed': 84.0}
 Inside a Scenario, a `ScenarioResult` created outside is read and written in its own scope, not in the Scenario's. There is one copy of it, so setting a trait and changing a `list` or `dict` in place both work, and what was collected before an exception stays collected. A getter of a `ScenarioResult` should read only its own traits. A `ScenarioResult` created inside a Scenario lives and ends with it.
 
 Inside a Scenario only a `ScenarioResult` may be saved. `save()` of any other object returns a failed `RC`, so a what-if value cannot reach the store.
+
+### Scopes in Threads, Generators and Async Code
+
+Execution-control blocks (`GRAPH_ON`, `GRAPH_OFF`, `DEBUG_ON`, `CONVERT_VALUES_ON`, `INTERACTIVE`, …) and `Scenario` are scopes on a stack that belongs to the current **thread**. A new thread starts with the default processor, without the scopes of the thread that started it. This includes the `GRAPH_ON()` that `XX_GRAPH_ON` enters on import: it applies to the importing thread only.
+
+**Don't `yield` or `await` inside a scope block.** While a generator or coroutine is suspended, its scope stays on the thread's stack, so whatever runs next on the thread runs inside it: the generator's caller, or another asyncio task. Blocks can then also exit out of order:
+
+```python
+import pytest
+from core_10x.scenario import Scenario
+from core_10x.trait_definition import T, RT
+from core_10x.traitable import NamedTraitable
+
+class Instrument(NamedTraitable, name_trait='ticker'):
+    ticker: str   = RT(T.ID)
+    price:  float = RT()
+
+def stream_prices(scenario, tickers):
+    with Scenario(scenario):
+        yield from (Instrument(t).price for t in tickers)   # wrong: yields inside the scope
+
+ibm = Instrument(ticker='IBM')
+with Scenario('base'):
+    ibm.price = 258.0
+
+stream = stream_prices('base', ['IBM'])
+assert next(stream) == 258.0
+assert ibm.price == 258.0   # the caller is inside 'base' while the stream is suspended
+
+with pytest.raises(ValueError, match='Mismanaged XControl block'):
+    with Scenario('other'):
+        next(stream, None)  # 'base' exits while 'other' is on top
+```
+
+Instead, compute inside the scope and `yield` or `await` outside it. A generator enters its scope once per item:
+
+```python
+def stream_prices(scenario, tickers):
+    s = Scenario(scenario)
+    for t in tickers:
+        with s:
+            price = Instrument(t).price
+        yield price             # outside the scope
+```
+
+A coroutine awaits first and then enters its scope:
+
+```python
+async def shocked_price(ticker, scenario='base'):
+    shock = await fetch_shock(ticker)   # any I/O, outside the scope
+    with Scenario(scenario):
+        return Instrument(ticker).price + shock
+```
+
+A `@contextmanager` function or a pytest fixture is the exception: its `yield` hands the scope to the caller on purpose.
+
+```python
+import pytest
+from core_10x.exec_control import GRAPH_ON
+
+@pytest.fixture
+def graph_on():
+    with GRAPH_ON():
+        yield
+```
+
+Breaking this rule is not reliably reported. Code that runs inside a suspended generator's or coroutine's scope gets no error; only blocks that exit out of order raise `Mismanaged XControl block`.
 
 ## Traitable Store
 
@@ -1895,7 +1966,32 @@ with MongoStore.instance(hostname='localhost', dbname='myapp'):
         assert Config.existing_instance(name='main').value == 1
 ```
 
-`AsOfContext` requires the listed classes to keep history; for classes with `keep_history=False` the context is a no-op and current data is used.
+Each class in `traitable_classes` must keep history: listing one with `keep_history=False` raises `ValueError`. A class covered only through a listed base class, such as the default `Traitable`, is read as of that time if it keeps history, and as current data if it doesn't:
+
+```python
+from datetime import datetime, timezone
+import pytest
+from infra_10x.mongodb_store import MongoStore
+from core_10x.traitable import AsOfContext, Traitable, T
+
+class Setting(Traitable, keep_history=False):
+    name: str = T(T.ID)
+    value: int = T()
+
+before_save = datetime.now(timezone.utc).replace(tzinfo=None)
+
+with pytest.raises(ValueError, match='does not keep history'):
+    AsOfContext(before_save, [Setting])
+
+with MongoStore.instance(hostname='localhost', dbname='myapp'):
+    Setting.delete_collection()
+    Setting(name='retries', value=3, _replace=True).save().throw()
+
+    with AsOfContext(before_save):  # all classes; Setting keeps no history, so it reads current data
+        assert Setting.existing_instance(name='retries').value == 3
+```
+
+> **Warning — threads:** while an `AsOfContext` is active, its as-of reads apply to the covered classes in every thread, not only the one that entered it. In a multi-threaded app, don't use those classes in other threads while the context is active: they would read historical data and leave it in the shared cache. See [#181](https://github.com/10x-software/py10x/issues/181).
 
 
 ## Relational Database (RelDb)
@@ -2876,7 +2972,7 @@ The shipping `EnvVars` class declares the following configuration points (all op
 | `XX_MAIN_VAULT_URI` | `main_vault_uri` | `str` | `''` | URI of the vault TsStore (where `VaultUser` and `VaultResourceAccessor` records are kept). |
 | `XX_LOG_TS_STORE_URI` | `log_ts_store_uri` | `str` | `''` | Traitable Store URI for `LOG` persistence (see [LOG — Structured Asynchronous Logging](#log--structured-asynchronous-logging)); when unset, log messages go to stdout only and are not persisted. |
 | `XX_FUNCTIONAL_ACCOUNT_PREFIX` | `functional_account_prefix` | `str` | `'xx'` | Prefix identifying functional accounts in usernames. |
-| `XX_GRAPH_ON` | `graph_on` | `bool` | `False` | When `True`, `core_10x` enters `GRAPH_ON()` at process start — see [GRAPH_ON](#graph_on---dependency-tracking-and-caching). |
+| `XX_GRAPH_ON` | `graph_on` | `bool` | `False` | When `True`, `core_10x` enters `GRAPH_ON()` on import, in the importing thread only — see [GRAPH_ON](#graph_on---dependency-tracking-and-caching). |
 | `XX_USE_TS_STORE_TRANSACTIONS` | `use_ts_store_transactions` | `bool` | `False` | Wrap multi-save operations in TsStore transactions — applies to history-keeping saves, multi-object `save()` cascades (`BSaveRefs.NEW_ONLY` / `BSaveRefs.ALL`), and [`SaveIfChanged`](#saveifchanged--auto-save-modified-traitables). Requires a transaction-capable backend (e.g. MongoDB replica set or PostgreSQL). |
 | `XX_DATE_FORMAT` | `date_format` | `str` | `XDateTime.FORMAT_ISO` | Default date format; applied to `XDateTime.set_default_format` on first access via the `date_format_apply` hook. |
 

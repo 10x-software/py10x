@@ -110,8 +110,6 @@ public:
 
     virtual void            begin_using();
     virtual void            end_using() const;
-    BTraitableProcessor*    py_enter()                      { begin_using(); return this; }
-    void                    py_exit(const py::args&) const  { end_using(); }
 
     virtual py::object      set_trait_value(BTraitable *obj, const BTrait *trait, const py::object &value);
     virtual py::object      set_trait_value(BTraitable* obj, BTrait* trait, const py::object& value, const py::args& args);

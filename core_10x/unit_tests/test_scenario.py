@@ -39,13 +39,17 @@ class TestScenarioIdentity:
         s = Scenario()
         assert s.name is None
 
-    def test_named_scenario_has_btp(self):
+    def test_named_scenario_creates_its_btp_on_first_entry(self):
         s = Scenario('scen_test_E')
-        assert s.btp is not None
+        assert s.btp is None
+        with s:
+            btp = s.btp
+            assert btp is not None
+        assert s.btp is btp
 
-    def test_anonymous_scenario_has_btp_before_use(self):
+    def test_anonymous_scenario_has_no_btp_before_use(self):
         s = Scenario()
-        assert s.btp is not None
+        assert s.btp is None
 
 
 class TestScenarioContextManager:
@@ -66,6 +70,21 @@ class TestScenarioContextManager:
         s = Scenario()
         with s:
             pass
+        assert s.btp is None
+
+    class Tick(Traitable):
+        ticker: str = RT(T.ID)
+        price: float = RT()
+
+    def test_anonymous_scenario_reentry_starts_a_fresh_scope(self):
+        s = Scenario()
+        q = self.Tick(ticker='ctx_reentry')
+        with s:
+            q.price = 1.0
+            first = s.btp
+        with s:
+            assert s.btp is not first
+            assert q.price is XNone
         assert s.btp is None
 
     def test_named_scenario_can_be_entered_multiple_times(self):
@@ -161,6 +180,8 @@ class TestScenarioEndToEnd:
         """Two distinct names produce distinct BTP objects."""
         s1 = Scenario('e2e_ind_D1')
         s2 = Scenario('e2e_ind_D2')
+        with s1, s2:
+            pass
         assert s1.btp is not s2.btp
 
     def test_scenario_is_reusable_in_loop(self):

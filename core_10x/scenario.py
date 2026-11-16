@@ -12,12 +12,15 @@ class Scenario:
             if name:
                 cls.s_instances[name] = s
             s.name = name
-            s.btp = GRAPH_ON(debug=debug, convert_values=convert_values)
-            s.btp.cache().mark_as_scenario()
+            s.kwargs = dict(debug=debug, convert_values=convert_values)
+            s.btp = None
 
         return s
 
     def __enter__(self):
+        if not self.btp:
+            self.btp = GRAPH_ON(**self.kwargs)
+            self.btp.cache().mark_as_scenario()
         self.btp.begin_using()
         return self
 

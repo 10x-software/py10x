@@ -30,7 +30,8 @@ from datetime import timezone
 import pytest
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.package_refactoring import PackageRefactoring
-from core_10x.traitable import RT, Bundle, BundleHistory, T, Traitable
+from core_10x.traitable import RT, Bundle, BundleHistory, T, Traitable, StorableHelperAsOf, NotStorableHelper
+
 
 # ---------------------------------------------------------------------------
 # Bundle with members_known=True - short-name registry
@@ -265,25 +266,27 @@ class TestBundleHistoryWithNonStorableBase:
         assert Wolf.collection() is Bear.collection()
         assert Wolf.collection() is AbstractAnimals.collection()
 
-    def test_storage_helper_rederived_from_history_class_after_cache_clear(self, bundle_history_store):
-        """Helper cache is ephemeral; a real ``s_history_class`` must re-derive WithHistory.
-
-        AsOfContext (and similar) nulls ``s_storage_helper_cached`` on all Traitable
-        subclasses. The non-storable bundle base still has a history class from member
-        registration — resolution must follow that, not ``is_storable()`` alone.
-        """
+    def test_storage_helper_after_promotion_within_as_of(self, bundle_history_store):
+        """Helper cache is ephemeral; a real ``s_history_class`` must re-derive WithHistory."""
         from datetime import datetime
 
         from core_10x.traitable import AsOfContext, StorableHelperWithHistory
 
-        assert AbstractAnimals.s_history_class  # promotion installed a real history class
-        with AsOfContext(as_of_time=datetime.now(timezone.utc).replace(tzinfo=None)):
-            pass  # exit clears every subclass helper cache
+        class AbstractBase(Bundle, members_known=True):
+            """Bundle base without ID traits - not storable on its own."""
 
-        assert AbstractAnimals.s_storage_helper_cached is None
-        assert isinstance(AbstractAnimals.s_storage_helper, StorableHelperWithHistory)
-        assert Wolf.collection() is not None
-        assert Wolf.collection() is Bear.collection()
+        assert not AbstractBase.s_history_class
+        assert isinstance(AbstractBase.s_storage_helper, NotStorableHelper)
+        with AsOfContext(as_of_time=datetime.now(timezone.utc).replace(tzinfo=None)):
+            class Derived(AbstractBase):
+                name: str = T(T.ID)
+
+            assert AbstractBase.s_history_class  # promotion installed a real history class
+            assert type(AbstractBase.s_storage_helper) is StorableHelperAsOf
+            assert type(AbstractBase.s_storage_helper_cached) is StorableHelperAsOf
+
+        assert AbstractBase.s_storage_helper_cached is None
+        assert type(AbstractBase.s_storage_helper) is StorableHelperWithHistory
 
     def test_member_main_record_routes_to_base_collection(self, bundle_history_store):
         """Saving a storable member of a NON-storable bundle base actually

@@ -628,8 +628,8 @@ class TestTraitableHistory:
         )
         assert history_collection.count() == 0
 
-    def test_asof_with_keep_history_false_is_noop(self, test_store, monkeypatch):
-        """AsOfContext with a class that has keep_history=False is a no-op: current data is used."""
+    def test_asof_listing_a_class_without_history_raises(self, test_store, monkeypatch):
+        """Listing a keep_history=False class raises; the default context reads it as current data (see GETTING_STARTED)."""
         monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
 
         class NoHistoryTraitable(Traitable, keep_history=False):
@@ -638,16 +638,10 @@ class TestTraitableHistory:
 
         item = NoHistoryTraitable(key='k1', value='v1', _replace=True)
         item.save().throw()
-        original_helper = NoHistoryTraitable.s_storage_helper
         as_of_time = datetime(2020, 1, 1, 12, 0, 0)
 
-        with pytest.raises(
-            ValueError,
-            match=r"<class 'core_10x.testlib.traitable_history_tests.TestTraitableHistory.test_asof_with_keep_history_false_is_noop.<locals>.NoHistoryTraitable'> is not storable or does not keep history",
-        ):
-            with AsOfContext(as_of_time, [NoHistoryTraitable]):
-                pass
-            assert type(NoHistoryTraitable.s_storage_helper) is type(original_helper)
+        with pytest.raises(ValueError, match=r"\.NoHistoryTraitable'> is not storable or does not keep history"):
+            AsOfContext(as_of_time, [NoHistoryTraitable])
         assert NoHistoryTraitable.existing_instance(key='k1') == item
 
     def test_asof_default_applies_to_all_traitable_subclasses(self, test_store, clock_freezer):
@@ -673,6 +667,40 @@ class TestTraitableHistory:
         # Outside context: current data
         current = PersonTraitable.load(person.id())
         assert current.age == 26
+
+    def _person_with_ages(self, clock_freezer, first_age, *later_ages):
+        """Saves a person at each age; returns it and the as-of time just before each later save."""
+        person = PersonTraitable()
+        person.name = 'Nested AsOf Test'
+        person.age = first_age
+        person.save()
+        times = []
+        for age in later_ages:
+            times.append(clock_freezer.utcnow())
+            person.age = age
+            person.save()
+        return person, times
+
+    def test_nested_asof_context_restores_the_outer_one(self, test_store, clock_freezer):
+        person, (t1, t2) = self._person_with_ages(clock_freezer, 25, 26, 27)
+
+        with AsOfContext(t1, [PersonTraitable]):
+            with AsOfContext(t2, [PersonTraitable]):
+                assert PersonTraitable.load(person.id()).age == 26
+            assert PersonTraitable.load(person.id()).age == 25
+
+        assert PersonTraitable.load(person.id()).age == 27
+
+    def test_reused_asof_context_does_not_restore_a_previous_outer_one(self, test_store, clock_freezer):
+        person, (t1, t2) = self._person_with_ages(clock_freezer, 25, 26, 27)
+
+        context = AsOfContext(t2, [PersonTraitable])
+        with AsOfContext(t1, [PersonTraitable]), context:
+            pass
+        with context:
+            assert PersonTraitable.load(person.id()).age == 26
+
+        assert PersonTraitable.load(person.id()).age == 27
 
     def test_latest_revision_with_timestamp(self, test_store, clock_freezer):
         """Test latest_revision with specific timestamp."""

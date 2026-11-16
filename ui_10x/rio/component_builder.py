@@ -87,7 +87,7 @@ def session_context(session: rio.Session):
 class ConnectionType(NamedConstant):
     @staticmethod
     def _dispatch_direct(session: rio.Session, handler: Callable[[...], None], *args) -> None:
-        with session_context(session), BTP.current():
+        with session_context(session):
             handler(*args)
 
     @staticmethod

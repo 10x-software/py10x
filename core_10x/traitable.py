@@ -1354,20 +1354,21 @@ class AsOfContext:
     Applies to the given traitable_classes and all their subclasses (discovered via
     s_direct_subclasses). Default is [Traitable], so all storable Traitable subclasses
     use AsOf resolution. s_storage_helper is resolved dynamically via __mro__ and
-    cached; the cache is invalidated on enter/exit for all relevant subclasses.
+    cached; the cache is reset on enter/exit for all relevant subclasses.
     """
 
     as_of_time: datetime
     traitable_classes: list[type[Traitable]] = field(default_factory=lambda: [Traitable])
 
     _btp: BTraitableProcessor | None = None
+    _saved_helpers: dict[type[Traitable], AbstractStorableHelper|None] = field(default_factory=dict)
 
     def __post_init__(self):
         invalid_class = next((traitable_class for traitable_class in self.traitable_classes if not traitable_class.s_history_class), None)
         if invalid_class and invalid_class is not Traitable:  # we use Traitable as a special case to cover *all* traitables
             raise ValueError(f'{invalid_class} is not storable or does not keep history')
 
-    def _reset_storage_helpers(self):
+    def _visit_storage_helpers(self, visitor):
         visited: set[type[Traitable]] = set()
         stack = list(self.traitable_classes)
         while stack:
@@ -1375,11 +1376,27 @@ class AsOfContext:
             if traitable_class in visited:
                 continue
             visited.add(traitable_class)
-            traitable_class.s_storage_helper_cached = None
+            visitor(traitable_class)
             stack.extend(traitable_class.s_direct_subclasses)
 
+    def _restore_storage_helpers(self):
+        def _visitor(traitable_class):
+            traitable_class.s_storage_helper_cached = self._saved_helpers.pop(traitable_class, None)
+        self._visit_storage_helpers(_visitor)
+
+    def _save_storage_helpers(self):
+        def _visitor(traitable_class):
+            current = traitable_class.s_storage_helper_cached
+            if isinstance(current, StorableHelperAsOf): # only save for nested AsOf contexts as others recompute in descriptor
+                self._saved_helpers[traitable_class] = current
+            traitable_class.s_storage_helper_cached = None
+        self._visit_storage_helpers(_visitor)
+
     def __enter__(self):
-        self._reset_storage_helpers()
+        if self._btp is not None:
+            raise RuntimeError('You cannot enter an already active AsOfContext.')
+
+        self._save_storage_helpers()
         for traitable_class in self.traitable_classes:
             traitable_class.s_storage_helper_cached = StorableHelperAsOf(traitable_class, self.as_of_time)
 
@@ -1393,7 +1410,7 @@ class AsOfContext:
             self._btp.end_using()
             self._btp = None
 
-        self._reset_storage_helpers()
+        self._restore_storage_helpers()
 
 
 NAMED_TRAITABLE_NAME_TRAIT = 'name'
@@ -1571,7 +1588,7 @@ class Bundle(Traitable):
 
             if base.s_history_class is XNone:
                 base.s_history_class = base.s_history_base.history_class(base)
-                base.s_storage_helper_cached = StorableHelperWithHistory(base)
+                base.s_storage_helper_cached = None
 
         super().__init_subclass__(**kwargs)
 

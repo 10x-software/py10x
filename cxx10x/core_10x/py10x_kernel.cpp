@@ -3,6 +3,7 @@
 //
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <unordered_map>
 
 #include "bcurve.h"
 
@@ -30,6 +31,29 @@ struct PyBTraitable : BTraitable {
         PYBIND11_OVERRIDE(void, BTraitable, deserialize_traits, trait_values);
     }
 };
+
+//-- The thread's processor stack holds raw pointers, so begin_using from Python keeps the Python owner alive until
+//-- end_using. Holds are counted per processor: ending from Python a processor the kernel pushed itself (e.g. the
+//-- default one) releases nothing. All calls run under the GIL.
+static std::unordered_map<const BTraitableProcessor*, unsigned> s_py_holds;
+
+static void py_begin_using(const py::object& self) {
+    auto& proc = self.cast<BTraitableProcessor&>();
+    proc.begin_using();
+    ++s_py_holds[&proc];
+    self.inc_ref();
+}
+
+static void py_end_using(const py::object& self) {
+    const auto& proc = self.cast<const BTraitableProcessor&>();
+    proc.end_using();   //-- raises on a mismatch, before the release
+    const auto it = s_py_holds.find(&proc);
+    if (it == s_py_holds.end())
+        return;
+    if (!--it->second)
+        s_py_holds.erase(it);
+    self.dec_ref();
+}
 
 PYBIND11_MODULE(py10x_kernel, m)
 {
@@ -367,10 +391,10 @@ PYBIND11_MODULE(py10x_kernel, m)
             .def_static("current",              &BTraitableProcessor::current, py::return_value_policy::reference)
             .def("cache",                       &BTraitableProcessor::cache, py::return_value_policy::reference)
             .def("default_cache",               &BTraitableProcessor::default_cache, py::return_value_policy::reference)
-            .def("begin_using",                 &BTraitableProcessor::begin_using, py::return_value_policy::reference)
-            .def("end_using",                   &BTraitableProcessor::end_using)
-            .def("__enter__",                   &BTraitableProcessor::py_enter)
-            .def("__exit__",                    &BTraitableProcessor::py_exit)
+            .def("begin_using",                 &py_begin_using)
+            .def("end_using",                   &py_end_using)
+            .def("__enter__",                   [](const py::object& self) { py_begin_using(self); return self; })
+            .def("__exit__",                    [](const py::object& self, const py::args&) { py_end_using(self); })
             .def("flags",                       &BTraitableProcessor::flags)
             .def("share_object",                &BTraitableProcessor::share_object)
             .def("export_nodes",                &BTraitableProcessor::export_nodes)
