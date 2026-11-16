@@ -46,6 +46,10 @@ public:
     static py::object deserialize_list(const py::object& list);
     static py::object deserialize_tuple(const py::object& list)                 { return deserialize_list(list).cast<py::tuple>(); }
 
+    static py::object ordered_set(const py::object& set);
+    static py::object serialize_set(const py::object& set, bool embed)          { return serialize_list(ordered_set(set), embed); }
+    static py::object deserialize_set(const py::object& list)                   { return py::set(deserialize_list(list)); }
+
     static py::object serialize_dict(const py::object& dict, bool embed);
     static py::object deserialize_dict(const py::object& dict);
 

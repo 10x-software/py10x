@@ -89,6 +89,7 @@ class PY10X_API PyLinkage {
     py::object          m_str_cls;
     py::object          m_list_cls;
     py::object          m_tuple_cls;
+    py::object          m_set_cls;
     py::object          m_dict_cls;
     py::object          f_dict_get;
     py::object          m_bytes_cls;
@@ -158,6 +159,7 @@ public:
 
     static py::object list_class()              { return s_py_linkage->m_list_cls; }
     static py::object tuple_class()             { return s_py_linkage->m_tuple_cls; }
+    static py::object set_class()               { return s_py_linkage->m_set_cls; }
     static py::object dict_class()              { return s_py_linkage->m_dict_cls; }
 
     static py::object dict_get(const py::dict& d, const py::object& key) {

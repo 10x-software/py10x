@@ -108,6 +108,7 @@ PyLinkage::PyLinkage(const py::dict& package_names) {
     m_str_cls       = builtins.attr("str");
     m_list_cls      = builtins.attr("list");
     m_tuple_cls     = builtins.attr("tuple");
+    m_set_cls       = builtins.attr("set");
     m_dict_cls      = builtins.attr("dict");
     f_dict_get      = m_dict_cls.attr("get");
     m_bytes_cls     = builtins.attr("bytes");

@@ -31,6 +31,9 @@ class Nucleus:
     deserialize_date    = BNucleus.deserialize_date
     serialize_list      = BNucleus.serialize_list
     deserialize_list    = BNucleus.deserialize_list
+    ordered_set         = BNucleus.ordered_set
+    serialize_set       = BNucleus.serialize_set
+    deserialize_set     = BNucleus.deserialize_set
     serialize_dict      = BNucleus.serialize_dict
     deserialize_dict    = BNucleus.deserialize_dict
     deserialize_record  = BNucleus.deserialize_record

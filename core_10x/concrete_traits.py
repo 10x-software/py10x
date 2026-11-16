@@ -283,6 +283,10 @@ class list_trait(Trait, data_type=list):
 class set_trait(list_trait, data_type=set):
     s_serialize_to_type = list
 
+    def to_id(self, value) -> str:
+        #-- the items in the one order a set is stored in, written as str() writes a set: the same ID in every process
+        return f'{{{str(Nucleus.ordered_set(value))[1:-1]}}}' if value else str(value)
+
     def default_value(self) -> set:
         return set(self.default)
 
@@ -293,10 +297,10 @@ class set_trait(list_trait, data_type=set):
         return set(value)  #-- what a set holds is hashable: nothing in it can change in place
 
     def serialize(self, value: set):
-        return Nucleus.serialize_list(value, self.flags_on(T.EMBEDDED))
+        return Nucleus.serialize_set(value, self.flags_on(T.EMBEDDED))     #-- in one order: Nucleus.ordered_set()
 
     def deserialize(self, value: list):
-        return set(Nucleus.deserialize_list(value))
+        return Nucleus.deserialize_set(value)
 
 
 class dict_trait(Trait, data_type=dict):
