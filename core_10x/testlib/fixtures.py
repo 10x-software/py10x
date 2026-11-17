@@ -12,7 +12,7 @@ from core_10x.testlib.ts_store_isolation import pin_current_ts_stores, unpin_ts_
 from core_10x.traitable import Traitable
 
 
-@pytest.fixture(params=[True, False], ids=['with_transactions', 'without_transactions'])
+@pytest.fixture(params = [True, False], ids = ['with_transactions', 'without_transactions'])
 def with_transactions(request, ts_instance, monkeypatch):
     use_transactions = request.param
     if use_transactions:
@@ -42,9 +42,9 @@ def stub_log_logger(request):
 
 @pytest.fixture
 def temp_duck_db_uri(tmp_path):
-    path = (tmp_path / 'test.db').as_posix()
-    uri = f'duckdb://{path[0:2]}//{path[3:]}' if sys.platform == 'win32' else f'duckdb:///{path}'
-    spec = RelDb.spec_from_uri(uri)
+    path    = (tmp_path / 'test.db').as_posix()
+    uri     = f'duckdb://{path[0:2]}//{path[3:]}' if sys.platform == 'win32' else f'duckdb:///{path}'
+    spec    = RelDb.spec_from_uri(uri)
     assert uri == spec.uri()
 
     RelDb.instance_from_uri(uri).insert('prices', pl.DataFrame({'symbol': ['AAPL', 'MSFT'], 'price': [5, 6]}))
@@ -52,7 +52,7 @@ def temp_duck_db_uri(tmp_path):
     return uri
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope = 'module')
 def main_test_store():
     """Activate an in-memory DuckDbStore as the main Traitable store and vault.
 
@@ -64,8 +64,8 @@ def main_test_store():
     The store is **pinned** for the module lifetime so py10x_core ``test_isolation``
     re-publishes it after each test clear (see ``core_10x.testlib.ts_store_isolation``).
     """
-    EnvVars.main_ts_store_uri = 'duckdb://localhost/main'
-    EnvVars.main_vault_uri = 'duckdb://localhost/vault'
+    EnvVars.main_ts_store_uri   = 'duckdb://localhost/main'
+    EnvVars.main_vault_uri      = 'duckdb://localhost/vault'
     Traitable.main_store.clear()
     Traitable.vault_store.clear()
     pin_current_ts_stores()

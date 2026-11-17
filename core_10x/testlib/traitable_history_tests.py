@@ -20,7 +20,7 @@ from core_10x.traitable_id import ID
 from core_10x.ts_store import TsDuplicateKeyError
 
 
-def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
+def make_clock_freezer(ts_instance, mocker = None, *, freeze: bool = False):
     """Build a clock freezer for as-of / restore cutpoints.
 
     *flowing* (``freeze=False``): cut on ``store.server_time()`` and wait until it
@@ -35,12 +35,12 @@ def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
             if self:
                 # Return the frozen cut, then advance the freeze to wall "now" so later
                 # stamps (via mocked SQL) are strictly after the cut.
-                real = datetime.now(UTC).replace(tzinfo=None)
-                prev, self[0] = self[0], real
+                real            = datetime.now(UTC).replace(tzinfo = None)
+                prev, self[0]   = self[0], real
                 return prev
 
-            ts = ts_instance.server_time()
-            tries = 10
+            ts      = ts_instance.server_time()
+            tries   = 10
             for _ in range(tries):
                 if ts_instance.server_time() > ts:
                     break
@@ -54,7 +54,7 @@ def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
         assert isinstance(ts_instance, DuckDbStore)
         if mocker is None:
             raise TypeError('mocker is required when freeze=True')
-        frozen_now.append(datetime.now(UTC).replace(tzinfo=None))
+        frozen_now.append(datetime.now(UTC).replace(tzinfo = None))
 
         # TS_TIME / server_time() both go through _server_time_col_sql_expr.
         mocker.patch.object(
@@ -65,16 +65,16 @@ def make_clock_freezer(ts_instance, mocker=None, *, freeze: bool = False):
     return frozen_now
 
 
-@pytest.fixture(params=[True, False], ids=['frozen', 'flowing'], autouse=True)
+@pytest.fixture(params = [True, False], ids = ['frozen', 'flowing'], autouse = True)
 def clock_freezer(mocker, ts_instance, request):
-    yield make_clock_freezer(ts_instance, mocker, freeze=request.param)
+    yield make_clock_freezer(ts_instance, mocker, freeze = request.param)
 
 
 class NameValueTraitableBase(Traitable):
     """Test traitable class for testing."""
 
-    name: str = T()
-    value: int = T()
+    name: str   = T()
+    value: int  = T()
 
 
 class NameValueTraitableCustomCollection(NameValueTraitableBase):
@@ -84,11 +84,11 @@ class NameValueTraitableCustomCollection(NameValueTraitableBase):
 class PersonTraitableBase(Traitable):
     """Test person class for testing."""
 
-    name: str = T()
-    age: int = T()
-    email: str = T()
-    dob: date = T()
-    spouse: Self = T()
+    name: str       = T()
+    age: int        = T()
+    email: str      = T()
+    dob: date       = T()
+    spouse: Self    = T()
 
     def spouse_set(self, trait, spouse) -> RC:
         self.raw_set_trait_value(trait, spouse)
@@ -103,22 +103,22 @@ class MutableWithTsTimeBase(Traitable):
     Exercises ``add_ts`` + hydrate on *update* (rev >= 1), not only insert via ``save_new``.
     """
 
-    name: str = T(T.ID)
-    value: int = T()
-    saved_at: datetime = T(T.TS_TIME)
+    name: str           = T(T.ID)
+    value: int          = T()
+    saved_at: datetime  = T(T.TS_TIME)
 
 
-NameValueTraitable = type(f'PersonTraitable{uuid6.uuid7().hex}', (NameValueTraitableBase,), {'__module__': __name__})
-PersonTraitable = type(f'PersonTraitable{uuid6.uuid7().hex}', (PersonTraitableBase,), {'__module__': __name__})
-MutableWithTsTime = type(
+NameValueTraitable  = type(f'PersonTraitable{uuid6.uuid7().hex}', (NameValueTraitableBase,), {'__module__': __name__})
+PersonTraitable     = type(f'PersonTraitable{uuid6.uuid7().hex}', (PersonTraitableBase,), {'__module__': __name__})
+MutableWithTsTime   = type(
     f'MutableWithTsTime#{uuid6.uuid7().hex}',
     (MutableWithTsTimeBase,),
     {'__module__': __name__},
 )
 
-globals()[NameValueTraitable.__name__] = NameValueTraitable
-globals()[PersonTraitable.__name__] = PersonTraitable
-globals()[MutableWithTsTime.__name__] = MutableWithTsTime
+globals()[NameValueTraitable.__name__]  = NameValueTraitable
+globals()[PersonTraitable.__name__]     = PersonTraitable
+globals()[MutableWithTsTime.__name__]   = MutableWithTsTime
 
 
 @pytest.fixture
@@ -130,11 +130,11 @@ def test_collection(test_store):
 
 @pytest.fixture
 def test_store(ts_instance, monkeypatch):
-    store = ts_instance
-    store.username = 'test_user'
+    store           = ts_instance
+    store.username  = 'test_user'
     store.begin_using()
     # Only drop collections this test opened — full DB wipe races concurrent pytest sessions.
-    created: set[str] = set()
+    created: set[str]   = set()
     original_collection = store.collection
 
     def tracking_collection(collection_name: str, *args, **kwargs):
@@ -151,10 +151,10 @@ def test_store(ts_instance, monkeypatch):
 def test_delete_collection_drops_history_companion(test_store):
     for coll_name, drop_history, expected in ((f'casc_{uuid6.uuid7().hex}', True, []), (f'keep_{uuid6.uuid7().hex}', False, ['#history'])):
         hist_name = TraitableHistory.history_collection_name(coll_name)
-        NameValueTraitableCustomCollection(name='a', value=1, _collection_name=coll_name).save().throw()
+        NameValueTraitableCustomCollection(name = 'a', value = 1, _collection_name = coll_name).save().throw()
         assert {coll_name, hist_name} <= set(test_store.collection_names()), 'save must create both collections'
 
-        NameValueTraitableCustomCollection.delete_collection(coll_name, drop_history=drop_history)
+        NameValueTraitableCustomCollection.delete_collection(coll_name, drop_history = drop_history)
         if left := [n.replace(coll_name, '') for n in test_store.collection_names() if n.startswith(coll_name)]:
             test_store.delete_collection(hist_name)
         assert left == expected
@@ -180,20 +180,20 @@ class TestTraitableHistory:
     def test_traitable_history_collection(self, test_store):
         """Test TraitableHistory collection name generation."""
         # Test with default collection name
-        coll = NameValueTraitable.collection()
-        history_coll = NameValueTraitable.s_history_class.collection()
+        coll            = NameValueTraitable.collection()
+        history_coll    = NameValueTraitable.s_history_class.collection()
         assert coll.collection_name() + '#history' == history_coll.collection_name()
 
     def test_traitable_history_save(self, test_store, test_collection):
         serialized_data = {'_id': 'test-123', '_rev': 1, 'name': 'Test Item', 'value': 42}
 
-        class CustomCollectionHistory(TraitableHistory, custom_collection=True):
+        class CustomCollectionHistory(TraitableHistory, custom_collection = True):
             s_traitable_class = Traitable
 
         hist = CustomCollectionHistory(
-            serialized_traitable=serialized_data,
-            _traitable_rev=2,
-            _collection_name=test_collection.collection_name(),
+            serialized_traitable    = serialized_data,
+            _traitable_rev          = 2,
+            _collection_name        = test_collection.collection_name(),
         )
         hist.save().throw()
         # Store-side TS fields hydrated on the client without reload
@@ -235,8 +235,8 @@ class TestTraitableHistory:
 
         monkeypatch.setattr('core_10x.traitable.StorableHelperWithHistory._save_serialized', _save_serialized_raise)
 
-        obj = NameValueTraitable(name='x', value=1, _replace=True)
-        rc = obj.save()
+        obj = NameValueTraitable(name = 'x', value = 1, _replace = True)
+        rc  = obj.save()
         assert 'history save fails' in rc.error()
         assert obj.get_revision() == 0
         assert obj.history() == []
@@ -254,14 +254,14 @@ class TestTraitableHistory:
         monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *a, **kw: PyClass.name(cls))
 
         class X(Traitable):
-            x: int = T(T.ID)
+            x: int  = T(T.ID)
             y: Self = T()
 
         with test_store:
             assert not X.load_many()
             assert not X.history()
-            obj = X(x=1, y=X(x=2), _replace=True)
-            assert 'Error saving traitable: save error' in obj.save(save_references=True).error()
+            obj = X(x = 1, y = X(x = 2), _replace = True)
+            assert 'Error saving traitable: save error' in obj.save(save_references = True).error()
 
             assert obj.y.get_revision() == 1
             assert len(X.load_many()) == 1
@@ -284,17 +284,17 @@ class TestTraitableHistory:
         assert isinstance(Node.s_storage_helper, StorableHelperWithHistory)
 
         with test_store:
-            a = Node.new_or_replace(kids=[Node(), Node()])
+            a = Node.new_or_replace(kids = [Node(), Node()])
             for kid in a.kids:
                 kid.kids = [a]
-            a.save(save_references=BSaveRefs.ALL).throw()
+            a.save(save_references = BSaveRefs.ALL).throw()
             assert len(Node.history()) == 3
 
     def test_mutable_ts_time_update_hydrates(self, test_store):
         """Mutable traitable with TS_TIME: second save is update path with post_serialize stamp."""
         assert not MutableWithTsTime.s_immutable
-        name = f'ts-upd-{uuid6.uuid7().hex}'
-        obj = MutableWithTsTime(name=name, value=1, _replace=True)
+        name    = f'ts-upd-{uuid6.uuid7().hex}'
+        obj     = MutableWithTsTime(name = name, value = 1, _replace = True)
         obj.save().throw()
         assert obj.get_revision() == 1
         assert obj.is_trait_valid(obj.trait('saved_at'))
@@ -308,7 +308,7 @@ class TestTraitableHistory:
         assert obj.saved_at >= at1
         assert obj.value == 2
 
-        loaded = MutableWithTsTime.existing_instance(name=name)
+        loaded = MutableWithTsTime.existing_instance(name = name)
         loaded.reload()
         assert loaded.value == 2
         assert loaded.get_revision() == 2
@@ -317,8 +317,8 @@ class TestTraitableHistory:
     def test_traitable_class_history_methods(self, test_store, test_collection, clock_freezer):
         """Test Traitable class history methods."""
         # Create a test traitable and save it with history
-        test_item = NameValueTraitableCustomCollection(_collection_name=test_collection.collection_name())
-        test_item.name = 'Test Item'
+        test_item       = NameValueTraitableCustomCollection(_collection_name = test_collection.collection_name())
+        test_item.name  = 'Test Item'
         test_item.value = 42
 
         # Save the traitable (this should create history)
@@ -327,7 +327,7 @@ class TestTraitableHistory:
         assert test_item._collection_name == test_collection.collection_name()
 
         # Test history method
-        history = NameValueTraitableCustomCollection.history(_collection_name=test_item._collection_name)
+        history = NameValueTraitableCustomCollection.history(_collection_name = test_item._collection_name)
         assert len(history) == 1
         assert history[0]['_traitable_id'] == test_item.id().value
         assert history[0]['_traitable_rev'] == test_item._rev
@@ -336,7 +336,7 @@ class TestTraitableHistory:
         assert history[0]['name'] == 'Test Item'
         assert history[0]['value'] == 42
 
-        ts = clock_freezer.utcnow()
+        ts              = clock_freezer.utcnow()
         test_item.value = 43
         test_item.save()
         assert test_item._rev == 2
@@ -349,10 +349,10 @@ class TestTraitableHistory:
     def test_history_entry_creation(self, test_store):
         """Test that history entries are created when saving traitables."""
         # Create a person
-        person = PersonTraitable()
-        person.name = 'John Doe'
-        person.age = 30
-        person.email = 'john@example.com'
+        person          = PersonTraitable()
+        person.name     = 'John Doe'
+        person.age      = 30
+        person.email    = 'john@example.com'
 
         # Save the person
         person.save()
@@ -365,8 +365,8 @@ class TestTraitableHistory:
         assert history_collection.count() == 1
 
         # Verify history entry structure
-        history_docs = list(history_collection.find())
-        history_doc = history_docs[0]
+        history_docs    = list(history_collection.find())
+        history_doc     = history_docs[0]
         assert history_doc['_traitable_id'] == person.id().value
         # History entry is created before revision increment, so it should be 0
         assert history_doc['_traitable_rev'] == person._rev
@@ -380,10 +380,10 @@ class TestTraitableHistory:
         """Test that multiple history entries are created for updates."""
 
         # Create a person
-        person = PersonTraitable()
-        person.name = 'John Doe'
-        person.age = 30
-        person.email = 'john@example.com'
+        person          = PersonTraitable()
+        person.name     = 'John Doe'
+        person.age      = 30
+        person.email    = 'john@example.com'
         person.save()
 
         # Update the person
@@ -412,10 +412,10 @@ class TestTraitableHistory:
         """Test the history method."""
 
         # Create a person
-        person = PersonTraitable()
-        person.name = 'John Doe'
-        person.age = 30
-        person.email = 'john@example.com'
+        person          = PersonTraitable()
+        person.name     = 'John Doe'
+        person.age      = 30
+        person.email    = 'john@example.com'
         person.save()
 
         # Update the person
@@ -438,10 +438,10 @@ class TestTraitableHistory:
         """Test the latest_revision method."""
 
         # Create a person
-        person = PersonTraitable()
-        person.name = 'John Doe'
-        person.age = 30
-        person.email = 'john@example.com'
+        person          = PersonTraitable()
+        person.name     = 'John Doe'
+        person.age      = 30
+        person.email    = 'john@example.com'
         person.save().throw()
 
         # Update the person
@@ -464,10 +464,10 @@ class TestTraitableHistory:
         """Test AsOfContext with real data."""
 
         # Create a person
-        person = PersonTraitable()
-        person.name = 'John Doe'
-        person.age = 30
-        person.email = 'john@example.com'
+        person          = PersonTraitable()
+        person.name     = 'John Doe'
+        person.age      = 30
+        person.email    = 'john@example.com'
         person.save()
 
         # Record the time after creation
@@ -486,16 +486,16 @@ class TestTraitableHistory:
     def test_as_of_error_cases(self, test_store, clock_freezer):
         with BTraitableProcessor.create_root():
             # Create and save a person
-            person = PersonTraitable(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _replace=True)
-            person.spouse = PersonTraitable(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _replace=True)
+            person          = PersonTraitable(first_name = 'Alyssa', last_name = 'Lees', dob = date(1985, 7, 5), _replace = True)
+            person.spouse   = PersonTraitable(first_name = 'James', last_name = 'Bond', dob = date(1985, 7, 5), _replace = True)
             person.spouse.save().throw()
             person.save().throw()
 
             ts = clock_freezer.utcnow()
 
             # Update and save again
-            person.dob = date(1985, 7, 6)
-            person.spouse.dob = date(1985, 7, 6)
+            person.dob          = date(1985, 7, 6)
+            person.spouse.dob   = date(1985, 7, 6)
             person.spouse.save().throw()
             person.save().throw()
 
@@ -504,10 +504,10 @@ class TestTraitableHistory:
 
             person.spouse.id()
 
-        assert PersonTraitable.existing_instance_by_id(person_id, _throw=False)
+        assert PersonTraitable.existing_instance_by_id(person_id, _throw = False)
 
         with CACHE_ONLY():
-            assert not PersonTraitable.existing_instance_by_id(person_id, _throw=False)
+            assert not PersonTraitable.existing_instance_by_id(person_id, _throw = False)
 
         for ctx in (
             INTERACTIVE,
@@ -522,13 +522,13 @@ class TestTraitableHistory:
                     person1 = PersonTraitable.from_id(person_id)
                     assert person1.dob == date(1985, 7, 6)
 
-                    person_as_of = PersonTraitable.as_of(person_id, as_of_time=ts)
+                    person_as_of = PersonTraitable.as_of(person_id, as_of_time = ts)
 
-                    with AsOfContext(traitable_classes=[PersonTraitable], as_of_time=as_of):
-                        with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+                    with AsOfContext(traitable_classes = [PersonTraitable], as_of_time = as_of):
+                        with pytest.raises(RuntimeError, match = r'object not usable - origin cache is not reachable'):
                             _ = person1.dob
 
-                        with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+                        with pytest.raises(RuntimeError, match = r'object not usable - origin cache is not reachable'):
                             _ = person_as_of.dob
 
                         person2 = PersonTraitable.from_id(person_id)
@@ -540,17 +540,17 @@ class TestTraitableHistory:
 
                     assert person_as_of.spouse.dob == date(1985, 7, 6)  # note - since no AsOfContext was used, nested objects are not loaded "as_of".
 
-                    with pytest.raises(RuntimeError, match=r'object not usable - origin cache is not reachable'):
+                    with pytest.raises(RuntimeError, match = r'object not usable - origin cache is not reachable'):
                         _ = person2.dob
 
     def test_load_as_of(self, test_store, clock_freezer):
         """Test loading a traitable as of a specific time."""
 
         # Create a person
-        person = PersonTraitable()
-        person.name = 'John Doe'
-        person.age = 30
-        person.email = 'john@example.com'
+        person          = PersonTraitable()
+        person.name     = 'John Doe'
+        person.age      = 30
+        person.email    = 'john@example.com'
         person.save()
 
         # Record the time after creation
@@ -570,16 +570,16 @@ class TestTraitableHistory:
         """Test loading multiple traitables as of a specific time."""
 
         # Create two people
-        person1 = PersonTraitable()
-        person1.name = 'John Doe'
-        person1.age = 30
-        person1.email = 'john@example.com'
+        person1         = PersonTraitable()
+        person1.name    = 'John Doe'
+        person1.age     = 30
+        person1.email   = 'john@example.com'
         person1.save()
 
-        person2 = PersonTraitable()
-        person2.name = 'Jane Smith'
-        person2.age = 25
-        person2.email = 'jane@example.com'
+        person2         = PersonTraitable()
+        person2.name    = 'Jane Smith'
+        person2.age     = 25
+        person2.email   = 'jane@example.com'
         person2.save()
 
         # Record the time after creation
@@ -613,12 +613,12 @@ class TestTraitableHistory:
         monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
 
         # Create a class without history tracking
-        class NoHistoryTraitable(Traitable, keep_history=False):
+        class NoHistoryTraitable(Traitable, keep_history = False):
             name: str = T()
 
         # Create and save an instance
-        item = NoHistoryTraitable()
-        item.name = 'Test Item'
+        item        = NoHistoryTraitable()
+        item.name   = 'Test Item'
         item.save()
 
         # Check that no history collection was created
@@ -632,24 +632,24 @@ class TestTraitableHistory:
         """Listing a keep_history=False class raises; the default context reads it as current data (see GETTING_STARTED)."""
         monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
 
-        class NoHistoryTraitable(Traitable, keep_history=False):
-            key: str = T(T.ID)
-            value: str = T()
+        class NoHistoryTraitable(Traitable, keep_history = False):
+            key: str    = T(T.ID)
+            value: str  = T()
 
-        item = NoHistoryTraitable(key='k1', value='v1', _replace=True)
+        item = NoHistoryTraitable(key = 'k1', value = 'v1', _replace = True)
         item.save().throw()
         as_of_time = datetime(2020, 1, 1, 12, 0, 0)
 
-        with pytest.raises(ValueError, match=r"\.NoHistoryTraitable'> is not storable or does not keep history"):
+        with pytest.raises(ValueError, match = r"\.NoHistoryTraitable'> is not storable or does not keep history"):
             AsOfContext(as_of_time, [NoHistoryTraitable])
-        assert NoHistoryTraitable.existing_instance(key='k1') == item
+        assert NoHistoryTraitable.existing_instance(key = 'k1') == item
 
     def test_asof_default_applies_to_all_traitable_subclasses(self, test_store, clock_freezer):
         """AsOfContext with default traitable_classes (None) applies to all Traitable subclasses via __mro__."""
         # Create and save a person
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Default AsOf Test'
-        person.age = 25
+        person.age  = 25
         person.save()
 
         query_time = clock_freezer.utcnow()
@@ -658,7 +658,7 @@ class TestTraitableHistory:
         person.save()
 
         # Default: no traitable_classes => [Traitable]; PersonTraitable is a subclass so gets AsOf
-        with AsOfContext(as_of_time=query_time):
+        with AsOfContext(as_of_time = query_time):
             historical = PersonTraitable.load(person.id())
             assert historical is not None
             assert historical.age == 25
@@ -670,9 +670,9 @@ class TestTraitableHistory:
 
     def _person_with_ages(self, clock_freezer, first_age, *later_ages):
         """Saves a person at each age; returns it and the as-of time just before each later save."""
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Nested AsOf Test'
-        person.age = first_age
+        person.age  = first_age
         person.save()
         times = []
         for age in later_ages:
@@ -705,9 +705,9 @@ class TestTraitableHistory:
     def test_latest_revision_with_timestamp(self, test_store, clock_freezer):
         """Test latest_revision with specific timestamp."""
         # Create a person
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Time Test Person'
-        person.age = 30
+        person.age  = 30
         person.save()
 
         # Record time after first save
@@ -718,7 +718,7 @@ class TestTraitableHistory:
         person.save()
 
         # Get latest revision as of the query time
-        latest = PersonTraitable.latest_revision(person.id(), timestamp=query_time)
+        latest = PersonTraitable.latest_revision(person.id(), timestamp = query_time)
 
         # Should be the first revision (age 30)
         assert latest['age'] == 30
@@ -727,7 +727,7 @@ class TestTraitableHistory:
     def test_history_with_empty_collection(self, test_store):
         """Test history method with no history entries."""
         # Create a person but don't save it
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Unsaved Person'
 
         # Get history - should be empty
@@ -744,9 +744,9 @@ class TestTraitableHistory:
     def test_history_default_at_most_parameter(self, test_store):
         """Test that history method uses default _at_most=0 (no limit)."""
         # Create a person
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Test Person'
-        person.age = 30
+        person.age  = 30
         person.save()
 
         # Update multiple times
@@ -760,15 +760,15 @@ class TestTraitableHistory:
         assert len(history) == 3
 
         # Test with explicit _at_most=2
-        history_limited = PersonTraitable.history(_at_most=2)
+        history_limited = PersonTraitable.history(_at_most = 2)
         assert len(history_limited) == 2
 
     def test_latest_revision_with_timestamp_parameter(self, test_store, clock_freezer):
         """Test that latest_revision accepts timestamp parameter."""
         # Create a person
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Timestamp Test'
-        person.age = 25
+        person.age  = 25
         person.save()
 
         # Record time after first save
@@ -779,7 +779,7 @@ class TestTraitableHistory:
         person.save()
 
         # Test latest_revision with timestamp
-        latest = PersonTraitable.latest_revision(person.id(), timestamp=query_time)
+        latest = PersonTraitable.latest_revision(person.id(), timestamp = query_time)
         assert latest is not None
         assert latest['age'] == 25  # Should be the first revision
 
@@ -791,9 +791,9 @@ class TestTraitableHistory:
     def test_restore(self, test_store, clock_freezer):
         """Test restore method with save parameter."""
         # Create a person
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Restore Test'
-        person.age = 30
+        person.age  = 30
         person.save()
 
         # Record time after first save
@@ -804,7 +804,7 @@ class TestTraitableHistory:
         person.save()
 
         # Test restore without save (should not persist)
-        result = PersonTraitable.restore(person.id(), timestamp=query_time, save=False)
+        result = PersonTraitable.restore(person.id(), timestamp = query_time, save = False)
         assert result is True
         assert person.age == 30
 
@@ -813,7 +813,7 @@ class TestTraitableHistory:
         assert person.age == 31
 
         # Test restore with save (should persist)
-        result = PersonTraitable.restore(person.id(), timestamp=query_time, save=True)
+        result = PersonTraitable.restore(person.id(), timestamp = query_time, save = True)
         assert result is True
         assert person.age == 30
         person.reload()
@@ -822,33 +822,33 @@ class TestTraitableHistory:
     def test_restore_with_nonexistent_timestamp(self, test_store):
         """Test restore method with non-existent timestamp."""
         # Create a person
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Restore Test'
-        person.age = 30
+        person.age  = 30
         person.save()
 
         # Try to restore to a time before the person existed
-        past_time = datetime(2020, 1, 1)
-        result = PersonTraitable.restore(person.id(), timestamp=past_time, save=False)
+        past_time   = datetime(2020, 1, 1)
+        result      = PersonTraitable.restore(person.id(), timestamp = past_time, save = False)
         assert result is False
 
     def test_restore_with_nonexistent_id(self, test_store):
         """Test restore method with non-existent ID."""
 
         # Try to restore non-existent ID
-        result = PersonTraitable.restore(ID('nonexistent'), save=False)
+        result = PersonTraitable.restore(ID('nonexistent'), save = False)
         assert result is False
 
     def test_traitable_history_deserialize(self, test_store):
         """Test TraitableHistory.deserialize method."""
         # Create a person
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Deserialize Test'
-        person.age = 25
+        person.age  = 25
         person.save()
 
         # Get history entry
-        history = PersonTraitable.history(_deserialize=True)
+        history = PersonTraitable.history(_deserialize = True)
         assert len(history) == 1
 
         history_entry = history[0]
@@ -863,14 +863,14 @@ class TestTraitableHistory:
     def test_traitable_history_prepare_to_deserialize(self, test_store):
         """Test TraitableHistory.prepare_to_deserialize method."""
         # Create a person
-        person = PersonTraitable()
+        person      = PersonTraitable()
         person.name = 'Prepare Test'
-        person.age = 28
+        person.age  = 28
         person.save()
 
         # Get history entry
-        history = PersonTraitable.history(_deserialize=True)
-        history_entry = history[0]
+        history         = PersonTraitable.history(_deserialize = True)
+        history_entry   = history[0]
 
         # Test prepare_to_deserialize
         prepared_data = history_entry.serialized_traitable
@@ -894,7 +894,7 @@ class TestTraitableHistory:
         with pytest.raises(TsDuplicateKeyError):
             test_collection.save_new({'_id': 'new-id'})
 
-        test_collection.save_new({'_id': 'new-id'}, overwrite=True)
+        test_collection.save_new({'_id': 'new-id'}, overwrite = True)
 
     def test_find_without_filter_parameter(self, test_store, test_collection):
         """Test DuckDB find without _filter parameter."""
@@ -910,24 +910,24 @@ class TestTraitableHistory:
     def test_immutability_of_classes_without_history(self, test_store, test_collection):
         """Test immutability of storable classes that do not keep history."""
 
-        class NoHistoryImmutableTraitable(NameValueTraitableCustomCollection, keep_history=False): ...
+        class NoHistoryImmutableTraitable(NameValueTraitableCustomCollection, keep_history = False): ...
 
         # Classes without history should be marked immutable
         assert NoHistoryImmutableTraitable.s_history_class is None
         assert NoHistoryImmutableTraitable.s_immutable is True
 
         # First save should succeed and create a single record
-        item = NoHistoryImmutableTraitable(_collection_name=test_collection.collection_name())
-        item.name = 'First'
-        rc1 = item.save()
+        item        = NoHistoryImmutableTraitable(_collection_name = test_collection.collection_name())
+        item.name   = 'First'
+        rc1         = item.save()
         assert rc1
         assert item.name == 'First'
         assert item._rev == 1
         assert test_collection.count() == 1
 
         # Second save should fail (cannot update immutable records)
-        item.name = 'Second'
-        rc2 = item.save()
+        item.name   = 'Second'
+        rc2         = item.save()
         assert not rc2
         assert item.name == 'Second'
         assert item._rev == 1
@@ -941,10 +941,10 @@ class TestTraitableHistory:
         """Test that individual history entries cannot be modified once written."""
 
         # Create and save a person twice to generate multiple history entries
-        person = PersonTraitable()
-        person.name = 'Immutable History'
-        person.age = 30
-        person.email = 'immutable@example.com'
+        person          = PersonTraitable()
+        person.name     = 'Immutable History'
+        person.age      = 30
+        person.email    = 'immutable@example.com'
         person.save().throw()
 
         person.age = 31
@@ -957,15 +957,15 @@ class TestTraitableHistory:
         assert history_collection.count() == 2
 
         # Load a history entry as TraitableHistory instance
-        history_entries = PersonTraitable.history(_deserialize=True)
+        history_entries = PersonTraitable.history(_deserialize = True)
         assert len(history_entries) == 2
 
-        entry = history_entries[0]
-        original_who = entry._who
+        entry           = history_entries[0]
+        original_who    = entry._who
 
         # Attempting to modify and re-save the history entry should fail
-        entry._who = 'someone-else'
-        rc = entry.save()
+        entry._who  = 'someone-else'
+        rc          = entry.save()
         assert not rc
 
         # Reload from the store and verify that the stored entry was not changed
@@ -978,19 +978,19 @@ class TestTraitableHistory:
         """Test that the AsOf _find implementation returns at most one record per _id."""
 
         # Create two people and multiple history entries for each
-        person1 = PersonTraitable()
-        person1.name = 'Person One'
-        person1.age = 30
-        person1.email = 'one@example.com'
+        person1         = PersonTraitable()
+        person1.name    = 'Person One'
+        person1.age     = 30
+        person1.email   = 'one@example.com'
         person1.save()
 
         person1.age = 31
         person1.save()
 
-        person2 = PersonTraitable()
-        person2.name = 'Person Two'
-        person2.age = 25
-        person2.email = 'two@example.com'
+        person2         = PersonTraitable()
+        person2.name    = 'Person Two'
+        person2.age     = 25
+        person2.email   = 'two@example.com'
         person2.save()
 
         person2.age = 26

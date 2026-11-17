@@ -21,10 +21,10 @@ class StubLogLogger:
     """Records every dict passed to ``log()``; ``shutdown()`` is a no-op except for flags."""
 
     def __init__(self, log_level: int):
-        self.log_level = log_level
+        self.log_level      = log_level
         self.received: list = []
-        self.ps = StubLogPS()
-        self.shut_down = False
+        self.ps             = StubLogPS()
+        self.shut_down      = False
 
     def log(self, data) -> None:
         self.received.append(data)
@@ -36,9 +36,9 @@ class StubLogLogger:
 @contextmanager
 def stub_log_module_logger(log_level: int):
     """Temporarily set ``core_10x.logger.LOGGER`` to a ``StubLogLogger``; restore on exit."""
-    prev = log_module.LOGGER
-    stub = StubLogLogger(log_level)
-    log_module.LOGGER = stub
+    prev                = log_module.LOGGER
+    stub                = StubLogLogger(log_level)
+    log_module.LOGGER   = stub
     try:
         yield stub
     finally:

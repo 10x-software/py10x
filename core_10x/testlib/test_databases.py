@@ -60,7 +60,7 @@ def test_uri(store_protocol: str, session_db: str = SESSION_DB) -> str:
     return f'{store_protocol.lower()}://localhost/{session_db}'
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope = 'session')
 def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
     """``(protocol[, custom_db]) -> store``, or ``None`` when that backend is not running.
 
@@ -73,7 +73,7 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
     """
     from core_10x.ts_store import TsStore
 
-    stores = {}
+    stores  = {}
     created = set()
 
     def test_store(store_protocol: str, custom_db: str = '') -> TsStore | None:
@@ -89,7 +89,7 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
                     EnvVars.vault_uri = DEFAULT_TEST_VAULT_URI
                 # Vault-aware: password-auth servers take credentials from the local vault;
                 # open (CI / unauthenticated mongo+postgres) servers skip it.
-                stores[uri] = Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True)
+                stores[uri] = Traitable.store_from_uri(uri, _cache = False, _create_if_needed = True)
                 created.add((Resource.uri_no_dbname(uri), dbname, needs_vault and DEFAULT_TEST_VAULT_URI))
         return stores[uri]
 
@@ -101,4 +101,4 @@ def live_store() -> Iterator[Callable[[str, str], TsStore | None]]:
         if vault:
             EnvVars.vault_uri = vault
         # From a store on the server default: a store cannot drop the database it is on.
-        Traitable.store_from_uri(uri, _cache=False).delete_database(dbname)
+        Traitable.store_from_uri(uri, _cache = False).delete_database(dbname)
