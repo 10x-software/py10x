@@ -30,8 +30,7 @@ from datetime import timezone
 import pytest
 from core_10x.exec_control import CACHE_ONLY
 from core_10x.package_refactoring import PackageRefactoring
-from core_10x.traitable import RT, Bundle, BundleHistory, T, Traitable, StorableHelperAsOf, NotStorableHelper
-
+from core_10x.traitable import RT, Bundle, BundleHistory, NotStorableHelper, StorableHelperAsOf, T, Traitable
 
 # ---------------------------------------------------------------------------
 # Bundle with members_known=True - short-name registry
