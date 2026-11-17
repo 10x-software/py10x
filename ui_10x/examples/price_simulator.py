@@ -8,11 +8,11 @@ from ui_10x.table_view import TableView
 from ui_10x.utils import UxAsync, ux
 
 class MarketSymbol(Traitable):
-    symbol: str     = RT(T.READONLY)
-    bid: float      = RT()
-    price: float    = RT()
-    ask: float      = RT()
-    prev_close: float = RT()
+    symbol: str         = RT(T.READONLY)
+    bid: float          = RT()
+    price: float        = RT()
+    ask: float          = RT()
+    prev_close: float   = RT()
 
     dp: float           = RT(T.HIDDEN,  default = 0.)
     prev_price: float   = RT(T.HIDDEN)
@@ -75,11 +75,11 @@ class MarketMonitor:
     ]
     @classmethod
     def fetch_symbols(cls) -> list:
-        res = []
+        res         = []
         symbol_data = cls.s_symbol_data
         trait_names = symbol_data[0]
-        n = len(trait_names)
-        ticker = PyClass.find_symbol("yfinance.Ticker")
+        n           = len(trait_names)
+        ticker      = PyClass.find_symbol("yfinance.Ticker")
         for row in range(1, len(symbol_data)):
             sym = MarketSymbol(**{trait_names[i]: symbol_data[row][i] for i in range(n)})
             if ticker:
@@ -92,10 +92,10 @@ class MarketMonitor:
         return res
 
     def __init__(self):
-        self.symbols = self.fetch_symbols()
-        self.table = None
-        self.timer = None
-        self.next_item = 0
+        self.symbols    = self.fetch_symbols()
+        self.table      = None
+        self.timer      = None
+        self.next_item  = 0
 
     def widget(self):
         self.table = table = TableView(MarketSymbol)
@@ -120,8 +120,8 @@ class MarketMonitor:
             symbol.dp = d
             self.table.render_traitable(row, symbol)
 
-        dt = random.randint(0, 2)
-        self.timer = threading.Timer(dt, self.process_timer)
+        dt          = random.randint(0, 2)
+        self.timer  = threading.Timer(dt, self.process_timer)
         self.timer.start()
 
     def process_timer(self):
@@ -135,7 +135,7 @@ if __name__ == '__main__':
     ux.init()
 
     with INTERACTIVE():
-        mm = MarketMonitor()
-        d = UxDialog(mm.widget(), title='Enjoy watching some stocks :-)', open_callback=mm.start)
+        mm  = MarketMonitor()
+        d   = UxDialog(mm.widget(), title = 'Enjoy watching some stocks :-)', open_callback = mm.start)
         d.exec()
 

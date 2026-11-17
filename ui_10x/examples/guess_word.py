@@ -22,33 +22,33 @@ class CHAR_STATE:
     BINGO       = ('darkgreen',    'white')
 
 class GuessResult(Traitable):
-    the_word: str    = RT(T.HIDDEN)
-    guess: str       = RT(T.HIDDEN)
-    num_chars: int   = RT(T.HIDDEN)
+    the_word: str       = RT(T.HIDDEN)
+    guess: str          = RT(T.HIDDEN)
+    num_chars: int      = RT(T.HIDDEN)
 
-    demo_class: type = RT(T.HIDDEN)
+    demo_class: type    = RT(T.HIDDEN)
 
-    char_state: list = RT(T.HIDDEN)
+    char_state: list    = RT(T.HIDDEN)
 
     guessed_chars: list = RT(T.HIDDEN)
-    current_char: int = RT(T.HIDDEN, default = 0)
+    current_char: int   = RT(T.HIDDEN, default = 0)
 
     def guessed_chars_get(self) -> list:
         return list(self.num_chars * ' ')
 
     def set_current_char(self, c: str):
-        i = self.current_char
-        guessed_chars = self.guessed_chars
-        guessed_chars[i] = c
-        self.current_char = i + 1
+        i                   = self.current_char
+        guessed_chars       = self.guessed_chars
+        guessed_chars[i]    = c
+        self.current_char   = i + 1
 
     def delete_char(self):
         i = self.current_char
         if i:
             i -= 1
-            guessed_chars = self.guessed_chars
-            guessed_chars[i] = ' '
-            self.current_char = i
+            guessed_chars       = self.guessed_chars
+            guessed_chars[i]    = ' '
+            self.current_char   = i
 
     def accept_guess(self):
         self.guess = ''.join(self.guessed_chars)
@@ -57,14 +57,14 @@ class GuessResult(Traitable):
         return len(self.the_word)
 
     def char_state_get(self) -> list:
-        num_chars = self.num_chars
-        res = [CHAR_STATE.NONE] * num_chars
-        word = list(self.the_word)
+        num_chars   = self.num_chars
+        res         = [CHAR_STATE.NONE] * num_chars
+        word        = list(self.the_word)
         for i, c in enumerate(self.guess):
             try:
-                pos = word.index(c)
-                res[i] = CHAR_STATE.BINGO if pos == i else CHAR_STATE.WRONG_POS
-                word[pos] = ''
+                pos         = word.index(c)
+                res[i]      = CHAR_STATE.BINGO if pos == i else CHAR_STATE.WRONG_POS
+                word[pos]   = ''
             except ValueError:
                 pass
 
@@ -75,13 +75,13 @@ class GuessResult(Traitable):
 
     @classmethod
     def _create_char_trait(cls, i: int):
-        name = f'char_{i}'
-        getter_name = f'{name}_get'
-        sh_name = f'{name}_style_sheet'
-        getter = lambda self: self.guess[i]
-        getter.__name__ = getter_name
-        sh_getter = lambda self: T.colors(*self.char_state[i])
-        sh_getter.__name__ = sh_name
+        name                = f'char_{i}'
+        getter_name         = f'{name}_get'
+        sh_name             = f'{name}_style_sheet'
+        getter              = lambda self: self.guess[i]
+        getter.__name__     = getter_name
+        sh_getter           = lambda self: T.colors(*self.char_state[i])
+        sh_getter.__name__  = sh_name
         setattr(cls, getter_name, getter)
         setattr(cls, sh_name, sh_getter)
         return (
@@ -175,21 +175,21 @@ class GuessResult(Traitable):
 #         return w
 
 class Game(Traitable):
-    num_chars: int  = RT(T.HIDDEN, default = 5)
+    num_chars: int              = RT(T.HIDDEN, default = 5)
 
-    the_word: str   = RT(T.HIDDEN)
-    guess: str      = RT( ui_hint = Ui('>'))
-    push: bool      = RT( ui_hint = Ui('Try', widget_type = Ui.WIDGET_TYPE.PUSH, right_label = True))
+    the_word: str               = RT(T.HIDDEN)
+    guess: str                  = RT( ui_hint = Ui('>'))
+    push: bool                  = RT( ui_hint = Ui('Try', widget_type = Ui.WIDGET_TYPE.PUSH, right_label = True))
 
-    count: int      = RT(T.HIDDEN, default = 6)
-    current: int    = RT(T.HIDDEN, default = 0)
+    count: int                  = RT(T.HIDDEN, default = 6)
+    current: int                = RT(T.HIDDEN, default = 0)
 
-    guess_res_class: type   = RT(T.HIDDEN)
-    attempts: list          = RT(T.HIDDEN)
+    guess_res_class: type       = RT(T.HIDDEN)
+    attempts: list              = RT(T.HIDDEN)
 
     top_editor: TraitableEditor = RT()
-    table: TableView        = RT()
-    layout: object          = RT(T.HIDDEN)
+    table: TableView            = RT()
+    layout: object              = RT(T.HIDDEN)
     # keyboard: Keyboard      = RT()
 
     def the_word_get(self) -> str:
@@ -212,7 +212,7 @@ class Game(Traitable):
 
     def guess_result(self, guess: str):
         demo_class = self.guess_res_class
-        return demo_class(the_word=self.the_word, guess=guess)
+        return demo_class(the_word = self.the_word, guess = guess)
 
     def push_get(self) -> bool:
         return self.current < self.count
@@ -223,7 +223,7 @@ class Game(Traitable):
 
     def push_action(self, editor):
         current = self.current
-        guess = self.guess
+        guess   = self.guess
         if len(guess) != self.num_chars:
             ux_warning(f'The word is {self.num_chars} characters long.')
             return
@@ -232,9 +232,9 @@ class Game(Traitable):
             ux_warning(f"Unfamiliar noun '{guess}'")
             return
 
-        gr = self.guess_result(self.guess)
-        attempts = self.attempts
-        attempts[current] = gr
+        gr                  = self.guess_result(self.guess)
+        attempts            = self.attempts
+        attempts[current]   = gr
         self.table.render_traitable(current, None)
 
         if all(s == CHAR_STATE.BINGO for s in gr.char_state):
@@ -251,8 +251,8 @@ class Game(Traitable):
         return TraitableEditor.editor(self)
 
     def table_get(self) -> TableView:
-        table = TableView(self.attempts)
-        hv = table.horizontalHeader()
+        table   = TableView(self.attempts)
+        hv      = table.horizontalHeader()
         hv.setStretchLastSection(False)
         return table
 
@@ -261,7 +261,7 @@ class Game(Traitable):
 
     def widget(self):
         ux.init()
-        w = ux.Widget()
+        w           = ux.Widget()
         self.layout = lay = ux.VBoxLayout()
         w.set_layout(lay)
         return w
@@ -295,14 +295,14 @@ class _GuessWordData:
         ]
 
         with open(filename, 'w') as f:
-            print('noun_pool = {', file=f)
+            print('noun_pool = {', file = f)
             for n in cls.NUM_CHARS:
-                print(f'\t{n}: [', file=f)
+                print(f'\t{n}: [', file = f)
                 pool = [w for w in noun_pool if len(w) == n]
                 for w in pool:
-                    print(f'\t\t{w!r},', file=f)
-                print('\t],', file=f)
-            print('}', file=f)
+                    print(f'\t\t{w!r},', file = f)
+                print('\t],', file = f)
+            print('}', file = f)
 
     @classmethod
     @cache
@@ -318,22 +318,22 @@ class _GuessWordData:
         #cls.download_nouns(file_name)
 
         module_name = f'{package_name}.{cls.MODULE_NAME}'
-        m = importlib.import_module(module_name)
-        noun_pool = getattr(m, 'NOUN_POOL', None)
+        m           = importlib.import_module(module_name)
+        noun_pool   = getattr(m, 'NOUN_POOL', None)
         assert noun_pool and type(noun_pool) is dict, 'noun_pool must be a non-empty dict by num chars'
         return noun_pool
 
     @classmethod
     def word_exists(cls, w: str) -> bool:
-        noun_pool = cls.noun_pool()
-        n = len(w)
-        words = noun_pool.get(n)
+        noun_pool   = cls.noun_pool()
+        n           = len(w)
+        words       = noun_pool.get(n)
         return words and w.lower() in words
 
     @classmethod
     def new_word(cls, n: int) -> str:
-        noun_pool = cls.noun_pool()
-        words = noun_pool.get(n)
+        noun_pool   = cls.noun_pool()
+        words       = noun_pool.get(n)
         if words is None:
             raise AssertionError(f'There are no {n}-letter words available')
         return random.choice(words)
@@ -346,8 +346,8 @@ if __name__ == '__main__':
     from ui_10x.utils import UxDialog
 
     with INTERACTIVE():
-        game = Game()
-        w = game.widget()
+        game    = Game()
+        w       = game.widget()
 
-        d = UxDialog(w, title = f'You have {game.count} attempts to guess a word', open_callback=game.bind)
+        d = UxDialog(w, title = f'You have {game.count} attempts to guess a word', open_callback = game.bind)
         d.exec()

@@ -47,8 +47,8 @@ class TraitWidget:
 
         traitable = self.trait_editor.traitable
 
-        self.style_sheet = sheet = UxStyleSheet(self)
-        sh = traitable.get_style_sheet(self.trait)
+        self.style_sheet    = sheet = UxStyleSheet(self)
+        sh                  = traitable.get_style_sheet(self.trait)
         sheet.update(sh)
 
         value = traitable.get_value(self.trait)
@@ -58,8 +58,8 @@ class TraitWidget:
         traitable.create_ui_node(self.trait, ctx.emit_signal)
 
     def refresh(self):
-        traitable = self.trait_editor.traitable
-        trait = self.trait
+        traitable   = self.trait_editor.traitable
+        trait       = self.trait
         traitable.update_ui_node(self.trait)
 
         if not trait.flags_on(T.EXPENSIVE):
@@ -70,7 +70,7 @@ class TraitWidget:
             self.style_sheet.update(sh)
 
             if not traitable.is_valid(trait):
-                self.style_sheet.update({Ui.BG_COLOR: 'lightblue'}, _system=True)
+                self.style_sheet.update({Ui.BG_COLOR: 'lightblue'}, _system = True)
 
     def display_text(self) -> str:
         """Text this widget is currently showing, for content-based sizing.
@@ -114,7 +114,7 @@ class TraitWidget:
 
             if not rc:
                 self.set_tool_tip(rc.error())
-                self.style_sheet.update({Ui.BG_COLOR: 'orange'}, _system=True)
+                self.style_sheet.update({Ui.BG_COLOR: 'orange'}, _system = True)
             else:
                 self.set_tool_tip(self.trait.ui_hint.tip)
                 self.style_sheet.restore()
@@ -133,7 +133,7 @@ class RefreshContext(ux.Object):
     def __init__(self, trait_widget: TraitWidget):
         super().__init__()
         self.trait_widget = trait_widget
-        self.REFRESH.connect(TraitWidget.refresh, type=ux.QueuedConnection)
+        self.REFRESH.connect(TraitWidget.refresh, type = ux.QueuedConnection)
 
     def emit_signal(self):
         self.REFRESH.emit(self.trait_widget)

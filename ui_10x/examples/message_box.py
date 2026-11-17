@@ -7,14 +7,14 @@ if __name__ == '__main__':
 
     app = ux.init()
 
-    ret = ux_answer('This is a message box. '*50+'Ok?', title='Message Box Title')
+    ret = ux_answer('This is a message box. '*50+'Ok?', title = 'Message Box Title')
 
     print(ret)
 
 
-    ret = ux_success('This is a success message box. '*50+'Ok?', title='Success Message Box Title')
+    ret = ux_success('This is a success message box. '*50+'Ok?', title = 'Success Message Box Title')
     print(ret)
 
-    ret = ux_warning('This is a warning message box. '*50+'Ok?', title='Warning Message Box Title')
+    ret = ux_warning('This is a warning message box. '*50+'Ok?', title = 'Warning Message Box Title')
     print(ret)
 

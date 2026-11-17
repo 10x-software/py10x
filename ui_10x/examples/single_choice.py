@@ -9,13 +9,13 @@ if __name__ == '__main__':
     ux.init()
 
     choice1 = Choice(choices = ANIMALS)
-    d = UxDialog(choice1.widget())
+    d       = UxDialog(choice1.widget())
     d.exec()
 
     print(choice1.values_selected)
 
     choice2 = Choice(choices = FISH)
-    d = UxDialog(choice2.widget())
+    d       = UxDialog(choice2.widget())
     d.exec()
 
     print(choice2.values_selected)

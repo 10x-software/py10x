@@ -44,7 +44,7 @@ class TraitableEditor:
             f'{traitable_class} is not a subclass of {traitable_class_parent}'
         )
 
-        found = PyClass.find_related_class(traitable_class, 'ui', 'Editor', *alternative_packages, alternative_parent_class=traitable_class_parent)
+        found = PyClass.find_related_class(traitable_class, 'ui', 'Editor', *alternative_packages, alternative_parent_class = traitable_class_parent)
         if found:
             if verify_custom_class:
                 assert issubclass(found, TraitableEditor), (
@@ -59,10 +59,10 @@ class TraitableEditor:
     def editor(
         entity: Traitable,
         *alternative_packages,                  #-- if custom editor class should be looked up somewhere else
-        traitable_class_parent      = None,     #-- if a custom editor of entity's parent class could be used if it's missing for the entity.__class__
-        verify_custom_class: bool   = True,     #-- if a custom editor class should be verified if exists
-        view: TraitableView         = None,     #-- if a specific view for the entity should be used
-        read_only: bool             = False     #-- browser if True
+        traitable_class_parent = None,     #-- if a custom editor of entity's parent class could be used if it's missing for the entity.__class__
+        verify_custom_class: bool = True,     #-- if a custom editor class should be verified if exists
+        view: TraitableView = None,     #-- if a specific view for the entity should be used
+        read_only: bool = False     #-- browser if True
     ) -> TraitableEditor:
         editor_class = TraitableEditor.find_editor_class(
             entity.__class__,
@@ -78,7 +78,7 @@ class TraitableEditor:
     @staticmethod
     def right_mouse_callback_name(trait_name: str) -> str:  return trait_name + '_right_mouse_cb'
 
-    s_left_mouse_callbacks = {}     #-- { trait_name: <lm_cb> }  # def trait_name_left_mouse_cb(table_view, traitable): ...
+    s_left_mouse_callbacks  = {}     #-- { trait_name: <lm_cb> }  # def trait_name_left_mouse_cb(table_view, traitable): ...
     s_right_mouse_callbacks = {}    #-- { trait_name: <rm_cb> }  # def trait_name_right_mouse_cb(table_view, traitable): ...
     @classmethod
     def set_mouse_callbacks(cls, trait_name: str):
@@ -111,7 +111,7 @@ class TraitableEditor:
             cls.s_traitable_class = traitable_class
 
             #-- Mouse callbacks, if any
-            cls.s_left_mouse_callbacks = {}
+            cls.s_left_mouse_callbacks  = {}
             cls.s_right_mouse_callbacks = {}
 
             cls.set_mouse_callbacks('')     #-- common mouse callbacks
@@ -128,22 +128,22 @@ class TraitableEditor:
         else:
             assert issubclass(entity_class, view.cls), f'Given view is not for {entity_class}'
 
-        self.entity = entity
-        self.traitable_processor = None
-        self.change_tracker: SaveIfChanged | None = None
-        self._commit: Callable[[], None] | None = None
+        self.entity                                 = entity
+        self.traitable_processor                    = None
+        self.change_tracker: SaveIfChanged | None   = None
+        self._commit: Callable[[], None] | None     = None
 
-        trait_dir = entity_class.s_dir
-        self.trait_hints = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
+        trait_dir           = entity_class.s_dir
+        self.trait_hints    = trait_hints = {trait_dir[trait_name]: ui_hint for trait_name, ui_hint in view.ui_hints.items() if not ui_hint.flags_on(Ui.HIDDEN)}
 
         self.main_w: ux.Widget|None = None
-        self.callbacks_for_traits = {}
+        self.callbacks_for_traits   = {}
         self.init()
 
-        callbacks = self.callbacks_for_traits
-        tp = lambda wr=weakref.ref(self): ed.traitable_processor if (ed := wr()) is not None else None
-        self.trait_editors = {
-            trait.name: TraitEditor(entity, trait, ui_hint, custom_callback=callbacks.get(trait.name), traitable_processor=tp)
+        callbacks           = self.callbacks_for_traits
+        tp                  = lambda wr = weakref.ref(self): ed.traitable_processor if (ed := wr()) is not None else None
+        self.trait_editors  = {
+            trait.name: TraitEditor(entity, trait, ui_hint, custom_callback = callbacks.get(trait.name), traitable_processor = tp)
             for trait, ui_hint in trait_hints.items()
         }
 
@@ -161,8 +161,8 @@ class TraitableEditor:
 
         te: TraitEditor
         for te in self.trait_editors.values():
-            label = te.new_label()
-            w = te.new_widget()
+            label   = te.new_label()
+            w       = te.new_widget()
             lay.add_row(label, w)
             if te.ui_hint.flags_on(Ui.SEPARATOR):
                 lay.add_row(ux.separator())
@@ -179,7 +179,7 @@ class TraitableEditor:
                 stretched_trait_found = True
 
             row.add_widget(te.new_label())
-            row.add_widget(te.new_widget(), stretch=stretch)
+            row.add_widget(te.new_widget(), stretch = stretch)
 
             if te.ui_hint.flags_on(Ui.SEPARATOR):
                 row.add_widget(ux.separator(horizontal = False))
@@ -191,14 +191,14 @@ class TraitableEditor:
 
     def main_widget(self) -> ux.Widget:
         self.main_w = w = ux.Widget()
-        lay = self.main_layout()
+        lay         = self.main_layout()
         w.set_layout(lay)
         return w
 
     def _cleanup_tp(self, apply: bool):
-        self.main_w = None
-        commit, self._commit = self._commit, None
-        self.traitable_processor = None
+        self.main_w                 = None
+        commit, self._commit        = self._commit, None
+        self.traitable_processor    = None
         # Cancel is always just dropping the scope: whatever the dialog staged goes
         # with it, and anything it never staged was never ours to take back.
         if apply and commit:
@@ -220,8 +220,8 @@ class TraitableEditor:
         def cancel_callback():
             self._cleanup_tp(False)
 
-        host = ux.Widget()
-        host_lay = ux.VBoxLayout()
+        host        = ux.Widget()
+        host_lay    = ux.VBoxLayout()
         host.set_layout(host_lay)
 
         def open_callback():
@@ -236,15 +236,15 @@ class TraitableEditor:
 
         return UxDialog(
             host,
-            title=title,
-            accept_callback=accept_callback,
-            cancel_callback=cancel_callback,
-            open_callback=open_callback,
-            ok=ok,
-            min_width=min_width,
+            title           = title,
+            accept_callback = accept_callback,
+            cancel_callback = cancel_callback,
+            open_callback   = open_callback,
+            ok              = ok,
+            min_width       = min_width,
         )
 
-    def dialog(self, layout: ux.Layout = None, copy_entity: bool = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None]  = None, min_width: int = 0, track_changes: bool = False) -> UxDialog:
+    def dialog(self, layout: ux.Layout = None, copy_entity: bool = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0, track_changes: bool = False) -> UxDialog:
         if title is None:
             title = ''
         elif not title:
@@ -269,7 +269,7 @@ class TraitableEditor:
             # and cannot be taken back, which is exactly what copy_entity=False means;
             # the tracker then only records what to save.
             if self.change_tracker is None:
-                self.change_tracker = SaveIfChanged(auto_save=False, parent=INTERACTIVE() if copy_entity else None)
+                self.change_tracker = SaveIfChanged(auto_save = False, parent = INTERACTIVE() if copy_entity else None)
 
             if copy_entity:
                 # This dialog's own staging scope, nested inside the accumulator so
@@ -279,7 +279,7 @@ class TraitableEditor:
                 # cannot stage here.
                 with self.change_tracker.parent:
                     staging = INTERACTIVE()
-                tracker = self.traitable_processor = SaveIfChanged(auto_save=False, parent=staging)
+                tracker = self.traitable_processor = SaveIfChanged(auto_save = False, parent = staging)
 
                 def commit():
                     # The values move up one level; the objects have to be handed over
@@ -293,13 +293,13 @@ class TraitableEditor:
                 self.traitable_processor = self.change_tracker  # already ambient, already tracked
 
         elif copy_entity:
-            self.traitable_processor = staging = INTERACTIVE()
-            self._commit = staging.export_nodes
+            self.traitable_processor    = staging = INTERACTIVE()
+            self._commit                = staging.export_nodes
 
-        return self._dialog(layout, title, ok, min_width, on_accept=on_accept)
+        return self._dialog(layout, title, ok, min_width, on_accept = on_accept)
 
     def popup(self, layout: ux.Layout = None, copy_entity = True, title: str = '', save: bool = False, accept_hook: Callable[[RC],None] = None, min_width: int = 0, track_changes: bool = False) -> None:
         self.dialog(layout = layout, copy_entity = copy_entity, title = title, save = save, accept_hook = accept_hook, min_width = min_width, track_changes = track_changes).exec()
 
     def warning(self, msg: str, title: str = ''):
-        ux_warning(msg, parent = self.main_w, title = title, on_close=lambda ctx: None)
+        ux_warning(msg, parent = self.main_w, title = title, on_close = lambda ctx: None)

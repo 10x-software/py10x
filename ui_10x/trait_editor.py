@@ -27,8 +27,8 @@ class TraitableWrapper:
     __slots__ = ('_traitable', 'traitable_processor')
 
     def __init__(self, traitable: Traitable, traitable_processor: Callable[[], BTP] = None):
-        self._traitable = weakref.ref(traitable)
-        self.traitable_processor = traitable_processor
+        self._traitable             = weakref.ref(traitable)
+        self.traitable_processor    = traitable_processor
 
     @property
     def traitable(self) -> Traitable:
@@ -71,17 +71,17 @@ class TraitableWrapper:
 class TraitEditor:
     # Ceilings for `fit_width` / `fit_height`, in characters and lines. Without
     # them one long line would size a dialog wider than any screen.
-    s_fit_width_max_chars = 100
-    s_fit_height_max_lines = 20
+    s_fit_width_max_chars   = 100
+    s_fit_height_max_lines  = 20
 
     def __init__(
         self, traitable, trait: Trait, ui_hint: Ui, custom_callback: Callable[[], None] = None, traitable_processor: Callable[[], BTP] = None
     ):
-        self.traitable = TraitableWrapper(traitable, traitable_processor)
-        self.trait = trait
+        self.traitable                  = TraitableWrapper(traitable, traitable_processor)
+        self.trait                      = trait
         self.widget: TraitWidget | None = None
-        self.ui_hint = ui_hint
-        self.trait_callback = self._establish_callback(custom_callback)
+        self.ui_hint                    = ui_hint
+        self.trait_callback             = self._establish_callback(custom_callback)
 
     def is_read_only(self) -> bool:
         return self.ui_hint.flags_on(Ui.READ_ONLY)
@@ -115,20 +115,20 @@ class TraitEditor:
 
     def _fit_size(self, tw: TraitWidget) -> tuple[int, int]:
         """(longest line in chars, line count) of what `tw` shows, each clamped."""
-        lines = tw.display_text().splitlines()
-        longest = max((len(line) for line in lines), default=0)
+        lines   = tw.display_text().splitlines()
+        longest = max((len(line) for line in lines), default = 0)
         return min(longest, self.s_fit_width_max_chars), min(len(lines), self.s_fit_height_max_lines)
 
-    def new_widget(self, update_self=True) -> TraitWidget:
+    def new_widget(self, update_self = True) -> TraitWidget:
         tw: TraitWidget = TraitWidget.instance(self)
         assert tw, f'{self.traitable.traitable.__class__}.{self.trait.name} - unknown trait widget class'
 
-        fit_width = self.ui_hint.param('fit_width', False)
-        fit_height = self.ui_hint.param('fit_height', False)
-        fit_chars, fit_lines = self._fit_size(tw) if fit_width or fit_height else (0, 0)
+        fit_width               = self.ui_hint.param('fit_width', False)
+        fit_height              = self.ui_hint.param('fit_height', False)
+        fit_chars, fit_lines    = self._fit_size(tw) if fit_width or fit_height else (0, 0)
 
-        avg_char_width = tw.font_metrics().average_char_width()
-        min_width = self.ui_hint.param('min_width', 0)
+        avg_char_width  = tw.font_metrics().average_char_width()
+        min_width       = self.ui_hint.param('min_width', 0)
         if fit_width:
             min_width = max(min_width, fit_chars)
         if min_width > 0:
@@ -150,28 +150,28 @@ class TraitEditor:
 
     def date_cb(self):
         ux_pick_date(
-            title=f'Pick a date for {self.ui_hint.label}',
-            show_date=self.traitable.get_value(self.trait),
-            on_accept=lambda value: self.traitable.set_value(self.trait, value),
-            parent=self.widget,
+            title       = f'Pick a date for {self.ui_hint.label}',
+            show_date   = self.traitable.get_value(self.trait),
+            on_accept   = lambda value: self.traitable.set_value(self.trait, value),
+            parent      = self.widget,
         )
 
     def list_cb(self):
-        t = self.traitable
+        t       = self.traitable
         current = t.get_value(self.trait)
         choices = t.get_choices(self.trait)
-        mc = MultiChoice(*current, choices=choices or current)
-        w = mc.widget()
+        mc      = MultiChoice(*current, choices = choices or current)
+        w       = mc.widget()
         if not w:
             return
         pane_width, pane_height = self._fit_choice_panes(mc)
         UxDialog(
             w,
-            parent=self.widget,
-            title=f'Choose one or more values for {self.ui_hint.label}',
-            accept_callback=lambda: t.set_value(self.trait, mc.values_selected),
-            min_width=pane_width * 2,  # needs room for two panes
-            min_height=pane_height,
+            parent          = self.widget,
+            title           = f'Choose one or more values for {self.ui_hint.label}',
+            accept_callback = lambda: t.set_value(self.trait, mc.values_selected),
+            min_width       = pane_width * 2,  # needs room for two panes
+            min_height      = pane_height,
         ).show()
 
     def _fit_choice_panes(self, mc: MultiChoice) -> tuple[int, int]:
@@ -186,9 +186,9 @@ class TraitEditor:
         if not labels or not self.widget:
             return 0, 0
 
-        fm = self.widget.font_metrics()
-        width = min(max(len(str(label)) for label in labels), self.s_fit_width_max_chars) * fm.average_char_width()
-        height = min(len(labels), self.s_fit_height_max_lines) * fm.height()
+        fm      = self.widget.font_metrics()
+        width   = min(max(len(str(label)) for label in labels), self.s_fit_width_max_chars) * fm.average_char_width()
+        height  = min(len(labels), self.s_fit_height_max_lines) * fm.height()
 
         for pane in (mc.sw, mc.selection_list):
             if pane is not None:
@@ -198,25 +198,25 @@ class TraitEditor:
         return width, height
 
     def dict_cb(self):
-        data = dict(self.traitable.get_value(self.trait))
-        rc = PyDataBrowser.edit(data, title=f'Edit {self.trait.ui_hint.label}')  # TODO: callback
+        data    = dict(self.traitable.get_value(self.trait))
+        rc      = PyDataBrowser.edit(data, title = f'Edit {self.trait.ui_hint.label}')  # TODO: callback
         if rc:
             self.traitable.set_value(self.trait, data)
 
     def flags_cb(self):
-        flags = self.traitable.get_value(self.trait)
-        bits_class = self.trait.data_type
-        tags_selected = bits_class.data_type.names_from_value(flags)
-        mc = MultiChoice(*tags_selected, choices=bits_class.choose_from())
-        w = mc.widget()
+        flags           = self.traitable.get_value(self.trait)
+        bits_class      = self.trait.data_type
+        tags_selected   = bits_class.data_type.names_from_value(flags)
+        mc              = MultiChoice(*tags_selected, choices = bits_class.choose_from())
+        w               = mc.widget()
         if not w:
             return
 
         UxDialog(
             w,
-            parent=self.widget,
-            title=f'Choose one or more flags for {self.ui_hint.label}',
-            accept_callback=lambda: self.traitable.set_value(self.trait, mc.values_selected),
+            parent          = self.widget,
+            title           = f'Choose one or more flags for {self.ui_hint.label}',
+            accept_callback = lambda: self.traitable.set_value(self.trait, mc.values_selected),
         ).show()
 
     def traitable_cb(self):

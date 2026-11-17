@@ -14,7 +14,7 @@ class HeaderModel(ux.StandardItemModel):
                 trait = traits.get(subtree_name)
                 if not trait:
                     continue
-                label = subtree
+                label   = subtree
                 subtree = None
             elif isinstance(subtree, dict):
                 label = subtree_name
@@ -34,8 +34,8 @@ class HeaderModel(ux.StandardItemModel):
 
     def __init__(self, traits: dict, header_structure: dict):
         super().__init__()
-        self.traits = traits
-        self.header_structure = header_structure
+        self.traits             = traits
+        self.header_structure   = header_structure
         self.create(header_structure)
 
     def create(self, header_structure: dict):
@@ -54,8 +54,8 @@ class HeaderModel(ux.StandardItemModel):
     def leftmost_leaf(index: ux.ModelIndex) -> ux.ModelIndex:
         prev_index = index
         while index.is_valid():
-            prev_index = index
-            index = index.child(0, 0)
+            prev_index  = index
+            index       = index.child(0, 0)
         return prev_index
 
     @staticmethod
@@ -81,8 +81,8 @@ class HeaderModel(ux.StandardItemModel):
             if not current_index.child(0, 0).is_valid():
                 res.append(current_index)
             else:
-                c = 0
-                child = current_index.child(0, c)
+                c       = 0
+                child   = current_index.child(0, c)
                 while child.is_valid():
                     found = HeaderModel.search_leaves(child)
                     res.extend(found)
@@ -119,7 +119,7 @@ class HeaderModel(ux.StandardItemModel):
 
 class HeaderView(ux.HeaderView):
     def __init__(self, view: TraitableView, parent: ux.Widget = None):
-        super().__init__(ux.Horizontal, parent=parent)
+        super().__init__(ux.Horizontal, parent = parent)
         self.m_model = HeaderModel(view.ui_hints, view.header)
         self.set_model(self.m_model)
 

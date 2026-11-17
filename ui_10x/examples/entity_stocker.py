@@ -9,10 +9,10 @@ if __name__ == '__main__':
 
     Person.some_ppl(save = True)
 
-    plug = StockerPlug(current_class = Person)
-    se = EntityStocker(plug = plug)
+    plug    = StockerPlug(current_class = Person)
+    se      = EntityStocker(plug = plug)
 
     with INTERACTIVE():
-        w = se.main_widget()
-        d = UxDialog(w)
-        rc = d.exec()
+        w   = se.main_widget()
+        d   = UxDialog(w)
+        rc  = d.exec()

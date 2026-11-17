@@ -12,8 +12,8 @@ if __name__ == '__main__':
         print('accept:', w.choice() )
         return RC_TRUE
 
-    d = UxDialog(w, accept_callback = cb)
-    rc = d.exec()
+    d   = UxDialog(w, accept_callback = cb)
+    rc  = d.exec()
     print(w.choice(), rc)
 
 

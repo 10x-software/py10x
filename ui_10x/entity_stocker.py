@@ -28,8 +28,8 @@ class StockerPlug(Traitable):
     def _cb(self, cb_name: str):
         m = self.master
         if m:
-            cls = m.__class__
-            method = getattr(cls, cb_name, None)
+            cls     = m.__class__
+            method  = getattr(cls, cb_name, None)
             if method:
                 return lambda e: method(m, e)
 
@@ -72,7 +72,7 @@ class EntityStocker(Traitable):
     plug: StockerPlug
     entity_viewer: TraitableEditor
     buttons_spec: dict
-    change_trackers: dict[Traitable, SaveIfChanged] = RT(T.STICKY, default={})
+    change_trackers: dict[Traitable, SaveIfChanged] = RT(T.STICKY, default = {})
 
     def _on_accept(self, rc, ce: Traitable, ed: TraitableEditor):
         # Only tracked edits belong here. Without the guard an untracked edit stores
@@ -87,14 +87,14 @@ class EntityStocker(Traitable):
         if not ce:
             return None
 
-        return TraitableEditor.editor(ce, view=TraitableView.default(ce.__class__, read_only=True))
+        return TraitableEditor.editor(ce, view = TraitableView.default(ce.__class__, read_only = True))
 
     def top_layout(self) -> ux.HBoxLayout:
         lay = ux.HBoxLayout()
         lay.set_spacing(0)
 
         for name, (cb, icon) in self.buttons_spec.items():
-            lay.add_widget(ux_push_button(name, callback=cb, style_icon=icon))
+            lay.add_widget(ux_push_button(name, callback = cb, style_icon = icon))
 
         return lay
 
@@ -102,7 +102,7 @@ class EntityStocker(Traitable):
         entity_viewer = self.entity_viewer
         if entity_viewer:
             lay = ux.VBoxLayout()
-            lay.add_layout(self.top_layout(), stretch=0)
+            lay.add_layout(self.top_layout(), stretch = 0)
             lay.add_widget(entity_viewer.main_widget())
 
         else:
@@ -129,11 +129,11 @@ class EntityStocker(Traitable):
     def on_edit_entity(self):
         ce = self.plug.current_entity
         if ce:
-            ed = TraitableEditor.editor(ce)
-            track_changes = self.plug.track_changes
+            ed              = TraitableEditor.editor(ce)
+            track_changes   = self.plug.track_changes
             if track_changes and (tracker := self.change_trackers.get(ce)):
                 ed.change_tracker = tracker
-            ed.popup(track_changes=track_changes, accept_hook=lambda rc: self._on_accept(rc, ce, ed))
+            ed.popup(track_changes = track_changes, accept_hook = lambda rc: self._on_accept(rc, ce, ed))
 
     def on_reload_entity(self):
         ce = self.plug.current_entity
@@ -148,7 +148,7 @@ class EntityStocker(Traitable):
         ok = ce.reload() and (tracker is None or tracker.reload())
 
         if not ok:
-            ux_warning(f'Failed to reload entity {ce.__class__}/{ce.id()}', parent=None, on_close=lambda ctx: None)
+            ux_warning(f'Failed to reload entity {ce.__class__}/{ce.id()}', parent = None, on_close = lambda ctx: None)
         else:
             self.change_trackers.pop(ce, None)
             self.plug.changed_entity_cb(ce)
@@ -164,7 +164,7 @@ class EntityStocker(Traitable):
         if rc:
             self.change_trackers.pop(ce, None)
         else:
-            ux_warning(rc.error(), parent=None, on_close=lambda ctx: None)
+            ux_warning(rc.error(), parent = None, on_close = lambda ctx: None)
 
     def on_delete_entity(self):
         ce = self.plug.current_entity
@@ -173,10 +173,10 @@ class EntityStocker(Traitable):
             def on_close(accepted: bool):
                 if accepted:
                     if not ce.delete():
-                        ux_warning('Deletion failed: {ce.__class__}/{ce.id()', parent=None, on_close=lambda ctx: None)
+                        ux_warning('Deletion failed: {ce.__class__}/{ce.id()', parent = None, on_close = lambda ctx: None)
                     self.plug.deleted_entity_cb(ce)
 
-            ux_answer(f'Please confirm deletion of {ce.__class__}/{ce.id()}', parent=None, on_close=on_close)
+            ux_answer(f'Please confirm deletion of {ce.__class__}/{ce.id()}', parent = None, on_close = on_close)
 
     def buttons_spec_get(self) -> dict:
         # fmt: off

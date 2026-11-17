@@ -14,7 +14,7 @@ class ABCMetaSlotted(abc.ABCMeta):
         return super().__new__(cls, name, bases, class_dict, **kwargs)
 
 
-class Object(abc.ABC, metaclass=ABCMetaSlotted): ...
+class Object(abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
 # fmt: off
@@ -26,15 +26,15 @@ BlockingQueuedConnection    = None
 # fmt: on
 
 
-class BoundSignal(abc.ABC, metaclass=ABCMetaSlotted):
+class BoundSignal(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
-    def connect(self, method, type=None): ...
+    def connect(self, method, type = None): ...
 
     @abc.abstractmethod
     def emit(self, *args): ...
 
 
-class signal_decl(abc.ABC, metaclass=ABCMetaSlotted):
+class signal_decl(abc.ABC, metaclass = ABCMetaSlotted):
     """Declare as a class attribute; ``instance.NAME`` yields a ``BoundSignal``."""
 
     @abc.abstractmethod
@@ -47,7 +47,7 @@ class signal_decl(abc.ABC, metaclass=ABCMetaSlotted):
     def __get__(self, instance, owner): ...
 
 
-class MouseEvent(abc.ABC, metaclass=ABCMetaSlotted):
+class MouseEvent(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def is_left_button(self) -> bool: ...
 
@@ -55,7 +55,7 @@ class MouseEvent(abc.ABC, metaclass=ABCMetaSlotted):
     def is_right_button(self) -> bool: ...
 
 
-class Point(abc.ABC, metaclass=ABCMetaSlotted):
+class Point(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def x(self) -> int: ...
 
@@ -63,12 +63,12 @@ class Point(abc.ABC, metaclass=ABCMetaSlotted):
     def y(self) -> int: ...
 
 
-class SizePolicy(abc.ABC, metaclass=ABCMetaSlotted):
-    MINIMUM_EXPANDING = None
-    PREFERRED = None
+class SizePolicy(abc.ABC, metaclass = ABCMetaSlotted):
+    MINIMUM_EXPANDING   = None
+    PREFERRED           = None
 
 
-class FontMetrics(abc.ABC, metaclass=ABCMetaSlotted):
+class FontMetrics(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def average_char_width(self) -> float | int: ...
 
@@ -76,10 +76,10 @@ class FontMetrics(abc.ABC, metaclass=ABCMetaSlotted):
     def height(self) -> float | int: ...
 
 
-class Color(abc.ABC, metaclass=ABCMetaSlotted): ...
+class Color(abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
-class Widget(abc.ABC, metaclass=ABCMetaSlotted):
+class Widget(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def __init__(self, *args, **kwargs) -> None: ...
 
@@ -135,7 +135,7 @@ Vertical    = 1
 # fmt: on
 
 
-class Layout(abc.ABC, metaclass=ABCMetaSlotted):
+class Layout(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def __init__(self, *args, **kwargs): ...
 
@@ -149,15 +149,15 @@ class Layout(abc.ABC, metaclass=ABCMetaSlotted):
     def set_contents_margins(self, left, top, right, bottom): ...
 
 
-class BoxLayout(Layout, abc.ABC, metaclass=ABCMetaSlotted):
+class BoxLayout(Layout, abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def add_layout(self, layout: Layout, **kwargs): ...
 
 
-class HBoxLayout(BoxLayout, abc.ABC, metaclass=ABCMetaSlotted): ...
+class HBoxLayout(BoxLayout, abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
-class VBoxLayout(BoxLayout, abc.ABC, metaclass=ABCMetaSlotted): ...
+class VBoxLayout(BoxLayout, abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
 class FormLayout(Layout):
@@ -184,7 +184,7 @@ class Label(Widget):
     def set_text(self, text: str): ...
 
 
-class Style(abc.ABC, metaclass=ABCMetaSlotted):
+class Style(abc.ABC, metaclass = ABCMetaSlotted):
     State_Active = None
 
     @abc.abstractmethod
@@ -199,7 +199,7 @@ class PushButton(Label):
     def set_flat(self, flat: bool): ...
 
 
-class LineEdit(Label, abc.ABC, metaclass=ABCMetaSlotted):
+class LineEdit(Label, abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def text(self) -> str: ...
 
@@ -222,7 +222,7 @@ class LineEdit(Label, abc.ABC, metaclass=ABCMetaSlotted):
     def mouse_press_event(self, event: MouseEvent): ...
 
 
-class TextEdit(Widget, abc.ABC, metaclass=ABCMetaSlotted):
+class TextEdit(Widget, abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def to_plain_text(self) -> str: ...
 
@@ -271,7 +271,7 @@ class ButtonGroup(Widget):
     def checked_id(self) -> int: ...
 
 
-class ListItem(abc.ABC, metaclass=ABCMetaSlotted):
+class ListItem(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def row(self): ...
 
@@ -354,16 +354,16 @@ class TreeWidget(Widget):
     def open_persistent_editor(self, item, col: int): ...
 
 
-class HorizontalHeader(abc.ABC, metaclass=ABCMetaSlotted):
+class HorizontalHeader(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def setStretchLastSection(self, stretch: bool) -> None: ...
 
 
-class TableView(abc.ABC, metaclass=ABCMetaSlotted):
+class TableView(abc.ABC, metaclass = ABCMetaSlotted):
     """Shared TableView surface (not a Widget — Qt subclasses QTableView)."""
 
     @abc.abstractmethod
-    def __init__(self, entities_or_class, view=None): ...
+    def __init__(self, entities_or_class, view = None): ...
 
     @abc.abstractmethod
     def horizontalHeader(self) -> HorizontalHeader: ...
@@ -409,7 +409,7 @@ class Dialog(Widget):
     def show(self): ...
 
 
-class MessageBox(abc.ABC, metaclass=ABCMetaSlotted):
+class MessageBox(abc.ABC, metaclass = ABCMetaSlotted):
     @classmethod
     @abc.abstractmethod
     def question(cls, parent: Widget, title: str, message: str, on_close: Callable[[Dialog], None]) -> bool:
@@ -431,7 +431,7 @@ class MessageBox(abc.ABC, metaclass=ABCMetaSlotted):
         raise NotImplementedError
 
 
-class Application(abc.ABC, metaclass=ABCMetaSlotted):
+class Application(abc.ABC, metaclass = ABCMetaSlotted):
     @classmethod
     @abc.abstractmethod
     def instance(cls) -> Application: ...
@@ -451,7 +451,7 @@ class TEXT_ALIGN:
     # fmt: on
 
 
-class SCROLL(abc.ABC, metaclass=ABCMetaSlotted):
+class SCROLL(abc.ABC, metaclass = ABCMetaSlotted):
     # fmt: off
     OFF         = None
     ON          = None
@@ -470,7 +470,7 @@ class ScrollArea(Widget):
     def set_vertical_scroll_bar_policy(self, h): ...
 
 
-class StandardItem(abc.ABC, metaclass=ABCMetaSlotted):
+class StandardItem(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def __init__(self, *args): ...
 
@@ -478,7 +478,7 @@ class StandardItem(abc.ABC, metaclass=ABCMetaSlotted):
     def append_column(self, column: tuple): ...
 
 
-class StandardItemModel(abc.ABC, metaclass=ABCMetaSlotted):
+class StandardItemModel(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def set_item(self, row: int, col: int, item: StandardItem): ...
 
@@ -489,7 +489,7 @@ class StandardItemModel(abc.ABC, metaclass=ABCMetaSlotted):
     def index(self, row: int, col: int): ...
 
 
-class ModelIndex(abc.ABC, metaclass=ABCMetaSlotted):
+class ModelIndex(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def is_valid(self) -> bool: ...
 
@@ -506,10 +506,10 @@ class ModelIndex(abc.ABC, metaclass=ABCMetaSlotted):
     def data(self, role): ...
 
 
-class AbstractTableModel(abc.ABC, metaclass=ABCMetaSlotted): ...
+class AbstractTableModel(abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
-class HeaderView(abc.ABC, metaclass=ABCMetaSlotted):
+class HeaderView(abc.ABC, metaclass = ABCMetaSlotted):
     @abc.abstractmethod
     def set_model(self, model): ...
 
@@ -520,7 +520,7 @@ class HeaderView(abc.ABC, metaclass=ABCMetaSlotted):
     def init_style_option(self, *args): ...
 
 
-class Palette(abc.ABC, metaclass=ABCMetaSlotted):
+class Palette(abc.ABC, metaclass = ABCMetaSlotted):
     # fmt: off
     ButtonText  = None
     Button      = None
@@ -531,7 +531,7 @@ class Palette(abc.ABC, metaclass=ABCMetaSlotted):
     def set_brush(self, br_type, brush): ...
 
 
-class StyleOptionHeader(abc.ABC, metaclass=ABCMetaSlotted):
+class StyleOptionHeader(abc.ABC, metaclass = ABCMetaSlotted):
     palette: Palette
 
 
@@ -539,7 +539,7 @@ ForegroundRole = None
 BackgroundRole = None
 
 
-class Separator(abc.ABC, metaclass=ABCMetaSlotted): ...
+class Separator(abc.ABC, metaclass = ABCMetaSlotted): ...
 
 
 # fmt: off

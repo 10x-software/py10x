@@ -22,8 +22,8 @@ class MacEditCommitFilter(QObject):
         if focused is None:
             return
 
-        global_pos = event.globalPosition().toPoint()
-        clicked = QApplication.widgetAt(global_pos)
+        global_pos  = event.globalPosition().toPoint()
+        clicked     = QApplication.widgetAt(global_pos)
 
         #-- If clicking inside the same widget, do nothing
         w = clicked

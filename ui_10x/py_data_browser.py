@@ -10,13 +10,13 @@ class PyDataBrowser:
     class Item(ux.TreeItem):
         def __init__(self, parent_node, key, value):
             super().__init__(parent_node)
-            self.key = key
-            self.value = value
-            self.new_value = value
+            self.key        = key
+            self.value      = value
+            self.new_value  = value
 
         def path(self) -> list:
-            res = []
-            node = self
+            res     = []
+            node    = self
             while node:
                 res.insert(0, node.key)
                 node = node.parent()
@@ -27,8 +27,8 @@ class PyDataBrowser:
             n = self.child_count()
             if not n:
                 if self.value != self.new_value:
-                    path = self.path()
-                    x = results
+                    path    = self.path()
+                    x       = results
                     for key in path[:-1]:
                         x = x[key]
                     x[path[-1]] = self.new_value
@@ -56,21 +56,21 @@ class PyDataBrowser:
         :param max_value_len: max value width (if exceeds, gets truncated showing '...' and the end)
         Tooltip (full label/value, if possible) is shown as usual
         """
-        self.data = data
-        self.edit = edit
-        self.custom_editor = custom_editor
-        self.select_cb = on_select
-        self.max_label_len = max_label_len
-        self.max_value_len = max_value_len
+        self.data           = data
+        self.edit           = edit
+        self.custom_editor  = custom_editor
+        self.select_cb      = on_select
+        self.max_label_len  = max_label_len
+        self.max_value_len  = max_value_len
 
     def fill(self, value, node: ux.TreeItem, label = True):
         if label:
-            i = 0
-            n = self.max_label_len
+            i   = 0
+            n   = self.max_label_len
             tip = True
         else:
-            i = 1
-            n = self.max_value_len
+            i   = 1
+            n   = self.max_value_len
             tip = isinstance(value, str)
         text = str(value)
         if len(text) > n:
@@ -81,14 +81,14 @@ class PyDataBrowser:
         if tip:
             node.set_tool_tip(i, text)
 
-    s_bool_vmap = {
+    s_bool_vmap     = {
         'True':     True,
         'False':    False,
         '1':        True,
         '0':        False
     }
 
-    s_use_as_is = {
+    s_use_as_is     = {
         type:           None,
         type(None):     None,
         type(XNone):    None,
@@ -126,7 +126,7 @@ class PyDataBrowser:
                     return
 
                 try:
-                    item = item.to_dict()
+                    item    = item.to_dict()
                     handler = self.__class__.s_dict_handler
                 except Exception:
                     return
@@ -139,11 +139,11 @@ class PyDataBrowser:
         tree.set_column_count(2)
         tree.set_header_labels(['Key', 'Value'])
 
-        data = self.data
-        dtype = type(data)
+        data    = self.data
+        dtype   = type(data)
         handler = self.s_type_handlers.get(dtype)
         if not handler:
-            data = { str(dtype): data }
+            data    = { str(dtype): data }
             handler = self.s_dict_handler
 
         for key, item in handler(data):
@@ -178,8 +178,8 @@ class PyDataBrowser:
         if col != 1:
             return
 
-        dtype = type(item.value)
-        from_str_handler = self.s_use_as_is.get(dtype)
+        dtype               = type(item.value)
+        from_str_handler    = self.s_use_as_is.get(dtype)
         if from_str_handler:
             text = item.text(col)
             try:
@@ -202,8 +202,8 @@ class PyDataBrowser:
         if not title:
             title = 'Python Data Browser'
 
-        br = cls(data, on_select = on_select)
-        d = UxDialog(
+        br  = cls(data, on_select = on_select)
+        d   = UxDialog(
             br.widget(),
             title       = title,
             ok          = '',
@@ -218,23 +218,23 @@ class PyDataBrowser:
         if not title:
             title = 'Python Data Editor'
 
-        br = cls(data, on_select = on_select, edit = True, custom_editor = custom_editor)
-        d = UxDialog(
+        br  = cls(data, on_select = on_select, edit = True, custom_editor = custom_editor)
+        d   = UxDialog(
             br.widget(),
             accept_callback = br.accept_edit,
             title           = title,
             min_width       = w,
             min_height      = h
         )
-        rc = d.exec()
+        rc  = d.exec()
         return bool(rc)
 
     @classmethod
     def path_to_str(cls, path: list, delims = ('/', '/')) -> str:
         res = []
         for i, key in enumerate(path):
-            delim = delims[ isinstance(key, int) ]
-            n = len(delim)
+            delim   = delims[ isinstance(key, int) ]
+            n       = len(delim)
             if n == 0:
                 continue
 

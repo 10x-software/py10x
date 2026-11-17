@@ -12,10 +12,10 @@ import ui_10x.platform_interface as i
 class Model(QAbstractTableModel):
     def __init__(self, model: HeaderModel, data, parent = None):
         super().__init__(parent = parent)
-        self.model = model
-        self.m_data = data
-        self.col2name = { i: name for i, name in enumerate( model.traits ) }
-        self.name2col = { name: i for i, name in self.col2name.items() }
+        self.model      = model
+        self.m_data     = data
+        self.col2name   = { i: name for i, name in enumerate( model.traits ) }
+        self.name2col   = { name: i for i, name in self.col2name.items() }
 
     def trait_name(self, col: int) -> str:
         return self.col2name.get(col)
@@ -40,15 +40,15 @@ class Model(QAbstractTableModel):
         if role == Qt.ItemDataRole.UserRole:
             return self.model
 
-        entity: Traitable = self.m_data[index.row()]
-        trait_name = self.col2name.get(index.column())
+        entity: Traitable   = self.m_data[index.row()]
+        trait_name          = self.col2name.get(index.column())
 
-        cls = entity.__class__
-        trait: Trait = cls.trait(trait_name)
+        cls             = entity.__class__
+        trait: Trait    = cls.trait(trait_name)
         if role == Qt.ItemDataRole.DisplayRole and index.isValid():
             if trait:
-                value = entity.get_trait_value(trait)
-                text = trait.to_str(value)
+                value   = entity.get_trait_value(trait)
+                text    = trait.to_str(value)
             else:
                 text = ''
             return text
@@ -93,8 +93,8 @@ class Model(QAbstractTableModel):
             if is_empty:
                 self.beginResetModel()
 
-            first = len(the_data)
-            last = first + len(data) - 1
+            first   = len(the_data)
+            last    = first + len(data) - 1
             self.beginInsertRows(QModelIndex(), first, last)
             the_data.extend(data)
             self.insertRows(first, len(data))
@@ -113,11 +113,11 @@ class TableView(QTableView):
 
         if inspect.isclass(entities_or_class):
             assert issubclass(entities_or_class, Traitable), 'first arg is a class, but not a subclass of Traitable'
-            proto = entities_or_class
-            entities = []
+            proto       = entities_or_class
+            entities    = []
         else:
-            entities = entities_or_class
-            proto = entities[0].__class__
+            entities    = entities_or_class
+            proto       = entities[0].__class__
 
         if not view:
             view = TraitableView.default(proto)
@@ -152,15 +152,15 @@ class TableView(QTableView):
         if row == -1 or col == -1:
             return
 
-        entity = self.model().entity(row)
-        trait_name = self.model().trait_name(col)
+        entity      = self.model().entity(row)
+        trait_name  = self.model().trait_name(col)
         if not trait_name:
             return
 
         # Lazy: top-level import cycles via platform → table_view → traitable_editor.
         from ui_10x.traitable_editor import TraitableEditor
-        editor_class = TraitableEditor.find_editor_class(entity.__class__)     #-- no alternative packages, look under ui subdir only
-        mouse_btn = mouse_event.button()
+        editor_class    = TraitableEditor.find_editor_class(entity.__class__)     #-- no alternative packages, look under ui subdir only
+        mouse_btn       = mouse_event.button()
         if mouse_btn == Qt.MouseButton.LeftButton:
             cb = editor_class.left_mouse_callback(trait_name)
         elif mouse_btn == Qt.MouseButton.RightButton:
@@ -174,9 +174,9 @@ class TableView(QTableView):
             super().mousePressEvent(mouse_event)
 
     def render_traitable(self, row: int, entity: Traitable | None):
-        last_col = len(self.model().col2name) - 1
+        last_col    = len(self.model().col2name) - 1
         first_index = self.model().createIndex(row, 0)
-        last_index = self.model().createIndex(row, last_col)
+        last_index  = self.model().createIndex(row, last_col)
         self.model().dataChanged.emit(first_index, last_index)
 
     def extend_data(self, data):

@@ -31,7 +31,7 @@ class StyleSheet(Traitable):
 if __name__ == '__main__':
     from ui_10x.traitable_editor import TraitableEditor
 
-    sheet = StyleSheet()
-    e = TraitableEditor(sheet, _confirm = True)
+    sheet   = StyleSheet()
+    e       = TraitableEditor(sheet, _confirm = True)
     e.popup()
 
