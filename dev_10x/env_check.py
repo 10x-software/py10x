@@ -31,8 +31,8 @@ from urllib.request import url2pathname
 
 import tomllib
 
-PROJECT_ROOT = Path.cwd()  # the py10x repo root (cwd)
-CORE = 'py10x-core'
+PROJECT_ROOT    = Path.cwd()  # the py10x repo root (cwd)
+CORE            = 'py10x-core'
 # Import name of each downstream C++ member (siblings import as their distribution name).
 MEMBER_MODULES = {'py10x-fin-base-cxx': 'cxxfin'}
 
@@ -47,7 +47,7 @@ MODES: dict[str, dict] = {
 
 
 def _pyproject(path: Path) -> dict:
-    return tomllib.loads((path / 'pyproject.toml').read_text(encoding='utf-8'))
+    return tomllib.loads((path / 'pyproject.toml').read_text(encoding = 'utf-8'))
 
 
 def _workspace_members(src_dir: Path) -> dict[str, Path]:
@@ -76,16 +76,16 @@ def native_members(src_dir: Path) -> dict[str, Path]:
 
 def first_party(root: Path = PROJECT_ROOT) -> tuple[dict[str, Path], dict[str, Path], dict[str, Path]]:
     """(C++ siblings, downstreams, downstream C++ members) as {distribution name: source dir}."""
-    cfg = _pyproject(root).get('tool', {}).get('dev_10x', {})
-    siblings = {name: (root / spec['path']).resolve() for name, spec in cfg.get('siblings', {}).items()}
+    cfg         = _pyproject(root).get('tool', {}).get('dev_10x', {})
+    siblings    = {name: (root / spec['path']).resolve() for name, spec in cfg.get('siblings', {}).items()}
     downstreams = {name: (root / spec['path']).resolve() for name, spec in cfg.get('downstream', {}).items()}
-    members = {name: path.resolve() for src in downstreams.values() for name, path in native_members(src).items()}
+    members     = {name: path.resolve() for src in downstreams.values() for name, path in native_members(src).items()}
     return siblings, downstreams, members
 
 
 def loader_settings(loader: Path) -> dict:
     """Arguments of the `install(...)` call at the end of a scikit-build-core editable loader."""
-    for node in ast.walk(ast.parse(loader.read_text(encoding='utf-8'))):
+    for node in ast.walk(ast.parse(loader.read_text(encoding = 'utf-8'))):
         if isinstance(node, ast.Call) and getattr(node.func, 'id', None) == 'install':
             args = [ast.literal_eval(a) for a in node.args]
             path = args[2] if len(args) > 2 else None
@@ -105,13 +105,13 @@ def installed(name: str) -> dict | None:
         dist = md.distribution(name)
     except md.PackageNotFoundError:
         return None
-    url = json.loads(dist.read_text('direct_url.json') or '{}')
-    state = {
+    url     = json.loads(dist.read_text('direct_url.json') or '{}')
+    state   = {
         'url': url.get('url'),
         'editable': bool(url.get('dir_info', {}).get('editable')),
         'local': 'dir_info' in url,
     }
-    loader = Path(dist.locate_file(f'_{name.replace("-", "_")}_editable.py'))
+    loader  = Path(dist.locate_file(f'_{name.replace("-", "_")}_editable.py'))
     if loader.is_file():
         state.update(loader_settings(loader))
     return state
@@ -150,17 +150,17 @@ def check_cxx(name: str, state: dict | None, src: Path, expect: dict) -> list[st
 
 def check(mode: str, downstream: bool, root: Path = PROJECT_ROOT) -> tuple[list[str], list[str]]:
     """(problems, report lines) for the active venv."""
-    expect = MODES[mode]
-    siblings, downstreams, members = first_party(root)
-    problems: list[str] = []
-    report: list[str] = []
+    expect                          = MODES[mode]
+    siblings, downstreams, members  = first_party(root)
+    problems: list[str]             = []
+    report: list[str]               = []
 
     def note(name: str, state: dict | None) -> None:
         if state is None:
             report.append(f'  {name}: not installed')
             return
-        kind = 'editable' if state['editable'] else ('non-editable local' if state['local'] else 'index/other')
-        extra = ''.join(f' {k}={state[k]}' for k in ('rebuild', 'verbose', 'build_type') if k in state)
+        kind    = 'editable' if state['editable'] else ('non-editable local' if state['local'] else 'index/other')
+        extra   = ''.join(f' {k}={state[k]}' for k in ('rebuild', 'verbose', 'build_type') if k in state)
         report.append(f'  {name}: {kind}{extra}')
 
     core = installed(CORE)
@@ -216,24 +216,24 @@ def default_mode(root: Path = PROJECT_ROOT) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog='python -m dev_10x.env_check', description=__doc__.splitlines()[0])
-    parser.add_argument('mode', nargs='?', choices=MODES)
-    parser.add_argument('--downstream', action='store_true', help='also require and check the downstreams (fin-base, cxxfin)')
-    parser.add_argument('--no-import', action='store_true', help='skip importing the compiled modules')
+    parser = argparse.ArgumentParser(prog = 'python -m dev_10x.env_check', description = __doc__.splitlines()[0])
+    parser.add_argument('mode', nargs = '?', choices = MODES)
+    parser.add_argument('--downstream', action = 'store_true', help = 'also require and check the downstreams (fin-base, cxxfin)')
+    parser.add_argument('--no-import', action = 'store_true', help = 'skip importing the compiled modules')
     args = parser.parse_args(argv)
     try:
         mode = args.mode if args.mode is not None else default_mode()
     except ValueError as exc:
-        print(exc, file=sys.stderr)
+        print(exc, file = sys.stderr)
         return 1
 
     problems, report = check(mode, args.downstream)
     if not args.no_import:
         problems += import_modules(args.downstream)
     print(f'env_check {mode}{" --downstream" if args.downstream else ""}:')
-    print('\n'.join(report), flush=True)
+    print('\n'.join(report), flush = True)
     if problems:
-        print('FAILED:\n' + '\n'.join(f'  - {p}' for p in problems), file=sys.stderr)
+        print('FAILED:\n' + '\n'.join(f'  - {p}' for p in problems), file = sys.stderr)
         return 1
     print('OK')
     return 0

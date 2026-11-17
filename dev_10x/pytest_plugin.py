@@ -21,8 +21,8 @@ PY10X_ROOT = Path(core_10x.__file__).resolve().parent.parent
 def _hatch_wheel_packages() -> set[str]:
     """Top-level dirs shipped in the py10x-core wheel (from hatch config)."""
     try:
-        doc = tomlkit.parse((PY10X_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
-        pkgs = doc.get('tool', {}).get('hatch', {}).get('build', {}).get('targets', {}).get('wheel', {}).get('packages', [])
+        doc     = tomlkit.parse((PY10X_ROOT / 'pyproject.toml').read_text(encoding = 'utf-8'))
+        pkgs    = doc.get('tool', {}).get('hatch', {}).get('build', {}).get('targets', {}).get('wheel', {}).get('packages', [])
         return {str(p) for p in pkgs}
     except Exception:  # noqa: BLE001 - best-effort fallback
         return set()
@@ -32,12 +32,12 @@ def _hatch_wheel_packages() -> set[str]:
 def _downstream_tops() -> dict[str, str]:
     """Map in-repo top-level dir → dist name for `[tool.dev_10x.downstream]`."""
     try:
-        doc = tomlkit.parse((PY10X_ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
-        ds = doc.get('tool', {}).get('dev_10x', {}).get('downstream', {}) or {}
+        doc                 = tomlkit.parse((PY10X_ROOT / 'pyproject.toml').read_text(encoding = 'utf-8'))
+        ds                  = doc.get('tool', {}).get('dev_10x', {}).get('downstream', {}) or {}
         out: dict[str, str] = {}
         for name, spec in ds.items():
-            path = str(spec.get('path', '') if hasattr(spec, 'get') else '')
-            top = Path(path).as_posix().lstrip('./').split('/', 1)[0]
+            path    = str(spec.get('path', '') if hasattr(spec, 'get') else '')
+            top     = Path(path).as_posix().lstrip('./').split('/', 1)[0]
             if top:
                 out[top] = str(name)
         return out
@@ -197,15 +197,15 @@ BTP = BTraitableProcessor.current()
 _AMBIENT_VAULT_ENV_VARS = ('XX_MAIN_VAULT_URI', 'XX_VAULT_URI')
 
 
-@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+@pytest.hookimpl(tryfirst = True, hookwrapper = True)
 def pytest_runtest_makereport(item, call):
     """Stash per-phase reports on the item so fixtures can see call outcome."""
     outcome = yield
-    rep = outcome.get_result()
+    rep     = outcome.get_result()
     setattr(item, f'rep_{rep.when}', rep)
 
 
-@pytest.fixture(scope='session', autouse=True)
+@pytest.fixture(scope = 'session', autouse = True)
 def _no_ambient_vault_env():
     """A shell vault URI would route store_from_uri through the vault; tests set their own.
 
@@ -219,19 +219,19 @@ def _no_ambient_vault_env():
 
     with pytest.MonkeyPatch.context() as mp:
         for name in _AMBIENT_VAULT_ENV_VARS:
-            mp.delenv(name, raising=False)
-        reset_traitable_process_state(assert_clean=False)  # EnvVars values are memoized
+            mp.delenv(name, raising = False)
+        reset_traitable_process_state(assert_clean = False)  # EnvVars values are memoized
         yield
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def test_isolation(request):
     global BTP
     assert BTP is BTraitableProcessor.current()
 
     # Snapshot test instance keys *before* setUp so we can drop attrs stored on self
     # during tearDown
-    inst = getattr(request, 'instance', None)
+    inst        = getattr(request, 'instance', None)
     keys_before = set(vars(inst)) if inst is not None else None
 
     try:
@@ -256,5 +256,5 @@ def test_isolation(request):
         # leftover AssertionError on top of the real failure. Failed/skipped
         # calls also skip the assert: frames often still hold Traitables.
         rep_call = getattr(request.node, 'rep_call', None)
-        reset_traitable_process_state(assert_clean=rep_call is not None and rep_call.passed)
+        reset_traitable_process_state(assert_clean = rep_call is not None and rep_call.passed)
         restore_pinned_ts_stores()

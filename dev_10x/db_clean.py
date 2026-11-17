@@ -25,8 +25,8 @@ from core_10x.ts_store_type import TS_STORE_TYPE
 
 # Before per-session databases, tests wrote into these fixed Mongo databases and into the
 # Postgres server default. Only `legacy` looks at them.
-LEGACY_MONGO_DBS = ('test_db', 'test_filters_mongo', 'perf_test')
-LEGACY_PG_DB = 'postgres'
+LEGACY_MONGO_DBS    = ('test_db', 'test_filters_mongo', 'perf_test')
+LEGACY_PG_DB        = 'postgres'
 
 
 class TestDbCleanCli(TraitableCli):
@@ -42,7 +42,7 @@ class TestDbCleanCli(TraitableCli):
         """``(server_store, names)`` per reachable server; an unreachable one is reported, not fatal."""
         out = []
         for store_protocol in TS_STORE_TYPE.all_names():
-            server_uri = test_uri(store_protocol, session_db='')
+            server_uri = test_uri(store_protocol, session_db = '')
             try:
                 store = TsStore.instance_from_uri(server_uri)
                 names = store.list_databases(TEST_DB_PREFIX)
@@ -54,7 +54,7 @@ class TestDbCleanCli(TraitableCli):
         return out
 
 
-class List(TestDbCleanCli, _command='list'):
+class List(TestDbCleanCli, _command = 'list'):
     """Report what would be dropped."""
 
     def run(self) -> RC:
@@ -63,7 +63,7 @@ class List(TestDbCleanCli, _command='list'):
         return RC_TRUE
 
 
-class Drop(TestDbCleanCli, _command='drop'):
+class Drop(TestDbCleanCli, _command = 'drop'):
     """Drop every ``py10x_test*`` database on each reachable server."""
 
     def run(self) -> RC:
@@ -72,7 +72,7 @@ class Drop(TestDbCleanCli, _command='drop'):
         return RC_TRUE
 
 
-class Legacy(TestDbCleanCli, _command='legacy'):
+class Legacy(TestDbCleanCli, _command = 'legacy'):
     """One-time: drop test data from before per-session databases existed.
 
     Mongo: the whole fixed test databases. Postgres: only collections in the server default,
@@ -88,7 +88,7 @@ class Legacy(TestDbCleanCli, _command='legacy'):
         return names
 
     def run(self) -> RC:
-        pg_uri = test_uri('postgresql', session_db=LEGACY_PG_DB)
+        pg_uri = test_uri('postgresql', session_db = LEGACY_PG_DB)
         if self.drop:
             store = TsStore.instance_from_uri(pg_uri)
             for name in self._report(pg_uri):
@@ -97,11 +97,11 @@ class Legacy(TestDbCleanCli, _command='legacy'):
             self._report(pg_uri)
 
         for dbname in LEGACY_MONGO_DBS:
-            uri = test_uri('mongodb', session_db=dbname)
+            uri = test_uri('mongodb', session_db = dbname)
             if not self._report(uri):
                 continue
             if self.drop:
-                TsStore.instance_from_uri(test_uri('mongodb', session_db='')).delete_database(dbname)
+                TsStore.instance_from_uri(test_uri('mongodb', session_db = '')).delete_database(dbname)
 
         print('\n' + ('dropped.' if self.drop else '`xx-test-db-clean legacy --drop` to remove.'))
         return RC_TRUE
