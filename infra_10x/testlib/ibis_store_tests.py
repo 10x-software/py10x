@@ -29,7 +29,7 @@ from infra_10x.ibis_store import _DATA, _ID, _REV, _SCALAR_WIRE_TYPES, IbisColle
 from infra_10x.postgres_store import PostgresStore
 
 
-@pytest.fixture(params=[protocol for protocol in TS_STORE_TYPE.all_names() if issubclass(TS_STORE_TYPE.ts_store_class(protocol), IbisStore)])
+@pytest.fixture(params = [protocol for protocol in TS_STORE_TYPE.all_names() if issubclass(TS_STORE_TYPE.ts_store_class(protocol), IbisStore)])
 def ibis_store(request, live_store) -> IbisStore:
     """One store per ibis dialect (from the registry); a backend that is down skips."""
     need(store := live_store(store_protocol := request.param), f'{store_protocol} running (ibis store tests)')
@@ -37,7 +37,7 @@ def ibis_store(request, live_store) -> IbisStore:
 
 
 def _new_pad_collection(store: IbisStore, coll_name: str) -> IbisCollection:
-    class Pad(Traitable, custom_collection=True, keep_history=False):
+    class Pad(Traitable, custom_collection = True, keep_history = False):
         pad: int = T()
 
     return store.collection(coll_name, Pad.s_dir)
@@ -45,8 +45,8 @@ def _new_pad_collection(store: IbisStore, coll_name: str) -> IbisCollection:
 
 @pytest.fixture
 def collection(ibis_store) -> IbisCollection:
-    coll_name = f'ibis_{uuid6.uuid7().hex}'
-    coll = _new_pad_collection(ibis_store, coll_name)
+    coll_name   = f'ibis_{uuid6.uuid7().hex}'
+    coll        = _new_pad_collection(ibis_store, coll_name)
     yield coll
     ibis_store.delete_collection(coll_name)
 
@@ -90,14 +90,14 @@ class TestCreateIndex:
 
     def test_unique_true(self, collection):
         """Mongo Index(..., unique=True) parity on real columns."""
-        collection.create_index('idx_rev_uq', _REV, unique=True)
+        collection.create_index('idx_rev_uq', _REV, unique = True)
         assert has_index(collection, 'idx_rev_uq')
 
     def test_same_logical_name_on_two_collections(self, ibis_store):
         """Index names are namespaced per-table; IF NOT EXISTS must not skip the second collection."""
-        a_name, b_name = f'ibis_a_{uuid6.uuid7().hex}', f'ibis_b_{uuid6.uuid7().hex}'
-        a = _new_pad_collection(ibis_store, a_name)
-        b = _new_pad_collection(ibis_store, b_name)
+        a_name, b_name  = f'ibis_a_{uuid6.uuid7().hex}', f'ibis_b_{uuid6.uuid7().hex}'
+        a               = _new_pad_collection(ibis_store, a_name)
+        b               = _new_pad_collection(ibis_store, b_name)
         try:
             a.create_index('shared_idx', _REV)
             b.create_index('shared_idx', _REV)
@@ -109,7 +109,7 @@ class TestCreateIndex:
 
     def test_index_expr_none_raises(self, collection, monkeypatch):
         monkeypatch.setattr(type(collection._store), '_index_expr', lambda self, coll, field: None)
-        with pytest.raises(ValueError, match='cannot index'):
+        with pytest.raises(ValueError, match = 'cannot index'):
             collection.create_index('idx_id', _ID)
 
     def test_index_expr_override_used_for_payload_field(self, collection, monkeypatch):
@@ -159,13 +159,13 @@ def test_json_structure_filter_matches_stored_blob(collection):
     collection.save_new({'_id': '1', 'pad': 0, 'obj': obj, 'arr': arr})
     collection.save_new({'_id': '2', 'pad': 0, 'obj': {'other': 1}, 'arr': ['x']})
 
-    assert {r['_id'] for r in collection.find(f(obj=obj))} == {'1'}
-    assert {r['_id'] for r in collection.find(f(arr=arr))} == {'1'}
-    assert collection.count(f(obj=obj)) == 1
-    assert {r['_id'] for r in collection.find(f(obj=NE(obj)))} == {'2'}
-    assert collection.count(f(obj={'zz': 1, 'a': 999, 'kkk': 3})) == 0
+    assert {r['_id'] for r in collection.find(f(obj = obj))} == {'1'}
+    assert {r['_id'] for r in collection.find(f(arr = arr))} == {'1'}
+    assert collection.count(f(obj = obj)) == 1
+    assert {r['_id'] for r in collection.find(f(obj = NE(obj)))} == {'2'}
+    assert collection.count(f(obj = {'zz': 1, 'a': 999, 'kkk': 3})) == 0
     # Mixed IN list: a JSON literal round-trips scalars too, so one encoding covers both.
-    assert {r['_id'] for r in collection.find(f(obj=IN([obj, 'not-a-struct'])))} == {'1'}
+    assert {r['_id'] for r in collection.find(f(obj = IN([obj, 'not-a-struct'])))} == {'1'}
 
 
 def test_json_structure_filter_key_order(collection):
@@ -176,9 +176,9 @@ def test_json_structure_filter_key_order(collection):
     than accidental.
     """
     collection.save_new({'_id': '1', 'pad': 0, 'obj': {'zz': 1, 'a': 2, 'kkk': 3}})
-    reordered = {'a': 2, 'kkk': 3, 'zz': 1}
-    expected = 1 if isinstance(collection._store, PostgresStore) else 0
-    assert collection.count(f(obj=reordered)) == expected
+    reordered   = {'a': 2, 'kkk': 3, 'zz': 1}
+    expected    = 1 if isinstance(collection._store, PostgresStore) else 0
+    assert collection.count(f(obj = reordered)) == expected
 
 
 def test_collection_names_from_catalog(ibis_store):
@@ -188,9 +188,9 @@ def test_collection_names_from_catalog(ibis_store):
     without the ``_id`` / ``_rev`` / ``_data`` layout must not be reported as a collection
     (``copy_to`` would otherwise try to copy it).
     """
-    coll_name = f'catalog_{uuid6.uuid7().hex}'
-    other = f'plain_{uuid6.uuid7().hex}'
-    coll = _new_pad_collection(ibis_store, coll_name)
+    coll_name   = f'catalog_{uuid6.uuid7().hex}'
+    other       = f'plain_{uuid6.uuid7().hex}'
+    coll        = _new_pad_collection(ibis_store, coll_name)
     coll.save_new({'_id': 'a', 'pad': 1})
     ibis_store._execute(f'CREATE TABLE "{other}" (x INTEGER)')
     try:
@@ -209,7 +209,7 @@ def test_json_field_raises(collection):
         assert collection.create_index('idx_name', 'name') == 'idx_name'
         assert has_index(collection, 'idx_name')
     else:
-        with pytest.raises(ValueError, match='cannot index'):
+        with pytest.raises(ValueError, match = 'cannot index'):
             collection.create_index('idx_name', 'name')
         assert not has_index(collection, 'idx_name')
 
@@ -219,7 +219,7 @@ def test_list_with_json_field_raises(collection):
         assert collection.create_index('idx_mixed', [(_ID, 1), ('name', -1)]) == 'idx_mixed'
         assert has_index(collection, 'idx_mixed')
     else:
-        with pytest.raises(ValueError, match="cannot index 'name'"):
+        with pytest.raises(ValueError, match = "cannot index 'name'"):
             collection.create_index('idx_mixed', [(_ID, 1), ('name', -1)])
         assert not has_index(collection, 'idx_mixed')
 
@@ -232,18 +232,18 @@ class HybridNC(NamedConstant):
 
 
 class _TraitFixtureBase(Traitable):
-    test_id: str = T(T.ID)
-    i: int = T()
-    f: float = T()
-    b: bool = T()
-    s: str = T()
-    dt: datetime = T()
-    d: date = T()
-    by: bytes = T()
-    cl: type = T()
-    lst: list = T()
-    dct: dict = T()
-    nc: HybridNC = T()
+    test_id: str    = T(T.ID)
+    i: int          = T()
+    f: float        = T()
+    b: bool         = T()
+    s: str          = T()
+    dt: datetime    = T()
+    d: date         = T()
+    by: bytes       = T()
+    cl: type        = T()
+    lst: list       = T()
+    dct: dict       = T()
+    nc: HybridNC    = T()
 
 
 TraitFixture = type(
@@ -257,8 +257,8 @@ def blob_keys(store: IbisStore, coll_name: str, doc_id: str) -> set[str]:
     rows = store._execute(f'SELECT {_DATA} FROM {store._qname(coll_name)} WHERE {_ID} = ?', [doc_id])
     if not rows:
         return set()
-    raw = rows[0][0]
-    data = raw if isinstance(raw, dict) else json.loads(raw or '{}')
+    raw     = rows[0][0]
+    data    = raw if isinstance(raw, dict) else json.loads(raw or '{}')
     return set(data.keys())
 
 
@@ -285,23 +285,23 @@ def assert_eligible_fields_are_columns(store: IbisStore, coll_name: str, trait_d
     When ``doc_id`` is given, also assert those fields are absent from that row's blob
     when present on the document (values live in columns).
     """
-    eligible = _eligible_column_traits(trait_dir)
-    cols = sql_columns(store, coll_name)
-    missing = eligible - cols
+    eligible    = _eligible_column_traits(trait_dir)
+    cols        = sql_columns(store, coll_name)
+    missing     = eligible - cols
     assert not missing, f'eligible traits missing as SQL columns: {sorted(missing)}; have {sorted(cols)}'
     if doc_id is not None:
-        blob = blob_keys(store, coll_name, doc_id)
-        leaked = eligible & blob
+        blob    = blob_keys(store, coll_name, doc_id)
+        leaked  = eligible & blob
         assert not leaked, f'eligible traits still in _data blob: {sorted(leaked)}'
 
 
-@pytest.fixture(params=[True, False], ids=['with_add_column', 'blob_only_store'])
+@pytest.fixture(params = [True, False], ids = ['with_add_column', 'blob_only_store'])
 def hybrid_store(request, ibis_store, monkeypatch):
     """Hybrid collection on the parameterized dialect; False simulates no online ADD COLUMN."""
     if not request.param:
         monkeypatch.setattr(type(ibis_store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'hybrid_{uuid6.uuid7().hex}'
-    coll = ibis_store.collection(coll_name, TraitFixture.s_dir)
+    coll_name   = f'hybrid_{uuid6.uuid7().hex}'
+    coll        = ibis_store.collection(coll_name, TraitFixture.s_dir)
     yield ibis_store, coll, coll_name
     ibis_store.delete_collection(coll_name)
 
@@ -317,7 +317,7 @@ def _want_sql_column(store: IbisStore, column_eligible: bool) -> bool:
         ('f', 1.25, True),
         ('b', True, True),
         ('s', 'txt', True),
-        ('dt', datetime(2024, 6, 1, tzinfo=UTC), True),
+        ('dt', datetime(2024, 6, 1, tzinfo = UTC), True),
         ('d', date(2024, 6, 1), True),
         ('by', b'raw', True),
         ('cl', int, True),
@@ -327,9 +327,9 @@ def _want_sql_column(store: IbisStore, column_eligible: bool) -> bool:
     ],
 )
 def test_hybrid_column_vs_blob_placement(hybrid_store, field, sample_value, column_eligible):
-    store, coll, coll_name = hybrid_store
-    doc_id = f'id_{field}'
-    trait = TraitFixture.trait(field)
+    store, coll, coll_name  = hybrid_store
+    doc_id                  = f'id_{field}'
+    trait                   = TraitFixture.trait(field)
     # Match framework pre-store wire (serialize before the store layer).
     wire_value = trait.serialize_value(sample_value)
     coll.save_new({'_id': doc_id, 'test_id': doc_id, field: wire_value})
@@ -359,16 +359,16 @@ def test_schema_evolution_lazy_alter(hybrid_store):
 def test_create_if_needed_prepares_table_and_columns(ibis_store):
     """``collection(..., create_if_needed=True)`` creates the table and stored columns without a row write."""
 
-    class Pad(Traitable, custom_collection=True, keep_history=False):
+    class Pad(Traitable, custom_collection = True, keep_history = False):
         pad: int = T()
         tmp: str = RT('')
 
-    store = ibis_store
-    coll_name = f'prep_{uuid6.uuid7().hex}'
+    store       = ibis_store
+    coll_name   = f'prep_{uuid6.uuid7().hex}'
     try:
         store.collection(coll_name, Pad.s_dir)
         assert not store._collection_columns(coll_name)
-        store.collection(coll_name, Pad.s_dir, create_if_needed=True)
+        store.collection(coll_name, Pad.s_dir, create_if_needed = True)
         cols = sql_columns(store, coll_name)
         assert store._collection_columns(coll_name)
         if store.s_supports_add_column_if_not_exists:
@@ -383,22 +383,22 @@ def test_create_if_needed_prepares_table_and_columns(ibis_store):
 def test_traitable_ref_promoted_to_sql_column(ibis_store, monkeypatch):
     """Non-embeddable Traitable refs are serialized as str and are promoted to VARCHAR columns."""
 
-    class RefTarget(Traitable, custom_collection=True, keep_history=False):
+    class RefTarget(Traitable, custom_collection = True, keep_history = False):
         name: str = T(T.ID)
 
-    class RefOwner(Traitable, custom_collection=True, keep_history=False):
-        name: str = T(T.ID)
+    class RefOwner(Traitable, custom_collection = True, keep_history = False):
+        name: str       = T(T.ID)
         peer: RefTarget = T(T.NOT_EMBEDDABLE)
 
     assert RefOwner.s_dir['peer'].serialize_to_types() is str
     assert 'peer' in _eligible_column_traits(RefOwner.s_dir)
 
-    store = ibis_store
-    coll_name = f'ref_col_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, RefOwner.s_dir)
+    store       = ibis_store
+    coll_name   = f'ref_col_{uuid6.uuid7().hex}'
+    coll        = store.collection(coll_name, RefOwner.s_dir)
     with CACHE_ONLY():
-        target = RefTarget(name='t1', _collection_name='targets')
-        wire = RefOwner.s_dir['peer'].serialize_value(target, replace_xnone=True)
+        target  = RefTarget(name = 't1', _collection_name = 'targets')
+        wire    = RefOwner.s_dir['peer'].serialize_value(target, replace_xnone = True)
     assert wire == 't1^targets'
     coll.save_new({'_id': 'o1', 'name': 'o1', 'peer': wire})
 
@@ -410,8 +410,8 @@ def test_traitable_ref_promoted_to_sql_column(ibis_store, monkeypatch):
 
     # Without ADD COLUMN, ref stays in the blob (still str wire).
     monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll2_name = f'ref_blob_{uuid6.uuid7().hex}'
-    coll2 = store.collection(coll2_name, RefOwner.s_dir)
+    coll2_name  = f'ref_blob_{uuid6.uuid7().hex}'
+    coll2       = store.collection(coll2_name, RefOwner.s_dir)
     coll2.save_new({'_id': 'o2', 'name': 'o2', 'peer': wire})
     assert 'peer' not in sql_columns(store, coll2_name)
     assert 'peer' in blob_keys(store, coll2_name, 'o2')
@@ -432,31 +432,31 @@ def test_index_on_scalar_column_after_save(hybrid_store):
         assert coll.create_index('idx_i', 'i') == 'idx_i'
         assert has_index(coll, 'idx_i')
     else:
-        with pytest.raises(ValueError, match='cannot index'):
+        with pytest.raises(ValueError, match = 'cannot index'):
             coll.create_index('idx_i', 'i')
 
 
-@pytest.mark.parametrize('supports_add_column', [True, False], ids=['with_add_column', 'blob_only_store'])
+@pytest.mark.parametrize('supports_add_column', [True, False], ids = ['with_add_column', 'blob_only_store'])
 def test_ts_fields_when_eligible(ibis_store, supports_add_column, monkeypatch):
     """add_ts stamps land in SQL columns when ADD COLUMN is on; else in ``_data``."""
     store = ibis_store
     if not supports_add_column:
         monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
 
-    class Ev(Traitable, custom_collection=True):
-        name: str = T(T.ID)
-        _at: datetime = T(T.TS_TIME)
-        _who: str = T(T.TS_USER)
+    class Ev(Traitable, custom_collection = True):
+        name: str       = T(T.ID)
+        _at: datetime   = T(T.TS_TIME)
+        _who: str       = T(T.TS_USER)
 
-    coll_name = f'ts_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, Ev.s_dir)
-    body = store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'})
-    body = store.add_ts('_who', T.TS_USER, body)
+    coll_name   = f'ts_{uuid6.uuid7().hex}'
+    coll        = store.collection(coll_name, Ev.s_dir)
+    body        = store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'})
+    body        = store.add_ts('_who', T.TS_USER, body)
 
     # TS_TIME must be stamped by the SQL server clock (column expr or JSON merge), never a
     # Python server_time() round-trip — in both column and blob-fallback modes.
-    server_time_calls = []
-    orig_server_time = type(store).server_time
+    server_time_calls   = []
+    orig_server_time    = type(store).server_time
     monkeypatch.setattr(
         type(store),
         'server_time',
@@ -467,12 +467,12 @@ def test_ts_fields_when_eligible(ibis_store, supports_add_column, monkeypatch):
     assert '_at' in result and '_who' in result
     assert result['_at'] is not None  # hydrated from the SQL stamp via RETURNING
     if supports_add_column:
-        assert_eligible_fields_are_columns(store, coll_name, Ev.s_dir, doc_id='1')
+        assert_eligible_fields_are_columns(store, coll_name, Ev.s_dir, doc_id = '1')
         row = store._execute(f'SELECT "_at", "_who", {_DATA} FROM {store._qname(coll_name)} WHERE {_ID} = ?', ['1'])[0]
         assert row[0] is not None, '_at SQL column must be non-null after add_ts'
         assert row[1] == store.auth_user()
-        raw_blob = row[2]
-        blob = raw_blob if isinstance(raw_blob, dict) else json.loads(raw_blob or '{}')
+        raw_blob    = row[2]
+        blob        = raw_blob if isinstance(raw_blob, dict) else json.loads(raw_blob or '{}')
         assert '_at' not in blob and '_who' not in blob
     else:
         assert '_at' not in sql_columns(store, coll_name)
@@ -487,32 +487,32 @@ def test_ts_fields_when_eligible(ibis_store, supports_add_column, monkeypatch):
 def test_datetime_filter_on_empty_table_json_path(ibis_store):
     """``_at < watermark`` must type-check on an empty collection (no ``_at`` column yet)."""
 
-    class Ev(Traitable, custom_collection=True):
-        name: str = T(T.ID)
-        _at: datetime = T(T.TS_TIME)
+    class Ev(Traitable, custom_collection = True):
+        name: str       = T(T.ID)
+        _at: datetime   = T(T.TS_TIME)
 
-    store = ibis_store
-    coll_name = f'filt_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, Ev.s_dir)
+    store       = ibis_store
+    coll_name   = f'filt_{uuid6.uuid7().hex}'
+    coll        = store.collection(coll_name, Ev.s_dir)
     assert '_at' not in coll._collection_columns() or '_at' not in sql_columns(store, coll_name)
-    assert list(coll.find(f(_at=LT(datetime.now(UTC))))) == []
+    assert list(coll.find(f(_at = LT(datetime.now(UTC))))) == []
     store.delete_collection(coll_name)
 
 
 def test_datetime_filter_on_json_blob_casts_to_timestamp(ibis_store, monkeypatch):
     """Blob-fallback ``_at`` (ISO string in ``_data``) must still compare to datetime."""
 
-    class Ev(Traitable, custom_collection=True):
-        name: str = T(T.ID)
-        _at: datetime = T(T.TS_TIME)
+    class Ev(Traitable, custom_collection = True):
+        name: str       = T(T.ID)
+        _at: datetime   = T(T.TS_TIME)
 
     store = ibis_store
     monkeypatch.setattr(type(store), 's_supports_add_column_if_not_exists', False)
-    coll_name = f'filt_blob_{uuid6.uuid7().hex}'
-    coll = store.collection(coll_name, Ev.s_dir)
+    coll_name   = f'filt_blob_{uuid6.uuid7().hex}'
+    coll        = store.collection(coll_name, Ev.s_dir)
     assert '_at' not in sql_columns(store, coll_name)
     coll.save_new(store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'}))
     assert '_at' in blob_keys(store, coll_name, '1')
-    rows = list(coll.find(f(_at=LT(datetime(2099, 1, 1)))))
+    rows = list(coll.find(f(_at = LT(datetime(2099, 1, 1)))))
     assert len(rows) == 1
     store.delete_collection(coll_name)

@@ -35,9 +35,9 @@ if TYPE_CHECKING:
     from pymongo.collection import Collection
     from pymongo.database import Database
 
-_REV = Nucleus.REVISION_TAG()
-_TS_TIME = T.TS_TIME.value()
-_TS_USER = T.TS_USER.value()
+_REV        = Nucleus.REVISION_TAG()
+_TS_TIME    = T.TS_TIME.value()
+_TS_USER    = T.TS_USER.value()
 
 # These divide a URI millisecond count by 1000. maxStalenessSeconds is not one of them.
 _MS_TIMEOUT_VALIDATORS = frozenset((
@@ -54,8 +54,8 @@ class MongoCollection(TsCollection):
     assert Nucleus.ID_TAG() == s_id_tag, f"Nucleus.ID_TAG() must be '{s_id_tag}'"
 
     def __init__(self, db, collection_name: str, store: MongoStore):
-        self.coll: Collection = db[collection_name]
-        self.store = store
+        self.coll: Collection   = db[collection_name]
+        self.store              = store
 
     def _session_kw(self):
         tx = self.store.current_transaction()
@@ -71,15 +71,15 @@ class MongoCollection(TsCollection):
         ts_fields: dict,
     ) -> tuple[dict, int]:
         if not ts_fields:
-            res = self.coll.update_one(filter, update, upsert=upsert, **self._session_kw())
+            res = self.coll.update_one(filter, update, upsert = upsert, **self._session_kw())
             assert res.acknowledged, f'{self.coll} update_one not acknowledged'
             return {_REV: rev + int(res.matched_count == 1 and res.modified_count == 1)}, res.matched_count
 
         doc = self.coll.find_one_and_update(
             filter,
             update,
-            upsert=upsert,
-            return_document=ReturnDocument.AFTER,
+            upsert          = upsert,
+            return_document = ReturnDocument.AFTER,
             **self._session_kw(),
         )
         if not doc:
@@ -106,14 +106,14 @@ class MongoCollection(TsCollection):
         return self.coll.count_documents(query.prefix_notation() if query else {}, **self._session_kw())
 
     def _prepare_to_save(self, serialized_traitable):
-        doc = dict(serialized_traitable)
-        ts_fields = doc.pop(TS_FIELDS_TAG, None) or {}
+        doc         = dict(serialized_traitable)
+        ts_fields   = doc.pop(TS_FIELDS_TAG, None) or {}
         doc |= {field: self.store.auth_user() for field, kind in ts_fields.items() if kind == _TS_USER}
         return doc, ts_fields, doc[self.s_id_tag]
 
     def save_new(self, serialized_traitable: dict, overwrite: bool = False) -> dict:
-        doc, ts_fields, id_value = self._prepare_to_save(serialized_traitable)
-        rev_tag = _REV
+        doc, ts_fields, id_value    = self._prepare_to_save(serialized_traitable)
+        rev_tag                     = _REV
 
         # TODO: overwrite via save(), not save_new() so that revision is incremented rather than reset
         doc[rev_tag] = 1
@@ -127,9 +127,9 @@ class MongoCollection(TsCollection):
             result, _matched = self._apply_update(
                 {self.s_id_tag: id_value} if overwrite else {self.s_id_tag: id_value, rev_tag: {'$exists': False}},
                 [{'$replaceWith': {'$literal': doc}}, *({'$set': {field: '$$NOW'}} for field, kind in ts_fields.items() if kind == _TS_TIME)],
-                upsert=True,
-                rev=1,
-                ts_fields=ts_fields,
+                upsert      = True,
+                rev         = 1,
+                ts_fields   = ts_fields,
             )
         except DuplicateKeyError as e:
             raise TsDuplicateKeyError(self.collection_name(), {self.s_id_tag: id_value}) from e
@@ -146,11 +146,11 @@ class MongoCollection(TsCollection):
 
         doc, ts_fields, id_value = self._prepare_to_save(serialized_traitable)
 
-        filter = {}
-        pipeline = []
+        filter      = {}
+        pipeline    = []
         MongoCollectionHelper.prepare_filter_and_pipeline(doc, filter, pipeline)
         pipeline.extend({'$set': {field: '$$NOW'}} for field, kind in ts_fields.items() if kind == _TS_TIME)
-        result, matched = self._apply_update(filter, pipeline, upsert=False, rev=revision, ts_fields=ts_fields)
+        result, matched = self._apply_update(filter, pipeline, upsert = False, rev = revision, ts_fields = ts_fields)
 
         if not matched:  # -- e.g. restore from deleted
             raise AssertionError(f'{self.coll} {id_value} has been most probably inappropriately restored from deleted')
@@ -167,12 +167,12 @@ class MongoCollection(TsCollection):
         if tx is not None:
             tx.pending_create_index.append((self.collection_name(), name, trait_name, dict(index_args)))
             return name
-        sk = self._session_kw()
-        index_info = self.coll.index_information(**sk)
+        sk          = self._session_kw()
+        index_info  = self.coll.index_information(**sk)
         if name in index_info:
             return None
 
-        return self.coll.create_index(trait_name, name=name, **{**index_args, **sk})
+        return self.coll.create_index(trait_name, name = name, **{**index_args, **sk})
 
     def max(self, trait_name: str, filter: f = None) -> dict | None:
         if filter:
@@ -202,17 +202,17 @@ class MongoCollection(TsCollection):
 
 
 class MongoStore(TsStore, resource_name = 'MONGO_DB'):
-    ADMIN           = 'admin'
-    DEFAULT_DB_NAME = 'local'
+    ADMIN                                           = 'admin'
+    DEFAULT_DB_NAME                                 = 'local'
 
-    s_instance_kwargs_map = TsStore.s_instance_kwargs_map | dict(
+    s_instance_kwargs_map                           = TsStore.s_instance_kwargs_map | dict(
         port    = ('port',                      27017),
         ssl     = ('ssl',                       False),
         sst     = ('serverSelectionTimeoutMS',  10000),
         direct  = ('directConnection', False),
     )
 
-    s_cached_connections: dict[tuple, MongoClient] = {}
+    s_cached_connections: dict[tuple, MongoClient]  = {}
 
     class Transaction(TsStore.Transaction):
         def __init__(self, store: MongoStore):
@@ -221,8 +221,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
                 session.start_transaction()
                 self.pending_create_index: list[tuple[str, str, str | list[tuple[str, int]], dict]] = []
             else:
-                self.session = current_tx.session
-                self.pending_create_index = current_tx.pending_create_index
+                self.session                = current_tx.session
+                self.pending_create_index   = current_tx.pending_create_index
             super().__init__(store)
 
         def _do_commit(self) -> None:
@@ -251,10 +251,10 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
     @classmethod
     def connect(cls, hostname: str, username: str, password: str, _cache: bool = True, _throw: bool = True, **kwargs) -> MongoClient:
-        connection_key = standard_key((hostname, username), kwargs) if _cache else None
-        client = cls.s_cached_connections.get(connection_key)
+        connection_key  = standard_key((hostname, username), kwargs) if _cache else None
+        client          = cls.s_cached_connections.get(connection_key)
         if not client:
-            client = MongoClient(hostname, username=username, password=password, **kwargs)
+            client = MongoClient(hostname, username = username, password = password, **kwargs)
             try:
                 client.server_info()
             except Exception:
@@ -269,8 +269,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
     @classmethod
     def uncache_connection(cls, hostname: str, username: str, password: str, **kwargs):
-        connection_key = standard_key((hostname, username), kwargs)
-        client = cls.s_cached_connections.pop(connection_key, None)
+        connection_key  = standard_key((hostname, username), kwargs)
+        client          = cls.s_cached_connections.pop(connection_key, None)
         if client:
             client.close()
 
@@ -316,16 +316,16 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
 
     def __init__(self, client: MongoClient, db: Database, username: str):
         super().__init__()
-        self.client = client
-        self.db: Database = db
-        self.username = username
+        self.client         = client
+        self.db: Database   = db
+        self.username       = username
 
     def collection_names(self, regexp: str = None) -> list:
-        filter = dict(name={'$regex': regexp}) if regexp else None
-        return self.db.list_collection_names(filter=filter)
+        filter = dict(name = {'$regex': regexp}) if regexp else None
+        return self.db.list_collection_names(filter = filter)
 
     def collection(self, collection_name: str, trait_dir: dict | None = None, *, create_if_needed: bool = False) -> MongoCollection:
-        return MongoCollection(self.db, collection_name, store=self)  # Mongo is schemaless; trait_dir / create_if_needed unused
+        return MongoCollection(self.db, collection_name, store = self)  # Mongo is schemaless; trait_dir / create_if_needed unused
 
     def supports_transactions(self) -> bool:
         """True if this MongoDB deployment supports multi-document transactions (replica set or mongos)."""
@@ -345,8 +345,8 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
     @classmethod
     @cache
     def is_running_with_auth(cls, host_name: str, port: int = None) -> tuple:  # -- (is_running, with_auth)
-        port = port or cls.s_instance_kwargs_map['port'][1]
-        client = MongoClient(host=host_name, port=port, serverSelectionTimeoutMS=10000, directConnection=True)
+        port    = port or cls.s_instance_kwargs_map['port'][1]
+        client  = MongoClient(host = host_name, port = port, serverSelectionTimeoutMS = 10000, directConnection = True)
         try:
             # -- 'hello' works without credentials — confirms the server is reachable
             client.admin.command('hello')
@@ -394,43 +394,43 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
         worker_role: str | None = None,
         admin_role: str | None = None,
     ) -> RC:
-        worker_role = worker_role or TsStore.VAULT_WORKER_ROLE
-        admin_role = admin_role or TsStore.VAULT_ADMIN_ROLE
-        admin = self.client[MongoStore.ADMIN]
-        dbname = self.db_name()
-        identity = (user_collection, user_history)
-        accessors = (accessor_collection, accessor_history)
+        worker_role     = worker_role or TsStore.VAULT_WORKER_ROLE
+        admin_role      = admin_role or TsStore.VAULT_ADMIN_ROLE
+        admin           = self.client[MongoStore.ADMIN]
+        dbname          = self.db_name()
+        identity        = (user_collection, user_history)
+        accessors       = (accessor_collection, accessor_history)
         worker_identity = (ACTION.FIND, ACTION.INSERT, ACTION.INDEX_LIST, ACTION.INDEX_CREATE)
         worker_accessor = (*worker_identity, ACTION.UPDATE)
-        admin_actions = (*worker_identity, ACTION.UPDATE)
+        admin_actions   = (*worker_identity, ACTION.UPDATE)
         try:
             privileges = [{'resource': {'db': dbname, 'collection': cname}, 'actions': list(worker_identity)} for cname in identity]
             privileges.extend({'resource': {'db': dbname, 'collection': cname}, 'actions': list(worker_accessor)} for cname in accessors)
             privileges.append({'resource': {'db': dbname, 'collection': ''}, 'actions': [ACTION.COLL_LIST]})
             method = 'updateRole' if self._vault_role_exists(admin, worker_role) else 'createRole'
-            admin.command(method, worker_role, privileges=privileges, roles=[])
+            admin.command(method, worker_role, privileges = privileges, roles = [])
             admin_privs = [{'resource': {'db': dbname, 'collection': cname}, 'actions': list(admin_actions)} for cname in (*identity, *accessors)]
             admin_privs.append({'resource': {'db': dbname, 'collection': ''}, 'actions': [ACTION.COLL_LIST]})
             method = 'updateRole' if self._vault_role_exists(admin, admin_role) else 'createRole'
-            admin.command(method, admin_role, privileges=admin_privs, roles=[])
+            admin.command(method, admin_role, privileges = admin_privs, roles = [])
         except Exception as e:
             return RC(False, f'Mongo vault role setup failed: {e}')
         return RC_TRUE
 
     def create_vault_user(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
         return self._grant_vault_login(
-            username, password, role=worker_role or TsStore.VAULT_WORKER_ROLE, other_role=admin_role or TsStore.VAULT_ADMIN_ROLE
+            username, password, role = worker_role or TsStore.VAULT_WORKER_ROLE, other_role = admin_role or TsStore.VAULT_ADMIN_ROLE
         )
 
     def create_vault_admin(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
         return self._grant_vault_login(
-            username, password, role=admin_role or TsStore.VAULT_ADMIN_ROLE, other_role=worker_role or TsStore.VAULT_WORKER_ROLE
+            username, password, role = admin_role or TsStore.VAULT_ADMIN_ROLE, other_role = worker_role or TsStore.VAULT_WORKER_ROLE
         )
 
     def is_vault_admin(self, *, admin_role: str | None = None) -> bool:
         admin_role = admin_role or TsStore.VAULT_ADMIN_ROLE
         try:
-            status = self.client.admin.command('connectionStatus', showPrivileges=False)
+            status = self.client.admin.command('connectionStatus', showPrivileges = False)
         except Exception:
             return False
         roles = (status.get('authInfo') or {}).get('authenticatedUserRoles') or []
@@ -444,16 +444,16 @@ class MongoStore(TsStore, resource_name = 'MONGO_DB'):
     def _grant_vault_login(self, username: str, password: str, *, role: str, other_role: str) -> RC:
         if not password:
             return RC(False, 'password is required to create a vault login')
-        admin = self.client[MongoStore.ADMIN]
-        vault_role = {'role': role, 'db': MongoStore.ADMIN}
-        drop = {role, other_role}
+        admin       = self.client[MongoStore.ADMIN]
+        vault_role  = {'role': role, 'db': MongoStore.ADMIN}
+        drop        = {role, other_role}
         try:
             users = admin.command('usersInfo', {'user': username, 'db': MongoStore.ADMIN}).get('users') or []
             if users:
                 kept = [r for r in (users[0].get('roles') or []) if r.get('role') not in drop]
-                admin.command('updateUser', username, pwd=password, roles=[*kept, vault_role])
+                admin.command('updateUser', username, pwd = password, roles = [*kept, vault_role])
             else:
-                admin.command('createUser', username, pwd=password, roles=[vault_role])
+                admin.command('createUser', username, pwd = password, roles = [vault_role])
         except Exception as e:
             return RC(False, f'Mongo vault login {username!r} failed: {e}')
         return RC_TRUE

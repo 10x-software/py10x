@@ -19,14 +19,14 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 
-class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
+class DuckDbStore(IbisStore, resource_name = 'DUCK_DB'):
     """In-memory DuckDB-backed store for testing."""
 
-    s_with_auth = False
+    s_with_auth                         = False
     s_supports_add_column_if_not_exists = True
 
-    def __init__(self, hostname=None, dbname=None, username=None, password=None, **kwargs):
-        super().__init__(hostname=hostname, dbname=dbname, username=username, password=password, **kwargs)
+    def __init__(self, hostname = None, dbname = None, username = None, password = None, **kwargs):
+        super().__init__(hostname = hostname, dbname = dbname, username = username, password = password, **kwargs)
         if self.username is None:
             self.username = 'test_user'
 
@@ -61,11 +61,11 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         assert len(col_names) == len(column_value_sqls), (
             f'_insert_sql: column_names ({len(col_names)}) and column_value_sqls ({len(column_value_sqls)}) length mismatch'
         )
-        cols = [_ID, _REV, *col_names, _DATA]
+        cols        = [_ID, _REV, *col_names, _DATA]
         value_exprs = ['?', '?', *column_value_sqls, data_sql]
         # Column names are Python identifiers; quote non-system cols for SQL keywords (e.g. by).
-        col_sql = ', '.join(c if c in (_ID, _REV, _DATA) else f'"{c}"' for c in cols)
-        values_sql = ', '.join(value_exprs)
+        col_sql     = ', '.join(c if c in (_ID, _REV, _DATA) else f'"{c}"' for c in cols)
+        values_sql  = ', '.join(value_exprs)
         return f'{verb} INTO {self._qname(collection_name)} ({col_sql}) VALUES ({values_sql}) RETURNING {col_sql}'
 
     def _handle_insert_error(self, exc: BaseException, collection_name: str, id_val: str) -> None:
@@ -106,7 +106,7 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         return elements.filter(lambda element: element.isnull()).length() > 0
 
     @classmethod
-    def standard_key(cls, *args, username=None, **kwargs) -> tuple:
+    def standard_key(cls, *args, username = None, **kwargs) -> tuple:
         return super().standard_key(*args, **kwargs)
 
     @classmethod
@@ -117,4 +117,4 @@ class DuckDbStore(IbisStore, resource_name='DUCK_DB'):
         return self.username
 
     def server_time(self) -> datetime:
-        return self._con.execute(f'SELECT {self._server_time_col_sql_expr()}').fetchone()[0].replace(tzinfo=None)
+        return self._con.execute(f'SELECT {self._server_time_col_sql_expr()}').fetchone()[0].replace(tzinfo = None)

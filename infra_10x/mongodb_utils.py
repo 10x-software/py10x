@@ -21,19 +21,19 @@ def create_xx_role(admin: MongodbAdmin):
     admin.db.command(
         'updateRole' if admin.role_exists('xxUser') else 'createRole',
         'xxUser',
-        privileges=[
+        privileges  = [
             {
                 'resource': {'anyResource': True},
                 'actions': USER_ROLE.WORKER.value,
             }
         ],
-        roles=[],
+        roles       = [],
     )
 
 
 def create_xx_user(admin: MongodbAdmin, xx_user: str, new_password: str) -> None:
     password = keyring.get_password('xxuser', xx_user) or new_password
-    admin.update_user(xx_user, password, 'xxUser', keep_current_roles=False)
+    admin.update_user(xx_user, password, 'xxUser', keep_current_roles = False)
     if password == new_password:
         keyring.set_password('xxuser', xx_user, password)
 
@@ -52,9 +52,9 @@ def get_xx_admin(user: str):
 
 
 @cache
-def git_user(uid='', login=True):
-    uid = f'/{uid}' if uid else ''
-    user = requests.get(f'https://api.github.com/user{uid}', headers={'Authorization': f'token {git_token()}'}).json()
+def git_user(uid = '', login = True):
+    uid     = f'/{uid}' if uid else ''
+    user    = requests.get(f'https://api.github.com/user{uid}', headers = {'Authorization': f'token {git_token()}'}).json()
     return (user['name'] if user['name'] and not login else user['login'] or input(f'Username{uid}:')).lower()
 
 
@@ -64,12 +64,12 @@ def git_token():
 
 
 @cache
-def all_git_users(login=True):
-    git_org = re.search(r'github\.com[/:]([\w\-\.]+)/', subprocess.check_output(['git', 'remote', 'get-url', 'origin'], text=True).strip()).group(1)
+def all_git_users(login = True):
+    git_org = re.search(r'github\.com[/:]([\w\-\.]+)/', subprocess.check_output(['git', 'remote', 'get-url', 'origin'], text = True).strip()).group(1)
     return [
         uname.lower()
-        for user in requests.get(f'https://api.github.com/orgs/{git_org}/members', headers={'Authorization': f'token {git_token()}'}).json()
-        if (uname := git_user(user['id'], login=login))
+        for user in requests.get(f'https://api.github.com/orgs/{git_org}/members', headers = {'Authorization': f'token {git_token()}'}).json()
+        if (uname := git_user(user['id'], login = login))
     ]
 
 
@@ -77,8 +77,8 @@ def generate_password():
     return ''.join(secrets.choice(string.ascii_letters + string.digits + '!@#$%^&*') for _ in range(AUTO_PASSWORD_LENGTH))
 
 
-def create_users(hostname, port=27017, users=None):
-    admin = MongodbAdmin(hostname=hostname, port=port, **get_credentials('xxadmin', hostname))
+def create_users(hostname, port = 27017, users = None):
+    admin = MongodbAdmin(hostname = hostname, port = port, **get_credentials('xxadmin', hostname))
     create_xx_role(admin)
     for xx_user in users or all_git_users():
         if (
@@ -99,8 +99,8 @@ def clear_vault():
 
 
 def drop_users(hostname):
-    admin = MongodbAdmin(hostname=hostname, **get_credentials('xxadmin', hostname))
-    for xx_user in chain(all_git_users(), all_git_users(login=False)):
+    admin = MongodbAdmin(hostname = hostname, **get_credentials('xxadmin', hostname))
+    for xx_user in chain(all_git_users(), all_git_users(login = False)):
         xx_admin = get_xx_admin(xx_user)
         if xx_admin != admin.username:  # -- do not break current working account!
             admin.delete_user(xx_admin)
@@ -109,14 +109,14 @@ def drop_users(hostname):
 
 def get_credentials(service, hostname):
     if hostname == 'localhost':
-        return dict(username='', password='')
+        return dict(username = '', password = '')
     username = git_user()
     if service == 'xxadmin':
         username = get_xx_admin(username)
     password = keyring.get_password(service, username)
     if not password:
         # Entries written when git_user returned the display name.
-        legacy = git_user(login=False)
+        legacy = git_user(login = False)
         if service == 'xxadmin':
             legacy = get_xx_admin(legacy)
         if legacy != username:
@@ -127,22 +127,22 @@ def get_credentials(service, hostname):
     if not password:
         password = getpass(f"{username}'s password for `{service}`:")
         keyring.set_password(service, username, password)
-    return dict(username=username, password=password)
+    return dict(username = username, password = password)
 
 
-def copy_db(from_host: str, to_host: str, to_port: int, dbname: str, overwrite=False) -> RC:
-    from_store = MongoStore.instance(hostname=from_host, dbname=dbname, **get_credentials('xxuser', from_host))
-    to_store = MongoStore.instance(hostname=to_host, port=to_port, dbname=dbname, **get_credentials('xxuser', to_host))
-    return from_store.copy_to(to_store, overwrite=overwrite)
+def copy_db(from_host: str, to_host: str, to_port: int, dbname: str, overwrite = False) -> RC:
+    from_store  = MongoStore.instance(hostname = from_host, dbname = dbname, **get_credentials('xxuser', from_host))
+    to_store    = MongoStore.instance(hostname = to_host, port = to_port, dbname = dbname, **get_credentials('xxuser', to_host))
+    return from_store.copy_to(to_store, overwrite = overwrite)
 
 
 def list_dbs(host, port, prefix):
-    store = MongoStore.instance(hostname=host, port=port, **get_credentials('xxuser', host))
+    store = MongoStore.instance(hostname = host, port = port, **get_credentials('xxuser', host))
     return store.list_databases(prefix)
 
 
 def delete_dbs(host, port, prefix):
-    store = MongoStore.instance(hostname=host, port=port, **get_credentials('xxuser', host))
+    store = MongoStore.instance(hostname = host, port = port, **get_credentials('xxuser', host))
     for dbname in store.list_databases(prefix):
         store.delete_database(dbname)
 
@@ -151,9 +151,9 @@ if __name__ == '__main__':
     # host = 'mongo10x.eastus2.cloudapp.azure.com'
     # port = 27017
 
-    host = 'xxfin.10xconcepts.com'
-    port = 27018
-    dbname = 'mkt_data'
+    host    = 'xxfin.10xconcepts.com'
+    port    = 27018
+    dbname  = 'mkt_data'
 
     # drop_users(host, port)
     # clear_vault()

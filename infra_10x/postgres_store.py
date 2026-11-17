@@ -26,8 +26,8 @@ from infra_10x.ibis_store import (
 )
 
 # Frontend/Backend protocol: StartupMessage protocol 3.0; SSLRequest code.
-_PG_PROTOCOL_3_0 = 196608
-_PG_SSL_REQUEST_CODE = 80877103
+_PG_PROTOCOL_3_0        = 196608
+_PG_SSL_REQUEST_CODE    = 80877103
 # AuthenticationRequest codes (see Postgres protocol docs).
 _PG_AUTH_OK = 0
 
@@ -37,7 +37,7 @@ if TYPE_CHECKING:
     from datetime import datetime
 
 
-class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
+class PostgresStore(IbisStore, resource_name = 'POSTGRES_DB'):
     """PostgreSQL-backed Ibis traitable store.
 
     ``TS_USER`` is stamped from the **server session user** (``current_user``), not the
@@ -45,20 +45,20 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     keys can be expression-indexed later.
     """
 
-    SSLMODE_TAG = 'sslmode'
+    SSLMODE_TAG                         = 'sslmode'
 
-    s_with_auth = False
+    s_with_auth                         = False
     s_supports_add_column_if_not_exists = True
     # NAMEDATALEN is 64 → 63 usable bytes; long class-id / #history names must not collide.
-    s_max_ident_bytes = 63
+    s_max_ident_bytes                   = 63
     # Postgres has no bare DOUBLE type (DuckDB/ANSI alias); use DOUBLE PRECISION.
-    s_ddl_types = {
+    s_ddl_types                         = {
         float: 'DOUBLE PRECISION',
     }
     # JSONB, not JSON: ibis then emits jsonb casts, whose equality is *semantic* (key order and
     # spacing insensitive). Text comparison could never match — jsonb renormalizes on write.
-    s_json_type = ibis_dtypes.JSON(binary=True)
-    s_instance_kwargs_map = IbisStore.s_instance_kwargs_map | {
+    s_json_type                         = ibis_dtypes.JSON(binary = True)
+    s_instance_kwargs_map               = IbisStore.s_instance_kwargs_map | {
         Resource.HOSTNAME_TAG: (Resource.HOSTNAME_TAG, 'localhost'),
         Resource.PORT_TAG: (Resource.PORT_TAG, 5432),
         Resource.DBNAME_TAG: (Resource.DBNAME_TAG, 'postgres'),
@@ -69,39 +69,39 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     @classmethod
     def parse_uri(cls, uri: str) -> dict:
         """Lift ``sslmode`` / ``ssl`` query params into Resource SSL + connect ``sslmode``."""
-        kwargs = super().parse_uri(uri)
-        query = kwargs.pop(cls.QUERY_TAG, None) or ''
+        kwargs  = super().parse_uri(uri)
+        query   = kwargs.pop(cls.QUERY_TAG, None) or ''
         if not query:
             return kwargs
-        qs = parse_qs(query, keep_blank_values=True)
+        qs  = parse_qs(query, keep_blank_values = True)
         raw = (qs.get(cls.SSLMODE_TAG) or qs.get(cls.SSL_TAG) or [None])[0]
         if raw is None:
             return kwargs
         mode = str(raw).lower()
         if mode in ('require', 'verify-ca', 'verify-full'):
-            kwargs[cls.SSL_TAG] = True
+            kwargs[cls.SSL_TAG]     = True
             kwargs[cls.SSLMODE_TAG] = mode
         elif mode in ('true', '1', 'yes'):
-            kwargs[cls.SSL_TAG] = True
+            kwargs[cls.SSL_TAG]     = True
             kwargs[cls.SSLMODE_TAG] = 'require'
         elif mode in ('disable', 'false', '0', 'no'):
-            kwargs[cls.SSL_TAG] = False
+            kwargs[cls.SSL_TAG]     = False
             kwargs[cls.SSLMODE_TAG] = 'disable'
         else:
             # prefer / allow / etc. — pass through without forcing SSL_TAG.
             kwargs[cls.SSLMODE_TAG] = mode
         return kwargs
 
-    def __init__(self, hostname=None, dbname=None, username=None, password=None, **kwargs):
+    def __init__(self, hostname = None, dbname = None, username = None, password = None, **kwargs):
         # libpq-only; must be set before ``IbisStore.__init__`` opens the connection.
-        self.sslmode = kwargs.get(self.SSLMODE_TAG)
+        self.sslmode                = kwargs.get(self.SSLMODE_TAG)
         self._auth_user: str | None = None  # -- lazily resolved SQL current_user (see auth_user)
-        super().__init__(hostname=hostname, dbname=dbname, username=username, password=password, **kwargs)
+        super().__init__(hostname = hostname, dbname = dbname, username = username, password = password, **kwargs)
 
     def _ibis_connect(self):
         # Resource identity → ibis names (host/user/database); TS_USER uses SQL current_user.
         # autocommit=True so explicit BEGIN/COMMIT match DuckDB / IbisStore.Transaction.
-        connect_kw = {
+        connect_kw  = {
             'host': self.hostname,
             'port': self.port,
             'database': self.dbname,
@@ -109,7 +109,7 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
             'password': self.password,
             'autocommit': True,
         }
-        mode = self.sslmode or ('require' if self.ssl else None)
+        mode        = self.sslmode or ('require' if self.ssl else None)
         if mode:
             connect_kw[self.SSLMODE_TAG] = mode
         return ibis.postgres.connect(**connect_kw)
@@ -122,9 +122,9 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         ``?|`` / ``?&`` operators. Bare JSONB ``?`` (key existence) still collides with
         binds — use ``->>`` / ``->`` instead (as ``_index_expr`` does).
         """
-        out: list[str] = []
-        i = 0
-        in_str = False
+        out: list[str]  = []
+        i               = 0
+        in_str          = False
         while i < len(sql):
             c = sql[i]
             if in_str:
@@ -207,19 +207,19 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         assert len(col_names) == len(column_value_sqls), (
             f'_insert_sql: column_names ({len(col_names)}) and column_value_sqls ({len(column_value_sqls)}) length mismatch'
         )
-        cols = [_ID, _REV, *col_names, _DATA]
+        cols        = [_ID, _REV, *col_names, _DATA]
         value_exprs = ['?', '?', *column_value_sqls, data_sql]
 
         def _col_sql(c: str) -> str:
             return c if c in (_ID, _REV, _DATA) else f'"{c}"'
 
-        col_sql = ', '.join(_col_sql(c) for c in cols)
-        values_sql = ', '.join(value_exprs)
-        qname = self._qname(collection_name)
-        insert = f'INSERT INTO {qname} ({col_sql}) VALUES ({values_sql})'
+        col_sql     = ', '.join(_col_sql(c) for c in cols)
+        values_sql  = ', '.join(value_exprs)
+        qname       = self._qname(collection_name)
+        insert      = f'INSERT INTO {qname} ({col_sql}) VALUES ({values_sql})'
         if overwrite:
-            set_parts = [f'{_col_sql(c)} = EXCLUDED.{_col_sql(c)}' for c in cols if c != _ID]
-            insert = f'{insert} ON CONFLICT ({_ID}) DO UPDATE SET {", ".join(set_parts)}'
+            set_parts   = [f'{_col_sql(c)} = EXCLUDED.{_col_sql(c)}' for c in cols if c != _ID]
+            insert      = f'{insert} ON CONFLICT ({_ID}) DO UPDATE SET {", ".join(set_parts)}'
         return f'{insert} RETURNING {col_sql}'
 
     def _handle_insert_error(self, exc: BaseException, collection_name: str, id_val: str) -> None:
@@ -322,14 +322,14 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         """
         if port is None:
             port = cls.s_instance_kwargs_map[cls.PORT_TAG][1]
-        dbname = cls.s_instance_kwargs_map[cls.DBNAME_TAG][1]
-        port = int(port)
+        dbname  = cls.s_instance_kwargs_map[cls.DBNAME_TAG][1]
+        port    = int(port)
         try:
-            sock = socket.create_connection((host_name, port), timeout=3.0)
+            sock = socket.create_connection((host_name, port), timeout = 3.0)
         except OSError:
             return False, False
         try:
-            return cls._startup_auth_probe(sock, host=host_name, user=getpass.getuser(), database=dbname, timeout=3.0)
+            return cls._startup_auth_probe(sock, host = host_name, user = getpass.getuser(), database = dbname, timeout = 3.0)
         except OSError:
             # TCP succeeded; handshake/SSL/protocol failed → treat as up + try vault.
             return True, True
@@ -353,13 +353,13 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
             sock.sendall(struct.pack('!II', 8, _PG_SSL_REQUEST_CODE))
             ssl_flag = _recv_exact(1)
             if ssl_flag == b'S':
-                ctx = ssl.create_default_context()
-                sock = ctx.wrap_socket(sock, server_hostname=host)
+                ctx     = ssl.create_default_context()
+                sock    = ctx.wrap_socket(sock, server_hostname = host)
             elif ssl_flag != b'N':
                 # Connected but not speaking PG SSL negotiation → up, not open.
                 return True, True
 
-            params = (
+            params  = (
                 b''.join(
                     k + b'\x00' + v + b'\x00'
                     for k, v in (
@@ -370,13 +370,13 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
                 )
                 + b'\x00'
             )
-            body = struct.pack('!I', _PG_PROTOCOL_3_0) + params
+            body    = struct.pack('!I', _PG_PROTOCOL_3_0) + params
             sock.sendall(struct.pack('!I', 4 + len(body)) + body)
 
             # Trust: AuthenticationOk then Error (bad role). Open: AuthOk … ReadyForQuery.
             while True:
-                tag = _recv_exact(1)
-                length = struct.unpack('!I', _recv_exact(4))[0]
+                tag     = _recv_exact(1)
+                length  = struct.unpack('!I', _recv_exact(4))[0]
                 payload = _recv_exact(length - 4) if length > 4 else b''
                 if (result := PostgresStore._classify_startup_backend_message(tag, payload)) is not None:
                     return result
@@ -425,7 +425,7 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     @classmethod
     def create_if_needed(cls, spec) -> bool:
         """Create the database in ``spec`` if absent, via the maintenance database. Needs CREATEDB."""
-        dbname = spec.kwargs.get(cls.DBNAME_TAG)
+        dbname      = spec.kwargs.get(cls.DBNAME_TAG)
         maintenance = cls.s_instance_kwargs_map[cls.DBNAME_TAG][1]
         if not dbname or dbname == maintenance:
             return False
@@ -436,7 +436,7 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
             'user': spec.kwargs.get(cls.USERNAME_TAG),
             'password': spec.kwargs.get(cls.PASSWORD_TAG),
         }
-        with psycopg.connect(**{k: v for k, v in connect_kw.items() if v is not None}, autocommit=True) as con, con.cursor() as cur:
+        with psycopg.connect(**{k: v for k, v in connect_kw.items() if v is not None}, autocommit = True) as con, con.cursor() as cur:
             cur.execute('SELECT 1 FROM pg_database WHERE datname = %s', [dbname])
             if cur.fetchone():
                 return False
@@ -457,14 +457,14 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
         admin_role: str | None = None,
     ) -> RC:
         worker_role = worker_role or TsStore.VAULT_WORKER_ROLE
-        admin_role = admin_role or TsStore.VAULT_ADMIN_ROLE
+        admin_role  = admin_role or TsStore.VAULT_ADMIN_ROLE
         try:
             self._ensure_pg_group(worker_role)
             self._ensure_pg_group(admin_role)
             qworker, qadmin = self._qident(worker_role), self._qident(admin_role)
             self._execute(f'GRANT USAGE ON SCHEMA public TO {qworker}, {qadmin}')
-            names = (user_collection, user_history, accessor_collection, accessor_history)
-            accessor_write = {accessor_collection}
+            names           = (user_collection, user_history, accessor_collection, accessor_history)
+            accessor_write  = {accessor_collection}
             for cname in names:
                 qtable = self._qname(cname)
                 self._execute(f'REVOKE ALL ON TABLE {qtable} FROM PUBLIC')
@@ -486,12 +486,12 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
 
     def create_vault_user(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
         return self._grant_vault_login(
-            username, password, role=worker_role or TsStore.VAULT_WORKER_ROLE, other_role=admin_role or TsStore.VAULT_ADMIN_ROLE
+            username, password, role = worker_role or TsStore.VAULT_WORKER_ROLE, other_role = admin_role or TsStore.VAULT_ADMIN_ROLE
         )
 
     def create_vault_admin(self, username: str, password: str, *, worker_role: str | None = None, admin_role: str | None = None) -> RC:
         return self._grant_vault_login(
-            username, password, role=admin_role or TsStore.VAULT_ADMIN_ROLE, other_role=worker_role or TsStore.VAULT_WORKER_ROLE
+            username, password, role = admin_role or TsStore.VAULT_ADMIN_ROLE, other_role = worker_role or TsStore.VAULT_WORKER_ROLE
         )
 
     def is_vault_admin(self, *, admin_role: str | None = None) -> bool:
@@ -550,7 +550,7 @@ class PostgresStore(IbisStore, resource_name='POSTGRES_DB'):
     def auth_user(self) -> str | None:
         # ``current_user`` is fixed for the life of the connection — query it once.
         if self._auth_user is None:
-            rows = self._execute('SELECT current_user')
+            rows            = self._execute('SELECT current_user')
             self._auth_user = rows[0][0] if rows else None
         return self._auth_user
 

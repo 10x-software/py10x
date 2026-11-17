@@ -5,7 +5,7 @@ class MongoCollectionHelperStub:
     @classmethod
     def prepare_filter_and_pipeline(cls, serialized_traitable, filter, pipeline):
         rev_tag = Nucleus.REVISION_TAG()
-        id_tag = '_id'
+        id_tag  = '_id'
         for key in (rev_tag, id_tag):
             filter[key] = serialized_traitable.pop(key)
 

@@ -2,41 +2,41 @@ from infra_10x.mongodb_store import MongoStore
 
 
 class MongodbAdmin:
-    def __init__(self, hostname: str, username: str, password: str, port=27017):
-        self.client = MongoStore.connect(hostname=hostname, username=username, password=password, port=port, _cache=False)
-        self.db = self.client[MongoStore.ADMIN]
-        self.hostname = hostname
-        self.username = username
-        self.port = port
+    def __init__(self, hostname: str, username: str, password: str, port = 27017):
+        self.client     = MongoStore.connect(hostname = hostname, username = username, password = password, port = port, _cache = False)
+        self.db         = self.client[MongoStore.ADMIN]
+        self.hostname   = hostname
+        self.username   = username
+        self.port       = port
 
     def user_exists(self, username: str) -> bool:
         res = self.db.command('usersInfo', {'user': username, 'db': MongoStore.ADMIN})
         return bool(res.get('users'))
 
-    def update_user(self, username: str, password: str, *role_names, keep_current_roles=True):
+    def update_user(self, username: str, password: str, *role_names, keep_current_roles = True):
         create = not self.user_exists(username)
         if create:
             if not password:
                 raise RuntimeError(f'User {username} does not exist and requires a non-empty password')
 
-            cmd = dict(createUser=username, pwd=password, roles=[*role_names])
+            cmd = dict(createUser = username, pwd = password, roles = [*role_names])
 
         else:
             if not role_names and keep_current_roles:
                 role_names = self.user_role_names(username)
 
-            cmd = dict(updateUser=username)
+            cmd = dict(updateUser = username)
             if role_names:
-                cmd.update(roles=[*role_names])
+                cmd.update(roles = [*role_names])
             if password:
-                cmd.update(pwd=password)
+                cmd.update(pwd = password)
 
         self.db.command(cmd)
 
     def change_own_password(self, password: str):
-        self.db.command(dict(updateUser=self.username, pwd=password))
-        self.client = MongoStore.connect(hostname=self.hostname, username=self.username, password=password, prot=self.port, _cache=False)
-        self.db = self.client[MongoStore.ADMIN]
+        self.db.command(dict(updateUser = self.username, pwd = password))
+        self.client = MongoStore.connect(hostname = self.hostname, username = self.username, password = password, prot = self.port, _cache = False)
+        self.db     = self.client[MongoStore.ADMIN]
 
         # # Discover which user/db you're authenticated as (handy to avoid hardcoding)
         # status = client.admin.command("connectionStatus", showPrivileges = False)
@@ -62,13 +62,13 @@ class MongodbAdmin:
                 { 'catalog': PERMISSION.READ_ONLY, 'logs/errors': PERMISSION.READ_WRITE }
         :return:
         """
-        privileges = [
-            dict(resource=dict(db=resource_parts[0], collection=resource_parts[1] if len(resource_parts) == 2 else ''), actions=permission)
+        privileges  = [
+            dict(resource = dict(db = resource_parts[0], collection = resource_parts[1] if len(resource_parts) == 2 else ''), actions = permission)
             for db_name, permission in permissions_per_db.items()
             if (resource_parts := db_name.split('/'))
         ]
-        method = 'createRole' if not self.role_exists(role_name) else 'updateRole'
-        self.db.command(method, role_name, privileges=privileges, roles=[])
+        method      = 'createRole' if not self.role_exists(role_name) else 'updateRole'
+        self.db.command(method, role_name, privileges = privileges, roles = [])
 
     def all_user_names(self) -> list:
         listing = self.db.command('usersInfo')
@@ -79,11 +79,11 @@ class MongodbAdmin:
         return [doc['role'] for doc in listing['roles']] if listing['ok'] else []
 
     def role_exists(self, role_name: str) -> bool:
-        res = self.db.command('rolesInfo', dict(role=role_name, db=MongoStore.ADMIN))
+        res = self.db.command('rolesInfo', dict(role = role_name, db = MongoStore.ADMIN))
         return bool(res['roles'])
 
     def user_role_names(self, username: str) -> list:
-        res = self.db.command(dict(usersInfo=username))
+        res = self.db.command(dict(usersInfo = username))
         if not res:
             return []
 
