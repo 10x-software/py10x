@@ -48,7 +48,7 @@ if __name__ == '__main__':
             all_quotables[q] = float(q.quote)
 
     for q, fq in all_quotables.items():
-        q.quote = fq
+        q.quote          = fq
 
     #-- Python baseline
     with PerfTimer() as t:
