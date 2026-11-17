@@ -21,13 +21,13 @@ def call_counter(method):
         return method(self, *args, **kwargs)
 
     ctr.call_counts = WeakKeyDictionary()
-    ctr.call_count = lambda obj: ctr.call_counts.get(obj, 0) if obj else sum(ctr.call_counts.values())
+    ctr.call_count  = lambda obj: ctr.call_counts.get(obj, 0) if obj else sum(ctr.call_counts.values())
     return ctr
 
 
 class CallCount:
     def __init__(self, obj, method):
-        self.obj = obj
+        self.obj    = obj
         self.method = method
         assert hasattr(method, 'call_count')
 
@@ -44,11 +44,11 @@ class CallCount:
 
 
 class TestablePerson(Person):
-    older_than_get = call_counter(Person.older_than_get)
-    weight_get = call_counter(Person.weight_get)
-    weight_set = call_counter(Person.weight_set)
+    older_than_get  = call_counter(Person.older_than_get)
+    weight_get      = call_counter(Person.weight_get)
+    weight_set      = call_counter(Person.weight_set)
 
-    young: bool = RT()
+    young: bool     = RT()
 
     @call_counter
     def young_get(self) -> bool:
@@ -61,7 +61,7 @@ class TestablePerson(Person):
 
 def find_or_create():
     with CACHE_ONLY():
-        return TestablePerson(first_name='John', last_name='Smith')
+        return TestablePerson(first_name = 'John', last_name = 'Smith')
 
 
 def reset_person():
@@ -82,10 +82,10 @@ def reset_person():
 
 
 def test_get_set():
-    on = BTP.current().flags() & BTP.ON_GRAPH
-    p = find_or_create()
-    p.weight_lbs = 100.0
-    p.weight_qu = WEIGHT_QU.LB
+    on              = BTP.current().flags() & BTP.ON_GRAPH
+    p               = find_or_create()
+    p.weight_lbs    = 100.0
+    p.weight_qu     = WEIGHT_QU.LB
 
     assert p.weight == 100
 
@@ -115,9 +115,9 @@ def test_get_set():
 
 
 def test_dep_change():
-    on = BTP.current().flags() & BTP.ON_GRAPH
-    p = find_or_create()
-    p.age = 30
+    on      = BTP.current().flags() & BTP.ON_GRAPH
+    p       = find_or_create()
+    p.age   = 30
 
     assert not p.young
 
@@ -136,8 +136,8 @@ def test_dep_change():
 def test_dep_change_with_arg():
     on = BTP.current().flags() & BTP.ON_GRAPH
 
-    p = find_or_create()
-    p.age = 30
+    p       = find_or_create()
+    p.age   = 30
 
     assert not p.older_than(30)
 
@@ -156,13 +156,13 @@ def test_dep_change_with_arg():
 def test_nested():
     class P(Traitable):
         first_name: str = RT()
-        last_name: str = RT()
-        full_name: str = RT()
+        last_name: str  = RT()
+        full_name: str  = RT()
 
         def full_name_get(self):
             return f'{self.first_name} {self.last_name}'
 
-    p = P(first_name='Jane', last_name='Smith')
+    p = P(first_name = 'Jane', last_name = 'Smith')
     assert p.full_name == 'Jane Smith'
     with INTERACTIVE() as i1:
         p.last_name = 'Baker'
@@ -182,37 +182,37 @@ def test_nested():
     assert p.full_name == 'Jane Smith'
 
 
-def test_convert(on=False):
+def test_convert(on = False):
     assert on == bool(BTP.current().flags() & BTP.CONVERT_VALUES)
     if not on:
         with pytest.raises(TypeError):
-            Person(first_name=1, last_name=2)
+            Person(first_name = 1, last_name = 2)
     else:
-        p = Person(first_name=1, last_name=2)
+        p = Person(first_name = 1, last_name = 2)
         assert p.full_name == '1 2'
 
 
-def test_graph(on=False):
+def test_graph(on = False):
     assert on == bool(BTP.current().flags() & BTP.ON_GRAPH)
     test_dep_change()
     test_dep_change_with_arg()
     test_get_set()
 
 
-def test_exec_control(graph=False, convert=False, debug=False):
+def test_exec_control(graph = False, convert = False, debug = False):
     with CACHE_ONLY():
-        test_graph(on=graph)
+        test_graph(on = graph)
         reset_person()
-        test_convert(on=convert)
+        test_convert(on = convert)
         reset_person()
         if not convert:
-            test_debug(on=debug)
+            test_debug(on = debug)
 
 
 def test_repro():
     with GRAPH_ON():
-        p = find_or_create()
-        p.weight_lbs = 100
+        p               = find_or_create()
+        p.weight_lbs    = 100
         reset_person()
         with GRAPH_OFF():
             p.weight_lbs = 100
@@ -227,9 +227,9 @@ def test_graph_on():
             reset_person()
 
 
-def test_debug(on=False):
+def test_debug(on = False):
     assert on == bool(BTP.current().flags() & BTP.DEBUG)
-    p = TestablePerson(first_name='John', last_name='Smith')
+    p = TestablePerson(first_name = 'John', last_name = 'Smith')
     assert p.weight_lbs is XNone
 
     p.weight_lbs = 100.0
@@ -248,36 +248,36 @@ def test_debug(on=False):
 
 
 def test_graph_convert_debug():
-    with GRAPH_ON(convert_values=True, debug=True):
+    with GRAPH_ON(convert_values = True, debug = True):
         test_exec_control(True, True, True)
         with GRAPH_OFF():
             test_exec_control(False, True, True)
-        with GRAPH_OFF(convert_values=False):
+        with GRAPH_OFF(convert_values = False):
             test_exec_control(False, False, True)
-        with GRAPH_OFF(debug=False, convert_values=False):
+        with GRAPH_OFF(debug = False, convert_values = False):
             test_exec_control(False, False, False)
 
 
 def test_graph_convert():
-    with GRAPH_ON(convert_values=True):
+    with GRAPH_ON(convert_values = True):
         test_exec_control(True, True, False)
         with GRAPH_OFF():
             test_exec_control(False, True, False)
-        with GRAPH_OFF(convert_values=False):
+        with GRAPH_OFF(convert_values = False):
             test_exec_control(False, False, False)
-        with GRAPH_OFF(debug=True, convert_values=False):
+        with GRAPH_OFF(debug = True, convert_values = False):
             test_exec_control(False, False, True)
 
 
 def test_graph_debug():
-    with GRAPH_ON(debug=True):
+    with GRAPH_ON(debug = True):
         test_exec_control(True, False, True)
 
         with GRAPH_OFF():
             test_exec_control(False, False, True)
-        with GRAPH_OFF(debug=False):
+        with GRAPH_OFF(debug = False):
             test_exec_control(False, False, False)
-        with GRAPH_OFF(debug=False, convert_values=True):
+        with GRAPH_OFF(debug = False, convert_values = True):
             test_exec_control(False, True, False)
 
 
@@ -292,56 +292,56 @@ def test_traitable_processor_creation(on_graph, debug, convert_values, on_graph2
         x: int = RT(T.ID)
         v: int = RT()
 
-    X(x=1, v=10, _replace=True)
-    assert X(x=1).v == 10
+    X(x = 1, v = 10, _replace = True)
+    assert X(x = 1).v == 10
 
     default_cache = BTP.current().cache()
-    with BTP.create(on_graph, debug, convert_values, use_parent_cache=False, use_default_cache=False):
-        X(x=2, v=20, _replace=True)
+    with BTP.create(on_graph, debug, convert_values, use_parent_cache = False, use_default_cache = False):
+        X(x = 2, v = 20, _replace = True)
         parent_cache = BTP.current().cache()
         assert default_cache is not parent_cache
-        with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=False, use_default_cache=False):
-            X(x=3, v=30, _replace=True)
+        with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache = False, use_default_cache = False):
+            X(x = 3, v = 30, _replace = True)
             child_cache = BTP.current().cache()
             assert child_cache is not parent_cache
             assert child_cache is not default_cache
-            assert X(x=1).v == 10
-            assert X(x=2).v == 20
+            assert X(x = 1).v == 10
+            assert X(x = 2).v == 20
 
-        with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=True, use_default_cache=False):
-            X(x=4, v=40, _replace=True)
+        with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache = True, use_default_cache = False):
+            X(x = 4, v = 40, _replace = True)
             child_cache = BTP.current().cache()
             if on_graph == on_graph2:  # use_parent_cache only works if both parent and child are either on_graph or off_graph
                 assert child_cache is parent_cache
             else:
                 assert child_cache is not parent_cache
                 assert child_cache is not default_cache
-        with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache=False, use_default_cache=True):
-            X(x=5, v=50, _replace=True)
+        with BTP.create(on_graph2, debug2, convert_values2, use_parent_cache = False, use_default_cache = True):
+            X(x = 5, v = 50, _replace = True)
             child_cache = BTP.current().cache()
             if not on_graph2:  # use_default_cache only works for off-graph mode
                 assert child_cache is default_cache
-                assert X(x=2).v is XNone
+                assert X(x = 2).v is XNone
             else:
                 assert child_cache is not parent_cache
                 assert child_cache is not default_cache
-                assert X(x=2).v == 20  # from parent
-            assert X(x=1).v == 10
+                assert X(x = 2).v == 20  # from parent
+            assert X(x = 1).v == 10
 
-        assert X(x=1).v == 10  # from parent caches
-        assert X(x=2).v == 20  # set in this cache
-        assert X(x=3).v is XNone  # not set as was set in child with use_parent_cache=False
+        assert X(x = 1).v == 10  # from parent caches
+        assert X(x = 2).v == 20  # set in this cache
+        assert X(x = 3).v is XNone  # not set as was set in child with use_parent_cache=False
         if on_graph == on_graph2:  # use_parent_cache only works if both parent and child are either on_graph or off_graph
-            assert X(x=4).v == 40  # this cache, as was set in child with use_parent_cache=True
+            assert X(x = 4).v == 40  # this cache, as was set in child with use_parent_cache=True
         if not on_graph2:  # use_default_cache only works for off-graph mode
-            assert X(x=5).v == 50  # in default cache, which is our parent
+            assert X(x = 5).v == 50  # in default cache, which is our parent
 
-    assert X(x=1).v == 10
-    assert X(x=2).v is XNone
-    assert X(x=3).v is XNone
-    assert X(x=4).v is XNone
+    assert X(x = 1).v == 10
+    assert X(x = 2).v is XNone
+    assert X(x = 3).v is XNone
+    assert X(x = 4).v is XNone
     if not on_graph2:  # use_default_cache only works for off-graph mode
-        assert X(x=5).v == 50  # we are in default cache, and it was set in default cache
+        assert X(x = 5).v == 50  # we are in default cache, and it was set in default cache
 
     # TODO assert behavior with conflicting params, e.g.
     #
@@ -361,7 +361,7 @@ def test_write_during_read_self_set():
             self.z = 5
             return 1
 
-    with GRAPH_ON(), pytest.raises(TraitMethodError, match='set/invalidate during get'):
+    with GRAPH_ON(), pytest.raises(TraitMethodError, match = 'set/invalidate during get'):
         _ = X().z
 
 
@@ -369,30 +369,30 @@ def test_write_during_read_ripple():
     """A getter re-sets a leaf several levels below it; the ripple reaches the guarded ancestor."""
 
     class X(Traitable):
-        base: int = RT()
-        mid: int = RT()
-        top: int = RT()
+        base: int   = RT()
+        mid: int    = RT()
+        top: int    = RT()
 
         def mid_get(self):
             return self.base + 1
 
         def top_get(self):
-            _ = self.mid
-            self.base = 999
+            _           = self.mid
+            self.base   = 999
             return self.mid
 
-    with GRAPH_ON(), pytest.raises(TraitMethodError, match='set/invalidate during get'):
-        _ = X(base=10).top
+    with GRAPH_ON(), pytest.raises(TraitMethodError, match = 'set/invalidate during get'):
+        _ = X(base = 10).top
 
 
 def test_on_graph_choices_and_style_sheet():
     """choices/style_sheet under GRAPH_ON use args-keyed nodes and track deps like getters."""
 
     class X(Traitable):
-        mode: str = RT()
-        color: str = RT()
-        choice_calls = 0
-        style_calls = 0
+        mode: str       = RT()
+        color: str      = RT()
+        choice_calls    = 0
+        style_calls     = 0
 
         def color_choices(self, trait):
             type(self).choice_calls += 1
@@ -403,7 +403,7 @@ def test_on_graph_choices_and_style_sheet():
             return f'color:{self.color}'
 
     with GRAPH_ON():
-        x = X(mode='a', color='red')
+        x = X(mode = 'a', color = 'red')
         assert x.get_choices(x.T.color.trait) == ('red', 'blue')
         assert X.choice_calls == 1
         assert x.get_choices(x.T.color.trait) == ('red', 'blue')
@@ -427,14 +427,14 @@ def test_calc_values_and_aggregate():
     """BTraitable.calc_values / calc_and_aggregate smoke over a small bucket."""
 
     class X(Traitable):
-        n: int = RT()
-        doubled: int = RT()
+        n: int          = RT()
+        doubled: int    = RT()
 
         def doubled_get(self):
             return self.n * 2
 
     with GRAPH_ON():
-        xs = [X(n=i) for i in (1, 2, 3)]
+        xs = [X(n = i) for i in (1, 2, 3)]
         assert BTraitable.calc_values(xs, 'doubled') == [2, 4, 6]
         assert BTraitable.calc_and_aggregate(xs, 'doubled', sum) == 12
         assert BTraitable.calc_values_with_args(xs, 'doubled') == [2, 4, 6]

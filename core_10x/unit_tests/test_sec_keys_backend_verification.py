@@ -24,7 +24,7 @@ class _FakePlaintextBackend(keyring.backend.KeyringBackend):
         pass
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def _restore_keyring():
     original = keyring.get_keyring()
     yield
@@ -38,11 +38,11 @@ def test_functional_account_keyring_is_accepted():
 
 def test_unrecognized_backend_is_rejected():
     keyring.set_keyring(_FakePlaintextBackend())
-    with pytest.raises(TypeError, match='not a recognized OS-native keyring backend'):
+    with pytest.raises(TypeError, match = 'not a recognized OS-native keyring backend'):
         SecKeys._verify_keyring_backend()
 
 
 def test_change_master_password_refuses_unrecognized_backend():
     keyring.set_keyring(_FakePlaintextBackend())
-    with pytest.raises(TypeError, match='not a recognized OS-native keyring backend'):
-        SecKeys.change_master_password('SomePassword1!', override=True)
+    with pytest.raises(TypeError, match = 'not a recognized OS-native keyring backend'):
+        SecKeys.change_master_password('SomePassword1!', override = True)

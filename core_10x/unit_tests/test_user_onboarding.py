@@ -37,13 +37,13 @@ from infra_10x.duckdb_store import DuckDbStore
 # (The ``vault_env`` fixture itself lives in ``core_10x.testlib.vault_env``
 # and uses its own internal ``VAULT_URI`` matching the host below.)
 
-VAULT_HOST_URI = 'duckdb://vaulthost.example.com'  # no port number - should be added by round trip
-MAIN_ON_VAULT = 'duckdb://vaulthost.example.com:27017/main'  # different db, same host
-PG_URI = 'postgresql://pghost.example.com:5432/analytics'
+VAULT_HOST_URI  = 'duckdb://vaulthost.example.com'  # no port number - should be added by round trip
+MAIN_ON_VAULT   = 'duckdb://vaulthost.example.com:27017/main'  # different db, same host
+PG_URI          = 'postgresql://pghost.example.com:5432/analytics'
 
-ADMIN, ADMIN_VAULT_PWD, ADMIN_MASTER = 'admin', 'AdminVault7!', 'AdminMaster9!'
-ALICE, ALICE_VAULT_PWD, ALICE_MASTER = 'alice', 'AliceVault7!', 'AliceMaster9!'
-PG_PWD = 'PgWorker3!'
+ADMIN, ADMIN_VAULT_PWD, ADMIN_MASTER    = 'admin', 'AdminVault7!', 'AdminMaster9!'
+ALICE, ALICE_VAULT_PWD, ALICE_MASTER    = 'alice', 'AliceVault7!', 'AliceMaster9!'
+PG_PWD                                  = 'PgWorker3!'
 
 
 # -- The scenario ---------------------------------------------------------
@@ -61,7 +61,7 @@ def test_admin_user_onboarding_information_flow(vault_env):  # noqa: F811  (pyte
     # ----------------------------------------------------------------- 1
     # ADMIN bootstraps themselves.
     env.switch_os_user(ADMIN)
-    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+    env.run_user_init(vault_login = ADMIN, vault_pwd = ADMIN_VAULT_PWD, master_pwd = ADMIN_MASTER)
 
     # ----------------------------------------------------------------- 2
     # Admin transmits (vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD) to
@@ -70,11 +70,11 @@ def test_admin_user_onboarding_information_flow(vault_env):  # noqa: F811  (pyte
     # ----------------------------------------------------------------- 3
     # ALICE self-registers.
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
     # Verify the bookkeeping that admin's step (5) will rely on:
     with Traitable.vault_store():
-        me = VaultUser.existing_instance(user_id=ALICE)
+        me = VaultUser.existing_instance(user_id = ALICE)
         assert me.user_id == ALICE
         assert me.public_key and me.private_key_encrypted
 
@@ -137,19 +137,19 @@ def test_admin_cannot_decrypt_alice_credentials(vault_env):  # noqa: F811  (pyte
 
     # Bootstrap admin and alice as in the main test.
     env.switch_os_user(ADMIN)
-    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+    env.run_user_init(vault_login = ADMIN, vault_pwd = ADMIN_VAULT_PWD, master_pwd = ADMIN_MASTER)
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
     # Admin saves an RA for alice's REL_DB (using only her public key).
     env.switch_os_user(ADMIN)
     with Traitable.vault_store():
         VaultResourceAccessor.save_ra(
-            resource_dt=CONCRETE_RESOURCE.REL_DB,
-            resource_uri=PG_URI,
-            password=PG_PWD,
-            login=ALICE,
-            username=ALICE,
+            resource_dt     = CONCRETE_RESOURCE.REL_DB,
+            resource_uri    = PG_URI,
+            password        = PG_PWD,
+            login           = ALICE,
+            username        = ALICE,
         ).throw()
 
         # Trying to decrypt as the admin must fail — the vault has alice's
@@ -158,7 +158,7 @@ def test_admin_cannot_decrypt_alice_credentials(vault_env):  # noqa: F811  (pyte
         ra = VaultResourceAccessor.retrieve_ra(
             CONCRETE_RESOURCE.REL_DB,
             PG_URI,
-            username=ALICE,
+            username = ALICE,
         )
         with pytest.raises(TraitMethodError):
             ra.user.sec_keys.decrypt_text(ra.password)
@@ -169,7 +169,7 @@ def test_admin_cannot_decrypt_alice_credentials(vault_env):  # noqa: F811  (pyte
         ra = VaultResourceAccessor.retrieve_ra(
             CONCRETE_RESOURCE.REL_DB,
             PG_URI,
-            username=ALICE,
+            username = ALICE,
         )
         assert ra.user.sec_keys.decrypt_text(ra.password) == PG_PWD
 
@@ -178,7 +178,7 @@ def test_user_save_credentials_own_and_rotate(vault_env, monkeypatch):  # noqa: 
     """A user can add and rotate their own resource password without a vault admin."""
     env = vault_env
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
     class _Ok:
         def __enter__(self):
@@ -210,9 +210,9 @@ def test_user_init_requires_vault_login_equal_os_user(vault_env, monkeypatch):  
     env.switch_os_user(ALICE)
     monkeypatch.setattr(DuckDbStore, 'auth_user', lambda self: 'alice_db')
     rc = VaultUtils.user_init(
-        login='alice_db',
-        password=ALICE_VAULT_PWD,
-        master_password=ALICE_MASTER,
+        login           = 'alice_db',
+        password        = ALICE_VAULT_PWD,
+        master_password = ALICE_MASTER,
     )
     assert not rc
     assert 'must equal OS user' in rc.error()
@@ -226,21 +226,21 @@ def test_suspended_account_cannot_decrypt(vault_env):  # noqa: F811
     """
     env = vault_env
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
     env.switch_os_user(ADMIN)
-    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+    env.run_user_init(vault_login = ADMIN, vault_pwd = ADMIN_VAULT_PWD, master_pwd = ADMIN_MASTER)
     with Traitable.vault_store():
-        me = VaultUser.existing_instance(user_id=ALICE)
-        me.set_values(suspended=True).throw()
+        me = VaultUser.existing_instance(user_id = ALICE)
+        me.set_values(suspended = True).throw()
         me.save().throw()
 
     env.switch_os_user(ALICE)
     with Traitable.vault_store():
-        me = VaultUser.existing_instance(user_id=ALICE)
+        me = VaultUser.existing_instance(user_id = ALICE)
         # -- property-getter exceptions get wrapped by the framework -- TraitMethodError, same as
         # test_admin_cannot_decrypt_alice_credentials's analogous case above.
-        with pytest.raises(TraitMethodError, match='suspended'):
+        with pytest.raises(TraitMethodError, match = 'suspended'):
             _ = me.sec_keys
 
 
@@ -250,22 +250,22 @@ def test_suspended_account_cannot_seed_new_machine(vault_env):  # noqa: F811
     `VaultUser.sec_keys_get()`, so it needs its own gate."""
     env = vault_env
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
     env.switch_os_user(ADMIN)
-    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+    env.run_user_init(vault_login = ADMIN, vault_pwd = ADMIN_VAULT_PWD, master_pwd = ADMIN_MASTER)
     with Traitable.vault_store():
-        me = VaultUser.existing_instance(user_id=ALICE)
-        me.set_values(suspended=True).throw()
+        me = VaultUser.existing_instance(user_id = ALICE)
+        me.set_values(suspended = True).throw()
         me.save().throw()
 
     env.switch_os_user(ALICE)
     env.clear_local_keyring()
     rc = VaultUtils.user_init(
-        new_machine=True,
-        login=ALICE,
-        password=ALICE_VAULT_PWD,
-        master_password=ALICE_MASTER,
+        new_machine     = True,
+        login           = ALICE,
+        password        = ALICE_VAULT_PWD,
+        master_password = ALICE_MASTER,
     )
     assert not rc
     assert 'suspended' in rc.error()
@@ -276,14 +276,14 @@ def test_admin_save_user_credentials_refuses_suspended_account(vault_env):  # no
     """A suspended account shouldn't be granted *new* resource access either."""
     env = vault_env
     env.switch_os_user(ADMIN)
-    env.run_user_init(vault_login=ADMIN, vault_pwd=ADMIN_VAULT_PWD, master_pwd=ADMIN_MASTER)
+    env.run_user_init(vault_login = ADMIN, vault_pwd = ADMIN_VAULT_PWD, master_pwd = ADMIN_MASTER)
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
     env.switch_os_user(ADMIN)
     with Traitable.vault_store():
-        me = VaultUser.existing_instance(user_id=ALICE)
-        me.set_values(suspended=True).throw()
+        me = VaultUser.existing_instance(user_id = ALICE)
+        me.set_values(suspended = True).throw()
         me.save().throw()
 
     env.text_q.append(ALICE)  # 'Enter the vault login issued to this user:'
@@ -302,17 +302,17 @@ def test_new_machine_seeds_keyring_without_changing_vault_keys(vault_env):  # no
     ``new_machine=True`` without rewriting the ``VaultUser`` key material."""
     env = vault_env
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
     with Traitable.vault_store():
-        me = VaultUser.existing_instance(user_id=ALICE)
-        public_key = me.public_key
-        private_key_encrypted = me.private_key_encrypted
+        me                      = VaultUser.existing_instance(user_id = ALICE)
+        public_key              = me.public_key
+        private_key_encrypted   = me.private_key_encrypted
 
     env.clear_local_keyring()
     assert not SecKeys.retrieve_master_password()[0]
 
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER, new_machine=True)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER, new_machine = True)
 
     rc, mp = SecKeys.retrieve_master_password()
     assert rc and mp == ALICE_MASTER
@@ -320,7 +320,7 @@ def test_new_machine_seeds_keyring_without_changing_vault_keys(vault_env):  # no
     assert rc and login == ALICE and pwd == ALICE_VAULT_PWD
 
     with Traitable.vault_store():
-        me = VaultUser.existing_instance(user_id=ALICE)
+        me = VaultUser.existing_instance(user_id = ALICE)
         assert me.public_key == public_key
         assert me.private_key_encrypted == private_key_encrypted
         assert (
@@ -332,14 +332,14 @@ def test_new_machine_seeds_keyring_without_changing_vault_keys(vault_env):  # no
 def test_new_machine_wrong_master_does_not_seed_keyring(vault_env):  # noqa: F811
     env = vault_env
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
     env.clear_local_keyring()
 
     rc = VaultUtils.user_init(
-        new_machine=True,
-        login=ALICE,
-        password=ALICE_VAULT_PWD,
-        master_password='WrongMaster9!',
+        new_machine     = True,
+        login           = ALICE,
+        password        = ALICE_VAULT_PWD,
+        master_password = 'WrongMaster9!',
     )
     assert not rc
     assert 'does not unlock' in rc.error()
@@ -353,10 +353,10 @@ def test_new_machine_without_vault_user_points_to_new_user(vault_env):  # noqa: 
     env = vault_env
     env.switch_os_user(ALICE)
     rc = VaultUtils.user_init(
-        new_machine=True,
-        login=ALICE,
-        password=ALICE_VAULT_PWD,
-        master_password=ALICE_MASTER,
+        new_machine     = True,
+        login           = ALICE,
+        password        = ALICE_VAULT_PWD,
+        master_password = ALICE_MASTER,
     )
     assert not rc
     assert '--new-user' in rc.error()
@@ -365,13 +365,13 @@ def test_new_machine_without_vault_user_points_to_new_user(vault_env):  # noqa: 
 def test_new_user_when_vault_user_exists_points_to_new_machine(vault_env):  # noqa: F811
     env = vault_env
     env.switch_os_user(ALICE)
-    env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+    env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
     env.clear_local_keyring()
 
     rc = VaultUtils.user_init(
-        login=ALICE,
-        password=ALICE_VAULT_PWD,
-        master_password=ALICE_MASTER,
+        login           = ALICE,
+        password        = ALICE_VAULT_PWD,
+        master_password = ALICE_MASTER,
     )
     assert not rc
     assert '--new-machine' in rc.error()
@@ -391,8 +391,8 @@ class TestCanonicalUri:
     def test_adds_default_port_when_missing(self, vault_env):  # noqa: F811  (pytest fixture)
         """Port-free URI gains the resource's default port (27017 for duckdb /
         MongoDB) so it hashes to the same key as the explicit-port form."""
-        no_port = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'duckdb://vaulthost.example.com/_vault_')
-        with_port = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'duckdb://vaulthost.example.com:27017/_vault_')
+        no_port     = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'duckdb://vaulthost.example.com/_vault_')
+        with_port   = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'duckdb://vaulthost.example.com:27017/_vault_')
 
         assert no_port == with_port
         assert ':27017' in no_port
@@ -432,18 +432,18 @@ class TestSaveAndRetrieveWithPortVariants:
     def test_save_portless_retrieve_portful(self, vault_env):  # noqa: F811  (pytest fixture)
         env = vault_env
         env.switch_os_user(ALICE)
-        env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+        env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
-        portless = 'duckdb://otherhost.example.com/mydb'
-        portful = 'duckdb://otherhost.example.com:27017/mydb'
+        portless    = 'duckdb://otherhost.example.com/mydb'
+        portful     = 'duckdb://otherhost.example.com:27017/mydb'
 
         with Traitable.vault_store():
             VaultResourceAccessor.save_ra(
-                resource_dt=CONCRETE_RESOURCE.TS_STORE,
-                resource_uri=portless,  # stored after canonicalisation → adds :27017
-                password=ALICE_VAULT_PWD,
-                login=ALICE,
-                username=ALICE,
+                resource_dt     = CONCRETE_RESOURCE.TS_STORE,
+                resource_uri    = portless,  # stored after canonicalisation → adds :27017
+                password        = ALICE_VAULT_PWD,
+                login           = ALICE,
+                username        = ALICE,
             ).throw()
 
             # Retrieve with the explicit-port form — canonical match.
@@ -454,18 +454,18 @@ class TestSaveAndRetrieveWithPortVariants:
     def test_save_portful_retrieve_portless(self, vault_env):  # noqa: F811  (pytest fixture)
         env = vault_env
         env.switch_os_user(ALICE)
-        env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+        env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
-        portless = 'duckdb://otherhost.example.com/mydb'
-        portful = 'duckdb://otherhost.example.com:27017/mydb'
+        portless    = 'duckdb://otherhost.example.com/mydb'
+        portful     = 'duckdb://otherhost.example.com:27017/mydb'
 
         with Traitable.vault_store():
             VaultResourceAccessor.save_ra(
-                resource_dt=CONCRETE_RESOURCE.TS_STORE,
-                resource_uri=portful,  # already canonical
-                password=ALICE_VAULT_PWD,
-                login=ALICE,
-                username=ALICE,
+                resource_dt     = CONCRETE_RESOURCE.TS_STORE,
+                resource_uri    = portful,  # already canonical
+                password        = ALICE_VAULT_PWD,
+                login           = ALICE,
+                username        = ALICE,
             ).throw()
 
             # Retrieve with no port — canonicalised to :27017, same key.

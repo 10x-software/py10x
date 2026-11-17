@@ -153,7 +153,7 @@ def test_to_id_defaults_to_to_str():
 def test_base_serialize_raises_not_implemented():
     n = object.__new__(Nucleus)
     with pytest.raises(NotImplementedError):
-        n.serialize(embed=True)
+        n.serialize(embed = True)
 
 
 def test_base_deserialize_raises_not_implemented():
@@ -182,7 +182,7 @@ def test_base_same_values_raises_not_implemented():
 
 
 def test_concrete_serialize_deserialize_round_trip():
-    original = _SimpleNucleus('round-trip')
-    serialized = original.serialize(embed=False)
-    restored = _SimpleNucleus.deserialize(serialized)
+    original    = _SimpleNucleus('round-trip')
+    serialized  = original.serialize(embed = False)
+    restored    = _SimpleNucleus.deserialize(serialized)
     assert original == restored

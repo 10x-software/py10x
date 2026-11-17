@@ -15,20 +15,20 @@ from py10x_kernel import BTraitableProcessor
 
 
 class Conventions(TraitableHeir):
-    mkt_name: str = T(T.ID)
+    mkt_name: str       = T(T.ID)
 
     days_to_settle: int = T()  # -- heir trait
-    exchange: str = T()  # -- heir trait
-    settlement: str = T('CASH')  # -- has a default: not inherited
-    lot_size: float = T()  # -- has a getter: not inherited
+    exchange: str       = T()  # -- heir trait
+    settlement: str     = T('CASH')  # -- has a default: not inherited
+    lot_size: float     = T()  # -- has a getter: not inherited
 
     def lot_size_get(self):
         return 1000.0
 
 
 class XConventions(Conventions):
-    tick_size: float = T()  # -- heir trait added by a subclass
-    days_to_settle_twice: int = RT()
+    tick_size: float            = T()  # -- heir trait added by a subclass
+    days_to_settle_twice: int   = RT()
 
     def days_to_settle_twice_get(self):
         return 2 * self.days_to_settle
@@ -41,19 +41,19 @@ class PinnedConventions(Conventions):
 class Venue(Traitable):
     """A plain Traitable grantor of a different class; only `days_to_settle` matches by name."""
 
-    name: str = T(T.ID)
+    name: str           = T(T.ID)
     days_to_settle: int = T()
 
 
-@pytest.fixture(params=[GRAPH_ON, GRAPH_OFF], ids=['graph_on', 'graph_off'])
+@pytest.fixture(params = [GRAPH_ON, GRAPH_OFF], ids = ['graph_on', 'graph_off'])
 def cache_only(request):
     with CACHE_ONLY(), request.param():
         yield
 
 
-def make_grantor(mkt_name='WTI NYMEX', **values) -> Conventions:
+def make_grantor(mkt_name = 'WTI NYMEX', **values) -> Conventions:
     values = {'days_to_settle': 2, 'exchange': 'NYMEX', 'settlement': 'PHYSICAL'} | values
-    return Conventions(mkt_name=mkt_name, **values, _replace=True)
+    return Conventions(mkt_name = mkt_name, **values, _replace = True)
 
 
 class TestHeirTraits:
@@ -70,14 +70,14 @@ class TestHeirTraits:
 class TestInheritance:
     def test_unset_heir_traits_come_from_grantor(self, cache_only):
         grantor = make_grantor()
-        heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir    = Conventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
 
         assert heir.days_to_settle == 2
         assert heir.exchange == 'NYMEX'
 
     def test_traits_with_default_or_getter_are_not_inherited(self, cache_only):
         grantor = make_grantor()
-        heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir    = Conventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
 
         assert grantor.settlement == 'PHYSICAL'
         assert heir.settlement == 'CASH'
@@ -85,7 +85,7 @@ class TestInheritance:
 
     def test_heir_follows_grantor_changes(self, cache_only):
         grantor = make_grantor()
-        heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir    = Conventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
         assert heir.days_to_settle == 2
 
         grantor.days_to_settle = 3
@@ -93,10 +93,10 @@ class TestInheritance:
 
     def test_own_value_overrides_grantor_until_invalidated(self, cache_only):
         grantor = make_grantor()
-        heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir    = Conventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
 
-        heir.days_to_settle = 5
-        grantor.days_to_settle = 3
+        heir.days_to_settle     = 5
+        grantor.days_to_settle  = 3
         assert heir.days_to_settle == 5
         assert grantor.days_to_settle == 3
 
@@ -104,22 +104,22 @@ class TestInheritance:
         assert heir.days_to_settle == 3
 
     def test_no_grantor_yields_xnone(self, cache_only):
-        orphan = Conventions(mkt_name='orphan')
+        orphan = Conventions(mkt_name = 'orphan')
         assert orphan.days_to_settle is XNone
 
     def test_regranting(self, cache_only):
-        nymex = make_grantor()
-        ice = make_grantor('ICE', exchange='ICE Futures Europe')
-        heir = Conventions(mkt_name='WTI ICE', _grantor=nymex, _replace=True)
+        nymex   = make_grantor()
+        ice     = make_grantor('ICE', exchange = 'ICE Futures Europe')
+        heir    = Conventions(mkt_name = 'WTI ICE', _grantor = nymex, _replace = True)
         assert heir.exchange == 'NYMEX'
 
         heir._grantor = ice
         assert heir.exchange == 'ICE Futures Europe'
 
     def test_chain_of_grantors(self, cache_only):
-        root = make_grantor()
-        middle = Conventions(mkt_name='middle', _grantor=root, exchange='MID', _replace=True)
-        leaf = Conventions(mkt_name='leaf', _grantor=middle, _replace=True)
+        root    = make_grantor()
+        middle  = Conventions(mkt_name = 'middle', _grantor = root, exchange = 'MID', _replace = True)
+        leaf    = Conventions(mkt_name = 'leaf', _grantor = middle, _replace = True)
 
         assert leaf.exchange == 'MID'
         assert leaf.days_to_settle == 2
@@ -128,15 +128,15 @@ class TestInheritance:
         assert leaf.days_to_settle == 4
 
     def test_grantor_of_another_class_matches_traits_by_name(self, cache_only):
-        venue = Venue(name='CME', days_to_settle=7, _replace=True)
-        heir = Conventions(mkt_name='WTI CME', _grantor=venue, _replace=True)
+        venue   = Venue(name = 'CME', days_to_settle = 7, _replace = True)
+        heir    = Conventions(mkt_name = 'WTI CME', _grantor = venue, _replace = True)
 
         assert heir.days_to_settle == 7
         assert heir.exchange is XNone  # -- Venue has no `exchange` trait
 
     def test_subclass_heir_from_base_class_grantor(self, cache_only):
         grantor = make_grantor()
-        heir = XConventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir    = XConventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
 
         assert heir.days_to_settle_twice == 4
         assert heir.tick_size is XNone  # -- grantor's class has no `tick_size` trait
@@ -145,7 +145,7 @@ class TestInheritance:
 class TestSerialization:
     def test_unset_heir_traits_are_omitted(self, cache_only):
         grantor = make_grantor()
-        heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir    = Conventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
 
         data = heir.serialize_object()
         assert 'days_to_settle' not in data and 'exchange' not in data
@@ -153,14 +153,14 @@ class TestSerialization:
         assert data['_grantor']
 
     def test_own_values_are_serialized(self, cache_only):
-        grantor = make_grantor()
-        heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        grantor             = make_grantor()
+        heir                = Conventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
         heir.days_to_settle = 5
 
         assert heir.serialize_object()['days_to_settle'] == 5
 
     def test_no_grantor(self, cache_only):
-        data = Conventions(mkt_name='orphan').serialize_object()
+        data = Conventions(mkt_name = 'orphan').serialize_object()
         assert data['_grantor'] is None
         assert 'days_to_settle' not in data
 
@@ -174,7 +174,7 @@ class TestRuntimeHeirTrait:
 
     def test_inherited_and_never_serialized(self, cache_only):
         grantor = make_grantor()
-        heir = PinnedConventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir    = PinnedConventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
         assert heir.days_to_settle == 2
         assert 'days_to_settle' not in heir.serialize_object()
 
@@ -208,9 +208,9 @@ def store(ts_instance):
 
 class TestStore:
     def test_stored_heir_keeps_following_grantor(self, store):
-        grantor = Conventions(mkt_name='WTI NYMEX', days_to_settle=2, _replace=True)
+        grantor = Conventions(mkt_name = 'WTI NYMEX', days_to_settle = 2, _replace = True)
         grantor.save().throw()
-        heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir = Conventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
         heir.save().throw()
 
         record = next(doc for doc in Conventions.collection().find() if doc['_id'] == heir.id().value)
@@ -223,9 +223,9 @@ class TestStore:
         assert loaded.days_to_settle == 3
 
     def test_stored_override_wins_over_grantor(self, store):
-        grantor = Conventions(mkt_name='WTI NYMEX', days_to_settle=2, _replace=True)
+        grantor = Conventions(mkt_name = 'WTI NYMEX', days_to_settle = 2, _replace = True)
         grantor.save().throw()
-        heir = Conventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir                = Conventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
         heir.days_to_settle = 5
         heir.save().throw()
 
@@ -233,9 +233,9 @@ class TestStore:
         assert loaded.days_to_settle == 5
 
     def test_runtime_heir_trait_is_not_saved(self, store):
-        grantor = Conventions(mkt_name='WTI NYMEX', days_to_settle=2, _replace=True)
+        grantor = Conventions(mkt_name = 'WTI NYMEX', days_to_settle = 2, _replace = True)
         grantor.save().throw()
-        heir = PinnedConventions(mkt_name='WTI ICE', _grantor=grantor, _replace=True)
+        heir                = PinnedConventions(mkt_name = 'WTI ICE', _grantor = grantor, _replace = True)
         heir.days_to_settle = 5
         heir.save().throw()
 

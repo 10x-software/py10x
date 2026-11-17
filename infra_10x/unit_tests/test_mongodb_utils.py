@@ -18,10 +18,10 @@ class _Json:
 
 class _Vault:
     def __init__(self):
-        self.passwords: dict[tuple[str, str], str] = {}
-        self.lookups: list[tuple[str, str]] = []
-        self.deleted: list[tuple[str, str]] = []
-        self.saved: list[tuple[str, str]] = []
+        self.passwords: dict[tuple[str, str], str]  = {}
+        self.lookups: list[tuple[str, str]]         = []
+        self.deleted: list[tuple[str, str]]         = []
+        self.saved: list[tuple[str, str]]           = []
 
     def get_password(self, service, username):
         self.lookups.append((service, username))
@@ -39,11 +39,11 @@ class _Vault:
 class _Admin:
     """Records every drop request, including the connected user the real admin would refuse."""
 
-    def __init__(self, hostname, username, password, port=27017):
-        self.hostname = hostname
-        self.username = username
-        self.password = password
-        self.port = port
+    def __init__(self, hostname, username, password, port = 27017):
+        self.hostname           = hostname
+        self.username           = username
+        self.password           = password
+        self.port               = port
         self.deleted: list[str] = []
 
     def delete_user(self, username):
@@ -52,18 +52,18 @@ class _Admin:
 
 def _recording_admin(created):
     class RecordingAdmin(_Admin):
-        def __init__(self, hostname, username, password, port=27017):
-            super().__init__(hostname, username, password, port=port)
+        def __init__(self, hostname, username, password, port = 27017):
+            super().__init__(hostname, username, password, port = port)
             created.append(self)
 
     return RecordingAdmin
 
 
-def _refuse_input(prompt=''):
+def _refuse_input(prompt = ''):
     pytest.fail(f'input() prompted: {prompt}')
 
 
-def _prompted_password(prompt=''):
+def _prompted_password(prompt = ''):
     return 'PROMPTED'
 
 
@@ -72,7 +72,7 @@ def git_keyring(monkeypatch):
     for clear in _CACHE_CLEARS:
         clear()
 
-    def fake_get(url, headers=None, **kwargs):
+    def fake_get(url, headers = None, **kwargs):
         assert headers == {'Authorization': 'token tok'}
         if url == 'https://api.github.com/orgs/acme/members':
             return _Json([{'id': 42, 'login': 'Alice'}])
@@ -103,8 +103,8 @@ def git_keyring(monkeypatch):
 
 def test_mixed_case_github_login_uses_one_keyring_name(git_keyring, monkeypatch):
     """login 'Alice', name 'Alice Smith' → keyring user 'alice', and that xxadmin key stays."""
-    vault = git_keyring
-    vault.passwords[('xxuser', 'alice')] = 'user-secret'
+    vault                                       = git_keyring
+    vault.passwords[('xxuser', 'alice')]        = 'user-secret'
     vault.passwords[('xxadmin', 'alice-admin')] = 'admin-secret'
 
     assert mu.all_git_users() == ['alice']
@@ -125,9 +125,9 @@ def test_mixed_case_github_login_uses_one_keyring_name(git_keyring, monkeypatch)
 
 
 def test_get_credentials_falls_back_to_lowercased_display_name(git_keyring, monkeypatch):
-    vault = git_keyring
-    vault.passwords[('xxuser', 'alice smith')] = 'legacy-user'
-    vault.passwords[('xxadmin', 'alice smith-admin')] = 'legacy-admin'
+    vault                                               = git_keyring
+    vault.passwords[('xxuser', 'alice smith')]          = 'legacy-user'
+    vault.passwords[('xxadmin', 'alice smith-admin')]   = 'legacy-admin'
 
     assert mu.get_credentials('xxuser', 'mongo.example') == {'username': 'alice smith', 'password': 'legacy-user'}
     assert mu.get_credentials('xxadmin', 'mongo.example') == {'username': 'alice smith-admin', 'password': 'legacy-admin'}

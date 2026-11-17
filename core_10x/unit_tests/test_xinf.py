@@ -203,7 +203,7 @@ class TestXInfSubclassing:
     def test_cannot_subclass_pinf_type(self):
         from core_10x.xinf import PInfType
 
-        with pytest.raises(TypeError, match='May not derive from Inf'):
+        with pytest.raises(TypeError, match = 'May not derive from Inf'):
 
             class Bad(PInfType):
                 pass
@@ -211,7 +211,7 @@ class TestXInfSubclassing:
     def test_cannot_subclass_minf_type(self):
         from core_10x.xinf import MInfType
 
-        with pytest.raises(TypeError, match='May not derive from Inf'):
+        with pytest.raises(TypeError, match = 'May not derive from Inf'):
 
             class Bad(MInfType):
                 pass

@@ -30,7 +30,7 @@ from pymongo.errors import OperationFailure
 
 
 def test_vault_roles_reject_unauthenticated_store(live_store):
-    rc = VaultRoles.setup(DuckDbStore.instance(_cache=False))
+    rc = VaultRoles.setup(DuckDbStore.instance(_cache = False))
     assert not rc
     assert 'cannot serve as a vault' in rc.error()
 
@@ -42,8 +42,8 @@ def test_vault_roles_reject_unauthenticated_store(live_store):
 
 
 def test_vault_collection_names_include_history():
-    names = VaultRoles.vault_collection_names()
-    vu = PackageRefactoring.find_class_id(VaultUser)
+    names   = VaultRoles.vault_collection_names()
+    vu      = PackageRefactoring.find_class_id(VaultUser)
     assert vu in names
     assert f'{vu}#history' in names
     assert len(names) == 4
@@ -52,20 +52,20 @@ def test_vault_collection_names_include_history():
 def _install_vault_roles(store, *, worker: str, admin_login: str, pwd: str, worker_role: str | None = None, admin_role: str | None = None):
     """GRANTs/RLS even when the server is open (can_serve_as_vault is False)."""
     VaultRoles.ensure_schema(store).throw()
-    vu = PackageRefactoring.find_class_id(VaultUser)
+    vu  = PackageRefactoring.find_class_id(VaultUser)
     vra = PackageRefactoring.find_class_id(VaultResourceAccessor)
-    rc = store.setup_vault_roles(
-        user_collection=vu,
-        user_history=TraitableHistory.history_collection_name(vu),
-        accessor_collection=vra,
-        accessor_history=TraitableHistory.history_collection_name(vra),
-        worker_role=worker_role,
-        admin_role=admin_role,
+    rc  = store.setup_vault_roles(
+        user_collection     = vu,
+        user_history        = TraitableHistory.history_collection_name(vu),
+        accessor_collection = vra,
+        accessor_history    = TraitableHistory.history_collection_name(vra),
+        worker_role         = worker_role,
+        admin_role          = admin_role,
     )
     assert rc, rc.error()
-    rc = store.create_vault_user(worker, pwd, worker_role=worker_role, admin_role=admin_role)
+    rc = store.create_vault_user(worker, pwd, worker_role = worker_role, admin_role = admin_role)
     assert rc, rc.error()
-    rc = store.create_vault_admin(admin_login, pwd, worker_role=worker_role, admin_role=admin_role)
+    rc = store.create_vault_admin(admin_login, pwd, worker_role = worker_role, admin_role = admin_role)
     assert rc, rc.error()
 
 
@@ -74,16 +74,16 @@ def test_postgres_worker_cannot_update_or_insert_foreign_vaultuser(live_store):
     need(store is not None, f'PostgreSQL not running (at {test_databases.test_uri(TS_STORE_TYPE.POSTGRESQL.name)})')
     assert isinstance(store, PostgresStore)
 
-    suffix = uuid6.uuid7().hex[-8:]
-    worker, admin_login, other = f'vw_{suffix}', f'va_{suffix}', f'vo_{suffix}'
-    pwd = 'VaultTest9!'
-    _install_vault_roles(store, worker=worker, admin_login=admin_login, pwd=pwd)
+    suffix                      = uuid6.uuid7().hex[-8:]
+    worker, admin_login, other  = f'vw_{suffix}', f'va_{suffix}', f'vo_{suffix}'
+    pwd                         = 'VaultTest9!'
+    _install_vault_roles(store, worker = worker, admin_login = admin_login, pwd = pwd)
     assert not store.create_vault_user(f'np_{suffix}', '')
 
-    vu = PackageRefactoring.find_class_id(VaultUser)
-    vra = PackageRefactoring.find_class_id(VaultResourceAccessor)
-    vh = TraitableHistory.history_collection_name(vu)
-    quser, qhist, qvra = store._qname(vu), store._qname(vh), store._qname(vra)
+    vu                  = PackageRefactoring.find_class_id(VaultUser)
+    vra                 = PackageRefactoring.find_class_id(VaultResourceAccessor)
+    vh                  = TraitableHistory.history_collection_name(vu)
+    quser, qhist, qvra  = store._qname(vu), store._qname(vh), store._qname(vra)
 
     store._execute(f'SET ROLE {PostgresStore._qident(worker)}')
     try:
@@ -131,27 +131,27 @@ def test_mongo_vault_roles_are_not_anyresource(live_store):
     need(store is not None, f'MongoDB not running (at {test_databases.test_uri(TS_STORE_TYPE.MONGODB.name)})')
     assert isinstance(store, MongoStore)
 
-    suffix = uuid6.uuid7().hex[-8:]
+    suffix                  = uuid6.uuid7().hex[-8:]
     worker_role, admin_role = f'xxVW_{suffix}', f'xxVA_{suffix}'
     VaultRoles.ensure_schema(store).throw()
-    vu = PackageRefactoring.find_class_id(VaultUser)
+    vu  = PackageRefactoring.find_class_id(VaultUser)
     vra = PackageRefactoring.find_class_id(VaultResourceAccessor)
-    rc = store.setup_vault_roles(
-        user_collection=vu,
-        user_history=TraitableHistory.history_collection_name(vu),
-        accessor_collection=vra,
-        accessor_history=TraitableHistory.history_collection_name(vra),
-        worker_role=worker_role,
-        admin_role=admin_role,
+    rc  = store.setup_vault_roles(
+        user_collection     = vu,
+        user_history        = TraitableHistory.history_collection_name(vu),
+        accessor_collection = vra,
+        accessor_history    = TraitableHistory.history_collection_name(vra),
+        worker_role         = worker_role,
+        admin_role          = admin_role,
     )
     assert rc, rc.error()
 
     admin = store.client[MongoStore.ADMIN]
     try:
-        worker_privs = _mongo_actions(admin, worker_role, store.db_name())
-        admin_privs = _mongo_actions(admin, admin_role, store.db_name())
-        vu = PackageRefactoring.find_class_id(VaultUser)
-        vra = PackageRefactoring.find_class_id(VaultResourceAccessor)
+        worker_privs    = _mongo_actions(admin, worker_role, store.db_name())
+        admin_privs     = _mongo_actions(admin, admin_role, store.db_name())
+        vu              = PackageRefactoring.find_class_id(VaultUser)
+        vra             = PackageRefactoring.find_class_id(VaultResourceAccessor)
         assert ACTION.FIND in worker_privs[vu]
         assert ACTION.INSERT in worker_privs[vu]
         assert ACTION.UPDATE not in worker_privs[vu]
@@ -167,43 +167,43 @@ def test_mongo_vault_roles_are_not_anyresource(live_store):
                 admin.command('dropRole', role)
 
 
-@pytest.mark.xfail(reason='Mongo worker INSERT on VaultUser is collection-wide until document-level rules exist', strict=True)
+@pytest.mark.xfail(reason = 'Mongo worker INSERT on VaultUser is collection-wide until document-level rules exist', strict = True)
 def test_mongo_worker_cannot_insert_foreign_vaultuser(live_store):
     store = live_store(TS_STORE_TYPE.MONGODB.name)
     need(store is not None, f'MongoDB not running (at {test_databases.test_uri(TS_STORE_TYPE.MONGODB.name)})')
     assert isinstance(store, MongoStore)
     need(store.can_serve_as_vault(), 'authenticated MongoDB required for vault worker enforcement test')
 
-    suffix = uuid6.uuid7().hex[-8:]
-    worker, other = f'mw_{suffix}', f'mo_{suffix}'
-    pwd = 'VaultTest9!'
+    suffix                  = uuid6.uuid7().hex[-8:]
+    worker, other           = f'mw_{suffix}', f'mo_{suffix}'
+    pwd                     = 'VaultTest9!'
     worker_role, admin_role = f'xxVW_{suffix}', f'xxVA_{suffix}'
     VaultRoles.ensure_schema(store).throw()
-    vu = PackageRefactoring.find_class_id(VaultUser)
+    vu  = PackageRefactoring.find_class_id(VaultUser)
     vra = PackageRefactoring.find_class_id(VaultResourceAccessor)
-    rc = store.setup_vault_roles(
-        user_collection=vu,
-        user_history=TraitableHistory.history_collection_name(vu),
-        accessor_collection=vra,
-        accessor_history=TraitableHistory.history_collection_name(vra),
-        worker_role=worker_role,
-        admin_role=admin_role,
+    rc  = store.setup_vault_roles(
+        user_collection     = vu,
+        user_history        = TraitableHistory.history_collection_name(vu),
+        accessor_collection = vra,
+        accessor_history    = TraitableHistory.history_collection_name(vra),
+        worker_role         = worker_role,
+        admin_role          = admin_role,
     )
     assert rc, rc.error()
-    rc = store.create_vault_user(worker, pwd, worker_role=worker_role, admin_role=admin_role)
+    rc = store.create_vault_user(worker, pwd, worker_role = worker_role, admin_role = admin_role)
     assert rc, rc.error()
 
-    host, port = store.client.address
-    worker_client = MongoClient(
-        host=host,
-        port=port,
-        username=worker,
-        password=pwd,
-        authSource=MongoStore.ADMIN,
-        directConnection=True,
-        serverSelectionTimeoutMS=10000,
+    host, port      = store.client.address
+    worker_client   = MongoClient(
+        host                        = host,
+        port                        = port,
+        username                    = worker,
+        password                    = pwd,
+        authSource                  = MongoStore.ADMIN,
+        directConnection            = True,
+        serverSelectionTimeoutMS    = 10000,
     )
-    admin = store.client[MongoStore.ADMIN]
+    admin           = store.client[MongoStore.ADMIN]
     try:
         coll = worker_client[store.db_name()][vu]
         coll.insert_one({'_id': worker, '_rev': 1, '_data': {}})
@@ -218,8 +218,8 @@ def test_mongo_worker_cannot_insert_foreign_vaultuser(live_store):
 
 
 def _mongo_role_privileges(admin, role: str) -> list:
-    info = admin.command('rolesInfo', {'role': role, 'db': MongoStore.ADMIN}, showPrivileges=True)
-    roles = info.get('roles') or []
+    info    = admin.command('rolesInfo', {'role': role, 'db': MongoStore.ADMIN}, showPrivileges = True)
+    roles   = info.get('roles') or []
     return roles[0].get('privileges') or [] if roles else []
 
 
@@ -238,23 +238,23 @@ def test_worker_cannot_admin_save_on_auth_postgres(monkeypatch):
         PostgresStore.is_running_with_auth('localhost', PASSWORD_AUTH_PORT)[1],
         f'password-auth Postgres not running on localhost:{PASSWORD_AUTH_PORT}',
     )
-    dbname = f'py10x_ag_{uuid6.uuid7().hex[-8:]}'
-    uri = f'postgresql://localhost:{PASSWORD_AUTH_PORT}/{dbname}'
+    dbname      = f'py10x_ag_{uuid6.uuid7().hex[-8:]}'
+    uri         = f'postgresql://localhost:{PASSWORD_AUTH_PORT}/{dbname}'
     worker, pwd = f'vw_{uuid6.uuid7().hex[-8:]}', 'VaultTest9!'
-    admin = PostgresStore.instance_from_uri(uri, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True)
+    admin       = PostgresStore.instance_from_uri(uri, username = PASSWORD_AUTH_USER, password = PASSWORD_AUTH_PASSWORD, _cache = False, _create_if_needed = True)
     assert admin.can_serve_as_vault()
     keyring: dict = {}
     monkeypatch.setattr(sec_keys_mod.keyring, 'get_password', lambda s, u: keyring.get((s, u)))
     monkeypatch.setattr(sec_keys_mod.keyring, 'set_password', lambda s, u, p: keyring.__setitem__((s, u), p))
-    fake_os = SimpleNamespace(me=SimpleNamespace(name=lambda: worker))
+    fake_os = SimpleNamespace(me = SimpleNamespace(name = lambda: worker))
     monkeypatch.setattr(sec_keys_mod, 'OsUser', fake_os)
     monkeypatch.setattr(traitable_mod, 'OsUser', fake_os)
     monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: worker))
     monkeypatch.setattr(EnvVars, 'main_vault_uri', uri)
     try:
-        VaultRoles.setup(admin, worker=worker, worker_password=pwd).throw()
+        VaultRoles.setup(admin, worker = worker, worker_password = pwd).throw()
         clear_caches_keeping(EnvVars.var.main_vault_uri)
-        VaultUtils.user_init(login=worker, password=pwd, master_password='MasterPwd9!').throw()
+        VaultUtils.user_init(login = worker, password = pwd, master_password = 'MasterPwd9!').throw()
         clear_caches_keeping(EnvVars.var.main_vault_uri)
         rc = VaultUtils.admin_save_user_credentials()
         assert not rc
@@ -263,7 +263,7 @@ def test_worker_cannot_admin_save_on_auth_postgres(monkeypatch):
         clear_caches_keeping(EnvVars.var.main_vault_uri)
         TsStore.s_instances.clear()
         maint = PostgresStore.instance_from_uri(
-            Resource.uri_no_dbname(uri), username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False
+            Resource.uri_no_dbname(uri), username = PASSWORD_AUTH_USER, password = PASSWORD_AUTH_PASSWORD, _cache = False
         )
         maint.delete_database(dbname)
         maint._execute('SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename = ?', [worker])

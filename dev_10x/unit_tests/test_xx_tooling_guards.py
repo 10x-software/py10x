@@ -27,8 +27,8 @@ from packaging.version import Version
 from dev_10x import xx_build
 from dev_10x.xx_helpers import GitHelpers
 
-requires_git = pytest.mark.skipif(shutil.which('git') is None and not EnvVars.test_strict, reason='git not available')
-requires_uv = pytest.mark.skipif(shutil.which('uv') is None and not EnvVars.test_strict, reason='uv not available')
+requires_git    = pytest.mark.skipif(shutil.which('git') is None and not EnvVars.test_strict, reason = 'git not available')
+requires_uv     = pytest.mark.skipif(shutil.which('uv') is None and not EnvVars.test_strict, reason = 'uv not available')
 
 # The exact git_describe_command the C++ siblings configure in `[tool.setuptools_scm]`
 # (`cxx10x/core_10x/pyproject.toml`); the `--match` glob is what scopes describe to this package.
@@ -58,13 +58,13 @@ def _sibling_describe_commands() -> dict[str, str]:
     root = _repo_root()
     if root is None:
         return {}
-    siblings = tomlkit.parse((root / 'pyproject.toml').read_text(encoding='utf-8')).get('tool', {}).get('dev_10x', {}).get('siblings', {})
-    commands: dict[str, str] = {}
+    siblings                    = tomlkit.parse((root / 'pyproject.toml').read_text(encoding = 'utf-8')).get('tool', {}).get('dev_10x', {}).get('siblings', {})
+    commands: dict[str, str]    = {}
     for name, spec in siblings.items():
         pyproject = (root / spec['path']).resolve() / 'pyproject.toml'
         if not pyproject.exists():  # installed as a wheel: no source tree
             continue
-        scm = tomlkit.parse(pyproject.read_text(encoding='utf-8')).get('tool', {}).get('setuptools_scm', {})
+        scm = tomlkit.parse(pyproject.read_text(encoding = 'utf-8')).get('tool', {}).get('setuptools_scm', {})
         if (cmd := scm.get('git_describe_command')) is not None:
             commands[name] = str(cmd)
     return commands
@@ -72,8 +72,8 @@ def _sibling_describe_commands() -> dict[str, str]:
 
 def _core_describe_command(root: Path) -> str | None:
     """core's real `[tool.hatch.version].raw-options.git_describe_command` from this repo's pyproject."""
-    hatch_version = tomlkit.parse((root / 'pyproject.toml').read_text(encoding='utf-8')).get('tool', {}).get('hatch', {}).get('version', {})
-    cmd = hatch_version.get('raw-options', {}).get('git_describe_command')
+    hatch_version   = tomlkit.parse((root / 'pyproject.toml').read_text(encoding = 'utf-8')).get('tool', {}).get('hatch', {}).get('version', {})
+    cmd             = hatch_version.get('raw-options', {}).get('git_describe_command')
     return str(cmd) if cmd is not None else None
 
 
@@ -100,7 +100,7 @@ def test_sibling_describe_command_matches_real_config():
 
 def _init_repo(path: Path, branch: str = 'main') -> Path:
     """A fresh git repo with identity configured (mirrors `test_xx_utils.test_tree_changed_since_tag`)."""
-    path.mkdir(parents=True, exist_ok=True)
+    path.mkdir(parents = True, exist_ok = True)
     GitHelpers.git(path, 'init', '-q', '-b', branch)
     GitHelpers.git(path, 'config', 'user.email', 'test@example.com')
     GitHelpers.git(path, 'config', 'user.name', 'Test')
@@ -108,7 +108,7 @@ def _init_repo(path: Path, branch: str = 'main') -> Path:
 
 
 def _commit(repo: Path, name: str = 'a.txt', content: str = 'x\n', msg: str = 'c') -> str:
-    (repo / name).write_text(content, encoding='utf-8')
+    (repo / name).write_text(content, encoding = 'utf-8')
     GitHelpers.git(repo, 'add', '.')
     GitHelpers.git(repo, 'commit', '-qm', msg)
     return GitHelpers.git(repo, 'rev-parse', 'HEAD')
@@ -116,7 +116,7 @@ def _commit(repo: Path, name: str = 'a.txt', content: str = 'x\n', msg: str = 'c
 
 def _exit_code(repo: Path, *args: str) -> int:
     """Raw git exit code (GitHelpers.git hides it; the reachability gate keys off 0 vs 1)."""
-    return subprocess.run(['git', *args], cwd=repo, capture_output=True, text=True, check=False).returncode
+    return subprocess.run(['git', *args], cwd = repo, capture_output = True, text = True, check = False).returncode
 
 
 # --------------------------------------------------------------- #1 setuptools-scm version stamping
@@ -132,7 +132,7 @@ def test_scm_core_config_excludes_publish_trigger_tag(tmp_path):
     _commit(repo)
     GitHelpers.git(repo, 'tag', 'v0.2.1')
     GitHelpers.git(repo, 'tag', 'pre/v0.2.1')  # co-located publish trigger (the CI breaker)
-    assert setuptools_scm.get_version(root=str(repo), git_describe_command=CORE_DESCRIBE) == '0.2.1'
+    assert setuptools_scm.get_version(root = str(repo), git_describe_command = CORE_DESCRIBE) == '0.2.1'
 
 
 @requires_git
@@ -142,19 +142,19 @@ def test_scm_sibling_match_glob_is_load_bearing(tmp_path):
     _commit(repo)
     GitHelpers.git(repo, 'tag', 'py10x-kernel-v0.2.1')
     GitHelpers.git(repo, 'tag', 'py10x-infra-v9.9.9')  # higher, but excluded by the kernel match glob
-    assert setuptools_scm.get_version(root=str(repo), git_describe_command=SIBLING_DESCRIBE) == '0.2.1'
+    assert setuptools_scm.get_version(root = str(repo), git_describe_command = SIBLING_DESCRIBE) == '0.2.1'
 
 
 @requires_git
 def test_scm_post_final_dev_marker_anchors_version_above_final(tmp_path):
     """After `prod`, `{next_micro(T)}rc0.dev` on `main` must rank above final `{T}` (PEP 440)."""
-    repo = _init_repo(tmp_path / 'post-final')
-    c1 = _commit(repo, msg='c1')
+    repo    = _init_repo(tmp_path / 'post-final')
+    c1      = _commit(repo, msg = 'c1')
     GitHelpers.git(repo, 'tag', 'py10x-kernel-v0.2.1rc18.dev', c1)
-    _commit(repo, content='x\ny\n', msg='c2')
+    _commit(repo, content = 'x\ny\n', msg = 'c2')
     GitHelpers.git(repo, 'tag', '-d', 'py10x-kernel-v0.2.1rc18.dev')
     GitHelpers.git(repo, 'tag', 'py10x-kernel-v0.2.2rc0.dev', 'HEAD')
-    v = setuptools_scm.get_version(root=str(repo), git_describe_command=SIBLING_DESCRIBE)
+    v = setuptools_scm.get_version(root = str(repo), git_describe_command = SIBLING_DESCRIBE)
     assert v.startswith('0.2.2rc0.dev')
     assert Version(v.split('+')[0]) > Version('0.2.1')
     assert Version(v.split('+')[0]) < Version('0.2.2rc1')
@@ -163,16 +163,16 @@ def test_scm_post_final_dev_marker_anchors_version_above_final(tmp_path):
 @requires_git
 def test_scm_main_dev_marker_anchors_version_on_main(tmp_path):
     """A `{T}rc(N+1).dev` tag on `main` lets plain git describe stamp the next rc dev line."""
-    repo = _init_repo(tmp_path / 'main-dev')
-    c1 = _commit(repo, msg='c1')
+    repo    = _init_repo(tmp_path / 'main-dev')
+    c1      = _commit(repo, msg = 'c1')
     GitHelpers.git(repo, 'tag', 'py10x-kernel-v0.2.1rc18.dev', c1)
-    _commit(repo, content='x\ny\n', msg='c2')
-    _commit(repo, content='x\ny\nz\n', msg='c3')
+    _commit(repo, content = 'x\ny\n', msg = 'c2')
+    _commit(repo, content = 'x\ny\nz\n', msg = 'c3')
     GitHelpers.git(repo, 'checkout', '-q', '-b', 'pre', c1)
-    _commit(repo, name='pin.txt', content='pin\n', msg='pin')
+    _commit(repo, name = 'pin.txt', content = 'pin\n', msg = 'pin')
     GitHelpers.git(repo, 'tag', 'py10x-kernel-v0.2.1rc17')
     GitHelpers.git(repo, 'checkout', '-q', 'main')
-    v = setuptools_scm.get_version(root=str(repo), git_describe_command=SIBLING_DESCRIBE)
+    v = setuptools_scm.get_version(root = str(repo), git_describe_command = SIBLING_DESCRIBE)
     assert v.startswith('0.2.1rc18.dev2')
 
 
@@ -182,8 +182,8 @@ def test_scm_dirty_tree_falls_back_to_dev_not_bare_tag(tmp_path):
     repo = _init_repo(tmp_path / 'dirty')
     _commit(repo)
     GitHelpers.git(repo, 'tag', 'py10x-kernel-v0.2.1')
-    (repo / 'a.txt').write_text('changed\n', encoding='utf-8')  # tracked, uncommitted -> dirty tree
-    v = setuptools_scm.get_version(root=str(repo), git_describe_command=SIBLING_DESCRIBE)
+    (repo / 'a.txt').write_text('changed\n', encoding = 'utf-8')  # tracked, uncommitted -> dirty tree
+    v = setuptools_scm.get_version(root = str(repo), git_describe_command = SIBLING_DESCRIBE)
     assert v != '0.2.1'
     assert '.dev' in v
 
@@ -197,13 +197,13 @@ def test_scm_shallow_checkout_falls_back_absolutely(tmp_path):
     commit past the tag, `--depth 1` drops the tag, so describe finds nothing.
     """
     repo = _init_repo(tmp_path / 'full')
-    _commit(repo, msg='c1')
+    _commit(repo, msg = 'c1')
     GitHelpers.git(repo, 'tag', 'py10x-kernel-v0.2.1')
-    _commit(repo, content='x\ny\n', msg='c2')  # HEAD is now past the tagged commit
+    _commit(repo, content = 'x\ny\n', msg = 'c2')  # HEAD is now past the tagged commit
     shallow = tmp_path / 'shallow'
     GitHelpers.git(tmp_path, 'clone', '-q', '--depth', '1', f'file://{repo}', str(shallow))
     assert GitHelpers.list_tags(shallow, '*') == []  # the tag was pruned by the shallow clone
-    v = setuptools_scm.get_version(root=str(shallow), git_describe_command=SIBLING_DESCRIBE)
+    v = setuptools_scm.get_version(root = str(shallow), git_describe_command = SIBLING_DESCRIBE)
     assert v.startswith('0.1.dev')
 
 
@@ -214,12 +214,12 @@ def test_scm_shallow_checkout_falls_back_absolutely(tmp_path):
 def test_merge_base_is_ancestor_gates_from_main(tmp_path):
     """`git merge-base --is-ancestor main HEAD`: 0 when at/ahead of main, 1 when diverged behind it."""
     repo = _init_repo(tmp_path / 'r')
-    _commit(repo, msg='c1')
+    _commit(repo, msg = 'c1')
     assert _exit_code(repo, 'merge-base', '--is-ancestor', 'main', 'HEAD') == 0  # HEAD == main
     GitHelpers.git(repo, 'checkout', '-q', '-b', 'feature')
-    _commit(repo, name='f.txt', msg='feat')  # feature gains its own commit
+    _commit(repo, name = 'f.txt', msg = 'feat')  # feature gains its own commit
     GitHelpers.git(repo, 'checkout', '-q', 'main')
-    _commit(repo, name='m.txt', msg='main2')  # main advances independently -> diverged
+    _commit(repo, name = 'm.txt', msg = 'main2')  # main advances independently -> diverged
     GitHelpers.git(repo, 'checkout', '-q', 'feature')
     assert _exit_code(repo, 'merge-base', '--is-ancestor', 'main', 'HEAD') == 1  # main tip unreachable
 
@@ -227,9 +227,9 @@ def test_merge_base_is_ancestor_gates_from_main(tmp_path):
 @requires_git
 def test_branch_force_reset_moves_pointer(tmp_path):
     """`git branch -f` force-resets a pointer to an unrelated commit (the `pre`/`prod` re-cut on --from=main)."""
-    repo = _init_repo(tmp_path / 'r')
-    c1 = _commit(repo, msg='c1')
-    c2 = _commit(repo, content='x\ny\n', msg='c2')
+    repo    = _init_repo(tmp_path / 'r')
+    c1      = _commit(repo, msg = 'c1')
+    c2      = _commit(repo, content = 'x\ny\n', msg = 'c2')
     GitHelpers.git(repo, 'branch', 'pre', c1)
     assert GitHelpers.git(repo, 'rev-parse', 'pre') == c1
     GitHelpers.git(repo, 'branch', '-f', 'pre', c2)
@@ -239,22 +239,22 @@ def test_branch_force_reset_moves_pointer(tmp_path):
 @requires_git
 def test_fast_forward_detectable_via_is_ancestor(tmp_path):
     """The --from=release ff path: the old tip is an ancestor of the new (ff) but not of an unrelated line."""
-    repo = _init_repo(tmp_path / 'r')
-    c1 = _commit(repo, msg='c1')
+    repo    = _init_repo(tmp_path / 'r')
+    c1      = _commit(repo, msg = 'c1')
     GitHelpers.git(repo, 'branch', 'pre', c1)
-    _commit(repo, content='x\ny\n', msg='c2')  # main moves forward linearly
+    _commit(repo, content = 'x\ny\n', msg = 'c2')  # main moves forward linearly
     assert _exit_code(repo, 'merge-base', '--is-ancestor', 'pre', 'HEAD') == 0  # ff is valid
     GitHelpers.git(repo, 'checkout', '-q', '--orphan', 'ortho')
-    o = _commit(repo, name='o.txt', msg='orphan')  # an unrelated root
+    o = _commit(repo, name = 'o.txt', msg = 'orphan')  # an unrelated root
     assert _exit_code(repo, 'merge-base', '--is-ancestor', 'pre', o) == 1  # not a ff
 
 
 @requires_git
 def test_tag_at_commit_resolves_back(tmp_path):
     """`git tag <t> <commit>` tags a non-HEAD commit; `tag_commit` (rev-list -n1) resolves it back."""
-    repo = _init_repo(tmp_path / 'r')
-    c1 = _commit(repo, msg='c1')
-    _commit(repo, content='x\ny\n', msg='c2')
+    repo    = _init_repo(tmp_path / 'r')
+    c1      = _commit(repo, msg = 'c1')
+    _commit(repo, content = 'x\ny\n', msg = 'c2')
     GitHelpers.git(repo, 'tag', 'py10x-kernel-v0.2.1rc1', c1)
     assert GitHelpers.tag_commit(repo, 'py10x-kernel-v0.2.1rc1') == c1
 
@@ -281,11 +281,11 @@ packages = ["src/pkg"]
 def _build_wheel(workdir: Path, find_links: Path, name: str, version: str, deps: tuple = ()) -> None:
     """Build a minimal real wheel for `{name}=={version}` into `find_links` (real metadata, no stubs)."""
     src = workdir / f'{name}-{version}'
-    (src / 'src' / 'pkg').mkdir(parents=True)
-    (src / 'src' / 'pkg' / '__init__.py').write_text('', encoding='utf-8')
+    (src / 'src' / 'pkg').mkdir(parents = True)
+    (src / 'src' / 'pkg' / '__init__.py').write_text('', encoding = 'utf-8')
     deps_line = f'dependencies = {list(deps)!r}' if deps else ''
-    (src / 'pyproject.toml').write_text(_HATCH_PYPROJECT.format(name=name, version=version, deps_line=deps_line), encoding='utf-8')
-    subprocess.run(['uv', 'build', '--wheel', '-q', '-o', str(find_links)], cwd=src, check=True, capture_output=True, text=True)
+    (src / 'pyproject.toml').write_text(_HATCH_PYPROJECT.format(name = name, version = version, deps_line = deps_line), encoding = 'utf-8')
+    subprocess.run(['uv', 'build', '--wheel', '-q', '-o', str(find_links)], cwd = src, check = True, capture_output = True, text = True)
 
 
 @requires_uv
@@ -296,16 +296,16 @@ def test_reverse_floor_backtracks_to_coordinated_core(tmp_path):
     work.mkdir()
     _build_wheel(work, fl, 'tenx-kernel', '1.4.0')
     _build_wheel(work, fl, 'tenx-kernel', '1.4.1')  # the "too-new" the floor alone would pick
-    _build_wheel(work, fl, 'tenx-core', '1.4.0', deps=('tenx-kernel==1.4.0',))  # forward exact pin
+    _build_wheel(work, fl, 'tenx-core', '1.4.0', deps = ('tenx-kernel==1.4.0',))  # forward exact pin
 
     def resolve(reqs: str) -> str:
         proc = subprocess.run(
             ['uv', 'pip', 'compile', '-', '--find-links', str(fl), '--no-index', '--no-annotate', '--no-header'],
-            input=reqs,
-            cwd=tmp_path,
-            capture_output=True,
-            text=True,
-            check=True,
+            input           = reqs,
+            cwd             = tmp_path,
+            capture_output  = True,
+            text            = True,
+            check           = True,
         )
         return proc.stdout
 
@@ -332,20 +332,20 @@ def test_editable_below_rc_window_floor_does_not_fallback_to_index(tmp_path):
     _build_wheel(work, fl, 'tenx-kernel', '0.2.1rc19')
 
     editable = tmp_path / 'editable'
-    (editable / 'src' / 'pkg').mkdir(parents=True)
-    (editable / 'src' / 'pkg' / '__init__.py').write_text('', encoding='utf-8')
-    (editable / 'pyproject.toml').write_text(_HATCH_PYPROJECT.format(name='tenx-kernel', version='0.2.1rc19.dev0', deps_line=''), encoding='utf-8')
+    (editable / 'src' / 'pkg').mkdir(parents = True)
+    (editable / 'src' / 'pkg' / '__init__.py').write_text('', encoding = 'utf-8')
+    (editable / 'pyproject.toml').write_text(_HATCH_PYPROJECT.format(name = 'tenx-kernel', version = '0.2.1rc19.dev0', deps_line = ''), encoding = 'utf-8')
 
     venv = tmp_path / 'venv'
-    subprocess.run(['uv', 'venv', str(venv)], check=True, capture_output=True)
+    subprocess.run(['uv', 'venv', str(venv)], check = True, capture_output = True)
     py = str(venv / 'bin' / 'python')
 
     proc = subprocess.run(
         ['uv', 'pip', 'install', '-e', str(editable), 'tenx-kernel (>=0.2.1rc19,<0.2.1rc20)', '--find-links', str(fl), '--python', py],
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-        check=False,
+        cwd             = tmp_path,
+        capture_output  = True,
+        text            = True,
+        check           = False,
     )
 
     assert proc.returncode != 0, 'lagged editable below the rc-window floor must not silently fall back to an index wheel'
@@ -357,11 +357,11 @@ def test_rendered_uv_toml_parses_for_every_mode(tmp_path):
     every non-dev mode (CI's ci-release included) fails to parse its uv.toml."""
     root = _repo_root()
     need(root is not None, 'py10x source checkout (no source pyproject when core is installed as a wheel)')
-    (tmp_path / 'pyproject.toml').write_text('[project]\nname = "x"\nversion = "0"\n', encoding='utf-8')
+    (tmp_path / 'pyproject.toml').write_text('[project]\nname = "x"\nversion = "0"\n', encoding = 'utf-8')
     for mode in xx_build.mode_names(root):
         if mode == xx_build.DEFAULT_MODE:
             continue
         config = tmp_path / f'{mode}.toml'
-        config.write_text(xx_build.render(mode, root), encoding='utf-8')
-        proc = subprocess.run(['uv', '--config-file', str(config), 'lock', '--offline'], cwd=tmp_path, capture_output=True, text=True, check=False)
+        config.write_text(xx_build.render(mode, root), encoding = 'utf-8')
+        proc = subprocess.run(['uv', '--config-file', str(config), 'lock', '--offline'], cwd = tmp_path, capture_output = True, text = True, check = False)
         assert proc.returncode == 0, f'{mode}: {proc.stderr}'

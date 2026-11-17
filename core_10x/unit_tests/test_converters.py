@@ -29,7 +29,7 @@ def test_converter_usage_with_execution_modes(graph_mode, debug_mode):
     """Test that converters work with different execution mode combinations."""
     with graph_mode(), debug_mode():
         with CONVERT_VALUES_ON():
-            person = Person(name='john', status=True)
+            person = Person(name = 'john', status = True)
             assert person.name == b'John'
             assert person.status == 'true'
         with CONVERT_VALUES_OFF():
@@ -40,7 +40,7 @@ def test_converter_usage_with_execution_modes(graph_mode, debug_mode):
                 with pytest.raises(TypeError):
                     person.name = 'john'
             else:
-                person.name = 'john'
-                person.status = True
+                person.name     = 'john'
+                person.status   = True
                 assert person.status is True
                 assert person.name == 'john'

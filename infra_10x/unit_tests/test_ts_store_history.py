@@ -12,4 +12,4 @@ from core_10x.testlib.traitable_history_tests import (  # collected by pytest
 @pytest.fixture
 def clock_freezer(ts_instance):
     """Flowing server_time cut+wait for all live backends (Mongo cannot freeze ``$$NOW``)."""
-    return make_clock_freezer(ts_instance, freeze=False)
+    return make_clock_freezer(ts_instance, freeze = False)

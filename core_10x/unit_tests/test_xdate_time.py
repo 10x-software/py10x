@@ -4,7 +4,7 @@ import pytest
 from core_10x.xdate_time import MIN_CANONICAL_DATE, XDateTime
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def _reset_xdatetime_format():
     """Restore XDateTime's global default format after each test.
 
@@ -65,25 +65,25 @@ def test_date_to_int_ordinal_by_default():
 
 def test_date_to_int_ordinal_explicit():
     d = date(2023, 1, 15)
-    assert XDateTime.date_to_int(d, ordinal=True) == d.toordinal()
+    assert XDateTime.date_to_int(d, ordinal = True) == d.toordinal()
 
 
 def test_date_to_int_canonical():
-    assert XDateTime.date_to_int(date(2023, 1, 15), ordinal=False) == 20230115
+    assert XDateTime.date_to_int(date(2023, 1, 15), ordinal = False) == 20230115
 
 
 def test_date_to_int_canonical_edge_month_day():
-    assert XDateTime.date_to_int(date(2000, 12, 31), ordinal=False) == 20001231
+    assert XDateTime.date_to_int(date(2000, 12, 31), ordinal = False) == 20001231
 
 
 def test_date_to_int_roundtrip_canonical():
     d = date(1999, 3, 7)
-    assert XDateTime.int_to_date(XDateTime.date_to_int(d, ordinal=False)) == d
+    assert XDateTime.int_to_date(XDateTime.date_to_int(d, ordinal = False)) == d
 
 
 def test_date_to_int_roundtrip_ordinal():
     d = date(2025, 7, 4)
-    assert XDateTime.int_to_date(XDateTime.date_to_int(d, ordinal=True)) == d
+    assert XDateTime.int_to_date(XDateTime.date_to_int(d, ordinal = True)) == d
 
 
 # ----------------------------------------------------------------------------
@@ -169,7 +169,7 @@ def test_datetime_to_str_without_ms():
 
 def test_datetime_to_str_with_ms():
     dt = datetime(2023, 1, 15, 10, 30, 45, 123456)
-    assert XDateTime.datetime_to_str(dt, with_ms=True) == '20230115 10:30:45.123456'
+    assert XDateTime.datetime_to_str(dt, with_ms = True) == '20230115 10:30:45.123456'
 
 
 def test_datetime_to_str_midnight():
@@ -209,8 +209,8 @@ def test_str_to_datetime_unparseable_returns_none():
 
 
 def test_date_to_datetime_produces_midnight():
-    d = date(2023, 6, 15)
-    dt = XDateTime.date_to_datetime(d)
+    d   = date(2023, 6, 15)
+    dt  = XDateTime.date_to_datetime(d)
     assert dt == datetime(2023, 6, 15, 0, 0, 0)
 
 

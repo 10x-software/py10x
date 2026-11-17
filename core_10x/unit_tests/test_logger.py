@@ -92,27 +92,27 @@ class TestLOGLevels:
 class TestLOGGuard:
     def _with_no_logger(self, fn):
         """Temporarily clear LOGGER and call fn, then restore."""
-        original = log_module.LOGGER
-        log_module.LOGGER = None
+        original            = log_module.LOGGER
+        log_module.LOGGER   = None
         try:
             fn()
         finally:
             log_module.LOGGER = original
 
     def test_brief_raises_without_logger(self):
-        with pytest.raises(RuntimeError, match=r'LOG.begin'):
+        with pytest.raises(RuntimeError, match = r'LOG.begin'):
             self._with_no_logger(lambda: LOG.BRIEF('hello'))
 
     def test_medium_raises_without_logger(self):
-        with pytest.raises(RuntimeError, match=r'LOG.begin'):
+        with pytest.raises(RuntimeError, match = r'LOG.begin'):
             self._with_no_logger(lambda: LOG.MEDIUM('hello'))
 
     def test_detailed_raises_without_logger(self):
-        with pytest.raises(RuntimeError, match=r'LOG.begin'):
+        with pytest.raises(RuntimeError, match = r'LOG.begin'):
             self._with_no_logger(lambda: LOG.DETAILED('hello'))
 
     def test_verbose_raises_without_logger(self):
-        with pytest.raises(RuntimeError, match=r'LOG.begin'):
+        with pytest.raises(RuntimeError, match = r'LOG.begin'):
             self._with_no_logger(lambda: LOG.VERBOSE('hello'))
 
     def test_none_payload_skips_data_construction(self):
@@ -140,7 +140,7 @@ class TestLoggerEndToEnd:
 
     def test_subprocess_starts_and_stops_cleanly(self):
         """Logger starts a daemon subprocess; immediate shutdown exits with code 0."""
-        logger = Logger('e2e_test_start_stop', LOG.BRIEF.value, do_print=False)
+        logger = Logger('e2e_test_start_stop', LOG.BRIEF.value, do_print = False)
         assert logger.proc.is_alive()
 
         logger.shutdown()  # puts None → subprocess returns immediately
@@ -148,15 +148,15 @@ class TestLoggerEndToEnd:
 
     def test_queue_accepts_shutdown_signal(self):
         """The queue can carry the None sentinel without blocking."""
-        logger = Logger('e2e_test_queue', LOG.BRIEF.value, do_print=False)
+        logger = Logger('e2e_test_queue', LOG.BRIEF.value, do_print = False)
         logger.shutdown()
         # After join the queue should be drained
         assert logger.proc.exitcode == 0
 
     def test_multiple_loggers_can_run_concurrently(self):
         """Two independent Logger instances do not interfere with each other."""
-        l1 = Logger('e2e_test_multi_1', LOG.BRIEF.value, do_print=False)
-        l2 = Logger('e2e_test_multi_2', LOG.BRIEF.value, do_print=False)
+        l1 = Logger('e2e_test_multi_1', LOG.BRIEF.value, do_print = False)
+        l2 = Logger('e2e_test_multi_2', LOG.BRIEF.value, do_print = False)
 
         assert l1.proc.pid != l2.proc.pid
 
@@ -181,7 +181,7 @@ class TestLOGStub:
         assert stub_log_logger.received[0]['payload'] == 'hello'
         assert stub_log_logger.received[0]['level'] == LOG.BRIEF.value
 
-    @pytest.mark.parametrize('stub_log_logger', [LOG.VERBOSE.value], indirect=True)
+    @pytest.mark.parametrize('stub_log_logger', [LOG.VERBOSE.value], indirect = True)
     def test_all_levels_delivered_at_verbose(self, stub_log_logger):
         LOG.BRIEF('a')
         LOG.MEDIUM('b')
@@ -213,7 +213,7 @@ class TestLOGStub:
         timestamps = [m['ns'] for m in stub_log_logger.received]
         assert timestamps == sorted(timestamps)
 
-    @pytest.mark.parametrize('stub_log_logger', [LOG.VERBOSE.value], indirect=True)
+    @pytest.mark.parametrize('stub_log_logger', [LOG.VERBOSE.value], indirect = True)
     def test_payload_can_be_any_type(self, stub_log_logger):
         LOG.BRIEF(42)
         LOG.BRIEF({'nested': True})
@@ -262,11 +262,11 @@ class _RecordingMessage:
 
     created: list = []
 
-    def __init__(self, _replace=False, _collection_name=None, **data):
-        self.collection_name = _collection_name
-        self.ns = data['ns']
-        self.data = data
-        self.saved = False
+    def __init__(self, _replace = False, _collection_name = None, **data):
+        self.collection_name    = _collection_name
+        self.ns                 = data['ns']
+        self.data               = data
+        self.saved              = False
         _RecordingMessage.created.append(self)
 
     def save(self):
@@ -280,7 +280,7 @@ class _FakeProcess:
 
     def __init__(self, target, args):
         self.target = target
-        self.args = args
+        self.args   = args
         self.daemon = False
 
     def start(self):
@@ -288,7 +288,7 @@ class _FakeProcess:
 
 
 class TestLoggerHooks:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse = True)
     def fake_process(self, monkeypatch):
         _FakeProcess.started.clear()
         _RecordingMessage.created.clear()
@@ -298,12 +298,12 @@ class TestLoggerHooks:
         class Sub(Logger):
             pass
 
-        Sub('hooks_target', LOG.BRIEF.value, do_print=False)
+        Sub('hooks_target', LOG.BRIEF.value, do_print = False)
         (proc,) = _FakeProcess.started
         assert proc.target == Sub.logger_process
 
     def test_default_collection_name_is_per_run(self):
-        Logger('hooks_default_coll', LOG.BRIEF.value, do_print=False)
+        Logger('hooks_default_coll', LOG.BRIEF.value, do_print = False)
         coll_name = _FakeProcess.started[0].args[1]
         assert coll_name.startswith('hooks_default_coll/')
         assert coll_name.endswith(f'/{os.getpid()}')
@@ -314,7 +314,7 @@ class TestLoggerHooks:
             def collection_name(cls, app_name, started_at, pid):
                 return app_name
 
-        Sub('hooks_fixed_coll', LOG.BRIEF.value, do_print=False)
+        Sub('hooks_fixed_coll', LOG.BRIEF.value, do_print = False)
         assert _FakeProcess.started[0].args[1] == 'hooks_fixed_coll'
 
     def test_log_store_failure_raises_in_parent_before_child_starts(self):
@@ -323,8 +323,8 @@ class TestLoggerHooks:
             def log_store(cls):
                 raise RuntimeError('no log store')
 
-        with pytest.raises(RuntimeError, match='no log store'):
-            Sub('hooks_no_store', LOG.BRIEF.value, do_print=False)
+        with pytest.raises(RuntimeError, match = 'no log store'):
+            Sub('hooks_no_store', LOG.BRIEF.value, do_print = False)
         assert not _FakeProcess.started
 
     def test_logger_process_uses_message_class_and_log_store(self):

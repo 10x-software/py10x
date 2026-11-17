@@ -29,7 +29,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 # Module-level variable for documentation files to avoid duplication
-DOCUMENTATION_FILES = [
+DOCUMENTATION_FILES         = [
     'README.md',
     'GETTING_STARTED.md',
     'INSTALLATION.md',
@@ -40,13 +40,13 @@ MISSING_DOCUMENTATION_FILES = [doc_file for doc_file in DOCUMENTATION_FILES if n
 
 pytestmark = pytest.mark.skipif(
     bool(MISSING_DOCUMENTATION_FILES),
-    reason=(f'Documentation files are not available in this installation: {", ".join(MISSING_DOCUMENTATION_FILES)}'),
+    reason = (f'Documentation files are not available in this installation: {", ".join(MISSING_DOCUMENTATION_FILES)}'),
 )
 
 
 def extract_code_blocks_from_file(filepath: Path) -> Generator[tuple[str, str], None, None]:
     """Extract Python code blocks from a markdown file."""
-    content = filepath.read_text(encoding='utf-8')
+    content = filepath.read_text(encoding = 'utf-8')
 
     # Find code blocks (```python ... ```)
     pattern = r'```python\s*\n(.*?)\n```'
@@ -89,14 +89,14 @@ def is_ui_code_block(code_block: str) -> bool:
 
 def _setup_doc_test_packages(code_block: str, tmp_path: Path) -> tuple[list[str], list[str]]:
     """Register ephemeral importable packages referenced in illustrative doc examples."""
-    sys_path_added: list[str] = []
-    package_names: list[str] = []
+    sys_path_added: list[str]   = []
+    package_names: list[str]    = []
 
     if 'mypackage' not in code_block:
         return sys_path_added, package_names
 
     pkg_dir = tmp_path / 'mypackage'
-    pkg_dir.mkdir(parents=True, exist_ok=True)
+    pkg_dir.mkdir(parents = True, exist_ok = True)
     init_file = pkg_dir / '__init__.py'
     init_file.write_text('')
 
@@ -104,10 +104,10 @@ def _setup_doc_test_packages(code_block: str, tmp_path: Path) -> tuple[list[str]
     sys.path.insert(0, path_str)
     sys_path_added.append(path_str)
 
-    mod = types.ModuleType('mypackage')
-    mod.__file__ = str(init_file)
-    mod.__path__ = [str(pkg_dir)]
-    sys.modules['mypackage'] = mod
+    mod                         = types.ModuleType('mypackage')
+    mod.__file__                = str(init_file)
+    mod.__path__                = [str(pkg_dir)]
+    sys.modules['mypackage']    = mod
     package_names.append('mypackage')
 
     return sys_path_added, package_names
@@ -127,12 +127,12 @@ def validate_python_syntax(code: str) -> None:
     try:
         ast.parse(code)
     except SyntaxError as e:
-        raise AssertionError(format_code_block_failure(code, e, source='syntax')) from None
+        raise AssertionError(format_code_block_failure(code, e, source = 'syntax')) from None
 
 
 def format_code_block_failure(code_block: str, exc: BaseException, *, source: str = '') -> str:
     """Pretty-print a doc code block with the failing line underlined (from traceback if possible)."""
-    lines = code_block.splitlines()
+    lines                   = code_block.splitlines()
     fail_lineno: int | None = None
     # Prefer the deepest frame that executes the doc string (filename '<string>' from exec).
     tb = exc.__traceback__
@@ -143,8 +143,8 @@ def format_code_block_failure(code_block: str, exc: BaseException, *, source: st
     if fail_lineno is None and isinstance(exc, SyntaxError) and exc.lineno:
         fail_lineno = exc.lineno
 
-    width = len(str(len(lines)))
-    out = [f'Documentation code block failed{f" ({source})" if source else ""}: {type(exc).__name__}: {exc}', '']
+    width   = len(str(len(lines)))
+    out     = [f'Documentation code block failed{f" ({source})" if source else ""}: {type(exc).__name__}: {exc}', '']
     for i, line in enumerate(lines, 1):
         out.append(f'{i:>{width}} | {line}')
         if fail_lineno is not None and i == fail_lineno:
@@ -153,8 +153,8 @@ def format_code_block_failure(code_block: str, exc: BaseException, *, source: st
             if col and col > 0:
                 out.append(f'{" " * width} | {" " * (col - 1)}^')
             else:
-                stripped = line.lstrip(' ')
-                indent = len(line) - len(stripped)
+                stripped    = line.lstrip(' ')
+                indent      = len(line) - len(stripped)
                 out.append(f'{" " * width} | {" " * indent}{"^" * max(1, len(stripped.rstrip()))}')
     if fail_lineno is None:
         out.append('')
@@ -162,21 +162,21 @@ def format_code_block_failure(code_block: str, exc: BaseException, *, source: st
     return '\n'.join(out)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def patch_person():
     import core_10x.code_samples.person
 
-    old_history_class = core_10x.code_samples.person.Person.s_history_class
+    old_history_class                                   = core_10x.code_samples.person.Person.s_history_class
     core_10x.code_samples.person.Person.s_history_class = None
     yield
     core_10x.code_samples.person.Person.s_history_class = old_history_class
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def patch_mongo_sst():
-    kw_map = MongoStore.s_instance_kwargs_map
-    orig = kw_map['sst']
-    kw_map['sst'] = ('serverSelectionTimeoutMS', 100)
+    kw_map          = MongoStore.s_instance_kwargs_map
+    orig            = kw_map['sst']
+    kw_map['sst']   = ('serverSelectionTimeoutMS', 100)
     yield
     kw_map['sst'] = orig
 
@@ -189,7 +189,7 @@ def patch_mongo_sst():
         for future_annotations in (True, False)
         if not is_ui_code_block(code)  # Skip UI code blocks - tested separately
     ],
-    ids=[f'{a[0]}-{a[2]}' for a in args],
+    ids = [f'{a[0]}-{a[2]}' for a in args],
 )
 def test_documentation_code_block_execution(
     test_name: str,
@@ -206,8 +206,8 @@ def test_documentation_code_block_execution(
     # Validate syntax (underlined code block on failure)
     validate_python_syntax(code_block)
 
-    doc_file_name = test_name.split('_block_')[0]
-    fake_module_name = f'__doc_test_{doc_file_name}__'
+    doc_file_name       = test_name.split('_block_')[0]
+    fake_module_name    = f'__doc_test_{doc_file_name}__'
     if not (fake_module := sys.modules.get(fake_module_name)):
         fake_module = type(sys)('module')
         fake_module.__dict__.update(
@@ -234,7 +234,7 @@ def test_documentation_code_block_execution(
         except OSError as e:
             need(False, f'MongoDB reachable for doc block {test_name} ({type(e).__name__})')
         except Exception as e:
-            pytest.fail(format_code_block_failure(code_block, e, source=test_name), pytrace=False)
+            pytest.fail(format_code_block_failure(code_block, e, source = test_name), pytrace = False)
             raise  # for lint
     finally:
         _teardown_doc_test_packages(sys_path_added, package_names)
@@ -253,7 +253,7 @@ def test_documentation_code_block_execution(
         if is_ui_code_block(code)  # Only test UI code blocks
     ],
     # Without ids=, pytest embeds the full code_block in the node id (huge output).
-    ids=[f'{src}-{name}' for name, _code, src in ui_args],
+    ids = [f'{src}-{name}' for name, _code, src in ui_args],
 )
 def test_documentation_ui_code_block_syntax(test_name: str, code_block: str, source_file: str):
     """Test that UI documentation code blocks have valid syntax (execution tested separately in UI tests)."""
@@ -269,10 +269,10 @@ def test_documentation_ui_code_block_syntax(test_name: str, code_block: str, sou
 
 def test_documentation_files_and_code_blocks():
     """Test that documentation files exist and contain Python code blocks."""
-    docs_dir = project_root
-    total_blocks = 0
-    ui_blocks = 0
-    core_blocks = 0
+    docs_dir        = project_root
+    total_blocks    = 0
+    ui_blocks       = 0
+    core_blocks     = 0
 
     # Check that all expected documentation files exist
     for filename in DOCUMENTATION_FILES:

@@ -18,18 +18,18 @@ from core_10x.traitable import Traitable
 class P(Traitable):
     # All-runtime, so P is not storable and these tests need no store context at all --
     # everything here is cache behavior.
-    name: str = RT(T.ID)
-    value: int = RT(default=0)
-    other: int = RT(default=0)
+    name: str   = RT(T.ID)
+    value: int  = RT(default = 0)
+    other: int  = RT(default = 0)
 
 
 def test_share_makes_a_staged_object_exportable():
     """share() is what moves the staged values out of the temporary cache
     (``make_permanent``), so that export_nodes can see them at all."""
     with INTERACTIVE() as i:
-        staged = P()
-        staged.value = 42  # -- set while the ID is still invalid
-        staged.name = 'fresh'  # -- names an entity, but does not yet establish the ID
+        staged          = P()
+        staged.value    = 42  # -- set while the ID is still invalid
+        staged.name     = 'fresh'  # -- names an entity, but does not yet establish the ID
         assert staged.id().value is None
 
         assert staged.share(False)
@@ -39,7 +39,7 @@ def test_share_makes_a_staged_object_exportable():
 
     # `staged` itself is not usable out here (it was born in `i`), but a fresh handle
     # on the same ID reads what was exported.
-    assert P(name='fresh').value == 42
+    assert P(name = 'fresh').value == 42
 
 
 def test_without_share_a_staged_object_exports_nothing():
@@ -49,43 +49,43 @@ def test_without_share_a_staged_object_exports_nothing():
     simply nothing exported.
     """
     with INTERACTIVE() as i:
-        staged = P()
-        staged.value = 42
-        staged.name = 'noshare'
+        staged          = P()
+        staged.value    = 42
+        staged.name     = 'noshare'
         assert staged.id().value is None
 
     i.export_nodes()
 
-    assert P(name='noshare').value == 0
+    assert P(name = 'noshare').value == 0
 
 
 def test_share_targets_the_entity_named_by_the_latest_id():
     """ID traits may be re-set while the object is still temporary; endogenous_id() is
     read at share() time, so the last value decides which entity is named."""
     with INTERACTIVE() as i:
-        staged = P()
-        staged.value = 7
-        staged.name = 'first'  # -- names `first`...
-        staged.name = 'second'  # -- ...then re-pointed, still allowed pre-share
+        staged          = P()
+        staged.value    = 7
+        staged.name     = 'first'  # -- names `first`...
+        staged.name     = 'second'  # -- ...then re-pointed, still allowed pre-share
         assert staged.share(False)
         assert staged.id().value == 'second'
 
     i.export_nodes()
 
-    assert P(name='second').value == 7
-    assert P(name='first').value == 0, 'the abandoned ID must not receive the staged value'
+    assert P(name = 'second').value == 7
+    assert P(name = 'first').value == 0, 'the abandoned ID must not receive the staged value'
 
 
 def test_share_false_refuses_an_id_an_outer_object_already_holds():
     """Not accepting existing values: the conflict is reported, and the outer entity is
     left exactly as it was. The failing RC carries the offending ID value."""
-    outer = P(name='taken', _replace=True)
+    outer       = P(name = 'taken', _replace = True)
     outer.value = 1
 
     with INTERACTIVE() as i:
-        staged = P()
-        staged.value = 42
-        staged.name = 'taken'
+        staged          = P()
+        staged.value    = 42
+        staged.name     = 'taken'
 
         rc = staged.share(False)
         assert not rc
@@ -101,14 +101,14 @@ def test_share_true_adopts_the_outer_object_and_drops_the_staged_values():
     cache and its own temporary cache is discarded, so the staged edits are lost rather
     than merged. Nothing of the staged object reaches the outer scope.
     """
-    outer = P(name='held', _replace=True)
+    outer       = P(name = 'held', _replace = True)
     outer.value = 1
     outer.other = 2
 
     with INTERACTIVE() as i:
-        staged = P()
-        staged.value = 42
-        staged.name = 'held'
+        staged          = P()
+        staged.value    = 42
+        staged.name     = 'held'
 
         assert staged.share(True)
         assert staged.value == 1, 'adopted the existing value, discarding the staged one'
@@ -127,15 +127,15 @@ def test_two_staged_objects_claiming_one_id_do_not_merge():
     so nothing about them being "the same" is what causes the loss; it is share() itself.
     """
     with INTERACTIVE() as i:
-        first = P()
-        first.value = 1
-        second = P()
-        second.value = 2
-        second.other = 3
+        first           = P()
+        first.value     = 1
+        second          = P()
+        second.value    = 2
+        second.other    = 3
         assert first != second, 'two separate pending entities'
 
         second.name = 'shared'
-        first.name = 'shared'
+        first.name  = 'shared'
 
         assert second.share(False), 'first to share takes the ID'
         assert not first.share(False), 'the other one conflicts'
@@ -144,20 +144,20 @@ def test_two_staged_objects_claiming_one_id_do_not_merge():
     i.export_nodes()
 
     # second's values, whole; nothing of first's value=1 survived.
-    assert (P(name='shared').value, P(name='shared').other) == (2, 3)
+    assert (P(name = 'shared').value, P(name = 'shared').other) == (2, 3)
 
 
 def test_staged_object_adopting_a_taken_id_drops_its_own_values():
     """share(True) on the loser re-homes it onto the winner's cache rather than merging."""
     with INTERACTIVE() as i:
-        first = P()
-        first.value = 1
-        second = P()
-        second.value = 2
-        second.other = 3
+        first           = P()
+        first.value     = 1
+        second          = P()
+        second.value    = 2
+        second.other    = 3
 
         second.name = 'adopted'
-        first.name = 'adopted'
+        first.name  = 'adopted'
 
         assert second.share(False)
         assert first.share(True)
@@ -167,20 +167,20 @@ def test_staged_object_adopting_a_taken_id_drops_its_own_values():
 
     i.export_nodes()
 
-    assert (P(name='adopted').value, P(name='adopted').other) == (2, 3)
+    assert (P(name = 'adopted').value, P(name = 'adopted').other) == (2, 3)
 
 
 class D(Traitable):
-    name: str = RT(T.ID)
-    base: int = RT(default=1)
-    derived: int = RT()
+    name: str       = RT(T.ID)
+    base: int       = RT(default = 1)
+    derived: int    = RT()
 
     def derived_get(self) -> int:
         return self.base * 10
 
 
 class A(Traitable):
-    name: str = RT(T.ID)
+    name: str   = RT(T.ID)
     scaled: int = RT()
 
     def scaled_get(self, k) -> int:
@@ -190,27 +190,27 @@ class A(Traitable):
 def test_interactive_invalidate_with_args_is_exported():
     """The parent has no node of its own here -- the set value is one level further up --
     so export must hide it with an invalid node for those same args."""
-    outer = A(name='args', _replace=True)
+    outer = A(name = 'args', _replace = True)
     outer.set_trait_value_with_args(A.trait('scaled'), 50, 5)
 
     with INTERACTIVE():
         with INTERACTIVE() as i:
-            A(name='args').invalidate_value_with_args('scaled', 5)
-            assert A(name='args').scaled(5) == 5
+            A(name = 'args').invalidate_value_with_args('scaled', 5)
+            assert A(name = 'args').scaled(5) == 5
         i.export_nodes()
-        assert A(name='args').scaled(5) == 5
+        assert A(name = 'args').scaled(5) == 5
 
     assert outer.scaled(5) == 50, 'the invalidation went one level up, not two'
 
 
 def test_interactive_invalidate_is_exported():
     """An invalidation is an edit too: accepting it drops the parent's value."""
-    outer = P(name='inv', _replace=True)
+    outer       = P(name = 'inv', _replace = True)
     outer.value = 5
 
     with INTERACTIVE() as i:
-        P(name='inv').invalidate_value('value')
-        assert P(name='inv').value == 0
+        P(name = 'inv').invalidate_value('value')
+        assert P(name = 'inv').value == 0
 
     assert outer.value == 5, 'nothing leaves the scope before export'
     i.export_nodes()
@@ -218,12 +218,12 @@ def test_interactive_invalidate_is_exported():
 
 
 def test_set_after_interactive_invalidate_exports_the_value():
-    outer = P(name='reset', _replace=True)
+    outer       = P(name = 'reset', _replace = True)
     outer.value = 5
 
     with INTERACTIVE() as i:
-        P(name='reset').invalidate_value('value')
-        P(name='reset').value = 7
+        P(name = 'reset').invalidate_value('value')
+        P(name = 'reset').value = 7
 
     i.export_nodes()
     assert outer.value == 7
@@ -231,11 +231,11 @@ def test_set_after_interactive_invalidate_exports_the_value():
 
 def test_interactive_invalidation_survives_a_dependency_cascade():
     """Recomputed after the invalidation, then invalidated again by a dependency: still exported."""
-    outer = D(name='cascade', _replace=True)
-    outer.derived = 99
+    outer           = D(name = 'cascade', _replace = True)
+    outer.derived   = 99
 
     with INTERACTIVE() as i:
-        d = D(name='cascade')
+        d = D(name = 'cascade')
         d.invalidate_value('derived')
         assert d.derived == 10
         d.base = 2
@@ -245,12 +245,12 @@ def test_interactive_invalidation_survives_a_dependency_cascade():
 
 
 def test_interactive_invalidation_passes_through_nested_scopes():
-    outer = P(name='nested', _replace=True)
+    outer       = P(name = 'nested', _replace = True)
     outer.value = 5
 
     with INTERACTIVE() as accumulator:
         with INTERACTIVE() as staging:
-            P(name='nested').invalidate_value('value')
+            P(name = 'nested').invalidate_value('value')
         staging.export_nodes()
 
     assert outer.value == 5

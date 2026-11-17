@@ -29,7 +29,7 @@ def test_env_vars_direct_reassignment_applies_to_xdatetime():
 
 def test_env_vars_direct_reassignment_without_apply_still_works(monkeypatch):
     # -- vars with no *_apply hook keep behaving exactly as before: plain overwrite, no special handling
-    monkeypatch.delenv('XX_MAIN_TS_STORE_URI', raising=False)
+    monkeypatch.delenv('XX_MAIN_TS_STORE_URI', raising = False)
     object.__getattribute__(EnvVars, 'main_ts_store_uri').fget.clear()
     EnvVars.main_ts_store_uri = 'duckdb://localhost/reassigned'
     assert EnvVars.main_ts_store_uri == 'duckdb://localhost/reassigned'
@@ -84,26 +84,26 @@ class TestEnvVarsVarAccessor:
         monkeypatch.setenv('XX_MAIN_TS_STORE_URI', '')
         object.__getattribute__(EnvVars, 'main_ts_store_uri').fget.clear()
         v = EnvVars.var.main_ts_store_uri
-        with pytest.raises(ValueError, match='XX_MAIN_TS_STORE_URI'):
+        with pytest.raises(ValueError, match = 'XX_MAIN_TS_STORE_URI'):
             v.check()
 
     def test_check_custom_error_message(self, monkeypatch):
         monkeypatch.setenv('XX_MAIN_TS_STORE_URI', '')
         object.__getattribute__(EnvVars, 'main_ts_store_uri').fget.clear()
         v = EnvVars.var.main_ts_store_uri
-        with pytest.raises(ValueError, match='must be configured'):
-            v.check(err='must be configured')
+        with pytest.raises(ValueError, match = 'must be configured'):
+            v.check(err = 'must be configured')
 
     def test_check_with_predicate_passes(self, monkeypatch):
         monkeypatch.setenv('XX_DATE_FORMAT', '%Y-%m-%d')
         object.__getattribute__(EnvVars, 'date_format').fget.clear()
-        v = EnvVars.var.date_format
-        result = v.check(f=lambda val: val.startswith('%'))
+        v       = EnvVars.var.date_format
+        result  = v.check(f = lambda val: val.startswith('%'))
         assert result == '%Y-%m-%d'
 
     def test_check_with_predicate_raises_when_predicate_fails(self, monkeypatch):
         monkeypatch.setenv('XX_DATE_FORMAT', '%Y-%m-%d')
         object.__getattribute__(EnvVars, 'date_format').fget.clear()
         v = EnvVars.var.date_format
-        with pytest.raises(ValueError, match='XX_DATE_FORMAT'):
-            v.check(f=lambda val: val.startswith('!'), err='must start with !')
+        with pytest.raises(ValueError, match = 'XX_DATE_FORMAT'):
+            v.check(f = lambda val: val.startswith('!'), err = 'must start with !')

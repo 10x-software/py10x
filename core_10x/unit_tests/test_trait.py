@@ -47,8 +47,8 @@ def test_trait_value_stores_value_and_args():
 
 
 def test_trait_value_is_callable_returns_none():
-    tv = trait_value(99)
-    result = tv()
+    tv      = trait_value(99)
+    result  = tv()
     assert result is None
 
 
@@ -63,8 +63,8 @@ def test_trait_value_with_none_value():
 
 
 def test_bound_trait_call_returns_trait():
-    mock_trait = MagicMock()
-    bt = BoundTrait(None, mock_trait)
+    mock_trait  = MagicMock()
+    bt          = BoundTrait(None, mock_trait)
     assert bt() is mock_trait
 
 
@@ -128,7 +128,7 @@ def test_register_by_baseclass_non_trait_raises():
 
 def _make_int_trait() -> Trait:
     int_trait_cls = Trait.real_trait_class(int)
-    return int_trait_cls(T(data_type=int))
+    return int_trait_cls(T(data_type = int))
 
 
 def test_format_empty_string_becomes_colon():
@@ -167,15 +167,15 @@ def test_use_format_str_with_fmt():
 
 
 def test_pybind_signature_parses_docstring_first_line():
-    mod = types.ModuleType('fake_pybind_mod')
-    sys.modules['fake_pybind_mod'] = mod
+    mod                             = types.ModuleType('fake_pybind_mod')
+    sys.modules['fake_pybind_mod']  = mod
 
     def fake_get(self, x: int, y: float = 1.0) -> str:
         """fake_get(self, x: int, y: float = 1.0) -> str\n\nC++ getter."""
         raise AssertionError('must not call')
 
     fake_get.__module__ = 'fake_pybind_mod'
-    sig = Trait.pybind_signature(fake_get)
+    sig                 = Trait.pybind_signature(fake_get)
     assert list(sig.parameters) == ['self', 'x', 'y']
     assert sig.parameters['y'].default == 1.0
 
@@ -186,24 +186,24 @@ def test_pybind_signature_parses_docstring_first_line():
 
 
 class _TestTraitable(Traitable):
-    xid: int = T(T.ID, default=1)
-    name: str = T()
+    xid: int    = T(T.ID, default = 1)
+    name: str   = T()
 
 
 def test_class_trait_to_str_includes_class_and_trait_name():
     with CACHE_ONLY():
-        trait = _TestTraitable.trait('name')
-        ct = ClassTrait(_TestTraitable, trait)
-        s = ct.to_str()
+        trait   = _TestTraitable.trait('name')
+        ct      = ClassTrait(_TestTraitable, trait)
+        s       = ct.to_str()
         assert 'TestTraitable' in s or '_TestTraitable' in s
         assert 'name' in s
 
 
 def test_class_trait_serialize_roundtrip():
     with CACHE_ONLY():
-        trait = _TestTraitable.trait('name')
-        ct = ClassTrait(_TestTraitable, trait)
-        serialized = ct.serialize(embed=False)
+        trait       = _TestTraitable.trait('name')
+        ct          = ClassTrait(_TestTraitable, trait)
+        serialized  = ct.serialize(embed = False)
         assert isinstance(serialized, list)
         assert len(serialized) == 2
 
@@ -218,18 +218,18 @@ def test_class_trait_serialize_roundtrip():
 
 
 class _DescribeColor(Enum):
-    RED = ()
-    BLUE = ()
+    RED     = ()
+    BLUE    = ()
 
 
 class _DescribeTraitable(Traitable):
-    a: str = T(T.ID) // 'the a'
-    b: str = T(T.ID_LIKE)
-    c: _DescribeColor = T(_DescribeColor.BLUE)
-    d: list = T([], T.STICKY | T.HIDDEN)
-    e: int = RT()
-    f: Any = RT()
-    g: date = T(date(2026, 12, 5))
+    a: str              = T(T.ID) // 'the a'
+    b: str              = T(T.ID_LIKE)
+    c: _DescribeColor   = T(_DescribeColor.BLUE)
+    d: list             = T([], T.STICKY | T.HIDDEN)
+    e: int              = RT()
+    f: Any              = RT()
+    g: date             = T(date(2026, 12, 5))
 
     def e_get(self):
         return 1

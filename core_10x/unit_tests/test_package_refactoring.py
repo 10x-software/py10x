@@ -26,13 +26,13 @@ def test_default_class_id_replaces_dots_with_slashes():
 
 
 def test_default_class_id_expected_value():
-    cid = PackageRefactoring.default_class_id(PackageRefactoring)
-    expected = 'core_10x/package_refactoring/PackageRefactoring'
+    cid         = PackageRefactoring.default_class_id(PackageRefactoring)
+    expected    = 'core_10x/package_refactoring/PackageRefactoring'
     assert cid == expected
 
 
 def test_default_class_id_accepts_canonical_class_name_kwarg():
-    cid = PackageRefactoring.default_class_id(canonical_class_name='a.b.c.D')
+    cid = PackageRefactoring.default_class_id(canonical_class_name = 'a.b.c.D')
     assert cid == 'a/b/c/D'
 
 
@@ -52,8 +52,8 @@ def test_default_class_id_rejects_non_class():
 
 
 def test_find_class_id_matches_default_for_unmapped_class():
-    cid = PackageRefactoring.find_class_id(PackageRefactoring)
-    expected = PackageRefactoring.default_class_id(PackageRefactoring)
+    cid         = PackageRefactoring.find_class_id(PackageRefactoring)
+    expected    = PackageRefactoring.default_class_id(PackageRefactoring)
     assert cid == expected
 
 
@@ -156,7 +156,7 @@ def test_move_class_saves_importable_records(refact_pkg):
     new_path = f'{refact_pkg}.new_mod.Foo'
     PackageRefactoring.move_class(old_path, new_path)
 
-    cid = PackageRefactoring.default_class_id(canonical_class_name=old_path)
+    cid = PackageRefactoring.default_class_id(canonical_class_name = old_path)
     assert _reloaded(refact_pkg).cid_to_path == {cid: new_path}
 
 

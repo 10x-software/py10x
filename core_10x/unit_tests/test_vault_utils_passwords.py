@@ -31,7 +31,7 @@ def test_valid_password_exactly_min_length():
 
 def test_valid_password_longer_than_minimum():
     pwd = 'SuperSecure123'
-    rc = VaultUtils.verify_new_password(pwd, pwd)
+    rc  = VaultUtils.verify_new_password(pwd, pwd)
     assert rc
 
 
@@ -73,7 +73,7 @@ def test_password_too_short_is_rejected(length):
 
 def test_password_of_min_length_passes_length_check():
     pwd = 'A' + 'a' * (MIN - 2) + '1'  # upper + (n-2) lowers + digit = n chars
-    rc = VaultUtils.verify_new_password(pwd, pwd)
+    rc  = VaultUtils.verify_new_password(pwd, pwd)
     assert rc
 
 
@@ -84,7 +84,7 @@ def test_password_of_min_length_passes_length_check():
 
 def test_no_letter_in_password_is_rejected():
     pwd = '1' * MIN  # all digits
-    rc = VaultUtils.verify_new_password(pwd, pwd)
+    rc  = VaultUtils.verify_new_password(pwd, pwd)
     assert not rc
     assert 'letter' in rc.error().lower()
 
@@ -96,7 +96,7 @@ def test_no_letter_in_password_is_rejected():
 
 def test_no_uppercase_is_rejected():
     pwd = 'password1'  # 9 chars, all lowercase + digit
-    rc = VaultUtils.verify_new_password(pwd, pwd)
+    rc  = VaultUtils.verify_new_password(pwd, pwd)
     assert not rc
     assert 'capital' in rc.error().lower()
 
@@ -108,7 +108,7 @@ def test_no_uppercase_is_rejected():
 
 def test_no_digit_is_rejected():
     pwd = 'PasswordA'  # 9 chars, upper + lower, no digit
-    rc = VaultUtils.verify_new_password(pwd, pwd)
+    rc  = VaultUtils.verify_new_password(pwd, pwd)
     assert not rc
     assert 'digit' in rc.error().lower()
 

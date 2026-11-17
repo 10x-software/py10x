@@ -106,7 +106,7 @@ def test_pin_survives_isolation_clear_and_restore():
 
 
 def test_unpin_leaves_process_store_clean(monkeypatch):
-    monkeypatch.delenv(EnvVars.var_name('main_ts_store_uri'), raising=False)  # -- a host-set main store would satisfy main_store()
+    monkeypatch.delenv(EnvVars.var_name('main_ts_store_uri'), raising = False)  # -- a host-set main store would satisfy main_store()
     store = _make_main('duckdb://localhost/iso_unpin')
     pin_current_ts_stores()
     assert Traitable.main_store.value[0] is store
@@ -114,7 +114,7 @@ def test_unpin_leaves_process_store_clean(monkeypatch):
     unpin_ts_stores()
 
     _assert_store_clean()
-    with pytest.raises(OSError, match='No Traitable Store is specified'):
+    with pytest.raises(OSError, match = 'No Traitable Store is specified'):
         Traitable.main_store()
 
 
@@ -159,11 +159,11 @@ def test_nested_pin_hides_outer_class_associations():
     _AssocProbe.__module__ = 'core_10x.unit_tests.test_ts_store_isolation'
 
     _make_main('duckdb://localhost/iso_assoc_outer')
-    NamedTsStore(logical_name='probe_store', uri='duckdb://localhost/iso_probe', _replace=True).save().throw()
+    NamedTsStore(logical_name = 'probe_store', uri = 'duckdb://localhost/iso_probe', _replace = True).save().throw()
     TsClassAssociation(
-        py_canonical_name=PyClass.name(_AssocProbe),
-        ts_logical_name='probe_store',
-        _replace=True,
+        py_canonical_name   = PyClass.name(_AssocProbe),
+        ts_logical_name     = 'probe_store',
+        _replace            = True,
     ).save().throw()
     assert TsClassAssociation.ts_uri(_AssocProbe) == 'duckdb://localhost/iso_probe'
     pin_current_ts_stores()
@@ -199,9 +199,9 @@ def test_named_ts_store_associations_are_pinned_and_opened():
     """NamedTsStore rows on main are opened and held across isolation."""
     main = _make_main('duckdb://localhost/iso_main_named')
     NamedTsStore(
-        logical_name='secondary',
-        uri='duckdb://localhost/iso_secondary',
-        _replace=True,
+        logical_name    = 'secondary',
+        uri             = 'duckdb://localhost/iso_secondary',
+        _replace        = True,
     ).save().throw()
     # Not yet open
     assert all(getattr(s, 'dbname', None) != 'iso_secondary' for s in TsStore.s_instances.values())
@@ -221,8 +221,8 @@ def test_named_ts_store_associations_are_pinned_and_opened():
 
 def test_orphan_open_store_not_pinned_without_named_row():
     """A random DuckDbStore.instance is not pinned unless NamedTsStore names it."""
-    main = _make_main('duckdb://localhost/iso_main_orphan')
-    orphan = DuckDbStore.instance(hostname='localhost', dbname='iso_orphan', protocol='duckdb')
+    main    = _make_main('duckdb://localhost/iso_main_orphan')
+    orphan  = DuckDbStore.instance(hostname = 'localhost', dbname = 'iso_orphan', protocol = 'duckdb')
     pin_current_ts_stores()
     try:
         _simulate_test_isolation()
@@ -234,8 +234,8 @@ def test_orphan_open_store_not_pinned_without_named_row():
 
 
 def test_vault_uri_is_pinned_and_store_opened_when_configured():
-    EnvVars.main_ts_store_uri = 'duckdb://localhost/iso_main_v'
-    EnvVars.main_vault_uri = 'duckdb://localhost/iso_vault_v'
+    EnvVars.main_ts_store_uri   = 'duckdb://localhost/iso_main_v'
+    EnvVars.main_vault_uri      = 'duckdb://localhost/iso_vault_v'
     Traitable.main_store.clear()
     Traitable.vault_store.clear()
     main = Traitable.main_store()
@@ -285,10 +285,10 @@ def test_unpinned_env_vars_do_not_survive_isolation():
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope = 'module')
 def module_pinned_main():
     store = _make_main('duckdb://localhost/iso_module')
-    _SeedMarker(name='seed').save(save_references=True).throw()
+    _SeedMarker(name = 'seed').save(save_references = True).throw()
     pin_current_ts_stores()
     try:
         yield store
@@ -324,8 +324,8 @@ def test_reset_skips_dead_weakref_proxies():
     class _Leaf(Traitable):
         name: str = RT(T.ID)
 
-    obj = _Leaf(name='weak-proxy-probe')
-    proxy = weakref.proxy(obj)
+    obj     = _Leaf(name = 'weak-proxy-probe')
+    proxy   = weakref.proxy(obj)
     del obj
     gc.collect()
     with pytest.raises(ReferenceError):

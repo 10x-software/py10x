@@ -23,7 +23,7 @@ class TestNoBuildIsolationLists:
     def _pyproject(path: Path) -> dict:
         import tomllib
 
-        return tomllib.loads((path / 'pyproject.toml').read_text(encoding='utf-8'))
+        return tomllib.loads((path / 'pyproject.toml').read_text(encoding = 'utf-8'))
 
     @classmethod
     def _listed(cls, path: Path) -> set[str]:
@@ -89,15 +89,15 @@ class TestWindowsToolsetPin:
         import tomllib
 
         need((self.ROOT / 'pyproject.toml').is_file(), 'py10x source checkout')
-        skip = {'.venv', '.git', '.claude', 'node_modules', '_deps'}
-        found, missing = [], []
+        skip            = {'.venv', '.git', '.claude', 'node_modules', '_deps'}
+        found, missing  = [], []
         for pyproject in sorted(self.ROOT.rglob('pyproject.toml')):
             if skip & set(pyproject.relative_to(self.ROOT).parts):
                 continue
             if not env_check.is_native(pyproject.parent):
                 continue
             found.append(pyproject)
-            overrides = tomllib.loads(pyproject.read_text(encoding='utf-8')).get('tool', {}).get('scikit-build', {}).get('overrides', [])
+            overrides = tomllib.loads(pyproject.read_text(encoding = 'utf-8')).get('tool', {}).get('scikit-build', {}).get('overrides', [])
             if not any(o.get('if', {}).get('platform-system') == '^win' and '-T' in o.get('cmake', {}).get('args', []) for o in overrides):
                 missing.append(str(pyproject.relative_to(self.ROOT)))
         assert len(found) >= 4, found  # kernel, infra, cxxfin, cross_module_test
@@ -114,7 +114,7 @@ class TestBuildModes:
         import tomllib
 
         need((self.ROOT / 'pyproject.toml').is_file(), 'py10x source checkout')
-        return tomllib.loads((self.ROOT / 'pyproject.toml').read_text(encoding='utf-8'))['tool']['dev_10x']['modes']
+        return tomllib.loads((self.ROOT / 'pyproject.toml').read_text(encoding = 'utf-8'))['tool']['dev_10x']['modes']
 
     def test_modes_pass_no_cmake_args(self):
         for mode, table in self._modes().items():

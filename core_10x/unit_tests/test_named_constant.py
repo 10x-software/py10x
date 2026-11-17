@@ -5,8 +5,8 @@ from core_10x.traitable import T, Traitable
 
 
 class Status(NamedConstant):
-    ACTIVE = ()
-    INACTIVE = ()
+    ACTIVE      = ()
+    INACTIVE    = ()
 
 
 class StatusEx(Status):
@@ -20,9 +20,9 @@ class X(Traitable):
 @pytest.mark.parametrize('status', [Status.ACTIVE, StatusEx.DEPRECATED])
 def test_serialize(ts_instance, status):
     with ts_instance:
-        x = X(status=status)
-        s = x.serialize_object()
-        status_val = {'_type': '_nx', '_cls': 'test_named_constant/StatusEx', '_obj': 'DEPRECATED'} if status is StatusEx.DEPRECATED else 'ACTIVE'
+        x           = X(status = status)
+        s           = x.serialize_object()
+        status_val  = {'_type': '_nx', '_cls': 'test_named_constant/StatusEx', '_obj': 'DEPRECATED'} if status is StatusEx.DEPRECATED else 'ACTIVE'
         assert s == {'_id': x.id().value, '_rev': 0, 'status': status_val}
 
         x.save().throw()
@@ -50,8 +50,8 @@ def test_named_constant_value_and_table():
     table = NamedConstantTable(
         Row,
         Col,
-        A=(1, 2),
-        B=(3, 4),
+        A   = (1, 2),
+        B   = (3, 4),
     )
 
     assert isinstance(table, NamedConstantTable)
@@ -68,23 +68,23 @@ def test_named_constant_value_and_table():
 
 
 def test_enum_and_enum_bits_operations():
-    class Priority(Enum, seed=1):
-        LOW = ()
-        MEDIUM = ()
-        HIGH = ()
+    class Priority(Enum, seed = 1):
+        LOW     = ()
+        MEDIUM  = ()
+        HIGH    = ()
 
     assert int(Priority.LOW.value) == 1
     assert int(Priority.MEDIUM.value) == 2
     assert int(Priority.HIGH.value) == 3
 
     class Permissions(EnumBits):
-        READ = ()
-        WRITE = ()
+        READ    = ()
+        WRITE   = ()
         EXECUTE = ()
 
-    read = Permissions.READ
-    write = Permissions.WRITE
-    both = read | write
+    read    = Permissions.READ
+    write   = Permissions.WRITE
+    both    = read | write
     assert isinstance(both, Permissions)
     # bitwise ops may return equivalent-but-not-identical instances; compare by value/name
     assert (both & read).value == read.value
@@ -100,18 +100,18 @@ def test_enum_and_enum_bits_operations():
 
 def test_error_code_formatting():
     class MyErrors(ErrorCode):
-        NOT_FOUND = 'Item {0} not found'
-        INVALID_VALUE = 'Invalid value {value}'
+        NOT_FOUND       = 'Item {0} not found'
+        INVALID_VALUE   = 'Invalid value {value}'
 
     assert MyErrors.NOT_FOUND(42) == 'Item 42 not found'
-    assert MyErrors.INVALID_VALUE(value='X') == 'Invalid value X'
+    assert MyErrors.INVALID_VALUE(value = 'X') == 'Invalid value X'
 
 
 def test_named_constant_item_lookup():
     class Color(NamedConstant):
-        RED = ()
-        GREEN = ()
-        BLUE = ()
+        RED     = ()
+        GREEN   = ()
+        BLUE    = ()
 
     assert Color.item('RED') is Color.RED
     assert Color.item('GREEN') is Color.GREEN
@@ -121,10 +121,10 @@ def test_named_constant_item_lookup():
 
 def test_named_constant_value_standalone():
     class Metric(NamedConstant):
-        RISK = ()
-        RETURN = ()
+        RISK    = ()
+        RETURN  = ()
 
-    row = NamedConstantValue(Metric, RISK=0.1, RETURN=0.9)
+    row = NamedConstantValue(Metric, RISK = 0.1, RETURN = 0.9)
 
     # Access by constant instance
     assert row[Metric.RISK] == 0.1
@@ -142,18 +142,18 @@ def test_named_constant_value_standalone():
 
 def test_named_constant_table_extend():
     class BaseAsset(NamedConstant):
-        CASH = ()
-        EQUITY = ()
+        CASH    = ()
+        EQUITY  = ()
 
     class Attr(NamedConstant):
         RISK_WEIGHT = ()
 
-    base = NamedConstantTable(BaseAsset, Attr, CASH=(0.0,), EQUITY=(1.0,))
+    base = NamedConstantTable(BaseAsset, Attr, CASH = (0.0,), EQUITY = (1.0,))
 
     class ExtAsset(BaseAsset):
         COMMODITY = ()
 
-    ext = base.extend(ExtAsset, COMMODITY=(0.8,))
+    ext = base.extend(ExtAsset, COMMODITY = (0.8,))
 
     # Original rows are preserved
     assert ext[ExtAsset.CASH][Attr.RISK_WEIGHT] == 0.0
@@ -166,8 +166,8 @@ def test_named_constant_table_extend():
 
 def test_named_callable_members_and_call():
     class Agg(NamedCallable):
-        SUM = lambda items: sum(items)
-        MEAN = lambda items: sum(items) / len(items)
+        SUM     = lambda items: sum(items)
+        MEAN    = lambda items: sum(items) / len(items)
 
     # Members are NamedConstant instances with callable values
     assert Agg.SUM.name == 'SUM'
@@ -198,13 +198,13 @@ def test_named_callable_just_func():
 class _DescribeEnum(Enum):
     """Some states."""
 
-    FIRST = ()
-    SECOND = 'Second one'
+    FIRST   = ()
+    SECOND  = 'Second one'
 
 
 class _DescribeBits(EnumBits):
-    READ = ()
-    WRITE = ()
+    READ    = ()
+    WRITE   = ()
 
 
 class _DescribeCallables(NamedCallable):

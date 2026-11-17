@@ -27,7 +27,7 @@ class TestExecControl:
 
 def run_script(script: str) -> subprocess.CompletedProcess:
     #-- a separate process: the failures these tests guard against are segfaults
-    return subprocess.run([sys.executable, '-c', textwrap.dedent(script)], capture_output=True, text=True, check=False)
+    return subprocess.run([sys.executable, '-c', textwrap.dedent(script)], capture_output = True, text = True, check = False)
 
 
 class TestProcessorLifetime:
@@ -50,8 +50,8 @@ class TestProcessorLifetime:
         assert r.stdout.split() == ['True', 'True']
 
     def test_a_with_block_releases_its_processor(self):
-        proc = GRAPH_ON()
-        ref = weakref.ref(proc)
+        proc    = GRAPH_ON()
+        ref     = weakref.ref(proc)
         with proc:
             pass
         del proc

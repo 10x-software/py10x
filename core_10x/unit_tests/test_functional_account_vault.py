@@ -48,9 +48,9 @@ from core_10x.vault_utils import VaultUtils
 from dev_10x.postgres_local import PASSWORD_AUTH_PASSWORD, PASSWORD_AUTH_PORT, PASSWORD_AUTH_USER
 from infra_10x.postgres_store import PostgresStore
 
-VAULT_URI = f'postgresql://localhost:{PASSWORD_AUTH_PORT}/{SESSION_DB}'
-FUNCTIONAL_ACCOUNT_USER_ID = 'xx-e2e-test'
-MASTER_PASSWORD = 'FnAcctMaster9!'
+VAULT_URI                   = f'postgresql://localhost:{PASSWORD_AUTH_PORT}/{SESSION_DB}'
+FUNCTIONAL_ACCOUNT_USER_ID  = 'xx-e2e-test'
+MASTER_PASSWORD             = 'FnAcctMaster9!'
 
 
 @pytest.fixture
@@ -63,11 +63,11 @@ def functional_account_env(monkeypatch, tmp_path):
     # Fresh per-process database (SESSION_DB). Vault-DB login must equal OS user_id
     # (docs/VAULT_SECURITY_DESIGN.md §3.4), so the fixture creates a matching PG role.
     admin = PostgresStore.instance_from_uri(
-        VAULT_URI, username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False, _create_if_needed=True
+        VAULT_URI, username = PASSWORD_AUTH_USER, password = PASSWORD_AUTH_PASSWORD, _cache = False, _create_if_needed = True
     )
 
     def _ensure_login_role(user_id: str) -> None:
-        VaultRoles.setup(admin, worker=user_id, worker_password=PASSWORD_AUTH_PASSWORD).throw()
+        VaultRoles.setup(admin, worker = user_id, worker_password = PASSWORD_AUTH_PASSWORD).throw()
 
     container_account_id = os.environ.get('FUNCTIONAL_ACCOUNT_ID')
     if container_account_id:
@@ -79,7 +79,7 @@ def functional_account_env(monkeypatch, tmp_path):
         _ensure_login_role(container_account_id)
         monkeypatch.setattr(EnvVars, 'main_vault_uri', VAULT_URI)
         clear_caches_keeping(EnvVars.var.main_vault_uri)
-        yield SimpleNamespace(user_id=container_account_id, vault_login=container_account_id, vault_password=PASSWORD_AUTH_PASSWORD)
+        yield SimpleNamespace(user_id = container_account_id, vault_login = container_account_id, vault_password = PASSWORD_AUTH_PASSWORD)
         clear_caches_keeping(EnvVars.var.main_vault_uri)
         _drop_session_db()
         return
@@ -93,7 +93,7 @@ def functional_account_env(monkeypatch, tmp_path):
     original_backend = keyring.get_keyring()
     keyring.set_keyring(FunctionalAccountKeyring.from_secrets_file(secrets_file))
 
-    fake_os = SimpleNamespace(me=SimpleNamespace(name=lambda: user_id))
+    fake_os = SimpleNamespace(me = SimpleNamespace(name = lambda: user_id))
     monkeypatch.setattr(sec_keys_mod, 'OsUser', fake_os)
     monkeypatch.setattr(traitable_mod, 'OsUser', fake_os)
     monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: user_id))
@@ -101,7 +101,7 @@ def functional_account_env(monkeypatch, tmp_path):
     _ensure_login_role(user_id)
 
     clear_caches_keeping(EnvVars.var.main_vault_uri)
-    yield SimpleNamespace(user_id=user_id, vault_login=user_id, vault_password=PASSWORD_AUTH_PASSWORD)
+    yield SimpleNamespace(user_id = user_id, vault_login = user_id, vault_password = PASSWORD_AUTH_PASSWORD)
 
     keyring.set_keyring(original_backend)
     clear_caches_keeping(EnvVars.var.main_vault_uri)
@@ -112,7 +112,7 @@ def _drop_session_db() -> None:
     if SESSION_DB_IS_PINNED:
         return
     PostgresStore.instance_from_uri(
-        Resource.uri_no_dbname(VAULT_URI), username=PASSWORD_AUTH_USER, password=PASSWORD_AUTH_PASSWORD, _cache=False
+        Resource.uri_no_dbname(VAULT_URI), username = PASSWORD_AUTH_USER, password = PASSWORD_AUTH_PASSWORD, _cache = False
     ).delete_database(SESSION_DB)
 
 
@@ -124,9 +124,9 @@ def test_functional_account_self_registers_against_real_vault(functional_account
     # -- Self-registration: what a container's entrypoint runs, as the (really) renamed OS
     #    account, right after materializing its secrets file. No getpass/input prompts.
     VaultUtils.user_init(
-        login=functional_account_env.vault_login,
-        password=functional_account_env.vault_password,
-        master_password=MASTER_PASSWORD,
+        login           = functional_account_env.vault_login,
+        password        = functional_account_env.vault_password,
+        master_password = MASTER_PASSWORD,
     ).throw()
     # SecKeys.retrieve_* are @cache'd process-globally (keyed without the username, since it
     # reads OsUser.me.name() internally); user_init's own early not-found probe cached a stale
@@ -140,7 +140,7 @@ def test_functional_account_self_registers_against_real_vault(functional_account
     assert login_pwd == f'{functional_account_env.vault_login}\x1f{functional_account_env.vault_password}'
 
     with Traitable.vault_store():
-        me = VaultUser.existing_instance(user_id=user_id)
+        me = VaultUser.existing_instance(user_id = user_id)
         assert me.user_id == user_id
         assert me.public_key and me.private_key_encrypted
 

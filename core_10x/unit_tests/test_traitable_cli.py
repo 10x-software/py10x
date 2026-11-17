@@ -17,12 +17,12 @@ class Cli(TraitableCli):
     verbose: bool = T(False)
 
 
-class Add(Cli, _command='add'):
+class Add(Cli, _command = 'add'):
     a: float = T(0.0)
     b: float = T(0.0)
 
 
-class Greet(Cli, _command='greet'):
+class Greet(Cli, _command = 'greet'):
     name: str = T('world')
 
 
@@ -32,8 +32,8 @@ class Greet(Cli, _command='greet'):
 
 
 def _parse(input_args):
-    args, trait_values = [], {}
-    rc = TraitableCli.parse(input_args, args, trait_values)
+    args, trait_values  = [], {}
+    rc                  = TraitableCli.parse(input_args, args, trait_values)
     return rc, args, trait_values
 
 
@@ -204,14 +204,14 @@ def test_subcommands_registered_on_master():
 def test_master_may_not_have_command():
     with pytest.raises(AssertionError):
 
-        class BadMaster(TraitableCli, _command='oops'):
+        class BadMaster(TraitableCli, _command = 'oops'):
             pass
 
 
 def test_command_must_be_identifier():
     with pytest.raises(AssertionError):
 
-        class BadCommand(Cli, _command='not an id'):
+        class BadCommand(Cli, _command = 'not an id'):
             pass
 
 
@@ -224,7 +224,7 @@ class MainCli(TraitableCli):
     """Usage: mycmd work"""
 
 
-class Work(MainCli, _command='work'):
+class Work(MainCli, _command = 'work'):
     fail: bool = T(False)
 
     def run(self):
@@ -268,7 +268,7 @@ class VerifyCli(TraitableCli):
         return RC(False, 'blocked by post_verify') if self.blocked else super().post_verify()
 
 
-class Go(VerifyCli, _command='go'):
+class Go(VerifyCli, _command = 'go'):
     def run(self):
         Go.ran = True
         return RC_TRUE

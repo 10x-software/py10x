@@ -19,9 +19,9 @@ def _fake_clock(monkeypatch, sleeps: list[float]) -> None:
 
     Only for the test's own thread: `time` is patched process-wide, and a background thread left over
     from another test in this xdist worker would otherwise spin through a no-op sleep into `sleeps`."""
-    now = [0.0]
-    test_thread = threading.current_thread()
-    real_monotonic, real_sleep = time.monotonic, time.sleep
+    now                         = [0.0]
+    test_thread                 = threading.current_thread()
+    real_monotonic, real_sleep  = time.monotonic, time.sleep
 
     def fake_monotonic():
         return now[0] if threading.current_thread() is test_thread else real_monotonic()
@@ -41,7 +41,7 @@ def test_wait_for_release_returns_true_immediately_without_sleeping(monkeypatch)
     _fake_clock(monkeypatch, sleeps)
     monkeypatch.setattr(PyPIHelpers, 'release_exists', classmethod(lambda cls, name, version: True))
 
-    assert PyPIHelpers.wait_for_release('py10x-core', '1.2.3', deadline=1000.0, poll=90.0) is True
+    assert PyPIHelpers.wait_for_release('py10x-core', '1.2.3', deadline = 1000.0, poll = 90.0) is True
     assert sleeps == []
 
 
@@ -57,7 +57,7 @@ def test_wait_for_release_uses_quick_poll_then_backs_off(monkeypatch):
 
     monkeypatch.setattr(PyPIHelpers, 'release_exists', classmethod(fake_exists))
 
-    ok = PyPIHelpers.wait_for_release('py10x-infra', '1.2.3', deadline=1000.0, poll=90.0, quick_poll=10.0, quick_poll_window=5.0)
+    ok = PyPIHelpers.wait_for_release('py10x-infra', '1.2.3', deadline = 1000.0, poll = 90.0, quick_poll = 10.0, quick_poll_window = 5.0)
 
     assert ok is True
     # elapsed at 1st check: 0 (< 5 window -> quick 10s); elapsed at 2nd check: 10 (>= 5 -> full poll)
@@ -68,9 +68,9 @@ def test_fake_clock_leaves_other_threads_real(monkeypatch):
     """A background thread sleeping meanwhile neither spins nor lands in `sleeps` (was a Windows CI flake)."""
     sleeps: list[float] = []
     _fake_clock(monkeypatch, sleeps)
-    worker = threading.Thread(target=lambda: [time.sleep(0.01) for _ in range(3)])
+    worker = threading.Thread(target = lambda: [time.sleep(0.01) for _ in range(3)])
     worker.start()
-    worker.join(timeout=5)
+    worker.join(timeout = 5)
     assert not worker.is_alive()
     assert sleeps == []
 
@@ -80,7 +80,7 @@ def test_wait_for_release_times_out_returns_false_without_sleeping_past_deadline
     _fake_clock(monkeypatch, sleeps)
     monkeypatch.setattr(PyPIHelpers, 'release_exists', classmethod(lambda cls, name, version: False))
 
-    ok = PyPIHelpers.wait_for_release('py10x-infra', '1.2.3', deadline=0.0, poll=90.0, quick_poll=10.0)
+    ok = PyPIHelpers.wait_for_release('py10x-infra', '1.2.3', deadline = 0.0, poll = 90.0, quick_poll = 10.0)
 
     assert ok is False
     assert sleeps == []
@@ -89,8 +89,8 @@ def test_wait_for_release_times_out_returns_false_without_sleeping_past_deadline
 def test_release_json_cached_after_success_so_cdn_404_cannot_break_exact_pins(monkeypatch):
     """A fresh publish's JSON can 404 on a re-fetch right after `release_exists` saw it."""
     PyPIHelpers._release_json.cache_clear()
-    body = {'urls': [{'filename': 'x.whl'}], 'info': {'requires_dist': ['py10x-kernel==1.2.3', 'numpy>=2']}}
-    responses = [
+    body        = {'urls': [{'filename': 'x.whl'}], 'info': {'requires_dist': ['py10x-kernel==1.2.3', 'numpy>=2']}}
+    responses   = [
         error.HTTPError('u', 404, 'Not Found', None, None),  # not published yet: not cached
         io.BytesIO(json.dumps(body).encode()),
         error.HTTPError('u', 404, 'Not Found', None, None),  # flaky CDN edge: must not be reached
@@ -131,9 +131,9 @@ def test_release_exists_reads_the_simple_index_as_pip_does(monkeypatch, content_
     def fake_urlopen(url, timeout):
         if isinstance(url, request.Request):  # the simple index
             simple_requests.append(url)
-            r = io.BytesIO((body if isinstance(body, str) else json.dumps(body)).encode())
-            r.headers = Message()
-            r.headers['Content-Type'] = content_type
+            r                           = io.BytesIO((body if isinstance(body, str) else json.dumps(body)).encode())
+            r.headers                   = Message()
+            r.headers['Content-Type']   = content_type
         else:  # the release's JSON API
             r = io.BytesIO(json.dumps({'urls': [{'filename': 'x.whl'}]}).encode())
         r.status = 200

@@ -152,8 +152,8 @@ def test_id_eq_returns_not_implemented_for_non_id():
 def test_unshared_ids_are_distinct():
     """Two objects under construction are not the same entity, so their (valueless) IDs
     must not compare equal -- otherwise a set collapses them and only one survives."""
-    a, b = ID(), ID()
-    alias = a
+    a, b    = ID(), ID()
+    alias   = a
     assert a == alias, 'an unshared ID is still equal to itself'
     assert a != b
 
@@ -174,9 +174,9 @@ def test_id_eq_and_hash_agree_with_tid():
         name: str = T(T.ID)
 
     with CACHE_ONLY(), INTERACTIVE():
-        unshared_a, unshared_b = Q(), Q()
-        shared = Q(name='q', _replace=True)
-        same_id = Q(name='q')
+        unshared_a, unshared_b  = Q(), Q()
+        shared                  = Q(name = 'q', _replace = True)
+        same_id                 = Q(name = 'q')
 
         for left, right in ((unshared_a, unshared_a), (unshared_a, unshared_b), (shared, same_id), (unshared_a, shared)):
             assert (left.id() == right.id()) is left.xid()._equals(right.xid()), (left.id(), right.id())
@@ -204,9 +204,9 @@ def test_unshared_traitable_cannot_be_put_in_a_set():
 
     with CACHE_ONLY(), INTERACTIVE():
         pending = R()
-        with pytest.raises(TypeError, match='not hashable'):
+        with pytest.raises(TypeError, match = 'not hashable'):
             set().add(pending)
-        with pytest.raises(TypeError, match='not hashable'):
+        with pytest.raises(TypeError, match = 'not hashable'):
             hash(pending.id())
 
         pending.name = 'landed'
@@ -215,7 +215,7 @@ def test_unshared_traitable_cannot_be_put_in_a_set():
         # Hashable once the ID has landed, and stable from here on.
         holder = {pending}
         assert pending in holder
-        assert hash(pending) == hash(R(name='landed'))
+        assert hash(pending) == hash(R(name = 'landed'))
 
 
 class _PendingId(Traitable):
@@ -225,38 +225,38 @@ class _PendingId(Traitable):
 
 def test_id_trait_values_of_unshared_endogenous():
     with INTERACTIVE():
-        obj = _PendingId()
-        obj.a = 1
+        obj     = _PendingId()
+        obj.a   = 1
         assert obj.id().value is None
         obj.b = 2
         assert obj.id().value is None
         assert obj.id_trait_values() == {'a': 1, 'b': 2}
-        assert obj.id_trait_values(b=3) == {'a': 1, 'b': 3}
-        assert obj.morph(b=3).id().value == '1|3'
+        assert obj.id_trait_values(b = 3) == {'a': 1, 'b': 3}
+        assert obj.morph(b = 3).id().value == '1|3'
 
 
-class _PendingRef(Traitable, keep_history=False):
-    a: int = T(T.ID)
-    b: int = T(T.ID)
+class _PendingRef(Traitable, keep_history = False):
+    a: int          = T(T.ID)
+    b: int          = T(T.ID)
     peer: Traitable = T()
 
 
-class _Embedded(Traitable, embeddable=True):
+class _Embedded(Traitable, embeddable = True):
     nxt: Traitable = T()
 
 
 def test_saving_reference_to_unshared_endogenous_names_the_problem():
     with TsStore.instance_from_uri('duckdb://'), INTERACTIVE():
-        pending = _PendingRef()
-        pending.a = 1
-        holder = _PendingRef(a=2, b=2)  # -- serialize_object() returns None without an ID value, so go through a holder
+        pending     = _PendingRef()
+        pending.a   = 1
+        holder      = _PendingRef(a = 2, b = 2)  # -- serialize_object() returns None without an ID value, so go through a holder
         holder.peer = pending
-        with pytest.raises(Exception, match='cannot copy the TID of an unshared endogenous traitable'):
+        with pytest.raises(Exception, match = 'cannot copy the TID of an unshared endogenous traitable'):
             holder.serialize_object(BSaveRefs.ALL)
 
 
 def test_circular_embedded_serialization_is_still_detected():
-    obj = _Embedded()
+    obj     = _Embedded()
     obj.nxt = obj
-    with pytest.raises(Exception, match='circular embedded serialization'):
+    with pytest.raises(Exception, match = 'circular embedded serialization'):
         obj.serialize_nx(True)

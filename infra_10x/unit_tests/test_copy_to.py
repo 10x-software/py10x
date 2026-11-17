@@ -14,9 +14,9 @@ from infra_10x.postgres_store import PostgresStore
 from infra_10x.unit_tests.conftest import TEST_TS_STORE
 
 
-class CopyPerson(Traitable, custom_collection=True):
-    name: str = T(T.ID)
-    age: int = T()
+class CopyPerson(Traitable, custom_collection = True):
+    name: str   = T(T.ID)
+    age: int    = T()
 
 
 class TestCopyTo:
@@ -69,8 +69,8 @@ class TestCopyTo:
         store.delete_collection(name)
 
     def test_ibis_to_ibis_round_trip(self, duck_src):
-        src, name = duck_src
-        dst = DuckDbStore()
+        src, name   = duck_src
+        dst         = DuckDbStore()
         dst.begin_using()
         try:
             rc = src.copy_to(dst)
@@ -93,11 +93,11 @@ class TestCopyTo:
         whole store-wide copy on the first such collection.
         """
 
-        class Blobby(Traitable, custom_collection=True, keep_history=False):
+        class Blobby(Traitable, custom_collection = True, keep_history = False):
             tags: list = T()  # -- non-scalar wire type: never promoted to an SQL column
 
-        src, dst = DuckDbStore(), DuckDbStore()
-        name = f'blobonly_{uuid6.uuid7().hex}'
+        src, dst    = DuckDbStore(), DuckDbStore()
+        name        = f'blobonly_{uuid6.uuid7().hex}'
         src.collection(name, Blobby.s_dir).save_new({'_id': 'a', 'tags': [1, 2]})
         try:
             assert src.collection(name, {}).intrinsic_trait_dir() == {}
@@ -115,8 +115,8 @@ class TestCopyTo:
         assert 'age' in from_coll.intrinsic_trait_dir()
 
     def test_ibis_to_ibis_copies_extra_sql_columns(self, duck_src):
-        src, name = duck_src
-        safe = name.replace('"', '""')
+        src, name   = duck_src
+        safe        = name.replace('"', '""')
         src._con.execute(f'ALTER TABLE "{safe}" ADD COLUMN IF NOT EXISTS "legacy" VARCHAR')
         src._con.execute(
             f'INSERT INTO "{safe}" ({_ID}, {_REV}, _data, name, age, legacy) VALUES (?, 1, ?, ?, ?, ?)',
@@ -181,14 +181,14 @@ class TestCopyTo:
         store.end_using()
 
     def test_mongo_to_ibis_raises(self, mongo_src):
-        src, _name = mongo_src
-        dst = DuckDbStore()
-        with pytest.raises(TsCopyError, match='Cannot copy from MongoStore'):
+        src, _name  = mongo_src
+        dst         = DuckDbStore()
+        with pytest.raises(TsCopyError, match = 'Cannot copy from MongoStore'):
             src.copy_to(dst)
 
     def test_ibis_to_mongo(self, duck_src, mongo_store):
-        src, name = duck_src
-        dst = mongo_store
+        src, name   = duck_src
+        dst         = mongo_store
         try:
             rc = src.copy_to(dst)
             assert rc
@@ -204,8 +204,8 @@ class TestCopyTo:
         Hence a second database for the source, unlike ``test_postgres_to_postgres`` which is
         collection-level because both sides share this session's one database.
         """
-        src, name = mongo_src
-        dst = mongo_store
+        src, name   = mongo_src
+        dst         = mongo_store
         try:
             rc = src.copy_to(dst)
             assert rc
@@ -215,8 +215,8 @@ class TestCopyTo:
             dst.delete_collection(name)
 
     def test_duck_to_postgres(self, duck_src, postgres_store):
-        src, name = duck_src
-        dst = postgres_store
+        src, name   = duck_src
+        dst         = postgres_store
         try:
             rc = src.copy_to(dst)
             assert rc
@@ -229,8 +229,8 @@ class TestCopyTo:
 
     def test_postgres_to_postgres(self, postgres_src, postgres_store):
         """Store-wide schema -> schema across two Postgres databases (mirrors test_mongo_to_mongo)."""
-        src, name = postgres_src
-        dst = postgres_store
+        src, name   = postgres_src
+        dst         = postgres_store
         try:
             assert src.copy_to(dst)
             to_coll = dst.collection(name, CopyPerson.s_dir)
@@ -241,9 +241,9 @@ class TestCopyTo:
 
     def test_collection_to_collection(self):
         """``TsCollection.copy_to`` called directly — store-wide copy only reaches it internally."""
-        store = DuckDbStore()
-        src_name, dst_name = f'ccopy_src_{uuid6.uuid7().hex}', f'ccopy_dst_{uuid6.uuid7().hex}'
-        from_coll = store.collection(src_name, CopyPerson.s_dir)
+        store               = DuckDbStore()
+        src_name, dst_name  = f'ccopy_src_{uuid6.uuid7().hex}', f'ccopy_dst_{uuid6.uuid7().hex}'
+        from_coll           = store.collection(src_name, CopyPerson.s_dir)
         from_coll.save_new({'_id': 'a', 'name': 'Ann', 'age': 30})
         from_coll.save_new({'_id': 'b', 'name': 'Bob', 'age': 40})
         to_coll = store.collection(dst_name, CopyPerson.s_dir)

@@ -21,7 +21,7 @@ def _source_root() -> Path | None:
     return root if (root / 'pyproject.toml').is_file() else None
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def _project_root_from_source(monkeypatch):
     root = _source_root()
     if root is None:
@@ -72,7 +72,7 @@ def test_export_excludes_every_first_party_package(monkeypatch):
 
 
 def test_uv_falls_back_to_path_uv(monkeypatch):
-    monkeypatch.delenv('UV', raising=False)
+    monkeypatch.delenv('UV', raising = False)
     assert c._uv() == 'uv'
 
 
@@ -80,9 +80,9 @@ def test_check_export_detects_drift(monkeypatch, tmp_path, capsys):
     target = tmp_path / 'constraints.txt'
     monkeypatch.setattr(c, 'CONSTRAINTS', target)
     monkeypatch.setattr(c, '_export', lambda: c.HEADER + 'six==1.0\n')
-    target.write_text(c.HEADER + 'six==1.0\n', encoding='utf-8')
+    target.write_text(c.HEADER + 'six==1.0\n', encoding = 'utf-8')
     assert c.check_export() == 0
-    target.write_text(c.HEADER + 'six==2.0\n', encoding='utf-8')
+    target.write_text(c.HEADER + 'six==2.0\n', encoding = 'utf-8')
     assert c.check_export() == 1
     assert 'does not match uv.lock' in capsys.readouterr().out
 
@@ -96,13 +96,13 @@ def test_compile_writes_export_and_lock_change_summary(monkeypatch, tmp_path):
     def fake_run(cmd, **kwargs):
         calls.append(cmd)
         stderr = 'Resolved 3 packages in 1ms\nUpdated six v1.0 -> v2.0\nAdded tomli v2.0.1\n'
-        return subprocess.CompletedProcess(cmd, 0, stdout='', stderr=stderr)
+        return subprocess.CompletedProcess(cmd, 0, stdout = '', stderr = stderr)
 
     monkeypatch.setattr(c.subprocess, 'run', fake_run)
-    assert c.compile_(upgrade=True, summary_file=summary) == 0
+    assert c.compile_(upgrade = True, summary_file = summary) == 0
     assert calls[0][-2:] == ['lock', '--upgrade']
-    assert target.read_text(encoding='utf-8') == c.HEADER + 'six==2.0\n'
-    assert summary.read_text(encoding='utf-8') == 'Updated six v1.0 -> v2.0\nAdded tomli v2.0.1\n'
+    assert target.read_text(encoding = 'utf-8') == c.HEADER + 'six==2.0\n'
+    assert summary.read_text(encoding = 'utf-8') == 'Updated six v1.0 -> v2.0\nAdded tomli v2.0.1\n'
 
 
 def test_compile_summary_file_without_path_exits_with_usage(monkeypatch, capsys):
@@ -118,7 +118,7 @@ def test_compile_summary_file_without_path_exits_with_usage(monkeypatch, capsys)
 def test_compile_stops_on_lock_failure(monkeypatch, tmp_path):
     target = tmp_path / 'constraints.txt'
     monkeypatch.setattr(c, 'CONSTRAINTS', target)
-    monkeypatch.setattr(c.subprocess, 'run', lambda cmd, **kw: subprocess.CompletedProcess(cmd, 2, stdout='', stderr='boom\n'))
+    monkeypatch.setattr(c.subprocess, 'run', lambda cmd, **kw: subprocess.CompletedProcess(cmd, 2, stdout = '', stderr = 'boom\n'))
     assert c.compile_() == 2
     assert not target.exists()
 

@@ -30,9 +30,9 @@ def test_ref_leak():
     class X(Traitable):
         x: Traitable
 
-    x = X()
-    x.x = X()
-    wr_x = weakref.ref(x.x)
+    x       = X()
+    x.x     = X()
+    wr_x    = weakref.ref(x.x)
 
     del x
     assert wr_x()
@@ -46,9 +46,9 @@ def test_graph_ref_leak():
         x: Traitable
 
     with GRAPH_ON() as g:
-        x = X()
-        x.x = X()
-        wr_x, wr_g = weakref.ref(x.x), weakref.ref(g)
+        x           = X()
+        x.x         = X()
+        wr_x, wr_g  = weakref.ref(x.x), weakref.ref(g)
 
     del x
     assert wr_x()
@@ -59,15 +59,15 @@ def test_graph_ref_leak():
     assert not wr_x()
 
 
-@pytest.mark.parametrize(argnames='ctx', argvalues=[GRAPH_ON, BTraitableProcessor.create_root], ids=['GRAPH_ON', 'BTP.create_root'])
+@pytest.mark.parametrize(argnames = 'ctx', argvalues = [GRAPH_ON, BTraitableProcessor.create_root], ids = ['GRAPH_ON', 'BTP.create_root'])
 def test_self_ref_leak(ctx):
     class X(Traitable):
         x: Traitable
 
     with ctx() as g:
-        x = X()
+        x   = X()
         x.x = x
-        wr = weakref.ref(x)
+        wr  = weakref.ref(x)
 
     del x
     assert wr()
@@ -81,19 +81,19 @@ def test_graph_deps_ref_leak():
 
     class X(Traitable):
         x: Traitable
-        v: int = RT()
-        out: int = RT()
+        v: int      = RT()
+        out: int    = RT()
 
         def out_get(self):
             return self.v
 
     with GRAPH_ON() as g:
-        x = X()
-        x.x = X()
-        x.v = 1
-        _ = x.out
-        gd = GraphDeps(g, x.T.out, {X: ('v',)})
-        wr_x, wr_g = weakref.ref(x.x), weakref.ref(g)
+        x           = X()
+        x.x         = X()
+        x.v         = 1
+        _           = x.out
+        gd          = GraphDeps(g, x.T.out, {X: ('v',)})
+        wr_x, wr_g  = weakref.ref(x.x), weakref.ref(g)
 
     del x
     assert wr_x()
@@ -137,9 +137,9 @@ def test_ui_node_callback_ref_leak():
         assert BTP.current() == btp
 
     with INTERACTIVE():
-        x = X(x=1)
-        wr = weakref.ref(x)
-        data = [BTP.current(), x, x.T.x]
+        x       = X(x = 1)
+        wr      = weakref.ref(x)
+        data    = [BTP.current(), x, x.T.x]
         x.bui_class().create_ui_node(x, x.T.x, partial(_cb, data))
         x.x = 2
 

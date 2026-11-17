@@ -28,10 +28,10 @@ from infra_10x.duckdb_store import DuckDbStore
 ALICE, ALICE_VAULT_PWD, ALICE_MASTER = 'alice_res', 'AliceRes7!', 'AliceMaster9!'
 
 # A vault-host URI (matches the ``VAULT_URI`` host in conftest).
-VAULT_HOST_URI = 'duckdb://vaulthost.example.com:27017'
-ANOTHER_DB_URI = 'duckdb://vaulthost.example.com/another'  # has matching RA in vault-hit test
-NO_RA_URI = 'duckdb://otherhost.example.com/lonely'  # has no RA in vault-miss test
-RESOURCE_PWD = 'ResourcePwd9!'
+VAULT_HOST_URI  = 'duckdb://vaulthost.example.com:27017'
+ANOTHER_DB_URI  = 'duckdb://vaulthost.example.com/another'  # has matching RA in vault-hit test
+NO_RA_URI       = 'duckdb://otherhost.example.com/lonely'  # has no RA in vault-miss test
+RESOURCE_PWD    = 'ResourcePwd9!'
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +59,7 @@ class TestNamedResourceIntegrity:
     def test_member_without_s_resource_dt_is_rejected(self):
         """A member that forgets to set ``s_resource_dt`` must fail
         ``NamedResource.check_integrity`` at class-creation time."""
-        with pytest.raises(RuntimeError, match='Must define s_resource_dt'):
+        with pytest.raises(RuntimeError, match = 'Must define s_resource_dt'):
 
             class _BrokenResource(NamedResource):
                 pass  # no s_resource_dt -> fails check_integrity
@@ -101,8 +101,8 @@ class TestNamedResourceInstance:
         """Replace ``DuckDbStore.new_instance`` with a spy that records each
         call's kwargs and still returns ``vault_env.vault_db`` (matching the
         fixture-level mock)."""
-        calls = []
-        vault_db = vault_env.vault_db
+        calls       = []
+        vault_db    = vault_env.vault_db
 
         def _spy(cls, *args, **kwargs):
             calls.append({'args': args, 'kwargs': dict(kwargs)})
@@ -115,7 +115,7 @@ class TestNamedResourceInstance:
         """Self-register ALICE via ``user_init`` so the vault store is
         unlocked and her ``VaultUser`` row exists."""
         env.switch_os_user(ALICE)
-        env.run_user_init(vault_login=ALICE, vault_pwd=ALICE_VAULT_PWD, master_pwd=ALICE_MASTER)
+        env.run_user_init(vault_login = ALICE, vault_pwd = ALICE_VAULT_PWD, master_pwd = ALICE_MASTER)
 
     def _last_call_for_host(self, calls, hostname):
         """Return the most recent recorded ``new_instance`` call for the
@@ -133,17 +133,17 @@ class TestNamedResourceInstance:
 
         with Traitable.vault_store():
             VaultResourceAccessor.save_ra(
-                resource_dt=CONCRETE_RESOURCE.TS_STORE,
-                resource_uri=ANOTHER_DB_URI,
-                password=RESOURCE_PWD,
-                login=ALICE,
-                username=ALICE,
+                resource_dt     = CONCRETE_RESOURCE.TS_STORE,
+                resource_uri    = ANOTHER_DB_URI,
+                password        = RESOURCE_PWD,
+                login           = ALICE,
+                username        = ALICE,
             ).throw()
 
         calls = self._spy_new_instance(env, monkeypatch)
 
         with CACHE_ONLY():
-            nts = NamedTsStore(logical_name='alice_db')
+            nts     = NamedTsStore(logical_name = 'alice_db')
             nts.uri = ANOTHER_DB_URI
         store = nts.resource_instance()
 
@@ -168,7 +168,7 @@ class TestNamedResourceInstance:
         calls = self._spy_new_instance(env, monkeypatch)
 
         with CACHE_ONLY():
-            nts = NamedTsStore(logical_name='lonely_db')
+            nts     = NamedTsStore(logical_name = 'lonely_db')
             nts.uri = NO_RA_URI
         store = nts.resource_instance()
 

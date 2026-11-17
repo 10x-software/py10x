@@ -17,7 +17,7 @@ class X(Traitable):
 
     def x_set(self, trait, value) -> RC:
         self.raw_set_trait_value(trait, value)
-        return self.set_values(y=value)
+        return self.set_values(y = value)
 
     def z_get(self):
         return self.x
@@ -35,7 +35,7 @@ def callback(data):
 
 
 def test_ui_nodes():
-    x = X(x=1)
+    x = X(x = 1)
     # TODO(gc): drop bags + data.clear() once BTP/XCache/UI nodes participate in
     # cyclic GC and can break partial→BTP→cache→UI node→partial without help
     # (see test_graph_leaks module docstring). Keep bagging only if we still need
@@ -46,7 +46,7 @@ def test_ui_nodes():
         def make(trait):
             data = [BTP.current(), x, trait, v]
             bags.append(data)
-            return MagicMock(side_effect=partial(callback, data))
+            return MagicMock(side_effect = partial(callback, data))
 
         mx = make(x.T.x)
         my = make(x.T.y)
@@ -83,9 +83,9 @@ def test_exception():
         x.bui_class().update_ui_node(x, x.T.x)  # TODO: should not be required when throwing
         raise RuntimeError('test')
 
-    x = X(x=1)
+    x = X(x = 1)
     with INTERACTIVE():
-        m = MagicMock(side_effect=callback)
+        m = MagicMock(side_effect = callback)
         x.bui_class().create_ui_node(x, x.T.x, m)
         with pytest.raises(TraitMethodError):  # TODO: should be throwing RuntimeError?
             x.x = 2

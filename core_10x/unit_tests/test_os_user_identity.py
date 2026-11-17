@@ -13,7 +13,7 @@ _CODE = 'import core_10x\nfrom py10x_kernel import OsUser\nprint(OsUser.me.name(
 
 def _run(env_overrides: dict) -> subprocess.CompletedProcess:
     env = {**os.environ, **env_overrides}
-    return subprocess.run([sys.executable, '-c', _CODE], capture_output=True, text=True, env=env, check=False)
+    return subprocess.run([sys.executable, '-c', _CODE], capture_output = True, text = True, env = env, check = False)
 
 
 def test_real_login_resolves_via_kernel_verified_identity():

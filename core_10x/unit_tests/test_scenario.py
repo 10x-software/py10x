@@ -73,15 +73,15 @@ class TestScenarioContextManager:
         assert s.btp is None
 
     class Tick(Traitable):
-        ticker: str = RT(T.ID)
-        price: float = RT()
+        ticker: str     = RT(T.ID)
+        price: float    = RT()
 
     def test_anonymous_scenario_reentry_starts_a_fresh_scope(self):
         s = Scenario()
-        q = self.Tick(ticker='ctx_reentry')
+        q = self.Tick(ticker = 'ctx_reentry')
         with s:
             q.price = 1.0
-            first = s.btp
+            first   = s.btp
         with s:
             assert s.btp is not first
             assert q.price is XNone
@@ -97,7 +97,7 @@ class TestScenarioContextManager:
 
     def test_exception_propagates_through_context_manager(self):
         """Exceptions inside the with-block are not swallowed."""
-        with pytest.raises(ValueError, match='test error'), Scenario('scen_test_ctx_D'):
+        with pytest.raises(ValueError, match = 'test error'), Scenario('scen_test_ctx_D'):
             raise ValueError('test error')
 
 
@@ -115,7 +115,7 @@ def call_counter(method):
         return method(self, *args, **kwargs)
 
     wrapper.call_counts = WeakKeyDictionary()
-    wrapper.count = lambda obj: wrapper.call_counts.get(obj, 0)
+    wrapper.count       = lambda obj: wrapper.call_counts.get(obj, 0)
     return wrapper
 
 
@@ -132,8 +132,8 @@ class TestScenarioEndToEnd:
     """
 
     class Price(Traitable):
-        ticker: str = T(T.ID)
-        raw: float = T()
+        ticker: str     = T(T.ID)
+        raw: float      = T()
         adjusted: float = RT()
 
         @call_counter
@@ -143,21 +143,21 @@ class TestScenarioEndToEnd:
     def test_computed_trait_is_cached_inside_scenario(self):
         """Inside Scenario (GRAPH_ON), the getter runs once; repeated reads hit the cache."""
         with CACHE_ONLY(), Scenario('e2e_cache_A'):
-            p = self.Price(ticker='e2e_AAPL_A')
-            p.raw = 100.0
-            v1 = p.adjusted  # getter invoked → count = 1
-            v2 = p.adjusted  # cache hit → count stays 1
+            p       = self.Price(ticker = 'e2e_AAPL_A')
+            p.raw   = 100.0
+            v1      = p.adjusted  # getter invoked → count = 1
+            v2      = p.adjusted  # cache hit → count stays 1
             assert self.Price.adjusted_get.count(p) == 1
             assert v1 == v2 == pytest.approx(110.0)
 
     def test_dependency_invalidation_triggers_recompute(self):
         """Changing a dependency invalidates the cached value; next read recomputes."""
         with CACHE_ONLY(), Scenario('e2e_dep_B'):
-            p = self.Price(ticker='e2e_AAPL_B')
-            p.raw = 100.0
-            _ = p.adjusted  # compute and cache
-            p.raw = 200.0  # invalidate dependency
-            v = p.adjusted  # must recompute
+            p       = self.Price(ticker = 'e2e_AAPL_B')
+            p.raw   = 100.0
+            _       = p.adjusted  # compute and cache
+            p.raw   = 200.0  # invalidate dependency
+            v       = p.adjusted  # must recompute
             assert v == pytest.approx(220.0)
             assert self.Price.adjusted_get.count(p) == 2
 
@@ -165,12 +165,12 @@ class TestScenarioEndToEnd:
         """Data written during the first entry is visible when the Scenario is re-entered."""
         with CACHE_ONLY():
             with Scenario('e2e_reentry_C'):
-                p = self.Price(ticker='e2e_AAPL_C')
-                p.raw = 50.0
-                _ = p.adjusted  # cache value = 55.0
+                p       = self.Price(ticker = 'e2e_AAPL_C')
+                p.raw   = 50.0
+                _       = p.adjusted  # cache value = 55.0
 
             with Scenario('e2e_reentry_C'):  # same BTP, same cache
-                p2 = self.Price(ticker='e2e_AAPL_C')
+                p2 = self.Price(ticker = 'e2e_AAPL_C')
                 assert p2.raw == 50.0
                 assert p2.adjusted == pytest.approx(55.0)
                 # Getter must NOT have been called again (value still cached)
@@ -199,17 +199,17 @@ class TestScenarioEndToEnd:
         the outer scope is restored unchanged.
         """
         with CACHE_ONLY(), Scenario('e2e_outer_G'):
-            p = self.Price(ticker='e2e_MSFT_G')
-            p.raw = 100.0
-            outer_adj = p.adjusted  # caches 110.0 in outer BTP
+            p           = self.Price(ticker = 'e2e_MSFT_G')
+            p.raw       = 100.0
+            outer_adj   = p.adjusted  # caches 110.0 in outer BTP
 
             with Scenario('e2e_inner_G'):
                 # Parent-scope value is visible before any override
                 assert p.raw == 100.0
 
                 # Override inside the inner scope
-                p.raw = 200.0
-                inner_adj = p.adjusted  # recomputes to 220.0
+                p.raw       = 200.0
+                inner_adj   = p.adjusted  # recomputes to 220.0
                 assert inner_adj == pytest.approx(220.0)
 
             # After inner exits, outer scope is restored
@@ -229,20 +229,20 @@ class TestScenarioOwnsItsContainers:
     """
 
     class Bag(Traitable):
-        name: str = T(T.ID)
-        items: list = RT([])
-        tags: set = RT()
-        attrs: dict = RT()
-        label: tuple = RT()
-        total: int = RT()
+        name: str       = T(T.ID)
+        items: list     = RT([])
+        tags: set       = RT()
+        attrs: dict     = RT()
+        label: tuple    = RT()
+        total: int      = RT()
 
         def total_get(self) -> int:
             return sum(self.items)
 
     def test_in_place_change_stays_inside(self):
         with CACHE_ONLY(), Scenario('own_outer_A'):
-            b = self.Bag(name = 'own_A')
-            b.items, b.tags, b.attrs = [1, 2], {'a'}, {'k': 1}
+            b                           = self.Bag(name = 'own_A')
+            b.items, b.tags, b.attrs    = [1, 2], {'a'}, {'k': 1}
             assert b.total == 3
 
             with Scenario():
@@ -257,7 +257,7 @@ class TestScenarioOwnsItsContainers:
     def test_set_back_inside_does_not_reach_outside(self):
         """Changed in place and set back on the trait: the Scenario sees it, the outer scope does not."""
         with CACHE_ONLY(), Scenario('own_outer_B'):
-            b = self.Bag(name = 'own_B')
+            b       = self.Bag(name = 'own_B')
             b.items = [1, 2]
             assert b.total == 3
 
@@ -272,9 +272,9 @@ class TestScenarioOwnsItsContainers:
 
     def test_one_copy_per_scope(self):
         with CACHE_ONLY(), Scenario('own_outer_C'):
-            b = self.Bag(name = 'own_C')
+            b       = self.Bag(name = 'own_C')
             b.items = [1, 2]
-            outer = b.items
+            outer   = b.items
 
             with Scenario():
                 inner = b.items
@@ -287,11 +287,11 @@ class TestScenarioOwnsItsContainers:
     def test_other_values_pass_as_they_are(self):
         """XNone, a value of another type, and a value that cannot change in place are not copied."""
         with CACHE_ONLY(), Scenario('own_outer_D'):
-            b = self.Bag(name = 'own_D')
-            mistyped = (1, 2)
-            b.items = mistyped
-            b.tags = XNone
-            b.label = ('x', 'y')
+            b           = self.Bag(name = 'own_D')
+            mistyped    = (1, 2)
+            b.items     = mistyped
+            b.tags      = XNone
+            b.label     = ('x', 'y')
             outer_label = b.label
 
             with Scenario():
@@ -312,8 +312,8 @@ class TestScenarioOwnsItsContainers:
 
     def test_in_place_change_of_a_nested_container_stays_inside(self):
         with CACHE_ONLY(), Scenario('own_outer_E'):
-            b = self.Bag(name = 'own_E')
-            b.items, b.attrs = [1, [2], (3, [4])], {'k': [1], 'd': {'x': {5}}}
+            b                   = self.Bag(name = 'own_E')
+            b.items, b.attrs    = [1, [2], (3, [4])], {'k': [1], 'd': {'x': {5}}}
 
             with Scenario():
                 b.items[1].append(9)
@@ -330,9 +330,9 @@ class TestScenarioOwnsItsContainers:
         bag = self.Bag
         with CACHE_ONLY():
             other = bag(name = 'own_F')
-        inner, pair, plain = [2], (3, [4]), ('x', 'y')
-        value = [1, inner, pair, other, plain]
-        copied = bag.trait('items').deep_copy(value)
+        inner, pair, plain  = [2], (3, [4]), ('x', 'y')
+        value               = [1, inner, pair, other, plain]
+        copied              = bag.trait('items').deep_copy(value)
         assert copied == value
         assert copied is not value
         assert copied[1] is not inner
@@ -341,15 +341,15 @@ class TestScenarioOwnsItsContainers:
         assert copied[4] is plain  # ... one that holds none is shared
         assert copied[3] is other  # and so is a Traitable
 
-        attrs = {'k': [1], 'd': {'x': {5}}}
-        copied = bag.trait('attrs').deep_copy(attrs)
+        attrs   = {'k': [1], 'd': {'x': {5}}}
+        copied  = bag.trait('attrs').deep_copy(attrs)
         assert copied == attrs
         assert copied['k'] is not attrs['k']
         assert copied['d'] is not attrs['d']
         assert copied['d']['x'] is not attrs['d']['x']
 
-        tags = {1, 2}
-        copied = bag.trait('tags').deep_copy(tags)
+        tags    = {1, 2}
+        copied  = bag.trait('tags').deep_copy(tags)
         assert copied == tags
         assert copied is not tags
         assert bag.trait('label').deep_copy(plain) is plain
@@ -357,9 +357,9 @@ class TestScenarioOwnsItsContainers:
     def test_deep_copy_of_a_subclass_and_of_a_container_holding_itself(self):
         class Tally(dict): ...
 
-        bag = self.Bag
-        tally = Tally(k = [1])
-        copied = bag.trait('attrs').deep_copy(tally)  # a subclass comes out as the built-in type, as with shallow_copy
+        bag     = self.Bag
+        tally   = Tally(k = [1])
+        copied  = bag.trait('attrs').deep_copy(tally)  # a subclass comes out as the built-in type, as with shallow_copy
         assert type(copied) is dict
         assert copied == {'k': [1]}
         assert copied['k'] is not tally['k']
@@ -383,35 +383,35 @@ class TestScenarioResult:
     """
 
     class Report(ScenarioResult):
-        name: str = T(T.ID)
-        pnl: float = RT()
-        deltas: dict = RT()
-        rows: list = RT()
-        total: float = RT()
+        name: str       = T(T.ID)
+        pnl: float      = RT()
+        deltas: dict    = RT()
+        rows: list      = RT()
+        total: float    = RT()
 
         def total_get(self) -> float:
             return sum(self.deltas.values())
 
     class Quote(Traitable):
-        name: str = T(T.ID)
-        value: float = RT()
+        name: str       = T(T.ID)
+        value: float    = RT()
 
     class StoredReport(ScenarioResult):
-        name: str = T(T.ID)
-        pnl: float = T()
+        name: str   = T(T.ID)
+        pnl: float  = T()
 
     class StoredQuote(Traitable):
-        name: str = T(T.ID)
-        value: float = T()
+        name: str       = T(T.ID)
+        value: float    = T()
 
     def test_what_is_set_inside_is_seen_outside(self):
         with CACHE_ONLY(), Scenario('res_outer_A'):
-            report, quote = self.Report(name = 'res_A'), self.Quote(name = 'res_A')
-            quote.value = 1.0
+            report, quote   = self.Report(name = 'res_A'), self.Quote(name = 'res_A')
+            quote.value     = 1.0
 
             with Scenario():
                 quote.value = 2.0
-                report.pnl = quote.value
+                report.pnl  = quote.value
                 assert report.pnl == 2.0
 
             assert quote.value == 1.0  # the what-if stayed inside
@@ -420,21 +420,21 @@ class TestScenarioResult:
     def test_a_result_of_the_root_scope(self):
         """The root scope is off graph and the Scenario is on it: the result is still handled by its own scope."""
         with CACHE_ONLY():
-            report = self.Report(name = 'res_root')
-            report.deltas = {}
+            report          = self.Report(name = 'res_root')
+            report.deltas   = {}
 
             with Scenario():
-                report.pnl = 5.0
-                report.deltas['a'] = 1.0
+                report.pnl          = 5.0
+                report.deltas['a']  = 1.0
                 assert report.total == 1.0
 
             assert (report.pnl, report.deltas, report.total) == (5.0, {'a': 1.0}, 1.0)
 
     def test_in_place_change_inside_is_seen_outside(self):
         with CACHE_ONLY(), Scenario('res_outer_B'):
-            report = self.Report(name = 'res_B')
-            report.deltas, report.rows = {}, []
-            outer_deltas = report.deltas
+            report                      = self.Report(name = 'res_B')
+            report.deltas, report.rows  = {}, []
+            outer_deltas                = report.deltas
 
             with Scenario():
                 assert report.deltas is outer_deltas  # one copy: nothing is imported
@@ -488,8 +488,8 @@ class TestScenarioResult:
     def test_outside_a_scenario_a_result_is_layered(self):
         """Under a bare GRAPH_ON() a result is scoped like any other object."""
         with CACHE_ONLY(), GRAPH_ON():
-            report = self.Report(name = 'res_G')
-            report.pnl = 1.0
+            report      = self.Report(name = 'res_G')
+            report.pnl  = 1.0
 
             with GRAPH_ON():
                 report.pnl = 9.0
@@ -503,7 +503,7 @@ class TestScenarioResult:
 
             with Scenario():
                 quote.value = 2.0
-                report.pnl = quote.value
+                report.pnl  = quote.value
 
                 rc = quote.save()
                 assert not rc
@@ -517,6 +517,6 @@ class TestScenarioResult:
 
     def test_save_inside_a_bare_graph_on_is_not_refused(self):
         with DuckDbStore(), GRAPH_ON():
-            quote = self.StoredQuote(name = 'res_I')
+            quote       = self.StoredQuote(name = 'res_I')
             quote.value = 1.0
             quote.save().throw()

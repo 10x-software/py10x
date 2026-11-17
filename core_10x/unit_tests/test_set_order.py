@@ -32,7 +32,7 @@ class TestSetOrder:
 
     def test_a_set_trait_has_one_stored_form_and_one_id(self):
         with CACHE_ONLY():
-            tagged = Tagged(tags = {'b', 'c', 'a'}, _update = True)
+            tagged      = Tagged(tags = {'b', 'c', 'a'}, _update = True)
             tagged.more = {'b', 'c', 'a'}
 
             assert tagged.id().value == "{'a', 'b', 'c'}"  # written as str() writes a set
@@ -42,7 +42,7 @@ class TestSetOrder:
 
     def test_a_set_is_the_same_in_every_process(self):
         # the iteration order of a set of strings follows the hash seed, which differs from one process to the next
-        script = '\n'.join((
+        script  = '\n'.join((
             'from core_10x.exec_control import CACHE_ONLY',
             'from core_10x.unit_tests.test_set_order import Tagged',
             'with CACHE_ONLY():',
@@ -50,7 +50,7 @@ class TestSetOrder:
             "    tagged.more = {'one', 'two', 'three', 'four', 'five', 'six'}",
             "    print(tagged.id().value, tagged.serialize_object()['more'])",
         ))
-        seen = {
+        seen    = {
             subprocess.run([sys.executable, '-c', script], env = {**os.environ, 'PYTHONHASHSEED': seed}, capture_output = True, text = True, check = True).stdout.strip().splitlines()[-1]
             for seed in ('1', '2', '3')
         }

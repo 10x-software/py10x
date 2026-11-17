@@ -11,7 +11,7 @@ from core_10x.functional_account_keyring import SECRETS_FILE_ENV_VAR, Functional
 
 
 def test_no_env_var_starts_empty_not_raising(monkeypatch):
-    monkeypatch.delenv(SECRETS_FILE_ENV_VAR, raising=False)
+    monkeypatch.delenv(SECRETS_FILE_ENV_VAR, raising = False)
     fk = FunctionalAccountKeyring()  # must never raise -- keyring's auto-discovery probe depends on this
     assert fk.get_password('svc', 'user') is None
 

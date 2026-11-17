@@ -114,11 +114,11 @@ def test_derived_from_multiple_parents_one_missing():
 
 
 def test_derived_from_excluded_parent():
-    assert not PyClass.derived_from(bool, int, exclude_parents=(bool,))
+    assert not PyClass.derived_from(bool, int, exclude_parents = (bool,))
 
 
 def test_derived_from_excluded_not_in_hierarchy():
-    assert PyClass.derived_from(bool, int, exclude_parents=(str,))
+    assert PyClass.derived_from(bool, int, exclude_parents = (str,))
 
 
 # ----------------------------------------------------------------------------

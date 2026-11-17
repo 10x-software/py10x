@@ -6,8 +6,8 @@ from infra_10x.mongodb_store import MongoStore
 
 
 def test_mongo_parse_uri_round_trip():
-    uri = 'mongodb://user:pass@localhost:27017/testdb?ssl=false&serverSelectionTimeoutMS=5000'
-    args = MongoStore.parse_uri(uri)
+    uri     = 'mongodb://user:pass@localhost:27017/testdb?ssl=false&serverSelectionTimeoutMS=5000'
+    args    = MongoStore.parse_uri(uri)
 
     assert args[MongoStore.HOSTNAME_TAG] == 'localhost'
     assert args[MongoStore.DBNAME_TAG] == 'testdb'
@@ -38,9 +38,9 @@ def test_mongo_direct_alias_uri_round_trip():
 
 def test_mongo_ms_timeout_uri_round_trip():
     """Millisecond timeouts must survive a second canonical pass, including unlimited socketTimeoutMS=0."""
-    uri = 'mongodb://127.0.0.1:27017/db?connectTimeoutMS=10000&socketTimeoutMS=0&sst=5000&direct=true'
-    canonical = MongoStore.spec_from_uri(uri).uri()
-    query = canonical.split('?', 1)[1]
+    uri         = 'mongodb://127.0.0.1:27017/db?connectTimeoutMS=10000&socketTimeoutMS=0&sst=5000&direct=true'
+    canonical   = MongoStore.spec_from_uri(uri).uri()
+    query       = canonical.split('?', 1)[1]
     assert 'connectTimeoutMS=10000' in query
     assert 'socketTimeoutMS=0' in query
     assert 'sst=5000' in query
@@ -65,8 +65,8 @@ def test_spec_from_uri_includes_protocol_tag():
 
 
 def test_mongo_canonical_uri_adds_default_port():
-    no_port = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com/mydb')
-    with_port = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com:27017/mydb')
+    no_port     = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com/mydb')
+    with_port   = VaultResourceAccessor._canonical_uri(CONCRETE_RESOURCE.TS_STORE, 'mongodb://vault.example.com:27017/mydb')
 
     assert ':27017' in no_port
     assert no_port == with_port
@@ -78,14 +78,14 @@ def test_filter_and_pipeline_equivalence():
 
     serialized_traitable = {'_id': 'AAAA', '_rev': 10, 'name': 'test', 'age': 60}
 
-    data1 = dict(serialized_traitable)
+    data1           = dict(serialized_traitable)
     pipeline1: list = []
-    filter1: dict = {}
+    filter1: dict   = {}
     MongoCollectionHelperStub.prepare_filter_and_pipeline(data1, filter1, pipeline1)
 
-    data2 = dict(serialized_traitable)
+    data2           = dict(serialized_traitable)
     pipeline2: list = []
-    filter2: dict = {}
+    filter2: dict   = {}
     MongoCollectionHelper.prepare_filter_and_pipeline(data2, filter2, pipeline2)
 
     assert filter1 == filter2

@@ -7,7 +7,7 @@ from datetime import date
 import pytest
 
 
-@pytest.fixture(params=[False, True], ids=['py_curve', 'bcurve'])
+@pytest.fixture(params = [False, True], ids = ['py_curve', 'bcurve'])
 def curve_backend(request):
     return request.param
 
@@ -37,36 +37,36 @@ def curve_mod(curve_backend, monkeypatch):
 def _configure_no_interp(c, params, ip_kind, *, cxx: bool) -> None:
     params.ip_kind = ip_kind.NO_INTERP
     if cxx:
-        c.set_curve_params(ip_kind=ip_kind.NO_INTERP)
+        c.set_curve_params(ip_kind = ip_kind.NO_INTERP)
     else:
         c.params = params
 
 @pytest.mark.usefixtures('curve_mod')
 class TestCurve:
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse = True)
     def _py_curve_only(self, curve_backend):
         if curve_backend:
             pytest.xfail('Numeric Curve tests are py-only for now')
 
     def test_update_inserts_sorted_and_overwrites(self, curve_mod):
-        Curve = curve_mod.Curve
-        c = Curve()
+        Curve   = curve_mod.Curve
+        c       = Curve()
 
         # Insert out of order to check internal sorting
-        c.update(5, 50.0, reset=False)
-        c.update(1, 10.0, reset=False)
-        c.update(3, 30.0, reset=False)
+        c.update(5, 50.0, reset = False)
+        c.update(1, 10.0, reset = False)
+        c.update(3, 30.0, reset = False)
 
         # Overwrite existing point
-        c.update(3, 35.0, reset=False)
+        c.update(3, 35.0, reset = False)
 
         assert c.times == [1, 3, 5]
         assert c.values == [10.0, 35.0, 50.0]
 
     def test_value_linear_interpolation(self, curve_mod):
-        Curve = curve_mod.Curve
-        c = Curve()
-        c.update_many([0.0, 1.0], [0.0, 2.0], reset=True)
+        Curve   = curve_mod.Curve
+        c       = Curve()
+        c.update_many([0.0, 1.0], [0.0, 2.0], reset = True)
 
         # Ensure interpolation is allowed for all t by setting a non-None beginning_of_time
         c.beginning_of_time = 0.0
@@ -79,9 +79,9 @@ class TestCurve:
         assert c.value(0.5) == pytest.approx(1.0)
 
     def test_value_before_beginning_of_time_is_nan(self, curve_mod):
-        Curve = curve_mod.Curve
-        c = Curve()
-        c.update_many([0.0, 10.0], [0.0, 100.0], reset=True)
+        Curve   = curve_mod.Curve
+        c       = Curve()
+        c.update_many([0.0, 10.0], [0.0, 100.0], reset = True)
         c.beginning_of_time = 5.0
 
         assert math.isnan(c.value(3.0))
@@ -90,9 +90,9 @@ class TestCurve:
     def test_value_returns_python_float(self, curve_mod):
         # scipy.interpolate.interp1d returns a 0-d numpy.ndarray; value() must
         # unwrap to a built-in float so callers don't get an array back.
-        Curve = curve_mod.Curve
-        c = Curve()
-        c.update_many([0.0, 1.0], [0.0, 2.0], reset=True)
+        Curve   = curve_mod.Curve
+        c       = Curve()
+        c.update_many([0.0, 1.0], [0.0, 2.0], reset = True)
         c.beginning_of_time = 0.0
 
         # Interpolated point
@@ -112,11 +112,11 @@ class TestCurve:
 
     def test_no_interp_mode(self, curve_mod):
         Curve, CurveParams, IP_KIND = curve_mod.Curve, curve_mod.CurveParams, curve_mod.IP_KIND
-        c = Curve()
-        c.update_many([0.0, 1.0], [10.0, 20.0], reset=True)
+        c                           = Curve()
+        c.update_many([0.0, 1.0], [10.0, 20.0], reset = True)
 
         params = CurveParams()
-        _configure_no_interp(c, params, IP_KIND, cxx=False)
+        _configure_no_interp(c, params, IP_KIND, cxx = False)
 
         # Direct lookup for existing times
         assert c.value(0.0) == pytest.approx(10.0)
@@ -127,9 +127,9 @@ class TestCurve:
         assert math.isnan(v)
 
     def test_remove_and_perturb(self, curve_mod):
-        Curve = curve_mod.Curve
-        c = Curve()
-        c.update_many([0, 1, 2], [10.0, 20.0, 30.0], reset=True)
+        Curve   = curve_mod.Curve
+        c       = Curve()
+        c.update_many([0, 1, 2], [10.0, 20.0, 30.0], reset = True)
 
         # Remove existing point
         assert c.remove(1) is True
@@ -158,15 +158,15 @@ class TestTwoFuncInterpolator:
             return v / 2.0
 
         tf = TwoFuncInterpolator(
-            in_func=None,
-            out_func=out_func,
-            in_func_on_arrays=in_func_on_arrays,
+            in_func             = None,
+            out_func            = out_func,
+            in_func_on_arrays   = in_func_on_arrays,
         )
 
         xs = [0.0, 1.0]
         ys = [0.0, 10.0]
 
-        ip = tf(xs, ys, kind='linear', fill_value='extrapolate', bounds_error=False)
+        ip = tf(xs, ys, kind = 'linear', fill_value = 'extrapolate', bounds_error = False)
 
         # At mid-point we should recover the simple linear interpolation of original ys
         assert ip(0.5) == pytest.approx(5.0)
@@ -175,25 +175,25 @@ class TestTwoFuncInterpolator:
 @pytest.mark.usefixtures('curve_mod')
 class TestDateCurve:
     def test_dates_set_and_get(self, curve_mod, curve_backend):
-        DateCurve = curve_mod.DateCurve
-        dc = DateCurve()
+        DateCurve   = curve_mod.DateCurve
+        dc          = DateCurve()
 
-        d1 = date(2023, 1, 1)
-        d2 = date(2023, 1, 5)
-        dc.dates = [d1,d2]
+        d1          = date(2023, 1, 1)
+        d2          = date(2023, 1, 5)
+        dc.dates    = [d1,d2]
 
         assert isinstance(dc.times[0], int)
         assert dc.dates == [d1, d2]
 
     def test_update_and_value(self, curve_mod, curve_backend):
-        DateCurve = curve_mod.DateCurve
-        dc = DateCurve()
+        DateCurve   = curve_mod.DateCurve
+        dc          = DateCurve()
 
         d1 = date(2023, 1, 1)
         d2 = date(2023, 1, 11)
 
-        dc.update(d1, 0.0, reset=False)
-        dc.update(d2, 10.0, reset=True)
+        dc.update(d1, 0.0, reset = False)
+        dc.update(d2, 10.0, reset = True)
 
         dc.beginning_of_time = dc._to_number(d1)
 
@@ -205,11 +205,11 @@ class TestDateCurve:
 
     def test_construct_from_dates_and_values(self, curve_mod, curve_backend):
         """Construction kwargs ``dates=`` / ``values=`` (see xxfin date_curve_test)."""
-        DateCurve = curve_mod.DateCurve
-        d1 = date(2020, 1, 1)
-        d2 = date(2020, 12, 31)
-        mid = date(2020, 7, 31)
-        dc = DateCurve(values=[0.1, 0.2],dates=[d1, d2])
+        DateCurve   = curve_mod.DateCurve
+        d1          = date(2020, 1, 1)
+        d2          = date(2020, 12, 31)
+        mid         = date(2020, 7, 31)
+        dc          = DateCurve(values = [0.1, 0.2],dates = [d1, d2])
 
         assert list(dc.dates) == [d1, d2]
         assert list(dc.values) == pytest.approx([0.1, 0.2])
@@ -219,17 +219,17 @@ class TestDateCurve:
         assert dc.value(mid) == pytest.approx(0.1 + (0.2 - 0.1) * (mid - d1).days / (d2 - d1).days)
 
     def test_no_interp_mode(self, curve_mod, curve_backend):
-        DateCurve = curve_mod.DateCurve
-        CurveParams, IP_KIND = curve_mod.CurveParams, curve_mod.IP_KIND
-        dc = DateCurve()
+        DateCurve               = curve_mod.DateCurve
+        CurveParams, IP_KIND    = curve_mod.CurveParams, curve_mod.IP_KIND
+        dc                      = DateCurve()
 
         d1 = date(2023, 1, 1)
         d2 = date(2023, 1, 11)
-        dc.update(d1, 10.0, reset=False)
-        dc.update(d2, 20.0, reset=True)
+        dc.update(d1, 10.0, reset = False)
+        dc.update(d2, 20.0, reset = True)
 
         params = CurveParams()
-        _configure_no_interp(dc, params, IP_KIND, cxx=curve_backend)
+        _configure_no_interp(dc, params, IP_KIND, cxx = curve_backend)
 
         assert dc.value(d1) == pytest.approx(10.0)
         assert dc.value(d2) == pytest.approx(20.0)
@@ -239,18 +239,18 @@ class TestDateCurve:
 
     def test_non_default_params_applied_on_value(self, curve_mod, curve_backend):
         """Assigning params (no set_curve_params) must still affect value()."""
-        DateCurve = curve_mod.DateCurve
-        CurveParams, IP_KIND = curve_mod.CurveParams, curve_mod.IP_KIND
-        dc = DateCurve()
+        DateCurve               = curve_mod.DateCurve
+        CurveParams, IP_KIND    = curve_mod.CurveParams, curve_mod.IP_KIND
+        dc                      = DateCurve()
 
         d1 = date(2023, 1, 1)
         d2 = date(2023, 1, 11)
-        dc.update(d1, 10.0, reset=False)
-        dc.update(d2, 20.0, reset=True)
+        dc.update(d1, 10.0, reset = False)
+        dc.update(d2, 20.0, reset = True)
 
-        params = CurveParams()
-        params.ip_kind = IP_KIND.NO_INTERP
-        dc.params = params
+        params          = CurveParams()
+        params.ip_kind  = IP_KIND.NO_INTERP
+        dc.params       = params
 
         assert dc.value(d1) == pytest.approx(10.0)
         assert dc.value(d2) == pytest.approx(20.0)
@@ -260,8 +260,8 @@ class TestDateCurve:
 
     def test_params_get_next_with_nan_right_fill(self, curve_mod, curve_backend):
         """FuturesCurve-style params_get (NEXT + (left, nan)) must apply without set_curve_params."""
-        DateCurve = curve_mod.DateCurve
-        CurveParams, IP_KIND = curve_mod.CurveParams, curve_mod.IP_KIND
+        DateCurve               = curve_mod.DateCurve
+        CurveParams, IP_KIND    = curve_mod.CurveParams, curve_mod.IP_KIND
 
         class FuturesLikeCurve(DateCurve):
             def params_get(self) -> CurveParams:
@@ -273,7 +273,7 @@ class TestDateCurve:
                     kwargs['bounds_error'] = False
                 return CurveParams(**kwargs)
 
-        c = FuturesLikeCurve(beginning_of_time=date(2025, 10, 10))
+        c = FuturesLikeCurve(beginning_of_time = date(2025, 10, 10))
         for d, v in (
             (date(2025, 11, 20), 60.0),
             (date(2025, 12, 19), 62.0),
@@ -305,18 +305,18 @@ class TestDateCurve:
         if curve_backend:
             pytest.xfail('cxx DateCurve has no _to_number/_from_number helpers')
 
-        DateCurve = curve_mod.DateCurve
-        dc = DateCurve()
+        DateCurve   = curve_mod.DateCurve
+        dc          = DateCurve()
 
-        some_date = date(2020, 6, 15)
-        num = dc._to_number(some_date)
+        some_date   = date(2020, 6, 15)
+        num         = dc._to_number(some_date)
         assert isinstance(num, int)
         assert dc._from_number(num) == some_date
 
     def test_beginning_of_time_as_date(self, curve_mod, curve_backend):
         """DateCurve.beginning_of_time_as_date must return date, not the stored ordinal int."""
-        DateCurve = curve_mod.DateCurve
-        dc = DateCurve()
+        DateCurve   = curve_mod.DateCurve
+        dc          = DateCurve()
         assert dc.beginning_of_time is None
         assert dc.beginning_of_time_as_date() is None
 

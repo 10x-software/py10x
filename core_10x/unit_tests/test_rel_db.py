@@ -48,17 +48,17 @@ def test_rel_db_query_and_insert(temp_duckdb):
 def test_rel_db_query_returns_none_for_missing_table(temp_duckdb):
     db = temp_duckdb
     with db:
-        result = db.query('nonexistent_table', _throw=False)
+        result = db.query('nonexistent_table', _throw = False)
     assert result is None
 
 
 def test_rel_db_insert_replace(temp_duckdb):
-    db = temp_duckdb
-    original_df = pl.DataFrame({'a': [1, 2, 3], 'b': ['x', 'y', 'z']})
-    replacement_df = pl.DataFrame({'a': [10, 20], 'b': ['p', 'q']})
+    db              = temp_duckdb
+    original_df     = pl.DataFrame({'a': [1, 2, 3], 'b': ['x', 'y', 'z']})
+    replacement_df  = pl.DataFrame({'a': [10, 20], 'b': ['p', 'q']})
 
     db.insert('test_data', original_df)
-    db.insert('test_data', replacement_df, if_exists='replace')
+    db.insert('test_data', replacement_df, if_exists = 'replace')
     with db:
         result_df = db.query('test_data').to_polars()
 
@@ -66,12 +66,12 @@ def test_rel_db_insert_replace(temp_duckdb):
 
 
 def test_rel_db_insert_append(temp_duckdb):
-    db = temp_duckdb
-    first_df = pl.DataFrame({'a': [1, 2], 'b': ['x', 'y']})
-    second_df = pl.DataFrame({'a': [3, 4], 'b': ['z', 'w']})
+    db          = temp_duckdb
+    first_df    = pl.DataFrame({'a': [1, 2], 'b': ['x', 'y']})
+    second_df   = pl.DataFrame({'a': [3, 4], 'b': ['z', 'w']})
 
     db.insert('test_data', first_df)
-    db.insert('test_data', second_df, if_exists='append')
+    db.insert('test_data', second_df, if_exists = 'append')
     with db:
         result_df = db.query('test_data').to_polars()
 
@@ -89,27 +89,27 @@ def test_rel_db_drop_table(temp_duckdb):
     with db:
         db.drop_table('test_data')
     with db:
-        result = db.query('test_data', _throw=False)
+        result = db.query('test_data', _throw = False)
 
     assert result is None
 
 
 def test_rel_db_query_raises_without_context_manager(temp_duckdb):
     db = temp_duckdb
-    with pytest.raises(RuntimeError, match='context manager'):
+    with pytest.raises(RuntimeError, match = 'context manager'):
         db.query('prices')
 
 
 def test_rel_db_insert_raises_with_context_manager(temp_duckdb):
     db = temp_duckdb
     df = pl.DataFrame({'a': [1]})
-    with pytest.raises(RuntimeError, match='context manager'), db:
+    with pytest.raises(RuntimeError, match = 'context manager'), db:
         db.insert('test_data', df)
 
 
 def test_rel_db_drop_table_raises_without_context_manager(temp_duckdb):
     db = temp_duckdb
-    with pytest.raises(RuntimeError, match='context manager'):
+    with pytest.raises(RuntimeError, match = 'context manager'):
         db.drop_table('prices')
 
 

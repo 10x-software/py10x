@@ -47,7 +47,7 @@ def test_cache_keep_value_false_no_args():
     """
     calls = []
 
-    @cache(keep_value=False)
+    @cache(keep_value = False)
     def side_effect_only():
         calls.append(1)
         return 'expensive_result'
@@ -76,7 +76,7 @@ def test_cache_keep_value_false_no_args():
 def test_cache_keep_value_false_single_arg():
     calls = []
 
-    @cache(keep_value=False)
+    @cache(keep_value = False)
     def f(x):
         calls.append(x)
         return x * 2
@@ -96,7 +96,7 @@ def test_cache_keep_value_false_classmethod():
 
     class Demo:
         @classmethod
-        @cache(keep_value=False)
+        @cache(keep_value = False)
         def compute(cls, x):
             calls.append((cls, x))
             return x + 100
@@ -112,13 +112,13 @@ def test_cache_keep_value_false_classmethod():
 def test_cache_keep_value_false_multi_arg():
     calls = []
 
-    @cache(keep_value=False)
-    def f(a, b, *, c=0):
+    @cache(keep_value = False)
+    def f(a, b, *, c = 0):
         calls.append((a, b, c))
         return a + b + c
 
-    assert f(1, 2, c=3) == 6
-    assert f(1, 2, c=3) is None
+    assert f(1, 2, c = 3) == 6
+    assert f(1, 2, c = 3) is None
     assert calls == [(1, 2, 3)]
 
     assert f(4, 5) == 9
@@ -128,7 +128,7 @@ def test_cache_keep_value_false_multi_arg():
 def test_cache_keep_value_false_clear():
     calls = []
 
-    @cache(keep_value=False)
+    @cache(keep_value = False)
     def f(x):
         calls.append(x)
         return x * 10

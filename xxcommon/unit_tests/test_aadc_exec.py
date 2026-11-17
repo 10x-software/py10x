@@ -37,12 +37,12 @@ class UnregisteredLarva(Traitable):
 
 
 def test_aadc_exec_kernel_reuse_and_staleness_detection():
-    today = date.today()
-    dob = today - timedelta(days = 7)   #-- still a caterpillar (< s_age_at_metamorphosis_days)
+    today   = date.today()
+    dob     = today - timedelta(days = 7)   #-- still a caterpillar (< s_age_at_metamorphosis_days)
 
     with CACHE_ONLY():
-        w = ExternalWorld.current()
-        mb = MonarchButterfly(name = 'John', dob = dob)
+        w   = ExternalWorld.current()
+        mb  = MonarchButterfly(name = 'John', dob = dob)
 
         inputs_spec = {ExternalWorld: ('current_date', 'leaf_mass_available', 'wind_speed')}
         with AadcExec(mb.T.locomotive_speed, inputs_spec) as exec_:
@@ -71,7 +71,7 @@ def test_aadc_exec_kernel_reuse_and_staleness_detection():
 def test_aadc_exec_unregistered_branch_raises():
     #-- an unguarded `if` on an active input would freeze one control flow into the tape -- refuse to build it
     with CACHE_ONLY():
-        larva = UnregisteredLarva(dob = date.today() - timedelta(days = 7))
+        larva       = UnregisteredLarva(dob = date.today() - timedelta(days = 7))
         inputs_spec = {ExternalWorld: ('current_date', 'leaf_mass_available', 'wind_speed')}
         with AadcExec(larva.T.locomotive_speed, inputs_spec) as exec_:
             with pytest.raises(RuntimeError, match = r'IBOOL2BOOL.*UnregisteredLarva\.locomotive_speed_get'):

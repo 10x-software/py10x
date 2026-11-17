@@ -37,7 +37,7 @@ from core_10x.traitable import RT, Bundle, BundleHistory, NotStorableHelper, Sto
 # ---------------------------------------------------------------------------
 
 
-class Animals(Bundle, members_known=True):
+class Animals(Bundle, members_known = True):
     """Bundle base with an explicit member registry."""
 
     name: str = T(T.ID)
@@ -72,11 +72,11 @@ class TestBundleMembersKnown:
         assert Animals.deserialize_class_id(Cat.serialize_class_id()) is Cat
 
     def test_deserialize_unknown_member_raises(self):
-        with pytest.raises(ValueError, match='unknown bundle member'):
+        with pytest.raises(ValueError, match = 'unknown bundle member'):
             Animals.deserialize_class_id('Hamster')
 
     def test_deserialize_empty_id_raises(self):
-        with pytest.raises(ValueError, match='missing serialized class ID'):
+        with pytest.raises(ValueError, match = 'missing serialized class ID'):
             Animals.deserialize_class_id('')
 
     def test_is_bundle_for_base_and_members(self):
@@ -129,7 +129,7 @@ class TestBundleMembersUnknown:
         assert Vehicles.deserialize_class_id(sid) is Car
 
     def test_deserialize_empty_id_raises(self):
-        with pytest.raises(ValueError, match='missing serialized class ID'):
+        with pytest.raises(ValueError, match = 'missing serialized class ID'):
             Vehicles.deserialize_class_id('')
 
     def test_is_bundle_true_even_without_registry(self):
@@ -175,7 +175,7 @@ class TestBundleStorableRequirement:
         through the storable assertion.
         """
 
-        class _AbstractBundle(Bundle, members_known=True):
+        class _AbstractBundle(Bundle, members_known = True):
             pass  # no ID trait -> not storable
 
         # Base itself is allowed (storable check only applies to subsequent
@@ -183,7 +183,7 @@ class TestBundleStorableRequirement:
         assert _AbstractBundle.s_bundle_base is _AbstractBundle
         assert _AbstractBundle.s_bundle_members == {}
 
-        with pytest.raises(RuntimeError, match='is not storable'):
+        with pytest.raises(RuntimeError, match = 'is not storable'):
 
             class _NonStorableMember(_AbstractBundle):
                 pass  # still no ID trait -> not storable
@@ -191,7 +191,7 @@ class TestBundleStorableRequirement:
     def test_storable_member_accepted(self):
         """A member with a stored ID trait passes the storable check and registers."""
 
-        class _AbstractBundle2(Bundle, members_known=True):
+        class _AbstractBundle2(Bundle, members_known = True):
             pass
 
         class _StorableMember(_AbstractBundle2):
@@ -206,18 +206,18 @@ class TestBundleStorableRequirement:
 # ---------------------------------------------------------------------------
 
 
-class AbstractAnimals(Bundle, members_known=True):
+class AbstractAnimals(Bundle, members_known = True):
     """Bundle base without ID traits - not storable on its own."""
 
 
 class Wolf(AbstractAnimals):
-    name: str = T(T.ID)
+    name: str       = T(T.ID)
     howl_pitch: int = T()
 
 
 class Bear(AbstractAnimals):
-    name: str = T(T.ID)
-    den: str = T()
+    name: str   = T(T.ID)
+    den: str    = T()
 
 
 class TestBundleHistoryWithNonStorableBase:
@@ -271,12 +271,12 @@ class TestBundleHistoryWithNonStorableBase:
 
         from core_10x.traitable import AsOfContext, StorableHelperWithHistory
 
-        class AbstractBase(Bundle, members_known=True):
+        class AbstractBase(Bundle, members_known = True):
             """Bundle base without ID traits - not storable on its own."""
 
         assert not AbstractBase.s_history_class
         assert isinstance(AbstractBase.s_storage_helper, NotStorableHelper)
-        with AsOfContext(as_of_time=datetime.now(UTC).replace(tzinfo=None)):
+        with AsOfContext(as_of_time = datetime.now(UTC).replace(tzinfo = None)):
             class Derived(AbstractBase):
                 name: str = T(T.ID)
 
@@ -293,13 +293,13 @@ class TestBundleHistoryWithNonStorableBase:
         promoting the base's storage helper.  Without the lazy promotion, the
         base's helper would be ``NotStorableHelper`` and the save would
         silently no-op."""
-        w = Wolf(name='wolf_main')
+        w = Wolf(name = 'wolf_main')
         assert w._rev == 0
         w.howl_pitch = 7
         w.save().throw()
 
-        b = Bear(name='bear_main')
-        b.den = 'oak_hollow'
+        b       = Bear(name = 'bear_main')
+        b.den   = 'oak_hollow'
         b.save().throw()
 
         # Both members landed in the SAME (base's) collection.
@@ -317,9 +317,9 @@ class TestBundleHistoryWithNonStorableBase:
 
         # Schema store: member-specific scalar traits must promote to SQL columns
         # (union of all members' trait dirs), not sit only in the JSON blob.
-        store = bundle_history_store
-        coll_name = base_coll.collection_name()
-        sql_cols = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
+        store       = bundle_history_store
+        coll_name   = base_coll.collection_name()
+        sql_cols    = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
 
         for obj, member_field in (
             (w, 'howl_pitch'),
@@ -348,12 +348,12 @@ class TestBundleHistoryWithNonStorableBase:
         """History records for storable members of a non-storable bundle base
         all land in the ONE lazily-created ``<Base>#history`` collection,
         mirroring the storable-base case."""
-        w = Wolf(name='wolf_hist', _replace=True)
-        w.howl_pitch = 3
+        w               = Wolf(name = 'wolf_hist', _replace = True)
+        w.howl_pitch    = 3
         w.save().throw()
 
-        b = Bear(name='bear_hist', _replace=True)
-        b.den = 'cave'
+        b       = Bear(name = 'bear_hist', _replace = True)
+        b.den   = 'cave'
         b.save().throw()
 
         base_hist_coll = AbstractAnimals.s_history_class.collection()
@@ -367,12 +367,12 @@ class TestBundleHistoryWithNonStorableBase:
         """``Wolf.history()`` returns only Wolf history records even though
         Wolves and Bears live in the same shared (lazily-created) history
         collection on the non-storable base."""
-        w = Wolf(name='wolf_filter', _replace=True)
-        w.howl_pitch = 5
+        w               = Wolf(name = 'wolf_filter', _replace = True)
+        w.howl_pitch    = 5
         w.save().throw()
 
-        b = Bear(name='bear_filter', _replace=True)
-        b.den = 'pine'
+        b       = Bear(name = 'bear_filter', _replace = True)
+        b.den   = 'pine'
         b.save().throw()
 
         wolf_history = list(Wolf.history())
@@ -400,10 +400,10 @@ class TestBundleInstancesRoundTrip:
 
     def test_instantiate_members_in_cache_only(self):
         with CACHE_ONLY():
-            d = Dog(name='rex_bundle', _replace=True)
-            d.breed = 'lab'
-            c = Cat(name='whiskers_bundle', _replace=True)
-            c.indoor = True
+            d           = Dog(name = 'rex_bundle', _replace = True)
+            d.breed     = 'lab'
+            c           = Cat(name = 'whiskers_bundle', _replace = True)
+            c.indoor    = True
 
             assert isinstance(d, Dog)
             assert isinstance(c, Cat)
@@ -413,9 +413,9 @@ class TestBundleInstancesRoundTrip:
     def test_class_id_lookup_via_base(self):
         """Given only the base class and a serialized id, recover the concrete class."""
         with CACHE_ONLY():
-            d = Dog(name='rex_bundle2', _replace=True)
-            sid = type(d).serialize_class_id()
-            recovered_cls = Animals.deserialize_class_id(sid)
+            d               = Dog(name = 'rex_bundle2', _replace = True)
+            sid             = type(d).serialize_class_id()
+            recovered_cls   = Animals.deserialize_class_id(sid)
             assert recovered_cls is Dog
 
 
@@ -466,9 +466,9 @@ class TestBundleHistoryStaticWiring:
         """The history-class hierarchy mirrors the main-class hierarchy:
         ``<Base>#history`` is the bundle base for histories, and every
         ``<Member>#history`` is a Bundle member of ``<Base>#history``."""
-        animals_hist = Animals.s_history_class
-        dog_hist = Dog.s_history_class
-        cat_hist = Cat.s_history_class
+        animals_hist    = Animals.s_history_class
+        dog_hist        = Dog.s_history_class
+        cat_hist        = Cat.s_history_class
 
         assert issubclass(animals_hist, Bundle)
         assert issubclass(dog_hist, Bundle)
@@ -499,8 +499,8 @@ def bundle_history_store(ts_instance):
     where the runtime bug is sensitive to ordering.  We pick test scenarios
     that do not depend on a virgin helper cache.
     """
-    store = ts_instance
-    store.username = 'test_user'
+    store           = ts_instance
+    store.username  = 'test_user'
     store.begin_using()
     yield store
     for cn in store.collection_names():
@@ -518,7 +518,7 @@ class TestBundleHistoryBehavior:
     def test_main_record_routes_to_base_collection(self, bundle_history_store):
         """Main records go to the bundle base's collection - this is the
         whole point of Bundle."""
-        d = Dog(name='dog_main', _replace=True)
+        d       = Dog(name = 'dog_main', _replace = True)
         d.breed = 'lab'
         d.save().throw()
 
@@ -529,14 +529,14 @@ class TestBundleHistoryBehavior:
         assert loaded['_cls'] == 'Dog'
         assert loaded['breed'] == 'lab'
 
-        c = Cat(name='cat_main_cols', _replace=True)
-        c.indoor = True
+        c           = Cat(name = 'cat_main_cols', _replace = True)
+        c.indoor    = True
         c.save().throw()
         # Progressive union of Dog.breed + Cat.indoor via each member's s_dir on open:
         # SQL columns on a schema store (not only the JSON blob), else in the blob.
-        store = bundle_history_store
-        coll_name = base_coll.collection_name()
-        sql_cols = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
+        store       = bundle_history_store
+        coll_name   = base_coll.collection_name()
+        sql_cols    = set(base_coll._collection_columns()) - {'_id', '_rev', '_data'}
         for obj, member_field in ((d, 'breed'), (c, 'indoor')):
             assert member_field in base_coll.col_trait_dir
             blob = json.loads(store._con.execute(f'SELECT _data FROM "{coll_name}" WHERE _id = ?', [obj.id_value()]).fetchone()[0])
@@ -559,7 +559,7 @@ class TestBundleHistoryBehavior:
         assert 'breed' not in base_coll.col_trait_dir
         assert 'indoor' not in base_coll.col_trait_dir
 
-        d = Dog(name='dog_prog', _replace=True)
+        d       = Dog(name = 'dog_prog', _replace = True)
         d.breed = 'pug'
         d.save().throw()
         coll = Dog.collection()
@@ -570,8 +570,8 @@ class TestBundleHistoryBehavior:
             assert 'breed' in set(coll._collection_columns())
             assert 'indoor' not in set(coll._collection_columns())
 
-        c = Cat(name='cat_prog', _replace=True)
-        c.indoor = False
+        c           = Cat(name = 'cat_prog', _replace = True)
+        c.indoor    = False
         c.save().throw()
         assert 'breed' in coll.col_trait_dir and 'indoor' in coll.col_trait_dir
         if store.s_supports_add_column_if_not_exists:
@@ -582,17 +582,17 @@ class TestBundleHistoryBehavior:
         """All members' history records land in the ONE shared
         ``<Base>#history`` collection - the history-class hierarchy mirrors
         the bundle's main-class hierarchy."""
-        d = Dog(name='dog_share', _replace=True)
+        d       = Dog(name = 'dog_share', _replace = True)
         d.breed = 'beagle'
         d.save().throw()
 
-        c = Cat(name='cat_share', _replace=True)
-        c.indoor = True
+        c           = Cat(name = 'cat_share', _replace = True)
+        c.indoor    = True
         c.save().throw()
 
-        animals_hist_coll = Animals.s_history_class.collection()
-        dog_hist_coll = Dog.s_history_class.collection()
-        cat_hist_coll = Cat.s_history_class.collection()
+        animals_hist_coll   = Animals.s_history_class.collection()
+        dog_hist_coll       = Dog.s_history_class.collection()
+        cat_hist_coll       = Cat.s_history_class.collection()
 
         # All three resolve to the same shared collection.
         assert dog_hist_coll is animals_hist_coll
@@ -606,8 +606,8 @@ class TestBundleHistoryBehavior:
         store = bundle_history_store
         Vehicles.delete_collection()
 
-        car = Car(plate='ABC-1', _replace=True)
-        car.doors = 4
+        car         = Car(plate = 'ABC-1', _replace = True)
+        car.doors   = 4
         car.save().throw()
 
         coll = Car.collection()
@@ -631,12 +631,12 @@ class TestBundleHistoryBehavior:
         """``Cat.history()`` returns only Cat records even though Cats and
         Dogs live in the same shared history collection - the framework
         filters by ``_cls`` in ``StorableHelperWithHistory._find``."""
-        d = Dog(name='dog_filter', _replace=True)
+        d       = Dog(name = 'dog_filter', _replace = True)
         d.breed = 'lab'
         d.save().throw()
 
-        c = Cat(name='cat_filter', _replace=True)
-        c.indoor = True
+        c           = Cat(name = 'cat_filter', _replace = True)
+        c.indoor    = True
         c.save().throw()
 
         cat_history = list(Cat.history())

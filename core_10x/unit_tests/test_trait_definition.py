@@ -42,17 +42,17 @@ def test_t_with_none_default():
 
 
 def test_t_with_explicit_data_type():
-    td = T(data_type=int)
+    td = T(data_type = int)
     assert td.data_type is int
 
 
 def test_t_with_explicit_fmt():
-    td = T(fmt='.2f')
+    td = T(fmt = '.2f')
     assert td.fmt == '.2f'
 
 
 def test_t_extra_kwargs_stored_in_params():
-    td = T(custom_key='val')
+    td = T(custom_key = 'val')
     assert td.params.get('custom_key') == 'val'
 
 
@@ -67,9 +67,9 @@ def test_t_flags_default_is_zero():
 
 
 def test_t_with_id_flag_sets_id_bit():
-    id_td = T(T.ID)
-    plain_td = T()
-    id_val = T.ID.value()
+    id_td       = T(T.ID)
+    plain_td    = T()
+    id_val      = T.ID.value()
     assert id_td.flags.value() & id_val == id_val
     assert plain_td.flags.value() & id_val == 0
 
@@ -80,7 +80,7 @@ def test_t_with_id_flag_leaves_default_as_xnone():
 
 
 def test_t_id_with_explicit_default():
-    td = T(T.ID, default=1)
+    td = T(T.ID, default = 1)
     assert td.default == 1
     assert td.flags.value() & T.ID.value() != 0
 
@@ -95,13 +95,13 @@ def test_rt_returns_trait_definition():
 
 
 def test_rt_sets_runtime_flag():
-    td = RT()
+    td          = RT()
     runtime_val = T.RUNTIME.value()
     assert td.flags.value() & runtime_val == runtime_val
 
 
 def test_rt_plain_t_does_not_have_runtime_flag():
-    plain = T()
+    plain       = T()
     runtime_val = T.RUNTIME.value()
     assert plain.flags.value() & runtime_val == 0
 
@@ -125,7 +125,7 @@ def test_rt_with_flag_positional_does_not_mutate_flag():
 
 def test_rt_with_flag_kwarg_does_not_mutate_flag():
     before = T.STICKY.value()
-    RT(flags=T.STICKY)
+    RT(flags = T.STICKY)
     assert T.STICKY.value() == before
 
 
@@ -140,8 +140,8 @@ def test_floordiv_sets_ui_hint_tip():
 
 
 def test_floordiv_returns_same_instance():
-    td = T()
-    result = td // 'tip'
+    td      = T()
+    result  = td // 'tip'
     assert result is td
 
 
@@ -201,14 +201,14 @@ def test_colors_both_empty_returns_empty():
 
 
 def test_trait_definition_copy_is_independent():
-    td = T(42)
+    td  = T(42)
     td2 = td.copy()
     assert td2 is not td
     assert td2.default == 42
 
 
 def test_trait_definition_copy_deep_copies_ui_hint():
-    td = T() // 'original'
+    td  = T() // 'original'
     td2 = td.copy()
     td2 // 'modified'
     assert td.ui_hint.tip == 'original'
@@ -237,9 +237,9 @@ def test_m_apply_preserves_default_when_no_change():
 
 
 def test_m_floordiv_applies_tip_via_apply():
-    original = T(10)
-    m = M() // 'new tip'
-    result = m.apply(original)
+    original    = T(10)
+    m           = M() // 'new tip'
+    result      = m.apply(original)
     assert result.ui_hint.tip == 'new tip'
 
 

@@ -7,7 +7,7 @@ from core_10x.trait_method_error import TraitMethodError
 from core_10x.traitable import AnonymousTraitable, Traitable
 
 OUTPUTS = ['exception', 'object', 'args', 'value']
-GROUPS = [
+GROUPS  = [
     {
         'serialize_nx': lambda x: x.serialize_object(False),
         's_deserialize': lambda x: x.__class__.deserialize_object(x.s_bclass, None, {'_id': 'a', '_rev': 1, 's': 1000}),
@@ -23,9 +23,9 @@ bombing_methods = {'_'.join(OUTPUTS[: i + 1]): group for i, group in enumerate(G
 class X(Traitable):
     x: int
     y: int
-    z: int = T(1000)
-    s: int = T()
-    t: AnonymousTraitable = T(T.EMBEDDED)
+    z: int                  = T(1000)
+    s: int                  = T()
+    t: AnonymousTraitable   = T(T.EMBEDDED)
 
     @classmethod
     def bombing_method(cls, x):
@@ -49,10 +49,10 @@ class X(Traitable):
         return cls.bombing_method(value)
 
 
-@pytest.mark.parametrize(argnames=['cnt', 'key'], argvalues=enumerate(bombing_methods.keys()))
+@pytest.mark.parametrize(argnames = ['cnt', 'key'], argvalues = enumerate(bombing_methods.keys()))
 def test_trait_method_error(cnt, key):
 
-    x = X()
+    x   = X()
     x.t = X()
     for m, f in bombing_methods[key].items():
         try:

@@ -20,20 +20,20 @@ class Backend(NamedTuple):
 
 class TEST_TS_STORE(NamedConstant):
     # URIs are per-session databases — see core_10x/testlib/test_databases.py.
-    MONGODB = Backend((True, False), True)
-    POSTGRESQL = Backend((False,), False)
+    MONGODB     = Backend((True, False), True)
+    POSTGRESQL  = Backend((False,), False)
 
 
 @pytest.fixture(
-    params=[
-        pytest.param((backend, py_helper), id=f'{backend.name.lower()}{"-py-helper" if py_helper else ""}')
+    params = [
+        pytest.param((backend, py_helper), id = f'{backend.name.lower()}{"-py-helper" if py_helper else ""}')
         for backend in TEST_TS_STORE.s_dir.values()
         for py_helper in backend.value.helper_flags
     ]
 )
 def ts_instance(mocker, request, live_store):
-    backend = request.param[0]
-    instance = live_store(backend.name)
+    backend     = request.param[0]
+    instance    = live_store(backend.name)
     if instance is None:
         msg = f'{backend.label} not running (at {test_databases.test_uri(backend.name)})'
         if backend.value.hard_require:
@@ -55,21 +55,21 @@ def ts_instance(mocker, request, live_store):
     if request.param[1]:
         # Intentionally materialize metaclass __annotations__ to simulate prior
         # access on pybind11_type and keep this path covered.
-        _ = type(MongoCollectionHelper).__annotations__
-        mock = mocker.patch('infra_10x.MongoCollectionHelper')
-        mock.value = MongoCollectionHelperStub
+        _           = type(MongoCollectionHelper).__annotations__
+        mock        = mocker.patch('infra_10x.MongoCollectionHelper')
+        mock.value  = MongoCollectionHelperStub
     return instance
 
 
 @pytest.fixture
 def postgres_store(live_store):
-    store_protocol = TEST_TS_STORE.POSTGRESQL.name
-    store = live_store(store_protocol)
+    store_protocol  = TEST_TS_STORE.POSTGRESQL.name
+    store           = live_store(store_protocol)
     need(store is not None, f'{store_protocol} not running (at {test_databases.test_uri(store_protocol)})')
     return store
 
 
-@pytest.fixture(scope='module', autouse=True)
+@pytest.fixture(scope = 'module', autouse = True)
 def clear_ts_store_instances():
     assert not TsStore.s_instances
     yield

@@ -105,7 +105,7 @@ def test_functional_account_rejects_non_prefixed_os_identity(monkeypatch, capsys
 
 @pytest.mark.skipif(
     sys.platform == 'win32',
-    reason='--functional-account is a Linux/Docker-container command (docker/entrypoint.sh); --output-file is not exercised on Windows',
+    reason = '--functional-account is a Linux/Docker-container command (docker/entrypoint.sh); --output-file is not exercised on Windows',
 )
 def test_functional_account_writes_manifest_to_output_file(monkeypatch, capsys, tmp_path):
     """--output-file is the mode an outer wrapper (xx-functional-account-init) uses: the manifest
@@ -120,14 +120,14 @@ def test_functional_account_writes_manifest_to_output_file(monkeypatch, capsys, 
 
     def user_init(*, master_password, **kwargs):
         seen['master_password'] = master_password
-        seen['other_kwargs'] = kwargs
-        user_id = VaultUser.myname()
+        seen['other_kwargs']    = kwargs
+        user_id                 = VaultUser.myname()
         keyring.set_password(EnvVars.master_password_key, user_id, master_password)
         keyring.set_password(vault_uri, user_id, 'pg_admin\x1ffake-pg-password')
         return RC_TRUE
 
-    out_file = tmp_path / 'manifest.json'
-    argv = ['xx-user-init', '--functional-account', '--output-file', str(out_file)]
+    out_file    = tmp_path / 'manifest.json'
+    argv        = ['xx-user-init', '--functional-account', '--output-file', str(out_file)]
     try:
         rc = _run(monkeypatch, argv, user_init)
     finally:
@@ -140,8 +140,8 @@ def test_functional_account_writes_manifest_to_output_file(monkeypatch, capsys, 
     stdout = capsys.readouterr().out
     assert stdout == ''  # manifest must never be printed
 
-    manifest = json.loads(out_file.read_text())
-    user_id = VaultUser.myname()
+    manifest    = json.loads(out_file.read_text())
+    user_id     = VaultUser.myname()
     assert manifest == [
         {'service': EnvVars.master_password_key, 'username': user_id, 'password': seen['master_password']},
         {'service': vault_uri, 'username': user_id, 'password': 'pg_admin\x1ffake-pg-password'},
@@ -175,15 +175,15 @@ class _Vault:
 
 def test_functional_account_does_not_store_token_without_a_digit(monkeypatch, tmp_path):
     """A token_urlsafe draw with no digit fails verify_new_password. user_init must not store it."""
-    bad = 'AbCdEfGhIjKlMnOpQrStUvWx'  # urlsafe alphabet, no digit
-    good = 'AbCdEfGhIjKlMnOpQrStUvW1'
+    bad     = 'AbCdEfGhIjKlMnOpQrStUvWx'  # urlsafe alphabet, no digit
+    good    = 'AbCdEfGhIjKlMnOpQrStUvW1'
     assert not VaultUtils.verify_new_password(bad, bad)
     assert 'digit' in VaultUtils.verify_new_password(bad, bad).error().lower()
     assert VaultUtils.verify_new_password(good, good)
 
     generated = []
 
-    def generate_password(cls, length=24):
+    def generate_password(cls, length = 24):
         value = bad if not generated else good
         generated.append(value)
         return value
@@ -196,15 +196,15 @@ def test_functional_account_does_not_store_token_without_a_digit(monkeypatch, tm
     # Argument evaluation constructs the backend before set_keyring; do not install it.
     monkeypatch.setattr(keyring, 'set_keyring', lambda *_args, **_kwargs: None)
 
-    store = {}
-    seen = {}
+    store   = {}
+    seen    = {}
 
     def user_init(*, master_password, **kwargs):
-        seen['master_password'] = master_password
-        seen['kwargs'] = kwargs
-        user_id = VaultUser.myname()
-        store[(EnvVars.master_password_key, user_id)] = master_password
-        store[(vault_uri, user_id)] = 'pg_admin\x1ffake-pg-password'
+        seen['master_password']                         = master_password
+        seen['kwargs']                                  = kwargs
+        user_id                                         = VaultUser.myname()
+        store[(EnvVars.master_password_key, user_id)]   = master_password
+        store[(vault_uri, user_id)]                     = 'pg_admin\x1ffake-pg-password'
         return RC_TRUE
 
     monkeypatch.setattr(keyring, 'get_password', lambda service, username: store.get((service, username)))
@@ -230,16 +230,16 @@ def test_user_init_new_user_returns_rc_when_create_master_password_fails(monkeyp
     monkeypatch.setattr(VaultUser, 'myname', classmethod(lambda cls: 'alice'))
     monkeypatch.setattr(VaultUser, 'existing_instance', lambda *_args, **_kwargs: None)
 
-    def creds(cls, vault_uri, login=None, password=None):
+    def creds(cls, vault_uri, login = None, password = None):
         return RC_TRUE, _Vault('alice'), login, password
 
     monkeypatch.setattr(VaultUtils, '_get_and_check_vault_credentials', classmethod(creds))
 
     rc = VaultUtils._user_init_new_user(
         'postgresql://vault-host:5432/vaultdb',
-        login='alice',
-        password='vault-secret',
-        master_password=bad,
+        login           = 'alice',
+        password        = 'vault-secret',
+        master_password = bad,
     )
     assert not rc
     assert 'digit' in rc.error().lower()
@@ -248,7 +248,7 @@ def test_user_init_new_user_returns_rc_when_create_master_password_fails(monkeyp
 def test_new_user_with_only_vault_login_points_at_new_machine(monkeypatch):
     vault_uri = 'postgresql://vault-host:5432/vaultdb'
     _forbid_real_keyring(monkeypatch)
-    monkeypatch.setattr(SecKeys, 'check_vault_uri', classmethod(lambda cls, main=False: (RC_TRUE, vault_uri)))
+    monkeypatch.setattr(SecKeys, 'check_vault_uri', classmethod(lambda cls, main = False: (RC_TRUE, vault_uri)))
     monkeypatch.setattr(
         SecKeys,
         'retrieve_master_password',
@@ -265,6 +265,6 @@ def test_new_user_with_only_vault_login_points_at_new_machine(monkeypatch):
 
     monkeypatch.setattr(VaultUtils, '_user_init_new_user', classmethod(new_user))
 
-    rc = VaultUtils.user_init(new_machine=False)
+    rc = VaultUtils.user_init(new_machine = False)
     assert not rc
     assert 'xx-user-init --new-machine' in rc.error()

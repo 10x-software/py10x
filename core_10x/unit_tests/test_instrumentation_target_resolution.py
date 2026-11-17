@@ -9,7 +9,7 @@ from core_10x.callable_instrumentation import CallableRewriter, InstrumentationR
 @pytest.fixture
 def modules(tmp_path, monkeypatch):
     """Writes {short_name: source} as uniquely named modules; '{name}' in a source is replaced by that module's real name."""
-    tag = uuid.uuid4().hex
+    tag     = uuid.uuid4().hex
     created = []
 
     def write(sources: dict[str, str]) -> dict[str, str]:
@@ -72,8 +72,8 @@ def test_targets_own_modules_still_rewalked(modules, registry):
 @pytest.mark.parametrize('by_name', [False, True])
 def test_target_module_imported_before_the_call(modules, registry, by_name):
     # -- the target's module is already in sys.modules, so nothing is imported while resolving it
-    names = modules({'a': 'class BaseA:\n    def m(self):\n        return 1\n\nclass ChildA(BaseA):\n    def m(self):\n        return 2\n'})
-    module = importlib.import_module(names['a'])
+    names   = modules({'a': 'class BaseA:\n    def m(self):\n        return 1\n\nclass ChildA(BaseA):\n    def m(self):\n        return 2\n'})
+    module  = importlib.import_module(names['a'])
     registry.set_target_base_classes(f'{names["a"]}.BaseA' if by_name else module.BaseA)
 
     assert {module.BaseA, module.ChildA} <= registry.instrumented_classes

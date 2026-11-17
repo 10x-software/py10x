@@ -13,7 +13,7 @@ class Ping(Event):
     n: int = T(0)
 
 
-class PingCounter(EventProcessor, inputs=(Ping,), outputs=()):
+class PingCounter(EventProcessor, inputs = (Ping,), outputs = ()):
     total: int = T(0)
 
     def Ping_process(self, event: Ping):
@@ -24,7 +24,7 @@ class Pong(Event):
     n: int = T(0)
 
 
-class PongCounter(EventProcessor, inputs=(Pong,), outputs=()):
+class PongCounter(EventProcessor, inputs = (Pong,), outputs = ()):
     total: int = T(0)
 
     def Pong_process(self, event: Pong):
@@ -46,7 +46,7 @@ def event_store(mocker):
     clock = [datetime(2026, 6, 1, 12, 0, 0)]
 
     def server_time_sql(self):
-        clock[0] += timedelta(milliseconds=10)
+        clock[0] += timedelta(milliseconds = 10)
         return f"CAST('{clock[0].strftime('%Y-%m-%d %H:%M:%S.%f')}' AS TIMESTAMP)"
 
     from infra_10x.duckdb_store import DuckDbStore
@@ -59,8 +59,8 @@ def event_store(mocker):
 
 
 def test_process_pending_events_loads_and_dispatches(event_store):
-    Ping(n=1).save().throw()
-    Ping(n=2).save().throw()
+    Ping(n = 1).save().throw()
+    Ping(n = 2).save().throw()
 
     proc = PingCounter()
     assert proc.process_pending_events() == 2
@@ -71,8 +71,8 @@ def test_process_pending_events_loads_and_dispatches(event_store):
 
 
 def test_string_annotated_process_method_resolves(event_store):
-    Pong(n=4).save().throw()
-    Pong(n=5).save().throw()
+    Pong(n = 4).save().throw()
+    Pong(n = 5).save().throw()
 
     proc = PongCounter()
     assert proc.process_pending_events() == 2

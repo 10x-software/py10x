@@ -37,14 +37,14 @@ class SubTraitable(Traitable):
     trait1: int = RT(T.ID)
     trait2: str = RT()
 
-    x = '123'  # -- not in slots
+    x           = '123'  # -- not in slots
 
 
 class SubTraitable2(SubTraitable):
-    trait1 = M(flags=(None, T.ID))  # removes ID flag
-    trait2: int = M()
-    trait3: float = T() // 'trait definition comment'
-    trait4: int = RT(0)
+    trait1          = M(flags = (None, T.ID))  # removes ID flag
+    trait2: int     = M()
+    trait3: float   = T() // 'trait definition comment'
+    trait4: int     = RT(0)
 
 
 class SubTraitable3(SubTraitable):
@@ -53,12 +53,12 @@ class SubTraitable3(SubTraitable):
 
 def test_subclass_traits():
     expected_traits = {'trait1', 'trait2'}
-    assert {t.name for t in SubTraitable.traits(flags_off=T.RESERVED)} == expected_traits
+    assert {t.name for t in SubTraitable.traits(flags_off = T.RESERVED)} == expected_traits
 
 
 def test_subclass2_traits():
     expected_traits = ['trait1', 'trait2', 'trait3', 'trait4']
-    assert [t.name for t in SubTraitable2.traits(flags_off=T.RESERVED)] == expected_traits
+    assert [t.name for t in SubTraitable2.traits(flags_off = T.RESERVED)] == expected_traits
     assert SubTraitable.trait('trait2').data_type is str
     assert SubTraitable2.trait('trait2').data_type is int
     assert SubTraitable3.trait('trait2').data_type is list
@@ -72,28 +72,28 @@ def test_is_storable():
     assert not SubTraitable.is_storable()
     assert SubTraitable2.is_storable()
 
-    with pytest.raises(RuntimeError, match='No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI'):
+    with pytest.raises(RuntimeError, match = 'No Traitable Store is specified: neither explicitly, nor via environment variable XX_MAIN_TS_STORE_URI'):
         SubTraitable2().save().throw()
 
-    assert 'is not storable' in SubTraitable(trait1=uuid6.uuid7().int).save().error()
+    assert 'is not storable' in SubTraitable(trait1 = uuid6.uuid7().int).save().error()
 
 
 def test_trait_update():
     with CACHE_ONLY():
-        instance = SubTraitable(trait1=10, trait2='hello', _replace=True)
+        instance = SubTraitable(trait1 = 10, trait2 = 'hello', _replace = True)
         assert instance.trait2 == 'hello'
 
-        assert instance == SubTraitable.update(trait1=10, trait2='world')
+        assert instance == SubTraitable.update(trait1 = 10, trait2 = 'world')
         assert instance.trait2 == 'world'
 
-        assert instance == SubTraitable.update(trait1=10, trait2=None)  # setting to None
+        assert instance == SubTraitable.update(trait1 = 10, trait2 = None)  # setting to None
         assert instance.trait2 is None
 
 
 def test_instance_slots():
     assert Traitable.__slots__ == ()
     assert SubTraitable.__slots__ == ()
-    instance = SubTraitable(trait1=10)
+    instance = SubTraitable(trait1 = 10)
     assert not hasattr(instance, '__dict__')
     with pytest.raises(AttributeError):
         instance.non_existent_attr = 'value'
@@ -108,7 +108,7 @@ def test_post_init_called():
         def __post_init__(self):
             calls.append(self)
 
-    x = X(x=1)
+    x = X(x = 1)
     assert calls == [x]
     calls.clear()
 
@@ -116,7 +116,7 @@ def test_post_init_called():
 def test_overriding_init_disallowed():
     with pytest.raises(
         TypeError,
-        match=r'Overriding __init__ is not allowed in DisallowedInit\. Use __post_init__ instead\.',
+        match = r'Overriding __init__ is not allowed in DisallowedInit\. Use __post_init__ instead\.',
     ):
 
         class DisallowedInit(Traitable):
@@ -127,21 +127,21 @@ def test_overriding_init_disallowed():
 def test_init_with_id():
     with GRAPH_ON():  # isolate lazy reference so it does not affect other tests
         pid = ID('John|Smith')
-        p = Person.from_id(pid)
+        p   = Person.from_id(pid)
         assert p.id() == pid
 
 
 def test_init_with_trait_values():
     with CACHE_ONLY():
-        p = Person(first_name='John', last_name='Smith')
+        p = Person(first_name = 'John', last_name = 'Smith')
     assert p.first_name == 'John'
     assert p.last_name == 'Smith'
 
 
 def test_set_values():
     with CACHE_ONLY():
-        p = Person(first_name='John', last_name='Smith')
-    rc = p.set_values(age=19, weight_lb=200)
+        p = Person(first_name = 'John', last_name = 'Smith')
+    rc = p.set_values(age = 19, weight_lb = 200)
     assert rc
 
 
@@ -154,11 +154,11 @@ def test_item_access_raises_like_attribute():
                 return RC(False, 'age must be >= 0')
             return self.raw_set_trait_value(trait, value)
 
-    x = X()
-    x['age'] = 5
+    x           = X()
+    x['age']    = 5
     assert x['age'] == x.age == 5
 
-    with pytest.raises(RuntimeError, match='age must be >= 0'):
+    with pytest.raises(RuntimeError, match = 'age must be >= 0'):
         x['age'] = -1
     assert x.age == 5
 
@@ -169,23 +169,23 @@ def test_traitable_trait_default_by_id():
         city: str = T()
 
     class Employee(Traitable):
-        name: str = T(T.ID)
-        employer: Company = T('Acme')
-        former: Company = T('Nobody')
+        name: str           = T(T.ID)
+        employer: Company   = T('Acme')
+        former: Company     = T('Nobody')
 
     with CACHE_ONLY():
-        acme = Company(name='Acme', city='NYC', _replace=True)
-        e = Employee(name='e1')
+        acme    = Company(name = 'Acme', city = 'NYC', _replace = True)
+        e       = Employee(name = 'e1')
         assert e.employer == acme
         assert e.employer.city == 'NYC'
 
-        with pytest.raises(TraitMethodError, match='Instance does not exist'):
+        with pytest.raises(TraitMethodError, match = 'Instance does not exist'):
             _ = e.former
 
 
 def test_dynamic_traits():
     class X(Traitable):
-        s_own_trait_definitions = {'x': RT(data_type=int, default=10)}
+        s_own_trait_definitions = {'x': RT(data_type = int, default = 10)}
 
     x = X()
     assert x.T.x.data_type is int
@@ -225,23 +225,23 @@ def test_subclass_does_not_inherit_parent_storage_helper(ts_instance, monkeypatc
 
     # Unique ids so the parametrized store instances don't share cached
     # traitable instances (which would carry a stale revision across params).
-    pid = f'p-{uuid6.uuid7().hex}'
-    cid = f'c-{uuid6.uuid7().hex}'
-    store = ts_instance
-    store.username = 'test_user'
+    pid             = f'p-{uuid6.uuid7().hex}'
+    cid             = f'c-{uuid6.uuid7().hex}'
+    store           = ts_instance
+    store.username  = 'test_user'
     store.begin_using()
     try:
-        _ParentT(pid=pid, _replace=True).save().throw()
+        _ParentT(pid = pid, _replace = True).save().throw()
 
         assert _ParentT.s_storage_helper_cached is not None
         assert _ChildT.s_storage_helper.traitable_class is _ChildT
         assert _ChildT.s_storage_helper is not _ParentT.s_storage_helper
 
-        c = _ChildT(pid=cid, extra=42, _replace=True)
+        c = _ChildT(pid = cid, extra = 42, _replace = True)
         c.save().throw()
 
         parent_coll = _ParentT.collection()
-        child_coll = _ChildT.collection()
+        child_coll  = _ChildT.collection()
         assert parent_coll is not child_coll
         assert {d['_id'] for d in parent_coll.find()} == {pid}
         assert {d['_id'] for d in child_coll.find()} == {cid}
@@ -258,12 +258,12 @@ def test_collection_name_rt():
     assert not X.is_storable()
     assert X.trait('_collection_name') is None
 
-    with pytest.raises(AttributeError, match="'X' object has no attribute '_collection_name'"):
-        _ = X(x=1)._collection_name
+    with pytest.raises(AttributeError, match = "'X' object has no attribute '_collection_name'"):
+        _ = X(x = 1)._collection_name
 
 
 def test_custom_collection():
-    class X(Traitable, custom_collection=True):
+    class X(Traitable, custom_collection = True):
         x: int = T(T.ID)
         v: int = T()
 
@@ -274,12 +274,12 @@ def test_custom_collection():
     assert X.is_storable()
     assert X.trait('_collection_name')
 
-    X(x=1, v=10, _collection_name='collA', _replace=True)
-    x = X.from_id(ID('1', collection_name='collA'))
+    X(x = 1, v = 10, _collection_name = 'collA', _replace = True)
+    x = X.from_id(ID('1', collection_name = 'collA'))
     assert x._collection_name == 'collA'
     assert x.x == 1 and x.v == 10
 
-    y = X(x=1, v=20, _collection_name='collB', _replace=True)
+    y = X(x = 1, v = 20, _collection_name = 'collB', _replace = True)
     assert y._collection_name == 'collB'
     assert y.x == 1 and y.v == 20
 
@@ -290,13 +290,13 @@ def test_declarative_indices():
     """Test the new s_indices declarative syntax, inheritance, and caching behavior."""
 
     # A plain class with no history and explicit indices (including kwargs)
-    class WithIdx(Traitable, keep_history=False):
-        code: str = T(T.ID)
-        val: int = T()  # simple annotation to avoid forward-ref lint noise in test
+    class WithIdx(Traitable, keep_history = False):
+        code: str   = T(T.ID)
+        val: int    = T()  # simple annotation to avoid forward-ref lint noise in test
 
-        s_indices = [
+        s_indices   = [
             Index('idx_code', 'code'),
-            Index('idx_val_desc', 'val', some_kw=True),  # exercises **kwargs passthrough
+            Index('idx_val_desc', 'val', some_kw = True),  # exercises **kwargs passthrough
         ]
 
     assert len(WithIdx.s_indices) == 2
@@ -306,11 +306,11 @@ def test_declarative_indices():
 
     # Inheritance: subclass should see base indices + own (merged, own wins on collision)
     class SubIdx(WithIdx):
-        other: int = T()
+        other: int  = T()
 
-        s_indices = [
+        s_indices   = [
             Index('idx_other', 'other'),
-            Index('idx_code', 'code', unique=True),  # override by name
+            Index('idx_code', 'code', unique = True),  # override by name
         ]
 
     sub_names = {i.name: i for i in SubIdx.s_indices}
@@ -344,9 +344,9 @@ def test_declarative_indices():
     #     to keep the test isolated from full storage helper requirements for inline classes).
     create_calls = []
 
-    class IdxTraitable(Traitable, keep_history=False):
-        val: str = T(T.ID)
-        s_indices = [Index('idx_val', 'val')]
+    class IdxTraitable(Traitable, keep_history = False):
+        val: str    = T(T.ID)
+        s_indices   = [Index('idx_val', 'val')]
 
     # Provide a fake helper whose collection() returns something with create_index
     class FakeColl:
@@ -355,7 +355,7 @@ def test_declarative_indices():
             return name
 
     class FakeStorableHelper:
-        def collection(self, _coll_name=None, create_if_needed=False):
+        def collection(self, _coll_name = None, create_if_needed = False):
             return FakeColl()
 
     # Temporarily install so that _ensure_indices hits our capture
@@ -378,18 +378,18 @@ def test_declarative_indices():
     # Clear to be sure for a fresh class
     create_calls.clear()
 
-    class Another(Traitable, keep_history=False):
-        v: int = T(T.ID)
-        s_indices = [Index('i1', 'v')]
+    class Another(Traitable, keep_history = False):
+        v: int      = T(T.ID)
+        s_indices   = [Index('i1', 'v')]
 
     orig2 = Another.s_storage_helper
     try:
-        Another.s_storage_helper = FakeStorableHelper()
-        _ = Another.collection()  # read path -- should not call ensure
+        Another.s_storage_helper    = FakeStorableHelper()
+        _                           = Another.collection()  # read path -- should not call ensure
         assert create_calls == []
-        Another.collection(create_if_needed=True)
+        Another.collection(create_if_needed = True)
         assert len(create_calls) == 1
-        Another.collection(create_if_needed=True)  # cached indexes
+        Another.collection(create_if_needed = True)  # cached indexes
         assert len(create_calls) == 1
     finally:
         Another.s_storage_helper = orig2
@@ -407,9 +407,9 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
     load_calls = collections.Counter()
 
     class X(Traitable):
-        i: int = T(T.ID)
-        x: THIS_CLASS = T()
-        y: int = T()
+        i: int          = T(T.ID)
+        x: THIS_CLASS   = T()
+        y: int          = T()
 
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
@@ -423,9 +423,9 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             return {'_id': v, 'i': i, '_rev': 1, 'y': 1} | ({'x': {'_id': str(i + int(not self_ref))}} if i < 3 else {})
 
     with BTP.create(on_graph, convert_values, debug, use_parent_cache, use_default_cache):
-        x = X.existing_instance_by_id(ID('1')) if use_existing_instance_by_id else X.existing_instance(i=1)
+        x = X.existing_instance_by_id(ID('1')) if use_existing_instance_by_id else X.existing_instance(i = 1)
         assert x
-        x1 = X(i=3, x=x, y=2, _replace=True)
+        x1 = X(i = 3, x = x, y = 2, _replace = True)
         assert x1.x is x
         assert x1.y == 2  # still 2 as lazy-load occurs before setting parameters passed
         assert load_calls == {'3': 1}  # lazy-load since no db access in constructor
@@ -438,7 +438,7 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
             assert x.x.x == x1  # found existing instance
             assert x1.x is XNone  # reload in debug mode
         else:
-            with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False) if nested else contextlib.nullcontext():
+            with BTP.create(-1, -1, -1, use_parent_cache = False, use_default_cache = False) if nested else contextlib.nullcontext():
                 assert load_calls == expected(1)
                 assert x.x
                 assert not self_ref or x == x.x
@@ -455,7 +455,7 @@ def test_traitable_ref_load(on_graph, debug, convert_values, use_parent_cache, u
 def test_default_cache_traitable():
     """default_cache=True: identity / init kwargs on default_cache; later writes use the current cache."""
 
-    class G(Traitable, default_cache=True):
+    class G(Traitable, default_cache = True):
         x: int = RT(T.ID)
         v: int = RT()
 
@@ -472,44 +472,44 @@ def test_default_cache_traitable():
 
     assert G2.s_default_cache
 
-    G(x=1, v=10, _replace=True)
-    L(x=1, v=10, _replace=True)
+    G(x = 1, v = 10, _replace = True)
+    L(x = 1, v = 10, _replace = True)
 
     default_cache = BTP.current().cache()
     assert BTP.current().default_cache() is default_cache
 
-    with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False):
+    with BTP.create(-1, -1, -1, use_parent_cache = False, use_default_cache = False):
         assert BTP.current().cache() is not default_cache
         assert BTP.current().default_cache() is default_cache
 
-        assert G(x=1).v == 10
-        G(x=1).v = 11
-        G(x=2, v=20, _replace=True)
-        L(x=2, v=20, _replace=True)
+        assert G(x = 1).v == 10
+        G(x = 1).v = 11
+        G(x = 2, v = 20, _replace = True)
+        L(x = 2, v = 20, _replace = True)
 
-    assert G(x=1).v == 10
-    assert G(x=2).v == 20
-    assert L(x=2).v is XNone
+    assert G(x = 1).v == 10
+    assert G(x = 2).v == 20
+    assert L(x = 2).v is XNone
 
     with BTP.create_root() as root:
         assert root.cache() is not default_cache
         assert root.default_cache() is root.cache()
 
-        G(x=1, v=99, _replace=True)
-        assert G(x=1).v == 99
-        L(x=3, v=30, _replace=True)
+        G(x = 1, v = 99, _replace = True)
+        assert G(x = 1).v == 99
+        L(x = 3, v = 30, _replace = True)
 
-        with BTP.create(-1, -1, -1, use_parent_cache=False, use_default_cache=False):
+        with BTP.create(-1, -1, -1, use_parent_cache = False, use_default_cache = False):
             assert BTP.current().default_cache() is root.default_cache()
-            assert G(x=1).v == 99
-            G(x=1).v = 100
-            L(x=4, v=40, _replace=True)
+            assert G(x = 1).v == 99
+            G(x = 1).v = 100
+            L(x = 4, v = 40, _replace = True)
 
-        assert G(x=1).v == 99
-        assert L(x=4).v is XNone
+        assert G(x = 1).v == 99
+        assert L(x = 4).v is XNone
 
-    assert G(x=1).v == 10
-    assert L(x=3).v is XNone
+    assert G(x = 1).v == 10
+    assert L(x = 3).v is XNone
 
 
 def test_trait_methods():
@@ -546,10 +546,10 @@ def test_trait_methods():
     class D(C):
         t: date = M()
 
-    for t, dt in zip([A, B, C, D], [int, int, str, date], strict=True):
+    for t, dt in zip([A, B, C, D], [int, int, str, date], strict = True):
         assert t.trait('t').data_type is dt
 
-    for t, v in zip([A, B, C, D], [XNone, 1, 2, 2], strict=True):
+    for t, v in zip([A, B, C, D], [XNone, 1, 2, 2], strict = True):
         assert t().t is v
         assert t().serialize_object()['t'] == (v * 2 or None)
 
@@ -559,10 +559,10 @@ def test_serialize_rt_object():
         x: int = RT(T.ID)
         y: int = RT(T.ID)
 
-    assert not X.existing_instance_by_id(ID('1|2'), _throw=False)  # not found, can't find by id
-    x = X.existing_instance(x=1, y=2)  # creates new instance by id traits
+    assert not X.existing_instance_by_id(ID('1|2'), _throw = False)  # not found, can't find by id
+    x = X.existing_instance(x = 1, y = 2)  # creates new instance by id traits
     assert x == X.existing_instance_by_id(ID('1|2'))
-    assert x == X(x=1, y=2)
+    assert x == X(x = 1, y = 2)
 
     s = x.serialize(False)
     assert s == {'_id': [1, 2]}
@@ -582,18 +582,18 @@ def test_trait_modification_inheritance_with_flags():
 
     class Y(X):
         # M() removes ID flag; getter from X is inherited
-        v: int = M(flags=(None, T.ID), default=3)
+        v: int = M(flags = (None, T.ID), default = 3)
 
     class Z(Y):
         # M() changes data type; value is provided by v_get defined here
-        v: float = M(default=XNone)
+        v: float = M(default = XNone)
 
         def v_get(self):
             return float(self.x + 3)
 
-    x = X(x=1)
-    y = Y(x=1)
-    z = Z(x=1)
+    x = X(x = 1)
+    y = Y(x = 1)
+    z = Z(x = 1)
 
     # X: v is computed via v_get
     assert x.v == 2  # x + 1
@@ -621,8 +621,8 @@ def test_anonymous_traitable(monkeypatch):
         a: int = T()
 
     class Y(Traitable):
-        y: int = T(T.ID)
-        x: AnonymousTraitable = T()
+        y: int                  = T(T.ID)
+        x: AnonymousTraitable   = T()
 
         @classmethod
         def exists_in_store(cls, id):
@@ -635,12 +635,12 @@ def test_anonymous_traitable(monkeypatch):
     class Z(Y):
         x: AnonymousTraitable = M(T.EMBEDDED)
 
-    with pytest.raises(RuntimeError, match=r"T1.x - class <class 'core_10x.traitable.Traitable'> must be declared 'embeddable'"):
+    with pytest.raises(RuntimeError, match = r"T1.x - class <class 'core_10x.traitable.Traitable'> must be declared 'embeddable'"):
 
         class _T1(Traitable):
             x: Traitable = T(T.EMBEDDED)
 
-    with pytest.raises(RuntimeError, match=r'T2.x - may NOT be NOT_EMBEDDABLE: class .* is embeddable'):
+    with pytest.raises(RuntimeError, match = r'T2.x - may NOT be NOT_EMBEDDABLE: class .* is embeddable'):
 
         class _T2(Traitable):
             x: AnonymousTraitable = T(T.NOT_EMBEDDABLE)
@@ -656,10 +656,10 @@ def test_anonymous_traitable(monkeypatch):
         def load_data(cls, id):
             return None
 
-    x = X(a=1)
+    x = X(a = 1)
     assert x.serialize(True) == {'a': 1}
 
-    y = Y(y=0, x=x, _replace=True)
+    y = Y(y = 0, x = x, _replace = True)
     s = y.serialize_object()
     assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X'}
 
@@ -667,13 +667,13 @@ def test_anonymous_traitable(monkeypatch):
     s = z.serialize_object()
     assert s['x'] == {'_obj': {'a': 1}, '_type': '_nx', '_cls': 'test_traitable.test_anonymous_traitable.<locals>.X'}
 
-    z = Z(y=2, x=Y(y=3), _replace=True)
-    with pytest.raises(TraitMethodError, match=r"test_anonymous_traitable.<locals>.Y/3 - embedded instance must be 'embeddable'"):
+    z = Z(y = 2, x = Y(y = 3), _replace = True)
+    with pytest.raises(TraitMethodError, match = r"test_anonymous_traitable.<locals>.Y/3 - embedded instance must be 'embeddable'"):
         z.serialize_object()
 
     # Wide Traitable trait may hold an embeddable value as a body (value-driven).
     class Wide(Traitable):
-        w: int = T(T.ID)
+        w: int              = T(T.ID)
         embedded: Traitable = T()
 
         @classmethod
@@ -692,14 +692,14 @@ def test_anonymous_traitable(monkeypatch):
     }
 
     # NOT_EMBEDDABLE rejects embeddable values at serialize time.
-    ref_only = _T3(x=Y(y=9), _replace=True)
+    ref_only = _T3(x = Y(y = 9), _replace = True)
     assert isinstance(ref_only.serialize_object()['x'], str)
-    with pytest.raises(TraitMethodError, match=r'NOT_EMBEDDABLE trait cannot hold embeddable'):
+    with pytest.raises(TraitMethodError, match = r'NOT_EMBEDDABLE trait cannot hold embeddable'):
         _T3(x = X(a = 1), _replace = True).serialize_object()
 
 
 class TestSerializeEmbedded:
-    class Y(Traitable, embeddable=True):
+    class Y(Traitable, embeddable = True):
         y: int = T()
         a: int = T()
 
@@ -708,9 +708,9 @@ class TestSerializeEmbedded:
         a: int = T()
 
     class X1(Traitable):
-        x: int = T(T.ID)
-        a: AnonymousTraitable = T(T.EMBEDDED)
-        b: list[Traitable] = T()
+        x: int                  = T(T.ID)
+        a: AnonymousTraitable   = T(T.EMBEDDED)
+        b: list[Traitable]      = T()
 
     class X2(X1):
         b: list[Traitable] = M(T.EMBEDDED)
@@ -720,13 +720,13 @@ class TestSerializeEmbedded:
         Y, Z = self.Y, self.Z  # noqa: N806
         with CACHE_ONLY():
             x = cls(
-                x=1,
-                a=Y(y=1, a=1, _replace=True),
-                b=[
-                    Y(y=2, a=2, _replace=True),
-                    Z(z=3, a=4, _replace=True),
+                x           = 1,
+                a           = Y(y = 1, a = 1, _replace = True),
+                b           = [
+                    Y(y = 2, a = 2, _replace = True),
+                    Z(z = 3, a = 4, _replace = True),
                 ],
-                _replace=True,
+                _replace    = True,
             )
             try:
                 serialized = x.serialize_object()
@@ -754,7 +754,7 @@ class TestSerializeEmbedded:
 def test_own_trait_defs():
     cnt = Counter()
 
-    def assert_and_cont(what, obj, arg, trait=None):
+    def assert_and_cont(what, obj, arg, trait = None):
         assert isinstance(obj, Traitable)
         if trait:
             assert isinstance(trait, Trait)
@@ -773,7 +773,7 @@ def test_own_trait_defs():
 
         @classmethod
         def own_trait_definitions(cls) -> Generator[tuple[str, trait_definition.TraitDefinition]]:
-            yield 'x', TraitDefinition(T.RUNTIME | T.EXPENSIVE, data_type=int)
+            yield 'x', TraitDefinition(T.RUNTIME | T.EXPENSIVE, data_type = int)
 
     t = X.trait('x')
     assert cnt == {}
@@ -788,17 +788,17 @@ def test_own_trait_defs():
 
 def test_trait_get_default_override():
     class X(Traitable):
-        x: int = RT(default=1)
+        x: int = RT(default = 1)
 
     assert X().x == 1
 
     with pytest.raises(
         RuntimeError,
-        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'> - both x.default and <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'>.x_get are defined.',
+        match = r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'> - both x.default and <class \'test_traitable.test_trait_get_default_override.<locals>.Y\'>.x_get are defined.',
     ):
 
         class Y(X):
-            x: int = RT(default=2)
+            x: int = RT(default = 2)
 
             def x_get(self):
                 return 2
@@ -812,14 +812,14 @@ def test_trait_get_default_override():
             return 4
 
     class S(T):
-        x: int = RT(default=5)
+        x: int = RT(default = 5)
 
     class R(S):
-        x: int = RT(default=XNone)
+        x: int = RT(default = XNone)
 
     with pytest.raises(
         RuntimeError,
-        match=r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.P\'> - both x.default and <class \'test_traitable.test_trait_get_default_override.<locals>.P\'>.x_get are defined.',
+        match = r'Ambiguous definition for x_get on <class \'test_traitable.test_trait_get_default_override.<locals>.P\'> - both x.default and <class \'test_traitable.test_trait_get_default_override.<locals>.P\'>.x_get are defined.',
     ):
 
         class P(S):
@@ -845,29 +845,29 @@ def test_create_and_share():
             return self.t
 
     #   with pytest.raises(TypeError, match=re.escape('test_create_and_share.<locals>.X expects at least one ID trait value')):
-    with pytest.raises(TypeError, match=re.escape("test_create_and_share.<locals>.X.x (<class 'int'>) - invalid value ''")):
+    with pytest.raises(TypeError, match = re.escape("test_create_and_share.<locals>.X.x (<class 'int'>) - invalid value ''")):
         X()
 
-    with pytest.raises(TypeError, match=re.escape("test_create_and_share.<locals>.X.y (<class 'int'>) - invalid value ''")):
-        X(x=1)
+    with pytest.raises(TypeError, match = re.escape("test_create_and_share.<locals>.X.y (<class 'int'>) - invalid value ''")):
+        X(x = 1)
 
-    X(x=1, y=1, z=1, _replace=True)
+    X(x = 1, y = 1, z = 1, _replace = True)
 
-    with pytest.raises(ValueError, match=re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
-        X(x=1, y=1, z=2)
+    with pytest.raises(ValueError, match = re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
+        X(x = 1, y = 1, z = 2)
 
-    with pytest.raises(ValueError, match=re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
-        X(x=1, y=1, z=1)
+    with pytest.raises(ValueError, match = re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
+        X(x = 1, y = 1, z = 1)
 
-    with pytest.raises(ValueError, match=re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
-        X(x=1, t=1, z=1)
+    with pytest.raises(ValueError, match = re.escape('test_create_and_share.<locals>.X.z - non-ID trait value cannot be set during initialization')):
+        X(x = 1, t = 1, z = 1)
 
-    assert X(x=1, t=1).z == 1
-    assert X(x=1, y=1).z == 1
+    assert X(x = 1, t = 1).z == 1
+    assert X(x = 1, y = 1).z == 1
 
     with INTERACTIVE():
         x = X()  # empty object allowed - OK!
-        z = X(x=1, y=1)
+        z = X(x = 1, y = 1)
         assert z.z == 1  # found from parent
 
         x.x = 1
@@ -878,15 +878,15 @@ def test_create_and_share():
 
 def test_serialize(monkeypatch):
     monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
-    save_calls = Counter()
-    history_save_calls = Counter()
-    load_calls = Counter()
-    serialized = {}
+    save_calls          = Counter()
+    history_save_calls  = Counter()
+    load_calls          = Counter()
+    serialized          = {}
 
     class X(Traitable):
-        x: int = T(T.ID)
+        x: int  = T(T.ID)
         y: Self = T()
-        z: int = T()
+        z: int  = T()
 
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
@@ -910,23 +910,23 @@ def test_serialize(monkeypatch):
                 def transaction(self):
                     return contextlib.nullcontext()
 
-                def collection(self, collection_name, trait_dir=None, *, create_if_needed=False):
+                def collection(self, collection_name, trait_dir = None, *, create_if_needed = False):
                     class Collection:
                         def create_index(self, name, trait_name):
                             return name
 
                         def save(self, serialized_data):
-                            data = dict(serialized_data)
-                            ts_fields = dict(data.pop(TS_FIELDS_TAG, None) or {})
-                            id_value = data['_id']
+                            data        = dict(serialized_data)
+                            ts_fields   = dict(data.pop(TS_FIELDS_TAG, None) or {})
+                            id_value    = data['_id']
                             if not collection_name.endswith('#history'):
                                 save_calls[id_value] += 1
                             else:
                                 history_save_calls[id_value] += 1
-                            serialized[id_value] = data
-                            out = {'_rev': 1}
+                            serialized[id_value]    = data
+                            out                     = {'_rev': 1}
                             for name in ts_fields:
-                                out[name] = 'test_user' if name == '_who' else datetime.now(UTC).replace(tzinfo=None)
+                                out[name] = 'test_user' if name == '_who' else datetime.now(UTC).replace(tzinfo = None)
                             return out
 
                         save_new = save
@@ -940,7 +940,7 @@ def test_serialize(monkeypatch):
 
     class Y(X): ...
 
-    x = X(x=0)
+    x = X(x = 0)
     assert not serialized
     x.save().throw()
     assert not load_calls
@@ -951,7 +951,7 @@ def test_serialize(monkeypatch):
     load_calls.clear()
 
     # Default BSaveRefs.NEW_ONLY cascades to never-saved refs (_rev == 0).
-    x = X(x=1, y=X(x=2, y=X(x=1), _replace=True), _replace=True)
+    x = X(x = 1, y = X(x = 2, y = X(x = 1), _replace = True), _replace = True)
     x.save()
     assert save_calls == {'1': 1, '2': 1}
     assert load_calls == {str(i): 1 for i in range(1, 3)}
@@ -966,28 +966,28 @@ def test_serialize(monkeypatch):
     save_calls.clear()
 
     # ALL re-saves the whole graph (legacy True).
-    x.save(save_references=True)
+    x.save(save_references = True)
     assert save_calls == {'1': 1, '2': 1}
     assert load_calls == {}
     save_calls.clear()
 
     # NONE saves root only even when the child is still new.
-    x2 = X(x=7, y=X(x=8, _replace=True), _replace=True)
-    x2.save(save_references=False)
+    x2 = X(x = 7, y = X(x = 8, _replace = True), _replace = True)
+    x2.save(save_references = False)
     assert save_calls == {'7': 1}
     save_calls.clear()
     load_calls.clear()
 
-    X(x=3, y=Y(_id=ID('4')), z=0, _replace=True).save(save_references=True)
+    X(x = 3, y = Y(_id = ID('4')), z = 0, _replace = True).save(save_references = True)
     assert load_calls == {'3': 1}
     assert save_calls == {'3': 1}  # save of a lazy load is noop
 
-    assert X(x=3).y.__class__ is Y
+    assert X(x = 3).y.__class__ is Y
     with pytest.raises(
         RuntimeError,
-        match=r"Failed in <class 'test_traitable.test_serialize.<locals>.X'>.z.z_get\n    object = 5;\noriginal exception = RuntimeError: test_serialize.<locals>.X/6: object reference not found in store",
+        match = r"Failed in <class 'test_traitable.test_serialize.<locals>.X'>.z.z_get\n    object = 5;\noriginal exception = RuntimeError: test_serialize.<locals>.X/6: object reference not found in store",
     ):
-        X(x=5, y=X(_id=ID('6')), _replace=True).save(save_references=True).throw()
+        X(x = 5, y = X(_id = ID('6')), _replace = True).save(save_references = True).throw()
 
 
 def test_reference_serialization_roundtrip(monkeypatch):
@@ -997,8 +997,8 @@ def test_reference_serialization_roundtrip(monkeypatch):
 
     class Person(Traitable):
         first_name: str = T(T.ID)
-        last_name: str = T(T.ID)
-        spouse: Self = T()
+        last_name: str  = T(T.ID)
+        spouse: Self    = T()
 
         @classmethod
         def exists_in_store(cls, id: ID) -> bool:
@@ -1017,14 +1017,14 @@ def test_reference_serialization_roundtrip(monkeypatch):
                 def transaction(self):
                     return contextlib.nullcontext()
 
-                def collection(self, collection_name, trait_dir=None, *, create_if_needed=False):
+                def collection(self, collection_name, trait_dir = None, *, create_if_needed = False):
                     class Collection:
                         def create_index(self, name, trait_name):
                             return name
 
                         def save(self, serialized_data):
-                            id_value = serialized_data['_id']
-                            serialized[id_value] = serialized_data
+                            id_value                = serialized_data['_id']
+                            serialized[id_value]    = serialized_data
                             return {'_rev': 1}
 
                         save_new = save
@@ -1034,12 +1034,12 @@ def test_reference_serialization_roundtrip(monkeypatch):
             return Store()
 
     # Create both people
-    p2 = Person(first_name='Tatiana', last_name='Pevzner', _replace=True)
-    p1 = Person(first_name='Ilya', last_name='Pevzner', spouse=p2, _replace=True)
+    p2 = Person(first_name = 'Tatiana', last_name = 'Pevzner', _replace = True)
+    p1 = Person(first_name = 'Ilya', last_name = 'Pevzner', spouse = p2, _replace = True)
 
     # Manually serialize both with references (simulating save_references=True behavior)
-    serialized['Tatiana|Pevzner'] = p2.serialize_object()
-    serialized['Ilya|Pevzner'] = p1.serialize_object()
+    serialized['Tatiana|Pevzner']   = p2.serialize_object()
+    serialized['Ilya|Pevzner']      = p1.serialize_object()
     assert serialized['Ilya|Pevzner']['spouse'] == 'Tatiana|Pevzner'
 
     # Reload and verify references are preserved
@@ -1057,7 +1057,7 @@ def test_id_trait_set():
         y: int = RT(T.ID_LIKE)
 
     with INTERACTIVE():
-        x = X()
+        x   = X()
         x.x = 1
         x.y = 1
         assert x.x == 1
@@ -1065,26 +1065,26 @@ def test_id_trait_set():
         assert x.x == 2
 
         x.share(False)
-        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '2' to '3'"):
+        with pytest.raises(ValueError, match = r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '2' to '3'"):
             x.x = 3
 
-        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '2' to '2'"):
+        with pytest.raises(ValueError, match = r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '2' to '2'"):
             x.x = 2
         assert x.x == 2
 
-        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.y \(<class 'int'>\) - cannot change ID_LIKE trait value from '1' to '4'"):
+        with pytest.raises(ValueError, match = r"test_id_trait_set.<locals>.X.y \(<class 'int'>\) - cannot change ID_LIKE trait value from '1' to '4'"):
             x.y = 4
 
-        with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.y \(<class 'int'>\) - cannot change ID_LIKE trait value from '1' to '1'"):
+        with pytest.raises(ValueError, match = r"test_id_trait_set.<locals>.X.y \(<class 'int'>\) - cannot change ID_LIKE trait value from '1' to '1'"):
             x.y = 1
 
         assert x.y == 1
 
-    x = X(x=1)
-    with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '1' to '2'"):
+    x = X(x = 1)
+    with pytest.raises(ValueError, match = r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '1' to '2'"):
         x.x = 2
 
-    with pytest.raises(ValueError, match=r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '1' to '1'"):
+    with pytest.raises(ValueError, match = r"test_id_trait_set.<locals>.X.x \(<class 'int'>\) - cannot change ID trait value from '1' to '1'"):
         x.x = 1
     assert x.x == 1
 
@@ -1128,8 +1128,8 @@ def test_reload():
 def test_load_reload_flag(monkeypatch):
     """reload=False keeps in-memory trait values; reload=True (default) refreshes from store."""
     monkeypatch.setattr('core_10x.package_refactoring.PackageRefactoring.default_class_id', lambda cls, *args, **kwargs: PyClass.name(cls))
-    store: dict[str, dict] = {}
-    load_data_calls: list[str] = []
+    store: dict[str, dict]      = {}
+    load_data_calls: list[str]  = []
 
     class X(Traitable):
         x: int = T(T.ID)
@@ -1153,18 +1153,18 @@ def test_load_reload_flag(monkeypatch):
                 def transaction(self):
                     return contextlib.nullcontext()
 
-                def collection(self, collection_name, trait_dir=None, *, create_if_needed=False):
+                def collection(self, collection_name, trait_dir = None, *, create_if_needed = False):
                     class Collection:
                         s_id_tag = '_id'
 
                         def create_index(self, name, trait_name):
                             return name
 
-                        def find(self, query, _at_most=0, _order=None):
+                        def find(self, query, _at_most = 0, _order = None):
                             return list(store.values())
 
                         def save(self, serialized_data):
-                            id_value = serialized_data['_id']
+                            id_value        = serialized_data['_id']
                             store[id_value] = serialized_data
                             return {'_rev': serialized_data.get('_rev', 0) + 1}
 
@@ -1174,15 +1174,15 @@ def test_load_reload_flag(monkeypatch):
 
             return Store()
 
-    x = X(x=1, y=10, _replace=True)
-    store['1'] = {'_id': '1', 'x': 1, 'y': 10, '_rev': 1}
+    x           = X(x = 1, y = 10, _replace = True)
+    store['1']  = {'_id': '1', 'x': 1, 'y': 10, '_rev': 1}
     # Touch traits so any constructor-time lazy rev load finishes before we measure calls.
     assert x.y == 10
-    x.y = 99
-    store['1'] = {'_id': '1', 'x': 1, 'y': 20, '_rev': 2}
+    x.y         = 99
+    store['1']  = {'_id': '1', 'x': 1, 'y': 20, '_rev': 2}
 
     load_data_calls.clear()
-    loaded = X.load(ID('1'), reload=False)
+    loaded = X.load(ID('1'), reload = False)
     assert loaded == x
     assert loaded.y == 99
     assert x.y == 99
@@ -1194,12 +1194,12 @@ def test_load_reload_flag(monkeypatch):
     assert x.y == 20
     assert load_data_calls == ['1', '1']
 
-    x.y = 99
-    store['1'] = {'_id': '1', 'x': 1, 'y': 30, '_rev': 3}
-    store['2'] = {'_id': '2', 'x': 2, 'y': 40, '_rev': 1}
+    x.y         = 99
+    store['1']  = {'_id': '1', 'x': 1, 'y': 30, '_rev': 3}
+    store['2']  = {'_id': '2', 'x': 2, 'y': 40, '_rev': 1}
     load_data_calls.clear()
 
-    many = X.load_many(reload=False)
+    many = X.load_many(reload = False)
     assert {o.x for o in many} == {1, 2}
     by_x = {o.x: o for o in many}
     assert by_x[1] == x
@@ -1220,54 +1220,54 @@ def test_separation():
         y: int = RT()
 
     with GRAPH_ON() as g1:
-        x1 = X(x=1, y=1, _replace=True)
+        x1 = X(x = 1, y = 1, _replace = True)
 
     with GRAPH_ON() as g2:
-        x2 = X(x=1, y=2, _replace=True)
+        x2 = X(x = 1, y = 2, _replace = True)
 
-    assert X(x=1).y is XNone
+    assert X(x = 1).y is XNone
 
     with g1:
-        assert X(x=1).y == 1
-        with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
+        assert X(x = 1).y == 1
+        with pytest.raises(RuntimeError, match = r'X/1: object not usable - origin cache is not reachable'):
             x2.get_value('y')
 
     with g2:
-        assert X(x=1).y == 2
-        with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
+        assert X(x = 1).y == 2
+        with pytest.raises(RuntimeError, match = r'X/1: object not usable - origin cache is not reachable'):
             x1.get_value('y')
 
-    with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
+    with pytest.raises(RuntimeError, match = r'X/1: object not usable - origin cache is not reachable'):
         x1.get_value('y')
 
-    with pytest.raises(RuntimeError, match=r'X/1: object not usable - origin cache is not reachable'):
+    with pytest.raises(RuntimeError, match = r'X/1: object not usable - origin cache is not reachable'):
         x2.get_value('y')
 
 
 def test_id_like_with_replace_and_non_id_update():
     class Cross(Traitable):
-        cross: str = RT(T.ID)  # e.g., GBP/USD or CHF/JPY
-        base_ccy: str = RT(T.ID_LIKE)  # Base (left) currency
-        quote_ccy: str = RT(T.ID_LIKE)  # Quote (right) currency
-        value: str = RT()
-        value2: str = RT()
+        cross: str      = RT(T.ID)  # e.g., GBP/USD or CHF/JPY
+        base_ccy: str   = RT(T.ID_LIKE)  # Base (left) currency
+        quote_ccy: str  = RT(T.ID_LIKE)  # Quote (right) currency
+        value: str      = RT()
+        value2: str     = RT()
 
         def cross_get(self) -> str:
             return f'{self.base_ccy}/{self.quote_ccy}'
 
-    c1 = Cross(base_ccy='A', quote_ccy='B', value='123', value2='456', _replace=True)
+    c1 = Cross(base_ccy = 'A', quote_ccy = 'B', value = '123', value2 = '456', _replace = True)
     assert c1.cross == 'A/B'
     assert c1.id().value == 'A/B'
     assert c1.value == '123'
     assert c1.value2 == '456'
 
-    c2 = Cross(base_ccy='A', quote_ccy='B')
+    c2 = Cross(base_ccy = 'A', quote_ccy = 'B')
     assert c2.cross == 'A/B'
     assert c2.id().value == 'A/B'
     assert c2.value == '123'
     assert c2.value2 == '456'
 
-    c3 = Cross(base_ccy='A', quote_ccy='B', value='234', _replace=True)
+    c3 = Cross(base_ccy = 'A', quote_ccy = 'B', value = '234', _replace = True)
     assert c2.cross == 'A/B'
     assert c2.id().value == 'A/B'
     assert c2.value == '234'
@@ -1277,28 +1277,28 @@ def test_id_like_with_replace_and_non_id_update():
 
     with pytest.raises(
         ValueError,
-        match=re.escape('test_id_like_with_replace_and_non_id_update.<locals>.Cross.value - non-ID trait value cannot be set during initialization'),
+        match = re.escape('test_id_like_with_replace_and_non_id_update.<locals>.Cross.value - non-ID trait value cannot be set during initialization'),
     ):
-        Cross(base_ccy='A', quote_ccy='B', value='234')
+        Cross(base_ccy = 'A', quote_ccy = 'B', value = '234')
 
 
 def test_update_param_updates_only_specified_traits():
     """_update=True sets only the specified non-ID traits; unspecified traits retain their values."""
 
     class Item(Traitable):
-        key: str = RT(T.ID)
-        alpha: str = RT()
-        beta: str = RT()
-        gamma: str = RT()
+        key: str    = RT(T.ID)
+        alpha: str  = RT()
+        beta: str   = RT()
+        gamma: str  = RT()
 
     # Establish initial state via _replace
-    i1 = Item(key='x', alpha='a', beta='b', gamma='g', _replace=True)
+    i1 = Item(key = 'x', alpha = 'a', beta = 'b', gamma = 'g', _replace = True)
     assert i1.alpha == 'a'
     assert i1.beta == 'b'
     assert i1.gamma == 'g'
 
     # _update touches only 'alpha'; 'beta' and 'gamma' must be preserved
-    i2 = Item(key='x', alpha='A', _update=True)
+    i2 = Item(key = 'x', alpha = 'A', _update = True)
     assert i2.alpha == 'A'
     assert i2.beta == 'b'
     assert i2.gamma == 'g'
@@ -1312,22 +1312,22 @@ def test_update_vs_replace_semantics():
     """_replace resets all unspecified non-ID traits to XNone; _update preserves them."""
 
     class Record(Traitable):
-        name: str = RT(T.ID)
+        name: str   = RT(T.ID)
         field1: str = RT()
         field2: str = RT()
 
     # Set both non-ID traits
-    r = Record(name='rec', field1='f1', field2='f2', _replace=True)
+    r = Record(name = 'rec', field1 = 'f1', field2 = 'f2', _replace = True)
     assert r.field1 == 'f1'
     assert r.field2 == 'f2'
 
     # _update: only field1 changes; field2 is preserved
-    Record(name='rec', field1='f1-new', _update=True)
+    Record(name = 'rec', field1 = 'f1-new', _update = True)
     assert r.field1 == 'f1-new'
     assert r.field2 == 'f2'
 
     # _replace: field1 changes; field2 is reset to XNone
-    Record(name='rec', field1='f1-replaced', _replace=True)
+    Record(name = 'rec', field1 = 'f1-replaced', _replace = True)
     assert r.field1 == 'f1-replaced'
     assert r.field2 is XNone
 
@@ -1336,24 +1336,24 @@ def test_new_or_update_classmethod():
     """new_or_update is a convenience wrapper for _update=True."""
 
     class Widget(Traitable):
-        widget_id: str = RT(T.ID)
-        color: str = RT()
-        size: int = RT()
+        widget_id: str  = RT(T.ID)
+        color: str      = RT()
+        size: int       = RT()
 
     # Create with both non-ID traits
-    w = Widget(widget_id='w1', color='red', size=10, _replace=True)
+    w = Widget(widget_id = 'w1', color = 'red', size = 10, _replace = True)
     assert w.color == 'red'
     assert w.size == 10
 
     # new_or_update changes only 'color'
-    w2 = Widget.new_or_update(widget_id='w1', color='blue')
+    w2 = Widget.new_or_update(widget_id = 'w1', color = 'blue')
     assert w2.color == 'blue'
     assert w2.size == 10  # preserved
 
     assert w == w2  # same ID, same shared state
 
     # new_or_update on a fresh ID creates a new entity
-    w3 = Widget.new_or_update(widget_id='w2', color='green', size=5)
+    w3 = Widget.new_or_update(widget_id = 'w2', color = 'green', size = 5)
     assert w3.color == 'green'
     assert w3.size == 5
 
@@ -1365,18 +1365,18 @@ def test_update_and_replace_together_raises():
         key: str = RT(T.ID)
         val: str = RT()
 
-    with pytest.raises(AssertionError, match='_replace and _update cannot both be True'):
-        Thing(key='k', val='v', _replace=True, _update=True)
+    with pytest.raises(AssertionError, match = '_replace and _update cannot both be True'):
+        Thing(key = 'k', val = 'v', _replace = True, _update = True)
 
 
 def test_new_or_update_without_existing_creates_new():
     """new_or_update on a brand-new ID behaves like a normal first-time creation."""
 
     class Tag(Traitable):
-        label: str = RT(T.ID)
-        priority: int = RT()
+        label: str      = RT(T.ID)
+        priority: int   = RT()
 
-    t = Tag.new_or_update(label='urgent', priority=1)
+    t = Tag.new_or_update(label = 'urgent', priority = 1)
     assert t.label == 'urgent'
     assert t.priority == 1
 
@@ -1396,63 +1396,63 @@ class TestExistingInstance:
         def own_trait_definitions(cls) -> Generator[tuple[str, TraitDefinition]]:
             for trait_name, trait in Person.s_dir.items():
                 if not trait.flags_on(T.RUNTIME | T.RESERVED):
-                    yield trait_name, TraitModification(flags=T.RUNTIME).apply(trait.t_def)
+                    yield trait_name, TraitModification(flags = T.RUNTIME).apply(trait.t_def)
 
     def test_existing_instance_api_variants(self):
         assert not self.RuntimePerson.is_storable()
 
         if 1:
-            id_traits = [
+            id_traits   = [
                 {'last_name': 'Davidovich', 'first_name': 'Sasha'},
                 {'last_name': 'Pevzner', 'first_name': 'Ilya'},
                 {'last_name': 'Lesin', 'first_name': 'Alex'},
                 {'last_name': 'Smith', 'first_name': 'John'},
             ]
-            kwargs = [
+            kwargs      = [
                 {'weight_lbs': 170, '_replace': True},
                 {},
                 {'weight_lbs': 190, '_replace': True},
                 {},
             ]
-            classes = [
+            classes     = [
                 self.TestablePerson,
                 self.TestablePerson,
                 self.RuntimePerson,
                 self.RuntimePerson,
             ]
-            people = [cls(**id_traits, **kwargs) for cls, id_traits, kwargs in zip(classes, id_traits, kwargs, strict=True)]
+            people      = [cls(**id_traits, **kwargs) for cls, id_traits, kwargs in zip(classes, id_traits, kwargs, strict = True)]
 
-            ppl_found = [obj.__class__.existing_instance(**id_values) for obj, id_values in zip(people, id_traits, strict=True)]
+            ppl_found = [obj.__class__.existing_instance(**id_values) for obj, id_values in zip(people, id_traits, strict = True)]
             assert ppl_found == people
 
             # Positive / negative lookups with _throw flag
-            assert self.RuntimePerson.existing_instance(last_name='Smith', first_name='John')
+            assert self.RuntimePerson.existing_instance(last_name = 'Smith', first_name = 'John')
 
-            assert not self.TestablePerson.existing_instance(last_name='Pevzner', first_name='Arthur', _throw=False)
-            assert not self.TestablePerson.existing_instance_by_id(ID('Arthur|Pevzner'), _throw=False)
+            assert not self.TestablePerson.existing_instance(last_name = 'Pevzner', first_name = 'Arthur', _throw = False)
+            assert not self.TestablePerson.existing_instance_by_id(ID('Arthur|Pevzner'), _throw = False)
 
-            assert self.TestablePerson.existing_instance(last_name='Pevzner', first_name='Ariella', _throw=False)
+            assert self.TestablePerson.existing_instance(last_name = 'Pevzner', first_name = 'Ariella', _throw = False)
             assert self.TestablePerson.existing_instance_by_id(ID('Ariella|Pevzner'))
 
             for i, cls in enumerate(people):
                 # existing_instance_by_id with ID and raw id value
                 id1 = ppl_found[i].id()
-                p3 = cls.existing_instance_by_id(_id=id1)
+                p3  = cls.existing_instance_by_id(_id = id1)
 
                 id1_val = id1.value
-                p4 = cls.existing_instance_by_id(_id_value=id1_val)
+                p4      = cls.existing_instance_by_id(_id_value = id1_val)
                 assert p3 == p4
 
                 id2_val = 'Smith|Josh'
-                p5 = cls.existing_instance_by_id(_id_value=id2_val, _throw=False)
+                p5      = cls.existing_instance_by_id(_id_value = id2_val, _throw = False)
                 assert p5 is None
 
 
 @pytest.mark.parametrize('value', [{'x': 1}, {}, [], [1], np.float64(1.1)])
 def test_any_trait(value):
     class X(Traitable):
-        x: int = T(T.ID)
-        y: Any = T()
+        x: int  = T(T.ID)
+        y: Any  = T()
         z: list = T()
 
         @classmethod
@@ -1460,7 +1460,7 @@ def test_any_trait(value):
             return None
 
     with GRAPH_ON():
-        x = X(x=1, y=value, z=[value], _replace=True)
+        x = X(x = 1, y = value, z = [value], _replace = True)
         assert x.y == value
         assert x.z[0] == value
         assert type(x.y) is type(value)
@@ -1480,16 +1480,16 @@ def test_any_trait(value):
 def test_exceptions(t):
     class X(Traitable):
         x: int = t(T.ID)
-        y: int = t(default=1)
+        y: int = t(default = 1)
 
     with CACHE_ONLY():
-        x = X(_id=ID('1'))
-        match = (
+        x       = X(_id = ID('1'))
+        match   = (
             r'test_exceptions.<locals>.X/1: object is an invalid lazy reference to non-storable that does not exist in memory'
             if t is RT
             else r'test_exceptions.<locals>.X/1: object reference not found in store'
         )
-        with pytest.raises(RuntimeError, match=match):
+        with pytest.raises(RuntimeError, match = match):
             assert x.y == 1
 
 
@@ -1498,15 +1498,15 @@ def test_multiple_inheritance():
 
     # Test 1: Basic multiple inheritance works
     class EntityA(Traitable):
-        name: str = RT(T.ID)
-        value: int = RT()
+        name: str   = RT(T.ID)
+        value: int  = RT()
 
         def value_get(self) -> int:
             return 42
 
     class EntityB(Traitable):
-        rev: int = RT(T.ID)
-        value: str = RT()
+        rev: int    = RT(T.ID)
+        value: str  = RT()
 
         def value_get(self) -> str:
             return 'forty two'
@@ -1522,7 +1522,7 @@ def test_multiple_inheritance():
     mro_names = [cls.__name__ for cls in Combined.__mro__]
     assert mro_names[:4] == ['Combined', 'EntityA', 'EntityB', 'Traitable']
 
-    obj = Combined(name='test', rev=1)
+    obj = Combined(name = 'test', rev = 1)
 
     assert obj.name == 'test'
     assert obj.value == 42
@@ -1536,12 +1536,12 @@ def test_multiple_inheritance():
 
 def test_mutable_default():
     class X(Traitable):
-        x: dict = RT(default={})
+        x: dict = RT(default = {})
 
     x = X()
     y = X()
     with GRAPH_ON():
-        x.x.update(a=1)
+        x.x.update(a = 1)
 
         assert x.x == {'a': 1}
         assert y.x == {}
@@ -1550,7 +1550,7 @@ def test_mutable_default():
 def test_runtime_id_error():
     with pytest.raises(
         RuntimeError,
-        match=r"<class 'test_traitable.test_runtime_id_error.<locals>.X'>.x is a RUNTIME ID trait - traitable must not be storable \(all traits must be RUNTIME\)",
+        match = r"<class 'test_traitable.test_runtime_id_error.<locals>.X'>.x is a RUNTIME ID trait - traitable must not be storable \(all traits must be RUNTIME\)",
     ):
 
         class X(Traitable):
@@ -1562,10 +1562,10 @@ def test_serialize_runtime_exogenous_reference():
     class X(Traitable):
         x: int = RT()
 
-    x = X(x=1)
+    x = X(x = 1)
     with pytest.raises(
         TypeError,
-        match=rf'test_serialize_runtime_exogenous_reference.<locals>.X/{x.id_value()} - cannot serialize a non-storable exogenous reference',
+        match = rf'test_serialize_runtime_exogenous_reference.<locals>.X/{x.id_value()} - cannot serialize a non-storable exogenous reference',
     ):
         x.serialize(False)
 
@@ -1574,7 +1574,7 @@ def test_serialize_runtime_endogenous_reference():
     class X(Traitable):
         x: int = RT(T.ID)
 
-    ser = X(x=1).serialize_nx(False)
+    ser = X(x = 1).serialize_nx(False)
     assert ser == {'_id': [1]}
 
     x = Traitable.deserialize_nx(X.s_bclass, ser)
@@ -1584,7 +1584,7 @@ def test_serialize_runtime_endogenous_reference():
     class Y(Traitable):
         x: int = RT()
 
-    with pytest.raises(TypeError, match=r'Expected a string ID value, but found a list'):
+    with pytest.raises(TypeError, match = r'Expected a string ID value, but found a list'):
         Y.deserialize_nx(Y.s_bclass, ser)
 
 
@@ -1592,8 +1592,8 @@ def test_verify_success():
     """verify() returns success when all verifiers pass and NOT_EMPTY constraints are satisfied."""
 
     class WithVerifier(Traitable):
-        code: str = RT()
-        limit: int = RT(0)
+        code: str   = RT()
+        limit: int  = RT(0)
 
         def code_verify(self, t, value: str) -> RC:
             if value and not value.isalnum():
@@ -1605,8 +1605,8 @@ def test_verify_success():
                 return RC(False, 'limit must be <= 100')
             return RC_TRUE
 
-    e = WithVerifier(code='valid', limit=50)
-    rc = e.verify()
+    e   = WithVerifier(code = 'valid', limit = 50)
+    rc  = e.verify()
     assert rc
     rc.throw()
 
@@ -1622,8 +1622,8 @@ def test_verify_fails_when_verifier_returns_error():
                 return RC(False, 'code must be alphanumeric')
             return RC_TRUE
 
-    e = WithVerifier()
-    e.code = 'invalid-code'
+    e       = WithVerifier()
+    e.code  = 'invalid-code'
     assert e.code == 'invalid-code'
     rc = e.verify()
     assert not rc
@@ -1642,7 +1642,7 @@ def test_verify_not_called_on_set():
                 return RC(False, 'limit must be <= 100')
             return RC_TRUE
 
-    e = WithVerifier(limit=50)
+    e       = WithVerifier(limit = 50)
     e.limit = 150  # setter not defined; verifier not run on set
     assert e.limit == 150
     rc = e.verify()
@@ -1654,9 +1654,9 @@ class TestClassTrait:
     """Tests for cls.T.trait_name returning a ClassTrait (NamedCallable getter)."""
 
     class Item(Traitable):
-        name: str = T(T.ID)
-        price: float = T(0.0)
-        qty: int = T(1)
+        name: str       = T(T.ID)
+        price: float    = T(0.0)
+        qty: int        = T(1)
 
     def test_class_access_returns_class_trait(self):
         ct = self.Item.T.price
@@ -1672,23 +1672,23 @@ class TestClassTrait:
 
     def test_class_trait_is_callable_returns_instance_value(self):
         with CACHE_ONLY():
-            item = self.Item(name='ct_apple')
-            item.price = 1.5
-            item.qty = 3
+            item        = self.Item(name = 'ct_apple')
+            item.price  = 1.5
+            item.qty    = 3
             assert self.Item.T.price(item) == 1.5
             assert self.Item.T.qty(item) == 3
 
     def test_class_trait_reflects_updated_value(self):
         with CACHE_ONLY():
-            item = self.Item(name='ct_banana')
-            item.price = 0.5
-            ct = self.Item.T.price
-            item.price = 2.0
+            item        = self.Item(name = 'ct_banana')
+            item.price  = 0.5
+            ct          = self.Item.T.price
+            item.price  = 2.0
             assert ct(item) == 2.0
 
     def test_two_class_traits_are_independent(self):
-        ct_price = self.Item.T.price
-        ct_qty = self.Item.T.qty
+        ct_price    = self.Item.T.price
+        ct_qty      = self.Item.T.qty
         assert ct_price is not ct_qty
         assert ct_price.name == 'price'
         assert ct_qty.name == 'qty'
@@ -1696,8 +1696,8 @@ class TestClassTrait:
     def test_class_trait_serializes_as_class_id_and_trait_name(self):
         """serialize() emits [class_id, trait_name]; deserialization via ClassTrait.deserialize
         requires module-level classes and is tested through basket aggregator serialization."""
-        ct = self.Item.T.price
-        serialized = ct.serialize(embed=False)
+        ct          = self.Item.T.price
+        serialized  = ct.serialize(embed = False)
         assert isinstance(serialized, list)
         assert len(serialized) == 2
         assert serialized[1] == 'price'
@@ -1711,16 +1711,16 @@ class TestClassTrait:
             extractor: NamedCallable = T()
 
         with CACHE_ONLY():
-            item = self.Item(name='ct_date')
-            item.price = 5.0
-            p = Pipeline(extractor=self.Item.T.price)
+            item        = self.Item(name = 'ct_date')
+            item.price  = 5.0
+            p           = Pipeline(extractor = self.Item.T.price)
             assert p.extractor(item) == 5.0
 
     def test_instance_access_does_not_return_class_trait(self):
         """Accessing a trait on an instance returns the value, not a ClassTrait."""
         with CACHE_ONLY():
-            item = self.Item(name='ct_elderberry')
-            item.price = 7.0
+            item        = self.Item(name = 'ct_elderberry')
+            item.price  = 7.0
             assert item.price == 7.0
             assert not isinstance(item.price, ClassTrait)
 
@@ -1748,8 +1748,8 @@ class TestForwardRefTraitables:
 
         assert c.__qualname__ == '_ResolveKeyModuleLevelStub'
 
-        full = PyClass.name(c)
-        dot = full.rfind('.')
+        full    = PyClass.name(c)
+        dot     = full.rfind('.')
         assert dot >= 0
         embedded_key = f'{full[:dot]}.Peer'
 
@@ -1760,9 +1760,9 @@ class TestForwardRefTraitables:
 
         assert inn.__qualname__ == '_ResolveKeyOuterStub.Inner'
 
-        full = PyClass.name(inn)
-        dot = full.rfind('.')
-        embedded_key = f'{full[:dot]}.Peer'
+        full            = PyClass.name(inn)
+        dot             = full.rfind('.')
+        embedded_key    = f'{full[:dot]}.Peer'
 
         assert TraitableFwdRef.resolve_key(inn, 'Peer') == embedded_key
 
@@ -1775,8 +1775,8 @@ class TestForwardRefTraitables:
         """
         import types as _types
 
-        mod = _types.ModuleType(module_name)
-        mod.__dict__['__name__'] = module_name
+        mod                         = _types.ModuleType(module_name)
+        mod.__dict__['__name__']    = module_name
         # Make the module discoverable for `from __future__ import annotations` /
         # forward-ref eval that consults `sys.modules[cls.__module__].__dict__`.
         sys.modules[module_name] = mod
@@ -1789,7 +1789,7 @@ class TestForwardRefTraitables:
 
     def test_module_level_mutual_forward_ref(self):
         """A and B reference each other at module scope; both data_types resolve."""
-        source = (
+        source  = (
             'from __future__ import annotations\n'
             'from core_10x.trait_definition import T\n'
             'from core_10x.traitable import Traitable\n'
@@ -1802,7 +1802,7 @@ class TestForwardRefTraitables:
             '    bid: int = T(T.ID)\n'
             '    a: A = T()\n'
         )
-        mod = self._exec_module(source, 'test_traitable_fwd_ref_mod_level')
+        mod     = self._exec_module(source, 'test_traitable_fwd_ref_mod_level')
         try:
             cls_a, cls_b = mod.A, mod.B
             assert cls_a.trait('b').data_type is cls_b
@@ -1811,8 +1811,8 @@ class TestForwardRefTraitables:
             assert cls_b.trait('a').t_def.data_type is cls_a
 
             with CACHE_ONLY(), DEBUG_ON(), CONVERT_VALUES_OFF():
-                a = cls_a(aid=1)
-                b = cls_b(bid=2)
+                a   = cls_a(aid = 1)
+                b   = cls_b(bid = 2)
                 a.b = b
                 b.a = a
                 assert a.b is b
@@ -1829,19 +1829,19 @@ class TestForwardRefTraitables:
         """
 
         class A(Traitable):
-            aid: int = T(T.ID)
-            b: B = T()  # forward ref to B defined just below
+            aid: int    = T(T.ID)
+            b: B        = T()  # forward ref to B defined just below
 
         class B(Traitable):
-            bid: int = T(T.ID)
-            a: A = T()
+            bid: int    = T(T.ID)
+            a: A        = T()
 
         assert A.trait('b').data_type is B
         assert B.trait('a').data_type is A
 
         with CACHE_ONLY():
-            a = A(aid=1)
-            b = B(bid=2)
+            a   = A(aid = 1)
+            b   = B(bid = 2)
             a.b = b
             b.a = a
             assert a.b is b
@@ -1851,15 +1851,15 @@ class TestForwardRefTraitables:
         """A class forward-referencing itself by name (not Self) still resolves."""
 
         class Ref(Traitable):
-            nid: int = T(T.ID)
+            nid: int    = T(T.ID)
             parent: Ref = T()  # self-forward-ref by name (not via Self)
 
         assert Ref.trait('parent').data_type is Ref
 
         with CACHE_ONLY():
-            root = Ref(nid=1)
-            child = Ref(nid=2)
-            child.parent = root
+            root            = Ref(nid = 1)
+            child           = Ref(nid = 2)
+            child.parent    = root
             assert child.parent is root
 
     def test_unresolved_forward_ref_leaves_placeholder(self):
@@ -1867,8 +1867,8 @@ class TestForwardRefTraitables:
         a disposable placeholder subclass that raises on use."""
 
         class HasUnresolved(Traitable):
-            hid: int = T(T.ID)
-            ghost: NeverDefinedTraitable = T()  # noqa: F821 - intentionally never defined
+            hid: int                        = T(T.ID)
+            ghost: NeverDefinedTraitable    = T()  # noqa: F821 - intentionally never defined
 
         key = TraitableFwdRef.resolve_key(HasUnresolved, 'NeverDefinedTraitable')
 
@@ -1881,7 +1881,7 @@ class TestForwardRefTraitables:
 
         assert any(entry[0] is HasUnresolved and entry[1] == 'ghost' for entry in Traitable.s_fwd_ref_pending[key])
 
-        with pytest.raises(TypeError, match=r'NeverDefinedTraitable` is not defined'):
+        with pytest.raises(TypeError, match = r'NeverDefinedTraitable` is not defined'):
             ph()
 
         # Other tests assume no orphaned pending registrations.
@@ -1890,16 +1890,16 @@ class TestForwardRefTraitables:
     def test_non_identifier_string_annotation_still_errors(self):
         """A non-identifier string annotation (e.g. `list[B]`) with an unknown
         name does NOT get registered as a forward ref — it must error as before."""
-        with pytest.raises(TypeError, match='undeclared name in string annotation'):
+        with pytest.raises(TypeError, match = 'undeclared name in string annotation'):
 
             class _BadFwd(Traitable):
-                xid: int = T(T.ID)
-                items: list[NeverEverExistsTraitable] = T()  # noqa: F821
+                xid: int                                = T(T.ID)
+                items: list[NeverEverExistsTraitable]   = T()  # noqa: F821
 
     def test_missing_annotation_name_errors_on_placeholder_use(self):
         """Missing imports like `date` become placeholders; using the trait must
         report that the name is not defined."""
-        source = (
+        source  = (
             'from __future__ import annotations\n'
             'from core_10x.trait_definition import T\n'
             'from core_10x.traitable import Traitable\n'
@@ -1908,25 +1908,25 @@ class TestForwardRefTraitables:
             '    xid: str = T(T.ID)\n'
             '    md_date: date = T()\n'
         )
-        mod = self._exec_module(source, 'test_traitable_missing_date_ann')
+        mod     = self._exec_module(source, 'test_traitable_missing_date_ann')
         try:
-            missing_date = mod.MissingDate
-            ph = missing_date.trait('md_date').data_type
+            missing_date    = mod.MissingDate
+            ph              = missing_date.trait('md_date').data_type
             assert ph.__name__.startswith('_TraitableFwdRefPlaceholder#')
             assert ph.__name__.endswith('.date')
 
             unresolved = r'`test_traitable_missing_date_ann\.date` is not defined'
             with CACHE_ONLY(), CONVERT_VALUES_OFF(), DEBUG_ON():
-                obj = missing_date(xid='a')
-                with pytest.raises(TraitMethodError, match=unresolved):
+                obj = missing_date(xid = 'a')
+                with pytest.raises(TraitMethodError, match = unresolved):
                     obj.md_date = '2025-03-12'
 
             with CACHE_ONLY(), CONVERT_VALUES_ON():
-                obj2 = missing_date(xid='b')
-                with pytest.raises(TraitMethodError, match=unresolved):
+                obj2 = missing_date(xid = 'b')
+                with pytest.raises(TraitMethodError, match = unresolved):
                     obj2.md_date = '2025-03-12'
 
-            with pytest.raises(TypeError, match=unresolved):
+            with pytest.raises(TypeError, match = unresolved):
                 ph()
         finally:
             key = TraitableFwdRef.resolve_key(mod.MissingDate, 'date')
@@ -1948,7 +1948,7 @@ def test_ts_flag_values_and_common_bit():
 
 
 def test_event_base_uses_ts_flags():
-    at = EventBase.trait('_at')
+    at  = EventBase.trait('_at')
     who = EventBase.trait('_who')
     assert at.flags_on(T.TS)
     assert who.flags_on(T.TS)
@@ -1964,65 +1964,65 @@ def test_event_base_uses_ts_flags():
 
 
 def test_ts_time_wrong_type_integrity():
-    with pytest.raises(RuntimeError, match=r'BadTime.when - str TS traits must be TS_USER'):
+    with pytest.raises(RuntimeError, match = r'BadTime.when - str TS traits must be TS_USER'):
 
         class BadTime(Traitable):
-            when: str = T(T.TS_TIME)
-            x: int = T()
+            when: str   = T(T.TS_TIME)
+            x: int      = T()
 
 
 def test_ts_user_wrong_type_integrity():
-    with pytest.raises(RuntimeError, match=r'BadUser.who - int trait cannot be a TS trait'):
+    with pytest.raises(RuntimeError, match = r'BadUser.who - int trait cannot be a TS trait'):
 
         class BadUser(Traitable):
-            who: int = T(T.TS_USER)
-            x: int = T()
+            who: int    = T(T.TS_USER)
+            x: int      = T()
 
 
 def test_ts_runtime_integrity():
-    with pytest.raises(RuntimeError, match=r'must be storable'):
+    with pytest.raises(RuntimeError, match = r'must be storable'):
 
         class BadRt(Traitable):
-            when: datetime = RT(T.TS_TIME)
-            x: int = T()
+            when: datetime  = RT(T.TS_TIME)
+            x: int          = T()
 
 
 def test_ts_bare_flag_integrity():
-    with pytest.raises(RuntimeError, match=r'BareTs.meta - str TS traits must be TS_USER'):
+    with pytest.raises(RuntimeError, match = r'BareTs.meta - str TS traits must be TS_USER'):
 
         class BareTs(Traitable):
-            meta: str = T(T.TS)
-            x: int = T()
+            meta: str   = T(T.TS)
+            x: int      = T()
 
 
 def test_ts_both_bits_integrity():
-    with pytest.raises(RuntimeError, match=r'BothBits.when - datetime TS traits must be TS_TIME'):
+    with pytest.raises(RuntimeError, match = r'BothBits.when - datetime TS traits must be TS_TIME'):
 
         class BothBits(Traitable):
-            when: datetime = T(T.TS_TIME | T.TS_USER)
-            x: int = T()
+            when: datetime  = T(T.TS_TIME | T.TS_USER)
+            x: int          = T()
 
 
 def test_serialize_skips_ts_traits_and_post_serialize_marks_ts_fields():
     from core_10x.ts_store import TS_FIELDS_TAG, TsStore
 
-    class Ev(Traitable, keep_history=False):
-        name: str = T(T.ID)
-        saved_at: datetime = T(T.TS_TIME)
-        saved_by: str = T(T.TS_USER)
+    class Ev(Traitable, keep_history = False):
+        name: str           = T(T.ID)
+        saved_at: datetime  = T(T.TS_TIME)
+        saved_by: str       = T(T.TS_USER)
 
     class Store:
         add_ts = TsStore.add_ts
 
     with CACHE_ONLY():
-        ev = Ev(name='e1')
-        blob = ev.serialize_object(False)
+        ev      = Ev(name = 'e1')
+        blob    = ev.serialize_object(False)
         assert 'saved_at' not in blob
         assert 'saved_by' not in blob
         assert blob['name'] == 'e1'
 
-        ev.__class__.store = classmethod(lambda cls: Store())
-        post = ev.post_serialize(blob)
+        ev.__class__.store  = classmethod(lambda cls: Store())
+        post                = ev.post_serialize(blob)
         assert post[TS_FIELDS_TAG] == {
             'saved_at': T.TS_TIME.value(),
             'saved_by': T.TS_USER.value(),
@@ -2032,11 +2032,11 @@ def test_serialize_skips_ts_traits_and_post_serialize_marks_ts_fields():
         assert 'saved_at' not in blob  # original not mutated
 
 
-class SelectivePostSerializeEv(Traitable, keep_history=False, immutable=False):
+class SelectivePostSerializeEv(Traitable, keep_history = False, immutable = False):
     """Marks only ``saved_at`` for stamping — optional TS introduction on save."""
 
-    saved_at: datetime = T(T.TS_TIME)
-    saved_by: str = T(T.TS_USER)
+    saved_at: datetime  = T(T.TS_TIME)
+    saved_by: str       = T(T.TS_USER)
 
     def post_serialize(self, serialized_data: dict) -> dict:
         if not self._rev:
@@ -2048,7 +2048,7 @@ def test_selective_post_serialize_skips_hydrate_for_omitted_ts_traits(ts_instanc
     """Custom post_serialize may inject only some TS traits; save hydrates those only."""
     ts_instance.username = 'test_user'
     with ts_instance:
-        ev = SelectivePostSerializeEv(name=f'e-{uuid6.uuid7().hex}', _replace=True)
+        ev = SelectivePostSerializeEv(name = f'e-{uuid6.uuid7().hex}', _replace = True)
         ev.save().throw()
         at = ev.saved_at
         assert ev.is_set(ev.T.saved_at)
@@ -2064,14 +2064,14 @@ def test_selective_post_serialize_skips_hydrate_for_omitted_ts_traits(ts_instanc
 
 
 def test_runtime_unsets_ts_flags():
-    class Ev(Traitable, keep_history=False):
-        name: str = T(T.ID)
-        saved_at: datetime = T(T.TS_TIME)
-        saved_by: str = T(T.TS_USER)
+    class Ev(Traitable, keep_history = False):
+        name: str           = T(T.ID)
+        saved_at: datetime  = T(T.TS_TIME)
+        saved_by: str       = T(T.TS_USER)
 
-    runtime_ev = Ev.runtime()
-    rt_at = runtime_ev.trait('saved_at')
-    rt_by = runtime_ev.trait('saved_by')
+    runtime_ev  = Ev.runtime()
+    rt_at       = runtime_ev.trait('saved_at')
+    rt_by       = runtime_ev.trait('saved_by')
     assert rt_at.flags_on(T.RUNTIME)
     assert rt_by.flags_on(T.RUNTIME)
     assert not rt_at.flags_on(T.TS)
@@ -2086,14 +2086,14 @@ def test_runtime_unsets_ts_flags():
 @pytest.mark.parametrize('mode', [BSaveRefs.NONE, BSaveRefs.ALL, BSaveRefs.NEW_ONLY, True, False])
 class TestCycles:
     class Ref(Traitable):
-        ref: Self = T()
-        lref: list = T()
+        ref: Self   = T()
+        lref: list  = T()
 
     class Embeddable(AnonymousTraitable):
-        ref: Self = T()
-        lref: list = T()
+        ref: Self   = T()
+        lref: list  = T()
 
-    @pytest.fixture(autouse=True)
+    @pytest.fixture(autouse = True)
     def duck_db(self):
         with DuckDbStore():
             yield
@@ -2103,15 +2103,15 @@ class TestCycles:
         if node is cls.Ref:
             return contextlib.nullcontext()
         assert node is cls.Embeddable
-        return pytest.raises(TraitMethodError, match=r'circular embedded serialization')
+        return pytest.raises(TraitMethodError, match = r'circular embedded serialization')
 
     @pytest.mark.parametrize('node', [Ref, Embeddable])
     def test_root_over_mutual_cycle(self, mode, node):
-        a = node()
-        b = node()
-        a.ref = b
-        b.ref = a
-        root = node(k=uuid6.uuid7().hex)
+        a       = node()
+        b       = node()
+        a.ref   = b
+        b.ref   = a
+        root    = node(k = uuid6.uuid7().hex)
         if node is self.Embeddable:  # a is held by b: an embedded object has one holder
             with pytest.raises(ValueError, match = 'is held by'):
                 root.ref = a
@@ -2119,32 +2119,32 @@ class TestCycles:
 
         root.ref = a
         with self._serialization_context(node):
-            root.serialize_object(save_references=int(mode))
+            root.serialize_object(save_references = int(mode))
 
     @pytest.mark.parametrize('node', [Ref, Embeddable])
     def test_mutual_cycle(self, mode, node):
-        a = node()
-        b = node()
-        a.ref = b
-        b.lref = [a]
+        a       = node()
+        b       = node()
+        a.ref   = b
+        b.lref  = [a]
         with self._serialization_context(node):
-            a.serialize_object(save_references=int(mode))
+            a.serialize_object(save_references = int(mode))
 
     @pytest.mark.parametrize('node', [Ref, Embeddable])
     def test_self_cycle(self, mode, node):
-        a = node()
-        a.ref = a
+        a       = node()
+        a.ref   = a
         with self._serialization_context(node):
-            a.serialize_object(save_references=int(mode))
+            a.serialize_object(save_references = int(mode))
 
     @pytest.mark.parametrize('node', [Ref, Embeddable])
     def test_tree(self, mode, node):
         """Non-cyclic embed chain still serializes to a nested payload."""
-        a = node()
-        b = node()
-        a.ref = b
-        a.lref = [b] if node is self.Ref else [node()]  # an embedded object is stored in one place: the list gets its own
-        ser = a.serialize_object(save_references=int(mode))
+        a       = node()
+        b       = node()
+        a.ref   = b
+        a.lref  = [b] if node is self.Ref else [node()]  # an embedded object is stored in one place: the list gets its own
+        ser     = a.serialize_object(save_references = int(mode))
         assert isinstance(ser, dict)
         assert ser.get('ref') is not None
 
@@ -2152,41 +2152,41 @@ class TestCycles:
 def test_renamed_name_trait_hides_name():
     """When name_trait is not 'name', .name is not a trait."""
 
-    class Mkt(NamedTraitable, name_trait='mkt_name', keep_history=False):
+    class Mkt(NamedTraitable, name_trait = 'mkt_name', keep_history = False):
         mkt_name: str = T(T.ID)
 
     class Spot(Mkt):
         offset: int = T(0)
 
-    class Cal(NamedTraitable, keep_history=False):
+    class Cal(NamedTraitable, keep_history = False):
         pass
 
     # Storable endogenous ids lazy-load unless the cache is the only store.
     with CACHE_ONLY():
-        mkt = Mkt(mkt_name='SOFR')
+        mkt = Mkt(mkt_name = 'SOFR')
         assert mkt.mkt_name == 'SOFR'
         with pytest.raises(AttributeError):
             _ = mkt.name
         with pytest.raises(AttributeError):
             mkt.name = 'OTHER'
 
-        spot = Spot(mkt_name='SONIA')
+        spot = Spot(mkt_name = 'SONIA')
         assert spot.mkt_name == 'SONIA'
         with pytest.raises(AttributeError):
             _ = spot.name
 
-        cal = Cal(name='UK')
+        cal = Cal(name = 'UK')
         assert cal.name == 'UK'
 
 
 def test_runtime_subclass_of_storable_hides_reserved_traits():
-    class Stored(Traitable, keep_history=False):
+    class Stored(Traitable, keep_history = False):
         k: str = T(T.ID)
         v: int = T(0)
 
     class Transient(Stored):
-        k = M(flags=(T.RUNTIME, None))
-        v = M(flags=(T.RUNTIME, None))
+        k = M(flags = (T.RUNTIME, None))
+        v = M(flags = (T.RUNTIME, None))
 
     assert Stored.is_storable()
     assert not Transient.is_storable()
@@ -2194,7 +2194,7 @@ def test_runtime_subclass_of_storable_hides_reserved_traits():
     assert Transient.trait('_collection_name') is None
 
     with CACHE_ONLY():
-        t = Transient(k='a')
+        t = Transient(k = 'a')
         assert t.v == 0
         for trait_name in ('_rev', '_collection_name'):
             assert not hasattr(t, trait_name)
@@ -2216,11 +2216,11 @@ class _DescribeBase(Traitable):
 
 
 class _DescribeChild(_DescribeBase):
-    b: int = M(default=5)
+    b: int = M(default = 5)
     c: str = T()
 
 
-class _DescribeEmbeddable(Traitable, embeddable=True):
+class _DescribeEmbeddable(Traitable, embeddable = True):
     x: int = T()
 
 
@@ -2263,15 +2263,15 @@ class _HeldLeaf(Traitable, embeddable = True):
 
 
 class _HeldPart(Traitable, embeddable = True):
-    x: int = T()
+    x: int          = T()
     leaf: _HeldLeaf = T()
 
 
 class _Holder(Traitable):
-    name: str = T(T.ID)
-    part: _HeldPart = T()
-    parts: list = T()
-    preview: _HeldPart = RT()
+    name: str           = T(T.ID)
+    part: _HeldPart     = T()
+    parts: list         = T()
+    preview: _HeldPart  = RT()
 
 
 class TestEmbeddedSingleHolder:
@@ -2283,7 +2283,7 @@ class TestEmbeddedSingleHolder:
     def test_a_second_holder_is_refused_at_the_assignment(self):
         with CACHE_ONLY():
             a, b, p = _Holder(name = 'sh_a1'), _Holder(name = 'sh_b1'), _HeldPart(x = 1)
-            a.part = p
+            a.part  = p
 
             with pytest.raises(ValueError, match = r'_HeldPart/\w+ is held by _Holder/sh_a1\.part: it cannot also be held by _Holder/sh_b1\.part'):
                 b.part = p
@@ -2292,9 +2292,9 @@ class TestEmbeddedSingleHolder:
     def test_a_move_needs_a_release(self):
         with CACHE_ONLY():
             a, b, p = _Holder(name = 'sh_a2'), _Holder(name = 'sh_b2'), _HeldPart(x = 1)
-            a.part = p
-            a.part = XNone
-            b.part = p
+            a.part  = p
+            a.part  = XNone
+            b.part  = p
             assert b.part is p
 
             with pytest.raises(ValueError, match = r'is held by _Holder/sh_b2\.part'):
@@ -2302,23 +2302,23 @@ class TestEmbeddedSingleHolder:
 
     def test_set_again_where_it_is(self):
         with CACHE_ONLY():
-            a, p = _Holder(name = 'sh_a3'), _HeldPart(x = 1)
-            a.part = p
-            a.part = p
+            a, p    = _Holder(name = 'sh_a3'), _HeldPart(x = 1)
+            a.part  = p
+            a.part  = p
             assert a.part is p
 
     def test_a_runtime_trait_is_not_a_holder(self):
         with CACHE_ONLY():
-            a, b, p = _Holder(name = 'sh_a4'), _Holder(name = 'sh_b4'), _HeldPart(x = 1)
-            a.preview = p
-            b.preview = p
-            b.part = p
-            a.preview = p
+            a, b, p     = _Holder(name = 'sh_a4'), _Holder(name = 'sh_b4'), _HeldPart(x = 1)
+            a.preview   = p
+            b.preview   = p
+            b.part      = p
+            a.preview   = p
             assert (a.preview, b.preview, b.part) == (p, p, p)
 
     def test_twice_in_one_container(self):
         with CACHE_ONLY():
-            a, p = _Holder(name = 'sh_a5'), _HeldPart(x = 1)
+            a, p    = _Holder(name = 'sh_a5'), _HeldPart(x = 1)
             a.parts = []
             a.parts.append(p)
             a.parts.append(p)  # nothing sees either append
@@ -2328,8 +2328,8 @@ class TestEmbeddedSingleHolder:
 
     def test_a_trait_and_a_container_of_one_holder(self):
         with CACHE_ONLY():
-            a, q = _Holder(name = 'sh_a6'), _HeldPart(x = 1)
-            a.part = q
+            a, q    = _Holder(name = 'sh_a6'), _HeldPart(x = 1)
+            a.part  = q
             a.parts = [q]
 
             with pytest.raises(TraitMethodError, match = r'is stored twice: in _Holder/sh_a6\.part and in _Holder/sh_a6\.parts'):
@@ -2337,8 +2337,8 @@ class TestEmbeddedSingleHolder:
 
     def test_two_holders_through_containers(self):
         with CACHE_ONLY():
-            a, b, r = _Holder(name = 'sh_a7'), _Holder(name = 'sh_b7'), _HeldPart(x = 1)
-            a.parts, b.parts = [r], [r]
+            a, b, r             = _Holder(name = 'sh_a7'), _Holder(name = 'sh_b7'), _HeldPart(x = 1)
+            a.parts, b.parts    = [r], [r]
             a.serialize_object()  # the first to be serialized takes it
 
             with pytest.raises(TraitMethodError, match = r'is held by _Holder/sh_a7\.parts: it cannot also be held by _Holder/sh_b7\.parts'):
@@ -2362,9 +2362,9 @@ class TestEmbeddedSingleHolder:
 
     def test_nested_embedding_records_the_direct_holder(self):
         with CACHE_ONLY():
-            a, p, other, leaf = _Holder(name = 'sh_a9'), _HeldPart(x = 1), _HeldPart(x = 2), _HeldLeaf(v = 1)
-            p.leaf = leaf
-            a.part = p
+            a, p, other, leaf   = _Holder(name = 'sh_a9'), _HeldPart(x = 1), _HeldPart(x = 2), _HeldLeaf(v = 1)
+            p.leaf              = leaf
+            a.part              = p
             a.serialize_object()
 
             with pytest.raises(ValueError, match = r'_HeldLeaf/\w+ is held by _HeldPart/\w+\.leaf'):
@@ -2372,8 +2372,8 @@ class TestEmbeddedSingleHolder:
 
     def test_loading_records_the_holder(self):
         with DuckDbStore():
-            a, b = _Holder(name = 'sh_a10'), _Holder(name = 'sh_b10')
-            a.part = _HeldPart(x = 1)
+            a, b    = _Holder(name = 'sh_a10'), _Holder(name = 'sh_b10')
+            a.part  = _HeldPart(x = 1)
             a.save().throw()
             assert a.reload()  # builds a new embedded object from the store
 
@@ -2383,7 +2383,7 @@ class TestEmbeddedSingleHolder:
     def test_the_record_is_per_scope(self):
         with CACHE_ONLY():
             a, b, p = _Holder(name = 'sh_a11'), _Holder(name = 'sh_b11'), _HeldPart(x = 1)
-            a.part = p
+            a.part  = p
 
             with Scenario():
                 a.part = XNone
@@ -2401,10 +2401,10 @@ class TestEmbeddedSingleHolder:
 
     def test_find_holders_with_and_without_a_record(self):
         with CACHE_ONLY():
-            a, p, q, leaf = _Holder(name = 'sh_a13'), _HeldPart(x = 1), _HeldPart(x = 2), _HeldLeaf(v = 1)
-            p.leaf = leaf
-            a.part = p  # recorded at the assignment
-            a.parts = []
+            a, p, q, leaf   = _Holder(name = 'sh_a13'), _HeldPart(x = 1), _HeldPart(x = 2), _HeldLeaf(v = 1)
+            p.leaf          = leaf
+            a.part          = p  # recorded at the assignment
+            a.parts         = []
             a.parts.append(q)  # no record: found by the scan
 
             cache = BTP.current().cache()

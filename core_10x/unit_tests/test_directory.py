@@ -26,7 +26,7 @@ def test_flatten():
         ('Mammals', 'Whales', 'Beluga'): 'Beluga',
     }
 
-    f2 = ANIMALS.flatten(with_root=True)
+    f2 = ANIMALS.flatten(with_root = True)
     assert f2 == {('Animals',): 'Animals', **{('Animals', *k): v for k, v in f1.items()}}
 
 
@@ -50,5 +50,5 @@ def test_choices():
         'Carp Family/Roach': 'RCH',
     }
 
-    c2 = FISH.choices(with_root=True)
+    c2 = FISH.choices(with_root = True)
     assert c2 == {'Fresh Water Fish': 'FWF', **{f'Fresh Water Fish/{k}': v for k, v in c1.items()}}

@@ -10,12 +10,12 @@ from core_10x.ts_union import TsUnion
 
 class TestAbstractBases:
     def test_ts_store_is_abstract(self):
-        with pytest.raises(TypeError, match='abstract'):
+        with pytest.raises(TypeError, match = 'abstract'):
             # noinspection PyAbstractClass
             TsStore()
 
     def test_ts_collection_is_abstract(self):
-        with pytest.raises(TypeError, match='abstract'):
+        with pytest.raises(TypeError, match = 'abstract'):
             # noinspection PyAbstractClass
             TsCollection()
 

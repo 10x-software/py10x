@@ -82,9 +82,9 @@ def test_next_rc_numbering():
 def test_validate_next_version_override_normalizes_and_rejects_prereleases():
     assert VersionHelpers.validate_next_version_override('0.3') == '0.3.0'
     assert VersionHelpers.validate_next_version_override('0.3.0') == '0.3.0'
-    with pytest.raises(ValueError, match='released'):
+    with pytest.raises(ValueError, match = 'released'):
         VersionHelpers.validate_next_version_override('0.3.0rc1')
-    with pytest.raises(ValueError, match='released'):
+    with pytest.raises(ValueError, match = 'released'):
         VersionHelpers.validate_next_version_override('not-a-version')
 
 
@@ -123,18 +123,18 @@ def test_parse_next_version_overrides_mixes_bare_group_with_named():
 
 
 def test_parse_next_version_overrides_rejects_malformed_entries():
-    with pytest.raises(ValueError, match='released'):
+    with pytest.raises(ValueError, match = 'released'):
         VersionHelpers.parse_next_version_overrides('py10x-core=0.3.0,bogus', [])
-    with pytest.raises(ValueError, match='malformed'):
+    with pytest.raises(ValueError, match = 'malformed'):
         VersionHelpers.parse_next_version_overrides('=0.3.0', [])
-    with pytest.raises(ValueError, match='released'):
+    with pytest.raises(ValueError, match = 'released'):
         VersionHelpers.parse_next_version_overrides('py10x-core=0.3.0rc1', [])
 
 
 def test_main_dev_markers_excluded_from_release_selection():
     """`*.dev` tags on `main` are for setuptools-scm only — not releases or rc numbering."""
-    tags = [f'{KERNEL}0.2.1rc17', f'{KERNEL}0.2.1rc18.dev', f'{KERNEL}0.2.2rc0.dev', f'{KERNEL}0.2.1']
-    parsed = VersionHelpers.parse_pkg_tags(tags, KERNEL)
+    tags    = [f'{KERNEL}0.2.1rc17', f'{KERNEL}0.2.1rc18.dev', f'{KERNEL}0.2.2rc0.dev', f'{KERNEL}0.2.1']
+    parsed  = VersionHelpers.parse_pkg_tags(tags, KERNEL)
     assert parsed == [(f'{KERNEL}0.2.1rc17', Version('0.2.1rc17')), (f'{KERNEL}0.2.1', Version('0.2.1'))]
     assert VersionHelpers.latest_tag(parsed) == (f'{KERNEL}0.2.1', Version('0.2.1'))
     assert VersionHelpers.next_rc(parsed, '0.2.1') == 18
@@ -224,8 +224,8 @@ def test_footprint_skips_dot_as_exclude():
 
     `PkgInput.footprint_changed_get` filters `sub != '.'` before calling `diff_pathspecs`.
     """
-    other_subdirs = [s for s in ('.', 'xx_fin') if s != '.']
-    specs = GitHelpers.diff_pathspecs(*other_subdirs)
+    other_subdirs   = [s for s in ('.', 'xx_fin') if s != '.']
+    specs           = GitHelpers.diff_pathspecs(*other_subdirs)
     assert specs == ('.', ':(exclude)xx_fin', ':(exclude)uv.lock', ':(exclude)constraints.txt')
     assert ':(exclude).' not in specs
 
@@ -233,12 +233,12 @@ def test_footprint_skips_dot_as_exclude():
 def test_tree_changed_since_tag(tmp_path):
     repo = tmp_path / 'repo'
     for d in ('pkg', 'sib', 'xx_fin', '.github/actions'):
-        (repo / d).mkdir(parents=True)
-    (repo / 'pkg' / 'a.txt').write_text('v1\n', encoding='utf-8')  # this package's subtree
-    (repo / 'sib' / 'b.txt').write_text('v1\n', encoding='utf-8')  # a sibling package's subtree
-    (repo / 'xx_fin' / 'c.txt').write_text('v1\n', encoding='utf-8')  # nested downstream subtree
-    (repo / '.github' / 'actions' / 'build.yml').write_text('v1\n', encoding='utf-8')  # shared CI
-    (repo / 'CMakeLists.txt').write_text('v1\n', encoding='utf-8')  # shared root build config
+        (repo / d).mkdir(parents = True)
+    (repo / 'pkg' / 'a.txt').write_text('v1\n', encoding = 'utf-8')  # this package's subtree
+    (repo / 'sib' / 'b.txt').write_text('v1\n', encoding = 'utf-8')  # a sibling package's subtree
+    (repo / 'xx_fin' / 'c.txt').write_text('v1\n', encoding = 'utf-8')  # nested downstream subtree
+    (repo / '.github' / 'actions' / 'build.yml').write_text('v1\n', encoding = 'utf-8')  # shared CI
+    (repo / 'CMakeLists.txt').write_text('v1\n', encoding = 'utf-8')  # shared root build config
     GitHelpers.git(repo, 'init')
     GitHelpers.git(repo, 'config', 'user.email', 'test@example.com')
     GitHelpers.git(repo, 'config', 'user.name', 'Test')
@@ -251,7 +251,7 @@ def test_tree_changed_since_tag(tmp_path):
     assert not GitHelpers.tree_changed_since_tag(repo, 'base', *fp)  # no change yet
 
     def footprint_trips(path: str) -> bool:
-        (repo / path).write_text('v2\n', encoding='utf-8')
+        (repo / path).write_text('v2\n', encoding = 'utf-8')
         GitHelpers.git(repo, 'add', '.')
         GitHelpers.git(repo, 'commit', '-qm', f'touch {path}')
         tripped = GitHelpers.tree_changed_since_tag(repo, 'base', *fp)
@@ -268,7 +268,7 @@ def test_tree_changed_since_tag(tmp_path):
 
     # Downstream footprint must not treat core's `.` as an exclude (would match everything).
     ds_fp = GitHelpers.diff_pathspecs()  # no excludes after filtering out `.`
-    (repo / 'xx_fin' / 'c.txt').write_text('v3\n', encoding='utf-8')
+    (repo / 'xx_fin' / 'c.txt').write_text('v3\n', encoding = 'utf-8')
     GitHelpers.git(repo, 'add', '.')
     GitHelpers.git(repo, 'commit', '-qm', 'downstream-only')
     assert GitHelpers.tree_changed_since_tag(repo, 'base', *ds_fp) is True
@@ -305,22 +305,22 @@ def test_pin_strings():
 
 
 def test_release_branch_names():
-    assert GitHelpers.release_branch('pre', 'py10x-core', is_core=True) == 'pre'
-    assert GitHelpers.release_branch('prod', 'py10x-core', is_core=True) == 'prod'
-    assert GitHelpers.release_branch('pre', 'py10x-kernel', is_core=False) == 'pre-py10x-kernel'
-    assert GitHelpers.release_branch('prod', 'py10x-infra', is_core=False) == 'prod-py10x-infra'
+    assert GitHelpers.release_branch('pre', 'py10x-core', is_core = True) == 'pre'
+    assert GitHelpers.release_branch('prod', 'py10x-core', is_core = True) == 'prod'
+    assert GitHelpers.release_branch('pre', 'py10x-kernel', is_core = False) == 'pre-py10x-kernel'
+    assert GitHelpers.release_branch('prod', 'py10x-infra', is_core = False) == 'prod-py10x-infra'
     # In-repo downstreams cannot nest under bare core `pre`/`prod` (git ref collision).
-    assert GitHelpers.release_branch('pre', 'py10x-fin-base', is_core=False) == 'pre-py10x-fin-base'
-    assert GitHelpers.release_branch('prod', 'py10x-fin-base', is_core=False) == 'prod-py10x-fin-base'
+    assert GitHelpers.release_branch('pre', 'py10x-fin-base', is_core = False) == 'pre-py10x-fin-base'
+    assert GitHelpers.release_branch('prod', 'py10x-fin-base', is_core = False) == 'prod-py10x-fin-base'
 
 
 def test_forward_pin_edits_targets_only_named_and_preserves_format():
-    deps = [
+    deps    = [
         'py10x-kernel (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)',
         'py10x-infra (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)',
         'numpy>=2.2.2,<2.5.0',
     ]
-    out = PyProjectHelpers.forward_pin_edits(deps, {'py10x-kernel': '>=0.2.1,<0.2.2'})
+    out     = PyProjectHelpers.forward_pin_edits(deps, {'py10x-kernel': '>=0.2.1,<0.2.2'})
     assert out == [
         'py10x-kernel (>=0.2.1,<0.2.2)',
         'py10x-infra (>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0)',
@@ -342,7 +342,7 @@ def test_write_forward_pins_preserves_multiline_and_comments(tmp_path):
             "numpy>=2.2.2,<2.5.0",
         ]
     """),
-        encoding='utf-8',
+        encoding = 'utf-8',
     )
     before = p.read_text()
     PyProjectHelpers.write_forward_pins(p, {'py10x-kernel': '==0.2.1rc17'})
@@ -367,7 +367,7 @@ def test_write_forward_pins_roundtrip(tmp_path):
             "numpy>=2.2.2,<2.5.0",
         ]
     """),
-        encoding='utf-8',
+        encoding = 'utf-8',
     )
     changes = PyProjectHelpers.write_forward_pins(p, {'py10x-kernel': '>=0.2.1,<0.2.2', 'py10x-infra': '>=0.2.1,<0.2.2'})
     assert set(changes) == {'py10x-kernel', 'py10x-infra'}
@@ -388,7 +388,7 @@ def test_dependency_spec_reads_pinned_specifier(tmp_path):
             "numpy>=2.2.2,<2.5.0",
         ]
     """),
-        encoding='utf-8',
+        encoding = 'utf-8',
     )
     # Requirement canonicalises specifier order, so compare as a set, not a string.
     got = PyProjectHelpers.dependency_spec(p, 'py10x-kernel')
@@ -414,7 +414,7 @@ def test_write_forward_pins_idempotent(tmp_path):
             "numpy>=2.2.2,<2.5.0",
         ]
     """),
-        encoding='utf-8',
+        encoding = 'utf-8',
     )
     pins = {'py10x-kernel': '>=0.2.1,<0.2.2'}
     assert set(PyProjectHelpers.write_forward_pins(p, pins)) == {'py10x-kernel'}
@@ -425,7 +425,7 @@ def test_write_forward_pins_idempotent(tmp_path):
 
 def test_write_test_group_idempotent(tmp_path):
     p = tmp_path / 'pyproject.toml'
-    p.write_text('[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n', encoding='utf-8')
+    p.write_text('[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n', encoding = 'utf-8')
     assert PyProjectHelpers.write_test_group(p, 'py10x-core>=0.2.3')
     once = p.read_text()
     assert PyProjectHelpers.write_test_group(p, 'py10x-core>=0.2.3') == ''  # no change -> MainEditStep must not commit
@@ -434,7 +434,7 @@ def test_write_test_group_idempotent(tmp_path):
 
 def test_write_test_group_creates_and_refreshes(tmp_path):
     p = tmp_path / 'pyproject.toml'
-    p.write_text('[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n', encoding='utf-8')
+    p.write_text('[project]\nname = "py10x-kernel"\ndependencies = ["uuid6>=2025.0.1"]\n', encoding = 'utf-8')
     PyProjectHelpers.write_test_group(p, 'py10x-core==0.2.3')
     doc = tomlkit.parse(p.read_text())
     assert list(doc['dependency-groups']['test']) == ['py10x-core==0.2.3']
@@ -448,7 +448,7 @@ def test_write_test_group_merges_list_by_name(tmp_path):
     p = tmp_path / 'pyproject.toml'
     p.write_text(
         '[project]\nname = "py10x-core"\n\n[dependency-groups]\ntest = ["py10x-fin-base>=0.1.0"]\n',
-        encoding='utf-8',
+        encoding = 'utf-8',
     )
     PyProjectHelpers.write_test_group(p, ['py10x-fin-base>=0.1.1rc1', 'py10x-other>=1.0'])
     doc = tomlkit.parse(p.read_text())
@@ -518,8 +518,8 @@ POST_FINAL_MATRIX = ['0.2.0', '0.2.1', '0.2.1.post1', '0.2.2rc0.dev0', '0.2.2rc1
 
 
 def test_post_final_window_pin_admits_marker_line_blocks_next_rc():
-    ss = SpecifierSet(VersionHelpers.post_final_window_pin('0.2.1'))
-    eligible = set(ss.filter(POST_FINAL_MATRIX))
+    ss          = SpecifierSet(VersionHelpers.post_final_window_pin('0.2.1'))
+    eligible    = set(ss.filter(POST_FINAL_MATRIX))
     assert eligible == {'0.2.1', '0.2.1.post1', '0.2.2rc0.dev0'}
     for excluded in ('0.2.0', '0.2.2rc1', '0.2.2'):
         assert excluded not in eligible
@@ -527,16 +527,16 @@ def test_post_final_window_pin_admits_marker_line_blocks_next_rc():
 
 def test_rc_window_upper_matches_main_dev_marker():
     """Window exclusive upper and the `.dev` marker must stay in lockstep (same rc line)."""
-    tag = f'{KERNEL}0.2.1rc19'
-    marker = VersionHelpers.main_dev_marker_tag(tag, KERNEL)
+    tag     = f'{KERNEL}0.2.1rc19'
+    marker  = VersionHelpers.main_dev_marker_tag(tag, KERNEL)
     assert marker == f'{KERNEL}0.2.1rc20.dev'
     assert VersionHelpers.rc_window_exclusive_upper('0.2.1rc19') == '0.2.1rc20'
     assert marker[len(KERNEL) : -len('.dev')] == VersionHelpers.rc_window_exclusive_upper('0.2.1rc19')
 
 
 def test_post_final_window_upper_matches_main_post_final_marker():
-    tag = f'{KERNEL}0.2.1'
-    marker = VersionHelpers.main_post_final_dev_marker_tag(tag, KERNEL)
+    tag     = f'{KERNEL}0.2.1'
+    marker  = VersionHelpers.main_post_final_dev_marker_tag(tag, KERNEL)
     assert marker == f'{KERNEL}0.2.2rc0.dev'
     assert VersionHelpers.post_final_window_exclusive_upper('0.2.1') == '0.2.2rc1'
 
@@ -616,7 +616,7 @@ def test_reverse_floor_self_corrects_via_forward_exact_pin():
 # --------------------------------------------------------------------------- installed-source helpers
 class TestParseUvPipShow:
     def test_editable(self):
-        out = """\
+        out     = """\
 Name: py10x-core
 Version: 1.0.0
 Location: /proj/.venv/lib/python3.11/site-packages
@@ -624,7 +624,7 @@ Editable project location: /proj/py10x
 Requires: numpy
 Required-by:
 """
-        info = InstalledSourceHelpers.parse_uv_pip_show(out)
+        info    = InstalledSourceHelpers.parse_uv_pip_show(out)
         assert info['Name'] == 'py10x-core'
         assert info['Editable project location'] == '/proj/py10x'
 
@@ -645,7 +645,7 @@ class TestDistInfoDirectUrl:
     def test_reads_direct_url_json(self, tmp_path):
         site = tmp_path / 'site-packages'
         dist = site / 'py10x_kernel-1.0.dist-info'
-        dist.mkdir(parents=True)
+        dist.mkdir(parents = True)
         (dist / 'direct_url.json').write_text('{"url":"https://github.com/org/cxx10x.git","vcs_info":{"vcs":"git"}}')
         show = {'Name': 'py10x-kernel', 'Version': '1.0', 'Location': str(site)}
         assert InstalledSourceHelpers.dist_info_direct_url(show) != ''
@@ -653,7 +653,7 @@ class TestDistInfoDirectUrl:
     def test_missing_direct_url_is_index(self, tmp_path):
         site = tmp_path / 'site-packages'
         dist = site / 'numpy-2.4.6.dist-info'
-        dist.mkdir(parents=True)
+        dist.mkdir(parents = True)
         show = {'Name': 'numpy', 'Version': '2.4.6', 'Location': str(site)}
         assert InstalledSourceHelpers.dist_info_direct_url(show) == ''
 
@@ -669,8 +669,8 @@ class TestInstalledSourceIntegration:
 # ------------------------------------------------------------------ PyPI / GitHub status helpers
 class TestPyPIHelpers:
     def test_parse_released_versions_drops_unparseable(self):
-        body = '{"releases": {"0.2.0": [], "0.2.1rc1": [], "0.2.1": [], "garbage": []}}'
-        got = PyPIHelpers.parse_released_versions(body)
+        body    = '{"releases": {"0.2.0": [], "0.2.1rc1": [], "0.2.1": [], "garbage": []}}'
+        got     = PyPIHelpers.parse_released_versions(body)
         assert got == {Version('0.2.0'), Version('0.2.1rc1'), Version('0.2.1')}
 
     def test_parse_released_versions_empty(self):
@@ -701,12 +701,12 @@ class TestSelectRunForTag:
     ]
 
     def test_picks_latest_matching(self):
-        runs = [
+        runs    = [
             {'head_branch': 'pre/v0.2.1', 'created_at': '2026-01-02T00:00:00Z', 'status': 'completed', 'conclusion': 'success', 'html_url': 'u-new'},
             {'head_branch': 'pre/v0.2.1', 'created_at': '2026-01-01T00:00:00Z', 'status': 'completed', 'conclusion': 'failure', 'html_url': 'u-old'},
             {'head_branch': 'prod/v0.3.0', 'created_at': '2026-01-03T00:00:00Z', 'status': 'in_progress', 'conclusion': None, 'html_url': 'u-other'},
         ]
-        run = GitHubHelpers.select_run_for_tag(runs, 'pre/v0.2.1')
+        run     = GitHubHelpers.select_run_for_tag(runs, 'pre/v0.2.1')
         assert run is not None and run['html_url'] == 'u-new'
 
     def test_none_when_no_match(self):
@@ -728,27 +728,27 @@ class TestPublishWorkflowState:
     RUNS = TestSelectRunForTag.RUNS
 
     def test_local_only_release(self):
-        state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin=False, trigger_on_origin=False)
+        state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin = False, trigger_on_origin = False)
         assert state == 'not pushed to origin'
         assert url == ''
 
     def test_release_on_origin_but_trigger_local(self):
-        state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin=True, trigger_on_origin=False)
+        state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin = True, trigger_on_origin = False)
         assert state == 'publish trigger not on origin (re-run with --publish-only)'
         assert url == ''
 
     def test_both_on_origin_reports_workflow(self):
-        state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin=True, trigger_on_origin=True)
+        state, url = GitHubHelpers.publish_workflow_state(self.RUNS, 'pre/v0.2.1', release_on_origin = True, trigger_on_origin = True)
         assert state == 'success'
         assert url == 'u-new'
 
 
 def test_pin_only_diff_ignores_unpublished_test_group():
     """Epilogues rewrite first-party pins and `dependency-groups.test`; neither is a source change."""
-    old = '[project]\nname = "py10x-core"\ndependencies = ["py10x-kernel (==1.0)", "numpy>=2"]\n'
-    pinned = old.replace('==1.0', '>=1.1rc1,<1.1rc2')
+    old     = '[project]\nname = "py10x-core"\ndependencies = ["py10x-kernel (==1.0)", "numpy>=2"]\n'
+    pinned  = old.replace('==1.0', '>=1.1rc1,<1.1rc2')
     tracked = pinned + '\n[dependency-groups]\ntest = ["py10x-fin-base>=0.1"]\n'
-    names = {'py10x-kernel', 'py10x-fin-base'}
+    names   = {'py10x-kernel', 'py10x-fin-base'}
     assert PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked, names)
     assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked.replace('numpy>=2', 'numpy>=3'), names)
     assert not PyProjectHelpers.diff_is_only_forward_pin_edits(old, tracked + '\n[tool.x]\ny = 1\n', names)

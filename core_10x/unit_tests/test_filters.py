@@ -43,21 +43,21 @@ class Person(Traitable):
 
 
 def test_filters():
-    p = Person(first_name='Sasha', last_name='Davidovich')
+    p = Person(first_name = 'Sasha', last_name = 'Davidovich')
 
-    r = OR(f(age=BETWEEN(50, 70), first_name=NE('Sasha')), f(age=17))
+    r = OR(f(age = BETWEEN(50, 70), first_name = NE('Sasha')), f(age = 17))
 
     assert r.prefix_notation() == {'$or': [{'$and': [{'age': {'$gte': 50, '$lte': 70}}, {'first_name': {'$ne': 'Sasha'}}]}, {'age': {'$eq': 17}}]}
     assert not r.eval(p)
 
 
 def test_or():
-    p = Person(first_name='Sasha', last_name='Davidovich')
-    r1, r2 = f(age=BETWEEN(50, 70)), f(first_name=EQ('Sasha'))
-    r3 = OR(r1, r2)
-    r4 = OR(r1)
-    r5 = OR(r2)
-    r6 = OR()
+    p       = Person(first_name = 'Sasha', last_name = 'Davidovich')
+    r1, r2  = f(age = BETWEEN(50, 70)), f(first_name = EQ('Sasha'))
+    r3      = OR(r1, r2)
+    r4      = OR(r1)
+    r5      = OR(r2)
+    r6      = OR()
     assert r1.prefix_notation() == {'age': {'$gte': 50, '$lte': 70}}
     assert r2.prefix_notation() == {'first_name': {'$eq': 'Sasha'}}
     assert r3.prefix_notation() == {'$or': [r1.prefix_notation(), r2.prefix_notation()]}
@@ -83,13 +83,13 @@ def test_or():
 
 
 def test_and():
-    p = Person(first_name='Sasha', last_name='Davidovich')
+    p = Person(first_name = 'Sasha', last_name = 'Davidovich')
 
-    r1, r2 = f(age=BETWEEN(50, 70)), f(first_name=EQ('Sasha'))
-    r3 = AND(r1, r2)
-    r4 = AND(r1)
-    r5 = AND(r2)
-    r6 = AND()
+    r1, r2  = f(age = BETWEEN(50, 70)), f(first_name = EQ('Sasha'))
+    r3      = AND(r1, r2)
+    r4      = AND(r1)
+    r5      = AND(r2)
+    r6      = AND()
     assert r1.prefix_notation() == {'age': {'$gte': 50, '$lte': 70}}
     assert r2.prefix_notation() == {'first_name': {'$eq': 'Sasha'}}
     assert r3.prefix_notation() == {'$and': [r1.prefix_notation(), r2.prefix_notation()]}
@@ -159,29 +159,29 @@ def test_in_nin():
     assert NIN({1, 2, 3}).eval(4)
     assert not NIN({1, 2, 3}).eval(2)
 
-    with pytest.raises(AssertionError, match='requires a list, tuple, or set'):
+    with pytest.raises(AssertionError, match = 'requires a list, tuple, or set'):
         IN(42)
 
 
 def test_any_trait_has_no_item_match_eval():
     class AnyEval(Traitable):
         marker: str = T(T.ID)
-        v: Any = T()
-        lst: list = T()
-        st: set = T()
+        v: Any      = T()
+        lst: list   = T()
+        st: set     = T()
 
     with CACHE_ONLY():
-        x = AnyEval(marker='x')
-        x.v, x.lst, x.st = [10, 20], [10, 20], {10, 20}
-        assert not f(v=10).eval(x)
-        assert f(v=NE(10)).eval(x)
-        assert not f(v=IN([10])).eval(x)
-        assert f(v=NIN([10])).eval(x)
-        assert f(v=NOT(EQ(10))).eval(x)
-        assert f(v=[10, 20]).eval(x)
-        assert f(v=IN([[10, 20]])).eval(x)
-        assert f(lst=10).eval(x)
-        assert f(st=10).eval(x)
+        x                   = AnyEval(marker = 'x')
+        x.v, x.lst, x.st    = [10, 20], [10, 20], {10, 20}
+        assert not f(v = 10).eval(x)
+        assert f(v = NE(10)).eval(x)
+        assert not f(v = IN([10])).eval(x)
+        assert f(v = NIN([10])).eval(x)
+        assert f(v = NOT(EQ(10))).eval(x)
+        assert f(v = [10, 20]).eval(x)
+        assert f(v = IN([[10, 20]])).eval(x)
+        assert f(lst = 10).eval(x)
+        assert f(st = 10).eval(x)
         for field in ('v', 'lst', 'st'):
             assert not f(**{field: GT(5)}).eval(x)
             assert not f(**{field: LT(50)}).eval(x)
@@ -189,72 +189,72 @@ def test_any_trait_has_no_item_match_eval():
             assert f(**{field: NOT(GT(5))}).eval(x)
 
 
-class NoneSaved(Traitable, keep_history=False):
+class NoneSaved(Traitable, keep_history = False):
     marker: str = T(T.ID)
-    n: int = T()
-    lst: list = T()
+    n: int      = T()
+    lst: list   = T()
 
 
 def test_none_filter_value_is_up_to_the_serializer():
     class NoneValue(Traitable):
         marker: str = T(T.ID)
-        age: int = T()
-        name: str = T()
-        v: Any = T()
-        when: date = T()
-        dct: dict = T()
+        age: int    = T()
+        name: str   = T()
+        v: Any      = T()
+        when: date  = T()
+        dct: dict   = T()
 
     td = NoneValue.s_dir
-    assert f(age=None, trait_dir=td).prefix_notation() == {'age': {'$eq': None}}
-    assert f(name=NE(None), trait_dir=td).prefix_notation() == {'name': {'$ne': None}}
-    assert f(age=IN([None, 1]), trait_dir=td).prefix_notation() == {'age': {'$in': [None, 1]}}
-    assert f(v=None, trait_dir=td).prefix_notation() == {'v': {'$in': [None], '$not': {'$type': 'array'}}}
+    assert f(age = None, trait_dir = td).prefix_notation() == {'age': {'$eq': None}}
+    assert f(name = NE(None), trait_dir = td).prefix_notation() == {'name': {'$ne': None}}
+    assert f(age = IN([None, 1]), trait_dir = td).prefix_notation() == {'age': {'$in': [None, 1]}}
+    assert f(v = None, trait_dir = td).prefix_notation() == {'v': {'$in': [None], '$not': {'$type': 'array'}}}
     for name in ('when', 'dct'):
         with pytest.raises(AttributeError):
-            f(**{name: None}, trait_dir=td).prefix_notation()
+            f(**{name: None}, trait_dir = td).prefix_notation()
 
 
 def test_prefix_notation_guards_only_list_set_and_any_traits():
     class Guarded(Traitable):
         marker: str = T(T.ID)
-        age: int = T()
-        dct: dict = T()
-        v: Any = T()
-        lst: list = T()
-        st: set = T()
+        age: int    = T()
+        dct: dict   = T()
+        v: Any      = T()
+        lst: list   = T()
+        st: set     = T()
 
-    td = Guarded.s_dir
-    not_array = {'$not': {'$type': 'array'}}
+    td          = Guarded.s_dir
+    not_array   = {'$not': {'$type': 'array'}}
     # -- other traits, and fields with no trait, stay plain
-    assert f(age=10, trait_dir=td).prefix_notation() == {'age': {'$eq': 10}}
-    assert f(age=GT(5), trait_dir=td).prefix_notation() == {'age': {'$gt': 5}}
-    assert f(age=BETWEEN(1, 5), trait_dir=td).prefix_notation() == {'age': {'$gte': 1, '$lte': 5}}
-    assert f(dct={'a': 1}, trait_dir=td).prefix_notation() == {'dct': EQ({'a': 1}).prefix_notation('dct', td)}
-    assert f(_id='x', trait_dir=td).prefix_notation() == {'_id': {'$eq': 'x'}}
-    assert f(v=10).prefix_notation() == {'v': {'$eq': 10}}
-    assert f(v=GT(5)).prefix_notation() == {'v': {'$gt': 5}}
+    assert f(age = 10, trait_dir = td).prefix_notation() == {'age': {'$eq': 10}}
+    assert f(age = GT(5), trait_dir = td).prefix_notation() == {'age': {'$gt': 5}}
+    assert f(age = BETWEEN(1, 5), trait_dir = td).prefix_notation() == {'age': {'$gte': 1, '$lte': 5}}
+    assert f(dct = {'a': 1}, trait_dir = td).prefix_notation() == {'dct': EQ({'a': 1}).prefix_notation('dct', td)}
+    assert f(_id = 'x', trait_dir = td).prefix_notation() == {'_id': {'$eq': 'x'}}
+    assert f(v = 10).prefix_notation() == {'v': {'$eq': 10}}
+    assert f(v = GT(5)).prefix_notation() == {'v': {'$gt': 5}}
     # -- a list trait matches items, unless a str or None could hit the stored class id
-    assert f(lst=10, trait_dir=td).prefix_notation() == {'lst': {'$eq': 10}}
-    assert f(st=10, trait_dir=td).prefix_notation() == {'st': {'$eq': 10}}
+    assert f(lst = 10, trait_dir = td).prefix_notation() == {'lst': {'$eq': 10}}
+    assert f(st = 10, trait_dir = td).prefix_notation() == {'st': {'$eq': 10}}
     # -- any-typed: the whole value
-    assert f(v=10, trait_dir=td).prefix_notation() == {'v': {'$in': [10], **not_array}}
+    assert f(v = 10, trait_dir = td).prefix_notation() == {'v': {'$in': [10], **not_array}}
     # -- ordered operators never look inside an array
     for name in ('v', 'lst', 'st'):
-        assert f(**{name: GT(5)}, trait_dir=td).prefix_notation() == {name: {'$gt': 5, **not_array}}
-    assert f(v=BETWEEN(1, 5), trait_dir=td).prefix_notation() == {'v': {'$gte': 1, '$lte': 5, **not_array}}
-    assert f(v=NOT(GT(5)), trait_dir=td).prefix_notation() == {'$nor': [{'v': {'$gt': 5, **not_array}}]}
+        assert f(**{name: GT(5)}, trait_dir = td).prefix_notation() == {name: {'$gt': 5, **not_array}}
+    assert f(v = BETWEEN(1, 5), trait_dir = td).prefix_notation() == {'v': {'$gte': 1, '$lte': 5, **not_array}}
+    assert f(v = NOT(GT(5)), trait_dir = td).prefix_notation() == {'$nor': [{'v': {'$gt': 5, **not_array}}]}
 
 
 def test_list_trait_item_match_eval_and_prefix():
     # a scalar against a list trait matches an item; a collection matches the whole list
     td = Sample.s_dir
-    assert f(lst=10, trait_dir=td).prefix_notation() == {'lst': {'$eq': 10}}
-    assert f(lst=NE(10), trait_dir=td).prefix_notation() == {'lst': {'$ne': 10}}
-    assert f(lst=IN([10, 99]), trait_dir=td).prefix_notation() == {'lst': {'$in': [10, 99]}}
-    assert f(lst=NIN([10]), trait_dir=td).prefix_notation() == {'lst': {'$nin': [10]}}
-    assert f(lst=[10, 20], trait_dir=td).prefix_notation() == {'lst': {'$eq': ['builtins/int', 10, 20]}}
-    assert f(lst=(10, 20), trait_dir=td).prefix_notation() == {'lst': {'$eq': ['builtins/int', 10, 20]}}
-    assert f(lst=XNone, trait_dir=td).prefix_notation()['lst'] == {'$in': [None]}
+    assert f(lst = 10, trait_dir = td).prefix_notation() == {'lst': {'$eq': 10}}
+    assert f(lst = NE(10), trait_dir = td).prefix_notation() == {'lst': {'$ne': 10}}
+    assert f(lst = IN([10, 99]), trait_dir = td).prefix_notation() == {'lst': {'$in': [10, 99]}}
+    assert f(lst = NIN([10]), trait_dir = td).prefix_notation() == {'lst': {'$nin': [10]}}
+    assert f(lst = [10, 20], trait_dir = td).prefix_notation() == {'lst': {'$eq': ['builtins/int', 10, 20]}}
+    assert f(lst = (10, 20), trait_dir = td).prefix_notation() == {'lst': {'$eq': ['builtins/int', 10, 20]}}
+    assert f(lst = XNone, trait_dir = td).prefix_notation()['lst'] == {'$in': [None]}
 
     for left in ([10, 20], {10, 20}):
         assert EQ(10).eval(left, 'lst', td)
@@ -290,7 +290,7 @@ def test_between_bounds_and_prefix():
     assert not b.eval(6)
     assert b.prefix_notation() == {'$gte': 1, '$lte': 5}
 
-    b_ex = BETWEEN(1, 5, bounds=(False, False))
+    b_ex = BETWEEN(1, 5, bounds = (False, False))
     assert b_ex.eval(2)
     assert not b_ex.eval(1)
     assert not b_ex.eval(5)
@@ -324,43 +324,43 @@ def test_not_empty_and_bool_ops_eval_and_prefix():
 
 
 def test_field_op_and_false_sentinel():
-    assert f(age=IN([])).prefix_notation() == {'age': {'$in': []}}
+    assert f(age = IN([])).prefix_notation() == {'age': {'$in': []}}
     assert OR() is BoolOp.s_false
     assert IN([]) is not FALSE()
 
     # Mongo has no field-level $and/$or, and FALSE is a whole-query filter.
-    for bad in (OR(EQ(1), EQ(2)), AND(GT(1), LT(5)), AND(), OR(), f(age=1), NOT(OR(EQ(1), EQ(2)))):
+    for bad in (OR(EQ(1), EQ(2)), AND(GT(1), LT(5)), AND(), OR(), f(age = 1), NOT(OR(EQ(1), EQ(2)))):
         with pytest.raises(AssertionError):
-            f(age=bad)
+            f(age = bad)
 
 
 def test_f_named_expressions_eval_and_prefix():
-    d = Person(age=10, first_name='Bob', last_name='')
+    d = Person(age = 10, first_name = 'Bob', last_name = '')
 
     # named expressions may be raw values (wrapped to EQ) or filters
-    filt = f(age=EQ(10), first_name='Bob')
+    filt = f(age = EQ(10), first_name = 'Bob')
     assert filt.eval(d)
     assert filt.prefix_notation() == {'$and': [{'age': {'$eq': 10}}, {'first_name': {'$eq': 'Bob'}}]}
 
     # mismatch
-    filt2 = f(age=EQ(11), first_name='Bob')
+    filt2 = f(age = EQ(11), first_name = 'Bob')
     assert not filt2.eval(d)
 
     # ensure f uses Person.get_value for named fields
-    assert f(age=10).eval(d)  # 10 wrapped as EQ(10) -> matches d.get_value('age') == 10
-    assert not f(age=9).eval(d)
+    assert f(age = 10).eval(d)  # 10 wrapped as EQ(10) -> matches d.get_value('age') == 10
+    assert not f(age = 9).eval(d)
 
     # f with multiple named expressions
-    multi = f(age=EQ(10), first_name=NE('Alice'), last_name=NOT_EMPTY())
-    assert multi.eval(Person(age=10, first_name='Bob', last_name='Smith'))
-    assert not f(last_name=NOT_EMPTY()).eval(Person(last_name=''))  # empty string -> NOT_EMPTY false
+    multi = f(age = EQ(10), first_name = NE('Alice'), last_name = NOT_EMPTY())
+    assert multi.eval(Person(age = 10, first_name = 'Bob', last_name = 'Smith'))
+    assert not f(last_name = NOT_EMPTY()).eval(Person(last_name = ''))  # empty string -> NOT_EMPTY false
 
 
 def test_empty_f_is_no_constraint():
     with CACHE_ONLY():
-        a = Person(first_name='A', last_name='A')
-        b = Person(first_name='B', last_name='B')
-        empty = f()
+        a       = Person(first_name = 'A', last_name = 'A')
+        b       = Person(first_name = 'B', last_name = 'B')
+        empty   = f()
         assert empty.eval(a) is True
         assert empty.eval(b) is True
         assert empty.prefix_notation() == {}
@@ -375,26 +375,26 @@ def test_existing_instances_by_filter_prefers_in_memory_over_stale_store(ts_inst
     itself hasn't changed (nothing here is ever saved).
     """
 
-    class Widget(Traitable, custom_collection=True):
+    class Widget(Traitable, custom_collection = True):
         key: str = T(T.ID)
-        tag: str = T(default='')
+        tag: str = T(default = '')
 
     coll_name = f'eibf_{uuid6.uuid7().hex[:12]}'
     with ts_instance:
         try:
-            w = Widget(key='w1', tag='a', _collection_name=coll_name, _replace=True)
+            w = Widget(key = 'w1', tag = 'a', _collection_name = coll_name, _replace = True)
             w.save().throw()
 
-            found = {p.id() for p in Widget.existing_instances_by_filter(f(tag='a'), _coll_name=coll_name)}
+            found = {p.id() for p in Widget.existing_instances_by_filter(f(tag = 'a'), _coll_name = coll_name)}
             assert w.id() in found
 
             # Stage an edit without saving -- the store still says tag='a'.
             w.tag = 'b'
 
-            still_a = {p.id() for p in Widget.existing_instances_by_filter(f(tag='a'), _coll_name=coll_name)}
+            still_a = {p.id() for p in Widget.existing_instances_by_filter(f(tag = 'a'), _coll_name = coll_name)}
             assert w.id() not in still_a, 'a stale store match for an already-loaded, now-diverged object must not be returned'
 
-            now_b = {p.id() for p in Widget.existing_instances_by_filter(f(tag='b'), _coll_name=coll_name)}
+            now_b = {p.id() for p in Widget.existing_instances_by_filter(f(tag = 'b'), _coll_name = coll_name)}
             assert w.id() in now_b, 'a staged-but-unsaved in-memory match must be found even though the store disagrees'
         finally:
             Widget.delete_collection(coll_name)
@@ -404,17 +404,17 @@ def test_existing_instances_by_filter_finds_store_only_match_not_yet_in_memory(t
     """An entity that exists in the store but hasn't been touched in the
     current scope yet must still be found (the discovery path)."""
 
-    class Widget2(Traitable, custom_collection=True):
+    class Widget2(Traitable, custom_collection = True):
         key: str = T(T.ID)
-        tag: str = T(default='')
+        tag: str = T(default = '')
 
     coll_name = f'eibf2_{uuid6.uuid7().hex[:12]}'
     with ts_instance:
         try:
             with BTraitableProcessor.create_root():
-                Widget2(key='w1', tag='a', _collection_name=coll_name, _replace=True).save().throw()
+                Widget2(key = 'w1', tag = 'a', _collection_name = coll_name, _replace = True).save().throw()
 
-            found = {p.id().value for p in Widget2.existing_instances_by_filter(f(tag='a'), _coll_name=coll_name)}
+            found = {p.id().value for p in Widget2.existing_instances_by_filter(f(tag = 'a'), _coll_name = coll_name)}
             assert 'w1' in found
         finally:
             Widget2.delete_collection(coll_name)
@@ -439,24 +439,24 @@ def test_named_serializers():
 
     assert trait.serialize_value(5) == 'age:5'
 
-    assert EQ(5).prefix_notation(field_name=trait.name, trait_dir=P.s_dir) == {'$eq': 'age:5'}
+    assert EQ(5).prefix_notation(field_name = trait.name, trait_dir = P.s_dir) == {'$eq': 'age:5'}
 
-    assert BETWEEN(1, 5).prefix_notation(field_name=trait.name, trait_dir=P.s_dir) == {
+    assert BETWEEN(1, 5).prefix_notation(field_name = trait.name, trait_dir = P.s_dir) == {
         '$gte': 'age:1',
         '$lte': 'age:5',
     }
 
-    x = OR(f(age=LE(70)), f(first_name=NE('Sasha')), f(last_name=XNone))
-    assert x.prefix_notation(trait_dir=P.s_dir) == {
+    x = OR(f(age = LE(70)), f(first_name = NE('Sasha')), f(last_name = XNone))
+    assert x.prefix_notation(trait_dir = P.s_dir) == {
         '$or': [{'age': {'$lte': 'age:70'}}, {'first_name': {'$ne': 'Sasha'}}, {'last_name': {'$eq': None}}]
     }
 
-    x = f(age=BETWEEN(50, 70), first_name=NE('Sasha'))
+    x = f(age = BETWEEN(50, 70), first_name = NE('Sasha'))
 
-    assert f(x, P.s_dir).prefix_notation() == x.prefix_notation(trait_dir=P.s_dir)
+    assert f(x, P.s_dir).prefix_notation() == x.prefix_notation(trait_dir = P.s_dir)
 
-    r = OR(f(age=BETWEEN(50, 70), first_name=NE('Sasha')), f(age=17))
-    assert r.prefix_notation(trait_dir=P.s_dir) == {
+    r = OR(f(age = BETWEEN(50, 70), first_name = NE('Sasha')), f(age = 17))
+    assert r.prefix_notation(trait_dir = P.s_dir) == {
         '$or': [
             {'$and': [{'age': {'$gte': 'age:50', '$lte': 'age:70'}}, {'first_name': {'$ne': 'Sasha'}}]},
             {'age': {'$eq': 'age:17'}},
@@ -483,28 +483,28 @@ def test_f_pinned_trait_dir_takes_precedence():
         def age_serialize(cls, t, v):
             return f'b:{v}'
 
-    pinned = f(trait_dir=PA.s_dir, age=EQ(5))
+    pinned = f(trait_dir = PA.s_dir, age = EQ(5))
 
     # Pinned trait_dir wins when the caller passes a different one.
-    assert pinned.prefix_notation(trait_dir=PB.s_dir) == {'age': {'$eq': 'a:5'}}
+    assert pinned.prefix_notation(trait_dir = PB.s_dir) == {'age': {'$eq': 'a:5'}}
 
     # Pinned trait_dir is used when none is supplied by the caller.
     assert pinned.prefix_notation() == {'age': {'$eq': 'a:5'}}
 
     # Without a pinned trait_dir, the caller-supplied one is honored.
-    bare = f(age=EQ(5))
-    assert bare.prefix_notation(trait_dir=PB.s_dir) == {'age': {'$eq': 'b:5'}}
+    bare = f(age = EQ(5))
+    assert bare.prefix_notation(trait_dir = PB.s_dir) == {'age': {'$eq': 'b:5'}}
 
     # The pinned trait_dir is also propagated down into a nested `.filter`.
-    inner = f(age=EQ(7))
+    inner   = f(age = EQ(7))
     wrapped = f(inner, PA.s_dir)
-    assert wrapped.prefix_notation(trait_dir=PB.s_dir) == {'age': {'$eq': 'a:7'}}
+    assert wrapped.prefix_notation(trait_dir = PB.s_dir) == {'age': {'$eq': 'a:7'}}
 
     # Field NOT forwards the field into the inner operator, so the value is still serialized.
-    assert f(trait_dir=PA.s_dir, age=NOT(EQ(5))).prefix_notation() == {'$nor': [{'age': {'$eq': 'a:5'}}]}
+    assert f(trait_dir = PA.s_dir, age = NOT(EQ(5))).prefix_notation() == {'$nor': [{'age': {'$eq': 'a:5'}}]}
 
     # Negating a wrapper keeps its pinned trait_dir for the nested filter.
-    assert NOT(wrapped).prefix_notation(trait_dir=PB.s_dir) == {'$nor': [{'age': {'$eq': 'a:7'}}]}
+    assert NOT(wrapped).prefix_notation(trait_dir = PB.s_dir) == {'$nor': [{'age': {'$eq': 'a:7'}}]}
 
 
 class RefTarget(Traitable):
@@ -521,41 +521,41 @@ class FilterTestSubNC(FilterTestNC):
 
 
 class FilterTestFlags(EnumBits):
-    READ = ()
-    WRITE = ()
-    EXEC = ()
+    READ    = ()
+    WRITE   = ()
+    EXEC    = ()
 
 
 # Module-level Sample so that it is properly registered as storable when used
 # with real stores (DuckDbStore / MongoStore) and high-level .save().
 # The Test*Filters classes still own the per-backend test methods and fixture config.
-class Sample(Traitable, custom_collection=True):
-    test_id: str = T(T.ID)
-    i: int = T()
-    f: float = T()
-    b: bool = T()
-    s: str = T()
-    dt: datetime = T()
-    d: date = T()
-    opt: str = T()
-    by: bytes = T()
-    cl: type = T()
-    lst: list = T()
-    dct: dict = T()
-    nc: FilterTestNC = T()
-    nc2: FilterTestNC = T()
+class Sample(Traitable, custom_collection = True):
+    test_id: str        = T(T.ID)
+    i: int              = T()
+    f: float            = T()
+    b: bool             = T()
+    s: str              = T()
+    dt: datetime        = T()
+    d: date             = T()
+    opt: str            = T()
+    by: bytes           = T()
+    cl: type            = T()
+    lst: list           = T()
+    dct: dict           = T()
+    nc: FilterTestNC    = T()
+    nc2: FilterTestNC   = T()
     fl: FilterTestFlags = T()
-    ref: RefTarget = T()  # nullable Traitable reference; XNone serializes as JSON null
+    ref: RefTarget      = T()  # nullable Traitable reference; XNone serializes as JSON null
 
 
 class TestCompoundFilters:
-    @pytest.fixture(scope='class', autouse=True)
+    @pytest.fixture(scope = 'class', autouse = True)
     def clear_store_cache(self):
         assert not TsStore.s_instances
         yield
         TsStore.s_instances.clear()
 
-    @pytest.fixture(params=TS_STORE_TYPE.all_names())
+    @pytest.fixture(params = TS_STORE_TYPE.all_names())
     def prepared(self, request, live_store):
         need(
             store := live_store(store_protocol := request.param),
@@ -573,7 +573,7 @@ class TestCompoundFilters:
             'f': 1.5,
             'b': True,
             's': 'hello',
-            'dt': datetime(2024, 1, 1, tzinfo=UTC),
+            'dt': datetime(2024, 1, 1, tzinfo = UTC),
             'd': date(2024, 6, 1),
             'by': b'hello\x00',
             'cl': Person,
@@ -590,7 +590,7 @@ class TestCompoundFilters:
             'f': 2,
             'b': False,
             's': 'world',
-            'dt': datetime(2025, 1, 1, tzinfo=UTC),
+            'dt': datetime(2025, 1, 1, tzinfo = UTC),
             'd': date(2025, 6, 1),
             'by': b'other',
             'cl': int,
@@ -603,33 +603,33 @@ class TestCompoundFilters:
 
         for i in range(3):
             kw = dict(
-                test_id=f's{i + 1}',
+                test_id = f's{i + 1}',
                 **data,
-                _collection_name=coll_name,
-                _replace=True,
+                _collection_name    = coll_name,
+                _replace            = True,
             )
             if not i:
-                kw.update(opt='set', ref=RefTarget(key='r1'))
+                kw.update(opt = 'set', ref = RefTarget(key = 'r1'))
             if i % 2:
                 kw.update(overrides)
             Sample(**kw).save().throw()
 
-        coll = Sample.collection(_coll_name=coll_name)
+        coll = Sample.collection(_coll_name = coll_name)
 
         try:
             yield store, coll, data, overrides, coll_name, Sample.s_dir
         finally:
-            Sample.delete_collection(coll_name, drop_history=True)
+            Sample.delete_collection(coll_name, drop_history = True)
             store.end_using()
             go.end_using()
 
     @pytest.mark.parametrize('op', [EQ, NE])
     @pytest.mark.parametrize('trait_name', ['cl', 'lst', 'dct', 'nc', 'nc2', 'fl', 'by', 'non_existing'])
     def test_trait_prefix_and_find(self, op, trait_name, prepared):
-        _store, coll, data, _overrides, _coll_name, trait_dir = prepared
-        q = f(**{trait_name: op(data[trait_name])}, trait_dir=trait_dir)
-        ser = t.serialize_value(data[trait_name]) if (t := Sample.trait(trait_name)) else data[trait_name]
-        assert q.prefix_notation(trait_dir=trait_dir) == {trait_name: {op.label: ser}}
+        _store, coll, data, _overrides, _coll_name, trait_dir   = prepared
+        q                                                       = f(**{trait_name: op(data[trait_name])}, trait_dir = trait_dir)
+        ser                                                     = t.serialize_value(data[trait_name]) if (t := Sample.trait(trait_name)) else data[trait_name]
+        assert q.prefix_notation(trait_dir = trait_dir) == {trait_name: {op.label: ser}}
         res = list(coll.find(f(q, trait_dir)))
         # 3 docs total: 2 match `data[trait_name]` (s1, s3), 1 matches `overrides[trait_name]` (s2).
 
@@ -640,40 +640,40 @@ class TestCompoundFilters:
         assert coll.count(f(q, trait_dir)) == expected
 
         key = lambda r: str(sorted(k.items())) if isinstance((k := r.get(trait_name, XNone)), dict) else k
-        assert coll.min(trait_name, f(q, trait_dir)) == (min(res, key=key) if res else None)
-        assert coll.max(trait_name, f(q, trait_dir)) == (max(res, key=key) if res else None)
+        assert coll.min(trait_name, f(q, trait_dir)) == (min(res, key = key) if res else None)
+        assert coll.max(trait_name, f(q, trait_dir)) == (max(res, key = key) if res else None)
 
     def test_primitives(self, prepared):
         _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
-        assert len(list(coll.find(f(i=10, trait_dir=trait_dir)))) == 2
-        assert len(list(coll.find(f(f=1.5, trait_dir=trait_dir)))) == 2
-        assert len(list(coll.find(f(b=True, trait_dir=trait_dir)))) == 2
-        assert len(list(coll.find(f(s='world', trait_dir=trait_dir)))) == 1
+        assert len(list(coll.find(f(i = 10, trait_dir = trait_dir)))) == 2
+        assert len(list(coll.find(f(f = 1.5, trait_dir = trait_dir)))) == 2
+        assert len(list(coll.find(f(b = True, trait_dir = trait_dir)))) == 2
+        assert len(list(coll.find(f(s = 'world', trait_dir = trait_dir)))) == 1
 
     def test_datetime(self, prepared):
         _store, coll, data, overrides, _coll_name, trait_dir = prepared
-        assert len(list(coll.find(f(dt=overrides['dt'], trait_dir=trait_dir)))) == 1
-        assert len(list(coll.find(f(dt=GT(data['dt']), trait_dir=trait_dir)))) == 1
+        assert len(list(coll.find(f(dt = overrides['dt'], trait_dir = trait_dir)))) == 1
+        assert len(list(coll.find(f(dt = GT(data['dt']), trait_dir = trait_dir)))) == 1
 
     def test_date(self, prepared):
         _store, coll, _data, overrides, _coll_name, trait_dir = prepared
-        assert len(list(coll.find(f(d=overrides['d'], trait_dir=trait_dir)))) == 1
+        assert len(list(coll.find(f(d = overrides['d'], trait_dir = trait_dir)))) == 1
 
     def test_xnone(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
-        qnull = f(opt=XNone, trait_dir=trait_dir)
-        nullres = list(coll.find(f(qnull, trait_dir)))
-        nullids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in nullres)
+        _store, coll, _data, _overrides, _coll_name, trait_dir  = prepared
+        qnull                                                   = f(opt = XNone, trait_dir = trait_dir)
+        nullres                                                 = list(coll.find(f(qnull, trait_dir)))
+        nullids                                                 = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in nullres)
         assert nullids == ['s2', 's3']
 
     def test_xnone_traitable_ref(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
-        q = f(ref=XNone, trait_dir=trait_dir)
-        nullids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(q, trait_dir)))
+        _store, coll, _data, _overrides, _coll_name, trait_dir  = prepared
+        q                                                       = f(ref = XNone, trait_dir = trait_dir)
+        nullids                                                 = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(q, trait_dir)))
         assert nullids == ['s2', 's3']
 
-        qset = f(ref=NE(XNone), trait_dir=trait_dir)
-        setids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(qset, trait_dir)))
+        qset    = f(ref = NE(XNone), trait_dir = trait_dir)
+        setids  = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(qset, trait_dir)))
         assert setids == ['s1']
 
     @pytest.mark.parametrize(
@@ -689,7 +689,7 @@ class TestCompoundFilters:
             (NIN([5, 6]), ['no_x']),
             (BETWEEN(1, 10), ['has_x']),
         ],
-        ids=['EQ', 'NE', 'GT', 'GE', 'LT', 'LE', 'IN', 'NIN', 'BETWEEN'],
+        ids = ['EQ', 'NE', 'GT', 'GE', 'LT', 'LE', 'IN', 'NIN', 'BETWEEN'],
     )
     def test_missing_field_semantics(self, prepared, op, expected):
         """A field entirely absent from a document: only NE/NIN match it, mirroring MongoDB's
@@ -702,16 +702,16 @@ class TestCompoundFilters:
         """
         store, *_ = prepared
 
-        class MissingFieldSample(Traitable, custom_collection=True, keep_history=False):
+        class MissingFieldSample(Traitable, custom_collection = True, keep_history = False):
             marker: str = T(T.ID)
-            x: int = T()
+            x: int      = T()
 
-        coll_name = 'mf_' + uuid6.uuid7().hex[:12]
-        coll = store.collection(coll_name, MissingFieldSample.s_dir)
+        coll_name   = 'mf_' + uuid6.uuid7().hex[:12]
+        coll        = store.collection(coll_name, MissingFieldSample.s_dir)
         try:
             coll.save_new({'_id': 'has_x', 'marker': 'has_x', 'x': 5})
             coll.save_new({'_id': 'no_x', 'marker': 'no_x'})  # x entirely absent
-            ids = sorted(r['_id'] for r in coll.find(f(x=op, trait_dir=MissingFieldSample.s_dir)))
+            ids = sorted(r['_id'] for r in coll.find(f(x = op, trait_dir = MissingFieldSample.s_dir)))
             assert ids == expected
         finally:
             store.delete_collection(coll_name)
@@ -733,7 +733,7 @@ class TestCompoundFilters:
             (IN([]), []),
             (NIN([]), ['has_null', 'has_obj', 'has_str', 'missing']),
         ],
-        ids=[
+        ids = [
             'EQ-obj',
             'EQ-None',
             'IN-obj',
@@ -767,17 +767,17 @@ class TestCompoundFilters:
         """
         store, *_ = prepared
 
-        class MixedSample(Traitable, custom_collection=True, keep_history=False):
+        class MixedSample(Traitable, custom_collection = True, keep_history = False):
             marker: str = T(T.ID)
 
-        coll_name = 'mx_' + uuid6.uuid7().hex[:12]
-        coll = store.collection(coll_name, MixedSample.s_dir)
+        coll_name   = 'mx_' + uuid6.uuid7().hex[:12]
+        coll        = store.collection(coll_name, MixedSample.s_dir)
         try:
             coll.save_new({'_id': 'has_obj', 'marker': 'has_obj', 'v': {'a': 1}})
             coll.save_new({'_id': 'has_str', 'marker': 'has_str', 'v': 'sss'})
             coll.save_new({'_id': 'has_null', 'marker': 'has_null', 'v': None})
             coll.save_new({'_id': 'missing', 'marker': 'missing'})  # -- v entirely absent
-            assert sorted(r['_id'] for r in coll.find(f(v=op))) == expected
+            assert sorted(r['_id'] for r in coll.find(f(v = op))) == expected
         finally:
             store.delete_collection(coll_name)
 
@@ -785,11 +785,11 @@ class TestCompoundFilters:
         _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
         # lst: s1, s3 = [10, 20]; s2 = [99]
         ids = lambda q: sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in coll.find(f(q, trait_dir)))
-        assert ids(f(lst=10, trait_dir=trait_dir)) == ['s1', 's3']
-        assert ids(f(lst=NE(10), trait_dir=trait_dir)) == ['s2']
-        assert ids(f(lst=IN([20, 99]), trait_dir=trait_dir)) == ['s1', 's2', 's3']
-        assert ids(f(lst=NIN([99]), trait_dir=trait_dir)) == ['s1', 's3']
-        assert ids(f(lst=(10, 20), trait_dir=trait_dir)) == ['s1', 's3']
+        assert ids(f(lst = 10, trait_dir = trait_dir)) == ['s1', 's3']
+        assert ids(f(lst = NE(10), trait_dir = trait_dir)) == ['s2']
+        assert ids(f(lst = IN([20, 99]), trait_dir = trait_dir)) == ['s1', 's2', 's3']
+        assert ids(f(lst = NIN([99]), trait_dir = trait_dir)) == ['s1', 's3']
+        assert ids(f(lst = (10, 20), trait_dir = trait_dir)) == ['s1', 's3']
 
     @pytest.mark.parametrize(
         ('op', 'expected'),
@@ -807,7 +807,7 @@ class TestCompoundFilters:
             (NIN([2.5, (10, 20)]), ['bool', 'empty', 'missing', 'mixed', 'none_item', 'null', 'str']),
             ([10, 20], ['int']),
         ],
-        ids=[
+        ids = [
             'int',
             'float',
             'str',
@@ -846,7 +846,7 @@ class TestCompoundFilters:
             (IN([XNone, 2.5]), ['float', 'missing', 'null']),
             (NIN([XNone, 2.5]), ['bool', 'empty', 'int', 'mixed', 'none_item', 'str']),
         ],
-        ids=[
+        ids = [
             'class-id',
             'class-id-as-item',
             'dollar-str',
@@ -886,7 +886,7 @@ class TestCompoundFilters:
             (IN([None, 10]), ['float', 'missing', 'null', 'scalar']),
             (NIN([XNone, 10]), ['ints', 'mixed', 'small', 'str']),
         ],
-        ids=[
+        ids = [
             'int',
             'str',
             'class-id',
@@ -911,19 +911,19 @@ class TestCompoundFilters:
     def test_none_and_xnone_on_saved_traits(self, prepared):
         NoneSaved.delete_collection()
         try:
-            none = NoneSaved(marker='none')
-            none.n = None
-            with pytest.raises(RuntimeError, match=r'NoneSaved\.n - undefined value'):
+            none    = NoneSaved(marker = 'none')
+            none.n  = None
+            with pytest.raises(RuntimeError, match = r'NoneSaved\.n - undefined value'):
                 none.save().throw()
 
-            NoneSaved(marker='unset').save().throw()  # -- n is XNone, stored as null
-            one = NoneSaved(marker='one')
-            one.n, one.lst = 1, [1]
+            NoneSaved(marker = 'unset').save().throw()  # -- n is XNone, stored as null
+            one             = NoneSaved(marker = 'one')
+            one.n, one.lst  = 1, [1]
             one.save().throw()
             ids = lambda q: sorted(x.marker for x in NoneSaved.load_many(q))
-            assert ids(f(n=XNone)) == ['unset']
-            assert ids(f(n=None)) == ['unset']
-            assert ids(f(lst=None)) == []
+            assert ids(f(n = XNone)) == ['unset']
+            assert ids(f(n = None)) == ['unset']
+            assert ids(f(lst = None)) == []
         finally:
             NoneSaved.delete_collection()
 
@@ -948,7 +948,7 @@ class TestCompoundFilters:
             (NOT(GT(5)), ['ints', 'missing', 'mixed', 'null', 'small', 'str']),
             (NOT(BETWEEN(12, 14)), ['float', 'ints', 'missing', 'mixed', 'null', 'scalar', 'small', 'str']),
         ],
-        ids=['GT', 'GE', 'LT', 'LE', 'BETWEEN-none', 'BETWEEN-elements', 'BETWEEN', 'GT-str', 'LT-str', 'NOT-GT', 'NOT-BETWEEN'],
+        ids = ['GT', 'GE', 'LT', 'LE', 'BETWEEN-none', 'BETWEEN-elements', 'BETWEEN', 'GT-str', 'LT-str', 'NOT-GT', 'NOT-BETWEEN'],
     )
     def test_ordered_ops_never_look_inside_arrays(self, prepared, kind, op, expected):
         store, *_ = prepared
@@ -956,56 +956,56 @@ class TestCompoundFilters:
 
     @staticmethod
     def _whole_value_sample_ids(store, op, kind: str) -> list:
-        class AnySample(Traitable, custom_collection=True, keep_history=False):
+        class AnySample(Traitable, custom_collection = True, keep_history = False):
             marker: str = T(T.ID)
-            v: Any = T()
+            v: Any      = T()
 
-        class ListSample(Traitable, custom_collection=True, keep_history=False):
+        class ListSample(Traitable, custom_collection = True, keep_history = False):
             marker: str = T(T.ID)
-            v: list = T()
+            v: list     = T()
 
-        cls = ListSample if kind == 'list' else AnySample
-        coll_name = 'as_' + uuid6.uuid7().hex[:12]
-        coll = store.collection(coll_name, cls.s_dir)
-        serialize = AnySample.s_dir['v'].serialize_value
-        samples = {'ints': [10, 20], 'mixed': [None, 10, 'x'], 'scalar': 10, 'float': 10.0, 'small': 3, 'str': 'x', 'null': None}
+        cls         = ListSample if kind == 'list' else AnySample
+        coll_name   = 'as_' + uuid6.uuid7().hex[:12]
+        coll        = store.collection(coll_name, cls.s_dir)
+        serialize   = AnySample.s_dir['v'].serialize_value
+        samples     = {'ints': [10, 20], 'mixed': [None, 10, 'x'], 'scalar': 10, 'float': 10.0, 'small': 3, 'str': 'x', 'null': None}
         try:
             for name, value in samples.items():
                 coll.save_new({'_id': name, 'marker': name, 'v': None if value is None else serialize(value)})
             coll.save_new({'_id': 'missing', 'marker': 'missing'})
-            return sorted(r['_id'] for r in coll.find(f(v=op, trait_dir=cls.s_dir)))
+            return sorted(r['_id'] for r in coll.find(f(v = op, trait_dir = cls.s_dir)))
         finally:
             store.delete_collection(coll_name)
 
     def test_list_class_id_on_two_fields(self, prepared):
         store, *_ = prepared
 
-        class TwoLists(Traitable, custom_collection=True, keep_history=False):
+        class TwoLists(Traitable, custom_collection = True, keep_history = False):
             marker: str = T(T.ID)
-            a: list = T()
-            b: list = T()
+            a: list     = T()
+            b: list     = T()
 
-        coll_name = 'tl_' + uuid6.uuid7().hex[:12]
-        coll = store.collection(coll_name, TwoLists.s_dir)
-        ids = lambda q: sorted(r['_id'] for r in coll.find(q))
+        coll_name   = 'tl_' + uuid6.uuid7().hex[:12]
+        coll        = store.collection(coll_name, TwoLists.s_dir)
+        ids         = lambda q: sorted(r['_id'] for r in coll.find(q))
         try:
             coll.save_new({'_id': 'hit', 'marker': 'hit', 'a': ['builtins/str', 'x'], 'b': ['builtins/str', 'y']})
             coll.save_new({'_id': 'miss', 'marker': 'miss', 'a': ['builtins/str', 'x'], 'b': ['builtins/str', 'z']})
-            assert ids(f(a='x', b='y', trait_dir=TwoLists.s_dir)) == ['hit']
-            assert ids(f(a='x', b='builtins/str', trait_dir=TwoLists.s_dir)) == []
-            assert ids(NOT(f(a='x', b='y', trait_dir=TwoLists.s_dir))) == ['miss']
-            assert ids(OR(f(b='y', trait_dir=TwoLists.s_dir), f(b='z', trait_dir=TwoLists.s_dir))) == ['hit', 'miss']
+            assert ids(f(a = 'x', b = 'y', trait_dir = TwoLists.s_dir)) == ['hit']
+            assert ids(f(a = 'x', b = 'builtins/str', trait_dir = TwoLists.s_dir)) == []
+            assert ids(NOT(f(a = 'x', b = 'y', trait_dir = TwoLists.s_dir))) == ['miss']
+            assert ids(OR(f(b = 'y', trait_dir = TwoLists.s_dir), f(b = 'z', trait_dir = TwoLists.s_dir))) == ['hit', 'miss']
         finally:
             store.delete_collection(coll_name)
 
     @staticmethod
     def _list_sample_ids(store, op) -> list:
-        class ListSample(Traitable, custom_collection=True, keep_history=False):
+        class ListSample(Traitable, custom_collection = True, keep_history = False):
             marker: str = T(T.ID)
-            v: list = T()
+            v: list     = T()
 
-        coll_name = 'ls_' + uuid6.uuid7().hex[:12]
-        coll = store.collection(coll_name, ListSample.s_dir)
+        coll_name   = 'ls_' + uuid6.uuid7().hex[:12]
+        coll        = store.collection(coll_name, ListSample.s_dir)
         try:
             coll.save_new({'_id': 'int', 'marker': 'int', 'v': ['builtins/int', 10, 20]})
             coll.save_new({'_id': 'float', 'marker': 'float', 'v': ['builtins/float', 10.0, 2.5]})
@@ -1016,39 +1016,39 @@ class TestCompoundFilters:
             coll.save_new({'_id': 'empty', 'marker': 'empty', 'v': []})
             coll.save_new({'_id': 'null', 'marker': 'null', 'v': None})
             coll.save_new({'_id': 'missing', 'marker': 'missing'})
-            return sorted(r['_id'] for r in coll.find(f(v=op, trait_dir=ListSample.s_dir)))
+            return sorted(r['_id'] for r in coll.find(f(v = op, trait_dir = ListSample.s_dir)))
         finally:
             store.delete_collection(coll_name)
 
     def test_in_and_nin(self, prepared):
         _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
-        assert len(list(coll.find(f(i=IN([10, 99]), trait_dir=trait_dir)))) == 2
-        qmix = f(AND(f(b=True), f(i=NIN([99]))), trait_dir)
+        assert len(list(coll.find(f(i = IN([10, 99]), trait_dir = trait_dir)))) == 2
+        qmix = f(AND(f(b = True), f(i = NIN([99]))), trait_dir)
         assert len(list(coll.find(qmix))) == 2
 
     def test_empty_in_nin_find(self, prepared):
         _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
-        assert list(coll.find(f(i=IN([]), trait_dir=trait_dir))) == []
-        assert len(list(coll.find(f(i=NIN([]), trait_dir=trait_dir)))) == 3
-        assert len(list(coll.find(f(trait_dir=trait_dir)))) == 3
+        assert list(coll.find(f(i = IN([]), trait_dir = trait_dir))) == []
+        assert len(list(coll.find(f(i = NIN([]), trait_dir = trait_dir)))) == 3
+        assert len(list(coll.find(f(trait_dir = trait_dir)))) == 3
 
     # compounds
 
     def test_compound_and(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
-        inner = AND(f(i=10), f(s='hello'))
-        q_and = f(inner, trait_dir)
-        res = list(coll.find(q_and))
-        ids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
+        _store, coll, _data, _overrides, _coll_name, trait_dir  = prepared
+        inner                                                   = AND(f(i = 10), f(s = 'hello'))
+        q_and                                                   = f(inner, trait_dir)
+        res                                                     = list(coll.find(q_and))
+        ids                                                     = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
         assert ids == ['s1', 's3']
-        pn_and = q_and.prefix_notation(trait_dir=trait_dir)
+        pn_and = q_and.prefix_notation(trait_dir = trait_dir)
         assert '$and' in pn_and or len(pn_and) > 0
 
     def test_compound_or(self, prepared):
-        _store, coll, _data, _overrides, _coll_name, trait_dir = prepared
-        q_or = f(OR(f(i=10), f(i=20)), trait_dir)
-        res = list(coll.find(q_or))
-        ids = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
+        _store, coll, _data, _overrides, _coll_name, trait_dir  = prepared
+        q_or                                                    = f(OR(f(i = 10), f(i = 20)), trait_dir)
+        res                                                     = list(coll.find(q_or))
+        ids                                                     = sorted(r.get('test_id') or r.get(Nucleus.ID_TAG()) for r in res)
         assert ids == ['s1', 's2', 's3']
 
     def test_not_find(self, prepared):
@@ -1058,14 +1058,14 @@ class TestCompoundFilters:
         """
         store, *_ = prepared
 
-        class TextSample(Traitable, custom_collection=True, keep_history=False):
+        class TextSample(Traitable, custom_collection = True, keep_history = False):
             marker: str = T(T.ID)
-            s: str = T()
-            x: int = T()
+            s: str      = T()
+            x: int      = T()
 
-        coll_name = 'not_' + uuid6.uuid7().hex[:12]
-        trait_dir = TextSample.s_dir
-        coll = store.collection(coll_name, trait_dir)
+        coll_name   = 'not_' + uuid6.uuid7().hex[:12]
+        trait_dir   = TextSample.s_dir
+        coll        = store.collection(coll_name, trait_dir)
         try:
             coll.save_new({'_id': 'hello', 'marker': 'hello', 's': 'hello', 'x': 10})
             coll.save_new({'_id': 'world', 'marker': 'world', 's': 'world', 'x': 3})
@@ -1075,28 +1075,28 @@ class TestCompoundFilters:
             def ids(query):
                 return sorted(r['_id'] for r in coll.find(query))
 
-            assert ids(f(s=NOT(EQ('hello')), trait_dir=trait_dir)) == ['missing', 'nulls', 'world']
-            assert ids(f(x=NOT(GT(5)), trait_dir=trait_dir)) == ['missing', 'nulls', 'world']
-            assert ids(f(x=NOT(NE(10)), trait_dir=trait_dir)) == ['hello']
-            assert ids(f(x=NOT(BETWEEN(1, 5)), trait_dir=trait_dir)) == ['hello', 'missing', 'nulls']
-            assert ids(NOT(OR(f(s='hello', trait_dir=trait_dir), f(x=GT(5), trait_dir=trait_dir)))) == ['missing', 'nulls', 'world']
+            assert ids(f(s = NOT(EQ('hello')), trait_dir = trait_dir)) == ['missing', 'nulls', 'world']
+            assert ids(f(x = NOT(GT(5)), trait_dir = trait_dir)) == ['missing', 'nulls', 'world']
+            assert ids(f(x = NOT(NE(10)), trait_dir = trait_dir)) == ['hello']
+            assert ids(f(x = NOT(BETWEEN(1, 5)), trait_dir = trait_dir)) == ['hello', 'missing', 'nulls']
+            assert ids(NOT(OR(f(s = 'hello', trait_dir = trait_dir), f(x = GT(5), trait_dir = trait_dir)))) == ['missing', 'nulls', 'world']
 
             # Top-level match-nothing, alone, nested, and as the negation of an empty AND().
             assert ids(OR()) == []
-            assert ids(f(OR(), x=GT(5), trait_dir=trait_dir)) == []
-            assert ids(NOT(f(AND(), x=GT(5), trait_dir=trait_dir))) == ['missing', 'nulls', 'world']
+            assert ids(f(OR(), x = GT(5), trait_dir = trait_dir)) == []
+            assert ids(NOT(f(AND(), x = GT(5), trait_dir = trait_dir))) == ['missing', 'nulls', 'world']
             # A match-all arm keeps the whole OR match-all.
-            assert ids(OR(f(x=GT(5), trait_dir=trait_dir), f())) == ['hello', 'missing', 'nulls', 'world']
-            assert ids(NOT(f(OR(), x=GT(5), trait_dir=trait_dir))) == ['hello', 'missing', 'nulls', 'world']
-            assert ids(NOT(f(x=IN([]), trait_dir=trait_dir))) == ['hello', 'missing', 'nulls', 'world']
-            assert ids(NOT(f(x=IN([]), s='hello', trait_dir=trait_dir))) == ['hello', 'missing', 'nulls', 'world']
+            assert ids(OR(f(x = GT(5), trait_dir = trait_dir), f())) == ['hello', 'missing', 'nulls', 'world']
+            assert ids(NOT(f(OR(), x = GT(5), trait_dir = trait_dir))) == ['hello', 'missing', 'nulls', 'world']
+            assert ids(NOT(f(x = IN([]), trait_dir = trait_dir))) == ['hello', 'missing', 'nulls', 'world']
+            assert ids(NOT(f(x = IN([]), s = 'hello', trait_dir = trait_dir))) == ['hello', 'missing', 'nulls', 'world']
         finally:
             store.delete_collection(coll_name)
 
 
 def test_not_eval_and_prefix():
-    sasha = Person(first_name='Sasha', last_name='Davidovich', age=40)
-    ann = Person(first_name='Ann', last_name='Davidovich', age=3)
+    sasha   = Person(first_name = 'Sasha', last_name = 'Davidovich', age = 40)
+    ann     = Person(first_name = 'Ann', last_name = 'Davidovich', age = 3)
 
     assert NOT(GT(5)).eval(5)
     assert not NOT(GT(5)).eval(6)
@@ -1105,24 +1105,24 @@ def test_not_eval_and_prefix():
     assert NOT(NOT(GT(5))).prefix_notation() == {'$gt': 5}
     assert NOT(IN([])).prefix_notation() == {'$not': {'$in': []}}
 
-    assert NOT(f(age=2)).eval(ann)
-    assert not NOT(f(age=3)).eval(ann)
-    assert NOT(f(age=2)).prefix_notation() == {'$nor': [{'age': {'$eq': 2}}]}
-    both = f(age=GT(5), first_name='Ann')
-    assert NOT(both).prefix_notation() == OR(f(age=NOT(GT(5))), f(first_name=NOT(EQ('Ann')))).prefix_notation()
-    assert NOT(OR(f(age=GT(5)), f(first_name='Ann'))).prefix_notation() == AND(f(age=NOT(GT(5))), f(first_name=NOT(EQ('Ann')))).prefix_notation()
-    assert NOT(NOT(f(age=GT(5)))).prefix_notation() == f(age=GT(5)).prefix_notation()
+    assert NOT(f(age = 2)).eval(ann)
+    assert not NOT(f(age = 3)).eval(ann)
+    assert NOT(f(age = 2)).prefix_notation() == {'$nor': [{'age': {'$eq': 2}}]}
+    both = f(age = GT(5), first_name = 'Ann')
+    assert NOT(both).prefix_notation() == OR(f(age = NOT(GT(5))), f(first_name = NOT(EQ('Ann')))).prefix_notation()
+    assert NOT(OR(f(age = GT(5)), f(first_name = 'Ann'))).prefix_notation() == AND(f(age = NOT(GT(5))), f(first_name = NOT(EQ('Ann')))).prefix_notation()
+    assert NOT(NOT(f(age = GT(5)))).prefix_notation() == f(age = GT(5)).prefix_notation()
     assert both.eval(sasha) is False and NOT(NOT(both)).eval(sasha) is False
-    assert both.eval(Person(first_name='Ann', last_name='Davidovich', age=10))
-    assert NOT(NOT(both)).eval(Person(first_name='Ann', last_name='Davidovich', age=10))
+    assert both.eval(Person(first_name = 'Ann', last_name = 'Davidovich', age = 10))
+    assert NOT(NOT(both)).eval(Person(first_name = 'Ann', last_name = 'Davidovich', age = 10))
 
     assert NOT(OR()).prefix_notation() == {}
     assert NOT(OR()).eval(ann)
     assert NOT(f()).prefix_notation() == {'$expr': False}
     assert not NOT(f()).eval(ann)
     assert NOT(AND()).prefix_notation() == {'$expr': False}
-    assert NOT(f(x=IN([]))).prefix_notation() == {'$nor': [{'x': {'$in': []}}]}
-    assert NOT(f(AND(), age=GT(5))).prefix_notation() == {'$or': [{'$nor': [{'age': {'$gt': 5}}]}, {'$expr': False}]}
-    assert OR(f(age=GT(5)), f()).prefix_notation() == {}
-    assert NOT(f(OR(), age=GT(5))).prefix_notation() == {}
-    assert NOT(f(OR(), age=GT(5))).eval(sasha)
+    assert NOT(f(x = IN([]))).prefix_notation() == {'$nor': [{'x': {'$in': []}}]}
+    assert NOT(f(AND(), age = GT(5))).prefix_notation() == {'$or': [{'$nor': [{'age': {'$gt': 5}}]}, {'$expr': False}]}
+    assert OR(f(age = GT(5)), f()).prefix_notation() == {}
+    assert NOT(f(OR(), age = GT(5))).prefix_notation() == {}
+    assert NOT(f(OR(), age = GT(5))).eval(sasha)

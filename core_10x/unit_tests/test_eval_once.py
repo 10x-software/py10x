@@ -25,13 +25,13 @@ def test_eval_once_set_blocked():
             return True
 
     with CACHE_ONLY():
-        x = X(x=1)
+        x = X(x = 1)
         assert x.v == 10
-        with pytest.raises(TypeError, match='Trying to modify EVAL_ONCE trait'):
+        with pytest.raises(TypeError, match = 'Trying to modify EVAL_ONCE trait'):
             x.v = 10
 
     # lazy load hydrates EVAL_ONCE from store when not yet evaluated
-    x2 = X(x=2)
+    x2 = X(x = 2)
     assert x2.v == 40
 
 
@@ -39,25 +39,25 @@ def test_eval_once_uses_origin_cache_under_graph():
     """EVAL_ONCE stores on the object's origin cache (the GRAPH_ON child), not default_cache."""
 
     class X(Traitable):
-        x: int = RT(T.ID)
-        v: int = RT(T.EVAL_ONCE)
-        calls = 0
+        x: int  = RT(T.ID)
+        v: int  = RT(T.EVAL_ONCE)
+        calls   = 0
 
         def v_get(self):
             type(self).calls += 1
             return 10
 
     with GRAPH_ON():
-        x = X(x=1)
+        x = X(x = 1)
         assert x.v == 10
         assert X.calls == 1
         assert x.v == 10
         assert X.calls == 1
 
-    with pytest.raises(RuntimeError, match='object not usable - origin cache is not reachable'):
+    with pytest.raises(RuntimeError, match = 'object not usable - origin cache is not reachable'):
         _ = x.v
 
-    x = X(x=1)
+    x = X(x = 1)
     assert x.v == 10
     assert X.calls == 2
     assert x.v == 10
@@ -68,17 +68,17 @@ def test_eval_once_under_create_root():
     """create_root isolates from the process default cache; outer objects are not usable inside it."""
 
     class X(Traitable):
-        x: int = T(T.ID)
-        v: int = T(T.EVAL_ONCE)
-        calls = 0
+        x: int  = T(T.ID)
+        v: int  = T(T.EVAL_ONCE)
+        calls   = 0
 
         def v_get(self):
             type(self).calls += 1
             return 10
 
     with CACHE_ONLY():
-        default_cache = BTP.current().cache()
-        outer = X(x=1)
+        default_cache   = BTP.current().cache()
+        outer           = X(x = 1)
         assert outer.v == 10
         assert X.calls == 1
 
@@ -88,17 +88,17 @@ def test_eval_once_under_create_root():
             assert BTP.current().cache() is root.cache()
             assert BTP.current().default_cache() is not default_cache
 
-            with pytest.raises(RuntimeError, match='not usable'):
+            with pytest.raises(RuntimeError, match = 'not usable'):
                 _ = outer.v
 
-            inner = X(x=2)
+            inner = X(x = 2)
             assert inner.v == 10
             assert X.calls == 2
 
         # outer's EVAL_ONCE value survives create_root teardown (node on process default)
         assert outer.v == 10
         assert X.calls == 2
-        with pytest.raises(TypeError, match='Trying to modify EVAL_ONCE trait'):
+        with pytest.raises(TypeError, match = 'Trying to modify EVAL_ONCE trait'):
             outer.v = 99
 
 
@@ -127,7 +127,7 @@ def test_deserialize_skips_runtime_keeps_eval_once():
         assert x.y == 1
 
         x.x = 2
-        x1 = X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': '1', 'x': 99, 'a': 1})
+        x1  = X.deserialize_object(X.s_bclass, None, {'_id': '1', '_rev': '1', 'x': 99, 'a': 1})
         assert x1.x == 2
         assert x1.y == 1
 
@@ -135,5 +135,5 @@ def test_deserialize_skips_runtime_keeps_eval_once():
         assert x2.y == 2
         assert x2.x is XNone
 
-    lazy = X(_id=ID('3'))
+    lazy = X(_id = ID('3'))
     assert lazy.x is XNone

@@ -24,26 +24,26 @@ from dev_10x.xx_helpers import GitHelpers, VersionHelpers
 if TYPE_CHECKING:
     from pathlib import Path
 
-pytestmark = pytest.mark.skipif(shutil.which('git') is None, reason='git not available')
+pytestmark = pytest.mark.skipif(shutil.which('git') is None, reason = 'git not available')
 
 DEV_PIN = '>=0.2.0,<=0.2.1,!=0.2.1,>=0.0.0.dev0'  # a prerelease-admitting main dev pin
 
 
-def _init(repo, branch='main'):
-    repo.mkdir(parents=True, exist_ok=True)
+def _init(repo, branch = 'main'):
+    repo.mkdir(parents = True, exist_ok = True)
     GitHelpers.git(repo, 'init', '-q', '-b', branch)
     GitHelpers.git(repo, 'config', 'user.email', 'test@example.com')
     GitHelpers.git(repo, 'config', 'user.name', 'Test')
 
 
 def _write(path, text):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(text, encoding='utf-8')
+    path.parent.mkdir(parents = True, exist_ok = True)
+    path.write_text(text, encoding = 'utf-8')
 
 
-KERNEL_DIR = 'cxx10x/core_10x'
-INFRA_DIR = 'cxx10x/infra_10x'
-SIBLINGS = (('py10x-kernel', KERNEL_DIR), ('py10x-infra', INFRA_DIR))
+KERNEL_DIR  = 'cxx10x/core_10x'
+INFRA_DIR   = 'cxx10x/infra_10x'
+SIBLINGS    = (('py10x-kernel', KERNEL_DIR), ('py10x-infra', INFRA_DIR))
 
 
 def _siblings_toml() -> str:
@@ -91,10 +91,10 @@ def repo_with_downstream(repo):
         repo / 'xx_fin' / 'pyproject.toml',
         f'[project]\nname = "py10x-fin-base"\ndependencies = ["py10x-core ({DEV_PIN})", "uuid6>=2025.0.1"]\n',
     )
-    doc = tomlkit.parse((repo / 'pyproject.toml').read_text(encoding='utf-8'))
-    doc['tool']['dev_10x']['downstream'] = tomlkit.table()
-    doc['tool']['dev_10x']['downstream']['py10x-fin-base'] = tomlkit.inline_table()
-    doc['tool']['dev_10x']['downstream']['py10x-fin-base']['path'] = 'xx_fin'
+    doc                                                             = tomlkit.parse((repo / 'pyproject.toml').read_text(encoding = 'utf-8'))
+    doc['tool']['dev_10x']['downstream']                            = tomlkit.table()
+    doc['tool']['dev_10x']['downstream']['py10x-fin-base']          = tomlkit.inline_table()
+    doc['tool']['dev_10x']['downstream']['py10x-fin-base']['path']  = 'xx_fin'
     _write(repo / 'pyproject.toml', tomlkit.dumps(doc))
     _commit_all(repo, 'add fin-base')
     return repo
@@ -368,7 +368,7 @@ def test_local_promote_work_requires_resync(remotes):
     _run('resync', repo)  # discard local work (main + tags + branches)
     assert GitHelpers.list_tags(repo, 'v*') == [] and GitHelpers.list_tags(repo, 'py10x-kernel-v*') == []
     for branch in ('pre', 'pre-py10x-kernel', 'pre-py10x-infra'):
-        assert GitHelpers.git(repo, 'rev-parse', '--verify', '--quiet', branch, check=False) == ''
+        assert GitHelpers.git(repo, 'rev-parse', '--verify', '--quiet', branch, check = False) == ''
 
     _run_pre(repo, '--push')  # now clean; succeeds and pushes
     assert 'v0.0.1rc1' in _remote_tags(remote)
@@ -389,20 +389,20 @@ def test_rerun_after_epilogue_pushed_without_tags(repo_with_downstream, remotes)
 def test_pre_push_is_one_atomic_push_plus_triggers(remotes, monkeypatch):
     """One repo: every package's branch/tag/marker and the main epilogue land in a single atomic
     push - a partial cross-package push is unreachable. Publish triggers are pushed one at a time."""
-    repo, _remote = remotes
+    repo, _remote           = remotes
     pushes: list[list[str]] = []
-    orig_git = GitHelpers.git
+    orig_git                = GitHelpers.git
 
-    def tracking_git(r, *args, check=True):
+    def tracking_git(r, *args, check = True):
         if args and args[0] == 'push' and '--atomic' in args:
             pushes.append([a for a in args if a not in ('push', '--atomic', 'origin', '-q')])
-        return orig_git(r, *args, check=check)
+        return orig_git(r, *args, check = check)
 
     monkeypatch.setattr(GitHelpers, 'git', staticmethod(tracking_git))
     _run_pre(repo, '--push')
 
-    triggers = [p for p in pushes if any(r.startswith(('pre/', 'prod/')) for r in p)]
-    refs = [p for p in pushes if p not in triggers]
+    triggers    = [p for p in pushes if any(r.startswith(('pre/', 'prod/')) for r in p)]
+    refs        = [p for p in pushes if p not in triggers]
     assert len(triggers) == 3  # core + kernel + infra, one push each
     assert all(sum(r.startswith(('pre/', 'prod/')) for r in p) == 1 for p in triggers)
     assert not any(r.startswith(':refs/') for p in triggers for r in p)

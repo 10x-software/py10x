@@ -21,7 +21,7 @@ from core_10x.rc import RC, RC_TRUE
 
 pytestmark = pytest.mark.skipif(
     sys.platform == 'win32',
-    reason='xx-functional-account-init wraps `docker run`; not exercised on Windows',
+    reason = 'xx-functional-account-init wraps `docker run`; not exercised on Windows',
 )
 
 
@@ -31,9 +31,9 @@ def _run(monkeypatch, argv):
 
 
 def _fifo_paths(argv: list[str]) -> tuple[str, str]:
-    mount = argv[argv.index('-v') + 1]
-    host_dir, _sep, _container_dir = mount.partition(':')
-    output = argv[argv.index('--output-file') + 1]
+    mount                           = argv[argv.index('-v') + 1]
+    host_dir, _sep, _container_dir  = mount.partition(':')
+    output                          = argv[argv.index('--output-file') + 1]
     return host_dir, os.path.join(host_dir, os.path.basename(output))
 
 
@@ -134,8 +134,8 @@ def test_image_tag_override_skips_auto_detection(monkeypatch):
         'core_10x.apps.functional_account_init.subprocess.run',
         lambda *a, **k: (_ for _ in ()).throw(AssertionError('docker manifest inspect must not run when --image-tag is given')),
     )
-    rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi', '--image-tag', 'dev'])
-    rc, image = inst._resolve_image()
+    rc, inst    = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi', '--image-tag', 'dev'])
+    rc, image   = inst._resolve_image()
     assert rc
     assert image == 'ghcr.io/10x-software/py10x-core:dev'
 
@@ -148,8 +148,8 @@ def test_image_auto_detection_failure_names_fallback(monkeypatch):
         return subprocess.CompletedProcess(argv, 1)
 
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
-    rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
-    rc, _image = inst._resolve_image()
+    rc, inst    = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
+    rc, _image  = inst._resolve_image()
     assert not rc
     assert '--image-tag dev|pre|prod|<tag>' in rc.error()
 
@@ -160,22 +160,22 @@ def test_run_wires_functional_account_id_and_output_file_into_docker_argv(monkey
     monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host.example.com:5432/vaultdb')
     monkeypatch.setattr(FunctionalAccountInitCli, '_resolve_image', lambda self: (RC_TRUE, 'fake-image:dev'))
 
-    seen = {}
-    real_run = subprocess.run
+    seen        = {}
+    real_run    = subprocess.run
 
     def fake_run(argv, **kwargs):
         if argv[:2] == ['docker', 'run']:
             seen['docker_argv'] = argv
             _write_fifo_from_fake_docker(argv, json.dumps([{'service': 's', 'username': 'u', 'password': 'p'}]))
             return subprocess.CompletedProcess(argv, 0)
-        seen['provisioning_argv'] = argv
-        seen['provisioning_input'] = kwargs.get('input')
+        seen['provisioning_argv']   = argv
+        seen['provisioning_input']  = kwargs.get('input')
         return real_run(argv, **kwargs)
 
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
 
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
-    result = inst.run()
+    _rc, inst   = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
+    result      = inst.run()
     assert result, result.error()
 
     argv = seen['docker_argv']
@@ -205,8 +205,8 @@ def test_run_quotes_secret_name_against_command_splintering(monkeypatch):
 
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
 
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', hostile_id, '--command', 'echo {secret_name} extra'])
-    result = inst.run()
+    _rc, inst   = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', hostile_id, '--command', 'echo {secret_name} extra'])
+    result      = inst.run()
     assert result, result.error()
     assert seen_argv == ['echo', f'{hostile_id}-vault-keyring', 'extra']
 
@@ -237,8 +237,8 @@ def test_run_reports_docker_failure_and_cleans_up(monkeypatch):
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
     monkeypatch.setattr('core_10x.apps.functional_account_init.tempfile.mkdtemp', tracking_mkdtemp)
 
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
-    result = inst.run()
+    _rc, inst   = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'echo hi'])
+    result      = inst.run()
     assert not result
     assert 'docker run failed' in result.error()
     assert tmp_dirs and not os.path.exists(tmp_dirs[0])
@@ -251,8 +251,8 @@ def test_run_reports_provisioning_command_failure_and_cleans_up(monkeypatch):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host.example.com:5432/vaultdb')
     monkeypatch.setattr(FunctionalAccountInitCli, '_resolve_image', lambda self: (RC_TRUE, 'fake-image:dev'))
 
-    tmp_dirs = []
-    real_mkdtemp = tempfile.mkdtemp
+    tmp_dirs        = []
+    real_mkdtemp    = tempfile.mkdtemp
 
     def tracking_mkdtemp(*a, **k):
         d = real_mkdtemp(*a, **k)
@@ -268,8 +268,8 @@ def test_run_reports_provisioning_command_failure_and_cleans_up(monkeypatch):
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
     monkeypatch.setattr('core_10x.apps.functional_account_init.tempfile.mkdtemp', tracking_mkdtemp)
 
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'false'])
-    result = inst.run()
+    _rc, inst   = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'false'])
+    result      = inst.run()
     assert not result
     assert '--command failed' in result.error()
     assert tmp_dirs and not os.path.exists(tmp_dirs[0])
@@ -280,18 +280,18 @@ def test_run_reads_manifest_when_the_container_writes_late(monkeypatch):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host.example.com:5432/vaultdb')
     monkeypatch.setattr(FunctionalAccountInitCli, '_resolve_image', lambda self: (RC_TRUE, 'fake-image:dev'))
     payload = json.dumps([{'service': 's', 'username': 'u', 'password': 'p'}])
-    seen = {}
+    seen    = {}
 
     def fake_run(argv, **kwargs):
         if argv[:2] == ['docker', 'run']:
-            _write_fifo_from_fake_docker(argv, payload, delay_s=0.3)
+            _write_fifo_from_fake_docker(argv, payload, delay_s = 0.3)
             return subprocess.CompletedProcess(argv, 0)
         seen['provisioning_input'] = kwargs.get('input')
         return subprocess.CompletedProcess(argv, 0)
 
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
-    result = inst.run()
+    _rc, inst   = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
+    result      = inst.run()
     assert result, result.error()
     assert seen['provisioning_input'] == payload
 
@@ -301,8 +301,8 @@ def test_run_drains_fifo_while_the_container_writes(monkeypatch):
     monkeypatch.setattr(EnvVars, 'main_vault_uri', 'postgresql://vault-host.example.com:5432/vaultdb')
     monkeypatch.setattr(FunctionalAccountInitCli, '_resolve_image', lambda self: (RC_TRUE, 'fake-image:dev'))
     payload = 'x' * (1024 * 1024)
-    seen = {}
-    wrote = threading.Event()
+    seen    = {}
+    wrote   = threading.Event()
 
     def fake_run(argv, **kwargs):
         if argv[:2] == ['docker', 'run']:
@@ -314,15 +314,15 @@ def test_run_drains_fifo_while_the_container_writes(monkeypatch):
                     f.write(payload)
                 wrote.set()
 
-            threading.Thread(target=_write, daemon=True).start()
+            threading.Thread(target = _write, daemon = True).start()
             assert wrote.wait(5), 'reader did not drain the FIFO; a full pipe would stall docker run'
             return subprocess.CompletedProcess(argv, 0)
         seen['provisioning_input'] = kwargs.get('input')
         return subprocess.CompletedProcess(argv, 0)
 
     monkeypatch.setattr('core_10x.apps.functional_account_init.subprocess.run', fake_run)
-    _rc, inst = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
-    result = inst.run()
+    _rc, inst   = FunctionalAccountInitCli.instance_from_args(['--functional-account-id', 'xx-myservice', '--command', 'cat'])
+    result      = inst.run()
     assert result, result.error()
     assert seen['provisioning_input'] == payload
 
@@ -360,19 +360,19 @@ def _stub_bin(tmp_path):
 def _run_entrypoint(tmp_path, args: list[str] | None = None, *, expect_ok: bool = True):
     log_path = tmp_path / 'stub.log'
     log_path.write_text('')
-    env = os.environ.copy()
-    env['PATH'] = f'{_stub_bin(tmp_path)}:{env["PATH"]}'
-    env['STUB_LOG'] = str(log_path)
-    env['FUNCTIONAL_ACCOUNT_ID'] = 'xx-myservice'
+    env                             = os.environ.copy()
+    env['PATH']                     = f'{_stub_bin(tmp_path)}:{env["PATH"]}'
+    env['STUB_LOG']                 = str(log_path)
+    env['FUNCTIONAL_ACCOUNT_ID']    = 'xx-myservice'
     env.pop('XX_SECRETS_DIR', None)
-    completed = subprocess.run(
+    completed   = subprocess.run(
         ['bash', _entrypoint_path(), *(args or [])],
-        env=env,
-        capture_output=True,
-        text=True,
-        check=False,
+        env             = env,
+        capture_output  = True,
+        text            = True,
+        check           = False,
     )
-    log = log_path.read_text()
+    log         = log_path.read_text()
     if expect_ok:
         assert completed.returncode == 0, completed.stderr
     return completed, log
@@ -381,8 +381,8 @@ def _run_entrypoint(tmp_path, args: list[str] | None = None, *, expect_ok: bool 
 def test_entrypoint_chowns_only_the_output_file_before_gosu(tmp_path):
     provisioning = tmp_path / 'out'
     provisioning.mkdir()
-    target = provisioning / 'xx-myservice.fifo'
-    other = provisioning / 'other.fifo'
+    target  = provisioning / 'xx-myservice.fifo'
+    other   = provisioning / 'other.fifo'
     os.mkfifo(target, 0o200)
     os.mkfifo(other, 0o200)
     _completed, log = _run_entrypoint(
@@ -407,7 +407,7 @@ def test_entrypoint_rejects_output_file_that_is_not_a_fifo(tmp_path):
     completed, log = _run_entrypoint(
         tmp_path,
         ['xx-user-init', '--output-file', str(regular)],
-        expect_ok=False,
+        expect_ok = False,
     )
     assert completed.returncode != 0
     assert 'not a FIFO' in completed.stderr

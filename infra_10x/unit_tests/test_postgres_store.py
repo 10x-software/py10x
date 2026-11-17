@@ -29,8 +29,8 @@ from psycopg.errors import InsufficientPrivilege
 
 def test_postgresql_parse_uri_and_registry():
     assert TS_STORE_TYPE.ts_store_class('postgresql') is PostgresStore
-    uri = 'postgresql://user:pass@localhost:5432/testdb'
-    args = PostgresStore.parse_uri(uri)
+    uri     = 'postgresql://user:pass@localhost:5432/testdb'
+    args    = PostgresStore.parse_uri(uri)
     assert args[PostgresStore.HOSTNAME_TAG] == 'localhost'
     assert args[PostgresStore.DBNAME_TAG] == 'testdb'
     assert args[PostgresStore.USERNAME_TAG] == 'user'
@@ -54,7 +54,7 @@ def test_postgresql_parse_uri_and_registry():
 
 def _short_lived_postgres(uri: str) -> PostgresStore:
     """Connect outside the session fixture without caching in ``s_instances``."""
-    store = Traitable.store_from_uri(uri, _cache=False)
+    store = Traitable.store_from_uri(uri, _cache = False)
     assert isinstance(store, PostgresStore)
     assert store.auth_user() is not None
     return store
@@ -62,8 +62,8 @@ def _short_lived_postgres(uri: str) -> PostgresStore:
 
 def test_passwordless_connect_userless_uri_uses_os_user(postgres_store):
     """URI without userinfo: Resource.username is None; server role is the OS user."""
-    uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
-    store = _short_lived_postgres(uri)
+    uri     = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
+    store   = _short_lived_postgres(uri)
     if not TsStore.is_running_with_auth_from_uri(uri)[1]:
         assert store.username is None
     current = store._execute('SELECT current_user')[0][0]
@@ -73,7 +73,7 @@ def test_passwordless_connect_userless_uri_uses_os_user(postgres_store):
 def test_passwordless_connect_explicit_user_matches_server(postgres_store):
     """URI with OS user@: Resource.username and current_user both equal that user."""
     os_user = getpass.getuser()
-    uri = f'postgresql://{os_user}@localhost:5432/postgres'
+    uri     = f'postgresql://{os_user}@localhost:5432/postgres'
     need(not TsStore.is_running_with_auth_from_uri(uri)[1], f'server at {uri} is running with auth')
     store = _short_lived_postgres(uri)
     assert store.username == os_user
@@ -108,12 +108,12 @@ def test_is_running_with_auth_local_trust_no_password(postgres_store):
 
 def test_is_running_with_auth_unknown_role_try_vault(postgres_store):
     """Unknown role: ErrorResponse after handshake → (True, True) so vault is tried."""
-    uri = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
-    spec = TsStore.spec_from_uri(uri)
-    host, port = spec.hostname(), int(spec.port())
-    dbname = PostgresStore.s_instance_kwargs_map[PostgresStore.DBNAME_TAG][1]
-    sock = socket.create_connection((host, port), timeout=3.0)
-    assert PostgresStore._startup_auth_probe(sock, host=host, user='no_such_pg_role_zz_xyz', database=dbname) == (True, True)
+    uri         = test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name)
+    spec        = TsStore.spec_from_uri(uri)
+    host, port  = spec.hostname(), int(spec.port())
+    dbname      = PostgresStore.s_instance_kwargs_map[PostgresStore.DBNAME_TAG][1]
+    sock        = socket.create_connection((host, port), timeout = 3.0)
+    assert PostgresStore._startup_auth_probe(sock, host = host, user = 'no_such_pg_role_zz_xyz', database = dbname) == (True, True)
 
 
 @pytest.mark.parametrize(
@@ -130,7 +130,7 @@ def test_is_running_with_auth_unknown_role_try_vault(postgres_store):
         (b'K', b'\x00' * 8, None),
         (b'N', b'', None),
     ],
-    ids=[
+    ids = [
         'auth-cleartext-try-vault',
         'auth-md5-try-vault',
         'auth-sasl-try-vault',
@@ -149,8 +149,8 @@ def test_classify_startup_backend_message(tag, payload, expected):
 
 def test_auth_user_is_server_session_user(postgres_store):
     """TS_USER identity is current_user, not Resource.username (unlike Mongo/DuckDB)."""
-    store = postgres_store
-    session_user = store._execute('SELECT current_user')[0][0]
+    store           = postgres_store
+    session_user    = store._execute('SELECT current_user')[0][0]
     assert store.auth_user() == session_user
     store.username = 'not_the_db_role'
     assert store.auth_user() == session_user
@@ -158,19 +158,19 @@ def test_auth_user_is_server_session_user(postgres_store):
 
 
 def test_ts_user_stamped_from_current_user(postgres_store, monkeypatch):
-    class Ev(Traitable, custom_collection=True, keep_history=False):
-        name: str = T(T.ID)
-        _at: datetime = T(T.TS_TIME)
-        _who: str = T(T.TS_USER)
+    class Ev(Traitable, custom_collection = True, keep_history = False):
+        name: str       = T(T.ID)
+        _at: datetime   = T(T.TS_TIME)
+        _who: str       = T(T.TS_USER)
 
-    store = postgres_store
-    coll_name = f'pg_ts_{id(store)}_{os.getpid()}'
-    coll = store.collection(coll_name, Ev.s_dir)
-    body = store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'})
-    body = store.add_ts('_who', T.TS_USER, body)
+    store       = postgres_store
+    coll_name   = f'pg_ts_{id(store)}_{os.getpid()}'
+    coll        = store.collection(coll_name, Ev.s_dir)
+    body        = store.add_ts('_at', T.TS_TIME, {'_id': '1', 'name': 'a'})
+    body        = store.add_ts('_who', T.TS_USER, body)
 
-    server_time_calls = []
-    orig = type(store).server_time
+    server_time_calls   = []
+    orig                = type(store).server_time
     monkeypatch.setattr(type(store), 'server_time', lambda self: (server_time_calls.append(1), orig(self))[1])
 
     result = coll.save_new(body)
@@ -178,19 +178,19 @@ def test_ts_user_stamped_from_current_user(postgres_store, monkeypatch):
     assert result['_who'] == store.auth_user()
     assert result['_at'] is not None
 
-    phys = store._physical_table_name(coll_name)
-    row = store._execute(f'SELECT "_who", {_DATA} FROM "{phys}" WHERE {_ID} = ?', ['1'])[0]
+    phys    = store._physical_table_name(coll_name)
+    row     = store._execute(f'SELECT "_who", {_DATA} FROM "{phys}" WHERE {_ID} = ?', ['1'])[0]
     assert row[0] == store.auth_user()
     store.delete_collection(coll_name)
 
 
 def test_data_column_is_jsonb(postgres_store):
-    class Pad(Traitable, custom_collection=True, keep_history=False):
+    class Pad(Traitable, custom_collection = True, keep_history = False):
         pad: int = T()
 
-    store = postgres_store
-    coll_name = f'pg_jsonb_{os.getpid()}'
-    coll = store.collection(coll_name, Pad.s_dir)
+    store       = postgres_store
+    coll_name   = f'pg_jsonb_{os.getpid()}'
+    coll        = store.collection(coll_name, Pad.s_dir)
     coll.save_new({'_id': 'j', 'pad': 0, 'extra': 'blob'})
     phys = store._physical_table_name(coll_name)
     rows = store._execute(
@@ -205,8 +205,8 @@ def test_long_collection_names_do_not_collide_with_history(postgres_store):
     """PG 63-byte identifier limit must not merge main and #history into one table."""
     long_base = 'core_10x/testlib/ts_tests/Person#' + 'a' * 40
     assert len(long_base.encode()) > 63
-    hist = long_base + '#history'
-    store = postgres_store
+    hist    = long_base + '#history'
+    store   = postgres_store
     assert store._physical_table_name(long_base) != store._physical_table_name(hist)
     store.ensure_table(long_base)
     store.ensure_table(hist)
@@ -225,12 +225,12 @@ def test_fresh_connection_sees_existing_collections(postgres_store):
     logical name can only come back from the comment stamped at CREATE time.
     """
 
-    class Pad(Traitable, custom_collection=True, keep_history=False):
+    class Pad(Traitable, custom_collection = True, keep_history = False):
         pad: int = T()
 
-    store = postgres_store
-    short_name = f'pg_catalog_{os.getpid()}'
-    long_name = 'core_10x/testlib/ts_tests/Catalog#' + 'a' * 40
+    store       = postgres_store
+    short_name  = f'pg_catalog_{os.getpid()}'
+    long_name   = 'core_10x/testlib/ts_tests/Catalog#' + 'a' * 40
     assert len(long_name.encode()) > 63
     for name in (short_name, long_name):
         store.delete_collection(name)  # -- leftover from an interrupted earlier run
@@ -249,9 +249,9 @@ def test_fresh_connection_sees_existing_collections(postgres_store):
 
 
 def _pg_has_index(store: PostgresStore, collection_name: str, logical_name: str) -> bool:
-    phys_table = store._physical_table_name(collection_name)
-    phys_idx = store._physical_index_name(collection_name, logical_name)
-    rows = store._execute(
+    phys_table  = store._physical_table_name(collection_name)
+    phys_idx    = store._physical_index_name(collection_name, logical_name)
+    rows        = store._execute(
         'SELECT 1 FROM pg_indexes WHERE tablename = ? AND indexname = ?',
         [phys_table, phys_idx],
     )
@@ -261,11 +261,11 @@ def _pg_has_index(store: PostgresStore, collection_name: str, logical_name: str)
 def test_jsonb_path_index_on_blob_field(postgres_store):
     """Blob keys are indexable via (_data ->> 'field') expression indexes — Postgres-only (JSONB)."""
 
-    class Pad(Traitable, custom_collection=True, keep_history=False):
+    class Pad(Traitable, custom_collection = True, keep_history = False):
         pad: int = T()
 
-    store = postgres_store
-    coll_name = f'pg_jsonb_idx_{os.getpid()}'
+    store       = postgres_store
+    coll_name   = f'pg_jsonb_idx_{os.getpid()}'
     try:
         coll = store.collection(coll_name, Pad.s_dir)
         coll.save_new({'_id': '1', 'pad': 0, 'blob_key': 'v'})
@@ -278,12 +278,12 @@ def test_jsonb_path_index_on_blob_field(postgres_store):
 
 
 def test_ensure_columns_skips_runtime_traits(postgres_store):
-    class Pad(Traitable, custom_collection=True, keep_history=False):
+    class Pad(Traitable, custom_collection = True, keep_history = False):
         pad: int = T()
         tmp: str = RT('')
 
-    store = postgres_store
-    coll_name = f'pg_rt_{uuid6.uuid7().hex[-8:]}'
+    store       = postgres_store
+    coll_name   = f'pg_rt_{uuid6.uuid7().hex[-8:]}'
     try:
         coll = store.collection(coll_name, Pad.s_dir)
         store.ensure_table(coll_name)
@@ -299,8 +299,8 @@ class _IndexCursor:
     """CREATE INDEX raises; a catalog lookup returns a row only for known index names."""
 
     def __init__(self, conn):
-        self._conn = conn
-        self.description = None
+        self._conn              = conn
+        self.description        = None
         self._rows: list[tuple] = []
 
     def __enter__(self):
@@ -309,13 +309,13 @@ class _IndexCursor:
     def __exit__(self, *exc):
         return False
 
-    def execute(self, sql, params=None):
+    def execute(self, sql, params = None):
         bound = list(params or ())
         self._conn.queries.append((sql, bound))
         if 'CREATE' in sql.upper() and 'INDEX' in sql.upper():
             raise InsufficientPrivilege(self._conn.error_text)
-        self.description = ('?column?',)
-        self._rows = [(1,)] if set(bound) & self._conn.indexes else []
+        self.description    = ('?column?',)
+        self._rows          = [(1,)] if set(bound) & self._conn.indexes else []
 
     def fetchall(self):
         return list(self._rows)
@@ -323,9 +323,9 @@ class _IndexCursor:
 
 class _IndexConn:
     def __init__(self, indexes: set[str], error_text: str = 'must be owner of table pad'):
-        self.indexes = indexes
-        self.error_text = error_text
-        self.queries: list[tuple[str, list]] = []
+        self.indexes                            = indexes
+        self.error_text                         = error_text
+        self.queries: list[tuple[str, list]]    = []
 
     def cursor(self):
         return _IndexCursor(self)
@@ -333,12 +333,12 @@ class _IndexConn:
 
 def _store_with_index_conn(indexes: set[str], error_text: str = 'must be owner of table pad') -> tuple[PostgresStore, _IndexConn]:
     """PostgresStore that never connects; index DDL hits the fake cursor."""
-    store = PostgresStore.__new__(PostgresStore)
-    conn = _IndexConn(indexes, error_text)
-    store._con = conn
-    store.ensure_table = lambda collection_name: None
-    store._ensure_columns = lambda collection_name, keys, col_trait_dir: None
-    store._collection_columns = lambda collection_name: {_ID: str, _REV: int, _DATA: dict, 'pad': int}
+    store                       = PostgresStore.__new__(PostgresStore)
+    conn                        = _IndexConn(indexes, error_text)
+    store._con                  = conn
+    store.ensure_table          = lambda collection_name: None
+    store._ensure_columns       = lambda collection_name, keys, col_trait_dir: None
+    store._collection_columns   = lambda collection_name: {_ID: str, _REV: int, _DATA: dict, 'pad': int}
     return store, conn
 
 
@@ -349,31 +349,31 @@ def test_create_index_owner_error_requires_existing_index():
     same cursor. A missing row must propagate — swallowing it reports the index name and leaves
     a later unique index unenforced.
     """
-    coll = 'pad_coll'
-    missing, _conn = _store_with_index_conn(set())
-    with pytest.raises(InsufficientPrivilege, match='must be owner of table'):
+    coll            = 'pad_coll'
+    missing, _conn  = _store_with_index_conn(set())
+    with pytest.raises(InsufficientPrivilege, match = 'must be owner of table'):
         missing.create_index(coll, 'idx_pad', 'pad', {})
 
-    present, conn = _store_with_index_conn(set())
-    phys_idx = present._physical_index_name(coll, 'idx_pad')
+    present, conn   = _store_with_index_conn(set())
+    phys_idx        = present._physical_index_name(coll, 'idx_pad')
     conn.indexes.add(phys_idx)
     assert present.create_index(coll, 'idx_pad', 'pad', {}) == 'idx_pad'
     assert any('pg_indexes' in sql or 'pg_class' in sql for sql, _params in conn.queries)
 
     # Different driver text: not the ownership check, even if the index row exists.
-    denied, _denied_conn = _store_with_index_conn({phys_idx}, error_text='permission denied for table pad')
-    with pytest.raises(InsufficientPrivilege, match='permission denied'):
+    denied, _denied_conn = _store_with_index_conn({phys_idx}, error_text = 'permission denied for table pad')
+    with pytest.raises(InsufficientPrivilege, match = 'permission denied'):
         denied.create_index(coll, 'idx_pad', 'pad', {})
 
 
 def test_create_index_ignores_must_be_owner(postgres_store):
     """Workers cannot CREATE INDEX; IF NOT EXISTS still checks ownership, so skip that error."""
 
-    class Pad(Traitable, custom_collection=True, keep_history=False):
+    class Pad(Traitable, custom_collection = True, keep_history = False):
         pad: int = T()
 
-    store = postgres_store
-    suffix = uuid6.uuid7().hex[-8:]
+    store           = postgres_store
+    suffix          = uuid6.uuid7().hex[-8:]
     coll_name, role = f'pg_idx_own_{suffix}', f'idxown_{suffix}'
     try:
         coll = store.collection(coll_name, Pad.s_dir)
@@ -401,11 +401,11 @@ def test_list_databases_prefix_underscores_are_literal(postgres_store):
     ``str.startswith``; Postgres must match that literal-prefix contract.
     """
     # Maintenance DB — CREATE/DROP DATABASE cannot run against the target itself.
-    store = _short_lived_postgres(test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name, session_db='postgres'))
-    prefix = test_databases.TEST_DB_PREFIX
-    uid = uuid6.uuid7().hex[-8:]
-    real = f'{prefix}_lit_{uid}'
-    decoy = prefix.replace('_', 'X', 1) + f'_decoy_{uid}'  # matches LIKE, not startswith
+    store   = _short_lived_postgres(test_databases.test_uri(TEST_TS_STORE.POSTGRESQL.name, session_db = 'postgres'))
+    prefix  = test_databases.TEST_DB_PREFIX
+    uid     = uuid6.uuid7().hex[-8:]
+    real    = f'{prefix}_lit_{uid}'
+    decoy   = prefix.replace('_', 'X', 1) + f'_decoy_{uid}'  # matches LIKE, not startswith
     try:
         for name in (real, decoy):
             store._execute(f'CREATE DATABASE {store._qdb(name)}')
@@ -438,13 +438,13 @@ def test_parse_uri_sslmode_and_ibis_connect_kwargs(monkeypatch):
         return _Backend()
 
     monkeypatch.setattr(ibis.postgres, 'connect', fake_connect)
-    PostgresStore(hostname='h', port=5432, dbname='db', username='u', password='p', ssl=True, sslmode='require')
+    PostgresStore(hostname = 'h', port = 5432, dbname = 'db', username = 'u', password = 'p', ssl = True, sslmode = 'require')
     assert captured.get(PostgresStore.SSLMODE_TAG) == 'require'
     captured.clear()
-    PostgresStore(hostname='h', port=5432, dbname='db', username='u', password='p', ssl=True)
+    PostgresStore(hostname = 'h', port = 5432, dbname = 'db', username = 'u', password = 'p', ssl = True)
     assert captured.get(PostgresStore.SSLMODE_TAG) == 'require'
     captured.clear()
-    PostgresStore(hostname='h', port=5432, dbname='db', username='u', password='p')
+    PostgresStore(hostname = 'h', port = 5432, dbname = 'db', username = 'u', password = 'p')
     assert PostgresStore.SSLMODE_TAG not in captured
 
 
@@ -476,36 +476,36 @@ def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
         sec_keys = _FakeSecKeys()
 
     class _FakeRA:
-        login = 'vault-user'
-        password = b'encrypted'
-        user = _FakeUser()
-        resource_uri = 'postgresql://vault-pg.example:5432/postgres'
-        _create_resource_if_needed = False
-        _cache = True
+        login                       = 'vault-user'
+        password                    = b'encrypted'
+        user                        = _FakeUser()
+        resource_uri                = 'postgresql://vault-pg.example:5432/postgres'
+        _create_resource_if_needed  = False
+        _cache                      = True
 
         @property
         def resource(self):
             # Mirror VaultResourceAccessor.resource_get: honor the stamp from retrieve_ra.
             return PostgresStore.instance_from_uri(
                 self.resource_uri,
-                username=self.login,
-                password=self.user.sec_keys.decrypt_text(self.password),
-                _cache=self._cache,
-                _create_if_needed=self._create_resource_if_needed,
+                username            = self.login,
+                password            = self.user.sec_keys.decrypt_text(self.password),
+                _cache              = self._cache,
+                _create_if_needed   = self._create_resource_if_needed,
             )
 
-    def _fake_retrieve_ra(cls, resource_dt, resource_uri, username=None, *, _create_resource_if_needed=False, _cache=True):
-        ra = _FakeRA()
-        ra.resource_uri = resource_uri
-        ra._create_resource_if_needed = _create_resource_if_needed
-        ra._cache = _cache
+    def _fake_retrieve_ra(cls, resource_dt, resource_uri, username = None, *, _create_resource_if_needed = False, _cache = True):
+        ra                              = _FakeRA()
+        ra.resource_uri                 = resource_uri
+        ra._create_resource_if_needed   = _create_resource_if_needed
+        ra._cache                       = _cache
         return ra
 
-    def _fake_instance_from_uri(cls, uri, username=None, password=None, _cache=True, _create_if_needed=False):
-        captured.update(uri=uri, username=username, password=password, _cache=_cache, _create_if_needed=_create_if_needed)
+    def _fake_instance_from_uri(cls, uri, username = None, password = None, _cache = True, _create_if_needed = False):
+        captured.update(uri = uri, username = username, password = password, _cache = _cache, _create_if_needed = _create_if_needed)
         return sentinel
 
-    monkeypatch.setattr(PostgresStore, 'is_running_with_auth', classmethod(lambda cls, host_name, port=None: (True, True)))
+    monkeypatch.setattr(PostgresStore, 'is_running_with_auth', classmethod(lambda cls, host_name, port = None: (True, True)))
     monkeypatch.setattr(Traitable, 'vault_store', staticmethod(lambda: nullcontext()))
     monkeypatch.setattr(VaultResourceAccessor, 'retrieve_ra', classmethod(_fake_retrieve_ra))
     monkeypatch.setattr(PostgresStore, 'instance_from_uri', classmethod(_fake_instance_from_uri))
@@ -520,11 +520,11 @@ def test_store_from_uri_uses_vault_when_auth_required(monkeypatch):
         '_create_if_needed': False,
     }
 
-    assert Traitable.store_from_uri(uri, _create_if_needed=True) is sentinel
+    assert Traitable.store_from_uri(uri, _create_if_needed = True) is sentinel
     assert captured['_create_if_needed'] is True
     assert captured['_cache'] is True
 
-    assert Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True) is sentinel
+    assert Traitable.store_from_uri(uri, _cache = False, _create_if_needed = True) is sentinel
     assert captured['_cache'] is False
     assert captured['_create_if_needed'] is True
 
@@ -534,19 +534,19 @@ def test_store_from_uri_skips_vault_when_open(monkeypatch):
     sentinel = object()
     captured = {}
 
-    def _fake_instance(cls, *args, _cache=True, _create_if_needed=False, **kwargs):
-        captured.update(_cache=_cache, _create_if_needed=_create_if_needed)
+    def _fake_instance(cls, *args, _cache = True, _create_if_needed = False, **kwargs):
+        captured.update(_cache = _cache, _create_if_needed = _create_if_needed)
         return sentinel
 
     def _retrieve_ra_must_not_run(cls, *args, **kwargs):
         raise AssertionError('vault must not be consulted for an open server')
 
-    monkeypatch.setattr(PostgresStore, 'is_running_with_auth', classmethod(lambda cls, host_name, port=None: (True, False)))
+    monkeypatch.setattr(PostgresStore, 'is_running_with_auth', classmethod(lambda cls, host_name, port = None: (True, False)))
     monkeypatch.setattr(VaultResourceAccessor, 'retrieve_ra', classmethod(_retrieve_ra_must_not_run))
     monkeypatch.setattr(PostgresStore, 'instance', classmethod(_fake_instance))
 
     uri = 'postgresql://localhost:5432/testdb'
-    assert Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True) is sentinel
+    assert Traitable.store_from_uri(uri, _cache = False, _create_if_needed = True) is sentinel
     assert captured == {'_cache': False, '_create_if_needed': True}
 
 
@@ -558,7 +558,7 @@ def test_resource_instance_create_if_needed_runs_before_new_instance(monkeypatch
     monkeypatch.setattr(PostgresStore, 'new_instance', classmethod(lambda cls, **kw: order.append(('new', kw.get('dbname'))) or object()))
 
     kw = {'hostname': 'localhost', 'port': 5432, 'dbname': 'to_create', 'username': 'u', 'password': 'p', '_create_if_needed': True}
-    PostgresStore.instance(**kw, _cache=False)
+    PostgresStore.instance(**kw, _cache = False)
     assert order == [('create', 'to_create'), ('new', 'to_create')]
 
     order.clear()
@@ -583,12 +583,12 @@ def test_password_auth_connect():
         f'password-auth Postgres not running on localhost:{PASSWORD_AUTH_PORT}',
     )
     store = PostgresStore.instance(
-        hostname='localhost',
-        port=PASSWORD_AUTH_PORT,
-        dbname='postgres',
-        username='postgres',
-        password=PASSWORD_AUTH_PASSWORD,
-        _cache=False,
+        hostname    = 'localhost',
+        port        = PASSWORD_AUTH_PORT,
+        dbname      = 'postgres',
+        username    = 'postgres',
+        password    = PASSWORD_AUTH_PASSWORD,
+        _cache      = False,
     )
     assert store._execute('SELECT 1')[0][0] == 1
     assert store.auth_user() == 'postgres'

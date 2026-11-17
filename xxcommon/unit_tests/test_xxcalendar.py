@@ -34,8 +34,8 @@ class TestCalendarNameParser:
         expected = 'CAL1,CAL2,CAL3,|3\n'
         assert result == expected
 
-        result = CalendarNameParser.operation_repr(MockCalendar, CalendarNameParser.AND_CHAR, cal1, cal2)
-        expected = 'CAL1,CAL2,&2\n'
+        result      = CalendarNameParser.operation_repr(MockCalendar, CalendarNameParser.AND_CHAR, cal1, cal2)
+        expected    = 'CAL1,CAL2,&2\n'
         assert result == expected
 
     def test_operation_repr_with_strings(self):
@@ -53,7 +53,7 @@ class TestCalendarNameParser:
         cal1 = MockCalendar('CAL1')
         cal2 = MockCalendar('CAL2')
 
-        with pytest.raises(AssertionError, match='Unknown op char = \\*'):
+        with pytest.raises(AssertionError, match = 'Unknown op char = \\*'):
             CalendarNameParser.operation_repr(MockCalendar, '*', cal1, cal2)
 
     def test_operation_repr_too_few_calendars(self):
@@ -65,7 +65,7 @@ class TestCalendarNameParser:
 
         cal1 = MockCalendar('CAL1')
 
-        with pytest.raises(AssertionError, match='there must be at least 2 calendars'):
+        with pytest.raises(AssertionError, match = 'there must be at least 2 calendars'):
             CalendarNameParser.operation_repr(MockCalendar, CalendarNameParser.OR_CHAR, cal1)
 
     def test_parse_simple_calendar(self, ts_instance):
@@ -73,12 +73,12 @@ class TestCalendarNameParser:
         from datetime import date
 
         with ts_instance:
-            holidays = {date(2024, 1, 1), date(2024, 12, 25)}
-            cal = Calendar(
-                name='TEST_SIMPLE_CAL',
-                description='Simple calendar for parsing',
-                non_working_days=sorted(holidays),
-                _replace=True,
+            holidays    = {date(2024, 1, 1), date(2024, 12, 25)}
+            cal         = Calendar(
+                name                = 'TEST_SIMPLE_CAL',
+                description         = 'Simple calendar for parsing',
+                non_working_days    = sorted(holidays),
+                _replace            = True,
             )
             assert cal.save()
 
@@ -94,16 +94,16 @@ class TestCalendarNameParser:
             holidays_b = {date(2024, 1, 2), date(2024, 1, 3)}
 
             cal_a = Calendar(
-                name='TEST_CAL_A',
-                description='Calendar A for combined parsing',
-                non_working_days=sorted(holidays_a),
-                _replace=True,
+                name                = 'TEST_CAL_A',
+                description         = 'Calendar A for combined parsing',
+                non_working_days    = sorted(holidays_a),
+                _replace            = True,
             )
             cal_b = Calendar(
-                name='TEST_CAL_B',
-                description='Calendar B for combined parsing',
-                non_working_days=sorted(holidays_b),
-                _replace=True,
+                name                = 'TEST_CAL_B',
+                description         = 'Calendar B for combined parsing',
+                non_working_days    = sorted(holidays_b),
+                _replace            = True,
             )
 
             assert cal_a.save()
@@ -127,7 +127,7 @@ class TestCalendarAdjustment:
         """Test CalendarAdjustment can be created."""
         with CACHE_ONLY():
             # CalendarAdjustment requires name (which has T.ID flag)
-            ca = CalendarAdjustment(name='TEST_ADJ', _replace=True)
+            ca = CalendarAdjustment(name = 'TEST_ADJ', _replace = True)
             assert ca.name == 'TEST_ADJ'
 
     def test_calendar_adjustment_is_storable(self):
@@ -140,27 +140,27 @@ class TestCalendarAdjustment:
         with ts_instance:
             # Create base calendar
             base_cal = Calendar(
-                _replace=True,
-                name='BASE',
-                description='Base calendar',
-                non_working_days=[date(2025, 1, 1), date(2025, 12, 25)],
+                _replace            = True,
+                name                = 'BASE',
+                description         = 'Base calendar',
+                non_working_days    = [date(2025, 1, 1), date(2025, 12, 25)],
             )
             base_cal.save()
 
             # Create adjustment that adds and removes days
             adj = CalendarAdjustment(
-                _replace=True,
-                name='TEST_ADJ',
-                add_days=[date(2025, 1, 15)],
-                remove_days=[date(2025, 1, 1)],
+                _replace    = True,
+                name        = 'TEST_ADJ',
+                add_days    = [date(2025, 1, 15)],
+                remove_days = [date(2025, 1, 1)],
             )
             adj.save()
 
             # Create adjusted calendar
             adjusted_cal = Calendar(
-                _replace=True,
-                name='BASE',
-                adjusted_for='TEST_ADJ',
+                _replace        = True,
+                name            = 'BASE',
+                adjusted_for    = 'TEST_ADJ',
             )
             adjusted_cal.save()
 
@@ -203,7 +203,7 @@ class TestCalendar:
     def test_add_days_invalid_type(self):
         """Test add_days with invalid types raises TypeError."""
         days = set()
-        with pytest.raises(TypeError, match='Every day to add must be a date'):
+        with pytest.raises(TypeError, match = 'Every day to add must be a date'):
             Calendar.add_days(days, '2023-01-01')
 
     def test_remove_days(self):
@@ -226,7 +226,7 @@ class TestCalendar:
     def test_remove_days_invalid_type(self):
         """Test remove_days with invalid types raises TypeError."""
         days = {date(2023, 1, 1)}
-        with pytest.raises(TypeError, match='Every day to remove must be a date'):
+        with pytest.raises(TypeError, match = 'Every day to remove must be a date'):
             Calendar.remove_days(days, '2023-01-01')
 
     def test_is_bizday(self):
@@ -234,7 +234,7 @@ class TestCalendar:
         with CACHE_ONLY():
             # Create a proper Calendar instance with non-working days
             cal = Calendar(
-                name='TEST_CAL_HOLIDAYS', description='Calendar with holidays', non_working_days=[date(2023, 1, 1), date(2023, 12, 25)], _replace=True
+                name = 'TEST_CAL_HOLIDAYS', description = 'Calendar with holidays', non_working_days = [date(2023, 1, 1), date(2023, 12, 25)], _replace = True
             )
 
             # Test business days
@@ -250,14 +250,14 @@ class TestCalendar:
         with CACHE_ONLY():
             # Create a calendar with consecutive holidays
             cal = Calendar(
-                name='TEST_CAL_CONSECUTIVE',
-                description='Calendar with consecutive holidays',
-                non_working_days=[
+                name                = 'TEST_CAL_CONSECUTIVE',
+                description         = 'Calendar with consecutive holidays',
+                non_working_days    = [
                     date(2023, 1, 1),  # Sunday
                     date(2023, 1, 2),  # Monday
                     date(2023, 1, 3),  # Tuesday
                 ],
-                _replace=True,
+                _replace            = True,
             )
 
             # Test from a business day
@@ -277,14 +277,14 @@ class TestCalendar:
         with CACHE_ONLY():
             # Create a calendar with consecutive holidays
             cal = Calendar(
-                name='TEST_CAL_PREV',
-                description='Calendar for prev_bizday test',
-                non_working_days=[
+                name                = 'TEST_CAL_PREV',
+                description         = 'Calendar for prev_bizday test',
+                non_working_days    = [
                     date(2023, 1, 1),  # Sunday
                     date(2023, 1, 2),  # Monday
                     date(2023, 1, 3),  # Tuesday
                 ],
-                _replace=True,
+                _replace            = True,
             )
 
             # Test from a business day
@@ -300,16 +300,16 @@ class TestCalendar:
         with CACHE_ONLY():
             # Create a calendar with weekends and holidays
             cal = Calendar(
-                name='TEST_CAL_ADVANCE',
-                description='Calendar for advance_bizdays test',
-                non_working_days=[
+                name                = 'TEST_CAL_ADVANCE',
+                description         = 'Calendar for advance_bizdays test',
+                non_working_days    = [
                     date(2023, 1, 1),  # New Year
                     date(2023, 1, 7),  # Saturday
                     date(2023, 1, 8),  # Sunday
                     date(2023, 1, 14),  # Saturday
                     date(2023, 1, 15),  # Sunday
                 ],
-                _replace=True,
+                _replace            = True,
             )
 
             # Start from Friday Jan 6, 2023
@@ -332,16 +332,16 @@ class TestCalendar:
         with CACHE_ONLY():
             # Create a calendar with weekends and holidays (same as forward test)
             cal = Calendar(
-                name='TEST_CAL_BACKWARD',
-                description='Calendar for backward advance_bizdays test',
-                non_working_days=[
+                name                = 'TEST_CAL_BACKWARD',
+                description         = 'Calendar for backward advance_bizdays test',
+                non_working_days    = [
                     date(2023, 1, 1),  # New Year
                     date(2023, 1, 7),  # Saturday
                     date(2023, 1, 8),  # Sunday
                     date(2023, 1, 14),  # Saturday
                     date(2023, 1, 15),  # Sunday
                 ],
-                _replace=True,
+                _replace            = True,
             )
 
             # Start from Wednesday Jan 11, 2023
@@ -372,7 +372,7 @@ class TestCalendar:
     def test_union(self):
         """Test union class method."""
         # Test with no calendars
-        with pytest.raises(AssertionError, match='At least one calendar is required for union'):
+        with pytest.raises(AssertionError, match = 'At least one calendar is required for union'):
             Calendar.union()
 
     def test_calendar_union_and_intersection_real_calendars(self, ts_instance):
@@ -401,16 +401,16 @@ class TestCalendar:
             }
 
             us_c = Calendar(
-                _replace=True,
-                name='US',
-                description='US calendar',
-                non_working_days=sorted(us_holidays),
+                _replace            = True,
+                name                = 'US',
+                description         = 'US calendar',
+                non_working_days    = sorted(us_holidays),
             )
             uk_c = Calendar(
-                _replace=True,
-                name='UK',
-                description='UK calendar',
-                non_working_days=sorted(uk_holidays),
+                _replace            = True,
+                name                = 'UK',
+                description         = 'UK calendar',
+                non_working_days    = sorted(uk_holidays),
             )
 
             assert us_c.save()
@@ -450,8 +450,8 @@ class TestCalendar:
     def test_non_working_days_trait_get(self):
         """Test _non_working_days_get trait method."""
         # Test the logic that _non_working_days_get would use
-        non_working_days = [date(2023, 1, 1), date(2023, 12, 25)]
-        result = set(non_working_days)
+        non_working_days    = [date(2023, 1, 1), date(2023, 12, 25)]
+        result              = set(non_working_days)
         assert result == {date(2023, 1, 1), date(2023, 12, 25)}
 
     def test_calendar_instantiation(self):
@@ -459,7 +459,7 @@ class TestCalendar:
         # Calendar is storable, so it needs proper trait values like other storable classes
         with CACHE_ONLY():
             # Calendar requires name (which has T.ID flag)
-            cal = Calendar(name='TEST_CAL', description='Test Calendar', _replace=True)
+            cal = Calendar(name = 'TEST_CAL', description = 'Test Calendar', _replace = True)
             assert cal.name == 'TEST_CAL'
             assert cal.description == 'Test Calendar'
 

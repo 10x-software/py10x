@@ -16,7 +16,7 @@ def _loader(tmp_path: Path, path: str | None, rebuild: bool, verbose: bool) -> P
     loader = tmp_path / '_py10x_kernel_editable.py'
     loader.write_text(
         f"def install(*args): pass\n\n\ninstall({{}}, {{'py10x_kernel': 'py10x_kernel.pyi'}}, {path!r}, {rebuild}, {verbose}, [], [], '')\n",
-        encoding='utf-8',
+        encoding = 'utf-8',
     )
     return loader
 
@@ -24,19 +24,19 @@ def _loader(tmp_path: Path, path: str | None, rebuild: bool, verbose: bool) -> P
 def _state(*, editable: bool = True, rebuild: bool = True, verbose: bool = False, build_type: str = 'Debug', url: str | None = None) -> dict:
     state = {'url': url or SRC.as_uri(), 'editable': editable, 'local': True}
     if editable:
-        state.update(rebuild=rebuild, verbose=verbose, build_type=build_type)
+        state.update(rebuild = rebuild, verbose = verbose, build_type = build_type)
     return state
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def _debug_build_type(monkeypatch):
     monkeypatch.setenv('SKBUILD_CMAKE_BUILD_TYPE', 'Debug')
 
 
 class TestLoaderSettings:
     def test_reads_rebuild_verbose_and_build_type(self, tmp_path):
-        loader = _loader(tmp_path, '/repo/build/py10x-build/py10x-kernel/Release/cp312-cp312-linux_x86_64', False, True)
-        build_dir = '/repo/build/py10x-build/py10x-kernel/Release/cp312-cp312-linux_x86_64'
+        loader      = _loader(tmp_path, '/repo/build/py10x-build/py10x-kernel/Release/cp312-cp312-linux_x86_64', False, True)
+        build_dir   = '/repo/build/py10x-build/py10x-kernel/Release/cp312-cp312-linux_x86_64'
         assert env_check.loader_settings(loader) == {'rebuild': False, 'verbose': True, 'build_type': 'Release', 'build_dir': build_dir}
 
     def test_windows_build_dir(self, tmp_path):
@@ -51,10 +51,10 @@ class TestCheckCxx:
     @pytest.mark.parametrize(
         ('mode', 'state'),
         [
-            ('dev', _state(rebuild=True, verbose=False)),
-            ('dev-release', _state(rebuild=True, verbose=False, build_type='Release')),
-            ('ci-release', _state(rebuild=False, build_type='Release')),
-            ('ci-release', _state(rebuild=False, verbose=True, build_type='Release')),  # verbose is not part of ci-release
+            ('dev', _state(rebuild = True, verbose = False)),
+            ('dev-release', _state(rebuild = True, verbose = False, build_type = 'Release')),
+            ('ci-release', _state(rebuild = False, build_type = 'Release')),
+            ('ci-release', _state(rebuild = False, verbose = True, build_type = 'Release')),  # verbose is not part of ci-release
         ],
     )
     def test_expected_state_passes(self, mode, state):
@@ -66,12 +66,12 @@ class TestCheckCxx:
             # The 3a regressions: root sources overriding the install mode (Docker: a rebuild-on-import
             # install with its build dir gone), and the downstream install turning rebuild-on-import back
             # on in CI (the Windows xdist race).
-            ('ci-release', _state(rebuild=True, build_type='Release'), 'expected rebuild=False'),
-            ('ci-release', _state(editable=False), 'expected editable'),
-            ('dev', _state(rebuild=True, verbose=True), 'expected verbose=False'),
-            ('dev', _state(build_type='Release'), 'expected build type Debug'),
-            ('dev-release', _state(build_type='Debug'), 'expected build type Release'),
-            ('ci-release', _state(rebuild=False, build_type='Release', url='file:///elsewhere/core_10x'), 'expected an install from'),
+            ('ci-release', _state(rebuild = True, build_type = 'Release'), 'expected rebuild=False'),
+            ('ci-release', _state(editable = False), 'expected editable'),
+            ('dev', _state(rebuild = True, verbose = True), 'expected verbose=False'),
+            ('dev', _state(build_type = 'Release'), 'expected build type Debug'),
+            ('dev-release', _state(build_type = 'Debug'), 'expected build type Release'),
+            ('ci-release', _state(rebuild = False, build_type = 'Release', url = 'file:///elsewhere/core_10x'), 'expected an install from'),
         ],
     )
     def test_wrong_state_is_reported(self, mode, state, problem):
@@ -93,21 +93,21 @@ class TestModes:
         from dev_10x import xx_build
 
         if uv_toml_mode:
-            (tmp_path / 'uv.toml').write_text(xx_build.HEADER.format(mode=uv_toml_mode), encoding='utf-8')
+            (tmp_path / 'uv.toml').write_text(xx_build.HEADER.format(mode = uv_toml_mode), encoding = 'utf-8')
         assert env_check.default_mode(tmp_path) == expected
 
     def test_a_foreign_uv_toml_is_not_reported_as_dev(self, tmp_path, monkeypatch, capsys):
         """show-mode fails a uv.toml xx-build did not write; default_mode must not turn that into dev."""
         from dev_10x import xx_build
 
-        (tmp_path / 'uv.toml').write_text('cache-dir = "/x"\n', encoding='utf-8')
+        (tmp_path / 'uv.toml').write_text('cache-dir = "/x"\n', encoding = 'utf-8')
         assert xx_build.show_mode(tmp_path) == 1
         message = capsys.readouterr().out.strip()
         with pytest.raises(ValueError) as exc:
             env_check.default_mode(tmp_path)
         assert str(exc.value) == message
 
-        monkeypatch.setattr(xx_build, 'active_mode', lambda root=None: None)
+        monkeypatch.setattr(xx_build, 'active_mode', lambda root = None: None)
         checked = []
         monkeypatch.setattr(env_check, 'check', lambda mode, downstream: checked.append(mode) or ([], []))
         assert env_check.main(['--no-import']) == 1
@@ -119,7 +119,7 @@ class TestModes:
     def test_main_checks_the_default_mode(self, monkeypatch):
         seen = {}
         monkeypatch.setattr(env_check, 'default_mode', lambda: 'dev-release')
-        monkeypatch.setattr(env_check, 'check', lambda mode, downstream: (seen.update(mode=mode), ([], []))[1])
+        monkeypatch.setattr(env_check, 'check', lambda mode, downstream: (seen.update(mode = mode), ([], []))[1])
         assert env_check.main(['--no-import']) == 0
         assert seen == {'mode': 'dev-release'}
 
@@ -130,7 +130,7 @@ class TestImportModules:
         imported = []
         monkeypatch.setattr(env_check.importlib, 'import_module', imported.append)
         monkeypatch.setattr(env_check, 'first_party', lambda root: ({'py10x-kernel': SRC}, {}, {'py10x-fin-base-cxx': SRC}))
-        assert env_check.import_modules(downstream=True) == []
+        assert env_check.import_modules(downstream = True) == []
         assert imported == ['core_10x', 'py10x_kernel', 'cxxfin']
 
 
@@ -140,8 +140,8 @@ class TestSkipEditableRebuilds:
     def test_imports_rebuild_on_import_packages_then_lists_their_build_dirs(self, monkeypatch):
         from dev_10x import pytest_plugin
 
-        imported = []
-        states = {
+        imported    = []
+        states      = {
             'py10x-kernel': {'rebuild': True, 'build_dir': '/b/kernel'},
             'py10x-infra': {'rebuild': False, 'build_dir': '/b/infra'},  # 'editable' mode: nothing to skip
             'py10x-fin-base-cxx': {'rebuild': True, 'build_dir': '/b/cxxfin'},
@@ -161,6 +161,6 @@ class TestSkipEditableRebuilds:
             raise FileNotFoundError(root)
 
         monkeypatch.setattr(env_check, 'first_party', no_checkout)
-        monkeypatch.delenv('SKBUILD_EDITABLE_SKIP', raising=False)
+        monkeypatch.delenv('SKBUILD_EDITABLE_SKIP', raising = False)
         pytest_plugin._skip_editable_rebuilds()
         assert 'SKBUILD_EDITABLE_SKIP' not in os.environ

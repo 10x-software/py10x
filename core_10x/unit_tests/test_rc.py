@@ -4,15 +4,15 @@ from core_10x.rc import RC, RC_TRUE, exc_to_rc
 
 
 class CONDITION(Enum):
-    BEGIN = ()
-    MAIN = ()
-    END = ()
+    BEGIN   = ()
+    MAIN    = ()
+    END     = ()
 
 
 class A_PROBLEM(ErrorCode):
-    DOES_NOT_EXIST = 'Entity {cls}.{id} does not exist'
-    REV_CONFLICT = 'Entity {cls}.{id} - revision {rev} is outdated'
-    SAVE_FAILED = 'Failed to save entity {cls}.{id}'
+    DOES_NOT_EXIST  = 'Entity {cls}.{id} does not exist'
+    REV_CONFLICT    = 'Entity {cls}.{id} - revision {rev} is outdated'
+    SAVE_FAILED     = 'Failed to save entity {cls}.{id}'
 
 
 # ----------------------------------------------------------------------------
@@ -60,8 +60,8 @@ def test_construction_without_data_has_empty_payload():
 
 
 def test_unwrap():
-    rc = RC(True, 'data')
-    code, payload = rc.unwrap()
+    rc              = RC(True, 'data')
+    code, payload   = rc.unwrap()
     assert code is True
     assert payload == ['data']
 
@@ -129,7 +129,7 @@ def test_add_error_with_truthy_rc_is_noop():
 
 
 def test_add_error_with_failing_rc_extends_payload():
-    rc = RC(True)
+    rc      = RC(True)
     failing = RC(False, 'inner error')
     rc.add_error(failing)
     assert not rc
@@ -172,7 +172,7 @@ def test_error_single_string():
 
 
 def test_error_with_error_code_formats_label():
-    rc = RC(A_PROBLEM.REV_CONFLICT, {'cls': 'X', 'id': '1', 'rev': 3})
+    rc  = RC(A_PROBLEM.REV_CONFLICT, {'cls': 'X', 'id': '1', 'rev': 3})
     msg = rc.error()
     assert 'X.1' in msg
     assert 'revision 3' in msg
@@ -191,7 +191,7 @@ def test_error_without_payload_returns_exception_info():
     try:
         raise RuntimeError('the cause')
     except RuntimeError:
-        rc = RC(False)
+        rc  = RC(False)
         msg = rc.error()
     assert 'RuntimeError' in msg
     assert 'the cause' in msg
@@ -228,13 +228,13 @@ def test_throw_on_success_does_nothing():
 
 def test_throw_default_runtime_error():
     rc = RC(False, 'bad')
-    with pytest.raises(RuntimeError, match='bad'):
+    with pytest.raises(RuntimeError, match = 'bad'):
         rc.throw()
 
 
 def test_throw_custom_exception():
     rc = RC(False, 'bad')
-    with pytest.raises(ValueError, match='bad'):
+    with pytest.raises(ValueError, match = 'bad'):
         rc.throw(ValueError)
 
 
@@ -255,8 +255,8 @@ def test_add_truthy_and_failing():
 
 
 def test_add_does_not_change_lhs_truthiness():
-    rc1 = RC(True)
-    result = rc1 + RC(False, 'oops')
+    rc1     = RC(True)
+    result  = rc1 + RC(False, 'oops')
     assert not result
     # `__add__` returns a new RC; `rc1` itself stays truthy.
     assert rc1
@@ -300,8 +300,8 @@ def test_sum_with_failure():
 
 
 def test_new_rc_returns_distinct_instance():
-    rc = RC(True, 'a')
-    other = rc.new_rc()
+    rc      = RC(True, 'a')
+    other   = rc.new_rc()
     assert other is not rc
     assert other
     assert other.rc == rc.rc
@@ -374,7 +374,7 @@ def test_show_exception_info_from_active_exception():
 
 def test_show_exception_info_invalid_input():
     with pytest.raises(AssertionError):
-        RC.show_exception_info(ex_info=('not', 'a', 'valid', 'tuple'))
+        RC.show_exception_info(ex_info = ('not', 'a', 'valid', 'tuple'))
 
 
 # ----------------------------------------------------------------------------
@@ -395,7 +395,7 @@ def test_exc_to_rc_with_message_returns_literal_error():
     def boom():
         raise ValueError('ignored detail')
 
-    rc = exc_to_rc(boom, message='planned failure')()
+    rc = exc_to_rc(boom, message = 'planned failure')()
     assert not rc
     assert rc.error() == 'planned failure'
 
@@ -441,5 +441,5 @@ def test_eq_makes_rc_unhashable():
     """Defining ``__eq__`` without ``__hash__`` sets ``__hash__`` to None — RC cannot be a
     dict key or set member. Collect them in a list."""
     assert RC.__hash__ is None
-    with pytest.raises(TypeError, match='unhashable'):
+    with pytest.raises(TypeError, match = 'unhashable'):
         {RC(True)}
