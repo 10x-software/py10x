@@ -20,7 +20,7 @@ if __name__ == '__main__':
     TEST_RATE_NON_Q = True
 
 
-    crosses = [ 'GBP/USD', 'EUR/USD', 'USD/JPY']
+    crosses   = [ 'GBP/USD', 'EUR/USD', 'USD/JPY']
     # crosses   = [ 'EUR/USD']
 
     SPOT = True
@@ -58,7 +58,7 @@ if __name__ == '__main__':
                 rdates.append('spot')
 
             if FWDS:
-                rdates = [RDate(r.strip()) for r in fxmas[cross][FXForwardQuotable].split(',')]
+                rdates  = [RDate(r.strip()) for r in fxmas[cross][FXForwardQuotable].split(',')]
                 for rd in rdates:
                     d = rd.apply(spotdate, cal, roll) if rd.symbol() != '1B' else rd.apply(md_date, cal, roll)
                     dates.append(d)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
                 crs = 'GBP/CAD',
                 top = 'GBP/USD',
                 btm = 'USD/CAD',
-                t   = 1,
+                t   =  1,
                 b   = -1,
             ),
             dict(
@@ -123,7 +123,7 @@ if __name__ == '__main__':
                 top = 'USD/JPY',
                 btm = 'GBP/USD',
                 t   = -1,
-                b   = 1,
+                b   =  1,
             )
 
         ]

@@ -18,7 +18,7 @@ if __name__=='__main__':
     swap_freq   = RDate('1Y')
     pay_delay   = RDate('2B')
 
-    tenor_sym = '5Y'
+    tenor_sym   = '5Y'
 
     pc          = PricingContext.current()
     md_basis    = pc.md_basis

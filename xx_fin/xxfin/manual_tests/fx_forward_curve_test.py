@@ -10,7 +10,7 @@ if __name__ == '__main__':
     btp = GRAPH_ON()
     btp.begin_using()
 
-    crosses = [ 'GBP/USD', 'EUR/USD', 'USD/JPY']
+    crosses   = [ 'GBP/USD', 'EUR/USD', 'USD/JPY']
     # crosses = ['GBP/USD']
 
 

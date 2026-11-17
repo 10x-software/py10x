@@ -10,7 +10,7 @@ if __name__ == '__main__':
     from xxfin.ccy_cross import Ccy, CcyCross
 
     fake_ccy_header = dict(
-        bank_calendar = FinCalendar.existing_instance(name = 'FD'),
+        bank_calendar           = FinCalendar.existing_instance(name = 'FD'),
 
         settle_offset           = RDate('2B'),  ## default
         spot_offset             = RDate('2B'),  ## default
@@ -20,7 +20,7 @@ if __name__ == '__main__':
         discounting_mkt_name    = 'SOFR',
     )
     ccy_lists       = dict(
-        _major_ccys = (
+        _major_ccys         = (
             'EUR', 'GBP', 'AUD', 'NZD',
             'USD',   ## we deal with dollar crosses separately, but can leave it here. no harm
             'CAD', 'CHF', 'JPY'

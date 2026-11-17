@@ -135,7 +135,7 @@ if __name__ == '__main__':
         bot     = c.beginning_of_time_as_date()
         r_init  = 0.25
         # dc  = DAY_COUNT_CONVENTION.ACT360
-        dc = DAY_COUNT_CONVENTION.BB30360
+        dc  = DAY_COUNT_CONVENTION.BB30360
         # cmp = COMPOUNDING.CONTINUOUS
         cmp = COMPOUNDING.MONTHLY
         cmp = COMPOUNDING.SIMPLE
