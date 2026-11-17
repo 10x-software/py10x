@@ -32,7 +32,7 @@ class _QDate:
         return self._py <= other._py
 
     def __iadd__(self, n):
-        self._py += timedelta(days=int(n))
+        self._py += timedelta(days = int(n))
         return self
 
 
@@ -61,13 +61,13 @@ class _Calendar:
 
 
 class _UnitedStates(_Calendar):
-    SOFR = 0
-    FederalReserve = 1
+    SOFR            = 0
+    FederalReserve  = 1
 
 
 class _QLBase:
     def __init__(self, *args, **kwargs):
-        self.args = args
+        self.args   = args
         self.kwargs = kwargs
 
 
@@ -95,13 +95,13 @@ def _install_quantlib_mock():
     Tests patch the constructors they assert on. Calendar iteration still has to
     terminate so FinCalendar can materialize non-working days during the package fixture.
     """
-    mod = _QLMock('QuantLib')
-    mod.__file__ = '<quantlib-mock>'
-    mod.__package__ = 'QuantLib'
-    mod.Date = _QDate
-    mod.Settings = _Settings
-    mod.Calendar = _Calendar
-    mod.UnitedStates = _UnitedStates
+    mod                 = _QLMock('QuantLib')
+    mod.__file__        = '<quantlib-mock>'
+    mod.__package__     = 'QuantLib'
+    mod.Date            = _QDate
+    mod.Settings        = _Settings
+    mod.Calendar        = _Calendar
+    mod.UnitedStates    = _UnitedStates
     for name in ('UnitedKingdom', 'TARGET', 'Switzerland', 'Japan', 'Australia', 'NewZealand', 'Canada'):
         setattr(mod, name, type(name, (_Calendar,), {}))
     sys.modules['QuantLib'] = mod
@@ -111,8 +111,8 @@ def _install_quantlib_mock():
 try:
     import QuantLib as ql
 except ImportError:
-    ql = _install_quantlib_mock()
-    _QL_MOCKED = True
+    ql          = _install_quantlib_mock()
+    _QL_MOCKED  = True
 
 from xxfin import ir_zero_rate_curve_ql as zql  # noqa: E402
 from xxfin import ql_adapter  # noqa: E402
@@ -124,8 +124,8 @@ class _StubCalendar:
     """Fixed business-day count so the bank calendar and the curve calendar can disagree."""
 
     def __init__(self, fixing_days):
-        self.fixing_days = fixing_days
-        self.seen_today = None
+        self.fixing_days    = fixing_days
+        self.seen_today     = None
 
     def businessDaysBetween(self, today, start, *args, **kwargs):
         self.seen_today = today
@@ -134,22 +134,22 @@ class _StubCalendar:
         return self.fixing_days
 
 
-def _conventions(spot, bank_days=2, curve_days=1):
-    bank = _StubCalendar(bank_days)
-    curve = _StubCalendar(curve_days)
-    mc = SimpleNamespace(
-        mkt_name = 'SOFR',
-        spot_offset = spot,
-        settle_offset = RDate('2B'),
-        ccy = SimpleNamespace(name = 'USD', bank_calendar = SimpleNamespace(ql_calendar = bank)),
-        calendar = SimpleNamespace(ql_calendar = curve),
-        settlement_calendar = SimpleNamespace(ql_calendar = curve),
-        dc_convention = DAY_COUNT_CONVENTION.ACT360,
-        fixed_leg_swap_dc_convention = DAY_COUNT_CONVENTION.ACT360,
-        fixed_leg_swap_tenor_frequency = TENOR_FREQUENCY.YEAR,
-        roll_rule = BIZDAY_ROLL_RULE.MOD_FOLLOWING,
-        roll_rule_to_settle = BIZDAY_ROLL_RULE.FOLLOWING,
-        compounding = COMPOUNDING.SIMPLE,
+def _conventions(spot, bank_days = 2, curve_days = 1):
+    bank    = _StubCalendar(bank_days)
+    curve   = _StubCalendar(curve_days)
+    mc      = SimpleNamespace(
+        mkt_name                        = 'SOFR',
+        spot_offset                     = spot,
+        settle_offset                   = RDate('2B'),
+        ccy                             = SimpleNamespace(name = 'USD', bank_calendar = SimpleNamespace(ql_calendar = bank)),
+        calendar                        = SimpleNamespace(ql_calendar = curve),
+        settlement_calendar             = SimpleNamespace(ql_calendar = curve),
+        dc_convention                   = DAY_COUNT_CONVENTION.ACT360,
+        fixed_leg_swap_dc_convention    = DAY_COUNT_CONVENTION.ACT360,
+        fixed_leg_swap_tenor_frequency  = TENOR_FREQUENCY.YEAR,
+        roll_rule                       = BIZDAY_ROLL_RULE.MOD_FOLLOWING,
+        roll_rule_to_settle             = BIZDAY_ROLL_RULE.FOLLOWING,
+        compounding                     = COMPOUNDING.SIMPLE,
     )
     return mc, bank, curve
 
@@ -164,8 +164,8 @@ class _Recorder:
 
 
 def test_overnight_index_settlement_days_are_zero():
-    mc, _bank, _curve = _conventions(RDate('2B'))
-    recorded = _Recorder()
+    mc, _bank, _curve   = _conventions(RDate('2B'))
+    recorded            = _Recorder()
     with patch.object(ql_adapter.ql, 'OvernightIndex', recorded):
         ql_adapter.QL.overnight_index(mc, forecast_curve = object())
     # settlement days are the second positional. Nonzero is a fixing lookback.
@@ -173,13 +173,13 @@ def test_overnight_index_settlement_days_are_zero():
 
 
 def test_deposit_fixing_days_follow_the_bank_calendar():
-    md = date(2024, 3, 28)
-    mc, bank, curve = _conventions(RDate('2B'))
-    settings = ql.Settings.instance()
-    saved = settings.evaluationDate
+    md                      = date(2024, 3, 28)
+    mc, bank, curve         = _conventions(RDate('2B'))
+    settings                = ql.Settings.instance()
+    saved                   = settings.evaluationDate
     settings.evaluationDate = ql.Date(1, 1, 1999)
-    quotable = SimpleNamespace(quote = 0.05, tenor = RDate('3M'), start_date = date(2024, 4, 1))
-    recorded = _Recorder()
+    quotable                = SimpleNamespace(quote = 0.05, tenor = RDate('3M'), start_date = date(2024, 4, 1))
+    recorded                = _Recorder()
     try:
         with patch.object(ql_adapter.ql, 'DepositRateHelper', recorded):
             ql_adapter.QL.deposit_helper(quotable, mc, md)
@@ -195,10 +195,10 @@ def test_deposit_fixing_days_follow_the_bank_calendar():
 
 
 def test_overnight_deposit_keeps_the_curve_calendar():
-    md = date(2024, 3, 28)
+    md              = date(2024, 3, 28)
     mc, bank, curve = _conventions(RDate('2B'))
-    quotable = SimpleNamespace(quote = 0.05, tenor = RDate('1B'), start_date = md)
-    recorded = _Recorder()
+    quotable        = SimpleNamespace(quote = 0.05, tenor = RDate('1B'), start_date = md)
+    recorded        = _Recorder()
     with patch.object(ql_adapter.ql, 'DepositRateHelper', recorded):
         ql_adapter.QL.deposit_helper(quotable, mc, md)
     args = recorded.calls[0][0]
@@ -212,23 +212,23 @@ def test_sofr_fd_holiday_inside_the_spot_window():
     # T+2 spot is 2024-04-01 on FD (2 business days) and not on US (1 business day).
     if _QL_MOCKED:
         pytest.skip('native QuantLib calendars are not installed')
-    bank = ql.UnitedStates(ql.UnitedStates.FederalReserve)
-    curve = ql.UnitedStates(ql.UnitedStates.SOFR)
-    probe = ql.Date(29, 3, 2024)
-    md = date(2024, 3, 28)
-    start = date(2024, 4, 1)
-    bank_days = bank.businessDaysBetween(ql_adapter.QL.to_date(md), ql_adapter.QL.to_date(start))
-    curve_days = curve.businessDaysBetween(ql_adapter.QL.to_date(md), ql_adapter.QL.to_date(start))
+    bank        = ql.UnitedStates(ql.UnitedStates.FederalReserve)
+    curve       = ql.UnitedStates(ql.UnitedStates.SOFR)
+    probe       = ql.Date(29, 3, 2024)
+    md          = date(2024, 3, 28)
+    start       = date(2024, 4, 1)
+    bank_days   = bank.businessDaysBetween(ql_adapter.QL.to_date(md), ql_adapter.QL.to_date(start))
+    curve_days  = curve.businessDaysBetween(ql_adapter.QL.to_date(md), ql_adapter.QL.to_date(start))
     assert bank.isBusinessDay(probe)
     assert not curve.isBusinessDay(probe)
     assert bank_days == 2
     assert curve_days == 1
 
-    mc, _stub_bank, _stub_curve = _conventions(RDate('2B'))
-    mc.ccy.bank_calendar.ql_calendar = bank
-    mc.calendar.ql_calendar = curve
-    quotable = SimpleNamespace(quote = 0.05, tenor = RDate('3M'), start_date = start)
-    recorded = _Recorder()
+    mc, _stub_bank, _stub_curve         = _conventions(RDate('2B'))
+    mc.ccy.bank_calendar.ql_calendar    = bank
+    mc.calendar.ql_calendar             = curve
+    quotable                            = SimpleNamespace(quote = 0.05, tenor = RDate('3M'), start_date = start)
+    recorded                            = _Recorder()
     with patch.object(ql_adapter.ql, 'DepositRateHelper', recorded):
         ql_adapter.QL.deposit_helper(quotable, mc, md)
     args = recorded.calls[0][0]
@@ -237,9 +237,9 @@ def test_sofr_fd_holiday_inside_the_spot_window():
 
 
 def test_ois_helper_spot_lag_backward_and_not_end_of_month():
-    mc, _bank, _curve = _conventions(RDate('2B'))
-    quotable = SimpleNamespace(tenor = RDate('5Y'), quote = 0.03)
-    recorded = _Recorder()
+    mc, _bank, _curve   = _conventions(RDate('2B'))
+    quotable            = SimpleNamespace(tenor = RDate('5Y'), quote = 0.03)
+    recorded            = _Recorder()
     with patch.object(ql_adapter.ql, 'OISRateHelper', recorded):
         ql_adapter.QL.swap_helper(quotable, mc, index = object())
     args, kwargs = recorded.calls[0]
@@ -249,31 +249,31 @@ def test_ois_helper_spot_lag_backward_and_not_end_of_month():
 
 
 def test_ois_spot_lag_rejects_a_non_business_day_offset():
-    mc, _bank, _curve = _conventions(RDate('2W'))
-    quotable = SimpleNamespace(tenor = RDate('1Y'), quote = 0.01)
+    mc, _bank, _curve   = _conventions(RDate('2W'))
+    quotable            = SimpleNamespace(tenor = RDate('1Y'), quote = 0.01)
     with pytest.raises(ValueError, match = 'business days'):
         ql_adapter.QL.swap_helper(quotable, mc, index = object())
 
 
 def test_evaluation_date_restored_when_bootstrap_raises():
     class _Res:
-        dc_convention = DAY_COUNT_CONVENTION.ACT360
-        compounding = COMPOUNDING.SIMPLE
+        dc_convention   = DAY_COUNT_CONVENTION.ACT360
+        compounding     = COMPOUNDING.SIMPLE
 
     def _boom(*args, **kwargs):
         raise RuntimeError('bootstrap')
 
-    settings = ql.Settings.instance()
-    saved = settings.evaluationDate
-    marker = ql.Date(2, 2, 2018)
+    settings                = ql.Settings.instance()
+    saved                   = settings.evaluationDate
+    marker                  = ql.Date(2, 2, 2018)
     settings.evaluationDate = marker
-    curve = SimpleNamespace(
-        md_date = date(2024, 3, 28),
-        mkt_conventions = SimpleNamespace(
-            dc_convention = DAY_COUNT_CONVENTION.ACT360,
-            compounding = COMPOUNDING.SIMPLE,
+    curve                   = SimpleNamespace(
+        md_date             = date(2024, 3, 28),
+        mkt_conventions     = SimpleNamespace(
+            dc_convention   = DAY_COUNT_CONVENTION.ACT360,
+            compounding     = COMPOUNDING.SIMPLE,
         ),
-        quotables_by_class = {},
+        quotables_by_class  = {},
     )
     try:
         with (

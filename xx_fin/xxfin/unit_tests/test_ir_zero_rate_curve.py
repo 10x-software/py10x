@@ -15,7 +15,7 @@ def _bootstrap(zrc: ZeroRateCurve, bootstrap_module, monkeypatch, swaps_only: bo
     monkeypatch.setattr(ir_zero_rate_curve, 'solve_cash_deposit', bootstrap_module.solve_cash_deposit)
     monkeypatch.setattr(ir_zero_rate_curve, 'solve_swap',         bootstrap_module.solve_swap)
 
-    mc = zrc.mkt_conventions
+    mc  = zrc.mkt_conventions
     res = RateCurve(beginning_of_time = zrc.md_date, quoting_dc_convention = mc.dc_convention, quoting_compounding = mc.compounding)
     if not swaps_only:
         zrc.process_cash_deposits(res)
@@ -24,7 +24,7 @@ def _bootstrap(zrc: ZeroRateCurve, bootstrap_module, monkeypatch, swaps_only: bo
 
 
 @pytest.mark.parametrize('mkt_name', ['SOFR', 'SONIA'])
-@pytest.mark.parametrize('swaps_only', [False, True], ids=['deposits_and_swaps', 'swaps_only'])
+@pytest.mark.parametrize('swaps_only', [False, True], ids = ['deposits_and_swaps', 'swaps_only'])
 def test_zero_rate_curve_cxx_vs_py(use_cxx, cxx_or_py_rates_curve, monkeypatch, mkt_name, swaps_only):
     if not use_cxx:
         pytest.skip('compares the cxx bootstrap to py on the same (cxx) curve class')
@@ -36,7 +36,7 @@ def test_zero_rate_curve_cxx_vs_py(use_cxx, cxx_or_py_rates_curve, monkeypatch, 
 
     assert len(py_dates_values) > 2
     assert [d for d, _ in cxx_dates_values] == [d for d, _ in py_dates_values]
-    for (d, cxx_v), (_, py_v) in zip(cxx_dates_values, py_dates_values, strict=True):
+    for (d, cxx_v), (_, py_v) in zip(cxx_dates_values, py_dates_values, strict = True):
         assert cxx_v == pytest.approx(py_v, abs = 1.e-12), d
 
 
@@ -44,9 +44,9 @@ def test_zero_rate_curve_cxx_vs_py(use_cxx, cxx_or_py_rates_curve, monkeypatch, 
 def test_zero_rate_curve_vs_quantlib(mkt_name):
     from xxfin.ir_zero_rate_curve_ql import ZeroRateCurveQL
 
-    md_basis = PricingContext.current().md_basis
-    native = ZeroRateCurve(  mkt_name = mkt_name, **md_basis).payload
-    ql     = ZeroRateCurveQL(mkt_name = mkt_name, **md_basis).payload
+    md_basis    = PricingContext.current().md_basis
+    native      = ZeroRateCurve(  mkt_name = mkt_name, **md_basis).payload
+    ql          = ZeroRateCurveQL(mkt_name = mkt_name, **md_basis).payload
 
     #-- the same pillars: deposits' end dates and swaps' last pay dates
     assert native.dates == ql.dates

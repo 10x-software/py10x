@@ -11,20 +11,20 @@ from xxfin.pricing_context import PricingContext
 
 
 def quotes(crosses, md_basis):
-    md_date  = md_basis['md_date']
+    md_date = md_basis['md_date']
 
     fxmas = FxForwardCurveMas.s_data_per_market
 
     quotes = {}
     for cross in crosses:
-        mc = FXMktConventions(cross)
-        spot_date = mc.spot_date(md_date)
-        cal = mc.calendar
-        roll = mc.roll_rule
+        mc          = FXMktConventions(cross)
+        spot_date   = mc.spot_date(md_date)
+        cal         = mc.calendar
+        roll        = mc.roll_rule
 
-        dates = []
-        rates = []
-        spot_rate = FXSpotQuotable(mkt_name=cross, **md_basis).quote
+        dates       = []
+        rates       = []
+        spot_rate   = FXSpotQuotable(mkt_name = cross, **md_basis).quote
         dates.append(spot_date)
         rates.append(spot_rate)
 
@@ -32,7 +32,7 @@ def quotes(crosses, md_basis):
         for rd in rdates:
             d = rd.apply(spot_date, cal, roll) if rd.symbol() != '1B' else rd.apply(md_date, cal, roll)
             dates.append(d)
-            r = FXForwardQuotable(mkt_name=cross, tenor=rd, **md_basis).quote
+            r = FXForwardQuotable(mkt_name = cross, tenor = rd, **md_basis).quote
             rates.append(r)
         # rdates.insert(0, 'spot')
 
@@ -46,22 +46,22 @@ class TestFxForwardCurve:
         # -- moved here from module level: PricingContext.current() must not run at collection
         # time, since pytest imports test modules before the conftest fixture that sets up the
         # store has had a chance to run.
-        self.md_basis = PricingContext.current().md_basis
-        self.crosses = [ 'USD/CAD', 'GBP/USD', 'EUR/USD', 'USD/CHF']
-        self.some_dates = [
+        self.md_basis                   = PricingContext.current().md_basis
+        self.crosses                    = [ 'USD/CAD', 'GBP/USD', 'EUR/USD', 'USD/CHF']
+        self.some_dates                 = [
             date(2028, 1, 1),
             date(2029, 1, 1),
             date(2039, 1, 1),
             date(2049, 1, 1),
         ]
-        self.quotes = quotes(self.crosses, self.md_basis)
-        self.fx_simple_curve_objects = {cross: FXForwardCurveSimple(mkt_name=cross, **self.md_basis) for cross in self.crosses}
+        self.quotes                     = quotes(self.crosses, self.md_basis)
+        self.fx_simple_curve_objects    = {cross: FXForwardCurveSimple(mkt_name = cross, **self.md_basis) for cross in self.crosses}
 
     def test_FxForwardCurveSimple(self):
         for cross, (dates, rates) in self.quotes.items():
-            fxc_object = self.fx_simple_curve_objects[cross]
-            fxc = fxc_object.payload
-            for d, r in zip(dates, rates, strict=True):
+            fxc_object  = self.fx_simple_curve_objects[cross]
+            fxc         = fxc_object.payload
+            for d, r in zip(dates, rates, strict = True):
                 calc = fxc.value(d)
                 assert r == pytest.approx(calc)
 
@@ -76,8 +76,8 @@ class TestFxForwardCurve:
 
     def test_FxForwardCurveSimple_spot_only_flat_curve(self):
         for cross in self.crosses:
-            fxc_object = self.fx_simple_curve_objects[cross]
-            spot_rate = self.quotes[cross][1][0]
+            fxc_object  = self.fx_simple_curve_objects[cross]
+            spot_rate   = self.quotes[cross][1][0]
 
             fxc_object.mkt_assembly_object.quotable_stubs_by_class.pop(FXForwardQuotable)
             fxc = fxc_object.payload
@@ -88,29 +88,29 @@ class TestFxForwardCurve:
                 assert fxc.value(d) == pytest.approx(spot_rate)
 
     def test_FxForwardCurveSimple_missing_spot(self):
-        cross = 'USD/CAD'
-        fxc_object = self.fx_simple_curve_objects[cross]
+        cross       = 'USD/CAD'
+        fxc_object  = self.fx_simple_curve_objects[cross]
         fxc_object.mkt_assembly_object.quotable_stubs_by_class.pop(FXSpotQuotable)
-        with pytest.raises(TraitMethodError, match='Spot FX rate quote must be present to build an FX forward curve for USD/CAD'):
+        with pytest.raises(TraitMethodError, match = 'Spot FX rate quote must be present to build an FX forward curve for USD/CAD'):
             _ = fxc_object.payload
 
     def test_FxForwardCurveSimple_spot_ON_conflict(self):
-        cross = 'USD/CAD'
-        fxc_object = self.fx_simple_curve_objects[cross]
-        mao = fxc_object.mkt_assembly_object.quotable_stubs_by_class
-        mao[FXForwardQuotable] = '1B, ' + mao[FXForwardQuotable]
+        cross                   = 'USD/CAD'
+        fxc_object              = self.fx_simple_curve_objects[cross]
+        mao                     = fxc_object.mkt_assembly_object.quotable_stubs_by_class
+        mao[FXForwardQuotable]  = '1B, ' + mao[FXForwardQuotable]
 
         spot_data_definition = fxc_object.mkt_assembly_object.quotable_stubs_by_class.get(FXSpotQuotable)
         assert spot_data_definition
 
-        with pytest.raises(TraitMethodError, match='USD/CAD >>> 1B <<< forward specification conflicts with spot rate'):
+        with pytest.raises(TraitMethodError, match = 'USD/CAD >>> 1B <<< forward specification conflicts with spot rate'):
             _ = fxc_object.payload
 
     @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_FxForwardCurve(self):
         for cross, (dates, rates) in self.quotes.items():
-            fxc_object = FXForwardCurve(mkt_name = cross, **self.md_basis)
-            fxc = fxc_object.payload
-            for d, r in zip(dates, rates, strict=True):
+            fxc_object  = FXForwardCurve(mkt_name = cross, **self.md_basis)
+            fxc         = fxc_object.payload
+            for d, r in zip(dates, rates, strict = True):
                 calc = fxc.value(d)
                 assert r == pytest.approx(calc)

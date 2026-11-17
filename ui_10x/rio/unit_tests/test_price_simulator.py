@@ -41,8 +41,8 @@ _MSFT_IN_DOM_JS = """(() => {
 
 def _fake_symbols(cls):
     return [
-        MarketSymbol(symbol='MSFT', prev_close=100.0, std=0.1),
-        MarketSymbol(symbol='AAPL', prev_close=200.0, std=0.1),
+        MarketSymbol(symbol = 'MSFT', prev_close = 100.0, std = 0.1),
+        MarketSymbol(symbol = 'AAPL', prev_close = 200.0, std = 0.1),
     ]
 
 
@@ -75,18 +75,18 @@ def _release(mm: MarketMonitor, dialog) -> None:
         mm.table.entities.clear()
         if grid is not None:
             grid.rows = ()
-        mm.table.component = None
-        mm.table.subcomponent = None
-        mm.table = None
+        mm.table.component      = None
+        mm.table.subcomponent   = None
+        mm.table                = None
     if dialog is not None:
-        dialog.open_callback = None
-        dialog.component = None
-        dialog.subcomponent = None
+        dialog.open_callback    = None
+        dialog.component        = None
+        dialog.subcomponent     = None
 
 
 async def _wait_for_first_symbol(client, mm: MarketMonitor) -> None:
     """Wait for the live ``threading.Timer`` → ``UxAsync.call`` tick to put MSFT in the grid and DOM."""
-    await wait_for_js_truthy(client, _MSFT_IN_DOM_JS, timeout_ms=_FIRST_TICK_TIMEOUT_MS)
+    await wait_for_js_truthy(client, _MSFT_IN_DOM_JS, timeout_ms = _FIRST_TICK_TIMEOUT_MS)
     _cancel_timer(mm)
     grid = client.get_component(TraitableTableGrid)
     assert grid.rows[0][0][0] == 'MSFT'
@@ -95,12 +95,12 @@ async def _wait_for_first_symbol(client, mm: MarketMonitor) -> None:
 
 async def test_price_simulator_timer_fills_table(fake_symbols) -> None:
     """Examples page: first timer tick shows the ticker (same bar as GuessWord Try)."""
-    app = rio.App(name='price_sim_test', build=PriceSimulatorComponent, on_session_start=on_session_start)
+    app = rio.App(name = 'price_sim_test', build = PriceSimulatorComponent, on_session_start = on_session_start)
     async with rio.testing.BrowserClient(app) as client:
         await asyncio.sleep(UI_SETTLE_S)
-        page = client.get_component(PriceSimulatorComponent)
-        dialog = page.session[PriceSimulatorDialog]
-        mm = _monitor(dialog)
+        page    = client.get_component(PriceSimulatorComponent)
+        dialog  = page.session[PriceSimulatorDialog]
+        mm      = _monitor(dialog)
         try:
             assert mm.timer is not None
             await _wait_for_first_symbol(client, mm)
@@ -113,11 +113,11 @@ async def test_price_simulator_timer_fills_table(fake_symbols) -> None:
 async def test_price_simulator_desktop_exec_timer_fills_table(fake_symbols) -> None:
     """``price_simulator.__main__``: monitor under INTERACTIVE, then ``Dialog.exec``-style session."""
     with INTERACTIVE():
-        mm = MarketMonitor()
-        dialog = UxDialog(
+        mm      = MarketMonitor()
+        dialog  = UxDialog(
             mm.widget(),
-            title='Enjoy watching some stocks :-)',
-            open_callback=mm.start,
+            title           = 'Enjoy watching some stocks :-)',
+            open_callback   = mm.start,
         )
 
         def on_session_start(session):
@@ -125,10 +125,10 @@ async def test_price_simulator_desktop_exec_timer_fills_table(fake_symbols) -> N
                 dialog.on_open()
 
         app = rio.App(
-            name='price_sim_desktop_test',
-            build=lambda d=dialog: DynamicComponent(d),
-            on_session_start=on_session_start,
-            default_attachments=[UserSessionContext()],
+            name                = 'price_sim_desktop_test',
+            build               = lambda d = dialog: DynamicComponent(d),
+            on_session_start    = on_session_start,
+            default_attachments = [UserSessionContext()],
         )
         async with rio.testing.BrowserClient(app) as client:
             await asyncio.sleep(UI_SETTLE_S)

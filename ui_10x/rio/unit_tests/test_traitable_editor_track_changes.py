@@ -17,15 +17,15 @@ from xxcommon.conftest import ts_instance
 
 def _person(ts_instance, tags):  # noqa: F811
     # first_name/last_name verify letters-only, so a hex uuid will not do.
-    unique = ''.join(random.choices(string.ascii_lowercase, k=20))
-    return Person(first_name='tracked', last_name=unique, tags=list(tags), _replace=True)
+    unique = ''.join(random.choices(string.ascii_lowercase, k = 20))
+    return Person(first_name = 'tracked', last_name = unique, tags = list(tags), _replace = True)
 
 
 def test_dialog_copy_entity_stages_and_exports_on_accept(ts_instance):  # noqa: F811
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['a', 'b'])
-        ed = TraitableEditor.editor(t)
-        d = ed.dialog()  # copy_entity=True (default), track_changes=False
+        t   = _person(ts_instance, ['a', 'b'])
+        ed  = TraitableEditor.editor(t)
+        d   = ed.dialog()  # copy_entity=True (default), track_changes=False
 
         assert ed.change_tracker is None
         with ed.traitable_processor:
@@ -40,9 +40,9 @@ def test_dialog_copy_entity_stages_and_exports_on_accept(ts_instance):  # noqa: 
 
 def test_dialog_copy_entity_false_edits_directly(ts_instance):  # noqa: F811
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['p'])
-        ed = TraitableEditor.editor(t)
-        ed.dialog(copy_entity=False)
+        t   = _person(ts_instance, ['p'])
+        ed  = TraitableEditor.editor(t)
+        ed.dialog(copy_entity = False)
 
         assert ed.traitable_processor is None
         t.tags = ['q', 'r']
@@ -51,9 +51,9 @@ def test_dialog_copy_entity_false_edits_directly(ts_instance):  # noqa: F811
 
 def test_dialog_cancel_discards_staged_edit(ts_instance):  # noqa: F811
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['a'])
-        ed = TraitableEditor.editor(t)
-        d = ed.dialog()
+        t   = _person(ts_instance, ['a'])
+        ed  = TraitableEditor.editor(t)
+        d   = ed.dialog()
 
         with ed.traitable_processor:
             t.tags = ['discarded']
@@ -65,14 +65,14 @@ def test_dialog_copy_entity_invalid_edit_is_not_exported(ts_instance):  # noqa: 
     """Without track_changes, a staged edit that fails verify stays in the
     staging scope; a later valid OK exports the corrected values."""
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['a'])
-        ed = TraitableEditor.editor(t)
-        d = ed.dialog()
+        t   = _person(ts_instance, ['a'])
+        ed  = TraitableEditor.editor(t)
+        d   = ed.dialog()
 
         # age > 60 and weight_lbs > 200 fails Person.post_verify.
         with ed.traitable_processor:
-            t.dob = date(1950, 1, 1)
-            t.weight_lbs = 250.0
+            t.dob           = date(1950, 1, 1)
+            t.weight_lbs    = 250.0
 
         rc = d.accept_callback()
         assert not rc and 'overweight' in rc.error()
@@ -92,9 +92,9 @@ def test_dialog_copy_entity_invalid_edit_is_not_exported(ts_instance):  # noqa: 
 
 def test_dialog_track_changes_stages_and_saves_via_tracker(ts_instance):  # noqa: F811
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['a'])
-        ed = TraitableEditor.editor(t)
-        d = ed.dialog(track_changes=True)
+        t   = _person(ts_instance, ['a'])
+        ed  = TraitableEditor.editor(t)
+        d   = ed.dialog(track_changes = True)
 
         # change_tracker is the accumulator; traitable_processor is this dialog's
         # own staging scope nested inside it, and is what edits go through.
@@ -120,9 +120,9 @@ def test_dialog_track_changes_stages_and_saves_via_tracker(ts_instance):  # noqa
 
 def test_dialog_track_changes_without_copy_entity_edits_directly(ts_instance):  # noqa: F811
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['a'])
-        ed = TraitableEditor.editor(t)
-        d = ed.dialog(copy_entity=False, track_changes=True)
+        t   = _person(ts_instance, ['a'])
+        ed  = TraitableEditor.editor(t)
+        d   = ed.dialog(copy_entity = False, track_changes = True)
 
         # No staging scope: the tracker is the processor, and edits reach the ambient
         # scope as they are made. Tracking still decides what save() persists.
@@ -140,9 +140,9 @@ def test_dialog_track_changes_without_copy_entity_edits_directly(ts_instance):  
 def test_dialog_track_changes_without_copy_entity_cancel_keeps_the_edit(ts_instance):  # noqa: F811
     """copy_entity=False means edits are not taken back -- there is no scope to drop."""
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['a'])
-        ed = TraitableEditor.editor(t)
-        d = ed.dialog(copy_entity=False, track_changes=True)
+        t   = _person(ts_instance, ['a'])
+        ed  = TraitableEditor.editor(t)
+        d   = ed.dialog(copy_entity = False, track_changes = True)
 
         with ed.traitable_processor:
             t.tags = ['direct']
@@ -152,10 +152,10 @@ def test_dialog_track_changes_without_copy_entity_cancel_keeps_the_edit(ts_insta
 
 def test_dialog_track_changes_reused_across_dialogs(ts_instance):  # noqa: F811
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['a'])
-        ed = TraitableEditor.editor(t)
+        t   = _person(ts_instance, ['a'])
+        ed  = TraitableEditor.editor(t)
 
-        d1 = ed.dialog(track_changes=True)
+        d1 = ed.dialog(track_changes = True)
         with ed.traitable_processor:
             t.tags = ['first']
         d1.accept_callback()
@@ -163,7 +163,7 @@ def test_dialog_track_changes_reused_across_dialogs(ts_instance):  # noqa: F811
 
         # A second .dialog() call on the SAME editor reuses the SAME accumulator,
         # with a fresh staging scope nested inside it.
-        d2 = ed.dialog(track_changes=True)
+        d2 = ed.dialog(track_changes = True)
         assert ed.change_tracker is first_tracker
         with ed.traitable_processor:
             t.tags = ['first', 'second']
@@ -181,15 +181,15 @@ def test_dialog_track_changes_cancel_discards_only_this_dialogs_edit(ts_instance
     """Cancel drops this dialog's staging scope and never folds it into the
     accumulator, so an edit accepted in an earlier dialog is what gets saved."""
     with ts_instance, INTERACTIVE():
-        t = _person(ts_instance, ['orig'])
-        ed = TraitableEditor.editor(t)
+        t   = _person(ts_instance, ['orig'])
+        ed  = TraitableEditor.editor(t)
 
-        d1 = ed.dialog(track_changes=True)
+        d1 = ed.dialog(track_changes = True)
         with ed.traitable_processor:
             t.tags = ['first']
         d1.accept_callback()
 
-        d2 = ed.dialog(track_changes=True)
+        d2 = ed.dialog(track_changes = True)
         with ed.traitable_processor:
             t.tags = ['cancelled']
         d2.cancel_callback()
@@ -206,7 +206,7 @@ def test_dialog_track_changes_cancel_on_first_dialog_saves_nothing(ts_instance):
         t.save().throw()
         ed = TraitableEditor.editor(t)
 
-        d = ed.dialog(track_changes=True)
+        d = ed.dialog(track_changes = True)
         with ed.traitable_processor:
             t.tags = ['cancelled']
         d.cancel_callback()
@@ -222,14 +222,14 @@ def test_dialog_track_changes_invalid_edit_is_not_exported(ts_instance):  # noqa
     with ts_instance, INTERACTIVE():
         t = _person(ts_instance, ['a'])
         t.save().throw()
-        ed = TraitableEditor.editor(t)
-        d = ed.dialog(track_changes=True)
+        ed  = TraitableEditor.editor(t)
+        d   = ed.dialog(track_changes = True)
 
         # age > 60 and weight_lbs > 200 fails Person.post_verify. Ambient values
         # stay valid, so verify-after-export would accept this.
         with ed.traitable_processor:
-            t.dob = date(1950, 1, 1)
-            t.weight_lbs = 250.0
+            t.dob           = date(1950, 1, 1)
+            t.weight_lbs    = 250.0
 
         rc = d.accept_callback()
         assert not rc and 'overweight' in rc.error()

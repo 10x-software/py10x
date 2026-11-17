@@ -33,7 +33,7 @@ from xxfin.mkt_adaptor import MktDataAdaptor, MktDataConnector
 from xxfin.mkt_quotables_scope import MktQuotablesScope
 from xxfin.pricing_context import PricingContext
 
-EXPECTED_MISSING = {
+EXPECTED_MISSING    = {
     ('SARON', date(2025, 5, 30)),
     ('SARON', date(2025, 10, 10)),
     ('ESTR', date(2025, 5, 30)),
@@ -46,7 +46,7 @@ EXPECTED_MISSING = {
     ('USD/CAD', date(2025, 5, 30)),
     ('USD/JPY', date(2025, 5, 30)),
 }
-EXPECTED_EXTRAS = {('2025-10-10', IRSwapQuotable): 2}
+EXPECTED_EXTRAS     = {('2025-10-10', IRSwapQuotable): 2}
 
 def _bbg_dependencies_available() -> bool:
     try:
@@ -56,16 +56,16 @@ def _bbg_dependencies_available() -> bool:
     except ImportError:
         return False
 
-@pytest.fixture(params=['dev', 'live'])
+@pytest.fixture(params = ['dev', 'live'])
 def bbg_connector_mode(request, monkeypatch):
     if request.param == 'live':
         need(_bbg_dependencies_available(), 'xbbg/blpapi not installed (optional `bbg` extra)')
         import pandas as pd
         from xbbg import blp
 
-        def _bdh(tickers, flds=None, start_date=None, end_date=None, **kwargs):
-            ticker = tickers if isinstance(tickers, str) else tickers[0]
-            value = MktDataConnector.connector('BBG_DEV').records.get((ticker, start_date), float('nan'))
+        def _bdh(tickers, flds = None, start_date = None, end_date = None, **kwargs):
+            ticker  = tickers if isinstance(tickers, str) else tickers[0]
+            value   = MktDataConnector.connector('BBG_DEV').records.get((ticker, start_date), float('nan'))
             return pd.DataFrame({'PX_LAST': [value]})
 
         monkeypatch.setattr(blp, 'bdh', _bdh)
@@ -76,20 +76,20 @@ def bbg_connector_mode(request, monkeypatch):
 
 
 def test_bbg_adaptor_reproduces_dev_data_quotes(bbg_connector_mode):
-    pcs = PricingContext.load_many(f(mkt_data_provider_name='XX_DEV'))
+    pcs = PricingContext.load_many(f(mkt_data_provider_name = 'XX_DEV'))
     assert len(pcs) > 1
 
     quotable_scopes = MktQuotablesScope.load_many()
     assert len(quotable_scopes) > 1
 
-    found_classes = set()
-    test_provider_name = uuid6.uuid7().hex
+    found_classes       = set()
+    test_provider_name  = uuid6.uuid7().hex
     for mqs in quotable_scopes:
         for pc in pcs:
             for q_cls, q_stub in mqs.quotable_class_and_stubs_generator(pc.md_date):
                 found_classes.add(q_cls)
                 q_id_traits = {'mkt_name': mqs.mkt_name, **q_stub, **pc.md_basis}
-                dev_q = q_cls.existing_instance(**q_id_traits, _throw=False)
+                dev_q       = q_cls.existing_instance(**q_id_traits, _throw = False)
                 if not dev_q:
                     assert (mqs.mkt_name, pc.md_date) in EXPECTED_MISSING
                     continue
@@ -99,7 +99,7 @@ def test_bbg_adaptor_reproduces_dev_data_quotes(bbg_connector_mode):
                 assert test_q.get_revision() == 0
                 assert test_q.quote is XNone
 
-                adaptor = MktDataAdaptor.adaptor(q_cls, provider_name='BBG')
+                adaptor = MktDataAdaptor.adaptor(q_cls, provider_name = 'BBG')
                 assert adaptor, f'missing adaptor class for {q_cls}'
 
                 adaptor.fill(test_q)
@@ -110,12 +110,12 @@ def test_bbg_adaptor_reproduces_dev_data_quotes(bbg_connector_mode):
 
     for cls in found_classes:
         # FX spots have several EXPECTED_MISSING dates; floor is below IR/FX-forward totals.
-        assert cls.collection().count(f(provider_name=test_provider_name)) > 3
+        assert cls.collection().count(f(provider_name = test_provider_name)) > 3
 
         for pc in pcs:
             md_date = pc.md_date
-            n = cls.collection().count(f(provider_name=test_provider_name, md_date=md_date, trait_dir=cls.s_dir))
-            m = cls.collection().count(f(provider_name='XX_DEV', md_date=md_date, trait_dir=cls.s_dir))
+            n       = cls.collection().count(f(provider_name = test_provider_name, md_date = md_date, trait_dir = cls.s_dir))
+            m       = cls.collection().count(f(provider_name = 'XX_DEV', md_date = md_date, trait_dir = cls.s_dir))
             assert n + EXPECTED_EXTRAS.get((str(md_date), cls), 0) == m
             if m > 0:
                 assert n > 0

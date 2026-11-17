@@ -12,8 +12,8 @@ from xxfin.py_day_count_convention import DAY_COUNT_CONVENTION
 
 class TestIRSwapQuotable:
     def setup_method(self):
-        self.pc = PricingContext.current()
-        self.md_basis = self.pc.md_basis
+        self.pc         = PricingContext.current()
+        self.md_basis   = self.pc.md_basis
 
         self.sofr = dict(
             irate       = 'SOFR',
@@ -40,12 +40,12 @@ class TestIRSwapQuotable:
             irate['tenor']  = RDate(irate['tenor_sym'])
             irate['mc']     = IRRateMktConventions(mkt_name = irate['irate'])
             irate['zrc']    = ZeroRateCurve(mkt_name = irate['irate'], **self.md_basis)
-            irate['sq']     = IRSwapQuotable(mkt_name = irate['irate'], tenor=irate['tenor'], **self.md_basis)
+            irate['sq']     = IRSwapQuotable(mkt_name = irate['irate'], tenor = irate['tenor'], **self.md_basis)
 
     def test_start_end_dates(self):
         for irate in self.irates:
             swap_start_date = irate['mc'].spot_date(self.md_basis['md_date'])
-            swap_end_date = irate['tenor'].apply(swap_start_date, irate['cal'], irate['roll_rule'])
+            swap_end_date   = irate['tenor'].apply(swap_start_date, irate['cal'], irate['roll_rule'])
 
             assert swap_start_date == irate['sq'].start_date
             assert swap_end_date   == irate['sq'].end_date
@@ -63,10 +63,10 @@ class TestIRSwapQuotable:
             swap      = irate['sq']
 
             #-- BACKWARD: each period end is n periods back from the unadjusted swap end (not chained from the next period end)
-            unadjusted_end = irate['tenor'].apply_no_roll(swap.start_date)
-            end_dates = []
-            non_rolled_ed = unadjusted_end
-            num_periods = 0
+            unadjusted_end  = irate['tenor'].apply_no_roll(swap.start_date)
+            end_dates       = []
+            non_rolled_ed   = unadjusted_end
+            num_periods     = 0
             while non_rolled_ed > swap.start_date:
                 end_dates.insert(0, RDate.roll_to_bizday(non_rolled_ed, cal, roll_rule))
                 num_periods += 1
@@ -84,10 +84,10 @@ class TestIRSwapQuotable:
             assert forward_end_dates == swap.end_dates
 
     def test_stub_end_dates(self):
-        sofr = self.sofr
-        cal       = sofr['cal']
-        roll_rule = sofr['roll_rule']
-        swap = IRSwapQuotable(mkt_name = sofr['irate'], tenor = RDate('18M'), **self.md_basis)
+        sofr        = self.sofr
+        cal         = sofr['cal']
+        roll_rule   = sofr['roll_rule']
+        swap        = IRSwapQuotable(mkt_name = sofr['irate'], tenor = RDate('18M'), **self.md_basis)
 
         #-- BACKWARD with a front stub, so the 18M annual swap's periods are 6M + 1Y
         start_date = swap.start_date
@@ -108,28 +108,28 @@ class TestIRSwapQuotable:
 
     def test_incremental_dc_fractions(self):
         for irate in self.irates:
-            swap = irate['sq']
-            incr_dcfs = [irate['dc_conv'](sd, ed) for sd, ed in zip(swap.start_dates, swap.end_dates, strict=True)]
+            swap        = irate['sq']
+            incr_dcfs   = [irate['dc_conv'](sd, ed) for sd, ed in zip(swap.start_dates, swap.end_dates, strict = True)]
             assert incr_dcfs == swap.incremental_dc_fractions
 
     def test_fixed_leg(self):
         for irate in self.irates:
-            mc   = irate['mc']
-            swap = irate['sq']
-            fixed_freq = RDate(freq = mc.fixed_leg_swap_tenor_frequency, count = 1)
+            mc              = irate['mc']
+            swap            = irate['sq']
+            fixed_freq      = RDate(freq = mc.fixed_leg_swap_tenor_frequency, count = 1)
             starts, ends, _ = fixed_freq.period_dates_for_tenor(swap.start_date, irate['tenor'], irate['cal'], irate['roll_rule'], PROPAGATE_DATES.BACKWARD)
 
             assert swap.fixed_start_dates == starts
             assert swap.fixed_end_dates   == ends
             assert swap.fixed_pay_dates   == [mc.pay_date(ed) for ed in ends]
-            assert swap.fixed_dc_fractions == [mc.fixed_leg_swap_dc_convention(sd, ed) for sd, ed in zip(starts, ends, strict=True)]
+            assert swap.fixed_dc_fractions == [mc.fixed_leg_swap_dc_convention(sd, ed) for sd, ed in zip(starts, ends, strict = True)]
             assert swap.fixed_pay_dates[-1] == swap.pay_date
 
     @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_annuity_calc(self):
         for irate in self.irates:
-            zrc = irate['zrc'].payload
-            swap = irate['sq']
+            zrc         = irate['zrc'].payload
+            swap        = irate['sq']
             num_periods = len(swap.fixed_pay_dates)
             assert swap.annuity_calc(zrc) == swap.annuity_calc(zrc, num_periods), 'annuity default num periods is off'
 
@@ -137,7 +137,7 @@ class TestIRSwapQuotable:
             for num in range(num_periods):
                 manual_ann = sum(dcf * df for dcf, df in zip(
                         swap.fixed_dc_fractions[:num + 1],
-                        zrc.discount_factors(swap.fixed_pay_dates, today=self.md_basis['md_date'])[:num + 1],
+                        zrc.discount_factors(swap.fixed_pay_dates, today = self.md_basis['md_date'])[:num + 1],
                         strict = True
                     )
                 )
@@ -165,11 +165,11 @@ class TestIRSwapQuotable:
 
     def test_periods(self):
         for irate in self.irates:
-            swap = irate['sq']
-            periods = [(sd, ed, pd, dcf) for sd, ed, pd, dcf in zip( swap.start_dates, swap.end_dates, swap.pay_dates, swap.incremental_dc_fractions, strict=True)]
+            swap    = irate['sq']
+            periods = [(sd, ed, pd, dcf) for sd, ed, pd, dcf in zip( swap.start_dates, swap.end_dates, swap.pay_dates, swap.incremental_dc_fractions, strict = True)]
             assert periods == swap.periods()
 
     def test_empty_swap(self):
-        sq = IRSwapQuotable(mkt_name='SONIA', tenor=RDate('0C'), **self.md_basis)
+        sq = IRSwapQuotable(mkt_name = 'SONIA', tenor = RDate('0C'), **self.md_basis)
         assert sq.start_dates == sq.end_dates == sq.pay_dates == sq.periods() == sq.incremental_dc_fractions  == []
         assert sq.fixed_start_dates == sq.fixed_end_dates == sq.fixed_pay_dates == sq.fixed_dc_fractions == []

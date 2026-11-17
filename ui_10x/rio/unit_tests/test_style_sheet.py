@@ -5,7 +5,7 @@ import rio
 
 
 def test_ss_to_ts():
-    sheet = {
+    sheet   = {
         'color': 'lightgreen',
         'background-color': 'white',
         'font-family': 'Helvetica',
@@ -15,8 +15,8 @@ def test_ss_to_ts():
         'border-style': '',
         'border-color': 'blue',
     }
-    ss = StyleSheet()
-    rc = ss.set_values(sheet=sheet)
+    ss      = StyleSheet()
+    rc      = ss.set_values(sheet = sheet)
     assert not rc
     assert 'background-color' in rc.error()
     assert 'border-color' in rc.error()
@@ -32,6 +32,6 @@ def test_ss_to_ts():
 
 def test_ts_to_ss():
     ss = StyleSheet()
-    rc = ss.set_values(text_style=rio.TextStyle(font=rio.Font.from_google_fonts('Times New Roman'), fill=rio.Color.from_hex('#c5f7c5')))
+    rc = ss.set_values(text_style = rio.TextStyle(font = rio.Font.from_google_fonts('Times New Roman'), fill = rio.Color.from_hex('#c5f7c5')))
     assert rc
     assert ss.sheet == {'color': '#c5f7c5', 'font-family': 'Times New Roman', 'font-style': 'normal', 'font-weight': 'normal'}

@@ -17,9 +17,9 @@ import rio
 
 
 class StyledCell(Traitable):
-    letter: str = T(Ui(label='L'))
-    bg: str = RT(T.HIDDEN, default='lightgray')
-    fg: str = RT(T.HIDDEN, default='black')
+    letter: str = T(Ui(label = 'L'))
+    bg: str     = RT(T.HIDDEN, default = 'lightgray')
+    fg: str     = RT(T.HIDDEN, default = 'black')
 
     def letter_style_sheet(self):
         return T.colors(self.bg, self.fg)
@@ -28,8 +28,8 @@ class StyledCell(Traitable):
 def test_table_view_construct_and_render() -> None:
     with CACHE_ONLY():
         rows = [
-            StyledCell(letter='A', bg='darkgreen', fg='white'),
-            StyledCell(letter='B'),
+            StyledCell(letter = 'A', bg = 'darkgreen', fg = 'white'),
+            StyledCell(letter = 'B'),
         ]
 
         table = TableView(rows)
@@ -43,9 +43,9 @@ def test_table_view_construct_and_render() -> None:
         assert 'darkgreen' in sh
         assert 'white' in sh
 
-        rows[1].letter = 'Z'
-        rows[1].bg = 'white'
-        rows[1].fg = 'black'
+        rows[1].letter  = 'Z'
+        rows[1].bg      = 'white'
+        rows[1].fg      = 'black'
         table.render_traitable(1, None)
         text2, sh2 = table._cell_text_and_style(table.entities[1], 'letter')
         assert text2 == 'Z'
@@ -58,10 +58,10 @@ def test_table_view_construct_and_render() -> None:
 async def test_table_view_browser_render_traitable() -> None:
     """Update cells while the table is nested under a host (same as ``rio run``)."""
     with CACHE_ONLY():
-        row = StyledCell(letter='X')
-        table = TableView([row])
+        row     = StyledCell(letter = 'X')
+        table   = TableView([row])
 
-        def host_factory(_table=table):
+        def host_factory(_table = table):
             class Host(rio.Component):
                 def build(self) -> rio.Component:
                     return _table()
@@ -80,9 +80,9 @@ async def test_table_view_browser_render_traitable() -> None:
                     })()""",
                 )
 
-                row.letter = 'Y'
-                row.bg = 'darkgreen'
-                row.fg = 'white'
+                row.letter  = 'Y'
+                row.bg      = 'darkgreen'
+                row.fg      = 'white'
                 table.render_traitable(0, None)
                 await test_client.wait_for_refresh()
                 await asyncio.sleep(UI_SETTLE_S)
@@ -97,8 +97,8 @@ async def test_table_view_browser_render_traitable() -> None:
                 )
         finally:
             table.entities.clear()
-            table.component = None
-            table.subcomponent = None
+            table.component     = None
+            table.subcomponent  = None
             del table, row
             gc.collect()
 

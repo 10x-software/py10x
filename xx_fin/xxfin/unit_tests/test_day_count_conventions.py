@@ -120,7 +120,7 @@ _DC_KEYS = {
 }
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def rebind_globals(cxx_or_py_day_count_convention):
     global DAY_COUNT_CONVENTION
     from xxfin.day_count_convention import DAY_COUNT_CONVENTION
@@ -131,7 +131,7 @@ def rebind_globals(cxx_or_py_day_count_convention):
 @pytest.mark.parametrize(
     'dates',
     list(cases),
-    ids=[f'{d1}-{d2}' for d1, d2 in cases],
+    ids = [f'{d1}-{d2}' for d1, d2 in cases],
 )
 def test_day_count(key, dates):
     dcs = cases[dates]

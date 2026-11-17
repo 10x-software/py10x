@@ -25,7 +25,7 @@ from examples import on_session_start  # noqa: E402
 
 async def test_style_sheet_page_renders_wysiwyg() -> None:
     """Examples page: StyleSheet editor shows the WYSIWYG preview line."""
-    app = rio.App(name='style_sheet_test', build=StyleSheetPage, on_session_start=on_session_start)
+    app = rio.App(name = 'style_sheet_test', build = StyleSheetPage, on_session_start = on_session_start)
     async with rio.testing.BrowserClient(app) as client:
         await asyncio.sleep(UI_SETTLE_S)
         page = client.get_component(StyleSheetPage)

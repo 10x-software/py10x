@@ -32,8 +32,8 @@ _CE_TIMEOUT = COLLECTION_EDITOR_TIMEOUT_MS
 @pytest.fixture
 def mock_db_ops(monkeypatch):
     with CACHE_ONLY():
-        sasha = Person(first_name='Sasha', last_name='Davidovich', weight_lbs=150, _replace=True)
-        ilya = Person(first_name='Ilya', last_name='Pevzner', weight_lbs=200, dob=date(1971, 7, 3), _replace=True)
+        sasha   = Person(first_name = 'Sasha', last_name = 'Davidovich', weight_lbs = 150, _replace = True)
+        ilya    = Person(first_name = 'Ilya', last_name = 'Pevzner', weight_lbs = 200, dob = date(1971, 7, 3), _replace = True)
     monkeypatch.setattr(Person, 'load_ids', lambda: [sasha.id(), ilya.id()])
     monkeypatch.setattr(Person, 'load_data', lambda id: {sasha.id(): sasha, ilya.id(): ilya}[id])
     yield
@@ -42,21 +42,21 @@ def mock_db_ops(monkeypatch):
 async def test_collection_editor(mock_db_ops) -> None:
     with INTERACTIVE():
         ce: CollectionEditor | None = None
-        widget = None
+        widget                      = None
 
         def on_session_start(session):
             nonlocal ce, widget
-            ctx = UserSessionContext()
+            ctx             = UserSessionContext()
             ctx.interactive = BTP.current()
             session.attach(ctx)
             with session_context(session):
-                ce = CollectionEditor(coll=Collection(cls=Person))
-                widget = ce.main_widget()
+                ce      = CollectionEditor(coll = Collection(cls = Person))
+                widget  = ce.main_widget()
 
         app = rio.App(
-            name='collection_editor_test',
-            build=lambda: DynamicComponent(widget),
-            on_session_start=on_session_start,
+            name                = 'collection_editor_test',
+            build               = lambda: DynamicComponent(widget),
+            on_session_start    = on_session_start,
         )
         async with rio.testing.BrowserClient(app) as test_client:
             await asyncio.sleep(UI_SETTLE_S)
@@ -65,37 +65,37 @@ async def test_collection_editor(mock_db_ops) -> None:
                 test_client,
                 'document.querySelector(".rio-selectable-item")?.innerText || ""',
                 'Ilya|Pevzner',
-                timeout_ms=_CE_TIMEOUT,
+                timeout_ms = _CE_TIMEOUT,
             )
             await test_client.execute_js('document.querySelector(".rio-selectable-item").click()')
             await asyncio.sleep(UI_SETTLE_S)
 
             await wait_for_input_values(
                 test_client,
-                weight_index=7,
-                weight='200.00',
-                unit_index=8,
-                unit='LB',
-                timeout_ms=_CE_TIMEOUT,
+                weight_index    = 7,
+                weight          = '200.00',
+                unit_index      = 8,
+                unit            = 'LB',
+                timeout_ms      = _CE_TIMEOUT,
             )
 
             edit_button = next(b for b in test_client.get_components(rio.Button) if b.content == 'edit')
             await press_rio_button(test_client, edit_button)
-            await wait_for_dialog_button(test_client, 'Ok', timeout_ms=_CE_TIMEOUT)
+            await wait_for_dialog_button(test_client, 'Ok', timeout_ms = _CE_TIMEOUT)
             await asyncio.sleep(UI_SETTLE_S)
 
             await wait_for_input_values(
                 test_client,
-                weight_index=16,
-                weight='200.00',
-                unit_index=17,
-                unit='LB',
-                timeout_ms=_CE_TIMEOUT,
+                weight_index    = 16,
+                weight          = '200.00',
+                unit_index      = 17,
+                unit            = 'LB',
+                timeout_ms      = _CE_TIMEOUT,
             )
 
             dropdown_button = next(b for b in reversed(tuple(test_client.get_components(rio.Button))) if b.icon == 'material/arrow_downward')
             await press_rio_button(test_client, dropdown_button)
-            await wait_for_selectable_item_text(test_client, 'G', timeout_ms=_CE_TIMEOUT)
+            await wait_for_selectable_item_text(test_client, 'G', timeout_ms = _CE_TIMEOUT)
             await asyncio.sleep(UI_SETTLE_S)
 
             list_item_id = next(li._id_ for li in test_client.get_components(rio.SimpleListItem) if li.text == 'G')
@@ -104,11 +104,11 @@ async def test_collection_editor(mock_db_ops) -> None:
 
             await wait_for_input_values(
                 test_client,
-                weight_index=16,
-                weight='90,702.95',
-                unit_index=17,
-                unit='G',
-                timeout_ms=_CE_TIMEOUT,
+                weight_index    = 16,
+                weight          = '90,702.95',
+                unit_index      = 17,
+                unit            = 'G',
+                timeout_ms      = _CE_TIMEOUT,
             )
 
             ok_button = next(b for b in test_client.get_components(rio.Button) if b.content == 'Ok')
@@ -117,14 +117,14 @@ async def test_collection_editor(mock_db_ops) -> None:
 
             await wait_for_input_values(
                 test_client,
-                weight_index=7,
-                weight='90,702.95',
-                unit_index=8,
-                unit='G',
-                timeout_ms=_CE_TIMEOUT,
+                weight_index    = 7,
+                weight          = '90,702.95',
+                unit_index      = 8,
+                unit            = 'G',
+                timeout_ms      = _CE_TIMEOUT,
             )
 
-            searchable_list = ce.searchable_list
+            searchable_list                                                                     = ce.searchable_list
             test_client.get_component(DynamicComponent).session[UserSessionContext].interactive = None
 
         wr = weakref.ref(ce)
@@ -134,7 +134,7 @@ async def test_collection_editor(mock_db_ops) -> None:
 
         searchable_list.release()
         if widget is not None:
-            widget.component = None
+            widget.component    = None
             widget.subcomponent = None
         widget = None
         del searchable_list
@@ -146,14 +146,14 @@ async def _open_entity_edit_dialog(test_client, select_text: str = 'Ilya|Pevzner
         test_client,
         'document.querySelector(".rio-selectable-item")?.innerText || ""',
         select_text,
-        timeout_ms=_CE_TIMEOUT,
+        timeout_ms = _CE_TIMEOUT,
     )
     await test_client.execute_js('document.querySelector(".rio-selectable-item").click()')
     await asyncio.sleep(UI_SETTLE_S)
 
     edit_button = next(b for b in test_client.get_components(rio.Button) if b.content == 'edit')
     await press_rio_button(test_client, edit_button)
-    await wait_for_dialog_button(test_client, 'Ok', timeout_ms=_CE_TIMEOUT)
+    await wait_for_dialog_button(test_client, 'Ok', timeout_ms = _CE_TIMEOUT)
     await asyncio.sleep(UI_SETTLE_S)
 
 
@@ -197,21 +197,21 @@ async def test_collection_editor_edit_dob_calendar_does_not_close_parent_dialog(
     """
     with INTERACTIVE():
         ce: CollectionEditor | None = None
-        widget = None
+        widget                      = None
 
         def on_session_start(session):
             nonlocal ce, widget
-            ctx = UserSessionContext()
+            ctx             = UserSessionContext()
             ctx.interactive = BTP.current()
             session.attach(ctx)
             with session_context(session):
-                ce = CollectionEditor(coll=Collection(cls=Person))
-                widget = ce.main_widget()
+                ce      = CollectionEditor(coll = Collection(cls = Person))
+                widget  = ce.main_widget()
 
         app = rio.App(
-            name='collection_editor_dob_test',
-            build=lambda: DynamicComponent(widget),
-            on_session_start=on_session_start,
+            name                = 'collection_editor_dob_test',
+            build               = lambda: DynamicComponent(widget),
+            on_session_start    = on_session_start,
         )
         async with rio.testing.BrowserClient(app) as test_client:
             await asyncio.sleep(UI_SETTLE_S)
@@ -223,18 +223,18 @@ async def test_collection_editor_edit_dob_calendar_does_not_close_parent_dialog(
             # Outer dialog is still functional: its own fields are intact.
             await wait_for_input_values(
                 test_client,
-                weight_index=16,
-                weight='200.00',
-                unit_index=17,
-                unit='LB',
-                timeout_ms=_CE_TIMEOUT,
+                weight_index    = 16,
+                weight          = '200.00',
+                unit_index      = 17,
+                unit            = 'LB',
+                timeout_ms      = _CE_TIMEOUT,
             )
 
             ok_button = _ok_buttons(test_client)[0]
             await press_rio_button(test_client, ok_button)
             await asyncio.sleep(UI_SETTLE_S)
 
-            searchable_list = ce.searchable_list
+            searchable_list                                                                     = ce.searchable_list
             test_client.get_component(DynamicComponent).session[UserSessionContext].interactive = None
 
         wr = weakref.ref(ce)
@@ -244,7 +244,7 @@ async def test_collection_editor_edit_dob_calendar_does_not_close_parent_dialog(
 
         searchable_list.release()
         if widget is not None:
-            widget.component = None
+            widget.component    = None
             widget.subcomponent = None
         widget = None
         del searchable_list
@@ -263,10 +263,10 @@ async def test_traitable_editor_edit_tags_multichoice_does_not_close_parent_dial
     """
     with INTERACTIVE():
         with CACHE_ONLY():
-            entity = Person(first_name='Widget', last_name='Tagged', tags=['red', 'green', 'blue'], _replace=True)
+            entity = Person(first_name = 'Widget', last_name = 'Tagged', tags = ['red', 'green', 'blue'], _replace = True)
 
-        ed: TraitableEditor | None = None
-        open_button = None
+        ed: TraitableEditor | None  = None
+        open_button                 = None
 
         def open_editor():
             nonlocal ed
@@ -275,23 +275,23 @@ async def test_traitable_editor_edit_tags_multichoice_does_not_close_parent_dial
 
         def on_session_start(session):
             nonlocal open_button
-            ctx = UserSessionContext()
+            ctx             = UserSessionContext()
             ctx.interactive = BTP.current()
             session.attach(ctx)
             with session_context(session):
-                open_button = ux_push_button('Open', callback=open_editor)
+                open_button = ux_push_button('Open', callback = open_editor)
 
         app = rio.App(
-            name='tags_multichoice_test',
-            build=lambda: DynamicComponent(open_button),
-            on_session_start=on_session_start,
+            name                = 'tags_multichoice_test',
+            build               = lambda: DynamicComponent(open_button),
+            on_session_start    = on_session_start,
         )
         async with rio.testing.BrowserClient(app) as test_client:
             await asyncio.sleep(UI_SETTLE_S)
 
             open_btn = next(b for b in test_client.get_components(rio.Button) if b.content == 'Open')
             await press_rio_button(test_client, open_btn)
-            await wait_for_dialog_button(test_client, 'Ok', timeout_ms=_CE_TIMEOUT)
+            await wait_for_dialog_button(test_client, 'Ok', timeout_ms = _CE_TIMEOUT)
             await asyncio.sleep(UI_SETTLE_S)
 
             outer_ok = _ok_buttons(test_client)[0]
@@ -303,14 +303,14 @@ async def test_traitable_editor_edit_tags_multichoice_does_not_close_parent_dial
             # Selection must reflect the trait's current value: 'red' (like every
             # current tag) should already render twice — once in the source pane,
             # once in the selection pane — with no interaction at all.
-            await wait_for_selectable_item_text(test_client, 'red', timeout_ms=_CE_TIMEOUT)
+            await wait_for_selectable_item_text(test_client, 'red', timeout_ms = _CE_TIMEOUT)
             await wait_until(
                 lambda: test_client.execute_js(
                     """[...document.querySelectorAll('.rio-selectable-item')]
                         .filter(el => el.innerText === 'red').length >= 2"""
                 ),
-                timeout_s=10.0,
-                message="'red' to be pre-selected on open",
+                timeout_s   = 10.0,
+                message     = "'red' to be pre-selected on open",
             )
 
             ok_buttons = _ok_buttons(test_client)
@@ -337,18 +337,18 @@ async def test_traitable_editor_edit_tags_multichoice_does_not_close_parent_dial
             test_client.get_component(DynamicComponent).session[UserSessionContext].interactive = None
 
         if open_button is not None:
-            open_button.component = None
-            open_button.subcomponent = None
+            open_button.component       = None
+            open_button.subcomponent    = None
         open_button = None
-        ed = None
-        entity = None
+        ed          = None
+        entity      = None
         gc.collect()
 
 
 async def _select_entity(test_client, select_text: str) -> None:
     """Select ``select_text`` among possibly multiple listed entities."""
     find = f'[...document.querySelectorAll(".rio-selectable-item")].find(el => el.innerText === "{select_text}")'
-    await wait_for_js_value(test_client, f'({find}) ? "found" : ""', 'found', timeout_ms=_CE_TIMEOUT)
+    await wait_for_js_value(test_client, f'({find}) ? "found" : ""', 'found', timeout_ms = _CE_TIMEOUT)
     await test_client.execute_js(f'{find}.click()')
     await asyncio.sleep(UI_SETTLE_S)
 
@@ -384,7 +384,7 @@ async def _edit_weight_lbs(test_client, select_text: str, new_weight_lbs: str) -
     await _select_entity(test_client, select_text)
 
     await _press_named_button(test_client, 'edit')
-    await wait_for_dialog_button(test_client, 'Ok', timeout_ms=_CE_TIMEOUT)
+    await wait_for_dialog_button(test_client, 'Ok', timeout_ms = _CE_TIMEOUT)
     await asyncio.sleep(UI_SETTLE_S)
 
     await _set_input_value(test_client, 13, new_weight_lbs)
@@ -412,8 +412,8 @@ async def test_collection_editor_track_changes_switch_entities_and_save(monkeypa
     does not.
     """
     with ts_instance, INTERACTIVE():
-        alice = Person(first_name='Trackchangesalice', last_name='Trackchangesaliceln', weight_lbs=150, _replace=True)
-        bob = Person(first_name='Trackchangesbob', last_name='Trackchangesbobln', weight_lbs=200, dob=date(1971, 7, 3), _replace=True)
+        alice   = Person(first_name = 'Trackchangesalice', last_name = 'Trackchangesaliceln', weight_lbs = 150, _replace = True)
+        bob     = Person(first_name = 'Trackchangesbob', last_name = 'Trackchangesbobln', weight_lbs = 200, dob = date(1971, 7, 3), _replace = True)
         alice.save().throw()
         bob.save().throw()
         monkeypatch.setattr(Person, 'load_ids', lambda: [alice.id(), bob.id()])
@@ -421,21 +421,21 @@ async def test_collection_editor_track_changes_switch_entities_and_save(monkeypa
 
         try:
             ce: CollectionEditor | None = None
-            widget = None
+            widget                      = None
 
             def on_session_start(session):
                 nonlocal ce, widget
-                ctx = UserSessionContext()
+                ctx             = UserSessionContext()
                 ctx.interactive = BTP.current()
                 session.attach(ctx)
                 with session_context(session):
-                    ce = CollectionEditor(coll=Collection(cls=Person), track_changes=True)
-                    widget = ce.main_widget()
+                    ce      = CollectionEditor(coll = Collection(cls = Person), track_changes = True)
+                    widget  = ce.main_widget()
 
             app = rio.App(
-                name='collection_editor_track_changes_test',
-                build=lambda: DynamicComponent(widget),
-                on_session_start=on_session_start,
+                name                = 'collection_editor_track_changes_test',
+                build               = lambda: DynamicComponent(widget),
+                on_session_start    = on_session_start,
             )
             async with rio.testing.BrowserClient(app) as test_client:
                 await asyncio.sleep(UI_SETTLE_S)
@@ -469,7 +469,7 @@ async def test_collection_editor_track_changes_switch_entities_and_save(monkeypa
                 saved_bob = Person.collection().load(bob.id().value)
                 assert saved_bob['weight_lbs'] == 155.5
 
-                searchable_list = ce.searchable_list
+                searchable_list                                                                     = ce.searchable_list
                 test_client.get_component(DynamicComponent).session[UserSessionContext].interactive = None
 
             wr = weakref.ref(ce)
@@ -479,7 +479,7 @@ async def test_collection_editor_track_changes_switch_entities_and_save(monkeypa
 
             searchable_list.release()
             if widget is not None:
-                widget.component = None
+                widget.component    = None
                 widget.subcomponent = None
             widget = None
             del searchable_list
@@ -507,27 +507,27 @@ async def test_collection_editor_new_and_delete_entity(monkeypatch, ts_instance)
 
         try:
             ce: CollectionEditor | None = None
-            widget = None
+            widget                      = None
 
             def on_session_start(session):
                 nonlocal ce, widget
-                ctx = UserSessionContext()
+                ctx             = UserSessionContext()
                 ctx.interactive = BTP.current()
                 session.attach(ctx)
                 with session_context(session):
-                    ce = CollectionEditor(coll=Collection(cls=Person))
-                    widget = ce.main_widget()
+                    ce      = CollectionEditor(coll = Collection(cls = Person))
+                    widget  = ce.main_widget()
 
             app = rio.App(
-                name='collection_editor_new_delete_test',
-                build=lambda: DynamicComponent(widget),
-                on_session_start=on_session_start,
+                name                = 'collection_editor_new_delete_test',
+                build               = lambda: DynamicComponent(widget),
+                on_session_start    = on_session_start,
             )
             async with rio.testing.BrowserClient(app) as test_client:
                 await asyncio.sleep(UI_SETTLE_S)
 
                 await _press_named_button(test_client, 'New')
-                await wait_for_dialog_button(test_client, 'Save', timeout_ms=_CE_TIMEOUT)
+                await wait_for_dialog_button(test_client, 'Save', timeout_ms = _CE_TIMEOUT)
                 await asyncio.sleep(UI_SETTLE_S)
 
                 # Same fixed-field-order reasoning as _edit_weight_lbs, but the New
@@ -538,7 +538,7 @@ async def test_collection_editor_new_and_delete_entity(monkeypatch, ts_instance)
                 await _set_input_value(test_client, 4, '165.5')
 
                 await _press_named_button(test_client, 'Save')
-                await wait_for_selectable_item_text(test_client, row, timeout_ms=_CE_TIMEOUT)
+                await wait_for_selectable_item_text(test_client, row, timeout_ms = _CE_TIMEOUT)
 
                 stored = Person.collection().load(row)
                 assert stored is not None, 'Save must persist the new entity'
@@ -550,33 +550,33 @@ async def test_collection_editor_new_and_delete_entity(monkeypatch, ts_instance)
 
                 # Declined confirmation: nothing is deleted.
                 await _press_named_button(test_client, 'delete')
-                await wait_for_dialog_button(test_client, 'No', timeout_ms=_CE_TIMEOUT)
+                await wait_for_dialog_button(test_client, 'No', timeout_ms = _CE_TIMEOUT)
                 await asyncio.sleep(UI_SETTLE_S)
                 await _press_named_button(test_client, 'No')
 
                 assert Person.collection().load(row) is not None, 'declining must not delete'
-                await wait_for_selectable_item_text(test_client, row, timeout_ms=_CE_TIMEOUT)
+                await wait_for_selectable_item_text(test_client, row, timeout_ms = _CE_TIMEOUT)
 
                 await _press_named_button(test_client, 'delete')
-                await wait_for_dialog_button(test_client, 'Yes', timeout_ms=_CE_TIMEOUT)
+                await wait_for_dialog_button(test_client, 'Yes', timeout_ms = _CE_TIMEOUT)
                 await asyncio.sleep(UI_SETTLE_S)
                 await _press_named_button(test_client, 'Yes')
 
                 assert Person.collection().load(row) is None, 'confirmed delete must remove the entity'
                 await wait_until(
                     lambda: test_client.execute_js(f'![...document.querySelectorAll(".rio-selectable-item")].some(el => el.innerText === "{row}")'),
-                    timeout_s=10.0,
-                    message='deleted entity to disappear from the list',
+                    timeout_s   = 10.0,
+                    message     = 'deleted entity to disappear from the list',
                 )
                 # on_deleted_entity also clears the right pane -- with no current entity
                 # there is no stocker to press 'delete' on any more.
                 await wait_until(
                     lambda: 'delete' not in {b.content for b in test_client.get_components(rio.Button)},
-                    timeout_s=10.0,
-                    message='stocker pane to be cleared after deletion',
+                    timeout_s   = 10.0,
+                    message     = 'stocker pane to be cleared after deletion',
                 )
 
-                searchable_list = ce.searchable_list
+                searchable_list                                                                     = ce.searchable_list
                 test_client.get_component(DynamicComponent).session[UserSessionContext].interactive = None
 
             wr = weakref.ref(ce)
@@ -586,7 +586,7 @@ async def test_collection_editor_new_and_delete_entity(monkeypatch, ts_instance)
 
             searchable_list.release()
             if widget is not None:
-                widget.component = None
+                widget.component    = None
                 widget.subcomponent = None
             widget = None
             del searchable_list

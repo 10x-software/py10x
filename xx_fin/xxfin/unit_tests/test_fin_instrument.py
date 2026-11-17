@@ -15,90 +15,90 @@ from xxfin.pricing_context import PricingContext
 
 class TestFinInstrument:
     def setup_method(self):
-        self.pc = PricingContext.current()
-        self.md_basis = self.pc.md_basis
+        self.pc         = PricingContext.current()
+        self.md_basis   = self.pc.md_basis
 
-        self.usd_cu = CcyUnit.existing_instance(denominated=Ccy('USD'))
-        self.gbp_cu = CcyUnit.existing_instance(denominated=Ccy('GBP'))
-        self.cad_cu = CcyUnit.existing_instance(denominated=Ccy('CAD'))
+        self.usd_cu = CcyUnit.existing_instance(denominated = Ccy('USD'))
+        self.gbp_cu = CcyUnit.existing_instance(denominated = Ccy('GBP'))
+        self.cad_cu = CcyUnit.existing_instance(denominated = Ccy('CAD'))
 
-        self.usd_cf = CcyForward.existing_instance(denominated=Ccy('USD'), end_date=date(2026, 8, 4))
-        self.gbp_cf = CcyForward.existing_instance(denominated=Ccy('GBP'), end_date=date(2026, 8, 4))
-        self.cad_cf = CcyForward.existing_instance(denominated=Ccy('CAD'), end_date=date(2026, 8, 4))
-        self.cfs = [self.usd_cf, self.gbp_cf, self.cad_cf]
+        self.usd_cf = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = date(2026, 8, 4))
+        self.gbp_cf = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = date(2026, 8, 4))
+        self.cad_cf = CcyForward.existing_instance(denominated = Ccy('CAD'), end_date = date(2026, 8, 4))
+        self.cfs    = [self.usd_cf, self.gbp_cf, self.cad_cf]
 
-        d6m_us = RDate('6M').apply(self.pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
-        d6y_us = RDate('6Y').apply(self.pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
-        d2y_gb = RDate('1Y').apply(self.pc.md_date, FinCalendar('GB'), BIZDAY_ROLL_RULE.FOLLOWING)
-        d3y_gb = RDate('3Y').apply(self.pc.md_date, FinCalendar('GB'), BIZDAY_ROLL_RULE.FOLLOWING)
-        self.usd_cf_6m = CcyForward.existing_instance(denominated=Ccy('USD'), end_date=d6m_us)
-        self.usd_cf_6y = CcyForward.existing_instance(denominated=Ccy('USD'), end_date=d6y_us)
-        self.gbp_cf_2y = CcyForward.existing_instance(denominated=Ccy('GBP'), end_date=d2y_gb)
-        self.gbp_cf_3y = CcyForward.existing_instance(denominated=Ccy('GBP'), end_date=d3y_gb)
+        d6m_us          = RDate('6M').apply(self.pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
+        d6y_us          = RDate('6Y').apply(self.pc.md_date, FinCalendar('US'), BIZDAY_ROLL_RULE.FOLLOWING)
+        d2y_gb          = RDate('1Y').apply(self.pc.md_date, FinCalendar('GB'), BIZDAY_ROLL_RULE.FOLLOWING)
+        d3y_gb          = RDate('3Y').apply(self.pc.md_date, FinCalendar('GB'), BIZDAY_ROLL_RULE.FOLLOWING)
+        self.usd_cf_6m  = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = d6m_us)
+        self.usd_cf_6y  = CcyForward.existing_instance(denominated = Ccy('USD'), end_date = d6y_us)
+        self.gbp_cf_2y  = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = d2y_gb)
+        self.gbp_cf_3y  = CcyForward.existing_instance(denominated = Ccy('GBP'), end_date = d3y_gb)
 
-        self.gbp_fxc = FXForwardCurveSimple(mkt_name='GBP/USD', **self.md_basis)
-        self.cad_fxc = FXForwardCurveSimple(mkt_name='USD/CAD', **self.md_basis)
+        self.gbp_fxc = FXForwardCurveSimple(mkt_name = 'GBP/USD', **self.md_basis)
+        self.cad_fxc = FXForwardCurveSimple(mkt_name = 'USD/CAD', **self.md_basis)
 
-        self.usd_zrc = ZeroRateCurve(mkt_name='SOFR', **self.md_basis)
-        self.gbp_zrc = ZeroRateCurve(mkt_name='SONIA', **self.md_basis)
-        self.cad_zrc = ZeroRateCurve(mkt_name='CORRA', **self.md_basis)
+        self.usd_zrc = ZeroRateCurve(mkt_name = 'SOFR', **self.md_basis)
+        self.gbp_zrc = ZeroRateCurve(mkt_name = 'SONIA', **self.md_basis)
+        self.cad_zrc = ZeroRateCurve(mkt_name = 'CORRA', **self.md_basis)
 
-        self.sofr_cash_depos = [
-            IRCashDepositQuotable.existing_instance(tenor=RDate('1B'), mkt_name='SOFR', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('1W'), mkt_name='SOFR', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('1M'), mkt_name='SOFR', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('3M'), mkt_name='SOFR', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('6M'), mkt_name='SOFR', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('9M'), mkt_name='SOFR', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('12M'), mkt_name='SOFR', **self.md_basis),
+        self.sofr_cash_depos    = [
+            IRCashDepositQuotable.existing_instance(tenor = RDate('1B'), mkt_name = 'SOFR', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('1W'), mkt_name = 'SOFR', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('1M'), mkt_name = 'SOFR', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('3M'), mkt_name = 'SOFR', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('6M'), mkt_name = 'SOFR', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('9M'), mkt_name = 'SOFR', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('12M'), mkt_name = 'SOFR', **self.md_basis),
         ]
-        self.sofr_swaps = [
-            IRSwapQuotable.existing_instance(tenor=RDate('5Y'), mkt_name='SOFR', **self.md_basis),
-            IRSwapQuotable.existing_instance(tenor=RDate('10Y'), mkt_name='SOFR', **self.md_basis),
-            IRSwapQuotable.existing_instance(tenor=RDate('20Y'), mkt_name='SOFR', **self.md_basis),
-            IRSwapQuotable.existing_instance(tenor=RDate('30Y'), mkt_name='SOFR', **self.md_basis),
-        ]
-
-        self.sonia_cash_depos = [
-            IRCashDepositQuotable.existing_instance(tenor=RDate('1B'), mkt_name='SONIA', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('1W'), mkt_name='SONIA', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('1M'), mkt_name='SONIA', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('3M'), mkt_name='SONIA', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('6M'), mkt_name='SONIA', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('9M'), mkt_name='SONIA', **self.md_basis),
-            IRCashDepositQuotable.existing_instance(tenor=RDate('12M'), mkt_name='SONIA', **self.md_basis),
-        ]
-        self.sonia_swaps = [
-            IRSwapQuotable.existing_instance(tenor=RDate('5Y'),  mkt_name='SONIA', **self.md_basis),
-            IRSwapQuotable.existing_instance(tenor=RDate('10Y'), mkt_name='SONIA', **self.md_basis),
-            IRSwapQuotable.existing_instance(tenor=RDate('20Y'), mkt_name='SONIA', **self.md_basis),
-            IRSwapQuotable.existing_instance(tenor=RDate('30Y'), mkt_name='SONIA', **self.md_basis),
+        self.sofr_swaps         = [
+            IRSwapQuotable.existing_instance(tenor = RDate('5Y'), mkt_name = 'SOFR', **self.md_basis),
+            IRSwapQuotable.existing_instance(tenor = RDate('10Y'), mkt_name = 'SOFR', **self.md_basis),
+            IRSwapQuotable.existing_instance(tenor = RDate('20Y'), mkt_name = 'SOFR', **self.md_basis),
+            IRSwapQuotable.existing_instance(tenor = RDate('30Y'), mkt_name = 'SOFR', **self.md_basis),
         ]
 
-        self.gbp_fx_spot = FXSpotQuotable(mkt_name='GBP/USD', **self.md_basis)
+        self.sonia_cash_depos   = [
+            IRCashDepositQuotable.existing_instance(tenor = RDate('1B'), mkt_name = 'SONIA', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('1W'), mkt_name = 'SONIA', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('1M'), mkt_name = 'SONIA', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('3M'), mkt_name = 'SONIA', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('6M'), mkt_name = 'SONIA', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('9M'), mkt_name = 'SONIA', **self.md_basis),
+            IRCashDepositQuotable.existing_instance(tenor = RDate('12M'), mkt_name = 'SONIA', **self.md_basis),
+        ]
+        self.sonia_swaps        = [
+            IRSwapQuotable.existing_instance(tenor = RDate('5Y'),  mkt_name = 'SONIA', **self.md_basis),
+            IRSwapQuotable.existing_instance(tenor = RDate('10Y'), mkt_name = 'SONIA', **self.md_basis),
+            IRSwapQuotable.existing_instance(tenor = RDate('20Y'), mkt_name = 'SONIA', **self.md_basis),
+            IRSwapQuotable.existing_instance(tenor = RDate('30Y'), mkt_name = 'SONIA', **self.md_basis),
+        ]
+
+        self.gbp_fx_spot = FXSpotQuotable(mkt_name = 'GBP/USD', **self.md_basis)
         self.gbp_fx_fwds = [
-            FXForwardQuotable.existing_instance(tenor=RDate('1B'),  mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('1W'),  mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('1M'),  mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('3M'),  mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('6M'),  mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('9M'),  mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('12M'), mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('2Y'),  mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('5Y'),  mkt_name='GBP/USD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('20Y'), mkt_name='GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('1B'),  mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('1W'),  mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('1M'),  mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('3M'),  mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('6M'),  mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('9M'),  mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('12M'), mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('2Y'),  mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('5Y'),  mkt_name = 'GBP/USD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('20Y'), mkt_name = 'GBP/USD', **self.md_basis),
         ]
 
-        self.cad_fx_spot = FXSpotQuotable(mkt_name='USD/CAD', **self.md_basis)
+        self.cad_fx_spot = FXSpotQuotable(mkt_name = 'USD/CAD', **self.md_basis)
         self.cad_fx_fwds = [
-            FXForwardQuotable.existing_instance(tenor=RDate('1W'),  mkt_name='USD/CAD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('1M'),  mkt_name='USD/CAD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('3M'),  mkt_name='USD/CAD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('6M'),  mkt_name='USD/CAD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('9M'),  mkt_name='USD/CAD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('12M'), mkt_name='USD/CAD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('2Y'),  mkt_name='USD/CAD', **self.md_basis),
-            FXForwardQuotable.existing_instance(tenor=RDate('5Y'),  mkt_name='USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('1W'),  mkt_name = 'USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('1M'),  mkt_name = 'USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('3M'),  mkt_name = 'USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('6M'),  mkt_name = 'USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('9M'),  mkt_name = 'USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('12M'), mkt_name = 'USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('2Y'),  mkt_name = 'USD/CAD', **self.md_basis),
+            FXForwardQuotable.existing_instance(tenor = RDate('5Y'),  mkt_name = 'USD/CAD', **self.md_basis),
         ]
 
         self.some_dates = [
@@ -116,15 +116,15 @@ class TestFinInstrument:
     @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_price_ccy(self):
         gbp_fx_now = self.gbp_fxc.now_rate
-        assert self.usd_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / gbp_fx_now, abs=1e-15)
-        assert self.usd_cf.price_ccy(Ccy('GBP')) == pytest.approx(self.usd_cf.price / gbp_fx_now, abs=1e-15)
+        assert self.usd_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / gbp_fx_now, abs = 1e-15)
+        assert self.usd_cf.price_ccy(Ccy('GBP')) == pytest.approx(self.usd_cf.price / gbp_fx_now, abs = 1e-15)
 
         cad_fx_now = self.cad_fxc.now_rate
-        assert self.usd_cu.price_ccy(Ccy('CAD')) == pytest.approx(cad_fx_now, abs=1e-15)
-        assert self.usd_cf.price_ccy(Ccy('CAD')) == pytest.approx(self.usd_cf.price * cad_fx_now, abs=1e-15)
+        assert self.usd_cu.price_ccy(Ccy('CAD')) == pytest.approx(cad_fx_now, abs = 1e-15)
+        assert self.usd_cf.price_ccy(Ccy('CAD')) == pytest.approx(self.usd_cf.price * cad_fx_now, abs = 1e-15)
 
-        assert self.cad_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / cad_fx_now / gbp_fx_now, abs=1e-15)
-        assert self.cad_cu.price_ccy(Ccy('GBP')) == pytest.approx(self.cad_cu.price / cad_fx_now / gbp_fx_now, abs=1e-15)
+        assert self.cad_cu.price_ccy(Ccy('GBP')) == pytest.approx(1.0 / cad_fx_now / gbp_fx_now, abs = 1e-15)
+        assert self.cad_cu.price_ccy(Ccy('GBP')) == pytest.approx(self.cad_cu.price / cad_fx_now / gbp_fx_now, abs = 1e-15)
 
     def test_cash_deposit_pays_on_maturity(self):
         for depo in (*self.sofr_cash_depos, *self.sonia_cash_depos):
@@ -140,11 +140,11 @@ class TestFinInstrument:
         # Deposit pillars are maturity dates. Swap pillars discount a coupon that stops
         # accruing at the period end and is paid on the settlement lag. Both must agree
         # with QuantLib's DepositRateHelper and OISRateHelper on the dev quotes.
-        ql_curve = ZeroRateCurveQL(mkt_name=mkt, **self.md_basis).payload
-        native_curve = ZeroRateCurve(mkt_name=mkt, **self.md_basis).payload
+        ql_curve        = ZeroRateCurveQL(mkt_name = mkt, **self.md_basis).payload
+        native_curve    = ZeroRateCurve(mkt_name = mkt, **self.md_basis).payload
         assert list(native_curve.dates) == list(ql_curve.dates)
         for d in native_curve.dates:
-            assert native_curve.value(d) == pytest.approx(ql_curve.value(d), abs=1e-8), d
+            assert native_curve.value(d) == pytest.approx(ql_curve.value(d), abs = 1e-8), d
 
     def test_disc_curve(self):
         assert self.usd_cf.disc_curve == self.usd_zrc
@@ -218,11 +218,11 @@ class TestFinInstrument:
 
     @pytest.mark.usefixtures('cxx_or_py_zero_rate_curve')
     def test_discount_factor(self):
-        old_d = self.pc.md_date - timedelta(days=365)
+        old_d = self.pc.md_date - timedelta(days = 365)
         for cf, zrc in zip(
             [self.usd_cf, self.gbp_cf, self.cad_cf],
             [self.usd_zrc.payload, self.gbp_zrc.payload, self.cad_zrc.payload],
-            strict=True,
+            strict = True,
         ):
             assert cf.discount_factor(old_d) == 1.0
             for d in self.some_dates:

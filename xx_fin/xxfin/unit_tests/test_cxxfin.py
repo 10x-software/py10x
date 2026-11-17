@@ -21,11 +21,11 @@ def test_product(values, expected):
 
 class TestCxxSampleTraitable:
     class SampleTraitable(Traitable):
-        s_cxx_mixins = [cxxfin.BSampleTraitable]
+        s_cxx_mixins    = [cxxfin.BSampleTraitable]
 
-        trait1: int = RT(10)
-        trait2: float = RT(1.5)
-        trait3: float = RT()
+        trait1: int     = RT(10)
+        trait2: float   = RT(1.5)
+        trait3: float   = RT()
 
     def test_trait3_cxx_getter(self):
         t = self.SampleTraitable()

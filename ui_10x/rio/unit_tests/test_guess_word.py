@@ -71,17 +71,17 @@ def _release_game(game, root) -> None:
         if w is not None:
             if 'on_press' in getattr(w, '_kwargs', {}):
                 w['on_press'] = None
-            w.component = None
-            w.subcomponent = None
-            ed.widget = None
+            w.component     = None
+            w.subcomponent  = None
+            ed.widget       = None
     te.trait_editors.clear()
     te.entity = None
     te.main_w = None
 
     table = game.table
     table.entities.clear()
-    table.component = None
-    table.subcomponent = None
+    table.component     = None
+    table.subcomponent  = None
     game.attempts.clear()
 
     if getattr(game, 'layout', None) is not None:
@@ -89,8 +89,8 @@ def _release_game(game, root) -> None:
     if root is not None:
         if getattr(root, 'open_callback', None) is not None:
             root.open_callback = None
-        root.component = None
-        root.subcomponent = None
+        root.component      = None
+        root.subcomponent   = None
         if getattr(root, '_layout', None) is not None:
             root._layout = None
 
@@ -101,8 +101,8 @@ async def _type_blur_try(client, game, session_owner) -> tuple[str, int]:
         client,
         f'document.querySelectorAll(".rio-rectangle").length >= {count * num_chars}',
     )
-    pool = _GuessWordData.noun_pool()[num_chars]
-    guess = next(w for w in pool if w.upper() != secret).upper()
+    pool    = _GuessWordData.noun_pool()[num_chars]
+    guess   = next(w for w in pool if w.upper() != secret).upper()
 
     await client._page.click(LINE_EDIT_INPUT)
     await client._page.keyboard.type(guess)
@@ -111,7 +111,7 @@ async def _type_blur_try(client, game, session_owner) -> tuple[str, int]:
     await client.execute_js('document.querySelector(".rio-input-box input").blur();')
     await wait_until(
         lambda: _in_session(session_owner, lambda: game.guess == guess),
-        message='guess committed on lost focus',
+        message = 'guess committed on lost focus',
     )
     try_btn = next(b for b in client.get_components(rio.Button) if b.content == 'Try')
     await wait_for_pressable_sensitive(client, True)
@@ -123,18 +123,18 @@ async def _type_blur_try(client, game, session_owner) -> tuple[str, int]:
 
 async def test_guess_word_try_renders_letters_in_cells(silence_message_boxes) -> None:
     """Examples page: type, blur, Try — first row shows the guess."""
-    app = rio.App(name='guess_word_test', build=GuessWordComponent, on_session_start=on_session_start)
+    app = rio.App(name = 'guess_word_test', build = GuessWordComponent, on_session_start = on_session_start)
     async with rio.testing.BrowserClient(app) as client:
         await asyncio.sleep(UI_SETTLE_S)
-        page = client.get_component(GuessWordComponent)
-        dialog = page.session[GuessWordDialog]
-        game = _game(dialog)
-        guess, n = await _type_blur_try(client, game, page)
+        page        = client.get_component(GuessWordComponent)
+        dialog      = page.session[GuessWordDialog]
+        game        = _game(dialog)
+        guess, n    = await _type_blur_try(client, game, page)
         try:
             assert not [c for c in silence_message_boxes if c[0] == 'warn'], silence_message_boxes
             grid = client.get_component(TraitableTableGrid)
             assert ''.join(cell[0] for cell in grid.rows[0]) == guess
-            await wait_for_js_value(client, _CELL_LETTERS_JS.format(n=n), guess)
+            await wait_for_js_value(client, _CELL_LETTERS_JS.format(n = n), guess)
         finally:
             _in_session(page, lambda: _release_game(game, dialog))
             page.session[UserSessionContext].interactive = None
@@ -144,11 +144,11 @@ async def test_guess_word_try_renders_letters_in_cells(silence_message_boxes) ->
 async def test_guess_word_desktop_exec_shape(silence_message_boxes) -> None:
     """``guess_word.__main__``: Game under INTERACTIVE, then ``Dialog.exec``-style session."""
     with INTERACTIVE():
-        game = Game()
-        dialog = UxDialog(
+        game    = Game()
+        dialog  = UxDialog(
             game.widget(),
-            title=f'You have {game.count} attempts to guess a word',
-            open_callback=game.bind,
+            title           = f'You have {game.count} attempts to guess a word',
+            open_callback   = game.bind,
         )
 
         def on_session_start(session):
@@ -156,20 +156,20 @@ async def test_guess_word_desktop_exec_shape(silence_message_boxes) -> None:
                 dialog.on_open()
 
         app = rio.App(
-            name='guess_word_desktop_test',
-            build=lambda d=dialog: DynamicComponent(d),
-            on_session_start=on_session_start,
-            default_attachments=[UserSessionContext()],
+            name                = 'guess_word_desktop_test',
+            build               = lambda d = dialog: DynamicComponent(d),
+            on_session_start    = on_session_start,
+            default_attachments = [UserSessionContext()],
         )
         async with rio.testing.BrowserClient(app) as client:
             await asyncio.sleep(UI_SETTLE_S)
-            root = client.get_component(DynamicComponent)
-            guess, n = await _type_blur_try(client, game, root)
+            root        = client.get_component(DynamicComponent)
+            guess, n    = await _type_blur_try(client, game, root)
             try:
                 assert not [c for c in silence_message_boxes if c[0] == 'warn'], silence_message_boxes
                 grid = client.get_component(TraitableTableGrid)
                 assert ''.join(cell[0] for cell in grid.rows[0]) == guess
-                await wait_for_js_value(client, _CELL_LETTERS_JS.format(n=n), guess)
+                await wait_for_js_value(client, _CELL_LETTERS_JS.format(n = n), guess)
             finally:
                 _in_session(root, lambda: _release_game(game, dialog))
                 root.session[UserSessionContext].interactive = None

@@ -18,7 +18,7 @@ import rio
 
 
 def test_multi_choice_flat_select_deselect() -> None:
-    mc = MultiChoice(choices=['Alpha', 'Beta', 'Gamma'])
+    mc = MultiChoice(choices = ['Alpha', 'Beta', 'Gamma'])
     assert mc.widget() is not None
 
     mc.on_item_selected(None, 'Alpha', True)
@@ -34,8 +34,8 @@ def test_multi_choice_flat_select_deselect() -> None:
 
 
 def test_multi_choice_directory_builds() -> None:
-    mc = MultiChoice(choices=ANIMALS)
-    widget = mc.widget()
+    mc      = MultiChoice(choices = ANIMALS)
+    widget  = mc.widget()
     assert widget is not None
     # Selection mode radios only appear for Directory / tree source.
     assert mc.rb is not None
@@ -44,8 +44,8 @@ def test_multi_choice_directory_builds() -> None:
 
 async def test_multi_choice_flat_browser_select_deselect() -> None:
     """Click source list to select, then selection list to deselect."""
-    mc = MultiChoice(choices=['Alpha', 'Beta', 'Gamma'])
-    widget = mc.widget()
+    mc      = MultiChoice(choices = ['Alpha', 'Beta', 'Gamma'])
+    widget  = mc.widget()
 
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
         await asyncio.sleep(UI_SETTLE_S)
@@ -84,15 +84,15 @@ async def test_multi_choice_flat_browser_select_deselect() -> None:
 
 async def test_multi_choice_directory_browser_select_deselect() -> None:
     """Directory tree: click an item to select, then click selection pane to remove."""
-    mc = MultiChoice(choices=ANIMALS)
-    widget = mc.widget()
+    mc      = MultiChoice(choices = ANIMALS)
+    widget  = mc.widget()
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
         await asyncio.sleep(UI_SETTLE_S)
         assert mc.rb is not None
         assert mc.selection_list is not None
         assert mc.rb['title'] == 'Selection Mode'
-        assert await test_client.playwright_page.get_by_text('Selection Mode', exact=True).count() == 1
-        assert await test_client.playwright_page.get_by_text('Animals', exact=True).count() == 1
+        assert await test_client.playwright_page.get_by_text('Selection Mode', exact = True).count() == 1
+        assert await test_client.playwright_page.get_by_text('Animals', exact = True).count() == 1
 
         from rio.components.error_placeholder import ErrorPlaceholder
 
@@ -104,7 +104,7 @@ async def test_multi_choice_directory_browser_select_deselect() -> None:
         assert 'Mollusks' in texts
 
         # Tree labels are not .rio-selectable-item; click the visible text.
-        await test_client.playwright_page.get_by_text('Mollusks', exact=True).click()
+        await test_client.playwright_page.get_by_text('Mollusks', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
 
         assert mc.values_selected == ['Mollusks']
@@ -113,7 +113,7 @@ async def test_multi_choice_directory_browser_select_deselect() -> None:
         await wait_for_selectable_item_text(test_client, 'Mollusks')
 
         # Selection pane ListWidget copy — second exact 'Mollusks' in the page.
-        await test_client.playwright_page.get_by_text('Mollusks', exact=True).nth(1).click()
+        await test_client.playwright_page.get_by_text('Mollusks', exact = True).nth(1).click()
         await asyncio.sleep(UI_SETTLE_S)
 
         assert mc.values_selected == []
@@ -121,24 +121,24 @@ async def test_multi_choice_directory_browser_select_deselect() -> None:
 
         # LEAF mode: parent nodes must not be added; leaf nodes may.
         # Parent click still expands so children become reachable.
-        await test_client.playwright_page.get_by_text('LEAF', exact=True).click()
+        await test_client.playwright_page.get_by_text('LEAF', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
         assert mc.select_mode() is mc.SELECT_MODE.LEAF
 
-        await test_client.playwright_page.get_by_text('Mammals', exact=True).click()
+        await test_client.playwright_page.get_by_text('Mammals', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
         assert mc.values_selected == []
-        assert await test_client.playwright_page.get_by_text('Cats', exact=True).count() >= 1
+        assert await test_client.playwright_page.get_by_text('Cats', exact = True).count() >= 1
 
-        await test_client.playwright_page.get_by_text('Mollusks', exact=True).click()
+        await test_client.playwright_page.get_by_text('Mollusks', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
         assert mc.values_selected == ['Mollusks']
 
 
 async def test_multi_choice_directory_subdir_mode() -> None:
     """SUBDIR replaces selected children when a parent is chosen."""
-    mc = MultiChoice(choices=ANIMALS)
-    widget = mc.widget()
+    mc      = MultiChoice(choices = ANIMALS)
+    widget  = mc.widget()
 
     def expand(item) -> None:
         item['is_expanded'] = True
@@ -152,21 +152,21 @@ async def test_multi_choice_directory_subdir_mode() -> None:
         await asyncio.sleep(UI_SETTLE_S)
         page = test_client.playwright_page
 
-        await page.get_by_text('SUBDIR', exact=True).click()
+        await page.get_by_text('SUBDIR', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
         assert mc.select_mode() is mc.SELECT_MODE.SUBDIR
 
-        await page.get_by_text('Cats', exact=True).click()
+        await page.get_by_text('Cats', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
-        await page.get_by_text('Dogs', exact=True).click()
+        await page.get_by_text('Dogs', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
         assert mc.values_selected == ['Cats', 'Dogs']
 
-        await page.get_by_text('Mammals', exact=True).click()
+        await page.get_by_text('Mammals', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
         assert mc.values_selected == ['Mammals']
         assert [c.text() for c in mc.selection_list.get_children()] == ['Mammals']
 
-        await page.get_by_text('Cats', exact=True).click()
+        await page.get_by_text('Cats', exact = True).click()
         await asyncio.sleep(UI_SETTLE_S)
         assert mc.values_selected == ['Mammals']

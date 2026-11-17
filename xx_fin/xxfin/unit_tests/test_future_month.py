@@ -59,24 +59,24 @@ class TestFutureMonth:
         assert FutureMonth.date_to_fut_month(date(2026, 2, 15)) == 'G2026'
         assert FutureMonth.date_to_fut_month(date(2028, 2, 29)) == 'G2028'
 
-        assert FutureMonth.date_to_fut_month(date(2026, 1, 1), two_digit_year=False) == 'F2026'
-        assert FutureMonth.date_to_fut_month(date(2026, 1, 1), two_digit_year=True) == 'F26'
+        assert FutureMonth.date_to_fut_month(date(2026, 1, 1), two_digit_year = False) == 'F2026'
+        assert FutureMonth.date_to_fut_month(date(2026, 1, 1), two_digit_year = True) == 'F26'
 
     def test_next_fut_month(self):
         assert FutureMonth.next_fut_month('f26') == 'G2026'  # lower case
         assert FutureMonth.next_fut_month('F26') == 'G2026'
         assert FutureMonth.next_fut_month('F2026') == 'G2026'
-        assert FutureMonth.next_fut_month('f2026', next_num=1) == 'G2026'
-        assert FutureMonth.next_fut_month('F2026', next_num=0) == 'F2026'
-        assert FutureMonth.next_fut_month('F26',   next_num=0) == 'F26'
+        assert FutureMonth.next_fut_month('f2026', next_num = 1) == 'G2026'
+        assert FutureMonth.next_fut_month('F2026', next_num = 0) == 'F2026'
+        assert FutureMonth.next_fut_month('F26',   next_num = 0) == 'F26'
 
-        assert FutureMonth.next_fut_month('F2026', next_num=2) == 'H2026'
-        assert FutureMonth.next_fut_month('f2026', next_num=5) == 'M2026'
-        assert FutureMonth.next_fut_month('F2026', next_num=11) == 'Z2026'
-        assert FutureMonth.next_fut_month('F2026', next_num=12) == 'F2027'
+        assert FutureMonth.next_fut_month('F2026', next_num = 2) == 'H2026'
+        assert FutureMonth.next_fut_month('f2026', next_num = 5) == 'M2026'
+        assert FutureMonth.next_fut_month('F2026', next_num = 11) == 'Z2026'
+        assert FutureMonth.next_fut_month('F2026', next_num = 12) == 'F2027'
 
-        assert FutureMonth.next_fut_month('F60', next_num=0) == 'F60'
-        assert FutureMonth.next_fut_month('F60', next_num=1) == 'G1960'
+        assert FutureMonth.next_fut_month('F60', next_num = 0) == 'F60'
+        assert FutureMonth.next_fut_month('F60', next_num = 1) == 'G1960'
 
 
     def test_number_of_next_fut_months(self):

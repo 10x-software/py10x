@@ -18,9 +18,9 @@ import rio
 _LINES: list[str] = []
 
 
-class _Note(Traitable, keep_history=False):
-    name: str = T(T.ID)
-    lines: list[str] = RT(Ui.text4list('Lines', flags=Ui.READ_ONLY, min_width=20))
+class _Note(Traitable, keep_history = False):
+    name: str           = T(T.ID)
+    lines: list[str]    = RT(Ui.text4list('Lines', flags = Ui.READ_ONLY, min_width = 20))
 
     def lines_get(self) -> list[str]:
         return list(_LINES)
@@ -35,26 +35,26 @@ async def test_text4list_trait_editor_list_only_and_empty_clears() -> None:
     _LINES = ['one', 'two']
 
     with CACHE_ONLY(), INTERACTIVE():
-        note = _Note(name='n1')
-        editor: TraitableEditor | None = None
-        tw: TextEditForListWidget | None = None
-        root = None
+        note                                = _Note(name = 'n1')
+        editor: TraitableEditor | None      = None
+        tw: TextEditForListWidget | None    = None
+        root                                = None
 
         def on_session_start(session):
             nonlocal editor, tw, root
-            ctx = UserSessionContext()
+            ctx             = UserSessionContext()
             ctx.interactive = BTP.current()
             session.attach(ctx)
             with session_context(session):
                 # Direct ctor — TraitableEditor.editor() needs a multi-segment package path.
-                editor = TraitableEditor(note, _confirm=True)
-                root = editor.main_widget()
-                tw = editor.trait_editors['lines'].widget
+                editor  = TraitableEditor(note, _confirm = True)
+                root    = editor.main_widget()
+                tw      = editor.trait_editors['lines'].widget
 
         app = rio.App(
-            name='text4list_test',
-            build=lambda: DynamicComponent(root),
-            on_session_start=on_session_start,
+            name                = 'text4list_test',
+            build               = lambda: DynamicComponent(root),
+            on_session_start    = on_session_start,
         )
         async with rio.testing.BrowserClient(app) as client:
             await asyncio.sleep(UI_SETTLE_S)
@@ -66,7 +66,7 @@ async def test_text4list_trait_editor_list_only_and_empty_clears() -> None:
             assert tw.to_plain_text() == ''
             assert tw.widget_value() == []
 
-            with pytest.raises(TypeError, match='list is expected'):
+            with pytest.raises(TypeError, match = 'list is expected'):
                 tw._set_value('not-a-list')
 
             tw.set_widget_value(['alpha', 'beta'])
@@ -87,8 +87,8 @@ async def test_text4list_trait_editor_list_only_and_empty_clears() -> None:
         editor.main_w = None
         for ed in editor.trait_editors.values():
             if ed.widget is not None:
-                ed.widget.component = None
-                ed.widget.subcomponent = None
-                ed.widget = None
+                ed.widget.component     = None
+                ed.widget.subcomponent  = None
+                ed.widget               = None
         editor.trait_editors.clear()
         del editor, tw, root, note

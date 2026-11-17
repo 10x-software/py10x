@@ -6,13 +6,13 @@ import pytest
 from xxcommon.rdate import BIZDAY_ROLL_RULE, PROPAGATE_DATES, TENOR_FREQUENCY, RDate
 from xxfin.fin_calendar import FinCalendar
 
-COMPOUNDING = None
-COMPOUND_TRANSFORM = None
-compounding_apply = None
-DAY_COUNT_CONVENTION = None
-RateCurve = None
+COMPOUNDING             = None
+COMPOUND_TRANSFORM      = None
+compounding_apply       = None
+DAY_COUNT_CONVENTION    = None
+RateCurve               = None
 
-@pytest.fixture(autouse=True)
+@pytest.fixture(autouse = True)
 def rebind_globals(cxx_or_py_rates_curve):
     global COMPOUNDING, COMPOUND_TRANSFORM, compounding_apply, DAY_COUNT_CONVENTION, RateCurve
     from xxfin.day_count_convention import DAY_COUNT_CONVENTION
@@ -22,11 +22,11 @@ def rebind_globals(cxx_or_py_rates_curve):
 
 class TestRateCurve:
     def setup_method(self):
-        self.rc = RateCurve(
+        self.rc                     = RateCurve(
             dates   = [date(2020, 1, 1), date(2020, 12, 31)],
             values  = [0.10, 0.20]
         )
-        self.rc.beginning_of_time = date(2019, 12, 1)
+        self.rc.beginning_of_time   = date(2019, 12, 1)
 
         self.additive_dcs = [
             DAY_COUNT_CONVENTION.ACT360,
@@ -52,7 +52,7 @@ class TestRateCurve:
         self.dd_2028_decdec = [date(2027, 12, 31), date(2028, 12, 31)]
         self.dd_2028_janjan = [date(2028, 1, 1), date(2029, 1, 1)]
         self.dd_2028_janfeb = [date(2028, 1, 31), date(2028, 2, 29)]
-        self.some_periods = [self.dd_2028_janjan, self.dd_2028_janjan, self.dd_2028_janfeb]
+        self.some_periods   = [self.dd_2028_janjan, self.dd_2028_janjan, self.dd_2028_janfeb]
 
         self.some_dates = [
             date(2028, 1, 1),
@@ -72,7 +72,7 @@ class TestRateCurve:
         for d1, d2 in self.some_periods:
             for dc in self.additive_dcs:
                 for cmp in self.cmps:
-                    t = dc(d1, d2)
+                    t   = dc(d1, d2)
                     acc = compounding_apply(cmp, COMPOUND_TRANSFORM.RATE_TO_ACCRUAL, t, r)
                     assert self.rc.fixed_rate_accrual(r, d1, d1, dc, cmp) == 1.
                     assert self.rc.fixed_rate_accrual(r, d1, d2, dc, cmp) == acc
@@ -80,18 +80,18 @@ class TestRateCurve:
 
     def test__today(self):
         bot = self.rc.beginning_of_time_as_date()
-        d = date(2028, 1, 1)
+        d   = date(2028, 1, 1)
         assert self.rc._today(None) == bot
         assert self.rc._today(d) == d
 
     def test__conventions(self):
-        dc = DAY_COUNT_CONVENTION.ACT365
-        cmp = COMPOUNDING.ANNUAL
-        cdc = self.rc.quoting_dc_convention
-        ccmp = self.rc.quoting_compounding
-        inp = [(None, None), (dc, None), (None, cmp), (dc, cmp)]
-        out = [(cdc,  ccmp), (dc, ccmp), (cdc,  cmp), (dc, cmp)]
-        for i, o in zip(inp, out, strict=False):
+        dc      = DAY_COUNT_CONVENTION.ACT365
+        cmp     = COMPOUNDING.ANNUAL
+        cdc     = self.rc.quoting_dc_convention
+        ccmp    = self.rc.quoting_compounding
+        inp     = [(None, None), (dc, None), (None, cmp), (dc, cmp)]
+        out     = [(cdc,  ccmp), (dc, ccmp), (cdc,  cmp), (dc, cmp)]
+        for i, o in zip(inp, out, strict = False):
             assert self.rc._conventions(*i) == o
 
     def test_accrual_1(self):
@@ -109,10 +109,10 @@ class TestRateCurve:
 
         today = self.rc.beginning_of_time_as_date()
         for dc, cmp, fn, _ in self.dc_cmps_rTOa_aTOr:
-            acc = fn(dc(today, d), r)
-            self.rc.dc_convention = dc
-            self.rc.compounding   = cmp
-            act_acc = self.rc.accrual(d)
+            acc                     = fn(dc(today, d), r)
+            self.rc.dc_convention   = dc
+            self.rc.compounding     = cmp
+            act_acc                 = self.rc.accrual(d)
             assert acc == act_acc
 
         self.rc.dc_convention = save_dc
@@ -139,8 +139,8 @@ class TestRateCurve:
         assert self.rc.rate(d, self.rc.quoting_dc_convention, self.rc.quoting_compounding, self.rc.beginning_of_time_as_date()) == r
 
     def test_rate(self):
-        d0 = self.some_dates[0]
-        a0 = self.rc.accrual(d0)
+        d0  = self.some_dates[0]
+        a0  = self.rc.accrual(d0)
         bot = self.rc.beginning_of_time_as_date()
         for dc, cmp, _, fn in self.dc_cmps_rTOa_aTOr:
             t = dc(bot, d0)
@@ -155,8 +155,8 @@ class TestRateCurve:
         assert self.rc.rate_fwd(d2, d1) == r
 
     def test_rate_fwd(self):
-        d1, d2 = self.some_dates[:2]
-        bot = self.rc.beginning_of_time_as_date()
+        d1, d2  = self.some_dates[:2]
+        bot     = self.rc.beginning_of_time_as_date()
         # r12 = self.rc.rate_fwd(d1, d2, today = bot)
         a12 = self.rc.accrual(d2, today = bot) / self.rc.accrual(d1, today = bot)
         for dc, cmp, _, fn in self.dc_cmps_rTOa_aTOr:
@@ -165,30 +165,30 @@ class TestRateCurve:
             assert r == fn(t, a12)
 
     def test_rate_from_accrual(self):
-        d = self.some_dates[0]
+        d   = self.some_dates[0]
         bot = self.rc.beginning_of_time_as_date()
-        a = 1.5
+        a   = 1.5
         for dc, cmp, _, fn in self.dc_cmps_rTOa_aTOr:
             t = dc(bot, d)
             r = self.rc.rate_from_accrual(d, a, dc, cmp, bot)
             assert r == fn(t, a)
 
     def test_rate_convert(self):
-        d1, d2 = self.some_dates[:2]
-        r_in = 0.25
+        d1, d2  = self.some_dates[:2]
+        r_in    = 0.25
         for dc_in, cmp_in, rate_to_acc, _ in self.dc_cmps_rTOa_aTOr:
-            t_in = dc_in(d1, d2)
-            acc = rate_to_acc(t_in, r_in)
+            t_in    = dc_in(d1, d2)
+            acc     = rate_to_acc(t_in, r_in)
             for dc_out, cmp_out, _, acc_to_rate in self.dc_cmps_rTOa_aTOr:
-                t_out = dc_out(d1, d2)
+                t_out   = dc_out(d1, d2)
                 r_t_out = self.rc.rate_convert(r_in, d1, d2, dc_in, cmp_in, dc_out, cmp_out)
                 assert r_t_out == (acc_to_rate(t_out, acc), t_out)
 
     def test_rate_convert_exp_const(self):
-        r_in = 0.25
-        exp_cmps = [ COMPOUNDING.CONTINUOUS, COMPOUNDING.ANNUAL, COMPOUNDING.SEMI_ANNUAL,COMPOUNDING.QUARTERLY, COMPOUNDING.MONTHLY]
-        dc = DAY_COUNT_CONVENTION.BB30360
-        dd = self.some_dates
+        r_in        = 0.25
+        exp_cmps    = [ COMPOUNDING.CONTINUOUS, COMPOUNDING.ANNUAL, COMPOUNDING.SEMI_ANNUAL,COMPOUNDING.QUARTERLY, COMPOUNDING.MONTHLY]
+        dc          = DAY_COUNT_CONVENTION.BB30360
+        dd          = self.some_dates
         for cmp_in in exp_cmps:
             for cmp_out in exp_cmps:
                 rr = [self.rc.rate_convert(r_in, dd[0], d, dc, cmp_in, dc, cmp_out)[0] for d in dd[1:]]
@@ -197,31 +197,31 @@ class TestRateCurve:
 
     def test_rate_to_internal(self):
         _d1, d2 = self.some_dates[:2]
-        bot = self.rc.beginning_of_time_as_date()
-        r_init = 0.25
-        dc  = DAY_COUNT_CONVENTION.BB30360
-        cmp = COMPOUNDING.SIMPLE
-        r = self.rc.rate_convert(r_init, bot, d2, dc, cmp, self.rc.dc_convention, self.rc.compounding)[0]
+        bot     = self.rc.beginning_of_time_as_date()
+        r_init  = 0.25
+        dc      = DAY_COUNT_CONVENTION.BB30360
+        cmp     = COMPOUNDING.SIMPLE
+        r       = self.rc.rate_convert(r_init, bot, d2, dc, cmp, self.rc.dc_convention, self.rc.compounding)[0]
         assert self.rc.rate_to_internal(r_init, d2, dc, cmp, bot) == pytest.approx(r)
 
     def test_internal_rate_from_accrual(self):
-        d1 = self.some_dates[0]
-        r = 0.25
-        t = self.rc.dc_convention(self.rc.beginning_of_time_as_date(), d1)
+        d1  = self.some_dates[0]
+        r   = 0.25
+        t   = self.rc.dc_convention(self.rc.beginning_of_time_as_date(), d1)
         acc = compounding_apply(self.rc.compounding, COMPOUND_TRANSFORM.RATE_TO_ACCRUAL, t, r)
         assert self.rc.internal_rate_from_accrual(d1, acc) == r
 
     def test_discount_factor(self):
         d = self.some_dates[0]
         assert self.rc.discount_factor(d,d) == 1.
-        df  = self.rc.discount_factor(d)
+        df = self.rc.discount_factor(d)
         assert df == self.rc.discount_factor(d, self.rc.beginning_of_time_as_date())
         acc = self.rc.accrual(d)
         assert acc * df == pytest.approx(1.)
 
     def test_discount_factors_1(self):
-        save_values = self.rc.values
-        self.rc.values = [0] * len(save_values)
+        save_values     = self.rc.values
+        self.rc.values  = [0] * len(save_values)
         assert self.rc.discount_factors(self.rc.dates) == [1.] * len(save_values)
         self.rc.values = save_values
 
@@ -238,29 +238,29 @@ class TestRateCurve:
             assert self.rc.accrual_fwd(d1, d2) * self.rc.discount_factor_fwd(d1, d2) == pytest.approx(1.)
 
     def test_annuity(self):
-        save_values = self.rc.values
-        self.rc.values = [0] * len(save_values)
+        save_values     = self.rc.values
+        self.rc.values  = [0] * len(save_values)
 
         # tenor           = RDate('1Y')
         # period_freq     = RDate('1Q')
-        period_cal      = FinCalendar.none
-        period_roll_rule= BIZDAY_ROLL_RULE.NO_ROLL
-        pay_delay       = RDate('0C')
-        pay_calendar    = FinCalendar.none
-        pay_roll_rule   = BIZDAY_ROLL_RULE.NO_ROLL
+        period_cal          = FinCalendar.none
+        period_roll_rule    = BIZDAY_ROLL_RULE.NO_ROLL
+        pay_delay           = RDate('0C')
+        pay_calendar        = FinCalendar.none
+        pay_roll_rule       = BIZDAY_ROLL_RULE.NO_ROLL
 
         for tenor in [ RDate('1Y'), RDate('5Y')]:
             for period_freq in [ RDate('1M'), RDate('1Q'), RDate('1S'), RDate('1Y')]:
                 # for dc in self.additive_dcs:
                 for dc in self.all_dcs:
                     for start in self.some_dates:
-                        ann = self.rc.annuity(dc, start, tenor,
+                        ann         = self.rc.annuity(dc, start, tenor,
                                               period_freq, period_cal, period_roll_rule,
                                               pay_delay, pay_calendar, pay_roll_rule,
                                               ## add the rest of the defaults later
                                           )
-                        end = tenor.apply(start, period_cal, period_roll_rule)
-                        full_dcf = dc(start, end)
+                        end         = tenor.apply(start, period_cal, period_roll_rule)
+                        full_dcf    = dc(start, end)
                         assert ann == pytest.approx(full_dcf)
 
         self.rc.values = save_values
@@ -286,15 +286,15 @@ class TestRateCurve:
                     starts, ends, pays = rc.period_dates(spot, tenor, swap_freq, cal, roll_rule, pay_delay, cal, roll_rule, prop, False)
                     float_leg_explicit = sum(
                         rc.rate_fwd(s, e, float_dc, COMPOUNDING.SIMPLE) * float_dc(s, e) * rc.discount_factor(p)
-                        for s, e, p in zip(starts, ends, pays, strict=True)
+                        for s, e, p in zip(starts, ends, pays, strict = True)
                     )
-                    assert float_leg == pytest.approx(float_leg_explicit, abs=1.e-14)
-                    assert swap_rate * annuity == pytest.approx(float_leg, abs=1.e-14)
+                    assert float_leg == pytest.approx(float_leg_explicit, abs = 1.e-14)
+                    assert swap_rate * annuity == pytest.approx(float_leg, abs = 1.e-14)
 
                     if not pay_delay.count:
                         #-- w/o the pay delay the float leg telescopes to df(spot) - df(end)
                         end = tenor.apply(spot, cal, roll_rule)
-                        assert float_leg == pytest.approx(rc.discount_factor(spot) - rc.discount_factor(end), abs=1.e-14)
+                        assert float_leg == pytest.approx(rc.discount_factor(spot) - rc.discount_factor(end), abs = 1.e-14)
 
     def test_swap_legs_for_period_dates(self):
         rc          = self.rc
@@ -307,19 +307,19 @@ class TestRateCurve:
 
         for tenor in [RDate('1Y'), RDate('18M'), RDate('5Y')]:
             for pay_delay in [RDate('0C'), RDate('2C')]:
-                fixed_starts, fixed_ends, fixed_pays = rc.period_dates(spot, tenor, fixed_freq, cal, roll_rule, pay_delay, cal, roll_rule)
-                float_starts, float_ends, float_pays = rc.period_dates(spot, tenor, swap_freq,  cal, roll_rule, pay_delay, cal, roll_rule)
-                fixed_dc_fractions = [fixed_dc(s, e) for s, e in zip(fixed_starts, fixed_ends, strict=True)]
+                fixed_starts, fixed_ends, fixed_pays    = rc.period_dates(spot, tenor, fixed_freq, cal, roll_rule, pay_delay, cal, roll_rule)
+                float_starts, float_ends, float_pays    = rc.period_dates(spot, tenor, swap_freq,  cal, roll_rule, pay_delay, cal, roll_rule)
+                fixed_dc_fractions                      = [fixed_dc(s, e) for s, e in zip(fixed_starts, fixed_ends, strict = True)]
 
                 annuity = rc.annuity_for_dc_fractions(fixed_dc_fractions, fixed_pays)
                 assert annuity == rc.annuity_for_period_dates(fixed_dc, fixed_starts, fixed_ends, fixed_pays)
                 assert annuity == rc.annuity(fixed_dc, spot, tenor, fixed_freq, cal, roll_rule, pay_delay, cal, roll_rule)
 
                 #-- w/o the pay delay the float leg telescopes, otherwise it's the explicit sum
-                float_leg = rc.swap_float_leg_for_period_dates(float_starts, float_ends, float_pays)
-                float_leg_explicit = sum(
+                float_leg           = rc.swap_float_leg_for_period_dates(float_starts, float_ends, float_pays)
+                float_leg_explicit  = sum(
                     (rc.discount_factor(s) / rc.discount_factor(e) - 1.) * rc.discount_factor(p)
-                    for s, e, p in zip(float_starts, float_ends, float_pays, strict=True)
+                    for s, e, p in zip(float_starts, float_ends, float_pays, strict = True)
                 )
                 assert float_leg == pytest.approx(float_leg_explicit, abs = 1.e-15)
 
@@ -352,9 +352,9 @@ class TestRateCurve:
         """
         A stand-in for IRSwapQuotable: what the swap bootstraps take from it (the legs' schedules come from the same RateCurve.period_dates())
         """
-        pay_args = (mc.settle_offset, mc.settlement_calendar, mc.roll_rule_to_settle)
-        fixed_starts, fixed_ends, fixed_pays = rc.period_dates(spot, tenor, RDate(freq = mc.fixed_leg_swap_tenor_frequency, count = 1), mc.calendar, mc.roll_rule, *pay_args)
-        float_starts, float_ends, float_pays = rc.period_dates(spot, tenor, RDate(freq = mc.tenor_frequency,                count = 1), mc.calendar, mc.roll_rule, *pay_args)
+        pay_args                                = (mc.settle_offset, mc.settlement_calendar, mc.roll_rule_to_settle)
+        fixed_starts, fixed_ends, fixed_pays    = rc.period_dates(spot, tenor, RDate(freq = mc.fixed_leg_swap_tenor_frequency, count = 1), mc.calendar, mc.roll_rule, *pay_args)
+        float_starts, float_ends, float_pays    = rc.period_dates(spot, tenor, RDate(freq = mc.tenor_frequency,                count = 1), mc.calendar, mc.roll_rule, *pay_args)
         return SimpleNamespace(
             tenor               = tenor,
             quote               = quote,
@@ -364,7 +364,7 @@ class TestRateCurve:
             end_dates           = float_ends,
             pay_dates           = float_pays,
             fixed_pay_dates     = fixed_pays,
-            fixed_dc_fractions  = [mc.fixed_leg_swap_dc_convention(s, e) for s, e in zip(fixed_starts, fixed_ends, strict=True)],
+            fixed_dc_fractions  = [mc.fixed_leg_swap_dc_convention(s, e) for s, e in zip(fixed_starts, fixed_ends, strict = True)],
         )
 
     s_bootstrap_today   = date(2025, 10, 10)
@@ -376,28 +376,28 @@ class TestRateCurve:
             #-- the 1st swap anchors the beginning of time at its own zero rate
             zrc = RateCurve(beginning_of_time = today)
         else:
-            zrc = RateCurve(
+            zrc                     = RateCurve(
                 dates   = [today, today + timedelta(days = 91), today + timedelta(days = 182)],
                 values  = [0.0420, 0.0418, 0.0414],
             )
-            zrc.beginning_of_time = today
+            zrc.beginning_of_time   = today
         spot = today + timedelta(days = 2)
         for tenor, quote in self.s_bootstrap_swaps:
             solve_swap(zrc, self._swap_quotable(zrc, spot, RDate(tenor), quote, mc), mc, today)
         return zrc
 
-    @pytest.mark.parametrize('swap_freq', [TENOR_FREQUENCY.QUARTER, TENOR_FREQUENCY.YEAR], ids=['Q', 'Y'])
+    @pytest.mark.parametrize('swap_freq', [TENOR_FREQUENCY.QUARTER, TENOR_FREQUENCY.YEAR], ids = ['Q', 'Y'])
     @pytest.mark.parametrize('pay_delay', ['0C', '2C', '5C'])
-    @pytest.mark.parametrize('swaps_only', [False, True], ids=['knots', 'swaps_only'])
+    @pytest.mark.parametrize('swaps_only', [False, True], ids = ['knots', 'swaps_only'])
     def test_swap_bootstrap_reprices(self, use_cxx, swap_freq, pay_delay, swaps_only):
         if use_cxx:
             from xxfin.cxx_zrc_bootstrap import solve_swap
         else:
             from xxfin.py_zrc_bootstrap import solve_swap
 
-        pay_delay = RDate(pay_delay)
-        mc = self._swap_mkt_conventions(swap_freq, pay_delay)
-        zrc = self._bootstrap_curve(solve_swap, mc, swaps_only)
+        pay_delay   = RDate(pay_delay)
+        mc          = self._swap_mkt_conventions(swap_freq, pay_delay)
+        zrc         = self._bootstrap_curve(solve_swap, mc, swaps_only)
 
         today = self.s_bootstrap_today
         spot  = today + timedelta(days = 2)
@@ -414,9 +414,9 @@ class TestRateCurve:
         if swaps_only:
             assert zrc.value(today) == zrc.value(zrc.dates[1]), 'the beginning of time is anchored at the 1st swap zero rate'
 
-    @pytest.mark.parametrize('swap_freq', [TENOR_FREQUENCY.QUARTER, TENOR_FREQUENCY.YEAR], ids=['Q', 'Y'])
+    @pytest.mark.parametrize('swap_freq', [TENOR_FREQUENCY.QUARTER, TENOR_FREQUENCY.YEAR], ids = ['Q', 'Y'])
     @pytest.mark.parametrize('pay_delay', ['0C', '2C', '5C'])
-    @pytest.mark.parametrize('swaps_only', [False, True], ids=['knots', 'swaps_only'])
+    @pytest.mark.parametrize('swaps_only', [False, True], ids = ['knots', 'swaps_only'])
     def test_swap_bootstrap_cxx_vs_py(self, use_cxx, swap_freq, pay_delay, swaps_only):
         if not use_cxx:
             pytest.skip('compares the cxx bootstrap to py on the same (cxx) curve class')
@@ -424,12 +424,12 @@ class TestRateCurve:
         from xxfin.cxx_zrc_bootstrap import solve_swap as cxx_solve_swap
         from xxfin.py_zrc_bootstrap import solve_swap as py_solve_swap
 
-        mc = self._swap_mkt_conventions(swap_freq, RDate(pay_delay))
-        py_dates_values  = self._bootstrap_curve(py_solve_swap,  mc, swaps_only).dates_values()
-        cxx_dates_values = self._bootstrap_curve(cxx_solve_swap, mc, swaps_only).dates_values()
+        mc                  = self._swap_mkt_conventions(swap_freq, RDate(pay_delay))
+        py_dates_values     = self._bootstrap_curve(py_solve_swap,  mc, swaps_only).dates_values()
+        cxx_dates_values    = self._bootstrap_curve(cxx_solve_swap, mc, swaps_only).dates_values()
 
         assert [d for d, _ in cxx_dates_values] == [d for d, _ in py_dates_values]
-        for (d, cxx_v), (_, py_v) in zip(cxx_dates_values, py_dates_values, strict=True):
+        for (d, cxx_v), (_, py_v) in zip(cxx_dates_values, py_dates_values, strict = True):
             assert cxx_v == pytest.approx(py_v, abs = 1.e-11), d
 
     def test_swap_bootstrap_wide_bracket_fallback(self, use_cxx, monkeypatch):
@@ -439,13 +439,13 @@ class TestRateCurve:
         else:
             from xxfin.py_zrc_bootstrap import solve_swap
 
-        mc = self._swap_mkt_conventions(TENOR_FREQUENCY.YEAR, RDate('2C'))
-        expected = self._bootstrap_curve(solve_swap, mc).dates_values()
+        mc          = self._swap_mkt_conventions(TENOR_FREQUENCY.YEAR, RDate('2C'))
+        expected    = self._bootstrap_curve(solve_swap, mc).dates_values()
 
         #-- too narrow to straddle any root, so every swap falls back to the wide bracket
         monkeypatch.setattr(root_solver, 'near_half_width', 1.e-9)
         fallback = self._bootstrap_curve(solve_swap, mc).dates_values()
 
         assert [d for d, _ in fallback] == [d for d, _ in expected]
-        for (d, v), (_, expected_v) in zip(fallback, expected, strict=True):
+        for (d, v), (_, expected_v) in zip(fallback, expected, strict = True):
             assert v == pytest.approx(expected_v, abs = 1.e-11), d
