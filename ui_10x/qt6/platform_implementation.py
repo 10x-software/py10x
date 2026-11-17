@@ -34,7 +34,7 @@ MouseEvent                      = QMouseEvent
 MouseEvent.is_left_button       = lambda self: self.button() == Qt.MouseButton.LeftButton
 MouseEvent.is_right_button      = lambda self: self.button() == Qt.MouseButton.RightButton
 
-Point = QPoint
+Point                           = QPoint
 
 SizePolicy                      = QSizePolicy
 SizePolicy.MINIMUM_EXPANDING    = QSizePolicy.Policy.MinimumExpanding
@@ -49,7 +49,7 @@ ModelIndex                      = QModelIndex
 HeaderView                          = QHeaderView
 HeaderView.section_resized_connect  = lambda self, bound_method: self.sectionResized.connect(bound_method)
 
-Color = QColor
+Color                           = QColor
 
 FontMetrics                     = QFontMetrics
 FontMetrics.__getattr__         = missing_attr
@@ -60,7 +60,7 @@ Widget.__getattr__              = missing_attr
 Horizontal                      = Qt.Orientation.Horizontal
 Vertical                        = Qt.Orientation.Vertical
 
-Layout = QLayout
+Layout                          = QLayout
 
 BoxLayout                       = QBoxLayout
 BoxLayout.__getattr__           = missing_attr
@@ -74,12 +74,12 @@ FormLayout.__getattr__          = missing_attr
 Label                           = QLabel
 Label.__getattr__               = missing_attr
 
-Splitter = QSplitter
+Splitter                        = QSplitter
 
 Style                           = QStyle
 Style.State_Active              = QStyle.StateFlag.State_Active
 
-Style.__getattr__ = missing_attr
+Style.__getattr__               = missing_attr
 
 PushButton                      = QPushButton
 PushButton.clicked_connect      = lambda self, bound_method:    self.clicked.connect(bound_method)
@@ -89,16 +89,16 @@ LineEdit.text_edited_connect        = lambda self, bound_method:    self.textEdi
 LineEdit.editing_finished_connect   = lambda self, bound_method:  self.editingFinished.connect(bound_method)
 LineEdit.set_password_mode          = lambda self:                  self.setEchoMode(QLineEdit.EchoMode.Password)
 
-TextEdit = QPlainTextEdit
+TextEdit                        = QPlainTextEdit
 
 CheckBox                        = QCheckBox
 CheckBox.state_changed_connect  = lambda self, bound_method:    self.stateChanged.connect(bound_method)
 
-ComboBox = QComboBox
+ComboBox                        = QComboBox
 
-GroupBox = QGroupBox
+GroupBox                        = QGroupBox
 
-RadioButton = QRadioButton
+RadioButton                     = QRadioButton
 
 ButtonGroup                     = QButtonGroup
 ButtonGroup.__getattr__         = missing_attr
@@ -107,11 +107,11 @@ ListItem                        = QListWidgetItem
 ListItem.__getattr__            = missing_attr
 ListItem.row                    = lambda self: self.listWidget().row(self)
 
-MatchExactly = Qt.MatchFlag.MatchExactly
+MatchExactly                    = Qt.MatchFlag.MatchExactly
 
-ListWidget = QListWidget
+ListWidget                      = QListWidget
 # clicked → QModelIndex; itemClicked → QListWidgetItem (handlers need item.text()).
-ListWidget.clicked_connect = lambda self, bound_method:    self.itemClicked.connect(bound_method)
+ListWidget.clicked_connect      = lambda self, bound_method:    self.itemClicked.connect(bound_method)
 
 TreeItem                        = QTreeWidgetItem
 TreeItem.__getattr__            = missing_attr
@@ -244,7 +244,7 @@ class MessageBox(QMessageBox):
         return sb == QMessageBox.StandardButton.Yes
 
 
-Application = QApplication
+Application                     = QApplication
 
 class TEXT_ALIGN:
     TOP       = Qt.AlignmentFlag.AlignTop
@@ -259,7 +259,7 @@ class SCROLL:
     ON          = Qt.ScrollBarPolicy.ScrollBarAlwaysOn
     AS_NEEDED   = Qt.ScrollBarPolicy.ScrollBarAsNeeded
 
-ScrollArea = QScrollArea
+ScrollArea                      = QScrollArea
 
 ForegroundRole                  = Qt.ItemDataRole.ForegroundRole
 BackroundRole                   = Qt.ItemDataRole.BackgroundRole

@@ -59,10 +59,10 @@ class TraitableEditor:
     def editor(
         entity: Traitable,
         *alternative_packages,                  #-- if custom editor class should be looked up somewhere else
-        traitable_class_parent = None,     #-- if a custom editor of entity's parent class could be used if it's missing for the entity.__class__
-        verify_custom_class: bool = True,     #-- if a custom editor class should be verified if exists
-        view: TraitableView = None,     #-- if a specific view for the entity should be used
-        read_only: bool = False     #-- browser if True
+        traitable_class_parent      = None,     #-- if a custom editor of entity's parent class could be used if it's missing for the entity.__class__
+        verify_custom_class: bool   = True,     #-- if a custom editor class should be verified if exists
+        view: TraitableView         = None,     #-- if a specific view for the entity should be used
+        read_only: bool             = False     #-- browser if True
     ) -> TraitableEditor:
         editor_class = TraitableEditor.find_editor_class(
             entity.__class__,
