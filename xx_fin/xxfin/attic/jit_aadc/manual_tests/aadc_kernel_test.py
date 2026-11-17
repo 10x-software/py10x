@@ -6,8 +6,8 @@ if __name__ == '__main__':
 
     from xxfin.xxfin_env_vars import XXFinEnvVars
 
-    XXCommonEnvVars.use_cxx_curve = False
-    XXFinEnvVars.use_cxxfin = False
+    XXCommonEnvVars.use_cxx_curve   = False
+    XXFinEnvVars.use_cxxfin         = False
 
     from datetime import date
 
@@ -79,7 +79,7 @@ if __name__ == '__main__':
         print(f'  {cls.__name__:<30}  id = {quotable_id}  dP/dQ = {adj:.6e}')
 
     #-- Reprice under a bumped quote, without rebuilding the kernel
-    some_key = next(iter(kernel.input_handles))
-    bumped_value = kernel.inputs[kernel.input_handles[some_key]] + 0.0001
-    bumped_price = kernel.eval(market_values = {some_key: bumped_value})
+    some_key        = next(iter(kernel.input_handles))
+    bumped_value    = kernel.inputs[kernel.input_handles[some_key]] + 0.0001
+    bumped_price    = kernel.eval(market_values = {some_key: bumped_value})
     print(f'\nbumped {some_key[1]} by 1bp -> price = {bumped_price:.10f}  (delta = {bumped_price - price:.6e})')

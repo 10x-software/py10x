@@ -41,17 +41,17 @@ if __name__ == '__main__':
     print(f'\nDate: {w.current_date}')
     #-- AADC recording
     with AADCContext() as kernel:
-        input_handles = {}
+        input_handles           = {}
         idt                     = IDate(w.current_date)
         w.current_date          = idt
         input_handles['date']   = idt.mark_as_input()
 
-        wst               = idouble(w.leaf_mass_available)
-        w.leaf_mass_available = wst
-        input_handles['mass'] = wst.mark_as_input()
+        wst                     = idouble(w.leaf_mass_available)
+        w.leaf_mass_available   = wst
+        input_handles['mass']   = wst.mark_as_input()
 
-        ls_active = mb.locomotive_speed
-        ls_out = ls_active.mark_as_output()
+        ls_active   = mb.locomotive_speed
+        ls_out      = ls_active.mark_as_output()
 
     print(f'\nAADC Kernel recorded ({kernel.num_passive_warnings()} warnings)')
 
@@ -66,8 +66,8 @@ if __name__ == '__main__':
 
     with PerfTimer() as t:
         result = evaluate_kernel(kernel, deps, inputs, 1)
-    aadc_elapsed = t.elapsed
-    aadc_ls = result.values[ls_out].item()
+    aadc_elapsed    = t.elapsed
+    aadc_ls         = result.values[ls_out].item()
     print(f'AADC:   {aadc_ls:.10f}  match = {abs(aadc_ls - py_ls) < 1e-8}  ({aadc_elapsed/1e3:.2f} us)')
 
     #-- Adjoints: d(price)/d(each_quote)

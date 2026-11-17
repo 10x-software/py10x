@@ -19,14 +19,14 @@ class AadcKernel:
 
     def __init__(self, bound_trait: BoundTrait, graph: BTP = None):
         self._init()
-        self.bound_trait = bound_trait
-        self.graph = graph
-        self.py_res = None
-        self.kernel = None
-        self.input_handles = {}
-        self.inputs = {}
-        self.output = None
-        self.deps = {}
+        self.bound_trait    = bound_trait
+        self.graph          = graph
+        self.py_res         = None
+        self.kernel         = None
+        self.input_handles  = {}
+        self.inputs         = {}
+        self.output         = None
+        self.deps           = {}
 
 
     def build(self, compile_kernel: bool = False):
@@ -35,26 +35,26 @@ class AadcKernel:
         if self.graph is None:
             self.graph = GRAPH_ON()
 
-        bound_trait = self.bound_trait
-        obj: Traitable = bound_trait.obj
+        bound_trait     = self.bound_trait
+        obj: Traitable  = bound_trait.obj
         with self.graph:
             self.py_res = obj.get_trait_value(bound_trait.trait)
 
             mkt_deps = MktDeps(self.graph, bound_trait)
             aadc_ctx = AADCContext()
             with aadc_ctx as kernel:
-                self.kernel = kernel
-                self.input_handles = input_handles = {}
-                self.inputs = inputs = {}
+                self.kernel         = kernel
+                self.input_handles  = input_handles = {}
+                self.inputs         = inputs = {}
                 for cls, obj_id, trait, value in mkt_deps.deps(objects = False):
                     iq = idouble(value)
                     mkt_deps.perturb(cls, obj_id, trait, iq)
                     h = iq.mark_as_input()
                     # TODO: key drops `trait` -- collides if target_class ever has >1 leaf trait
-                    input_handles[(cls, obj_id)] = h
-                    inputs[h] = value
+                    input_handles[(cls, obj_id)]    = h
+                    inputs[h]                       = value
 
-                res_active = obj.get_trait_value(bound_trait.trait)
+                res_active  = obj.get_trait_value(bound_trait.trait)
                 self.output = res_active.mark_as_output()
 
             self.deps = {self.output: list(input_handles.values())}
@@ -109,12 +109,12 @@ class AadcKernel:
         """
         inputs = self._resolve_inputs(market_values)
 
-        adjoint_keys = list(self.input_handles) if adjoints is None else list(adjoints)
-        handles = [self._lookup_handle(key) for key in adjoint_keys]
+        adjoint_keys    = list(self.input_handles) if adjoints is None else list(adjoints)
+        handles         = [self._lookup_handle(key) for key in adjoint_keys]
 
-        result = evaluate_kernel(self.kernel, {self.output: handles}, inputs, 1)
-        value = self._unwrap(result.values[self.output])
+        result  = evaluate_kernel(self.kernel, {self.output: handles}, inputs, 1)
+        value   = self._unwrap(result.values[self.output])
 
-        derivs_by_handle = result.derivs[self.output]
-        adjoints_by_key = {key: self._unwrap(derivs_by_handle[h]) for key, h in zip(adjoint_keys, handles)}
+        derivs_by_handle    = result.derivs[self.output]
+        adjoints_by_key     = {key: self._unwrap(derivs_by_handle[h]) for key, h in zip(adjoint_keys, handles)}
         return (value, adjoints_by_key)

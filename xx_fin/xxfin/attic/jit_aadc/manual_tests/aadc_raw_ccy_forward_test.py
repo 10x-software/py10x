@@ -11,8 +11,8 @@ if __name__ == '__main__':
 
     from xxfin.xxfin_env_vars import XXFinEnvVars
 
-    XXCommonEnvVars.use_cxx_curve = False
-    XXFinEnvVars.use_cxxfin = False
+    XXCommonEnvVars.use_cxx_curve   = False
+    XXFinEnvVars.use_cxxfin         = False
 
     from datetime import date
 
@@ -41,14 +41,14 @@ if __name__ == '__main__':
     print(f'Warmup: {py_price:.10f}  ({py_elapsed/1e3:.2f} us)')
 
     #-- Collect quotables feeding the discount curve
-    zrc = cf.disc_curve
-    all_quotables = {}   #-- quotable -> float_quote
+    zrc             = cf.disc_curve
+    all_quotables   = {}   #-- quotable -> float_quote
     for cls, qdict in zrc.quotables_by_class.items():
         for d, q in qdict.items():
             all_quotables[q] = float(q.quote)
 
     for q, fq in all_quotables.items():
-        q.quote          = fq
+        q.quote = fq
 
     #-- Python baseline
     with PerfTimer() as t:
@@ -69,8 +69,8 @@ if __name__ == '__main__':
             q.quote          = iq
             input_handles[q] = iq.mark_as_input()
 
-        price_active = cf.price
-        price_out = price_active.mark_as_output()
+        price_active    = cf.price
+        price_out       = price_active.mark_as_output()
 
     print(f'\nAADC Kernel recorded ({kernel.num_passive_warnings()} warnings)')
 
@@ -85,8 +85,8 @@ if __name__ == '__main__':
 
     with PerfTimer() as t:
         result = evaluate_kernel(kernel, deps, inputs, 1)
-    aadc_elapsed = t.elapsed
-    aadc_price = result.values[price_out].item()
+    aadc_elapsed    = t.elapsed
+    aadc_price      = result.values[price_out].item()
     print(f'AADC:   {aadc_price:.10f}  match = {abs(aadc_price - py_price) < 1e-8}  ({aadc_elapsed/1e3:.2f} us)')
 
     #-- Adjoints: d(price)/d(each_quote)

@@ -49,8 +49,8 @@ class IDate:
         #-- A bare ordinal (an idouble already on the tape) is how __sub__/__add__ build their
         #   result without a second constructor; anything else is date-like. `idouble` has to be
         #   named here -- it is not a float subclass (its mro is just (idouble, object)).
-        ordinal = value if isinstance(value, (idouble, int, float)) else value.toordinal()
-        self.ordinal = ordinal if isinstance(ordinal, idouble) else idouble(float(ordinal))
+        ordinal         = value if isinstance(value, (idouble, int, float)) else value.toordinal()
+        self.ordinal    = ordinal if isinstance(ordinal, idouble) else idouble(float(ordinal))
 
     def mark_as_input(self, differentiable = True):
         """``differentiable = False`` records a replay-varying input carrying no adjoint, which
