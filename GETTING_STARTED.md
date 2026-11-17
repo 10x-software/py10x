@@ -804,7 +804,7 @@ with ts_union:
     # Usage with TsUnion
     person = Person(first_name="Alice", last_name="Smith")
     person.dob = date(1990, 5, 15)
-    person.save()  # Persists to all stores in the union
+    person.save()  # Persists to the first store in the union
 
     # Search across all stores
     assert Person.load_many(f(first_name="Alice"))[0].first_name=='Alice'
