@@ -28,21 +28,21 @@ _MEASURE = """(() => {
 _PANE_MARGIN_PX = 32
 
 
-def _splitter(proportions, labels=('A' * 48, 'B' * 48)):
+def _splitter(proportions, labels = ('A' * 48, 'B' * 48)):
     return Splitter(
-        children=[rio.Text(t, overflow='nowrap') for t in labels],
-        direction='horizontal',
-        child_proportions=proportions,
+        children            = [rio.Text(t, overflow = 'nowrap') for t in labels],
+        direction           = 'horizontal',
+        child_proportions   = proportions,
     )
 
 
-async def _measure(proportions, settle=1.2):
+async def _measure(proportions, settle = 1.2):
     """Render a splitter and return its Row geometry, plus a second reading.
 
     The second reading catches a relayout loop: pane sizes are derived from the measured
     width, which triggers a rebuild, so a bad derivation oscillates instead of settling.
     """
-    app = rio.App(name='splitter_test', build=lambda: _splitter(proportions))
+    app = rio.App(name = 'splitter_test', build = lambda: _splitter(proportions))
     async with rio.testing.BrowserClient(app) as client:
         await asyncio.sleep(settle)
         first = await client.execute_js(_MEASURE)
@@ -74,8 +74,8 @@ async def test_handle_is_fixed_and_grabbable() -> None:
     Its width is the *hit* box (handle_hit_size), not the thin visible bar -- a 0.25rem
     bar is too small to grab, so the listener's child is the wider invisible box.
     """
-    equal, _ = await _measure([1.0, 1.0])
-    skewed, _ = await _measure([3.0, 1.0])
+    equal, _    = await _measure([1.0, 1.0])
+    skewed, _   = await _measure([3.0, 1.0])
 
     assert equal['kids'][1] == skewed['kids'][1], 'handle width must not follow the proportions'
     assert equal['kids'][1] > 0
@@ -83,7 +83,7 @@ async def test_handle_is_fixed_and_grabbable() -> None:
 
 
 async def test_single_child_has_no_handle() -> None:
-    app = rio.App(name='splitter_one', build=lambda: _splitter([1.0], labels=('only',)))
+    app = rio.App(name = 'splitter_one', build = lambda: _splitter([1.0], labels = ('only',)))
     async with rio.testing.BrowserClient(app) as client:
         await asyncio.sleep(1.2)
         rows = await client.execute_js(_MEASURE)

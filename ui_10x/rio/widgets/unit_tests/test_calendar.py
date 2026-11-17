@@ -13,8 +13,8 @@ async def verify_content(widget, test_client):
 
 async def test_calendar_comprehensive() -> None:
     """Test CalendarWidget with comprehensive client-widget interaction verification."""
-    widget = CalendarWidget()
-    test_date = date(2024, 6, 15)
+    widget      = CalendarWidget()
+    test_date   = date(2024, 6, 15)
 
     async with rio.testing.BrowserClient(lambda: DynamicComponent(widget)) as test_client:
         await asyncio.sleep(0.5)

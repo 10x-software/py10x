@@ -16,11 +16,11 @@ from ui_10x.rio.widgets import LineEdit
 
 async def test_line_edit_comprehensive() -> None:
     """Test LineEdit with comprehensive client-widget interaction verification."""
-    widget = LineEdit('Initial Text')
-    find_input = 'document.querySelector(".rio-input-box").querySelector("input")'
+    widget      = LineEdit('Initial Text')
+    find_input  = 'document.querySelector(".rio-input-box").querySelector("input")'
 
-    edited_calls = []
-    finished_calls = []
+    edited_calls    = []
+    finished_calls  = []
 
     def edited_handler(text):
         edited_calls.append(text)
@@ -52,7 +52,7 @@ async def test_line_edit_comprehensive() -> None:
 
         # Test editing finished
         await test_client.execute_js(find_input + '.blur();')
-        await wait_until(lambda: len(finished_calls) == 1, message='editing_finished handler to run')
+        await wait_until(lambda: len(finished_calls) == 1, message = 'editing_finished handler to run')
         assert widget.text() == await test_client.execute_js(find_input + '.value')
 
         # Test widget changes propagate to client with timeout protection
@@ -77,8 +77,8 @@ async def test_line_edit_comprehensive() -> None:
 async def test_line_edit_disabled_interaction() -> None:
     """Test LineEdit disabled state blocks user interaction."""
 
-    right_button_presses = []
-    left_button_presses = []
+    right_button_presses    = []
+    left_button_presses     = []
 
     class MyLineEdit(LineEdit):
         def mouse_press_event(self, event: i.MouseEvent):
@@ -100,12 +100,12 @@ async def test_line_edit_disabled_interaction() -> None:
         await asyncio.sleep(0.5)
 
         # Test initial enabled state - typing should work
-        async def test_interaction(old_content, new_content, enabled=True):
-            initial_left = len(left_button_presses)
-            initial_right = len(right_button_presses)
-            initial_edited = len(edited_calls)
-            await test_client.click(10, 20, button='right')  # handler
-            await test_client._page.click('.rio-input-box input', click_count=3, force=True)  # select all
+        async def test_interaction(old_content, new_content, enabled = True):
+            initial_left    = len(left_button_presses)
+            initial_right   = len(right_button_presses)
+            initial_edited  = len(edited_calls)
+            await test_client.click(10, 20, button = 'right')  # handler
+            await test_client._page.click('.rio-input-box input', click_count = 3, force = True)  # select all
             await test_client._page.keyboard.press(new_content)
             await asyncio.sleep(1)
 
@@ -127,7 +127,7 @@ async def test_line_edit_disabled_interaction() -> None:
         await wait_for_line_edit_disabled(test_client, True)
 
         # Test that typing is blocked when disabled
-        await test_interaction(widget.text(), 'B', enabled=False)
+        await test_interaction(widget.text(), 'B', enabled = False)
 
         # Re-enable widget
         widget.set_enabled(True)
