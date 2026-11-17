@@ -28,36 +28,36 @@ class Person(Traitable):
     address: Address                    = T(T.EMBEDDED)
 
 class Dict(Traitable):
-    payload: dict                       = T()
+    payload: dict = T()
 
 
 if __name__ == '__main__':
     from core_10x.manual_tests.traitable_serialization_test import MARRITAL_STATUS, Address, Person
 
-    address = Address(street="145 Austin Dr", cszip="Burlington, VT 05401")
+    address = Address(street = "145 Austin Dr", cszip = "Burlington, VT 05401")
 
     woman       = Person(ssn = '008-59-6666', name = 'Alice Smith',     dob = date(1972, 8, 21), _replace = True)
     daughter    = Person(ssn = '008-77-7777', name = 'Ann Smith',       dob = date(1997, 6, 17), _replace = True)
     son         = Person(ssn = '008-99-5555', name = 'Nathan Smith',    dob = date(1999, 9, 23), _replace = True)
 
 
-    man     = Person(_replace = True,
-        ssn     = '009-87-4444',
-        name    = 'John Smith',
-        gender  = True,
-        dob     = date(1965, 2, 3),
+    man = Person(_replace = True,
+        ssn             = '009-87-4444',
+        name            = 'John Smith',
+        gender          = True,
+        dob             = date(1965, 2, 3),
         marrital_status = MARRITAL_STATUS.MARRIED,
-        spouse = woman,
-        children = [daughter, son],
-        address = address
+        spouse          = woman,
+        children        = [daughter, son],
+        address         = address
     )
 
     ss = man.serialize_object()
 
     from core_10x.package_refactoring import PackageRefactoring
 
-    class_id = PackageRefactoring.find_class_id(Person)
-    p_cls = PackageRefactoring.find_class(class_id)
+    class_id    = PackageRefactoring.find_class_id(Person)
+    p_cls       = PackageRefactoring.find_class(class_id)
     assert p_cls is Person
 
     man2 = Person.deserialize_object(Person.s_bclass, None, ss)
@@ -73,8 +73,8 @@ if __name__ == '__main__':
     print(d1 == d2)
 
     d3 = Dict(
-        _replace = True,
-        payload = {
+        _replace    = True,
+        payload     = {
             woman:      1.0,
             daughter:   2.0,
             son:        -1.0

@@ -20,9 +20,9 @@ if __name__ == '__main__':
 
     from infra_10x.testlib.mongo_collection_helper import MongoCollectionHelperStub
 
-    NUM_ITERS = 50_000
-    WARMUP = 1_000
-    NUM_TRIALS = 11
+    NUM_ITERS   = 50_000
+    WARMUP      = 1_000
+    NUM_TRIALS  = 11
 
     payloads = {
         'small': {'_id': 'AAAA', '_rev': 10, 'name': 'test', 'age': 60},
@@ -46,9 +46,9 @@ if __name__ == '__main__':
     }
 
     def once(helper, payload: dict) -> tuple[dict, dict, list]:
-        data = dict(payload)
-        filt: dict = {}
-        pipe: list = []
+        data        = dict(payload)
+        filt: dict  = {}
+        pipe: list  = []
         helper.prepare_filter_and_pipeline(data, filt, pipe)
         return data, filt, pipe
 
@@ -59,8 +59,8 @@ if __name__ == '__main__':
         return t.elapsed / n
 
     def fmt(samples: list[float]) -> str:
-        med = median(samples)
-        lo, hi = min(samples), max(samples)
+        med     = median(samples)
+        lo, hi  = min(samples), max(samples)
         return f'{med:.1f}±{(hi - lo) / 2:.1f}'
 
     paths = (
@@ -74,8 +74,8 @@ if __name__ == '__main__':
     print('-' * 60)
 
     for name, payload in payloads.items():
-        ref_data, ref_filt, ref_pipe = once(MongoCollectionHelperStub, payload)
-        data, filt, pipe = once(MongoCollectionHelper, payload)
+        ref_data, ref_filt, ref_pipe    = once(MongoCollectionHelperStub, payload)
+        data, filt, pipe                = once(MongoCollectionHelper, payload)
         assert filt == ref_filt, f'{name}: filter mismatch'
         assert pipe == ref_pipe, f'{name}: pipeline mismatch'
         assert data == ref_data, f'{name}: data mismatch'
@@ -88,9 +88,9 @@ if __name__ == '__main__':
             for label, helper in paths:
                 samples[label].append(bench(helper, payload, NUM_ITERS))
 
-        a = median(samples['a) pure py'])
-        b = median(samples['b) full cxx'])
-        n_fields = len(payload) - 2
+        a           = median(samples['a) pure py'])
+        b           = median(samples['b) full cxx'])
+        n_fields    = len(payload) - 2
 
         print(f'{name:<10} {n_fields:6d} {fmt(samples["a) pure py"]):>16} {fmt(samples["b) full cxx"]):>16} {a / b:8.2f}x')
         print(f'{"":<10} {"":>6} {"(stdev)":>16} {stdev(samples["a) pure py"]):>16.1f} {stdev(samples["b) full cxx"]):>16.1f}')

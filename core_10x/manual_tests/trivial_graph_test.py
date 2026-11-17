@@ -8,8 +8,8 @@ if __name__ == '__main__':
         p = Person(first_name = 'John', last_name = 'Smith')
 
         print(p.full_name)
-        p.dob = '19630514'
-        p.weight_lbs = 170
+        p.dob           = '19630514'
+        p.weight_lbs    = 170
 
         ser = p.serialize_object()
 

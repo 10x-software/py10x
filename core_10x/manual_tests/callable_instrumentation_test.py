@@ -64,8 +64,8 @@ if __name__ == '__main__':
     #-- 4. instrument_if_target_class()'s cycle guard (searched_classes) still terminates on the
     #    real Traitable.s_history_class/s_traitable_class back-reference, even though the match
     #    check now runs BEFORE the guard (reordered to fix point 1 above).
-    registry_cycle = InstrumentationRegistry(NoopRewriter())
-    registry_cycle.target_base_classes = {Unrelated}   # won't match -- forces nested-class recursion
+    registry_cycle                      = InstrumentationRegistry(NoopRewriter())
+    registry_cycle.target_base_classes  = {Unrelated}   # won't match -- forces nested-class recursion
     registry_cycle.instrument_if_target_class(LocalTraitable)
     print('4. cycle guard still terminates on a real Traitable subclass, OK')
 

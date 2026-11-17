@@ -32,12 +32,12 @@ import json
 import random
 from datetime import UTC
 
-N_DOCS = 1_000
-READ_N_DOCS = 20_000  # bulk-loaded; bump toward 1_000_000 for a large-scale read/search comparison
-N_CATEGORIES = 30
-SAMPLE_SIZE = 500  # point-read / search sample
-HISTORY_ENTITIES = min(500, N_DOCS // 10)
-HISTORY_REVISIONS = 5
+N_DOCS              = 1_000
+READ_N_DOCS         = 20_000  # bulk-loaded; bump toward 1_000_000 for a large-scale read/search comparison
+N_CATEGORIES        = 30
+SAMPLE_SIZE         = 500  # point-read / search sample
+HISTORY_ENTITIES    = min(500, N_DOCS // 10)
+HISTORY_REVISIONS   = 5
 
 if __name__ == '__main__':
     from datetime import datetime, timezone
@@ -52,15 +52,15 @@ if __name__ == '__main__':
 
     random.seed(0)
 
-    class BenchDocBase(Traitable, custom_collection=True, keep_history=False):
-        doc_id: str = T(T.ID)
-        category: str = T()
-        score: float = T()
-        payload: str = T()  # JSON text — see module docstring for why not a dict trait
+    class BenchDocBase(Traitable, custom_collection = True, keep_history = False):
+        doc_id: str     = T(T.ID)
+        category: str   = T()
+        score: float    = T()
+        payload: str    = T()  # JSON text — see module docstring for why not a dict trait
 
-    class BenchLogBase(Traitable, custom_collection=True, keep_history=True):
+    class BenchLogBase(Traitable, custom_collection = True, keep_history = True):
         doc_id: str = T(T.ID)
-        value: int = T()
+        value: int  = T()
 
     BenchDoc = type(f'BenchDoc#{uuid6.uuid7().hex}', (BenchDocBase,), {'__module__': __name__})
     BenchLog = type(f'BenchLog#{uuid6.uuid7().hex}', (BenchLogBase,), {'__module__': __name__})
@@ -73,20 +73,20 @@ if __name__ == '__main__':
         return f'{secs:7.3f}s  {n / secs:10,.0f}/s' if secs > 0 else f'{0:7.3f}s  {"n/a":>10}'
 
     def bench_backend(uri: str) -> dict[str, str]:
-        store = Traitable.store_from_uri(uri, _cache=False, _create_if_needed=True)
+        store                   = Traitable.store_from_uri(uri, _cache = False, _create_if_needed = True)
         results: dict[str, str] = {}
-        doc_coll_name = f'bench_doc_{uuid6.uuid7().hex}'
-        log_coll_name = f'bench_log_{uuid6.uuid7().hex}'
+        doc_coll_name           = f'bench_doc_{uuid6.uuid7().hex}'
+        log_coll_name           = f'bench_log_{uuid6.uuid7().hex}'
 
         with store:
-            categories = [f'cat_{i}' for i in range(N_CATEGORIES)]
-            ids = [f'd{i}' for i in range(N_DOCS)]
+            categories  = [f'cat_{i}' for i in range(N_CATEGORIES)]
+            ids         = [f'd{i}' for i in range(N_DOCS)]
 
             # --- write ---------------------------------------------------------------
             with PerfTimer() as t:
                 for i, doc_id in enumerate(ids):
-                    doc = BenchDoc(doc_id=doc_id, _collection_name=doc_coll_name)
-                    doc.set_values(category=categories[i % N_CATEGORIES], score=random.random() * 1000, payload=make_payload(i))
+                    doc = BenchDoc(doc_id = doc_id, _collection_name = doc_coll_name)
+                    doc.set_values(category = categories[i % N_CATEGORIES], score = random.random() * 1000, payload = make_payload(i))
                     doc.save().throw()
             results['write'] = fmt_rate(N_DOCS, t.elapsed)
 
@@ -115,7 +115,7 @@ if __name__ == '__main__':
             target_category = categories[0]
             with PerfTimer() as t:
                 for _ in range(10):
-                    BenchDoc.load_many(f(category=target_category), _coll_name=doc_coll_name)
+                    BenchDoc.load_many(f(category = target_category), _coll_name = doc_coll_name)
             results['search (no index)'] = fmt_rate(10, t.elapsed)
 
             # --- create index, then re-run the same search + a range query -------------
@@ -125,29 +125,29 @@ if __name__ == '__main__':
 
             with PerfTimer() as t:
                 for _ in range(10):
-                    BenchDoc.load_many(f(category=target_category), _coll_name=doc_coll_name)
+                    BenchDoc.load_many(f(category = target_category), _coll_name = doc_coll_name)
             results['search (indexed)'] = fmt_rate(10, t.elapsed)
 
             with PerfTimer() as t:
                 for _ in range(10):
-                    BenchDoc.load_many(f(score=GT(500.0)), _coll_name=doc_coll_name)
+                    BenchDoc.load_many(f(score = GT(500.0)), _coll_name = doc_coll_name)
             results['range search (indexed)'] = fmt_rate(10, t.elapsed)
 
             # --- history: build revisions, then query the auto-indexed history ----------
             history_ids = ids[:HISTORY_ENTITIES]
             with PerfTimer() as t:
                 for doc_id in history_ids:
-                    log = BenchLog(doc_id=doc_id, _collection_name=log_coll_name)
-                    log.set_values(value=0)
+                    log = BenchLog(doc_id = doc_id, _collection_name = log_coll_name)
+                    log.set_values(value = 0)
                     log.save().throw()
                     for rev in range(1, HISTORY_REVISIONS + 1):
-                        log.set_values(value=rev)
+                        log.set_values(value = rev)
                         log.save().throw()
             results['history writes'] = fmt_rate(HISTORY_ENTITIES * (HISTORY_REVISIONS + 1), t.elapsed)
 
             with PerfTimer() as t:
                 for doc_id in random.sample(history_ids, min(SAMPLE_SIZE, HISTORY_ENTITIES)):
-                    BenchLog.history(_filter=f(_traitable_id=doc_id), _collection_name=log_coll_name)
+                    BenchLog.history(_filter = f(_traitable_id = doc_id), _collection_name = log_coll_name)
             results['history query (indexed)'] = fmt_rate(min(SAMPLE_SIZE, HISTORY_ENTITIES), t.elapsed)
 
             store.delete_collection(doc_coll_name)

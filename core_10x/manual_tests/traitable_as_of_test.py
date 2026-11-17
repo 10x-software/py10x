@@ -25,29 +25,29 @@ class MarriedPerson(Person):
 if __name__ == '__main__':
     from core_10x.manual_tests.traitable_as_of_test import MarriedPerson
 
-    with MongoStore.instance(hostname='localhost', dbname='traitable_history_test'):
+    with MongoStore.instance(hostname = 'localhost', dbname = 'traitable_history_test'):
         MarriedPerson.delete_collection()
         MarriedPerson.s_history_class.delete_collection()
 
         with BTP.create_root():
             # Create and save a person
-            person = MarriedPerson(first_name='Alyssa', last_name='Lees', dob=date(1985, 7, 5), _replace=True)
-            person.spouse = MarriedPerson(first_name='James', last_name='Bond', dob=date(1985, 7, 5), _replace=True)
+            person          = MarriedPerson(first_name = 'Alyssa', last_name = 'Lees', dob = date(1985, 7, 5), _replace = True)
+            person.spouse   = MarriedPerson(first_name = 'James', last_name = 'Bond', dob = date(1985, 7, 5), _replace = True)
             person.spouse.save()
             person.save()
 
             ts = datetime.utcnow()
 
             # Update and save again
-            person.dob = date(1985, 7, 6)
-            person.spouse.dob = date(1985, 7, 6)
-            person.save(save_references=True).throw()
+            person.dob          = date(1985, 7, 6)
+            person.spouse.dob   = date(1985, 7, 6)
+            person.save(save_references = True).throw()
 
             person_id = person.id()
             print(person.serialize_object())
 
         with CACHE_ONLY():
-            assert not MarriedPerson.existing_instance_by_id(person_id, _throw=False)
+            assert not MarriedPerson.existing_instance_by_id(person_id, _throw = False)
 
         for ctx in (
             INTERACTIVE,
@@ -62,13 +62,13 @@ if __name__ == '__main__':
                     person1 = MarriedPerson.from_id(person_id)
                     assert person1.dob == date(1985, 7, 6)
 
-                    person_as_of = MarriedPerson.as_of(person_id, as_of_time=ts)
+                    person_as_of = MarriedPerson.as_of(person_id, as_of_time = ts)
 
-                    with AsOfContext([MarriedPerson], as_of_time=as_of):
-                        with pytest.raises(RuntimeError, match=r'MarriedPerson/Alyssa|Lees: object not usable - origin cache is not reachable'):
+                    with AsOfContext([MarriedPerson], as_of_time = as_of):
+                        with pytest.raises(RuntimeError, match = r'MarriedPerson/Alyssa|Lees: object not usable - origin cache is not reachable'):
                             _ = person1.dob
 
-                        with pytest.raises(RuntimeError, match=r'MarriedPerson/Alyssa|Lees: object not usable - origin cache is not reachable'):
+                        with pytest.raises(RuntimeError, match = r'MarriedPerson/Alyssa|Lees: object not usable - origin cache is not reachable'):
                             _ = person_as_of.dob
 
                         person2 = MarriedPerson.from_id(person_id)
@@ -80,5 +80,5 @@ if __name__ == '__main__':
 
                     assert person_as_of.spouse.dob == date(1985, 7, 6)  # note - since no AsOfContext was used, nested objects are not loaded "as_of".
 
-                    with pytest.raises(RuntimeError, match=r'MarriedPerson/Alyssa|Lees: object not usable - origin cache is not reachable'):
+                    with pytest.raises(RuntimeError, match = r'MarriedPerson/Alyssa|Lees: object not usable - origin cache is not reachable'):
                         _ = person2.dob

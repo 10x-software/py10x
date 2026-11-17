@@ -12,20 +12,20 @@ class X(Traitable):
 
 
 class Y(X):
-    v: int = M(flags=(None, T.ID), default=3)
+    v: int = M(flags = (None, T.ID), default = 3)
 
 
 class Z(Y):
-    v: float = M(default=XNone)
+    v: float = M(default = XNone)
 
     def v_get(self):
         return self.x + 3
 
 
 if __name__ == '__main__':
-    x = X(x=1)
-    y = Y(x=1)
-    z = Z(x=1)
+    x = X(x = 1)
+    y = Y(x = 1)
+    z = Z(x = 1)
     print(x, x.v)
     print(y, y.v)
     print(z, z.v)

@@ -6,9 +6,9 @@ from core_10x.exec_control import GRAPH_ON
 from infra_10x.mongodb_store import MongoStore
 
 if __name__ == '__main__':
-    with MongoStore.instance(hostname='localhost', dbname='test', username='', password=''):
-        p = Person(first_name='Ilya', last_name='Pevzner')
-        p.dob = date(1971, 7, 1)
+    with MongoStore.instance(hostname = 'localhost', dbname = 'test', username = '', password = ''):
+        p       = Person(first_name = 'Ilya', last_name = 'Pevzner')
+        p.dob   = date(1971, 7, 1)
         p.save()
         p.dob = date(1971, 7, 3)
         assert p.dob == date(1971, 7, 3)

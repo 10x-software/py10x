@@ -25,18 +25,18 @@ def bench(label: str, out_path: str | None):
     from core_10x.exec_control import CACHE_ONLY
 
     with CACHE_ONLY():
-        p = Person(first_name='Ann', last_name='Lee')
-        p.weight_lbs = 150.0
-        p.dob = date(1980, 1, 1)
-        trait_w = p.T.weight_lbs
-        letters = 'abcdefghij'  # -- first_name must be alphabetic
-        people = [Person(first_name=f'N{letters[i % 10]}{letters[i // 10 % 10]}{letters[i // 100]}', last_name='Bulk') for i in range(1000)]
+        p               = Person(first_name = 'Ann', last_name = 'Lee')
+        p.weight_lbs    = 150.0
+        p.dob           = date(1980, 1, 1)
+        trait_w         = p.T.weight_lbs
+        letters         = 'abcdefghij'  # -- first_name must be alphabetic
+        people          = [Person(first_name = f'N{letters[i % 10]}{letters[i // 10 % 10]}{letters[i // 100]}', last_name = 'Bulk') for i in range(1000)]
         for i, q in enumerate(people):
             q.weight_lbs = float(i)
 
-        curve = py10x_kernel.BCurve([float(i) for i in range(100)], [float(i * i) for i in range(100)])
-        lin, prev = py10x_kernel.IPKind.LINEAR, py10x_kernel.IPKind.PREVIOUS
-        val = [150.0]
+        curve       = py10x_kernel.BCurve([float(i) for i in range(100)], [float(i * i) for i in range(100)])
+        lin, prev   = py10x_kernel.IPKind.LINEAR, py10x_kernel.IPKind.PREVIOUS
+        val         = [150.0]
 
         def set_attr():
             val[0] += 1.0
@@ -59,7 +59,7 @@ def bench(label: str, out_path: str | None):
             'RT getter invalidate + p.full_name':   (rt_getter_recompute, 50_000),
             'ID        p.id_value()':               (lambda: p.id_value(), 200_000),
             'ID        p.id()':                     (lambda: p.id(), 200_000),
-            'ID        Person(existing ID)':        (lambda: Person(first_name='Ann', last_name='Lee'), 20_000),
+            'ID        Person(existing ID)':        (lambda: Person(first_name = 'Ann', last_name = 'Lee'), 20_000),
             'float arg curve.value(t)':             (lambda: curve.value(42.5), 200_000),
             'enum arg  curve.set_ip_kind(e)':       (lambda: curve.set_ip_kind(lin), 200_000),
             'enum op   IPKind == IPKind':           (lambda: lin == prev, 200_000),
@@ -71,12 +71,12 @@ def bench(label: str, out_path: str | None):
 
         results = {}
         for name, (fn, number) in cases.items():
-            results[name] = min(timeit.Timer(fn).repeat(repeat=7, number=number)) / number * 1e9
-            print(f'{label:>8}  {name:<40} {results[name]:9.1f} ns/call', flush=True)
+            results[name] = min(timeit.Timer(fn).repeat(repeat = 7, number = number)) / number * 1e9
+            print(f'{label:>8}  {name:<40} {results[name]:9.1f} ns/call', flush = True)
 
     if out_path:
         with open(out_path, 'w') as f:
-            json.dump({'label': label, 'kernel': py10x_kernel.__file__, 'ns': results}, f, indent=1)
+            json.dump({'label': label, 'kernel': py10x_kernel.__file__, 'ns': results}, f, indent = 1)
 
 
 def compare(base_path: str, new_path: str):

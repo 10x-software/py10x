@@ -13,7 +13,7 @@ if __name__ == '__main__':
     all_people = Person.load_many()
 
     class AGGREGATOR(NamedCallable):
-        WEIGHT     = lambda gen: sum(v*q for v, q in gen)
+        WEIGHT = lambda gen: sum(v*q for v, q in gen)
 
     b = Basket(base_class = Person, aggregator_class = AGGREGATOR)
 
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     #bz = Bucketizer.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
     #bz = Bucketizer.by_feature(Person, lambda p: p.weight, 190., 200.)
 
-    bz = Bucketizer.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
+    bz  = Bucketizer.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
     bz2 = Bucketizer.by_feature(Person, Person.T.age)
 
     b.bucketizers = [bz, bz2]
@@ -51,8 +51,8 @@ if __name__ == '__main__':
     print(f'weight = {r}')
 
 
-    bz = Bucketizer.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
-    b.bucketizers = [bz]
+    bz              = Bucketizer.by_range(Person, Person.T.weight, ('underweight', -XInf, 100), ('normal', 170., 180.), ['overweight', 190., XInf])
+    b.bucketizers   = [bz]
     for i, p in enumerate(all_people):
         b.add(p, i)
 

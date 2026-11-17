@@ -64,8 +64,8 @@ if __name__ == '__main__':
 
     #print(Nucleus.serialize_any(p,False))
 
-    name = 'AMD'
-    d = Dummy()
+    name    = 'AMD'
+    d       = Dummy()
     assert d.name == name
     d.payload = 100.
 
@@ -94,10 +94,10 @@ if __name__ == '__main__':
     if not rc:
         print(rc.error())
 
-    v = d.view
-    v2 = d.view, d.view
-    d.payload = -1000
-    v2 = d.view
+    v           = d.view
+    v2          = d.view, d.view
+    d.payload   = -1000
+    v2          = d.view
 
 
     b = Bucket(f_key = F_KEY.CLASS)

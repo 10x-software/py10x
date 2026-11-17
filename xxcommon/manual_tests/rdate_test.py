@@ -3,8 +3,8 @@ if __name__ == '__main__':
        from xxcommon.rdate import RDate
 
 
-       r = RDate('3M')
-       r2 = RDate('10Y')
+       r    = RDate('3M')
+       r2   = RDate('10Y')
 
        c = r.conversion_freq_multiplier(r2.freq)
 

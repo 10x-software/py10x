@@ -19,11 +19,11 @@ if __name__ == '__main__':
         # values  = [ 1,          2,          3,          4,          5,          6 ]
         # dates = [XDateTime.to_date(v) for v in dates_i]
 
-        dt = timedelta(days = 10)
-        dates = []
-        values = []
-        d = d1
-        v = 1.
+        dt      = timedelta(days = 10)
+        dates   = []
+        values  = []
+        d       = d1
+        v       = 1.
         for _i in range(1000):
             dates.append(d)
             values.append(v)

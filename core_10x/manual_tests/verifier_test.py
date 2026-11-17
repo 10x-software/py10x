@@ -2,8 +2,8 @@ from core_10x.traitable import RC, RC_TRUE, RT, Traitable
 
 
 class Example(Traitable):
-    code: str = RT()
-    limit: int = RT(0)
+    code: str   = RT()
+    limit: int  = RT(0)
 
     def code_verify(self, t, value: str) -> RC:
         """Run on verify() or save(); not on set."""
@@ -19,8 +19,8 @@ class Example(Traitable):
 
 if __name__ == "__main__":
     # Invalid values can be set; verification fails when requested
-    e = Example()
-    e.code = "invalid-code"
+    e       = Example()
+    e.code  = "invalid-code"
     e.limit = 150
     assert e.code == "invalid-code"
     assert e.limit == 150
@@ -29,6 +29,6 @@ if __name__ == "__main__":
     assert not rc  # fails due to code_verify and limit_verify
 
     # Fix and verify
-    e.code = "valid"
+    e.code  = "valid"
     e.limit = 50
     e.verify().throw()  # success

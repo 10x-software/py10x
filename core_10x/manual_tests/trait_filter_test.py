@@ -7,13 +7,13 @@ if __name__ == '__main__':
         p = Person(first_name = 'Sasha', last_name = 'Davidovich')
 
     r = OR(
-        f(age=BETWEEN(50, 70), first_name=NE('Sasha')),
-        f(age=17)
+        f(age = BETWEEN(50, 70), first_name = NE('Sasha')),
+        f(age = 17)
     )
 
     print(r.prefix_notation())
     print(r.eval(p))
 
-    name = 'IBM Book'
-    query = f(OR(f(book1_name = name), f(book2_name = name)))
+    name    = 'IBM Book'
+    query   = f(OR(f(book1_name = name), f(book2_name = name)))
     print(query.prefix_notation())

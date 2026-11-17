@@ -95,9 +95,9 @@ if __name__ == '__main__':
     l2 = FinLeaf(name = 'Leaf 2')
 
     f1 = FinInstrument(
-        _replace = True,
-        name    = 'F1',
-        leaves = {l1: 5., l2: -6.}
+        _replace    = True,
+        name        = 'F1',
+        leaves      = {l1: 5., l2: -6.}
     )
 
     f2 = FinInstrument(name = 'F2')
@@ -121,14 +121,14 @@ if __name__ == '__main__':
     b2 = Book(_replace = True, name = 'Book2', customer_book = True)
     b3 = Book(_replace = True, name = 'Book3', customer_book = False)
 
-    p1 = Portfolio(_replace = True, name    = 'P1', book_names = ['Book1'])
-    p2 = Portfolio(_replace = True, name    = 'P2', book_names = ['Book2'])
+    p1 = Portfolio(_replace = True, name = 'P1', book_names = ['Book1'])
+    p2 = Portfolio(_replace = True, name = 'P2', book_names = ['Book2'])
 
     p = Portfolio(
-        _replace = True,
-        name    = 'Top',
+        _replace        = True,
+        name            = 'Top',
         portfolio_names = ['P1', 'P2'],
-        book_names = ['Book3']
+        book_names      = ['Book3']
     )
 
     basket1 = Basket(base_class = Book)

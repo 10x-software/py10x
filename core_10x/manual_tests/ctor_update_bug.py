@@ -2,10 +2,10 @@ from core_10x.traitable import RC, RC_TRUE, RT, T, Traitable
 
 
 class Cross(Traitable):
-    cross: str = RT(T.ID) // 'e.g., GBP/USD or CHF/JPY'
+    cross: str      = RT(T.ID) // 'e.g., GBP/USD or CHF/JPY'
 
-    base_ccy: str = RT(T.ID_LIKE) // 'Base (left) currency'
-    quote_ccy: str = RT(T.ID_LIKE) // 'Quote (right) currency'
+    base_ccy: str   = RT(T.ID_LIKE) // 'Base (left) currency'
+    quote_ccy: str  = RT(T.ID_LIKE) // 'Quote (right) currency'
 
     def cross_get(self) -> str:
         return f'{self.base_ccy}/{self.quote_ccy}'
@@ -13,9 +13,9 @@ class Cross(Traitable):
     def cross_set(self, trait, cross: str) -> RC:
         parts = cross.split('/')
         assert len(parts) == 2
-        c1, c2 = parts
-        rc1 = self.set_value('base_ccy', c1)
-        rc2 = self.set_value('quote_ccy', c2)
+        c1, c2  = parts
+        rc1     = self.set_value('base_ccy', c1)
+        rc2     = self.set_value('quote_ccy', c2)
         if rc1 and rc2:
             return RC_TRUE
         rc = RC(True)
@@ -29,11 +29,11 @@ if __name__ == '__main__':
 
     # -- Does not complain that non-ID traits can't be set during initialization.
     # -- Note the T.ID_LIKE declaration!
-    c1 = Cross(base_ccy='A', quote_ccy='B')
+    c1 = Cross(base_ccy = 'A', quote_ccy = 'B')
 
     # -- Apparently, after setting base_ccy and quote_ccy, the cross is correct, but the id is wrong!
     # -- This is also fixed by the T.ID_LIKE declaration!
-    c2 = Cross(_replace=True, base_ccy='A', quote_ccy='B')
+    c2 = Cross(_replace = True, base_ccy = 'A', quote_ccy = 'B')
     assert c2.id().value == 'A/B'
 
     # #-- Case 1 - doesn't allow to create the second instance claiming it sets non-ID traits

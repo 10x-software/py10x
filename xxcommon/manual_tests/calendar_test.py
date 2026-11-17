@@ -20,16 +20,16 @@ if __name__ == '__main__':
         ]
     )
 
-    c = Calendar.union('US', 'UK')
-    union_nwds = c.non_working_days
+    c           = Calendar.union('US', 'UK')
+    union_nwds  = c.non_working_days
 
-    c2 = Calendar.intersection('US', 'UK')
-    cross_nwds = c2.non_working_days
+    c2          = Calendar.intersection('US', 'UK')
+    cross_nwds  = c2.non_working_days
 
     sofr_adjust = CalendarAdjustment(_replace = True,
         name        = 'SOFR',
         add_days    = [date(2019, 4, 4)]
     )
 
-    ca = Calendar(name = 'US', adjusted_for = 'SOFR')
+    ca      = Calendar(name = 'US', adjusted_for = 'SOFR')
     nwds_ca = ca.non_working_days

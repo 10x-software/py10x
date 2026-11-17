@@ -7,7 +7,7 @@ if __name__ == '__main__':
     Person.s_print = True
 
     p = Person(
-        _replace = True,
+        _replace    = True,
         last_name   = 'Smith',
         first_name  = 'John',
         dob         = date(1970, 3, 12),
